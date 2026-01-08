@@ -25,13 +25,12 @@
 	let dateValue = $state<CalendarDateTime | undefined>();
 
 	const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-	const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')); // Pas de 5 minutes
+	const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
 
 	let hour = $state('14');
 	let minute = $state('00');
 	let timeValue = $state('14:00');
 
-	// Formatter la date au format français
 	function formatDateFr(date: CalendarDateTime | undefined): string {
 		if (!date) return 'Sélectionner une date';
 		const jsDate = date.toDate(getLocalTimeZone());
@@ -42,12 +41,11 @@
 		});
 	}
 
-	// Synchronisation
 	$effect(() => {
 		if (dateValue) {
 			$form.date = dateValue;
 		}
-		// Construit timeValue à partir des sélecteurs
+		// Construct timeValue from selectors
 		timeValue = `${hour}:${minute}`;
 		$form.time = timeValue;
 	});

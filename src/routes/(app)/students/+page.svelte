@@ -14,7 +14,6 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Gestion du formulaire
 	// svelte-ignore state_referenced_locally
 	const { form, errors, delayed, enhance } = superForm(data.form, {
 		onResult: ({ result }) => {
@@ -24,7 +23,6 @@
 
 	let open = $state(false);
 
-	// Gestion du filtre niveau
 	let selectedLevel = $state(page.url.searchParams.get('niveau') || 'all');
 
 	function handleFilterChange(value: string) {
@@ -41,7 +39,6 @@
 </script>
 
 <div class="space-y-6">
-	<!-- En-tête -->
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight">Annuaire des Élèves</h1>
@@ -49,7 +46,6 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			<!-- Filtre Rapide -->
 			<div class="w-[180px]">
 				<Select.Root type="single" value={selectedLevel} onValueChange={handleFilterChange}>
 					<Select.Trigger>
@@ -65,7 +61,6 @@
 				</Select.Root>
 			</div>
 
-			<!-- Bouton Ajout -->
 			<Dialog.Root bind:open>
 				<Dialog.Trigger class={buttonVariants()}>
 					<Plus class="mr-2 h-4 w-4" />
@@ -122,7 +117,6 @@
 		</div>
 	</div>
 
-	<!-- Liste -->
 	<div class="rounded-md border">
 		<Table.Root>
 			<Table.Header>
@@ -150,7 +144,7 @@
 							<Badge variant="secondary">{student.niveau}</Badge>
 						</Table.Cell>
 						<Table.Cell class="text-right text-muted-foreground">
-							<!-- Placeholder pour l'XP future -->
+							<!-- TODO: Implement XP calculation -->
 							0 XP
 						</Table.Cell>
 					</Table.Row>

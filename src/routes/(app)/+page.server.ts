@@ -2,13 +2,13 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Vérification auth (redondante mais explicite)
+	// Redundant but explicit auth check
 	if (!locals.pb.authStore.isValid) {
 		throw error(401, 'Authentification requise');
 	}
 
 	try {
-		// Sessions à venir (date >= now)
+		// Fetch upcoming sessions
 		const sessions = await locals.pb.collection('sessions').getFullList({
 			sort: '-date',
 			filter: `date >= '${new Date().toISOString()}' && statut = 'planifiee'`

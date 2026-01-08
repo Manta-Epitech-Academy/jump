@@ -5,7 +5,6 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	// Récupération du filtre depuis l'URL (ex: ?niveau=3eme)
 	const niveauFilter = url.searchParams.get('niveau');
 	const filter = niveauFilter ? `niveau = '${niveauFilter}'` : '';
 

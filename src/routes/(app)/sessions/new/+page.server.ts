@@ -33,7 +33,7 @@ export const actions: Actions = {
 			calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
 		}
 
-		// Recréer formData avec la date transformée pour validation
+		// Recreate formData to validate the transformed Date object against the schema
 		const transformedData = {
 			titre: formData.get('titre'),
 			date: calendarDateTime,
@@ -51,7 +51,7 @@ export const actions: Actions = {
 		let newSessionId = '';
 
 		try {
-			// Convertir CalendarDateTime en Date JS pour PocketBase
+			// Convert to native JS Date for PocketBase compatibility
 			const jsDate = form.data.date.toDate(getLocalTimeZone());
 
 			const payload = {

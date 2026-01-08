@@ -15,7 +15,7 @@
 		</a>
 		<div class="flex flex-1 items-center justify-between space-x-2 md:justify-end">
 			<div class="w-full flex-1 md:w-auto md:flex-none">
-				<!-- Recherche future -->
+				<!-- TODO: Implement Search -->
 			</div>
 			<a href="/sessions/new" class="mr-2 hidden md:block">
 				<Button variant="outline" size="sm">

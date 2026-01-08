@@ -24,7 +24,6 @@
 
 	let open = $state(false);
 
-	// Helper pour la couleur des badges
 	const difficultyColor = (diff: string) => {
 		switch (diff) {
 			case 'Facile':
@@ -80,7 +79,7 @@
 								<Select.Item value="Difficile">Difficile</Select.Item>
 							</Select.Content>
 						</Select.Root>
-						<!-- Hack pour lier la valeur au form si le composant Select ne le fait pas nativement via name -->
+						<!-- Workaround: Bind Select value to form since the component doesn't support name attribute natively -->
 						<input type="hidden" name="difficulte" value={$form.difficulte} />
 						{#if $errors.difficulte}<span class="text-sm text-destructive"
 								>{$errors.difficulte}</span
