@@ -2,10 +2,13 @@ import { z } from 'zod';
 
 export const registerSchema = z
 	.object({
-		username: z.string().min(3).max(50),
-		email: z.string().email(),
-		password: z.string().min(8),
-		passwordConfirm: z.string().min(8)
+		username: z
+			.string()
+			.min(3, "Le nom d'utilisateur doit contenir au moins 3 caractères")
+			.max(50, "Le nom d'utilisateur ne peut pas dépasser 50 caractères"),
+		email: z.string().email('Adresse email invalide'),
+		password: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères'),
+		passwordConfirm: z.string().min(8, 'Le mot de passe doit contenir au moins 8 caractères')
 	})
 	.refine((data) => data.password === data.passwordConfirm, {
 		path: ['passwordConfirm'],

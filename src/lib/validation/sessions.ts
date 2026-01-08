@@ -2,7 +2,10 @@ import { z } from 'zod';
 import { CalendarDateTime } from '@internationalized/date';
 
 export const sessionSchema = z.object({
-	titre: z.string().min(3, 'Le titre doit faire au moins 3 caractères').max(100),
+	titre: z
+		.string()
+		.min(3, 'Le titre doit faire au moins 3 caractères')
+		.max(100, 'Le titre ne peut pas dépasser 100 caractères'),
 	date: z.custom<CalendarDateTime>((val) => val instanceof CalendarDateTime, {
 		message: 'La date est requise'
 	}),
