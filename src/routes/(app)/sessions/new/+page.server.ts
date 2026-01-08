@@ -4,6 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { sessionSchema } from '$lib/validation/sessions';
 import { ClientResponseError } from 'pocketbase';
+import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const activities = await locals.pb.collection('activities').getFullList({
@@ -20,7 +21,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
-		const form = await superValidate(request, zod4(sessionSchema));
+		const formData = await request.formData();
+
+		const dateStr = formData.get('date') as string;
+		const timeStr = formData.get('time') as string;
+
+		let calendarDateTime: CalendarDateTime | undefined;
+		if (dateStr && timeStr) {
+			const [year, month, day] = dateStr.split('-').map(Number);
+			const [hour, minute] = timeStr.split(':').map(Number);
+			calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
+		}
+
+		// Recréer formData avec la date transformée pour validation
+		const transformedData = {
+			titre: formData.get('titre'),
+			date: calendarDateTime,
+			time: timeStr,
+			statut: formData.get('statut'),
+			activity: formData.get('activity')
+		};
+
+		const form = await superValidate(transformedData, zod4(sessionSchema));
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -29,9 +51,14 @@ export const actions: Actions = {
 		let newSessionId = '';
 
 		try {
+			// Convertir CalendarDateTime en Date JS pour PocketBase
+			const jsDate = form.data.date.toDate(getLocalTimeZone());
+
 			const payload = {
-				...form.data,
-				date: new Date(form.data.date)
+				titre: form.data.titre,
+				date: jsDate,
+				statut: form.data.statut,
+				activity: form.data.activity
 			};
 
 			const record = await locals.pb.collection('sessions').create(payload);
@@ -39,7 +66,6 @@ export const actions: Actions = {
 		} catch (err) {
 			console.error('Erreur création session:', err);
 
-			// Si c'est une erreur PocketBase, on l'affiche plus en détail dans la console
 			if (err instanceof ClientResponseError) {
 				console.error('Détails erreur PB:', err.response);
 			}
