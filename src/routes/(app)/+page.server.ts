@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		// Sessions à venir (date >= now)
 		const sessions = await locals.pb.collection('sessions').getFullList({
-			sort: '-date', // Plus récentes en premier
+			sort: '-date',
 			filter: `date >= '${new Date().toISOString()}' && statut = 'planifiee'`
 		});
 

@@ -7,7 +7,6 @@
 	import { AlertCircle } from 'lucide-svelte';
 
 	let { data } = $props();
-	// Destructure the stores and action
 	const { form, errors, message, enhance } = superForm(data.form);
 </script>
 
