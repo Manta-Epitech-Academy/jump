@@ -4,9 +4,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
-	import { AlertCircle } from 'lucide-svelte';
+	import { CircleAlert } from 'lucide-svelte';
 
 	let { data } = $props();
+	// svelte-ignore state_referenced_locally
 	const { form, errors, message, enhance } = superForm(data.form);
 </script>
 
@@ -15,7 +16,7 @@
 
 	{#if $message}
 		<Alert variant="destructive">
-			<AlertCircle class="h-4 w-4" />
+			<CircleAlert class="h-4 w-4" />
 			<AlertTitle>Erreur</AlertTitle>
 			<AlertDescription>{$message}</AlertDescription>
 		</Alert>
