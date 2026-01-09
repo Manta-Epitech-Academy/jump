@@ -9,7 +9,8 @@
 		CircleCheck,
 		Calendar,
 		ArrowLeft,
-		ExternalLink
+		ExternalLink,
+		Cuboid
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -74,12 +75,31 @@
 				<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
 					Session<span class="text-epi-teal">_</span>
 				</h1>
-				<div class="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase">
-					<Calendar class="h-3 w-3" />
-					{data.session.titre} • {new Date(data.session.date).toLocaleDateString('fr-FR', {
-						day: 'numeric',
-						month: 'short'
-					})}
+				<div
+					class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-muted-foreground uppercase"
+				>
+					<div class="flex items-center gap-2">
+						<Calendar class="h-3 w-3" />
+						<span
+							>{data.session.titre} • {new Date(data.session.date).toLocaleDateString('fr-FR', {
+								day: 'numeric',
+								month: 'short'
+							})}</span
+						>
+					</div>
+
+					{#if data.session.expand?.activity}
+						<div class="flex items-center gap-2 text-epi-blue">
+							<Cuboid class="h-3 w-3" />
+							<span>{data.session.expand.activity.nom}</span>
+							<Badge
+								variant="outline"
+								class="ml-1 h-4 border-epi-blue px-1 text-[8px] text-epi-blue"
+							>
+								{data.session.expand.activity.difficulte}
+							</Badge>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>

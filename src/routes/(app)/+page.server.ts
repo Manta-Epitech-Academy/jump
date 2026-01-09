@@ -11,7 +11,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// Fetch upcoming sessions
 		const sessions = await locals.pb.collection('sessions').getFullList({
 			sort: '-date',
-			filter: `date >= '${new Date().toISOString()}' && statut = 'planifiee'`
+			filter: `date >= '${new Date().toISOString()}' && statut = 'planifiee'`,
+			expand: 'activity'
 		});
 
 		return {
