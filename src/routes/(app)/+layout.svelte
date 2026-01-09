@@ -1,88 +1,111 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { LogOut, Mountain, Plus, Users, Cuboid, LayoutDashboard } from 'lucide-svelte';
+	import { LogOut, LayoutDashboard, Users, Cuboid, Plus, ChevronDown, Menu } from 'lucide-svelte';
 	import { page } from '$app/state';
+	import { Button } from '$lib/components/ui/button';
+	import * as Avatar from '$lib/components/ui/avatar';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
-	let { children } = $props();
+	let { children, data } = $props();
 
 	function isActive(path: string) {
 		if (path === '/') return page.url.pathname === '/';
 		return page.url.pathname.startsWith(path);
 	}
+
+	const navLinkClass = (active: boolean) => `
+		flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm
+		${active ? 'bg-[rgba(1,58,251,0.1)] text-epi-blue' : 'text-gray-700 hover:bg-gray-100'}
+	`;
 </script>
 
-<nav
-	class="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60"
->
-	<div class="container mx-auto flex h-14 max-w-screen-2xl items-center px-4">
-		<!-- Logo -->
-		<a class="mr-6 flex items-center space-x-2" href="/">
-			<Mountain class="h-6 w-6" />
-			<span class="hidden font-bold sm:inline-block">CodeCamp Manager</span>
-		</a>
+<div class="flex h-screen w-full overflow-hidden bg-background">
+	<!-- SIDEBAR -->
+	<aside class="hidden w-[250px] flex-col border-r bg-white md:flex">
+		<div class="flex-1 overflow-y-auto p-4">
+			<!-- OVERVIEW -->
+			<div class="sidebar-section-title">
+				Overview<span class="text-epi-orange">_</span>
+			</div>
+			<nav class="space-y-1">
+				<a href="/" class={navLinkClass(isActive('/'))}>
+					<LayoutDashboard class="h-5 w-5" />
+					<span>Dashboard</span>
+				</a>
+			</nav>
 
-		<!-- Main Navigation -->
-		<div class="mr-4 hidden md:flex">
-			<nav class="flex items-center gap-6 text-sm font-medium">
-				<a
-					href="/"
-					class={isActive('/')
-						? 'text-foreground'
-						: 'text-foreground/60 transition-colors hover:text-foreground/80'}
-				>
-					<span class="flex items-center gap-2">
-						<LayoutDashboard class="h-4 w-4" />
-						Dashboard
-					</span>
+			<!-- MANAGEMENT -->
+			<div class="sidebar-section-title">
+				Management<span class="text-epi-teal">_</span>
+			</div>
+			<nav class="space-y-1">
+				<a href="/students" class={navLinkClass(isActive('/students'))}>
+					<Users class="h-5 w-5" />
+					<span>Élèves</span>
 				</a>
-				<a
-					href="/students"
-					class={isActive('/students')
-						? 'text-foreground'
-						: 'text-foreground/60 transition-colors hover:text-foreground/80'}
-				>
-					<span class="flex items-center gap-2">
-						<Users class="h-4 w-4" />
-						Élèves
-					</span>
-				</a>
-				<a
-					href="/activities"
-					class={isActive('/activities')
-						? 'text-foreground'
-						: 'text-foreground/60 transition-colors hover:text-foreground/80'}
-				>
-					<span class="flex items-center gap-2">
-						<Cuboid class="h-4 w-4" />
-						Activités
-					</span>
+				<a href="/activities" class={navLinkClass(isActive('/activities'))}>
+					<Cuboid class="h-5 w-5" />
+					<span>Activités</span>
 				</a>
 			</nav>
 		</div>
 
-		<!-- Right Side Actions -->
-		<div class="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-			<div class="w-full flex-1 md:w-auto md:flex-none">
-				<!-- Search placeholder removed for cleaner nav right now -->
+		<div class="border-t p-4">
+			<Button variant="outline" class="w-full justify-start border-dashed" href="/sessions/new">
+				<Plus class="mr-2 h-4 w-4" />
+				Nouvelle Session
+			</Button>
+		</div>
+	</aside>
+
+	<!-- MAIN -->
+	<div class="flex flex-1 flex-col overflow-hidden">
+		<!-- HEADER -->
+		<header
+			class="z-10 flex h-[60px] items-center justify-between bg-epi-blue px-6 text-white shadow-md"
+		>
+			<div class="flex items-center gap-4">
+				<Button variant="ghost" size="icon" class="text-white md:hidden">
+					<Menu class="h-6 w-6" />
+				</Button>
+				<a href="/" class="flex items-center gap-2">
+					<span class="text-lg font-bold tracking-tight uppercase">CodeCamp Manager</span>
+				</a>
 			</div>
 
-			<a href="/sessions/new" class="mr-2 hidden md:block">
-				<Button variant="default" size="sm">
-					<Plus class="mr-1 h-4 w-4" />
-					Nouvelle Session
-				</Button>
-			</a>
+			<div class="flex items-center gap-4">
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger
+						class="flex items-center gap-3 transition-opacity outline-none hover:opacity-80"
+					>
+						<div class="flex items-center gap-2">
+							<Avatar.Root class="h-8 w-8 rounded-sm bg-white/20">
+								<Avatar.Fallback class="text-xs font-bold uppercase">
+									{data.user?.username?.substring(0, 2) ?? 'AD'}
+								</Avatar.Fallback>
+							</Avatar.Root>
+							<span class="hidden text-sm font-bold md:block">{data.user?.username}</span>
+							<ChevronDown class="h-4 w-4 opacity-50" />
+						</div>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end" class="w-48 rounded-sm">
+						<DropdownMenu.Label>Mon Profil</DropdownMenu.Label>
+						<DropdownMenu.Separator />
+						<form action="/logout" method="POST">
+							<button type="submit" class="w-full">
+								<DropdownMenu.Item class="cursor-pointer text-destructive">
+									<LogOut class="mr-2 h-4 w-4" />
+									Déconnexion
+								</DropdownMenu.Item>
+							</button>
+						</form>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			</div>
+		</header>
 
-			<form action="/logout" method="POST">
-				<Button size="sm" type="submit" variant="ghost">
-					<LogOut class="mr-1 h-4 w-4" />
-					<span class="sr-only sm:not-sr-only sm:ml-2">Déconnexion</span>
-				</Button>
-			</form>
-		</div>
+		<!-- PAGE CONTENT -->
+		<main class="flex-1 overflow-y-auto p-6 md:p-8">
+			{@render children()}
+		</main>
 	</div>
-</nav>
-
-<main class="container mx-auto max-w-screen-2xl px-4 py-8">
-	{@render children()}
-</main>
+</div>
