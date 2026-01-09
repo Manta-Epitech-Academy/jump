@@ -42,9 +42,11 @@
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
-				Annuaire des Élèves<span class="text-epi-orange">_</span>
+				Élèves<span class="text-epi-teal">_</span>
 			</h1>
-			<p class="text-muted-foreground">Gérez la liste des étudiants et leurs niveaux.</p>
+			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
+				Annuaire et progression des étudiants du camp.
+			</p>
 		</div>
 
 		<div class="flex items-center gap-2">
@@ -119,36 +121,38 @@
 		</div>
 	</div>
 
-	<div class="rounded-md border">
+	<div class="rounded-sm border bg-card shadow-sm">
 		<Table.Root>
-			<Table.Header>
+			<Table.Header class="bg-muted/50">
 				<Table.Row>
-					<Table.Head>Étudiant</Table.Head>
-					<Table.Head>Niveau</Table.Head>
-					<Table.Head class="text-right">XP / Sessions</Table.Head>
+					<Table.Head class="text-xs font-bold uppercase">Étudiant</Table.Head>
+					<Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
+					<Table.Head class="text-right text-xs font-bold uppercase">XP / Sessions</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.students as student (student.id)}
-					<Table.Row>
-						<Table.Cell class="font-medium">
+					<Table.Row class="hover:bg-muted/30">
+						<Table.Cell class="font-bold">
 							<div class="flex items-center gap-3">
 								<div class="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
 									<GraduationCap class="h-5 w-5 text-muted-foreground" />
 								</div>
 								<div class="flex flex-col">
-									<span>{student.prenom} {student.nom}</span>
+									<span class="tracking-tight uppercase">{student.prenom} {student.nom}</span>
 									<span class="text-xs text-muted-foreground sm:hidden">{student.niveau}</span>
 								</div>
 							</div>
 						</Table.Cell>
 						<Table.Cell>
-							<Badge variant="secondary">{student.niveau}</Badge>
+							<Badge variant="secondary" class="rounded-sm font-bold uppercase"
+								>{student.niveau}</Badge
+							>
 						</Table.Cell>
 						<Table.Cell class="text-right text-muted-foreground">
 							<div class="flex flex-col items-end">
-								<span class="font-bold text-foreground">{student.xp} XP</span>
-								<span class="text-xs"
+								<span class="font-black text-foreground">{student.xp} XP</span>
+								<span class="text-[10px] font-bold tracking-widest uppercase"
 									>{student.sessionsCount} session{student.sessionsCount > 1 ? 's' : ''}</span
 								>
 							</div>
@@ -156,7 +160,9 @@
 					</Table.Row>
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={3} class="h-24 text-center">Aucun élève trouvé.</Table.Cell>
+						<Table.Cell colspan={3} class="h-24 text-center text-muted-foreground">
+							Aucun élève trouvé.
+						</Table.Cell>
 					</Table.Row>
 				{/each}
 			</Table.Body>

@@ -42,9 +42,11 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
-				Catalogue d'Activités<span class="text-epi-teal">_</span>
+				Activités<span class="text-epi-teal">_</span>
 			</h1>
-			<p class="text-muted-foreground">Gérez les ateliers disponibles pour les sessions.</p>
+			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
+				Gérez le catalogue des ateliers disponibles.
+			</p>
 		</div>
 
 		<Dialog.Root bind:open>
@@ -61,14 +63,12 @@
 				</Dialog.Header>
 
 				<form method="POST" action="?/create" use:enhance class="grid gap-4 py-4">
-					<!-- Nom -->
 					<div class="grid gap-2">
 						<Label for="nom">Nom de l'atelier</Label>
 						<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Ex: Intro React" />
 						{#if $errors.nom}<span class="text-sm text-destructive">{$errors.nom}</span>{/if}
 					</div>
 
-					<!-- Difficulté (Select) -->
 					<div class="grid gap-2">
 						<Label for="difficulte">Niveau</Label>
 						<Select.Root type="single" name="difficulte" bind:value={$form.difficulte}>
@@ -81,14 +81,12 @@
 								<Select.Item value="Difficile">Difficile</Select.Item>
 							</Select.Content>
 						</Select.Root>
-						<!-- Workaround: Bind Select value to form since the component doesn't support name attribute natively -->
 						<input type="hidden" name="difficulte" value={$form.difficulte} />
 						{#if $errors.difficulte}<span class="text-sm text-destructive"
 								>{$errors.difficulte}</span
 							>{/if}
 					</div>
 
-					<!-- Description -->
 					<div class="grid gap-2">
 						<Label for="description">Description</Label>
 						<Textarea
@@ -102,7 +100,6 @@
 							>{/if}
 					</div>
 
-					<!-- Footer / Submit -->
 					<Dialog.Footer>
 						<button type="submit" class={buttonVariants()} disabled={$delayed}>
 							{#if $delayed}Enregistrement...{:else}Créer l'activité{/if}
@@ -113,20 +110,19 @@
 		</Dialog.Root>
 	</div>
 
-	<!-- Liste des Activités -->
-	<div class="rounded-md border">
+	<div class="rounded-sm border bg-card shadow-sm">
 		<Table.Root>
-			<Table.Header>
+			<Table.Header class="bg-muted/50">
 				<Table.Row>
-					<Table.Head>Nom</Table.Head>
-					<Table.Head>Description</Table.Head>
-					<Table.Head>Difficulté</Table.Head>
+					<Table.Head class="text-xs font-bold uppercase">Nom</Table.Head>
+					<Table.Head class="text-xs font-bold uppercase">Description</Table.Head>
+					<Table.Head class="text-xs font-bold uppercase">Difficulté</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.activities as activity (activity.id)}
-					<Table.Row>
-						<Table.Cell class="flex items-center gap-2 font-medium">
+					<Table.Row class="hover:bg-muted/30">
+						<Table.Cell class="flex items-center gap-2 font-bold">
 							<Cuboid class="h-4 w-4 text-muted-foreground" />
 							{activity.nom}
 						</Table.Cell>
@@ -141,7 +137,9 @@
 					</Table.Row>
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={3} class="h-24 text-center">Aucune activité trouvée.</Table.Cell>
+						<Table.Cell colspan={3} class="h-24 text-center text-muted-foreground">
+							Aucune activité trouvée.
+						</Table.Cell>
 					</Table.Row>
 				{/each}
 			</Table.Body>

@@ -71,43 +71,39 @@
 				<ArrowLeft class="h-4 w-4" />
 			</a>
 			<div>
-				<h1 class="flex items-center gap-2 text-2xl font-bold tracking-tight">
-					{data.session.titre}
-					<Badge variant="outline" class="ml-2 font-normal">
-						{data.session.expand?.activity?.nom ?? 'Activité inconnue'}
-					</Badge>
+				<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
+					Session<span class="text-epi-teal">_</span>
 				</h1>
-				<div class="flex items-center gap-2 text-sm text-muted-foreground">
+				<div class="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase">
 					<Calendar class="h-3 w-3" />
-					{new Date(data.session.date).toLocaleDateString('fr-FR', {
-						weekday: 'long',
+					{data.session.titre} • {new Date(data.session.date).toLocaleDateString('fr-FR', {
 						day: 'numeric',
-						month: 'long',
-						hour: '2-digit',
-						minute: '2-digit'
+						month: 'short'
 					})}
 				</div>
 			</div>
 		</div>
 		<div class="flex gap-2">
-			<Button variant="default" href={`/sessions/${data.session.id}/live`}>
-				Lancer le Live (Appel)
+			<Button variant="default" href={`/sessions/${data.session.id}/live`} class="shadow-lg">
+				Lancer le Live
 				<ExternalLink class="ml-2 h-4 w-4" />
 			</Button>
 		</div>
 	</div>
 
 	<div class="grid h-full min-h-0 flex-1 gap-6 md:grid-cols-12">
-		<Card.Root class="flex h-full max-h-full flex-col md:col-span-8">
+		<Card.Root class="flex h-full max-h-full flex-col rounded-sm md:col-span-8">
 			<Card.Header class="pb-3">
 				<div class="flex items-center justify-between">
-					<Card.Title class="flex items-center gap-2">
-						<Users class="h-5 w-5" />
+					<Card.Title class="flex items-center gap-2 uppercase">
+						<Users class="h-5 w-5 text-epi-blue" />
 						Participants
-						<Badge variant="secondary">{data.participations.length}</Badge>
+						<Badge variant="secondary" class="rounded-sm">{data.participations.length}</Badge>
 					</Card.Title>
 				</div>
-				<Card.Description>Liste des élèves inscrits à cette session.</Card.Description>
+				<Card.Description class="font-bold tracking-tight uppercase"
+					>Liste des élèves inscrits</Card.Description
+				>
 			</Card.Header>
 			<Separator />
 
@@ -115,31 +111,29 @@
 				<div class="space-y-2 p-4">
 					{#if data.participations.length === 0}
 						<div class="flex flex-col items-center justify-center py-12 text-center">
-							<div class="mb-4 rounded-full bg-muted p-3">
-								<Users class="h-6 w-6 text-muted-foreground" />
-							</div>
-							<h3 class="text-lg font-medium">Aucun participant</h3>
-							<p class="text-sm text-muted-foreground">
+							<Users class="mb-4 h-12 w-12 text-muted" />
+							<h3 class="text-lg font-bold uppercase">Aucun participant</h3>
+							<p class="text-sm font-bold text-muted-foreground uppercase">
 								Utilisez le panneau de droite pour ajouter des élèves.
 							</p>
 						</div>
 					{:else}
 						{#each data.participations as p (p.id)}
 							<div
-								class="flex items-center justify-between rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50"
+								class="flex items-center justify-between rounded-sm border bg-card p-3 transition-colors hover:bg-muted/30"
 							>
 								<div class="flex items-center gap-3">
-									<Avatar.Root>
+									<Avatar.Root class="rounded-sm">
 										<Avatar.Fallback class="bg-primary/10 font-bold text-primary">
 											{p.expand?.student?.prenom?.[0] ?? '?'}{p.expand?.student?.nom?.[0] ?? '?'}
 										</Avatar.Fallback>
 									</Avatar.Root>
 									<div>
-										<p class="leading-none font-medium">
+										<p class="font-bold tracking-tight uppercase">
 											{p.expand?.student?.prenom}
 											{p.expand?.student?.nom}
 										</p>
-										<p class="text-sm text-muted-foreground">
+										<p class="text-xs font-bold text-muted-foreground uppercase">
 											{p.expand?.student?.niveau}
 										</p>
 									</div>
@@ -147,7 +141,9 @@
 
 								<div class="flex items-center gap-2">
 									{#if p.is_validated}
-										<Badge variant="default" class="bg-green-600">Validé</Badge>
+										<Badge variant="default" class="rounded-sm bg-epi-teal font-black text-black"
+											>Validé</Badge
+										>
 									{/if}
 
 									<form action="?/remove&id={p.id}" method="POST">
@@ -169,12 +165,12 @@
 		</Card.Root>
 
 		<div class="flex h-full flex-col gap-4 md:col-span-4">
-			<Card.Root class="flex max-h-full flex-1 flex-col">
+			<Card.Root class="flex max-h-full flex-1 flex-col rounded-sm">
 				<Card.Header class="space-y-4 pb-3">
-					<Card.Title>Ajouter des élèves</Card.Title>
+					<Card.Title class="uppercase">Ajouter des élèves</Card.Title>
 					<div class="relative">
 						<Search class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
-						<Input placeholder="Rechercher par nom..." class="pl-8" bind:value={searchQuery} />
+						<Input placeholder="Rechercher..." class="rounded-sm pl-8" bind:value={searchQuery} />
 					</div>
 				</Card.Header>
 
@@ -186,13 +182,17 @@
 								method="POST"
 								action="?/addExisting"
 								use:addEnhance
-								class="flex items-center justify-between rounded-md border bg-background p-2"
+								class="flex items-center justify-between rounded-sm border bg-background p-2"
 							>
 								<input type="hidden" name="studentId" value={student.id} />
 
 								<div class="flex flex-col overflow-hidden">
-									<span class="truncate text-sm font-medium">{student.prenom} {student.nom}</span>
-									<span class="text-xs text-muted-foreground">{student.niveau}</span>
+									<span class="truncate text-sm font-bold uppercase"
+										>{student.prenom} {student.nom}</span
+									>
+									<span class="text-[10px] font-bold text-muted-foreground uppercase"
+										>{student.niveau}</span
+									>
 								</div>
 
 								<Button
@@ -210,14 +210,16 @@
 								</Button>
 							</form>
 						{:else}
-							<div class="text-muted-foreground py-4 text-center text-sm">Aucun élève trouvé.</div>
+							<div class="py-4 text-center text-xs font-bold text-muted-foreground uppercase">
+								Aucun élève trouvé.
+							</div>
 						{/each}
 					</div>
 				</ScrollArea>
 
 				<div class="border-t p-4">
 					{#if $addMessage}
-						<div class="mb-2 text-center text-sm font-medium text-destructive">
+						<div class="mb-2 text-center text-xs font-bold text-destructive uppercase">
 							{$addMessage}
 						</div>
 					{/if}

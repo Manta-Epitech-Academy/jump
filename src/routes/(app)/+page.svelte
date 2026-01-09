@@ -29,7 +29,7 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-2xl font-bold tracking-tight text-epi-blue uppercase">
+			<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
 				Dashboard<span class="text-epi-orange">_</span>
 			</h1>
 			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
@@ -43,9 +43,9 @@
 	</div>
 
 	{#if data.sessions.length > 0}
-		<div class="rounded-sm border bg-white">
+		<div class="rounded-sm border bg-card shadow-sm">
 			<Table>
-				<TableHeader class="bg-gray-50/50">
+				<TableHeader class="bg-muted/50">
 					<TableRow>
 						<TableHead class="text-xs font-bold uppercase">Session</TableHead>
 						<TableHead class="text-xs font-bold uppercase">Date & Heure</TableHead>
@@ -56,7 +56,7 @@
 				</TableHeader>
 				<TableBody>
 					{#each data.sessions as session}
-						<TableRow class="hover:bg-gray-50/50">
+						<TableRow class="hover:bg-muted/30">
 							<TableCell class="font-bold">{session.titre}</TableCell>
 							<TableCell>
 								<div class="flex items-center gap-2">
@@ -108,11 +108,13 @@
 		</div>
 	{:else}
 		<div
-			class="flex flex-col items-center justify-center rounded-sm border bg-white p-20 text-center"
+			class="flex flex-col items-center justify-center rounded-sm border bg-card p-20 text-center shadow-sm"
 		>
-			<Calendar class="mx-auto h-12 w-12 text-gray-200" />
-			<h3 class="mt-4 text-lg font-bold">Aucune session</h3>
-			<p class="mt-1 text-sm text-muted-foreground">Le planning est vide pour le moment.</p>
+			<Calendar class="mx-auto h-12 w-12 text-muted" />
+			<h3 class="mt-4 text-lg font-bold uppercase">Aucune session</h3>
+			<p class="mt-1 text-sm font-bold tracking-tight text-muted-foreground uppercase">
+				Le planning est vide pour le moment.
+			</p>
 		</div>
 	{/if}
 </div>
