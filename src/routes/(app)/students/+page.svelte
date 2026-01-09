@@ -41,7 +41,9 @@
 <div class="space-y-6">
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight">Annuaire des Élèves</h1>
+			<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
+				Annuaire des Élèves<span class="text-epi-orange">_</span>
+			</h1>
 			<p class="text-muted-foreground">Gérez la liste des étudiants et leurs niveaux.</p>
 		</div>
 

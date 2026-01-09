@@ -18,90 +18,89 @@
 	`;
 </script>
 
-<div class="flex h-screen w-full overflow-hidden bg-background">
-	<!-- SIDEBAR -->
-	<aside class="hidden w-[250px] flex-col border-r bg-white md:flex">
-		<div class="flex-1 overflow-y-auto p-4">
-			<!-- OVERVIEW -->
-			<div class="sidebar-section-title">
-				Overview<span class="text-epi-orange">_</span>
-			</div>
-			<nav class="space-y-1">
-				<a href="/" class={navLinkClass(isActive('/'))}>
-					<LayoutDashboard class="h-5 w-5" />
-					<span>Dashboard</span>
-				</a>
-			</nav>
-
-			<!-- MANAGEMENT -->
-			<div class="sidebar-section-title">
-				Management<span class="text-epi-teal">_</span>
-			</div>
-			<nav class="space-y-1">
-				<a href="/students" class={navLinkClass(isActive('/students'))}>
-					<Users class="h-5 w-5" />
-					<span>Élèves</span>
-				</a>
-				<a href="/activities" class={navLinkClass(isActive('/activities'))}>
-					<Cuboid class="h-5 w-5" />
-					<span>Activités</span>
-				</a>
-			</nav>
-		</div>
-
-		<div class="border-t p-4">
-			<Button variant="outline" class="w-full justify-start border-dashed" href="/sessions/new">
-				<Plus class="mr-2 h-4 w-4" />
-				Nouvelle Session
+<div class="flex h-screen w-full flex-col overflow-hidden bg-background">
+	<!-- HEADER (FULL WIDTH) -->
+	<header
+		class="z-20 flex h-[60px] w-full shrink-0 items-center justify-between bg-epi-blue px-6 text-white shadow-md"
+	>
+		<div class="flex items-center gap-4">
+			<Button variant="ghost" size="icon" class="text-white md:hidden">
+				<Menu class="h-6 w-6" />
 			</Button>
+			<a href="/" class="flex items-center gap-2">
+				<span class="text-lg font-bold tracking-tight uppercase">CodeCamp Manager</span>
+			</a>
 		</div>
-	</aside>
 
-	<!-- MAIN -->
-	<div class="flex flex-1 flex-col overflow-hidden">
-		<!-- HEADER -->
-		<header
-			class="z-10 flex h-[60px] items-center justify-between bg-epi-blue px-6 text-white shadow-md"
-		>
-			<div class="flex items-center gap-4">
-				<Button variant="ghost" size="icon" class="text-white md:hidden">
-					<Menu class="h-6 w-6" />
+		<div class="flex items-center gap-4">
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					class="flex items-center gap-3 transition-opacity outline-none hover:opacity-80"
+				>
+					<div class="flex items-center gap-2">
+						<Avatar.Root class="h-8 w-8 rounded-sm bg-white/20">
+							<Avatar.Fallback class="text-xs font-bold uppercase">
+								{data.user?.username?.substring(0, 2) ?? 'AD'}
+							</Avatar.Fallback>
+						</Avatar.Root>
+						<span class="hidden text-sm font-bold md:block">{data.user?.username}</span>
+						<ChevronDown class="h-4 w-4 opacity-50" />
+					</div>
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end" class="w-48 rounded-sm">
+					<DropdownMenu.Label>Mon Profil</DropdownMenu.Label>
+					<DropdownMenu.Separator />
+					<form action="/logout" method="POST">
+						<button type="submit" class="w-full">
+							<DropdownMenu.Item class="cursor-pointer text-destructive">
+								<LogOut class="mr-2 h-4 w-4" />
+								Déconnexion
+							</DropdownMenu.Item>
+						</button>
+					</form>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+		</div>
+	</header>
+
+	<div class="flex flex-1 overflow-hidden">
+		<!-- SIDEBAR -->
+		<aside class="hidden w-[250px] flex-col border-r bg-white md:flex">
+			<div class="flex-1 overflow-y-auto p-4">
+				<!-- OVERVIEW -->
+				<div class="sidebar-section-title">
+					Overview<span class="text-epi-orange">_</span>
+				</div>
+				<nav class="space-y-1">
+					<a href="/" class={navLinkClass(isActive('/'))}>
+						<LayoutDashboard class="h-5 w-5" />
+						<span>Dashboard</span>
+					</a>
+				</nav>
+
+				<!-- MANAGEMENT -->
+				<div class="sidebar-section-title">
+					Management<span class="text-epi-teal">_</span>
+				</div>
+				<nav class="space-y-1">
+					<a href="/students" class={navLinkClass(isActive('/students'))}>
+						<Users class="h-5 w-5" />
+						<span>Élèves</span>
+					</a>
+					<a href="/activities" class={navLinkClass(isActive('/activities'))}>
+						<Cuboid class="h-5 w-5" />
+						<span>Activités</span>
+					</a>
+				</nav>
+			</div>
+
+			<div class="border-t p-4">
+				<Button variant="outline" class="w-full justify-start border-dashed" href="/sessions/new">
+					<Plus class="mr-2 h-4 w-4" />
+					Nouvelle Session
 				</Button>
-				<a href="/" class="flex items-center gap-2">
-					<span class="text-lg font-bold tracking-tight uppercase">CodeCamp Manager</span>
-				</a>
 			</div>
-
-			<div class="flex items-center gap-4">
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						class="flex items-center gap-3 transition-opacity outline-none hover:opacity-80"
-					>
-						<div class="flex items-center gap-2">
-							<Avatar.Root class="h-8 w-8 rounded-sm bg-white/20">
-								<Avatar.Fallback class="text-xs font-bold uppercase">
-									{data.user?.username?.substring(0, 2) ?? 'AD'}
-								</Avatar.Fallback>
-							</Avatar.Root>
-							<span class="hidden text-sm font-bold md:block">{data.user?.username}</span>
-							<ChevronDown class="h-4 w-4 opacity-50" />
-						</div>
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content align="end" class="w-48 rounded-sm">
-						<DropdownMenu.Label>Mon Profil</DropdownMenu.Label>
-						<DropdownMenu.Separator />
-						<form action="/logout" method="POST">
-							<button type="submit" class="w-full">
-								<DropdownMenu.Item class="cursor-pointer text-destructive">
-									<LogOut class="mr-2 h-4 w-4" />
-									Déconnexion
-								</DropdownMenu.Item>
-							</button>
-						</form>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-			</div>
-		</header>
+		</aside>
 
 		<!-- PAGE CONTENT -->
 		<main class="flex-1 overflow-y-auto p-6 md:p-8">

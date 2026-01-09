@@ -29,7 +29,9 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
+			<h1 class="text-2xl font-bold tracking-tight text-epi-blue uppercase">
+				Dashboard<span class="text-epi-orange">_</span>
+			</h1>
 			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
 				{data.sessions.length} session{data.sessions.length > 1 ? 's' : ''} à venir
 			</p>

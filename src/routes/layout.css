@@ -94,6 +94,6 @@
 	}
 
 	.sidebar-section-title {
-		@apply mt-4 mb-2 font-heading text-sm tracking-wider text-gray-400 uppercase;
+		@apply mt-4 mb-2 font-heading text-sm tracking-wider text-epi-blue uppercase;
 	}
 }
