@@ -35,6 +35,11 @@
 		goto(url);
 	}
 
+	function formatFirstName(name: string | undefined) {
+		if (!name) return '';
+		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+	}
+
 	const niveaux = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 </script>
 
@@ -139,7 +144,10 @@
 									<GraduationCap class="h-5 w-5 text-muted-foreground" />
 								</div>
 								<div class="flex flex-col">
-									<span class="tracking-tight uppercase">{student.prenom} {student.nom}</span>
+									<span class="tracking-tight"
+										>{formatFirstName(student.prenom)}
+										<span class="uppercase">{student.nom}</span></span
+									>
 									<span class="text-xs text-muted-foreground sm:hidden">{student.niveau}</span>
 								</div>
 							</div>

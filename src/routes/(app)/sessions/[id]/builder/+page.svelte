@@ -61,6 +61,11 @@
 		return data.participations.some((p) => p.expand?.student?.id === studentId);
 	}
 
+	function formatFirstName(name: string | undefined) {
+		if (!name) return '';
+		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+	}
+
 	const niveaux = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 </script>
 
@@ -145,13 +150,15 @@
 								<div class="flex items-center gap-3">
 									<Avatar.Root class="rounded-sm">
 										<Avatar.Fallback class="bg-primary/10 font-bold text-primary">
-											{p.expand?.student?.prenom?.[0] ?? '?'}{p.expand?.student?.nom?.[0] ?? '?'}
+											{(p.expand?.student?.prenom?.[0] ?? '?').toUpperCase()}{(
+												p.expand?.student?.nom?.[0] ?? '?'
+											).toUpperCase()}
 										</Avatar.Fallback>
 									</Avatar.Root>
 									<div>
-										<p class="font-bold tracking-tight uppercase">
-											{p.expand?.student?.prenom}
-											{p.expand?.student?.nom}
+										<p class="font-bold tracking-tight">
+											{formatFirstName(p.expand?.student?.prenom)}
+											<span class="uppercase">{p.expand?.student?.nom}</span>
 										</p>
 										<p class="text-xs font-bold text-muted-foreground uppercase">
 											{p.expand?.student?.niveau}
@@ -207,8 +214,9 @@
 								<input type="hidden" name="studentId" value={student.id} />
 
 								<div class="flex flex-col overflow-hidden">
-									<span class="truncate text-sm font-bold uppercase"
-										>{student.prenom} {student.nom}</span
+									<span class="truncate text-sm font-bold"
+										>{formatFirstName(student.prenom)}
+										<span class="uppercase">{student.nom}</span></span
 									>
 									<span class="text-[10px] font-bold text-muted-foreground uppercase"
 										>{student.niveau}</span

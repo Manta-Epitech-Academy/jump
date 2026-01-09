@@ -69,6 +69,11 @@
 		})
 	);
 
+	function formatFirstName(name: string | undefined) {
+		if (!name) return '';
+		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+	}
+
 	let presentCount = $derived(participations.filter((p) => p.is_present).length);
 	let validatedCount = $derived(participations.filter((p) => p.is_validated).length);
 </script>
@@ -151,7 +156,9 @@
 										: 'border-gray-200'}"
 								>
 									<Avatar.Fallback class="bg-gray-50 font-bold">
-										{p.expand?.student?.prenom?.[0]}{p.expand?.student?.nom?.[0]}
+										{(p.expand?.student?.prenom?.[0] ?? '').toUpperCase()}{(
+											p.expand?.student?.nom?.[0] ?? ''
+										).toUpperCase()}
 									</Avatar.Fallback>
 								</Avatar.Root>
 								{#if p.is_validated}
@@ -163,8 +170,9 @@
 								{/if}
 							</div>
 							<div class="flex flex-col">
-								<span class="text-base leading-none font-bold uppercase"
-									>{p.expand?.student?.prenom} {p.expand?.student?.nom}</span
+								<span class="text-base leading-none font-bold"
+									>{formatFirstName(p.expand?.student?.prenom)}
+									<span class="uppercase">{p.expand?.student?.nom}</span></span
 								>
 								<span class="mt-1 text-xs font-bold tracking-wider text-muted-foreground uppercase"
 									>{p.expand?.student?.niveau}</span
