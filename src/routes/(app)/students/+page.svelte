@@ -144,8 +144,12 @@
 							<Badge variant="secondary">{student.niveau}</Badge>
 						</Table.Cell>
 						<Table.Cell class="text-right text-muted-foreground">
-							<!-- TODO: Implement XP calculation -->
-							0 XP
+							<div class="flex flex-col items-end">
+								<span class="font-bold text-foreground">{student.xp} XP</span>
+								<span class="text-xs"
+									>{student.sessionsCount} session{student.sessionsCount > 1 ? 's' : ''}</span
+								>
+							</div>
 						</Table.Cell>
 					</Table.Row>
 				{:else}

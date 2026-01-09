@@ -3,20 +3,69 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
+import type { ParticipationResponse, ActivityResponse } from '$lib/pocketbase-types';
+
+// Constantes d'XP
+const XP_MAP: Record<string, number> = {
+	Facile: 10,
+	Moyen: 20,
+	Difficile: 40
+};
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const niveauFilter = url.searchParams.get('niveau');
 	const filter = niveauFilter ? `niveau = '${niveauFilter}'` : '';
 
+	// 1. Récupérer les étudiants
 	const students = await locals.pb.collection('students').getFullList({
 		sort: 'nom,prenom',
 		filter
 	});
 
+	// 2. Récupérer TOUTES les participations validées
+	// On expand la session ET l'activité de la session pour connaître la difficulté
+	const participations = await locals.pb
+		.collection('participations')
+		.getFullList<ParticipationResponse<{ session: { expand: { activity: ActivityResponse } } }>>({
+			filter: 'is_validated = true',
+			expand: 'session.activity'
+		});
+
+	// 3. Calculer l'XP par étudiant
+	const studentStats = new Map<string, { xp: number; sessionsCount: number }>();
+
+	for (const p of participations) {
+		const studentId = p.student;
+		// Attention aux null checks sur les expands profonds
+		const activity = p.expand?.session?.expand?.activity;
+
+		if (activity && studentId) {
+			const current = studentStats.get(studentId) || { xp: 0, sessionsCount: 0 };
+
+			// Ajout XP selon difficulté (fallback à 0 si difficulté inconnue)
+			const xpGain = XP_MAP[activity.difficulte] || 0;
+
+			studentStats.set(studentId, {
+				xp: current.xp + xpGain,
+				sessionsCount: current.sessionsCount + 1
+			});
+		}
+	}
+
+	// 4. Fusionner les données pour le frontend
+	const studentsWithStats = students.map((s) => {
+		const stats = studentStats.get(s.id) || { xp: 0, sessionsCount: 0 };
+		return {
+			...s,
+			xp: stats.xp,
+			sessionsCount: stats.sessionsCount
+		};
+	});
+
 	const form = await superValidate(zod4(studentSchema));
 
 	return {
-		students,
+		students: studentsWithStats,
 		form
 	};
 };
