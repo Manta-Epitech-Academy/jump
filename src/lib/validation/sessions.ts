@@ -14,4 +14,9 @@ export const sessionSchema = z.object({
 	activity: z.string().min(1, 'Veuillez choisir une activité')
 });
 
+export const addParticipantSchema = z.object({
+	studentId: z.string().min(1, 'Veuillez sélectionner un élève')
+});
+
 export type SessionForm = z.infer<typeof sessionSchema>;
+export type AddParticipantForm = z.infer<typeof addParticipantSchema>;
