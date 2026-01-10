@@ -56,7 +56,7 @@
 		<a href="/" class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
 			<ChevronLeft class="h-4 w-4" />
 		</a>
-		<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
+		<h1 class="text-3xl font-bold text-epi-blue uppercase">
 			Nouvelle Session<span class="text-epi-teal">_</span>
 		</h1>
 	</div>

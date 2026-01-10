@@ -46,7 +46,7 @@
 <div class="space-y-6">
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
+			<h1 class="text-3xl font-bold text-epi-blue uppercase">
 				Élèves<span class="text-epi-teal">_</span>
 			</h1>
 			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
@@ -144,7 +144,7 @@
 									<GraduationCap class="h-5 w-5 text-muted-foreground" />
 								</div>
 								<div class="flex flex-col">
-									<span class="tracking-tight"
+									<span
 										>{formatFirstName(student.prenom)}
 										<span class="uppercase">{student.nom}</span></span
 									>

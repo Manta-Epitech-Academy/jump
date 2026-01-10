@@ -29,7 +29,7 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
+			<h1 class="text-3xl font-bold text-epi-blue uppercase">
 				Dashboard<span class="text-epi-orange">_</span>
 			</h1>
 			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
@@ -112,7 +112,7 @@
 		>
 			<Calendar class="mx-auto h-12 w-12 text-muted" />
 			<h3 class="mt-4 text-lg font-bold uppercase">Aucune session</h3>
-			<p class="mt-1 text-sm font-bold tracking-tight text-muted-foreground uppercase">
+			<p class="mt-1 text-sm font-bold text-muted-foreground uppercase">
 				Le planning est vide pour le moment.
 			</p>
 		</div>

@@ -77,7 +77,7 @@
 				<ArrowLeft class="h-4 w-4" />
 			</a>
 			<div>
-				<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
+				<h1 class="text-3xl font-bold text-epi-blue uppercase">
 					Session<span class="text-epi-teal">_</span>
 				</h1>
 				<div
@@ -126,9 +126,7 @@
 						<Badge variant="secondary" class="rounded-sm">{data.participations.length}</Badge>
 					</Card.Title>
 				</div>
-				<Card.Description class="font-bold tracking-tight uppercase"
-					>Liste des élèves inscrits</Card.Description
-				>
+				<Card.Description class="font-bold uppercase">Liste des élèves inscrits</Card.Description>
 			</Card.Header>
 			<Separator />
 
@@ -156,7 +154,7 @@
 										</Avatar.Fallback>
 									</Avatar.Root>
 									<div>
-										<p class="font-bold tracking-tight">
+										<p class="font-bold">
 											{formatFirstName(p.expand?.student?.prenom)}
 											<span class="uppercase">{p.expand?.student?.nom}</span>
 										</p>

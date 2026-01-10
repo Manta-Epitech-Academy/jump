@@ -90,19 +90,19 @@
 				</a>
 				<div class="flex gap-2">
 					<div
-						class="rounded-sm bg-epi-blue px-2 py-0.5 text-[10px] font-black tracking-tighter text-white uppercase"
+						class="rounded-sm bg-epi-blue px-2 py-0.5 text-[10px] font-black text-white uppercase"
 					>
 						{presentCount} Présents
 					</div>
 					<div
-						class="rounded-sm bg-epi-teal px-2 py-0.5 text-[10px] font-black tracking-tighter text-black uppercase"
+						class="rounded-sm bg-epi-teal px-2 py-0.5 text-[10px] font-black text-black uppercase"
 					>
 						{validatedCount} Validés
 					</div>
 				</div>
 			</div>
 
-			<h1 class="text-xl font-bold tracking-tight uppercase">{data.session.titre}</h1>
+			<h1 class="text-xl font-bold uppercase">{data.session.titre}</h1>
 
 			<div class="mt-4 flex flex-col gap-3 sm:flex-row">
 				<div class="relative flex-1">

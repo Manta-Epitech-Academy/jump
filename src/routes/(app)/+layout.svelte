@@ -28,7 +28,7 @@
 				<Menu class="h-6 w-6" />
 			</Button>
 			<a href="/" class="flex items-center gap-2">
-				<span class="text-lg font-bold tracking-tight uppercase">CodeCamp Manager</span>
+				<span class="text-lg font-bold uppercase">CodeCamp Manager</span>
 			</a>
 		</div>
 

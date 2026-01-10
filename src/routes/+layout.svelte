@@ -1,4 +1,6 @@
 <script lang="ts">
+	import '@fontsource/anton';
+	import '@fontsource-variable/ibm-plex-sans';
 	import './layout.css';
 
 	let { children } = $props();

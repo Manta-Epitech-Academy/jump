@@ -4,8 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	/* Epitech Fonts */
-	--font-sans: 'IBM Plex Sans', sans-serif;
+	/* Epitech Fonts - Using local Fontsource names */
+	--font-sans: 'IBM Plex Sans Variable', sans-serif;
 	--font-heading: 'Anton', sans-serif;
 
 	/* Epitech Palette */
@@ -90,7 +90,7 @@
 	h2,
 	h3,
 	.font-anton {
-		@apply font-sans font-bold;
+		@apply font-heading font-normal!;
 	}
 
 	.sidebar-section-title {

@@ -41,7 +41,7 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
+			<h1 class="text-3xl font-bold text-epi-blue uppercase">
 				Activités<span class="text-epi-teal">_</span>
 			</h1>
 			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
