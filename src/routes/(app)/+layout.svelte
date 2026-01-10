@@ -13,7 +13,7 @@
 	}
 
 	const navLinkClass = (active: boolean) => `
-		flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm
+		flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
 		${active ? 'bg-[rgba(1,58,251,0.1)] text-epi-blue' : 'text-gray-700 hover:bg-gray-100'}
 	`;
 </script>
@@ -35,7 +35,7 @@
 		<div class="flex items-center gap-4">
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
-					class="flex items-center gap-3 transition-opacity outline-none hover:opacity-80"
+					class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
 				>
 					<div class="flex items-center gap-2">
 						<Avatar.Root class="h-8 w-8 rounded-sm bg-white/20">
@@ -51,7 +51,7 @@
 					<DropdownMenu.Label>Mon Profil</DropdownMenu.Label>
 					<DropdownMenu.Separator />
 					<form action="/logout" method="POST">
-						<button type="submit" class="w-full">
+						<button type="submit" class="w-full cursor-pointer">
 							<DropdownMenu.Item class="cursor-pointer text-destructive">
 								<LogOut class="mr-2 h-4 w-4" />
 								Déconnexion
