@@ -1,37 +1,64 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
-	import { Plus, Cuboid } from 'lucide-svelte';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { enhance as kitEnhance } from '$app/forms';
+	import { Plus, Cuboid, Ellipsis, Pencil, Trash2 } from 'lucide-svelte';
+	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Table from '$lib/components/ui/table';
 	import * as Select from '$lib/components/ui/select';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
+	import { toast } from 'svelte-sonner';
 
 	let { data }: { data: PageData } = $props();
 
 	// svelte-ignore state_referenced_locally
-	const { form, errors, message, enhance, delayed } = superForm(data.form, {
+	const { form, errors, enhance, delayed, reset } = superForm(data.form, {
 		onResult: ({ result }) => {
 			if (result.type === 'success') {
 				open = false;
+				toast.success(result.data?.form.message);
+			} else if (result.type === 'failure') {
+				toast.error('Erreur lors de la validation');
 			}
 		}
 	});
 
 	let open = $state(false);
+	let isEditing = $state(false);
+	let editId = $state('');
+
+	// Reset form state for creation
+	function openCreate() {
+		reset();
+		isEditing = false;
+		editId = '';
+		open = true;
+	}
+
+	// Populate form state for editing
+	function openEdit(activity: any) {
+		$form.nom = activity.nom;
+		$form.description = activity.description;
+		$form.difficulte = activity.difficulte;
+
+		isEditing = true;
+		editId = activity.id;
+		open = true;
+	}
 
 	const difficultyColor = (diff: string) => {
 		switch (diff) {
 			case 'Facile':
-				return 'bg-green-500/15 text-green-700 hover:bg-green-500/25';
+				return 'bg-green-500/15 text-green-700 hover:bg-green-500/25 border-green-200';
 			case 'Moyen':
-				return 'bg-yellow-500/15 text-yellow-700 hover:bg-yellow-500/25';
+				return 'bg-yellow-500/15 text-yellow-700 hover:bg-yellow-500/25 border-yellow-200';
 			case 'Difficile':
-				return 'bg-red-500/15 text-red-700 hover:bg-red-500/25';
+				return 'bg-red-500/15 text-red-700 hover:bg-red-500/25 border-red-200';
 			default:
 				return 'bg-gray-500/15 text-gray-700';
 		}
@@ -49,20 +76,33 @@
 			</p>
 		</div>
 
+		<Button onclick={openCreate} class="shadow-lg">
+			<Plus class="mr-2 h-4 w-4" />
+			Nouvelle Activité
+		</Button>
+
+		<!-- DIALOG (CREATE & UPDATE) -->
 		<Dialog.Root bind:open>
-			<Dialog.Trigger class={buttonVariants()}>
-				<Plus class="mr-2 h-4 w-4" />
-				Nouvelle Activité
-			</Dialog.Trigger>
 			<Dialog.Content class="sm:max-w-[425px]">
 				<Dialog.Header>
-					<Dialog.Title>Ajouter une activité</Dialog.Title>
+					<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} une activité</Dialog.Title>
 					<Dialog.Description>
-						Créez un nouvel atelier technique pour les étudiants.
+						{isEditing
+							? "Modifiez les informations de l'atelier."
+							: 'Créez un nouvel atelier technique pour les étudiants.'}
 					</Dialog.Description>
 				</Dialog.Header>
 
-				<form method="POST" action="?/create" use:enhance class="grid gap-4 py-4">
+				<form
+					method="POST"
+					action={isEditing ? '?/update' : '?/create'}
+					use:enhance
+					class="grid gap-4 py-4"
+				>
+					{#if isEditing}
+						<input type="hidden" name="id" value={editId} />
+					{/if}
+
 					<div class="grid gap-2">
 						<Label for="nom">Nom de l'atelier</Label>
 						<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Ex: Intro React" />
@@ -94,6 +134,7 @@
 							name="description"
 							bind:value={$form.description}
 							placeholder="Objectifs pédagogiques..."
+							class="resize-none"
 						/>
 						{#if $errors.description}<span class="text-sm text-destructive"
 								>{$errors.description}</span
@@ -102,7 +143,9 @@
 
 					<Dialog.Footer>
 						<button type="submit" class={buttonVariants()} disabled={$delayed}>
-							{#if $delayed}Enregistrement...{:else}Créer l'activité{/if}
+							{#if $delayed}Enregistrement...{:else}{isEditing
+									? 'Mettre à jour'
+									: "Créer l'activité"}{/if}
 						</button>
 					</Dialog.Footer>
 				</form>
@@ -114,19 +157,25 @@
 		<Table.Root>
 			<Table.Header class="bg-muted/50">
 				<Table.Row>
-					<Table.Head class="text-xs font-bold uppercase">Nom</Table.Head>
+					<Table.Head class="w-[250px] text-xs font-bold uppercase">Nom</Table.Head>
 					<Table.Head class="text-xs font-bold uppercase">Description</Table.Head>
-					<Table.Head class="text-xs font-bold uppercase">Difficulté</Table.Head>
+					<Table.Head class="w-[100px] text-xs font-bold uppercase">Difficulté</Table.Head>
+					<Table.Head class="w-[50px]"></Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.activities as activity (activity.id)}
 					<Table.Row class="hover:bg-muted/30">
-						<Table.Cell class="flex items-center gap-2 font-bold">
-							<Cuboid class="h-4 w-4 text-muted-foreground" />
-							{activity.nom}
+						<Table.Cell class="font-bold">
+							<div class="flex items-center gap-2">
+								<Cuboid class="h-4 w-4 text-muted-foreground" />
+								{activity.nom}
+							</div>
 						</Table.Cell>
-						<Table.Cell class="max-w-md truncate" title={activity.description}>
+						<Table.Cell
+							class="max-w-md truncate text-muted-foreground"
+							title={activity.description}
+						>
 							{activity.description}
 						</Table.Cell>
 						<Table.Cell>
@@ -134,10 +183,44 @@
 								{activity.difficulte}
 							</Badge>
 						</Table.Cell>
+						<Table.Cell>
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+									<Ellipsis class="h-4 w-4" />
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Content align="end">
+									<DropdownMenu.Item onclick={() => openEdit(activity)}>
+										<Pencil class="mr-2 h-4 w-4" />
+										Modifier
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
+									<form
+										action="?/delete&id={activity.id}"
+										method="POST"
+										use:kitEnhance={() => {
+											return async ({ result }) => {
+												if (result.type === 'success') {
+													toast.success('Activité supprimée avec succès');
+												} else if (result.type === 'failure') {
+													toast.error(result.data?.message || 'Erreur lors de la suppression');
+												}
+											};
+										}}
+									>
+										<button type="submit" class="w-full">
+											<DropdownMenu.Item class="cursor-pointer text-destructive">
+												<Trash2 class="mr-2 h-4 w-4" />
+												Supprimer
+											</DropdownMenu.Item>
+										</button>
+									</form>
+								</DropdownMenu.Content>
+							</DropdownMenu.Root>
+						</Table.Cell>
 					</Table.Row>
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={3} class="h-24 text-center text-muted-foreground">
+						<Table.Cell colspan={4} class="h-24 text-center text-muted-foreground">
 							Aucune activité trouvée.
 						</Table.Cell>
 					</Table.Row>
