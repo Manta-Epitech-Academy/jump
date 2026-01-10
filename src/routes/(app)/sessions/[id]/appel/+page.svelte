@@ -10,10 +10,11 @@
 	import { Button } from '$lib/components/ui/button';
 	import { browser } from '$app/environment';
 	import { fly } from 'svelte/transition';
+	import { untrack } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	let participations = $state(data.participations);
+	let participations = $state(untrack(() => data.participations));
 	let searchQuery = $state('');
 	let filterStatus = $state<'all' | 'present' | 'validated'>('all');
 
@@ -22,27 +23,30 @@
 	});
 
 	const pb = new PocketBase(pbUrl);
-	if (browser) {
-		pb.authStore.loadFromCookie(document.cookie);
-	}
 
 	$effect(() => {
-		pb.collection('participations').subscribe('*', (e) => {
-			if (e.record.session !== data.session.id) return;
-			if (e.action === 'update') {
-				const index = participations.findIndex((p) => p.id === e.record.id);
-				if (index !== -1) {
-					participations[index] = {
-						...participations[index],
-						is_present: e.record.is_present,
-						is_validated: e.record.is_validated
-					};
+		if (browser) {
+			pb.authStore.loadFromCookie(document.cookie);
+
+			pb.collection('participations').subscribe('*', (e) => {
+				if (e.record.session !== data.session.id) return;
+				if (e.action === 'update') {
+					const index = participations.findIndex((p) => p.id === e.record.id);
+					if (index !== -1) {
+						participations[index] = {
+							...participations[index],
+							is_present: e.record.is_present,
+							is_validated: e.record.is_validated
+						};
+					}
+				} else if (e.action === 'create' || e.action === 'delete') {
+					location.reload();
 				}
-			} else if (e.action === 'create' || e.action === 'delete') {
-				location.reload();
-			}
-		});
-		return () => pb.collection('participations').unsubscribe('*');
+			});
+		}
+		return () => {
+			if (browser) pb.collection('participations').unsubscribe('*');
+		};
 	});
 
 	const optimisticToggle = (id: string, field: 'is_present' | 'is_validated') => {
@@ -102,8 +106,11 @@
 				</div>
 			</div>
 
-			<!-- Titre mis à jour -->
-			<h1 class="text-xl font-bold uppercase">Appel : {data.session.titre}</h1>
+			<h1 class="text-xl font-bold uppercase">
+				Appel : <span style:view-transition-name="session-title-{data.session.id}"
+					>{data.session.titre}</span
+				>
+			</h1>
 
 			<div class="mt-4 flex flex-col gap-3 sm:flex-row">
 				<div class="relative flex-1">

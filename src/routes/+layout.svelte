@@ -3,8 +3,19 @@
 	import '@fontsource-variable/ibm-plex-sans';
 	import './layout.css';
 	import { Toaster } from '$lib/components/ui/sonner';
+	import { onNavigate } from '$app/navigation';
 
 	let { children } = $props();
+
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 </script>
 
 <svelte:head>

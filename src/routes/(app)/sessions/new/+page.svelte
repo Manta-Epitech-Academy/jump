@@ -11,11 +11,11 @@
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { ChevronLeft, Save, ChevronDown } from 'lucide-svelte';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
+	import { untrack } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	// svelte-ignore state_referenced_locally
-	const { form, errors, delayed, enhance } = superForm(data.form);
+	const { form, errors, delayed, enhance } = superForm(untrack(() => data.form));
 
 	let selectedActivityName = $derived(
 		data.activities.find((a) => a.id === $form.activity)?.nom || 'Sélectionner une activité'

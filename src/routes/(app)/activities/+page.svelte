@@ -13,20 +13,23 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { toast } from 'svelte-sonner';
+	import { untrack } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	// svelte-ignore state_referenced_locally
-	const { form, errors, enhance, delayed, reset } = superForm(data.form, {
-		onResult: ({ result }) => {
-			if (result.type === 'success') {
-				open = false;
-				toast.success(result.data?.form.message);
-			} else if (result.type === 'failure') {
-				toast.error('Erreur lors de la validation');
+	const { form, errors, enhance, delayed, reset } = superForm(
+		untrack(() => data.form),
+		{
+			onResult: ({ result }) => {
+				if (result.type === 'success') {
+					open = false;
+					toast.success(result.data?.form.message);
+				} else if (result.type === 'failure') {
+					toast.error('Erreur lors de la validation');
+				}
 			}
 		}
-	});
+	);
 
 	let open = $state(false);
 	let isEditing = $state(false);

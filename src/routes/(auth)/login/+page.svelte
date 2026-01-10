@@ -5,10 +5,10 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 	import { CircleAlert } from 'lucide-svelte';
+	import { untrack } from 'svelte';
 
 	let { data } = $props();
-	// svelte-ignore state_referenced_locally
-	const { form, errors, message, enhance } = superForm(data.form);
+	const { form, errors, message, enhance } = superForm(untrack(() => data.form));
 </script>
 
 <div class="mx-auto max-w-md space-y-6">
@@ -26,6 +26,8 @@
 		<div class="space-y-2">
 			<Label for="identity">Email ou username</Label>
 			<Input id="identity" name="identity" bind:value={$form.identity} />
+			{#if $errors.identity}
+				<p class="text-sm text-destructive">{$errors.identity}</p>
 			{#if $errors.identity}
 				<p class="text-sm text-destructive">{$errors.identity}</p>
 			{/if}

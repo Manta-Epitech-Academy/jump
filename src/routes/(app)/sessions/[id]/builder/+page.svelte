@@ -27,6 +27,7 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { toast } from 'svelte-sonner';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
+	import { untrack } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -35,10 +36,13 @@
 		enhance: addEnhance,
 		message: addMessage,
 		delayed: addDelayed
-	} = superForm(data.addForm, {
-		id: 'add-existing',
-		invalidateAll: true
-	});
+	} = superForm(
+		untrack(() => data.addForm),
+		{
+			id: 'add-existing',
+			invalidateAll: true
+		}
+	);
 
 	const {
 		form: createForm,
@@ -46,15 +50,18 @@
 		enhance: createEnhance,
 		delayed: createDelayed,
 		message: createMessage
-	} = superForm(data.createStudentForm, {
-		id: 'quick-create',
-		onResult: ({ result }) => {
-			if (result.type === 'success') {
-				openQuickCreate = false;
-				toast.success('Élève créé avec succès');
+	} = superForm(
+		untrack(() => data.createStudentForm),
+		{
+			id: 'quick-create',
+			onResult: ({ result }) => {
+				if (result.type === 'success') {
+					openQuickCreate = false;
+					toast.success('Élève créé avec succès');
+				}
 			}
 		}
-	});
+	);
 
 	const {
 		form: editForm,
@@ -62,15 +69,18 @@
 		enhance: editEnhance,
 		delayed: editDelayed,
 		message: editMessage
-	} = superForm(data.editForm, {
-		id: 'edit-session',
-		onResult: ({ result }) => {
-			if (result.type === 'success') {
-				openEditSession = false;
-				toast.success(result.data?.form.message);
+	} = superForm(
+		untrack(() => data.editForm),
+		{
+			id: 'edit-session',
+			onResult: ({ result }) => {
+				if (result.type === 'success') {
+					openEditSession = false;
+					toast.success(result.data?.form.message);
+				}
 			}
 		}
-	});
+	);
 
 	let searchQuery = $state('');
 	let openQuickCreate = $state(false);
@@ -143,8 +153,11 @@
 				>
 					<div class="flex items-center gap-2">
 						<CalendarIcon class="h-3 w-3" />
+						<span style:view-transition-name="session-title-{data.session.id}">
+							{data.session.titre}
+						</span>
 						<span>
-							{data.session.titre} •
+							•
 							{new Date(data.session.date).toLocaleDateString('fr-FR', {
 								day: 'numeric',
 								month: 'short',

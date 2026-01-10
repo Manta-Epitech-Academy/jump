@@ -15,20 +15,23 @@
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
+	import { untrack } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	// svelte-ignore state_referenced_locally
-	const { form, errors, delayed, enhance, reset } = superForm(data.form, {
-		onResult: ({ result }) => {
-			if (result.type === 'success') {
-				open = false;
-				toast.success(result.data?.form.message);
-			} else if (result.type === 'failure') {
-				toast.error(result.data?.form.message || 'Erreur de validation');
+	const { form, errors, delayed, enhance, reset } = superForm(
+		untrack(() => data.form),
+		{
+			onResult: ({ result }) => {
+				if (result.type === 'success') {
+					open = false;
+					toast.success(result.data?.form.message);
+				} else if (result.type === 'failure') {
+					toast.error(result.data?.form.message || 'Erreur de validation');
+				}
 			}
 		}
-	});
+	);
 
 	let open = $state(false);
 	let isEditing = $state(false);

@@ -57,7 +57,11 @@
 				<TableBody>
 					{#each data.sessions as session}
 						<TableRow class="hover:bg-muted/30">
-							<TableCell class="font-bold">{session.titre}</TableCell>
+							<TableCell class="font-bold">
+								<span style:view-transition-name="session-title-{session.id}">
+									{session.titre}
+								</span>
+							</TableCell>
 							<TableCell>
 								<div class="flex items-center gap-2">
 									<Calendar class="h-4 w-4 text-muted-foreground" />
