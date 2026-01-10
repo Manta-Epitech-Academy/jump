@@ -9,7 +9,7 @@
 		CircleCheck,
 		Calendar,
 		ArrowLeft,
-		ExternalLink,
+		UserCheck,
 		Cuboid
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -109,9 +109,9 @@
 			</div>
 		</div>
 		<div class="flex gap-2">
-			<Button variant="default" href={`/sessions/${data.session.id}/live`} class="shadow-lg">
-				Lancer le Live
-				<ExternalLink class="ml-2 h-4 w-4" />
+			<Button variant="default" href={`/sessions/${data.session.id}/appel`} class="shadow-lg">
+				<UserCheck class="mr-2 h-4 w-4" />
+				Faire l'appel
 			</Button>
 		</div>
 	</div>

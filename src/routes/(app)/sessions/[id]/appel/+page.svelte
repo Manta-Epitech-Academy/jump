@@ -9,7 +9,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { browser } from '$app/environment';
-	import { fly, fade } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 
 	let { data }: { data: PageData } = $props();
 
@@ -86,7 +86,7 @@
 					href="/sessions/{data.session.id}/builder"
 					class="flex items-center gap-1 text-xs font-black tracking-widest text-muted-foreground uppercase transition-colors hover:text-epi-blue"
 				>
-					<ArrowLeft class="h-3 w-3" /> Retour
+					<ArrowLeft class="h-3 w-3" /> Retour au builder
 				</a>
 				<div class="flex gap-2">
 					<div
@@ -102,13 +102,14 @@
 				</div>
 			</div>
 
-			<h1 class="text-xl font-bold uppercase">{data.session.titre}</h1>
+			<!-- Titre mis à jour -->
+			<h1 class="text-xl font-bold uppercase">Appel : {data.session.titre}</h1>
 
 			<div class="mt-4 flex flex-col gap-3 sm:flex-row">
 				<div class="relative flex-1">
 					<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 					<Input
-						placeholder="Rechercher..."
+						placeholder="Rechercher un élève..."
 						class="rounded-sm bg-white pl-9"
 						bind:value={searchQuery}
 					/>
@@ -228,6 +229,10 @@
 						</div>
 					</Card.Content>
 				</Card.Root>
+			</div>
+		{:else}
+			<div class="py-20 text-center">
+				<p class="font-bold text-muted-foreground uppercase">Aucun élève à afficher.</p>
 			</div>
 		{/each}
 	</div>

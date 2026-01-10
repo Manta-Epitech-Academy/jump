@@ -35,7 +35,6 @@ export const actions: Actions = {
 		const currentState = data.get('state') === 'true';
 
 		try {
-			// On inverse l'état
 			await locals.pb.collection('participations').update(id, {
 				is_present: !currentState
 			});
