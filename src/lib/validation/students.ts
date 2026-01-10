@@ -6,7 +6,6 @@ export const studentSchema = z.object({
 	niveau: z.enum(['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'], {
 		message: 'Veuillez sélectionner un niveau scolaire valide'
 	})
-	// Avatar is handled separately or ignored for v1
 });
 
 export type StudentForm = z.infer<typeof studentSchema>;

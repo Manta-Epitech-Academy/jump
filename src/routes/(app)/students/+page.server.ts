@@ -3,7 +3,7 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
-import type { ParticipationResponse, ActivityResponse } from '$lib/pocketbase-types';
+import type { ParticipationsResponse, ActivitiesResponse } from '$lib/pocketbase-types';
 
 // Constantes d'XP
 const XP_MAP: Record<string, number> = {
@@ -23,10 +23,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	});
 
 	// 2. Récupérer TOUTES les participations validées
-	// On expand la session ET l'activité de la session pour connaître la difficulté
 	const participations = await locals.pb
 		.collection('participations')
-		.getFullList<ParticipationResponse<{ session: { expand: { activity: ActivityResponse } } }>>({
+		.getFullList<ParticipationsResponse<{ session: { expand: { activity: ActivitiesResponse } } }>>({
 			filter: 'is_validated = true',
 			expand: 'session.activity'
 		});
@@ -36,13 +35,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	for (const p of participations) {
 		const studentId = p.student;
-		// Attention aux null checks sur les expands profonds
 		const activity = p.expand?.session?.expand?.activity;
 
 		if (activity && studentId) {
 			const current = studentStats.get(studentId) || { xp: 0, sessionsCount: 0 };
-
-			// Ajout XP selon difficulté (fallback à 0 si difficulté inconnue)
 			const xpGain = XP_MAP[activity.difficulte] || 0;
 
 			studentStats.set(studentId, {
@@ -84,6 +80,41 @@ export const actions: Actions = {
 		} catch (err) {
 			console.error('Erreur création élève:', err);
 			return message(form, "Erreur lors de l'ajout", { status: 500 });
+		}
+	},
+
+	update: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const form = await superValidate(formData, zod4(studentSchema));
+		const id = formData.get('id') as string;
+
+		if (!form.valid) {
+			return fail(400, { form });
+		}
+
+		if (!id) {
+			return message(form, 'ID introuvable', { status: 400 });
+		}
+
+		try {
+			await locals.pb.collection('students').update(id, form.data);
+			return message(form, 'Élève modifié avec succès !');
+		} catch (err) {
+			console.error('Erreur modification élève:', err);
+			return message(form, 'Erreur lors de la modification', { status: 500 });
+		}
+	},
+
+	delete: async ({ url, locals }) => {
+		const id = url.searchParams.get('id');
+		if (!id) return fail(400);
+
+		try {
+			await locals.pb.collection('students').delete(id);
+			return { success: true };
+		} catch (err) {
+			console.error('Erreur suppression élève:', err);
+			return fail(500);
 		}
 	}
 };
