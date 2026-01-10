@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
-	import { Plus, Funnel, Ellipsis, Pencil, Trash2 } from 'lucide-svelte';
+	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search } from 'lucide-svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Table from '$lib/components/ui/table';
@@ -12,7 +12,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { enhance as kitEnhance } from '$app/forms';
-	import { goto } from '$app/navigation';
+	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 
@@ -33,7 +33,20 @@
 	let open = $state(false);
 	let isEditing = $state(false);
 	let editId = $state('');
+	let searchQuery = $state('');
 	let selectedLevel = $state(page.url.searchParams.get('niveau') || 'all');
+
+	let filteredStudents = $derived(
+		data.students.filter((student) => {
+			const matchesLevel = selectedLevel === 'all' || student.niveau === selectedLevel;
+			const searchLower = searchQuery.toLowerCase();
+			const matchesSearch =
+				student.nom.toLowerCase().includes(searchLower) ||
+				student.prenom.toLowerCase().includes(searchLower);
+
+			return matchesLevel && matchesSearch;
+		})
+	);
 
 	function openCreate() {
 		reset();
@@ -54,13 +67,14 @@
 	}
 
 	function handleFilterChange(value: string) {
+		selectedLevel = value;
 		const url = new URL(page.url);
 		if (value && value !== 'all') {
 			url.searchParams.set('niveau', value);
 		} else {
 			url.searchParams.delete('niveau');
 		}
-		goto(url);
+		replaceState(url, page.state);
 	}
 
 	function formatFirstName(name: string | undefined) {
@@ -83,6 +97,17 @@
 		</div>
 
 		<div class="flex items-center gap-2">
+			<!-- Search Input -->
+			<div class="relative w-full max-w-[200px]">
+				<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+				<Input
+					placeholder="Rechercher..."
+					class="rounded-sm bg-white pl-9"
+					bind:value={searchQuery}
+				/>
+			</div>
+
+			<!-- Level Filter -->
 			<div class="w-[180px]">
 				<Select.Root type="single" value={selectedLevel} onValueChange={handleFilterChange}>
 					<Select.Trigger>
@@ -179,7 +204,7 @@
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each data.students as student (student.id)}
+				{#each filteredStudents as student (student.id)}
 					<Table.Row class="hover:bg-muted/30">
 						<Table.Cell class="font-bold">
 							<div class="flex items-center gap-3">

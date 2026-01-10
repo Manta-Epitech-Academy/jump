@@ -12,20 +12,16 @@ const XP_MAP: Record<string, number> = {
 	Difficile: 40
 };
 
-export const load: PageServerLoad = async ({ locals, url }) => {
-	const niveauFilter = url.searchParams.get('niveau');
-	const filter = niveauFilter ? `niveau = '${niveauFilter}'` : '';
-
-	// 1. Récupérer les étudiants
+export const load: PageServerLoad = async ({ locals }) => {
 	const students = await locals.pb.collection('students').getFullList({
-		sort: 'nom,prenom',
-		filter
+		sort: 'nom,prenom'
 	});
 
-	// 2. Récupérer TOUTES les participations validées
 	const participations = await locals.pb
 		.collection('participations')
-		.getFullList<ParticipationsResponse<{ session: { expand: { activity: ActivitiesResponse } } }>>({
+		.getFullList<
+			ParticipationsResponse<{ session: { expand: { activity: ActivitiesResponse } } }>
+		>({
 			filter: 'is_validated = true',
 			expand: 'session.activity'
 		});
@@ -48,7 +44,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	// 4. Fusionner les données pour le frontend
 	const studentsWithStats = students.map((s) => {
 		const stats = studentStats.get(s.id) || { xp: 0, sessionsCount: 0 };
 		return {
