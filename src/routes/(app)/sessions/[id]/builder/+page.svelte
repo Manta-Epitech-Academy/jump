@@ -171,12 +171,16 @@
 						<div class="flex items-center gap-2 text-epi-blue">
 							<Cuboid class="h-3 w-3" />
 							<span>{data.session.expand.activity.nom}</span>
-							<Badge
-								variant="outline"
-								class="ml-1 h-4 border-epi-blue px-1 text-[8px] text-epi-blue"
-							>
-								{data.session.expand.activity.difficulte}
-							</Badge>
+							<div class="flex gap-1">
+								{#each data.session.expand.activity.niveaux as niv}
+									<Badge
+										variant="outline"
+										class="h-4 border-epi-blue px-1 text-[8px] text-epi-blue"
+									>
+										{niv}
+									</Badge>
+								{/each}
+							</div>
 						</div>
 					{/if}
 				</div>

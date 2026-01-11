@@ -2,11 +2,10 @@
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance as kitEnhance } from '$app/forms';
-	import { Plus, Cuboid, Ellipsis, Pencil, Trash2 } from 'lucide-svelte';
+	import { Plus, Cuboid, Ellipsis, Pencil, Trash2, Check } from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Table from '$lib/components/ui/table';
-	import * as Select from '$lib/components/ui/select';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -14,6 +13,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
+	import { schoolLevels } from '$lib/validation/activities';
+	import { cn } from '$lib/utils';
 
 	let { data }: { data: PageData } = $props();
 
@@ -35,37 +36,32 @@
 	let isEditing = $state(false);
 	let editId = $state('');
 
-	// Reset form state for creation
 	function openCreate() {
 		reset();
+		$form.niveaux = [];
 		isEditing = false;
 		editId = '';
 		open = true;
 	}
 
-	// Populate form state for editing
 	function openEdit(activity: any) {
 		$form.nom = activity.nom;
 		$form.description = activity.description;
-		$form.difficulte = activity.difficulte;
+		$form.niveaux = activity.niveaux || [];
 
 		isEditing = true;
 		editId = activity.id;
 		open = true;
 	}
 
-	const difficultyColor = (diff: string) => {
-		switch (diff) {
-			case 'Facile':
-				return 'bg-green-500/15 text-green-700 hover:bg-green-500/25 border-green-200';
-			case 'Moyen':
-				return 'bg-yellow-500/15 text-yellow-700 hover:bg-yellow-500/25 border-yellow-200';
-			case 'Difficile':
-				return 'bg-red-500/15 text-red-700 hover:bg-red-500/25 border-red-200';
-			default:
-				return 'bg-gray-500/15 text-gray-700';
+	function toggleLevel(level: string) {
+		const lvl = level as any;
+		if ($form.niveaux.includes(lvl)) {
+			$form.niveaux = $form.niveaux.filter((l) => l !== lvl);
+		} else {
+			$form.niveaux = [...$form.niveaux, lvl];
 		}
-	};
+	}
 </script>
 
 <div class="space-y-6">
@@ -75,7 +71,7 @@
 				Activités<span class="text-epi-teal">_</span>
 			</h1>
 			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
-				Gérez le catalogue des ateliers disponibles.
+				Catalogue des ateliers par niveaux scolaires.
 			</p>
 		</div>
 
@@ -84,15 +80,12 @@
 			Nouvelle Activité
 		</Button>
 
-		<!-- DIALOG (CREATE & UPDATE) -->
 		<Dialog.Root bind:open>
 			<Dialog.Content class="sm:max-w-[425px]">
 				<Dialog.Header>
 					<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} une activité</Dialog.Title>
 					<Dialog.Description>
-						{isEditing
-							? "Modifiez les informations de l'atelier."
-							: 'Créez un nouvel atelier technique pour les étudiants.'}
+						Définissez quels niveaux scolaires sont ciblés par cet atelier.
 					</Dialog.Description>
 				</Dialog.Header>
 
@@ -113,20 +106,31 @@
 					</div>
 
 					<div class="grid gap-2">
-						<Label for="difficulte">Niveau</Label>
-						<Select.Root type="single" name="difficulte" bind:value={$form.difficulte}>
-							<Select.Trigger>
-								{$form.difficulte ? $form.difficulte : 'Sélectionner...'}
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="Facile">Facile</Select.Item>
-								<Select.Item value="Moyen">Moyen</Select.Item>
-								<Select.Item value="Difficile">Difficile</Select.Item>
-							</Select.Content>
-						</Select.Root>
-						<input type="hidden" name="difficulte" value={$form.difficulte} />
-						{#if $errors.difficulte}<span class="text-sm text-destructive"
-								>{$errors.difficulte}</span
+						<Label>Niveaux scolaires cibles</Label>
+						<div class="flex flex-wrap gap-2">
+							{#each schoolLevels as level}
+								{@const isActive = $form.niveaux.includes(level as any)}
+								<Button
+									type="button"
+									variant={isActive ? 'default' : 'outline'}
+									size="sm"
+									onclick={() => toggleLevel(level)}
+									class={cn(
+										'h-8 px-2 text-[10px] font-bold uppercase transition-all',
+										isActive ? 'bg-epi-blue hover:bg-epi-blue/90' : 'text-muted-foreground'
+									)}
+								>
+									{level}
+									{#if isActive}
+										<Check class="ml-1 h-3 w-3" />
+									{/if}
+								</Button>
+								{#if isActive}
+									<input type="hidden" name="niveaux" value={level} />
+								{/if}
+							{/each}
+						</div>
+						{#if $errors.niveaux}<span class="text-sm text-destructive">{$errors.niveaux}</span
 							>{/if}
 					</div>
 
@@ -145,11 +149,11 @@
 					</div>
 
 					<Dialog.Footer>
-						<button type="submit" class={buttonVariants()} disabled={$delayed}>
+						<Button type="submit" disabled={$delayed} class="w-full sm:w-auto">
 							{#if $delayed}Enregistrement...{:else}{isEditing
 									? 'Mettre à jour'
 									: "Créer l'activité"}{/if}
-						</button>
+						</Button>
 					</Dialog.Footer>
 				</form>
 			</Dialog.Content>
@@ -162,7 +166,7 @@
 				<Table.Row>
 					<Table.Head class="w-[250px] text-xs font-bold uppercase">Nom</Table.Head>
 					<Table.Head class="text-xs font-bold uppercase">Description</Table.Head>
-					<Table.Head class="w-[100px] text-xs font-bold uppercase">Difficulté</Table.Head>
+					<Table.Head class="w-[200px] text-xs font-bold uppercase">Niveaux</Table.Head>
 					<Table.Head class="w-[50px]"></Table.Head>
 				</Table.Row>
 			</Table.Header>
@@ -182,9 +186,16 @@
 							{activity.description}
 						</Table.Cell>
 						<Table.Cell>
-							<Badge class={difficultyColor(activity.difficulte)} variant="outline">
-								{activity.difficulte}
-							</Badge>
+							<div class="flex flex-wrap gap-1">
+								{#each activity.niveaux as niv}
+									<Badge
+										variant="outline"
+										class="rounded-sm border-epi-blue/30 text-[10px] text-epi-blue"
+									>
+										{niv}
+									</Badge>
+								{/each}
+							</div>
 						</Table.Cell>
 						<Table.Cell>
 							<DropdownMenu.Root>

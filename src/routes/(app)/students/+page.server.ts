@@ -5,11 +5,15 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 import type { ParticipationsResponse, ActivitiesResponse } from '$lib/pocketbase-types';
 
-// Constantes d'XP
-const XP_MAP: Record<string, number> = {
-	Facile: 10,
-	Moyen: 20,
-	Difficile: 40
+const LEVEL_XP: Record<string, number> = {
+	'6eme': 10,
+	'5eme': 15,
+	'4eme': 20,
+	'3eme': 25,
+	'2nde': 35,
+	'1ere': 45,
+	Terminale: 55,
+	Sup: 70
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -27,7 +31,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		expand: 'session.activity,activity'
 	});
 
-	// 3. Calculer l'XP par étudiant
 	const studentStats = new Map<string, { xp: number; sessionsCount: number }>();
 
 	for (const p of participations) {
@@ -39,7 +42,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		if (effectiveActivity && studentId) {
 			const current = studentStats.get(studentId) || { xp: 0, sessionsCount: 0 };
-			const xpGain = XP_MAP[effectiveActivity.difficulte] || 0;
+
+			// If an activity targets multiple levels, we take the highest XP value
+			const targetedNiveaux = (effectiveActivity.niveaux as string[]) || [];
+			const xpGains = targetedNiveaux.map((lvl) => LEVEL_XP[lvl] || 10);
+			const xpGain = xpGains.length > 0 ? Math.max(...xpGains) : 10;
 
 			studentStats.set(studentId, {
 				xp: current.xp + xpGain,
@@ -68,16 +75,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const form = await superValidate(request, zod4(studentSchema));
-
-		if (!form.valid) {
-			return fail(400, { form });
-		}
-
+		if (!form.valid) return fail(400, { form });
 		try {
 			await locals.pb.collection('students').create(form.data);
 			return message(form, 'Élève ajouté avec succès !');
 		} catch (err) {
-			console.error('Erreur création élève:', err);
 			return message(form, "Erreur lors de l'ajout", { status: 500 });
 		}
 	},
@@ -86,20 +88,11 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const form = await superValidate(formData, zod4(studentSchema));
 		const id = formData.get('id') as string;
-
-		if (!form.valid) {
-			return fail(400, { form });
-		}
-
-		if (!id) {
-			return message(form, 'ID introuvable', { status: 400 });
-		}
-
+		if (!form.valid || !id) return fail(400, { form });
 		try {
 			await locals.pb.collection('students').update(id, form.data);
 			return message(form, 'Élève modifié avec succès !');
 		} catch (err) {
-			console.error('Erreur modification élève:', err);
 			return message(form, 'Erreur lors de la modification', { status: 500 });
 		}
 	},
@@ -107,12 +100,10 @@ export const actions: Actions = {
 	delete: async ({ url, locals }) => {
 		const id = url.searchParams.get('id');
 		if (!id) return fail(400);
-
 		try {
 			await locals.pb.collection('students').delete(id);
 			return { success: true };
 		} catch (err) {
-			console.error('Erreur suppression élève:', err);
 			return fail(500);
 		}
 	}
