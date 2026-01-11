@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, sessionSchema } from '$lib/validation/sessions';
@@ -254,5 +254,30 @@ export const actions: Actions = {
 			console.error('Error on remove participation:', err);
 			return fail(500);
 		}
+	},
+
+	deleteSession: async ({ params, locals }) => {
+		try {
+			const participations = await locals.pb.collection('participations').getFullList({
+				filter: `session = "${params.id}" && is_validated = true`,
+				expand: 'activity'
+			});
+
+			for (const p of participations) {
+				const activity = p.expand?.activity;
+				const xpValue = activity ? getActivityXpValue(activity.niveaux) : 20;
+				await locals.pb.collection('students').update(p.student, {
+					'xp-': xpValue,
+					'sessions_count-': 1
+				});
+			}
+
+			await locals.pb.collection('sessions').delete(params.id);
+		} catch (err) {
+			console.error('Error deleting session:', err);
+			return fail(500);
+		}
+
+		throw redirect(303, '/');
 	}
 };

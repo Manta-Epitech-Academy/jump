@@ -192,93 +192,124 @@
 					<Dialog.Header>
 						<Dialog.Title>Paramètres de la session</Dialog.Title>
 					</Dialog.Header>
-					<form method="POST" action="?/updateSession" use:editEnhance class="space-y-4 py-2">
-						<div class="space-y-2">
-							<Label>Titre</Label>
-							<Input name="titre" bind:value={$editForm.titre} />
-							{#if $editErrors.titre}<p class="text-xs text-destructive">
-									{$editErrors.titre}
-								</p>{/if}
-						</div>
-
-						<div class="space-y-2">
-							<Label>Thème</Label>
-							<ThemeSelect themes={data.themes} bind:value={$editForm.theme} name="theme" />
-							{#if $editErrors.theme}<p class="text-xs text-destructive">
-									{$editErrors.theme}
-								</p>{/if}
-						</div>
-
-						<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-6">
+						<form method="POST" action="?/updateSession" use:editEnhance class="space-y-4 py-2">
 							<div class="space-y-2">
-								<Label>Date</Label>
-								<Popover.Root bind:open={popoverOpen}>
-									<Popover.Trigger>
-										{#snippet child({ props })}
-											<Button
-												variant="outline"
-												class="w-full justify-start text-left font-normal"
-												{...props}
-											>
-												<CalendarIcon class="mr-2 h-4 w-4" />
-												{formatDateFr(dateValue)}
-											</Button>
-										{/snippet}
-									</Popover.Trigger>
-									<Popover.Content class="w-auto p-0">
-										<Calendar
-											type="single"
-											bind:value={dateValue}
-											onValueChange={() => (popoverOpen = false)}
-											minValue={today(getLocalTimeZone())}
-										/>
-									</Popover.Content>
-								</Popover.Root>
-								<input type="hidden" name="date" value={$editForm.date} />
-								{#if $editErrors.date}<p class="text-xs text-destructive">
-										{$editErrors.date}
+								<Label>Titre</Label>
+								<Input name="titre" bind:value={$editForm.titre} />
+								{#if $editErrors.titre}<p class="text-xs text-destructive">
+										{$editErrors.titre}
 									</p>{/if}
 							</div>
+
 							<div class="space-y-2">
-								<Label>Heure</Label>
-								<div class="flex gap-2">
-									<Select.Root type="single" bind:value={hour}>
-										<Select.Trigger>{hour}</Select.Trigger>
-										<Select.Content class="h-[200px]">
-											{#each hours as h}<Select.Item value={h}>{h}</Select.Item>{/each}
-										</Select.Content>
-									</Select.Root>
-									<Select.Root type="single" bind:value={minute}>
-										<Select.Trigger>{minute}</Select.Trigger>
-										<Select.Content>
-											{#each minutes as m}<Select.Item value={m}>{m}</Select.Item>{/each}
-										</Select.Content>
-									</Select.Root>
+								<Label>Thème</Label>
+								<ThemeSelect themes={data.themes} bind:value={$editForm.theme} name="theme" />
+								{#if $editErrors.theme}<p class="text-xs text-destructive">
+										{$editErrors.theme}
+									</p>{/if}
+							</div>
+
+							<div class="grid grid-cols-2 gap-4">
+								<div class="space-y-2">
+									<Label>Date</Label>
+									<Popover.Root bind:open={popoverOpen}>
+										<Popover.Trigger>
+											{#snippet child({ props })}
+												<Button
+													variant="outline"
+													class="w-full justify-start text-left font-normal"
+													{...props}
+												>
+													<CalendarIcon class="mr-2 h-4 w-4" />
+													{formatDateFr(dateValue)}
+												</Button>
+											{/snippet}
+										</Popover.Trigger>
+										<Popover.Content class="w-auto p-0">
+											<Calendar
+												type="single"
+												bind:value={dateValue}
+												onValueChange={() => (popoverOpen = false)}
+												minValue={today(getLocalTimeZone())}
+											/>
+										</Popover.Content>
+									</Popover.Root>
+									<input type="hidden" name="date" value={$editForm.date} />
+									{#if $editErrors.date}<p class="text-xs text-destructive">
+											{$editErrors.date}
+										</p>{/if}
 								</div>
-								<input type="hidden" name="time" value={$editForm.time} />
-								{#if $editErrors.time}<p class="text-xs text-destructive">
-										{$editErrors.time}
-									</p>{/if}
+								<div class="space-y-2">
+									<Label>Heure</Label>
+									<div class="flex gap-2">
+										<Select.Root type="single" bind:value={hour}>
+											<Select.Trigger>{hour}</Select.Trigger>
+											<Select.Content class="h-[200px]">
+												{#each hours as h}<Select.Item value={h}>{h}</Select.Item>{/each}
+											</Select.Content>
+										</Select.Root>
+										<Select.Root type="single" bind:value={minute}>
+											<Select.Trigger>{minute}</Select.Trigger>
+											<Select.Content>
+												{#each minutes as m}<Select.Item value={m}>{m}</Select.Item>{/each}
+											</Select.Content>
+										</Select.Root>
+									</div>
+									<input type="hidden" name="time" value={$editForm.time} />
+									{#if $editErrors.time}<p class="text-xs text-destructive">
+											{$editErrors.time}
+										</p>{/if}
+								</div>
 							</div>
+							<div class="space-y-2">
+								<Label>Statut</Label>
+								<Select.Root type="single" name="statut" bind:value={$editForm.statut}>
+									<Select.Trigger class="capitalize"
+										>{$editForm.statut.replace('_', ' ')}</Select.Trigger
+									>
+									<Select.Content>
+										<Select.Item value="planifiee">Planifiée</Select.Item>
+										<Select.Item value="en_cours">En cours</Select.Item>
+										<Select.Item value="terminee">Terminée</Select.Item>
+									</Select.Content>
+								</Select.Root>
+								<input type="hidden" name="statut" value={$editForm.statut} />
+							</div>
+
+							<div class="flex justify-end pt-4">
+								<Button type="submit" disabled={$editDelayed}>Sauvegarder les modifications</Button>
+							</div>
+						</form>
+
+						<Separator />
+
+						<div class="space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-4">
+							<div class="space-y-1">
+								<h4 class="text-sm font-bold text-destructive uppercase">Zone de danger</h4>
+								<p class="text-xs text-muted-foreground">
+									La suppression d'une session est irréversible. Les XP des élèves validés seront
+									automatiquement retirés.
+								</p>
+							</div>
+							<form
+								action="?/deleteSession"
+								method="POST"
+								use:enhance={() => {
+									return async ({ result }) => {
+										if (result.type === 'redirect') {
+											toast.success('Session supprimée');
+										}
+									};
+								}}
+							>
+								<Button type="submit" variant="destructive" class="w-full">
+									<Trash2 class="mr-2 h-4 w-4" />
+									Supprimer définitivement la session
+								</Button>
+							</form>
 						</div>
-						<div class="space-y-2">
-							<Label>Statut</Label>
-							<Select.Root type="single" name="statut" bind:value={$editForm.statut}>
-								<Select.Trigger class="capitalize"
-									>{$editForm.statut.replace('_', ' ')}</Select.Trigger
-								>
-								<Select.Content>
-									<Select.Item value="planifiee">Planifiée</Select.Item>
-									<Select.Item value="en_cours">En cours</Select.Item>
-									<Select.Item value="terminee">Terminée</Select.Item>
-								</Select.Content>
-							</Select.Root>
-							<input type="hidden" name="statut" value={$editForm.statut} />
-						</div>
-						<Dialog.Footer>
-							<Button type="submit" disabled={$editDelayed}>Sauvegarder</Button>
-						</Dialog.Footer>
-					</form>
+					</div>
 				</Dialog.Content>
 			</Dialog.Root>
 

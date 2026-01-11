@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import {
 		Table,
 		TableBody,
@@ -8,8 +8,11 @@
 		TableHeader,
 		TableRow
 	} from '$lib/components/ui/table';
-	import { Calendar, Tag, Plus, ChevronRight } from 'lucide-svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Calendar, Tag, Plus, ChevronRight, Ellipsis, Trash2, Pencil } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 
 	let { data } = $props();
 
@@ -101,9 +104,47 @@
 								{/if}
 							</TableCell>
 							<TableCell class="text-right">
-								<Button variant="ghost" size="icon" href={`/sessions/${session.id}/builder`}>
-									<ChevronRight class="h-5 w-5 text-gray-400" />
-								</Button>
+								<div class="flex items-center justify-end gap-2">
+									<Button variant="ghost" size="icon" href={`/sessions/${session.id}/builder`}>
+										<ChevronRight class="h-5 w-5 text-gray-400" />
+									</Button>
+
+									<DropdownMenu.Root>
+										<DropdownMenu.Trigger
+											class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+										>
+											<Ellipsis class="h-4 w-4" />
+										</DropdownMenu.Trigger>
+										<DropdownMenu.Content align="end">
+											<DropdownMenu.Item onclick={() => goto(`/sessions/${session.id}/builder`)}>
+												<Pencil class="mr-2 h-4 w-4" />
+												Modifier
+											</DropdownMenu.Item>
+											<DropdownMenu.Separator />
+											<form
+												action="?/deleteSession&id={session.id}"
+												method="POST"
+												use:enhance={() => {
+													return async ({ result, update }) => {
+														if (result.type === 'success') {
+															toast.success('Session supprimée');
+															await update();
+														} else {
+															toast.error('Erreur lors de la suppression');
+														}
+													};
+												}}
+											>
+												<button type="submit" class="w-full">
+													<DropdownMenu.Item class="cursor-pointer text-destructive">
+														<Trash2 class="mr-2 h-4 w-4" />
+														Supprimer
+													</DropdownMenu.Item>
+												</button>
+											</form>
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
+								</div>
 							</TableCell>
 						</TableRow>
 					{/each}
