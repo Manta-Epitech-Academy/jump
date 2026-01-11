@@ -10,8 +10,10 @@
 		Calendar as CalendarIcon,
 		ArrowLeft,
 		UserCheck,
-		Cuboid,
-		Settings
+		Settings,
+		TriangleAlert,
+		Info,
+		ArrowRightLeft
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -28,6 +30,7 @@
 	import { toast } from 'svelte-sonner';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
+	import { enhance } from '$app/forms';
 
 	let { data }: { data: PageData } = $props();
 
@@ -48,8 +51,7 @@
 		form: createForm,
 		errors: createErrors,
 		enhance: createEnhance,
-		delayed: createDelayed,
-		message: createMessage
+		delayed: createDelayed
 	} = superForm(
 		untrack(() => data.createStudentForm),
 		{
@@ -67,8 +69,7 @@
 		form: editForm,
 		errors: editErrors,
 		enhance: editEnhance,
-		delayed: editDelayed,
-		message: editMessage
+		delayed: editDelayed
 	} = superForm(
 		untrack(() => data.editForm),
 		{
@@ -86,7 +87,19 @@
 	let openQuickCreate = $state(false);
 	let openEditSession = $state(false);
 
-	// Date handling for Edit Form
+	let workshops = $derived.by(() => {
+		const groups: Record<string, any[]> = {};
+		const defaultName = data.session.expand?.activity?.nom || 'Standard';
+
+		data.participations.forEach((p) => {
+			const actName = p.expand?.activity?.nom || defaultName;
+			if (!groups[actName]) groups[actName] = [];
+			groups[actName].push(p);
+		});
+
+		return groups;
+	});
+
 	function initDateValue(val: string | CalendarDateTime | undefined): CalendarDateTime | undefined {
 		if (!val) return undefined;
 		if (val instanceof CalendarDateTime) return val;
@@ -99,17 +112,13 @@
 
 	let dateValue = $state<CalendarDateTime | undefined>(initDateValue($editForm.date));
 	let popoverOpen = $state(false);
-
-	// Time handling
 	const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
 	let hour = $state($editForm.time.split(':')[0]);
 	let minute = $state($editForm.time.split(':')[1]);
 
 	$effect(() => {
-		if (dateValue) {
-			$editForm.date = dateValue;
-		}
+		if (dateValue) $editForm.date = dateValue;
 		$editForm.time = `${hour}:${minute}`;
 	});
 
@@ -129,12 +138,7 @@
 		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 	}
 
-	function formatDateDisplay(date: CalendarDateTime | undefined): string {
-		if (!date) return 'Choisir une date';
-		return `${date.day}/${date.month}/${date.year}`;
-	}
-
-	const niveaux = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
+	const niveauxScolaires = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 </script>
 
 <div class="flex h-[calc(100vh-8rem)] flex-col space-y-4">
@@ -157,8 +161,7 @@
 							{data.session.titre}
 						</span>
 						<span>
-							•
-							{new Date(data.session.date).toLocaleDateString('fr-FR', {
+							• {new Date(data.session.date).toLocaleDateString('fr-FR', {
 								day: 'numeric',
 								month: 'short',
 								hour: '2-digit',
@@ -166,28 +169,10 @@
 							})}
 						</span>
 					</div>
-
-					{#if data.session.expand?.activity}
-						<div class="flex items-center gap-2 text-epi-blue">
-							<Cuboid class="h-3 w-3" />
-							<span>{data.session.expand.activity.nom}</span>
-							<div class="flex gap-1">
-								{#each data.session.expand.activity.niveaux as niv}
-									<Badge
-										variant="outline"
-										class="h-4 border-epi-blue px-1 text-[8px] text-epi-blue"
-									>
-										{niv}
-									</Badge>
-								{/each}
-							</div>
-						</div>
-					{/if}
 				</div>
 			</div>
 		</div>
 		<div class="flex gap-2">
-			<!-- EDIT BUTTON -->
 			<Dialog.Root bind:open={openEditSession}>
 				<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'icon' })}>
 					<Settings class="h-4 w-4" />
@@ -195,18 +180,12 @@
 				<Dialog.Content class="sm:max-w-[500px]">
 					<Dialog.Header>
 						<Dialog.Title>Paramètres de la session</Dialog.Title>
-						<Dialog.Description>Modifiez les informations générales.</Dialog.Description>
 					</Dialog.Header>
-
 					<form method="POST" action="?/updateSession" use:editEnhance class="space-y-4 py-2">
 						<div class="space-y-2">
 							<Label>Titre</Label>
 							<Input name="titre" bind:value={$editForm.titre} />
-							{#if $editErrors.titre}<span class="text-xs text-destructive"
-									>{$editErrors.titre}</span
-								>{/if}
 						</div>
-
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-2">
 								<Label>Date</Label>
@@ -219,7 +198,7 @@
 												{...props}
 											>
 												<CalendarIcon class="mr-2 h-4 w-4" />
-												{formatDateDisplay(dateValue)}
+												{dateValue ? dateValue.toString() : 'Choisir'}
 											</Button>
 										{/snippet}
 									</Popover.Trigger>
@@ -232,28 +211,17 @@
 										/>
 									</Popover.Content>
 								</Popover.Root>
-								<input
-									type="hidden"
-									name="date"
-									value={dateValue
-										? `${dateValue.year}-${String(dateValue.month).padStart(2, '0')}-${String(dateValue.day).padStart(2, '0')}`
-										: ''}
-								/>
-								{#if $editErrors.date}<span class="text-xs text-destructive"
-										>{$editErrors.date}</span
-									>{/if}
+								<input type="hidden" name="date" value={dateValue ? dateValue.toString() : ''} />
 							</div>
-
 							<div class="space-y-2">
 								<Label>Heure</Label>
 								<div class="flex gap-2">
 									<Select.Root type="single" bind:value={hour}>
 										<Select.Trigger>{hour}</Select.Trigger>
-										<Select.Content class="h-[200px] overflow-y-auto">
+										<Select.Content class="h-[200px]">
 											{#each hours as h}<Select.Item value={h}>{h}</Select.Item>{/each}
 										</Select.Content>
 									</Select.Root>
-									<span class="py-2">:</span>
 									<Select.Root type="single" bind:value={minute}>
 										<Select.Trigger>{minute}</Select.Trigger>
 										<Select.Content>
@@ -264,9 +232,8 @@
 								<input type="hidden" name="time" value={`${hour}:${minute}`} />
 							</div>
 						</div>
-
 						<div class="space-y-2">
-							<Label>Activité</Label>
+							<Label>Activité par défaut</Label>
 							<Select.Root type="single" name="activity" bind:value={$editForm.activity}>
 								<Select.Trigger>
 									{data.activities.find((a) => a.id === $editForm.activity)?.nom || 'Sélectionner'}
@@ -279,7 +246,6 @@
 							</Select.Root>
 							<input type="hidden" name="activity" value={$editForm.activity} />
 						</div>
-
 						<div class="space-y-2">
 							<Label>Statut</Label>
 							<Select.Root type="single" name="statut" bind:value={$editForm.statut}>
@@ -294,11 +260,8 @@
 							</Select.Root>
 							<input type="hidden" name="statut" value={$editForm.statut} />
 						</div>
-
 						<Dialog.Footer>
-							<Button type="submit" disabled={$editDelayed}>
-								{$editDelayed ? 'Sauvegarde...' : 'Enregistrer les modifications'}
-							</Button>
+							<Button type="submit" disabled={$editDelayed}>Sauvegarder</Button>
 						</Dialog.Footer>
 					</form>
 				</Dialog.Content>
@@ -314,72 +277,134 @@
 	<div class="grid h-full min-h-0 flex-1 gap-6 md:grid-cols-12">
 		<Card.Root class="flex h-full max-h-full flex-col rounded-sm md:col-span-8">
 			<Card.Header class="pb-3">
-				<div class="flex items-center justify-between">
-					<Card.Title class="flex items-center gap-2 uppercase">
-						<Users class="h-5 w-5 text-epi-blue" />
-						Participants
-						<Badge variant="secondary" class="rounded-sm">{data.participations.length}</Badge>
-					</Card.Title>
-				</div>
-				<Card.Description class="font-bold uppercase">Liste des élèves inscrits</Card.Description>
+				<Card.Title class="flex items-center gap-2 uppercase">
+					<Users class="h-5 w-5 text-epi-blue" />
+					Organisation des Ateliers
+				</Card.Title>
+				<Card.Description class="font-bold uppercase"
+					>Répartition par thématique pédagogique</Card.Description
+				>
 			</Card.Header>
 			<Separator />
 
 			<ScrollArea class="flex-1">
-				<div class="space-y-2 p-4">
-					{#if data.participations.length === 0}
-						<div class="flex flex-col items-center justify-center py-12 text-center">
+				<div class="space-y-8 p-6">
+					{#each Object.entries(workshops) as [workshopName, members]}
+						<div>
+							<div class="mb-3 flex items-center gap-2">
+								<div class="h-2 w-2 rounded-full bg-epi-teal"></div>
+								<h3 class="font-heading text-lg tracking-tight uppercase">{workshopName}</h3>
+								<Badge variant="secondary" class="rounded-sm text-[10px]"
+									>{members.length} élèves</Badge
+								>
+							</div>
+
+							<div class="grid gap-2">
+								{#each members as p (p.id)}
+									<div
+										class="group flex items-center justify-between rounded-sm border bg-card p-3 transition-all hover:border-epi-blue"
+									>
+										<div class="flex items-center gap-4">
+											<div class="relative">
+												<Avatar.Root class="rounded-sm border">
+													<Avatar.Fallback class="bg-primary/5 font-bold text-primary">
+														{p.expand.student.prenom[0]}{p.expand.student.nom[0]}
+													</Avatar.Fallback>
+												</Avatar.Root>
+												{#if p.alerts.length > 0}
+													<div class="absolute -top-1 -right-1">
+														{#if p.alerts.some((a) => a.type === 'danger')}
+															<TriangleAlert class="h-4 w-4 fill-white text-destructive" />
+														{:else}
+															<Info class="h-4 w-4 fill-white text-epi-orange" />
+														{/if}
+													</div>
+												{/if}
+											</div>
+
+											<div>
+												<p class="text-sm font-bold">
+													{formatFirstName(p.expand.student.prenom)}
+													<span class="uppercase">{p.expand.student.nom}</span>
+												</p>
+												<div class="flex flex-col gap-0.5">
+													<span class="text-[10px] font-black text-muted-foreground uppercase"
+														>{p.expand.student.niveau}</span
+													>
+													{#each p.alerts as alert}
+														<span
+															class="text-[9px] font-black uppercase {alert.type === 'danger'
+																? 'text-destructive'
+																: 'text-epi-orange'}"
+														>
+															{alert.message}
+														</span>
+													{/each}
+												</div>
+											</div>
+										</div>
+
+										<div class="flex items-center gap-2">
+											<form action="?/assignActivity" method="POST" use:enhance>
+												<input type="hidden" name="participationId" value={p.id} />
+												<Select.Root
+													type="single"
+													name="activityId"
+													onValueChange={(v) => {
+														const form = document.createElement('form');
+														form.method = 'POST';
+														form.action = '?/assignActivity';
+														const pId = document.createElement('input');
+														pId.name = 'participationId';
+														pId.value = p.id;
+														const aId = document.createElement('input');
+														aId.name = 'activityId';
+														aId.value = v;
+														form.appendChild(pId);
+														form.appendChild(aId);
+														document.body.appendChild(form);
+														form.submit();
+													}}
+												>
+													<Select.Trigger
+														class="h-8 w-[150px] text-[10px] font-bold uppercase opacity-0 transition-opacity group-hover:opacity-100"
+													>
+														<ArrowRightLeft class="mr-1 h-3 w-3" /> Changer d'atelier
+													</Select.Trigger>
+													<Select.Content>
+														<Select.Item value="session">Suivre la session</Select.Item>
+														<Separator class="my-1" />
+														{#each data.activities as act}
+															<Select.Item value={act.id}>{act.nom}</Select.Item>
+														{/each}
+													</Select.Content>
+												</Select.Root>
+											</form>
+
+											<form action="?/remove&id={p.id}" method="POST">
+												<Button
+													variant="ghost"
+													size="icon"
+													type="submit"
+													class="h-8 w-8 text-muted-foreground hover:text-destructive"
+												>
+													<Trash2 class="h-4 w-4" />
+												</Button>
+											</form>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{:else}
+						<div class="flex flex-col items-center justify-center py-20 text-center">
 							<Users class="mb-4 h-12 w-12 text-muted" />
 							<h3 class="text-lg font-bold uppercase">Aucun participant</h3>
 							<p class="text-sm font-bold text-muted-foreground uppercase">
-								Utilisez le panneau de droite pour ajouter des élèves.
+								Ajoutez des élèves via le panneau latéral.
 							</p>
 						</div>
-					{:else}
-						{#each data.participations as p (p.id)}
-							<div
-								class="flex items-center justify-between rounded-sm border bg-card p-3 transition-colors hover:bg-muted/30"
-							>
-								<div class="flex items-center gap-3">
-									<Avatar.Root class="rounded-sm">
-										<Avatar.Fallback class="bg-primary/10 font-bold text-primary">
-											{(p.expand?.student?.prenom?.[0] ?? '?').toUpperCase()}{(
-												p.expand?.student?.nom?.[0] ?? '?'
-											).toUpperCase()}
-										</Avatar.Fallback>
-									</Avatar.Root>
-									<div>
-										<p class="font-bold">
-											{formatFirstName(p.expand?.student?.prenom)}
-											<span class="uppercase">{p.expand?.student?.nom}</span>
-										</p>
-										<p class="text-xs font-bold text-muted-foreground uppercase">
-											{p.expand?.student?.niveau}
-										</p>
-									</div>
-								</div>
-
-								<div class="flex items-center gap-2">
-									{#if p.is_validated}
-										<Badge variant="default" class="rounded-sm bg-epi-teal font-black text-black"
-											>Validé</Badge
-										>
-									{/if}
-
-									<form action="?/remove&id={p.id}" method="POST">
-										<Button
-											variant="ghost"
-											size="icon"
-											type="submit"
-											class="text-muted-foreground hover:text-destructive"
-										>
-											<Trash2 class="h-4 w-4" />
-										</Button>
-									</form>
-								</div>
-							</div>
-						{/each}
-					{/if}
+					{/each}
 				</div>
 			</ScrollArea>
 		</Card.Root>
@@ -387,7 +412,7 @@
 		<div class="flex h-full flex-col gap-4 md:col-span-4">
 			<Card.Root class="flex max-h-full flex-1 flex-col rounded-sm">
 				<Card.Header class="space-y-4 pb-3">
-					<Card.Title class="uppercase">Ajouter des élèves</Card.Title>
+					<Card.Title class="uppercase">Inscrire des élèves</Card.Title>
 					<div class="relative">
 						<Search class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
 						<Input placeholder="Rechercher..." class="rounded-sm pl-8" bind:value={searchQuery} />
@@ -405,17 +430,14 @@
 								class="flex items-center justify-between rounded-sm border bg-background p-2"
 							>
 								<input type="hidden" name="studentId" value={student.id} />
-
 								<div class="flex flex-col overflow-hidden">
 									<span class="truncate text-sm font-bold"
-										>{formatFirstName(student.prenom)}
-										<span class="uppercase">{student.nom}</span></span
+										>{formatFirstName(student.prenom)} {student.nom}</span
 									>
 									<span class="text-[10px] font-bold text-muted-foreground uppercase"
 										>{student.niveau}</span
 									>
 								</div>
-
 								<Button
 									variant={isAdded ? 'secondary' : 'default'}
 									size="sm"
@@ -423,41 +445,23 @@
 									disabled={isAdded || $addDelayed}
 									class="h-8 px-2"
 								>
-									{#if isAdded}
-										<CircleCheck class="h-4 w-4" />
-									{:else}
-										<Plus class="h-4 w-4" />
-									{/if}
+									{#if isAdded}<CircleCheck class="h-4 w-4" />{:else}<Plus class="h-4 w-4" />{/if}
 								</Button>
 							</form>
-						{:else}
-							<div class="py-4 text-center text-xs font-bold text-muted-foreground uppercase">
-								Aucun élève trouvé.
-							</div>
 						{/each}
 					</div>
 				</ScrollArea>
 
 				<div class="border-t p-4">
-					{#if $addMessage}
-						<div class="mb-2 text-center text-xs font-bold text-destructive uppercase">
-							{$addMessage}
-						</div>
-					{/if}
-
 					<Dialog.Root bind:open={openQuickCreate}>
 						<Dialog.Trigger class={buttonVariants({ variant: 'outline', class: 'w-full' })}>
 							<Plus class="mr-2 h-4 w-4" />
-							Créer un nouvel élève
+							Nouvel élève
 						</Dialog.Trigger>
 						<Dialog.Content>
 							<Dialog.Header>
 								<Dialog.Title>Ajout Rapide</Dialog.Title>
-								<Dialog.Description>
-									Créez un élève et ajoutez-le immédiatement à la session.
-								</Dialog.Description>
 							</Dialog.Header>
-
 							<form
 								method="POST"
 								action="?/quickCreateStudent"
@@ -468,16 +472,10 @@
 									<div class="space-y-2">
 										<Label>Prénom</Label>
 										<Input name="prenom" bind:value={$createForm.prenom} />
-										{#if $createErrors.prenom}<span class="text-xs text-destructive"
-												>{$createErrors.prenom}</span
-											>{/if}
 									</div>
 									<div class="space-y-2">
 										<Label>Nom</Label>
 										<Input name="nom" bind:value={$createForm.nom} />
-										{#if $createErrors.nom}<span class="text-xs text-destructive"
-												>{$createErrors.nom}</span
-											>{/if}
 									</div>
 								</div>
 								<div class="space-y-2">
@@ -485,16 +483,15 @@
 									<Select.Root type="single" name="niveau" bind:value={$createForm.niveau}>
 										<Select.Trigger>{$createForm.niveau || 'Sélectionner'}</Select.Trigger>
 										<Select.Content>
-											{#each niveaux as nv}
+											{#each niveauxScolaires as nv}
 												<Select.Item value={nv}>{nv}</Select.Item>
 											{/each}
 										</Select.Content>
 									</Select.Root>
 									<input type="hidden" name="niveau" value={$createForm.niveau} />
 								</div>
-
 								<Dialog.Footer>
-									<Button type="submit" disabled={$createDelayed}>Créer et Ajouter</Button>
+									<Button type="submit">Créer et Inscrire</Button>
 								</Dialog.Footer>
 							</form>
 						</Dialog.Content>

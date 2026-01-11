@@ -11,25 +11,64 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	let session;
 	try {
 		session = await locals.pb.collection('sessions').getOne(params.id, {
-			expand: 'activity'
+			expand: 'activity',
+			requestKey: null
 		});
 	} catch (e) {
 		console.error(e);
 		throw error(404, 'Session introuvable');
 	}
 
-	const participations = await locals.pb.collection('participations').getFullList({
+	const participationsRaw = await locals.pb.collection('participations').getFullList({
 		filter: `session = "${session.id}"`,
-		expand: 'student',
-		sort: '-created'
+		expand: 'student,activity',
+		sort: '-created',
+		requestKey: null
 	});
 
+	const participations = await Promise.all(
+		participationsRaw.map(async (p) => {
+			const student = p.expand?.student;
+			const currentActivity = p.expand?.activity || session.expand?.activity;
+
+			const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
+
+			if (student && currentActivity) {
+				const history = await locals.pb.collection('participations').getList(1, 1, {
+					filter: `student = "${student.id}" && activity = "${currentActivity.id}" && is_validated = true && session != "${session.id}"`,
+					requestKey: null
+				});
+
+				if (history.totalItems > 0) {
+					alerts.push({
+						type: 'danger',
+						message: 'DÉJÀ VALIDÉ : Cet élève a déjà réussi cet atelier par le passé.'
+					});
+				}
+
+				if (currentActivity.niveaux && !currentActivity.niveaux.includes(student.niveau)) {
+					alerts.push({
+						type: 'warning',
+						message: `NIVEAU : L'activité est prévue pour [${currentActivity.niveaux.join(', ')}], l'élève est en ${student.niveau}.`
+					});
+				}
+			}
+
+			return {
+				...p,
+				alerts
+			};
+		})
+	);
+
 	const allStudents = await locals.pb.collection('students').getFullList({
-		sort: 'nom,prenom'
+		sort: 'nom,prenom',
+		requestKey: null
 	});
 
 	const activities = await locals.pb.collection('activities').getFullList({
-		sort: 'nom'
+		sort: 'nom',
+		requestKey: null
 	});
 
 	const sessionDate = new Date(session.date);
@@ -74,12 +113,10 @@ export const actions: Actions = {
 				return message(form, 'Cet élève est déjà inscrit à cette session.', { status: 400 });
 			}
 
-			const currentSession = await locals.pb.collection('sessions').getOne(params.id);
-
 			await locals.pb.collection('participations').create({
 				student: form.data.studentId,
 				session: params.id,
-				activity: currentSession.activity,
+				activity: null,
 				is_present: false,
 				is_validated: false
 			});
@@ -90,18 +127,32 @@ export const actions: Actions = {
 		}
 	},
 
+	assignActivity: async ({ request, locals }) => {
+		const data = await request.formData();
+		const participationId = data.get('participationId') as string;
+		const activityId = data.get('activityId') as string;
+
+		try {
+			await locals.pb.collection('participations').update(participationId, {
+				activity: activityId === 'session' ? null : activityId
+			});
+			return { success: true };
+		} catch (err) {
+			console.error(err);
+			return fail(500);
+		}
+	},
+
 	quickCreateStudent: async ({ request, locals, params }) => {
 		const form = await superValidate(request, zod4(studentSchema));
 		if (!form.valid) return fail(400, { form });
 
 		try {
-			const currentSession = await locals.pb.collection('sessions').getOne(params.id);
-
 			const newStudent = await locals.pb.collection('students').create(form.data);
 			await locals.pb.collection('participations').create({
 				student: newStudent.id,
 				session: params.id,
-				activity: currentSession.activity,
+				activity: null,
 				is_present: false,
 				is_validated: false
 			});
@@ -164,12 +215,10 @@ export const actions: Actions = {
 		if (!id) return fail(400);
 
 		try {
-			// 1. Fetch participation before deleting
 			const p = await locals.pb.collection('participations').getOne(id, {
 				expand: 'session.activity'
 			});
 
-			// 2. If it was validated, remove the XP and count from student record
 			if (p.is_validated) {
 				const activity = p.expand?.session?.expand?.activity;
 				const xpValue = getActivityXpValue(activity?.niveaux);
@@ -180,7 +229,6 @@ export const actions: Actions = {
 				});
 			}
 
-			// 3. Delete participation
 			await locals.pb.collection('participations').delete(id);
 			return { success: true };
 		} catch (err) {
