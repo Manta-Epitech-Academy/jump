@@ -11,7 +11,7 @@
 		name = 'theme'
 	}: {
 		themes: any[];
-		value: string;
+		value: string | undefined | null;
 		name?: string;
 	} = $props();
 

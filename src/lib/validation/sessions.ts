@@ -14,7 +14,7 @@ export const sessionSchema = z.object({
 	),
 	time: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Format horaire invalide (HH:MM)'),
 	statut: z.enum(['planifiee', 'en_cours', 'terminee']).default('planifiee'),
-	theme: z.string().optional(),
+	theme: z.string().default(''),
 	activity: z.string().optional()
 });
 
