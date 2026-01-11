@@ -236,7 +236,7 @@
 							<div class="flex flex-col items-end">
 								<span class="font-black text-foreground">{student.xp} XP</span>
 								<span class="text-[10px] font-bold tracking-widest uppercase"
-									>{student.sessionsCount} session{student.sessionsCount > 1 ? 's' : ''}</span
+									>{student.sessions_count} session{student.sessions_count > 1 ? 's' : ''}</span
 								>
 							</div>
 						</Table.Cell>

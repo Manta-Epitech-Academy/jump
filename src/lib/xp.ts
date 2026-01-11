@@ -1,0 +1,21 @@
+export const LEVEL_XP: Record<string, number> = {
+	'6eme': 10,
+	'5eme': 15,
+	'4eme': 20,
+	'3eme': 25,
+	'2nde': 35,
+	'1ere': 45,
+	Terminale: 55,
+	Sup: 70
+};
+
+/**
+ * Calculates how much XP an activity is worth based on its targeted levels.
+ * Returns the highest value among targeted levels.
+ */
+export function getActivityXpValue(niveaux: string[] | any): number {
+	const levels = (niveaux as string[]) || [];
+	if (levels.length === 0) return 10;
+	const xpGains = levels.map((lvl) => LEVEL_XP[lvl] || 10);
+	return Math.max(...xpGains);
+}

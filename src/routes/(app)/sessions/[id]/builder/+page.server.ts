@@ -5,6 +5,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, sessionSchema } from '$lib/validation/sessions';
 import { studentSchema } from '$lib/validation/students';
 import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
+import { getActivityXpValue } from '$lib/xp';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	let session;
@@ -161,10 +162,29 @@ export const actions: Actions = {
 	remove: async ({ url, locals }) => {
 		const id = url.searchParams.get('id');
 		if (!id) return fail(400);
+
 		try {
+			// 1. Fetch participation before deleting
+			const p = await locals.pb.collection('participations').getOne(id, {
+				expand: 'session.activity'
+			});
+
+			// 2. If it was validated, remove the XP and count from student record
+			if (p.is_validated) {
+				const activity = p.expand?.session?.expand?.activity;
+				const xpValue = getActivityXpValue(activity?.niveaux);
+
+				await locals.pb.collection('students').update(p.student, {
+					'xp-': xpValue,
+					'sessions_count-': 1
+				});
+			}
+
+			// 3. Delete participation
 			await locals.pb.collection('participations').delete(id);
 			return { success: true };
 		} catch (err) {
+			console.error('Error on remove participation:', err);
 			return fail(500);
 		}
 	}
