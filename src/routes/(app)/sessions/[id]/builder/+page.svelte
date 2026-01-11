@@ -13,6 +13,7 @@
 		Settings,
 		TriangleAlert,
 		Info,
+		Tag,
 		ArrowRightLeft
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -31,36 +32,30 @@
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { formatDateFr } from '$lib/utils';
+	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	const {
 		form: addForm,
 		enhance: addEnhance,
-		message: addMessage,
 		delayed: addDelayed
 	} = superForm(
 		untrack(() => data.addForm),
-		{
-			id: 'add-existing',
-			invalidateAll: true
-		}
+		{ id: 'add-existing', invalidateAll: true }
 	);
 
 	const {
 		form: createForm,
 		errors: createErrors,
-		enhance: createEnhance,
-		delayed: createDelayed
+		enhance: createEnhance
 	} = superForm(
 		untrack(() => data.createStudentForm),
 		{
 			id: 'quick-create',
 			onResult: ({ result }) => {
-				if (result.type === 'success') {
-					openQuickCreate = false;
-					toast.success('Élève créé avec succès');
-				}
+				if (result.type === 'success') openQuickCreate = false;
 			}
 		}
 	);
@@ -74,6 +69,7 @@
 		untrack(() => data.editForm),
 		{
 			id: 'edit-session',
+			resetForm: false,
 			onResult: ({ result }) => {
 				if (result.type === 'success') {
 					openEditSession = false;
@@ -87,38 +83,48 @@
 	let openQuickCreate = $state(false);
 	let openEditSession = $state(false);
 
-	let workshops = $derived.by(() => {
-		const groups: Record<string, any[]> = {};
-		const defaultName = data.session.expand?.activity?.nom || 'Standard';
+	// Updated grouping logic: separate those with an activity from those without
+	let participationGroups = $derived.by(() => {
+		const assigned: Record<string, any[]> = {};
+		const unassigned: any[] = [];
 
 		data.participations.forEach((p) => {
-			const actName = p.expand?.activity?.nom || defaultName;
-			if (!groups[actName]) groups[actName] = [];
-			groups[actName].push(p);
+			if (p.expand?.activity) {
+				const actName = p.expand.activity.nom;
+				if (!assigned[actName]) assigned[actName] = [];
+				assigned[actName].push(p);
+			} else {
+				unassigned.push(p);
+			}
 		});
-
-		return groups;
+		return { assigned, unassigned };
 	});
 
-	function initDateValue(val: string | CalendarDateTime | undefined): CalendarDateTime | undefined {
+	function parseInitialDate(val: any) {
 		if (!val) return undefined;
-		if (val instanceof CalendarDateTime) return val;
-		if (typeof val === 'string') {
-			const [y, m, d] = val.split('-').map(Number);
+		try {
+			const dateStr = typeof val === 'string' ? val : val.toString();
+			const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
 			return new CalendarDateTime(y, m, d);
+		} catch (e) {
+			return undefined;
 		}
-		return undefined;
 	}
 
-	let dateValue = $state<CalendarDateTime | undefined>(initDateValue($editForm.date));
+	let dateValue = $state<CalendarDateTime | undefined>(parseInitialDate($editForm.date));
 	let popoverOpen = $state(false);
 	const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
-	let hour = $state($editForm.time.split(':')[0]);
-	let minute = $state($editForm.time.split(':')[1]);
+	let hour = $state($editForm.time?.split(':')[0] || '14');
+	let minute = $state($editForm.time?.split(':')[1] || '00');
 
 	$effect(() => {
-		if (dateValue) $editForm.date = dateValue;
+		if (dateValue) {
+			const y = dateValue.year;
+			const m = String(dateValue.month).padStart(2, '0');
+			const d = String(dateValue.day).padStart(2, '0');
+			$editForm.date = `${y}-${m}-${d}`;
+		}
 		$editForm.time = `${hour}:${minute}`;
 	});
 
@@ -142,7 +148,6 @@
 </script>
 
 <div class="flex h-[calc(100vh-8rem)] flex-col space-y-4">
-	<!-- Header -->
 	<div class="flex items-center justify-between border-b pb-4">
 		<div class="flex items-center gap-4">
 			<a href="/" class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
@@ -169,6 +174,12 @@
 							})}
 						</span>
 					</div>
+					{#if data.session.expand?.theme}
+						<div class="flex items-center gap-1">
+							<Tag class="h-3 w-3 text-epi-teal" />
+							{data.session.expand.theme.nom}
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -185,7 +196,19 @@
 						<div class="space-y-2">
 							<Label>Titre</Label>
 							<Input name="titre" bind:value={$editForm.titre} />
+							{#if $editErrors.titre}<p class="text-xs text-destructive">
+									{$editErrors.titre}
+								</p>{/if}
 						</div>
+
+						<div class="space-y-2">
+							<Label>Thème</Label>
+							<ThemeSelect themes={data.themes} bind:value={$editForm.theme} name="theme" />
+							{#if $editErrors.theme}<p class="text-xs text-destructive">
+									{$editErrors.theme}
+								</p>{/if}
+						</div>
+
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-2">
 								<Label>Date</Label>
@@ -198,7 +221,7 @@
 												{...props}
 											>
 												<CalendarIcon class="mr-2 h-4 w-4" />
-												{dateValue ? dateValue.toString() : 'Choisir'}
+												{formatDateFr(dateValue)}
 											</Button>
 										{/snippet}
 									</Popover.Trigger>
@@ -211,7 +234,10 @@
 										/>
 									</Popover.Content>
 								</Popover.Root>
-								<input type="hidden" name="date" value={dateValue ? dateValue.toString() : ''} />
+								<input type="hidden" name="date" value={$editForm.date} />
+								{#if $editErrors.date}<p class="text-xs text-destructive">
+										{$editErrors.date}
+									</p>{/if}
 							</div>
 							<div class="space-y-2">
 								<Label>Heure</Label>
@@ -229,22 +255,11 @@
 										</Select.Content>
 									</Select.Root>
 								</div>
-								<input type="hidden" name="time" value={`${hour}:${minute}`} />
+								<input type="hidden" name="time" value={$editForm.time} />
+								{#if $editErrors.time}<p class="text-xs text-destructive">
+										{$editErrors.time}
+									</p>{/if}
 							</div>
-						</div>
-						<div class="space-y-2">
-							<Label>Activité par défaut</Label>
-							<Select.Root type="single" name="activity" bind:value={$editForm.activity}>
-								<Select.Trigger>
-									{data.activities.find((a) => a.id === $editForm.activity)?.nom || 'Sélectionner'}
-								</Select.Trigger>
-								<Select.Content>
-									{#each data.activities as act}
-										<Select.Item value={act.id}>{act.nom}</Select.Item>
-									{/each}
-								</Select.Content>
-							</Select.Root>
-							<input type="hidden" name="activity" value={$editForm.activity} />
 						</div>
 						<div class="space-y-2">
 							<Label>Statut</Label>
@@ -268,28 +283,49 @@
 			</Dialog.Root>
 
 			<Button variant="default" href={`/sessions/${data.session.id}/appel`} class="shadow-lg">
-				<UserCheck class="mr-2 h-4 w-4" />
-				Faire l'appel
+				<UserCheck class="mr-2 h-4 w-4" /> Faire l'appel
 			</Button>
 		</div>
 	</div>
 
-	<div class="grid h-full min-h-0 flex-1 gap-6 md:grid-cols-12">
+	<div class="min-0 grid h-full flex-1 gap-6 md:grid-cols-12">
 		<Card.Root class="flex h-full max-h-full flex-col rounded-sm md:col-span-8">
 			<Card.Header class="pb-3">
 				<Card.Title class="flex items-center gap-2 uppercase">
-					<Users class="h-5 w-5 text-epi-blue" />
-					Organisation des Ateliers
+					<Users class="h-5 w-5 text-epi-blue" /> Organisation des Groupes
 				</Card.Title>
-				<Card.Description class="font-bold uppercase"
-					>Répartition par thématique pédagogique</Card.Description
-				>
+				<Card.Description class="font-bold uppercase">Répartition par activité</Card.Description>
 			</Card.Header>
 			<Separator />
 
 			<ScrollArea class="flex-1">
 				<div class="space-y-8 p-6">
-					{#each Object.entries(workshops) as [workshopName, members]}
+					<!-- UNASSIGNED STUDENTS -->
+					{#if participationGroups.unassigned.length > 0}
+						<div class="rounded-sm border-2 border-dashed border-epi-orange/30 bg-epi-orange/5 p-4">
+							<div class="mb-3 flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<TriangleAlert class="h-4 w-4 text-epi-orange" />
+									<h3 class="font-heading text-lg tracking-tight text-epi-orange uppercase">
+										Élèves à assigner
+									</h3>
+								</div>
+								<Badge
+									variant="outline"
+									class="rounded-sm border-epi-orange text-[10px] text-epi-orange"
+									>{participationGroups.unassigned.length} élèves</Badge
+								>
+							</div>
+							<div class="grid gap-2">
+								{#each participationGroups.unassigned as p (p.id)}
+									{@render studentRow(p, true)}
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<!-- ASSIGNED ACTIVITIES -->
+					{#each Object.entries(participationGroups.assigned) as [workshopName, members]}
 						<div>
 							<div class="mb-3 flex items-center gap-2">
 								<div class="h-2 w-2 rounded-full bg-epi-teal"></div>
@@ -298,112 +334,22 @@
 									>{members.length} élèves</Badge
 								>
 							</div>
-
 							<div class="grid gap-2">
 								{#each members as p (p.id)}
-									<div
-										class="group flex items-center justify-between rounded-sm border bg-card p-3 transition-all hover:border-epi-blue"
-									>
-										<div class="flex items-center gap-4">
-											<div class="relative">
-												<Avatar.Root class="rounded-sm border">
-													<Avatar.Fallback class="bg-primary/5 font-bold text-primary">
-														{p.expand.student.prenom[0]}{p.expand.student.nom[0]}
-													</Avatar.Fallback>
-												</Avatar.Root>
-												{#if p.alerts.length > 0}
-													<div class="absolute -top-1 -right-1">
-														{#if p.alerts.some((a) => a.type === 'danger')}
-															<TriangleAlert class="h-4 w-4 fill-white text-destructive" />
-														{:else}
-															<Info class="h-4 w-4 fill-white text-epi-orange" />
-														{/if}
-													</div>
-												{/if}
-											</div>
-
-											<div>
-												<p class="text-sm font-bold">
-													{formatFirstName(p.expand.student.prenom)}
-													<span class="uppercase">{p.expand.student.nom}</span>
-												</p>
-												<div class="flex flex-col gap-0.5">
-													<span class="text-[10px] font-black text-muted-foreground uppercase"
-														>{p.expand.student.niveau}</span
-													>
-													{#each p.alerts as alert}
-														<span
-															class="text-[9px] font-black uppercase {alert.type === 'danger'
-																? 'text-destructive'
-																: 'text-epi-orange'}"
-														>
-															{alert.message}
-														</span>
-													{/each}
-												</div>
-											</div>
-										</div>
-
-										<div class="flex items-center gap-2">
-											<form action="?/assignActivity" method="POST" use:enhance>
-												<input type="hidden" name="participationId" value={p.id} />
-												<Select.Root
-													type="single"
-													name="activityId"
-													onValueChange={(v) => {
-														const form = document.createElement('form');
-														form.method = 'POST';
-														form.action = '?/assignActivity';
-														const pId = document.createElement('input');
-														pId.name = 'participationId';
-														pId.value = p.id;
-														const aId = document.createElement('input');
-														aId.name = 'activityId';
-														aId.value = v;
-														form.appendChild(pId);
-														form.appendChild(aId);
-														document.body.appendChild(form);
-														form.submit();
-													}}
-												>
-													<Select.Trigger
-														class="h-8 w-[150px] text-[10px] font-bold uppercase opacity-0 transition-opacity group-hover:opacity-100"
-													>
-														<ArrowRightLeft class="mr-1 h-3 w-3" /> Changer d'atelier
-													</Select.Trigger>
-													<Select.Content>
-														<Select.Item value="session">Suivre la session</Select.Item>
-														<Separator class="my-1" />
-														{#each data.activities as act}
-															<Select.Item value={act.id}>{act.nom}</Select.Item>
-														{/each}
-													</Select.Content>
-												</Select.Root>
-											</form>
-
-											<form action="?/remove&id={p.id}" method="POST" use:enhance>
-												<Button
-													variant="ghost"
-													size="icon"
-													type="submit"
-													class="h-8 w-8 text-muted-foreground hover:text-destructive"
-												>
-													<Trash2 class="h-4 w-4" />
-												</Button>
-											</form>
-										</div>
-									</div>
+									{@render studentRow(p, false)}
 								{/each}
 							</div>
 						</div>
 					{:else}
-						<div class="flex flex-col items-center justify-center py-20 text-center">
-							<Users class="mb-4 h-12 w-12 text-muted" />
-							<h3 class="text-lg font-bold uppercase">Aucun participant</h3>
-							<p class="text-sm font-bold text-muted-foreground uppercase">
-								Ajoutez des élèves via le panneau latéral.
-							</p>
-						</div>
+						{#if participationGroups.unassigned.length === 0}
+							<div class="flex flex-col items-center justify-center py-20 text-center">
+								<Users class="mb-4 h-12 w-12 text-muted" />
+								<h3 class="text-lg font-bold uppercase">Aucun participant</h3>
+								<p class="text-sm font-bold text-muted-foreground uppercase">
+									Ajoutez des élèves via le panneau latéral.
+								</p>
+							</div>
+						{/if}
 					{/each}
 				</div>
 			</ScrollArea>
@@ -418,7 +364,6 @@
 						<Input placeholder="Rechercher..." class="rounded-sm pl-8" bind:value={searchQuery} />
 					</div>
 				</Card.Header>
-
 				<ScrollArea class="flex-1 border-t bg-muted/10">
 					<div class="space-y-1 p-2">
 						{#each filteredStudents as student (student.id)}
@@ -431,9 +376,10 @@
 							>
 								<input type="hidden" name="studentId" value={student.id} />
 								<div class="flex flex-col overflow-hidden">
-									<span class="truncate text-sm font-bold"
-										>{formatFirstName(student.prenom)} {student.nom}</span
-									>
+									<span class="truncate text-sm font-bold">
+										{formatFirstName(student.prenom)}
+										<span class="uppercase">{student.nom}</span>
+									</span>
 									<span class="text-[10px] font-bold text-muted-foreground uppercase"
 										>{student.niveau}</span
 									>
@@ -451,17 +397,13 @@
 						{/each}
 					</div>
 				</ScrollArea>
-
 				<div class="border-t p-4">
 					<Dialog.Root bind:open={openQuickCreate}>
 						<Dialog.Trigger class={buttonVariants({ variant: 'outline', class: 'w-full' })}>
-							<Plus class="mr-2 h-4 w-4" />
-							Nouvel élève
+							<Plus class="mr-2 h-4 w-4" /> Nouvel élève
 						</Dialog.Trigger>
 						<Dialog.Content>
-							<Dialog.Header>
-								<Dialog.Title>Ajout Rapide</Dialog.Title>
-							</Dialog.Header>
+							<Dialog.Header><Dialog.Title>Ajout Rapide</Dialog.Title></Dialog.Header>
 							<form
 								method="POST"
 								action="?/quickCreateStudent"
@@ -470,29 +412,24 @@
 							>
 								<div class="grid grid-cols-2 gap-4">
 									<div class="space-y-2">
-										<Label>Prénom</Label>
-										<Input name="prenom" bind:value={$createForm.prenom} />
+										<Label>Prénom</Label><Input name="prenom" bind:value={$createForm.prenom} />
 									</div>
 									<div class="space-y-2">
-										<Label>Nom</Label>
-										<Input name="nom" bind:value={$createForm.nom} />
+										<Label>Nom</Label><Input name="nom" bind:value={$createForm.nom} />
 									</div>
 								</div>
 								<div class="space-y-2">
 									<Label>Niveau</Label>
 									<Select.Root type="single" name="niveau" bind:value={$createForm.niveau}>
 										<Select.Trigger>{$createForm.niveau || 'Sélectionner'}</Select.Trigger>
-										<Select.Content>
-											{#each niveauxScolaires as nv}
-												<Select.Item value={nv}>{nv}</Select.Item>
-											{/each}
-										</Select.Content>
+										<Select.Content
+											>{#each niveauxScolaires as nv}<Select.Item value={nv}>{nv}</Select.Item
+												>{/each}</Select.Content
+										>
 									</Select.Root>
 									<input type="hidden" name="niveau" value={$createForm.niveau} />
 								</div>
-								<Dialog.Footer>
-									<Button type="submit">Créer et Inscrire</Button>
-								</Dialog.Footer>
+								<Dialog.Footer><Button type="submit">Créer et Inscrire</Button></Dialog.Footer>
 							</form>
 						</Dialog.Content>
 					</Dialog.Root>
@@ -501,3 +438,98 @@
 		</div>
 	</div>
 </div>
+
+{#snippet studentRow(p, isUnassigned: boolean)}
+	<div
+		class="group flex items-center justify-between rounded-sm border bg-card p-3 transition-all hover:border-epi-blue"
+	>
+		<div class="flex items-center gap-4">
+			<div class="relative">
+				<Avatar.Root class="rounded-sm border">
+					<Avatar.Fallback class="bg-primary/5 font-bold text-primary">
+						{p.expand.student.prenom[0]}{p.expand.student.nom[0]}
+					</Avatar.Fallback>
+				</Avatar.Root>
+				{#if p.alerts.length > 0}
+					<div class="absolute -top-1 -right-1">
+						{#if p.alerts.some((a) => a.type === 'danger')}
+							<TriangleAlert class="h-4 w-4 fill-white text-destructive" />
+						{:else}
+							<Info class="h-4 w-4 fill-white text-epi-orange" />
+						{/if}
+					</div>
+				{/if}
+			</div>
+			<div>
+				<p class="text-sm font-bold">
+					{formatFirstName(p.expand.student.prenom)}
+					<span class="uppercase">{p.expand.student.nom}</span>
+				</p>
+				<div class="flex flex-col gap-0.5">
+					<span class="text-[10px] font-black text-muted-foreground uppercase"
+						>{p.expand.student.niveau}</span
+					>
+					{#each p.alerts as alert}
+						<span
+							class="text-[9px] font-black uppercase {alert.type === 'danger'
+								? 'text-destructive'
+								: 'text-epi-orange'}">{alert.message}</span
+						>
+					{/each}
+				</div>
+			</div>
+		</div>
+		<div class="flex items-center gap-2">
+			<form action="?/assignActivity" method="POST" use:enhance>
+				<input type="hidden" name="participationId" value={p.id} />
+				<Select.Root
+					type="single"
+					name="activityId"
+					onValueChange={(v) => {
+						const form = document.createElement('form');
+						form.method = 'POST';
+						form.action = '?/assignActivity';
+						const pId = document.createElement('input');
+						pId.name = 'participationId';
+						pId.value = p.id;
+						const aId = document.createElement('input');
+						aId.name = 'activityId';
+						aId.value = v;
+						form.appendChild(pId);
+						form.appendChild(aId);
+						document.body.appendChild(form);
+						form.submit();
+					}}
+				>
+					<Select.Trigger
+						class="h-8 w-[160px] text-[10px] font-bold uppercase transition-opacity {isUnassigned
+							? 'border-epi-orange text-epi-orange opacity-100'
+							: 'opacity-0 group-hover:opacity-100'}"
+					>
+						<ArrowRightLeft class="mr-1 h-3 w-3" />
+						{isUnassigned ? 'Assigner activité' : "Changer d'activité"}
+					</Select.Trigger>
+					<Select.Content>
+						{#if !isUnassigned}
+							<Select.Item value="none" class="text-destructive">Retirer de l'activité</Select.Item>
+							<Separator class="my-1" />
+						{/if}
+						{#each data.activities as act}
+							<Select.Item value={act.id}>{act.nom}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</form>
+			<form action="?/remove&id={p.id}" method="POST" use:enhance>
+				<Button
+					variant="ghost"
+					size="icon"
+					type="submit"
+					class="h-8 w-8 text-muted-foreground hover:text-destructive"
+				>
+					<Trash2 class="h-4 w-4" />
+				</Button>
+			</form>
+		</div>
+	</div>
+{/snippet}

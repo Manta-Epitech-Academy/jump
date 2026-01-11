@@ -8,7 +8,7 @@
 		TableHeader,
 		TableRow
 	} from '$lib/components/ui/table';
-	import { Calendar, Activity, Plus, ChevronRight } from 'lucide-svelte';
+	import { Calendar, Tag, Plus, ChevronRight } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 
 	let { data } = $props();
@@ -49,7 +49,7 @@
 					<TableRow>
 						<TableHead class="text-xs font-bold uppercase">Session</TableHead>
 						<TableHead class="text-xs font-bold uppercase">Date & Heure</TableHead>
-						<TableHead class="text-xs font-bold uppercase">Activité</TableHead>
+						<TableHead class="text-xs font-bold uppercase">Thème</TableHead>
 						<TableHead class="text-center text-xs font-bold uppercase">Statut</TableHead>
 						<TableHead class="text-right"></TableHead>
 					</TableRow>
@@ -70,13 +70,13 @@
 								</div>
 							</TableCell>
 							<TableCell>
-								{#if session.activity}
+								{#if session.theme}
 									<div class="flex items-center gap-2">
-										<Activity class="h-4 w-4 text-epi-blue" />
-										<span class="font-medium">{session.activity.nom}</span>
+										<Tag class="h-4 w-4 text-epi-teal" />
+										<span class="font-medium">{session.theme}</span>
 									</div>
 								{:else}
-									<span class="text-sm text-muted-foreground">Standard</span>
+									<span class="text-sm text-muted-foreground italic">Aucun thème</span>
 								{/if}
 							</TableCell>
 							<TableCell class="text-center">

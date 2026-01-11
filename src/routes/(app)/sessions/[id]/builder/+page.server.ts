@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	let session;
 	try {
 		session = await locals.pb.collection('sessions').getOne(params.id, {
-			expand: 'activity',
+			expand: 'theme',
 			requestKey: null
 		});
 	} catch (e) {
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const participations = await Promise.all(
 		participationsRaw.map(async (p) => {
 			const student = p.expand?.student;
-			const currentActivity = p.expand?.activity || session.expand?.activity;
+			const currentActivity = p.expand?.activity;
 
 			const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
 
@@ -71,16 +71,26 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		requestKey: null
 	});
 
+	const themes = await locals.pb.collection('themes').getFullList({
+		sort: 'nom',
+		requestKey: null
+	});
+
 	const sessionDate = new Date(session.date);
+	// Format YYYY-MM-DD manually
 	const dateString = sessionDate.toISOString().split('T')[0];
+	// Format HH:MM manually
+	const hours = String(sessionDate.getHours()).padStart(2, '0');
+	const minutes = String(sessionDate.getMinutes()).padStart(2, '0');
+	const timeString = `${hours}:${minutes}`;
 
 	const editForm = await superValidate(
 		{
 			titre: session.titre,
 			statut: session.statut as 'planifiee' | 'en_cours' | 'terminee',
-			activity: session.activity,
+			theme: session.expand?.theme?.nom || '',
 			date: dateString,
-			time: sessionDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+			time: timeString
 		},
 		zod4(sessionSchema)
 	);
@@ -93,6 +103,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		participations,
 		allStudents,
 		activities,
+		themes,
 		addForm,
 		createStudentForm,
 		editForm
@@ -134,7 +145,7 @@ export const actions: Actions = {
 
 		try {
 			await locals.pb.collection('participations').update(participationId, {
-				activity: activityId === 'session' ? null : activityId
+				activity: activityId === 'none' ? null : activityId
 			});
 			return { success: true };
 		} catch (err) {
@@ -167,45 +178,53 @@ export const actions: Actions = {
 
 		const dateStr = formData.get('date') as string;
 		const timeStr = formData.get('time') as string;
-		let calendarDateTime: CalendarDateTime | undefined;
-
-		if (dateStr && timeStr) {
-			const [year, month, day] = dateStr.split('-').map(Number);
-			const [hour, minute] = timeStr.split(':').map(Number);
-			calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
-		}
+		const themeInput = formData.get('theme') as string;
 
 		const transformedData = {
 			titre: formData.get('titre'),
-			date: calendarDateTime,
+			date: dateStr,
 			time: timeStr,
 			statut: formData.get('statut'),
-			activity: formData.get('activity')
+			theme: themeInput
 		};
 
 		const form = await superValidate(transformedData, zod4(sessionSchema));
 
-		if (form.data.date && form.data.date instanceof CalendarDateTime) {
-			form.data.date = form.data.date.toString();
-		}
-
 		if (!form.valid) return fail(400, { form });
 
 		try {
-			if (!calendarDateTime) throw new Error('Date invalide');
+			if (!dateStr || !timeStr) throw new Error('Date ou heure manquante');
 
+			const [year, month, day] = dateStr.split('-').map(Number);
+			const [hour, minute] = timeStr.split(':').map(Number);
+			const calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
 			const jsDate = calendarDateTime.toDate(getLocalTimeZone());
+
+			// Theme logic
+			let themeId: string | null = null;
+			if (form.data.theme && form.data.theme.trim() !== '') {
+				const existing = await locals.pb
+					.collection('themes')
+					.getList(1, 1, { filter: `nom = "${form.data.theme.replace(/"/g, '\\"')}"` });
+
+				if (existing.items.length > 0) {
+					themeId = existing.items[0].id;
+				} else {
+					const created = await locals.pb.collection('themes').create({ nom: form.data.theme });
+					themeId = created.id;
+				}
+			}
 
 			await locals.pb.collection('sessions').update(params.id, {
 				titre: form.data.titre,
 				date: jsDate,
 				statut: form.data.statut,
-				activity: form.data.activity
+				theme: themeId
 			});
 
-			return message(form, 'Session mise à jour avec succès !');
+			return message(form, 'Session mise à jour !');
 		} catch (err) {
-			console.error(err);
+			console.error('Update Session Error:', err);
 			return message(form, 'Impossible de mettre à jour la session', { status: 500 });
 		}
 	},
@@ -216,12 +235,12 @@ export const actions: Actions = {
 
 		try {
 			const p = await locals.pb.collection('participations').getOne(id, {
-				expand: 'session.activity'
+				expand: 'activity'
 			});
 
 			if (p.is_validated) {
-				const activity = p.expand?.session?.expand?.activity;
-				const xpValue = getActivityXpValue(activity?.niveaux);
+				const activity = p.expand?.activity;
+				const xpValue = activity ? getActivityXpValue(activity.niveaux) : 20;
 
 				await locals.pb.collection('students').update(p.student, {
 					'xp-': xpValue,

@@ -8,11 +8,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	try {
-		// Fetch upcoming sessions
 		const sessions = await locals.pb.collection('sessions').getFullList({
 			sort: '-date',
 			filter: `date >= '${new Date().toISOString()}' && statut = 'planifiee'`,
-			expand: 'activity'
+			expand: 'theme'
 		});
 
 		return {
@@ -21,7 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				titre: session.titre,
 				date: new Date(session.date),
 				statut: session.statut,
-				activity: session.expand?.activity
+				theme: session.expand?.theme?.nom
 			}))
 		};
 	} catch (err) {

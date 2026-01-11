@@ -3,18 +3,18 @@ import { fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { sessionSchema } from '$lib/validation/sessions';
-import { ClientResponseError } from 'pocketbase';
 import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const activities = await locals.pb.collection('activities').getFullList({
+	// Fetch existing themes for the datalist selection
+	const themes = await locals.pb.collection('themes').getFullList({
 		sort: 'nom'
 	});
 
 	const form = await superValidate(zod4(sessionSchema));
 
 	return {
-		activities,
+		themes,
 		form
 	};
 };
@@ -25,24 +25,32 @@ export const actions: Actions = {
 
 		const dateStr = formData.get('date') as string;
 		const timeStr = formData.get('time') as string;
+		const themeInput = formData.get('theme') as string;
 
 		let calendarDateTime: CalendarDateTime | undefined;
 		if (dateStr && timeStr) {
-			const [year, month, day] = dateStr.split('-').map(Number);
-			const [hour, minute] = timeStr.split(':').map(Number);
-			calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
+			try {
+				const [year, month, day] = dateStr.split('-').map(Number);
+				const [hour, minute] = timeStr.split(':').map(Number);
+				calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
+			} catch (e) {
+				// Fallback handled by validation
+			}
 		}
 
-		// Recreate formData to validate the transformed Date object against the schema
 		const transformedData = {
 			titre: formData.get('titre'),
 			date: calendarDateTime,
 			time: timeStr,
 			statut: formData.get('statut'),
-			activity: formData.get('activity')
+			theme: themeInput
 		};
 
 		const form = await superValidate(transformedData, zod4(sessionSchema));
+
+		if (form.data.date && typeof form.data.date !== 'string') {
+			form.data.date = form.data.date.toString();
+		}
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -51,26 +59,36 @@ export const actions: Actions = {
 		let newSessionId = '';
 
 		try {
-			// Convert to native JS Date for PocketBase compatibility
-			const jsDate = form.data.date.toDate(getLocalTimeZone());
+			// THEME LOGIC: Find or Create
+			let themeId: string | null = null;
+			if (form.data.theme && form.data.theme.trim() !== '') {
+				const existing = await locals.pb
+					.collection('themes')
+					.getList(1, 1, { filter: `nom = "${form.data.theme}"` });
+
+				if (existing.items.length > 0) {
+					themeId = existing.items[0].id;
+				} else {
+					const created = await locals.pb.collection('themes').create({ nom: form.data.theme });
+					themeId = created.id;
+				}
+			}
+
+			if (!calendarDateTime) throw new Error('Date invalide');
+			const jsDate = calendarDateTime.toDate(getLocalTimeZone());
 
 			const payload = {
 				titre: form.data.titre,
 				date: jsDate,
 				statut: form.data.statut,
-				activity: form.data.activity
+				theme: themeId,
 			};
 
 			const record = await locals.pb.collection('sessions').create(payload);
 			newSessionId = record.id;
 		} catch (err) {
 			console.error('Erreur création session:', err);
-
-			if (err instanceof ClientResponseError) {
-				console.error('Détails erreur PB:', err.response);
-			}
-
-			return message(form, 'Erreur technique lors de la création (Vérifiez la console serveur).', {
+			return message(form, 'Erreur technique lors de la création.', {
 				status: 500
 			});
 		}
