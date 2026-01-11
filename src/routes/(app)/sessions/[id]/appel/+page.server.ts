@@ -57,5 +57,20 @@ export const actions: Actions = {
 		} catch (err) {
 			return fail(500, { error: 'Erreur mise à jour validation' });
 		}
+	},
+
+	updateNote: async ({ request, locals }) => {
+		const data = await request.formData();
+		const id = data.get('id') as string;
+		const note = data.get('note') as string;
+
+		try {
+			await locals.pb.collection('participations').update(id, {
+				note: note
+			});
+			return { success: true };
+		} catch (err) {
+			return fail(500, { error: 'Erreur sauvegarde note' });
+		}
 	}
 };

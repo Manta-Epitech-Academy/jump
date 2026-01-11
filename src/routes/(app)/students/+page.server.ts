@@ -17,25 +17,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sort: 'nom,prenom'
 	});
 
-	const participations = await locals.pb
-		.collection('participations')
-		.getFullList<
-			ParticipationsResponse<{ session: { expand: { activity: ActivitiesResponse } } }>
-		>({
-			filter: 'is_validated = true',
-			expand: 'session.activity'
-		});
+	const participations = await locals.pb.collection('participations').getFullList<
+		ParticipationsResponse<{
+			session: { expand: { activity: ActivitiesResponse } };
+			activity?: ActivitiesResponse;
+		}>
+	>({
+		filter: 'is_validated = true',
+		expand: 'session.activity,activity'
+	});
 
 	// 3. Calculer l'XP par étudiant
 	const studentStats = new Map<string, { xp: number; sessionsCount: number }>();
 
 	for (const p of participations) {
 		const studentId = p.student;
-		const activity = p.expand?.session?.expand?.activity;
 
-		if (activity && studentId) {
+		const specificActivity = p.expand?.activity;
+		const sessionActivity = p.expand?.session?.expand?.activity;
+		const effectiveActivity = specificActivity || sessionActivity;
+
+		if (effectiveActivity && studentId) {
 			const current = studentStats.get(studentId) || { xp: 0, sessionsCount: 0 };
-			const xpGain = XP_MAP[activity.difficulte] || 0;
+			const xpGain = XP_MAP[effectiveActivity.difficulte] || 0;
 
 			studentStats.set(studentId, {
 				xp: current.xp + xpGain,

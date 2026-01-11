@@ -73,9 +73,12 @@ export const actions: Actions = {
 				return message(form, 'Cet élève est déjà inscrit à cette session.', { status: 400 });
 			}
 
+			const currentSession = await locals.pb.collection('sessions').getOne(params.id);
+
 			await locals.pb.collection('participations').create({
 				student: form.data.studentId,
 				session: params.id,
+				activity: currentSession.activity,
 				is_present: false,
 				is_validated: false
 			});
@@ -91,10 +94,13 @@ export const actions: Actions = {
 		if (!form.valid) return fail(400, { form });
 
 		try {
+			const currentSession = await locals.pb.collection('sessions').getOne(params.id);
+
 			const newStudent = await locals.pb.collection('students').create(form.data);
 			await locals.pb.collection('participations').create({
 				student: newStudent.id,
 				session: params.id,
+				activity: currentSession.activity,
 				is_present: false,
 				is_validated: false
 			});
