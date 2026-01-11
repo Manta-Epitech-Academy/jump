@@ -212,9 +212,10 @@
 										action="?/delete&id={activity.id}"
 										method="POST"
 										use:kitEnhance={() => {
-											return async ({ result }) => {
+											return async ({ result, update }) => {
 												if (result.type === 'success') {
 													toast.success('Activité supprimée avec succès');
+													await update();
 												} else if (result.type === 'failure') {
 													toast.error(result.data?.message || 'Erreur lors de la suppression');
 												}

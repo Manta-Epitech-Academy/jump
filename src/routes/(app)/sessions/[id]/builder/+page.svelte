@@ -381,7 +381,7 @@
 												</Select.Root>
 											</form>
 
-											<form action="?/remove&id={p.id}" method="POST">
+											<form action="?/remove&id={p.id}" method="POST" use:enhance>
 												<Button
 													variant="ghost"
 													size="icon"
