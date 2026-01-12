@@ -125,12 +125,16 @@ export const actions: Actions = {
 				return message(form, 'Cet élève est déjà inscrit à cette session.', { status: 400 });
 			}
 
+			// Get Session to know the theme
+			const session = await locals.pb.collection('sessions').getOne(params.id);
+
 			// Use the intelligent recommender
 			const activities = await locals.pb.collection('activities').getFullList();
 			const suggestedActivityId = await suggestBestActivity(
 				locals.pb,
 				form.data.studentId,
-				activities
+				activities,
+				session.theme
 			);
 
 			await locals.pb.collection('participations').create({
@@ -143,6 +147,7 @@ export const actions: Actions = {
 
 			return message(form, 'Élève ajouté avec une suggestion intelligente !');
 		} catch (err) {
+			console.error(err);
 			return message(form, "Erreur technique lors de l'ajout.", { status: 500 });
 		}
 	},
@@ -170,9 +175,17 @@ export const actions: Actions = {
 		try {
 			const newStudent = await locals.pb.collection('students').create(form.data);
 
+			// Get Session to know the theme
+			const session = await locals.pb.collection('sessions').getOne(params.id);
+
 			// Use the intelligent recommender for the newly created student
 			const activities = await locals.pb.collection('activities').getFullList();
-			const suggestedActivityId = await suggestBestActivity(locals.pb, newStudent.id, activities);
+			const suggestedActivityId = await suggestBestActivity(
+				locals.pb,
+				newStudent.id,
+				activities,
+				session.theme
+			);
 
 			await locals.pb.collection('participations').create({
 				student: newStudent.id,
@@ -183,6 +196,7 @@ export const actions: Actions = {
 			});
 			return message(form, 'Élève créé et assigné automatiquement !');
 		} catch (err) {
+			console.error(err);
 			return message(form, 'Erreur lors de la création rapide.', { status: 500 });
 		}
 	},
