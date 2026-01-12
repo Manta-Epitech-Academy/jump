@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance as kitEnhance } from '$app/forms';
-	import { Plus, Cuboid, Ellipsis, Pencil, Trash2, Check } from 'lucide-svelte';
+	import { Plus, Cuboid, Ellipsis, Pencil, Trash2, Check, Tag } from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Table from '$lib/components/ui/table';
@@ -15,12 +15,14 @@
 	import { untrack } from 'svelte';
 	import { schoolLevels } from '$lib/validation/activities';
 	import { cn } from '$lib/utils';
+	import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	const { form, errors, enhance, delayed, reset } = superForm(
 		untrack(() => data.form),
 		{
+			dataType: 'json',
 			onResult: ({ result }) => {
 				if (result.type === 'success') {
 					open = false;
@@ -39,6 +41,7 @@
 	function openCreate() {
 		reset();
 		$form.niveaux = [];
+		$form.themes = [];
 		isEditing = false;
 		editId = '';
 		open = true;
@@ -48,6 +51,12 @@
 		$form.nom = activity.nom;
 		$form.description = activity.description;
 		$form.niveaux = activity.niveaux || [];
+
+		if (activity.expand && activity.expand.themes) {
+			$form.themes = activity.expand.themes.map((t: any) => t.nom);
+		} else {
+			$form.themes = [];
+		}
 
 		isEditing = true;
 		editId = activity.id;
@@ -81,11 +90,11 @@
 		</Button>
 
 		<Dialog.Root bind:open>
-			<Dialog.Content class="sm:max-w-[425px]">
+			<Dialog.Content class="sm:max-w-[500px]">
 				<Dialog.Header>
 					<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} une activité</Dialog.Title>
 					<Dialog.Description>
-						Définissez quels niveaux scolaires sont ciblés par cet atelier.
+						Définissez les détails, niveaux et thèmes de l'atelier.
 					</Dialog.Description>
 				</Dialog.Header>
 
@@ -106,6 +115,12 @@
 					</div>
 
 					<div class="grid gap-2">
+						<Label>Thèmes</Label>
+						<MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
+						{#if $errors.themes}<span class="text-sm text-destructive">{$errors.themes}</span>{/if}
+					</div>
+
+					<div class="grid gap-2">
 						<Label>Niveaux scolaires cibles</Label>
 						<div class="flex flex-wrap gap-2">
 							{#each schoolLevels as level}
@@ -116,7 +131,7 @@
 									size="sm"
 									onclick={() => toggleLevel(level)}
 									class={cn(
-										'h-8 px-2 text-[10px] font-bold uppercase transition-all',
+										'h-7 px-2 text-[10px] font-bold uppercase transition-all',
 										isActive ? 'bg-epi-blue hover:bg-epi-blue/90' : 'text-muted-foreground'
 									)}
 								>
@@ -164,28 +179,45 @@
 		<Table.Root>
 			<Table.Header class="bg-muted/50">
 				<Table.Row>
-					<Table.Head class="w-[250px] text-xs font-bold uppercase">Nom</Table.Head>
-					<Table.Head class="text-xs font-bold uppercase">Description</Table.Head>
-					<Table.Head class="w-[200px] text-xs font-bold uppercase">Niveaux</Table.Head>
+					<Table.Head class="w-[200px] text-xs font-bold uppercase">Nom</Table.Head>
+					<Table.Head class="text-xs font-bold uppercase">Thèmes & Description</Table.Head>
+					<Table.Head class="w-[180px] text-xs font-bold uppercase">Niveaux</Table.Head>
 					<Table.Head class="w-[50px]"></Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.activities as activity (activity.id)}
 					<Table.Row class="hover:bg-muted/30">
-						<Table.Cell class="font-bold">
-							<div class="flex items-center gap-2">
+						<Table.Cell class="align-top font-bold">
+							<div class="flex items-center gap-2 pt-1">
 								<Cuboid class="h-4 w-4 text-muted-foreground" />
 								{activity.nom}
 							</div>
 						</Table.Cell>
-						<Table.Cell
-							class="max-w-md truncate text-muted-foreground"
-							title={activity.description}
-						>
-							{activity.description}
+						<Table.Cell class="align-top">
+							<div class="flex flex-col gap-2">
+								{#if activity.expand?.themes && activity.expand.themes.length > 0}
+									<div class="flex flex-wrap gap-1">
+										{#each activity.expand.themes as theme}
+											<Badge
+												variant="outline"
+												class="gap-1 border-epi-teal/50 bg-epi-teal/5 text-[10px] text-epi-teal"
+											>
+												<Tag class="h-2 w-2" />
+												{theme.nom}
+											</Badge>
+										{/each}
+									</div>
+								{/if}
+								<p
+									class="max-w-md truncate text-sm text-muted-foreground"
+									title={activity.description}
+								>
+									{activity.description}
+								</p>
+							</div>
 						</Table.Cell>
-						<Table.Cell>
+						<Table.Cell class="pt-3 align-top">
 							<div class="flex flex-wrap gap-1">
 								{#each activity.niveaux as niv}
 									<Badge
@@ -197,7 +229,7 @@
 								{/each}
 							</div>
 						</Table.Cell>
-						<Table.Cell>
+						<Table.Cell class="pt-3 align-top">
 							<DropdownMenu.Root>
 								<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
 									<Ellipsis class="h-4 w-4" />
