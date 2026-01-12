@@ -5,6 +5,7 @@
 	import { Plus, Cuboid, Ellipsis, Pencil, Trash2, Check, Tag } from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Table from '$lib/components/ui/table';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { Input } from '$lib/components/ui/input';
@@ -38,6 +39,10 @@
 	let isEditing = $state(false);
 	let editId = $state('');
 
+	// Deletion state
+	let deleteDialogOpen = $state(false);
+	let activityToDelete = $state<string | null>(null);
+
 	function openCreate() {
 		reset();
 		$form.niveaux = [];
@@ -70,6 +75,11 @@
 		} else {
 			$form.niveaux = [...$form.niveaux, lvl];
 		}
+	}
+
+	function confirmDelete(id: string) {
+		activityToDelete = id;
+		deleteDialogOpen = true;
 	}
 </script>
 
@@ -173,6 +183,41 @@
 				</form>
 			</Dialog.Content>
 		</Dialog.Root>
+
+		<AlertDialog.Root bind:open={deleteDialogOpen}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Supprimer l'activité</AlertDialog.Title>
+					<AlertDialog.Description>
+						Êtes-vous sûr de vouloir supprimer cette activité ?
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+					{#if activityToDelete}
+						<form
+							action="?/delete&id={activityToDelete}"
+							method="POST"
+							use:kitEnhance={() => {
+								return async ({ result, update }) => {
+									if (result.type === 'success') {
+										toast.success('Activité supprimée avec succès');
+										deleteDialogOpen = false;
+										await update();
+									} else if (result.type === 'failure') {
+										toast.error(result.data?.message || 'Erreur lors de la suppression');
+									}
+								};
+							}}
+						>
+							<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}>
+								Supprimer
+							</AlertDialog.Action>
+						</form>
+					{/if}
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
 	</div>
 
 	<div class="rounded-sm border bg-card shadow-sm">
@@ -240,27 +285,13 @@
 										Modifier
 									</DropdownMenu.Item>
 									<DropdownMenu.Separator />
-									<form
-										action="?/delete&id={activity.id}"
-										method="POST"
-										use:kitEnhance={() => {
-											return async ({ result, update }) => {
-												if (result.type === 'success') {
-													toast.success('Activité supprimée avec succès');
-													await update();
-												} else if (result.type === 'failure') {
-													toast.error(result.data?.message || 'Erreur lors de la suppression');
-												}
-											};
-										}}
+									<DropdownMenu.Item
+										class="cursor-pointer text-destructive"
+										onclick={() => confirmDelete(activity.id)}
 									>
-										<button type="submit" class="w-full">
-											<DropdownMenu.Item class="cursor-pointer text-destructive">
-												<Trash2 class="mr-2 h-4 w-4" />
-												Supprimer
-											</DropdownMenu.Item>
-										</button>
-									</form>
+										<Trash2 class="mr-2 h-4 w-4" />
+										Supprimer
+									</DropdownMenu.Item>
 								</DropdownMenu.Content>
 							</DropdownMenu.Root>
 						</Table.Cell>

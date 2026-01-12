@@ -4,6 +4,7 @@
 	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search } from 'lucide-svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Table from '$lib/components/ui/table';
 	import * as Select from '$lib/components/ui/select';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -38,6 +39,10 @@
 	let editId = $state('');
 	let searchQuery = $state('');
 	let selectedLevel = $state(page.url.searchParams.get('niveau') || 'all');
+
+	// Deletion state
+	let deleteDialogOpen = $state(false);
+	let studentToDelete = $state<string | null>(null);
 
 	let filteredStudents = $derived(
 		data.students.filter((student) => {
@@ -78,6 +83,11 @@
 			url.searchParams.delete('niveau');
 		}
 		replaceState(url, page.state);
+	}
+
+	function confirmDelete(id: string) {
+		studentToDelete = id;
+		deleteDialogOpen = true;
 	}
 
 	function formatFirstName(name: string | undefined) {
@@ -193,6 +203,44 @@
 					</form>
 				</Dialog.Content>
 			</Dialog.Root>
+
+			<AlertDialog.Root bind:open={deleteDialogOpen}>
+				<AlertDialog.Content>
+					<AlertDialog.Header>
+						<AlertDialog.Title>Supprimer l'élève</AlertDialog.Title>
+						<AlertDialog.Description>
+							Êtes-vous sûr ? Cette action est définitive.
+						</AlertDialog.Description>
+					</AlertDialog.Header>
+					<AlertDialog.Footer>
+						<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+						{#if studentToDelete}
+							<form
+								action="?/delete&id={studentToDelete}"
+								method="POST"
+								use:kitEnhance={() => {
+									return async ({ result, update }) => {
+										if (result.type === 'success') {
+											toast.success('Élève supprimé');
+											deleteDialogOpen = false;
+											await update();
+										} else {
+											toast.error('Erreur lors de la suppression');
+										}
+									};
+								}}
+							>
+								<AlertDialog.Action
+									type="submit"
+									class={buttonVariants({ variant: 'destructive' })}
+								>
+									Supprimer
+								</AlertDialog.Action>
+							</form>
+						{/if}
+					</AlertDialog.Footer>
+				</AlertDialog.Content>
+			</AlertDialog.Root>
 		</div>
 	</div>
 
@@ -251,27 +299,13 @@
 										Modifier
 									</DropdownMenu.Item>
 									<DropdownMenu.Separator />
-									<form
-										action="?/delete&id={student.id}"
-										method="POST"
-										use:kitEnhance={() => {
-											return async ({ result, update }) => {
-												if (result.type === 'success') {
-													toast.success('Élève supprimé');
-													await update();
-												} else {
-													toast.error('Erreur lors de la suppression');
-												}
-											};
-										}}
+									<DropdownMenu.Item
+										class="cursor-pointer text-destructive"
+										onclick={() => confirmDelete(student.id)}
 									>
-										<button type="submit" class="w-full">
-											<DropdownMenu.Item class="cursor-pointer text-destructive">
-												<Trash2 class="mr-2 h-4 w-4" />
-												Supprimer
-											</DropdownMenu.Item>
-										</button>
-									</form>
+										<Trash2 class="mr-2 h-4 w-4" />
+										Supprimer
+									</DropdownMenu.Item>
 								</DropdownMenu.Content>
 							</DropdownMenu.Root>
 						</Table.Cell>

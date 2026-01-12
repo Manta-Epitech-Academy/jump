@@ -22,6 +22,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Select from '$lib/components/ui/select';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Calendar } from '$lib/components/ui/calendar';
@@ -32,6 +33,7 @@
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation'; // Added import for redirection
 	import { formatDateFr } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 
@@ -82,6 +84,11 @@
 	let searchQuery = $state('');
 	let openQuickCreate = $state(false);
 	let openEditSession = $state(false);
+
+	// Deletion states
+	let deleteSessionDialogOpen = $state(false);
+	let deleteParticipationDialogOpen = $state(false);
+	let participationToDelete = $state<string | null>(null);
 
 	let participationGroups = $derived.by(() => {
 		const assigned: Record<string, any[]> = {};
@@ -141,6 +148,11 @@
 	function formatFirstName(name: string | undefined) {
 		if (!name) return '';
 		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+	}
+
+	function confirmDeleteParticipation(id: string) {
+		participationToDelete = id;
+		deleteParticipationDialogOpen = true;
 	}
 
 	const niveauxScolaires = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
@@ -291,22 +303,15 @@
 									automatiquement retirés.
 								</p>
 							</div>
-							<form
-								action="?/deleteSession"
-								method="POST"
-								use:enhance={() => {
-									return async ({ result }) => {
-										if (result.type === 'redirect') {
-											toast.success('Session supprimée');
-										}
-									};
-								}}
+							<Button
+								type="button"
+								variant="destructive"
+								class="w-full"
+								onclick={() => (deleteSessionDialogOpen = true)}
 							>
-								<Button type="submit" variant="destructive" class="w-full">
-									<Trash2 class="mr-2 h-4 w-4" />
-									Supprimer définitivement la session
-								</Button>
-							</form>
+								<Trash2 class="mr-2 h-4 w-4" />
+								Supprimer définitivement la session
+							</Button>
 						</div>
 					</div>
 				</Dialog.Content>
@@ -467,6 +472,71 @@
 	</div>
 </div>
 
+<AlertDialog.Root bind:open={deleteSessionDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Supprimer définitivement ?</AlertDialog.Title>
+			<AlertDialog.Description>
+				Cette action est irréversible. Toutes les données associées à cette session seront perdues.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+			<form
+				action="?/deleteSession"
+				method="POST"
+				use:enhance={() => {
+					return async ({ result }) => {
+						if (result.type === 'redirect') {
+							toast.success('Session supprimée');
+							await goto(result.location);
+						}
+					};
+				}}
+			>
+				<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}>
+					Confirmer la suppression
+				</AlertDialog.Action>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root bind:open={deleteParticipationDialogOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Retirer l'élève ?</AlertDialog.Title>
+			<AlertDialog.Description>
+				Voulez-vous retirer cet élève de la session ? S'il était validé, son XP sera annulé.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+			{#if participationToDelete}
+				<form
+					action="?/remove&id={participationToDelete}"
+					method="POST"
+					use:enhance={() => {
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								deleteParticipationDialogOpen = false;
+								toast.success('Élève retiré de la session');
+								await update();
+							} else {
+								toast.error('Erreur lors du retrait');
+							}
+						};
+					}}
+				>
+					<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}>
+						Retirer
+					</AlertDialog.Action>
+				</form>
+			{/if}
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
 {#snippet studentRow(p, isUnassigned: boolean)}
 	<div
 		class="group flex items-center justify-between rounded-sm border bg-card p-3 transition-all hover:border-epi-blue"
@@ -568,16 +638,14 @@
 					</Select.Content>
 				</Select.Root>
 			</form>
-			<form action="?/remove&id={p.id}" method="POST" use:enhance>
-				<Button
-					variant="ghost"
-					size="icon"
-					type="submit"
-					class="h-8 w-8 text-muted-foreground hover:text-destructive"
-				>
-					<Trash2 class="h-4 w-4" />
-				</Button>
-			</form>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="h-8 w-8 text-muted-foreground hover:text-destructive"
+				onclick={() => confirmDeleteParticipation(p.id)}
+			>
+				<Trash2 class="h-4 w-4" />
+			</Button>
 		</div>
 	</div>
 {/snippet}

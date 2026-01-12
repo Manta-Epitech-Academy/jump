@@ -9,6 +9,7 @@
 		TableRow
 	} from '$lib/components/ui/table';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Calendar, Tag, Plus, ChevronRight, Ellipsis, Trash2, Pencil } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -26,6 +27,14 @@
 
 	function formatTime(date: Date): string {
 		return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+	}
+
+	let deleteDialogOpen = $state(false);
+	let sessionToDelete = $state<string | null>(null);
+
+	function confirmDelete(id: string) {
+		sessionToDelete = id;
+		deleteDialogOpen = true;
 	}
 </script>
 
@@ -121,27 +130,13 @@
 												Modifier
 											</DropdownMenu.Item>
 											<DropdownMenu.Separator />
-											<form
-												action="?/deleteSession&id={session.id}"
-												method="POST"
-												use:enhance={() => {
-													return async ({ result, update }) => {
-														if (result.type === 'success') {
-															toast.success('Session supprimée');
-															await update();
-														} else {
-															toast.error('Erreur lors de la suppression');
-														}
-													};
-												}}
+											<DropdownMenu.Item
+												class="cursor-pointer text-destructive"
+												onclick={() => confirmDelete(session.id)}
 											>
-												<button type="submit" class="w-full">
-													<DropdownMenu.Item class="cursor-pointer text-destructive">
-														<Trash2 class="mr-2 h-4 w-4" />
-														Supprimer
-													</DropdownMenu.Item>
-												</button>
-											</form>
+												<Trash2 class="mr-2 h-4 w-4" />
+												Supprimer
+											</DropdownMenu.Item>
 										</DropdownMenu.Content>
 									</DropdownMenu.Root>
 								</div>
@@ -162,4 +157,40 @@
 			</p>
 		</div>
 	{/if}
+
+	<AlertDialog.Root bind:open={deleteDialogOpen}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Supprimer la session</AlertDialog.Title>
+				<AlertDialog.Description>
+					Êtes-vous sûr de vouloir supprimer cette session ? Cette action est irréversible et
+					retirera les XP acquis par les participants.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+				{#if sessionToDelete}
+					<form
+						action="?/deleteSession&id={sessionToDelete}"
+						method="POST"
+						use:enhance={() => {
+							return async ({ result, update }) => {
+								if (result.type === 'success') {
+									toast.success('Session supprimée');
+									deleteDialogOpen = false;
+									await update();
+								} else {
+									toast.error('Erreur lors de la suppression');
+								}
+							};
+						}}
+					>
+						<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}>
+							Supprimer définitivement
+						</AlertDialog.Action>
+					</form>
+				{/if}
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>

@@ -28,6 +28,7 @@
 			<Input id="identity" name="identity" bind:value={$form.identity} />
 			{#if $errors.identity}
 				<p class="text-sm text-destructive">{$errors.identity}</p>
+			{/if}
 			{#if $errors.identity}
 				<p class="text-sm text-destructive">{$errors.identity}</p>
 			{/if}
