@@ -12,9 +12,9 @@
 		UserCheck,
 		Settings,
 		TriangleAlert,
-		Info,
 		Tag,
-		ArrowRightLeft
+		ArrowRightLeft,
+		Sparkles
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -83,7 +83,6 @@
 	let openQuickCreate = $state(false);
 	let openEditSession = $state(false);
 
-	// Updated grouping logic: separate those with an activity from those without
 	let participationGroups = $derived.by(() => {
 		const assigned: Record<string, any[]> = {};
 		const unassigned: any[] = [];
@@ -331,7 +330,6 @@
 
 			<ScrollArea class="flex-1">
 				<div class="space-y-8 p-6">
-					<!-- UNASSIGNED STUDENTS -->
 					{#if participationGroups.unassigned.length > 0}
 						<div class="rounded-sm border-2 border-dashed border-epi-orange/30 bg-epi-orange/5 p-4">
 							<div class="mb-3 flex items-center justify-between">
@@ -355,7 +353,6 @@
 						</div>
 					{/if}
 
-					<!-- ASSIGNED ACTIVITIES -->
 					{#each Object.entries(participationGroups.assigned) as [workshopName, members]}
 						<div>
 							<div class="mb-3 flex items-center gap-2">
@@ -486,7 +483,7 @@
 						{#if p.alerts.some((a) => a.type === 'danger')}
 							<TriangleAlert class="h-4 w-4 fill-white text-destructive" />
 						{:else}
-							<Info class="h-4 w-4 fill-white text-epi-orange" />
+							<TriangleAlert class="h-4 w-4 fill-white text-epi-orange" />
 						{/if}
 					</div>
 				{/if}
@@ -510,7 +507,27 @@
 				</div>
 			</div>
 		</div>
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-3">
+			{#if isUnassigned}
+				<span
+					class="animate-pulse text-[10px] font-black tracking-widest text-epi-orange uppercase"
+				>
+					Sélection requise
+				</span>
+			{:else}
+				{@const isGoodFit =
+					p.expand?.activity?.niveaux?.includes(p.expand.student.niveau) &&
+					!p.alerts.some((a) => a.type === 'danger')}
+				{#if isGoodFit}
+					<Badge
+						class="h-6 gap-1.5 border-none bg-epi-teal px-2 text-[10px] font-black tracking-widest text-black uppercase shadow-sm"
+					>
+						<Sparkles class="h-3 w-3" />
+						Optimal
+					</Badge>
+				{/if}
+			{/if}
+
 			<form action="?/assignActivity" method="POST" use:enhance>
 				<input type="hidden" name="participationId" value={p.id} />
 				<Select.Root

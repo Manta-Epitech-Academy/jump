@@ -6,6 +6,7 @@ import { addParticipantSchema, sessionSchema } from '$lib/validation/sessions';
 import { studentSchema } from '$lib/validation/students';
 import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
 import { getActivityXpValue } from '$lib/xp';
+import { suggestBestActivity } from '$lib/recommender';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	let session;
@@ -124,15 +125,23 @@ export const actions: Actions = {
 				return message(form, 'Cet élève est déjà inscrit à cette session.', { status: 400 });
 			}
 
+			// Use the intelligent recommender
+			const activities = await locals.pb.collection('activities').getFullList();
+			const suggestedActivityId = await suggestBestActivity(
+				locals.pb,
+				form.data.studentId,
+				activities
+			);
+
 			await locals.pb.collection('participations').create({
 				student: form.data.studentId,
 				session: params.id,
-				activity: null,
+				activity: suggestedActivityId,
 				is_present: false,
 				is_validated: false
 			});
 
-			return message(form, 'Élève ajouté à la session !');
+			return message(form, 'Élève ajouté avec une suggestion intelligente !');
 		} catch (err) {
 			return message(form, "Erreur technique lors de l'ajout.", { status: 500 });
 		}
@@ -160,14 +169,19 @@ export const actions: Actions = {
 
 		try {
 			const newStudent = await locals.pb.collection('students').create(form.data);
+
+			// Use the intelligent recommender for the newly created student
+			const activities = await locals.pb.collection('activities').getFullList();
+			const suggestedActivityId = await suggestBestActivity(locals.pb, newStudent.id, activities);
+
 			await locals.pb.collection('participations').create({
 				student: newStudent.id,
 				session: params.id,
-				activity: null,
+				activity: suggestedActivityId,
 				is_present: false,
 				is_validated: false
 			});
-			return message(form, 'Élève créé et ajouté !');
+			return message(form, 'Élève créé et assigné automatiquement !');
 		} catch (err) {
 			return message(form, 'Erreur lors de la création rapide.', { status: 500 });
 		}
