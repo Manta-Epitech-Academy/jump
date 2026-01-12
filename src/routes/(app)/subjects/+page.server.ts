@@ -2,11 +2,11 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { activitySchema } from '$lib/validation/activities';
+import { subjectSchema } from '$lib/validation/subjects';
 import { ClientResponseError } from 'pocketbase';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const activities = await locals.pb.collection('activities').getFullList({
+	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: '-created',
 		expand: 'themes'
 	});
@@ -15,10 +15,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sort: 'nom'
 	});
 
-	const form = await superValidate(zod4(activitySchema));
+	const form = await superValidate(zod4(subjectSchema));
 
 	return {
-		activities,
+		subjects,
 		themes,
 		form
 	};
@@ -51,7 +51,7 @@ async function processThemes(pb: App.Locals['pb'], themeNames: string[]) {
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
-		const form = await superValidate(request, zod4(activitySchema));
+		const form = await superValidate(request, zod4(subjectSchema));
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -60,21 +60,21 @@ export const actions: Actions = {
 		try {
 			const themeIds = await processThemes(locals.pb, form.data.themes);
 
-			await locals.pb.collection('activities').create({
+			await locals.pb.collection('subjects').create({
 				...form.data,
 				themes: themeIds
 			});
 
-			return message(form, 'Activité créée avec succès !');
+			return message(form, 'Sujet créé avec succès !');
 		} catch (err) {
-			console.error('Erreur création activité:', err);
+			console.error('Erreur création sujet:', err);
 			return message(form, 'Erreur lors de la création', { status: 500 });
 		}
 	},
 
 	update: async ({ request, locals }) => {
 		const formData = await request.formData();
-		const form = await superValidate(formData, zod4(activitySchema));
+		const form = await superValidate(formData, zod4(subjectSchema));
 		const id = formData.get('id') as string;
 
 		if (!form.valid) {
@@ -82,20 +82,20 @@ export const actions: Actions = {
 		}
 
 		if (!id) {
-			return message(form, 'ID activité manquant', { status: 400 });
+			return message(form, 'ID sujet manquant', { status: 400 });
 		}
 
 		try {
 			const themeIds = await processThemes(locals.pb, form.data.themes);
 
-			await locals.pb.collection('activities').update(id, {
+			await locals.pb.collection('subjects').update(id, {
 				...form.data,
 				themes: themeIds
 			});
 
-			return message(form, 'Activité mise à jour avec succès !');
+			return message(form, 'Sujet mis à jour avec succès !');
 		} catch (err) {
-			console.error('Erreur update activité:', err);
+			console.error('Erreur update sujet:', err);
 			return message(form, 'Erreur lors de la modification', { status: 500 });
 		}
 	},
@@ -105,15 +105,14 @@ export const actions: Actions = {
 		if (!id) return fail(400);
 
 		try {
-			await locals.pb.collection('activities').delete(id);
+			await locals.pb.collection('subjects').delete(id);
 			return { success: true };
 		} catch (err) {
-			console.error('Erreur suppression activité:', err);
+			console.error('Erreur suppression sujet:', err);
 
 			if (err instanceof ClientResponseError && err.status === 400) {
 				return fail(400, {
-					message:
-						"Impossible de supprimer l'activité car elle est liée à une ou plusieurs sessions."
+					message: 'Impossible de supprimer le sujet car il est lié à un ou plusieurs événements.'
 				});
 			}
 

@@ -43,19 +43,19 @@
 			<ChevronLeft class="h-4 w-4" />
 		</a>
 		<h1 class="text-3xl font-bold text-epi-blue uppercase">
-			Nouvelle Session<span class="text-epi-teal">_</span>
+			Nouvel Événement<span class="text-epi-teal">_</span>
 		</h1>
 	</div>
 
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Configuration</Card.Title>
-			<Card.Description>Définissez les informations générales de l'atelier.</Card.Description>
+			<Card.Description>Définissez les informations générales de l'événement.</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<form method="POST" use:enhance id="session-form" class="space-y-6">
+			<form method="POST" use:enhance id="event-form" class="space-y-6">
 				<div class="space-y-2">
-					<Label for="titre">Titre de la session</Label>
+					<Label for="titre">Titre de l'événement</Label>
 					<Input
 						id="titre"
 						name="titre"
@@ -132,9 +132,9 @@
 			</form>
 		</Card.Content>
 		<Card.Footer class="justify-end border-t bg-muted/50 px-6 py-4">
-			<button type="submit" form="session-form" class={buttonVariants()} disabled={$delayed}>
+			<button type="submit" form="event-form" class={buttonVariants()} disabled={$delayed}>
 				<Save class="mr-2 h-4 w-4" />
-				{#if $delayed}Création...{:else}Créer la session{/if}
+				{#if $delayed}Création...{:else}Créer l'événement{/if}
 			</button>
 		</Card.Footer>
 	</Card.Root>

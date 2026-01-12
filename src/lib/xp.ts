@@ -10,10 +10,10 @@ export const LEVEL_XP: Record<string, number> = {
 };
 
 /**
- * Calculates how much XP an activity is worth based on its targeted levels.
+ * Calculates how much XP a subject is worth based on its targeted levels.
  * Returns the highest value among targeted levels.
  */
-export function getActivityXpValue(niveaux: string[] | any): number {
+export function getSubjectXpValue(niveaux: string[] | any): number {
 	const levels = (niveaux as string[]) || [];
 	if (levels.length === 0) return 10;
 	const xpGains = levels.map((lvl) => LEVEL_XP[lvl] || 10);

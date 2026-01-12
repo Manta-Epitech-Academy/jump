@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { CalendarDateTime } from '@internationalized/date';
 
-export const sessionSchema = z.object({
+export const eventSchema = z.object({
 	titre: z
 		.string()
 		.min(3, 'Le titre doit faire au moins 3 caractères')
@@ -15,12 +15,12 @@ export const sessionSchema = z.object({
 	time: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Format horaire invalide (HH:MM)'),
 	statut: z.enum(['planifiee', 'en_cours', 'terminee']).default('planifiee'),
 	theme: z.string().default(''),
-	activity: z.string().optional()
+	subject: z.string().optional()
 });
 
 export const addParticipantSchema = z.object({
 	studentId: z.string().min(1, 'Veuillez sélectionner un élève')
 });
 
-export type SessionForm = z.infer<typeof sessionSchema>;
+export type EventForm = z.infer<typeof eventSchema>;
 export type AddParticipantForm = z.infer<typeof addParticipantSchema>;

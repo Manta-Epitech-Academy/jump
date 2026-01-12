@@ -2,27 +2,27 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { addParticipantSchema, sessionSchema } from '$lib/validation/sessions';
+import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import { studentSchema } from '$lib/validation/students';
 import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
-import { getActivityXpValue } from '$lib/xp';
-import { suggestBestActivity } from '$lib/recommender';
+import { getSubjectXpValue } from '$lib/xp';
+import { suggestBestSubject } from '$lib/recommender';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	let session;
+	let event;
 	try {
-		session = await locals.pb.collection('sessions').getOne(params.id, {
+		event = await locals.pb.collection('events').getOne(params.id, {
 			expand: 'theme',
 			requestKey: null
 		});
 	} catch (e) {
 		console.error(e);
-		throw error(404, 'Session introuvable');
+		throw error(404, 'Événement introuvable');
 	}
 
 	const participationsRaw = await locals.pb.collection('participations').getFullList({
-		filter: `session = "${session.id}"`,
-		expand: 'student,activity',
+		filter: `event = "${event.id}"`,
+		expand: 'student,subject',
 		sort: '-created',
 		requestKey: null
 	});
@@ -30,27 +30,27 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const participations = await Promise.all(
 		participationsRaw.map(async (p) => {
 			const student = p.expand?.student;
-			const currentActivity = p.expand?.activity;
+			const currentSubject = p.expand?.subject;
 
 			const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
 
-			if (student && currentActivity) {
+			if (student && currentSubject) {
 				const history = await locals.pb.collection('participations').getList(1, 1, {
-					filter: `student = "${student.id}" && activity = "${currentActivity.id}" && is_validated = true && session != "${session.id}"`,
+					filter: `student = "${student.id}" && subject = "${currentSubject.id}" && is_validated = true && event != "${event.id}"`,
 					requestKey: null
 				});
 
 				if (history.totalItems > 0) {
 					alerts.push({
 						type: 'danger',
-						message: 'DÉJÀ VALIDÉ : Cet élève a déjà réussi cet atelier par le passé.'
+						message: 'DÉJÀ VALIDÉ : Cet élève a déjà réussi ce sujet par le passé.'
 					});
 				}
 
-				if (currentActivity.niveaux && !currentActivity.niveaux.includes(student.niveau)) {
+				if (currentSubject.niveaux && !currentSubject.niveaux.includes(student.niveau)) {
 					alerts.push({
 						type: 'warning',
-						message: `NIVEAU : L'activité est prévue pour [${currentActivity.niveaux.join(', ')}], l'élève est en ${student.niveau}.`
+						message: `NIVEAU : Le sujet est prévu pour [${currentSubject.niveaux.join(', ')}], l'élève est en ${student.niveau}.`
 					});
 				}
 			}
@@ -67,7 +67,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		requestKey: null
 	});
 
-	const activities = await locals.pb.collection('activities').getFullList({
+	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: 'nom',
 		requestKey: null
 	});
@@ -77,33 +77,33 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		requestKey: null
 	});
 
-	const sessionDate = new Date(session.date);
+	const eventDate = new Date(event.date);
 	// Format YYYY-MM-DD manually
-	const dateString = sessionDate.toISOString().split('T')[0];
+	const dateString = eventDate.toISOString().split('T')[0];
 	// Format HH:MM manually
-	const hours = String(sessionDate.getHours()).padStart(2, '0');
-	const minutes = String(sessionDate.getMinutes()).padStart(2, '0');
+	const hours = String(eventDate.getHours()).padStart(2, '0');
+	const minutes = String(eventDate.getMinutes()).padStart(2, '0');
 	const timeString = `${hours}:${minutes}`;
 
 	const editForm = await superValidate(
 		{
-			titre: session.titre,
-			statut: session.statut as 'planifiee' | 'en_cours' | 'terminee',
-			theme: session.expand?.theme?.nom || '',
+			titre: event.titre,
+			statut: event.statut as 'planifiee' | 'en_cours' | 'terminee',
+			theme: event.expand?.theme?.nom || '',
 			date: dateString,
 			time: timeString
 		},
-		zod4(sessionSchema)
+		zod4(eventSchema)
 	);
 
 	const addForm = await superValidate(zod4(addParticipantSchema));
 	const createStudentForm = await superValidate(zod4(studentSchema));
 
 	return {
-		session,
+		event,
 		participations,
 		allStudents,
-		activities,
+		subjects,
 		themes,
 		addForm,
 		createStudentForm,
@@ -118,29 +118,29 @@ export const actions: Actions = {
 
 		try {
 			const duplicate = await locals.pb.collection('participations').getList(1, 1, {
-				filter: `student = "${form.data.studentId}" && session = "${params.id}"`
+				filter: `student = "${form.data.studentId}" && event = "${params.id}"`
 			});
 
 			if (duplicate.totalItems > 0) {
-				return message(form, 'Cet élève est déjà inscrit à cette session.', { status: 400 });
+				return message(form, 'Cet élève est déjà inscrit à cet événement.', { status: 400 });
 			}
 
-			// Get Session to know the theme
-			const session = await locals.pb.collection('sessions').getOne(params.id);
+			// Get Event to know the theme
+			const event = await locals.pb.collection('events').getOne(params.id);
 
 			// Use the intelligent recommender
-			const activities = await locals.pb.collection('activities').getFullList();
-			const suggestedActivityId = await suggestBestActivity(
+			const subjects = await locals.pb.collection('subjects').getFullList();
+			const suggestedSubjectId = await suggestBestSubject(
 				locals.pb,
 				form.data.studentId,
-				activities,
-				session.theme
+				subjects,
+				event.theme
 			);
 
 			await locals.pb.collection('participations').create({
 				student: form.data.studentId,
-				session: params.id,
-				activity: suggestedActivityId,
+				event: params.id,
+				subject: suggestedSubjectId,
 				is_present: false,
 				is_validated: false
 			});
@@ -152,14 +152,14 @@ export const actions: Actions = {
 		}
 	},
 
-	assignActivity: async ({ request, locals }) => {
+	assignSubject: async ({ request, locals }) => {
 		const data = await request.formData();
 		const participationId = data.get('participationId') as string;
-		const activityId = data.get('activityId') as string;
+		const subjectId = data.get('subjectId') as string;
 
 		try {
 			await locals.pb.collection('participations').update(participationId, {
-				activity: activityId === 'none' ? null : activityId
+				subject: subjectId === 'none' ? null : subjectId
 			});
 			return { success: true };
 		} catch (err) {
@@ -175,22 +175,22 @@ export const actions: Actions = {
 		try {
 			const newStudent = await locals.pb.collection('students').create(form.data);
 
-			// Get Session to know the theme
-			const session = await locals.pb.collection('sessions').getOne(params.id);
+			// Get Event to know the theme
+			const event = await locals.pb.collection('events').getOne(params.id);
 
 			// Use the intelligent recommender for the newly created student
-			const activities = await locals.pb.collection('activities').getFullList();
-			const suggestedActivityId = await suggestBestActivity(
+			const subjects = await locals.pb.collection('subjects').getFullList();
+			const suggestedSubjectId = await suggestBestSubject(
 				locals.pb,
 				newStudent.id,
-				activities,
-				session.theme
+				subjects,
+				event.theme
 			);
 
 			await locals.pb.collection('participations').create({
 				student: newStudent.id,
-				session: params.id,
-				activity: suggestedActivityId,
+				event: params.id,
+				subject: suggestedSubjectId,
 				is_present: false,
 				is_validated: false
 			});
@@ -201,7 +201,7 @@ export const actions: Actions = {
 		}
 	},
 
-	updateSession: async ({ request, locals, params }) => {
+	updateEvent: async ({ request, locals, params }) => {
 		const formData = await request.formData();
 
 		const dateStr = formData.get('date') as string;
@@ -216,7 +216,7 @@ export const actions: Actions = {
 			theme: themeInput
 		};
 
-		const form = await superValidate(transformedData, zod4(sessionSchema));
+		const form = await superValidate(transformedData, zod4(eventSchema));
 
 		if (!form.valid) return fail(400, { form });
 
@@ -243,17 +243,17 @@ export const actions: Actions = {
 				}
 			}
 
-			await locals.pb.collection('sessions').update(params.id, {
+			await locals.pb.collection('events').update(params.id, {
 				titre: form.data.titre,
 				date: jsDate,
 				statut: form.data.statut,
 				theme: themeId
 			});
 
-			return message(form, 'Session mise à jour !');
+			return message(form, 'Événement mis à jour !');
 		} catch (err) {
-			console.error('Update Session Error:', err);
-			return message(form, 'Impossible de mettre à jour la session', { status: 500 });
+			console.error('Update Event Error:', err);
+			return message(form, "Impossible de mettre à jour l'événement", { status: 500 });
 		}
 	},
 
@@ -263,16 +263,16 @@ export const actions: Actions = {
 
 		try {
 			const p = await locals.pb.collection('participations').getOne(id, {
-				expand: 'activity'
+				expand: 'subject'
 			});
 
 			if (p.is_validated) {
-				const activity = p.expand?.activity;
-				const xpValue = activity ? getActivityXpValue(activity.niveaux) : 20;
+				const subject = p.expand?.subject;
+				const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
 
 				await locals.pb.collection('students').update(p.student, {
 					'xp-': xpValue,
-					'sessions_count-': 1
+					'events_count-': 1
 				});
 			}
 
@@ -284,25 +284,25 @@ export const actions: Actions = {
 		}
 	},
 
-	deleteSession: async ({ params, locals }) => {
+	deleteEvent: async ({ params, locals }) => {
 		try {
 			const participations = await locals.pb.collection('participations').getFullList({
-				filter: `session = "${params.id}" && is_validated = true`,
-				expand: 'activity'
+				filter: `event = "${params.id}" && is_validated = true`,
+				expand: 'subject'
 			});
 
 			for (const p of participations) {
-				const activity = p.expand?.activity;
-				const xpValue = activity ? getActivityXpValue(activity.niveaux) : 20;
+				const subject = p.expand?.subject;
+				const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
 				await locals.pb.collection('students').update(p.student, {
 					'xp-': xpValue,
-					'sessions_count-': 1
+					'events_count-': 1
 				});
 			}
 
-			await locals.pb.collection('sessions').delete(params.id);
+			await locals.pb.collection('events').delete(params.id);
 		} catch (err) {
-			console.error('Error deleting session:', err);
+			console.error('Error deleting event:', err);
 			return fail(500);
 		}
 

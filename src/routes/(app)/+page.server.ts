@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { getActivityXpValue } from '$lib/xp';
+import { getSubjectXpValue } from '$lib/xp';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Redundant but explicit auth check
@@ -9,56 +9,56 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	try {
-		const sessions = await locals.pb.collection('sessions').getFullList({
+		const events = await locals.pb.collection('events').getFullList({
 			sort: '-date',
 			filter: `date >= '${new Date().toISOString()}' && statut = 'planifiee'`,
 			expand: 'theme'
 		});
 
 		return {
-			sessions: sessions.map((session) => ({
-				id: session.id,
-				titre: session.titre,
-				date: new Date(session.date),
-				statut: session.statut,
-				theme: session.expand?.theme?.nom
+			events: events.map((event) => ({
+				id: event.id,
+				titre: event.titre,
+				date: new Date(event.date),
+				statut: event.statut,
+				theme: event.expand?.theme?.nom
 			}))
 		};
 	} catch (err) {
 		console.error('Erreur load dashboard:', err);
-		throw error(500, 'Erreur chargement sessions');
+		throw error(500, 'Erreur chargement événements');
 	}
 };
 
 export const actions: Actions = {
-	deleteSession: async ({ url, locals }) => {
+	deleteEvent: async ({ url, locals }) => {
 		const id = url.searchParams.get('id');
 		if (!id) return fail(400);
 
 		try {
 			// 1. Get all validated participations to revert XP before deleting
 			const participations = await locals.pb.collection('participations').getFullList({
-				filter: `session = "${id}" && is_validated = true`,
-				expand: 'activity'
+				filter: `event = "${id}" && is_validated = true`,
+				expand: 'subject'
 			});
 
-			// 2. Revert XP/Sessions count for each student manually
+			// 2. Revert XP/Events count for each student manually
 			for (const p of participations) {
-				const activity = p.expand?.activity;
-				const xpValue = activity ? getActivityXpValue(activity.niveaux) : 20;
+				const subject = p.expand?.subject;
+				const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
 
 				await locals.pb.collection('students').update(p.student, {
 					'xp-': xpValue,
-					'sessions_count-': 1
+					'events_count-': 1
 				});
 			}
 
-			// 3. Delete the session
-			await locals.pb.collection('sessions').delete(id);
+			// 3. Delete the event
+			await locals.pb.collection('events').delete(id);
 
 			return { success: true };
 		} catch (err) {
-			console.error('Erreur suppression session:', err);
+			console.error('Erreur suppression événement:', err);
 			return fail(500, { message: 'Erreur lors de la suppression' });
 		}
 	}

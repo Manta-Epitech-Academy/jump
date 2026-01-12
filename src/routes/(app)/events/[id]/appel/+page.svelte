@@ -29,7 +29,7 @@
 			pb.authStore.loadFromCookie(document.cookie);
 
 			pb.collection('participations').subscribe('*', (e) => {
-				if (e.record.session !== data.session.id) return;
+				if (e.record.event !== data.event.id) return;
 				if (e.action === 'update') {
 					const index = participations.findIndex((p) => p.id === e.record.id);
 					if (index !== -1) {
@@ -88,7 +88,7 @@
 		<div class="container mx-auto max-w-2xl px-4">
 			<div class="mb-4 flex items-center justify-between">
 				<a
-					href="/sessions/{data.session.id}/builder"
+					href="/events/{data.event.id}/builder"
 					class="flex items-center gap-1 text-xs font-black tracking-widest text-muted-foreground uppercase transition-colors hover:text-epi-blue"
 				>
 					<ArrowLeft class="h-3 w-3" /> Retour au builder
@@ -108,8 +108,8 @@
 			</div>
 
 			<h1 class="text-xl font-bold uppercase">
-				Appel : <span style:view-transition-name="session-title-{data.session.id}"
-					>{data.session.titre}</span
+				Appel : <span style:view-transition-name="event-title-{data.event.id}"
+					>{data.event.titre}</span
 				>
 			</h1>
 

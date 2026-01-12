@@ -1,18 +1,18 @@
 import type { TypedPocketBase } from './pocketbase-types';
-import { getActivityXpValue } from './xp';
+import { getSubjectXpValue } from './xp';
 
 /**
- * Intelligent Algorithm to guess the best activity for a student.
- * 1. Filters activities by the student's school level.
- * 2. Excludes activities the student has already validated.
- * 3. Prioritizes activities matching the Session Theme.
- * 4. Prioritizes activities with higher XP values (progression).
+ * Intelligent Algorithm to guess the best subject for a student.
+ * 1. Filters subjects by the student's school level.
+ * 2. Excludes subjects the student has already validated.
+ * 3. Prioritizes subjects matching the Event Theme.
+ * 4. Prioritizes subjects with higher XP values (progression).
  */
-export async function suggestBestActivity(
+export async function suggestBestSubject(
 	pb: TypedPocketBase,
 	studentId: string,
-	activities: any[],
-	sessionThemeId?: string | null
+	subjects: any[],
+	eventThemeId?: string | null
 ) {
 	try {
 		// 1. Get student details
@@ -21,35 +21,35 @@ export async function suggestBestActivity(
 		// 2. Get student's validated history to avoid repeats
 		const validatedParticipations = await pb.collection('participations').getFullList({
 			filter: `student = "${studentId}" && is_validated = true`,
-			fields: 'activity'
+			fields: 'subject'
 		});
-		const validatedActivityIds = validatedParticipations.map((p) => p.activity);
+		const validatedSubjectIds = validatedParticipations.map((p) => p.subject);
 
-		// 3. Filter and Score activities
-		const recommendations = activities
-			.filter((act) => {
+		// 3. Filter and Score subjects
+		const recommendations = subjects
+			.filter((sub) => {
 				// Must match student level
-				const levelMatch = act.niveaux && act.niveaux.includes(student.niveau);
+				const levelMatch = sub.niveaux && sub.niveaux.includes(student.niveau);
 				// Must not be already validated
-				const alreadyDone = validatedActivityIds.includes(act.id);
+				const alreadyDone = validatedSubjectIds.includes(sub.id);
 				return levelMatch && !alreadyDone;
 			})
-			.map((act) => {
-				let score = getActivityXpValue(act.niveaux);
+			.map((sub) => {
+				let score = getSubjectXpValue(sub.niveaux);
 
-				// Boost score if activity themes include the session theme
-				if (sessionThemeId && act.themes && act.themes.includes(sessionThemeId)) {
+				// Boost score if subject themes include the event theme
+				if (eventThemeId && sub.themes && sub.themes.includes(eventThemeId)) {
 					score += 1000;
 				}
 
 				return {
-					activity: act,
+					subject: sub,
 					score
 				};
 			})
 			.sort((a, b) => b.score - a.score); // Highest Score (Theme + XP) first
 
-		return recommendations.length > 0 ? recommendations[0].activity.id : null;
+		return recommendations.length > 0 ? recommendations[0].subject.id : null;
 	} catch (err) {
 		console.error('Recommender error:', err);
 		return null;

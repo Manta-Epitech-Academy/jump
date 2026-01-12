@@ -33,7 +33,7 @@
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
-	import { goto } from '$app/navigation'; // Added import for redirection
+	import { goto } from '$app/navigation';
 	import { formatDateFr } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 
@@ -70,11 +70,11 @@
 	} = superForm(
 		untrack(() => data.editForm),
 		{
-			id: 'edit-session',
+			id: 'edit-event',
 			resetForm: false,
 			onResult: ({ result }) => {
 				if (result.type === 'success') {
-					openEditSession = false;
+					openEditEvent = false;
 					toast.success(result.data?.form.message);
 				}
 			}
@@ -83,10 +83,10 @@
 
 	let searchQuery = $state('');
 	let openQuickCreate = $state(false);
-	let openEditSession = $state(false);
+	let openEditEvent = $state(false);
 
 	// Deletion states
-	let deleteSessionDialogOpen = $state(false);
+	let deleteEventDialogOpen = $state(false);
 	let deleteParticipationDialogOpen = $state(false);
 	let participationToDelete = $state<string | null>(null);
 
@@ -95,10 +95,10 @@
 		const unassigned: any[] = [];
 
 		data.participations.forEach((p) => {
-			if (p.expand?.activity) {
-				const actName = p.expand.activity.nom;
-				if (!assigned[actName]) assigned[actName] = [];
-				assigned[actName].push(p);
+			if (p.expand?.subject) {
+				const subjectName = p.expand.subject.nom;
+				if (!assigned[subjectName]) assigned[subjectName] = [];
+				assigned[subjectName].push(p);
 			} else {
 				unassigned.push(p);
 			}
@@ -141,7 +141,7 @@
 		})
 	);
 
-	function isAlreadyInSession(studentId: string) {
+	function isAlreadyInEvent(studentId: string) {
 		return data.participations.some((p) => p.expand?.student?.id === studentId);
 	}
 
@@ -166,18 +166,18 @@
 			</a>
 			<div>
 				<h1 class="text-3xl font-bold text-epi-blue uppercase">
-					Session<span class="text-epi-teal">_</span>
+					Événement<span class="text-epi-teal">_</span>
 				</h1>
 				<div
 					class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-muted-foreground uppercase"
 				>
 					<div class="flex items-center gap-2">
 						<CalendarIcon class="h-3 w-3" />
-						<span style:view-transition-name="session-title-{data.session.id}">
-							{data.session.titre}
+						<span style:view-transition-name="event-title-{data.event.id}">
+							{data.event.titre}
 						</span>
 						<span>
-							• {new Date(data.session.date).toLocaleDateString('fr-FR', {
+							• {new Date(data.event.date).toLocaleDateString('fr-FR', {
 								day: 'numeric',
 								month: 'short',
 								hour: '2-digit',
@@ -185,26 +185,26 @@
 							})}
 						</span>
 					</div>
-					{#if data.session.expand?.theme}
+					{#if data.event.expand?.theme}
 						<div class="flex items-center gap-1">
 							<Tag class="h-3 w-3 text-epi-teal" />
-							{data.session.expand.theme.nom}
+							{data.event.expand.theme.nom}
 						</div>
 					{/if}
 				</div>
 			</div>
 		</div>
 		<div class="flex gap-2">
-			<Dialog.Root bind:open={openEditSession}>
+			<Dialog.Root bind:open={openEditEvent}>
 				<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'icon' })}>
 					<Settings class="h-4 w-4" />
 				</Dialog.Trigger>
 				<Dialog.Content class="sm:max-w-[500px]">
 					<Dialog.Header>
-						<Dialog.Title>Paramètres de la session</Dialog.Title>
+						<Dialog.Title>Paramètres de l'événement</Dialog.Title>
 					</Dialog.Header>
 					<div class="space-y-6">
-						<form method="POST" action="?/updateSession" use:editEnhance class="space-y-4 py-2">
+						<form method="POST" action="?/updateEvent" use:editEnhance class="space-y-4 py-2">
 							<div class="space-y-2">
 								<Label>Titre</Label>
 								<Input name="titre" bind:value={$editForm.titre} />
@@ -299,7 +299,7 @@
 							<div class="space-y-1">
 								<h4 class="text-sm font-bold text-destructive uppercase">Zone de danger</h4>
 								<p class="text-xs text-muted-foreground">
-									La suppression d'une session est irréversible. Les XP des élèves validés seront
+									La suppression d'un événement est irréversible. Les XP des élèves validés seront
 									automatiquement retirés.
 								</p>
 							</div>
@@ -307,17 +307,17 @@
 								type="button"
 								variant="destructive"
 								class="w-full"
-								onclick={() => (deleteSessionDialogOpen = true)}
+								onclick={() => (deleteEventDialogOpen = true)}
 							>
 								<Trash2 class="mr-2 h-4 w-4" />
-								Supprimer définitivement la session
+								Supprimer définitivement l'événement
 							</Button>
 						</div>
 					</div>
 				</Dialog.Content>
 			</Dialog.Root>
 
-			<Button variant="default" href={`/sessions/${data.session.id}/appel`} class="shadow-lg">
+			<Button variant="default" href={`/events/${data.event.id}/appel`} class="shadow-lg">
 				<UserCheck class="mr-2 h-4 w-4" /> Faire l'appel
 			</Button>
 		</div>
@@ -329,7 +329,7 @@
 				<Card.Title class="flex items-center gap-2 uppercase">
 					<Users class="h-5 w-5 text-epi-blue" /> Organisation des Groupes
 				</Card.Title>
-				<Card.Description class="font-bold uppercase">Répartition par activité</Card.Description>
+				<Card.Description class="font-bold uppercase">Répartition par sujet</Card.Description>
 			</Card.Header>
 			<Separator />
 
@@ -358,11 +358,11 @@
 						</div>
 					{/if}
 
-					{#each Object.entries(participationGroups.assigned) as [workshopName, members]}
+					{#each Object.entries(participationGroups.assigned) as [subjectName, members]}
 						<div>
 							<div class="mb-3 flex items-center gap-2">
 								<div class="h-2 w-2 rounded-full bg-epi-teal"></div>
-								<h3 class="font-heading text-lg tracking-tight uppercase">{workshopName}</h3>
+								<h3 class="font-heading text-lg tracking-tight uppercase">{subjectName}</h3>
 								<Badge variant="secondary" class="rounded-sm text-[10px]"
 									>{members.length} élèves</Badge
 								>
@@ -400,7 +400,7 @@
 				<ScrollArea class="flex-1 border-t bg-muted/10">
 					<div class="space-y-1 p-2">
 						{#each filteredStudents as student (student.id)}
-							{@const isAdded = isAlreadyInSession(student.id)}
+							{@const isAdded = isAlreadyInEvent(student.id)}
 							<form
 								method="POST"
 								action="?/addExisting"
@@ -472,23 +472,23 @@
 	</div>
 </div>
 
-<AlertDialog.Root bind:open={deleteSessionDialogOpen}>
+<AlertDialog.Root bind:open={deleteEventDialogOpen}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
 			<AlertDialog.Title>Supprimer définitivement ?</AlertDialog.Title>
 			<AlertDialog.Description>
-				Cette action est irréversible. Toutes les données associées à cette session seront perdues.
+				Cette action est irréversible. Toutes les données associées à cet événement seront perdues.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
 			<form
-				action="?/deleteSession"
+				action="?/deleteEvent"
 				method="POST"
 				use:enhance={() => {
 					return async ({ result }) => {
 						if (result.type === 'redirect') {
-							toast.success('Session supprimée');
+							toast.success('Événement supprimé');
 							await goto(result.location);
 						}
 					};
@@ -507,7 +507,7 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>Retirer l'élève ?</AlertDialog.Title>
 			<AlertDialog.Description>
-				Voulez-vous retirer cet élève de la session ? S'il était validé, son XP sera annulé.
+				Voulez-vous retirer cet élève de l'événement ? S'il était validé, son XP sera annulé.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
@@ -520,7 +520,7 @@
 						return async ({ result, update }) => {
 							if (result.type === 'success') {
 								deleteParticipationDialogOpen = false;
-								toast.success('Élève retiré de la session');
+								toast.success("Élève retiré de l'événement");
 								await update();
 							} else {
 								toast.error('Erreur lors du retrait');
@@ -586,7 +586,7 @@
 				</span>
 			{:else}
 				{@const isGoodFit =
-					p.expand?.activity?.niveaux?.includes(p.expand.student.niveau) &&
+					p.expand?.subject?.niveaux?.includes(p.expand.student.niveau) &&
 					!p.alerts.some((a) => a.type === 'danger')}
 				{#if isGoodFit}
 					<Badge
@@ -598,23 +598,23 @@
 				{/if}
 			{/if}
 
-			<form action="?/assignActivity" method="POST" use:enhance>
+			<form action="?/assignSubject" method="POST" use:enhance>
 				<input type="hidden" name="participationId" value={p.id} />
 				<Select.Root
 					type="single"
-					name="activityId"
+					name="subjectId"
 					onValueChange={(v) => {
 						const form = document.createElement('form');
 						form.method = 'POST';
-						form.action = '?/assignActivity';
+						form.action = '?/assignSubject';
 						const pId = document.createElement('input');
 						pId.name = 'participationId';
 						pId.value = p.id;
-						const aId = document.createElement('input');
-						aId.name = 'activityId';
-						aId.value = v;
+						const sId = document.createElement('input');
+						sId.name = 'subjectId';
+						sId.value = v;
 						form.appendChild(pId);
-						form.appendChild(aId);
+						form.appendChild(sId);
 						document.body.appendChild(form);
 						form.submit();
 					}}
@@ -625,15 +625,15 @@
 							: 'opacity-0 group-hover:opacity-100'}"
 					>
 						<ArrowRightLeft class="mr-1 h-3 w-3" />
-						{isUnassigned ? 'Assigner activité' : "Changer d'activité"}
+						{isUnassigned ? 'Assigner sujet' : 'Changer de sujet'}
 					</Select.Trigger>
 					<Select.Content>
 						{#if !isUnassigned}
-							<Select.Item value="none" class="text-destructive">Retirer de l'activité</Select.Item>
+							<Select.Item value="none" class="text-destructive">Retirer du sujet</Select.Item>
 							<Separator class="my-1" />
 						{/if}
-						{#each data.activities as act}
-							<Select.Item value={act.id}>{act.nom}</Select.Item>
+						{#each data.subjects as sub}
+							<Select.Item value={sub.id}>{sub.nom}</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>

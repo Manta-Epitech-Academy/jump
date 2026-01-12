@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { sessionSchema } from '$lib/validation/sessions';
+import { eventSchema } from '$lib/validation/events';
 import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sort: 'nom'
 	});
 
-	const form = await superValidate(zod4(sessionSchema));
+	const form = await superValidate(zod4(eventSchema));
 
 	return {
 		themes,
@@ -46,7 +46,7 @@ export const actions: Actions = {
 			theme: themeInput
 		};
 
-		const form = await superValidate(transformedData, zod4(sessionSchema));
+		const form = await superValidate(transformedData, zod4(eventSchema));
 
 		if (form.data.date && typeof form.data.date !== 'string') {
 			form.data.date = form.data.date.toString();
@@ -56,7 +56,7 @@ export const actions: Actions = {
 			return fail(400, { form });
 		}
 
-		let newSessionId = '';
+		let newEventId = '';
 
 		try {
 			// THEME LOGIC: Find or Create
@@ -81,18 +81,18 @@ export const actions: Actions = {
 				titre: form.data.titre,
 				date: jsDate,
 				statut: form.data.statut,
-				theme: themeId,
+				theme: themeId
 			};
 
-			const record = await locals.pb.collection('sessions').create(payload);
-			newSessionId = record.id;
+			const record = await locals.pb.collection('events').create(payload);
+			newEventId = record.id;
 		} catch (err) {
-			console.error('Erreur création session:', err);
+			console.error('Erreur création événement:', err);
 			return message(form, 'Erreur technique lors de la création.', {
 				status: 500
 			});
 		}
 
-		throw redirect(303, `/sessions/${newSessionId}/builder`);
+		throw redirect(303, `/events/${newEventId}/builder`);
 	}
 };

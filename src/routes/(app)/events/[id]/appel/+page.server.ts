@@ -1,16 +1,16 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { getActivityXpValue } from '$lib/xp';
+import { getSubjectXpValue } from '$lib/xp';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	try {
-		const session = await locals.pb.collection('sessions').getOne(params.id, {
+		const event = await locals.pb.collection('events').getOne(params.id, {
 			expand: 'theme'
 		});
 
 		const rawParticipations = await locals.pb.collection('participations').getFullList({
-			filter: `session = "${session.id}"`,
-			expand: 'student,activity'
+			filter: `event = "${event.id}"`,
+			expand: 'student,subject'
 		});
 
 		const participations = rawParticipations.sort((a, b) => {
@@ -20,12 +20,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		});
 
 		return {
-			session,
+			event,
 			participations
 		};
 	} catch (e) {
 		console.error(e);
-		throw error(404, 'Session introuvable');
+		throw error(404, 'Événement introuvable');
 	}
 };
 
@@ -52,28 +52,28 @@ export const actions: Actions = {
 
 		try {
 			const p = await locals.pb.collection('participations').getOne(id, {
-				expand: 'activity'
+				expand: 'subject'
 			});
 
 			const studentId = p.student;
 			const isNowValidated = !currentState;
 
-			// XP Logic: Theme sessions have no metadata.
-			// If a specific activity is assigned to this participation, use its levels.
+			// XP Logic: Theme events have no metadata.
+			// If a specific subject is assigned to this participation, use its levels.
 			// Otherwise, grant a default of 20 XP.
-			const activity = p.expand?.activity;
-			const xpValue = activity ? getActivityXpValue(activity.niveaux) : 20;
+			const subject = p.expand?.subject;
+			const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
 
 			await locals.pb.collection('participations').update(id, {
 				is_validated: isNowValidated
 			});
 
 			const xpChange = isNowValidated ? xpValue : -xpValue;
-			const sessionChange = isNowValidated ? 1 : -1;
+			const eventChange = isNowValidated ? 1 : -1;
 
 			await locals.pb.collection('students').update(studentId, {
 				'xp+': xpChange,
-				'sessions_count+': sessionChange
+				'events_count+': eventChange
 			});
 
 			return { success: true };

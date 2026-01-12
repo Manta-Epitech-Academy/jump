@@ -11,7 +11,7 @@ export const schoolLevels = [
 	'Sup'
 ] as const;
 
-export const activitySchema = z.object({
+export const subjectSchema = z.object({
 	nom: z
 		.string()
 		.min(3, 'Le nom doit faire au moins 3 caractères')
@@ -23,4 +23,4 @@ export const activitySchema = z.object({
 	themes: z.array(z.string()).default([])
 });
 
-export type ActivityForm = z.infer<typeof activitySchema>;
+export type SubjectForm = z.infer<typeof subjectSchema>;

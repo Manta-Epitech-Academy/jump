@@ -250,7 +250,7 @@
 				<Table.Row>
 					<Table.Head class="w-[300px] text-xs font-bold uppercase">Étudiant</Table.Head>
 					<Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
-					<Table.Head class="text-right text-xs font-bold uppercase">XP / Sessions</Table.Head>
+					<Table.Head class="text-right text-xs font-bold uppercase">XP / Événements</Table.Head>
 					<Table.Head class="w-[50px]"></Table.Head>
 				</Table.Row>
 			</Table.Header>
@@ -284,7 +284,7 @@
 							<div class="flex flex-col items-end">
 								<span class="font-black text-foreground">{student.xp} XP</span>
 								<span class="text-[10px] font-bold tracking-widest uppercase"
-									>{student.sessions_count} session{student.sessions_count > 1 ? 's' : ''}</span
+									>{student.events_count} événement{student.events_count > 1 ? 's' : ''}</span
 								>
 							</div>
 						</Table.Cell>

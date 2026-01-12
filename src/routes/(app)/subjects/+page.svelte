@@ -14,7 +14,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
-	import { schoolLevels } from '$lib/validation/activities';
+	import { schoolLevels } from '$lib/validation/subjects';
 	import { cn } from '$lib/utils';
 	import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
 
@@ -41,7 +41,7 @@
 
 	// Deletion state
 	let deleteDialogOpen = $state(false);
-	let activityToDelete = $state<string | null>(null);
+	let subjectToDelete = $state<string | null>(null);
 
 	function openCreate() {
 		reset();
@@ -52,19 +52,19 @@
 		open = true;
 	}
 
-	function openEdit(activity: any) {
-		$form.nom = activity.nom;
-		$form.description = activity.description;
-		$form.niveaux = activity.niveaux || [];
+	function openEdit(subject: any) {
+		$form.nom = subject.nom;
+		$form.description = subject.description;
+		$form.niveaux = subject.niveaux || [];
 
-		if (activity.expand && activity.expand.themes) {
-			$form.themes = activity.expand.themes.map((t: any) => t.nom);
+		if (subject.expand && subject.expand.themes) {
+			$form.themes = subject.expand.themes.map((t: any) => t.nom);
 		} else {
 			$form.themes = [];
 		}
 
 		isEditing = true;
-		editId = activity.id;
+		editId = subject.id;
 		open = true;
 	}
 
@@ -78,7 +78,7 @@
 	}
 
 	function confirmDelete(id: string) {
-		activityToDelete = id;
+		subjectToDelete = id;
 		deleteDialogOpen = true;
 	}
 </script>
@@ -87,24 +87,24 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<h1 class="text-3xl font-bold text-epi-blue uppercase">
-				Activités<span class="text-epi-teal">_</span>
+				Sujets<span class="text-epi-teal">_</span>
 			</h1>
 			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
-				Catalogue des ateliers par niveaux scolaires.
+				Catalogue des ateliers et sujets par niveaux scolaires.
 			</p>
 		</div>
 
 		<Button onclick={openCreate} class="shadow-lg">
 			<Plus class="mr-2 h-4 w-4" />
-			Nouvelle Activité
+			Nouveau Sujet
 		</Button>
 
 		<Dialog.Root bind:open>
 			<Dialog.Content class="sm:max-w-[500px]">
 				<Dialog.Header>
-					<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} une activité</Dialog.Title>
+					<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un sujet</Dialog.Title>
 					<Dialog.Description>
-						Définissez les détails, niveaux et thèmes de l'atelier.
+						Définissez les détails, niveaux et thèmes du sujet.
 					</Dialog.Description>
 				</Dialog.Header>
 
@@ -119,7 +119,7 @@
 					{/if}
 
 					<div class="grid gap-2">
-						<Label for="nom">Nom de l'atelier</Label>
+						<Label for="nom">Nom du sujet</Label>
 						<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Ex: Intro React" />
 						{#if $errors.nom}<span class="text-sm text-destructive">{$errors.nom}</span>{/if}
 					</div>
@@ -177,7 +177,7 @@
 						<Button type="submit" disabled={$delayed} class="w-full sm:w-auto">
 							{#if $delayed}Enregistrement...{:else}{isEditing
 									? 'Mettre à jour'
-									: "Créer l'activité"}{/if}
+									: 'Créer le sujet'}{/if}
 						</Button>
 					</Dialog.Footer>
 				</form>
@@ -187,21 +187,21 @@
 		<AlertDialog.Root bind:open={deleteDialogOpen}>
 			<AlertDialog.Content>
 				<AlertDialog.Header>
-					<AlertDialog.Title>Supprimer l'activité</AlertDialog.Title>
+					<AlertDialog.Title>Supprimer le sujet</AlertDialog.Title>
 					<AlertDialog.Description>
-						Êtes-vous sûr de vouloir supprimer cette activité ?
+						Êtes-vous sûr de vouloir supprimer ce sujet ?
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
 					<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
-					{#if activityToDelete}
+					{#if subjectToDelete}
 						<form
-							action="?/delete&id={activityToDelete}"
+							action="?/delete&id={subjectToDelete}"
 							method="POST"
 							use:kitEnhance={() => {
 								return async ({ result, update }) => {
 									if (result.type === 'success') {
-										toast.success('Activité supprimée avec succès');
+										toast.success('Sujet supprimé avec succès');
 										deleteDialogOpen = false;
 										await update();
 									} else if (result.type === 'failure') {
@@ -231,19 +231,19 @@
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each data.activities as activity (activity.id)}
+				{#each data.subjects as subject (subject.id)}
 					<Table.Row class="hover:bg-muted/30">
 						<Table.Cell class="align-top font-bold">
 							<div class="flex items-center gap-2 pt-1">
 								<Cuboid class="h-4 w-4 text-muted-foreground" />
-								{activity.nom}
+								{subject.nom}
 							</div>
 						</Table.Cell>
 						<Table.Cell class="align-top">
 							<div class="flex flex-col gap-2">
-								{#if activity.expand?.themes && activity.expand.themes.length > 0}
+								{#if subject.expand?.themes && subject.expand.themes.length > 0}
 									<div class="flex flex-wrap gap-1">
-										{#each activity.expand.themes as theme}
+										{#each subject.expand.themes as theme}
 											<Badge
 												variant="outline"
 												class="gap-1 border-epi-teal/50 bg-epi-teal/5 text-[10px] text-epi-teal"
@@ -256,15 +256,15 @@
 								{/if}
 								<p
 									class="max-w-md truncate text-sm text-muted-foreground"
-									title={activity.description}
+									title={subject.description}
 								>
-									{activity.description}
+									{subject.description}
 								</p>
 							</div>
 						</Table.Cell>
 						<Table.Cell class="pt-3 align-top">
 							<div class="flex flex-wrap gap-1">
-								{#each activity.niveaux as niv}
+								{#each subject.niveaux as niv}
 									<Badge
 										variant="outline"
 										class="rounded-sm border-epi-blue/30 text-[10px] text-epi-blue"
@@ -280,14 +280,14 @@
 									<Ellipsis class="h-4 w-4" />
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content align="end">
-									<DropdownMenu.Item onclick={() => openEdit(activity)}>
+									<DropdownMenu.Item onclick={() => openEdit(subject)}>
 										<Pencil class="mr-2 h-4 w-4" />
 										Modifier
 									</DropdownMenu.Item>
 									<DropdownMenu.Separator />
 									<DropdownMenu.Item
 										class="cursor-pointer text-destructive"
-										onclick={() => confirmDelete(activity.id)}
+										onclick={() => confirmDelete(subject.id)}
 									>
 										<Trash2 class="mr-2 h-4 w-4" />
 										Supprimer
@@ -299,7 +299,7 @@
 				{:else}
 					<Table.Row>
 						<Table.Cell colspan={4} class="h-24 text-center text-muted-foreground">
-							Aucune activité trouvée.
+							Aucun sujet trouvé.
 						</Table.Cell>
 					</Table.Row>
 				{/each}

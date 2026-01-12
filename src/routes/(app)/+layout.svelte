@@ -87,17 +87,17 @@
 						<Users class="h-5 w-5" />
 						<span>Élèves</span>
 					</a>
-					<a href="/activities" class={navLinkClass(isActive('/activities'))}>
+					<a href="/subjects" class={navLinkClass(isActive('/subjects'))}>
 						<Cuboid class="h-5 w-5" />
-						<span>Activités</span>
+						<span>Sujets</span>
 					</a>
 				</nav>
 			</div>
 
 			<div class="border-t p-4">
-				<Button variant="outline" class="w-full justify-start border-dashed" href="/sessions/new">
+				<Button variant="outline" class="w-full justify-start border-dashed" href="/events/new">
 					<Plus class="mr-2 h-4 w-4" />
-					Nouvelle Session
+					Nouvel Événement
 				</Button>
 			</div>
 		</aside>
