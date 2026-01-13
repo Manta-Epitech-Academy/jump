@@ -7,11 +7,22 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Formats a CalendarDateTime to a French date string (DD/MM/YYYY)
+ * Formats a CalendarDateTime, Date object, or ISO string to a French date string (DD/MM/YYYY)
  */
-export function formatDateFr(date: CalendarDateTime | undefined): string {
+export function formatDateFr(date: CalendarDateTime | Date | string | undefined): string {
 	if (!date) return 'Sélectionner une date';
-	const jsDate = date.toDate(getLocalTimeZone());
+
+	let jsDate: Date;
+
+	if (typeof date === 'string') {
+		jsDate = new Date(date);
+	} else if (date instanceof Date) {
+		jsDate = date;
+	} else {
+		// Assumes CalendarDateTime if it's not a string or Date
+		jsDate = date.toDate(getLocalTimeZone());
+	}
+
 	return jsDate.toLocaleDateString('fr-FR', {
 		day: '2-digit',
 		month: '2-digit',

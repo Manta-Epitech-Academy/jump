@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
-	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search } from 'lucide-svelte';
+	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search, Eye } from 'lucide-svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -13,7 +13,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { enhance as kitEnhance } from '$app/forms';
-	import { replaceState } from '$app/navigation';
+	import { replaceState, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
@@ -258,22 +258,26 @@
 				{#each filteredStudents as student (student.id)}
 					<Table.Row class="hover:bg-muted/30">
 						<Table.Cell class="font-bold">
-							<div class="flex items-center gap-3">
-								<Avatar.Root class="h-9 w-9 rounded-full border">
-									<Avatar.Fallback class="bg-muted font-bold text-muted-foreground">
+							<a href="/students/{student.id}" class="group flex items-center gap-3">
+								<Avatar.Root
+									class="h-9 w-9 rounded-full border transition-all group-hover:border-epi-blue"
+								>
+									<Avatar.Fallback
+										class="bg-muted font-bold text-muted-foreground group-hover:text-epi-blue"
+									>
 										{(student.prenom?.[0] ?? '').toUpperCase()}{(
 											student.nom?.[0] ?? ''
 										).toUpperCase()}
 									</Avatar.Fallback>
 								</Avatar.Root>
 								<div class="flex flex-col">
-									<span
+									<span class="underline-offset-4 group-hover:text-epi-blue group-hover:underline"
 										>{formatFirstName(student.prenom)}
 										<span class="uppercase">{student.nom}</span></span
 									>
 									<span class="text-xs text-muted-foreground sm:hidden">{student.niveau}</span>
 								</div>
-							</div>
+							</a>
 						</Table.Cell>
 						<Table.Cell>
 							<Badge variant="secondary" class="rounded-sm font-bold uppercase"
@@ -294,6 +298,11 @@
 									<Ellipsis class="h-4 w-4" />
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content align="end">
+									<DropdownMenu.Item onclick={() => goto(`/students/${student.id}`)}>
+										<Eye class="mr-2 h-4 w-4 text-epi-blue" />
+										Voir le dossier
+									</DropdownMenu.Item>
+									<DropdownMenu.Separator />
 									<DropdownMenu.Item onclick={() => openEdit(student)}>
 										<Pencil class="mr-2 h-4 w-4" />
 										Modifier
