@@ -13,8 +13,8 @@
 	}
 
 	const navLinkClass = (active: boolean) => `
-		flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
-		${active ? 'bg-[rgba(1,58,251,0.1)] text-epi-blue' : 'text-gray-700 hover:bg-gray-100'}
+		flex items-center gap-3 px-3 py-2 text-sm hover:text-epi-blue font-bold transition-colors rounded-sm cursor-pointer
+		${active ? 'bg-[rgba(1,58,251,0.1)] text-epi-blue' : 'text-gray-700 hover:bg-accent'}
 	`;
 </script>
 

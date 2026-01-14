@@ -811,7 +811,7 @@
 					}}
 				>
 					<Select.Trigger
-						class="h-8 w-[160px] text-[10px] font-bold uppercase transition-opacity {isUnassigned
+						class="h-8 w-[170px] px-3 text-[10px] font-bold uppercase transition-opacity {isUnassigned
 							? 'border-epi-orange text-epi-orange opacity-100'
 							: 'opacity-0 group-hover:opacity-100'}"
 					>
