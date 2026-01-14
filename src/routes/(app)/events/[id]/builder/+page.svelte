@@ -11,25 +11,17 @@
 		ArrowLeft,
 		UserCheck,
 		Settings,
-		TriangleAlert,
 		Tag,
-		ArrowRightLeft,
-		Sparkles,
-		Upload,
-		ArrowRight,
-		UserPlus,
-		Ban
+		TriangleAlert
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
-	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Select from '$lib/components/ui/select';
 	import * as Popover from '$lib/components/ui/popover';
-	import * as Table from '$lib/components/ui/table';
 	import { Calendar } from '$lib/components/ui/calendar';
 	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
@@ -37,10 +29,11 @@
 	import { toast } from 'svelte-sonner';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
-	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { formatDateFr } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
+	import StudentParticipationRow from '$lib/components/events/StudentParticipationRow.svelte';
+	import ImportStudentsDialog from '$lib/components/events/ImportStudentsDialog.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -53,11 +46,7 @@
 		{ id: 'add-existing', invalidateAll: true }
 	);
 
-	const {
-		form: createForm,
-		errors: createErrors,
-		enhance: createEnhance
-	} = superForm(
+	const { form: createForm, enhance: createEnhance } = superForm(
 		untrack(() => data.createStudentForm),
 		{
 			id: 'quick-create',
@@ -89,18 +78,12 @@
 	let searchQuery = $state('');
 	let openQuickCreate = $state(false);
 	let openEditEvent = $state(false);
+	let openImportCsv = $state(false);
 
 	// Deletion states
 	let deleteEventDialogOpen = $state(false);
 	let deleteParticipationDialogOpen = $state(false);
 	let participationToDelete = $state<string | null>(null);
-
-	// Import CSV States
-	let openImportCsv = $state(false);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let analysisResult = $state<any[] | null>(null);
-	let isAnalyzing = $state(false);
-	let isConfirming = $state(false);
 
 	let participationGroups = $derived.by(() => {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -211,181 +194,7 @@
 		</div>
 		<div class="flex gap-2">
 			<!-- DIALOG IMPORT CSV -->
-			<Dialog.Root bind:open={openImportCsv} onOpenChange={(o) => !o && (analysisResult = null)}>
-				<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-					<Upload class="h-4 w-4" />
-				</Dialog.Trigger>
-				<Dialog.Content class={analysisResult ? 'sm:max-w-[800px]' : 'sm:max-w-[500px]'}>
-					<Dialog.Header>
-						<Dialog.Title>Import de masse (CSV)</Dialog.Title>
-						<Dialog.Description>
-							{#if !analysisResult}
-								Sélectionnez un fichier CSV (Nom, Prénom, Email, Niveau) pour analyse.
-							{:else}
-								Vérifiez les correspondances avant de valider l'import.
-							{/if}
-						</Dialog.Description>
-					</Dialog.Header>
-
-					{#if !analysisResult}
-						<form
-							action="?/analyzeCsv"
-							method="POST"
-							enctype="multipart/form-data"
-							use:enhance={() => {
-								isAnalyzing = true;
-								return async ({ result }) => {
-									isAnalyzing = false;
-									if (result.type === 'success' && result.data?.analysisSuccess) {
-										analysisResult = result.data.analysisData;
-									} else {
-										toast.error("Erreur lors de l'analyse");
-									}
-								};
-							}}
-							class="space-y-4 py-4"
-						>
-							<div class="grid w-full max-w-sm items-center gap-1.5">
-								<Label for="csv">Fichier CSV</Label>
-								<Input id="csv" name="csv" type="file" accept=".csv" required />
-							</div>
-							<div class="rounded-sm bg-muted p-3 text-xs text-muted-foreground">
-								<p class="mb-1 font-bold">Fonctionnement :</p>
-								<ul class="list-inside list-disc space-y-1">
-									<li>Analyse les doublons par Email ou Nom/Prénom.</li>
-									<li>Détecte les conflits potentiels.</li>
-									<li>Prépare l'assignation automatique des sujets.</li>
-								</ul>
-							</div>
-							<Dialog.Footer>
-								<Button type="submit" disabled={isAnalyzing}>
-									{isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}
-								</Button>
-							</Dialog.Footer>
-						</form>
-					{:else}
-						<ScrollArea class="h-[400px] rounded-md border p-4">
-							<Table.Root>
-								<Table.Header>
-									<Table.Row>
-										<Table.Head>Statut</Table.Head>
-										<Table.Head>Données CSV</Table.Head>
-										<Table.Head></Table.Head>
-										<Table.Head>Correspondance</Table.Head>
-										<Table.Head>Action</Table.Head>
-									</Table.Row>
-								</Table.Header>
-								<Table.Body>
-									{#each analysisResult as row}
-										<Table.Row class={row.status === 'CONFLICT' ? 'bg-destructive/10' : ''}>
-											<Table.Cell>
-												{#if row.status === 'NEW'}
-													<Badge variant="default" class="bg-blue-500 hover:bg-blue-600"
-														>Nouveau</Badge
-													>
-												{:else if row.status === 'CONFLICT'}
-													<Badge variant="destructive">Conflit</Badge>
-												{:else}
-													<Badge
-														variant="secondary"
-														class="bg-epi-teal text-black hover:bg-epi-teal">Existant</Badge
-													>
-												{/if}
-											</Table.Cell>
-											<Table.Cell>
-												<div class="flex flex-col">
-													<span class="font-bold">{row.csvData.prenom} {row.csvData.nom}</span>
-													<span class="text-xs text-muted-foreground">{row.csvData.email}</span>
-													<span class="text-[10px] font-black text-muted-foreground uppercase"
-														>{row.csvData.niveau}</span
-													>
-												</div>
-											</Table.Cell>
-											<Table.Cell>
-												<ArrowRight class="h-4 w-4 text-muted-foreground" />
-											</Table.Cell>
-											<Table.Cell>
-												{#if row.existingStudent}
-													<div class="flex flex-col">
-														<span class="font-bold"
-															>{row.existingStudent.prenom} {row.existingStudent.nom}</span
-														>
-														<span class="text-xs text-muted-foreground"
-															>{row.existingStudent.email}</span
-														>
-														<span class="text-[10px] font-black text-muted-foreground uppercase"
-															>{row.existingStudent.niveau}</span
-														>
-													</div>
-												{:else}
-													<span class="text-xs text-muted-foreground italic"
-														>Aucune correspondance</span
-													>
-												{/if}
-											</Table.Cell>
-											<Table.Cell>
-												{#if row.status === 'NEW'}
-													<div class="flex items-center text-xs font-bold text-blue-600">
-														<UserPlus class="mr-1 h-3 w-3" /> Création
-													</div>
-												{:else if row.status === 'CONFLICT'}
-													<div class="flex items-center text-xs font-bold text-destructive">
-														<TriangleAlert class="mr-1 h-3 w-3" /> Fusion forcée
-													</div>
-												{:else}
-													<div class="flex items-center text-xs font-bold text-teal-700">
-														<CircleCheck class="mr-1 h-3 w-3" /> Liaison
-													</div>
-												{/if}
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-								</Table.Body>
-							</Table.Root>
-						</ScrollArea>
-
-						<div
-							class="mt-4 flex items-center justify-between rounded border border-yellow-200 bg-yellow-50 p-2"
-						>
-							<div class="flex items-center gap-2">
-								<TriangleAlert class="h-4 w-4 text-yellow-600" />
-								<span class="text-xs font-medium text-yellow-800">
-									Vérifiez attentivement les lignes en rouge. Valider entraînera la fusion des
-									dossiers.
-								</span>
-							</div>
-						</div>
-
-						<form
-							action="?/confirmImport"
-							method="POST"
-							use:enhance={() => {
-								isConfirming = true;
-								return async ({ result }) => {
-									isConfirming = false;
-									if (result.type === 'success') {
-										toast.success(result.data?.message);
-										openImportCsv = false;
-										analysisResult = null;
-										location.reload();
-									} else {
-										toast.error("Erreur lors de l'import");
-									}
-								};
-							}}
-							class="flex justify-end gap-2 pt-4"
-						>
-							<input type="hidden" name="importData" value={JSON.stringify(analysisResult)} />
-							<Button variant="ghost" type="button" onclick={() => (analysisResult = null)}>
-								Retour
-							</Button>
-							<Button type="submit" disabled={isConfirming}>
-								{isConfirming ? 'Traitement...' : 'Confirmer et Importer'}
-							</Button>
-						</form>
-					{/if}
-				</Dialog.Content>
-			</Dialog.Root>
+			<ImportStudentsDialog bind:open={openImportCsv} />
 
 			<Dialog.Root bind:open={openEditEvent}>
 				<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'icon' })}>
@@ -544,7 +353,12 @@
 							</div>
 							<div class="grid gap-2">
 								{#each participationGroups.unassigned as p (p.id)}
-									{@render studentRow(p, true)}
+									<StudentParticipationRow
+										participation={p}
+										subjects={data.subjects}
+										isUnassigned={true}
+										onDelete={confirmDeleteParticipation}
+									/>
 								{/each}
 							</div>
 						</div>
@@ -561,7 +375,11 @@
 							</div>
 							<div class="grid gap-2">
 								{#each members as p (p.id)}
-									{@render studentRow(p, false)}
+									<StudentParticipationRow
+										participation={p}
+										subjects={data.subjects}
+										onDelete={confirmDeleteParticipation}
+									/>
 								{/each}
 							</div>
 						</div>
@@ -740,131 +558,3 @@
 		</AlertDialog.Footer>
 	</AlertDialog.Content>
 </AlertDialog.Root>
-
-{#snippet studentRow(p, isUnassigned: boolean)}
-	{@const dangerAlert = p.alerts.find((a) => a.type === 'danger')}
-	{@const warningAlert = p.alerts.find((a) => a.type === 'warning')}
-
-	<div
-		class="group relative flex items-center justify-between rounded-sm p-3 transition-all
-		{dangerAlert
-			? 'border-2 border-dashed border-destructive bg-red-50'
-			: warningAlert
-				? 'border-y border-r border-l-4 border-y-orange-200 border-r-orange-200 border-l-epi-orange bg-orange-50'
-				: 'border border-l-4 border-l-transparent bg-card hover:border-epi-blue'}"
-	>
-		<div class="flex items-center gap-4">
-			<div class="relative">
-				<Avatar.Root
-					class="rounded-sm border-2
-					{dangerAlert ? 'border-destructive' : warningAlert ? 'border-epi-orange' : 'border-transparent'}"
-				>
-					<Avatar.Fallback class="bg-primary/5 font-bold text-primary">
-						{p.expand.student.prenom[0]}{p.expand.student.nom[0]}
-					</Avatar.Fallback>
-				</Avatar.Root>
-				{#if dangerAlert}
-					<div class="absolute -top-2 -right-2 rounded-full bg-white">
-						<Ban class="h-5 w-5 fill-destructive/20 text-destructive" />
-					</div>
-				{:else if warningAlert}
-					<div class="absolute -top-2 -right-2">
-						<TriangleAlert class="h-5 w-5 fill-white text-epi-orange" />
-					</div>
-				{/if}
-			</div>
-			<div>
-				<p class="text-sm font-bold {dangerAlert ? 'text-destructive' : ''}">
-					{formatFirstName(p.expand.student.prenom)}
-					<span class="uppercase">{p.expand.student.nom}</span>
-				</p>
-				<div class="mt-0.5 flex flex-col gap-1">
-					<span class="text-xs font-black text-muted-foreground uppercase"
-						>{p.expand.student.niveau}</span
-					>
-					{#if dangerAlert}
-						<Badge variant="destructive" class="w-fit text-[9px] font-black uppercase">
-							{dangerAlert.message}
-						</Badge>
-					{/if}
-					{#if warningAlert}
-						<div class="flex items-center gap-1 text-epi-orange">
-							<span class="text-[10px] font-black uppercase">
-								{warningAlert.message}
-							</span>
-						</div>
-					{/if}
-				</div>
-			</div>
-		</div>
-		<div class="flex items-center gap-3">
-			{#if isUnassigned}
-				<span
-					class="animate-pulse text-[10px] font-black tracking-widest text-epi-orange uppercase"
-				>
-					Sélection requise
-				</span>
-			{:else}
-				{@const isGoodFit =
-					p.expand?.subject?.niveaux?.includes(p.expand.student.niveau) && !dangerAlert}
-				{#if isGoodFit}
-					<Badge
-						class="h-6 gap-1.5 border-none bg-epi-teal px-2 text-[10px] font-black tracking-widest text-black uppercase shadow-sm"
-					>
-						<Sparkles class="h-3 w-3" />
-						Optimal
-					</Badge>
-				{/if}
-			{/if}
-
-			<form action="?/assignSubject" method="POST" use:enhance>
-				<input type="hidden" name="participationId" value={p.id} />
-				<Select.Root
-					type="single"
-					name="subjectId"
-					onValueChange={(v) => {
-						const form = document.createElement('form');
-						form.method = 'POST';
-						form.action = '?/assignSubject';
-						const pId = document.createElement('input');
-						pId.name = 'participationId';
-						pId.value = p.id;
-						const sId = document.createElement('input');
-						sId.name = 'subjectId';
-						sId.value = v;
-						form.appendChild(pId);
-						form.appendChild(sId);
-						document.body.appendChild(form);
-						form.submit();
-					}}
-				>
-					<Select.Trigger
-						class="h-8 w-[170px] px-3 text-[10px] font-bold uppercase transition-opacity {isUnassigned
-							? 'border-epi-orange text-epi-orange opacity-100'
-							: 'opacity-0 group-hover:opacity-100'}"
-					>
-						<ArrowRightLeft class="mr-1 h-3 w-3" />
-						{isUnassigned ? 'Assigner sujet' : 'Changer de sujet'}
-					</Select.Trigger>
-					<Select.Content>
-						{#if !isUnassigned}
-							<Select.Item value="none" class="text-destructive">Retirer du sujet</Select.Item>
-							<Separator class="my-1" />
-						{/if}
-						{#each data.subjects as sub}
-							<Select.Item value={sub.id}>{sub.nom}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</form>
-			<Button
-				variant="ghost"
-				size="icon"
-				class="h-8 w-8 text-muted-foreground hover:text-destructive"
-				onclick={() => confirmDeleteParticipation(p.id)}
-			>
-				<Trash2 class="h-4 w-4" />
-			</Button>
-		</div>
-	</div>
-{/snippet}

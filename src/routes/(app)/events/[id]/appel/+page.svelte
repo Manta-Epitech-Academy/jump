@@ -1,16 +1,13 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { enhance } from '$app/forms';
 	import { pbUrl } from '$lib/pocketbase';
 	import PocketBase from 'pocketbase';
-	import { ArrowLeft, User, Trophy, Search, CircleCheck, Save } from 'lucide-svelte';
-	import * as Card from '$lib/components/ui/card';
-	import * as Avatar from '$lib/components/ui/avatar';
+	import { ArrowLeft, Search } from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { browser } from '$app/environment';
-	import { fly } from 'svelte/transition';
 	import { untrack } from 'svelte';
+	import ParticipationCard from '$lib/components/events/ParticipationCard.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -73,11 +70,6 @@
 			return true;
 		})
 	);
-
-	function formatFirstName(name: string | undefined) {
-		if (!name) return '';
-		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-	}
 
 	let presentCount = $derived(participations.filter((p) => p.is_present).length);
 	let validatedCount = $derived(participations.filter((p) => p.is_validated).length);
@@ -148,121 +140,7 @@
 
 	<div class="container mx-auto mt-6 max-w-2xl space-y-3 px-4">
 		{#each filteredParticipations as p (p.id)}
-			<div transition:fly={{ y: 10, duration: 200 }}>
-				<Card.Root
-					class="overflow-hidden border-2 shadow-sm transition-all duration-200 {p.is_validated
-						? 'border-epi-teal bg-white'
-						: p.is_present
-							? 'border-epi-blue bg-white'
-							: 'border-transparent opacity-80'}"
-				>
-					<Card.Content class="flex flex-col gap-4 p-4">
-						<div class="flex w-full items-center justify-between">
-							<div class="flex flex-1 items-center gap-4">
-								<div class="relative">
-									<Avatar.Root
-										class="h-12 w-12 rounded-sm border-2 {p.is_present
-											? 'border-epi-blue'
-											: 'border-gray-200'}"
-									>
-										<Avatar.Fallback class="bg-gray-50 font-bold">
-											{(p.expand?.student?.prenom?.[0] ?? '').toUpperCase()}{(
-												p.expand?.student?.nom?.[0] ?? ''
-											).toUpperCase()}
-										</Avatar.Fallback>
-									</Avatar.Root>
-									{#if p.is_validated}
-										<div
-											class="absolute -right-1 -bottom-1 rounded-full bg-epi-teal p-0.5 text-black ring-2 ring-white"
-										>
-											<CircleCheck class="h-3 w-3" />
-										</div>
-									{/if}
-								</div>
-								<div class="flex flex-col">
-									<span class="text-base leading-none font-bold"
-										>{formatFirstName(p.expand?.student?.prenom)}
-										<span class="uppercase">{p.expand?.student?.nom}</span></span
-									>
-									<span
-										class="mt-1 text-xs font-bold tracking-wider text-muted-foreground uppercase"
-										>{p.expand?.student?.niveau}</span
-									>
-								</div>
-							</div>
-
-							<div class="flex items-center gap-2">
-								<form
-									method="POST"
-									action="?/togglePresent"
-									use:enhance={optimisticToggle(p.id, 'is_present')}
-								>
-									<input type="hidden" name="id" value={p.id} /><input
-										type="hidden"
-										name="state"
-										value={p.is_present.toString()}
-									/>
-									<Button
-										type="submit"
-										variant={p.is_present ? 'default' : 'outline'}
-										size="icon"
-										class="h-12 w-12 rounded-sm transition-all {p.is_present
-											? 'bg-epi-blue'
-											: 'text-gray-400 hover:text-epi-blue'}"
-									>
-										<User class="h-6 w-6" />
-									</Button>
-								</form>
-
-								<form
-									method="POST"
-									action="?/toggleValidated"
-									use:enhance={optimisticToggle(p.id, 'is_validated')}
-								>
-									<input type="hidden" name="id" value={p.id} /><input
-										type="hidden"
-										name="state"
-										value={p.is_validated.toString()}
-									/>
-									<Button
-										type="submit"
-										variant={p.is_validated ? 'default' : 'outline'}
-										size="icon"
-										disabled={!p.is_present}
-										class="h-12 w-12 rounded-sm transition-all {p.is_validated
-											? 'bg-epi-teal text-black hover:bg-epi-teal'
-											: 'text-gray-400 hover:text-epi-teal'}"
-									>
-										<Trophy class="h-6 w-6" />
-									</Button>
-								</form>
-							</div>
-						</div>
-
-						{#if p.is_present}
-							<div class="border-t pt-2">
-								<form
-									action="?/updateNote"
-									method="POST"
-									use:enhance
-									class="flex items-center gap-2"
-								>
-									<input type="hidden" name="id" value={p.id} />
-									<Input
-										name="note"
-										value={p.note}
-										placeholder="Observation (ex: Difficultés sur les boucles...)"
-										class="focus:border-input h-8 border-transparent bg-gray-50 text-xs transition-colors focus:bg-white"
-									/>
-									<Button type="submit" variant="ghost" size="icon" class="h-8 w-8">
-										<Save class="h-3 w-3 text-muted-foreground" />
-									</Button>
-								</form>
-							</div>
-						{/if}
-					</Card.Content>
-				</Card.Root>
-			</div>
+			<ParticipationCard participation={p} {optimisticToggle} />
 		{:else}
 			<div class="py-20 text-center">
 				<p class="font-bold text-muted-foreground uppercase">Aucun élève à afficher.</p>
