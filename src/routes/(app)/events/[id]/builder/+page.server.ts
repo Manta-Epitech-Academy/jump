@@ -7,6 +7,7 @@ import { studentSchema } from '$lib/validation/students';
 import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
 import { getSubjectXpValue } from '$lib/xp';
 import { suggestBestSubject } from '$lib/recommender';
+import { parseStudentsCsv, type CsvStudent } from '$lib/csvUtils';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	let event;
@@ -109,6 +110,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		createStudentForm,
 		editForm
 	};
+};
+
+// Type for the CSV import action
+type ImportAction = {
+	csvData: CsvStudent;
+	status: 'NEW' | 'MATCH_EMAIL' | 'MATCH_NAME' | 'CONFLICT';
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	existingStudent?: any;
+	message: string;
 };
 
 export const actions: Actions = {
@@ -307,5 +317,135 @@ export const actions: Actions = {
 		}
 
 		throw redirect(303, '/');
+	},
+
+	// ACTION 1 : ANALYSE DU CSV (Lecture seule)
+	analyzeCsv: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const file = formData.get('csv') as File;
+
+		if (!file || file.name === 'undefined') {
+			return fail(400, { message: 'Fichier requis' });
+		}
+
+		try {
+			const text = await file.text();
+			const csvStudents = await parseStudentsCsv(text);
+			const analysis: ImportAction[] = [];
+
+			for (const csvS of csvStudents) {
+				let status: ImportAction['status'] = 'NEW';
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				let existing: any = null;
+				let message = 'Sera créé comme nouvel élève.';
+
+				if (csvS.email) {
+					try {
+						existing = await locals.pb
+							.collection('students')
+							.getFirstListItem(`email = "${csvS.email}"`);
+						status = 'MATCH_EMAIL';
+						message = 'Correspondance trouvée par email.';
+					} catch (_) {
+						// Ignorer
+					}
+				}
+
+				if (!existing) {
+					try {
+						existing = await locals.pb
+							.collection('students')
+							.getFirstListItem(`nom ~ "${csvS.nom}" && prenom ~ "${csvS.prenom}"`);
+
+						if (csvS.email && existing.email && csvS.email !== existing.email) {
+							status = 'CONFLICT';
+							message = 'ATTENTION : Même nom mais emails différents ! Homonyme ?';
+						} else {
+							status = 'MATCH_NAME';
+							message = 'Correspondance trouvée par nom/prénom.';
+						}
+					} catch (_) {
+						// Ignore
+					}
+				}
+
+				analysis.push({
+					csvData: csvS,
+					status,
+					existingStudent: existing,
+					message
+				});
+			}
+
+			return {
+				analysisSuccess: true,
+				analysisData: analysis
+			};
+		} catch (e) {
+			console.error('Erreur analyse CSV', e);
+			return fail(500, { message: 'Erreur lors de l’analyse du fichier.' });
+		}
+	},
+
+	confirmImport: async ({ request, locals, params }) => {
+		const formData = await request.formData();
+		const rawData = formData.get('importData') as string;
+		const importList = JSON.parse(rawData) as ImportAction[];
+		const eventId = params.id;
+
+		const event = await locals.pb.collection('events').getOne(eventId);
+		const subjects = await locals.pb.collection('subjects').getFullList();
+
+		let created = 0;
+		let updated = 0;
+
+		for (const item of importList) {
+			let studentId = item.existingStudent?.id;
+
+			if (!studentId) {
+				try {
+					const newS = await locals.pb.collection('students').create({
+						prenom: item.csvData.prenom,
+						nom: item.csvData.nom,
+						email: item.csvData.email,
+						niveau: item.csvData.niveau,
+						xp: 0,
+						events_count: 0
+					});
+					studentId = newS.id;
+					created++;
+				} catch (err) {
+					console.error('Erreur création étudiant import', err);
+					continue;
+				}
+			} else {
+				updated++;
+			}
+
+			try {
+				const check = await locals.pb.collection('participations').getList(1, 1, {
+					filter: `student = "${studentId}" && event = "${eventId}"`
+				});
+
+				if (check.totalItems === 0) {
+					const subjectId = await suggestBestSubject(locals.pb, studentId, subjects, event.theme);
+
+					await locals.pb.collection('participations').create({
+						student: studentId,
+						event: eventId,
+						subject: subjectId,
+						is_present: false,
+						is_validated: false
+					});
+				}
+			} catch (e) {
+				console.error(e);
+			}
+		}
+
+		return {
+			success: true,
+			message: `Import terminé : ${created} créés, ${updated} existants reliés.`
+		};
 	}
 };
