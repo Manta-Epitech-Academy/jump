@@ -84,8 +84,8 @@
 							<TableCell>
 								{#if event.theme}
 									<div class="flex items-center gap-2">
-										<Tag class="h-4 w-4 text-epi-teal" />
-										<span class="font-medium">{event.theme}</span>
+										<Tag class="h-4 w-4 text-teal-700" />
+										<span class="font-bold text-teal-800">{event.theme}</span>
 									</div>
 								{:else}
 									<span class="text-sm text-muted-foreground italic">Aucun thème</span>

@@ -58,7 +58,7 @@
 							{#each value as item}
 								<Badge
 									variant="secondary"
-									class="rounded-sm bg-epi-teal/20 text-black hover:bg-epi-teal/30"
+									class="rounded-sm border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100"
 								>
 									{item}
 									<button

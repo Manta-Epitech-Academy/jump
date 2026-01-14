@@ -201,8 +201,8 @@
 					</div>
 					{#if data.event.expand?.theme}
 						<div class="flex items-center gap-1">
-							<Tag class="h-3 w-3 text-epi-teal" />
-							{data.event.expand.theme.nom}
+							<Tag class="h-3 w-3 text-teal-700" />
+							<span class="text-teal-800">{data.event.expand.theme.nom}</span>
 						</div>
 					{/if}
 				</div>
@@ -604,7 +604,7 @@
 										{formatFirstName(student.prenom)}
 										<span class="uppercase">{student.nom}</span>
 									</span>
-									<span class="text-[10px] font-bold text-muted-foreground uppercase"
+									<span class="text-xs font-bold text-muted-foreground uppercase"
 										>{student.niveau}</span
 									>
 								</div>
@@ -755,7 +755,7 @@
 					<span class="uppercase">{p.expand.student.nom}</span>
 				</p>
 				<div class="flex flex-col gap-0.5">
-					<span class="text-[10px] font-black text-muted-foreground uppercase"
+					<span class="text-xs font-black text-muted-foreground uppercase"
 						>{p.expand.student.niveau}</span
 					>
 					{#each p.alerts as alert}

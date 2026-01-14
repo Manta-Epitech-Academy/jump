@@ -141,7 +141,7 @@
 									size="sm"
 									onclick={() => toggleLevel(level)}
 									class={cn(
-										'h-7 px-2 text-[10px] font-bold uppercase transition-all',
+										'h-8 px-3 text-xs font-bold uppercase transition-all',
 										isActive ? 'bg-epi-blue hover:bg-epi-blue/90' : 'text-muted-foreground'
 									)}
 								>
@@ -246,7 +246,7 @@
 										{#each subject.expand.themes as theme}
 											<Badge
 												variant="outline"
-												class="gap-1 border-epi-teal/50 bg-epi-teal/5 text-[10px] text-epi-teal"
+												class="gap-1 border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-800"
 											>
 												<Tag class="h-2 w-2" />
 												{theme.nom}
@@ -267,7 +267,7 @@
 								{#each subject.niveaux as niv}
 									<Badge
 										variant="outline"
-										class="rounded-sm border-epi-blue/30 text-[10px] text-epi-blue"
+										class="rounded-sm border-epi-blue/20 bg-epi-blue/5 px-2 py-0.5 text-xs font-bold text-epi-blue"
 									>
 										{niv}
 									</Badge>
