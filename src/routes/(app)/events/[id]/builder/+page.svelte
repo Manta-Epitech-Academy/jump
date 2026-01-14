@@ -17,7 +17,8 @@
 		Sparkles,
 		Upload,
 		ArrowRight,
-		UserPlus
+		UserPlus,
+		Ban
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -741,42 +742,58 @@
 </AlertDialog.Root>
 
 {#snippet studentRow(p, isUnassigned: boolean)}
+	{@const dangerAlert = p.alerts.find((a) => a.type === 'danger')}
+	{@const warningAlert = p.alerts.find((a) => a.type === 'warning')}
+
 	<div
-		class="group flex items-center justify-between rounded-sm border bg-card p-3 transition-all hover:border-epi-blue"
+		class="group relative flex items-center justify-between rounded-sm p-3 transition-all
+		{dangerAlert
+			? 'border-2 border-dashed border-destructive bg-red-50'
+			: warningAlert
+				? 'border-y border-r border-l-4 border-y-orange-200 border-r-orange-200 border-l-epi-orange bg-orange-50'
+				: 'border border-l-4 border-l-transparent bg-card hover:border-epi-blue'}"
 	>
 		<div class="flex items-center gap-4">
 			<div class="relative">
-				<Avatar.Root class="rounded-sm border">
+				<Avatar.Root
+					class="rounded-sm border-2
+					{dangerAlert ? 'border-destructive' : warningAlert ? 'border-epi-orange' : 'border-transparent'}"
+				>
 					<Avatar.Fallback class="bg-primary/5 font-bold text-primary">
 						{p.expand.student.prenom[0]}{p.expand.student.nom[0]}
 					</Avatar.Fallback>
 				</Avatar.Root>
-				{#if p.alerts.length > 0}
-					<div class="absolute -top-1 -right-1">
-						{#if p.alerts.some((a) => a.type === 'danger')}
-							<TriangleAlert class="h-4 w-4 fill-white text-destructive" />
-						{:else}
-							<TriangleAlert class="h-4 w-4 fill-white text-epi-orange" />
-						{/if}
+				{#if dangerAlert}
+					<div class="absolute -top-2 -right-2 rounded-full bg-white">
+						<Ban class="h-5 w-5 fill-destructive/20 text-destructive" />
+					</div>
+				{:else if warningAlert}
+					<div class="absolute -top-2 -right-2">
+						<TriangleAlert class="h-5 w-5 fill-white text-epi-orange" />
 					</div>
 				{/if}
 			</div>
 			<div>
-				<p class="text-sm font-bold">
+				<p class="text-sm font-bold {dangerAlert ? 'text-destructive' : ''}">
 					{formatFirstName(p.expand.student.prenom)}
 					<span class="uppercase">{p.expand.student.nom}</span>
 				</p>
-				<div class="flex flex-col gap-0.5">
+				<div class="mt-0.5 flex flex-col gap-1">
 					<span class="text-xs font-black text-muted-foreground uppercase"
 						>{p.expand.student.niveau}</span
 					>
-					{#each p.alerts as alert}
-						<span
-							class="text-[9px] font-black uppercase {alert.type === 'danger'
-								? 'text-destructive'
-								: 'text-epi-orange'}">{alert.message}</span
-						>
-					{/each}
+					{#if dangerAlert}
+						<Badge variant="destructive" class="w-fit text-[9px] font-black uppercase">
+							{dangerAlert.message}
+						</Badge>
+					{/if}
+					{#if warningAlert}
+						<div class="flex items-center gap-1 text-epi-orange">
+							<span class="text-[10px] font-black uppercase">
+								{warningAlert.message}
+							</span>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -789,8 +806,7 @@
 				</span>
 			{:else}
 				{@const isGoodFit =
-					p.expand?.subject?.niveaux?.includes(p.expand.student.niveau) &&
-					!p.alerts.some((a) => a.type === 'danger')}
+					p.expand?.subject?.niveaux?.includes(p.expand.student.niveau) && !dangerAlert}
 				{#if isGoodFit}
 					<Badge
 						class="h-6 gap-1.5 border-none bg-epi-teal px-2 text-[10px] font-black tracking-widest text-black uppercase shadow-sm"
