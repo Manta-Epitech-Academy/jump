@@ -4,6 +4,7 @@ export interface CsvStudent {
 	prenom: string;
 	nom: string;
 	email: string;
+	phone: string;
 	niveau: string;
 }
 
@@ -20,6 +21,14 @@ export function parseStudentsCsv(csvString: string): Promise<CsvStudent[]> {
 							row['prenom'] || row['prénom'] || row['first name'] || row['firstname'] || '';
 						const nom = row['nom'] || row['last name'] || row['lastname'] || '';
 						const email = row['email'] || row['e-mail'] || row['mail'] || '';
+						const phone =
+							row['phone'] ||
+							row['tel'] ||
+							row['telephone'] ||
+							row['téléphone'] ||
+							row['mobile'] ||
+							'';
+
 						let niveau = row['niveau'] || row['level'] || row['classe'] || '6eme';
 
 						if (niveau.includes('6')) niveau = '6eme';
@@ -31,7 +40,7 @@ export function parseStudentsCsv(csvString: string): Promise<CsvStudent[]> {
 						else if (niveau.includes('term')) niveau = 'Terminale';
 						else if (niveau.toLowerCase().includes('sup') || niveau.includes('+')) niveau = 'Sup';
 
-						return { prenom, nom, email, niveau };
+						return { prenom, nom, email, phone, niveau };
 					})
 					.filter((s) => s.nom && s.prenom);
 

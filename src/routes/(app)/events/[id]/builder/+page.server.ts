@@ -408,6 +408,7 @@ export const actions: Actions = {
 						prenom: item.csvData.prenom,
 						nom: item.csvData.nom,
 						email: item.csvData.email,
+						phone: item.csvData.phone,
 						niveau: item.csvData.niveau,
 						xp: 0,
 						events_count: 0

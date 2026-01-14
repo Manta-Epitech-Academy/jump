@@ -11,7 +11,9 @@
 		CircleCheck,
 		CircleX,
 		Clock,
-		BookOpen
+		BookOpen,
+		Mail,
+		Phone
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Progress } from '$lib/components/ui/progress';
@@ -83,6 +85,24 @@
 					</Badge>
 				</Card.Header>
 				<Card.Content class="space-y-6">
+					<!-- Contact Info -->
+					<div class="flex flex-col gap-2 text-sm text-muted-foreground">
+						{#if data.student.email}
+							<div class="flex items-center justify-center gap-2">
+								<Mail class="h-3.5 w-3.5" />
+								<span class="truncate">{data.student.email}</span>
+							</div>
+						{/if}
+						{#if data.student.phone}
+							<div class="flex items-center justify-center gap-2">
+								<Phone class="h-3.5 w-3.5" />
+								<span>{data.student.phone}</span>
+							</div>
+						{/if}
+					</div>
+
+					<Separator />
+
 					<!-- XP SECTION -->
 					<div class="space-y-2 text-center">
 						<div class="flex items-center justify-center gap-2 text-2xl font-black text-epi-orange">
@@ -244,7 +264,7 @@
 	</div>
 
 	<Dialog.Root bind:open={editOpen}>
-		<Dialog.Content class="sm:max-w-[425px]">
+		<Dialog.Content class="sm:max-w-[500px]">
 			<Dialog.Header>
 				<Dialog.Title>Modifier le profil</Dialog.Title>
 			</Dialog.Header>
@@ -253,12 +273,28 @@
 					<div class="space-y-2">
 						<Label>Prénom</Label>
 						<Input name="prenom" bind:value={$form.prenom} />
+						{#if $errors.prenom}<p class="text-xs text-destructive">{$errors.prenom}</p>{/if}
 					</div>
 					<div class="space-y-2">
 						<Label>Nom</Label>
 						<Input name="nom" bind:value={$form.nom} />
+						{#if $errors.nom}<p class="text-xs text-destructive">{$errors.nom}</p>{/if}
 					</div>
 				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2">
+						<Label>Email</Label>
+						<Input name="email" type="email" bind:value={$form.email} />
+						{#if $errors.email}<p class="text-xs text-destructive">{$errors.email}</p>{/if}
+					</div>
+					<div class="space-y-2">
+						<Label>Téléphone</Label>
+						<Input name="phone" type="tel" bind:value={$form.phone} />
+						{#if $errors.phone}<p class="text-xs text-destructive">{$errors.phone}</p>{/if}
+					</div>
+				</div>
+
 				<div class="space-y-2">
 					<Label>Niveau</Label>
 					<Select.Root type="single" name="niveau" bind:value={$form.niveau}>
@@ -270,6 +306,7 @@
 						</Select.Content>
 					</Select.Root>
 					<input type="hidden" name="niveau" value={$form.niveau} />
+					{#if $errors.niveau}<p class="text-xs text-destructive">{$errors.niveau}</p>{/if}
 				</div>
 				<Dialog.Footer>
 					<Button type="submit" disabled={$delayed}>

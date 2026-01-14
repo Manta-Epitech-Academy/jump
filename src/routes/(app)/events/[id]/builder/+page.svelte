@@ -642,6 +642,18 @@
 										<Label>Nom</Label><Input name="nom" bind:value={$createForm.nom} />
 									</div>
 								</div>
+
+								<div class="grid grid-cols-2 gap-4">
+									<div class="space-y-2">
+										<Label>Email (Optionnel)</Label>
+										<Input name="email" type="email" bind:value={$createForm.email} />
+									</div>
+									<div class="space-y-2">
+										<Label>Téléphone (Optionnel)</Label>
+										<Input name="phone" type="tel" bind:value={$createForm.phone} />
+									</div>
+								</div>
+
 								<div class="space-y-2">
 									<Label>Niveau</Label>
 									<Select.Root type="single" name="niveau" bind:value={$createForm.niveau}>

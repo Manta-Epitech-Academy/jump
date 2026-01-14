@@ -67,6 +67,8 @@
 		reset();
 		$form.nom = student.nom;
 		$form.prenom = student.prenom;
+		$form.email = student.email || '';
+		$form.phone = student.phone || '';
 		$form.niveau = student.niveau;
 
 		isEditing = true;
@@ -142,7 +144,7 @@
 			</button>
 
 			<Dialog.Root bind:open>
-				<Dialog.Content class="sm:max-w-[425px]">
+				<Dialog.Content class="sm:max-w-[500px]">
 					<Dialog.Header>
 						<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un élève</Dialog.Title>
 						<Dialog.Description>
@@ -173,6 +175,33 @@
 								<Label for="nom">Nom</Label>
 								<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Dupont" />
 								{#if $errors.nom}<span class="text-xs text-destructive">{$errors.nom}</span>{/if}
+							</div>
+						</div>
+
+						<div class="grid grid-cols-2 gap-4">
+							<div class="grid gap-2">
+								<Label for="email">Email (Optionnel)</Label>
+								<Input
+									id="email"
+									name="email"
+									type="email"
+									bind:value={$form.email}
+									placeholder="email@example.com"
+								/>
+								{#if $errors.email}<span class="text-xs text-destructive">{$errors.email}</span
+									>{/if}
+							</div>
+							<div class="grid gap-2">
+								<Label for="phone">Téléphone (Optionnel)</Label>
+								<Input
+									id="phone"
+									name="phone"
+									type="tel"
+									bind:value={$form.phone}
+									placeholder="06..."
+								/>
+								{#if $errors.phone}<span class="text-xs text-destructive">{$errors.phone}</span
+									>{/if}
 							</div>
 						</div>
 
