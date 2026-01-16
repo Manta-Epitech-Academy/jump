@@ -10,7 +10,7 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import { Badge } from '$lib/components/ui/badge';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
+	import { Calendar } from '$lib/components/ui/calendar';
 	import {
 		ChevronLeft,
 		Save,
@@ -21,11 +21,12 @@
 		UserPlus,
 		Link as LinkIcon,
 		Split,
-		ArrowRight
+		ArrowRight,
+		FileCheck
 	} from 'lucide-svelte';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
-	import { formatDateFr } from '$lib/utils';
+	import { formatDateFr, cn } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import { enhance as kitEnhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
@@ -47,6 +48,11 @@
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let analysisResult = $state<any>(null);
 
+	// --- DRAG & DROP STATE ---
+	let isDragActive = $state(false);
+	let fileInput = $state<HTMLInputElement | null>(null);
+	let selectedFileName = $state<string>('');
+
 	$effect(() => {
 		if (dateValue) {
 			$form.date = dateValue;
@@ -63,6 +69,48 @@
 		if (row) {
 			row.decision = newDecision;
 			analysisResult.analysisData = [...analysisResult.analysisData];
+		}
+	}
+
+	// --- DRAG & DROP HANDLERS ---
+	function onDragOver(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDragActive = true;
+	}
+
+	function onDragLeave(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDragActive = false;
+	}
+
+	function onDrop(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		isDragActive = false;
+
+		if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+			const files = e.dataTransfer.files;
+			// Only accept CSV
+			if (files[0].type === 'text/csv' || files[0].name.endsWith('.csv')) {
+				if (fileInput) {
+					fileInput.files = files;
+					selectedFileName = files[0].name;
+				}
+			} else {
+				toast.error('Veuillez déposer un fichier CSV valide.');
+			}
+		}
+	}
+
+	function triggerFileInput() {
+		fileInput?.click();
+	}
+
+	function onFileSelected() {
+		if (fileInput?.files && fileInput.files.length > 0) {
+			selectedFileName = fileInput.files[0].name;
 		}
 	}
 </script>
@@ -117,28 +165,72 @@
 							}}
 							class="space-y-6 py-6"
 						>
+							<!-- DRAG AND DROP ZONE -->
 							<div
-								class="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/25 p-10 text-center transition-colors hover:bg-muted/50"
+								role="button"
+								tabindex="0"
+								class={cn(
+									'flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-10 text-center transition-all duration-200 outline-none',
+									isDragActive
+										? 'border-epi-blue bg-blue-50'
+										: 'border-muted-foreground/25 hover:bg-muted/50',
+									selectedFileName ? 'border-green-200 bg-green-50' : ''
+								)}
+								ondragover={onDragOver}
+								ondragleave={onDragLeave}
+								ondrop={onDrop}
+								onclick={triggerFileInput}
+								onkeydown={(e) => e.key === 'Enter' && triggerFileInput()}
 							>
-								<div class="rounded-full bg-muted p-4">
-									<Upload class="h-8 w-8 text-epi-blue" />
-								</div>
-								<h3 class="mt-4 text-lg font-bold">Glissez le CSV ici</h3>
-								<p class="mb-4 text-sm text-muted-foreground">Formats acceptés : CSV SalesForce</p>
-								<Input
+								{#if selectedFileName}
+									<div
+										class="animate-in rounded-full bg-green-100 p-4 text-green-600 duration-300 zoom-in"
+									>
+										<FileCheck class="h-8 w-8" />
+									</div>
+									<h3 class="mt-4 text-lg font-bold text-green-800">{selectedFileName}</h3>
+									<p class="mb-4 text-sm text-green-600">Fichier prêt à l'analyse</p>
+									<Button variant="outline" size="sm" class="pointer-events-none mt-2">
+										Changer de fichier
+									</Button>
+								{:else}
+									<div class="rounded-full bg-muted p-4">
+										<Upload
+											class={cn(
+												'h-8 w-8',
+												isDragActive ? 'text-epi-blue' : 'text-muted-foreground'
+											)}
+										/>
+									</div>
+									<h3 class="mt-4 text-lg font-bold">
+										{isDragActive ? 'Déposez le fichier !' : 'Glissez le CSV ici'}
+									</h3>
+									<p class="mb-4 text-sm text-muted-foreground">
+										Formats acceptés : CSV SalesForce
+									</p>
+									<Button variant="secondary" size="sm" class="pointer-events-none">
+										Ou cliquer pour parcourir
+									</Button>
+								{/if}
+
+								<!-- Hidden Input -->
+								<input
+									bind:this={fileInput}
+									onchange={onFileSelected}
 									id="csvFile"
 									name="csvFile"
 									type="file"
 									accept=".csv"
 									required
-									class="max-w-xs cursor-pointer"
+									class="hidden"
 								/>
 							</div>
+
 							<div class="flex justify-end">
 								<Button
 									type="submit"
 									class="bg-epi-blue hover:bg-epi-blue/90"
-									disabled={isAnalyzing}
+									disabled={isAnalyzing || !selectedFileName}
 								>
 									{isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}
 								</Button>
