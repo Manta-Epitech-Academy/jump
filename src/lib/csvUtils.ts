@@ -16,6 +16,21 @@ export interface CsvEventImport {
 	students: CsvStudent[];
 }
 
+// Formats "jean-pierre" to "Jean-Pierre"
+function formatFirstName(name: string): string {
+	if (!name) return '';
+	return name
+		.trim()
+		.toLowerCase()
+		.replace(/(?:^|\s|-)\S/g, (c) => c.toUpperCase());
+}
+
+// Formats "DUPONT" or "dupont" to "DUPONT"
+function formatLastName(name: string): string {
+	if (!name) return '';
+	return name.trim().toUpperCase();
+}
+
 // Helper to normalize headers (remove accents, lowercase, handle encoding glitches)
 function normalizeHeader(h: string): string {
 	let clean = h.trim().toLowerCase();
@@ -134,13 +149,17 @@ export function parseEventImportCsv(csvString: string): Promise<CsvEventImport> 
 				const students: CsvStudent[] = results.data
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					.map((row: any) => {
-						const prenom = row['prenom'] || row['first name'] || '';
-						const nom = row['nom'] || row['last name'] || '';
-						const email = row['email'] || row['mail'] || '';
+						const rawPrenom = row['prenom'] || row['first name'] || '';
+						const rawNom = row['nom'] || row['last name'] || '';
+
+						const prenom = formatFirstName(rawPrenom);
+						const nom = formatLastName(rawNom);
+
+						const email = (row['email'] || row['mail'] || '').trim().toLowerCase();
 						const phone = cleanPhoneNumber(row['phone'] || row['telephone']);
 						const niveau = mapLevel(row['niveau'] || row['level']);
 
-						const parentEmail = row['parentEmail'] || '';
+						const parentEmail = (row['parentEmail'] || '').trim().toLowerCase();
 						const parentPhone = cleanPhoneNumber(row['parentPhone']);
 
 						return { prenom, nom, email, phone, niveau, parentEmail, parentPhone };
