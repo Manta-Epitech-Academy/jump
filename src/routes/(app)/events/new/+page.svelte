@@ -7,7 +7,6 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Card from '$lib/components/ui/card';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Table from '$lib/components/ui/table';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Badge } from '$lib/components/ui/badge';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
@@ -19,9 +18,10 @@
 		FileSpreadsheet,
 		PenTool,
 		Upload,
-		CircleCheck,
-		TriangleAlert,
-		UserPlus
+		UserPlus,
+		Link as LinkIcon,
+		Split,
+		ArrowRight
 	} from 'lucide-svelte';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
@@ -54,9 +54,20 @@
 		timeValue = `${hour}:${minute}`;
 		$form.time = timeValue;
 	});
+
+	// Toggle function for the UI to switch between Link/Create
+	function toggleDecision(rowId: string, newDecision: 'CREATE_NEW' | 'LINK_EXISTING') {
+		if (!analysisResult) return;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const row = analysisResult.analysisData.find((r: any) => r.id === rowId);
+		if (row) {
+			row.decision = newDecision;
+			analysisResult.analysisData = [...analysisResult.analysisData];
+		}
+	}
 </script>
 
-<div class="mx-auto max-w-4xl space-y-6">
+<div class="mx-auto max-w-5xl space-y-6">
 	<div class="flex items-center gap-4">
 		<a href="/" class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
 			<ChevronLeft class="h-4 w-4" />
@@ -82,8 +93,8 @@
 				<Card.Header>
 					<Card.Title>Import Automatique (Campagne)</Card.Title>
 					<Card.Description>
-						Importez un fichier CSV "Campagne" pour créer l'événement et inscrire les élèves
-						automatiquement.
+						Importez un fichier CSV. Le système détectera les doublons et vous pourrez choisir
+						l'action à effectuer.
 					</Card.Description>
 				</Card.Header>
 				<Card.Content>
@@ -123,18 +134,6 @@
 									class="max-w-xs cursor-pointer"
 								/>
 							</div>
-
-							<div class="rounded-sm bg-blue-50 p-4 text-xs text-blue-900">
-								<p class="mb-1 font-bold">Fonctionnement :</p>
-								<ul class="list-inside list-disc space-y-1">
-									<li>
-										Le nom de l'événement et la date sont extraits du champ "Nom de la campagne".
-									</li>
-									<li>Analyse des doublons d'élèves (Email ou Nom/Prénom).</li>
-									<li>Extraction des contacts parents et du statut "PC Personnel".</li>
-								</ul>
-							</div>
-
 							<div class="flex justify-end">
 								<Button
 									type="submit"
@@ -146,9 +145,10 @@
 							</div>
 						</form>
 
-						<!-- STEP 2: REVIEW & CONFIRM -->
+						<!-- STEP 2: REVIEW & DECIDE -->
 					{:else}
 						<div class="space-y-6">
+							<!-- Header Info -->
 							<div class="grid gap-4 sm:grid-cols-2">
 								<div class="space-y-2">
 									<Label>Nom de l'événement détecté</Label>
@@ -165,71 +165,138 @@
 							</div>
 
 							<div class="rounded-sm border">
-								<div class="border-b bg-muted/50 p-2 text-center text-xs font-bold uppercase">
-									Aperçu des élèves ({analysisResult.analysisData.length})
+								<div
+									class="flex items-center justify-between border-b bg-muted/50 px-4 py-2 text-xs font-bold uppercase"
+								>
+									<span>Revue des élèves ({analysisResult.analysisData.length})</span>
+									<span class="text-muted-foreground">Vérifiez les décisions avant validation</span>
 								</div>
-								<ScrollArea class="h-100">
-									<Table.Root>
-										<Table.Header>
-											<Table.Row>
-												<Table.Head>Statut</Table.Head>
-												<Table.Head>Candidat</Table.Head>
-												<Table.Head>Contact Parent</Table.Head>
-												<Table.Head>Action</Table.Head>
-											</Table.Row>
-										</Table.Header>
-										<Table.Body>
-											{#each analysisResult.analysisData as row}
-												<Table.Row class={row.status === 'CONFLICT' ? 'bg-destructive/10' : ''}>
-													<Table.Cell>
-														{#if row.status === 'NEW'}
-															<Badge variant="default" class="bg-blue-500">Nouveau</Badge>
-														{:else if row.status === 'CONFLICT'}
-															<Badge variant="destructive">Conflit</Badge>
-														{:else}
-															<Badge variant="secondary" class="bg-epi-teal text-black"
-																>Existant</Badge
-															>
-														{/if}
-													</Table.Cell>
-													<Table.Cell>
-														<div class="flex flex-col">
-															<span class="font-bold">{row.csvData.prenom} {row.csvData.nom}</span>
-															<span class="text-xs text-muted-foreground">{row.csvData.email}</span>
-															<span class="text-[10px] font-black text-muted-foreground uppercase"
-																>{row.csvData.niveau}</span
-															>
+
+								<ScrollArea class="h-[500px]">
+									<div class="divide-y">
+										<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
+										{#each analysisResult.analysisData as row (row.id)}
+											{@const isNew = row.suggestedStatus === 'NEW'}
+											{@const isConflict =
+												row.suggestedStatus === 'CONFLICT' || row.suggestedStatus === 'SIBLING'}
+
+											<div
+												class="flex flex-col gap-4 p-4 md:flex-row md:items-center {isConflict
+													? 'bg-yellow-50/50'
+													: ''}"
+											>
+												<!-- 1. CSV DATA -->
+												<div class="flex-1 space-y-1">
+													<div class="flex items-center gap-2">
+														<span class="text-sm font-bold"
+															>{row.csvData.prenom} {row.csvData.nom}</span
+														>
+														<Badge variant="outline" class="text-[10px]">{row.csvData.niveau}</Badge
+														>
+													</div>
+													<div class="text-xs text-muted-foreground">{row.csvData.email}</div>
+													{#if isNew}
+														<Badge variant="default" class="bg-blue-500 text-[10px]">Nouveau</Badge>
+													{/if}
+													{#if isConflict}
+														<Badge
+															variant="outline"
+															class="border-yellow-500 bg-yellow-100 text-[10px] text-yellow-700"
+														>
+															{row.suggestedStatus === 'SIBLING' ? 'Fratrie ?' : 'Homonyme ?'}
+														</Badge>
+													{/if}
+												</div>
+
+												<!-- 2. ARROW / REASON -->
+												<div class="flex flex-col items-center justify-center px-2 text-center">
+													{#if row.existingStudent}
+														<ArrowRight class="h-4 w-4 text-muted-foreground" />
+													{/if}
+													{#if row.matchReason}
+														<span class="mt-1 max-w-[120px] text-[9px] text-muted-foreground">
+															{row.matchReason}
+														</span>
+													{/if}
+												</div>
+
+												<!-- 3. DB MATCH (If any) -->
+												<div class="flex-1 space-y-1">
+													{#if row.existingStudent}
+														<div class="rounded border bg-white p-2 text-sm shadow-sm">
+															<div class="font-bold text-muted-foreground">En Base :</div>
+															<div class="font-medium">
+																{row.existingStudent.prenom}
+																{row.existingStudent.nom}
+															</div>
+															<div class="text-xs text-muted-foreground">
+																{row.existingStudent.email}
+															</div>
+															<div class="text-xs text-muted-foreground">
+																{row.existingStudent.niveau}
+															</div>
 														</div>
-													</Table.Cell>
-													<Table.Cell>
-														{#if row.csvData.parentEmail || row.csvData.parentPhone}
-															<div class="flex flex-col text-xs text-muted-foreground">
-																<span>{row.csvData.parentEmail}</span>
-																<span>{row.csvData.parentPhone}</span>
+													{:else}
+														<div
+															class="flex h-full items-center justify-center text-xs text-muted-foreground italic"
+														>
+															Aucune correspondance
+														</div>
+													{/if}
+												</div>
+
+												<!-- 4. ACTION BUTTONS -->
+												<div class="flex min-w-[220px] flex-col gap-2 border-l pl-4">
+													<span class="text-[10px] font-bold text-muted-foreground uppercase"
+														>Action à effectuer :</span
+													>
+													<div class="flex flex-col gap-1">
+														<!-- CREATE NEW BUTTON -->
+														<button
+															type="button"
+															class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all
+                                                            {row.decision === 'CREATE_NEW'
+																? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+																: 'text-muted-foreground hover:bg-muted'}"
+															onclick={() => toggleDecision(row.id, 'CREATE_NEW')}
+														>
+															<div class="flex items-center gap-2">
+																{#if row.suggestedStatus === 'SIBLING'}
+																	<Split class="h-3.5 w-3.5" />
+																{:else}
+																	<UserPlus class="h-3.5 w-3.5" />
+																{/if}
+																<span>Créer un nouveau</span>
 															</div>
-														{:else}
-															<span class="text-xs text-muted-foreground italic">--</span>
+															{#if row.decision === 'CREATE_NEW'}
+																<div class="h-2 w-2 rounded-full bg-blue-500"></div>
+															{/if}
+														</button>
+
+														<!-- LINK EXISTING BUTTON -->
+														{#if row.existingStudent}
+															<button
+																type="button"
+																class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all
+                                                                {row.decision === 'LINK_EXISTING'
+																	? 'border-teal-500 bg-teal-50 text-teal-700 ring-1 ring-teal-500'
+																	: 'text-muted-foreground hover:bg-muted'}"
+																onclick={() => toggleDecision(row.id, 'LINK_EXISTING')}
+															>
+																<div class="flex items-center gap-2">
+																	<LinkIcon class="h-3.5 w-3.5" />
+																	<span>Lier à l'existant</span>
+																</div>
+																{#if row.decision === 'LINK_EXISTING'}
+																	<div class="h-2 w-2 rounded-full bg-teal-500"></div>
+																{/if}
+															</button>
 														{/if}
-													</Table.Cell>
-													<Table.Cell>
-														{#if row.status === 'NEW'}
-															<div class="flex items-center text-xs font-bold text-blue-600">
-																<UserPlus class="mr-1 h-3 w-3" /> Création
-															</div>
-														{:else if row.status === 'CONFLICT'}
-															<div class="flex items-center text-xs font-bold text-destructive">
-																<TriangleAlert class="mr-1 h-3 w-3" /> Fusion forcée
-															</div>
-														{:else}
-															<div class="flex items-center text-xs font-bold text-teal-700">
-																<CircleCheck class="mr-1 h-3 w-3" /> Liaison
-															</div>
-														{/if}
-													</Table.Cell>
-												</Table.Row>
-											{/each}
-										</Table.Body>
-									</Table.Root>
+													</div>
+												</div>
+											</div>
+										{/each}
+									</div>
 								</ScrollArea>
 							</div>
 
@@ -245,6 +312,7 @@
 								}}
 								class="flex items-center justify-between pt-4"
 							>
+								<!-- Send back the MODIFIED list with user decisions -->
 								<input
 									type="hidden"
 									name="importData"
@@ -262,7 +330,7 @@
 									disabled={isConfirming}
 									class="bg-green-600 hover:bg-green-700"
 								>
-									{isConfirming ? 'Création en cours...' : "Confirmer et Créer l'événement"}
+									{isConfirming ? 'Création en cours...' : "Valider l'import et les décisions"}
 								</Button>
 							</form>
 						</div>

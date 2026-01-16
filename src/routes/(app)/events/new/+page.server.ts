@@ -20,12 +20,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 	};
 };
 
+// We track the user's decision explicitly
 type ImportAction = {
+	id: string; // Unique ID for frontend tracking
 	csvData: CsvStudent;
-	status: 'NEW' | 'MATCH_EMAIL' | 'MATCH_NAME' | 'CONFLICT';
+	// "suggestedStatus" is what the algo thinks. "decision" is what the user chooses.
+	suggestedStatus: 'NEW' | 'MERGE' | 'CONFLICT' | 'SIBLING';
+	decision: 'CREATE_NEW' | 'LINK_EXISTING';
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	existingStudent?: any;
-	message: string;
+	matchReason?: string;
 };
 
 export const actions: Actions = {
@@ -127,53 +131,91 @@ export const actions: Actions = {
 			const { eventName, eventDate, students } = await parseEventImportCsv(text);
 
 			const analysis: ImportAction[] = [];
+			let index = 0;
 
 			for (const csvS of students) {
-				let status: ImportAction['status'] = 'NEW';
+				index++;
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				let existing: any = null;
-				let msg = 'Nouveau dossier étudiant';
+				let status: ImportAction['suggestedStatus'] = 'NEW';
+				let decision: ImportAction['decision'] = 'CREATE_NEW';
+				let reason = '';
 
-				// 1. Check by Email
+				const safeNom = csvS.nom.replace(/"/g, '\\"');
+				const safePrenom = csvS.prenom.replace(/"/g, '\\"');
+
+				// A. Email Check (Strong identifier)
 				if (csvS.email) {
 					try {
 						existing = await locals.pb
 							.collection('students')
 							.getFirstListItem(`email = "${csvS.email}"`);
-						status = 'MATCH_EMAIL';
-						msg = 'Compte existant trouvé (Email)';
+
+						// Check Names
+						const dbName = (existing.nom || '').toLowerCase();
+						const dbPrenom = (existing.prenom || '').toLowerCase();
+						const csvNom = (csvS.nom || '').toLowerCase();
+						const csvPrenom = (csvS.prenom || '').toLowerCase();
+
+						if (dbName === csvNom && dbPrenom === csvPrenom) {
+							status = 'MERGE';
+							decision = 'LINK_EXISTING';
+							reason = 'Email + Nom identiques';
+						} else {
+							// Sibling case: Same email found, but names differ
+							status = 'SIBLING';
+							decision = 'CREATE_NEW'; // Default to creating new for siblings
+							reason = `Email partagé mais nom différent (DB: ${existing.prenom} ${existing.nom})`;
+							// We keep 'existing' populated so the user can see who the email belongs to
+						}
 					} catch (_) {
-						/* ignore */
+						/* Not found by email */
 					}
 				}
 
-				// 2. Check by Name if not found
-				if (!existing) {
+				// B. Name Check (If not merged by email)
+				if (status !== 'MERGE' && status !== 'SIBLING') {
 					try {
-						const safeNom = csvS.nom.replace(/"/g, '\\"');
-						const safePrenom = csvS.prenom.replace(/"/g, '\\"');
+						// Look for ANY student with same name
+						const matches = await locals.pb.collection('students').getFullList({
+							filter: `nom ~ "${safeNom}" && prenom ~ "${safePrenom}"`
+						});
 
-						existing = await locals.pb
-							.collection('students')
-							.getFirstListItem(`nom ~ "${safeNom}" && prenom ~ "${safePrenom}"`);
+						if (matches.length === 1) {
+							const match = matches[0];
 
-						if (csvS.email && existing.email && csvS.email !== existing.email) {
+							// Homonym Check: Same name, but emails differ?
+							if (match.email && csvS.email && match.email !== csvS.email) {
+								status = 'CONFLICT';
+								decision = 'CREATE_NEW'; // Safer default, likely a homonym
+								existing = match;
+								reason = `Homonyme détecté : Nom identique, email différent (DB: ${match.email})`;
+							} else {
+								// Safe merge (or email missing in one side)
+								status = 'MERGE';
+								decision = 'LINK_EXISTING';
+								existing = match;
+								reason = 'Correspondance Nom/Prénom';
+							}
+						} else if (matches.length > 1) {
+							// Multiple homonyms in DB
 							status = 'CONFLICT';
-							msg = 'ATTENTION : Homonyme avec email différent';
-						} else {
-							status = 'MATCH_NAME';
-							msg = 'Compte existant trouvé (Nom/Prénom)';
+							decision = 'CREATE_NEW';
+							existing = matches[0]; // Just show the first one as example
+							reason = 'Plusieurs homonymes trouvés en base.';
 						}
 					} catch (_) {
-						/* ignore */
+						/* Not found by name */
 					}
 				}
 
 				analysis.push({
+					id: `row-${index}`,
 					csvData: csvS,
-					status,
+					suggestedStatus: status,
+					decision: decision,
 					existingStudent: existing,
-					message: msg
+					matchReason: reason
 				});
 			}
 
@@ -212,43 +254,58 @@ export const actions: Actions = {
 
 			const subjects = await locals.pb.collection('subjects').getFullList();
 
-			// 2. Process Students
+			// 2. Process Students based on USER DECISION
 			for (const item of importList) {
-				let studentId = item.existingStudent?.id;
+				let studentId: string | undefined;
 
-				if (!studentId) {
+				// DECISION: LINK EXISTING
+				if (item.decision === 'LINK_EXISTING' && item.existingStudent) {
+					studentId = item.existingStudent.id;
+				}
+
+				// DECISION: CREATE NEW
+				else {
+					const studentData = {
+						prenom: item.csvData.prenom,
+						nom: item.csvData.nom,
+						email: item.csvData.email,
+						phone: item.csvData.phone,
+						niveau: item.csvData.niveau,
+						xp: 0,
+						events_count: 0,
+						parent_email: item.csvData.parentEmail,
+						parent_phone: item.csvData.parentPhone
+					};
+
 					try {
-						const newS = await locals.pb.collection('students').create({
-							prenom: item.csvData.prenom,
-							nom: item.csvData.nom,
-							email: item.csvData.email,
-							phone: item.csvData.phone,
-							niveau: item.csvData.niveau,
-							xp: 0,
-							events_count: 0,
-							// NEW FIELDS (ensure these exist in DB)
-							parent_email: item.csvData.parentEmail,
-							parent_phone: item.csvData.parentPhone
-						});
+						const newS = await locals.pb.collection('students').create(studentData);
 						studentId = newS.id;
 					} catch (err) {
-						console.error(`Failed to create student ${item.csvData.nom}`, err);
-						continue;
+						console.error(`Creation failed for ${item.csvData.nom}`, err);
 					}
 				}
 
 				// 3. Create Participation
-				try {
-					const subjectId = await suggestBestSubject(locals.pb, studentId, subjects, null);
-					await locals.pb.collection('participations').create({
-						student: studentId,
-						event: newEventId,
-						subject: subjectId,
-						is_present: false,
-						is_validated: false
-					});
-				} catch (err) {
-					console.error(`Failed to assign student ${studentId}`, err);
+				if (studentId) {
+					try {
+						// Check if not already in event (double safety)
+						const check = await locals.pb.collection('participations').getList(1, 1, {
+							filter: `student = "${studentId}" && event = "${newEventId}"`
+						});
+
+						if (check.totalItems === 0) {
+							const subjectId = await suggestBestSubject(locals.pb, studentId, subjects, null);
+							await locals.pb.collection('participations').create({
+								student: studentId,
+								event: newEventId,
+								subject: subjectId,
+								is_present: false,
+								is_validated: false
+							});
+						}
+					} catch (err) {
+						console.error(`Failed to assign student ${studentId}`, err);
+					}
 				}
 			}
 		} catch (err) {
