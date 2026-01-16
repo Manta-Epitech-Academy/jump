@@ -30,6 +30,7 @@ type ImportAction = {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	existingStudent?: any;
 	matchReason?: string;
+	bring_pc: boolean;
 };
 
 export const actions: Actions = {
@@ -215,7 +216,8 @@ export const actions: Actions = {
 					suggestedStatus: status,
 					decision: decision,
 					existingStudent: existing,
-					matchReason: reason
+					matchReason: reason,
+					bring_pc: false
 				});
 			}
 
@@ -285,7 +287,7 @@ export const actions: Actions = {
 					}
 				}
 
-				// 3. Create Participation
+				// 3. Create Participation with Bring PC status
 				if (studentId) {
 					try {
 						// Check if not already in event (double safety)
@@ -300,7 +302,8 @@ export const actions: Actions = {
 								event: newEventId,
 								subject: subjectId,
 								is_present: false,
-								is_validated: false
+								is_validated: false,
+								bring_pc: item.bring_pc
 							});
 						}
 					} catch (err) {

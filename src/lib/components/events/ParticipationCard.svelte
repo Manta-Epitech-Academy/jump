@@ -4,7 +4,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
-	import { CircleCheck, Save, Trophy, User } from 'lucide-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { CircleCheck, Save, Trophy, User, Laptop, MonitorX } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 
 	let {
@@ -13,9 +14,8 @@
 	}: {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		participation: any;
-		// Accepts the curried function from the parent
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		optimisticToggle: (id: string, field: 'is_present' | 'is_validated') => any;
+		optimisticToggle: (id: string, field: 'is_present' | 'is_validated' | 'bring_pc') => any;
 	} = $props();
 
 	function formatFirstName(name: string | undefined) {
@@ -54,14 +54,31 @@
 							</div>
 						{/if}
 					</div>
-					<div class="flex flex-col">
+					<div class="flex flex-col items-start gap-1">
 						<span class="text-base leading-none font-bold">
 							{formatFirstName(participation.expand?.student?.prenom)}
 							<span class="uppercase">{participation.expand?.student?.nom}</span>
 						</span>
-						<span class="mt-1 text-xs font-bold tracking-wider text-muted-foreground uppercase">
-							{participation.expand?.student?.niveau}
-						</span>
+						<div class="flex items-center gap-2">
+							<span class="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+								{participation.expand?.student?.niveau}
+							</span>
+							{#if participation.bring_pc}
+								<Badge
+									variant="outline"
+									class="h-4 border-purple-200 bg-purple-50 px-1 py-0 text-[9px] text-purple-700"
+								>
+									<Laptop class="mr-1 h-2 w-2" /> Avec PC
+								</Badge>
+							{:else}
+								<Badge
+									variant="outline"
+									class="h-4 border-orange-200 bg-orange-50 px-1 py-0 text-[9px] text-orange-700"
+								>
+									<MonitorX class="mr-1 h-2 w-2" /> Besoin PC
+								</Badge>
+							{/if}
+						</div>
 					</div>
 				</div>
 

@@ -22,7 +22,8 @@
 		Link as LinkIcon,
 		Split,
 		ArrowRight,
-		FileCheck
+		FileCheck,
+		Laptop
 	} from 'lucide-svelte';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
@@ -30,6 +31,7 @@
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import { enhance as kitEnhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
+	import { Switch } from '$lib/components/ui/switch';
 
 	let { data }: { data: PageData } = $props();
 
@@ -68,6 +70,17 @@
 		const row = analysisResult.analysisData.find((r: any) => r.id === rowId);
 		if (row) {
 			row.decision = newDecision;
+			analysisResult.analysisData = [...analysisResult.analysisData];
+		}
+	}
+
+	// Toggle function for "Bring PC"
+	function toggleBringPc(rowId: string) {
+		if (!analysisResult) return;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const row = analysisResult.analysisData.find((r: any) => r.id === rowId);
+		if (row) {
+			row.bring_pc = !row.bring_pc;
 			analysisResult.analysisData = [...analysisResult.analysisData];
 		}
 	}
@@ -141,8 +154,7 @@
 				<Card.Header>
 					<Card.Title>Import Automatique (Campagne)</Card.Title>
 					<Card.Description>
-						Importez un fichier CSV. Le système détectera les doublons et vous pourrez choisir
-						l'action à effectuer.
+						Importez un fichier CSV. Vous pourrez ensuite spécifier si les élèves apportent leur PC.
 					</Card.Description>
 				</Card.Header>
 				<Card.Content>
@@ -261,10 +273,10 @@
 									class="flex items-center justify-between border-b bg-muted/50 px-4 py-2 text-xs font-bold uppercase"
 								>
 									<span>Revue des élèves ({analysisResult.analysisData.length})</span>
-									<span class="text-muted-foreground">Vérifiez les décisions avant validation</span>
+									<span class="text-muted-foreground">Cochez ceux qui apportent leur PC</span>
 								</div>
 
-								<ScrollArea class="h-[500px]">
+								<ScrollArea class="h-125">
 									<div class="divide-y">
 										<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
 										{#each analysisResult.analysisData as row (row.id)}
@@ -277,8 +289,26 @@
 													? 'bg-yellow-50/50'
 													: ''}"
 											>
-												<!-- 1. CSV DATA -->
-												<div class="flex-1 space-y-1">
+												<!-- 1. PC TOGGLE -->
+												<div class="flex flex-col items-center justify-center border-r pr-4">
+													<Button
+														variant={row.bring_pc ? 'secondary' : 'outline'}
+														size="icon"
+														class="h-10 w-10 transition-colors {row.bring_pc
+															? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+															: 'text-gray-400'}"
+														onclick={() => toggleBringPc(row.id)}
+														title="Apporte son PC ?"
+													>
+														<Laptop class="h-5 w-5" />
+													</Button>
+													<span class="mt-1 text-[9px] font-bold text-muted-foreground uppercase">
+														{row.bring_pc ? 'Avec PC' : 'Sans PC'}
+													</span>
+												</div>
+
+												<!-- 2. CSV DATA -->
+												<div class="flex-1 space-y-1 pl-2">
 													<div class="flex items-center gap-2">
 														<span class="text-sm font-bold"
 															>{row.csvData.prenom} {row.csvData.nom}</span
@@ -300,19 +330,19 @@
 													{/if}
 												</div>
 
-												<!-- 2. ARROW / REASON -->
+												<!-- 3. ARROW / REASON -->
 												<div class="flex flex-col items-center justify-center px-2 text-center">
 													{#if row.existingStudent}
 														<ArrowRight class="h-4 w-4 text-muted-foreground" />
 													{/if}
 													{#if row.matchReason}
-														<span class="mt-1 max-w-[120px] text-[9px] text-muted-foreground">
+														<span class="mt-1 max-w-30 text-[9px] text-muted-foreground">
 															{row.matchReason}
 														</span>
 													{/if}
 												</div>
 
-												<!-- 3. DB MATCH (If any) -->
+												<!-- 4. DB MATCH (If any) -->
 												<div class="flex-1 space-y-1">
 													{#if row.existingStudent}
 														<div class="rounded border bg-white p-2 text-sm shadow-sm">
@@ -337,8 +367,8 @@
 													{/if}
 												</div>
 
-												<!-- 4. ACTION BUTTONS -->
-												<div class="flex min-w-[220px] flex-col gap-2 border-l pl-4">
+												<!-- 5. ACTION BUTTONS -->
+												<div class="flex min-w-55 flex-col gap-2 border-l pl-4">
 													<span class="text-[10px] font-bold text-muted-foreground uppercase"
 														>Action à effectuer :</span
 													>

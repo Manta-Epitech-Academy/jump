@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import { pbUrl } from '$lib/pocketbase';
 	import PocketBase from 'pocketbase';
-	import { ArrowLeft, Search } from 'lucide-svelte';
+	import { ArrowLeft, Search, MonitorSmartphone } from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { browser } from '$app/environment';
@@ -34,6 +34,7 @@
 							...participations[index],
 							is_present: e.record.is_present,
 							is_validated: e.record.is_validated,
+							bring_pc: e.record.bring_pc,
 							note: e.record.note
 						};
 					}
@@ -47,13 +48,16 @@
 		};
 	});
 
-	const optimisticToggle = (id: string, field: 'is_present' | 'is_validated') => {
+	const optimisticToggle = (id: string, field: 'is_present' | 'is_validated' | 'bring_pc') => {
 		return ({ formData }: { formData: FormData }) => {
 			const index = participations.findIndex((p) => p.id === id);
 			if (index !== -1) {
 				const p = participations[index];
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				if (field === 'is_present') p.is_present = !p.is_present;
 				if (field === 'is_validated') p.is_validated = !p.is_validated;
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
 			}
 			return async ({ update }: { update: () => Promise<void> }) => await update();
 		};
@@ -73,6 +77,10 @@
 
 	let presentCount = $derived(participations.filter((p) => p.is_present).length);
 	let validatedCount = $derived(participations.filter((p) => p.is_validated).length);
+
+	// Logistics Metrics
+	let totalStudents = $derived(participations.length);
+	let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
 </script>
 
 <div class="flex min-h-screen flex-col bg-gray-50/50 pb-20">
@@ -104,6 +112,27 @@
 					>{data.event.titre}</span
 				>
 			</h1>
+
+			<!-- LOGISTICS DASHBOARD -->
+			<div
+				class="mt-4 grid grid-cols-2 gap-4 rounded-sm border bg-slate-900 p-4 text-white shadow-md sm:grid-cols-2"
+			>
+				<div class="flex flex-col">
+					<span class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
+						>Total Élèves</span
+					>
+					<span class="text-2xl font-bold">{totalStudents}</span>
+				</div>
+				<div class="flex items-center justify-between border-l border-slate-700 pl-4">
+					<div class="flex flex-col">
+						<span class="text-[10px] font-black tracking-widest text-epi-orange uppercase"
+							>PC à Préparer</span
+						>
+						<span class="text-3xl font-bold text-epi-orange">{pcsNeeded}</span>
+					</div>
+					<MonitorSmartphone class="h-8 w-8 text-slate-700" />
+				</div>
+			</div>
 
 			<div class="mt-4 flex flex-col gap-3 sm:flex-row">
 				<div class="relative flex-1">
