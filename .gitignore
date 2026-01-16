@@ -18,8 +18,8 @@ yarn-error.log*
 
 # PocketBase
 pb_data/
-pb_migrations/
-pocketbase-backend/
+pocketbase
+pocketbase.exe
 
 # Logs
 logs
@@ -85,6 +85,3 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Typegen output (regenerate on demand)
-src/lib/pocketbase-types.ts
