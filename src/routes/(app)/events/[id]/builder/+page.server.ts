@@ -7,7 +7,7 @@ import { studentSchema } from '$lib/validation/students';
 import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
 import { getSubjectXpValue } from '$lib/xp';
 import { suggestBestSubject } from '$lib/recommender';
-import { parseStudentsCsv, type CsvStudent } from '$lib/csvUtils';
+import { type CsvStudent } from '$lib/csvUtils';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	let event;
@@ -79,9 +79,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	});
 
 	const eventDate = new Date(event.date);
-	// Format YYYY-MM-DD manually
 	const dateString = eventDate.toISOString().split('T')[0];
-	// Format HH:MM manually
 	const hours = String(eventDate.getHours()).padStart(2, '0');
 	const minutes = String(eventDate.getMinutes()).padStart(2, '0');
 	const timeString = `${hours}:${minutes}`;
@@ -135,10 +133,8 @@ export const actions: Actions = {
 				return message(form, 'Cet élève est déjà inscrit à cet événement.', { status: 400 });
 			}
 
-			// Get Event to know the theme
 			const event = await locals.pb.collection('events').getOne(params.id);
 
-			// Use the intelligent recommender
 			const subjects = await locals.pb.collection('subjects').getFullList();
 			const suggestedSubjectId = await suggestBestSubject(
 				locals.pb,
@@ -185,10 +181,8 @@ export const actions: Actions = {
 		try {
 			const newStudent = await locals.pb.collection('students').create(form.data);
 
-			// Get Event to know the theme
 			const event = await locals.pb.collection('events').getOne(params.id);
 
-			// Use the intelligent recommender for the newly created student
 			const subjects = await locals.pb.collection('subjects').getFullList();
 			const suggestedSubjectId = await suggestBestSubject(
 				locals.pb,
@@ -317,74 +311,6 @@ export const actions: Actions = {
 		}
 
 		throw redirect(303, '/');
-	},
-
-	// ACTION 1 : ANALYSE DU CSV (Lecture seule)
-	analyzeCsv: async ({ request, locals }) => {
-		const formData = await request.formData();
-		const file = formData.get('csv') as File;
-
-		if (!file || file.name === 'undefined') {
-			return fail(400, { message: 'Fichier requis' });
-		}
-
-		try {
-			const text = await file.text();
-			const csvStudents = await parseStudentsCsv(text);
-			const analysis: ImportAction[] = [];
-
-			for (const csvS of csvStudents) {
-				let status: ImportAction['status'] = 'NEW';
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				let existing: any = null;
-				let message = 'Sera créé comme nouvel élève.';
-
-				if (csvS.email) {
-					try {
-						existing = await locals.pb
-							.collection('students')
-							.getFirstListItem(`email = "${csvS.email}"`);
-						status = 'MATCH_EMAIL';
-						message = 'Correspondance trouvée par email.';
-					} catch (_) {
-						// Ignorer
-					}
-				}
-
-				if (!existing) {
-					try {
-						existing = await locals.pb
-							.collection('students')
-							.getFirstListItem(`nom ~ "${csvS.nom}" && prenom ~ "${csvS.prenom}"`);
-
-						if (csvS.email && existing.email && csvS.email !== existing.email) {
-							status = 'CONFLICT';
-							message = 'ATTENTION : Même nom mais emails différents ! Homonyme ?';
-						} else {
-							status = 'MATCH_NAME';
-							message = 'Correspondance trouvée par nom/prénom.';
-						}
-					} catch (_) {
-						// Ignore
-					}
-				}
-
-				analysis.push({
-					csvData: csvS,
-					status,
-					existingStudent: existing,
-					message
-				});
-			}
-
-			return {
-				analysisSuccess: true,
-				analysisData: analysis
-			};
-		} catch (e) {
-			console.error('Erreur analyse CSV', e);
-			return fail(500, { message: 'Erreur lors de l’analyse du fichier.' });
-		}
 	},
 
 	confirmImport: async ({ request, locals, params }) => {

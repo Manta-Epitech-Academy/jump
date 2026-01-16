@@ -5,7 +5,6 @@
 		ArrowLeft,
 		Trophy,
 		Calendar,
-		Star,
 		MessageSquareQuote,
 		Pencil,
 		CircleCheck,
@@ -13,7 +12,8 @@
 		Clock,
 		BookOpen,
 		Mail,
-		Phone
+		Phone,
+		Users
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Progress } from '$lib/components/ui/progress';
@@ -25,7 +25,6 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
-	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { formatDateFr } from '$lib/utils';
 
@@ -88,15 +87,37 @@
 					<!-- Contact Info -->
 					<div class="flex flex-col gap-2 text-sm text-muted-foreground">
 						{#if data.student.email}
-							<div class="flex items-center justify-center gap-2">
+							<div class="flex items-center gap-2">
 								<Mail class="h-3.5 w-3.5" />
 								<span class="truncate">{data.student.email}</span>
 							</div>
 						{/if}
 						{#if data.student.phone}
-							<div class="flex items-center justify-center gap-2">
+							<div class="flex items-center gap-2">
 								<Phone class="h-3.5 w-3.5" />
 								<span>{data.student.phone}</span>
+							</div>
+						{/if}
+						{#if data.student.parent_email || data.student.parent_phone}
+							<Separator class="my-1" />
+							<div class="flex flex-col gap-1">
+								<span
+									class="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase"
+								>
+									<Users class="h-3 w-3" /> Contact Parent
+								</span>
+								{#if data.student.parent_email}
+									<div class="flex items-center gap-2">
+										<Mail class="h-3.5 w-3.5" />
+										<span class="truncate">{data.student.parent_email}</span>
+									</div>
+								{/if}
+								{#if data.student.parent_phone}
+									<div class="flex items-center gap-2">
+										<Phone class="h-3.5 w-3.5" />
+										<span>{data.student.parent_phone}</span>
+									</div>
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -129,16 +150,6 @@
 							</div>
 							<div class="text-[9px] font-bold text-muted-foreground uppercase">Validés</div>
 						</div>
-					</div>
-
-					<div
-						class="rounded-sm border border-dashed border-epi-blue/30 bg-epi-blue/5 p-3 text-center"
-					>
-						<div class="mb-1 flex items-center justify-center gap-1.5 text-epi-blue">
-							<Star class="h-4 w-4 fill-epi-blue" />
-							<span class="text-xs font-bold uppercase">Thème Favori</span>
-						</div>
-						<span class="text-sm font-bold uppercase">{data.stats.favoriteTheme}</span>
 					</div>
 
 					<Button variant="outline" class="w-full" onclick={() => (editOpen = true)}>
@@ -292,6 +303,23 @@
 						<Label>Téléphone</Label>
 						<Input name="phone" type="tel" bind:value={$form.phone} />
 						{#if $errors.phone}<p class="text-xs text-destructive">{$errors.phone}</p>{/if}
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2">
+						<Label>Email Parent</Label>
+						<Input name="parent_email" type="email" bind:value={$form.parent_email} />
+						{#if $errors.parent_email}<p class="text-xs text-destructive">
+								{$errors.parent_email}
+							</p>{/if}
+					</div>
+					<div class="space-y-2">
+						<Label>Téléphone Parent</Label>
+						<Input name="parent_phone" type="tel" bind:value={$form.parent_phone} />
+						{#if $errors.parent_phone}<p class="text-xs text-destructive">
+								{$errors.parent_phone}
+							</p>{/if}
 					</div>
 				</div>
 

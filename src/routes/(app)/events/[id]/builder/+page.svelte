@@ -33,7 +33,6 @@
 	import { formatDateFr } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import StudentParticipationRow from '$lib/components/events/StudentParticipationRow.svelte';
-	import ImportStudentsDialog from '$lib/components/events/ImportStudentsDialog.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -78,9 +77,7 @@
 	let searchQuery = $state('');
 	let openQuickCreate = $state(false);
 	let openEditEvent = $state(false);
-	let openImportCsv = $state(false);
 
-	// Deletion states
 	let deleteEventDialogOpen = $state(false);
 	let deleteParticipationDialogOpen = $state(false);
 	let participationToDelete = $state<string | null>(null);
@@ -193,14 +190,11 @@
 			</div>
 		</div>
 		<div class="flex gap-2">
-			<!-- DIALOG IMPORT CSV -->
-			<ImportStudentsDialog bind:open={openImportCsv} />
-
 			<Dialog.Root bind:open={openEditEvent}>
 				<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'icon' })}>
 					<Settings class="h-4 w-4" />
 				</Dialog.Trigger>
-				<Dialog.Content class="sm:max-w-[500px]">
+				<Dialog.Content class="sm:max-w-125">
 					<Dialog.Header>
 						<Dialog.Title>Paramètres de l'événement</Dialog.Title>
 					</Dialog.Header>
