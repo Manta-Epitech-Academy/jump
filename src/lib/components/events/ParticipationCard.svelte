@@ -5,7 +5,16 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
-	import { CircleCheck, Save, Trophy, User, Laptop, MonitorX } from 'lucide-svelte';
+	import {
+		CircleCheck,
+		Save,
+		Trophy,
+		User,
+		Laptop,
+		MonitorX,
+		ExternalLink,
+		BookOpen
+	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 
 	let {
@@ -125,6 +134,31 @@
 					</form>
 				</div>
 			</div>
+
+			<!-- Subject Display Section -->
+			{#if participation.expand?.subject}
+				<div class="flex items-center justify-between rounded-sm bg-muted/50 px-3 py-2">
+					<div class="flex items-center gap-2 overflow-hidden">
+						<BookOpen class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+						<span class="truncate text-xs font-bold text-foreground">
+							{participation.expand.subject.nom}
+						</span>
+					</div>
+					{#if participation.expand.subject.link}
+						<Button
+							variant="ghost"
+							size="icon"
+							href={participation.expand.subject.link}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+							title="Ouvrir le sujet"
+						>
+							<ExternalLink class="h-3.5 w-3.5" />
+						</Button>
+					{/if}
+				</div>
+			{/if}
 
 			{#if participation.is_present}
 				<div class="border-t pt-2">

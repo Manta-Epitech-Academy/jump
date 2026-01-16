@@ -20,7 +20,8 @@ export const subjectSchema = z.object({
 	niveaux: z
 		.array(z.enum(schoolLevels))
 		.min(1, 'Veuillez sélectionner au moins un niveau scolaire'),
-	themes: z.array(z.string()).default([])
+	themes: z.array(z.string()).default([]),
+	link: z.url("Le format du lien n'est pas valide (https://...)").optional().or(z.literal(''))
 });
 
 export type SubjectForm = z.infer<typeof subjectSchema>;

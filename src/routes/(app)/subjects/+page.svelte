@@ -2,7 +2,17 @@
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance as kitEnhance } from '$app/forms';
-	import { Plus, Cuboid, Ellipsis, Pencil, Trash2, Check, Tag } from 'lucide-svelte';
+	import {
+		Plus,
+		Cuboid,
+		Ellipsis,
+		Pencil,
+		Trash2,
+		Check,
+		Tag,
+		Link,
+		ExternalLink
+	} from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -47,6 +57,7 @@
 		reset();
 		$form.niveaux = [];
 		$form.themes = [];
+		$form.link = '';
 		isEditing = false;
 		editId = '';
 		open = true;
@@ -56,6 +67,7 @@
 		$form.nom = subject.nom;
 		$form.description = subject.description;
 		$form.niveaux = subject.niveaux || [];
+		$form.link = subject.link || '';
 
 		if (subject.expand && subject.expand.themes) {
 			$form.themes = subject.expand.themes.map((t: any) => t.nom);
@@ -122,6 +134,21 @@
 						<Label for="nom">Nom du sujet</Label>
 						<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Ex: Intro React" />
 						{#if $errors.nom}<span class="text-sm text-destructive">{$errors.nom}</span>{/if}
+					</div>
+
+					<div class="grid gap-2">
+						<Label for="link">Lien du sujet (Notion, Canvas, etc.)</Label>
+						<div class="relative">
+							<Link class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+							<Input
+								id="link"
+								name="link"
+								bind:value={$form.link}
+								class="pl-9"
+								placeholder="https://..."
+							/>
+						</div>
+						{#if $errors.link}<span class="text-sm text-destructive">{$errors.link}</span>{/if}
 					</div>
 
 					<div class="grid gap-2">
@@ -234,9 +261,22 @@
 				{#each data.subjects as subject (subject.id)}
 					<Table.Row class="hover:bg-muted/30">
 						<Table.Cell class="align-top font-bold">
-							<div class="flex items-center gap-2 pt-1">
-								<Cuboid class="h-4 w-4 text-muted-foreground" />
-								{subject.nom}
+							<div class="flex flex-col gap-1 pt-1">
+								<div class="flex items-center gap-2">
+									<Cuboid class="h-4 w-4 text-muted-foreground" />
+									{subject.nom}
+								</div>
+								{#if subject.link}
+									<a
+										href={subject.link}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="flex w-fit items-center gap-1 rounded-sm text-[10px] font-medium text-epi-blue hover:underline"
+									>
+										<ExternalLink class="h-3 w-3" />
+										Voir le support
+									</a>
+								{/if}
 							</div>
 						</Table.Cell>
 						<Table.Cell class="align-top">

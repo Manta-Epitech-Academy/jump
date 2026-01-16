@@ -164,6 +164,7 @@ export type SubjectsRecord = {
 	created: IsoAutoDateString
 	description?: string
 	id: string
+	link?: string
 	niveaux: SubjectsNiveauxOptions[]
 	nom: string
 	themes?: RecordIdString[]

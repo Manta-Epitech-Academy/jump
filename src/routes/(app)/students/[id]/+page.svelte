@@ -13,7 +13,8 @@
 		BookOpen,
 		Mail,
 		Phone,
-		Users
+		Users,
+		ExternalLink // Added Import
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Progress } from '$lib/components/ui/progress';
@@ -219,21 +220,36 @@
 
 							<Card.Content class="space-y-3 p-4 pt-2">
 								{#if p.expand?.subject}
-									<div class="flex items-start gap-2 rounded-sm bg-muted/50 p-2">
-										<BookOpen class="mt-0.5 h-4 w-4 text-muted-foreground" />
-										<div>
-											<p class="text-sm font-bold">{p.expand.subject.nom}</p>
-											{#if p.expand.subject.expand?.themes}
-												<div class="mt-1 flex flex-wrap gap-1">
-													{#each p.expand.subject.expand.themes as theme}
-														<span
-															class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
-															>#{theme.nom}</span
-														>
-													{/each}
-												</div>
-											{/if}
+									<div class="flex items-start justify-between gap-2 rounded-sm bg-muted/50 p-2">
+										<div class="flex items-start gap-2">
+											<BookOpen class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+											<div>
+												<p class="text-sm font-bold">{p.expand.subject.nom}</p>
+												{#if p.expand.subject.expand?.themes}
+													<div class="mt-1 flex flex-wrap gap-1">
+														{#each p.expand.subject.expand.themes as theme}
+															<span
+																class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
+																>#{theme.nom}</span
+															>
+														{/each}
+													</div>
+												{/if}
+											</div>
 										</div>
+										{#if p.expand.subject.link}
+											<Button
+												variant="ghost"
+												size="icon"
+												href={p.expand.subject.link}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+												title="Voir le sujet"
+											>
+												<ExternalLink class="h-3.5 w-3.5" />
+											</Button>
+										{/if}
 									</div>
 								{/if}
 
@@ -260,11 +276,11 @@
 				{:else}
 					<div class="py-12 text-center">
 						<div
-							class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4"
+							class="inline-flex items-center justify-center mb-4 h-16 w-16 rounded-full bg-muted"
 						>
 							<Calendar class="h-8 w-8 text-muted-foreground" />
 						</div>
-						<h3 class="text-lg font-bold uppercase text-muted-foreground">Aucun historique</h3>
+						<h3 class="text-lg font-bold text-muted-foreground uppercase">Aucun historique</h3>
 						<p class="text-sm text-muted-foreground">
 							Cet élève n'a pas encore participé à un événement.
 						</p>
