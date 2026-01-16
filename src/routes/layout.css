@@ -29,19 +29,19 @@
 	--radius: 0.125rem; /* 2px */
 
 	--background: var(--color-gray-0);
-	--foreground: var(--color-gray-9);
+	--foreground: #1a1b1e;
 
 	--card: #ffffff;
-	--card-foreground: var(--color-gray-9);
+	--card-foreground: #1a1b1e;
 
 	--popover: #ffffff;
-	--popover-foreground: var(--color-gray-9);
+	--popover-foreground: #1a1b1e;
 
 	--primary: var(--epi-blue);
 	--primary-foreground: #ffffff;
 
 	--secondary: var(--color-gray-1);
-	--secondary-foreground: var(--color-gray-9);
+	--secondary-foreground: #1a1b1e;
 
 	--muted: var(--color-gray-1);
 	--muted-foreground: var(--color-gray-6);
@@ -56,9 +56,8 @@
 	--input: var(--color-gray-3);
 	--ring: var(--epi-blue);
 
-	/* Custom header/sidebar backgrounds if needed distinct from main bg */
-	--header-bg: #292929;
-	--sidebar-bg: #292929;
+	--header-bg: var(--epi-blue);
+	--sidebar-bg: var(--color-gray-0);
 }
 
 .dark {
@@ -166,7 +165,7 @@
 	}
 
 	.sidebar-section-title {
-		@apply mt-4 mb-2 font-heading text-sm tracking-wider text-muted-foreground uppercase;
+		@apply mt-4 mb-2 font-heading text-sm tracking-wider text-epi-blue uppercase;
 	}
 
 	header {
