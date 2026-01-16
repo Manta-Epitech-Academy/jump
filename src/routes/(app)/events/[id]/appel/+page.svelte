@@ -83,8 +83,8 @@
 	let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
 </script>
 
-<div class="flex min-h-screen flex-col bg-gray-50/50 pb-20">
-	<div class="sticky top-0 z-20 border-b bg-white/80 pt-4 pb-4 backdrop-blur-md">
+<div class="flex min-h-screen flex-col bg-background pb-20">
+	<div class="sticky top-0 z-20 border-b border-border bg-background/80 pt-4 pb-4 backdrop-blur-md">
 		<div class="container mx-auto max-w-2xl px-4">
 			<div class="mb-4 flex items-center justify-between">
 				<a
@@ -115,7 +115,7 @@
 
 			<!-- LOGISTICS DASHBOARD -->
 			<div
-				class="mt-4 grid grid-cols-2 gap-4 rounded-sm border bg-slate-900 p-4 text-white shadow-md sm:grid-cols-2"
+				class="mt-4 grid grid-cols-2 gap-4 rounded-sm border border-border bg-slate-900 p-4 text-white shadow-md sm:grid-cols-2 dark:bg-card"
 			>
 				<div class="flex flex-col">
 					<span class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
@@ -139,7 +139,7 @@
 					<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 					<Input
 						placeholder="Rechercher un élève..."
-						class="rounded-sm bg-white pl-9"
+						class="rounded-sm bg-card pl-9"
 						bind:value={searchQuery}
 					/>
 				</div>

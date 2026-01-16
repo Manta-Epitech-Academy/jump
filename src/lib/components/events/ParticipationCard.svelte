@@ -36,9 +36,9 @@
 <div transition:fly={{ y: 10, duration: 200 }}>
 	<Card.Root
 		class="overflow-hidden border-2 shadow-sm transition-all duration-200 {participation.is_validated
-			? 'border-epi-teal bg-white'
+			? 'border-epi-teal bg-card'
 			: participation.is_present
-				? 'border-epi-blue bg-white'
+				? 'border-epi-blue bg-card'
 				: 'border-transparent opacity-80'}"
 	>
 		<Card.Content class="flex flex-col gap-4 p-4">
@@ -48,16 +48,16 @@
 						<Avatar.Root
 							class="h-12 w-12 rounded-sm border-2 {participation.is_present
 								? 'border-epi-blue'
-								: 'border-gray-200'}"
+								: 'border-border'}"
 						>
-							<Avatar.Fallback class="bg-gray-50 font-bold">
+							<Avatar.Fallback class="bg-muted font-bold">
 								{(participation.expand?.student?.prenom?.[0] ?? '').toUpperCase()}
 								{(participation.expand?.student?.nom?.[0] ?? '').toUpperCase()}
 							</Avatar.Fallback>
 						</Avatar.Root>
 						{#if participation.is_validated}
 							<div
-								class="absolute -right-1 -bottom-1 rounded-full bg-epi-teal p-0.5 text-black ring-2 ring-white"
+								class="absolute -right-1 -bottom-1 rounded-full bg-epi-teal p-0.5 text-black ring-2 ring-card"
 							>
 								<CircleCheck class="h-3 w-3" />
 							</div>
@@ -75,14 +75,14 @@
 							{#if participation.bring_pc}
 								<Badge
 									variant="outline"
-									class="h-4 border-purple-200 bg-purple-50 px-1 py-0 text-[9px] text-purple-700"
+									class="h-4 border-purple-200 bg-purple-50 px-1 py-0 text-[9px] text-purple-700 dark:border-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
 								>
 									<Laptop class="mr-1 h-2 w-2" /> Avec PC
 								</Badge>
 							{:else}
 								<Badge
 									variant="outline"
-									class="h-4 border-orange-200 bg-orange-50 px-1 py-0 text-[9px] text-orange-700"
+									class="h-4 border-orange-200 bg-orange-50 px-1 py-0 text-[9px] text-orange-700 dark:border-orange-900 dark:bg-orange-900/30 dark:text-orange-300"
 								>
 									<MonitorX class="mr-1 h-2 w-2" /> Besoin PC
 								</Badge>
@@ -106,7 +106,7 @@
 							size="icon"
 							class="h-12 w-12 rounded-sm transition-all {participation.is_present
 								? 'bg-epi-blue'
-								: 'text-gray-400 hover:text-epi-blue'}"
+								: 'text-muted-foreground hover:text-epi-blue'}"
 						>
 							<User class="h-6 w-6" />
 						</Button>
@@ -127,7 +127,7 @@
 							disabled={!participation.is_present}
 							class="h-12 w-12 rounded-sm transition-all {participation.is_validated
 								? 'bg-epi-teal text-black hover:bg-epi-teal'
-								: 'text-gray-400 hover:text-epi-teal'}"
+								: 'text-muted-foreground hover:text-epi-teal'}"
 						>
 							<Trophy class="h-6 w-6" />
 						</Button>
@@ -161,14 +161,14 @@
 			{/if}
 
 			{#if participation.is_present}
-				<div class="border-t pt-2">
+				<div class="border-t border-border pt-2">
 					<form action="?/updateNote" method="POST" use:enhance class="flex items-center gap-2">
 						<input type="hidden" name="id" value={participation.id} />
 						<Input
 							name="note"
 							value={participation.note}
 							placeholder="Observation (ex: Difficultés sur les boucles...)"
-							class="focus:border-input h-8 border-transparent bg-gray-50 text-xs transition-colors focus:bg-white"
+							class="h-8 border-transparent bg-muted text-xs transition-colors focus:border-input focus:bg-background"
 						/>
 						<Button type="submit" variant="ghost" size="icon" class="h-8 w-8">
 							<Save class="h-3 w-3 text-muted-foreground" />

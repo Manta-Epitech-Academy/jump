@@ -4,50 +4,110 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	/* Epitech Fonts - Using local Fontsource names */
 	--font-sans: 'IBM Plex Sans Variable', sans-serif;
 	--font-heading: 'Anton', sans-serif;
 
-	/* Epitech Palette */
+	/* --- Epitech Brand Colors --- */
 	--epi-blue: #013afb;
 	--epi-teal: #00ff97;
 	--epi-orange: #ff5f3a;
-	--epi-gray-bg: #f8f9fa;
+	--epi-pink: #ff1ef7;
 
-	/* Functional variables */
-	--radius: 0.125rem;
-	--background: var(--epi-gray-bg);
-	--foreground: #1a1b1e;
+	/* --- Gray Scale (Light Mode Defaults) --- */
+	--color-gray-0: #f8f9fa;
+	--color-gray-1: #f1f3f5;
+	--color-gray-2: #e9ecef;
+	--color-gray-3: #dee2e6;
+	--color-gray-4: #ced4da;
+	--color-gray-5: #adb5bd;
+	--color-gray-6: #868e96;
+	--color-gray-7: #495057;
+	--color-gray-8: #343a40;
+	--color-gray-9: #212529;
+
+	/* Functional Variables (Light) */
+	--radius: 0.125rem; /* 2px */
+
+	--background: var(--color-gray-0);
+	--foreground: var(--color-gray-9);
 
 	--card: #ffffff;
-	--card-foreground: #1a1b1e;
+	--card-foreground: var(--color-gray-9);
 
 	--popover: #ffffff;
-	--popover-foreground: #1a1b1e;
+	--popover-foreground: var(--color-gray-9);
 
 	--primary: var(--epi-blue);
 	--primary-foreground: #ffffff;
 
-	--secondary: #f1f3f5;
-	--secondary-foreground: #1a1b1e;
+	--secondary: var(--color-gray-1);
+	--secondary-foreground: var(--color-gray-9);
 
-	--muted: #f1f3f5;
-	--muted-foreground: #868e96;
+	--muted: var(--color-gray-1);
+	--muted-foreground: var(--color-gray-6);
 
 	--accent: rgba(1, 58, 251, 0.1);
 	--accent-foreground: var(--epi-blue);
 
 	--destructive: #fa5252;
-	--border: #dee2e6;
-	--input: #dee2e6;
+	--destructive-foreground: #ffffff;
+
+	--border: var(--color-gray-3);
+	--input: var(--color-gray-3);
 	--ring: var(--epi-blue);
+
+	/* Custom header/sidebar backgrounds if needed distinct from main bg */
+	--header-bg: #292929;
+	--sidebar-bg: #292929;
 }
 
 .dark {
-	--background: #1a1b1e;
-	--foreground: #c1c2c5;
-	--card: #25262b;
-	--border: #373a40;
+	/* --- Dark Scale --- */
+	--color-dark-0: #c9c9c9; /* Text */
+	--color-dark-1: #b8b8b8;
+	--color-dark-2: #828282; /* Dimmed */
+	--color-dark-3: #696969;
+	--color-dark-4: #424242; /* Borders */
+	--color-dark-5: #3b3b3b; /* Hover */
+	--color-dark-6: #2e2e2e; /* Cards / Surface */
+	--color-dark-7: #242424; /* Body Background */
+	--color-dark-8: #1f1f1f; /* Pre/Code blocks */
+	--color-dark-9: #141414;
+
+	/* Brand Adjustments for Dark Mode */
+	--epi-blue: #809dfd;
+
+	/* Functional Variables (Mapped to Epitech Dark Scale) */
+	--background: var(--color-dark-7); /* #242424 */
+	--foreground: var(--color-dark-0); /* #c9c9c9 */
+
+	--card: var(--color-dark-6); /* #2e2e2e */
+	--card-foreground: var(--color-dark-0);
+
+	--popover: var(--color-dark-6);
+	--popover-foreground: var(--color-dark-0);
+
+	--primary: var(--epi-blue);
+	--primary-foreground: #141517;
+
+	--secondary: var(--color-dark-6);
+	--secondary-foreground: var(--color-dark-0);
+
+	--muted: var(--color-dark-6);
+	--muted-foreground: var(--color-dark-2); /* #828282 */
+
+	--accent: rgba(128, 157, 253, 0.15);
+	--accent-foreground: #809dfd;
+
+	--destructive: #ff6b6b;
+	--destructive-foreground: #ffffff;
+
+	--border: var(--color-dark-4); /* #424242 */
+	--input: var(--color-dark-4);
+	--ring: #809dfd;
+
+	--header-bg: var(--color-dark-7);
+	--sidebar-bg: var(--color-dark-7);
 }
 
 @theme inline {
@@ -59,17 +119,26 @@
 	--color-popover-foreground: var(--popover-foreground);
 	--color-primary: var(--primary);
 	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
 	--color-muted: var(--muted);
 	--color-muted-foreground: var(--muted-foreground);
-	--color-destructive: var(--destructive);
-	--color-border: var(--border);
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
 
 	/* Epitech Specifics */
 	--color-epi-blue: var(--epi-blue);
 	--color-epi-teal: var(--epi-teal);
 	--color-epi-orange: var(--epi-orange);
+	--color-epi-pink: var(--epi-pink);
+
+	--color-header: var(--header-bg);
+	--color-sidebar: var(--sidebar-bg);
 
 	--font-sans: var(--font-sans);
 	--font-heading: var(--font-heading);
@@ -84,20 +153,22 @@
 		@apply border-border;
 	}
 	body {
-		@apply bg-background font-sans text-foreground;
+		@apply bg-background font-sans text-foreground antialiased selection:bg-epi-blue selection:text-white;
 	}
 	h1,
 	h2,
 	h3,
-	.font-anton {
-		@apply font-heading font-normal!;
+	h4,
+	h5,
+	h6,
+	.font-heading {
+		@apply font-heading font-normal tracking-wide uppercase;
 	}
 
 	.sidebar-section-title {
-		@apply mt-4 mb-2 font-heading text-sm tracking-wider text-epi-blue uppercase;
+		@apply mt-4 mb-2 font-heading text-sm tracking-wider text-muted-foreground uppercase;
 	}
 
-	/* View Transitions Stability */
 	header {
 		view-transition-name: main-header;
 	}

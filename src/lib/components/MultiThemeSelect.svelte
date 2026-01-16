@@ -45,7 +45,7 @@
 					variant="outline"
 					role="combobox"
 					aria-expanded={open}
-					class="h-auto min-h-[40px] w-full justify-between px-3 py-2"
+					class="h-auto min-h-10 w-full justify-between px-3 py-2"
 					{...props}
 				>
 					<div class="flex flex-wrap gap-2">
@@ -58,11 +58,11 @@
 							{#each value as item}
 								<Badge
 									variant="secondary"
-									class="rounded-sm border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100"
+									class="rounded-sm border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 dark:border-teal-900 dark:bg-teal-900/30 dark:text-teal-100"
 								>
 									{item}
 									<button
-										class="focus:ring-ring ml-1 rounded-full ring-offset-background hover:bg-black/10 focus:ring-2 focus:outline-none"
+										class="ml-1 rounded-full ring-offset-background hover:bg-black/10 focus:ring-2 focus:ring-ring focus:outline-none dark:hover:bg-white/10"
 										onclick={(e) => {
 											e.stopPropagation();
 											removeTheme(item);

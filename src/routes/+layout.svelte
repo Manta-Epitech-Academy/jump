@@ -4,6 +4,7 @@
 	import './layout.css';
 	import { Toaster } from '$lib/components/ui/sonner';
 	import { onNavigate } from '$app/navigation';
+	import { ModeWatcher } from 'mode-watcher';
 
 	let { children } = $props();
 
@@ -21,6 +22,8 @@
 <svelte:head>
 	<title>CodeCamp Manager</title>
 </svelte:head>
+
+<ModeWatcher />
 
 <div style="display: contents">
 	<Toaster richColors position="top-center" />
