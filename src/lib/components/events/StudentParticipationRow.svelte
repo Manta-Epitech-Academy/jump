@@ -33,6 +33,8 @@
 	let dangerAlert = $derived(alerts.find((a: any) => a.type === 'danger'));
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let warningAlert = $derived(alerts.find((a: any) => a.type === 'warning'));
+
+	let subjectForm: HTMLFormElement;
 </script>
 
 <div
@@ -112,26 +114,27 @@
 		{/if}
 
 		<!-- Subject Selection Form -->
-		<form action="?/assignSubject" method="POST" use:enhance>
+		<form
+			action="?/assignSubject"
+			method="POST"
+			use:enhance={() => {
+				return async ({ update }) => {
+					await update();
+				};
+			}}
+			bind:this={subjectForm}
+		>
 			<input type="hidden" name="participationId" value={participation.id} />
+			<input type="hidden" name="subjectId" value={participation.subject || ''} />
+
 			<Select.Root
 				type="single"
-				name="subjectId"
+				value={participation.subject}
 				onValueChange={(v) => {
-					// Manual form submission trigger to avoid needing a save button
-					const form = document.createElement('form');
-					form.method = 'POST';
-					form.action = '?/assignSubject';
-					const pId = document.createElement('input');
-					pId.name = 'participationId';
-					pId.value = participation.id;
-					const sId = document.createElement('input');
-					sId.name = 'subjectId';
-					sId.value = v;
-					form.appendChild(pId);
-					form.appendChild(sId);
-					document.body.appendChild(form);
-					form.submit();
+					const input = subjectForm.querySelector('input[name="subjectId"]') as HTMLInputElement;
+					if (input) input.value = v;
+
+					subjectForm.requestSubmit();
 				}}
 			>
 				<Select.Trigger
