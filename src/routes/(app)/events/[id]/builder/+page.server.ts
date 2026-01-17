@@ -225,6 +225,10 @@ export const actions: Actions = {
 		if (!form.valid) return fail(400, { form });
 
 		try {
+			// 1. Get current event to check if theme changed
+			const currentEvent = await locals.pb.collection('events').getOne(params.id);
+			const oldThemeId = currentEvent.theme;
+
 			if (!dateStr || !timeStr) throw new Error('Date ou heure manquante');
 
 			const [year, month, day] = dateStr.split('-').map(Number);
@@ -232,27 +236,59 @@ export const actions: Actions = {
 			const calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
 			const jsDate = calendarDateTime.toDate(getLocalTimeZone());
 
-			// Theme logic
-			let themeId: string | null = null;
+			// 2. Resolve new Theme ID
+			let newThemeId: string | null = null;
 			if (form.data.theme && form.data.theme.trim() !== '') {
 				const existing = await locals.pb
 					.collection('themes')
 					.getList(1, 1, { filter: `nom = "${form.data.theme.replace(/"/g, '\\"')}"` });
 
 				if (existing.items.length > 0) {
-					themeId = existing.items[0].id;
+					newThemeId = existing.items[0].id;
 				} else {
 					const created = await locals.pb.collection('themes').create({ nom: form.data.theme });
-					themeId = created.id;
+					newThemeId = created.id;
 				}
 			}
 
+			// 3. Update Event
 			await locals.pb.collection('events').update(params.id, {
 				titre: form.data.titre,
 				date: jsDate,
 				statut: form.data.statut,
-				theme: themeId
+				theme: newThemeId
 			});
+
+			// 4. If theme changed, re-run algo for ALL participants
+			if (oldThemeId !== newThemeId) {
+				const participations = await locals.pb.collection('participations').getFullList({
+					filter: `event = "${params.id}"`,
+					requestKey: null // disable auto-cancellation
+				});
+
+				const subjects = await locals.pb.collection('subjects').getFullList();
+
+				// Re-evaluate each student
+				for (const p of participations) {
+
+					if (!p.is_validated) {
+						// Only re-calc if not already finished
+						const newSubjectId = await suggestBestSubject(
+							locals.pb,
+							p.student,
+							subjects,
+							newThemeId
+						);
+
+						if (newSubjectId && newSubjectId !== p.subject) {
+							await locals.pb.collection('participations').update(p.id, {
+								subject: newSubjectId
+							});
+						}
+					}
+				}
+				return message(form, 'Événement mis à jour et sujets recalculés !');
+			}
 
 			return message(form, 'Événement mis à jour !');
 		} catch (err) {
