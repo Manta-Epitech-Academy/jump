@@ -1,5 +1,14 @@
 <script lang="ts">
-	import { LogOut, LayoutDashboard, Users, Cuboid, Plus, ChevronDown, Menu } from 'lucide-svelte';
+	import {
+		LogOut,
+		LayoutDashboard,
+		Users,
+		Cuboid,
+		Plus,
+		ChevronDown,
+		Menu,
+		History
+	} from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -85,6 +94,10 @@
 					<a href="/" class={navLinkClass(isActive('/'))}>
 						<LayoutDashboard class="h-5 w-5" />
 						<span>Dashboard</span>
+					</a>
+					<a href="/events/history" class={navLinkClass(isActive('/events/history'))}>
+						<History class="h-5 w-5" />
+						<span>Historique</span>
 					</a>
 				</nav>
 
