@@ -302,7 +302,6 @@ export const actions: Actions = {
 								event: newEventId,
 								subject: subjectId,
 								is_present: false,
-								is_validated: false,
 								bring_pc: item.bring_pc
 							});
 						}

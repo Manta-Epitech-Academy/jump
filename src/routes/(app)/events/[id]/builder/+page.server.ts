@@ -37,14 +37,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 			if (student && currentSubject) {
 				const history = await locals.pb.collection('participations').getList(1, 1, {
-					filter: `student = "${student.id}" && subject = "${currentSubject.id}" && is_validated = true && event != "${event.id}"`,
+					filter: `student = "${student.id}" && subject = "${currentSubject.id}" && is_present = true && event != "${event.id}"`,
 					requestKey: null
 				});
 
 				if (history.totalItems > 0) {
 					alerts.push({
 						type: 'danger',
-						message: 'DÉJÀ VALIDÉ : Cet élève a déjà réussi ce sujet par le passé.'
+						message: 'DÉJÀ FAIT : Cet élève a déjà suivi ce sujet par le passé.'
 					});
 				}
 
@@ -148,8 +148,7 @@ export const actions: Actions = {
 				student: form.data.studentId,
 				event: params.id,
 				subject: suggestedSubjectId,
-				is_present: false,
-				is_validated: false
+				is_present: false
 			});
 
 			return message(form, 'Élève ajouté avec une suggestion intelligente !');
@@ -196,8 +195,7 @@ export const actions: Actions = {
 				student: newStudent.id,
 				event: params.id,
 				subject: suggestedSubjectId,
-				is_present: false,
-				is_validated: false
+				is_present: false
 			});
 			return message(form, 'Élève créé et assigné automatiquement !');
 		} catch (err) {
@@ -271,8 +269,8 @@ export const actions: Actions = {
 
 				// Re-evaluate each student
 				for (const p of participations) {
-					if (!p.is_validated) {
-						// Only re-calc if not already finished
+					if (!p.is_present) {
+						// Only re-calc if not already marked present (finished)
 						const newSubjectId = await suggestBestSubject(
 							locals.pb,
 							p.student,
@@ -306,7 +304,7 @@ export const actions: Actions = {
 				expand: 'subject'
 			});
 
-			if (p.is_validated) {
+			if (p.is_present) {
 				const subject = p.expand?.subject;
 				const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
 
@@ -327,7 +325,7 @@ export const actions: Actions = {
 	deleteEvent: async ({ params, locals }) => {
 		try {
 			const participations = await locals.pb.collection('participations').getFullList({
-				filter: `event = "${params.id}" && is_validated = true`,
+				filter: `event = "${params.id}" && is_present = true`,
 				expand: 'subject'
 			});
 
@@ -397,8 +395,7 @@ export const actions: Actions = {
 						student: studentId,
 						event: eventId,
 						subject: subjectId,
-						is_present: false,
-						is_validated: false
+						is_present: false
 					});
 				}
 			} catch (e) {

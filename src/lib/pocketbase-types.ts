@@ -118,7 +118,6 @@ export type ParticipationsRecord = {
 	event?: RecordIdString
 	id: string
 	is_present?: boolean
-	is_validated?: boolean
 	note?: string
 	student: RecordIdString
 	subject?: RecordIdString

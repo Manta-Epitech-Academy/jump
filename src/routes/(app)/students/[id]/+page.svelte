@@ -14,7 +14,7 @@
 		Mail,
 		Phone,
 		Users,
-		ExternalLink // Added Import
+		ExternalLink
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Progress } from '$lib/components/ui/progress';
@@ -72,7 +72,7 @@
 			<Card.Root class="overflow-hidden border-t-4 border-t-epi-blue shadow-md">
 				<Card.Header class="items-center pb-2 text-center">
 					<Avatar.Root class="h-24 w-24 border-4 border-muted bg-white shadow-sm">
-						<Avatar.Fallback class="bg-secondary text-secondary-foreground text-2xl font-bold">
+						<Avatar.Fallback class="bg-secondary text-2xl font-bold text-secondary-foreground">
 							{getInitials(data.student.prenom, data.student.nom)}
 						</Avatar.Fallback>
 					</Avatar.Root>
@@ -145,12 +145,6 @@
 							<div class="text-lg font-bold">{data.stats.presentCount}</div>
 							<div class="text-[9px] font-bold text-muted-foreground uppercase">Présences</div>
 						</div>
-						<div class="rounded-sm bg-muted/30 p-2">
-							<div class="text-lg font-bold text-teal-600">
-								{data.stats.validatedCount}
-							</div>
-							<div class="text-[9px] font-bold text-muted-foreground uppercase">Validés</div>
-						</div>
 					</div>
 
 					<Button variant="outline" class="w-full" onclick={() => (editOpen = true)}>
@@ -179,15 +173,9 @@
 						<!-- TIMELINE DOT -->
 						<div
 							class="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-background shadow-sm md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2
-							{p.is_validated
-								? 'bg-epi-teal text-black'
-								: p.is_present
-									? 'bg-epi-blue text-white'
-									: 'bg-gray-200 text-gray-400'}"
+							{p.is_present ? 'bg-epi-teal text-black' : 'bg-gray-200 text-gray-400'}"
 						>
-							{#if p.is_validated}
-								<Trophy class="h-5 w-5" />
-							{:else if p.is_present}
+							{#if p.is_present}
 								<CircleCheck class="h-5 w-5" />
 							{:else}
 								<CircleX class="h-5 w-5" />

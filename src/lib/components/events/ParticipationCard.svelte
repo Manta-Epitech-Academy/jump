@@ -5,16 +5,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
-	import {
-		CircleCheck,
-		Save,
-		Trophy,
-		User,
-		Laptop,
-		MonitorX,
-		ExternalLink,
-		BookOpen
-	} from 'lucide-svelte';
+	import { CircleCheck, Save, User, Laptop, MonitorX, ExternalLink, BookOpen } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 
 	let {
@@ -24,7 +15,7 @@
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		participation: any;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		optimisticToggle: (id: string, field: 'is_present' | 'is_validated' | 'bring_pc') => any;
+		optimisticToggle: (id: string, field: 'is_present' | 'bring_pc') => any;
 	} = $props();
 
 	function formatFirstName(name: string | undefined) {
@@ -35,11 +26,9 @@
 
 <div transition:fly={{ y: 10, duration: 200 }}>
 	<Card.Root
-		class="overflow-hidden border-2 shadow-sm transition-all duration-200 {participation.is_validated
+		class="overflow-hidden border-2 shadow-sm transition-all duration-200 {participation.is_present
 			? 'border-epi-teal bg-card'
-			: participation.is_present
-				? 'border-epi-blue bg-card'
-				: 'border-transparent opacity-80'}"
+			: 'border-transparent opacity-80'}"
 	>
 		<Card.Content class="flex flex-col gap-4 p-4">
 			<div class="flex w-full items-center justify-between">
@@ -47,7 +36,7 @@
 					<div class="relative">
 						<Avatar.Root
 							class="h-12 w-12 rounded-sm border-2 {participation.is_present
-								? 'border-epi-blue'
+								? 'border-epi-teal'
 								: 'border-border'}"
 						>
 							<Avatar.Fallback class="bg-muted font-bold">
@@ -55,7 +44,7 @@
 								{(participation.expand?.student?.nom?.[0] ?? '').toUpperCase()}
 							</Avatar.Fallback>
 						</Avatar.Root>
-						{#if participation.is_validated}
+						{#if participation.is_present}
 							<div
 								class="absolute -right-1 -bottom-1 rounded-full bg-epi-teal p-0.5 text-black ring-2 ring-card"
 							>
@@ -105,31 +94,10 @@
 							variant={participation.is_present ? 'default' : 'outline'}
 							size="icon"
 							class="h-12 w-12 rounded-sm transition-all {participation.is_present
-								? 'bg-epi-blue'
-								: 'text-muted-foreground hover:text-epi-blue'}"
-						>
-							<User class="h-6 w-6" />
-						</Button>
-					</form>
-
-					<!-- Validated Toggle -->
-					<form
-						method="POST"
-						action="?/toggleValidated"
-						use:enhance={optimisticToggle(participation.id, 'is_validated')}
-					>
-						<input type="hidden" name="id" value={participation.id} />
-						<input type="hidden" name="state" value={participation.is_validated.toString()} />
-						<Button
-							type="submit"
-							variant={participation.is_validated ? 'default' : 'outline'}
-							size="icon"
-							disabled={!participation.is_present}
-							class="h-12 w-12 rounded-sm transition-all {participation.is_validated
 								? 'bg-epi-teal text-black hover:bg-epi-teal'
 								: 'text-muted-foreground hover:text-epi-teal'}"
 						>
-							<Trophy class="h-6 w-6" />
+							<User class="h-6 w-6" />
 						</Button>
 					</form>
 				</div>

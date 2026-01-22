@@ -33,7 +33,7 @@
 	import { formatDateFr } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import StudentParticipationRow from '$lib/components/events/StudentParticipationRow.svelte';
-	import SubjectPicker from '$lib/components/events/SubjectPicker.svelte'; // New Import
+	import SubjectPicker from '$lib/components/events/SubjectPicker.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data }: { data: PageData } = $props();

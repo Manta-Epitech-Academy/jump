@@ -13,7 +13,7 @@
 
 	let participations = $state(untrack(() => data.participations));
 	let searchQuery = $state('');
-	let filterStatus = $state<'all' | 'present' | 'validated'>('all');
+	let filterStatus = $state<'all' | 'present'>('all');
 
 	$effect(() => {
 		participations = data.participations;
@@ -33,7 +33,6 @@
 						participations[index] = {
 							...participations[index],
 							is_present: e.record.is_present,
-							is_validated: e.record.is_validated,
 							bring_pc: e.record.bring_pc,
 							note: e.record.note
 						};
@@ -48,14 +47,13 @@
 		};
 	});
 
-	const optimisticToggle = (id: string, field: 'is_present' | 'is_validated' | 'bring_pc') => {
+	const optimisticToggle = (id: string, field: 'is_present' | 'bring_pc') => {
 		return ({ formData }: { formData: FormData }) => {
 			const index = participations.findIndex((p) => p.id === id);
 			if (index !== -1) {
 				const p = participations[index];
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				if (field === 'is_present') p.is_present = !p.is_present;
-				if (field === 'is_validated') p.is_validated = !p.is_validated;
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
 			}
@@ -70,13 +68,11 @@
 				p.expand?.student?.prenom.toLowerCase().includes(searchQuery.toLowerCase());
 			if (!matchesSearch) return false;
 			if (filterStatus === 'present') return p.is_present;
-			if (filterStatus === 'validated') return p.is_validated;
 			return true;
 		})
 	);
 
 	let presentCount = $derived(participations.filter((p) => p.is_present).length);
-	let validatedCount = $derived(participations.filter((p) => p.is_validated).length);
 
 	// Logistics Metrics
 	let totalStudents = $derived(participations.length);
@@ -95,14 +91,9 @@
 				</a>
 				<div class="flex gap-2">
 					<div
-						class="rounded-sm bg-epi-blue px-2 py-0.5 text-[10px] font-black text-white uppercase"
-					>
-						{presentCount} Présents
-					</div>
-					<div
 						class="rounded-sm bg-epi-teal px-2 py-0.5 text-[10px] font-black text-black uppercase"
 					>
-						{validatedCount} Validés
+						{presentCount} Présents
 					</div>
 				</div>
 			</div>
@@ -155,12 +146,6 @@
 						size="sm"
 						class="h-9 text-[10px]"
 						onclick={() => (filterStatus = 'present')}>Présents</Button
-					>
-					<Button
-						variant={filterStatus === 'validated' ? 'default' : 'outline'}
-						size="sm"
-						class="h-9 text-[10px]"
-						onclick={() => (filterStatus = 'validated')}>Validés</Button
 					>
 				</div>
 			</div>

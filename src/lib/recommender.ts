@@ -4,7 +4,7 @@ import { getSubjectXpValue } from './xp';
 /**
  * Intelligent Algorithm to guess the best subject for a student.
  * 1. Filters subjects by the student's school level.
- * 2. Excludes subjects the student has already validated.
+ * 2. Excludes subjects the student has already completed (is_present).
  * 3. Prioritizes subjects matching the Event Theme.
  * 4. Prioritizes subjects with higher XP values (progression).
  */
@@ -18,20 +18,20 @@ export async function suggestBestSubject(
 		// 1. Get student details
 		const student = await pb.collection('students').getOne(studentId);
 
-		// 2. Get student's validated history to avoid repeats
-		const validatedParticipations = await pb.collection('participations').getFullList({
-			filter: `student = "${studentId}" && is_validated = true`,
+		// 2. Get student's presence history to avoid repeats
+		const completedParticipations = await pb.collection('participations').getFullList({
+			filter: `student = "${studentId}" && is_present = true`,
 			fields: 'subject'
 		});
-		const validatedSubjectIds = validatedParticipations.map((p) => p.subject);
+		const completedSubjectIds = completedParticipations.map((p) => p.subject);
 
 		// 3. Filter and Score subjects
 		const recommendations = subjects
 			.filter((sub) => {
 				// Must match student level
 				const levelMatch = sub.niveaux && sub.niveaux.includes(student.niveau);
-				// Must not be already validated
-				const alreadyDone = validatedSubjectIds.includes(sub.id);
+				// Must not be already done
+				const alreadyDone = completedSubjectIds.includes(sub.id);
 				return levelMatch && !alreadyDone;
 			})
 			.map((sub) => {

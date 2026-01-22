@@ -17,13 +17,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		const stats = {
 			totalEvents: participations.length,
 			presentCount: participations.filter((p) => p.is_present).length,
-			validatedCount: participations.filter((p) => p.is_validated).length,
 			favoriteTheme: 'Aucun'
 		};
 
 		const themeCounts: Record<string, number> = {};
 		participations.forEach((p) => {
-			if (p.is_validated && p.expand?.subject?.expand?.themes) {
+			if (p.is_present && p.expand?.subject?.expand?.themes) {
 				const themes = p.expand.subject.expand.themes;
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				themes.forEach((t: any) => {

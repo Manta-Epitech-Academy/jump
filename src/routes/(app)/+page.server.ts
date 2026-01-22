@@ -36,9 +36,9 @@ export const actions: Actions = {
 		if (!id) return fail(400);
 
 		try {
-			// 1. Get all validated participations to revert XP before deleting
+			// 1. Get all present participations to revert XP before deleting
 			const participations = await locals.pb.collection('participations').getFullList({
-				filter: `event = "${id}" && is_validated = true`,
+				filter: `event = "${id}" && is_present = true`,
 				expand: 'subject'
 			});
 

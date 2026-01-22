@@ -36,40 +36,24 @@ export const actions: Actions = {
 		const currentState = data.get('state') === 'true';
 
 		try {
-			await locals.pb.collection('participations').update(id, {
-				is_present: !currentState
-			});
-			return { success: true };
-		} catch (err) {
-			return fail(500, { error: 'Erreur mise à jour présence' });
-		}
-	},
-
-	toggleValidated: async ({ request, locals }) => {
-		const data = await request.formData();
-		const id = data.get('id') as string;
-		const currentState = data.get('state') === 'true';
-
-		try {
 			const p = await locals.pb.collection('participations').getOne(id, {
 				expand: 'subject'
 			});
 
 			const studentId = p.student;
-			const isNowValidated = !currentState;
+			const isNowPresent = !currentState;
 
-			// XP Logic: Theme events have no metadata.
 			// If a specific subject is assigned to this participation, use its levels.
 			// Otherwise, grant a default of 20 XP.
 			const subject = p.expand?.subject;
 			const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
 
 			await locals.pb.collection('participations').update(id, {
-				is_validated: isNowValidated
+				is_present: isNowPresent
 			});
 
-			const xpChange = isNowValidated ? xpValue : -xpValue;
-			const eventChange = isNowValidated ? 1 : -1;
+			const xpChange = isNowPresent ? xpValue : -xpValue;
+			const eventChange = isNowPresent ? 1 : -1;
 
 			await locals.pb.collection('students').update(studentId, {
 				'xp+': xpChange,
@@ -78,8 +62,8 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			console.error('Error updating XP:', err);
-			return fail(500, { error: 'Erreur mise à jour validation' });
+			console.error('Error updating presence/XP:', err);
+			return fail(500, { error: 'Erreur mise à jour présence' });
 		}
 	},
 
