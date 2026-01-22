@@ -70,6 +70,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: 'nom',
+		expand: 'themes',
 		requestKey: null
 	});
 
@@ -270,7 +271,6 @@ export const actions: Actions = {
 
 				// Re-evaluate each student
 				for (const p of participations) {
-
 					if (!p.is_validated) {
 						// Only re-calc if not already finished
 						const newSubjectId = await suggestBestSubject(

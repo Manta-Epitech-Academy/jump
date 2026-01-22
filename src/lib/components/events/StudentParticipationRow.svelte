@@ -1,24 +1,22 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import * as Select from '$lib/components/ui/select';
-	import { Separator } from '$lib/components/ui/separator';
 	import { ArrowRightLeft, Ban, Sparkles, Trash2, TriangleAlert } from 'lucide-svelte';
 
 	let {
 		participation,
-		subjects,
 		isUnassigned = false,
-		onDelete
+		onDelete,
+		onAssignSubject
 	}: {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		participation: any;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		subjects: any[];
+		subjects?: any[];
 		isUnassigned?: boolean;
 		onDelete: (id: string) => void;
+		onAssignSubject: (participationId: string, currentSubjectId: string | null) => void;
 	} = $props();
 
 	function formatFirstName(name: string | undefined) {
@@ -33,8 +31,6 @@
 	let dangerAlert = $derived(alerts.find((a: any) => a.type === 'danger'));
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let warningAlert = $derived(alerts.find((a: any) => a.type === 'warning'));
-
-	let subjectForm: HTMLFormElement;
 </script>
 
 <div
@@ -113,49 +109,18 @@
 			{/if}
 		{/if}
 
-		<!-- Subject Selection Form -->
-		<form
-			action="?/assignSubject"
-			method="POST"
-			use:enhance={() => {
-				return async ({ update }) => {
-					await update();
-				};
-			}}
-			bind:this={subjectForm}
+		<!-- Trigger the Subject Picker Modal -->
+		<Button
+			variant="outline"
+			size="sm"
+			class="h-8 gap-2 px-3 text-[10px] font-bold uppercase transition-opacity {isUnassigned
+				? 'border-epi-orange text-epi-orange opacity-100 hover:bg-epi-orange hover:text-white'
+				: 'opacity-0 group-hover:opacity-100'}"
+			onclick={() => onAssignSubject(participation.id, participation.subject)}
 		>
-			<input type="hidden" name="participationId" value={participation.id} />
-			<input type="hidden" name="subjectId" value={participation.subject || ''} />
-
-			<Select.Root
-				type="single"
-				value={participation.subject}
-				onValueChange={(v) => {
-					const input = subjectForm.querySelector('input[name="subjectId"]') as HTMLInputElement;
-					if (input) input.value = v;
-
-					subjectForm.requestSubmit();
-				}}
-			>
-				<Select.Trigger
-					class="h-8 w-[170px] px-3 text-[10px] font-bold uppercase transition-opacity {isUnassigned
-						? 'border-epi-orange text-epi-orange opacity-100'
-						: 'opacity-0 group-hover:opacity-100'}"
-				>
-					<ArrowRightLeft class="mr-1 h-3 w-3" />
-					{isUnassigned ? 'Assigner sujet' : 'Changer de sujet'}
-				</Select.Trigger>
-				<Select.Content>
-					{#if !isUnassigned}
-						<Select.Item value="none" class="text-destructive">Retirer du sujet</Select.Item>
-						<Separator class="my-1" />
-					{/if}
-					{#each subjects as sub}
-						<Select.Item value={sub.id}>{sub.nom}</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</form>
+			<ArrowRightLeft class="h-3 w-3" />
+			{isUnassigned ? 'Assigner sujet' : 'Changer de sujet'}
+		</Button>
 
 		<Button
 			variant="ghost"

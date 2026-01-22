@@ -33,6 +33,7 @@
 	import { formatDateFr } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import StudentParticipationRow from '$lib/components/events/StudentParticipationRow.svelte';
+	import SubjectPicker from '$lib/components/events/SubjectPicker.svelte'; // New Import
 	import { enhance } from '$app/forms';
 
 	let { data }: { data: PageData } = $props();
@@ -82,6 +83,13 @@
 	let deleteEventDialogOpen = $state(false);
 	let deleteParticipationDialogOpen = $state(false);
 	let participationToDelete = $state<string | null>(null);
+
+	// --- Subject Picker State ---
+	let pickerOpen = $state(false);
+	let pickerParticipationId = $state<string | null>(null);
+	let pickerCurrentSubjectId = $state<string | null>(null);
+	let pickerStudentLevel = $state<string | null>(null);
+	let assignmentForm: HTMLFormElement;
 
 	let participationGroups = $derived.by(() => {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,6 +157,33 @@
 	function confirmDeleteParticipation(id: string) {
 		participationToDelete = id;
 		deleteParticipationDialogOpen = true;
+	}
+
+	// --- Subject Picker Handlers ---
+	function openSubjectPicker(participationId: string, currentSubjectId: string | null) {
+		pickerParticipationId = participationId;
+		pickerCurrentSubjectId = currentSubjectId;
+
+		const p = data.participations.find((x) => x.id === participationId);
+		pickerStudentLevel = p?.expand?.student?.niveau || null;
+
+		pickerOpen = true;
+	}
+
+	function handleSubjectPicked(subjectId: string | null) {
+		if (!pickerParticipationId) return;
+
+		// Set values in the hidden form and submit
+		const pIdInput = assignmentForm.querySelector(
+			'input[name="participationId"]'
+		) as HTMLInputElement;
+		const sIdInput = assignmentForm.querySelector('input[name="subjectId"]') as HTMLInputElement;
+
+		if (pIdInput && sIdInput) {
+			pIdInput.value = pickerParticipationId;
+			sIdInput.value = subjectId || 'none';
+			assignmentForm.requestSubmit();
+		}
 	}
 
 	const niveauxScolaires = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
@@ -350,9 +385,9 @@
 								{#each participationGroups.unassigned as p (p.id)}
 									<StudentParticipationRow
 										participation={p}
-										subjects={data.subjects}
 										isUnassigned={true}
 										onDelete={confirmDeleteParticipation}
+										onAssignSubject={openSubjectPicker}
 									/>
 								{/each}
 							</div>
@@ -372,8 +407,8 @@
 								{#each members as p (p.id)}
 									<StudentParticipationRow
 										participation={p}
-										subjects={data.subjects}
 										onDelete={confirmDeleteParticipation}
+										onAssignSubject={openSubjectPicker}
 									/>
 								{/each}
 							</div>
@@ -488,6 +523,22 @@
 		</div>
 	</div>
 </div>
+
+<!-- Hidden form for Subject Assignment -->
+<form action="?/assignSubject" method="POST" use:enhance bind:this={assignmentForm} class="hidden">
+	<input type="hidden" name="participationId" />
+	<input type="hidden" name="subjectId" />
+</form>
+
+<!-- Global Subject Picker Modal -->
+<SubjectPicker
+	bind:open={pickerOpen}
+	subjects={data.subjects}
+	themes={data.themes}
+	currentSubjectId={pickerCurrentSubjectId}
+	studentLevel={pickerStudentLevel}
+	onSelect={handleSubjectPicked}
+/>
 
 <AlertDialog.Root bind:open={deleteEventDialogOpen}>
 	<AlertDialog.Content>
