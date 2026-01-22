@@ -154,7 +154,7 @@
 
 	<div class="container mx-auto mt-6 max-w-2xl space-y-3 px-4">
 		{#each filteredParticipations as p (p.id)}
-			<ParticipationCard participation={p} {optimisticToggle} />
+			<ParticipationCard participation={p} event={data.event} {optimisticToggle} />
 		{:else}
 			<div class="py-20 text-center">
 				<p class="font-bold text-muted-foreground uppercase">Aucun élève à afficher.</p>

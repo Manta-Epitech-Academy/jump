@@ -5,15 +5,29 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
-	import { CircleCheck, Save, User, Laptop, MonitorX, ExternalLink, BookOpen } from 'lucide-svelte';
+	import {
+		CircleCheck,
+		Save,
+		User,
+		Laptop,
+		MonitorX,
+		ExternalLink,
+		BookOpen,
+		Award
+	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
+	import { generateDiploma } from '$lib/pdfUtils';
+	import { toast } from 'svelte-sonner';
 
 	let {
 		participation = $bindable(),
+		event,
 		optimisticToggle
 	}: {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		participation: any;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		event: any;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		optimisticToggle: (id: string, field: 'is_present' | 'bring_pc') => any;
 	} = $props();
@@ -21,6 +35,21 @@
 	function formatFirstName(name: string | undefined) {
 		if (!name) return '';
 		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+	}
+
+	function handleDownload() {
+		if (!participation.is_present) {
+			toast.error("L'élève doit être présent pour recevoir un diplôme.");
+			return;
+		}
+
+		try {
+			generateDiploma(participation.expand.student, event, participation.expand.subject);
+			toast.success(`Diplôme généré pour ${participation.expand.student.prenom}`);
+		} catch (e) {
+			console.error(e);
+			toast.error('Erreur lors de la génération du PDF');
+		}
 	}
 </script>
 
@@ -81,6 +110,18 @@
 				</div>
 
 				<div class="flex items-center gap-2">
+					{#if participation.is_present}
+						<Button
+							variant="outline"
+							size="icon"
+							class="h-12 w-12 rounded-sm border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
+							onclick={handleDownload}
+							title="Télécharger le diplôme"
+						>
+							<Award class="h-6 w-6" />
+						</Button>
+					{/if}
+
 					<!-- Present Toggle -->
 					<form
 						method="POST"
