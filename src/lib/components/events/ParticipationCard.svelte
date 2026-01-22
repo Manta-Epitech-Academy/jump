@@ -16,13 +16,13 @@
 		Award
 	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
-	import { generateDiploma } from '$lib/pdfUtils';
 	import { toast } from 'svelte-sonner';
 
 	let {
 		participation = $bindable(),
 		event,
-		optimisticToggle
+		optimisticToggle,
+		onDownload
 	}: {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		participation: any;
@@ -30,6 +30,7 @@
 		event: any;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		optimisticToggle: (id: string, field: 'is_present' | 'bring_pc') => any;
+		onDownload?: () => void;
 	} = $props();
 
 	function formatFirstName(name: string | undefined) {
@@ -37,19 +38,12 @@
 		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 	}
 
-	function handleDownload() {
+	function handleDownloadClick() {
 		if (!participation.is_present) {
 			toast.error("L'élève doit être présent pour recevoir un diplôme.");
 			return;
 		}
-
-		try {
-			generateDiploma(participation.expand.student, event, participation.expand.subject);
-			toast.success(`Diplôme généré pour ${participation.expand.student.prenom}`);
-		} catch (e) {
-			console.error(e);
-			toast.error('Erreur lors de la génération du PDF');
-		}
+		if (onDownload) onDownload();
 	}
 </script>
 
@@ -115,7 +109,7 @@
 							variant="outline"
 							size="icon"
 							class="h-12 w-12 rounded-sm border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
-							onclick={handleDownload}
+							onclick={handleDownloadClick}
 							title="Télécharger le diplôme"
 						>
 							<Award class="h-6 w-6" />

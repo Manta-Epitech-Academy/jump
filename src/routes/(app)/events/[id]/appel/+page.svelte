@@ -8,12 +8,22 @@
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import ParticipationCard from '$lib/components/events/ParticipationCard.svelte';
+	import DiplomaTemplate from '$lib/components/diploma/DiplomaTemplate.svelte';
+	import { generateDiplomaFromHTML } from '$lib/pdfUtils';
+	import { toast } from 'svelte-sonner';
 
 	let { data }: { data: PageData } = $props();
 
 	let participations = $state(untrack(() => data.participations));
 	let searchQuery = $state('');
 	let filterStatus = $state<'all' | 'present'>('all');
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let diplomaData = $state<{ student: any; event: any; subject: any }>({
+		student: null,
+		event: null,
+		subject: null
+	});
 
 	$effect(() => {
 		participations = data.participations;
@@ -77,6 +87,29 @@
 	// Logistics Metrics
 	let totalStudents = $derived(participations.length);
 	let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
+
+	// --- DIPLOMA HANDLER ---
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	async function handleDiplomaDownload(participation: any) {
+		// Update data for the hidden template
+		diplomaData = {
+			student: participation.expand.student,
+			event: data.event,
+			subject: participation.expand.subject
+		};
+
+		// Allow slight delay for DOM to update the hidden component
+		setTimeout(async () => {
+			try {
+				const filename = `Diplome_${participation.expand.student.nom}_${participation.expand.student.prenom}.pdf`;
+				await generateDiplomaFromHTML('diploma-render-target', filename);
+				toast.success('Diplôme téléchargé !');
+			} catch (e) {
+				console.error(e);
+				toast.error('Erreur lors de la génération du PDF');
+			}
+		}, 100);
+	}
 </script>
 
 <div class="flex min-h-screen flex-col bg-background pb-20">
@@ -154,11 +187,28 @@
 
 	<div class="container mx-auto mt-6 max-w-2xl space-y-3 px-4">
 		{#each filteredParticipations as p (p.id)}
-			<ParticipationCard participation={p} event={data.event} {optimisticToggle} />
+			<ParticipationCard
+				participation={p}
+				event={data.event}
+				{optimisticToggle}
+				onDownload={() => handleDiplomaDownload(p)}
+			/>
 		{:else}
 			<div class="py-20 text-center">
 				<p class="font-bold text-muted-foreground uppercase">Aucun élève à afficher.</p>
 			</div>
 		{/each}
 	</div>
+</div>
+
+<!-- HIDDEN RENDER TARGET FOR DIPLOMAS -->
+<!-- Positioned far off-screen so user doesn't see it flickering, but html2canvas can capture it. -->
+<div class="fixed top-0 left-[-9999px] z-[-1]">
+	{#if diplomaData.student}
+		<DiplomaTemplate
+			student={diplomaData.student}
+			event={diplomaData.event}
+			subject={diplomaData.subject}
+		/>
+	{/if}
 </div>
