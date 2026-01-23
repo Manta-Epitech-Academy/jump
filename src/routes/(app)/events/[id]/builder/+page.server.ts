@@ -4,7 +4,6 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import { studentSchema } from '$lib/validation/students';
-import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
 import { getSubjectXpValue } from '$lib/xp';
 import { suggestBestSubject } from '$lib/recommender';
 import { type CsvStudent } from '$lib/csvUtils';
@@ -221,7 +220,9 @@ export const actions: Actions = {
 
 		const form = await superValidate(transformedData, zod4(eventSchema));
 
-		if (!form.valid) return fail(400, { form });
+		if (!form.valid) {
+			return fail(400, { form });
+		}
 
 		try {
 			// 1. Get current event to check if theme changed
@@ -230,10 +231,14 @@ export const actions: Actions = {
 
 			if (!dateStr || !timeStr) throw new Error('Date ou heure manquante');
 
-			const [year, month, day] = dateStr.split('-').map(Number);
-			const [hour, minute] = timeStr.split(':').map(Number);
-			const calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
-			const jsDate = calendarDateTime.toDate(getLocalTimeZone());
+			const cleanDateStr = dateStr.split('T')[0];
+			const dateToParse = `${cleanDateStr}T${timeStr}:00`;
+
+			const jsDate = new Date(dateToParse);
+
+			if (isNaN(jsDate.getTime())) {
+				return message(form, 'Format de date invalide', { status: 400 });
+			}
 
 			// 2. Resolve new Theme ID
 			let newThemeId: string | null = null;

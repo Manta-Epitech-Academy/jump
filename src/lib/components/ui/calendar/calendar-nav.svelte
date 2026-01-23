@@ -13,7 +13,7 @@
 <nav
 	{...restProps}
 	bind:this={ref}
-	class={cn("absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1", className)}
+	class={cn("absolute inset-x-0 top-0 z-10 flex w-full items-center justify-between gap-1 pointer-events-none", className)}
 >
 	{@render children?.()}
 </nav>

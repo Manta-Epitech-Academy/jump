@@ -21,19 +21,17 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Select from '$lib/components/ui/select';
-	import * as Popover from '$lib/components/ui/popover';
-	import { Calendar } from '$lib/components/ui/calendar';
 	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { toast } from 'svelte-sonner';
-	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
+	import { CalendarDateTime } from '@internationalized/date';
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { formatDateFr } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import StudentParticipationRow from '$lib/components/events/StudentParticipationRow.svelte';
 	import SubjectPicker from '$lib/components/events/SubjectPicker.svelte';
+	import DatePicker from '$lib/components/DatePicker.svelte';
 	import { enhance } from '$app/forms';
 
 	let { data }: { data: PageData } = $props();
@@ -122,7 +120,6 @@
 	}
 
 	let dateValue = $state<CalendarDateTime | undefined>(parseInitialDate($editForm.date));
-	let popoverOpen = $state(false);
 	const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 	const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
 	let hour = $state($editForm.time?.split(':')[0] || '14');
@@ -133,9 +130,16 @@
 			const y = dateValue.year;
 			const m = String(dateValue.month).padStart(2, '0');
 			const d = String(dateValue.day).padStart(2, '0');
-			$editForm.date = `${y}-${m}-${d}`;
+			const newDateStr = `${y}-${m}-${d}`;
+			if ($editForm.date !== newDateStr) {
+				console.log(`[DEBUG] Updating form date from ${$editForm.date} to ${newDateStr}`);
+				$editForm.date = newDateStr;
+			}
 		}
-		$editForm.time = `${hour}:${minute}`;
+		const newTime = `${hour}:${minute}`;
+		if ($editForm.time !== newTime) {
+			$editForm.time = newTime;
+		}
 	});
 
 	let filteredStudents = $derived(
@@ -255,29 +259,7 @@
 							<div class="grid grid-cols-2 gap-4">
 								<div class="space-y-2">
 									<Label>Date</Label>
-									<Popover.Root bind:open={popoverOpen}>
-										<Popover.Trigger>
-											{#snippet child({ props })}
-												<Button
-													variant="outline"
-													class="w-full justify-start text-left font-normal"
-													{...props}
-												>
-													<CalendarIcon class="mr-2 h-4 w-4" />
-													{formatDateFr(dateValue)}
-												</Button>
-											{/snippet}
-										</Popover.Trigger>
-										<Popover.Content class="w-auto p-0">
-											<Calendar
-												type="single"
-												bind:value={dateValue}
-												onValueChange={() => (popoverOpen = false)}
-												minValue={today(getLocalTimeZone())}
-											/>
-										</Popover.Content>
-									</Popover.Root>
-									<input type="hidden" name="date" value={$editForm.date} />
+									<DatePicker bind:value={dateValue} name="date" />
 									{#if $editErrors.date}<p class="text-xs text-destructive">
 											{$editErrors.date}
 										</p>{/if}
@@ -287,7 +269,7 @@
 									<div class="flex gap-2">
 										<Select.Root type="single" bind:value={hour}>
 											<Select.Trigger>{hour}</Select.Trigger>
-											<Select.Content class="h-[200px]">
+											<Select.Content class="h-50">
 												{#each hours as h}<Select.Item value={h}>{h}</Select.Item>{/each}
 											</Select.Content>
 										</Select.Root>
