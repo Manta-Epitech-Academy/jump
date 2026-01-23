@@ -57,6 +57,7 @@
 	--ring: var(--epi-blue);
 
 	--header-bg: var(--epi-blue);
+	--header-foreground: #ffffff; /* NEW: Force white text on blue header in light mode */
 	--sidebar-bg: var(--color-gray-0);
 }
 
@@ -106,6 +107,7 @@
 	--ring: #809dfd;
 
 	--header-bg: var(--color-dark-7);
+	--header-foreground: var(--foreground); /* Standard text color in dark mode */
 	--sidebar-bg: var(--color-dark-7);
 }
 
@@ -137,6 +139,7 @@
 	--color-epi-pink: var(--epi-pink);
 
 	--color-header: var(--header-bg);
+	--color-header-foreground: var(--header-foreground); /* Added to theme */
 	--color-sidebar: var(--sidebar-bg);
 
 	--font-sans: var(--font-sans);

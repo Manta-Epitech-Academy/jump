@@ -35,10 +35,10 @@
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
 	<!-- HEADER (FULL WIDTH) -->
 	<header
-		class="z-20 flex h-[60px] w-full shrink-0 items-center justify-between border-b border-border bg-header px-6 text-white shadow-md dark:text-foreground"
+		class="z-20 flex h-15 w-full shrink-0 items-center justify-between border-b border-border bg-header px-6 text-header-foreground shadow-md"
 	>
 		<div class="flex items-center gap-4">
-			<Button variant="ghost" size="icon" class="text-white md:hidden dark:text-foreground">
+			<Button variant="ghost" size="icon" class="text-inherit md:hidden">
 				<Menu class="h-6 w-6" />
 			</Button>
 			<a href="/" class="flex items-center gap-2">
@@ -56,8 +56,10 @@
 						class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
 					>
 						<div class="flex items-center gap-2">
-							<Avatar.Root class="h-8 w-8 rounded-sm bg-white/20 dark:bg-muted">
-								<Avatar.Fallback class="text-xs font-bold uppercase dark:text-foreground">
+							<Avatar.Root class="h-8 w-8 rounded-sm bg-header-foreground/20">
+								<Avatar.Fallback
+									class="bg-transparent text-xs font-bold text-header-foreground uppercase"
+								>
 									{data.user?.username?.substring(0, 2) ?? 'AD'}
 								</Avatar.Fallback>
 							</Avatar.Root>

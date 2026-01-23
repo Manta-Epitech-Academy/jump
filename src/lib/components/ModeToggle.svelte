@@ -8,7 +8,12 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
-			<Button variant="ghost" size="icon" {...props}>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="text-inherit hover:bg-white/20 hover:text-inherit"
+				{...props}
+			>
 				<Sun
 					class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
 				/>
