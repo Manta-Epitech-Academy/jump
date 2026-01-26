@@ -133,7 +133,7 @@
 						</div>
 						<Select.Root type="single" bind:value={selectedLevel}>
 							<Select.Trigger
-								class="h-full min-w-[80px] border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
+								class="h-full min-w-20 border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
 							>
 								{selectedLevel === 'all' ? 'Tous' : selectedLevel}
 							</Select.Trigger>
@@ -257,7 +257,7 @@
 								{#each sub.niveaux as niv}
 									<span
 										class={cn(
-											'rounded-[2px] border px-1 py-0.5 text-[9px] font-bold uppercase',
+											'rounded-xs border px-1 py-0.5 text-[9px] font-bold uppercase',
 											studentLevel === niv
 												? 'border-epi-teal bg-epi-teal text-black'
 												: 'border-border text-muted-foreground'

@@ -3,8 +3,7 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { Check, Plus, X, Tag } from 'lucide-svelte';
-	import { cn } from '$lib/utils';
+	import { Plus, X, Tag } from 'lucide-svelte';
 
 	let {
 		themes = [],

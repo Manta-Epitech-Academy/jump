@@ -277,10 +277,10 @@
 		<Table.Root>
 			<Table.Header class="bg-muted/50">
 				<Table.Row>
-					<Table.Head class="w-[300px] text-xs font-bold uppercase">Étudiant</Table.Head>
+					<Table.Head class="w-75 text-xs font-bold uppercase">Étudiant</Table.Head>
 					<Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
 					<Table.Head class="text-right text-xs font-bold uppercase">XP / Événements</Table.Head>
-					<Table.Head class="w-[50px]"></Table.Head>
+					<Table.Head class="w-12.5"></Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
