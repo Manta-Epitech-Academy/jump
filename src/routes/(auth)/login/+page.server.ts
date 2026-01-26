@@ -1,16 +1,11 @@
 import type { Actions, PageServerLoad } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
-import { loginSchema } from '$lib/validation/auth';
 import { dev } from '$app/environment';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.pb.authStore.isValid) {
 		throw redirect(302, '/');
 	}
-
-	const form = await superValidate(zod4(loginSchema));
 
 	// Handle errors returned from the OAuth callback
 	const errorType = url.searchParams.get('error');
@@ -20,30 +15,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		errorMessage = 'Accès refusé. Veuillez utiliser une adresse @epitech.eu.';
 	} else if (errorType === 'OAuthFailed') {
 		errorMessage = "Échec de l'authentification Microsoft.";
+	} else if (errorType === 'OAuthStateMismatch') {
+		errorMessage = 'Erreur de sécurité (State Mismatch). Veuillez réessayer.';
+	} else if (errorType === 'ProviderMissing') {
+		errorMessage = "Le fournisseur d'authentification Microsoft n'est pas configuré.";
 	}
 
 	return {
-		form,
 		errorMessage
 	};
 };
 
 export const actions: Actions = {
-	login: async ({ request, locals }) => {
-		const form = await superValidate(request, zod4(loginSchema));
-		if (!form.valid) {
-			return fail(400, { form });
-		}
-
-		try {
-			await locals.pb.collection('users').authWithPassword(form.data.identity, form.data.password);
-
-			return message(form, 'Connexion réussie, redirection…');
-		} catch (err: unknown) {
-			return message(form, 'Identifiants invalides', { status: 400 });
-		}
-	},
-
 	oauth2: async ({ cookies, locals, url }) => {
 		let authUrl = '';
 
