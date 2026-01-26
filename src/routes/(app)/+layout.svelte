@@ -14,6 +14,7 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
+	import { pbUrl } from '$lib/pocketbase';
 
 	let { children, data } = $props();
 
@@ -30,6 +31,24 @@
 				: 'text-muted-foreground hover:bg-muted hover:text-foreground'
 		}
 	`;
+
+	function getInitials(user: any) {
+		if (user?.name) {
+			const parts = user.name.trim().split(' ').filter(Boolean);
+			if (parts.length >= 2) {
+				return (parts[0][0] + parts[1][0]).toUpperCase();
+			}
+			return user.name.substring(0, 2).toUpperCase();
+		}
+		return user?.username?.substring(0, 2).toUpperCase() ?? 'AD';
+	}
+
+	function getAvatarUrl(user: any) {
+		if (user?.avatar && user?.collectionId && user?.id) {
+			return `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
+		}
+		return undefined;
+	}
 </script>
 
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
@@ -56,14 +75,23 @@
 						class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
 					>
 						<div class="flex items-center gap-2">
-							<Avatar.Root class="h-8 w-8 rounded-sm bg-header-foreground/20">
+							<Avatar.Root class="h-11 w-11 rounded-sm bg-header-foreground/20">
+								{#if data.user?.avatar}
+									<Avatar.Image
+										src={getAvatarUrl(data.user)}
+										alt={data.user.name ?? data.user.username}
+										class="object-cover"
+									/>
+								{/if}
 								<Avatar.Fallback
 									class="bg-transparent text-xs font-bold text-header-foreground uppercase"
 								>
-									{data.user?.username?.substring(0, 2) ?? 'AD'}
+									{getInitials(data.user)}
 								</Avatar.Fallback>
 							</Avatar.Root>
-							<span class="hidden text-sm font-bold md:block">{data.user?.username}</span>
+							<span class="hidden text-sm font-bold md:block"
+								>{data.user?.name || data.user?.username}</span
+							>
 							<ChevronDown class="h-4 w-4 opacity-50" />
 						</div>
 					</DropdownMenu.Trigger>
