@@ -173,6 +173,48 @@ export const actions: Actions = {
 		}
 	},
 
+	autoAssignAll: async ({ params, locals }) => {
+		try {
+			// 1. Get all unassigned participations for this event
+			const unassigned = await locals.pb.collection('participations').getFullList({
+				filter: `event = "${params.id}" && subject = ""`, // empty subject
+				expand: 'student'
+			});
+
+			if (unassigned.length === 0) {
+				return { success: true, message: 'Aucun élève à assigner.' };
+			}
+
+			const subjects = await locals.pb.collection('subjects').getFullList();
+			const event = await locals.pb.collection('events').getOne(params.id, { expand: 'theme' });
+
+			let count = 0;
+
+			// 2. Loop and update
+			for (const p of unassigned) {
+				// Use existing recommender
+				const suggestedId = await suggestBestSubject(
+					locals.pb,
+					p.expand?.student?.id,
+					subjects,
+					event.theme
+				);
+
+				if (suggestedId) {
+					await locals.pb.collection('participations').update(p.id, {
+						subject: suggestedId
+					});
+					count++;
+				}
+			}
+
+			return { success: true, message: `${count} élèves assignés automatiquement !` };
+		} catch (err) {
+			console.error('Auto-assign error:', err);
+			return fail(500, { message: "Erreur lors de l'auto-assignation" });
+		}
+	},
+
 	quickCreateStudent: async ({ request, locals, params }) => {
 		const form = await superValidate(request, zod4(studentSchema));
 		if (!form.valid) return fail(400, { form });

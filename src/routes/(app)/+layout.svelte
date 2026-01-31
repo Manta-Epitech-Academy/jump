@@ -7,7 +7,8 @@
 		Plus,
 		ChevronDown,
 		Menu,
-		History
+		History,
+		Search,
 	} from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
@@ -15,8 +16,11 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
 	import { pbUrl } from '$lib/pocketbase';
+	import GlobalCommand from '$lib/components/GlobalCommand.svelte';
 
 	let { children, data } = $props();
+
+	let commandOpen = $state(false);
 
 	function isActive(path: string) {
 		if (path === '/') return page.url.pathname === '/';
@@ -56,16 +60,44 @@
 	<header
 		class="z-20 flex h-15 w-full shrink-0 items-center justify-between border-b border-border bg-header px-6 text-header-foreground shadow-md"
 	>
-		<div class="flex items-center gap-4">
-			<Button variant="ghost" size="icon" class="text-inherit md:hidden">
-				<Menu class="h-6 w-6" />
-			</Button>
-			<a href="/" class="flex items-center gap-2">
-				<span class="text-lg font-bold uppercase">CodeCamp Manager</span>
-			</a>
+		<div class="flex items-center gap-8">
+			<div class="flex items-center gap-4">
+				<Button variant="ghost" size="icon" class="text-inherit md:hidden">
+					<Menu class="h-6 w-6" />
+				</Button>
+				<a href="/" class="flex items-center gap-2">
+					<span class="text-lg font-bold uppercase">CodeCamp Manager</span>
+				</a>
+			</div>
+
+			<!-- VISUAL SEARCH TRIGGER -->
+			<button
+				class="hidden h-9 w-64 items-center justify-between rounded-sm border border-header-foreground/20 bg-header-foreground/10 px-3 text-sm text-header-foreground/70 transition-colors hover:bg-header-foreground/20 md:flex"
+				onclick={() => (commandOpen = true)}
+			>
+				<span class="flex items-center gap-2">
+					<Search class="h-4 w-4" />
+					<span class="text-xs font-medium">Rechercher...</span>
+				</span>
+				<kbd
+					class="pointer-events-none flex h-5 items-center gap-1 rounded border border-header-foreground/20 bg-header-foreground/10 px-1.5 font-mono text-[10px] font-medium opacity-100 select-none"
+				>
+					<span class="text-xs">⌘</span>K
+				</kbd>
+			</button>
 		</div>
 
 		<div class="flex items-center gap-2">
+			<!-- Mobile Search Icon Only -->
+			<Button
+				variant="ghost"
+				size="icon"
+				class="text-inherit hover:bg-white/20 hover:text-inherit md:hidden"
+				onclick={() => (commandOpen = true)}
+			>
+				<Search class="h-5 w-5" />
+			</Button>
+
 			<!-- Theme Toggle -->
 			<ModeToggle />
 
@@ -161,3 +193,5 @@
 		</main>
 	</div>
 </div>
+
+<GlobalCommand bind:open={commandOpen} />

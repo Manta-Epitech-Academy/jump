@@ -2,21 +2,38 @@
 	import type { PageData } from './$types';
 	import { pbUrl } from '$lib/pocketbase';
 	import PocketBase from 'pocketbase';
-	import { ArrowLeft, Search, MonitorSmartphone } from 'lucide-svelte';
+	import {
+		ArrowLeft,
+		Search,
+		MonitorSmartphone,
+		LayoutGrid,
+		List as ListIcon,
+		Filter,
+		User,
+		MonitorX,
+		Award
+	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
+	import * as Select from '$lib/components/ui/select';
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import ParticipationCard from '$lib/components/events/ParticipationCard.svelte';
 	import DiplomaTemplate from '$lib/components/diploma/DiplomaTemplate.svelte';
 	import { generateDiplomaFromHTML } from '$lib/pdfUtils';
 	import { toast } from 'svelte-sonner';
+	import { cn } from '$lib/utils';
+	import { enhance } from '$app/forms';
 
 	let { data }: { data: PageData } = $props();
 
 	let participations = $state(untrack(() => data.participations));
 	let searchQuery = $state('');
 	let filterStatus = $state<'all' | 'present'>('all');
+
+	// NEW STATES
+	let viewMode = $state<'grid' | 'list'>('grid');
+	let filterSubject = $state<string>('all');
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let diplomaData = $state<{ student: any; event: any; subject: any }>({
@@ -71,14 +88,30 @@
 		};
 	};
 
+	// Get unique subjects for filter dropdown
+	let uniqueSubjects = $derived.by(() => {
+		const subjects = new Map();
+		data.participations.forEach((p) => {
+			if (p.expand?.subject) {
+				subjects.set(p.expand.subject.id, p.expand.subject.nom);
+			}
+		});
+		return Array.from(subjects.entries());
+	});
+
 	let filteredParticipations = $derived(
 		participations.filter((p) => {
 			const matchesSearch =
 				p.expand?.student?.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				p.expand?.student?.prenom.toLowerCase().includes(searchQuery.toLowerCase());
+
 			if (!matchesSearch) return false;
-			if (filterStatus === 'present') return p.is_present;
-			return true;
+
+			const matchesStatus = filterStatus === 'all' || (filterStatus === 'present' && p.is_present);
+
+			const matchesSubject = filterSubject === 'all' || p.expand?.subject?.id === filterSubject;
+
+			return matchesStatus && matchesSubject;
 		})
 	);
 
@@ -158,7 +191,8 @@
 				</div>
 			</div>
 
-			<div class="mt-4 flex flex-col gap-3 sm:flex-row">
+			<!-- IMPROVED TOOLBAR -->
+			<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
 				<div class="relative flex-1">
 					<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 					<Input
@@ -167,37 +201,155 @@
 						bind:value={searchQuery}
 					/>
 				</div>
-				<div class="flex gap-1">
-					<Button
-						variant={filterStatus === 'all' ? 'default' : 'outline'}
-						size="sm"
-						class="h-9 text-[10px]"
-						onclick={() => (filterStatus = 'all')}>Tous</Button
+
+				<!-- SUBJECT FILTER -->
+				<Select.Root type="single" bind:value={filterSubject}>
+					<Select.Trigger class="h-9 w-[180px] text-xs">
+						<Filter class="mr-2 h-3 w-3" />
+						{filterSubject === 'all'
+							? 'Tous les sujets'
+							: uniqueSubjects.find((s) => s[0] === filterSubject)?.[1]}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="all">Tous les sujets</Select.Item>
+						{#each uniqueSubjects as [id, nom]}
+							<Select.Item value={id}>{nom}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+
+				<!-- VIEW TOGGLE -->
+				<div class="flex rounded-md border bg-card p-1">
+					<button
+						class={cn(
+							'rounded-sm p-1.5 transition-all',
+							viewMode === 'grid'
+								? 'bg-muted text-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
+						)}
+						onclick={() => (viewMode = 'grid')}
+						title="Vue Grille"
 					>
-					<Button
-						variant={filterStatus === 'present' ? 'default' : 'outline'}
-						size="sm"
-						class="h-9 text-[10px]"
-						onclick={() => (filterStatus = 'present')}>Présents</Button
+						<LayoutGrid class="h-4 w-4" />
+					</button>
+					<button
+						class={cn(
+							'rounded-sm p-1.5 transition-all',
+							viewMode === 'list'
+								? 'bg-muted text-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
+						)}
+						onclick={() => (viewMode = 'list')}
+						title="Vue Liste"
 					>
+						<ListIcon class="h-4 w-4" />
+					</button>
 				</div>
+			</div>
+
+			<div class="mt-2 flex gap-1">
+				<Button
+					variant={filterStatus === 'all' ? 'default' : 'outline'}
+					size="sm"
+					class="h-9 text-[10px]"
+					onclick={() => (filterStatus = 'all')}>Tous</Button
+				>
+				<Button
+					variant={filterStatus === 'present' ? 'default' : 'outline'}
+					size="sm"
+					class="h-9 text-[10px]"
+					onclick={() => (filterStatus = 'present')}>Présents</Button
+				>
 			</div>
 		</div>
 	</div>
 
-	<div class="container mx-auto mt-6 max-w-2xl space-y-3 px-4">
-		{#each filteredParticipations as p (p.id)}
-			<ParticipationCard
-				participation={p}
-				event={data.event}
-				{optimisticToggle}
-				onDownload={() => handleDiplomaDownload(p)}
-			/>
+	<!-- DATA DISPLAY -->
+	<div class="container mx-auto mt-6 max-w-2xl px-4 pb-20">
+		{#if viewMode === 'grid'}
+			<div class="space-y-3">
+				{#each filteredParticipations as p (p.id)}
+					<ParticipationCard
+						participation={p}
+						event={data.event}
+						{optimisticToggle}
+						onDownload={() => handleDiplomaDownload(p)}
+					/>
+				{/each}
+			</div>
 		{:else}
+			<!-- COMPACT LIST VIEW -->
+			<div class="rounded-sm border bg-card">
+				{#each filteredParticipations as p (p.id)}
+					<div
+						class="flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20"
+					>
+						<div class="flex items-center gap-3">
+							<!-- Simple Status Indicator -->
+							<form
+								method="POST"
+								action="?/togglePresent"
+								use:enhance={optimisticToggle(p.id, 'is_present')}
+							>
+								<input type="hidden" name="id" value={p.id} />
+								<input type="hidden" name="state" value={p.is_present.toString()} />
+								<button
+									type="submit"
+									class={cn(
+										'flex h-8 w-8 items-center justify-center rounded-sm border transition-all',
+										p.is_present
+											? 'border-epi-teal bg-epi-teal text-black'
+											: 'border-border text-muted-foreground hover:border-epi-teal'
+									)}
+								>
+									<User class="h-4 w-4" />
+								</button>
+							</form>
+
+							<div class="flex flex-col">
+								<span class="text-sm font-bold">
+									{p.expand?.student?.prenom}
+									<span class="uppercase">{p.expand?.student?.nom}</span>
+								</span>
+								<div class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase">
+									<span>{p.expand?.student?.niveau}</span>
+									{#if p.expand?.subject}
+										<span>• {p.expand.subject.nom}</span>
+									{/if}
+								</div>
+							</div>
+						</div>
+
+						<!-- Note Input (Compact) -->
+						{#if p.is_present}
+							<div class="flex items-center gap-2">
+								{#if !p.bring_pc}
+									<MonitorX class="h-4 w-4 text-orange-400" title="Pas de PC" />
+								{/if}
+								<form action="?/updateNote" method="POST" use:enhance>
+									<input type="hidden" name="id" value={p.id} />
+									<Input name="note" value={p.note} placeholder="..." class="h-7 w-32 text-xs" />
+								</form>
+								<Button
+									variant="ghost"
+									size="icon"
+									class="h-8 w-8"
+									onclick={() => handleDiplomaDownload(p)}
+								>
+									<Award class="h-4 w-4" />
+								</Button>
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		{#if filteredParticipations.length === 0}
 			<div class="py-20 text-center">
 				<p class="font-bold text-muted-foreground uppercase">Aucun élève à afficher.</p>
 			</div>
-		{/each}
+		{/if}
 	</div>
 </div>
 

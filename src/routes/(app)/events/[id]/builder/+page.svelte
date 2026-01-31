@@ -12,7 +12,8 @@
 		UserCheck,
 		Settings,
 		Tag,
-		TriangleAlert
+		TriangleAlert,
+		Sparkles
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -357,11 +358,40 @@
 										Élèves à assigner
 									</h3>
 								</div>
-								<Badge
-									variant="outline"
-									class="rounded-sm border-epi-orange text-[10px] text-epi-orange"
-									>{participationGroups.unassigned.length} élèves</Badge
-								>
+								<div class="flex gap-2">
+									<!-- AUTO ASSIGN FORM -->
+									<form
+										action="?/autoAssignAll"
+										method="POST"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												if (result.type === 'success') {
+													// eslint-disable-next-line @typescript-eslint/no-explicit-any
+													toast.success(result.data?.message || 'Assignation terminée');
+													await update();
+												} else {
+													toast.error("Erreur lors de l'auto-assignation");
+												}
+											};
+										}}
+									>
+										<Button
+											type="submit"
+											variant="outline"
+											size="sm"
+											class="h-7 border-epi-orange text-epi-orange hover:bg-epi-orange hover:text-white"
+										>
+											<Sparkles class="mr-2 h-3 w-3" />
+											Auto-assigner ({participationGroups.unassigned.length})
+										</Button>
+									</form>
+
+									<Badge
+										variant="outline"
+										class="rounded-sm border-epi-orange text-[10px] text-epi-orange"
+										>{participationGroups.unassigned.length} élèves</Badge
+									>
+								</div>
 							</div>
 							<div class="grid gap-2">
 								{#each participationGroups.unassigned as p (p.id)}
