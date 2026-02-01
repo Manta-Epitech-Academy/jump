@@ -21,7 +21,8 @@
 		participation = $bindable(),
 		event,
 		optimisticToggle,
-		onDownload
+		onDownload,
+		index = 0
 	}: {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		participation: any;
@@ -30,6 +31,7 @@
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		optimisticToggle: (id: string, field: 'is_present' | 'bring_pc') => any;
 		onDownload?: () => void;
+		index?: number;
 	} = $props();
 
 	function formatFirstName(name: string | undefined) {
@@ -46,7 +48,17 @@
 	}
 </script>
 
-<div transition:fly={{ y: 10, duration: 200 }}>
+<!--
+    Hybrid Animation Strategy:
+    1. CSS @keyframes (card-entry) handles the initial "Staggered Load".
+       This works reliably on mount, SSR hydration, and when filtering adds items back.
+    2. Svelte `out:fly` handles smooth removal when filtering reduces the list.
+-->
+<div
+	class="card-entry"
+	style="animation-delay: {Math.min(index * 50, 500)}ms"
+	out:fly={{ y: 20, duration: 200 }}
+>
 	<Card.Root
 		class="overflow-hidden border-2 shadow-sm transition-all duration-200 {participation.is_present
 			? 'border-epi-teal bg-card'
@@ -175,3 +187,22 @@
 		</Card.Content>
 	</Card.Root>
 </div>
+
+<style>
+	@keyframes slideUpFade {
+		from {
+			opacity: 0;
+			transform: translateY(15px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.card-entry {
+		/* 'backwards' ensures the element is invisible (opacity 0)
+           during the animation-delay period */
+		animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+	}
+</style>

@@ -338,12 +338,14 @@
 	<div class="container mx-auto mt-6 max-w-2xl px-4 pb-20">
 		{#if viewMode === 'grid'}
 			<div class="space-y-3">
-				{#each filteredParticipations as p (p.id)}
+				<!-- Passing index 'i' for staggered animation -->
+				{#each filteredParticipations as p, i (p.id)}
 					<ParticipationCard
 						participation={p}
 						event={data.event}
 						{optimisticToggle}
 						onDownload={() => handleDiplomaDownload(p)}
+						index={i}
 					/>
 				{/each}
 			</div>

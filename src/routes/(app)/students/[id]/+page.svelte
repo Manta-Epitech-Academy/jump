@@ -28,7 +28,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
 	import { toast } from 'svelte-sonner';
-	import { formatDateFr } from '$lib/utils';
+	import { formatDateFr, cn } from '$lib/utils';
 
 	let { data }: { data: PageData } = $props();
 
@@ -138,6 +138,19 @@
 						</div>
 
 						<div class="flex flex-col items-center">
+							<!-- SHINY BADGE LOGIC -->
+							<Badge
+								variant="outline"
+								class={cn(
+									'mt-2 mb-2 px-3 py-1 text-sm font-black tracking-widest uppercase',
+									data.student.xp >= 500
+										? 'shiny-badge border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
+										: 'border-border text-muted-foreground'
+								)}
+							>
+								{data.student.xp >= 500 ? 'Expert ✦' : 'Novice'}
+							</Badge>
+
 							<span class="text-3xl font-black tracking-tighter text-foreground italic">
 								{data.student.xp} <span class="text-lg text-epi-orange not-italic">XP</span>
 							</span>
@@ -375,3 +388,37 @@
 		</Dialog.Content>
 	</Dialog.Root>
 </div>
+
+<style>
+	/* Shiny badge effect for EXPERT level */
+	@keyframes sheen {
+		0% {
+			background-position: 200% center;
+		}
+		100% {
+			background-position: -200% center;
+		}
+	}
+
+	:global(.shiny-badge) {
+		background-image: linear-gradient(
+			120deg,
+			transparent 30%,
+			rgba(255, 255, 255, 0.6) 50%,
+			transparent 70%
+		);
+		background-size: 200% auto;
+		animation: sheen 3s infinite linear;
+		position: relative;
+		overflow: hidden;
+	}
+
+	:global(.dark .shiny-badge) {
+		background-image: linear-gradient(
+			120deg,
+			transparent 30%,
+			rgba(255, 255, 255, 0.15) 50%,
+			transparent 70%
+		);
+	}
+</style>
