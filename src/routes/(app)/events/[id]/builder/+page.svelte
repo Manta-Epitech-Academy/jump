@@ -76,6 +76,8 @@
 		}
 	);
 
+	let isAutoAssigning = $state(false);
+
 	let searchQuery = $state('');
 	let openQuickCreate = $state(false);
 	let openEditEvent = $state(false);
@@ -369,7 +371,9 @@
 										action="?/autoAssignAll"
 										method="POST"
 										use:enhance={() => {
+											isAutoAssigning = true;
 											return async ({ result, update }) => {
+												isAutoAssigning = false;
 												if (result.type === 'success') {
 													const data = result.data as { message?: string } | undefined;
 													toast.success(data?.message || 'Assignation terminée');
@@ -384,10 +388,23 @@
 											type="submit"
 											variant="outline"
 											size="sm"
+											disabled={isAutoAssigning}
 											class="h-7 border-epi-orange text-epi-orange hover:bg-epi-orange hover:text-white"
 										>
-											<Sparkles class="mr-2 h-3 w-3" />
-											Auto-assigner ({participationGroups.unassigned.length})
+											{#if isAutoAssigning}
+												<span class="mr-2 flex gap-1">
+													<span class="h-1 w-1 animate-bounce rounded-full bg-current delay-0"
+													></span>
+													<span class="h-1 w-1 animate-bounce rounded-full bg-current delay-150"
+													></span>
+													<span class="h-1 w-1 animate-bounce rounded-full bg-current delay-300"
+													></span>
+												</span>
+												Calcul de la meilleure trajectoire...
+											{:else}
+												<Sparkles class="mr-2 h-3 w-3" />
+												Auto-assigner ({participationGroups.unassigned.length})
+											{/if}
 										</Button>
 									</form>
 

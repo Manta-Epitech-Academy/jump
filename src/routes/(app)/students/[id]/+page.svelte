@@ -130,15 +130,37 @@
 					<Separator />
 
 					<!-- XP SECTION -->
-					<div class="space-y-2 text-center">
-						<div class="flex items-center justify-center gap-2 text-2xl font-black text-epi-orange">
-							<Trophy class="h-6 w-6" />
-							<span>{data.student.xp} XP</span>
+					<div class="space-y-3 text-center">
+						<div class="relative inline-flex items-center justify-center">
+							<!-- Glowing effect behind the icon -->
+							<div class="absolute inset-0 rounded-full bg-epi-orange/30 blur-lg"></div>
+							<Trophy class="duration-2000ms relative h-8 w-8 animate-bounce text-epi-orange" />
 						</div>
-						<Progress value={xpProgress} class="h-2" />
-						<p class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
-							Progression Globale
-						</p>
+
+						<div class="flex flex-col items-center">
+							<span class="text-3xl font-black tracking-tighter text-foreground italic">
+								{data.student.xp} <span class="text-lg text-epi-orange not-italic">XP</span>
+							</span>
+						</div>
+
+						<div class="relative h-4 w-full overflow-hidden rounded-full bg-muted shadow-inner">
+							<!-- Striped animated background for the progress bar -->
+							<div
+								class="relative h-full overflow-hidden bg-epi-orange transition-all duration-1000 ease-out"
+								style="width: {xpProgress}%;"
+							>
+								<div
+									class="animate-stripes absolute inset-0 h-full w-full bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)] bg-size-[1rem_1rem]"
+								></div>
+							</div>
+						</div>
+
+						<div
+							class="flex justify-between px-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+						>
+							<span>Novice</span>
+							<span>Expert</span>
+						</div>
 					</div>
 
 					<Separator />

@@ -10,7 +10,17 @@
 	} from '$lib/components/ui/table';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Calendar, Tag, Plus, ChevronRight, Ellipsis, Trash2, Pencil } from 'lucide-svelte';
+	import {
+		Calendar,
+		Tag,
+		Plus,
+		ChevronRight,
+		Ellipsis,
+		Trash2,
+		Pencil,
+		Coffee,
+		Megaphone
+	} from 'lucide-svelte';
 
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
@@ -158,13 +168,31 @@
 		</div>
 	{:else}
 		<div
-			class="flex flex-col items-center justify-center rounded-sm border bg-card p-20 text-center shadow-sm"
+			class="flex flex-col items-center justify-center rounded-sm border-2 border-dashed border-border bg-muted/20 p-20 text-center"
 		>
-			<Calendar class="mx-auto h-12 w-12 text-muted" />
-			<h3 class="mt-4 text-lg font-bold uppercase">Aucun événement</h3>
-			<p class="mt-1 text-sm font-bold text-muted-foreground uppercase">
-				Le planning est vide pour le moment.
+			<div class="relative mb-6">
+				<div class="absolute inset-0 animate-ping rounded-full bg-epi-blue/20"></div>
+				<div
+					class="relative flex h-20 w-20 items-center justify-center rounded-full bg-background shadow-sm"
+				>
+					<Coffee class="h-10 w-10 text-muted-foreground/70" />
+					<div class="absolute -top-1 -right-2 rotate-12 text-3xl">💤</div>
+				</div>
+			</div>
+			<h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
+				Allo l'équipe Dev ?
+			</h3>
+			<p class="mt-3 max-w-sm text-sm font-medium text-muted-foreground">
+				C'est louche... Le calendrier est vide.<br />
+				Vous êtes partis en vacances ou vous avez fini le game ?
 			</p>
+			<Button
+				href="/events/new"
+				class="mt-8 bg-epi-blue text-white shadow-lg transition-transform hover:scale-105 hover:bg-epi-blue/90"
+			>
+				<Megaphone class="mr-2 h-4 w-4" />
+				Créer un événement
+			</Button>
 		</div>
 	{/if}
 

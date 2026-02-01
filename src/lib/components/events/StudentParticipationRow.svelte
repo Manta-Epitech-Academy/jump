@@ -122,13 +122,15 @@
 			{isUnassigned ? 'Assigner sujet' : 'Changer de sujet'}
 		</Button>
 
-		<Button
-			variant="ghost"
-			size="icon"
-			class="h-8 w-8 text-muted-foreground hover:text-destructive"
-			onclick={() => onDelete(participation.id)}
-		>
-			<Trash2 class="h-4 w-4" />
-		</Button>
+		<div class="shake-on-hover">
+			<Button
+				variant="ghost"
+				size="icon"
+				class="h-8 w-8 text-muted-foreground hover:text-destructive"
+				onclick={() => onDelete(participation.id)}
+			>
+				<Trash2 class="trash-icon h-4 w-4" />
+			</Button>
+		</div>
 	</div>
 </div>

@@ -31,6 +31,7 @@
 		SubjectsResponse,
 		EventsResponse
 	} from '$lib/pocketbase-types';
+	import { triggerConfetti } from '$lib/actions/confetti';
 
 	type ParticipationExpand = {
 		student?: StudentsResponse;
@@ -155,6 +156,7 @@
 				const student = participation.expand?.student;
 				const filename = student ? `Diplome_${student.nom}_${student.prenom}.pdf` : 'Diplome.pdf';
 				await generateDiplomaFromHTML('diploma-render-target', filename);
+				triggerConfetti();
 				toast.success('Diplôme téléchargé !');
 			} catch (e) {
 				console.error(e);

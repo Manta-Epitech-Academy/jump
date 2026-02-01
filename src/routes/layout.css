@@ -183,3 +183,35 @@
 		view-transition-name: main-content;
 	}
 }
+
+/* --- Animations for Emotional Design --- */
+@keyframes stripes {
+	from {
+		background-position: 1rem 0;
+	}
+	to {
+		background-position: 0 0;
+	}
+}
+
+.animate-stripes {
+	animation: stripes 1s linear infinite;
+}
+
+@keyframes shake {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	25% {
+		transform: translateX(-4px);
+	}
+	75% {
+		transform: translateX(4px);
+	}
+}
+
+.shake-on-hover:hover .trash-icon {
+	animation: shake 0.3s ease-in-out;
+	color: var(--destructive);
+}

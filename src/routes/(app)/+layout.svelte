@@ -25,6 +25,12 @@
 	let commandOpen = $state(false);
 	let mobileMenuOpen = $state(false);
 
+	// Time-based greeting
+	const hour = new Date().getHours();
+	let greeting = $state('Bonjour');
+	if (hour >= 18) greeting = 'Bonsoir';
+	if (hour < 5) greeting = 'Bonne nuit, codeur';
+
 	// Close mobile menu on navigation
 	$effect(() => {
 		if (page.url.pathname) {
@@ -131,6 +137,16 @@
 					<DropdownMenu.Trigger
 						class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
 					>
+						<!-- Greeting & Name Stack -->
+						<div class="hidden flex-col items-end md:flex">
+							<span class="text-[10px] font-bold text-header-foreground/80 uppercase"
+								>{greeting}</span
+							>
+							<span class="text-sm leading-none font-bold"
+								>{data.user?.name || data.user?.username}</span
+							>
+						</div>
+
 						<div class="flex items-center gap-2">
 							<Avatar.Root class="h-9 w-9 rounded-sm bg-header-foreground/20 md:h-11 md:w-11">
 								{#if data.user?.avatar}
@@ -146,9 +162,7 @@
 									{getInitials(data.user)}
 								</Avatar.Fallback>
 							</Avatar.Root>
-							<span class="hidden text-sm font-bold md:block"
-								>{data.user?.name || data.user?.username}</span
-							>
+
 							<ChevronDown class="hidden h-4 w-4 opacity-50 md:block" />
 						</div>
 					</DropdownMenu.Trigger>
