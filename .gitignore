@@ -17,9 +17,9 @@ yarn-error.log*
 .env.*.local
 
 # PocketBase
-pb_data/
-pocketbase
-pocketbase.exe
+pocketbase-backend/pocketbase
+pocketbase-backend/pocketbase.exe
+pocketbase-backend/pb_data/
 
 # Logs
 logs
