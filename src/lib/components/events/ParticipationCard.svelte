@@ -3,11 +3,9 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
 		CircleCheck,
-		Save,
 		User,
 		Laptop,
 		MonitorX,
@@ -17,6 +15,7 @@
 	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
+	import NoteInput from '$lib/components/events/NoteInput.svelte';
 
 	let {
 		participation = $bindable(),
@@ -165,18 +164,12 @@
 
 			{#if participation.is_present}
 				<div class="border-t border-border pt-2">
-					<form action="?/updateNote" method="POST" use:enhance class="flex items-center gap-2">
-						<input type="hidden" name="id" value={participation.id} />
-						<Input
-							name="note"
-							value={participation.note}
-							placeholder="Observation (ex: Difficultés sur les boucles...)"
-							class="h-8 border-transparent bg-muted text-xs transition-colors focus:border-input focus:bg-background"
-						/>
-						<Button type="submit" variant="ghost" size="icon" class="h-8 w-8">
-							<Save class="h-3 w-3 text-muted-foreground" />
-						</Button>
-					</form>
+					<NoteInput
+						id={participation.id}
+						value={participation.note}
+						placeholder="Observation (ex: Difficultés sur les boucles...)"
+						class="h-9 text-xs"
+					/>
 				</div>
 			{/if}
 		</Card.Content>

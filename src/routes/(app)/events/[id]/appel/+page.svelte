@@ -24,6 +24,7 @@
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils';
 	import { enhance } from '$app/forms';
+	import NoteInput from '$lib/components/events/NoteInput.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -375,10 +376,11 @@
 								{#if !p.bring_pc}
 									<MonitorX class="h-4 w-4 text-orange-400" title="Pas de PC" />
 								{/if}
-								<form action="?/updateNote" method="POST" use:enhance>
-									<input type="hidden" name="id" value={p.id} />
-									<Input name="note" value={p.note} placeholder="..." class="h-7 w-32 text-xs" />
-								</form>
+
+								<div class="w-40 sm:w-48">
+									<NoteInput id={p.id} value={p.note} placeholder="..." class="h-8 text-xs" />
+								</div>
+
 								<Button
 									variant="ghost"
 									size="icon"
