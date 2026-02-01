@@ -19,17 +19,36 @@
 	import { pbUrl } from '$lib/pocketbase';
 	import GlobalCommand from '$lib/components/GlobalCommand.svelte';
 	import { fly, fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
 
 	let { children, data } = $props();
 
 	let commandOpen = $state(false);
 	let mobileMenuOpen = $state(false);
 
-	// Time-based greeting
+	// Time-based greeting logic
 	const hour = new Date().getHours();
-	let greeting = $state('Bonjour');
-	if (hour >= 18) greeting = 'Bonsoir';
-	if (hour < 5) greeting = 'Bonne nuit, codeur';
+	let baseGreeting = 'Bonjour';
+	if (hour >= 18) baseGreeting = 'Bonsoir';
+	if (hour < 5) baseGreeting = 'Bonne nuit, codeur';
+
+	let displayedGreeting = $state('');
+
+	onMount(() => {
+		let i = 0;
+		const speed = 75; // Typing speed in ms
+
+		function typeWriter() {
+			if (i < baseGreeting.length) {
+				displayedGreeting += baseGreeting.charAt(i);
+				i++;
+				setTimeout(typeWriter, speed);
+			}
+		}
+
+		// Initial delay before typing starts
+		setTimeout(typeWriter, 500);
+	});
 
 	// Close mobile menu on navigation
 	$effect(() => {
@@ -139,9 +158,9 @@
 					>
 						<!-- Greeting & Name Stack -->
 						<div class="hidden flex-col items-end md:flex">
-							<span class="text-[10px] font-bold text-header-foreground/80 uppercase"
-								>{greeting}</span
-							>
+							<span class="font-mono text-[10px] font-bold text-header-foreground/80 uppercase">
+								{displayedGreeting}<span class="animate-pulse">_</span>
+							</span>
 							<span class="text-sm leading-none font-bold"
 								>{data.user?.name || data.user?.username}</span
 							>
