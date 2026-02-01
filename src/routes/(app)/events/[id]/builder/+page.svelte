@@ -133,7 +133,6 @@
 			const d = String(dateValue.day).padStart(2, '0');
 			const newDateStr = `${y}-${m}-${d}`;
 			if ($editForm.date !== newDateStr) {
-				console.log(`[DEBUG] Updating form date from ${$editForm.date} to ${newDateStr}`);
 				$editForm.date = newDateStr;
 			}
 		}
@@ -194,7 +193,7 @@
 	const niveauxScolaires = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 </script>
 
-<div class="flex h-[calc(100vh-8rem)] flex-col space-y-4">
+<div class="flex h-auto min-h-[calc(100vh-8rem)] flex-col space-y-4 md:h-[calc(100vh-8rem)]">
 	<div class="flex items-center justify-between border-b pb-4">
 		<div class="flex items-center gap-4">
 			<a href="/" class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
@@ -332,13 +331,16 @@
 			</Dialog.Root>
 
 			<Button variant="default" href={`/events/${data.event.id}/appel`} class="shadow-lg">
-				<UserCheck class="mr-2 h-4 w-4" /> Faire l'appel
+				<UserCheck class="mr-2 h-4 w-4" />
+				<span class="hidden sm:inline">Faire l'appel</span>
+				<span class="sm:hidden">Appel</span>
 			</Button>
 		</div>
 	</div>
 
-	<div class="min-0 grid h-full flex-1 gap-6 md:grid-cols-12">
-		<Card.Root class="flex h-full max-h-full flex-col rounded-sm md:col-span-8">
+	<!-- MAIN GRID CONTAINER -->
+	<div class="min-0 grid h-auto flex-1 gap-6 md:h-full md:grid-cols-12">
+		<Card.Root class="flex h-125 flex-col rounded-sm md:col-span-8 md:h-full md:max-h-full">
 			<Card.Header class="pb-3">
 				<Card.Title class="flex items-center gap-2 uppercase">
 					<Users class="h-5 w-5 text-epi-blue" /> Organisation des Groupes
@@ -440,8 +442,8 @@
 			</ScrollArea>
 		</Card.Root>
 
-		<div class="flex h-full flex-col gap-4 md:col-span-4">
-			<Card.Root class="flex max-h-full flex-1 flex-col rounded-sm">
+		<div class="flex h-auto flex-col gap-4 md:col-span-4 md:h-full">
+			<Card.Root class="flex h-[400px] flex-col rounded-sm md:h-full md:max-h-full md:flex-1">
 				<Card.Header class="space-y-4 pb-3">
 					<Card.Title class="uppercase">Inscrire des élèves</Card.Title>
 					<div class="relative">

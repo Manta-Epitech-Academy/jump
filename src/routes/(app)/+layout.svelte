@@ -9,6 +9,7 @@
 		Menu,
 		History,
 		Search,
+		X
 	} from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
@@ -17,10 +18,19 @@
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
 	import { pbUrl } from '$lib/pocketbase';
 	import GlobalCommand from '$lib/components/GlobalCommand.svelte';
+	import { fly, fade } from 'svelte/transition';
 
 	let { children, data } = $props();
 
 	let commandOpen = $state(false);
+	let mobileMenuOpen = $state(false);
+
+	// Close mobile menu on navigation
+	$effect(() => {
+		if (page.url.pathname) {
+			mobileMenuOpen = false;
+		}
+	});
 
 	function isActive(path: string) {
 		if (path === '/') return page.url.pathname === '/';
@@ -58,12 +68,27 @@
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
 	<!-- HEADER (FULL WIDTH) -->
 	<header
-		class="z-20 flex h-15 w-full shrink-0 items-center justify-between border-b border-border bg-header px-6 text-header-foreground shadow-md"
+		class="z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-border bg-header px-4 text-header-foreground shadow-md md:px-6"
 	>
-		<div class="flex items-center gap-8">
-			<div class="flex items-center gap-4">
-				<Button variant="ghost" size="icon" class="text-inherit md:hidden">
-					<Menu class="h-6 w-6" />
+		<div class="flex items-center gap-4 md:gap-8">
+			<div class="flex items-center gap-2 md:gap-4">
+				<Button
+					variant="ghost"
+					size="icon"
+					class="relative h-12 w-12 text-inherit md:hidden"
+					onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+				>
+					<Menu
+						class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+							? 'scale-0 opacity-0'
+							: 'scale-100 opacity-100'}"
+					/>
+					<X
+						class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+							? 'scale-100 rotate-0 opacity-100'
+							: 'scale-0 -rotate-90 opacity-0'}"
+					/>
+					<span class="sr-only">Toggle menu</span>
 				</Button>
 				<a href="/" class="flex items-center gap-2">
 					<span class="text-lg font-bold uppercase">CodeCamp Manager</span>
@@ -107,7 +132,7 @@
 						class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
 					>
 						<div class="flex items-center gap-2">
-							<Avatar.Root class="h-11 w-11 rounded-sm bg-header-foreground/20">
+							<Avatar.Root class="h-9 w-9 rounded-sm bg-header-foreground/20 md:h-11 md:w-11">
 								{#if data.user?.avatar}
 									<Avatar.Image
 										src={getAvatarUrl(data.user)}
@@ -124,7 +149,7 @@
 							<span class="hidden text-sm font-bold md:block"
 								>{data.user?.name || data.user?.username}</span
 							>
-							<ChevronDown class="h-4 w-4 opacity-50" />
+							<ChevronDown class="hidden h-4 w-4 opacity-50 md:block" />
 						</div>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="end" class="w-48 rounded-sm">
@@ -144,8 +169,8 @@
 		</div>
 	</header>
 
-	<div class="flex flex-1 overflow-hidden">
-		<!-- SIDEBAR -->
+	<div class="relative flex flex-1 overflow-hidden">
+		<!-- DESKTOP SIDEBAR -->
 		<aside class="hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex">
 			<div class="flex-1 overflow-y-auto p-4">
 				<!-- OVERVIEW -->
@@ -187,8 +212,63 @@
 			</div>
 		</aside>
 
+		<!-- MOBILE SIDEBAR OVERLAY -->
+		{#if mobileMenuOpen}
+			<!-- Backdrop -->
+			<div
+				class="absolute inset-0 z-40 bg-black/50 md:hidden"
+				transition:fade={{ duration: 200 }}
+				onclick={() => (mobileMenuOpen = false)}
+				role="button"
+				tabindex="0"
+				onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
+			></div>
+
+			<!-- Drawer -->
+			<aside
+				class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-border bg-sidebar shadow-2xl md:hidden"
+				transition:fly={{ x: -300, duration: 300 }}
+			>
+				<div class="flex-1 overflow-y-auto p-4">
+					<div class="sidebar-section-title">
+						Overview<span class="text-epi-orange">_</span>
+					</div>
+					<nav class="space-y-1">
+						<a href="/" class={navLinkClass(isActive('/'))}>
+							<LayoutDashboard class="h-5 w-5" />
+							<span>Dashboard</span>
+						</a>
+						<a href="/events/history" class={navLinkClass(isActive('/events/history'))}>
+							<History class="h-5 w-5" />
+							<span>Historique</span>
+						</a>
+					</nav>
+
+					<div class="sidebar-section-title">
+						Management<span class="text-epi-teal">_</span>
+					</div>
+					<nav class="space-y-1">
+						<a href="/students" class={navLinkClass(isActive('/students'))}>
+							<Users class="h-5 w-5" />
+							<span>Élèves</span>
+						</a>
+						<a href="/subjects" class={navLinkClass(isActive('/subjects'))}>
+							<Cuboid class="h-5 w-5" />
+							<span>Sujets</span>
+						</a>
+					</nav>
+				</div>
+				<div class="border-t border-border p-4">
+					<Button variant="outline" class="w-full justify-center border-dashed" href="/events/new">
+						<Plus class="mr-2 h-4 w-4" />
+						Nouvel Événement
+					</Button>
+				</div>
+			</aside>
+		{/if}
+
 		<!-- PAGE CONTENT -->
-		<main class="flex-1 overflow-y-auto bg-background p-6 md:p-8">
+		<main class="flex-1 overflow-y-auto bg-background p-4 md:p-8">
 			{@render children()}
 		</main>
 	</div>

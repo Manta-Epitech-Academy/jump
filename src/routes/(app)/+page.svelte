@@ -11,7 +11,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Calendar, Tag, Plus, ChevronRight, Ellipsis, Trash2, Pencil } from 'lucide-svelte';
-	import { goto } from '$app/navigation';
+
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 
@@ -48,9 +48,10 @@
 				{data.events.length} événement{data.events.length > 1 ? 's' : ''} à venir
 			</p>
 		</div>
-		<Button size="sm" onclick={() => goto('/events/new')} class="bg-epi-blue shadow-lg">
+		<Button size="sm" href="/events/new" class="bg-epi-blue shadow-lg">
 			<Plus class="mr-2 h-4 w-4" />
-			Nouvel Événement
+			<span class="hidden sm:inline">Nouvel Événement</span>
+			<span class="inline sm:hidden">Nouveau</span>
 		</Button>
 	</div>
 
@@ -61,8 +62,10 @@
 					<TableRow>
 						<TableHead class="text-xs font-bold uppercase">Événement</TableHead>
 						<TableHead class="text-xs font-bold uppercase">Date & Heure</TableHead>
-						<TableHead class="text-xs font-bold uppercase">Thème</TableHead>
-						<TableHead class="text-center text-xs font-bold uppercase">Statut</TableHead>
+						<TableHead class="hidden text-xs font-bold uppercase md:table-cell">Thème</TableHead>
+						<TableHead class="hidden text-center text-xs font-bold uppercase md:table-cell"
+							>Statut</TableHead
+						>
 						<TableHead class="text-right"></TableHead>
 					</TableRow>
 				</TableHeader>
@@ -76,12 +79,16 @@
 							</TableCell>
 							<TableCell>
 								<div class="flex items-center gap-2">
-									<Calendar class="h-4 w-4 text-muted-foreground" />
-									<span class="font-medium">{formatDate(event.date)}</span>
-									<span class="text-muted-foreground">• {formatTime(event.date)}</span>
+									<Calendar class="hidden h-4 w-4 text-muted-foreground sm:block" />
+									<div class="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+										<span class="font-medium">{formatDate(event.date)}</span>
+										<span class="text-xs text-muted-foreground sm:text-sm"
+											>• {formatTime(event.date)}</span
+										>
+									</div>
 								</div>
 							</TableCell>
-							<TableCell>
+							<TableCell class="hidden md:table-cell">
 								{#if event.theme}
 									<div class="flex items-center gap-2">
 										<Tag class="h-4 w-4 text-teal-700" />
@@ -91,7 +98,7 @@
 									<span class="text-sm text-muted-foreground italic">Aucun thème</span>
 								{/if}
 							</TableCell>
-							<TableCell class="text-center">
+							<TableCell class="hidden text-center md:table-cell">
 								{#if event.statut === 'planifiee'}
 									<span
 										class="inline-block rounded-sm bg-blue-100 px-2 py-1 text-[10px] font-black tracking-widest text-blue-700 uppercase"
@@ -125,10 +132,13 @@
 											<Ellipsis class="h-4 w-4" />
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
-											<DropdownMenu.Item onclick={() => goto(`/events/${event.id}/builder`)}>
+											<a
+												href={`/events/${event.id}/builder`}
+												class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground"
+											>
 												<Pencil class="mr-2 h-4 w-4" />
 												Modifier
-											</DropdownMenu.Item>
+											</a>
 											<DropdownMenu.Separator />
 											<DropdownMenu.Item
 												class="cursor-pointer text-destructive"

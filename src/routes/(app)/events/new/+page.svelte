@@ -31,7 +31,6 @@
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import { enhance as kitEnhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import { Switch } from '$lib/components/ui/switch';
 
 	let { data }: { data: PageData } = $props();
 
@@ -285,53 +284,59 @@
 												row.suggestedStatus === 'CONFLICT' || row.suggestedStatus === 'SIBLING'}
 
 											<div
-												class="flex flex-col gap-4 p-4 md:flex-row md:items-center {isConflict
+												class="flex flex-col gap-4 p-4 lg:flex-row lg:items-center {isConflict
 													? 'bg-yellow-50/50'
 													: ''}"
 											>
-												<!-- 1. PC TOGGLE -->
-												<div class="flex flex-col items-center justify-center border-r pr-4">
-													<Button
-														variant={row.bring_pc ? 'secondary' : 'outline'}
-														size="icon"
-														class="h-10 w-10 transition-colors {row.bring_pc
-															? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-															: 'text-gray-400'}"
-														onclick={() => toggleBringPc(row.id)}
-														title="Apporte son PC ?"
-													>
-														<Laptop class="h-5 w-5" />
-													</Button>
-													<span class="mt-1 text-[9px] font-bold text-muted-foreground uppercase">
-														{row.bring_pc ? 'Avec PC' : 'Sans PC'}
-													</span>
-												</div>
-
-												<!-- 2. CSV DATA -->
-												<div class="flex-1 space-y-1 pl-2">
-													<div class="flex items-center gap-2">
-														<span class="text-sm font-bold"
-															>{row.csvData.prenom} {row.csvData.nom}</span
+												<!-- 1. PC TOGGLE & 2. CSV DATA -->
+												<div class="flex w-full items-start gap-3 lg:w-auto">
+													<div class="flex flex-col items-center justify-center border-r pr-4">
+														<Button
+															variant={row.bring_pc ? 'secondary' : 'outline'}
+															size="icon"
+															class="h-10 w-10 transition-colors {row.bring_pc
+																? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+																: 'text-gray-400'}"
+															onclick={() => toggleBringPc(row.id)}
+															title="Apporte son PC ?"
 														>
-														<Badge variant="outline" class="text-[10px]">{row.csvData.niveau}</Badge
-														>
+															<Laptop class="h-5 w-5" />
+														</Button>
+														<span class="mt-1 text-[9px] font-bold text-muted-foreground uppercase">
+															{row.bring_pc ? 'Avec PC' : 'Sans PC'}
+														</span>
 													</div>
-													<div class="text-xs text-muted-foreground">{row.csvData.email}</div>
-													{#if isNew}
-														<Badge variant="default" class="bg-blue-500 text-[10px]">Nouveau</Badge>
-													{/if}
-													{#if isConflict}
-														<Badge
-															variant="outline"
-															class="border-yellow-500 bg-yellow-100 text-[10px] text-yellow-700"
-														>
-															{row.suggestedStatus === 'SIBLING' ? 'Fratrie ?' : 'Homonyme ?'}
-														</Badge>
-													{/if}
+
+													<div class="flex-1 space-y-1 pl-2">
+														<div class="flex items-center gap-2">
+															<span class="text-sm font-bold"
+																>{row.csvData.prenom} {row.csvData.nom}</span
+															>
+															<Badge variant="outline" class="text-[10px]"
+																>{row.csvData.niveau}</Badge
+															>
+														</div>
+														<div class="text-xs text-muted-foreground">{row.csvData.email}</div>
+														{#if isNew}
+															<Badge variant="default" class="bg-blue-500 text-[10px]"
+																>Nouveau</Badge
+															>
+														{/if}
+														{#if isConflict}
+															<Badge
+																variant="outline"
+																class="border-yellow-500 bg-yellow-100 text-[10px] text-yellow-700"
+															>
+																{row.suggestedStatus === 'SIBLING' ? 'Fratrie ?' : 'Homonyme ?'}
+															</Badge>
+														{/if}
+													</div>
 												</div>
 
 												<!-- 3. ARROW / REASON -->
-												<div class="flex flex-col items-center justify-center px-2 text-center">
+												<div
+													class="hidden flex-col items-center justify-center px-2 text-center lg:flex"
+												>
 													{#if row.existingStudent}
 														<ArrowRight class="h-4 w-4 text-muted-foreground" />
 													{/if}
@@ -343,7 +348,7 @@
 												</div>
 
 												<!-- 4. DB MATCH (If any) -->
-												<div class="flex-1 space-y-1">
+												<div class="w-full lg:flex-1">
 													{#if row.existingStudent}
 														<div class="rounded border bg-white p-2 text-sm shadow-sm">
 															<div class="font-bold text-muted-foreground">En Base :</div>
@@ -368,11 +373,13 @@
 												</div>
 
 												<!-- 5. ACTION BUTTONS -->
-												<div class="flex min-w-55 flex-col gap-2 border-l pl-4">
+												<div
+													class="w-full border-t pt-4 lg:min-w-55 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4"
+												>
 													<span class="text-[10px] font-bold text-muted-foreground uppercase"
 														>Action à effectuer :</span
 													>
-													<div class="flex flex-col gap-1">
+													<div class="mt-1 flex flex-col gap-1">
 														<!-- CREATE NEW BUTTON -->
 														<button
 															type="button"
@@ -432,7 +439,7 @@
 										isConfirming = false;
 									};
 								}}
-								class="flex items-center justify-between pt-4"
+								class="flex flex-col items-center justify-between gap-4 pt-4 sm:flex-row"
 							>
 								<!-- Send back the MODIFIED list with user decisions -->
 								<input
@@ -443,14 +450,19 @@
 								<input type="hidden" name="eventName" value={analysisResult.eventName} />
 								<input type="hidden" name="eventDate" value={analysisResult.eventDate} />
 
-								<Button variant="ghost" type="button" onclick={() => (analysisResult = null)}>
+								<Button
+									variant="ghost"
+									type="button"
+									class="w-full sm:w-auto"
+									onclick={() => (analysisResult = null)}
+								>
 									Annuler et Retour
 								</Button>
 
 								<Button
 									type="submit"
 									disabled={isConfirming}
-									class="bg-green-600 hover:bg-green-700"
+									class="w-full bg-green-600 hover:bg-green-700 sm:w-auto"
 								>
 									{isConfirming ? 'Création en cours...' : "Valider l'import et les décisions"}
 								</Button>
@@ -481,7 +493,7 @@
 							{#if $errors.titre}<p class="text-sm text-destructive">{$errors.titre}</p>{/if}
 						</div>
 
-						<div class="flex gap-4">
+						<div class="flex flex-col gap-4 sm:flex-row">
 							<div class="flex-1 space-y-2">
 								<Label for="date">Date</Label>
 								<Popover.Root bind:open>

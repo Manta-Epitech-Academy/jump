@@ -146,7 +146,8 @@
 </script>
 
 <div class="flex min-h-screen flex-col bg-background pb-20">
-	<div class="sticky top-0 z-20 border-b border-border bg-background/80 pt-4 pb-4 backdrop-blur-md">
+	<!-- 1. STATIC HEADER (Scrolls away) -->
+	<div class="border-b border-border bg-background pt-4 pb-4">
 		<div class="container mx-auto max-w-2xl px-4">
 			<div class="mb-4 flex items-center justify-between">
 				<a
@@ -170,7 +171,7 @@
 				>
 			</h1>
 
-			<!-- LOGISTICS DASHBOARD -->
+			<!-- LOGISTICS DASHBOARD (Now outside sticky area) -->
 			<div
 				class="mt-4 grid grid-cols-2 gap-4 rounded-sm border border-border bg-slate-900 p-4 text-white shadow-md sm:grid-cols-2 dark:bg-card"
 			>
@@ -190,9 +191,15 @@
 					<MonitorSmartphone class="h-8 w-8 text-slate-700" />
 				</div>
 			</div>
+		</div>
+	</div>
 
-			<!-- IMPROVED TOOLBAR -->
-			<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+	<!-- 2. STICKY TOOLBAR (Sticks to top) -->
+	<div
+		class="sticky top-0 z-20 border-b border-border bg-background/95 py-3 backdrop-blur-sm transition-all"
+	>
+		<div class="container mx-auto max-w-2xl px-4">
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<div class="relative flex-1">
 					<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 					<Input
@@ -204,7 +211,7 @@
 
 				<!-- SUBJECT FILTER -->
 				<Select.Root type="single" bind:value={filterSubject}>
-					<Select.Trigger class="h-9 w-[180px] text-xs">
+					<Select.Trigger class="h-9 w-full text-xs sm:w-[180px]">
 						<Filter class="mr-2 h-3 w-3" />
 						{filterSubject === 'all'
 							? 'Tous les sujets'
@@ -219,7 +226,7 @@
 				</Select.Root>
 
 				<!-- VIEW TOGGLE -->
-				<div class="flex rounded-md border bg-card p-1">
+				<div class="hidden rounded-md border bg-card p-1 sm:flex">
 					<button
 						class={cn(
 							'rounded-sm p-1.5 transition-all',
@@ -247,17 +254,59 @@
 				</div>
 			</div>
 
-			<div class="mt-2 flex gap-1">
+			<!-- Mobile Filter/Toggle Row -->
+			<div class="mt-2 flex items-center justify-between sm:hidden">
+				<div class="flex gap-1">
+					<Button
+						variant={filterStatus === 'all' ? 'default' : 'outline'}
+						size="sm"
+						class="h-8 text-[10px]"
+						onclick={() => (filterStatus = 'all')}>Tous</Button
+					>
+					<Button
+						variant={filterStatus === 'present' ? 'default' : 'outline'}
+						size="sm"
+						class="h-8 text-[10px]"
+						onclick={() => (filterStatus = 'present')}>Présents</Button
+					>
+				</div>
+				<div class="flex rounded-md border bg-card p-0.5">
+					<button
+						class={cn(
+							'rounded-sm p-1.5 transition-all',
+							viewMode === 'grid'
+								? 'bg-muted text-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
+						)}
+						onclick={() => (viewMode = 'grid')}
+					>
+						<LayoutGrid class="h-4 w-4" />
+					</button>
+					<button
+						class={cn(
+							'rounded-sm p-1.5 transition-all',
+							viewMode === 'list'
+								? 'bg-muted text-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
+						)}
+						onclick={() => (viewMode = 'list')}
+					>
+						<ListIcon class="h-4 w-4" />
+					</button>
+				</div>
+			</div>
+			<!-- Desktop status filter (hidden on mobile to save space) -->
+			<div class="mt-2 hidden gap-1 sm:flex">
 				<Button
 					variant={filterStatus === 'all' ? 'default' : 'outline'}
 					size="sm"
-					class="h-9 text-[10px]"
+					class="h-8 text-[10px]"
 					onclick={() => (filterStatus = 'all')}>Tous</Button
 				>
 				<Button
 					variant={filterStatus === 'present' ? 'default' : 'outline'}
 					size="sm"
-					class="h-9 text-[10px]"
+					class="h-8 text-[10px]"
 					onclick={() => (filterStatus = 'present')}>Présents</Button
 				>
 			</div>

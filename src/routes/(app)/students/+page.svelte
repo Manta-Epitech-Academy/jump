@@ -13,7 +13,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { enhance as kitEnhance } from '$app/forms';
-	import { replaceState, goto } from '$app/navigation';
+	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
@@ -329,10 +329,13 @@
 									<Ellipsis class="h-4 w-4" />
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content align="end">
-									<DropdownMenu.Item onclick={() => goto(`/students/${student.id}`)}>
+									<a
+										href={`/students/${student.id}`}
+										class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
+									>
 										<Eye class="mr-2 h-4 w-4 text-epi-blue" />
 										Voir le dossier
-									</DropdownMenu.Item>
+									</a>
 									<DropdownMenu.Separator />
 									<DropdownMenu.Item onclick={() => openEdit(student)}>
 										<Pencil class="mr-2 h-4 w-4" />
