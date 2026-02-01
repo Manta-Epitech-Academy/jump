@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 
 	// 2. Find Provider
 	const authMethods = await locals.pb.collection('users').listAuthMethods();
-	const providers = authMethods.oauth2?.providers || authMethods.authProviders || [];
+	const providers = authMethods.oauth2?.providers || [];
 	const provider = providers.find((p) => p.name === 'microsoft');
 
 	if (!provider) {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import {
 		ArrowLeft,
@@ -36,14 +37,17 @@
 		errors,
 		delayed,
 		enhance: superEnhance
-	} = superForm(data.form, {
-		onResult: ({ result }) => {
-			if (result.type === 'success') {
-				editOpen = false;
-				toast.success('Profil mis à jour');
+	} = superForm(
+		untrack(() => data.form),
+		{
+			onResult: ({ result }) => {
+				if (result.type === 'success') {
+					editOpen = false;
+					toast.success('Profil mis à jour');
+				}
 			}
 		}
-	});
+	);
 
 	let editOpen = $state(false);
 
@@ -164,7 +168,7 @@
 			</div>
 
 			<div
-				class="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-px before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent md:before:mx-auto md:before:translate-x-0"
+				class="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-px before:bg-linear-to-b before:from-transparent before:via-slate-300 before:to-transparent md:before:mx-auto md:before:translate-x-0"
 			>
 				{#each data.participations as p (p.id)}
 					<div
@@ -279,7 +283,7 @@
 	</div>
 
 	<Dialog.Root bind:open={editOpen}>
-		<Dialog.Content class="sm:max-w-[500px]">
+		<Dialog.Content class="sm:max-w-125">
 			<Dialog.Header>
 				<Dialog.Title>Modifier le profil</Dialog.Title>
 			</Dialog.Header>

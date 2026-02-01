@@ -3,16 +3,33 @@ import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
+import type {
+	ParticipationsResponse,
+	EventsResponse,
+	SubjectsResponse,
+	ThemesResponse
+} from '$lib/pocketbase-types';
+
+type SubjectExpand = {
+	themes?: ThemesResponse[];
+};
+
+type ParticipationExpand = {
+	event?: EventsResponse;
+	subject?: SubjectsResponse<SubjectExpand>;
+};
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	try {
 		const student = await locals.pb.collection('students').getOne(params.id);
 
-		const participations = await locals.pb.collection('participations').getFullList({
-			filter: `student = "${student.id}"`,
-			sort: '-created',
-			expand: 'event,subject,subject.themes'
-		});
+		const participations = await locals.pb
+			.collection('participations')
+			.getFullList<ParticipationsResponse<ParticipationExpand>>({
+				filter: `student = "${student.id}"`,
+				sort: '-created',
+				expand: 'event,subject,subject.themes'
+			});
 
 		const stats = {
 			totalEvents: participations.length,

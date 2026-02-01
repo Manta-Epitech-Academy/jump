@@ -71,7 +71,7 @@ export const actions: Actions = {
 			const redirectURL = `${url.origin}/oauth/callback`;
 
 			// PocketBase constructs the URL with redirect_uri appended at the end
-			authUrl = `${provider.authUrl}${redirectURL}`;
+			authUrl = `${provider.authURL}${redirectURL}`;
 		} catch (err) {
 			console.error('OAuth2 Action Error:', err);
 			return fail(500, { message: "Erreur interne lors de l'initialisation OAuth." });

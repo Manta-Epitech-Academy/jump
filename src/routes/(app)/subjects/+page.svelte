@@ -1,7 +1,10 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import type { SubjectsResponse, ThemesResponse } from '$lib/pocketbase-types';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance as kitEnhance } from '$app/forms';
+
+	type SubjectWithThemes = SubjectsResponse<{ themes?: ThemesResponse[] }>;
 	import {
 		Plus,
 		Cuboid,
@@ -112,7 +115,7 @@
 		</Button>
 
 		<Dialog.Root bind:open>
-			<Dialog.Content class="sm:max-w-[500px]">
+			<Dialog.Content class="sm:max-w-125">
 				<Dialog.Header>
 					<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un sujet</Dialog.Title>
 					<Dialog.Description>
@@ -232,7 +235,8 @@
 										deleteDialogOpen = false;
 										await update();
 									} else if (result.type === 'failure') {
-										toast.error(result.data?.message || 'Erreur lors de la suppression');
+										const data = result.data as { message?: string } | undefined;
+										toast.error(data?.message || 'Erreur lors de la suppression');
 									}
 								};
 							}}
@@ -251,14 +255,15 @@
 		<Table.Root>
 			<Table.Header class="bg-muted/50">
 				<Table.Row>
-					<Table.Head class="w-[200px] text-xs font-bold uppercase">Nom</Table.Head>
+					<Table.Head class="w-50 text-xs font-bold uppercase">Nom</Table.Head>
 					<Table.Head class="text-xs font-bold uppercase">Thèmes & Description</Table.Head>
-					<Table.Head class="w-[180px] text-xs font-bold uppercase">Niveaux</Table.Head>
-					<Table.Head class="w-[50px]"></Table.Head>
+					<Table.Head class="w-45 text-xs font-bold uppercase">Niveaux</Table.Head>
+					<Table.Head class="w-12.5"></Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.subjects as subject (subject.id)}
+					{@const typedSubject = subject as SubjectWithThemes}
 					<Table.Row class="hover:bg-muted/30">
 						<Table.Cell class="align-top font-bold">
 							<div class="flex flex-col gap-1 pt-1">
@@ -281,9 +286,9 @@
 						</Table.Cell>
 						<Table.Cell class="align-top">
 							<div class="flex flex-col gap-2">
-								{#if subject.expand?.themes && subject.expand.themes.length > 0}
+								{#if typedSubject.expand?.themes && typedSubject.expand.themes.length > 0}
 									<div class="flex flex-wrap gap-1">
-										{#each subject.expand.themes as theme}
+										{#each typedSubject.expand.themes as theme}
 											<Badge
 												variant="outline"
 												class="gap-1 border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-800"

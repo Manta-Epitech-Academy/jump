@@ -155,7 +155,7 @@
 						</div>
 						<Select.Root type="single" bind:value={selectedTheme}>
 							<Select.Trigger
-								class="h-full min-w-[100px] border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
+								class="h-full min-w-25 border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
 							>
 								{getThemeName(selectedTheme)}
 							</Select.Trigger>

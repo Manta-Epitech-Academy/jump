@@ -167,10 +167,20 @@
 								isAnalyzing = true;
 								return async ({ result }) => {
 									isAnalyzing = false;
-									if (result.type === 'success' && result.data?.analysisSuccess) {
-										analysisResult = result.data;
+									if (result.type === 'success') {
+										const data = result.data as
+											| { analysisSuccess?: boolean; error?: string }
+											| undefined;
+										if (data?.analysisSuccess) {
+											analysisResult = result.data;
+										} else {
+											toast.error(data?.error || "Erreur d'analyse");
+										}
+									} else if (result.type === 'failure') {
+										const data = result.data as { error?: string } | undefined;
+										toast.error(data?.error || "Erreur d'analyse");
 									} else {
-										toast.error(result.data?.error || "Erreur d'analyse");
+										toast.error("Erreur d'analyse");
 									}
 								};
 							}}

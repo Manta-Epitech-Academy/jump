@@ -1,6 +1,16 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { getSubjectXpValue } from '$lib/xp';
+import type {
+	ParticipationsResponse,
+	StudentsResponse,
+	SubjectsResponse
+} from '$lib/pocketbase-types';
+
+type ParticipationExpand = {
+	student?: StudentsResponse;
+	subject?: SubjectsResponse;
+};
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	try {
@@ -8,10 +18,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			expand: 'theme'
 		});
 
-		const rawParticipations = await locals.pb.collection('participations').getFullList({
-			filter: `event = "${event.id}"`,
-			expand: 'student,subject'
-		});
+		const rawParticipations = await locals.pb
+			.collection('participations')
+			.getFullList<ParticipationsResponse<ParticipationExpand>>({
+				filter: `event = "${event.id}"`,
+				expand: 'student,subject'
+			});
 
 		const participations = rawParticipations.sort((a, b) => {
 			const nameA = a.expand?.student?.nom ?? '';
@@ -36,9 +48,11 @@ export const actions: Actions = {
 		const currentState = data.get('state') === 'true';
 
 		try {
-			const p = await locals.pb.collection('participations').getOne(id, {
-				expand: 'subject'
-			});
+			const p = await locals.pb
+				.collection('participations')
+				.getOne<ParticipationsResponse<ParticipationExpand>>(id, {
+					expand: 'subject'
+				});
 
 			const studentId = p.student;
 			const isNowPresent = !currentState;

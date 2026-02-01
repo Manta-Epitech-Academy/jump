@@ -1,6 +1,20 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { getSubjectXpValue } from '$lib/xp';
+import type {
+	EventsResponse,
+	ThemesResponse,
+	ParticipationsResponse,
+	SubjectsResponse
+} from '$lib/pocketbase-types';
+
+type EventExpand = {
+	theme?: ThemesResponse;
+};
+
+type ParticipationExpand = {
+	subject?: SubjectsResponse;
+};
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Redundant but explicit auth check
@@ -9,7 +23,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	try {
-		const events = await locals.pb.collection('events').getFullList({
+		const events = await locals.pb.collection('events').getFullList<EventsResponse<EventExpand>>({
 			sort: '-date',
 			filter: `date >= '${new Date().toISOString()}' && statut = 'planifiee'`,
 			expand: 'theme'
@@ -37,10 +51,12 @@ export const actions: Actions = {
 
 		try {
 			// 1. Get all present participations to revert XP before deleting
-			const participations = await locals.pb.collection('participations').getFullList({
-				filter: `event = "${id}" && is_present = true`,
-				expand: 'subject'
-			});
+			const participations = await locals.pb
+				.collection('participations')
+				.getFullList<ParticipationsResponse<ParticipationExpand>>({
+					filter: `event = "${id}" && is_present = true`,
+					expand: 'subject'
+				});
 
 			// 2. Revert XP/Events count for each student manually
 			for (const p of participations) {

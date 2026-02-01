@@ -1,10 +1,15 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
+import type { EventsResponse, ThemesResponse } from '$lib/pocketbase-types';
+
+type EventExpand = {
+	theme?: ThemesResponse;
+};
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		// Fetch events that are in the past
-		const events = await locals.pb.collection('events').getFullList({
+		const events = await locals.pb.collection('events').getFullList<EventsResponse<EventExpand>>({
 			sort: '-date', // Most recent past events first
 			filter: `date < '${new Date().toISOString()}'`,
 			expand: 'theme',

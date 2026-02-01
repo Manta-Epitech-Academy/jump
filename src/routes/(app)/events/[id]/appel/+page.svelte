@@ -8,7 +8,7 @@
 		MonitorSmartphone,
 		LayoutGrid,
 		List as ListIcon,
-		Filter,
+		Funnel,
 		User,
 		MonitorX,
 		Award
@@ -25,26 +25,43 @@
 	import { cn } from '$lib/utils';
 	import { enhance } from '$app/forms';
 	import NoteInput from '$lib/components/events/NoteInput.svelte';
+	import type {
+		ParticipationsResponse,
+		StudentsResponse,
+		SubjectsResponse,
+		EventsResponse
+	} from '$lib/pocketbase-types';
+
+	type ParticipationExpand = {
+		student?: StudentsResponse;
+		subject?: SubjectsResponse;
+	};
+
+	type ParticipationWithExpand = ParticipationsResponse<ParticipationExpand>;
 
 	let { data }: { data: PageData } = $props();
 
-	let participations = $state(untrack(() => data.participations));
+	let participations: ParticipationWithExpand[] = $state(
+		untrack(() => data.participations as ParticipationWithExpand[])
+	);
 	let searchQuery = $state('');
 	let filterStatus = $state<'all' | 'present'>('all');
 
-	// NEW STATES
 	let viewMode = $state<'grid' | 'list'>('grid');
 	let filterSubject = $state<string>('all');
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let diplomaData = $state<{ student: any; event: any; subject: any }>({
+	let diplomaData = $state<{
+		student: StudentsResponse | null;
+		event: EventsResponse | null;
+		subject: SubjectsResponse | null;
+	}>({
 		student: null,
 		event: null,
 		subject: null
 	});
 
 	$effect(() => {
-		participations = data.participations;
+		participations = data.participations as ParticipationWithExpand[];
 	});
 
 	const pb = new PocketBase(pbUrl);
@@ -60,9 +77,9 @@
 					if (index !== -1) {
 						participations[index] = {
 							...participations[index],
-							is_present: e.record.is_present,
-							bring_pc: e.record.bring_pc,
-							note: e.record.note
+							is_present: e.record.is_present as boolean,
+							bring_pc: e.record.bring_pc as boolean,
+							note: e.record.note as string
 						};
 					}
 				} else if (e.action === 'create' || e.action === 'delete') {
@@ -91,8 +108,9 @@
 
 	// Get unique subjects for filter dropdown
 	let uniqueSubjects = $derived.by(() => {
-		const subjects = new Map();
-		data.participations.forEach((p) => {
+		const subjects = new Map<string, string>();
+		const typedParticipations = data.participations as ParticipationWithExpand[];
+		typedParticipations.forEach((p) => {
 			if (p.expand?.subject) {
 				subjects.set(p.expand.subject.id, p.expand.subject.nom);
 			}
@@ -123,19 +141,19 @@
 	let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
 
 	// --- DIPLOMA HANDLER ---
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	async function handleDiplomaDownload(participation: any) {
+	async function handleDiplomaDownload(participation: ParticipationWithExpand) {
 		// Update data for the hidden template
 		diplomaData = {
-			student: participation.expand.student,
+			student: participation.expand?.student ?? null,
 			event: data.event,
-			subject: participation.expand.subject
+			subject: participation.expand?.subject ?? null
 		};
 
 		// Allow slight delay for DOM to update the hidden component
 		setTimeout(async () => {
 			try {
-				const filename = `Diplome_${participation.expand.student.nom}_${participation.expand.student.prenom}.pdf`;
+				const student = participation.expand?.student;
+				const filename = student ? `Diplome_${student.nom}_${student.prenom}.pdf` : 'Diplome.pdf';
 				await generateDiplomaFromHTML('diploma-render-target', filename);
 				toast.success('Diplôme téléchargé !');
 			} catch (e) {
@@ -212,8 +230,8 @@
 
 				<!-- SUBJECT FILTER -->
 				<Select.Root type="single" bind:value={filterSubject}>
-					<Select.Trigger class="h-9 w-full text-xs sm:w-[180px]">
-						<Filter class="mr-2 h-3 w-3" />
+					<Select.Trigger class="h-9 w-full text-xs sm:w-45">
+						<Funnel class="mr-2 h-3 w-3" />
 						{filterSubject === 'all'
 							? 'Tous les sujets'
 							: uniqueSubjects.find((s) => s[0] === filterSubject)?.[1]}
@@ -374,7 +392,9 @@
 						{#if p.is_present}
 							<div class="flex items-center gap-2">
 								{#if !p.bring_pc}
-									<MonitorX class="h-4 w-4 text-orange-400" title="Pas de PC" />
+									<span title="Pas de PC">
+										<MonitorX class="h-4 w-4 text-orange-400" />
+									</span>
 								{/if}
 
 								<div class="w-40 sm:w-48">
@@ -406,7 +426,7 @@
 
 <!-- HIDDEN RENDER TARGET FOR DIPLOMAS -->
 <!-- Positioned far off-screen so user doesn't see it flickering, but html2canvas can capture it. -->
-<div class="fixed top-0 left-[-9999px] z-[-1]">
+<div class="fixed top-0 -left-full -z-1">
 	{#if diplomaData.student}
 		<DiplomaTemplate
 			student={diplomaData.student}

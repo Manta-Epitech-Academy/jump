@@ -113,7 +113,7 @@
 
 		<div class="flex items-center gap-2">
 			<!-- Search Input -->
-			<div class="relative w-full max-w-[200px]">
+			<div class="relative w-full max-w-50">
 				<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
 				<Input
 					placeholder="Rechercher..."
@@ -123,7 +123,7 @@
 			</div>
 
 			<!-- Level Filter -->
-			<div class="w-[180px]">
+			<div class="w-45">
 				<Select.Root type="single" value={selectedLevel} onValueChange={handleFilterChange}>
 					<Select.Trigger>
 						<Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
@@ -144,7 +144,7 @@
 			</button>
 
 			<Dialog.Root bind:open>
-				<Dialog.Content class="sm:max-w-[500px]">
+				<Dialog.Content class="sm:max-w-125">
 					<Dialog.Header>
 						<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un élève</Dialog.Title>
 						<Dialog.Description>

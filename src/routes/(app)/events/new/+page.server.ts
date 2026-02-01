@@ -53,10 +53,10 @@ export const actions: Actions = {
 		}
 
 		const transformedData = {
-			titre: formData.get('titre'),
+			titre: (formData.get('titre') as string) || '',
 			date: calendarDateTime,
 			time: timeStr,
-			statut: formData.get('statut'),
+			statut: (formData.get('statut') as 'planifiee' | 'en_cours' | 'terminee') || 'planifiee',
 			theme: themeInput
 		};
 

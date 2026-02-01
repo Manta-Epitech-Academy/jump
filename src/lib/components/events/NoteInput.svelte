@@ -7,7 +7,12 @@
 
 	let { id, value = '', placeholder = 'Ajouter une note...', class: className } = $props();
 
-	let currentValue = $state(value);
+	let currentValue = $state('');
+
+	// Sync currentValue when the value prop changes from parent
+	$effect.pre(() => {
+		currentValue = value;
+	});
 	let status = $state<'idle' | 'loading' | 'saved' | 'error'>('idle');
 	let formElement: HTMLFormElement;
 	let debounceTimer: ReturnType<typeof setTimeout>;

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import type { ThemesResponse } from '$lib/pocketbase-types';
 	import { superForm } from 'sveltekit-superforms';
 	import {
 		Users,
@@ -220,10 +221,12 @@
 							})}
 						</span>
 					</div>
-					{#if data.event.expand?.theme}
+					{#if (data.event as { expand?: { theme?: ThemesResponse } }).expand?.theme}
 						<div class="flex items-center gap-1">
 							<Tag class="h-3 w-3 text-teal-700" />
-							<span class="text-teal-800">{data.event.expand.theme.nom}</span>
+							<span class="text-teal-800"
+								>{(data.event as { expand?: { theme?: ThemesResponse } }).expand?.theme?.nom}</span
+							>
 						</div>
 					{/if}
 				</div>
@@ -368,8 +371,8 @@
 										use:enhance={() => {
 											return async ({ result, update }) => {
 												if (result.type === 'success') {
-													// eslint-disable-next-line @typescript-eslint/no-explicit-any
-													toast.success(result.data?.message || 'Assignation terminée');
+													const data = result.data as { message?: string } | undefined;
+													toast.success(data?.message || 'Assignation terminée');
 													await update();
 												} else {
 													toast.error("Erreur lors de l'auto-assignation");
@@ -443,7 +446,7 @@
 		</Card.Root>
 
 		<div class="flex h-auto flex-col gap-4 md:col-span-4 md:h-full">
-			<Card.Root class="flex h-[400px] flex-col rounded-sm md:h-full md:max-h-full md:flex-1">
+			<Card.Root class="flex h-100 flex-col rounded-sm md:h-full md:max-h-full md:flex-1">
 				<Card.Header class="space-y-4 pb-3">
 					<Card.Title class="uppercase">Inscrire des élèves</Card.Title>
 					<div class="relative">

@@ -7,6 +7,21 @@ import { studentSchema } from '$lib/validation/students';
 import { getSubjectXpValue } from '$lib/xp';
 import { suggestBestSubject } from '$lib/recommender';
 import { type CsvStudent } from '$lib/csvUtils';
+import type {
+	ParticipationsResponse,
+	StudentsResponse,
+	SubjectsResponse,
+	ThemesResponse
+} from '$lib/pocketbase-types';
+
+type ParticipationExpand = {
+	student?: StudentsResponse;
+	subject?: SubjectsResponse;
+};
+
+type EventExpand = {
+	theme?: ThemesResponse;
+};
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	let event;
@@ -20,12 +35,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		throw error(404, 'Événement introuvable');
 	}
 
-	const participationsRaw = await locals.pb.collection('participations').getFullList({
-		filter: `event = "${event.id}"`,
-		expand: 'student,subject',
-		sort: '-created',
-		requestKey: null
-	});
+	const participationsRaw = await locals.pb
+		.collection('participations')
+		.getFullList<ParticipationsResponse<ParticipationExpand>>({
+			filter: `event = "${event.id}"`,
+			expand: 'student,subject',
+			sort: '-created',
+			requestKey: null
+		});
 
 	const participations = await Promise.all(
 		participationsRaw.map(async (p) => {
@@ -47,7 +64,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					});
 				}
 
-				if (currentSubject.niveaux && !currentSubject.niveaux.includes(student.niveau)) {
+				if (
+					currentSubject.niveaux &&
+					student.niveau &&
+					!currentSubject.niveaux.includes(
+						student.niveau as unknown as (typeof currentSubject.niveaux)[number]
+					)
+				) {
 					alerts.push({
 						type: 'warning',
 						message: `NIVEAU : Le sujet est prévu pour [${currentSubject.niveaux.join(', ')}], l'élève est en ${student.niveau}.`
@@ -88,7 +111,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		{
 			titre: event.titre,
 			statut: event.statut as 'planifiee' | 'en_cours' | 'terminee',
-			theme: event.expand?.theme?.nom || '',
+			theme: (event as { expand?: { theme?: { nom?: string } } }).expand?.theme?.nom || '',
 			date: dateString,
 			time: timeString
 		},
@@ -176,10 +199,12 @@ export const actions: Actions = {
 	autoAssignAll: async ({ params, locals }) => {
 		try {
 			// 1. Get all unassigned participations for this event
-			const unassigned = await locals.pb.collection('participations').getFullList({
-				filter: `event = "${params.id}" && subject = ""`, // empty subject
-				expand: 'student'
-			});
+			const unassigned = await locals.pb
+				.collection('participations')
+				.getFullList<ParticipationsResponse<ParticipationExpand>>({
+					filter: `event = "${params.id}" && subject = ""`, // empty subject
+					expand: 'student'
+				});
 
 			if (unassigned.length === 0) {
 				return { success: true, message: 'Aucun élève à assigner.' };
@@ -195,7 +220,7 @@ export const actions: Actions = {
 				// Use existing recommender
 				const suggestedId = await suggestBestSubject(
 					locals.pb,
-					p.expand?.student?.id,
+					p.expand?.student?.id ?? '',
 					subjects,
 					event.theme
 				);
@@ -253,10 +278,10 @@ export const actions: Actions = {
 		const themeInput = formData.get('theme') as string;
 
 		const transformedData = {
-			titre: formData.get('titre'),
+			titre: (formData.get('titre') as string) || '',
 			date: dateStr,
 			time: timeStr,
-			statut: formData.get('statut'),
+			statut: (formData.get('statut') as 'planifiee' | 'en_cours' | 'terminee') || 'planifiee',
 			theme: themeInput
 		};
 
@@ -347,9 +372,11 @@ export const actions: Actions = {
 		if (!id) return fail(400);
 
 		try {
-			const p = await locals.pb.collection('participations').getOne(id, {
-				expand: 'subject'
-			});
+			const p = await locals.pb
+				.collection('participations')
+				.getOne<ParticipationsResponse<ParticipationExpand>>(id, {
+					expand: 'subject'
+				});
 
 			if (p.is_present) {
 				const subject = p.expand?.subject;
@@ -371,10 +398,12 @@ export const actions: Actions = {
 
 	deleteEvent: async ({ params, locals }) => {
 		try {
-			const participations = await locals.pb.collection('participations').getFullList({
-				filter: `event = "${params.id}" && is_present = true`,
-				expand: 'subject'
-			});
+			const participations = await locals.pb
+				.collection('participations')
+				.getFullList<ParticipationsResponse<ParticipationExpand>>({
+					filter: `event = "${params.id}" && is_present = true`,
+					expand: 'subject'
+				});
 
 			for (const p of participations) {
 				const subject = p.expand?.subject;
