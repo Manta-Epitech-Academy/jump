@@ -21,12 +21,10 @@
 
 	// Access expanded user campus from page data (via layout.server.ts -> hooks)
 	let userCampusName = $derived(page.data.user?.expand?.campus?.name);
-	let userCampusCode = $derived(page.data.user?.expand?.campus?.code);
-	let userCampusColor = $derived(page.data.user?.expand?.campus?.color || '#013afb');
 </script>
 
 <svelte:head>
-	<title>CodeCamp Manager {userCampusCode ? `[${userCampusCode}]` : ''}</title>
+	<title>CodeCamp Manager {userCampusName ? `[${userCampusName}]` : ''}</title>
 </svelte:head>
 
 <ModeWatcher />
@@ -35,13 +33,12 @@
 	<Toaster richColors position="top-center" />
 
 	<!-- Campus Indicator Overlay -->
-	{#if userCampusCode}
+	{#if userCampusName}
 		<div
-			class="pointer-events-none fixed right-4 bottom-4 z-50 hidden opacity-20 md:block"
-			style="color: {userCampusColor}"
+			class="pointer-events-none fixed right-4 bottom-4 z-50 hidden text-muted-foreground opacity-20 md:block"
 		>
-			<span class="font-heading text-6xl font-black tracking-tighter uppercase"
-				>{userCampusCode}</span
+			<span class="font-heading text-4xl font-black tracking-tighter uppercase"
+				>{userCampusName}</span
 			>
 		</div>
 	{/if}

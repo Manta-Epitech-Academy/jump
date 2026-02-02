@@ -46,10 +46,6 @@
 						<Select.Content class="max-h-60 w-[var(--bits-select-anchor-width)] overflow-y-auto">
 							{#each data.campuses as campus}
 								<Select.Item value={campus.id} class="flex justify-center text-base">
-									<span
-										class="mr-2 inline-block h-2 w-2 rounded-full"
-										style="background-color: {campus.color || 'gray'};"
-									></span>
 									{campus.name}
 								</Select.Item>
 							{/each}

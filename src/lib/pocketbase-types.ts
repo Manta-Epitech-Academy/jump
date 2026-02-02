@@ -99,8 +99,6 @@ export type SuperusersRecord = {
 }
 
 export type CampusesRecord = {
-	code: string
-	color?: string
 	created: IsoAutoDateString
 	id: string
 	name: string
