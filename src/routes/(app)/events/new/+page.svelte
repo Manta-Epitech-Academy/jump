@@ -23,7 +23,8 @@
 		Split,
 		ArrowRight,
 		FileCheck,
-		Laptop
+		Laptop,
+		LoaderCircle
 	} from 'lucide-svelte';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import { untrack } from 'svelte';
@@ -53,6 +54,56 @@
 	let isDragActive = $state(false);
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let selectedFileName = $state<string>('');
+
+	// --- LOADING & PROGRESS LOGIC ---
+	let loadingMessages = [
+		'Lecture du fichier CSV...',
+		'Comparaison avec la base de données...',
+		'Détection des homonymes...',
+		'Vérification des niveaux scolaires...',
+		'Recherche de doublons...',
+		'Préparation de la liste...',
+		'Synchronisation en cours...'
+	];
+
+	let currentMessage = $state('');
+	let progress = $state(0);
+	let progressInterval: ReturnType<typeof setInterval>;
+
+	function startFakeProgress() {
+		progress = 0;
+		clearInterval(progressInterval);
+		progressInterval = setInterval(() => {
+			if (progress < 40) {
+				progress += 5; // Start fast
+			} else if (progress < 70) {
+				progress += 2; // Medium
+			} else if (progress < 95) {
+				progress += 0.5; // Slow down as we wait for server
+			}
+		}, 200);
+	}
+
+	function completeProgress(callback: () => void) {
+		clearInterval(progressInterval);
+		progress = 100;
+		// Give the user a moment to see the 100% completion
+		setTimeout(() => {
+			callback();
+		}, 300);
+	}
+
+	// Cycling message logic
+	$effect(() => {
+		if (isAnalyzing || isConfirming) {
+			currentMessage = loadingMessages[0];
+			const interval = setInterval(() => {
+				const idx = Math.floor(Math.random() * loadingMessages.length);
+				currentMessage = loadingMessages[idx];
+			}, 1200);
+			return () => clearInterval(interval);
+		}
+	});
 
 	$effect(() => {
 		if (dateValue) {
@@ -104,7 +155,6 @@
 
 		if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
 			const files = e.dataTransfer.files;
-			// Only accept CSV
 			if (files[0].type === 'text/csv' || files[0].name.endsWith('.csv')) {
 				if (fileInput) {
 					fileInput.files = files;
@@ -165,23 +215,26 @@
 							enctype="multipart/form-data"
 							use:kitEnhance={() => {
 								isAnalyzing = true;
+								startFakeProgress();
 								return async ({ result }) => {
-									isAnalyzing = false;
-									if (result.type === 'success') {
-										const data = result.data as
-											| { analysisSuccess?: boolean; error?: string }
-											| undefined;
-										if (data?.analysisSuccess) {
-											analysisResult = result.data;
-										} else {
+									completeProgress(() => {
+										isAnalyzing = false;
+										if (result.type === 'success') {
+											const data = result.data as
+												| { analysisSuccess?: boolean; error?: string }
+												| undefined;
+											if (data?.analysisSuccess) {
+												analysisResult = result.data;
+											} else {
+												toast.error(data?.error || "Erreur d'analyse");
+											}
+										} else if (result.type === 'failure') {
+											const data = result.data as { error?: string } | undefined;
 											toast.error(data?.error || "Erreur d'analyse");
+										} else {
+											toast.error("Erreur d'analyse");
 										}
-									} else if (result.type === 'failure') {
-										const data = result.data as { error?: string } | undefined;
-										toast.error(data?.error || "Erreur d'analyse");
-									} else {
-										toast.error("Erreur d'analyse");
-									}
+									});
 								};
 							}}
 							class="space-y-6 py-6"
@@ -234,7 +287,6 @@
 									</Button>
 								{/if}
 
-								<!-- Hidden Input -->
 								<input
 									bind:this={fileInput}
 									onchange={onFileSelected}
@@ -261,7 +313,6 @@
 						<!-- STEP 2: REVIEW & DECIDE -->
 					{:else}
 						<div class="space-y-6">
-							<!-- Header Info -->
 							<div class="grid gap-4 sm:grid-cols-2">
 								<div class="space-y-2">
 									<Label>Nom de l'événement détecté</Label>
@@ -287,7 +338,6 @@
 
 								<ScrollArea class="h-125">
 									<div class="divide-y">
-										<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
 										{#each analysisResult.analysisData as row (row.id)}
 											{@const isNew = row.suggestedStatus === 'NEW'}
 											{@const isConflict =
@@ -298,7 +348,6 @@
 													? 'bg-yellow-50/50'
 													: ''}"
 											>
-												<!-- 1. PC TOGGLE & 2. CSV DATA -->
 												<div class="flex w-full items-start gap-3 lg:w-auto">
 													<div class="flex flex-col items-center justify-center border-r pr-4">
 														<Button
@@ -343,7 +392,6 @@
 													</div>
 												</div>
 
-												<!-- 3. ARROW / REASON -->
 												<div
 													class="hidden flex-col items-center justify-center px-2 text-center lg:flex"
 												>
@@ -357,7 +405,6 @@
 													{/if}
 												</div>
 
-												<!-- 4. DB MATCH (If any) -->
 												<div class="w-full lg:flex-1">
 													{#if row.existingStudent}
 														<div class="rounded border bg-white p-2 text-sm shadow-sm">
@@ -382,7 +429,6 @@
 													{/if}
 												</div>
 
-												<!-- 5. ACTION BUTTONS -->
 												<div
 													class="w-full border-t pt-4 lg:min-w-55 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4"
 												>
@@ -390,7 +436,6 @@
 														>Action à effectuer :</span
 													>
 													<div class="mt-1 flex flex-col gap-1">
-														<!-- CREATE NEW BUTTON -->
 														<button
 															type="button"
 															class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all
@@ -412,7 +457,6 @@
 															{/if}
 														</button>
 
-														<!-- LINK EXISTING BUTTON -->
 														{#if row.existingStudent}
 															<button
 																type="button"
@@ -444,14 +488,16 @@
 								method="POST"
 								use:kitEnhance={() => {
 									isConfirming = true;
+									startFakeProgress();
 									return async ({ update }) => {
-										await update();
-										isConfirming = false;
+										completeProgress(async () => {
+											await update();
+											isConfirming = false;
+										});
 									};
 								}}
 								class="flex flex-col items-center justify-between gap-4 pt-4 sm:flex-row"
 							>
-								<!-- Send back the MODIFIED list with user decisions -->
 								<input
 									type="hidden"
 									name="importData"
@@ -583,3 +629,38 @@
 		</Tabs.Content>
 	</Tabs.Root>
 </div>
+
+<!-- DYNAMIC LOADER -->
+{#if isAnalyzing || isConfirming}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm transition-all duration-300"
+	>
+		<div
+			class="flex w-full max-w-sm animate-in flex-col items-center gap-4 rounded-lg border bg-card p-8 text-center shadow-lg duration-200 zoom-in-95"
+		>
+			<div class="relative flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+				<LoaderCircle class="h-6 w-6 animate-spin text-epi-blue" />
+			</div>
+
+			<div class="space-y-1">
+				<h3 class="text-lg font-bold tracking-tight uppercase">
+					{isAnalyzing ? 'Analyse du fichier' : 'Traitement en cours'}
+				</h3>
+				<p class="min-h-[1.5em] font-mono text-xs text-muted-foreground">
+					{currentMessage}<span class="animate-pulse">_</span>
+				</p>
+			</div>
+
+			<!-- DETERMINATE PROGRESS BAR -->
+			<div class="h-1.5 w-3/4 overflow-hidden rounded-full bg-muted">
+				<div
+					class="h-full rounded-full bg-epi-blue transition-all duration-300 ease-out"
+					style="width: {progress}%"
+				></div>
+			</div>
+			<span class="text-[10px] font-bold text-muted-foreground uppercase"
+				>{Math.round(progress)}%</span
+			>
+		</div>
+	</div>
+{/if}

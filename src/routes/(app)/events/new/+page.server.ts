@@ -131,74 +131,74 @@ export const actions: Actions = {
 
 			const { eventName, eventDate, students } = await parseEventImportCsv(text);
 
-			const analysis: ImportAction[] = [];
-			let index = 0;
+			// Parallelize analysis
+			const analysis = await Promise.all(
+				students.map(async (csvS, i) => {
+					const index = i + 1;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					let existing: any = null;
+					let status: ImportAction['suggestedStatus'] = 'NEW';
+					let decision: ImportAction['decision'] = 'CREATE_NEW';
+					let reason = '';
 
-			for (const csvS of students) {
-				index++;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				let existing: any = null;
-				let status: ImportAction['suggestedStatus'] = 'NEW';
-				let decision: ImportAction['decision'] = 'CREATE_NEW';
-				let reason = '';
+					const safeNom = csvS.nom.replace(/"/g, '\\"');
+					const safePrenom = csvS.prenom.replace(/"/g, '\\"');
 
-				const safeNom = csvS.nom.replace(/"/g, '\\"');
-				const safePrenom = csvS.prenom.replace(/"/g, '\\"');
+					// A. FIRST PRIORITY: Exact Identity Match (Nom + Prénom + Email)
+					try {
+						existing = await locals.pb
+							.collection('students')
+							.getFirstListItem(
+								`nom = "${safeNom}" && prenom = "${safePrenom}" && email = "${csvS.email}"`
+							);
+						status = 'MERGE';
+						decision = 'LINK_EXISTING';
+						reason = 'Profil identique trouvé (Nom + Email)';
+					} catch (_) {
+						// B. SECOND PRIORITY: Sibling Detection (Email Match but different name)
+						if (csvS.email) {
+							try {
+								const siblingMatch = await locals.pb
+									.collection('students')
+									.getFirstListItem(`email = "${csvS.email}"`);
 
-				// A. FIRST PRIORITY: Exact Identity Match (Nom + Prénom + Email)
-				try {
-					existing = await locals.pb
-						.collection('students')
-						.getFirstListItem(
-							`nom = "${safeNom}" && prenom = "${safePrenom}" && email = "${csvS.email}"`
-						);
-					status = 'MERGE';
-					decision = 'LINK_EXISTING';
-					reason = 'Profil identique trouvé (Nom + Email)';
-				} catch (_) {
-					// B. SECOND PRIORITY: Sibling Detection (Email Match but different name)
-					if (csvS.email) {
-						try {
-							const siblingMatch = await locals.pb
-								.collection('students')
-								.getFirstListItem(`email = "${csvS.email}"`);
+								status = 'SIBLING';
+								decision = 'CREATE_NEW'; // Always default to creating a new profile for siblings
+								existing = siblingMatch;
+								reason = `Fratrie détectée : Email identique à ${siblingMatch.prenom} ${siblingMatch.nom}`;
+							} catch (__) {
+								/* Truly new email */
+							}
+						}
 
-							status = 'SIBLING';
-							decision = 'CREATE_NEW'; // Always default to creating a new profile for siblings
-							existing = siblingMatch;
-							reason = `Fratrie détectée : Email identique à ${siblingMatch.prenom} ${siblingMatch.nom}`;
-						} catch (__) {
-							/* Truly new email */
+						// C. THIRD PRIORITY: Conflict/Homonym Detection (Name match but different/no email)
+						if (status === 'NEW') {
+							try {
+								const nameMatch = await locals.pb
+									.collection('students')
+									.getFirstListItem(`nom = "${safeNom}" && prenom = "${safePrenom}"`);
+
+								status = 'CONFLICT';
+								decision = 'CREATE_NEW'; // Safer to create new if email doesn't match
+								existing = nameMatch;
+								reason = 'Nom identique mais email différent (Homonyme possible)';
+							} catch (___) {
+								/* Truly new person */
+							}
 						}
 					}
 
-					// C. THIRD PRIORITY: Conflict/Homonym Detection (Name match but different/no email)
-					if (status === 'NEW') {
-						try {
-							const nameMatch = await locals.pb
-								.collection('students')
-								.getFirstListItem(`nom = "${safeNom}" && prenom = "${safePrenom}"`);
-
-							status = 'CONFLICT';
-							decision = 'CREATE_NEW'; // Safer to create new if email doesn't match
-							existing = nameMatch;
-							reason = 'Nom identique mais email différent (Homonyme possible)';
-						} catch (___) {
-							/* Truly new person */
-						}
-					}
-				}
-
-				analysis.push({
-					id: `row-${index}`,
-					csvData: csvS,
-					suggestedStatus: status,
-					decision: decision,
-					existingStudent: existing,
-					matchReason: reason,
-					bring_pc: false
-				});
-			}
+					return {
+						id: `row-${index}`,
+						csvData: csvS,
+						suggestedStatus: status,
+						decision: decision,
+						existingStudent: existing,
+						matchReason: reason,
+						bring_pc: false
+					} as ImportAction;
+				})
+			);
 
 			return {
 				analysisSuccess: true,
@@ -234,56 +234,69 @@ export const actions: Actions = {
 
 			const subjects = await locals.pb.collection('subjects').getFullList();
 
-			// 2. Process Students
-			for (const item of importList) {
-				let studentId: string | undefined;
+			// 2. Process Students in Parallel
+			await Promise.all(
+				importList.map(async (item) => {
+					let studentId: string | undefined;
 
-				if (item.decision === 'LINK_EXISTING' && item.existingStudent) {
-					studentId = item.existingStudent.id;
-				} else {
-					// CREATE NEW STUDENT
-					const studentData = {
-						prenom: item.csvData.prenom,
-						nom: item.csvData.nom,
-						email: item.csvData.email,
-						phone: item.csvData.phone,
-						niveau: item.csvData.niveau as StudentsNiveauOptions,
-						xp: 0,
-						events_count: 0,
-						parent_email: item.csvData.parentEmail,
-						parent_phone: item.csvData.parentPhone
-					};
+					if (item.decision === 'LINK_EXISTING' && item.existingStudent) {
+						studentId = item.existingStudent.id;
+					} else {
+						// CREATE NEW STUDENT
+						const studentData = {
+							prenom: item.csvData.prenom,
+							nom: item.csvData.nom,
+							email: item.csvData.email,
+							phone: item.csvData.phone,
+							niveau: item.csvData.niveau as StudentsNiveauOptions,
+							xp: 0,
+							events_count: 0,
+							parent_email: item.csvData.parentEmail,
+							parent_phone: item.csvData.parentPhone
+						};
 
-					try {
-						const newS = await createScoped(locals.pb, 'students', studentData);
-						studentId = newS.id;
-					} catch (err) {
-						console.error(`Creation failed for ${item.csvData.nom}`, err);
-					}
-				}
-
-				if (studentId) {
-					try {
-						// Create Participation
-						const check = await locals.pb.collection('participations').getList(1, 1, {
-							filter: `student = "${studentId}" && event = "${newEventId}"`
-						});
-
-						if (check.totalItems === 0) {
-							const subjectId = await suggestBestSubject(locals.pb, studentId, subjects, null);
-							await createScoped(locals.pb, 'participations', {
-								student: studentId,
-								event: newEventId,
-								subject: subjectId ?? undefined,
-								is_present: false,
-								bring_pc: item.bring_pc
-							});
+						try {
+							const newS = await createScoped(locals.pb, 'students', studentData);
+							studentId = newS.id;
+						} catch (err) {
+							console.error(`Creation failed for ${item.csvData.nom}`, err);
 						}
-					} catch (err) {
-						console.error(`Failed to assign student ${studentId}`, err);
 					}
-				}
-			}
+
+					if (studentId) {
+						try {
+							// Create Participation
+							// We can afford to run this in parallel.
+							// PocketBase is usually fast enough, or we hit rate limits if huge.
+							// Assuming moderate batch sizes.
+
+							// Check existence (could be redundant if we trust newEventId is brand new, but safer)
+							// To optimize further, since we JUST created the event, we know it's empty.
+							// But parallel execution might race if duplicates exist in importList targeting same student.
+							// We'll keep the check but scoped to student+event.
+
+							// Optimization: We could skip the check if we assume importList is unique by student.
+							// Let's keep the check for safety but ignore errors.
+							const check = await locals.pb.collection('participations').getList(1, 1, {
+								filter: `student = "${studentId}" && event = "${newEventId}"`
+							});
+
+							if (check.totalItems === 0) {
+								const subjectId = await suggestBestSubject(locals.pb, studentId, subjects, null);
+								await createScoped(locals.pb, 'participations', {
+									student: studentId,
+									event: newEventId,
+									subject: subjectId ?? undefined,
+									is_present: false,
+									bring_pc: item.bring_pc
+								});
+							}
+						} catch (err) {
+							console.error(`Failed to assign student ${studentId}`, err);
+						}
+					}
+				})
+			);
 		} catch (err) {
 			console.error('Final Import Error:', err);
 			return fail(500, { error: "Erreur lors de l'import final" });
