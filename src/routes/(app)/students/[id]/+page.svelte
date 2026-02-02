@@ -15,13 +15,14 @@
 		Mail,
 		Phone,
 		Users,
-		ExternalLink
+		ExternalLink,
+		Trash2
 	} from 'lucide-svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Progress } from '$lib/components/ui/progress';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Select from '$lib/components/ui/select';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
@@ -29,6 +30,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { toast } from 'svelte-sonner';
 	import { formatDateFr, cn } from '$lib/utils';
+	import { enhance as kitEnhance } from '$app/forms';
 
 	let { data }: { data: PageData } = $props();
 
@@ -50,6 +52,7 @@
 	);
 
 	let editOpen = $state(false);
+	let deleteDialogOpen = $state(false);
 
 	function getInitials(prenom: string, nom: string) {
 		return (prenom[0] + nom[0]).toUpperCase();
@@ -379,14 +382,58 @@
 					<input type="hidden" name="niveau" value={$form.niveau} />
 					{#if $errors.niveau}<p class="text-xs text-destructive">{$errors.niveau}</p>{/if}
 				</div>
-				<Dialog.Footer>
-					<Button type="submit" disabled={$delayed}>
+
+				<Dialog.Footer class="flex items-center justify-between">
+					<Button type="submit" disabled={$delayed} class="w-full">
 						{$delayed ? 'Sauvegarde...' : 'Enregistrer'}
 					</Button>
 				</Dialog.Footer>
 			</form>
+
+			<Separator class="my-2" />
+
+			<div class="space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-4">
+				<div class="space-y-1">
+					<h4 class="text-sm font-bold text-destructive uppercase">Zone de danger</h4>
+					<p class="text-xs text-muted-foreground">
+						La suppression d'un élève est définitive et entraînera la suppression de tout son
+						historique.
+					</p>
+				</div>
+				<Button
+					type="button"
+					variant="destructive"
+					class="w-full"
+					onclick={() => {
+						editOpen = false;
+						deleteDialogOpen = true;
+					}}
+				>
+					<Trash2 class="mr-2 h-4 w-4" />
+					Supprimer le dossier
+				</Button>
+			</div>
 		</Dialog.Content>
 	</Dialog.Root>
+
+	<AlertDialog.Root bind:open={deleteDialogOpen}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Confirmer la suppression</AlertDialog.Title>
+				<AlertDialog.Description>
+					Êtes-vous sûr de vouloir supprimer définitivement cet élève et tout son historique ?
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+				<form action="?/delete" method="POST" use:kitEnhance>
+					<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}>
+						Supprimer définitivement
+					</AlertDialog.Action>
+				</form>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>
 
 <style>

@@ -1,9 +1,9 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	// If already has a campus, go home
-	if (locals.user?.campus) {
+export const load: PageServerLoad = async ({ locals, url }) => {
+	// If already has a campus, go home, UNLESS we are explicitly asking to change it
+	if (locals.user?.campus && !url.searchParams.get('change')) {
 		throw redirect(303, '/');
 	}
 

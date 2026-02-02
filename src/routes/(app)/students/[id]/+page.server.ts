@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
@@ -78,5 +78,15 @@ export const actions: Actions = {
 		} catch (err) {
 			return message(form, 'Erreur lors de la mise à jour', { status: 500 });
 		}
+	},
+
+	delete: async ({ params, locals }) => {
+		try {
+			await locals.pb.collection('students').delete(params.id);
+		} catch (err) {
+			console.error('Error deleting student:', err);
+			return fail(500, { message: 'Impossible de supprimer cet élève' });
+		}
+		throw redirect(303, '/students');
 	}
 };

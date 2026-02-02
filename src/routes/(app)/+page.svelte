@@ -10,16 +10,17 @@
 	} from '$lib/components/ui/table';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		Calendar,
 		Tag,
 		Plus,
-		ChevronRight,
 		Ellipsis,
 		Trash2,
 		Pencil,
 		Coffee,
-		Megaphone
+		Megaphone,
+		UserCheck
 	} from 'lucide-svelte';
 
 	import { enhance } from '$app/forms';
@@ -131,9 +132,26 @@
 							</TableCell>
 							<TableCell class="text-right">
 								<div class="flex items-center justify-end gap-2">
-									<Button variant="ghost" size="icon" href={`/events/${event.id}/builder`}>
-										<ChevronRight class="h-5 w-5 text-gray-400" />
-									</Button>
+									<Tooltip.Provider delayDuration={300}>
+										<Tooltip.Root>
+											<Tooltip.Trigger>
+												{#snippet child({ props })}
+													<Button
+														{...props}
+														variant="outline"
+														size="icon"
+														href={`/events/${event.id}/appel`}
+														class="h-9 w-9 border-epi-teal/30 bg-epi-teal/10 text-teal-700 hover:bg-epi-teal hover:text-black dark:text-epi-teal dark:hover:text-black"
+													>
+														<UserCheck class="h-5 w-5" />
+													</Button>
+												{/snippet}
+											</Tooltip.Trigger>
+											<Tooltip.Content>
+												<p>Faire l'appel</p>
+											</Tooltip.Content>
+										</Tooltip.Root>
+									</Tooltip.Provider>
 
 									<DropdownMenu.Root>
 										<DropdownMenu.Trigger
@@ -147,7 +165,7 @@
 												class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground"
 											>
 												<Pencil class="mr-2 h-4 w-4" />
-												Modifier
+												Modifier / Builder
 											</a>
 											<DropdownMenu.Separator />
 											<DropdownMenu.Item

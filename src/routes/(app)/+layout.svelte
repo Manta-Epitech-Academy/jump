@@ -9,7 +9,8 @@
 		Menu,
 		History,
 		Search,
-		X
+		X,
+		MapPin
 	} from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
@@ -195,6 +196,12 @@
 					<DropdownMenu.Content align="end" class="w-48 rounded-sm">
 						<DropdownMenu.Label>Mon Profil</DropdownMenu.Label>
 						<DropdownMenu.Separator />
+						<a href="/onboarding?change=true">
+							<DropdownMenu.Item class="cursor-pointer">
+								<MapPin class="mr-2 h-4 w-4" />
+								Changer de campus
+							</DropdownMenu.Item>
+						</a>
 						<form action="/logout" method="POST">
 							<button type="submit" class="w-full cursor-pointer">
 								<DropdownMenu.Item class="cursor-pointer text-destructive">
