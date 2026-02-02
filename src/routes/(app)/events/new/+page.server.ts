@@ -6,6 +6,8 @@ import { eventSchema } from '$lib/validation/events';
 import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
 import { parseEventImportCsv, type CsvStudent } from '$lib/csvUtils';
 import { suggestBestSubject } from '$lib/recommender';
+import { createScoped } from '$lib/pocketbase';
+import { EventsStatutOptions, StudentsNiveauOptions } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const themes = await locals.pb.collection('themes').getFullList({
@@ -20,11 +22,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	};
 };
 
-// We track the user's decision explicitly
 type ImportAction = {
-	id: string; // Unique ID for frontend tracking
+	id: string;
 	csvData: CsvStudent;
-	// "suggestedStatus" is what the algo thinks. "decision" is what the user chooses.
 	suggestedStatus: 'NEW' | 'MERGE' | 'CONFLICT' | 'SIBLING';
 	decision: 'CREATE_NEW' | 'LINK_EXISTING';
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,7 +48,7 @@ export const actions: Actions = {
 				const [hour, minute] = timeStr.split(':').map(Number);
 				calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
 			} catch (e) {
-				// Fallback handled by validation
+				// handled by validation
 			}
 		}
 
@@ -73,9 +73,10 @@ export const actions: Actions = {
 		let newEventId = '';
 
 		try {
-			// Find or create theme
+			// Find or create theme (Local Scope for creation)
 			let themeId: string | null = null;
 			if (form.data.theme && form.data.theme.trim() !== '') {
+				// Check exists (Global or Local via RLS)
 				const existing = await locals.pb
 					.collection('themes')
 					.getList(1, 1, { filter: `nom = "${form.data.theme}"` });
@@ -83,7 +84,8 @@ export const actions: Actions = {
 				if (existing.items.length > 0) {
 					themeId = existing.items[0].id;
 				} else {
-					const created = await locals.pb.collection('themes').create({ nom: form.data.theme });
+					// Create Local Theme
+					const created = await createScoped(locals.pb, 'themes', { nom: form.data.theme });
 					themeId = created.id;
 				}
 			}
@@ -93,12 +95,13 @@ export const actions: Actions = {
 
 			const payload = {
 				titre: form.data.titre,
-				date: jsDate,
-				statut: form.data.statut,
-				theme: themeId
+				date: jsDate.toISOString(),
+				statut: form.data.statut as EventsStatutOptions,
+				theme: themeId ?? undefined
 			};
 
-			const record = await locals.pb.collection('events').create(payload);
+			// SCOPED CREATION
+			const record = await createScoped(locals.pb, 'events', payload);
 			newEventId = record.id;
 		} catch (err) {
 			console.error('Erreur création événement:', err);
@@ -110,7 +113,6 @@ export const actions: Actions = {
 		throw redirect(303, `/events/${newEventId}/builder`);
 	},
 
-	// STEP 1: Analyze CSV content and check against DB
 	analyzeCampaign: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const file = formData.get('csvFile') as File;
@@ -120,10 +122,8 @@ export const actions: Actions = {
 		}
 
 		try {
-			// ENCODING HANDLING:
 			let text = await file.text();
 			if (text.includes('\ufffd')) {
-				console.log('Encoding fallback triggered: converting from windows-1252');
 				const buffer = await file.arrayBuffer();
 				const decoder = new TextDecoder('windows-1252');
 				text = decoder.decode(buffer);
@@ -145,68 +145,47 @@ export const actions: Actions = {
 				const safeNom = csvS.nom.replace(/"/g, '\\"');
 				const safePrenom = csvS.prenom.replace(/"/g, '\\"');
 
-				// A. Email Check (Strong identifier)
-				if (csvS.email) {
-					try {
-						existing = await locals.pb
-							.collection('students')
-							.getFirstListItem(`email = "${csvS.email}"`);
+				// A. FIRST PRIORITY: Exact Identity Match (Nom + Prénom + Email)
+				try {
+					existing = await locals.pb
+						.collection('students')
+						.getFirstListItem(
+							`nom = "${safeNom}" && prenom = "${safePrenom}" && email = "${csvS.email}"`
+						);
+					status = 'MERGE';
+					decision = 'LINK_EXISTING';
+					reason = 'Profil identique trouvé (Nom + Email)';
+				} catch (_) {
+					// B. SECOND PRIORITY: Sibling Detection (Email Match but different name)
+					if (csvS.email) {
+						try {
+							const siblingMatch = await locals.pb
+								.collection('students')
+								.getFirstListItem(`email = "${csvS.email}"`);
 
-						// Check Names
-						const dbName = (existing.nom || '').toLowerCase();
-						const dbPrenom = (existing.prenom || '').toLowerCase();
-						const csvNom = (csvS.nom || '').toLowerCase();
-						const csvPrenom = (csvS.prenom || '').toLowerCase();
-
-						if (dbName === csvNom && dbPrenom === csvPrenom) {
-							status = 'MERGE';
-							decision = 'LINK_EXISTING';
-							reason = 'Email + Nom identiques';
-						} else {
-							// Sibling case: Same email found, but names differ
 							status = 'SIBLING';
-							decision = 'CREATE_NEW'; // Default to creating new for siblings
-							reason = `Email partagé mais nom différent (DB: ${existing.prenom} ${existing.nom})`;
-							// We keep 'existing' populated so the user can see who the email belongs to
+							decision = 'CREATE_NEW'; // Always default to creating a new profile for siblings
+							existing = siblingMatch;
+							reason = `Fratrie détectée : Email identique à ${siblingMatch.prenom} ${siblingMatch.nom}`;
+						} catch (__) {
+							/* Truly new email */
 						}
-					} catch (_) {
-						/* Not found by email */
 					}
-				}
 
-				// B. Name Check (If not merged by email)
-				if (status !== 'MERGE' && status !== 'SIBLING') {
-					try {
-						// Look for ANY student with same name
-						const matches = await locals.pb.collection('students').getFullList({
-							filter: `nom ~ "${safeNom}" && prenom ~ "${safePrenom}"`
-						});
+					// C. THIRD PRIORITY: Conflict/Homonym Detection (Name match but different/no email)
+					if (status === 'NEW') {
+						try {
+							const nameMatch = await locals.pb
+								.collection('students')
+								.getFirstListItem(`nom = "${safeNom}" && prenom = "${safePrenom}"`);
 
-						if (matches.length === 1) {
-							const match = matches[0];
-
-							// Homonym Check: Same name, but emails differ?
-							if (match.email && csvS.email && match.email !== csvS.email) {
-								status = 'CONFLICT';
-								decision = 'CREATE_NEW'; // Safer default, likely a homonym
-								existing = match;
-								reason = `Homonyme détecté : Nom identique, email différent (DB: ${match.email})`;
-							} else {
-								// Safe merge (or email missing in one side)
-								status = 'MERGE';
-								decision = 'LINK_EXISTING';
-								existing = match;
-								reason = 'Correspondance Nom/Prénom';
-							}
-						} else if (matches.length > 1) {
-							// Multiple homonyms in DB
 							status = 'CONFLICT';
-							decision = 'CREATE_NEW';
-							existing = matches[0]; // Just show the first one as example
-							reason = 'Plusieurs homonymes trouvés en base.';
+							decision = 'CREATE_NEW'; // Safer to create new if email doesn't match
+							existing = nameMatch;
+							reason = 'Nom identique mais email différent (Homonyme possible)';
+						} catch (___) {
+							/* Truly new person */
 						}
-					} catch (_) {
-						/* Not found by name */
 					}
 				}
 
@@ -233,8 +212,7 @@ export const actions: Actions = {
 		}
 	},
 
-	// STEP 2: Confirm and Write to DB
-	confirmCampaignImport: async ({ request, locals }) => {
+	confirmCampaignImport: async ({ request, locals, params }) => {
 		const formData = await request.formData();
 		const rawData = formData.get('importData') as string;
 		const eventName = formData.get('eventName') as string;
@@ -247,32 +225,29 @@ export const actions: Actions = {
 
 		try {
 			// 1. Create Event
-			const eventRecord = await locals.pb.collection('events').create({
+			const eventRecord = await createScoped(locals.pb, 'events', {
 				titre: eventName,
-				date: new Date(eventDateStr),
-				statut: 'planifiee'
+				date: new Date(eventDateStr).toISOString(),
+				statut: EventsStatutOptions.planifiee
 			});
 			newEventId = eventRecord.id;
 
 			const subjects = await locals.pb.collection('subjects').getFullList();
 
-			// 2. Process Students based on USER DECISION
+			// 2. Process Students
 			for (const item of importList) {
 				let studentId: string | undefined;
 
-				// DECISION: LINK EXISTING
 				if (item.decision === 'LINK_EXISTING' && item.existingStudent) {
 					studentId = item.existingStudent.id;
-				}
-
-				// DECISION: CREATE NEW
-				else {
+				} else {
+					// CREATE NEW STUDENT
 					const studentData = {
 						prenom: item.csvData.prenom,
 						nom: item.csvData.nom,
 						email: item.csvData.email,
 						phone: item.csvData.phone,
-						niveau: item.csvData.niveau,
+						niveau: item.csvData.niveau as StudentsNiveauOptions,
 						xp: 0,
 						events_count: 0,
 						parent_email: item.csvData.parentEmail,
@@ -280,27 +255,26 @@ export const actions: Actions = {
 					};
 
 					try {
-						const newS = await locals.pb.collection('students').create(studentData);
+						const newS = await createScoped(locals.pb, 'students', studentData);
 						studentId = newS.id;
 					} catch (err) {
 						console.error(`Creation failed for ${item.csvData.nom}`, err);
 					}
 				}
 
-				// 3. Create Participation with Bring PC status
 				if (studentId) {
 					try {
-						// Check if not already in event (double safety)
+						// Create Participation
 						const check = await locals.pb.collection('participations').getList(1, 1, {
 							filter: `student = "${studentId}" && event = "${newEventId}"`
 						});
 
 						if (check.totalItems === 0) {
 							const subjectId = await suggestBestSubject(locals.pb, studentId, subjects, null);
-							await locals.pb.collection('participations').create({
+							await createScoped(locals.pb, 'participations', {
 								student: studentId,
 								event: newEventId,
-								subject: subjectId,
+								subject: subjectId ?? undefined,
 								is_present: false,
 								bring_pc: item.bring_pc
 							});

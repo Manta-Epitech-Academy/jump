@@ -13,6 +13,32 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// Refresh the token to ensure it's still valid in DB
 			await event.locals.pb.collection('users').authRefresh();
 			event.locals.user = event.locals.pb.authStore.record;
+
+			// --- MULTI-TENANT LOGIC ---
+
+			// 1. Expand campus information for the layout to use
+			if (event.locals.user?.campus) {
+				try {
+					const campus = await event.locals.pb
+						.collection('campuses')
+						.getOne(event.locals.user.campus);
+					// Manually attach expanded campus to the user object in memory
+					if (!event.locals.user.expand) event.locals.user.expand = {};
+					event.locals.user.expand.campus = campus;
+				} catch (e) {
+					console.error('Failed to fetch user campus details', e);
+				}
+			}
+
+			// 2. Enforce Campus Selection (Onboarding)
+			// If user has no campus, force them to /onboarding
+			// Exceptions: /onboarding itself, /logout, /oauth (callbacks)
+			const publicPaths = ['/onboarding', '/logout', '/oauth'];
+			const isPublicPath = publicPaths.some((path) => event.url.pathname.startsWith(path));
+
+			if (!event.locals.user?.campus && !isPublicPath) {
+				return Response.redirect(`${event.url.origin}/onboarding`, 303);
+			}
 		} else {
 			event.locals.user = null;
 		}

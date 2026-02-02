@@ -11,6 +11,7 @@ export enum Collections {
 	Mfas = "_mfas",
 	Otps = "_otps",
 	Superusers = "_superusers",
+	Campuses = "campuses",
 	Events = "events",
 	Participations = "participations",
 	Students = "students",
@@ -97,12 +98,22 @@ export type SuperusersRecord = {
 	verified?: boolean
 }
 
+export type CampusesRecord = {
+	code: string
+	color?: string
+	created: IsoAutoDateString
+	id: string
+	name: string
+	updated: IsoAutoDateString
+}
+
 export enum EventsStatutOptions {
 	"planifiee" = "planifiee",
 	"en_cours" = "en_cours",
 	"terminee" = "terminee",
 }
 export type EventsRecord = {
+	campus: RecordIdString
 	created: IsoAutoDateString
 	date: IsoDateString
 	id: string
@@ -114,6 +125,7 @@ export type EventsRecord = {
 
 export type ParticipationsRecord = {
 	bring_pc?: boolean
+	campus: RecordIdString
 	created: IsoAutoDateString
 	event?: RecordIdString
 	id: string
@@ -135,6 +147,7 @@ export enum StudentsNiveauOptions {
 	"Sup" = "Sup",
 }
 export type StudentsRecord = {
+	campus: RecordIdString
 	created: IsoAutoDateString
 	email?: string
 	events_count?: number
@@ -160,6 +173,7 @@ export enum SubjectsNiveauxOptions {
 	"Sup" = "Sup",
 }
 export type SubjectsRecord = {
+	campus?: RecordIdString
 	created: IsoAutoDateString
 	description?: string
 	id: string
@@ -171,6 +185,7 @@ export type SubjectsRecord = {
 }
 
 export type ThemesRecord = {
+	campus?: RecordIdString
 	created: IsoAutoDateString
 	id: string
 	nom: string
@@ -179,6 +194,7 @@ export type ThemesRecord = {
 
 export type UsersRecord = {
 	avatar?: FileNameString
+	campus?: RecordIdString
 	created: IsoAutoDateString
 	email: string
 	emailVisibility?: boolean
@@ -196,6 +212,7 @@ export type ExternalauthsResponse<Texpand = unknown> = Required<ExternalauthsRec
 export type MfasResponse<Texpand = unknown> = Required<MfasRecord> & BaseSystemFields<Texpand>
 export type OtpsResponse<Texpand = unknown> = Required<OtpsRecord> & BaseSystemFields<Texpand>
 export type SuperusersResponse<Texpand = unknown> = Required<SuperusersRecord> & AuthSystemFields<Texpand>
+export type CampusesResponse<Texpand = unknown> = Required<CampusesRecord> & BaseSystemFields<Texpand>
 export type EventsResponse<Texpand = unknown> = Required<EventsRecord> & BaseSystemFields<Texpand>
 export type ParticipationsResponse<Texpand = unknown> = Required<ParticipationsRecord> & BaseSystemFields<Texpand>
 export type StudentsResponse<Texpand = unknown> = Required<StudentsRecord> & BaseSystemFields<Texpand>
@@ -211,6 +228,7 @@ export type CollectionRecords = {
 	_mfas: MfasRecord
 	_otps: OtpsRecord
 	_superusers: SuperusersRecord
+	campuses: CampusesRecord
 	events: EventsRecord
 	participations: ParticipationsRecord
 	students: StudentsRecord
@@ -225,6 +243,7 @@ export type CollectionResponses = {
 	_mfas: MfasResponse
 	_otps: OtpsResponse
 	_superusers: SuperusersResponse
+	campuses: CampusesResponse
 	events: EventsResponse
 	participations: ParticipationsResponse
 	students: StudentsResponse

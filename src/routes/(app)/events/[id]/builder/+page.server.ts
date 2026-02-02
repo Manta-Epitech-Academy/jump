@@ -7,11 +7,14 @@ import { studentSchema } from '$lib/validation/students';
 import { getSubjectXpValue } from '$lib/xp';
 import { suggestBestSubject } from '$lib/recommender';
 import { type CsvStudent } from '$lib/csvUtils';
-import type {
-	ParticipationsResponse,
-	StudentsResponse,
-	SubjectsResponse,
-	ThemesResponse
+import { createScoped } from '$lib/pocketbase';
+import {
+	type ParticipationsResponse,
+	type StudentsResponse,
+	type SubjectsResponse,
+	type ThemesResponse,
+	StudentsNiveauOptions,
+	EventsStatutOptions
 } from '$lib/pocketbase-types';
 
 type ParticipationExpand = {
@@ -26,6 +29,7 @@ type EventExpand = {
 export const load: PageServerLoad = async ({ locals, params }) => {
 	let event;
 	try {
+		// RLS ensures we only see our campus events
 		event = await locals.pb.collection('events').getOne(params.id, {
 			expand: 'theme',
 			requestKey: null
@@ -93,7 +97,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: 'nom',
 		expand: 'themes',
-		requestKey: null
+		requestKey: null,
+		filter: `campus = "" || campus = "${locals.user?.campus}"`
 	});
 
 	const themes = await locals.pb.collection('themes').getFullList({
@@ -133,7 +138,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	};
 };
 
-// Type for the CSV import action
 type ImportAction = {
 	csvData: CsvStudent;
 	status: 'NEW' | 'MATCH_EMAIL' | 'MATCH_NAME' | 'CONFLICT';
@@ -166,10 +170,10 @@ export const actions: Actions = {
 				event.theme
 			);
 
-			await locals.pb.collection('participations').create({
+			await createScoped(locals.pb, 'participations', {
 				student: form.data.studentId,
 				event: params.id,
-				subject: suggestedSubjectId,
+				subject: suggestedSubjectId ?? undefined,
 				is_present: false
 			});
 
@@ -198,11 +202,10 @@ export const actions: Actions = {
 
 	autoAssignAll: async ({ params, locals }) => {
 		try {
-			// 1. Get all unassigned participations for this event
 			const unassigned = await locals.pb
 				.collection('participations')
 				.getFullList<ParticipationsResponse<ParticipationExpand>>({
-					filter: `event = "${params.id}" && subject = ""`, // empty subject
+					filter: `event = "${params.id}" && subject = ""`,
 					expand: 'student'
 				});
 
@@ -215,9 +218,7 @@ export const actions: Actions = {
 
 			let count = 0;
 
-			// 2. Loop and update
 			for (const p of unassigned) {
-				// Use existing recommender
 				const suggestedId = await suggestBestSubject(
 					locals.pb,
 					p.expand?.student?.id ?? '',
@@ -245,7 +246,11 @@ export const actions: Actions = {
 		if (!form.valid) return fail(400, { form });
 
 		try {
-			const newStudent = await locals.pb.collection('students').create(form.data);
+			// SCOPED creation
+			const newStudent = await createScoped(locals.pb, 'students', {
+				...form.data,
+				niveau: form.data.niveau as StudentsNiveauOptions
+			});
 
 			const event = await locals.pb.collection('events').getOne(params.id);
 
@@ -257,10 +262,10 @@ export const actions: Actions = {
 				event.theme
 			);
 
-			await locals.pb.collection('participations').create({
+			await createScoped(locals.pb, 'participations', {
 				student: newStudent.id,
 				event: params.id,
-				subject: suggestedSubjectId,
+				subject: suggestedSubjectId ?? undefined,
 				is_present: false
 			});
 			return message(form, 'Élève créé et assigné automatiquement !');
@@ -292,7 +297,6 @@ export const actions: Actions = {
 		}
 
 		try {
-			// 1. Get current event to check if theme changed
 			const currentEvent = await locals.pb.collection('events').getOne(params.id);
 			const oldThemeId = currentEvent.theme;
 
@@ -307,7 +311,6 @@ export const actions: Actions = {
 				return message(form, 'Format de date invalide', { status: 400 });
 			}
 
-			// 2. Resolve new Theme ID
 			let newThemeId: string | null = null;
 			if (form.data.theme && form.data.theme.trim() !== '') {
 				const existing = await locals.pb
@@ -317,32 +320,29 @@ export const actions: Actions = {
 				if (existing.items.length > 0) {
 					newThemeId = existing.items[0].id;
 				} else {
-					const created = await locals.pb.collection('themes').create({ nom: form.data.theme });
+					// Scoped Theme Creation
+					const created = await createScoped(locals.pb, 'themes', { nom: form.data.theme });
 					newThemeId = created.id;
 				}
 			}
 
-			// 3. Update Event
 			await locals.pb.collection('events').update(params.id, {
 				titre: form.data.titre,
-				date: jsDate,
-				statut: form.data.statut,
-				theme: newThemeId
+				date: jsDate.toISOString(),
+				statut: form.data.statut as EventsStatutOptions,
+				theme: newThemeId ?? undefined
 			});
 
-			// 4. If theme changed, re-run algo for ALL participants
 			if (oldThemeId !== newThemeId) {
 				const participations = await locals.pb.collection('participations').getFullList({
 					filter: `event = "${params.id}"`,
-					requestKey: null // disable auto-cancellation
+					requestKey: null
 				});
 
 				const subjects = await locals.pb.collection('subjects').getFullList();
 
-				// Re-evaluate each student
 				for (const p of participations) {
 					if (!p.is_present) {
-						// Only re-calc if not already marked present (finished)
 						const newSubjectId = await suggestBestSubject(
 							locals.pb,
 							p.student,
@@ -440,12 +440,13 @@ export const actions: Actions = {
 
 			if (!studentId) {
 				try {
-					const newS = await locals.pb.collection('students').create({
+					// Scoped Creation
+					const newS = await createScoped(locals.pb, 'students', {
 						prenom: item.csvData.prenom,
 						nom: item.csvData.nom,
 						email: item.csvData.email,
 						phone: item.csvData.phone,
-						niveau: item.csvData.niveau,
+						niveau: item.csvData.niveau as StudentsNiveauOptions,
 						xp: 0,
 						events_count: 0
 					});
@@ -467,10 +468,10 @@ export const actions: Actions = {
 				if (check.totalItems === 0) {
 					const subjectId = await suggestBestSubject(locals.pb, studentId, subjects, event.theme);
 
-					await locals.pb.collection('participations').create({
+					await createScoped(locals.pb, 'participations', {
 						student: studentId,
 						event: eventId,
-						subject: subjectId,
+						subject: subjectId ?? undefined,
 						is_present: false
 					});
 				}
