@@ -11,6 +11,7 @@
 
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
+
 		return new Promise((resolve) => {
 			document.startViewTransition(async () => {
 				resolve();
@@ -24,24 +25,12 @@
 </script>
 
 <svelte:head>
-	<title>CodeCamp Manager {userCampusName ? `[${userCampusName}]` : ''}</title>
+	<title>CodeCamp Manager {userCampusName ? `| ${userCampusName}` : ''}</title>
 </svelte:head>
 
 <ModeWatcher />
 
 <div style="display: contents">
 	<Toaster richColors position="top-center" />
-
-	<!-- Campus Indicator Overlay -->
-	{#if userCampusName}
-		<div
-			class="pointer-events-none fixed right-4 bottom-4 z-50 hidden text-muted-foreground opacity-20 md:block"
-		>
-			<span class="font-heading text-4xl font-black tracking-tighter uppercase"
-				>{userCampusName}</span
-			>
-		</div>
-	{/if}
-
 	{@render children()}
 </div>
