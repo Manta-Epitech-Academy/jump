@@ -149,7 +149,8 @@ export const actions: Actions = {
 						existing = await locals.pb
 							.collection('students')
 							.getFirstListItem(
-								`nom = "${safeNom}" && prenom = "${safePrenom}" && email = "${csvS.email}"`
+								`nom = "${safeNom}" && prenom = "${safePrenom}" && email = "${csvS.email}"`,
+								{ requestKey: null }
 							);
 						status = 'MERGE';
 						decision = 'LINK_EXISTING';
@@ -160,7 +161,7 @@ export const actions: Actions = {
 							try {
 								const siblingMatch = await locals.pb
 									.collection('students')
-									.getFirstListItem(`email = "${csvS.email}"`);
+									.getFirstListItem(`email = "${csvS.email}"`, { requestKey: null });
 
 								status = 'SIBLING';
 								decision = 'CREATE_NEW'; // Always default to creating a new profile for siblings
@@ -176,7 +177,9 @@ export const actions: Actions = {
 							try {
 								const nameMatch = await locals.pb
 									.collection('students')
-									.getFirstListItem(`nom = "${safeNom}" && prenom = "${safePrenom}"`);
+									.getFirstListItem(`nom = "${safeNom}" && prenom = "${safePrenom}"`, {
+										requestKey: null
+									});
 
 								status = 'CONFLICT';
 								decision = 'CREATE_NEW'; // Safer to create new if email doesn't match
@@ -265,20 +268,10 @@ export const actions: Actions = {
 
 					if (studentId) {
 						try {
-							// Create Participation
-							// We can afford to run this in parallel.
-							// PocketBase is usually fast enough, or we hit rate limits if huge.
-							// Assuming moderate batch sizes.
-
-							// Check existence (could be redundant if we trust newEventId is brand new, but safer)
-							// To optimize further, since we JUST created the event, we know it's empty.
-							// But parallel execution might race if duplicates exist in importList targeting same student.
-							// We'll keep the check but scoped to student+event.
-
-							// Optimization: We could skip the check if we assume importList is unique by student.
-							// Let's keep the check for safety but ignore errors.
+							// Check existence
 							const check = await locals.pb.collection('participations').getList(1, 1, {
-								filter: `student = "${studentId}" && event = "${newEventId}"`
+								filter: `student = "${studentId}" && event = "${newEventId}"`,
+								requestKey: null // Added to prevent auto-cancellation
 							});
 
 							if (check.totalItems === 0) {

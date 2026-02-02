@@ -16,12 +16,13 @@ export async function suggestBestSubject(
 ) {
 	try {
 		// 1. Get student details
-		const student = await pb.collection('students').getOne(studentId);
+		const student = await pb.collection('students').getOne(studentId, { requestKey: null });
 
 		// 2. Get student's presence history to avoid repeats
 		const completedParticipations = await pb.collection('participations').getFullList({
 			filter: `student = "${studentId}" && is_present = true`,
-			fields: 'subject'
+			fields: 'subject',
+			requestKey: null
 		});
 		const completedSubjectIds = completedParticipations.map((p) => p.subject);
 

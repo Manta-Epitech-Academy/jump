@@ -39,5 +39,7 @@ export async function createScoped<T extends keyof CollectionRecords>(
 	};
 
 	// 3. Perform Create
-	return await pb.collection(collection).create(payload);
+	// We add { requestKey: null } to disable auto-cancellation.
+	// This is critical for batch operations (loops, Promise.all).
+	return await pb.collection(collection).create(payload, { requestKey: null });
 }
