@@ -3,7 +3,7 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { Plus, X, Tag } from 'lucide-svelte';
+	import { Plus, X, Tag, Globe, MapPin } from 'lucide-svelte';
 
 	let {
 		themes = [],
@@ -34,6 +34,11 @@
 	function removeTheme(val: string) {
 		value = value.filter((v) => v !== val);
 	}
+
+	function isGlobal(themeName: string) {
+		const t = themes.find((th) => th.nom === themeName);
+		return t && !t.campus;
+	}
 </script>
 
 <div class="grid gap-2">
@@ -55,10 +60,18 @@
 							</span>
 						{:else}
 							{#each value as item}
+								{@const global = isGlobal(item)}
 								<Badge
 									variant="secondary"
-									class="rounded-sm border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 dark:border-teal-900 dark:bg-teal-900/30 dark:text-teal-100"
+									class="rounded-sm border {global
+										? 'border-purple-200 bg-purple-50 text-purple-900 dark:border-purple-900 dark:bg-purple-900/30 dark:text-purple-100'
+										: 'border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 dark:border-teal-900 dark:bg-teal-900/30 dark:text-teal-100'}"
 								>
+									{#if global}
+										<Globe class="mr-1 h-3 w-3" />
+									{:else}
+										<MapPin class="mr-1 h-3 w-3" />
+									{/if}
 									{item}
 									<button
 										class="ml-1 rounded-full ring-offset-background hover:bg-black/10 focus:ring-2 focus:ring-ring focus:outline-none dark:hover:bg-white/10"
@@ -92,7 +105,7 @@
 									<span class="text-sm font-bold">Créer "{searchValue}"</span>
 									<span
 										class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-										>Nouveau thème</span
+										>Nouveau thème local</span
 									>
 								</div>
 							</Button>
@@ -104,12 +117,19 @@
 					<Command.Group heading="Thèmes disponibles">
 						{#each availableThemes as theme}
 							<Command.Item value={theme.nom} onSelect={() => selectTheme(theme.nom)}>
-								<div
-									class="mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary/20"
-								>
-									<!-- Empty box icon effect -->
+								<div class="mr-2 flex items-center justify-center">
+									{#if !theme.campus}
+										<Globe class="h-4 w-4 text-purple-500" />
+									{:else}
+										<MapPin class="h-4 w-4 text-epi-teal" />
+									{/if}
 								</div>
-								{theme.nom}
+								<div class="flex flex-col">
+									<span>{theme.nom}</span>
+									<span class="text-[9px] text-muted-foreground uppercase">
+										{!theme.campus ? 'Officiel (Global)' : 'Local (Campus)'}
+									</span>
+								</div>
 							</Command.Item>
 						{/each}
 					</Command.Group>

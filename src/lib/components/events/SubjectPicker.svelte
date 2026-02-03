@@ -14,7 +14,8 @@
 		Sparkles,
 		School,
 		MapPin,
-		Globe
+		Globe,
+		Share2
 	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { page } from '$app/state';
@@ -188,7 +189,14 @@
 							<Select.Content>
 								<Select.Item value="all">Tous</Select.Item>
 								{#each themes as theme}
-									<Select.Item value={theme.id}>{theme.nom}</Select.Item>
+									<Select.Item value={theme.id} class="flex items-center gap-2">
+										{#if !theme.campus}
+											<Globe class="h-3 w-3 text-purple-500" />
+										{:else}
+											<MapPin class="h-3 w-3 text-epi-teal" />
+										{/if}
+										{theme.nom}
+									</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -307,8 +315,17 @@
 								{#if sub.expand?.themes}
 									<div class="flex flex-wrap gap-1">
 										{#each sub.expand.themes as t}
+											{@const isThemeOfficial = !t.campus}
+											{@const isThemeMine = t.campus === userCampusId}
+
 											<div class="flex items-center text-[10px] text-muted-foreground uppercase">
-												<Tag class="mr-0.5 h-3 w-3" />
+												{#if isThemeOfficial}
+													<Globe class="mr-0.5 h-3 w-3 text-purple-500" />
+												{:else if isThemeMine}
+													<Tag class="mr-0.5 h-3 w-3" />
+												{:else}
+													<Share2 class="mr-0.5 h-3 w-3 text-orange-400" />
+												{/if}
 												{t.nom}
 											</div>
 										{/each}

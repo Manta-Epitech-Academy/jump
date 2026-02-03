@@ -23,7 +23,8 @@
 		School,
 		MapPin,
 		Globe,
-		Funnel
+		Funnel,
+		Share2
 	} from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -361,11 +362,27 @@
 								{#if typedSubject.expand?.themes && typedSubject.expand.themes.length > 0}
 									<div class="flex flex-wrap gap-1">
 										{#each typedSubject.expand.themes as theme}
+											{@const isThemeOfficial = !theme.campus}
+											{@const isThemeMine = theme.campus === userCampusId}
+
 											<Badge
 												variant="outline"
-												class="gap-1 border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-800 dark:border-teal-900 dark:bg-teal-900/30 dark:text-teal-100"
+												class={cn(
+													'gap-1 px-2 py-0.5 text-[11px] font-bold',
+													isThemeOfficial
+														? 'border-purple-200 bg-purple-50 text-purple-800 dark:border-purple-900 dark:bg-purple-900/30 dark:text-purple-100'
+														: isThemeMine
+															? 'border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-900 dark:bg-teal-900/30 dark:text-teal-100'
+															: 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-900 dark:bg-orange-900/30 dark:text-orange-100'
+												)}
 											>
-												<Tag class="h-2 w-2" />
+												{#if isThemeOfficial}
+													<Globe class="h-2 w-2" />
+												{:else if isThemeMine}
+													<Tag class="h-2 w-2" />
+												{:else}
+													<Share2 class="h-2 w-2" />
+												{/if}
 												{theme.nom}
 											</Badge>
 										{/each}

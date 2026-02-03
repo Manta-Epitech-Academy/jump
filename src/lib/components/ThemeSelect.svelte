@@ -2,7 +2,7 @@
 	import * as Command from '$lib/components/ui/command';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Button } from '$lib/components/ui/button';
-	import { Check, ChevronsUpDown, Plus, Tag } from 'lucide-svelte';
+	import { Check, ChevronsUpDown, Plus, Tag, Globe, MapPin } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -20,6 +20,9 @@
 
 	// Check if the current search string exactly matches an existing theme
 	let exactMatch = $derived(themes.find((t) => t.nom.toLowerCase() === searchValue.toLowerCase()));
+
+	// Find selected theme object to display correct icon
+	let selectedThemeObj = $derived(themes.find((t) => t.nom === value));
 
 	function selectTheme(val: string) {
 		value = val;
@@ -40,7 +43,16 @@
 					{...props}
 				>
 					<div class="flex items-center gap-2 truncate">
-						<Tag class="h-3.5 w-3.5 text-epi-teal" />
+						{#if selectedThemeObj}
+							{#if !selectedThemeObj.campus}
+								<Globe class="h-3.5 w-3.5 text-purple-500" />
+							{:else}
+								<MapPin class="h-3.5 w-3.5 text-epi-teal" />
+							{/if}
+						{:else}
+							<Tag class="h-3.5 w-3.5 text-muted-foreground" />
+						{/if}
+
 						{#if value}
 							<span class="font-bold">{value}</span>
 						{:else}
@@ -67,7 +79,7 @@
 									<span class="text-sm font-bold">Créer "{searchValue}"</span>
 									<span
 										class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-										>Nouveau thème</span
+										>Nouveau thème local</span
 									>
 								</div>
 							</Button>
@@ -80,10 +92,28 @@
 						<Command.Group heading="Thèmes existants">
 							{#each themes as theme}
 								<Command.Item value={theme.nom} onSelect={() => selectTheme(theme.nom)}>
-									<Check
-										class={cn('mr-2 h-4 w-4', value === theme.nom ? 'opacity-100' : 'opacity-0')}
-									/>
-									{theme.nom}
+									<div class="mr-2 flex h-4 w-4 items-center justify-center">
+										<Check
+											class={cn(
+												'absolute h-4 w-4 transition-all',
+												value === theme.nom ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
+											)}
+										/>
+										{#if value !== theme.nom}
+											{#if !theme.campus}
+												<Globe class="h-3.5 w-3.5 text-purple-500 opacity-50" />
+											{:else}
+												<MapPin class="h-3.5 w-3.5 text-epi-teal opacity-50" />
+												/
+											{/if}
+										{/if}
+									</div>
+									<div class="flex flex-col">
+										<span>{theme.nom}</span>
+										<span class="text-[9px] text-muted-foreground uppercase">
+											{!theme.campus ? 'Officiel (Global)' : 'Local (Campus)'}
+										</span>
+									</div>
 								</Command.Item>
 							{/each}
 						</Command.Group>
