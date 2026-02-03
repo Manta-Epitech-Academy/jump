@@ -1,10 +1,15 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { SubjectsResponse, ThemesResponse } from '$lib/pocketbase-types';
+	import type { SubjectsResponse, ThemesResponse, CampusesResponse } from '$lib/pocketbase-types';
 	import { superForm } from 'sveltekit-superforms';
 	import { enhance as kitEnhance } from '$app/forms';
+	import { page } from '$app/state';
 
-	type SubjectWithThemes = SubjectsResponse<{ themes?: ThemesResponse[] }>;
+	type SubjectWithExpand = SubjectsResponse<{
+		themes?: ThemesResponse[];
+		campus?: CampusesResponse;
+	}>;
+
 	import {
 		Plus,
 		Cuboid,
@@ -14,13 +19,18 @@
 		Check,
 		Tag,
 		Link,
-		ExternalLink
+		ExternalLink,
+		School,
+		MapPin,
+		Globe,
+		Funnel
 	} from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Table from '$lib/components/ui/table';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Select from '$lib/components/ui/select';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
@@ -32,6 +42,9 @@
 	import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
 
 	let { data }: { data: PageData } = $props();
+
+	// Get current user campus from layout data
+	let userCampusId = $derived(page.data.user?.campus);
 
 	const { form, errors, enhance, delayed, reset } = superForm(
 		untrack(() => data.form),
@@ -52,7 +65,9 @@
 	let isEditing = $state(false);
 	let editId = $state('');
 
-	// Deletion state
+	// Filters
+	let sourceFilter = $state('all'); // all, official, mine, community
+
 	let deleteDialogOpen = $state(false);
 	let subjectToDelete = $state<string | null>(null);
 
@@ -71,13 +86,11 @@
 		$form.description = subject.description;
 		$form.niveaux = subject.niveaux || [];
 		$form.link = subject.link || '';
-
 		if (subject.expand && subject.expand.themes) {
 			$form.themes = subject.expand.themes.map((t: any) => t.nom);
 		} else {
 			$form.themes = [];
 		}
-
 		isEditing = true;
 		editId = subject.id;
 		open = true;
@@ -96,10 +109,20 @@
 		subjectToDelete = id;
 		deleteDialogOpen = true;
 	}
+
+	// Filter Logic
+	let filteredSubjects = $derived(
+		data.subjects.filter((s) => {
+			if (sourceFilter === 'official') return s.campus === '';
+			if (sourceFilter === 'mine') return s.campus === userCampusId;
+			if (sourceFilter === 'community') return s.campus !== '' && s.campus !== userCampusId;
+			return true;
+		})
+	);
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h1 class="text-3xl font-bold text-epi-blue uppercase">
 				Sujets<span class="text-epi-teal">_</span>
@@ -109,10 +132,29 @@
 			</p>
 		</div>
 
-		<Button onclick={openCreate} class="shadow-lg">
-			<Plus class="mr-2 h-4 w-4" />
-			Nouveau Sujet
-		</Button>
+		<div class="flex items-center gap-2">
+			<!-- Source Filter -->
+			<Select.Root type="single" bind:value={sourceFilter}>
+				<Select.Trigger class="w-45">
+					<Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
+					{#if sourceFilter === 'all'}Tous les sujets
+					{:else if sourceFilter === 'official'}Officiels
+					{:else if sourceFilter === 'mine'}Mon Campus
+					{:else}Communauté{/if}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="all">Tous les sujets</Select.Item>
+					<Select.Item value="official">Officiels (Epitech)</Select.Item>
+					<Select.Item value="mine">Mon Campus</Select.Item>
+					<Select.Item value="community">Communauté (Autres)</Select.Item>
+				</Select.Content>
+			</Select.Root>
+
+			<Button onclick={openCreate} class="shadow-lg">
+				<Plus class="mr-2 h-4 w-4" />
+				Nouveau
+			</Button>
+		</div>
 
 		<Dialog.Root bind:open>
 			<Dialog.Content class="sm:max-w-125">
@@ -255,22 +297,52 @@
 		<Table.Root>
 			<Table.Header class="bg-muted/50">
 				<Table.Row>
-					<Table.Head class="w-50 text-xs font-bold uppercase">Nom</Table.Head>
+					<Table.Head class="w-60 text-xs font-bold uppercase">Nom</Table.Head>
 					<Table.Head class="text-xs font-bold uppercase">Thèmes & Description</Table.Head>
 					<Table.Head class="w-45 text-xs font-bold uppercase">Niveaux</Table.Head>
 					<Table.Head class="w-12.5"></Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each data.subjects as subject (subject.id)}
-					{@const typedSubject = subject as SubjectWithThemes}
+				{#each filteredSubjects as subject (subject.id)}
+					{@const typedSubject = subject as SubjectWithExpand}
+					{@const isOfficial = !subject.campus}
+					{@const isMine = subject.campus === userCampusId}
+
 					<Table.Row class="hover:bg-muted/30">
 						<Table.Cell class="align-top font-bold">
-							<div class="flex flex-col gap-1 pt-1">
+							<div class="flex flex-col gap-2 pt-1">
 								<div class="flex items-center gap-2">
 									<Cuboid class="h-4 w-4 text-muted-foreground" />
 									{subject.nom}
 								</div>
+
+								<!-- TYPE BADGES -->
+								<div class="flex flex-wrap gap-1">
+									{#if isOfficial}
+										<Badge
+											class="w-fit gap-1 bg-epi-blue text-[9px] uppercase hover:bg-epi-blue/90"
+										>
+											<School class="h-3 w-3" /> Officiel
+										</Badge>
+									{:else if isMine}
+										<Badge
+											variant="outline"
+											class="w-fit gap-1 border-epi-teal bg-epi-teal/10 text-[9px] text-teal-800 uppercase dark:text-teal-400"
+										>
+											<MapPin class="h-3 w-3" /> Mon Campus
+										</Badge>
+									{:else}
+										<Badge
+											variant="outline"
+											class="w-fit gap-1 border-purple-200 bg-purple-50 text-[9px] text-purple-800 uppercase dark:border-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
+										>
+											<Globe class="h-3 w-3" />
+											{typedSubject.expand?.campus?.name || 'Communauté'}
+										</Badge>
+									{/if}
+								</div>
+
 								{#if subject.link}
 									<a
 										href={subject.link}
@@ -291,7 +363,7 @@
 										{#each typedSubject.expand.themes as theme}
 											<Badge
 												variant="outline"
-												class="gap-1 border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-800"
+												class="gap-1 border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-800 dark:border-teal-900 dark:bg-teal-900/30 dark:text-teal-100"
 											>
 												<Tag class="h-2 w-2" />
 												{theme.nom}
@@ -320,31 +392,34 @@
 							</div>
 						</Table.Cell>
 						<Table.Cell class="pt-3 align-top">
-							<DropdownMenu.Root>
-								<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
-									<Ellipsis class="h-4 w-4" />
-								</DropdownMenu.Trigger>
-								<DropdownMenu.Content align="end">
-									<DropdownMenu.Item onclick={() => openEdit(subject)}>
-										<Pencil class="mr-2 h-4 w-4" />
-										Modifier
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item
-										class="cursor-pointer text-destructive"
-										onclick={() => confirmDelete(subject.id)}
-									>
-										<Trash2 class="mr-2 h-4 w-4" />
-										Supprimer
-									</DropdownMenu.Item>
-								</DropdownMenu.Content>
-							</DropdownMenu.Root>
+							<!-- Only show edit actions if I own it -->
+							{#if isMine}
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+										<Ellipsis class="h-4 w-4" />
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										<DropdownMenu.Item onclick={() => openEdit(subject)}>
+											<Pencil class="mr-2 h-4 w-4" />
+											Modifier
+										</DropdownMenu.Item>
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item
+											class="cursor-pointer text-destructive"
+											onclick={() => confirmDelete(subject.id)}
+										>
+											<Trash2 class="mr-2 h-4 w-4" />
+											Supprimer
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							{/if}
 						</Table.Cell>
 					</Table.Row>
 				{:else}
 					<Table.Row>
 						<Table.Cell colspan={4} class="h-24 text-center text-muted-foreground">
-							Aucun sujet trouvé.
+							Aucun sujet trouvé dans cette catégorie.
 						</Table.Cell>
 					</Table.Row>
 				{/each}

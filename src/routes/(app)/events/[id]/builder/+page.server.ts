@@ -96,9 +96,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: 'nom',
-		expand: 'themes',
-		requestKey: null,
-		filter: `campus = "" || campus = "${locals.user?.campus}"`
+		expand: 'themes,campus',
+		requestKey: null
 	});
 
 	const themes = await locals.pb.collection('themes').getFullList({

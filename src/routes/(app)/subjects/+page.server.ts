@@ -8,14 +8,11 @@ import { createScoped } from '$lib/pocketbase';
 import { SubjectsNiveauxOptions } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Hybrid Filter: National (campus empty) OR Local (my campus)
-	// This usually requires an OR filter if RLS is strict.
-	// Assuming RLS rule: `campus = "" || campus = @request.auth.campus`
+	// Fetch ALL subjects (Official + Local + Community)
+	// We expand 'campus' to display the creator's name for community subjects
 	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: '-created',
-		expand: 'themes',
-		// Explicit filter is safer if RLS logic is complex
-		filter: `campus = "" || campus = "${locals.user?.campus}"`
+		expand: 'themes,campus'
 	});
 
 	const themes = await locals.pb.collection('themes').getFullList({
@@ -98,10 +95,14 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Check if subject is National (read-only for normal users)
 			const subject = await locals.pb.collection('subjects').getOne(id);
-			if (!subject.campus) {
-				return message(form, 'Impossible de modifier un sujet national.', { status: 403 });
+
+			// SECURITY CHECK:
+			// Users can only update subjects that belong to their campus.
+			if (subject.campus !== locals.user?.campus) {
+				return message(form, "Vous ne pouvez pas modifier un sujet qui n'est pas le vôtre.", {
+					status: 403
+				});
 			}
 
 			const themeIds = await processThemes(locals.pb, form.data.themes);
@@ -125,8 +126,13 @@ export const actions: Actions = {
 
 		try {
 			const subject = await locals.pb.collection('subjects').getOne(id);
-			if (!subject.campus) {
-				return fail(403, { message: 'Impossible de supprimer un sujet national.' });
+
+			// SECURITY CHECK:
+			// Users can only delete subjects that belong to their campus.
+			if (subject.campus !== locals.user?.campus) {
+				return fail(403, {
+					message: "Vous ne pouvez pas supprimer un sujet qui n'est pas le vôtre."
+				});
 			}
 
 			await locals.pb.collection('subjects').delete(id);

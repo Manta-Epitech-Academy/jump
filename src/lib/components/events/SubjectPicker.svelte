@@ -5,8 +5,19 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import { Search, BookOpen, Funnel, Tag, ExternalLink, Sparkles } from 'lucide-svelte';
+	import {
+		Search,
+		BookOpen,
+		Funnel,
+		Tag,
+		ExternalLink,
+		Sparkles,
+		School,
+		MapPin,
+		Globe
+	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { page } from '$app/state';
 
 	let {
 		open = $bindable(false),
@@ -26,9 +37,13 @@
 		onSelect: (subjectId: string | null) => void;
 	} = $props();
 
+	// Get user campus ID to detect "Mine" vs "Community"
+	let userCampusId = $derived(page.data.user?.campus);
+
 	let searchQuery = $state('');
 	let selectedLevel = $state('all');
 	let selectedTheme = $state('all');
+	let selectedSource = $state('all'); // all, official, mine, community
 
 	const levels = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 
@@ -67,9 +82,20 @@
 					selectedTheme === 'all' ||
 					(sub.expand?.themes &&
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						sub.expand.themes.some((t: any) => t.id === selectedTheme || t.nom === selectedTheme));
+						sub.expand.themes.some(
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							(t: any) => t.id === selectedTheme || t.nom === selectedTheme
+						));
 
-				return matchesSearch && matchesLevel && matchesTheme;
+				// Source Filter Logic
+				const isOfficial = !sub.campus;
+				const isMine = sub.campus === userCampusId;
+				let matchesSource = true;
+				if (selectedSource === 'official') matchesSource = isOfficial;
+				if (selectedSource === 'mine') matchesSource = isMine;
+				if (selectedSource === 'community') matchesSource = !isOfficial && !isMine;
+
+				return matchesSearch && matchesLevel && matchesTheme && matchesSource;
 			})
 			.sort((a, b) => {
 				// Sort logic: "Recommended" (matches student level) first, then alphabetical
@@ -168,6 +194,31 @@
 						</Select.Root>
 					</div>
 
+					<!-- Source Filter -->
+					<div class="flex h-9 items-center rounded-sm border bg-background">
+						<div
+							class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
+						>
+							Origine
+						</div>
+						<Select.Root type="single" bind:value={selectedSource}>
+							<Select.Trigger
+								class="h-full min-w-25 border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
+							>
+								{#if selectedSource === 'all'}Tous
+								{:else if selectedSource === 'official'}Officiel
+								{:else if selectedSource === 'mine'}Local
+								{:else}Communauté{/if}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="all">Tous</Select.Item>
+								<Select.Item value="official">Officiel</Select.Item>
+								<Select.Item value="mine">Mon Campus</Select.Item>
+								<Select.Item value="community">Communauté</Select.Item>
+							</Select.Content>
+						</Select.Root>
+					</div>
+
 					<!-- Quick Filter: Student Level -->
 					{#if studentLevel && selectedLevel !== studentLevel}
 						<Button
@@ -203,6 +254,8 @@
 				{#each filteredSubjects as sub (sub.id)}
 					{@const isSelected = sub.id === currentSubjectId}
 					{@const isRecommended = studentLevel && sub.niveaux?.includes(studentLevel)}
+					{@const isOfficial = !sub.campus}
+					{@const isMine = sub.campus === userCampusId}
 
 					<button
 						class={cn(
@@ -216,6 +269,28 @@
 							<div class="flex flex-col gap-1">
 								<div class="flex items-center gap-2">
 									<span class="font-bold text-foreground uppercase">{sub.nom}</span>
+
+									{#if isOfficial}
+										<div
+											class="flex items-center gap-1 text-[10px] font-bold text-epi-blue uppercase"
+										>
+											<School class="h-3 w-3" /> Officiel
+										</div>
+									{:else if isMine}
+										<div
+											class="flex items-center gap-1 text-[10px] font-bold text-teal-700 uppercase dark:text-teal-400"
+										>
+											<MapPin class="h-3 w-3" /> Local
+										</div>
+									{:else}
+										<div
+											class="flex items-center gap-1 text-[10px] font-bold text-purple-700 uppercase dark:text-purple-400"
+										>
+											<Globe class="h-3 w-3" />
+											{sub.expand?.campus?.name || 'Communauté'}
+										</div>
+									{/if}
+
 									{#if isRecommended}
 										<Badge
 											variant="outline"
