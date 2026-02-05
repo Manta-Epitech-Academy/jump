@@ -1,12 +1,24 @@
 import PocketBase from 'pocketbase';
 import type { TypedPocketBase, CollectionRecords, Create } from './pocketbase-types';
-import { PUBLIC_POCKETBASE_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 export function createInstance(): TypedPocketBase {
-	return new PocketBase(PUBLIC_POCKETBASE_URL) as TypedPocketBase;
+	let url = env.PUBLIC_POCKETBASE_URL;
+
+	// Check if we are running on the server (SSR)
+	if (typeof window === 'undefined') {
+		// If the internal Docker URL exists, use it.
+		// Since we renamed it to PUBLIC_INTERNAL_..., we can access it here safely via 'env'
+		if (env.PUBLIC_INTERNAL_POCKETBASE_URL) {
+			url = env.PUBLIC_INTERNAL_POCKETBASE_URL;
+		}
+	}
+
+	return new PocketBase(url) as TypedPocketBase;
 }
 
-export const pbUrl = PUBLIC_POCKETBASE_URL;
+// Export the URL for use in avatars and links (always public for the browser)
+export const pbUrl = env.PUBLIC_POCKETBASE_URL;
 
 /**
  * Creates a record automatically scoped to the user's campus.
@@ -32,14 +44,11 @@ export async function createScoped<T extends keyof CollectionRecords>(
 	}
 
 	// 2. Inject campus ID
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const payload: any = {
 		...data,
 		campus: user.campus
 	};
 
 	// 3. Perform Create
-	// We add { requestKey: null } to disable auto-cancellation.
-	// This is critical for batch operations (loops, Promise.all).
 	return await pb.collection(collection).create(payload, { requestKey: null });
 }
