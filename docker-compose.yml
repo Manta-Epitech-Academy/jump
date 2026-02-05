@@ -2,8 +2,8 @@ services:
   pocketbase:
     build:
       context: ./pocketbase-backend
-      dockerfile: Dockerfile
-    container_name: codecamp-pocketbase
+      tags:
+        - codecamp_manager-pocketbase:latest
     ports:
       - '8090:8090'
     volumes:
@@ -21,8 +21,11 @@ services:
   sveltekit:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: codecamp-manager
+      tags:
+        - codecamp_manager-sveltekit:latest
+    image: codecamp_manager-sveltekit:latest
+    env_file:
+      - .env
     ports:
       - '${PORT}:${PORT}'
     depends_on:
