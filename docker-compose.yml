@@ -20,7 +20,7 @@ services:
 
   sveltekit:
     build:
-      context: .
+      context: ./frontend
       tags:
         - codecamp_manager-sveltekit:latest
     image: codecamp_manager-sveltekit:latest
