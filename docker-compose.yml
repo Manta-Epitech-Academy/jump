@@ -3,13 +3,13 @@ services:
     build:
       context: ./pocketbase-backend
       tags:
-        - codecamp_manager-pocketbase:latest
+        - tekcamp-pocketbase:latest
     ports:
       - '8090:8090'
     volumes:
       - pb_data:/pb/pb_data
     networks:
-      - codecamp-network
+      - tekcamp-network
     restart: unless-stopped
     healthcheck:
       test:
@@ -22,8 +22,8 @@ services:
     build:
       context: ./frontend
       tags:
-        - codecamp_manager-sveltekit:latest
-    image: codecamp_manager-sveltekit:latest
+        - tekcamp-sveltekit:latest
+    image: tekcamp-sveltekit:latest
     env_file:
       - .env
     ports:
@@ -32,13 +32,13 @@ services:
       pocketbase:
         condition: service_healthy
     networks:
-      - codecamp-network
+      - tekcamp-network
     environment:
       - PORT=${PORT}
       - ORIGIN=${ORIGIN}
       - PUBLIC_POCKETBASE_URL=${PUBLIC_POCKETBASE_URL}
       # Renamed to PUBLIC_ so SvelteKit allows importing it in shared files
-      - PUBLIC_INTERNAL_POCKETBASE_URL=http://codecamp-pocketbase:8090
+      - PUBLIC_INTERNAL_POCKETBASE_URL=http://pocketbase:8090
       - HOST_HEADER=x-forwarded-host
     # SSR needs to reach the host to find PocketBase on localhost
     extra_hosts:
@@ -49,5 +49,5 @@ volumes:
   pb_data:
 
 networks:
-  codecamp-network:
+  tekcamp-network:
     driver: bridge

@@ -25,7 +25,7 @@
 </script>
 
 <svelte:head>
-	<title>CodeCamp Manager {userCampusName ? `| ${userCampusName}` : ''}</title>
+	<title>TekCamp {userCampusName ? `| ${userCampusName}` : ''}</title>
 </svelte:head>
 
 <ModeWatcher />

@@ -42,7 +42,7 @@
 				<!-- Title Section -->
 				<div class="space-y-1">
 					<Card.Title class="font-heading text-2xl tracking-wide uppercase">
-						CodeCamp Manager<span class="text-epi-teal">_</span>
+						TekCamp<span class="text-epi-teal">_</span>
 					</Card.Title>
 					<Card.Description>Plateforme de gestion pédagogique Epitech</Card.Description>
 				</div>

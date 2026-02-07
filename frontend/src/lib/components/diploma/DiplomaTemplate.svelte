@@ -76,7 +76,7 @@
 			<div class="flex w-full flex-col items-center gap-2 text-center">
 				<div class="mb-2 flex items-center gap-3" style="color: {colors.epiBlue};">
 					<Award class="h-10 w-10" />
-					<span class="text-xl font-black tracking-[0.3em] uppercase">CodeCamp Manager</span>
+					<span class="text-xl font-black tracking-[0.3em] uppercase">TekCamp</span>
 				</div>
 
 				<h1 class="font-heading text-7xl tracking-wide uppercase" style="color: {colors.slate900};">
