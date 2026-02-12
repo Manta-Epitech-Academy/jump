@@ -16,14 +16,17 @@ FROM oven/bun:alpine
 
 WORKDIR /app
 
-# Copy built files from the builder
+ENV NODE_ENV=production
+
+# Copy built files and dependencies from the builder
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/build ./build
-COPY --from=builder /app/package.json .
+COPY --from=builder /app/package.json ./
 
 # Use the pre-existing 'bun' user for security
 USER bun
 
-EXPOSE 3000
+EXPOSE ${PORT}
 
-# Start the BUN server
-CMD ["bun", "run", "build/index.js"]
+# Start the server with Bun
+CMD ["bun", "./build/index.js"]
