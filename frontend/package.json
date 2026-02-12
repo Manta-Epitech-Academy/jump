@@ -6,7 +6,7 @@
 	"scripts": {
 		"db:setup": "bun ../setup-pocketbase.ts",
 		"db:start": "cd ../pocketbase-backend && ./pocketbase serve",
-		"typegen": "pocketbase-typegen --db ./pocketbase-backend/pb_data/data.db --out ./src/lib/pocketbase-types.ts",
+		"typegen": "pocketbase-typegen --db ../pocketbase-backend/pb_data/data.db --out ./src/lib/pocketbase-types.ts",
 		"dev": "bun --env-file=../.env vite dev",
 		"build": "bun --env-file=../.env vite build",
 		"preview": "bun --env-file=../.env vite preview",

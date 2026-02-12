@@ -31,6 +31,7 @@
 	import { toast } from 'svelte-sonner';
 	import { formatDateFr, cn } from '$lib/utils';
 	import { enhance as kitEnhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
 
@@ -66,7 +67,7 @@
 <div class="space-y-6 pb-10">
 	<!-- HEADER NAVIGATION -->
 	<div class="flex items-center gap-4">
-		<Button variant="ghost" size="icon" href="/students">
+		<Button variant="ghost" size="icon" href={resolve('/students')}>
 			<ArrowLeft class="h-4 w-4" />
 		</Button>
 		<h1 class="text-3xl font-bold text-epi-blue uppercase">

@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { Calendar, LayoutDashboard, History, Users, Cuboid } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
+	import { resolve } from '$app/paths';
 
 	let { open = $bindable(false) } = $props();
 
@@ -34,19 +35,19 @@
 	<Command.List>
 		<Command.Empty>Aucun résultat.</Command.Empty>
 		<Command.Group heading="Navigation">
-			<Command.Item onSelect={() => runCommand('/')}>
+			<Command.Item onSelect={() => runCommand(resolve('/'))}>
 				<LayoutDashboard class="mr-2 h-4 w-4" />
 				Dashboard
 			</Command.Item>
-			<Command.Item onSelect={() => runCommand('/students')}>
+			<Command.Item onSelect={() => runCommand(resolve('/students'))}>
 				<Users class="mr-2 h-4 w-4" />
 				Élèves
 			</Command.Item>
-			<Command.Item onSelect={() => runCommand('/subjects')}>
+			<Command.Item onSelect={() => runCommand(resolve('/subjects'))}>
 				<Cuboid class="mr-2 h-4 w-4" />
 				Sujets
 			</Command.Item>
-			<Command.Item onSelect={() => runCommand('/events/history')}>
+			<Command.Item onSelect={() => runCommand(resolve('/events/history'))}>
 				<History class="mr-2 h-4 w-4" />
 				Historique
 			</Command.Item>
@@ -55,7 +56,7 @@
 		<Command.Separator />
 
 		<Command.Group heading="Actions Rapides">
-			<Command.Item onSelect={() => runCommand('/events/new')}>
+			<Command.Item onSelect={() => runCommand(resolve('/events/new'))}>
 				<Calendar class="mr-2 h-4 w-4" />
 				Nouvel Événement
 			</Command.Item>

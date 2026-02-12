@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
@@ -419,7 +420,7 @@ export const actions: Actions = {
 			return fail(500);
 		}
 
-		throw redirect(303, '/');
+		throw redirect(303, resolve('/'));
 	},
 
 	confirmImport: async ({ request, locals, params }) => {

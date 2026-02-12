@@ -32,6 +32,7 @@
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import { enhance as kitEnhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
 
@@ -179,7 +180,7 @@
 
 <div class="mx-auto max-w-5xl space-y-6">
 	<div class="flex items-center gap-4">
-		<a href="/" class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+		<a href={resolve('/')} class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
 			<ChevronLeft class="h-4 w-4" />
 		</a>
 		<h1 class="text-3xl font-bold text-epi-blue uppercase">

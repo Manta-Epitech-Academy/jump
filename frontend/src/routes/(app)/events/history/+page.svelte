@@ -11,6 +11,7 @@
 	import { Calendar, Tag, Eye, ArrowLeft, Archive, Users } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { formatDateFr } from '$lib/utils';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
 
@@ -22,7 +23,7 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-4">
-			<Button variant="ghost" size="icon" href="/">
+			<Button variant="ghost" size="icon" href={resolve('/')}>
 				<ArrowLeft class="h-4 w-4" />
 			</Button>
 			<div>
@@ -78,7 +79,7 @@
 								</Badge>
 							</TableCell>
 							<TableCell class="text-right">
-								<Button variant="ghost" size="sm" href={`/events/${event.id}/appel`}>
+								<Button variant="ghost" size="sm" href={resolve(`/events/${event.id}/appel`)}>
 									<Eye class="mr-2 h-4 w-4" />
 									Consulter
 								</Button>

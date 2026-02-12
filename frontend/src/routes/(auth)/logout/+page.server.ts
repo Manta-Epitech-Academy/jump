@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
+import { resolve } from '$app/paths';
 
 export const actions: Actions = {
 	default: async ({ locals }) => {
@@ -8,6 +9,6 @@ export const actions: Actions = {
 		locals.user = null;
 
 		// Redirect to login page
-		throw redirect(302, '/login');
+		throw redirect(302, resolve('/login'));
 	}
 };

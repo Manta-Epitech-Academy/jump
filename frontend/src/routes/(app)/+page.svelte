@@ -25,6 +25,7 @@
 
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
 
@@ -59,7 +60,7 @@
 				{data.events.length} événement{data.events.length > 1 ? 's' : ''} à venir
 			</p>
 		</div>
-		<Button size="sm" href="/events/new" class="bg-epi-blue shadow-lg">
+		<Button size="sm" href={resolve('/events/new')} class="bg-epi-blue shadow-lg">
 			<Plus class="mr-2 h-4 w-4" />
 			<span class="hidden sm:inline">Nouvel Événement</span>
 			<span class="inline sm:hidden">Nouveau</span>
@@ -140,7 +141,7 @@
 														{...props}
 														variant="outline"
 														size="icon"
-														href={`/events/${event.id}/appel`}
+														href={resolve(`/events/${event.id}/appel`)}
 														class="h-9 w-9 border-epi-teal/30 bg-epi-teal/10 text-teal-700 hover:bg-epi-teal hover:text-black dark:text-epi-teal dark:hover:text-black"
 													>
 														<UserCheck class="h-5 w-5" />
@@ -161,7 +162,7 @@
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
 											<a
-												href={`/events/${event.id}/builder`}
+												href={resolve(`/events/${event.id}/builder`)}
 												class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground"
 											>
 												<Pencil class="mr-2 h-4 w-4" />
@@ -205,7 +206,7 @@
 				Vous êtes partis en vacances ou vous avez fini le game ?
 			</p>
 			<Button
-				href="/events/new"
+				href={resolve('/events/new')}
 				class="mt-8 bg-epi-blue text-white shadow-lg transition-transform hover:scale-105 hover:bg-epi-blue/90"
 			>
 				<Megaphone class="mr-2 h-4 w-4" />

@@ -21,6 +21,7 @@
 	import GlobalCommand from '$lib/components/GlobalCommand.svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 
 	let { children, data } = $props();
 
@@ -59,8 +60,12 @@
 	});
 
 	function isActive(path: string) {
-		if (path === '/') return page.url.pathname === '/';
-		return page.url.pathname.startsWith(path);
+		// resolve('/') gives the base-prefixed root (e.g. '/tekcamp/')
+		// Strip trailing slash to avoid double-slashes when concatenating with path
+		const basePath = resolve('/').replace(/\/$/, '');
+		const fullPath = path === '/' ? basePath || '/' : `${basePath}${path}`;
+		if (path === '/') return page.url.pathname === fullPath || page.url.pathname === `${fullPath}/`;
+		return page.url.pathname.startsWith(fullPath);
 	}
 
 	const navLinkClass = (active: boolean) => `
@@ -116,7 +121,7 @@
 					/>
 					<span class="sr-only">Toggle menu</span>
 				</Button>
-				<a href="/" class="flex items-center gap-2">
+				<a href={resolve('/')} class="flex items-center gap-2">
 					<span class="text-lg font-bold uppercase">TekCamp</span>
 					{#if data.user?.expand?.campus?.name}
 						<span
@@ -196,13 +201,13 @@
 					<DropdownMenu.Content align="end" class="w-48 rounded-sm">
 						<DropdownMenu.Label>Mon Profil</DropdownMenu.Label>
 						<DropdownMenu.Separator />
-						<a href="/onboarding?change=true">
+						<a href={`${resolve('/onboarding')}?change=true`}>
 							<DropdownMenu.Item class="cursor-pointer">
 								<MapPin class="mr-2 h-4 w-4" />
 								Changer de campus
 							</DropdownMenu.Item>
 						</a>
-						<form action="/logout" method="POST">
+						<form action={resolve('/logout')} method="POST">
 							<button type="submit" class="w-full cursor-pointer">
 								<DropdownMenu.Item class="cursor-pointer text-destructive">
 									<LogOut class="mr-2 h-4 w-4" />
@@ -225,11 +230,11 @@
 					Overview<span class="text-epi-orange">_</span>
 				</div>
 				<nav class="space-y-1">
-					<a href="/" class={navLinkClass(isActive('/'))}>
+					<a href={resolve('/')} class={navLinkClass(isActive('/'))}>
 						<LayoutDashboard class="h-5 w-5" />
 						<span>Dashboard</span>
 					</a>
-					<a href="/events/history" class={navLinkClass(isActive('/events/history'))}>
+					<a href={resolve('/events/history')} class={navLinkClass(isActive('/events/history'))}>
 						<History class="h-5 w-5" />
 						<span>Historique</span>
 					</a>
@@ -240,11 +245,11 @@
 					Management<span class="text-epi-teal">_</span>
 				</div>
 				<nav class="space-y-1">
-					<a href="/students" class={navLinkClass(isActive('/students'))}>
+					<a href={resolve('/students')} class={navLinkClass(isActive('/students'))}>
 						<Users class="h-5 w-5" />
 						<span>Élèves</span>
 					</a>
-					<a href="/subjects" class={navLinkClass(isActive('/subjects'))}>
+					<a href={resolve('/subjects')} class={navLinkClass(isActive('/subjects'))}>
 						<Cuboid class="h-5 w-5" />
 						<span>Sujets</span>
 					</a>
@@ -252,7 +257,11 @@
 			</div>
 
 			<div class="border-t border-border p-4">
-				<Button variant="outline" class="w-full justify-start border-dashed" href="/events/new">
+				<Button
+					variant="outline"
+					class="w-full justify-start border-dashed"
+					href={resolve('/events/new')}
+				>
 					<Plus class="mr-2 h-4 w-4" />
 					Nouvel Événement
 				</Button>
@@ -281,11 +290,11 @@
 						Overview<span class="text-epi-orange">_</span>
 					</div>
 					<nav class="space-y-1">
-						<a href="/" class={navLinkClass(isActive('/'))}>
+						<a href={resolve('/')} class={navLinkClass(isActive('/'))}>
 							<LayoutDashboard class="h-5 w-5" />
 							<span>Dashboard</span>
 						</a>
-						<a href="/events/history" class={navLinkClass(isActive('/events/history'))}>
+						<a href={resolve('/events/history')} class={navLinkClass(isActive('/events/history'))}>
 							<History class="h-5 w-5" />
 							<span>Historique</span>
 						</a>
@@ -295,18 +304,22 @@
 						Management<span class="text-epi-teal">_</span>
 					</div>
 					<nav class="space-y-1">
-						<a href="/students" class={navLinkClass(isActive('/students'))}>
+						<a href={resolve('/students')} class={navLinkClass(isActive('/students'))}>
 							<Users class="h-5 w-5" />
 							<span>Élèves</span>
 						</a>
-						<a href="/subjects" class={navLinkClass(isActive('/subjects'))}>
+						<a href={resolve('/subjects')} class={navLinkClass(isActive('/subjects'))}>
 							<Cuboid class="h-5 w-5" />
 							<span>Sujets</span>
 						</a>
 					</nav>
 				</div>
 				<div class="border-t border-border p-4">
-					<Button variant="outline" class="w-full justify-center border-dashed" href="/events/new">
+					<Button
+						variant="outline"
+						class="w-full justify-center border-dashed"
+						href={resolve('/events/new')}
+					>
 						<Plus class="mr-2 h-4 w-4" />
 						Nouvel Événement
 					</Button>

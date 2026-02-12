@@ -1,10 +1,11 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { resolve } from '$app/paths';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// If already has a campus, go home, UNLESS we are explicitly asking to change it
 	if (locals.user?.campus && !url.searchParams.get('change')) {
-		throw redirect(303, '/');
+		throw redirect(303, resolve('/'));
 	}
 
 	try {
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
 	joinCampus: async ({ request, locals }) => {
-		if (!locals.user) throw redirect(303, '/login');
+		if (!locals.user) throw redirect(303, resolve('/login'));
 
 		const formData = await request.formData();
 		const campusId = formData.get('campusId') as string;
@@ -47,6 +48,6 @@ export const actions: Actions = {
 			return fail(500, { message: 'Erreur lors de la sauvegarde du campus.' });
 		}
 
-		throw redirect(303, '/');
+		throw redirect(303, resolve('/'));
 	}
 };

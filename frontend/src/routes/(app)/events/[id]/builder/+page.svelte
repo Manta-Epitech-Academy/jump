@@ -35,6 +35,7 @@
 	import SubjectPicker from '$lib/components/events/SubjectPicker.svelte';
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
 
@@ -199,7 +200,7 @@
 <div class="flex h-auto min-h-[calc(100vh-8rem)] flex-col space-y-4 md:h-[calc(100vh-8rem)]">
 	<div class="flex items-center justify-between border-b pb-4">
 		<div class="flex items-center gap-4">
-			<a href="/" class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+			<a href={resolve('/')} class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
 				<ArrowLeft class="h-4 w-4" />
 			</a>
 			<div>
@@ -335,7 +336,7 @@
 				</Dialog.Content>
 			</Dialog.Root>
 
-			<Button variant="default" href={`/events/${data.event.id}/appel`} class="shadow-lg">
+			<Button variant="default" href={resolve(`/events/${data.event.id}/appel`)} class="shadow-lg">
 				<UserCheck class="mr-2 h-4 w-4" />
 				<span class="hidden sm:inline">Faire l'appel</span>
 				<span class="sm:hidden">Appel</span>

@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
@@ -87,6 +88,6 @@ export const actions: Actions = {
 			console.error('Error deleting student:', err);
 			return fail(500, { message: 'Impossible de supprimer cet élève' });
 		}
-		throw redirect(303, '/students');
+		throw redirect(303, resolve('/students'));
 	}
 };

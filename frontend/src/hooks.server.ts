@@ -1,6 +1,7 @@
 import type { Handle } from '@sveltejs/kit';
 import { createInstance } from '$lib/pocketbase';
 import { dev } from '$app/environment';
+import { resolve as resolvePath } from '$app/paths';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.pb = createInstance();
@@ -33,11 +34,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// 2. Enforce Campus Selection (Onboarding)
 			// If user has no campus, force them to /onboarding
 			// Exceptions: /onboarding itself, /logout, /oauth (callbacks)
-			const publicPaths = ['/onboarding', '/logout', '/oauth'];
-			const isPublicPath = publicPaths.some((path) => event.url.pathname.startsWith(path));
+			// Adjust path check for base path
+			// Note: resolvePath() returns relative paths server-side, so we must
+			// convert them to absolute pathnames via new URL() for comparison.
+			const isPublicPath =
+				event.url.pathname.startsWith(new URL(resolvePath('/onboarding'), event.url).pathname) ||
+				event.url.pathname.startsWith(new URL(resolvePath('/logout'), event.url).pathname) ||
+				event.url.pathname.startsWith(new URL(resolvePath('/oauth'), event.url).pathname);
 
 			if (!event.locals.user?.campus && !isPublicPath) {
-				return Response.redirect(`${event.url.origin}/onboarding`, 303);
+				return Response.redirect(new URL(resolvePath('/onboarding'), event.url).href, 303);
 			}
 		} else {
 			event.locals.user = null;

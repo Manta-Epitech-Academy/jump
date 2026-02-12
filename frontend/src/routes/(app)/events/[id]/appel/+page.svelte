@@ -32,6 +32,7 @@
 		EventsResponse
 	} from '$lib/pocketbase-types';
 	import { triggerConfetti } from '$lib/actions/confetti';
+	import { resolve } from '$app/paths';
 
 	type ParticipationExpand = {
 		student?: StudentsResponse;
@@ -172,7 +173,7 @@
 		<div class="container mx-auto max-w-2xl px-4">
 			<div class="mb-4 flex items-center justify-between">
 				<a
-					href="/events/{data.event.id}/builder"
+					href={resolve(`/events/${data.event.id}/builder`)}
 					class="flex items-center gap-1 text-xs font-black tracking-widest text-muted-foreground uppercase transition-colors hover:text-epi-blue"
 				>
 					<ArrowLeft class="h-3 w-3" /> Retour au builder

@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { eventSchema } from '$lib/validation/events';
@@ -110,7 +111,7 @@ export const actions: Actions = {
 			});
 		}
 
-		throw redirect(303, `/events/${newEventId}/builder`);
+		throw redirect(303, resolve(`/events/${newEventId}/builder`));
 	},
 
 	analyzeCampaign: async ({ request, locals }) => {
@@ -295,6 +296,6 @@ export const actions: Actions = {
 			return fail(500, { error: "Erreur lors de l'import final" });
 		}
 
-		throw redirect(303, `/events/${newEventId}/builder`);
+		throw redirect(303, resolve(`/events/${newEventId}/builder`));
 	}
 };

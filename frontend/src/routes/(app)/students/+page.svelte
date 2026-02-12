@@ -17,6 +17,7 @@
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
 
@@ -287,7 +288,7 @@
 				{#each filteredStudents as student (student.id)}
 					<Table.Row class="hover:bg-muted/30">
 						<Table.Cell class="font-bold">
-							<a href="/students/{student.id}" class="group flex items-center gap-3">
+							<a href={resolve(`/students/${student.id}`)} class="group flex items-center gap-3">
 								<Avatar.Root
 									class="h-9 w-9 rounded-full border transition-all group-hover:border-epi-blue"
 								>
@@ -330,7 +331,7 @@
 								</DropdownMenu.Trigger>
 								<DropdownMenu.Content align="end">
 									<a
-										href={`/students/${student.id}`}
+										href={resolve(`/students/${student.id}`)}
 										class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
 									>
 										<Eye class="mr-2 h-4 w-4 text-epi-blue" />

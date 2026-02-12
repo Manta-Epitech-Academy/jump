@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import type { RequestHandler } from './$types';
+import { resolve } from '$app/paths';
 
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	const expectedState = cookies.get('state');
@@ -10,11 +11,11 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	const code = url.searchParams.get('code');
 
 	// Ensure the redirect URL matches EXACTLY what was sent in login/+page.server.ts
-	const redirectURL = `${url.origin}/oauth/callback`;
+	const redirectURL = new URL(resolve('/oauth/callback'), url).href;
 
 	// 1. Validate State
 	if (!state || !expectedState || state !== expectedState) {
-		throw redirect(303, '/login?error=OAuthStateMismatch');
+		throw redirect(303, `${resolve('/login')}?error=OAuthStateMismatch`);
 	}
 
 	// 2. Find Provider
@@ -23,7 +24,7 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	const provider = providers.find((p) => p.name === 'microsoft');
 
 	if (!provider) {
-		throw redirect(303, '/login?error=ProviderMissing');
+		throw redirect(303, `${resolve('/login')}?error=ProviderMissing`);
 	}
 
 	// 3. Exchange Code
@@ -43,7 +44,7 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 			// 2. Clear the auth store (logout)
 			locals.pb.authStore.clear();
 			// 3. Redirect to login with the specific error message your login page expects
-			throw redirect(303, '/login?error=UnauthorizedDomain');
+			throw redirect(303, `${resolve('/login')}?error=UnauthorizedDomain`);
 		}
 		// ----------------------------------------
 
@@ -98,7 +99,7 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 		if (err instanceof Response) throw err;
 
 		console.error('OAuth Exchange Failed:', err);
-		throw redirect(303, '/login?error=OAuthFailed');
+		throw redirect(303, `${resolve('/login')}?error=OAuthFailed`);
 	}
 
 	// 5. Cleanup & Redirect
@@ -106,5 +107,5 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	cookies.delete('state', clearOptions);
 	cookies.delete('verifier', clearOptions);
 
-	throw redirect(303, '/');
+	throw redirect(303, resolve('/'));
 };

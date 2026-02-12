@@ -1,10 +1,11 @@
 import type { Actions, PageServerLoad } from './$types';
 import { redirect, fail } from '@sveltejs/kit';
 import { dev } from '$app/environment';
+import { resolve } from '$app/paths';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.pb.authStore.isValid) {
-		throw redirect(302, '/');
+		throw redirect(302, resolve('/'));
 	}
 
 	// Handle errors returned from the OAuth callback
@@ -68,7 +69,7 @@ export const actions: Actions = {
 			cookies.set('state', provider.state, cookieOptions);
 			cookies.set('verifier', provider.codeVerifier, cookieOptions);
 
-			const redirectURL = `${url.origin}/oauth/callback`;
+			const redirectURL = new URL(resolve('/oauth/callback'), url).href;
 
 			// PocketBase constructs the URL with redirect_uri appended at the end
 			authUrl = `${provider.authURL}${redirectURL}`;
