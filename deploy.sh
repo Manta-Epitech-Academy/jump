@@ -15,7 +15,7 @@ echo "🚀 Starting deployment with tag: $TIMESTAMP"
 
 # --- POCKETBASE ---
 echo "📦 Building PocketBase..."
-docker build \
+docker buildx build \
   -t ghcr.io/$GITHUB_USER/tekcamp-pocketbase:$TIMESTAMP \
   -t ghcr.io/$GITHUB_USER/tekcamp-pocketbase:latest \
   ./pocketbase-backend
@@ -27,7 +27,7 @@ docker push ghcr.io/$GITHUB_USER/tekcamp-pocketbase:latest
 
 # --- SVELTEKIT ---
 echo "📦 Building SvelteKit..."
-docker build \
+docker buildx build \
   --build-arg PUBLIC_POCKETBASE_URL="$PROD_PB_URL" \
   --build-arg PUBLIC_INTERNAL_POCKETBASE_URL="$INTERNAL_PB_URL" \
   -t ghcr.io/$GITHUB_USER/tekcamp-sveltekit:$TIMESTAMP \
