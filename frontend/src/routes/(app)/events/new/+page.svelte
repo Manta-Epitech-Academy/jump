@@ -621,10 +621,10 @@
 					</form>
 				</Card.Content>
 				<Card.Footer class="justify-end border-t bg-muted/50 px-6 py-4">
-					<button type="submit" form="event-form" class={buttonVariants()} disabled={$delayed}>
+					<Button type="submit" form="event-form" disabled={$delayed}>
 						<Save class="mr-2 h-4 w-4" />
 						{#if $delayed}Création...{:else}Créer l'événement{/if}
-					</button>
+					</Button>
 				</Card.Footer>
 			</Card.Root>
 		</Tabs.Content>

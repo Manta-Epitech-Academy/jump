@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
 	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search, Eye } from 'lucide-svelte';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Table from '$lib/components/ui/table';
@@ -139,10 +139,10 @@
 				</Select.Root>
 			</div>
 
-			<button onclick={openCreate} class={buttonVariants()}>
+			<Button onclick={openCreate}>
 				<Plus class="mr-2 h-4 w-4" />
 				Nouvel Élève
-			</button>
+			</Button>
 
 			<Dialog.Root bind:open>
 				<Dialog.Content class="sm:max-w-125">
@@ -224,11 +224,11 @@
 						</div>
 
 						<Dialog.Footer>
-							<button type="submit" class={buttonVariants()} disabled={$delayed}>
+							<Button type="submit" disabled={$delayed}>
 								{#if $delayed}Enregistrement...{:else}{isEditing
 										? 'Mettre à jour'
 										: "Créer l'élève"}{/if}
-							</button>
+							</Button>
 						</Dialog.Footer>
 					</form>
 				</Dialog.Content>
