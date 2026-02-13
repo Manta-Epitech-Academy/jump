@@ -1,6 +1,14 @@
 # Step 1: Build the application
 FROM oven/bun:alpine AS builder
 
+# Define build-time arguments for SvelteKit
+ARG PUBLIC_POCKETBASE_URL
+ARG PUBLIC_INTERNAL_POCKETBASE_URL
+
+# Make them available as environment variables during build
+ENV PUBLIC_POCKETBASE_URL=$PUBLIC_POCKETBASE_URL
+ENV PUBLIC_INTERNAL_POCKETBASE_URL=$PUBLIC_INTERNAL_POCKETBASE_URL
+
 WORKDIR /app
 
 # Install dependencies
@@ -26,7 +34,8 @@ COPY --from=builder /app/package.json ./
 # Use the pre-existing 'bun' user for security
 USER bun
 
-EXPOSE ${PORT}
+# EXPOSE is documented; the PORT env var will still be used by the adapter
+EXPOSE 3030
 
 # Start the server with Bun
 CMD ["bun", "./build/index.js"]

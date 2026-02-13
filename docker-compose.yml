@@ -1,11 +1,8 @@
 services:
   pocketbase:
-    build:
-      context: ./pocketbase-backend
-      tags:
-        - tekcamp-pocketbase:latest
+    image: ghcr.io/mateo-cabrera/tekcamp-pocketbase:latest
     ports:
-      - '8090:8090'
+      - "8090:8090"
     volumes:
       - pb_data:/pb/pb_data
     networks:
@@ -13,21 +10,24 @@ services:
     restart: unless-stopped
     healthcheck:
       test:
-        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8090/api/health']
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8090/api/health",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   sveltekit:
-    build:
-      context: ./frontend
-      tags:
-        - tekcamp-sveltekit:latest
-    image: tekcamp-sveltekit:latest
+    image: ghcr.io/mateo-cabrera/tekcamp-sveltekit:latest
     env_file:
       - .env
     ports:
-      - '${PORT}:${PORT}'
+      - "${PORT}:${PORT}"
     depends_on:
       pocketbase:
         condition: service_healthy
@@ -37,12 +37,19 @@ services:
       - PORT=${PORT}
       - ORIGIN=${ORIGIN}
       - PUBLIC_POCKETBASE_URL=${PUBLIC_POCKETBASE_URL}
-      # Renamed to PUBLIC_ so SvelteKit allows importing it in shared files
       - PUBLIC_INTERNAL_POCKETBASE_URL=http://pocketbase:8090
       - HOST_HEADER=x-forwarded-host
-    # SSR needs to reach the host to find PocketBase on localhost
-    extra_hosts:
-      - 'localhost:host-gateway'
+    restart: unless-stopped
+
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config/config.json:ro
+    environment:
+      - DOCKER_API_VERSION=1.45
+      - DOCKER_CONFIG=/config
+    command: --interval 60 --cleanup --warn-on-head-failure never
     restart: unless-stopped
 
 volumes:
