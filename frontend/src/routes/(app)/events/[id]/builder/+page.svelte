@@ -197,7 +197,7 @@
 	const niveauxScolaires = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 </script>
 
-<div class="flex h-auto min-h-[calc(100vh-8rem)] flex-col space-y-4 md:h-[calc(100vh-8rem)]">
+<div class="flex h-auto min-h-[calc(100vh-8rem)] flex-col space-y-4 md:h-[calc(100vh-10rem)]">
 	<div class="flex items-center justify-between border-b pb-4">
 		<div class="flex items-center gap-4">
 			<a href={resolve('/')} class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
@@ -355,7 +355,7 @@
 			</Card.Header>
 			<Separator />
 
-			<ScrollArea class="flex-1">
+			<ScrollArea class="min-h-0 flex-1">
 				<div class="space-y-8 p-6">
 					{#if participationGroups.unassigned.length > 0}
 						<div class="rounded-sm border-2 border-dashed border-epi-orange/30 bg-epi-orange/5 p-4">
@@ -472,7 +472,7 @@
 						<Input placeholder="Rechercher..." class="rounded-sm pl-8" bind:value={searchQuery} />
 					</div>
 				</Card.Header>
-				<ScrollArea class="flex-1 border-t bg-muted/10">
+				<ScrollArea class="min-h-0 flex-1 border-t bg-muted/10">
 					<div class="space-y-1 p-2">
 						{#each filteredStudents as student (student.id)}
 							{@const isAdded = isAlreadyInEvent(student.id)}
