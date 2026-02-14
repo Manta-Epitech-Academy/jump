@@ -838,7 +838,9 @@
 						{/if}
 					{/each}
 				</div>
-				{#if $errors.niveaux}<span class="text-sm text-destructive">{$errors.niveaux}</span>{/if}
+				{#if $errors.niveaux?._errors}
+					<span class="text-sm text-destructive">{$errors.niveaux._errors[0]}</span>
+				{/if}
 			</div>
 
 			<div class="grid gap-2">
