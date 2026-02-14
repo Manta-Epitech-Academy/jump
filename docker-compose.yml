@@ -49,7 +49,7 @@ services:
     environment:
       - DOCKER_API_VERSION=1.45
       - DOCKER_CONFIG=/config
-    command: --interval 60 --cleanup --warn-on-head-failure never
+    command: --interval 60 --cleanup --warn-on-head-failure never tekcamp-pocketbase-1 tekcamp-sveltekit-1
     restart: unless-stopped
 
 volumes:
