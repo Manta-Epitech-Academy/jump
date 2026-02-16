@@ -23,9 +23,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	try {
+		const startOfDay = new Date();
+		startOfDay.setHours(0, 0, 0, 0);
+
 		const events = await locals.pb.collection('events').getFullList<EventsResponse<EventExpand>>({
 			sort: '-date',
-			filter: `date >= '${new Date().toISOString()}' && statut = 'planifiee'`,
+			filter: `date >= '${startOfDay.toISOString()}' && statut = 'planifiee'`,
 			expand: 'theme'
 		});
 
