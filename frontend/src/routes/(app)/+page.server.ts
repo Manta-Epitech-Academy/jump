@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { getSubjectXpValue } from '$lib/xp';
+import { now } from '@internationalized/date';
 import type {
 	EventsResponse,
 	ThemesResponse,
@@ -17,18 +18,19 @@ type ParticipationExpand = {
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Redundant but explicit auth check
 	if (!locals.pb.authStore.isValid) {
 		throw error(401, 'Authentification requise');
 	}
 
 	try {
-		const startOfDay = new Date();
-		startOfDay.setHours(0, 0, 0, 0);
+		const parisNow = now('Europe/Paris');
+		const startOfDayParis = parisNow.set({ hour: 0, minute: 0, second: 0, millisecond: 0 });
+
+		const filterDate = startOfDayParis.toDate();
 
 		const events = await locals.pb.collection('events').getFullList<EventsResponse<EventExpand>>({
 			sort: '-date',
-			filter: `date >= '${startOfDay.toISOString()}' && statut = 'planifiee'`,
+			filter: `date >= '${filterDate.toISOString()}' && statut = 'planifiee'`,
 			expand: 'theme'
 		});
 
@@ -53,7 +55,6 @@ export const actions: Actions = {
 		if (!id) return fail(400);
 
 		try {
-			// 1. Get all present participations to revert XP before deleting
 			const participations = await locals.pb
 				.collection('participations')
 				.getFullList<ParticipationsResponse<ParticipationExpand>>({
@@ -61,7 +62,6 @@ export const actions: Actions = {
 					expand: 'subject'
 				});
 
-			// 2. Revert XP/Events count for each student manually
 			for (const p of participations) {
 				const subject = p.expand?.subject;
 				const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
@@ -72,7 +72,6 @@ export const actions: Actions = {
 				});
 			}
 
-			// 3. Delete the event
 			await locals.pb.collection('events').delete(id);
 
 			return { success: true };

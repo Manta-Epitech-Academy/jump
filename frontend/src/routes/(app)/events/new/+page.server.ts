@@ -4,7 +4,7 @@ import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { eventSchema } from '$lib/validation/events';
-import { CalendarDateTime, getLocalTimeZone } from '@internationalized/date';
+import { CalendarDateTime } from '@internationalized/date';
 import { parseEventImportCsv, type CsvStudent } from '$lib/csvUtils';
 import { suggestBestSubject } from '$lib/recommender';
 import { createScoped } from '$lib/pocketbase';
@@ -74,10 +74,8 @@ export const actions: Actions = {
 		let newEventId = '';
 
 		try {
-			// Find or create theme (Local Scope for creation)
 			let themeId: string | null = null;
 			if (form.data.theme && form.data.theme.trim() !== '') {
-				// Check exists (Global or Local via RLS)
 				const existing = await locals.pb
 					.collection('themes')
 					.getList(1, 1, { filter: `nom = "${form.data.theme}"` });
@@ -85,14 +83,14 @@ export const actions: Actions = {
 				if (existing.items.length > 0) {
 					themeId = existing.items[0].id;
 				} else {
-					// Create Local Theme
 					const created = await createScoped(locals.pb, 'themes', { nom: form.data.theme });
 					themeId = created.id;
 				}
 			}
 
 			if (!calendarDateTime) throw new Error('Date invalide');
-			const jsDate = calendarDateTime.toDate(getLocalTimeZone());
+
+			const jsDate = calendarDateTime.toDate('Europe/Paris');
 
 			const payload = {
 				titre: form.data.titre,
@@ -101,7 +99,6 @@ export const actions: Actions = {
 				theme: themeId ?? undefined
 			};
 
-			// SCOPED CREATION
 			const record = await createScoped(locals.pb, 'events', payload);
 			newEventId = record.id;
 		} catch (err) {
@@ -132,7 +129,6 @@ export const actions: Actions = {
 
 			const { eventName, eventDate, students } = await parseEventImportCsv(text);
 
-			// Parallelize analysis
 			const analysis = await Promise.all(
 				students.map(async (csvS, i) => {
 					const index = i + 1;
@@ -145,7 +141,6 @@ export const actions: Actions = {
 					const safeNom = csvS.nom.replace(/"/g, '\\"');
 					const safePrenom = csvS.prenom.replace(/"/g, '\\"');
 
-					// A. FIRST PRIORITY: Exact Identity Match (Nom + Prénom + Email)
 					try {
 						existing = await locals.pb
 							.collection('students')
@@ -157,7 +152,6 @@ export const actions: Actions = {
 						decision = 'LINK_EXISTING';
 						reason = 'Profil identique trouvé (Nom + Email)';
 					} catch (_) {
-						// B. SECOND PRIORITY: Sibling Detection (Email Match but different name)
 						if (csvS.email) {
 							try {
 								const siblingMatch = await locals.pb
@@ -165,7 +159,7 @@ export const actions: Actions = {
 									.getFirstListItem(`email = "${csvS.email}"`, { requestKey: null });
 
 								status = 'SIBLING';
-								decision = 'CREATE_NEW'; // Always default to creating a new profile for siblings
+								decision = 'CREATE_NEW';
 								existing = siblingMatch;
 								reason = `Fratrie détectée : Email identique à ${siblingMatch.prenom} ${siblingMatch.nom}`;
 							} catch (__) {
@@ -173,7 +167,6 @@ export const actions: Actions = {
 							}
 						}
 
-						// C. THIRD PRIORITY: Conflict/Homonym Detection (Name match but different/no email)
 						if (status === 'NEW') {
 							try {
 								const nameMatch = await locals.pb
@@ -183,7 +176,7 @@ export const actions: Actions = {
 									});
 
 								status = 'CONFLICT';
-								decision = 'CREATE_NEW'; // Safer to create new if email doesn't match
+								decision = 'CREATE_NEW';
 								existing = nameMatch;
 								reason = 'Nom identique mais email différent (Homonyme possible)';
 							} catch (___) {
@@ -272,7 +265,7 @@ export const actions: Actions = {
 							// Check existence
 							const check = await locals.pb.collection('participations').getList(1, 1, {
 								filter: `student = "${studentId}" && event = "${newEventId}"`,
-								requestKey: null // Added to prevent auto-cancellation
+								requestKey: null
 							});
 
 							if (check.totalItems === 0) {

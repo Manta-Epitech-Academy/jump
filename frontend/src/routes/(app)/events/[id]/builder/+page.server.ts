@@ -17,20 +17,16 @@ import {
 	StudentsNiveauOptions,
 	EventsStatutOptions
 } from '$lib/pocketbase-types';
+import { CalendarDateTime } from '@internationalized/date';
 
 type ParticipationExpand = {
 	student?: StudentsResponse;
 	subject?: SubjectsResponse;
 };
 
-type EventExpand = {
-	theme?: ThemesResponse;
-};
-
 export const load: PageServerLoad = async ({ locals, params }) => {
 	let event;
 	try {
-		// RLS ensures we only see our campus events
 		event = await locals.pb.collection('events').getOne(params.id, {
 			expand: 'theme',
 			requestKey: null
@@ -302,10 +298,10 @@ export const actions: Actions = {
 
 			if (!dateStr || !timeStr) throw new Error('Date ou heure manquante');
 
-			const cleanDateStr = dateStr.split('T')[0];
-			const dateToParse = `${cleanDateStr}T${timeStr}:00`;
-
-			const jsDate = new Date(dateToParse);
+			const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+			const [hour, minute] = timeStr.split(':').map(Number);
+			const cdt = new CalendarDateTime(year, month, day, hour, minute);
+			const jsDate = cdt.toDate('Europe/Paris');
 
 			if (isNaN(jsDate.getTime())) {
 				return message(form, 'Format de date invalide', { status: 400 });
@@ -320,7 +316,6 @@ export const actions: Actions = {
 				if (existing.items.length > 0) {
 					newThemeId = existing.items[0].id;
 				} else {
-					// Scoped Theme Creation
 					const created = await createScoped(locals.pb, 'themes', { nom: form.data.theme });
 					newThemeId = created.id;
 				}
