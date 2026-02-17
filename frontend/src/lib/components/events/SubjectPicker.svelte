@@ -15,7 +15,10 @@
 		School,
 		MapPin,
 		Globe,
-		Share2
+		Share2,
+		Check,
+		Save,
+		X
 	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { page } from '$app/state';
@@ -24,18 +27,18 @@
 		open = $bindable(false),
 		subjects = [],
 		themes = [],
-		currentSubjectId = null,
+		selectedSubjectIds = [],
 		studentLevel = null,
-		onSelect
+		onSave
 	}: {
 		open: boolean;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		subjects: any[];
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		themes: any[];
-		currentSubjectId?: string | null;
+		selectedSubjectIds: string[];
 		studentLevel?: string | null;
-		onSelect: (subjectId: string | null) => void;
+		onSave: (ids: string[]) => void;
 	} = $props();
 
 	// Get user campus ID to detect "Mine" vs "Community"
@@ -45,6 +48,16 @@
 	let selectedLevel = $state('all');
 	let selectedTheme = $state('all');
 	let selectedSource = $state('all'); // all, official, mine, community
+
+	// Internal state for selection within the modal
+	let currentSelection = $state<string[]>([]);
+
+	// Reset/Sync local selection when modal opens
+	$effect(() => {
+		if (open) {
+			currentSelection = [...selectedSubjectIds];
+		}
+	});
 
 	const levels = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 
@@ -99,6 +112,11 @@
 				return matchesSearch && matchesLevel && matchesTheme && matchesSource;
 			})
 			.sort((a, b) => {
+				// Selection priority
+				const aSel = currentSelection.includes(a.id) ? 1 : 0;
+				const bSel = currentSelection.includes(b.id) ? 1 : 0;
+				if (aSel !== bSel) return bSel - aSel;
+
 				// Sort logic: "Recommended" (matches student level) first, then alphabetical
 				if (studentLevel) {
 					const aMatch = a.niveaux?.includes(studentLevel) ? 1 : 0;
@@ -109,13 +127,17 @@
 			})
 	);
 
-	function handleSelect(id: string | null) {
-		onSelect(id);
+	function toggleSubject(id: string) {
+		if (currentSelection.includes(id)) {
+			currentSelection = currentSelection.filter((s) => s !== id);
+		} else {
+			currentSelection = [...currentSelection, id];
+		}
+	}
+
+	function handleSave() {
+		onSave(currentSelection);
 		open = false;
-		// Reset filters slightly after closing for smooth animation
-		setTimeout(() => {
-			searchQuery = '';
-		}, 300);
 	}
 
 	// Helper to display theme name in Select trigger
@@ -132,24 +154,31 @@
 		<Dialog.Header class="shrink-0 px-6 py-4 pb-2">
 			<Dialog.Title class="flex items-center gap-2 uppercase">
 				<BookOpen class="h-5 w-5 text-epi-blue" />
-				Sélectionner un sujet
+				Gérer les sujets
 			</Dialog.Title>
 			<Dialog.Description>
-				Choisissez un sujet adapté au niveau de l'élève ({studentLevel || 'N/A'}).
+				Assignez un ou plusieurs sujets à l'élève ({studentLevel || 'N/A'}).
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<!-- FILTERS BAR -->
+		<!-- FILTERS & ACTIONS BAR -->
 		<div class="shrink-0 border-b bg-muted/30 p-4">
 			<div class="flex flex-col gap-3">
-				<div class="relative">
-					<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-					<Input
-						placeholder="Rechercher par nom, description..."
-						class="bg-background pl-9"
-						bind:value={searchQuery}
-					/>
+				<div class="flex gap-2">
+					<div class="relative flex-1">
+						<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+						<Input
+							placeholder="Rechercher par nom..."
+							class="bg-background pl-9"
+							bind:value={searchQuery}
+						/>
+					</div>
+					<Button onclick={handleSave} class="bg-epi-blue shadow-lg">
+						<Save class="mr-2 h-4 w-4" />
+						Enregistrer ({currentSelection.length})
+					</Button>
 				</div>
+
 				<div class="flex flex-wrap gap-2">
 					<!-- Level Filter -->
 					<div class="flex h-9 items-center rounded-sm border bg-background">
@@ -168,35 +197,6 @@
 								<Select.Item value="all">Tous</Select.Item>
 								{#each levels as lvl}
 									<Select.Item value={lvl}>{lvl}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
-
-					<!-- Theme Filter -->
-					<div class="flex h-9 items-center rounded-sm border bg-background">
-						<div
-							class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
-						>
-							Thème
-						</div>
-						<Select.Root type="single" bind:value={selectedTheme}>
-							<Select.Trigger
-								class="h-full min-w-25 border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
-							>
-								{getThemeName(selectedTheme)}
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="all">Tous</Select.Item>
-								{#each themes as theme}
-									<Select.Item value={theme.id} class="flex items-center gap-2">
-										{#if !theme.campus}
-											<Globe class="h-3 w-3 text-purple-500" />
-										{:else}
-											<MapPin class="h-3 w-3 text-epi-teal" />
-										{/if}
-										{theme.nom}
-									</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -227,12 +227,11 @@
 						</Select.Root>
 					</div>
 
-					<!-- Quick Filter: Student Level -->
 					{#if studentLevel && selectedLevel !== studentLevel}
 						<Button
 							variant="outline"
 							size="sm"
-							class="h-9 border-epi-teal/50 bg-epi-teal/10 text-xs text-teal-700 hover:bg-epi-teal/20 dark:text-teal-400"
+							class="h-9 border-epi-teal/50 bg-epi-teal/10 text-xs text-teal-700 hover:bg-epi-teal/20"
 							onclick={() => (selectedLevel = studentLevel || 'all')}
 						>
 							<Sparkles class="mr-1 h-3 w-3" />
@@ -240,40 +239,60 @@
 						</Button>
 					{/if}
 				</div>
+
+				<!-- Selection summary tags -->
+				{#if currentSelection.length > 0}
+					<div class="flex flex-wrap gap-1 border-t pt-2">
+						{#each currentSelection as id}
+							{@const sub = subjects.find((s) => s.id === id)}
+							{#if sub}
+								<Badge variant="outline" class="gap-1 border bg-background text-[10px]">
+									{sub.nom}
+									<button
+										onclick={() => toggleSubject(id)}
+										class="ml-1 cursor-pointer hover:text-destructive"
+									>
+										<X class="h-3 w-3" />
+									</button>
+								</Badge>
+							{/if}
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</div>
 
 		<!-- LIST -->
 		<ScrollArea class="min-h-0 flex-1">
 			<div class="divide-y p-0">
-				{#if currentSubjectId}
-					<div class="bg-destructive/5 p-2 text-center">
-						<Button
-							variant="ghost"
-							size="sm"
-							class="h-auto py-1 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-							onclick={() => handleSelect(null)}
-						>
-							Retirer le sujet actuel
-						</Button>
-					</div>
-				{/if}
-
 				{#each filteredSubjects as sub (sub.id)}
-					{@const isSelected = sub.id === currentSubjectId}
+					{@const isSelected = currentSelection.includes(sub.id)}
 					{@const isRecommended = studentLevel && sub.niveaux?.includes(studentLevel)}
 					{@const isOfficial = !sub.campus}
 					{@const isMine = sub.campus === userCampusId}
 
 					<button
 						class={cn(
-							'flex w-full flex-col gap-2 p-4 text-left transition-colors hover:bg-muted/50',
+							'flex w-full items-center justify-between gap-4 p-4 text-left transition-colors hover:bg-muted/50',
 							isSelected && 'bg-epi-blue/5 hover:bg-epi-blue/10',
 							isRecommended && !isSelected && 'bg-epi-teal/5'
 						)}
-						onclick={() => handleSelect(sub.id)}
+						onclick={() => toggleSubject(sub.id)}
 					>
-						<div class="flex w-full items-start justify-between gap-4">
+						<div class="flex items-start gap-4">
+							<div
+								class={cn(
+									'mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border transition-all',
+									isSelected
+										? 'border-epi-blue bg-epi-blue text-white'
+										: 'border-muted-foreground/30 bg-background'
+								)}
+							>
+								{#if isSelected}
+									<Check class="h-4 w-4" />
+								{/if}
+							</div>
+
 							<div class="flex flex-col gap-1">
 								<div class="flex items-center gap-2">
 									<span class="font-bold text-foreground uppercase">{sub.nom}</span>
@@ -282,101 +301,48 @@
 										<div
 											class="flex items-center gap-1 text-[10px] font-bold text-epi-blue uppercase"
 										>
-											<School class="h-3 w-3" /> Officiel
+											<School class="h-3 w-3" />
 										</div>
 									{:else if isMine}
 										<div
-											class="flex items-center gap-1 text-[10px] font-bold text-teal-700 uppercase dark:text-teal-400"
+											class="flex items-center gap-1 text-[10px] font-bold text-teal-700 uppercase"
 										>
-											<MapPin class="h-3 w-3" /> Local
+											<MapPin class="h-3 w-3" />
 										</div>
-									{:else}
-										<div
-											class="flex items-center gap-1 text-[10px] font-bold text-purple-700 uppercase dark:text-purple-400"
-										>
-											<Globe class="h-3 w-3" />
-											{sub.expand?.campus?.name || 'Communauté'}
-										</div>
-									{/if}
-
-									{#if isRecommended}
-										<Badge
-											variant="outline"
-											class="border-epi-teal text-[9px] text-teal-700 dark:text-teal-400"
-										>
-											Recommandé
-										</Badge>
-									{/if}
-									{#if isSelected}
-										<Badge class="bg-epi-blue text-[9px]">Actuel</Badge>
 									{/if}
 								</div>
 
-								{#if sub.expand?.themes}
-									<div class="flex flex-wrap gap-1">
-										{#each sub.expand.themes as t}
-											{@const isThemeOfficial = !t.campus}
-											{@const isThemeMine = t.campus === userCampusId}
+								<p class="line-clamp-1 text-xs text-muted-foreground">
+									{sub.description}
+								</p>
 
-											<div class="flex items-center text-[10px] text-muted-foreground uppercase">
-												{#if isThemeOfficial}
-													<Globe class="mr-0.5 h-3 w-3 text-purple-500" />
-												{:else if isThemeMine}
-													<Tag class="mr-0.5 h-3 w-3" />
-												{:else}
-													<Share2 class="mr-0.5 h-3 w-3 text-orange-400" />
-												{/if}
-												{t.nom}
-											</div>
-										{/each}
-									</div>
-								{/if}
-							</div>
-
-							<div class="flex flex-col items-end gap-1">
-								<Badge variant="secondary" class="font-mono font-bold text-epi-orange">
-									{getXp(sub.niveaux)} XP
-								</Badge>
+								<div class="mt-1 flex flex-wrap gap-1">
+									{#each sub.niveaux as niv}
+										<span
+											class={cn(
+												'rounded-xs border px-1 py-0.5 text-[9px] font-bold uppercase',
+												studentLevel === niv
+													? 'border-epi-teal bg-epi-teal text-black'
+													: 'border-border text-muted-foreground'
+											)}
+										>
+											{niv}
+										</span>
+									{/each}
+								</div>
 							</div>
 						</div>
 
-						<p class="line-clamp-2 text-xs text-muted-foreground">
-							{sub.description}
-						</p>
-
-						<div class="mt-1 flex items-center justify-between">
-							<div class="flex flex-wrap gap-1">
-								{#each sub.niveaux as niv}
-									<span
-										class={cn(
-											'rounded-xs border px-1 py-0.5 text-[9px] font-bold uppercase',
-											studentLevel === niv
-												? 'border-epi-teal bg-epi-teal text-black'
-												: 'border-border text-muted-foreground'
-										)}
-									>
-										{niv}
-									</span>
-								{/each}
-							</div>
-							{#if sub.link}
-								<a
-									href={sub.link}
-									target="_blank"
-									rel="noopener noreferrer"
-									class="flex items-center text-[10px] font-bold text-epi-blue hover:underline"
-									onclick={(e) => e.stopPropagation()}
-								>
-									Voir le sujet <ExternalLink class="ml-1 h-3 w-3" />
-								</a>
-							{/if}
+						<div class="flex flex-col items-end gap-1">
+							<Badge variant="secondary" class="font-mono font-bold text-epi-orange">
+								{getXp(sub.niveaux)} XP
+							</Badge>
 						</div>
 					</button>
 				{:else}
 					<div class="flex flex-col items-center justify-center py-12 text-center">
-						<Funnel class="mb-2 h-8 w-8 text-muted-foreground/50" />
+						<BookOpen class="mb-2 h-8 w-8 text-muted-foreground/50" />
 						<p class="text-sm font-bold text-muted-foreground uppercase">Aucun sujet trouvé.</p>
-						<p class="text-xs text-muted-foreground">Essayez de modifier les filtres.</p>
 					</div>
 				{/each}
 			</div>

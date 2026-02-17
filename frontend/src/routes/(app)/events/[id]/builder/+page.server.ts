@@ -5,7 +5,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import { studentSchema } from '$lib/validation/students';
-import { getSubjectXpValue } from '$lib/xp';
+import { getTotalXp } from '$lib/xp';
 import { suggestBestSubject } from '$lib/recommender';
 import { createScoped } from '$lib/pocketbase';
 import {
@@ -19,7 +19,7 @@ import { ClientResponseError } from 'pocketbase';
 
 type ParticipationExpand = {
 	student?: StudentsResponse;
-	subject?: SubjectsResponse;
+	subjects?: SubjectsResponse[];
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		.collection('participations')
 		.getFullList<ParticipationsResponse<ParticipationExpand>>({
 			filter: `event = "${event.id}"`,
-			expand: 'student,subject',
+			expand: 'student,subjects',
 			sort: '-created',
 			requestKey: null
 		});
@@ -46,34 +46,36 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const participations = await Promise.all(
 		participationsRaw.map(async (p) => {
 			const student = p.expand?.student;
-			const currentSubject = p.expand?.subject;
+			const currentSubjects = p.expand?.subjects || [];
 
 			const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
 
-			if (student && currentSubject) {
-				const history = await locals.pb.collection('participations').getList(1, 1, {
-					filter: `student = "${student.id}" && subject = "${currentSubject.id}" && is_present = true && event != "${event.id}"`,
-					requestKey: null
-				});
-
-				if (history.totalItems > 0) {
-					alerts.push({
-						type: 'danger',
-						message: 'DÉJÀ FAIT : Cet élève a déjà suivi ce sujet par le passé.'
+			if (student && currentSubjects.length > 0) {
+				for (const subject of currentSubjects) {
+					const history = await locals.pb.collection('participations').getList(1, 1, {
+						filter: `student = "${student.id}" && subjects ~ "${subject.id}" && is_present = true && event != "${event.id}"`,
+						requestKey: null
 					});
-				}
 
-				if (
-					currentSubject.niveaux &&
-					student.niveau &&
-					!currentSubject.niveaux.includes(
-						student.niveau as unknown as (typeof currentSubject.niveaux)[number]
-					)
-				) {
-					alerts.push({
-						type: 'warning',
-						message: `NIVEAU : Le sujet est prévu pour [${currentSubject.niveaux.join(', ')}], l'élève est en ${student.niveau}.`
-					});
+					if (history.totalItems > 0) {
+						alerts.push({
+							type: 'danger',
+							message: `DÉJÀ FAIT : L'élève a déjà validé "${subject.nom}".`
+						});
+					}
+
+					if (
+						subject.niveaux &&
+						student.niveau &&
+						!subject.niveaux.includes(
+							student.niveau as unknown as (typeof subject.niveaux)[number]
+						)
+					) {
+						alerts.push({
+							type: 'warning',
+							message: `NIVEAU : "${subject.nom}" n'est pas recommandé pour le niveau ${student.niveau}.`
+						});
+					}
 				}
 			}
 
@@ -167,7 +169,7 @@ export const actions: Actions = {
 			await createScoped(locals.pb, 'participations', {
 				student: form.data.studentId,
 				event: params.id,
-				subject: suggestedSubjectId ?? undefined,
+				subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
 				is_present: false
 			});
 
@@ -178,14 +180,15 @@ export const actions: Actions = {
 		}
 	},
 
-	assignSubject: async ({ request, locals }) => {
+	updateSubjects: async ({ request, locals }) => {
 		const data = await request.formData();
 		const participationId = data.get('participationId') as string;
-		const subjectId = data.get('subjectId') as string;
+		const subjectsRaw = data.get('subjectIds') as string;
+		const subjectIds = subjectsRaw ? subjectsRaw.split(',').filter(Boolean) : [];
 
 		try {
 			await locals.pb.collection('participations').update(participationId, {
-				subject: subjectId === 'none' ? null : subjectId
+				subjects: subjectIds
 			});
 			return { success: true };
 		} catch (err) {
@@ -199,7 +202,7 @@ export const actions: Actions = {
 			const unassigned = await locals.pb
 				.collection('participations')
 				.getFullList<ParticipationsResponse<ParticipationExpand>>({
-					filter: `event = "${params.id}" && subject = ""`,
+					filter: `event = "${params.id}" && subjects = []`,
 					expand: 'student'
 				});
 
@@ -222,7 +225,7 @@ export const actions: Actions = {
 
 				if (suggestedId) {
 					await locals.pb.collection('participations').update(p.id, {
-						subject: suggestedId
+						subjects: [suggestedId]
 					});
 					count++;
 				}
@@ -259,7 +262,7 @@ export const actions: Actions = {
 			await createScoped(locals.pb, 'participations', {
 				student: newStudent.id,
 				event: params.id,
-				subject: suggestedSubjectId ?? undefined,
+				subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
 				is_present: false
 			});
 			return message(form, 'Élève créé et assigné automatiquement !');
@@ -341,7 +344,8 @@ export const actions: Actions = {
 				const subjects = await locals.pb.collection('subjects').getFullList();
 
 				for (const p of participations) {
-					if (!p.is_present) {
+					// Only re-suggest for those without subjects or specifically for the first subject slot
+					if (!p.is_present && (!p.subjects || p.subjects.length === 0)) {
 						const newSubjectId = await suggestBestSubject(
 							locals.pb,
 							p.student,
@@ -349,9 +353,9 @@ export const actions: Actions = {
 							newThemeId
 						);
 
-						if (newSubjectId && newSubjectId !== p.subject) {
+						if (newSubjectId) {
 							await locals.pb.collection('participations').update(p.id, {
-								subject: newSubjectId
+								subjects: [newSubjectId]
 							});
 						}
 					}
@@ -374,12 +378,12 @@ export const actions: Actions = {
 			const p = await locals.pb
 				.collection('participations')
 				.getOne<ParticipationsResponse<ParticipationExpand>>(id, {
-					expand: 'subject'
+					expand: 'subjects'
 				});
 
 			if (p.is_present) {
-				const subject = p.expand?.subject;
-				const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
+				const subjects = p.expand?.subjects || [];
+				const xpValue = getTotalXp(subjects);
 
 				await locals.pb.collection('students').update(p.student, {
 					'xp-': xpValue,
@@ -401,12 +405,12 @@ export const actions: Actions = {
 				.collection('participations')
 				.getFullList<ParticipationsResponse<ParticipationExpand>>({
 					filter: `event = "${params.id}" && is_present = true`,
-					expand: 'subject'
+					expand: 'subjects'
 				});
 
 			for (const p of participations) {
-				const subject = p.expand?.subject;
-				const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
+				const subjects = p.expand?.subjects || [];
+				const xpValue = getTotalXp(subjects);
 				await locals.pb.collection('students').update(p.student, {
 					'xp-': xpValue,
 					'events_count-': 1
@@ -420,68 +424,5 @@ export const actions: Actions = {
 		}
 
 		throw redirect(303, resolve('/'));
-	},
-
-	confirmImport: async ({ request, locals, params }) => {
-		const formData = await request.formData();
-		const rawData = formData.get('importData') as string;
-		const importList = JSON.parse(rawData) as ImportAction[];
-		const eventId = params.id;
-
-		const event = await locals.pb.collection('events').getOne(eventId);
-		const subjects = await locals.pb.collection('subjects').getFullList();
-
-		let created = 0;
-		let updated = 0;
-
-		for (const item of importList) {
-			let studentId = item.existingStudent?.id;
-
-			if (!studentId) {
-				try {
-					// Scoped Creation
-					const newS = await createScoped(locals.pb, 'students', {
-						prenom: item.csvData.prenom,
-						nom: item.csvData.nom,
-						email: item.csvData.email,
-						phone: item.csvData.phone,
-						niveau: item.csvData.niveau as StudentsNiveauOptions,
-						xp: 0,
-						events_count: 0
-					});
-					studentId = newS.id;
-					created++;
-				} catch (err) {
-					console.error('Erreur création étudiant import', err);
-					continue;
-				}
-			} else {
-				updated++;
-			}
-
-			try {
-				const check = await locals.pb.collection('participations').getList(1, 1, {
-					filter: `student = "${studentId}" && event = "${eventId}"`
-				});
-
-				if (check.totalItems === 0) {
-					const subjectId = await suggestBestSubject(locals.pb, studentId, subjects, event.theme);
-
-					await createScoped(locals.pb, 'participations', {
-						student: studentId,
-						event: eventId,
-						subject: subjectId ?? undefined,
-						is_present: false
-					});
-				}
-			} catch (e) {
-				console.error(e);
-			}
-		}
-
-		return {
-			success: true,
-			message: `Import terminé : ${created} créés, ${updated} existants reliés.`
-		};
 	}
 };

@@ -125,7 +125,7 @@ export type ParticipationsRecord = {
 	is_present?: boolean
 	note?: string
 	student: RecordIdString
-	subject?: RecordIdString
+	subjects?: RecordIdString[]
 	updated: IsoAutoDateString
 }
 

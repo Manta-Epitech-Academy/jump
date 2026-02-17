@@ -12,7 +12,8 @@ export async function suggestBestSubject(
 	pb: TypedPocketBase,
 	studentId: string,
 	subjects: any[],
-	eventThemeId?: string | null
+	eventThemeId?: string | null,
+	currentSubjectIds: string[] = []
 ) {
 	try {
 		// 1. Get student details
@@ -21,10 +22,17 @@ export async function suggestBestSubject(
 		// 2. Get student's presence history to avoid repeats
 		const completedParticipations = await pb.collection('participations').getFullList({
 			filter: `student = "${studentId}" && is_present = true`,
-			fields: 'subject',
+			fields: 'subjects',
 			requestKey: null
 		});
-		const completedSubjectIds = completedParticipations.map((p) => p.subject);
+
+		// Flatten all completed subjects
+		const completedSubjectIds = new Set<string>();
+		completedParticipations.forEach((p) => {
+			if (p.subjects && Array.isArray(p.subjects)) {
+				p.subjects.forEach((s) => completedSubjectIds.add(s));
+			}
+		});
 
 		// 3. Filter and Score subjects
 		const recommendations = subjects
@@ -32,8 +40,11 @@ export async function suggestBestSubject(
 				// Must match student level
 				const levelMatch = sub.niveaux && sub.niveaux.includes(student.niveau);
 				// Must not be already done
-				const alreadyDone = completedSubjectIds.includes(sub.id);
-				return levelMatch && !alreadyDone;
+				const alreadyDone = completedSubjectIds.has(sub.id);
+				// Must not be currently assigned to this participation
+				const currentlyAssigned = currentSubjectIds.includes(sub.id);
+
+				return levelMatch && !alreadyDone && !currentlyAssigned;
 			})
 			.map((sub) => {
 				let score = getSubjectXpValue(sub.niveaux);

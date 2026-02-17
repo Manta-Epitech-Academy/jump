@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { getSubjectXpValue } from '$lib/xp';
+import { getTotalXp } from '$lib/xp';
 import type {
 	ParticipationsResponse,
 	StudentsResponse,
@@ -9,7 +9,7 @@ import type {
 
 type ParticipationExpand = {
 	student?: StudentsResponse;
-	subject?: SubjectsResponse;
+	subjects?: SubjectsResponse[];
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.collection('participations')
 			.getFullList<ParticipationsResponse<ParticipationExpand>>({
 				filter: `event = "${event.id}"`,
-				expand: 'student,subject'
+				expand: 'student,subjects'
 			});
 
 		const participations = rawParticipations.sort((a, b) => {
@@ -51,16 +51,15 @@ export const actions: Actions = {
 			const p = await locals.pb
 				.collection('participations')
 				.getOne<ParticipationsResponse<ParticipationExpand>>(id, {
-					expand: 'subject'
+					expand: 'subjects'
 				});
 
 			const studentId = p.student;
 			const isNowPresent = !currentState;
 
-			// If a specific subject is assigned to this participation, use its levels.
-			// Otherwise, grant a default of 20 XP.
-			const subject = p.expand?.subject;
-			const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
+			// Sum XP of all assigned subjects
+			const subjects = p.expand?.subjects || [];
+			const xpValue = getTotalXp(subjects);
 
 			await locals.pb.collection('participations').update(id, {
 				is_present: isNowPresent

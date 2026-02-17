@@ -19,3 +19,11 @@ export function getSubjectXpValue(niveaux: string[] | any): number {
 	const xpGains = levels.map((lvl) => LEVEL_XP[lvl] || 10);
 	return Math.max(...xpGains);
 }
+
+/**
+ * Calculates total XP for a list of subjects.
+ */
+export function getTotalXp(subjects: any[]): number {
+	if (!subjects || subjects.length === 0) return 20; // Default attendance XP if no subject
+	return subjects.reduce((total, sub) => total + getSubjectXpValue(sub.niveaux), 0);
+}

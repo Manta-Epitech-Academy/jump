@@ -97,25 +97,16 @@
 	// --- Subject Picker State ---
 	let pickerOpen = $state(false);
 	let pickerParticipationId = $state<string | null>(null);
-	let pickerCurrentSubjectId = $state<string | null>(null);
+	let pickerSelectedIds = $state<string[]>([]);
 	let pickerStudentLevel = $state<string | null>(null);
 	let assignmentForm: HTMLFormElement;
 
-	let participationGroups = $derived.by(() => {
-		const assigned: Record<string, any[]> = {};
-		const unassigned: any[] = [];
-
-		data.participations.forEach((p) => {
-			if (p.expand?.subject) {
-				const subjectName = p.expand.subject.nom;
-				if (!assigned[subjectName]) assigned[subjectName] = [];
-				assigned[subjectName].push(p);
-			} else {
-				unassigned.push(p);
-			}
-		});
-		return { assigned, unassigned };
-	});
+	let unassignedParticipations = $derived(
+		data.participations.filter((p) => !p.subjects || p.subjects.length === 0)
+	);
+	let assignedParticipations = $derived(
+		data.participations.filter((p) => p.subjects && p.subjects.length > 0)
+	);
 
 	function parseInitialDate(val: any) {
 		if (!val) return undefined;
@@ -172,9 +163,9 @@
 	}
 
 	// --- Subject Picker Handlers ---
-	function openSubjectPicker(participationId: string, currentSubjectId: string | null) {
+	function openSubjectPicker(participationId: string, currentSubjectIds: string[]) {
 		pickerParticipationId = participationId;
-		pickerCurrentSubjectId = currentSubjectId;
+		pickerSelectedIds = currentSubjectIds;
 
 		const p = data.participations.find((x) => x.id === participationId);
 		pickerStudentLevel = p?.expand?.student?.niveau || null;
@@ -182,18 +173,18 @@
 		pickerOpen = true;
 	}
 
-	function handleSubjectPicked(subjectId: string | null) {
+	function handleSubjectsSaved(ids: string[]) {
 		if (!pickerParticipationId) return;
 
 		// Set values in the hidden form and submit
 		const pIdInput = assignmentForm.querySelector(
 			'input[name="participationId"]'
 		) as HTMLInputElement;
-		const sIdInput = assignmentForm.querySelector('input[name="subjectId"]') as HTMLInputElement;
+		const sIdsInput = assignmentForm.querySelector('input[name="subjectIds"]') as HTMLInputElement;
 
-		if (pIdInput && sIdInput) {
+		if (pIdInput && sIdsInput) {
 			pIdInput.value = pickerParticipationId;
-			sIdInput.value = subjectId || 'none';
+			sIdsInput.value = ids.join(',');
 			assignmentForm.requestSubmit();
 		}
 	}
@@ -352,15 +343,17 @@
 		<Card.Root class="flex h-125 flex-col rounded-sm md:col-span-8 md:h-full md:max-h-full">
 			<Card.Header class="pb-3">
 				<Card.Title class="flex items-center gap-2 uppercase">
-					<Users class="h-5 w-5 text-epi-blue" /> Organisation des Groupes
+					<Users class="h-5 w-5 text-epi-blue" /> Participants
 				</Card.Title>
-				<Card.Description class="font-bold uppercase">Répartition par sujet</Card.Description>
+				<Card.Description class="font-bold uppercase"
+					>Assignation des sujets & encadrement</Card.Description
+				>
 			</Card.Header>
 			<Separator />
 
 			<ScrollArea class="min-h-0 flex-1">
 				<div class="space-y-8 p-6">
-					{#if participationGroups.unassigned.length > 0}
+					{#if unassignedParticipations.length > 0}
 						<div class="rounded-sm border-2 border-dashed border-epi-orange/30 bg-epi-orange/5 p-4">
 							<div class="mb-3 flex items-center justify-between">
 								<div class="flex items-center gap-2">
@@ -404,64 +397,51 @@
 													<span class="h-1 w-1 animate-bounce rounded-full bg-current delay-300"
 													></span>
 												</span>
-												Calcul de la meilleure trajectoire...
+												Calcul...
 											{:else}
 												<Sparkles class="mr-2 h-3 w-3" />
-												Auto-assigner ({participationGroups.unassigned.length})
+												Auto-assigner ({unassignedParticipations.length})
 											{/if}
 										</Button>
 									</form>
-
-									<Badge
-										variant="outline"
-										class="rounded-sm border-epi-orange text-[10px] text-epi-orange"
-										>{participationGroups.unassigned.length} élèves</Badge
-									>
 								</div>
 							</div>
 							<div class="grid gap-2">
-								{#each participationGroups.unassigned as p (p.id)}
+								{#each unassignedParticipations as p (p.id)}
 									<StudentParticipationRow
 										participation={p}
-										isUnassigned={true}
 										onDelete={confirmDeleteParticipation}
-										onAssignSubject={openSubjectPicker}
+										onManageSubjects={openSubjectPicker}
 									/>
 								{/each}
 							</div>
 						</div>
 					{/if}
 
-					{#each Object.entries(participationGroups.assigned) as [subjectName, members]}
-						<div>
-							<div class="mb-3 flex items-center gap-2">
-								<div class="h-2 w-2 rounded-full bg-epi-teal"></div>
-								<h3 class="font-heading text-lg tracking-tight uppercase">{subjectName}</h3>
-								<Badge variant="secondary" class="rounded-sm text-[10px]"
-									>{members.length} élèves</Badge
-								>
-							</div>
-							<div class="grid gap-2">
-								{#each members as p (p.id)}
-									<StudentParticipationRow
-										participation={p}
-										onDelete={confirmDeleteParticipation}
-										onAssignSubject={openSubjectPicker}
-									/>
-								{/each}
-							</div>
+					<div>
+						<h3 class="mb-3 font-heading text-lg tracking-tight uppercase">
+							Assignés ({assignedParticipations.length})
+						</h3>
+						<div class="grid gap-2">
+							{#each assignedParticipations as p (p.id)}
+								<StudentParticipationRow
+									participation={p}
+									onDelete={confirmDeleteParticipation}
+									onManageSubjects={openSubjectPicker}
+								/>
+							{:else}
+								{#if unassignedParticipations.length === 0}
+									<div class="flex flex-col items-center justify-center py-20 text-center">
+										<Users class="mb-4 h-12 w-12 text-muted" />
+										<h3 class="text-lg font-bold uppercase">Aucun participant</h3>
+										<p class="text-sm font-bold text-muted-foreground uppercase">
+											Ajoutez des élèves via le panneau latéral.
+										</p>
+									</div>
+								{/if}
+							{/each}
 						</div>
-					{:else}
-						{#if participationGroups.unassigned.length === 0}
-							<div class="flex flex-col items-center justify-center py-20 text-center">
-								<Users class="mb-4 h-12 w-12 text-muted" />
-								<h3 class="text-lg font-bold uppercase">Aucun participant</h3>
-								<p class="text-sm font-bold text-muted-foreground uppercase">
-									Ajoutez des élèves via le panneau latéral.
-								</p>
-							</div>
-						{/if}
-					{/each}
+					</div>
 				</div>
 			</ScrollArea>
 		</Card.Root>
@@ -563,19 +543,19 @@
 </div>
 
 <!-- Hidden form for Subject Assignment -->
-<form action="?/assignSubject" method="POST" use:enhance bind:this={assignmentForm} class="hidden">
+<form action="?/updateSubjects" method="POST" use:enhance bind:this={assignmentForm} class="hidden">
 	<input type="hidden" name="participationId" />
-	<input type="hidden" name="subjectId" />
+	<input type="hidden" name="subjectIds" />
 </form>
 
-<!-- Global Subject Picker Modal -->
+<!-- Global Subject Manager Modal -->
 <SubjectPicker
 	bind:open={pickerOpen}
 	subjects={data.subjects}
 	themes={data.themes}
-	currentSubjectId={pickerCurrentSubjectId}
+	selectedSubjectIds={pickerSelectedIds}
 	studentLevel={pickerStudentLevel}
-	onSelect={handleSubjectPicked}
+	onSave={handleSubjectsSaved}
 />
 
 <AlertDialog.Root bind:open={deleteEventDialogOpen}>

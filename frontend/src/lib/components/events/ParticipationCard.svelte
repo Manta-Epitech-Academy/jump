@@ -46,12 +46,13 @@
 		}
 		if (onDownload) onDownload();
 	}
+
+	let subjects = $derived(participation.expand?.subjects || []);
 </script>
 
 <!--
     Hybrid Animation Strategy:
     1. CSS @keyframes (card-entry) handles the initial "Staggered Load".
-       This works reliably on mount, SSR hydration, and when filtering adds items back.
     2. Svelte `out:fly` handles smooth removal when filtering reduces the list.
 -->
 <div
@@ -69,7 +70,7 @@
 				<div class="flex flex-1 items-center gap-4">
 					<div class="relative">
 						<Avatar.Root
-							class="h-12 w-12 rounded-sm border-2 {participation.is_present
+							class="h-12 w-12 rounded-full border-2 {participation.is_present
 								? 'border-epi-teal'
 								: 'border-border'}"
 						>
@@ -150,29 +151,37 @@
 			</div>
 
 			<!-- Subject Display Section -->
-			{#if participation.expand?.subject}
-				<div class="flex items-center justify-between rounded-sm bg-muted/50 px-3 py-2">
-					<div class="flex items-center gap-2 overflow-hidden">
-						<BookOpen class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-						<span class="truncate text-xs font-bold text-foreground">
-							{participation.expand.subject.nom}
-						</span>
+			<div class="flex flex-col gap-1.5">
+				{#each subjects as sub}
+					<div class="flex items-center justify-between rounded-sm bg-muted/50 px-3 py-1.5">
+						<div class="flex items-center gap-2 overflow-hidden">
+							<BookOpen class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+							<span class="truncate text-xs font-bold text-foreground">
+								{sub.nom}
+							</span>
+						</div>
+						{#if sub.link}
+							<Button
+								variant="ghost"
+								size="icon"
+								href={sub.link}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+								title="Ouvrir le sujet"
+							>
+								<ExternalLink class="h-3.5 w-3.5" />
+							</Button>
+						{/if}
 					</div>
-					{#if participation.expand.subject.link}
-						<Button
-							variant="ghost"
-							size="icon"
-							href={participation.expand.subject.link}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
-							title="Ouvrir le sujet"
-						>
-							<ExternalLink class="h-3.5 w-3.5" />
-						</Button>
-					{/if}
-				</div>
-			{/if}
+				{:else}
+					<div
+						class="rounded-sm border border-dashed p-2 text-center text-[10px] text-muted-foreground italic"
+					>
+						Aucun sujet assigné
+					</div>
+				{/each}
+			</div>
 
 			{#if participation.is_present}
 				<div class="border-t border-border pt-2">

@@ -12,7 +12,8 @@
 		User,
 		MonitorX,
 		Award,
-		Info
+		Info,
+		BookOpen
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -37,7 +38,7 @@
 
 	type ParticipationExpand = {
 		student?: StudentsResponse;
-		subject?: SubjectsResponse;
+		subjects?: SubjectsResponse[];
 	};
 
 	type ParticipationWithExpand = ParticipationsResponse<ParticipationExpand>;
@@ -82,7 +83,8 @@
 							...participations[index],
 							is_present: e.record.is_present as boolean,
 							bring_pc: e.record.bring_pc as boolean,
-							note: e.record.note as string
+							note: e.record.note as string,
+							subjects: e.record.subjects as string[]
 						};
 					}
 				} else if (e.action === 'create' || e.action === 'delete') {
@@ -114,9 +116,9 @@
 		const subjects = new Map<string, string>();
 		const typedParticipations = data.participations as ParticipationWithExpand[];
 		typedParticipations.forEach((p) => {
-			if (p.expand?.subject) {
-				subjects.set(p.expand.subject.id, p.expand.subject.nom);
-			}
+			p.expand?.subjects?.forEach((s) => {
+				subjects.set(s.id, s.nom);
+			});
 		});
 		return Array.from(subjects.entries());
 	});
@@ -131,7 +133,7 @@
 
 			const matchesStatus = filterStatus === 'all' || (filterStatus === 'present' && p.is_present);
 
-			const matchesSubject = filterSubject === 'all' || p.expand?.subject?.id === filterSubject;
+			const matchesSubject = filterSubject === 'all' || p.subjects?.includes(filterSubject);
 
 			return matchesStatus && matchesSubject;
 		})
@@ -146,10 +148,11 @@
 	// --- DIPLOMA HANDLER ---
 	async function handleDiplomaDownload(participation: ParticipationWithExpand) {
 		// Update data for the hidden template
+		// For Coding Camps, we take the primary subject (first) for the diploma title
 		diplomaData = {
 			student: participation.expand?.student ?? null,
 			event: data.event,
-			subject: participation.expand?.subject ?? null
+			subject: participation.expand?.subjects?.[0] ?? null
 		};
 
 		// Allow slight delay for DOM to update the hidden component
@@ -407,8 +410,11 @@
 								</span>
 								<div class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase">
 									<span>{p.expand?.student?.niveau}</span>
-									{#if p.expand?.subject}
-										<span>• {p.expand.subject.nom}</span>
+									{#if p.expand?.subjects}
+										<span class="flex items-center gap-1">
+											<BookOpen class="h-2.5 w-2.5" />
+											{p.expand.subjects.length} sujet(s)
+										</span>
 									{/if}
 								</div>
 							</div>

@@ -2,27 +2,34 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { ArrowRightLeft, Ban, Sparkles, Trash2, TriangleAlert } from 'lucide-svelte';
+	import {
+		ArrowRightLeft,
+		Ban,
+		Sparkles,
+		Trash2,
+		TriangleAlert,
+		BookOpen,
+		Plus
+	} from 'lucide-svelte';
 
 	let {
 		participation,
-		isUnassigned = false,
 		onDelete,
-		onAssignSubject
+		onManageSubjects
 	}: {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		participation: any;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		subjects?: any[];
-		isUnassigned?: boolean;
 		onDelete: (id: string) => void;
-		onAssignSubject: (participationId: string, currentSubjectId: string | null) => void;
+		onManageSubjects: (participationId: string, currentSubjectIds: string[]) => void;
 	} = $props();
 
 	function formatFirstName(name: string | undefined) {
 		if (!name) return '';
 		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 	}
+
+	let subjects = $derived(participation.expand?.subjects || []);
+	let hasSubjects = $derived(subjects.length > 0);
 
 	// Derived alerts based on passed participation data
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,50 +83,50 @@
 				</span>
 				{#if dangerAlert}
 					<Badge variant="destructive" class="w-fit text-[9px] font-black uppercase">
-						{dangerAlert.message}
+						Attention : sujet déjà fait par le passé
 					</Badge>
-				{/if}
-				{#if warningAlert}
-					<div class="flex items-center gap-1 text-epi-orange">
-						<span class="text-[10px] font-black uppercase">
-							{warningAlert.message}
-						</span>
-					</div>
 				{/if}
 			</div>
 		</div>
 	</div>
 
-	<div class="flex items-center gap-3">
-		{#if isUnassigned}
+	<!-- DISPLAY SUBJECTS LIST -->
+	<div class="flex flex-1 flex-wrap items-center gap-2 px-6">
+		{#if hasSubjects}
+			{#each subjects as sub}
+				<Badge variant="secondary" class="gap-1.5 border bg-muted/50 px-2 text-[10px] font-bold">
+					<BookOpen class="h-3 w-3 text-muted-foreground" />
+					{sub.nom}
+				</Badge>
+			{/each}
+		{:else}
 			<span class="animate-pulse text-[10px] font-black tracking-widest text-epi-orange uppercase">
 				Sélection requise
 			</span>
-		{:else}
-			{@const isGoodFit =
-				participation.expand?.subject?.niveaux?.includes(participation.expand.student.niveau) &&
-				!dangerAlert}
-			{#if isGoodFit}
-				<Badge
-					class="h-6 gap-1.5 border-none bg-epi-teal px-2 text-[10px] font-black tracking-widest text-black uppercase shadow-sm"
-				>
-					<Sparkles class="h-3 w-3" />
-					Optimal
-				</Badge>
-			{/if}
 		{/if}
+	</div>
 
-		<!-- Trigger the Subject Picker Modal -->
+	<div class="flex items-center gap-3">
+		<!-- Trigger the Subject Manager Modal -->
 		<Button
 			variant="outline"
 			size="sm"
-			class="h-8 gap-2 px-3 text-[10px] font-bold uppercase transition-opacity {isUnassigned
+			class="h-8 gap-2 px-3 text-[10px] font-bold uppercase transition-opacity {!hasSubjects
 				? 'border-epi-orange text-epi-orange opacity-100 hover:bg-epi-orange hover:text-white'
 				: 'opacity-0 group-hover:opacity-100'}"
-			onclick={() => onAssignSubject(participation.id, participation.subject)}
+			onclick={() =>
+				onManageSubjects(
+					participation.id,
+					subjects.map((s: any) => s.id)
+				)}
 		>
-			<ArrowRightLeft class="h-3 w-3" />
-			{isUnassigned ? 'Assigner sujet' : 'Changer de sujet'}
+			{#if !hasSubjects}
+				<Plus class="h-3 w-3" />
+				Assigner
+			{:else}
+				<ArrowRightLeft class="h-3 w-3" />
+				Gérer
+			{/if}
 		</Button>
 
 		<div class="shake-on-hover">
