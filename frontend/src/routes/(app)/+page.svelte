@@ -20,7 +20,8 @@
 		Pencil,
 		Coffee,
 		Megaphone,
-		UserCheck
+		UserCheck,
+		Copy
 	} from 'lucide-svelte';
 
 	import { enhance } from '$app/forms';
@@ -161,14 +162,54 @@
 											<Ellipsis class="h-4 w-4" />
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
-											<a
-												href={resolve(`/events/${event.id}/builder`)}
-												class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground"
-											>
-												<Pencil class="mr-2 h-4 w-4" />
-												Modifier / Builder
-											</a>
+											<!-- MODIFIER / BUILDER -->
+											<DropdownMenu.Item class="p-0">
+												{#snippet child({ props })}
+													<a
+														{...props}
+														href={resolve(`/events/${event.id}/builder`)}
+														class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+													>
+														<Pencil class="mr-2 h-4 w-4 text-muted-foreground" />
+														Modifier / Builder
+													</a>
+												{/snippet}
+											</DropdownMenu.Item>
+
 											<DropdownMenu.Separator />
+
+											<!-- DUPLIQUER -->
+											<DropdownMenu.Item class="p-0">
+												{#snippet child({ props })}
+													<form
+														action="?/duplicateEvent&id={event.id}"
+														method="POST"
+														use:enhance={() => {
+															return async ({ result, update }) => {
+																if (result.type === 'success') {
+																	toast.success('Événement dupliqué avec ses participants');
+																	await update();
+																} else {
+																	toast.error('Erreur lors de la duplication');
+																}
+															};
+														}}
+														class="w-full"
+													>
+														<button
+															{...props}
+															type="submit"
+															class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+														>
+															<Copy class="mr-2 h-4 w-4 text-muted-foreground" />
+															Dupliquer
+														</button>
+													</form>
+												{/snippet}
+											</DropdownMenu.Item>
+
+											<DropdownMenu.Separator />
+
 											<DropdownMenu.Item
 												class="cursor-pointer text-destructive"
 												onclick={() => confirmDelete(event.id)}
