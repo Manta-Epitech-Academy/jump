@@ -105,18 +105,12 @@ export type CampusesRecord = {
 	updated: IsoAutoDateString
 }
 
-export enum EventsStatutOptions {
-	"planifiee" = "planifiee",
-	"en_cours" = "en_cours",
-	"terminee" = "terminee",
-}
 export type EventsRecord = {
 	campus: RecordIdString
 	created: IsoAutoDateString
 	date: IsoDateString
 	id: string
 	notes?: string
-	statut?: EventsStatutOptions
 	theme?: RecordIdString
 	titre: string
 	updated: IsoAutoDateString

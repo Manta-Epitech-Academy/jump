@@ -7,15 +7,12 @@ import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import { studentSchema } from '$lib/validation/students';
 import { getSubjectXpValue } from '$lib/xp';
 import { suggestBestSubject } from '$lib/recommender';
-import { type CsvStudent } from '$lib/csvUtils';
 import { createScoped } from '$lib/pocketbase';
 import {
 	type ParticipationsResponse,
 	type StudentsResponse,
 	type SubjectsResponse,
-	type ThemesResponse,
-	StudentsNiveauOptions,
-	EventsStatutOptions
+	StudentsNiveauOptions
 } from '$lib/pocketbase-types';
 import { CalendarDateTime } from '@internationalized/date';
 import { ClientResponseError } from 'pocketbase';
@@ -103,11 +100,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		requestKey: null
 	});
 
-	// --- Timezone-aware date parsing ---
 	const eventDate = new Date(event.date);
 	const dateString = eventDate.toISOString().split('T')[0];
 
-	// Extract hours and minutes specifically for Europe/Paris to avoid server/UTC drift
 	const timeParts = new Intl.DateTimeFormat('fr-FR', {
 		hour: '2-digit',
 		minute: '2-digit',
@@ -122,7 +117,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const editForm = await superValidate(
 		{
 			titre: event.titre,
-			statut: event.statut as 'planifiee' | 'en_cours' | 'terminee',
 			theme: (event as { expand?: { theme?: { nom?: string } } }).expand?.theme?.nom || '',
 			date: dateString,
 			time: timeString,
@@ -144,14 +138,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		createStudentForm,
 		editForm
 	};
-};
-
-type ImportAction = {
-	csvData: CsvStudent;
-	status: 'NEW' | 'MATCH_EMAIL' | 'MATCH_NAME' | 'CONFLICT';
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	existingStudent?: any;
-	message: string;
 };
 
 export const actions: Actions = {
@@ -300,7 +286,6 @@ export const actions: Actions = {
 			titre: (formData.get('titre') as string) || '',
 			date: dateStr,
 			time: timeStr,
-			statut: (formData.get('statut') as 'planifiee' | 'en_cours' | 'terminee') || 'planifiee',
 			theme: themeInput,
 			notes: notesInput
 		};
@@ -343,7 +328,6 @@ export const actions: Actions = {
 			await locals.pb.collection('events').update(params.id, {
 				titre: form.data.titre,
 				date: jsDate.toISOString(),
-				statut: form.data.statut as EventsStatutOptions,
 				theme: newThemeId ?? undefined,
 				notes: form.data.notes
 			});

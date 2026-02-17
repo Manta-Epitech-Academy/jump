@@ -42,6 +42,22 @@
 		return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 	}
 
+	/**
+	 * Logic:
+	 * - If date is > 1 hour in the future: "À venir"
+	 * - If date is between 1h ago and 3h in the future: "En cours" (broad window for the event day)
+	 * - If date is > 3h in the past: "Terminé"
+	 */
+	function getEventStatus(date: Date) {
+		const now = new Date();
+		const diff = date.getTime() - now.getTime();
+		const hours = diff / (1000 * 60 * 60);
+
+		if (hours > 1) return 'future';
+		if (hours < -4) return 'past';
+		return 'now';
+	}
+
 	let deleteDialogOpen = $state(false);
 	let eventToDelete = $state<string | null>(null);
 
@@ -58,7 +74,7 @@
 				Dashboard<span class="text-epi-orange">_</span>
 			</h1>
 			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
-				{data.events.length} événement{data.events.length > 1 ? 's' : ''} à venir
+				{data.events.length} événement{data.events.length > 1 ? 's' : ''} programmés
 			</p>
 		</div>
 		<Button size="sm" href={resolve('/events/new')} class="bg-epi-blue shadow-lg">
@@ -84,6 +100,7 @@
 				</TableHeader>
 				<TableBody>
 					{#each data.events as event}
+						{@const status = getEventStatus(event.date)}
 						<TableRow class="hover:bg-muted/30">
 							<TableCell class="font-bold">
 								<span style:view-transition-name="event-title-{event.id}">
@@ -112,13 +129,13 @@
 								{/if}
 							</TableCell>
 							<TableCell class="hidden text-center md:table-cell">
-								{#if event.statut === 'planifiee'}
+								{#if status === 'future'}
 									<span
 										class="inline-block rounded-sm bg-blue-100 px-2 py-1 text-[10px] font-black tracking-widest text-blue-700 uppercase"
 									>
 										À venir
 									</span>
-								{:else if event.statut === 'en_cours'}
+								{:else if status === 'now'}
 									<span
 										class="inline-block rounded-sm bg-epi-orange/20 px-2 py-1 text-[10px] font-black tracking-widest text-epi-orange uppercase"
 									>

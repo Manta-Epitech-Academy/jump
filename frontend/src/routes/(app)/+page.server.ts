@@ -4,7 +4,6 @@ import { getSubjectXpValue } from '$lib/xp';
 import { now } from '@internationalized/date';
 import { createScoped } from '$lib/pocketbase';
 import {
-	EventsStatutOptions,
 	type EventsResponse,
 	type ThemesResponse,
 	type ParticipationsResponse,
@@ -31,8 +30,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const filterDate = startOfDayParis.toDate();
 
 		const events = await locals.pb.collection('events').getFullList<EventsResponse<EventExpand>>({
-			sort: '-date',
-			filter: `date >= '${filterDate.toISOString()}' && statut = 'planifiee'`,
+			sort: 'date',
+			filter: `date >= '${filterDate.toISOString()}'`,
 			expand: 'theme'
 		});
 
@@ -41,7 +40,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 				id: event.id,
 				titre: event.titre,
 				date: new Date(event.date),
-				statut: event.statut,
 				theme: event.expand?.theme?.nom
 			}))
 		};
@@ -113,7 +111,6 @@ export const actions: Actions = {
 			const payload = {
 				titre: `${original.titre} (Copie)`,
 				date: newDate.toISOString(),
-				statut: EventsStatutOptions.planifiee,
 				theme: original.theme
 			};
 

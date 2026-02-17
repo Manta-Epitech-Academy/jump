@@ -29,7 +29,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 					id: event.id,
 					titre: event.titre,
 					date: new Date(event.date),
-					statut: event.statut,
 					theme: event.expand?.theme?.nom,
 					presentCount: participations.totalItems
 				};

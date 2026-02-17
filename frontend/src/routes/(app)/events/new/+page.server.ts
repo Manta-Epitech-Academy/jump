@@ -8,7 +8,7 @@ import { CalendarDateTime } from '@internationalized/date';
 import { parseEventImportCsv, type CsvStudent } from '$lib/csvUtils';
 import { suggestBestSubject } from '$lib/recommender';
 import { createScoped } from '$lib/pocketbase';
-import { EventsStatutOptions, StudentsNiveauOptions } from '$lib/pocketbase-types';
+import { StudentsNiveauOptions } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const themes = await locals.pb.collection('themes').getFullList({
@@ -57,7 +57,6 @@ export const actions: Actions = {
 			titre: (formData.get('titre') as string) || '',
 			date: calendarDateTime,
 			time: timeStr,
-			statut: (formData.get('statut') as 'planifiee' | 'en_cours' | 'terminee') || 'planifiee',
 			theme: themeInput
 		};
 
@@ -95,7 +94,6 @@ export const actions: Actions = {
 			const payload = {
 				titre: form.data.titre,
 				date: jsDate.toISOString(),
-				statut: form.data.statut as EventsStatutOptions,
 				theme: themeId ?? undefined
 			};
 
@@ -132,7 +130,6 @@ export const actions: Actions = {
 			const analysis = await Promise.all(
 				students.map(async (csvS, i) => {
 					const index = i + 1;
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					let existing: any = null;
 					let status: ImportAction['suggestedStatus'] = 'NEW';
 					let decision: ImportAction['decision'] = 'CREATE_NEW';
@@ -224,8 +221,7 @@ export const actions: Actions = {
 			// 1. Create Event
 			const eventRecord = await createScoped(locals.pb, 'events', {
 				titre: eventName,
-				date: new Date(eventDateStr).toISOString(),
-				statut: EventsStatutOptions.planifiee
+				date: new Date(eventDateStr).toISOString()
 			});
 			newEventId = eventRecord.id;
 

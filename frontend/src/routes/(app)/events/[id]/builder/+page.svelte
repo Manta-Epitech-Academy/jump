@@ -102,9 +102,7 @@
 	let assignmentForm: HTMLFormElement;
 
 	let participationGroups = $derived.by(() => {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const assigned: Record<string, any[]> = {};
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const unassigned: any[] = [];
 
 		data.participations.forEach((p) => {
@@ -119,7 +117,6 @@
 		return { assigned, unassigned };
 	});
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	function parseInitialDate(val: any) {
 		if (!val) return undefined;
 		try {
@@ -311,20 +308,6 @@
 											{$editErrors.time}
 										</p>{/if}
 								</div>
-							</div>
-							<div class="space-y-2">
-								<Label>Statut</Label>
-								<Select.Root type="single" name="statut" bind:value={$editForm.statut}>
-									<Select.Trigger class="capitalize"
-										>{$editForm.statut.replace('_', ' ')}</Select.Trigger
-									>
-									<Select.Content>
-										<Select.Item value="planifiee">Planifiée</Select.Item>
-										<Select.Item value="en_cours">En cours</Select.Item>
-										<Select.Item value="terminee">Terminée</Select.Item>
-									</Select.Content>
-								</Select.Root>
-								<input type="hidden" name="statut" value={$editForm.statut} />
 							</div>
 
 							<div class="flex justify-end pt-4">

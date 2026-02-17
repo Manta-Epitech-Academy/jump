@@ -211,11 +211,6 @@
 				class="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-px before:bg-linear-to-b before:from-transparent before:via-slate-300 before:to-transparent md:before:mx-auto md:before:translate-x-0"
 			>
 				{#each data.participations as p (p.id)}
-					<!--
-                        LOGIC UPDATE:
-                        We do NOT rely on 'event.statut' because it requires manual updates.
-                        Instead, we compare the event date to the current time.
-                    -->
 					{@const eventDate = new Date(p.expand?.event?.date)}
 					{@const now = new Date()}
 					{@const isUpcoming = eventDate > now}

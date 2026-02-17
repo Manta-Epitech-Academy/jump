@@ -48,7 +48,6 @@
 
 	let isAnalyzing = $state(false);
 	let isConfirming = $state(false);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let analysisResult = $state<any>(null);
 
 	// --- DRAG & DROP STATE ---
@@ -114,10 +113,8 @@
 		$form.time = timeValue;
 	});
 
-	// Toggle function for the UI to switch between Link/Create
 	function toggleDecision(rowId: string, newDecision: 'CREATE_NEW' | 'LINK_EXISTING') {
 		if (!analysisResult) return;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const row = analysisResult.analysisData.find((r: any) => r.id === rowId);
 		if (row) {
 			row.decision = newDecision;
@@ -125,10 +122,8 @@
 		}
 	}
 
-	// Toggle function for "Bring PC"
 	function toggleBringPc(rowId: string) {
 		if (!analysisResult) return;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const row = analysisResult.analysisData.find((r: any) => r.id === rowId);
 		if (row) {
 			row.bring_pc = !row.bring_pc;
@@ -617,7 +612,6 @@
 							</p>
 							{#if $errors.theme}<p class="text-sm text-destructive">{$errors.theme}</p>{/if}
 						</div>
-						<input type="hidden" name="statut" value="planifiee" />
 					</form>
 				</Card.Content>
 				<Card.Footer class="justify-end border-t bg-muted/50 px-6 py-4">
