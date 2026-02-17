@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.collection('participations')
 			.getFullList<ParticipationsResponse<ParticipationExpand>>({
 				filter: `student = "${student.id}"`,
-				sort: '-created',
+				sort: '-event.date',
 				expand: 'event,subject,subject.themes'
 			});
 
