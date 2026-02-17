@@ -17,7 +17,7 @@ type SubjectExpand = {
 
 type ParticipationExpand = {
 	event?: EventsResponse;
-	subject?: SubjectsResponse<SubjectExpand>;
+	subjects?: SubjectsResponse<SubjectExpand>[];
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.getFullList<ParticipationsResponse<ParticipationExpand>>({
 				filter: `student = "${student.id}"`,
 				sort: '-event.date',
-				expand: 'event,subject,subject.themes'
+				expand: 'event,subjects,subjects.themes'
 			});
 
 		const stats = {
@@ -40,11 +40,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		const themeCounts: Record<string, number> = {};
 		participations.forEach((p) => {
-			if (p.is_present && p.expand?.subject?.expand?.themes) {
-				const themes = p.expand.subject.expand.themes;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				themes.forEach((t: any) => {
-					themeCounts[t.nom] = (themeCounts[t.nom] || 0) + 1;
+			if (p.is_present && p.expand?.subjects) {
+				p.expand.subjects.forEach((subject) => {
+					if (subject.expand?.themes) {
+						subject.expand.themes.forEach((t) => {
+							themeCounts[t.nom] = (themeCounts[t.nom] || 0) + 1;
+						});
+					}
 				});
 			}
 		});

@@ -202,7 +202,7 @@ export const actions: Actions = {
 			const unassigned = await locals.pb
 				.collection('participations')
 				.getFullList<ParticipationsResponse<ParticipationExpand>>({
-					filter: `event = "${params.id}" && subjects = []`,
+					filter: `event = "${params.id}" && subjects:length = 0`,
 					expand: 'student'
 				});
 
