@@ -1,7 +1,8 @@
+// TekCamp/frontend/src/lib/scripts/seed_subjects.ts
 import PocketBase from 'pocketbase';
 
 // 1. Configuration
-const PB_URL = 'https://milkyway.strasbourg.epitech.eu/tekcamp/pb';
+const PB_URL = process.env.PUBLIC_POCKETBASE_URL;
 const PB_ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL; // Email du superuser
 const PB_ADMIN_PASS = process.env.PB_ADMIN_PASS;
 
@@ -12,28 +13,28 @@ const rawData = [
   {
     nom: "Trick or treats",
     description: "Halloween Camp 2024-25. Création de jeux rétro avec Lua et TIC-80.",
-    link: "https://epitech-academy.notion.site/Trick-or-treats",
+    link: "https://epitech-academy.notion.site/trick-or-treats",
     domaines: ["Game dev", "Lua", "TIC80"],
     niveaux: ["6eme", "5eme", "4eme", "3eme", "2nde"]
   },
   {
     nom: "Aventure Game",
     description: "Nouveau sujet 2025-26. Création d'un jeu d'aventure sur TIC-80.",
-    link: "https://epitech-academy.notion.site/Aventure-Game",
+    link: "https://epitech-academy.notion.site/aventure-game",
     domaines: ["Game dev", "Lua", "TIC80"],
     niveaux: ["6eme", "5eme", "4eme", "3eme", "2nde"]
   },
   {
     nom: "pyPong - Discover Python",
     description: "Nouveau sujet 2024-25. Recréer Pong pour apprendre Python sur TIC-80.",
-    link: "https://epitech-academy.notion.site/pyPong",
+    link: "https://epitech-academy.notion.site/pypong",
     domaines: ["Python", "Game dev", "TIC80"],
     niveaux: ["4eme", "3eme", "2nde", "1ere"]
   },
   {
     nom: "Cadeaux Clicker",
     description: "Xmas Camp 2024-25. Création d'un 'Clicker Game' en Web (HTML/JS).",
-    link: "https://epitech-academy.notion.site/Cadeaux-Clicker",
+    link: "https://epitech-academy.notion.site/xmas-camp-2024-cadeaux-clicker",
     domaines: ["Web dev", "HTML", "Javascript"],
     niveaux: ["4eme", "3eme", "2nde", "1ere", "Terminale"]
   },
@@ -47,35 +48,35 @@ const rawData = [
   {
     nom: "SnakeJS",
     description: "Nouveau sujet 2024-25. Le classique jeu du serpent en JS.",
-    link: "https://epitech-academy.notion.site/SnakeJS",
+    link: "https://epitech-academy.notion.site/snake-js",
     domaines: ["Javascript", "Game dev", "p5js"],
     niveaux: ["3eme", "2nde", "1ere", "Terminale"]
   },
   {
     nom: "Introduction à p5.js",
     description: "Tutoriel 2024-25. Découverte de la bibliothèque graphique JS.",
-    link: "https://epitech-academy.notion.site/Intro-p5js",
+    link: "https://epitech-academy.notion.site/tutoriel-p5-js",
     domaines: ["Javascript", "p5js"],
     niveaux: ["6eme", "5eme", "4eme", "3eme", "2nde"]
   },
   {
-    nom: "Conway’s Game of Life",
+    nom: "Conway's Game of Life",
     description: "Summer Camp 2024-25. Implémentation du jeu de la vie.",
-    link: "https://epitech-academy.notion.site/Game-of-Life",
+    link: "https://epitech-academy.notion.site/jeu-de-la-vie-de-conway",
     domaines: ["Javascript", "p5js", "Game dev"],
     niveaux: ["2nde", "1ere", "Terminale", "Sup"]
   },
   {
     nom: "Arduinausore Hacker",
     description: "Nouveau sujet 2024-25. Hacker le jeu Chrome Dino via la console.",
-    link: "https://epitech-academy.notion.site/Arduinausore",
+    link: "https://epitech-academy.notion.site/hacker-le-jeu-chrome-dino",
     domaines: ["Web dev", "IOT", "Cybersécurité"],
     niveaux: ["4eme", "3eme", "2nde", "1ere", "Terminale"]
   },
   {
     nom: "P@ssword! - CyberSec programming",
     description: "Nouveau sujet 2024-25. Programmation orientée sécurité (Brute force) en Python.",
-    link: "https://epitech-academy.notion.site/Password",
+    link: "https://epitech-academy.notion.site/sujet-password",
     domaines: ["Python", "Cybersécurité"],
     niveaux: ["3eme", "2nde", "1ere", "Terminale", "Sup"]
   },
@@ -89,7 +90,7 @@ const rawData = [
   {
     nom: "Winter Camp - Datascience",
     description: "Winter Camp 2025-26. Analyse de données avec Python et Pandas.",
-    link: "https://github.com/Manta-Epitech-Academy/dataviz_pytho",
+    link: "https://github.com/Manta-Epitech-Academy/dataviz_python",
     domaines: ["Python", "datascience", "pandas"],
     niveaux: ["1ere", "Terminale", "Sup"]
   },
