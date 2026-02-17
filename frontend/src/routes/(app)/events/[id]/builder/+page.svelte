@@ -1,6 +1,5 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import type { ThemesResponse } from '$lib/pocketbase-types';
+	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import {
 		Users,
@@ -16,6 +15,13 @@
 		TriangleAlert,
 		Sparkles
 	} from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
+	import { CalendarDateTime } from '@internationalized/date';
+	import { toast } from 'svelte-sonner';
+
+	import type { PageData } from './$types';
+	import type { ThemesResponse } from '$lib/pocketbase-types';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -27,15 +33,10 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import { toast } from 'svelte-sonner';
-	import { CalendarDateTime } from '@internationalized/date';
-	import { untrack } from 'svelte';
-	import { goto } from '$app/navigation';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
 	import StudentParticipationRow from '$lib/components/events/StudentParticipationRow.svelte';
 	import SubjectPicker from '$lib/components/events/SubjectPicker.svelte';
 	import DatePicker from '$lib/components/DatePicker.svelte';
-	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
@@ -485,7 +486,56 @@
 		<div class="flex h-auto flex-col gap-4 md:col-span-4 md:h-full">
 			<Card.Root class="flex h-100 flex-col rounded-sm md:h-full md:max-h-full md:flex-1">
 				<Card.Header class="space-y-4 pb-3">
-					<Card.Title class="uppercase">Inscrire des élèves</Card.Title>
+					<div class="flex items-center justify-between">
+						<Card.Title class="uppercase">Inscrire des élèves</Card.Title>
+						<Dialog.Root bind:open={openQuickCreate}>
+							<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>
+								<Plus class="mr-2 h-4 w-4" /> Nouveau
+							</Dialog.Trigger>
+							<Dialog.Content>
+								<Dialog.Header><Dialog.Title>Ajout Rapide</Dialog.Title></Dialog.Header>
+								<form
+									method="POST"
+									action="?/quickCreateStudent"
+									use:createEnhance
+									class="space-y-4 py-4"
+								>
+									<div class="grid grid-cols-2 gap-4">
+										<div class="space-y-2">
+											<Label>Prénom</Label><Input name="prenom" bind:value={$createForm.prenom} />
+										</div>
+										<div class="space-y-2">
+											<Label>Nom</Label><Input name="nom" bind:value={$createForm.nom} />
+										</div>
+									</div>
+
+									<div class="grid grid-cols-2 gap-4">
+										<div class="space-y-2">
+											<Label>Email (Optionnel)</Label>
+											<Input name="email" type="email" bind:value={$createForm.email} />
+										</div>
+										<div class="space-y-2">
+											<Label>Téléphone (Optionnel)</Label>
+											<Input name="phone" type="tel" bind:value={$createForm.phone} />
+										</div>
+									</div>
+
+									<div class="space-y-2">
+										<Label>Niveau</Label>
+										<Select.Root type="single" name="niveau" bind:value={$createForm.niveau}>
+											<Select.Trigger>{$createForm.niveau || 'Sélectionner'}</Select.Trigger>
+											<Select.Content
+												>{#each niveauxScolaires as nv}<Select.Item value={nv}>{nv}</Select.Item
+													>{/each}</Select.Content
+											>
+										</Select.Root>
+										<input type="hidden" name="niveau" value={$createForm.niveau} />
+									</div>
+									<Dialog.Footer><Button type="submit">Créer et Inscrire</Button></Dialog.Footer>
+								</form>
+							</Dialog.Content>
+						</Dialog.Root>
+					</div>
 					<div class="relative">
 						<Search class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
 						<Input placeholder="Rechercher..." class="rounded-sm pl-8" bind:value={searchQuery} />
@@ -524,55 +574,6 @@
 						{/each}
 					</div>
 				</ScrollArea>
-				<div class="border-t p-4">
-					<Dialog.Root bind:open={openQuickCreate}>
-						<Dialog.Trigger class={buttonVariants({ variant: 'outline', class: 'w-full' })}>
-							<Plus class="mr-2 h-4 w-4" /> Nouvel élève
-						</Dialog.Trigger>
-						<Dialog.Content>
-							<Dialog.Header><Dialog.Title>Ajout Rapide</Dialog.Title></Dialog.Header>
-							<form
-								method="POST"
-								action="?/quickCreateStudent"
-								use:createEnhance
-								class="space-y-4 py-4"
-							>
-								<div class="grid grid-cols-2 gap-4">
-									<div class="space-y-2">
-										<Label>Prénom</Label><Input name="prenom" bind:value={$createForm.prenom} />
-									</div>
-									<div class="space-y-2">
-										<Label>Nom</Label><Input name="nom" bind:value={$createForm.nom} />
-									</div>
-								</div>
-
-								<div class="grid grid-cols-2 gap-4">
-									<div class="space-y-2">
-										<Label>Email (Optionnel)</Label>
-										<Input name="email" type="email" bind:value={$createForm.email} />
-									</div>
-									<div class="space-y-2">
-										<Label>Téléphone (Optionnel)</Label>
-										<Input name="phone" type="tel" bind:value={$createForm.phone} />
-									</div>
-								</div>
-
-								<div class="space-y-2">
-									<Label>Niveau</Label>
-									<Select.Root type="single" name="niveau" bind:value={$createForm.niveau}>
-										<Select.Trigger>{$createForm.niveau || 'Sélectionner'}</Select.Trigger>
-										<Select.Content
-											>{#each niveauxScolaires as nv}<Select.Item value={nv}>{nv}</Select.Item
-												>{/each}</Select.Content
-										>
-									</Select.Root>
-									<input type="hidden" name="niveau" value={$createForm.niveau} />
-								</div>
-								<Dialog.Footer><Button type="submit">Créer et Inscrire</Button></Dialog.Footer>
-							</form>
-						</Dialog.Content>
-					</Dialog.Root>
-				</div>
 			</Card.Root>
 		</div>
 	</div>
