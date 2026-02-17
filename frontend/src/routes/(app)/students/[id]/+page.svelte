@@ -16,7 +16,8 @@
 		Phone,
 		Users,
 		ExternalLink,
-		Trash2
+		Trash2,
+		CalendarClock
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -210,16 +211,34 @@
 				class="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-px before:bg-linear-to-b before:from-transparent before:via-slate-300 before:to-transparent md:before:mx-auto md:before:translate-x-0"
 			>
 				{#each data.participations as p (p.id)}
+					<!--
+                        LOGIC UPDATE:
+                        We do NOT rely on 'event.statut' because it requires manual updates.
+                        Instead, we compare the event date to the current time.
+                    -->
+					{@const eventDate = new Date(p.expand?.event?.date)}
+					{@const now = new Date()}
+					{@const isUpcoming = eventDate > now}
+					{@const isPresent = p.is_present}
+
 					<div
 						class="group is-active relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse"
 					>
 						<!-- TIMELINE DOT -->
 						<div
-							class="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-background shadow-sm md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2
-							{p.is_present ? 'bg-epi-teal text-black' : 'bg-gray-200 text-gray-400'}"
+							class={cn(
+								'z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-background shadow-sm md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2',
+								isPresent
+									? 'bg-epi-teal text-black'
+									: isUpcoming
+										? 'bg-blue-100 text-epi-blue dark:bg-blue-900/30 dark:text-blue-400'
+										: 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600'
+							)}
 						>
-							{#if p.is_present}
+							{#if isPresent}
 								<CircleCheck class="h-5 w-5" />
+							{:else if isUpcoming}
+								<CalendarClock class="h-5 w-5" />
 							{:else}
 								<CircleX class="h-5 w-5" />
 							{/if}
@@ -236,10 +255,20 @@
 											<Badge variant="outline" class="h-5 px-1.5 text-[10px] font-normal">
 												{formatDateFr(p.expand?.event?.date)}
 											</Badge>
-											{#if !p.is_present}
-												<Badge variant="destructive" class="h-5 px-1.5 text-[10px] uppercase"
-													>Absent</Badge
-												>
+
+											{#if !isPresent}
+												{#if isUpcoming}
+													<Badge
+														variant="secondary"
+														class="h-5 border-blue-200 bg-blue-100 px-1.5 text-[10px] text-blue-700 uppercase hover:bg-blue-200 dark:border-blue-900 dark:bg-blue-900/40 dark:text-blue-400"
+													>
+														Inscrit
+													</Badge>
+												{:else}
+													<Badge variant="destructive" class="h-5 px-1.5 text-[10px] uppercase">
+														Absent
+													</Badge>
+												{/if}
 											{/if}
 										</div>
 										<Card.Title class="text-base leading-tight font-bold uppercase">
