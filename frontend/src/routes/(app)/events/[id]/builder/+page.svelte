@@ -18,6 +18,7 @@
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -251,6 +252,19 @@
 								<Input name="titre" bind:value={$editForm.titre} />
 								{#if $editErrors.titre}<p class="text-xs text-destructive">
 										{$editErrors.titre}
+									</p>{/if}
+							</div>
+
+							<div class="space-y-2">
+								<Label>Notes & Planning</Label>
+								<Textarea
+									name="notes"
+									bind:value={$editForm.notes}
+									placeholder="Ex: 14h00 Intro, 15h30 Pause... Attention aux élèves de 4ème sur les boucles."
+									class="min-h-25"
+								/>
+								{#if $editErrors.notes}<p class="text-xs text-destructive">
+										{$editErrors.notes}
 									</p>{/if}
 							</div>
 

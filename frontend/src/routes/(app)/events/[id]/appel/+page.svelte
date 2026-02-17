@@ -11,7 +11,8 @@
 		Funnel,
 		User,
 		MonitorX,
-		Award
+		Award,
+		Info
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -192,6 +193,26 @@
 					>{data.event.titre}</span
 				>
 			</h1>
+
+			{#if data.event.notes}
+				<div
+					class="mt-4 rounded-sm border-l-4 border-l-epi-blue bg-blue-50/50 p-4 dark:bg-blue-900/10"
+				>
+					<div class="flex items-start gap-3">
+						<Info class="mt-0.5 h-5 w-5 shrink-0 text-epi-blue" />
+						<div class="space-y-1">
+							<h4 class="text-sm font-bold text-blue-900 uppercase dark:text-blue-100">
+								Note / Planning
+							</h4>
+							<p
+								class="text-sm leading-relaxed whitespace-pre-wrap text-blue-800 dark:text-blue-200"
+							>
+								{data.event.notes}
+							</p>
+						</div>
+					</div>
+				</div>
+			{/if}
 
 			<!-- LOGISTICS DASHBOARD (Now outside sticky area) -->
 			<div

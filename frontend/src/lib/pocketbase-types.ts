@@ -115,6 +115,7 @@ export type EventsRecord = {
 	created: IsoAutoDateString
 	date: IsoDateString
 	id: string
+	notes?: string
 	statut?: EventsStatutOptions
 	theme?: RecordIdString
 	titre: string

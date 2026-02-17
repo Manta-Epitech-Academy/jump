@@ -124,7 +124,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			statut: event.statut as 'planifiee' | 'en_cours' | 'terminee',
 			theme: (event as { expand?: { theme?: { nom?: string } } }).expand?.theme?.nom || '',
 			date: dateString,
-			time: timeString
+			time: timeString,
+			notes: event.notes || ''
 		},
 		zod4(eventSchema)
 	);
@@ -287,13 +288,15 @@ export const actions: Actions = {
 		const dateStr = formData.get('date') as string;
 		const timeStr = formData.get('time') as string;
 		const themeInput = formData.get('theme') as string;
+		const notesInput = formData.get('notes') as string;
 
 		const transformedData = {
 			titre: (formData.get('titre') as string) || '',
 			date: dateStr,
 			time: timeStr,
 			statut: (formData.get('statut') as 'planifiee' | 'en_cours' | 'terminee') || 'planifiee',
-			theme: themeInput
+			theme: themeInput,
+			notes: notesInput
 		};
 
 		const form = await superValidate(transformedData, zod4(eventSchema));
@@ -335,7 +338,8 @@ export const actions: Actions = {
 				titre: form.data.titre,
 				date: jsDate.toISOString(),
 				statut: form.data.statut as EventsStatutOptions,
-				theme: newThemeId ?? undefined
+				theme: newThemeId ?? undefined,
+				notes: form.data.notes
 			});
 
 			if (oldThemeId !== newThemeId) {
