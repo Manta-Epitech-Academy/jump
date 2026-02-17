@@ -79,7 +79,7 @@
 								</Badge>
 							</TableCell>
 							<TableCell class="text-right">
-								<Button variant="ghost" size="sm" href={resolve(`/events/${event.id}/appel`)}>
+								<Button variant="ghost" size="sm" href={resolve(`/events/${event.id}/builder`)}>
 									<Eye class="mr-2 h-4 w-4" />
 									Consulter
 								</Button>
