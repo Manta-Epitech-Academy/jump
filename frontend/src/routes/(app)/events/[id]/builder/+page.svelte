@@ -54,7 +54,12 @@
 		{
 			id: 'quick-create',
 			onResult: ({ result }) => {
-				if (result.type === 'success') openQuickCreate = false;
+				if (result.type === 'success') {
+					openQuickCreate = false;
+					toast.success(result.data?.form.message);
+				} else if (result.type === 'failure') {
+					toast.error(result.data?.form.message || 'Erreur lors de la création');
+				}
 			}
 		}
 	);

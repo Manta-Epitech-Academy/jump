@@ -18,6 +18,7 @@ import {
 	EventsStatutOptions
 } from '$lib/pocketbase-types';
 import { CalendarDateTime } from '@internationalized/date';
+import { ClientResponseError } from 'pocketbase';
 
 type ParticipationExpand = {
 	student?: StudentsResponse;
@@ -277,6 +278,11 @@ export const actions: Actions = {
 			});
 			return message(form, 'Élève créé et assigné automatiquement !');
 		} catch (err) {
+			if (err instanceof ClientResponseError && err.status === 400) {
+				return message(form, 'Un élève identique (Même nom, prénom et email) existe déjà.', {
+					status: 400
+				});
+			}
 			console.error(err);
 			return message(form, 'Erreur lors de la création rapide.', { status: 500 });
 		}
