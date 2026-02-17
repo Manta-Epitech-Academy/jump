@@ -218,7 +218,7 @@
 						<span>
 							• {new Date(data.event.date).toLocaleDateString('fr-FR', {
 								day: 'numeric',
-								month: 'short',
+								month: 'long',
 								hour: '2-digit',
 								minute: '2-digit'
 							})}

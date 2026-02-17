@@ -102,10 +102,20 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		requestKey: null
 	});
 
+	// --- Timezone-aware date parsing ---
 	const eventDate = new Date(event.date);
 	const dateString = eventDate.toISOString().split('T')[0];
-	const hours = String(eventDate.getHours()).padStart(2, '0');
-	const minutes = String(eventDate.getMinutes()).padStart(2, '0');
+
+	// Extract hours and minutes specifically for Europe/Paris to avoid server/UTC drift
+	const timeParts = new Intl.DateTimeFormat('fr-FR', {
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false,
+		timeZone: 'Europe/Paris'
+	}).formatToParts(eventDate);
+
+	const hours = timeParts.find((p) => p.type === 'hour')?.value || '00';
+	const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
 	const timeString = `${hours}:${minutes}`;
 
 	const editForm = await superValidate(
