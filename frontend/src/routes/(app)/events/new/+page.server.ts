@@ -192,7 +192,7 @@ export const actions: Actions = {
 						decision: decision,
 						existingStudent: existing,
 						matchReason: reason,
-						bring_pc: false
+						bring_pc: true
 					} as ImportAction;
 				})
 			);
