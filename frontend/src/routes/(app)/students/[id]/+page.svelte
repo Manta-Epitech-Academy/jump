@@ -25,6 +25,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Select from '$lib/components/ui/select';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -297,17 +298,26 @@
 													</div>
 												</div>
 												{#if subject.link}
-													<Button
-														variant="ghost"
-														size="icon"
-														href={subject.link}
-														target="_blank"
-														rel="noopener noreferrer"
-														class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
-														title="Voir le support"
-													>
-														<ExternalLink class="h-3.5 w-3.5" />
-													</Button>
+													<Tooltip.Provider delayDuration={300}>
+														<Tooltip.Root>
+															<Tooltip.Trigger>
+																{#snippet child({ props })}
+																	<Button
+																		{...props}
+																		variant="ghost"
+																		size="icon"
+																		href={subject.link}
+																		target="_blank"
+																		rel="noopener noreferrer"
+																		class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+																	>
+																		<ExternalLink class="h-3.5 w-3.5" />
+																	</Button>
+																{/snippet}
+															</Tooltip.Trigger>
+															<Tooltip.Content><p>Voir le support</p></Tooltip.Content>
+														</Tooltip.Root>
+													</Tooltip.Provider>
 												{/if}
 											</div>
 										{/each}

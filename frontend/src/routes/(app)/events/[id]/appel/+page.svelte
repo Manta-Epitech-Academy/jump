@@ -19,6 +19,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import ParticipationCard from '$lib/components/events/ParticipationCard.svelte';
@@ -275,30 +276,47 @@
 
 				<!-- VIEW TOGGLE -->
 				<div class="hidden rounded-md border bg-card p-1 sm:flex">
-					<button
-						class={cn(
-							'rounded-sm p-1.5 transition-all',
-							viewMode === 'grid'
-								? 'bg-muted text-foreground shadow-sm'
-								: 'text-muted-foreground hover:text-foreground'
-						)}
-						onclick={() => (viewMode = 'grid')}
-						title="Vue Grille"
-					>
-						<LayoutGrid class="h-4 w-4" />
-					</button>
-					<button
-						class={cn(
-							'rounded-sm p-1.5 transition-all',
-							viewMode === 'list'
-								? 'bg-muted text-foreground shadow-sm'
-								: 'text-muted-foreground hover:text-foreground'
-						)}
-						onclick={() => (viewMode = 'list')}
-						title="Vue Liste"
-					>
-						<ListIcon class="h-4 w-4" />
-					</button>
+					<Tooltip.Provider delayDuration={300}>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<button
+										{...props}
+										class={cn(
+											'cursor-pointer rounded-sm p-1.5 transition-all',
+											viewMode === 'grid'
+												? 'bg-muted text-foreground shadow-sm'
+												: 'text-muted-foreground hover:text-foreground'
+										)}
+										onclick={() => (viewMode = 'grid')}
+									>
+										<LayoutGrid class="h-4 w-4" />
+									</button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content><p>Vue Grille</p></Tooltip.Content>
+						</Tooltip.Root>
+
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<button
+										{...props}
+										class={cn(
+											'cursor-pointer rounded-sm p-1.5 transition-all',
+											viewMode === 'list'
+												? 'bg-muted text-foreground shadow-sm'
+												: 'text-muted-foreground hover:text-foreground'
+										)}
+										onclick={() => (viewMode = 'list')}
+									>
+										<ListIcon class="h-4 w-4" />
+									</button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content><p>Vue Liste</p></Tooltip.Content>
+						</Tooltip.Root>
+					</Tooltip.Provider>
 				</div>
 			</div>
 
@@ -440,9 +458,14 @@
 						{#if p.is_present}
 							<div class="flex items-center gap-2">
 								{#if !p.bring_pc}
-									<span title="Pas de PC">
-										<MonitorX class="h-4 w-4 text-orange-400" />
-									</span>
+									<Tooltip.Provider delayDuration={300}>
+										<Tooltip.Root>
+											<Tooltip.Trigger>
+												<MonitorX class="h-4 w-4 text-orange-400" />
+											</Tooltip.Trigger>
+											<Tooltip.Content><p>Besoin d'un PC</p></Tooltip.Content>
+										</Tooltip.Root>
+									</Tooltip.Provider>
 								{/if}
 
 								<div class="w-40 sm:w-48">

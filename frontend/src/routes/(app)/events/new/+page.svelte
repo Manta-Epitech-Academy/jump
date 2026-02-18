@@ -8,6 +8,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Popover from '$lib/components/ui/popover';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Badge } from '$lib/components/ui/badge';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Calendar } from '$lib/components/ui/calendar';
@@ -131,7 +132,6 @@
 		}
 	}
 
-	// --- DRAG & DROP HANDLERS ---
 	function onDragOver(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
@@ -346,17 +346,26 @@
 											>
 												<div class="flex w-full items-start gap-3 lg:w-auto">
 													<div class="flex flex-col items-center justify-center border-r pr-4">
-														<Button
-															variant={row.bring_pc ? 'secondary' : 'outline'}
-															size="icon"
-															class="h-10 w-10 transition-colors {row.bring_pc
-																? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-																: 'text-gray-400'}"
-															onclick={() => toggleBringPc(row.id)}
-															title="Apporte son PC ?"
-														>
-															<Laptop class="h-5 w-5" />
-														</Button>
+														<Tooltip.Provider delayDuration={300}>
+															<Tooltip.Root>
+																<Tooltip.Trigger>
+																	{#snippet child({ props })}
+																		<Button
+																			{...props}
+																			variant={row.bring_pc ? 'secondary' : 'outline'}
+																			size="icon"
+																			class="h-10 w-10 transition-colors {row.bring_pc
+																				? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+																				: 'text-gray-400'}"
+																			onclick={() => toggleBringPc(row.id)}
+																		>
+																			<Laptop class="h-5 w-5" />
+																		</Button>
+																	{/snippet}
+																</Tooltip.Trigger>
+																<Tooltip.Content><p>Apporte son PC ?</p></Tooltip.Content>
+															</Tooltip.Root>
+														</Tooltip.Provider>
 														<span class="mt-1 text-[9px] font-bold text-muted-foreground uppercase">
 															{row.bring_pc ? 'Avec PC' : 'Sans PC'}
 														</span>

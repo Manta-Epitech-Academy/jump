@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		CircleCheck,
 		User,
@@ -133,37 +134,57 @@
 				</div>
 
 				<div class="flex items-center gap-2">
-					{#if participation.is_present}
-						<Button
-							variant="outline"
-							size="icon"
-							class="h-12 w-12 rounded-sm border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
-							onclick={handleDownloadClick}
-							title="Télécharger le diplôme"
-						>
-							<Award class="h-6 w-6" />
-						</Button>
-					{/if}
+					<Tooltip.Provider delayDuration={300}>
+						{#if participation.is_present}
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									{#snippet child({ props })}
+										<Button
+											{...props}
+											variant="outline"
+											size="icon"
+											class="h-12 w-12 rounded-sm border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
+											onclick={handleDownloadClick}
+										>
+											<Award class="h-6 w-6" />
+										</Button>
+									{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p>Télécharger le diplôme</p>
+								</Tooltip.Content>
+							</Tooltip.Root>
+						{/if}
 
-					<!-- Present Toggle -->
-					<form
-						method="POST"
-						action="?/togglePresent"
-						use:enhance={optimisticToggle(participation.id, 'is_present')}
-					>
-						<input type="hidden" name="id" value={participation.id} />
-						<input type="hidden" name="state" value={participation.is_present.toString()} />
-						<Button
-							type="submit"
-							variant={participation.is_present ? 'default' : 'outline'}
-							size="icon"
-							class="h-12 w-12 rounded-sm transition-all {participation.is_present
-								? 'bg-epi-teal text-black hover:bg-epi-teal'
-								: 'text-muted-foreground hover:text-epi-teal'}"
+						<form
+							method="POST"
+							action="?/togglePresent"
+							use:enhance={optimisticToggle(participation.id, 'is_present')}
 						>
-							<User class="h-6 w-6" />
-						</Button>
-					</form>
+							<input type="hidden" name="id" value={participation.id} />
+							<input type="hidden" name="state" value={participation.is_present.toString()} />
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									{#snippet child({ props })}
+										<Button
+											{...props}
+											type="submit"
+											variant={participation.is_present ? 'default' : 'outline'}
+											size="icon"
+											class="h-12 w-12 rounded-sm transition-all {participation.is_present
+												? 'bg-epi-teal text-black hover:bg-epi-teal'
+												: 'text-muted-foreground hover:text-epi-teal'}"
+										>
+											<User class="h-6 w-6" />
+										</Button>
+									{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p>{participation.is_present ? 'Marquer absent' : 'Marquer présent'}</p>
+								</Tooltip.Content>
+							</Tooltip.Root>
+						</form>
+					</Tooltip.Provider>
 				</div>
 			</div>
 
@@ -178,17 +199,28 @@
 							</span>
 						</div>
 						{#if sub.link}
-							<Button
-								variant="ghost"
-								size="icon"
-								href={sub.link}
-								target="_blank"
-								rel="noopener noreferrer"
-								class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
-								title="Ouvrir le sujet"
-							>
-								<ExternalLink class="h-3.5 w-3.5" />
-							</Button>
+							<Tooltip.Provider delayDuration={300}>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										{#snippet child({ props })}
+											<Button
+												{...props}
+												variant="ghost"
+												size="icon"
+												href={sub.link}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+											>
+												<ExternalLink class="h-3.5 w-3.5" />
+											</Button>
+										{/snippet}
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Ouvrir le sujet</p>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							</Tooltip.Provider>
 						{/if}
 					</div>
 				{:else}
@@ -227,8 +259,6 @@
 	}
 
 	.card-entry {
-		/* 'backwards' ensures the element is invisible (opacity 0)
-           during the animation-delay period */
 		animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 	}
 </style>

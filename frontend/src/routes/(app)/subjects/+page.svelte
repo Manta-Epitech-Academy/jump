@@ -34,6 +34,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Table from '$lib/components/ui/table';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
@@ -235,30 +236,47 @@
 			</Tabs.List>
 
 			<div class="hidden items-center gap-1 rounded-md border bg-background p-1 md:flex">
-				<button
-					class={cn(
-						'rounded-sm p-1.5 transition-all',
-						viewMode === 'grid'
-							? 'bg-muted text-foreground'
-							: 'text-muted-foreground hover:text-foreground'
-					)}
-					onclick={() => (viewMode = 'grid')}
-					title="Vue Grille"
-				>
-					<LayoutGrid class="h-4 w-4" />
-				</button>
-				<button
-					class={cn(
-						'rounded-sm p-1.5 transition-all',
-						viewMode === 'list'
-							? 'bg-muted text-foreground'
-							: 'text-muted-foreground hover:text-foreground'
-					)}
-					onclick={() => (viewMode = 'list')}
-					title="Vue Liste"
-				>
-					<List class="h-4 w-4" />
-				</button>
+				<Tooltip.Provider delayDuration={300}>
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							{#snippet child({ props })}
+								<button
+									{...props}
+									class={cn(
+										'cursor-pointer rounded-sm p-1.5 transition-all',
+										viewMode === 'grid'
+											? 'bg-muted text-foreground'
+											: 'text-muted-foreground hover:text-foreground'
+									)}
+									onclick={() => (viewMode = 'grid')}
+								>
+									<LayoutGrid class="h-4 w-4" />
+								</button>
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Content><p>Vue Grille</p></Tooltip.Content>
+					</Tooltip.Root>
+
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							{#snippet child({ props })}
+								<button
+									{...props}
+									class={cn(
+										'cursor-pointer rounded-sm p-1.5 transition-all',
+										viewMode === 'list'
+											? 'bg-muted text-foreground'
+											: 'text-muted-foreground hover:text-foreground'
+									)}
+									onclick={() => (viewMode = 'list')}
+								>
+									<List class="h-4 w-4" />
+								</button>
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Content><p>Vue Liste</p></Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
 			</div>
 		</div>
 
@@ -403,19 +421,45 @@
 											<div
 												class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
 											>
-												<Button
-													variant="ghost"
-													size="icon"
-													class="h-8 w-8 hover:text-foreground"
-													onclick={() => openEdit(subject)}><Pencil class="h-3.5 w-3.5" /></Button
-												>
-												<Button
-													variant="ghost"
-													size="icon"
-													class="h-8 w-8 hover:text-destructive"
-													onclick={() => confirmDelete(subject.id)}
-													><Trash2 class="h-3.5 w-3.5" /></Button
-												>
+												<Tooltip.Provider delayDuration={300}>
+													<Tooltip.Root>
+														<Tooltip.Trigger>
+															{#snippet child({ props })}
+																<Button
+																	{...props}
+																	variant="ghost"
+																	size="icon"
+																	class="h-8 w-8 hover:text-foreground"
+																	onclick={() => openEdit(subject)}
+																>
+																	<Pencil class="h-3.5 w-3.5" />
+																</Button>
+															{/snippet}
+														</Tooltip.Trigger>
+														<Tooltip.Content>
+															<p>Modifier</p>
+														</Tooltip.Content>
+													</Tooltip.Root>
+
+													<Tooltip.Root>
+														<Tooltip.Trigger>
+															{#snippet child({ props })}
+																<Button
+																	{...props}
+																	variant="ghost"
+																	size="icon"
+																	class="h-8 w-8 hover:text-destructive"
+																	onclick={() => confirmDelete(subject.id)}
+																>
+																	<Trash2 class="h-3.5 w-3.5" />
+																</Button>
+															{/snippet}
+														</Tooltip.Trigger>
+														<Tooltip.Content>
+															<p>Supprimer</p>
+														</Tooltip.Content>
+													</Tooltip.Root>
+												</Tooltip.Provider>
 											</div>
 										{/if}
 									</div>
@@ -509,13 +553,27 @@
 													</DropdownMenu.Content>
 												</DropdownMenu.Root>
 											{:else if subject.link}
-												<Button
-													variant="ghost"
-													size="icon"
-													href={subject.link}
-													target="_blank"
-													class="h-8 w-8 text-epi-blue"><ExternalLink class="h-4 w-4" /></Button
-												>
+												<Tooltip.Provider delayDuration={300}>
+													<Tooltip.Root>
+														<Tooltip.Trigger>
+															{#snippet child({ props })}
+																<Button
+																	{...props}
+																	variant="ghost"
+																	size="icon"
+																	href={subject.link}
+																	target="_blank"
+																	class="h-8 w-8 text-epi-blue"
+																>
+																	<ExternalLink class="h-4 w-4" />
+																</Button>
+															{/snippet}
+														</Tooltip.Trigger>
+														<Tooltip.Content>
+															<p>Voir le support</p>
+														</Tooltip.Content>
+													</Tooltip.Root>
+												</Tooltip.Provider>
 											{/if}
 										</div>
 									</Table.Cell>
