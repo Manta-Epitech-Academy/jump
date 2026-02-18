@@ -13,7 +13,8 @@
 		Settings,
 		Tag,
 		TriangleAlert,
-		Sparkles
+		Sparkles,
+		Sprout
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -508,6 +509,7 @@
 					<div class="space-y-1 p-2">
 						{#each filteredStudents as student (student.id)}
 							{@const isAdded = isAlreadyInEvent(student.id)}
+							{@const isNew = (student.events_count || 0) === 0}
 							<form
 								method="POST"
 								action="?/addExisting"
@@ -516,13 +518,30 @@
 							>
 								<input type="hidden" name="studentId" value={student.id} />
 								<div class="flex flex-col overflow-hidden">
-									<span class="truncate text-sm font-bold">
-										{formatFirstName(student.prenom)}
-										<span class="uppercase">{student.nom}</span>
+									<span class="flex items-center gap-2 truncate text-sm font-bold">
+										<span>
+											{formatFirstName(student.prenom)}
+											<span class="uppercase">{student.nom}</span>
+										</span>
+										{#if isNew}
+											<Badge
+												variant="outline"
+												class="h-4 gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
+											>
+												<Sprout class="h-2.5 w-2.5" />
+												Nouveau
+											</Badge>
+										{/if}
 									</span>
-									<span class="text-xs font-bold text-muted-foreground uppercase"
-										>{student.niveau}</span
-									>
+									<div class="flex items-center gap-2 text-xs text-muted-foreground">
+										<span class="font-bold uppercase">{student.niveau}</span>
+										{#if !isNew}
+											<span>•</span>
+											<span class="font-medium">
+												{student.events_count} participation{student.events_count > 1 ? 's' : ''}
+											</span>
+										{/if}
+									</div>
 								</div>
 								<Button
 									variant={isAdded ? 'secondary' : 'default'}

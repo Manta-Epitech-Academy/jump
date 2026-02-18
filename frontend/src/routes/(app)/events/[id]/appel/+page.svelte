@@ -13,7 +13,8 @@
 		MonitorX,
 		Award,
 		Info,
-		BookOpen
+		BookOpen,
+		Sprout
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -35,6 +36,7 @@
 	} from '$lib/pocketbase-types';
 	import { triggerConfetti } from '$lib/actions/confetti';
 	import { resolve } from '$app/paths';
+	import { Badge } from '$lib/components/ui/badge';
 
 	type ParticipationExpand = {
 		student?: StudentsResponse;
@@ -378,6 +380,10 @@
 			<!-- COMPACT LIST VIEW -->
 			<div class="rounded-sm border bg-card">
 				{#each filteredParticipations as p (p.id)}
+					{@const count = p.expand?.student?.events_count || 0}
+					{@const isPresent = p.is_present ? 1 : 0}
+					{@const isNew = count - isPresent === 0}
+
 					<div
 						class="flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20"
 					>
@@ -404,9 +410,19 @@
 							</form>
 
 							<div class="flex flex-col">
-								<span class="text-sm font-bold">
-									{p.expand?.student?.prenom}
-									<span class="uppercase">{p.expand?.student?.nom}</span>
+								<span class="flex items-center gap-2 text-sm font-bold">
+									<span>
+										{p.expand?.student?.prenom}
+										<span class="uppercase">{p.expand?.student?.nom}</span>
+									</span>
+									{#if isNew}
+										<Badge
+											variant="outline"
+											class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
+										>
+											<Sprout class="h-2.5 w-2.5" /> Nouveau
+										</Badge>
+									{/if}
 								</span>
 								<div class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase">
 									<span>{p.expand?.student?.niveau}</span>

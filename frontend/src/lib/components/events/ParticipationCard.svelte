@@ -11,7 +11,8 @@
 		MonitorX,
 		ExternalLink,
 		BookOpen,
-		Award
+		Award,
+		Sprout
 	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
@@ -48,6 +49,12 @@
 	}
 
 	let subjects = $derived(participation.expand?.subjects || []);
+
+	let isNewStudent = $derived.by(() => {
+		const count = participation.expand?.student?.events_count || 0;
+		const isPresent = participation.is_present ? 1 : 0;
+		return count - isPresent === 0;
+	});
 </script>
 
 <!--
@@ -88,10 +95,20 @@
 						{/if}
 					</div>
 					<div class="flex flex-col items-start gap-1">
-						<span class="text-base leading-none font-bold">
-							{formatFirstName(participation.expand?.student?.prenom)}
-							<span class="uppercase">{participation.expand?.student?.nom}</span>
-						</span>
+						<div class="flex items-center gap-2">
+							<span class="text-base leading-none font-bold">
+								{formatFirstName(participation.expand?.student?.prenom)}
+								<span class="uppercase">{participation.expand?.student?.nom}</span>
+							</span>
+							{#if isNewStudent}
+								<Badge
+									variant="outline"
+									class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
+								>
+									<Sprout class="h-2.5 w-2.5" />
+								</Badge>
+							{/if}
+						</div>
 						<div class="flex items-center gap-2">
 							<span class="text-xs font-bold tracking-wider text-muted-foreground uppercase">
 								{participation.expand?.student?.niveau}

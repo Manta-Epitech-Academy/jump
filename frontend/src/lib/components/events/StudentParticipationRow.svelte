@@ -5,11 +5,11 @@
 	import {
 		ArrowRightLeft,
 		Ban,
-		Sparkles,
 		Trash2,
 		TriangleAlert,
 		BookOpen,
-		Plus
+		Plus,
+		Sprout
 	} from 'lucide-svelte';
 
 	let {
@@ -30,6 +30,12 @@
 
 	let subjects = $derived(participation.expand?.subjects || []);
 	let hasSubjects = $derived(subjects.length > 0);
+
+	let isNewStudent = $derived.by(() => {
+		const count = participation.expand?.student?.events_count || 0;
+		const isPresent = participation.is_present ? 1 : 0;
+		return count - isPresent === 0;
+	});
 
 	// Derived alerts based on passed participation data
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,10 +79,22 @@
 			{/if}
 		</div>
 		<div>
-			<p class="text-sm font-bold {dangerAlert ? 'text-destructive' : ''}">
-				{formatFirstName(participation.expand.student.prenom)}
-				<span class="uppercase">{participation.expand.student.nom}</span>
-			</p>
+			<div class="flex items-center gap-2">
+				<p class="text-sm font-bold {dangerAlert ? 'text-destructive' : ''}">
+					{formatFirstName(participation.expand.student.prenom)}
+					<span class="uppercase">{participation.expand.student.nom}</span>
+				</p>
+				{#if isNewStudent}
+					<Badge
+						variant="outline"
+						class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
+					>
+						<Sprout class="h-2.5 w-2.5" />
+						Nouveau
+					</Badge>
+				{/if}
+			</div>
+
 			<div class="mt-0.5 flex flex-col gap-1">
 				<span class="text-xs font-black text-muted-foreground uppercase">
 					{participation.expand.student.niveau}
