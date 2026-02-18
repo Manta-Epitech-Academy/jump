@@ -110,7 +110,15 @@
 		data.participations.filter((p) => !p.subjects || p.subjects.length === 0)
 	);
 	let assignedParticipations = $derived(
-		data.participations.filter((p) => p.subjects && p.subjects.length > 0)
+		data.participations
+			.filter((p) => p.subjects && p.subjects.length > 0)
+			.toSorted((a, b) => {
+				const aHasDanger = a.alerts?.some((al: any) => al.type === 'danger') ? 2 : 0;
+				const aHasWarning = a.alerts?.length > 0 ? 1 : 0;
+				const bHasDanger = b.alerts?.some((al: any) => al.type === 'danger') ? 2 : 0;
+				const bHasWarning = b.alerts?.length > 0 ? 1 : 0;
+				return (bHasDanger || bHasWarning) - (aHasDanger || aHasWarning);
+			})
 	);
 
 	function parseInitialDate(val: any) {
