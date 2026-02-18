@@ -197,6 +197,45 @@ export const actions: Actions = {
 		}
 	},
 
+	bulkAssign: async ({ request, locals, params }) => {
+		const data = await request.formData();
+		const subjectsRaw = data.get('subjectIds') as string;
+
+		if (!subjectsRaw) {
+			return fail(400, { message: 'Aucun sujet sélectionné.' });
+		}
+
+		const newSubjectIds = subjectsRaw.split(',').filter(Boolean);
+
+		try {
+			const participations = await locals.pb.collection('participations').getFullList({
+				filter: `event = "${params.id}"`,
+				requestKey: null
+			});
+
+			let updateCount = 0;
+
+			await Promise.all(
+				participations.map(async (p) => {
+					const currentSubjects = p.subjects || [];
+					const combinedSubjects = new Set([...currentSubjects, ...newSubjectIds]);
+
+					if (combinedSubjects.size > currentSubjects.length) {
+						await locals.pb.collection('participations').update(p.id, {
+							subjects: Array.from(combinedSubjects)
+						});
+						updateCount++;
+					}
+				})
+			);
+
+			return { success: true, message: `${updateCount} élèves mis à jour avec succès !` };
+		} catch (err) {
+			console.error('Bulk assign error:', err);
+			return fail(500, { message: "Erreur lors de l'assignation de masse." });
+		}
+	},
+
 	autoAssignAll: async ({ params, locals }) => {
 		try {
 			const unassigned = await locals.pb

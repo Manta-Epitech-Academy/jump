@@ -14,7 +14,8 @@
 		Tag,
 		TriangleAlert,
 		Sparkles,
-		Sprout
+		Sprout,
+		Library
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
@@ -86,6 +87,7 @@
 	);
 
 	let isAutoAssigning = $state(false);
+	let isBulkAssigning = $state(false);
 
 	let searchQuery = $state('');
 	let openQuickCreate = $state(false);
@@ -97,10 +99,12 @@
 
 	// --- Subject Picker State ---
 	let pickerOpen = $state(false);
+	let bulkPickerOpen = $state(false);
 	let pickerParticipationId = $state<string | null>(null);
 	let pickerSelectedIds = $state<string[]>([]);
 	let pickerStudentLevel = $state<string | null>(null);
 	let assignmentForm: HTMLFormElement;
+	let bulkAssignForm: HTMLFormElement;
 
 	let unassignedParticipations = $derived(
 		data.participations.filter((p) => !p.subjects || p.subjects.length === 0)
@@ -177,7 +181,6 @@
 	function handleSubjectsSaved(ids: string[]) {
 		if (!pickerParticipationId) return;
 
-		// Set values in the hidden form and submit
 		const pIdInput = assignmentForm.querySelector(
 			'input[name="participationId"]'
 		) as HTMLInputElement;
@@ -188,6 +191,24 @@
 			sIdsInput.value = ids.join(',');
 			assignmentForm.requestSubmit();
 		}
+	}
+
+	function openBulkSubjectPicker() {
+		pickerParticipationId = null;
+		pickerSelectedIds = [];
+		pickerStudentLevel = null;
+		bulkPickerOpen = true;
+	}
+
+	function handleBulkSubjectsSaved(ids: string[]) {
+		if (ids.length === 0) return;
+
+		const sIdsInput = bulkAssignForm.querySelector('input[name="subjectIds"]') as HTMLInputElement;
+		if (sIdsInput) {
+			sIdsInput.value = ids.join(',');
+			bulkAssignForm.requestSubmit();
+		}
+		bulkPickerOpen = false;
 	}
 
 	const niveauxScolaires = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
@@ -342,13 +363,24 @@
 	<!-- MAIN GRID CONTAINER -->
 	<div class="min-0 grid h-auto flex-1 gap-6 md:h-full md:grid-cols-12">
 		<Card.Root class="flex h-125 flex-col rounded-sm md:col-span-8 md:h-full md:max-h-full">
-			<Card.Header class="pb-3">
-				<Card.Title class="flex items-center gap-2 uppercase">
-					<Users class="h-5 w-5 text-epi-blue" /> Participants
-				</Card.Title>
-				<Card.Description class="font-bold uppercase"
-					>Assignation des sujets & encadrement</Card.Description
+			<Card.Header class="flex justify-between pb-3">
+				<div>
+					<Card.Title class="flex items-center gap-2 uppercase">
+						<Users class="h-5 w-5 text-epi-blue" /> Participants
+					</Card.Title>
+					<Card.Description class="font-bold uppercase"
+						>Assignation des sujets & encadrement</Card.Description
+					>
+				</div>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={openBulkSubjectPicker}
+					class="h-8 gap-2 border-dashed border-epi-blue/50 text-epi-blue hover:bg-epi-blue/10"
 				>
+					<Library class="h-3.5 w-3.5" />
+					Assigner à tous
+				</Button>
 			</Card.Header>
 			<Separator />
 
@@ -567,6 +599,29 @@
 	<input type="hidden" name="subjectIds" />
 </form>
 
+<!-- Hidden form for Bulk Assign -->
+<form
+	action="?/bulkAssign"
+	method="POST"
+	use:enhance={() => {
+		isBulkAssigning = true;
+		return async ({ result, update }) => {
+			isBulkAssigning = false;
+			if (result.type === 'success') {
+				const data = result.data as { message?: string } | undefined;
+				toast.success(data?.message || 'Assignation terminée');
+				await update();
+			} else {
+				toast.error("Erreur lors de l'assignation de masse");
+			}
+		};
+	}}
+	bind:this={bulkAssignForm}
+	class="hidden"
+>
+	<input type="hidden" name="subjectIds" />
+</form>
+
 <!-- Global Subject Manager Modal -->
 <SubjectPicker
 	bind:open={pickerOpen}
@@ -575,6 +630,16 @@
 	selectedSubjectIds={pickerSelectedIds}
 	studentLevel={pickerStudentLevel}
 	onSave={handleSubjectsSaved}
+/>
+
+<!-- Bulk Subject Picker -->
+<SubjectPicker
+	bind:open={bulkPickerOpen}
+	subjects={data.subjects}
+	themes={data.themes}
+	selectedSubjectIds={[]}
+	studentLevel={null}
+	onSave={handleBulkSubjectsSaved}
 />
 
 <AlertDialog.Root bind:open={deleteEventDialogOpen}>
