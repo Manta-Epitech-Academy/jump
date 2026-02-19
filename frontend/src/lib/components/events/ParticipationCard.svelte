@@ -5,6 +5,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as Popover from '$lib/components/ui/popover';
 	import {
 		CircleCheck,
 		User,
@@ -13,11 +14,14 @@
 		ExternalLink,
 		BookOpen,
 		Award,
-		Sprout
+		Sprout,
+		Clock,
+		Check
 	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import NoteInput from '$lib/components/events/NoteInput.svelte';
+	import { cn } from '$lib/utils';
 
 	let {
 		participation = $bindable(),
@@ -26,11 +30,8 @@
 		onDownload,
 		index = 0
 	}: {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		participation: any;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		event: any;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		optimisticToggle: (id: string, field: 'is_present' | 'bring_pc') => any;
 		onDownload?: () => void;
 		index?: number;
@@ -56,6 +57,9 @@
 		const isPresent = participation.is_present ? 1 : 0;
 		return count - isPresent === 0;
 	});
+
+	let delayOpen = $state(false);
+	const delays = [5, 10, 15, 30, 45, 60];
 </script>
 
 <!--
@@ -70,7 +74,9 @@
 >
 	<Card.Root
 		class="overflow-hidden border-2 shadow-sm transition-all duration-200 {participation.is_present
-			? 'border-epi-teal bg-card'
+			? participation.delay > 0
+				? 'border-orange-400 bg-orange-50/50 dark:bg-orange-900/10'
+				: 'border-epi-teal bg-card'
 			: 'border-transparent opacity-80'}"
 	>
 		<Card.Content class="flex flex-col gap-4 p-4">
@@ -79,7 +85,9 @@
 					<div class="relative">
 						<Avatar.Root
 							class="h-12 w-12 rounded-full border-2 {participation.is_present
-								? 'border-epi-teal'
+								? participation.delay > 0
+									? 'border-orange-400'
+									: 'border-epi-teal'
 								: 'border-border'}"
 						>
 							<Avatar.Fallback class="bg-muted font-bold">
@@ -89,9 +97,16 @@
 						</Avatar.Root>
 						{#if participation.is_present}
 							<div
-								class="absolute -right-1 -bottom-1 rounded-full bg-epi-teal p-0.5 text-black ring-2 ring-card"
+								class="absolute -right-1 -bottom-1 rounded-full p-0.5 ring-2 ring-card {participation.delay >
+								0
+									? 'bg-orange-400 text-white'
+									: 'bg-epi-teal text-black'}"
 							>
-								<CircleCheck class="h-3 w-3" />
+								{#if participation.delay > 0}
+									<Clock class="h-3 w-3" />
+								{:else}
+									<CircleCheck class="h-3 w-3" />
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -129,6 +144,16 @@
 									<MonitorX class="mr-1 h-2 w-2" /> Besoin PC
 								</Badge>
 							{/if}
+
+							{#if participation.delay > 0}
+								<Badge
+									variant="outline"
+									class="h-4 border-orange-300 bg-orange-100 px-1 py-0 text-[9px] text-orange-800 dark:border-orange-700 dark:bg-orange-900/50 dark:text-orange-200"
+								>
+									<Clock class="mr-1 h-2 w-2" />
+									{participation.delay >= 60 ? '+60' : participation.delay}m
+								</Badge>
+							{/if}
 						</div>
 					</div>
 				</div>
@@ -156,6 +181,89 @@
 							</Tooltip.Root>
 						{/if}
 
+						<Popover.Root bind:open={delayOpen}>
+							<Popover.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										variant="outline"
+										size="icon"
+										class={cn(
+											'h-12 w-12 rounded-sm border-2 transition-all hover:bg-muted',
+											participation.delay > 0
+												? 'border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100 hover:text-orange-800'
+												: 'border-orange-200 text-muted-foreground hover:border-orange-400 hover:text-orange-600'
+										)}
+									>
+										<Clock class="h-5 w-5" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-56 p-3">
+								<div class="grid gap-3">
+									<div class="flex items-center justify-between">
+										<p class="text-xs font-black text-muted-foreground uppercase">Retard estimé</p>
+										{#if participation.delay > 0}
+											<span class="text-[10px] font-bold text-orange-600"
+												>{participation.delay >= 60 ? '+60' : participation.delay} min</span
+											>
+										{/if}
+									</div>
+									<div class="grid grid-cols-3 gap-2">
+										{#each delays as m}
+											<form
+												action="?/updateDelay"
+												method="POST"
+												use:enhance={() => {
+													return async ({ update }) => {
+														delayOpen = false;
+														await update();
+													};
+												}}
+											>
+												<input type="hidden" name="id" value={participation.id} />
+												<input type="hidden" name="delay" value={m} />
+												<button
+													class={cn(
+														'flex h-9 w-full cursor-pointer items-center justify-center rounded-md border text-xs font-bold transition-all hover:scale-105 active:scale-95',
+														participation.delay === m
+															? 'border-orange-500 bg-orange-500 text-white shadow-md'
+															: 'border-input bg-background hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700'
+													)}
+												>
+													{m === 60 ? '+' : ''}{m}m
+												</button>
+											</form>
+										{/each}
+									</div>
+									<form
+										action="?/updateDelay"
+										method="POST"
+										use:enhance={() => {
+											return async ({ update }) => {
+												delayOpen = false;
+												await update();
+											};
+										}}
+									>
+										<input type="hidden" name="id" value={participation.id} />
+										<input type="hidden" name="delay" value="0" />
+										<button
+											class={cn(
+												'flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent text-xs font-bold transition-all hover:scale-102 active:scale-95',
+												participation.delay === 0
+													? 'bg-green-100 text-green-700'
+													: 'bg-muted text-muted-foreground hover:bg-green-50 hover:text-green-700'
+											)}
+										>
+											<Check class="h-3.5 w-3.5" />
+											Pas de retard
+										</button>
+									</form>
+								</div>
+							</Popover.Content>
+						</Popover.Root>
+
 						<form
 							method="POST"
 							action="?/togglePresent"
@@ -172,7 +280,9 @@
 											variant={participation.is_present ? 'default' : 'outline'}
 											size="icon"
 											class="h-12 w-12 rounded-sm transition-all {participation.is_present
-												? 'bg-epi-teal text-black hover:bg-epi-teal'
+												? participation.delay > 0
+													? 'bg-orange-400 text-white hover:bg-orange-500'
+													: 'bg-epi-teal text-black hover:bg-epi-teal'
 												: 'text-muted-foreground hover:text-epi-teal'}"
 										>
 											<User class="h-6 w-6" />

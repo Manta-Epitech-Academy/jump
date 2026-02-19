@@ -13,8 +13,8 @@
 		MonitorX,
 		Award,
 		Info,
-		BookOpen,
-		Sprout
+		Sprout,
+		Clock
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -52,7 +52,7 @@
 		untrack(() => data.participations as ParticipationWithExpand[])
 	);
 	let searchQuery = $state('');
-	let filterStatus = $state<'all' | 'present'>('all');
+	let filterStatus = $state<'all' | 'present' | 'late'>('all');
 
 	let viewMode = $state<'grid' | 'list'>('grid');
 	let filterSubject = $state<string>('all');
@@ -87,7 +87,8 @@
 							is_present: e.record.is_present as boolean,
 							bring_pc: e.record.bring_pc as boolean,
 							note: e.record.note as string,
-							subjects: e.record.subjects as string[]
+							subjects: e.record.subjects as string[],
+							delay: e.record.delay as number
 						};
 					}
 				} else if (e.action === 'create' || e.action === 'delete') {
@@ -105,9 +106,11 @@
 			const index = participations.findIndex((p) => p.id === id);
 			if (index !== -1) {
 				const p = participations[index];
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				if (field === 'is_present') p.is_present = !p.is_present;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				if (field === 'is_present') {
+					p.is_present = !p.is_present;
+					// If marking absent, reset delay optimistically
+					if (!p.is_present) p.delay = 0;
+				}
 				if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
 			}
 			return async ({ update }: { update: () => Promise<void> }) => await update();
@@ -134,7 +137,10 @@
 
 			if (!matchesSearch) return false;
 
-			const matchesStatus = filterStatus === 'all' || (filterStatus === 'present' && p.is_present);
+			const matchesStatus =
+				filterStatus === 'all' ||
+				(filterStatus === 'present' && p.is_present) ||
+				(filterStatus === 'late' && (p.delay || 0) > 0);
 
 			const matchesSubject = filterSubject === 'all' || p.subjects?.includes(filterSubject);
 
@@ -143,6 +149,7 @@
 	);
 
 	let presentCount = $derived(participations.filter((p) => p.is_present).length);
+	let lateCount = $derived(participations.filter((p) => (p.delay || 0) > 0).length);
 
 	// Logistics Metrics
 	let totalStudents = $derived(participations.length);
@@ -191,6 +198,13 @@
 					>
 						{presentCount} Présents
 					</div>
+					{#if lateCount > 0}
+						<div
+							class="rounded-sm bg-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-800 uppercase"
+						>
+							{lateCount} En retard
+						</div>
+					{/if}
 				</div>
 			</div>
 
@@ -220,7 +234,7 @@
 				</div>
 			{/if}
 
-			<!-- LOGISTICS DASHBOARD (Now outside sticky area) -->
+			<!-- LOGISTICS DASHBOARD (outside sticky area) -->
 			<div
 				class="mt-4 grid grid-cols-2 gap-4 rounded-sm border border-border bg-slate-900 p-4 text-white shadow-md sm:grid-cols-2 dark:bg-card"
 			>
@@ -335,6 +349,12 @@
 						class="h-8 text-[10px]"
 						onclick={() => (filterStatus = 'present')}>Présents</Button
 					>
+					<Button
+						variant={filterStatus === 'late' ? 'default' : 'outline'}
+						size="sm"
+						class="h-8 text-[10px]"
+						onclick={() => (filterStatus = 'late')}>Retards</Button
+					>
 				</div>
 				<div class="flex rounded-md border bg-card p-0.5">
 					<button
@@ -375,6 +395,12 @@
 					class="h-8 text-[10px]"
 					onclick={() => (filterStatus = 'present')}>Présents</Button
 				>
+				<Button
+					variant={filterStatus === 'late' ? 'default' : 'outline'}
+					size="sm"
+					class="h-8 text-[10px]"
+					onclick={() => (filterStatus = 'late')}>Retards</Button
+				>
 			</div>
 		</div>
 	</div>
@@ -403,7 +429,10 @@
 					{@const isNew = count - isPresent === 0}
 
 					<div
-						class="flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20"
+						class="flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20 {p.is_present &&
+						(p.delay || 0) > 0
+							? 'bg-orange-50/50 dark:bg-orange-900/10'
+							: ''}"
 					>
 						<div class="flex items-center gap-3">
 							<!-- Simple Status Indicator -->
@@ -419,11 +448,17 @@
 									class={cn(
 										'flex h-8 w-8 items-center justify-center rounded-sm border transition-all',
 										p.is_present
-											? 'border-epi-teal bg-epi-teal text-black'
+											? (p.delay || 0) > 0
+												? 'border-orange-400 bg-orange-400 text-white'
+												: 'border-epi-teal bg-epi-teal text-black'
 											: 'border-border text-muted-foreground hover:border-epi-teal'
 									)}
 								>
-									<User class="h-4 w-4" />
+									{#if (p.delay || 0) > 0}
+										<Clock class="h-4 w-4" />
+									{:else}
+										<User class="h-4 w-4" />
+									{/if}
 								</button>
 							</form>
 
@@ -444,10 +479,10 @@
 								</span>
 								<div class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase">
 									<span>{p.expand?.student?.niveau}</span>
-									{#if p.expand?.subjects}
-										<span class="flex items-center gap-1">
-											<BookOpen class="h-2.5 w-2.5" />
-											{p.expand.subjects.length} sujet(s)
+									{#if (p.delay || 0) > 0}
+										<span class="flex items-center gap-1 font-bold text-orange-600">
+											<Clock class="h-2.5 w-2.5" />
+											{p.delay}m
 										</span>
 									{/if}
 								</div>

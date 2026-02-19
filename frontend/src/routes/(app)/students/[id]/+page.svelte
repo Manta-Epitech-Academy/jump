@@ -190,6 +190,16 @@
 							<div class="text-lg font-bold">{data.stats.presentCount}</div>
 							<div class="text-[9px] font-bold text-muted-foreground uppercase">Présences</div>
 						</div>
+						{#if data.stats.lateCount > 0}
+							<div
+								class="rounded-sm border border-orange-200 bg-orange-50 p-2 dark:border-orange-900/50 dark:bg-orange-900/20"
+							>
+								<div class="text-lg font-bold text-orange-600">{data.stats.lateCount}</div>
+								<div class="text-[9px] font-bold text-orange-800 uppercase dark:text-orange-400">
+									Retards
+								</div>
+							</div>
+						{/if}
 					</div>
 
 					<Button variant="outline" class="w-full" onclick={() => (editOpen = true)}>
@@ -216,6 +226,7 @@
 					{@const now = new Date()}
 					{@const isUpcoming = eventDate > now}
 					{@const isPresent = p.is_present}
+					{@const isLate = isPresent && (p.delay || 0) > 0}
 
 					<div
 						class="group is-active relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse"
@@ -225,14 +236,20 @@
 							class={cn(
 								'z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-background shadow-sm md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2',
 								isPresent
-									? 'bg-epi-teal text-black'
+									? isLate
+										? 'bg-orange-400 text-white'
+										: 'bg-epi-teal text-black'
 									: isUpcoming
 										? 'bg-blue-100 text-epi-blue dark:bg-blue-900/30 dark:text-blue-400'
 										: 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600'
 							)}
 						>
 							{#if isPresent}
-								<CircleCheck class="h-5 w-5" />
+								{#if isLate}
+									<Clock class="h-5 w-5" />
+								{:else}
+									<CircleCheck class="h-5 w-5" />
+								{/if}
 							{:else if isUpcoming}
 								<CalendarClock class="h-5 w-5" />
 							{:else}
@@ -242,7 +259,10 @@
 
 						<!-- CARD CONTENT -->
 						<Card.Root
-							class="w-[calc(100%-4rem)] shadow-sm transition-shadow hover:shadow-md md:w-[calc(50%-2.5rem)]"
+							class={cn(
+								'w-[calc(100%-4rem)] shadow-sm transition-shadow hover:shadow-md md:w-[calc(50%-2.5rem)]',
+								isLate && 'border-2 border-orange-400 bg-orange-50/50 dark:bg-orange-900/10'
+							)}
 						>
 							<Card.Header class="p-4 pb-2">
 								<div class="flex items-start justify-between">
@@ -252,19 +272,37 @@
 												{formatDateFr(p.expand?.event?.date)}
 											</Badge>
 
-											{#if !isPresent}
-												{#if isUpcoming}
+											{#if isPresent}
+												<Badge
+													variant="default"
+													class={cn(
+														'h-5 px-1.5 text-[10px] font-bold text-black uppercase',
+														isLate
+															? 'bg-orange-400 text-white hover:bg-orange-500'
+															: 'bg-epi-teal hover:bg-epi-teal/80'
+													)}
+												>
+													Présent
+												</Badge>
+												{#if isLate}
 													<Badge
-														variant="secondary"
-														class="h-5 border-blue-200 bg-blue-100 px-1.5 text-[10px] text-blue-700 uppercase hover:bg-blue-200 dark:border-blue-900 dark:bg-blue-900/40 dark:text-blue-400"
+														variant="outline"
+														class="h-5 border-orange-300 bg-orange-100 px-1.5 text-[10px] font-bold text-orange-800 uppercase dark:border-orange-700 dark:bg-orange-900/50 dark:text-orange-200"
 													>
-														Inscrit
-													</Badge>
-												{:else}
-													<Badge variant="destructive" class="h-5 px-1.5 text-[10px] uppercase">
-														Absent
+														Retard: {p.delay >= 60 ? '+60' : p.delay} min
 													</Badge>
 												{/if}
+											{:else if isUpcoming}
+												<Badge
+													variant="secondary"
+													class="h-5 border-blue-200 bg-blue-100 px-1.5 text-[10px] text-blue-700 uppercase hover:bg-blue-200 dark:border-blue-900 dark:bg-blue-900/40 dark:text-blue-400"
+												>
+													Inscrit
+												</Badge>
+											{:else}
+												<Badge variant="destructive" class="h-5 px-1.5 text-[10px] uppercase">
+													Absent
+												</Badge>
 											{/if}
 										</div>
 										<Card.Title class="text-base leading-tight font-bold uppercase">

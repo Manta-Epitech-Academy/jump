@@ -35,6 +35,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		const stats = {
 			totalEvents: participations.length,
 			presentCount: participations.filter((p) => p.is_present).length,
+			lateCount: participations.filter((p) => p.is_present && (p.delay || 0) > 0).length,
 			favoriteTheme: 'Aucun'
 		};
 

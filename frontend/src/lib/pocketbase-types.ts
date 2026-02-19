@@ -120,6 +120,7 @@ export type ParticipationsRecord = {
 	bring_pc?: boolean
 	campus: RecordIdString
 	created: IsoAutoDateString
+	delay?: number
 	event?: RecordIdString
 	id: string
 	is_present?: boolean

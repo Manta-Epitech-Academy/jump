@@ -61,22 +61,71 @@ export const actions: Actions = {
 			const subjects = p.expand?.subjects || [];
 			const xpValue = getTotalXp(subjects);
 
-			await locals.pb.collection('participations').update(id, {
+			const updatePayload: any = {
 				is_present: isNowPresent
-			});
+			};
 
-			const xpChange = isNowPresent ? xpValue : -xpValue;
-			const eventChange = isNowPresent ? 1 : -1;
+			// If marking absent, reset delay to 0
+			if (!isNowPresent) {
+				updatePayload.delay = 0;
+			}
 
-			await locals.pb.collection('students').update(studentId, {
-				'xp+': xpChange,
-				'events_count+': eventChange
-			});
+			await locals.pb.collection('participations').update(id, updatePayload);
+
+			// Only update student stats if status actually changed
+			if (p.is_present !== isNowPresent) {
+				const xpChange = isNowPresent ? xpValue : -xpValue;
+				const eventChange = isNowPresent ? 1 : -1;
+
+				await locals.pb.collection('students').update(studentId, {
+					'xp+': xpChange,
+					'events_count+': eventChange
+				});
+			}
 
 			return { success: true };
 		} catch (err) {
 			console.error('Error updating presence/XP:', err);
 			return fail(500, { error: 'Erreur mise à jour présence' });
+		}
+	},
+
+	updateDelay: async ({ request, locals }) => {
+		const data = await request.formData();
+		const id = data.get('id') as string;
+		const delayStr = data.get('delay') as string;
+		const delay = parseInt(delayStr, 10);
+
+		if (isNaN(delay)) return fail(400);
+
+		try {
+			const p = await locals.pb
+				.collection('participations')
+				.getOne<ParticipationsResponse<ParticipationExpand>>(id, {
+					expand: 'subjects'
+				});
+
+			// If previously absent and now marking late, they become present
+			const wasAbsent = !p.is_present;
+
+			await locals.pb.collection('participations').update(id, {
+				delay: delay,
+				is_present: true // Implicitly present if late
+			});
+
+			if (wasAbsent) {
+				const subjects = p.expand?.subjects || [];
+				const xpValue = getTotalXp(subjects);
+				await locals.pb.collection('students').update(p.student, {
+					'xp+': xpValue,
+					'events_count+': 1
+				});
+			}
+
+			return { success: true };
+		} catch (err) {
+			console.error('Error updating delay:', err);
+			return fail(500, { error: 'Erreur mise à jour retard' });
 		}
 	},
 
