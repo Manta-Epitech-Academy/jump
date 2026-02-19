@@ -5,7 +5,10 @@ RUN apk add --no-cache \
     ca-certificates \
     unzip \
     wget \
-    sqlite
+    sqlite \
+    tzdata
+
+ENV TZ=Europe/Paris
 
 WORKDIR /pb
 

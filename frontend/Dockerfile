@@ -24,6 +24,10 @@ FROM oven/bun:alpine
 
 WORKDIR /app
 
+# Timezone support for Alpine
+RUN apk add --no-cache tzdata
+ENV TZ=Europe/Paris
+
 ENV NODE_ENV=production
 
 # Copy built files and dependencies from the builder
