@@ -429,13 +429,9 @@
 					{@const isNew = count - isPresent === 0}
 
 					<div
-						class="flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20 {p.is_present &&
-						(p.delay || 0) > 0
-							? 'bg-orange-50/50 dark:bg-orange-900/10'
-							: ''}"
+						class="flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20"
 					>
 						<div class="flex items-center gap-3">
-							<!-- Simple Status Indicator -->
 							<form
 								method="POST"
 								action="?/togglePresent"
@@ -449,7 +445,7 @@
 										'flex h-8 w-8 items-center justify-center rounded-sm border transition-all',
 										p.is_present
 											? (p.delay || 0) > 0
-												? 'border-orange-400 bg-orange-400 text-white'
+												? 'border-orange-300 bg-orange-100 text-orange-800 hover:bg-orange-200'
 												: 'border-epi-teal bg-epi-teal text-black'
 											: 'border-border text-muted-foreground hover:border-epi-teal'
 									)}
@@ -480,7 +476,7 @@
 								<div class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase">
 									<span>{p.expand?.student?.niveau}</span>
 									{#if (p.delay || 0) > 0}
-										<span class="flex items-center gap-1 font-bold text-orange-600">
+										<span class="flex items-center gap-1 font-bold text-orange-500">
 											<Clock class="h-2.5 w-2.5" />
 											{p.delay}m
 										</span>

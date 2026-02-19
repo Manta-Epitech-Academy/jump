@@ -74,9 +74,7 @@
 >
 	<Card.Root
 		class="overflow-hidden border-2 shadow-sm transition-all duration-200 {participation.is_present
-			? participation.delay > 0
-				? 'border-orange-400 bg-orange-50/50 dark:bg-orange-900/10'
-				: 'border-epi-teal bg-card'
+			? 'border-epi-teal bg-card'
 			: 'border-transparent opacity-80'}"
 	>
 		<Card.Content class="flex flex-col gap-4 p-4">
@@ -86,7 +84,7 @@
 						<Avatar.Root
 							class="h-12 w-12 rounded-full border-2 {participation.is_present
 								? participation.delay > 0
-									? 'border-orange-400'
+									? 'border-orange-300'
 									: 'border-epi-teal'
 								: 'border-border'}"
 						>
@@ -99,7 +97,7 @@
 							<div
 								class="absolute -right-1 -bottom-1 rounded-full p-0.5 ring-2 ring-card {participation.delay >
 								0
-									? 'bg-orange-400 text-white'
+									? 'bg-orange-200 text-orange-800'
 									: 'bg-epi-teal text-black'}"
 							>
 								{#if participation.delay > 0}
@@ -148,7 +146,7 @@
 							{#if participation.delay > 0}
 								<Badge
 									variant="outline"
-									class="h-4 border-orange-300 bg-orange-100 px-1 py-0 text-[9px] text-orange-800 dark:border-orange-700 dark:bg-orange-900/50 dark:text-orange-200"
+									class="h-4 border-orange-200 bg-orange-50 px-1 py-0 text-[9px] text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-300"
 								>
 									<Clock class="mr-1 h-2 w-2" />
 									{participation.delay >= 60 ? '+60' : participation.delay}m
@@ -191,8 +189,8 @@
 										class={cn(
 											'h-12 w-12 rounded-sm border-2 transition-all hover:bg-muted',
 											participation.delay > 0
-												? 'border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100 hover:text-orange-800'
-												: 'border-orange-200 text-muted-foreground hover:border-orange-400 hover:text-orange-600'
+												? 'border-orange-200 bg-orange-50/50 text-orange-600 hover:bg-orange-100 hover:text-orange-700 dark:border-orange-900/50 dark:bg-orange-900/20 dark:text-orange-400'
+												: 'border-orange-200 text-muted-foreground hover:border-orange-300 hover:text-orange-600'
 										)}
 									>
 										<Clock class="h-5 w-5" />
@@ -281,8 +279,8 @@
 											size="icon"
 											class="h-12 w-12 rounded-sm transition-all {participation.is_present
 												? participation.delay > 0
-													? 'bg-orange-400 text-white hover:bg-orange-500'
-													: 'bg-epi-teal text-black hover:bg-epi-teal'
+													? 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+													: 'bg-epi-teal text-black hover:bg-epi-teal/90'
 												: 'text-muted-foreground hover:text-epi-teal'}"
 										>
 											<User class="h-6 w-6" />

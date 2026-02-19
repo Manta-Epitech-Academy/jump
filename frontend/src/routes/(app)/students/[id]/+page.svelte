@@ -184,20 +184,15 @@
 
 					<Separator />
 
-					<!-- KPI GRID -->
 					<div class="grid grid-cols-2 gap-4 text-center">
 						<div class="rounded-sm bg-muted/30 p-2">
 							<div class="text-lg font-bold">{data.stats.presentCount}</div>
 							<div class="text-[9px] font-bold text-muted-foreground uppercase">Présences</div>
 						</div>
 						{#if data.stats.lateCount > 0}
-							<div
-								class="rounded-sm border border-orange-200 bg-orange-50 p-2 dark:border-orange-900/50 dark:bg-orange-900/20"
-							>
-								<div class="text-lg font-bold text-orange-600">{data.stats.lateCount}</div>
-								<div class="text-[9px] font-bold text-orange-800 uppercase dark:text-orange-400">
-									Retards
-								</div>
+							<div class="rounded-sm bg-muted/30 p-2">
+								<div class="text-lg font-bold text-orange-500">{data.stats.lateCount}</div>
+								<div class="text-[9px] font-bold text-muted-foreground uppercase">Retards</div>
 							</div>
 						{/if}
 					</div>
@@ -231,13 +226,12 @@
 					<div
 						class="group is-active relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse"
 					>
-						<!-- TIMELINE DOT -->
 						<div
 							class={cn(
 								'z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-background shadow-sm md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2',
 								isPresent
 									? isLate
-										? 'bg-orange-400 text-white'
+										? 'bg-orange-200 text-orange-800'
 										: 'bg-epi-teal text-black'
 									: isUpcoming
 										? 'bg-blue-100 text-epi-blue dark:bg-blue-900/30 dark:text-blue-400'
@@ -257,12 +251,8 @@
 							{/if}
 						</div>
 
-						<!-- CARD CONTENT -->
 						<Card.Root
-							class={cn(
-								'w-[calc(100%-4rem)] shadow-sm transition-shadow hover:shadow-md md:w-[calc(50%-2.5rem)]',
-								isLate && 'border-2 border-orange-400 bg-orange-50/50 dark:bg-orange-900/10'
-							)}
+							class="w-[calc(100%-4rem)] shadow-sm transition-shadow hover:shadow-md md:w-[calc(50%-2.5rem)]"
 						>
 							<Card.Header class="p-4 pb-2">
 								<div class="flex items-start justify-between">
@@ -278,7 +268,7 @@
 													class={cn(
 														'h-5 px-1.5 text-[10px] font-bold text-black uppercase',
 														isLate
-															? 'bg-orange-400 text-white hover:bg-orange-500'
+															? 'bg-orange-200 text-orange-900 hover:bg-orange-300'
 															: 'bg-epi-teal hover:bg-epi-teal/80'
 													)}
 												>
@@ -287,7 +277,7 @@
 												{#if isLate}
 													<Badge
 														variant="outline"
-														class="h-5 border-orange-300 bg-orange-100 px-1.5 text-[10px] font-bold text-orange-800 uppercase dark:border-orange-700 dark:bg-orange-900/50 dark:text-orange-200"
+														class="h-5 border-orange-200 bg-orange-50 px-1.5 text-[10px] font-bold text-orange-600 uppercase dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
 													>
 														Retard: {p.delay >= 60 ? '+60' : p.delay} min
 													</Badge>
