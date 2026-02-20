@@ -45,7 +45,7 @@ export const actions: Actions = {
 		let calendarDateTime: CalendarDateTime | undefined;
 		if (dateStr && timeStr) {
 			try {
-				const [year, month, day] = dateStr.split('-').map(Number);
+				const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
 				const [hour, minute] = timeStr.split(':').map(Number);
 				calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
 			} catch (e) {

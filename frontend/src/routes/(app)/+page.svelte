@@ -27,6 +27,7 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { resolve } from '$app/paths';
+	import DuplicateEventDialog from '$lib/components/events/DuplicateEventDialog.svelte';
 
 	let { data } = $props();
 
@@ -61,9 +62,17 @@
 	let deleteDialogOpen = $state(false);
 	let eventToDelete = $state<string | null>(null);
 
+	let duplicateDialogOpen = $state(false);
+	let eventToDuplicate = $state<{ id: string; titre: string; date: Date } | null>(null);
+
 	function confirmDelete(id: string) {
 		eventToDelete = id;
 		deleteDialogOpen = true;
+	}
+
+	function openDuplicate(event: { id: string; titre: string; date: Date }) {
+		eventToDuplicate = event;
+		duplicateDialogOpen = true;
 	}
 </script>
 
@@ -179,7 +188,6 @@
 											<Ellipsis class="h-4 w-4" />
 										</DropdownMenu.Trigger>
 										<DropdownMenu.Content align="end">
-											<!-- MODIFIER / BUILDER -->
 											<DropdownMenu.Item class="p-0">
 												{#snippet child({ props })}
 													<a
@@ -195,34 +203,12 @@
 
 											<DropdownMenu.Separator />
 
-											<!-- DUPLIQUER -->
-											<DropdownMenu.Item class="p-0">
-												{#snippet child({ props })}
-													<form
-														action="?/duplicateEvent&id={event.id}"
-														method="POST"
-														use:enhance={() => {
-															return async ({ result, update }) => {
-																if (result.type === 'success') {
-																	toast.success('Événement dupliqué avec ses participants');
-																	await update();
-																} else {
-																	toast.error('Erreur lors de la duplication');
-																}
-															};
-														}}
-														class="w-full"
-													>
-														<button
-															{...props}
-															type="submit"
-															class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-														>
-															<Copy class="mr-2 h-4 w-4 text-muted-foreground" />
-															Dupliquer
-														</button>
-													</form>
-												{/snippet}
+											<DropdownMenu.Item
+												class="cursor-pointer"
+												onclick={() => openDuplicate(event)}
+											>
+												<Copy class="mr-2 h-4 w-4 text-muted-foreground" />
+												Dupliquer
 											</DropdownMenu.Item>
 
 											<DropdownMenu.Separator />
@@ -272,6 +258,9 @@
 			</Button>
 		</div>
 	{/if}
+
+	<!-- DUPLICATE DIALOG -->
+	<DuplicateEventDialog bind:open={duplicateDialogOpen} {eventToDuplicate} />
 
 	<AlertDialog.Root bind:open={deleteDialogOpen}>
 		<AlertDialog.Content>

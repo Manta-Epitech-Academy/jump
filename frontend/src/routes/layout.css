@@ -210,8 +210,3 @@
 		transform: translateX(4px);
 	}
 }
-
-.shake-on-hover:hover .trash-icon {
-	animation: shake 0.3s ease-in-out;
-	color: var(--destructive);
-}

@@ -172,7 +172,7 @@
 				</Tooltip.Content>
 			</Tooltip.Root>
 
-			<div class="shake-on-hover">
+			<div>
 				<Tooltip.Root>
 					<Tooltip.Trigger>
 						{#snippet child({ props })}
