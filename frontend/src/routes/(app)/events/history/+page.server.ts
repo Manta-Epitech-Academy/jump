@@ -122,7 +122,7 @@ export const actions: Actions = {
 				await createScoped(locals.pb, 'participations', {
 					student: p.student,
 					event: newEventRecord.id,
-					subject: p.subject,
+					subjects: p.subjects,
 					bring_pc: p.bring_pc,
 					is_present: false,
 					note: ''

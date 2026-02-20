@@ -105,6 +105,12 @@ const rawData = [
 
 async function main() {
   try {
+  		if (!PB_ADMIN_EMAIL || !PB_ADMIN_PASS) {
+			throw new Error(
+				"Les variables d'environnement PB_ADMIN_EMAIL ou PB_ADMIN_PASS sont manquantes."
+			);
+		}
+
     // 1. Authentification Admin
     console.log("Authentification Admin...");
     await pb.collection('_superusers').authWithPassword(PB_ADMIN_EMAIL, PB_ADMIN_PASS);

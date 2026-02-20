@@ -206,7 +206,7 @@ export const actions: Actions = {
 		}
 	},
 
-	confirmCampaignImport: async ({ request, locals, params }) => {
+	confirmCampaignImport: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const rawData = formData.get('importData') as string;
 		const eventName = formData.get('eventName') as string;
@@ -269,7 +269,7 @@ export const actions: Actions = {
 								await createScoped(locals.pb, 'participations', {
 									student: studentId,
 									event: newEventId,
-									subject: subjectId ?? undefined,
+									subjects: subjectId ? [subjectId] : [],
 									is_present: false,
 									bring_pc: item.bring_pc
 								});
