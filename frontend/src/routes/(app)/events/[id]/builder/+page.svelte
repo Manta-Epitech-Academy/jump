@@ -32,6 +32,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Select from '$lib/components/ui/select';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
@@ -262,9 +263,24 @@
 		</div>
 		<div class="flex gap-2">
 			<Dialog.Root bind:open={openEditEvent}>
-				<Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'icon' })}>
-					<Settings class="h-4 w-4" />
-				</Dialog.Trigger>
+				<Tooltip.Provider delayDuration={300}>
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							{#snippet child({ props: tooltipProps })}
+								<Dialog.Trigger
+									{...tooltipProps}
+									class={buttonVariants({ variant: 'outline', size: 'icon' })}
+								>
+									<Settings class="h-4 w-4" />
+								</Dialog.Trigger>
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Content>
+							<p>Paramètres de l'événement</p>
+						</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+
 				<Dialog.Content class="sm:max-w-125">
 					<Dialog.Header>
 						<Dialog.Title>Paramètres de l'événement</Dialog.Title>
