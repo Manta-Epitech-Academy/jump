@@ -6,8 +6,8 @@
 	import { Copy, LoaderCircle } from 'lucide-svelte';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation'; // Re-added
-	import { resolve } from '$app/paths'; // Re-added
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import { CalendarDateTime, getLocalTimeZone, today } from '@internationalized/date';
 	import * as Select from '$lib/components/ui/select';
@@ -36,11 +36,15 @@
 		if (open && eventToDuplicate) {
 			title = `${eventToDuplicate.titre} (Copie)`;
 
-			// Default to tomorrow same time, or just tomorrow 9am
+			const sourceDate = new Date(eventToDuplicate.date);
+			const h = sourceDate.getHours();
+			const m = sourceDate.getMinutes();
+
 			const tomorrow = today(getLocalTimeZone()).add({ days: 1 });
-			dateValue = new CalendarDateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0);
-			hour = '09';
-			minute = '00';
+
+			dateValue = new CalendarDateTime(tomorrow.year, tomorrow.month, tomorrow.day, h, m);
+			hour = String(h).padStart(2, '0');
+			minute = String(m).padStart(2, '0');
 		}
 	});
 </script>
@@ -67,12 +71,6 @@
 					return async ({ result, update }) => {
 						isLoading = false;
 						if (result.type === 'success') {
-							// UX SOLUTION:
-							// We provide a "Smart Toast".
-							// 1. It confirms success.
-							// 2. It offers a button to jump immediately to the new event (Builder).
-							// This solves the "History" problem where the event disappears from view.
-
 							const newId = result.data?.newEventId;
 
 							toast.success('Événement dupliqué !', {
