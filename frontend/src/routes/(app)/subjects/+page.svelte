@@ -2,7 +2,6 @@
 	import type { PageData } from './$types';
 	import type { SubjectsResponse, ThemesResponse, CampusesResponse } from '$lib/pocketbase-types';
 	import { superForm } from 'sveltekit-superforms';
-	import { enhance as kitEnhance } from '$app/forms';
 	import { page } from '$app/state';
 
 	type SubjectWithExpand = SubjectsResponse<{
@@ -29,7 +28,6 @@
 	} from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Select from '$lib/components/ui/select';
 	import * as Tabs from '$lib/components/ui/tabs';
@@ -47,12 +45,14 @@
 	import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
 	import { fly } from 'svelte/transition';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
 	let { data }: { data: PageData } = $props();
 
 	let userCampusId = $derived(page.data.user?.campus);
 
-	const { form, errors, enhance, delayed, reset } = superForm(
+	const { form, enhance, delayed, reset } = superForm(
 		untrack(() => data.form),
 		{
 			dataType: 'json',
@@ -189,21 +189,12 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-		<div>
-			<h1 class="text-3xl font-bold text-epi-blue uppercase">
-				Bibliothèque<span class="text-epi-teal">_</span>
-			</h1>
-			<p class="text-sm font-medium text-muted-foreground">
-				Gérez et explorez les supports pédagogiques.
-			</p>
-		</div>
-
+	<PageHeader title="Bibliothèque" subtitle="Gérez et explorez les supports pédagogiques.">
 		<Button onclick={openCreate} class="bg-epi-blue text-white shadow-md hover:bg-epi-blue/90">
 			<Plus class="mr-2 h-4 w-4" />
 			Nouveau Sujet
 		</Button>
-	</div>
+	</PageHeader>
 
 	<Tabs.Root value={sourceFilter} onValueChange={(v) => (sourceFilter = v)} class="w-full">
 		<div
@@ -582,106 +573,84 @@
 			{/if}
 		</Tabs.Content>
 	</Tabs.Root>
-</div>
 
-<Dialog.Root bind:open>
-	<Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-		<Dialog.Header
-			><Dialog.Title>{isEditing ? 'Modifier le sujet' : 'Nouveau sujet'}</Dialog.Title
-			></Dialog.Header
-		>
-		<form
-			method="POST"
-			action={isEditing ? '?/update' : '?/create'}
-			use:enhance
-			class="grid gap-5 py-4"
-		>
-			{#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
-			<div class="grid gap-2">
-				<Label for="nom">Nom</Label><Input
-					id="nom"
-					name="nom"
-					bind:value={$form.nom}
-					placeholder="Ex: Master Class Python"
-					class="font-medium"
-				/>
-			</div>
-			<div class="grid gap-2">
-				<Label for="link">Support (URL)</Label><Input
-					id="link"
-					name="link"
-					bind:value={$form.link}
-					placeholder="https://..."
-				/>
-			</div>
-			<div class="grid gap-2">
-				<Label>Thèmes</Label><MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
-			</div>
-			<div class="grid gap-3 rounded-md border bg-muted/20 p-4">
-				<Label>Niveaux cibles</Label>
-				<div class="flex flex-wrap gap-2">
-					{#each schoolLevels as level}
-						{@const isActive = $form.niveaux.includes(level as any)}
-						<Button
-							type="button"
-							variant={isActive ? 'default' : 'outline'}
-							size="sm"
-							onclick={() => toggleLevel(level)}
-							class={cn(
-								'h-8 text-xs transition-all',
-								isActive ? 'bg-epi-blue hover:bg-epi-blue/90' : 'text-muted-foreground'
-							)}
-							>{level}{#if isActive}<Check class="ml-1.5 h-3 w-3" />{/if}</Button
-						>
-						{#if isActive}<input type="hidden" name="niveaux" value={level} />{/if}
-					{/each}
-				</div>
-			</div>
-			<div class="grid gap-2">
-				<Label for="description">Description</Label><Textarea
-					id="description"
-					name="description"
-					bind:value={$form.description}
-					placeholder="Objectifs..."
-					class="min-h-32 resize-none"
-				/>
-			</div>
-			<Dialog.Footer class="gap-2 pt-2"
-				><Button type="button" variant="ghost" onclick={() => (open = false)}>Annuler</Button
-				><Button type="submit" disabled={$delayed} class="bg-epi-blue text-white"
-					>{$delayed ? 'Traitement...' : isEditing ? 'Mettre à jour' : 'Créer'}</Button
-				></Dialog.Footer
+	<Dialog.Root bind:open>
+		<Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+			<Dialog.Header
+				><Dialog.Title>{isEditing ? 'Modifier le sujet' : 'Nouveau sujet'}</Dialog.Title
+				></Dialog.Header
 			>
-		</form>
-	</Dialog.Content>
-</Dialog.Root>
-
-<AlertDialog.Root bind:open={deleteDialogOpen}>
-	<AlertDialog.Content
-		><AlertDialog.Header
-			><AlertDialog.Title>Suppression définitive</AlertDialog.Title></AlertDialog.Header
-		>
-		<AlertDialog.Footer
-			><AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
-			{#if subjectToDelete}
-				<form
-					action="?/delete&id={subjectToDelete}"
-					method="POST"
-					use:kitEnhance={() => {
-						return async ({ result, update }) => {
-							if (result.type === 'success') {
-								toast.success('Supprimé');
-								deleteDialogOpen = false;
-								await update();
-							}
-						};
-					}}
+			<form
+				method="POST"
+				action={isEditing ? '?/update' : '?/create'}
+				use:enhance
+				class="grid gap-5 py-4"
+			>
+				{#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
+				<div class="grid gap-2">
+					<Label for="nom">Nom</Label><Input
+						id="nom"
+						name="nom"
+						bind:value={$form.nom}
+						placeholder="Ex: Master Class Python"
+						class="font-medium"
+					/>
+				</div>
+				<div class="grid gap-2">
+					<Label for="link">Support (URL)</Label><Input
+						id="link"
+						name="link"
+						bind:value={$form.link}
+						placeholder="https://..."
+					/>
+				</div>
+				<div class="grid gap-2">
+					<Label>Thèmes</Label><MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
+				</div>
+				<div class="grid gap-3 rounded-md border bg-muted/20 p-4">
+					<Label>Niveaux cibles</Label>
+					<div class="flex flex-wrap gap-2">
+						{#each schoolLevels as level}
+							{@const isActive = $form.niveaux.includes(level as any)}
+							<Button
+								type="button"
+								variant={isActive ? 'default' : 'outline'}
+								size="sm"
+								onclick={() => toggleLevel(level)}
+								class={cn(
+									'h-8 text-xs transition-all',
+									isActive ? 'bg-epi-blue hover:bg-epi-blue/90' : 'text-muted-foreground'
+								)}
+								>{level}{#if isActive}<Check class="ml-1.5 h-3 w-3" />{/if}</Button
+							>
+							{#if isActive}<input type="hidden" name="niveaux" value={level} />{/if}
+						{/each}
+					</div>
+				</div>
+				<div class="grid gap-2">
+					<Label for="description">Description</Label><Textarea
+						id="description"
+						name="description"
+						bind:value={$form.description}
+						placeholder="Objectifs..."
+						class="min-h-32 resize-none"
+					/>
+				</div>
+				<Dialog.Footer class="gap-2 pt-2"
+					><Button type="button" variant="ghost" onclick={() => (open = false)}>Annuler</Button
+					><Button type="submit" disabled={$delayed} class="bg-epi-blue text-white"
+						>{$delayed ? 'Traitement...' : isEditing ? 'Mettre à jour' : 'Créer'}</Button
+					></Dialog.Footer
 				>
-					<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}
-						>Supprimer</AlertDialog.Action
-					>
-				</form>
-			{/if}
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+			</form>
+		</Dialog.Content>
+	</Dialog.Root>
+
+	<ConfirmDeleteDialog
+		bind:open={deleteDialogOpen}
+		action="?/delete&id={subjectToDelete}"
+		title="Suppression définitive"
+		description="Êtes-vous sûr de vouloir supprimer ce sujet ?"
+		buttonText="Supprimer"
+	/>
+</div>

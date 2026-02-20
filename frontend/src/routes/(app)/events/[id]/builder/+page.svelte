@@ -14,7 +14,6 @@
 		Tag,
 		TriangleAlert,
 		Sparkles,
-		Sprout,
 		Library
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
@@ -27,10 +26,8 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Select from '$lib/components/ui/select';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Label } from '$lib/components/ui/label';
@@ -41,6 +38,8 @@
 	import SubjectPicker from '$lib/components/events/SubjectPicker.svelte';
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import { resolve } from '$app/paths';
+	import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
+	import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -164,11 +163,6 @@
 
 	function isAlreadyInEvent(studentId: string) {
 		return data.participations.some((p) => p.expand?.student?.id === studentId);
-	}
-
-	function formatFirstName(name: string | undefined) {
-		if (!name) return '';
-		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 	}
 
 	function confirmDeleteParticipation(id: string) {
@@ -565,7 +559,11 @@
 					<div class="space-y-1 p-2">
 						{#each filteredStudents as student (student.id)}
 							{@const isAdded = isAlreadyInEvent(student.id)}
-							{@const isNew = (student.events_count || 0) === 0}
+							{@const count = student.events_count || 0}
+							{@const combinedSubText =
+								count > 0 && !isAdded
+									? `${student.niveau} • ${count} participation${count > 1 ? 's' : ''}`
+									: student.niveau}
 							<form
 								method="POST"
 								action="?/addExisting"
@@ -574,30 +572,12 @@
 							>
 								<input type="hidden" name="studentId" value={student.id} />
 								<div class="flex flex-col overflow-hidden">
-									<span class="flex items-center gap-2 truncate text-sm font-bold">
-										<span>
-											{formatFirstName(student.prenom)}
-											<span class="uppercase">{student.nom}</span>
-										</span>
-										{#if isNew}
-											<Badge
-												variant="outline"
-												class="h-4 gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
-											>
-												<Sprout class="h-2.5 w-2.5" />
-												Nouveau
-											</Badge>
-										{/if}
-									</span>
-									<div class="flex items-center gap-2 text-xs text-muted-foreground">
-										<span class="font-bold uppercase">{student.niveau}</span>
-										{#if !isNew}
-											<span>•</span>
-											<span class="font-medium">
-												{student.events_count} participation{student.events_count > 1 ? 's' : ''}
-											</span>
-										{/if}
-									</div>
+									<StudentAvatarItem
+										{student}
+										subText={combinedSubText}
+										showBadge={true}
+										size="sm"
+									/>
 								</div>
 								<Button
 									variant={isAdded ? 'secondary' : 'default'}
@@ -666,67 +646,19 @@
 	onSave={handleBulkSubjectsSaved}
 />
 
-<AlertDialog.Root bind:open={deleteEventDialogOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Supprimer définitivement ?</AlertDialog.Title>
-			<AlertDialog.Description>
-				Cette action est irréversible. Toutes les données associées à cet événement seront perdues.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
-			<form
-				action="?/deleteEvent"
-				method="POST"
-				use:enhance={() => {
-					return async ({ result }) => {
-						if (result.type === 'redirect') {
-							toast.success('Événement supprimé');
-							await goto(result.location);
-						}
-					};
-				}}
-			>
-				<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}>
-					Confirmer la suppression
-				</AlertDialog.Action>
-			</form>
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<ConfirmDeleteDialog
+	bind:open={deleteEventDialogOpen}
+	action="?/deleteEvent"
+	title="Supprimer définitivement ?"
+	description="Cette action est irréversible. Toutes les données associées à cet événement seront perdues."
+	buttonText="Confirmer la suppression"
+	onSuccess={() => goto(resolve('/'))}
+/>
 
-<AlertDialog.Root bind:open={deleteParticipationDialogOpen}>
-	<AlertDialog.Content>
-		<AlertDialog.Header>
-			<AlertDialog.Title>Retirer l'élève ?</AlertDialog.Title>
-			<AlertDialog.Description>
-				Voulez-vous retirer cet élève de l'événement ? S'il était validé, son XP sera annulé.
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
-			{#if participationToDelete}
-				<form
-					action="?/remove&id={participationToDelete}"
-					method="POST"
-					use:enhance={() => {
-						return async ({ result, update }) => {
-							if (result.type === 'success') {
-								deleteParticipationDialogOpen = false;
-								toast.success("Élève retiré de l'événement");
-								await update();
-							} else {
-								toast.error('Erreur lors du retrait');
-							}
-						};
-					}}
-				>
-					<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}>
-						Retirer
-					</AlertDialog.Action>
-				</form>
-			{/if}
-		</AlertDialog.Footer>
-	</AlertDialog.Content>
-</AlertDialog.Root>
+<ConfirmDeleteDialog
+	bind:open={deleteParticipationDialogOpen}
+	action="?/remove&id={participationToDelete}"
+	title="Retirer l'élève ?"
+	description="Voulez-vous retirer cet élève de l'événement ? S'il était validé, son XP sera annulé."
+	buttonText="Retirer"
+/>

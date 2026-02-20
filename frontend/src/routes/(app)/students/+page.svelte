@@ -4,21 +4,21 @@
 	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search, Eye, Users } from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Table from '$lib/components/ui/table';
 	import * as Select from '$lib/components/ui/select';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Avatar from '$lib/components/ui/avatar';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
-	import { enhance as kitEnhance } from '$app/forms';
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
 	import { resolve } from '$app/paths';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -94,185 +94,138 @@
 		deleteDialogOpen = true;
 	}
 
-	function formatFirstName(name: string | undefined) {
-		if (!name) return '';
-		return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-	}
-
 	const niveaux = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 </script>
 
 <div class="space-y-6">
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<div>
-			<h1 class="text-3xl font-bold text-epi-blue uppercase">
-				Élèves<span class="text-epi-teal">_</span>
-			</h1>
-			<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
-				Annuaire et progression des étudiants du camp.
-			</p>
+	<PageHeader title="Élèves" subtitle="Annuaire et progression des étudiants du camp.">
+		<Button onclick={openCreate}>
+			<Plus class="mr-2 h-4 w-4" />
+			Nouvel Élève
+		</Button>
+	</PageHeader>
+
+	<div class="flex items-center gap-2">
+		<!-- Search Input -->
+		<div class="relative w-full max-w-50">
+			<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
+			<Input
+				placeholder="Rechercher..."
+				class="rounded-sm bg-white pl-9"
+				bind:value={searchQuery}
+			/>
 		</div>
 
-		<div class="flex items-center gap-2">
-			<!-- Search Input -->
-			<div class="relative w-full max-w-50">
-				<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-				<Input
-					placeholder="Rechercher..."
-					class="rounded-sm bg-white pl-9"
-					bind:value={searchQuery}
-				/>
-			</div>
+		<!-- Level Filter -->
+		<div class="w-45">
+			<Select.Root type="single" value={selectedLevel} onValueChange={handleFilterChange}>
+				<Select.Trigger>
+					<Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
+					{selectedLevel === 'all' ? 'Tous les niveaux' : selectedLevel}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Item value="all">Tous les niveaux</Select.Item>
+					{#each niveaux as niveau}
+						<Select.Item value={niveau}>{niveau}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+		</div>
 
-			<!-- Level Filter -->
-			<div class="w-45">
-				<Select.Root type="single" value={selectedLevel} onValueChange={handleFilterChange}>
-					<Select.Trigger>
-						<Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
-						{selectedLevel === 'all' ? 'Tous les niveaux' : selectedLevel}
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="all">Tous les niveaux</Select.Item>
-						{#each niveaux as niveau}
-							<Select.Item value={niveau}>{niveau}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
+		<Dialog.Root bind:open>
+			<Dialog.Content class="sm:max-w-125">
+				<Dialog.Header>
+					<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un élève</Dialog.Title>
+					<Dialog.Description>
+						{isEditing
+							? 'Mettez à jour les informations du profil.'
+							: "Créez le profil d'un nouvel étudiant."}
+					</Dialog.Description>
+				</Dialog.Header>
 
-			<Button onclick={openCreate}>
-				<Plus class="mr-2 h-4 w-4" />
-				Nouvel Élève
-			</Button>
+				<form
+					method="POST"
+					action={isEditing ? '?/update' : '?/create'}
+					use:enhance
+					class="grid gap-4 py-4"
+				>
+					{#if isEditing}
+						<input type="hidden" name="id" value={editId} />
+					{/if}
 
-			<Dialog.Root bind:open>
-				<Dialog.Content class="sm:max-w-125">
-					<Dialog.Header>
-						<Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un élève</Dialog.Title>
-						<Dialog.Description>
-							{isEditing
-								? 'Mettez à jour les informations du profil.'
-								: "Créez le profil d'un nouvel étudiant."}
-						</Dialog.Description>
-					</Dialog.Header>
-
-					<form
-						method="POST"
-						action={isEditing ? '?/update' : '?/create'}
-						use:enhance
-						class="grid gap-4 py-4"
-					>
-						{#if isEditing}
-							<input type="hidden" name="id" value={editId} />
-						{/if}
-
-						<div class="grid grid-cols-2 gap-4">
-							<div class="grid gap-2">
-								<Label for="prenom">Prénom</Label>
-								<Input id="prenom" name="prenom" bind:value={$form.prenom} placeholder="Jean" />
-								{#if $errors.prenom}<span class="text-xs text-destructive">{$errors.prenom}</span
-									>{/if}
-							</div>
-							<div class="grid gap-2">
-								<Label for="nom">Nom</Label>
-								<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Dupont" />
-								{#if $errors.nom}<span class="text-xs text-destructive">{$errors.nom}</span>{/if}
-							</div>
-						</div>
-
-						<div class="grid grid-cols-2 gap-4">
-							<div class="grid gap-2">
-								<Label for="email">Email (Optionnel)</Label>
-								<Input
-									id="email"
-									name="email"
-									type="email"
-									bind:value={$form.email}
-									placeholder="email@example.com"
-								/>
-								{#if $errors.email}<span class="text-xs text-destructive">{$errors.email}</span
-									>{/if}
-							</div>
-							<div class="grid gap-2">
-								<Label for="phone">Téléphone (Optionnel)</Label>
-								<Input
-									id="phone"
-									name="phone"
-									type="tel"
-									bind:value={$form.phone}
-									placeholder="06..."
-								/>
-								{#if $errors.phone}<span class="text-xs text-destructive">{$errors.phone}</span
-									>{/if}
-							</div>
-						</div>
-
+					<div class="grid grid-cols-2 gap-4">
 						<div class="grid gap-2">
-							<Label for="niveau">Niveau Scolaire</Label>
-							<Select.Root type="single" name="niveau" bind:value={$form.niveau}>
-								<Select.Trigger>
-									{$form.niveau ? $form.niveau : 'Sélectionner...'}
-								</Select.Trigger>
-								<Select.Content>
-									{#each niveaux as niveau}
-										<Select.Item value={niveau}>{niveau}</Select.Item>
-									{/each}
-								</Select.Content>
-							</Select.Root>
-							<input type="hidden" name="niveau" value={$form.niveau} />
-							{#if $errors.niveau}<span class="text-xs text-destructive">{$errors.niveau}</span
+							<Label for="prenom">Prénom</Label>
+							<Input id="prenom" name="prenom" bind:value={$form.prenom} placeholder="Jean" />
+							{#if $errors.prenom}<span class="text-xs text-destructive">{$errors.prenom}</span
 								>{/if}
 						</div>
+						<div class="grid gap-2">
+							<Label for="nom">Nom</Label>
+							<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Dupont" />
+							{#if $errors.nom}<span class="text-xs text-destructive">{$errors.nom}</span>{/if}
+						</div>
+					</div>
 
-						<Dialog.Footer>
-							<Button type="submit" disabled={$delayed}>
-								{#if $delayed}Enregistrement...{:else}{isEditing
-										? 'Mettre à jour'
-										: "Créer l'élève"}{/if}
-							</Button>
-						</Dialog.Footer>
-					</form>
-				</Dialog.Content>
-			</Dialog.Root>
+					<div class="grid grid-cols-2 gap-4">
+						<div class="grid gap-2">
+							<Label for="email">Email (Optionnel)</Label>
+							<Input
+								id="email"
+								name="email"
+								type="email"
+								bind:value={$form.email}
+								placeholder="email@example.com"
+							/>
+							{#if $errors.email}<span class="text-xs text-destructive">{$errors.email}</span>{/if}
+						</div>
+						<div class="grid gap-2">
+							<Label for="phone">Téléphone (Optionnel)</Label>
+							<Input
+								id="phone"
+								name="phone"
+								type="tel"
+								bind:value={$form.phone}
+								placeholder="06..."
+							/>
+							{#if $errors.phone}<span class="text-xs text-destructive">{$errors.phone}</span>{/if}
+						</div>
+					</div>
 
-			<AlertDialog.Root bind:open={deleteDialogOpen}>
-				<AlertDialog.Content>
-					<AlertDialog.Header>
-						<AlertDialog.Title>Supprimer l'élève</AlertDialog.Title>
-						<AlertDialog.Description>
-							Êtes-vous sûr ? Cette action est définitive.
-						</AlertDialog.Description>
-					</AlertDialog.Header>
-					<AlertDialog.Footer>
-						<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
-						{#if studentToDelete}
-							<form
-								action="?/delete&id={studentToDelete}"
-								method="POST"
-								use:kitEnhance={() => {
-									return async ({ result, update }) => {
-										if (result.type === 'success') {
-											toast.success('Élève supprimé');
-											deleteDialogOpen = false;
-											await update();
-										} else {
-											toast.error('Erreur lors de la suppression');
-										}
-									};
-								}}
-							>
-								<AlertDialog.Action
-									type="submit"
-									class={buttonVariants({ variant: 'destructive' })}
-								>
-									Supprimer
-								</AlertDialog.Action>
-							</form>
-						{/if}
-					</AlertDialog.Footer>
-				</AlertDialog.Content>
-			</AlertDialog.Root>
-		</div>
+					<div class="grid gap-2">
+						<Label for="niveau">Niveau Scolaire</Label>
+						<Select.Root type="single" name="niveau" bind:value={$form.niveau}>
+							<Select.Trigger>
+								{$form.niveau ? $form.niveau : 'Sélectionner...'}
+							</Select.Trigger>
+							<Select.Content>
+								{#each niveaux as niveau}
+									<Select.Item value={niveau}>{niveau}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="niveau" value={$form.niveau} />
+						{#if $errors.niveau}<span class="text-xs text-destructive">{$errors.niveau}</span>{/if}
+					</div>
+
+					<Dialog.Footer>
+						<Button type="submit" disabled={$delayed}>
+							{#if $delayed}Enregistrement...{:else}{isEditing
+									? 'Mettre à jour'
+									: "Créer l'élève"}{/if}
+						</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+
+		<ConfirmDeleteDialog
+			bind:open={deleteDialogOpen}
+			action="?/delete&id={studentToDelete}"
+			title="Supprimer l'élève"
+			description="Êtes-vous sûr ? Cette action est définitive."
+			buttonText="Supprimer"
+		/>
 	</div>
 
 	{#if filteredStudents.length > 0}
@@ -290,25 +243,8 @@
 					{#each filteredStudents as student (student.id)}
 						<Table.Row class="hover:bg-muted/30">
 							<Table.Cell class="font-bold">
-								<a href={resolve(`/students/${student.id}`)} class="group flex items-center gap-3">
-									<Avatar.Root
-										class="h-9 w-9 rounded-full border transition-all group-hover:border-epi-blue"
-									>
-										<Avatar.Fallback
-											class="bg-muted font-bold text-muted-foreground group-hover:text-epi-blue"
-										>
-											{(student.prenom?.[0] ?? '').toUpperCase()}{(
-												student.nom?.[0] ?? ''
-											).toUpperCase()}
-										</Avatar.Fallback>
-									</Avatar.Root>
-									<div class="flex flex-col">
-										<span class="underline-offset-4 group-hover:text-epi-blue group-hover:underline"
-											>{formatFirstName(student.prenom)}
-											<span class="uppercase">{student.nom}</span></span
-										>
-										<span class="text-xs text-muted-foreground sm:hidden">{student.niveau}</span>
-									</div>
+								<a href={resolve(`/students/${student.id}`)} class="group block">
+									<StudentAvatarItem {student} showBadge={false} />
 								</a>
 							</Table.Cell>
 							<Table.Cell>

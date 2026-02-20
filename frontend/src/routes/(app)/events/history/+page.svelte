@@ -9,12 +9,10 @@
 	} from '$lib/components/ui/table';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		Calendar,
 		Tag,
-		ArrowLeft,
 		Archive,
 		Users,
 		UserCheck,
@@ -26,9 +24,9 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { formatDateFr } from '$lib/utils';
 	import { resolve } from '$app/paths';
-	import { enhance } from '$app/forms';
-	import { toast } from 'svelte-sonner';
 	import DuplicateEventDialog from '$lib/components/events/DuplicateEventDialog.svelte';
+	import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
 	let { data } = $props();
 
@@ -54,21 +52,7 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<div class="flex items-center gap-4">
-			<Button variant="ghost" size="icon" href={resolve('/')}>
-				<ArrowLeft class="h-4 w-4" />
-			</Button>
-			<div>
-				<h1 class="text-3xl font-bold text-epi-blue uppercase">
-					Historique<span class="text-epi-teal">_</span>
-				</h1>
-				<p class="text-sm font-bold tracking-wider text-muted-foreground uppercase">
-					Archives des événements passés
-				</p>
-			</div>
-		</div>
-	</div>
+	<PageHeader title="Historique" subtitle="Archives des événements passés" />
 
 	{#if data.events.length > 0}
 		<div class="rounded-sm border bg-card shadow-sm">
@@ -194,42 +178,13 @@
 		</div>
 	{/if}
 
-	<!-- Duplicate Dialog -->
 	<DuplicateEventDialog bind:open={duplicateDialogOpen} {eventToDuplicate} />
 
-	<AlertDialog.Root bind:open={deleteDialogOpen}>
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>Supprimer l'événement</AlertDialog.Title>
-				<AlertDialog.Description>
-					Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible et
-					retirera les XP acquis par les participants.
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
-				{#if eventToDelete}
-					<form
-						action="?/deleteEvent&id={eventToDelete}"
-						method="POST"
-						use:enhance={() => {
-							return async ({ result, update }) => {
-								if (result.type === 'success') {
-									toast.success('Événement supprimé');
-									deleteDialogOpen = false;
-									await update();
-								} else {
-									toast.error('Erreur lors de la suppression');
-								}
-							};
-						}}
-					>
-						<AlertDialog.Action type="submit" class={buttonVariants({ variant: 'destructive' })}>
-							Supprimer définitivement
-						</AlertDialog.Action>
-					</form>
-				{/if}
-			</AlertDialog.Footer>
-		</AlertDialog.Content>
-	</AlertDialog.Root>
+	<ConfirmDeleteDialog
+		bind:open={deleteDialogOpen}
+		action="?/deleteEvent&id={eventToDelete}"
+		title="Supprimer l'événement"
+		description="Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible et retirera les XP acquis par les participants."
+		buttonText="Supprimer définitivement"
+	/>
 </div>

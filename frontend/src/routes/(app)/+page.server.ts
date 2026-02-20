@@ -1,21 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { getSubjectXpValue } from '$lib/xp';
 import { now } from '@internationalized/date';
-import { createScoped } from '$lib/pocketbase';
-import {
-	type EventsResponse,
-	type ThemesResponse,
-	type ParticipationsResponse,
-	type SubjectsResponse
-} from '$lib/pocketbase-types';
+import { EventService } from '$lib/server/events';
+import type { EventsResponse, ThemesResponse } from '$lib/pocketbase-types';
 
 type EventExpand = {
 	theme?: ThemesResponse;
-};
-
-type ParticipationExpand = {
-	subject?: SubjectsResponse;
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -26,7 +16,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		const parisNow = now('Europe/Paris');
 		const startOfDayParis = parisNow.set({ hour: 0, minute: 0, second: 0, millisecond: 0 });
-
 		const filterDate = startOfDayParis.toDate();
 
 		const events = await locals.pb.collection('events').getFullList<EventsResponse<EventExpand>>({
@@ -55,25 +44,7 @@ export const actions: Actions = {
 		if (!id) return fail(400);
 
 		try {
-			const participations = await locals.pb
-				.collection('participations')
-				.getFullList<ParticipationsResponse<ParticipationExpand>>({
-					filter: `event = "${id}" && is_present = true`,
-					expand: 'subject'
-				});
-
-			for (const p of participations) {
-				const subject = p.expand?.subject;
-				const xpValue = subject ? getSubjectXpValue(subject.niveaux) : 20;
-
-				await locals.pb.collection('students').update(p.student, {
-					'xp-': xpValue,
-					'events_count-': 1
-				});
-			}
-
-			await locals.pb.collection('events').delete(id);
-
+			await EventService.deleteEvent(locals.pb, id);
 			return { success: true };
 		} catch (err) {
 			console.error('Erreur suppression événement:', err);
@@ -93,10 +64,6 @@ export const actions: Actions = {
 		}
 
 		try {
-			// 1. Fetch original event details (mainly for theme)
-			const original = await locals.pb.collection('events').getOne(originalId);
-
-			// 2. Construct new ISO date
 			const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
 			const [hour, minute] = timeStr.split(':').map(Number);
 			const newDate = new Date(year, month - 1, day, hour, minute);
@@ -105,33 +72,12 @@ export const actions: Actions = {
 				return fail(400, { message: 'Valeur de temps invalide' });
 			}
 
-			// 3. Create new event
-			const payload = {
-				titre: titre,
-				date: newDate.toISOString(),
-				theme: original.theme
-			};
-
-			const newEventRecord = await createScoped(locals.pb, 'events', payload);
-
-			// 4. Duplicate participants
-			const originalParticipations = await locals.pb.collection('participations').getFullList({
-				filter: `event = "${originalId}"`,
-				requestKey: null
+			const newEventId = await EventService.duplicateEvent(locals.pb, originalId, {
+				titre,
+				date: newDate.toISOString()
 			});
 
-			for (const p of originalParticipations) {
-				await createScoped(locals.pb, 'participations', {
-					student: p.student,
-					event: newEventRecord.id,
-					subjects: p.subjects,
-					bring_pc: p.bring_pc,
-					is_present: false, // Reset presence
-					note: '' // Reset notes
-				});
-			}
-
-			return { success: true, newEventId: newEventRecord.id };
+			return { success: true, newEventId };
 		} catch (err) {
 			console.error('Erreur duplication événement:', err);
 			return fail(500, { message: 'Erreur lors de la duplication' });

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import type { Component } from 'svelte';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -12,7 +11,7 @@
 		actionCallback,
 		class: className
 	}: {
-		icon: Component<{ class?: string }>;
+		icon: any;
 		title: string;
 		description: string;
 		actionLabel?: string;
