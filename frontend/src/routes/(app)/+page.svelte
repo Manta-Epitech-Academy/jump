@@ -19,7 +19,6 @@
 		Trash2,
 		Pencil,
 		Coffee,
-		Megaphone,
 		UserCheck,
 		Copy
 	} from 'lucide-svelte';
@@ -28,6 +27,7 @@
 	import { toast } from 'svelte-sonner';
 	import { resolve } from '$app/paths';
 	import DuplicateEventDialog from '$lib/components/events/DuplicateEventDialog.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 
 	let { data } = $props();
 
@@ -230,33 +230,13 @@
 			</Table>
 		</div>
 	{:else}
-		<div
-			class="flex flex-col items-center justify-center rounded-sm border-2 border-dashed border-border bg-muted/20 p-20 text-center"
-		>
-			<div class="relative mb-6">
-				<div class="absolute inset-0 animate-ping rounded-full bg-epi-blue/20"></div>
-				<div
-					class="relative flex h-20 w-20 items-center justify-center rounded-full bg-background shadow-sm"
-				>
-					<Coffee class="h-10 w-10 text-muted-foreground/70" />
-					<div class="absolute -top-1 -right-2 rotate-12 text-3xl">💤</div>
-				</div>
-			</div>
-			<h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
-				Allo l'équipe Dev ?
-			</h3>
-			<p class="mt-3 max-w-sm text-sm font-medium text-muted-foreground">
-				C'est louche... Le calendrier est vide.<br />
-				Vous êtes partis en vacances ou vous avez fini le game ?
-			</p>
-			<Button
-				href={resolve('/events/new')}
-				class="mt-8 bg-epi-blue text-white shadow-lg transition-transform hover:scale-105 hover:bg-epi-blue/90"
-			>
-				<Megaphone class="mr-2 h-4 w-4" />
-				Créer un événement
-			</Button>
-		</div>
+		<EmptyState
+			icon={Coffee}
+			title="Allo l'équipe Dev ?"
+			description="C'est louche... Le calendrier est vide.<br />Vous êtes partis en vacances ou vous avez fini le game ?"
+			actionLabel="Créer un événement"
+			actionLink={resolve('/events/new')}
+		/>
 	{/if}
 
 	<!-- DUPLICATE DIALOG -->

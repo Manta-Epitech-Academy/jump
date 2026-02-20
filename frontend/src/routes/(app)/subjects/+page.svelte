@@ -46,6 +46,7 @@
 	import { cn } from '$lib/utils';
 	import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
 	import { fly } from 'svelte/transition';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -328,17 +329,13 @@
 
 		<Tabs.Content value={sourceFilter} class="mt-6 min-h-75">
 			{#if filteredSubjects.length === 0}
-				<div
-					class="flex flex-col items-center justify-center rounded-md border border-dashed py-20 text-center"
-				>
-					<div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted/50">
-						<Funnel class="h-8 w-8 text-muted-foreground" />
-					</div>
-					<h3 class="text-lg font-bold">Aucun résultat</h3>
-					<Button variant="link" onclick={clearFilters} class="mt-2 text-epi-blue"
-						>Effacer les filtres</Button
-					>
-				</div>
+				<EmptyState
+					icon={Funnel}
+					title="404 Knowledge Not Found"
+					description="Aucun sujet ne correspond à vos filtres.<br/>C'est le moment de créer du contenu !"
+					actionLabel="Effacer les filtres"
+					actionCallback={clearFilters}
+				/>
 			{:else if viewMode === 'grid'}
 				<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 					{#each filteredSubjects as subject, i (subject.id)}

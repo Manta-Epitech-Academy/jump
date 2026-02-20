@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
-	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search, Eye } from 'lucide-svelte';
+	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search, Eye, Users } from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -18,6 +18,7 @@
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
 	import { resolve } from '$app/paths';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -274,94 +275,98 @@
 		</div>
 	</div>
 
-	<div class="rounded-sm border bg-card shadow-sm">
-		<Table.Root>
-			<Table.Header class="bg-muted/50">
-				<Table.Row>
-					<Table.Head class="w-75 text-xs font-bold uppercase">Étudiant</Table.Head>
-					<Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
-					<Table.Head class="text-right text-xs font-bold uppercase">XP / Événements</Table.Head>
-					<Table.Head class="w-12.5"></Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each filteredStudents as student (student.id)}
-					<Table.Row class="hover:bg-muted/30">
-						<Table.Cell class="font-bold">
-							<a href={resolve(`/students/${student.id}`)} class="group flex items-center gap-3">
-								<Avatar.Root
-									class="h-9 w-9 rounded-full border transition-all group-hover:border-epi-blue"
-								>
-									<Avatar.Fallback
-										class="bg-muted font-bold text-muted-foreground group-hover:text-epi-blue"
-									>
-										{(student.prenom?.[0] ?? '').toUpperCase()}{(
-											student.nom?.[0] ?? ''
-										).toUpperCase()}
-									</Avatar.Fallback>
-								</Avatar.Root>
-								<div class="flex flex-col">
-									<span class="underline-offset-4 group-hover:text-epi-blue group-hover:underline"
-										>{formatFirstName(student.prenom)}
-										<span class="uppercase">{student.nom}</span></span
-									>
-									<span class="text-xs text-muted-foreground sm:hidden">{student.niveau}</span>
-								</div>
-							</a>
-						</Table.Cell>
-						<Table.Cell>
-							<Badge
-								variant="secondary"
-								class="rounded-sm bg-epi-blue/5 px-2 py-0.5 text-xs font-bold text-epi-blue uppercase"
-								>{student.niveau}</Badge
-							>
-						</Table.Cell>
-						<Table.Cell class="text-right text-muted-foreground">
-							<div class="flex flex-col items-end">
-								<span class="font-black text-foreground">{student.xp} XP</span>
-								<span class="text-[10px] font-bold tracking-widest uppercase"
-									>{student.events_count} événement{student.events_count > 1 ? 's' : ''}</span
-								>
-							</div>
-						</Table.Cell>
-						<Table.Cell>
-							<DropdownMenu.Root>
-								<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
-									<Ellipsis class="h-4 w-4" />
-								</DropdownMenu.Trigger>
-								<DropdownMenu.Content align="end">
-									<a
-										href={resolve(`/students/${student.id}`)}
-										class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
-									>
-										<Eye class="mr-2 h-4 w-4 text-epi-blue" />
-										Voir le dossier
-									</a>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item onclick={() => openEdit(student)}>
-										<Pencil class="mr-2 h-4 w-4" />
-										Modifier
-									</DropdownMenu.Item>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Item
-										class="cursor-pointer text-destructive"
-										onclick={() => confirmDelete(student.id)}
-									>
-										<Trash2 class="mr-2 h-4 w-4" />
-										Supprimer
-									</DropdownMenu.Item>
-								</DropdownMenu.Content>
-							</DropdownMenu.Root>
-						</Table.Cell>
-					</Table.Row>
-				{:else}
+	{#if filteredStudents.length > 0}
+		<div class="rounded-sm border bg-card shadow-sm">
+			<Table.Root>
+				<Table.Header class="bg-muted/50">
 					<Table.Row>
-						<Table.Cell colspan={4} class="h-24 text-center text-muted-foreground">
-							Aucun élève trouvé.
-						</Table.Cell>
+						<Table.Head class="w-75 text-xs font-bold uppercase">Étudiant</Table.Head>
+						<Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
+						<Table.Head class="text-right text-xs font-bold uppercase">XP / Événements</Table.Head>
+						<Table.Head class="w-12.5"></Table.Head>
 					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
-	</div>
+				</Table.Header>
+				<Table.Body>
+					{#each filteredStudents as student (student.id)}
+						<Table.Row class="hover:bg-muted/30">
+							<Table.Cell class="font-bold">
+								<a href={resolve(`/students/${student.id}`)} class="group flex items-center gap-3">
+									<Avatar.Root
+										class="h-9 w-9 rounded-full border transition-all group-hover:border-epi-blue"
+									>
+										<Avatar.Fallback
+											class="bg-muted font-bold text-muted-foreground group-hover:text-epi-blue"
+										>
+											{(student.prenom?.[0] ?? '').toUpperCase()}{(
+												student.nom?.[0] ?? ''
+											).toUpperCase()}
+										</Avatar.Fallback>
+									</Avatar.Root>
+									<div class="flex flex-col">
+										<span class="underline-offset-4 group-hover:text-epi-blue group-hover:underline"
+											>{formatFirstName(student.prenom)}
+											<span class="uppercase">{student.nom}</span></span
+										>
+										<span class="text-xs text-muted-foreground sm:hidden">{student.niveau}</span>
+									</div>
+								</a>
+							</Table.Cell>
+							<Table.Cell>
+								<Badge
+									variant="secondary"
+									class="rounded-sm bg-epi-blue/5 px-2 py-0.5 text-xs font-bold text-epi-blue uppercase"
+									>{student.niveau}</Badge
+								>
+							</Table.Cell>
+							<Table.Cell class="text-right text-muted-foreground">
+								<div class="flex flex-col items-end">
+									<span class="font-black text-foreground">{student.xp} XP</span>
+									<span class="text-[10px] font-bold tracking-widest uppercase"
+										>{student.events_count} événement{student.events_count > 1 ? 's' : ''}</span
+									>
+								</div>
+							</Table.Cell>
+							<Table.Cell>
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger class={buttonVariants({ variant: 'ghost', size: 'icon' })}>
+										<Ellipsis class="h-4 w-4" />
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										<a
+											href={resolve(`/students/${student.id}`)}
+											class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
+										>
+											<Eye class="mr-2 h-4 w-4 text-epi-blue" />
+											Voir le dossier
+										</a>
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item onclick={() => openEdit(student)}>
+											<Pencil class="mr-2 h-4 w-4" />
+											Modifier
+										</DropdownMenu.Item>
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item
+											class="cursor-pointer text-destructive"
+											onclick={() => confirmDelete(student.id)}
+										>
+											<Trash2 class="mr-2 h-4 w-4" />
+											Supprimer
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</div>
+	{:else}
+		<EmptyState
+			icon={Users}
+			title="Salle de classe vide"
+			description="Aucun élève ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
+			actionLabel="Ajouter un élève"
+			actionCallback={openCreate}
+		/>
+	{/if}
 </div>
