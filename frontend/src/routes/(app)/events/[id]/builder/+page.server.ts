@@ -12,7 +12,8 @@ import {
 	type ParticipationsResponse,
 	type StudentsResponse,
 	type SubjectsResponse,
-	StudentsNiveauOptions
+	StudentsNiveauOptions,
+	StudentsNiveauDifficulteOptions
 } from '$lib/pocketbase-types';
 import { CalendarDateTime } from '@internationalized/date';
 import { ClientResponseError } from 'pocketbase';
@@ -64,16 +65,20 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 						});
 					}
 
-					if (
-						subject.niveaux &&
-						student.niveau &&
-						!subject.niveaux.includes(
-							student.niveau as unknown as (typeof subject.niveaux)[number]
-						)
-					) {
+					// Warning Logic: Map difficulty to numeric weights for comparison
+					const difficultyWeights: Record<string, number> = {
+						'Débutant': 0,
+						'Intermédiaire': 1,
+						'Avancé': 2
+					};
+
+					const studentLevel = difficultyWeights[student.niveau_difficulte || 'Débutant'] ?? 0;
+					const subjectLevel = difficultyWeights[subject.difficulte] ?? 0;
+
+					if (subjectLevel > studentLevel) {
 						alerts.push({
 							type: 'warning',
-							message: `NIVEAU : "${subject.nom}" n'est pas recommandé pour le niveau ${student.niveau}.`
+							message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveau_difficulte || 'Débutant'}).`
 						});
 					}
 				}
@@ -285,7 +290,8 @@ export const actions: Actions = {
 			// SCOPED creation
 			const newStudent = await createScoped(locals.pb, 'students', {
 				...form.data,
-				niveau: form.data.niveau as StudentsNiveauOptions
+				niveau: form.data.niveau as StudentsNiveauOptions,
+				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions
 			});
 
 			const event = await locals.pb.collection('events').getOne(params.id);
@@ -383,7 +389,7 @@ export const actions: Actions = {
 				const subjects = await locals.pb.collection('subjects').getFullList();
 
 				for (const p of participations) {
-					// Only re-suggest for those without subjects or specifically for the first subject slot
+					// Only re-suggest for those without subjects
 					if (!p.is_present && (!p.subjects || p.subjects.length === 0)) {
 						const newSubjectId = await suggestBestSubject(
 							locals.pb,

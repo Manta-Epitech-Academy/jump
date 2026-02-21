@@ -1,7 +1,19 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { superForm } from 'sveltekit-superforms';
-	import { Plus, Funnel, Ellipsis, Pencil, Trash2, Search, Eye, Users } from 'lucide-svelte';
+	import {
+		Plus,
+		Funnel,
+		Ellipsis,
+		Pencil,
+		Trash2,
+		Search,
+		Eye,
+		Users,
+		SignalLow,
+		SignalMedium,
+		SignalHigh
+	} from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Table from '$lib/components/ui/table';
@@ -15,6 +27,8 @@
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { cn } from '$lib/utils';
+	import { difficultes } from '$lib/validation/students';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -60,6 +74,7 @@
 
 	function openCreate() {
 		reset();
+		$form.niveau_difficulte = 'Débutant';
 		isEditing = false;
 		editId = '';
 		open = true;
@@ -72,6 +87,7 @@
 		$form.email = student.email || '';
 		$form.phone = student.phone || '';
 		$form.niveau = student.niveau;
+		$form.niveau_difficulte = student.niveau_difficulte || 'Débutant';
 
 		isEditing = true;
 		editId = student.id;
@@ -92,6 +108,19 @@
 	function confirmDelete(id: string) {
 		studentToDelete = id;
 		deleteDialogOpen = true;
+	}
+
+	function getDifficultyColor(diff: string) {
+		switch (diff) {
+			case 'Débutant':
+				return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400';
+			case 'Intermédiaire':
+				return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-900/20 dark:text-blue-400';
+			case 'Avancé':
+				return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/30 dark:bg-purple-900/20 dark:text-purple-400';
+			default:
+				return 'border-border text-muted-foreground';
+		}
 	}
 
 	const niveaux = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
@@ -192,20 +221,45 @@
 						</div>
 					</div>
 
-					<div class="grid gap-2">
-						<Label for="niveau">Niveau Scolaire</Label>
-						<Select.Root type="single" name="niveau" bind:value={$form.niveau}>
-							<Select.Trigger>
-								{$form.niveau ? $form.niveau : 'Sélectionner...'}
-							</Select.Trigger>
-							<Select.Content>
-								{#each niveaux as niveau}
-									<Select.Item value={niveau}>{niveau}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-						<input type="hidden" name="niveau" value={$form.niveau} />
-						{#if $errors.niveau}<span class="text-xs text-destructive">{$errors.niveau}</span>{/if}
+					<div class="grid grid-cols-2 gap-4">
+						<div class="grid gap-2">
+							<Label for="niveau">Niveau Scolaire</Label>
+							<Select.Root type="single" name="niveau" bind:value={$form.niveau}>
+								<Select.Trigger>
+									{$form.niveau ? $form.niveau : 'Sélectionner...'}
+								</Select.Trigger>
+								<Select.Content>
+									{#each niveaux as niveau}
+										<Select.Item value={niveau}>{niveau}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+							<input type="hidden" name="niveau" value={$form.niveau} />
+							{#if $errors.niveau}<span class="text-xs text-destructive">{$errors.niveau}</span
+								>{/if}
+						</div>
+
+						<div class="grid gap-2">
+							<Label for="niveau_difficulte">Difficulté</Label>
+							<Select.Root
+								type="single"
+								name="niveau_difficulte"
+								bind:value={$form.niveau_difficulte}
+							>
+								<Select.Trigger>
+									{$form.niveau_difficulte ? $form.niveau_difficulte : 'Débutant'}
+								</Select.Trigger>
+								<Select.Content>
+									{#each difficultes as diff}
+										<Select.Item value={diff}>{diff}</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+							<input type="hidden" name="niveau_difficulte" value={$form.niveau_difficulte} />
+							{#if $errors.niveau_difficulte}<span class="text-xs text-destructive"
+									>{$errors.niveau_difficulte}</span
+								>{/if}
+						</div>
 					</div>
 
 					<Dialog.Footer>
@@ -233,14 +287,18 @@
 			<Table.Root>
 				<Table.Header class="bg-muted/50">
 					<Table.Row>
-						<Table.Head class="w-75 text-xs font-bold uppercase">Étudiant</Table.Head>
+						<Table.Head class="w-60 text-xs font-bold uppercase">Étudiant</Table.Head>
 						<Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
+						<Table.Head class="hidden text-xs font-bold uppercase sm:table-cell"
+							>Difficulté</Table.Head
+						>
 						<Table.Head class="text-right text-xs font-bold uppercase">XP / Événements</Table.Head>
 						<Table.Head class="w-12.5"></Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each filteredStudents as student (student.id)}
+						{@const diff = student.niveau_difficulte || 'Débutant'}
 						<Table.Row class="hover:bg-muted/30">
 							<Table.Cell class="font-bold">
 								<a href={resolve(`/students/${student.id}`)} class="group block">
@@ -250,9 +308,25 @@
 							<Table.Cell>
 								<Badge
 									variant="secondary"
-									class="rounded-sm bg-epi-blue/5 px-2 py-0.5 text-xs font-bold text-epi-blue uppercase"
-									>{student.niveau}</Badge
+									class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
 								>
+									{student.niveau}
+								</Badge>
+							</Table.Cell>
+							<Table.Cell class="hidden sm:table-cell">
+								<Badge
+									variant="outline"
+									class={cn('text-[9px] font-bold uppercase', getDifficultyColor(diff))}
+								>
+									{#if diff === 'Débutant'}
+										<SignalLow class="mr-1 h-3 w-3" />
+									{:else if diff === 'Intermédiaire'}
+										<SignalMedium class="mr-1 h-3 w-3" />
+									{:else}
+										<SignalHigh class="mr-1 h-3 w-3" />
+									{/if}
+									{diff}
+								</Badge>
 							</Table.Cell>
 							<Table.Cell class="text-right text-muted-foreground">
 								<div class="flex flex-col items-end">

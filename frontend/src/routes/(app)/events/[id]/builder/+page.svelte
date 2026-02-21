@@ -176,7 +176,7 @@
 		pickerSelectedIds = currentSubjectIds;
 
 		const p = data.participations.find((x) => x.id === participationId);
-		pickerStudentLevel = p?.expand?.student?.niveau || null;
+		pickerStudentLevel = p?.expand?.student?.niveau_difficulte || null;
 
 		pickerOpen = true;
 	}
@@ -633,6 +633,7 @@
 	themes={data.themes}
 	selectedSubjectIds={pickerSelectedIds}
 	studentLevel={pickerStudentLevel}
+	defaultThemeId={data.event.theme}
 	onSave={handleSubjectsSaved}
 />
 
@@ -643,6 +644,7 @@
 	themes={data.themes}
 	selectedSubjectIds={[]}
 	studentLevel={null}
+	defaultThemeId={data.event.theme}
 	onSave={handleBulkSubjectsSaved}
 />
 

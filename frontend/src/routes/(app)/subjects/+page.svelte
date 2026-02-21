@@ -21,10 +21,12 @@
 		Search,
 		LayoutGrid,
 		List,
-		GraduationCap,
+		SignalLow,
+		SignalMedium,
+		SignalHigh,
 		X,
 		Funnel,
-		ArrowUpRight
+		ArrowUpRight,
 	} from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -40,13 +42,14 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
-	import { schoolLevels } from '$lib/validation/subjects';
+	import { difficultes } from '$lib/validation/subjects';
 	import { cn } from '$lib/utils';
 	import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
 	import { fly } from 'svelte/transition';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import { getSubjectXpValue } from '$lib/xp';
 
 	let { data }: { data: PageData } = $props();
 
@@ -72,7 +75,7 @@
 	let editId = $state('');
 
 	let sourceFilter = $state('official');
-	let levelFilter = $state('all');
+	let difficultyFilter = $state('all');
 	let themeFilter = $state('all');
 	let searchQuery = $state('');
 	let viewMode = $state<'grid' | 'list'>('grid');
@@ -93,7 +96,7 @@
 
 	function openCreate() {
 		reset();
-		$form.niveaux = [];
+		$form.difficulte = 'Débutant';
 		$form.themes = [];
 		$form.link = '';
 		isEditing = false;
@@ -104,7 +107,7 @@
 	function openEdit(subject: any) {
 		$form.nom = subject.nom;
 		$form.description = subject.description;
-		$form.niveaux = subject.niveaux || [];
+		$form.difficulte = subject.difficulte || 'Débutant';
 		$form.link = subject.link || '';
 		if (subject.expand && subject.expand.themes) {
 			$form.themes = subject.expand.themes.map((t: any) => t.nom);
@@ -116,28 +119,19 @@
 		open = true;
 	}
 
-	function toggleLevel(level: string) {
-		const lvl = level as any;
-		if ($form.niveaux.includes(lvl)) {
-			$form.niveaux = $form.niveaux.filter((l) => l !== lvl);
-		} else {
-			$form.niveaux = [...$form.niveaux, lvl];
-		}
-	}
-
 	function confirmDelete(id: string) {
 		subjectToDelete = id;
 		deleteDialogOpen = true;
 	}
 
 	function clearFilters() {
-		levelFilter = 'all';
+		difficultyFilter = 'all';
 		themeFilter = 'all';
 		searchQuery = '';
 	}
 
 	let hasActiveFilters = $derived(
-		levelFilter !== 'all' || themeFilter !== 'all' || searchQuery !== ''
+		difficultyFilter !== 'all' || themeFilter !== 'all' || searchQuery !== ''
 	);
 
 	let filteredSubjects = $derived(
@@ -147,7 +141,7 @@
 			if (sourceFilter === 'mine' && s.campus !== userCampusId) return false;
 			if (sourceFilter === 'community' && (s.campus === '' || s.campus === userCampusId))
 				return false;
-			if (levelFilter !== 'all' && !s.niveaux.includes(levelFilter as any)) return false;
+			if (difficultyFilter !== 'all' && s.difficulte !== difficultyFilter) return false;
 			if (themeFilter !== 'all') {
 				const hasTheme = typedS.expand?.themes?.some((t) => t.id === themeFilter);
 				if (!hasTheme) return false;
@@ -172,19 +166,17 @@
 		community: data.subjects.filter((s) => s.campus && s.campus !== userCampusId).length
 	});
 
-	function getXpValue(niveaux: string[]): number {
-		const map: Record<string, number> = {
-			'6eme': 10,
-			'5eme': 15,
-			'4eme': 20,
-			'3eme': 25,
-			'2nde': 35,
-			'1ere': 45,
-			Terminale: 55,
-			Sup: 70
-		};
-		if (!niveaux || niveaux.length === 0) return 10;
-		return Math.max(...niveaux.map((l) => map[l] || 10));
+	function getDifficultyColor(diff: string) {
+		switch (diff) {
+			case 'Débutant':
+				return 'bg-green-100 text-green-800 border-green-200';
+			case 'Intermédiaire':
+				return 'bg-blue-100 text-blue-800 border-blue-200';
+			case 'Avancé':
+				return 'bg-purple-100 text-purple-800 border-purple-200';
+			default:
+				return 'bg-muted text-muted-foreground';
+		}
 	}
 </script>
 
@@ -283,14 +275,16 @@
 			</div>
 
 			<div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-				<Select.Root type="single" bind:value={levelFilter}>
-					<Select.Trigger class="h-9 w-32.5 text-xs">
-						<GraduationCap class="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-						{levelFilter === 'all' ? 'Niveau' : levelFilter}
+				<Select.Root type="single" bind:value={difficultyFilter}>
+					<Select.Trigger class="h-9 w-40 text-xs">
+						<SignalLow class="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+						<span class="truncate">
+							{difficultyFilter === 'all' ? 'Difficulté' : difficultyFilter}
+						</span>
 					</Select.Trigger>
 					<Select.Content>
-						<Select.Item value="all">Tous</Select.Item>
-						{#each schoolLevels as level}<Select.Item value={level}>{level}</Select.Item>{/each}
+						<Select.Item value="all">Toutes</Select.Item>
+						{#each difficultes as diff}<Select.Item value={diff}>{diff}</Select.Item>{/each}
 					</Select.Content>
 				</Select.Root>
 
@@ -333,7 +327,7 @@
 						{@const typedSubject = subject as SubjectWithExpand}
 						{@const isOfficial = !subject.campus}
 						{@const isMine = subject.campus === userCampusId}
-						{@const xp = getXpValue(subject.niveaux)}
+						{@const xp = getSubjectXpValue(subject.difficulte)}
 
 						<div
 							class="group relative flex flex-col rounded-md border bg-card shadow-sm transition-all hover:border-epi-blue/50 hover:shadow-md"
@@ -380,14 +374,23 @@
 										{/if}
 									</div>
 
-									<div class="flex flex-wrap gap-1">
-										{#each subject.niveaux as niv}
-											<Badge
-												variant="outline"
-												class="border-foreground/30 text-[10px] font-bold text-foreground/80"
-												>{niv}</Badge
-											>
-										{/each}
+									<div class="flex items-center gap-2">
+										<Badge
+											variant="outline"
+											class={cn(
+												'text-[10px] font-bold uppercase',
+												getDifficultyColor(subject.difficulte)
+											)}
+										>
+											{#if subject.difficulte === 'Débutant'}
+												<SignalLow class="mr-1 h-3 w-3" />
+											{:else if subject.difficulte === 'Intermédiaire'}
+												<SignalMedium class="mr-1 h-3 w-3" />
+											{:else}
+												<SignalHigh class="mr-1 h-3 w-3" />
+											{/if}
+											{subject.difficulte}
+										</Badge>
 									</div>
 
 									<Separator />
@@ -464,7 +467,7 @@
 								<Table.Head class="w-12.5"></Table.Head>
 								<Table.Head>Sujet</Table.Head>
 								<Table.Head class="hidden md:table-cell">Thèmes</Table.Head>
-								<Table.Head class="hidden sm:table-cell">Niveaux</Table.Head>
+								<Table.Head class="hidden sm:table-cell">Difficulté</Table.Head>
 								<Table.Head class="text-right">XP</Table.Head>
 								<Table.Head class="w-20"></Table.Head>
 							</Table.Row>
@@ -474,7 +477,7 @@
 								{@const typedSubject = subject as SubjectWithExpand}
 								{@const isOfficial = !subject.campus}
 								{@const isMine = subject.campus === userCampusId}
-								{@const xp = getXpValue(subject.niveaux)}
+								{@const xp = getSubjectXpValue(subject.difficulte)}
 								<Table.Row class="group hover:bg-muted/30">
 									<Table.Cell class="text-center">
 										<div
@@ -506,14 +509,17 @@
 													>{/each}{/if}
 										</div></Table.Cell
 									>
-									<Table.Cell class="hidden sm:table-cell"
-										><div class="flex flex-wrap gap-1">
-											{#each subject.niveaux as niv}<Badge
-													variant="outline"
-													class="border-foreground/20 font-bold">{niv}</Badge
-												>{/each}
-										</div></Table.Cell
-									>
+									<Table.Cell class="hidden sm:table-cell">
+										<Badge
+											variant="outline"
+											class={cn(
+												'text-[10px] font-bold uppercase',
+												getDifficultyColor(subject.difficulte)
+											)}
+										>
+											{subject.difficulte}
+										</Badge>
+									</Table.Cell>
 									<Table.Cell class="text-right font-bold text-foreground/80">{xp}</Table.Cell>
 									<Table.Cell>
 										<div
@@ -608,23 +614,23 @@
 					<Label>Thèmes</Label><MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
 				</div>
 				<div class="grid gap-3 rounded-md border bg-muted/20 p-4">
-					<Label>Niveaux cibles</Label>
+					<Label>Difficulté</Label>
 					<div class="flex flex-wrap gap-2">
-						{#each schoolLevels as level}
-							{@const isActive = $form.niveaux.includes(level as any)}
+						{#each difficultes as diff}
+							{@const isActive = $form.difficulte === diff}
 							<Button
 								type="button"
 								variant={isActive ? 'default' : 'outline'}
 								size="sm"
-								onclick={() => toggleLevel(level)}
+								onclick={() => ($form.difficulte = diff)}
 								class={cn(
 									'h-8 text-xs transition-all',
 									isActive ? 'bg-epi-blue hover:bg-epi-blue/90' : 'text-muted-foreground'
 								)}
-								>{level}{#if isActive}<Check class="ml-1.5 h-3 w-3" />{/if}</Button
+								>{diff}{#if isActive}<Check class="ml-1.5 h-3 w-3" />{/if}</Button
 							>
-							{#if isActive}<input type="hidden" name="niveaux" value={level} />{/if}
 						{/each}
+						<input type="hidden" name="difficulte" value={$form.difficulte} />
 					</div>
 				</div>
 				<div class="grid gap-2">

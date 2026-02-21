@@ -8,7 +8,8 @@ import type {
 	ParticipationsResponse,
 	EventsResponse,
 	SubjectsResponse,
-	ThemesResponse
+	ThemesResponse,
+	StudentsNiveauDifficulteOptions
 } from '$lib/pocketbase-types';
 
 type SubjectExpand = {
@@ -58,6 +59,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		}
 
 		const form = await superValidate(student, zod4(studentSchema));
+		if (!student.niveau_difficulte) form.data.niveau_difficulte = 'Débutant';
 
 		return {
 			student,
@@ -77,7 +79,10 @@ export const actions: Actions = {
 		if (!form.valid) return fail(400, { form });
 
 		try {
-			await locals.pb.collection('students').update(params.id, form.data);
+			await locals.pb.collection('students').update(params.id, {
+				...form.data,
+				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions
+			});
 			return message(form, 'Profil mis à jour avec succès !');
 		} catch (err) {
 			return message(form, 'Erreur lors de la mise à jour', { status: 500 });

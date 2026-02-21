@@ -4,7 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 import { createScoped } from '$lib/pocketbase';
-import { StudentsNiveauOptions } from '$lib/pocketbase-types';
+import { StudentsNiveauOptions, StudentsNiveauDifficulteOptions } from '$lib/pocketbase-types';
 import { ClientResponseError } from 'pocketbase';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -28,7 +28,8 @@ export const actions: Actions = {
 			// Scoped Creation
 			await createScoped(locals.pb, 'students', {
 				...form.data,
-				niveau: form.data.niveau as StudentsNiveauOptions
+				niveau: form.data.niveau as StudentsNiveauOptions,
+				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions
 			});
 			return message(form, 'Élève ajouté avec succès !');
 		} catch (err) {
@@ -49,7 +50,10 @@ export const actions: Actions = {
 		const id = formData.get('id') as string;
 		if (!form.valid || !id) return fail(400, { form });
 		try {
-			await locals.pb.collection('students').update(id, form.data);
+			await locals.pb.collection('students').update(id, {
+				...form.data,
+				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions
+			});
 			return message(form, 'Élève modifié avec succès !');
 		} catch (err) {
 			if (err instanceof ClientResponseError && err.status === 400) {

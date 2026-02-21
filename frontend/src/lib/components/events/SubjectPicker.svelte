@@ -8,20 +8,20 @@
 	import {
 		Search,
 		BookOpen,
-		Funnel,
 		Tag,
-		ExternalLink,
 		Sparkles,
 		School,
 		MapPin,
-		Globe,
-		Share2,
 		Check,
 		Save,
-		X
+		X,
+		SignalLow,
+		SignalMedium,
+		SignalHigh
 	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { page } from '$app/state';
+	import { getSubjectXpValue } from '$lib/xp';
 
 	let {
 		open = $bindable(false),
@@ -29,6 +29,7 @@
 		themes = [],
 		selectedSubjectIds = [],
 		studentLevel = null,
+		defaultThemeId = null,
 		onSave
 	}: {
 		open: boolean;
@@ -38,6 +39,7 @@
 		themes: any[];
 		selectedSubjectIds: string[];
 		studentLevel?: string | null;
+		defaultThemeId?: string | null;
 		onSave: (ids: string[]) => void;
 	} = $props();
 
@@ -45,38 +47,27 @@
 	let userCampusId = $derived(page.data.user?.campus);
 
 	let searchQuery = $state('');
-	let selectedLevel = $state('all');
+	let selectedDifficulte = $state('all');
 	let selectedTheme = $state('all');
 	let selectedSource = $state('all'); // all, official, mine, community
 
 	// Internal state for selection within the modal
 	let currentSelection = $state<string[]>([]);
 
-	// Reset/Sync local selection when modal opens
+	// Reset/Sync local selection and filters when modal opens
 	$effect(() => {
 		if (open) {
 			currentSelection = [...selectedSubjectIds];
+			// Reset filters on open
+			searchQuery = '';
+			selectedDifficulte = 'all';
+			selectedSource = 'all';
+			// Set theme to event theme by default if provided
+			selectedTheme = defaultThemeId || 'all';
 		}
 	});
 
-	const levels = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
-
-	// Helper to calculate XP visually
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	function getXp(niveaux: string[]): number {
-		const map: Record<string, number> = {
-			'6eme': 10,
-			'5eme': 15,
-			'4eme': 20,
-			'3eme': 25,
-			'2nde': 35,
-			'1ere': 45,
-			Terminale: 55,
-			Sup: 70
-		};
-		if (!niveaux || niveaux.length === 0) return 10;
-		return Math.max(...niveaux.map((l) => map[l] || 10));
-	}
+	const difficulties = ['Débutant', 'Intermédiaire', 'Avancé'];
 
 	let filteredSubjects = $derived(
 		subjects
@@ -87,19 +78,12 @@
 					sub.nom.toLowerCase().includes(searchLower) ||
 					(sub.description || '').toLowerCase().includes(searchLower);
 
-				// Level Filter
-				const matchesLevel =
-					selectedLevel === 'all' || (sub.niveaux && sub.niveaux.includes(selectedLevel));
+				// Difficulty Filter
+				const matchesDiff = selectedDifficulte === 'all' || sub.difficulte === selectedDifficulte;
 
 				// Theme Filter
 				const matchesTheme =
-					selectedTheme === 'all' ||
-					(sub.expand?.themes &&
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						sub.expand.themes.some(
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(t: any) => t.id === selectedTheme || t.nom === selectedTheme
-						));
+					selectedTheme === 'all' || (sub.themes && sub.themes.includes(selectedTheme));
 
 				// Source Filter Logic
 				const isOfficial = !sub.campus;
@@ -109,20 +93,28 @@
 				if (selectedSource === 'mine') matchesSource = isMine;
 				if (selectedSource === 'community') matchesSource = !isOfficial && !isMine;
 
-				return matchesSearch && matchesLevel && matchesTheme && matchesSource;
+				return matchesSearch && matchesDiff && matchesTheme && matchesSource;
 			})
 			.sort((a, b) => {
-				// Selection priority
+				// 1. Selection priority
 				const aSel = currentSelection.includes(a.id) ? 1 : 0;
 				const bSel = currentSelection.includes(b.id) ? 1 : 0;
 				if (aSel !== bSel) return bSel - aSel;
 
-				// Sort logic: "Recommended" (matches student level) first, then alphabetical
+				// 2. Recommended priority (matching student's difficulty level)
 				if (studentLevel) {
-					const aMatch = a.niveaux?.includes(studentLevel) ? 1 : 0;
-					const bMatch = b.niveaux?.includes(studentLevel) ? 1 : 0;
+					const aMatch = a.difficulte === studentLevel ? 1 : 0;
+					const bMatch = b.difficulte === studentLevel ? 1 : 0;
 					if (aMatch !== bMatch) return bMatch - aMatch;
 				}
+
+				// 3. Difficulty order
+				const diffOrder: Record<string, number> = { Débutant: 1, Intermédiaire: 2, Avancé: 3 };
+				const aDiff = diffOrder[a.difficulte] || 0;
+				const bDiff = diffOrder[b.difficulte] || 0;
+				if (aDiff !== bDiff) return aDiff - bDiff;
+
+				// 4. Alphabetical
 				return a.nom.localeCompare(b.nom);
 			})
 	);
@@ -140,11 +132,22 @@
 		open = false;
 	}
 
-	// Helper to display theme name in Select trigger
+	function getDifficultyStyles(diff: string) {
+		switch (diff) {
+			case 'Débutant':
+				return 'bg-green-100 text-green-800 border-green-200';
+			case 'Intermédiaire':
+				return 'bg-blue-100 text-blue-800 border-blue-200';
+			case 'Avancé':
+				return 'bg-purple-100 text-purple-800 border-purple-200';
+			default:
+				return 'bg-muted text-muted-foreground';
+		}
+	}
+
 	function getThemeName(id: string) {
 		if (id === 'all') return 'Tous';
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const t = themes.find((th: any) => th.id === id);
+		const t = themes.find((th) => th.id === id);
 		return t ? t.nom : id;
 	}
 </script>
@@ -157,7 +160,9 @@
 				Gérer les sujets
 			</Dialog.Title>
 			<Dialog.Description>
-				Assignez un ou plusieurs sujets à l'élève ({studentLevel || 'N/A'}).
+				Assignez des sujets. Niveau actuel de l'élève : <span class="font-bold text-foreground"
+					>{studentLevel || 'Non défini'}</span
+				>.
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -180,23 +185,45 @@
 				</div>
 
 				<div class="flex flex-wrap gap-2">
-					<!-- Level Filter -->
+					<!-- Difficulty Filter -->
 					<div class="flex h-9 items-center rounded-sm border bg-background">
 						<div
 							class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
 						>
-							Niveau
+							Difficulté
 						</div>
-						<Select.Root type="single" bind:value={selectedLevel}>
+						<Select.Root type="single" bind:value={selectedDifficulte}>
 							<Select.Trigger
 								class="h-full min-w-20 border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
 							>
-								{selectedLevel === 'all' ? 'Tous' : selectedLevel}
+								{selectedDifficulte === 'all' ? 'Toutes' : selectedDifficulte}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="all">Toutes</Select.Item>
+								{#each difficulties as diff}
+									<Select.Item value={diff}>{diff}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+
+					<!-- Theme Filter -->
+					<div class="flex h-9 items-center rounded-sm border bg-background">
+						<div
+							class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
+						>
+							Thème
+						</div>
+						<Select.Root type="single" bind:value={selectedTheme}>
+							<Select.Trigger
+								class="h-full min-w-20 border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
+							>
+								{getThemeName(selectedTheme)}
 							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="all">Tous</Select.Item>
-								{#each levels as lvl}
-									<Select.Item value={lvl}>{lvl}</Select.Item>
+								{#each themes as t}
+									<Select.Item value={t.id}>{t.nom}</Select.Item>
 								{/each}
 							</Select.Content>
 						</Select.Root>
@@ -227,15 +254,15 @@
 						</Select.Root>
 					</div>
 
-					{#if studentLevel && selectedLevel !== studentLevel}
+					{#if studentLevel && selectedDifficulte !== studentLevel}
 						<Button
 							variant="outline"
 							size="sm"
 							class="h-9 border-epi-teal/50 bg-epi-teal/10 text-xs text-teal-700 hover:bg-epi-teal/20"
-							onclick={() => (selectedLevel = studentLevel || 'all')}
+							onclick={() => (selectedDifficulte = studentLevel || 'all')}
 						>
 							<Sparkles class="mr-1 h-3 w-3" />
-							Niveau {studentLevel}
+							Recommandé ({studentLevel})
 						</Button>
 					{/if}
 				</div>
@@ -267,7 +294,7 @@
 			<div class="divide-y p-0">
 				{#each filteredSubjects as sub (sub.id)}
 					{@const isSelected = currentSelection.includes(sub.id)}
-					{@const isRecommended = studentLevel && sub.niveaux?.includes(studentLevel)}
+					{@const isRecommended = studentLevel && sub.difficulte === studentLevel}
 					{@const isOfficial = !sub.campus}
 					{@const isMine = sub.campus === userCampusId}
 
@@ -310,32 +337,54 @@
 											<MapPin class="h-3 w-3" />
 										</div>
 									{/if}
+
+									{#if isRecommended}
+										<Badge
+											variant="outline"
+											class="h-4 border-epi-teal bg-epi-teal/10 px-1 text-[8px] text-teal-700"
+										>
+											RECOMMANDÉ
+										</Badge>
+									{/if}
 								</div>
 
 								<p class="line-clamp-1 text-xs text-muted-foreground">
 									{sub.description}
 								</p>
 
-								<div class="mt-1 flex flex-wrap gap-1">
-									{#each sub.niveaux as niv}
-										<span
-											class={cn(
-												'rounded-xs border px-1 py-0.5 text-[9px] font-bold uppercase',
-												studentLevel === niv
-													? 'border-epi-teal bg-epi-teal text-black'
-													: 'border-border text-muted-foreground'
-											)}
-										>
-											{niv}
-										</span>
-									{/each}
+								<div class="mt-1 flex flex-wrap items-center gap-2">
+									<Badge
+										variant="outline"
+										class={cn(
+											'text-[9px] font-bold uppercase',
+											getDifficultyStyles(sub.difficulte)
+										)}
+									>
+										{#if sub.difficulte === 'Débutant'}
+											<SignalLow class="mr-1 h-3 w-3" />
+										{:else if sub.difficulte === 'Intermédiaire'}
+											<SignalMedium class="mr-1 h-3 w-3" />
+										{:else}
+											<SignalHigh class="mr-1 h-3 w-3" />
+										{/if}
+										{sub.difficulte}
+									</Badge>
+
+									{#if sub.themes && sub.themes.length > 0}
+										<div class="flex items-center gap-1">
+											<Tag class="h-3 w-3 text-muted-foreground" />
+											{#each sub.themes as tId}
+												<span class="text-[9px] text-muted-foreground">#{getThemeName(tId)}</span>
+											{/each}
+										</div>
+									{/if}
 								</div>
 							</div>
 						</div>
 
 						<div class="flex flex-col items-end gap-1">
 							<Badge variant="secondary" class="font-mono font-bold text-epi-orange">
-								{getXp(sub.niveaux)} XP
+								{getSubjectXpValue(sub.difficulte)} XP
 							</Badge>
 						</div>
 					</button>

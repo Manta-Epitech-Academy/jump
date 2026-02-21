@@ -17,7 +17,8 @@
 		Users,
 		ExternalLink,
 		Trash2,
-		CalendarClock
+		CalendarClock,
+		SignalLow
 	} from 'lucide-svelte';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
@@ -34,6 +35,7 @@
 	import { formatDateFr, cn } from '$lib/utils';
 	import { enhance as kitEnhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { difficultes } from '$lib/validation/students';
 
 	let { data }: { data: PageData } = $props();
 
@@ -64,6 +66,19 @@
 	const niveaux = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
 
 	let xpProgress = $derived(Math.min((data.student.xp / 1000) * 100, 100));
+
+	function getDifficultyColor(diff: string) {
+		switch (diff) {
+			case 'Débutant':
+				return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400';
+			case 'Intermédiaire':
+				return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-900/20 dark:text-blue-400';
+			case 'Avancé':
+				return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/30 dark:bg-purple-900/20 dark:text-purple-400';
+			default:
+				return 'border-border text-muted-foreground';
+		}
+	}
 </script>
 
 <div class="space-y-6 pb-10">
@@ -90,9 +105,21 @@
 						{data.student.prenom}
 						{data.student.nom}
 					</Card.Title>
-					<Badge variant="outline" class="mt-1 border-epi-blue font-bold text-epi-blue uppercase">
-						{data.student.niveau}
-					</Badge>
+					<div class="mt-1 flex flex-col items-center gap-1">
+						<Badge variant="outline" class="border-epi-blue font-bold text-epi-blue uppercase">
+							{data.student.niveau}
+						</Badge>
+						<Badge
+							variant="outline"
+							class={cn(
+								'text-[10px] font-bold uppercase',
+								getDifficultyColor(data.student.niveau_difficulte || 'Débutant')
+							)}
+						>
+							<SignalLow class="mr-1 h-3 w-3" />
+							{data.student.niveau_difficulte || 'Débutant'}
+						</Badge>
+					</div>
 				</Card.Header>
 				<Card.Content class="space-y-6">
 					<!-- Contact Info -->
@@ -438,18 +465,39 @@
 					</div>
 				</div>
 
-				<div class="space-y-2">
-					<Label>Niveau</Label>
-					<Select.Root type="single" name="niveau" bind:value={$form.niveau}>
-						<Select.Trigger>{$form.niveau}</Select.Trigger>
-						<Select.Content>
-							{#each niveaux as n}
-								<Select.Item value={n}>{n}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-					<input type="hidden" name="niveau" value={$form.niveau} />
-					{#if $errors.niveau}<p class="text-xs text-destructive">{$errors.niveau}</p>{/if}
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2">
+						<Label>Niveau Scolaire</Label>
+						<Select.Root type="single" name="niveau" bind:value={$form.niveau}>
+							<Select.Trigger>{$form.niveau}</Select.Trigger>
+							<Select.Content>
+								{#each niveaux as n}
+									<Select.Item value={n}>{n}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="niveau" value={$form.niveau} />
+						{#if $errors.niveau}<p class="text-xs text-destructive">{$errors.niveau}</p>{/if}
+					</div>
+					<div class="space-y-2">
+						<Label>Niveau de Difficulté</Label>
+						<Select.Root
+							type="single"
+							name="niveau_difficulte"
+							bind:value={$form.niveau_difficulte}
+						>
+							<Select.Trigger>{$form.niveau_difficulte || 'Débutant'}</Select.Trigger>
+							<Select.Content>
+								{#each difficultes as d}
+									<Select.Item value={d}>{d}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="niveau_difficulte" value={$form.niveau_difficulte} />
+						{#if $errors.niveau_difficulte}<p class="text-xs text-destructive">
+								{$errors.niveau_difficulte}
+							</p>{/if}
+					</div>
 				</div>
 
 				<Dialog.Footer class="flex items-center justify-between">

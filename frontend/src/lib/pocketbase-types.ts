@@ -140,6 +140,12 @@ export enum StudentsNiveauOptions {
 	"Terminale" = "Terminale",
 	"Sup" = "Sup",
 }
+
+export enum StudentsNiveauDifficulteOptions {
+	"Débutant" = "Débutant",
+	"Intermédiaire" = "Intermédiaire",
+	"Avancé" = "Avancé",
+}
 export type StudentsRecord = {
 	campus: RecordIdString
 	created: IsoAutoDateString
@@ -147,6 +153,7 @@ export type StudentsRecord = {
 	events_count?: number
 	id: string
 	niveau?: StudentsNiveauOptions
+	niveau_difficulte?: StudentsNiveauDifficulteOptions
 	nom: string
 	parent_email?: string
 	parent_phone?: string
@@ -156,23 +163,18 @@ export type StudentsRecord = {
 	xp?: number
 }
 
-export enum SubjectsNiveauxOptions {
-	"6eme" = "6eme",
-	"5eme" = "5eme",
-	"4eme" = "4eme",
-	"3eme" = "3eme",
-	"2nde" = "2nde",
-	"1ere" = "1ere",
-	"Terminale" = "Terminale",
-	"Sup" = "Sup",
+export enum SubjectsDifficulteOptions {
+	"Débutant" = "Débutant",
+	"Intermédiaire" = "Intermédiaire",
+	"Avancé" = "Avancé",
 }
 export type SubjectsRecord = {
 	campus?: RecordIdString
 	created: IsoAutoDateString
 	description?: string
+	difficulte: SubjectsDifficulteOptions
 	id: string
 	link?: string
-	niveaux: SubjectsNiveauxOptions[]
 	nom: string
 	themes?: RecordIdString[]
 	updated: IsoAutoDateString
@@ -250,11 +252,11 @@ export type CollectionResponses = {
 
 type ProcessCreateAndUpdateFields<T> = Omit<{
 	// Omit AutoDate fields
-	[K in keyof T as Extract<T[K], IsoAutoDateString> extends never ? K : never]: 
+	[K in keyof T as Extract<T[K], IsoAutoDateString> extends never ? K : never]:
 		// Convert FileNameString to File
-		T[K] extends infer U ? 
-			U extends (FileNameString | FileNameString[]) ? 
-				U extends any[] ? File[] : File 
+		T[K] extends infer U ?
+			U extends (FileNameString | FileNameString[]) ?
+				U extends any[] ? File[] : File
 			: U
 		: never
 }, 'id'>

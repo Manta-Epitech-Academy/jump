@@ -5,11 +5,10 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { subjectSchema } from '$lib/validation/subjects';
 import { ClientResponseError } from 'pocketbase';
 import { createScoped } from '$lib/pocketbase';
-import { SubjectsNiveauxOptions } from '$lib/pocketbase-types';
+import { SubjectsDifficulteOptions } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Fetch ALL subjects (Official + Local + Community)
-	// We expand 'campus' to display the creator's name for community subjects
 	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: '-created',
 		expand: 'themes,campus'
@@ -30,7 +29,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 /**
  * Helper to convert a list of Theme Names (strings) into Theme IDs.
- * Creates the theme (Locally Scoped) if it doesn't exist.
  */
 async function processThemes(pb: App.Locals['pb'], themeNames: string[]) {
 	const themeIds: string[] = [];
@@ -39,7 +37,6 @@ async function processThemes(pb: App.Locals['pb'], themeNames: string[]) {
 		if (!name.trim()) continue;
 
 		try {
-			// Search global or local
 			const userCampus = pb.authStore.record?.campus;
 			const existing = await pb
 				.collection('themes')
@@ -48,7 +45,6 @@ async function processThemes(pb: App.Locals['pb'], themeNames: string[]) {
 				);
 			themeIds.push(existing.id);
 		} catch (e) {
-			// Create Local Theme
 			const created = await createScoped(pb, 'themes', { nom: name });
 			themeIds.push(created.id);
 		}
@@ -67,10 +63,9 @@ export const actions: Actions = {
 		try {
 			const themeIds = await processThemes(locals.pb, form.data.themes);
 
-			// Create Local Subject (Scoped)
 			await createScoped(locals.pb, 'subjects', {
 				...form.data,
-				niveaux: form.data.niveaux as SubjectsNiveauxOptions[],
+				difficulte: form.data.difficulte as SubjectsDifficulteOptions,
 				themes: themeIds
 			});
 
@@ -97,8 +92,6 @@ export const actions: Actions = {
 		try {
 			const subject = await locals.pb.collection('subjects').getOne(id);
 
-			// SECURITY CHECK:
-			// Users can only update subjects that belong to their campus.
 			if (subject.campus !== locals.user?.campus) {
 				return message(form, "Vous ne pouvez pas modifier un sujet qui n'est pas le vôtre.", {
 					status: 403
@@ -109,7 +102,7 @@ export const actions: Actions = {
 
 			await locals.pb.collection('subjects').update(id, {
 				...form.data,
-				niveaux: form.data.niveaux as SubjectsNiveauxOptions[],
+				difficulte: form.data.difficulte as SubjectsDifficulteOptions,
 				themes: themeIds
 			});
 
@@ -127,8 +120,6 @@ export const actions: Actions = {
 		try {
 			const subject = await locals.pb.collection('subjects').getOne(id);
 
-			// SECURITY CHECK:
-			// Users can only delete subjects that belong to their campus.
 			if (subject.campus !== locals.user?.campus) {
 				return fail(403, {
 					message: "Vous ne pouvez pas supprimer un sujet qui n'est pas le vôtre."
