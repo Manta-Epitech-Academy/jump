@@ -26,7 +26,7 @@
 		SignalHigh,
 		X,
 		Funnel,
-		ArrowUpRight,
+		ArrowUpRight
 	} from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -55,7 +55,7 @@
 
 	let userCampusId = $derived(page.data.user?.campus);
 
-	const { form, enhance, delayed, reset } = superForm(
+	const { form, errors, enhance, delayed, reset } = superForm(
 		untrack(() => data.form),
 		{
 			dataType: 'json',
@@ -64,7 +64,7 @@
 					open = false;
 					toast.success(result.data?.form.message);
 				} else if (result.type === 'failure') {
-					toast.error('Erreur lors de la validation');
+					toast.error(result.data?.form.message || 'Erreur lors de la validation');
 				}
 			}
 		}
@@ -105,6 +105,7 @@
 	}
 
 	function openEdit(subject: any) {
+		reset();
 		$form.nom = subject.nom;
 		$form.description = subject.description;
 		$form.difficulte = subject.difficulte || 'Débutant';
@@ -594,24 +595,25 @@
 			>
 				{#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
 				<div class="grid gap-2">
-					<Label for="nom">Nom</Label><Input
+					<Label for="nom">Nom</Label>
+					<Input
 						id="nom"
 						name="nom"
 						bind:value={$form.nom}
 						placeholder="Ex: Master Class Python"
 						class="font-medium"
 					/>
+					{#if $errors.nom}<span class="text-xs text-destructive">{$errors.nom}</span>{/if}
 				</div>
 				<div class="grid gap-2">
-					<Label for="link">Support (URL)</Label><Input
-						id="link"
-						name="link"
-						bind:value={$form.link}
-						placeholder="https://..."
-					/>
+					<Label for="link">Support (URL)</Label>
+					<Input id="link" name="link" bind:value={$form.link} placeholder="https://..." />
+					{#if $errors.link}<span class="text-xs text-destructive">{$errors.link}</span>{/if}
 				</div>
 				<div class="grid gap-2">
-					<Label>Thèmes</Label><MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
+					<Label>Thèmes</Label>
+					<MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
+					{#if $errors.themes}<span class="text-xs text-destructive">{$errors.themes}</span>{/if}
 				</div>
 				<div class="grid gap-3 rounded-md border bg-muted/20 p-4">
 					<Label>Difficulté</Label>
@@ -632,15 +634,21 @@
 						{/each}
 						<input type="hidden" name="difficulte" value={$form.difficulte} />
 					</div>
+					{#if $errors.difficulte}<span class="text-xs text-destructive">{$errors.difficulte}</span
+						>{/if}
 				</div>
 				<div class="grid gap-2">
-					<Label for="description">Description</Label><Textarea
+					<Label for="description">Description</Label>
+					<Textarea
 						id="description"
 						name="description"
 						bind:value={$form.description}
 						placeholder="Objectifs..."
 						class="min-h-32 resize-none"
 					/>
+					{#if $errors.description}<span class="text-xs text-destructive"
+							>{$errors.description}</span
+						>{/if}
 				</div>
 				<Dialog.Footer class="gap-2 pt-2"
 					><Button type="button" variant="ghost" onclick={() => (open = false)}>Annuler</Button
