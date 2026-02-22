@@ -43,7 +43,8 @@
 		form,
 		errors,
 		delayed,
-		enhance: superEnhance
+		enhance: superEnhance,
+		reset
 	} = superForm(
 		untrack(() => data.form),
 		{
@@ -60,7 +61,7 @@
 	let deleteDialogOpen = $state(false);
 
 	function getInitials(prenom: string, nom: string) {
-		return (prenom[0] + nom[0]).toUpperCase();
+		return (prenom?.[0] || '' + nom?.[0] || '').toUpperCase();
 	}
 
 	const niveaux = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
@@ -78,6 +79,19 @@
 			default:
 				return 'border-border text-muted-foreground';
 		}
+	}
+
+	function openEdit() {
+		reset();
+		$form.prenom = data.student.prenom;
+		$form.nom = data.student.nom;
+		$form.email = data.student.email ?? '';
+		$form.phone = data.student.phone ?? '';
+		$form.parent_email = data.student.parent_email ?? '';
+		$form.parent_phone = data.student.parent_phone ?? '';
+		$form.niveau = data.student.niveau;
+		$form.niveau_difficulte = data.student.niveau_difficulte ?? 'Débutant';
+		editOpen = true;
 	}
 </script>
 
@@ -224,7 +238,7 @@
 						{/if}
 					</div>
 
-					<Button variant="outline" class="w-full" onclick={() => (editOpen = true)}>
+					<Button variant="outline" class="w-full" onclick={openEdit}>
 						<Pencil class="mr-2 h-3.5 w-3.5" /> Modifier le profil
 					</Button>
 				</Card.Content>
