@@ -86,6 +86,8 @@
 		$form.prenom = student.prenom;
 		$form.email = student.email || '';
 		$form.phone = student.phone || '';
+		$form.parent_email = student.parent_email || '';
+		$form.parent_phone = student.parent_phone || '';
 		$form.niveau = student.niveau;
 		$form.niveau_difficulte = student.niveau_difficulte || 'Débutant';
 
@@ -218,6 +220,35 @@
 								placeholder="06..."
 							/>
 							{#if $errors.phone}<span class="text-xs text-destructive">{$errors.phone}</span>{/if}
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-4">
+						<div class="grid gap-2">
+							<Label for="parent_email">Email Parent (Optionnel)</Label>
+							<Input
+								id="parent_email"
+								name="parent_email"
+								type="email"
+								bind:value={$form.parent_email}
+								placeholder="parent@example.com"
+							/>
+							{#if $errors.parent_email}<span class="text-xs text-destructive"
+									>{$errors.parent_email}</span
+								>{/if}
+						</div>
+						<div class="grid gap-2">
+							<Label for="parent_phone">Téléphone Parent (Optionnel)</Label>
+							<Input
+								id="parent_phone"
+								name="parent_phone"
+								type="tel"
+								bind:value={$form.parent_phone}
+								placeholder="06..."
+							/>
+							{#if $errors.parent_phone}<span class="text-xs text-destructive"
+									>{$errors.parent_phone}</span
+								>{/if}
 						</div>
 					</div>
 
