@@ -3,7 +3,6 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
-import { ClientResponseError } from 'pocketbase';
 
 const campusSchema = z.object({
 	name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim()
@@ -56,15 +55,23 @@ export const actions: Actions = {
 		const id = url.searchParams.get('id');
 		if (!id) return fail(400);
 
-		try {
+    try {
+      // SECURITY : Checkk if the campus is used before deleting
+			const [studentsUsed, eventsUsed, staffUsed] = await Promise.all([
+				locals.pb.collection('students').getList(1, 1, { filter: `campus = "${id}"`, requestKey: null }),
+				locals.pb.collection('events').getList(1, 1, { filter: `campus = "${id}"`, requestKey: null }),
+				locals.pb.collection('users').getList(1, 1, { filter: `campus = "${id}"`, requestKey: null })
+			]);
+
+			if (studentsUsed.totalItems > 0 || eventsUsed.totalItems > 0 || staffUsed.totalItems > 0) {
+				return fail(400, {
+					message: `Suppression impossible : Ce campus contient ${studentsUsed.totalItems} élèves, ${eventsUsed.totalItems} événements et ${staffUsed.totalItems} membres du staff.`
+				});
+			}
+
 			await locals.pb.collection('campuses').delete(id);
 			return { success: true };
 		} catch (err) {
-			if (err instanceof ClientResponseError && err.status === 400) {
-				return fail(400, {
-					message: 'Impossible de supprimer ce campus car il est lié à des données (Élèves, Events).'
-				});
-			}
 			return fail(500, { message: 'Erreur lors de la suppression.' });
 		}
 	}

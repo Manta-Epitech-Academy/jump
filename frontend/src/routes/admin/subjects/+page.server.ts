@@ -88,7 +88,19 @@ export const actions: Actions = {
 		const id = url.searchParams.get('id');
 		if (!id) return fail(400);
 
-		try {
+    try {
+      // SECURITY : Check if the subject is present in at least one participation
+			const usedInParticipations = await locals.pb.collection('participations').getList(1, 1, {
+				filter: `subjects ~ "${id}"`,
+				requestKey: null
+			});
+
+			if (usedInParticipations.totalItems > 0) {
+				return fail(400, {
+					message: "Suppression bloquée : Ce sujet a déjà été utilisé lors d'événements. Le supprimer corromprait l'historique d'XP des élèves."
+				});
+			}
+
 			await locals.pb.collection('subjects').delete(id);
 			return { success: true };
 		} catch (err) {

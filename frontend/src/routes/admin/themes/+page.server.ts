@@ -3,7 +3,6 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
-import { ClientResponseError } from 'pocketbase';
 
 const themeSchema = z.object({
 	nom: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim()
@@ -58,15 +57,22 @@ export const actions: Actions = {
 		const id = url.searchParams.get('id');
 		if (!id) return fail(400);
 
-		try {
+    try {
+			// SECURITY : Check if the theme is used in a subject or an event
+			const [usedInSubjects, usedInEvents] = await Promise.all([
+				locals.pb.collection('subjects').getList(1, 1, { filter: `themes ~ "${id}"`, requestKey: null }),
+				locals.pb.collection('events').getList(1, 1, { filter: `theme = "${id}"`, requestKey: null })
+			]);
+
+			if (usedInSubjects.totalItems > 0 || usedInEvents.totalItems > 0) {
+				return fail(400, {
+					message: `Suppression bloquée : Ce thème est utilisé par ${usedInSubjects.totalItems} sujet(s) et ${usedInEvents.totalItems} événement(s).`
+				});
+			}
+
 			await locals.pb.collection('themes').delete(id);
 			return { success: true };
 		} catch (err) {
-			if (err instanceof ClientResponseError && err.status === 400) {
-				return fail(400, {
-					message: 'Impossible de supprimer ce thème car il est utilisé par des sujets.'
-				});
-			}
 			return fail(500, { message: 'Erreur lors de la suppression.' });
 		}
 	}
