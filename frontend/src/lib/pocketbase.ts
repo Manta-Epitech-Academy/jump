@@ -37,7 +37,18 @@ export async function createScoped<T extends keyof CollectionRecords>(
 	// 1. Get current user model
 	const user = pb.authStore.record;
 
-	if (!user || !user.campus) {
+	if (!user) {
+		throw new Error("Impossible de créer des données : Utilisateur non connecté.");
+	}
+
+	if (user.collectionName === '_superusers') {
+		throw new Error("Les admins ne doivent pas utiliser createScoped, ils agissent globalement sans campus.");
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const staffUser = user as any;
+
+	if (!staffUser.campus) {
 		throw new Error(
 			"Impossible de créer des données : Aucun campus associé à l'utilisateur connecté."
 		);
@@ -46,7 +57,7 @@ export async function createScoped<T extends keyof CollectionRecords>(
 	// 2. Inject campus ID
 	const payload: any = {
 		...data,
-		campus: user.campus
+		campus: staffUser.campus
 	};
 
 	// 3. Perform Create
