@@ -11,7 +11,7 @@
 		Menu,
 		X,
 		LayoutDashboard,
-		Fingerprint
+		FingerprintPattern
 	} from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -77,7 +77,7 @@
 				<div
 					class="flex h-8 w-8 items-center justify-center rounded-sm bg-epi-pink text-white shadow-[0_0_10px_rgba(255,30,247,0.4)]"
 				>
-					<Fingerprint class="h-5 w-5" />
+					<FingerprintPattern class="h-5 w-5" />
 				</div>
 				<span class="hidden text-lg font-black tracking-widest text-slate-100 uppercase md:block">
 					TekCamp <span class="text-epi-pink">Admin</span>
@@ -111,7 +111,7 @@
 							>Session Globale</DropdownMenu.Label
 						>
 						<DropdownMenu.Separator />
-						<form action={resolve('/logout')} method="POST">
+						<form action="{resolve('/logout')}?type=admin" method="POST">
 							<button type="submit" class="w-full cursor-pointer">
 								<DropdownMenu.Item
 									class="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"

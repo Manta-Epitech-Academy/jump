@@ -5,6 +5,8 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			pb: TypedPocketBase;
+			adminPb: TypedPocketBase;
+			userPb: TypedPocketBase;
 			user: UsersResponse | SuperusersResponse | null;
 		}
 		// interface PageData {}

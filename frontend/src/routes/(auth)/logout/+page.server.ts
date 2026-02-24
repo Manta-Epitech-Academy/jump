@@ -3,16 +3,29 @@ import type { Actions } from './$types';
 import { resolve } from '$app/paths';
 
 export const actions: Actions = {
-	default: async ({ locals }) => {
-		// Vérifier qui est en train de se déconnecter avant de vider le store
-		const isSuperuser = locals.user?.collectionName === '_superusers';
+	default: async ({ locals, url }) => {
+		// Check the URL parameter to determine which session to end
+		const type = url.searchParams.get('type');
 
-		// Clear the PocketBase auth store
-		locals.pb.authStore.clear();
-		locals.user = null;
+		if (type === 'admin') {
+			// Clear Admin Auth
+			if (locals.adminPb) locals.adminPb.authStore.clear();
 
-		// Rediriger vers le login correspondant
-		const redirectPath = isSuperuser ? '/admin/login' : '/login';
-		throw redirect(302, resolve(redirectPath));
+			// If we are currently in an admin context, ensure locals.user is null immediately
+			if (locals.user?.collectionName === '_superusers') {
+				locals.user = null;
+			}
+
+			throw redirect(302, resolve('/admin/login'));
+		} else {
+			// Clear User/Staff Auth
+			if (locals.userPb) locals.userPb.authStore.clear();
+
+			if (locals.user?.collectionName === 'users') {
+				locals.user = null;
+			}
+
+			throw redirect(302, resolve('/login'));
+		}
 	}
 };

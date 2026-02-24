@@ -6,15 +6,17 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { adminLoginSchema } from '$lib/validation/auth';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Check if the user is already authenticated
-	if (locals.pb.authStore.isValid && locals.user) {
-		// Redirect superusers to their dashboard
-		if (locals.user.collectionName === '_superusers') {
-			throw redirect(303, resolve('/admin'));
-		} else {
-			// Redirect regular staff to the main application
-			throw redirect(303, resolve('/'));
-		}
+	const adminPb = locals.adminPb;
+	const userPb = locals.userPb;
+
+	// If already authenticated as an Admin
+	if (adminPb?.authStore.isValid) {
+		throw redirect(303, resolve('/admin'));
+	}
+
+	// If already authenticated as a regular Staff member
+	if (userPb?.authStore.isValid) {
+		throw redirect(303, resolve('/'));
 	}
 
 	const form = await superValidate(zod4(adminLoginSchema));
