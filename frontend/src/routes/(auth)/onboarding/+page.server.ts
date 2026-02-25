@@ -1,10 +1,12 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
+import type { UsersResponse } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// If already has a campus, go home, UNLESS we are explicitly asking to change it
-	if (locals.user?.campus && !url.searchParams.get('change')) {
+	const user = locals.user as UsersResponse | null;
+	if (user?.campus && !url.searchParams.get('change')) {
 		throw redirect(303, resolve('/'));
 	}
 
@@ -42,7 +44,7 @@ export const actions: Actions = {
 			});
 
 			// Refresh locals just in case (though redirect will trigger hook again)
-			locals.user.campus = campusId;
+			(locals.user as UsersResponse).campus = campusId;
 		} catch (err) {
 			console.error('Error joining campus:', err);
 			return fail(500, { message: 'Erreur lors de la sauvegarde du campus.' });

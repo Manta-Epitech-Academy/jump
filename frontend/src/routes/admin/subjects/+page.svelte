@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { Plus, Pencil, Trash2, BookOpen, ExternalLink, Globe } from 'lucide-svelte';
+	import type { ThemesResponse } from '$lib/pocketbase-types';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -17,14 +19,17 @@
 	let { data } = $props();
 
 	// Form handling and server response toasts
-	const { form, errors, enhance, delayed, reset } = superForm(data.form, {
-		onResult: ({ result }) => {
-			if (result.type === 'success') {
-				open = false;
-				toast.success(result.data?.form?.message);
+	const { form, errors, enhance, delayed, reset } = superForm(
+		untrack(() => data.form),
+		{
+			onResult: ({ result }) => {
+				if (result.type === 'success') {
+					open = false;
+					toast.success(result.data?.form?.message);
+				}
 			}
 		}
-	});
+	);
 
 	// Dialog visibility variables
 	let open = $state(false);
@@ -106,7 +111,7 @@
 						</Table.Cell>
 						<Table.Cell>
 							<div class="flex flex-wrap gap-1">
-								{#each subject.expand?.themes || [] as theme}
+								{#each (subject.expand as { themes?: ThemesResponse[] })?.themes || [] as theme}
 									<Badge variant="secondary" class="text-[10px]">#{theme.nom}</Badge>
 								{/each}
 							</div>

@@ -94,7 +94,7 @@
 						</TableRow>
 					{:else}
 						<TableRow>
-							<TableCell colspan="3" class="text-center text-muted-foreground"
+							<TableCell colspan={3} class="text-center text-muted-foreground"
 								>Aucun événement.</TableCell
 							>
 						</TableRow>

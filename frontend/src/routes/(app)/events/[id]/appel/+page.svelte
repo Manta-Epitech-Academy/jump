@@ -23,8 +23,6 @@
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	import ParticipationCard from '$lib/components/events/ParticipationCard.svelte';
-	import DiplomaTemplate from '$lib/components/diploma/DiplomaTemplate.svelte';
-	import { generateDiplomaFromHTML } from '$lib/pdfUtils';
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils';
 	import { enhance } from '$app/forms';
@@ -32,8 +30,7 @@
 	import type {
 		ParticipationsResponse,
 		StudentsResponse,
-		SubjectsResponse,
-		EventsResponse
+		SubjectsResponse
 	} from '$lib/pocketbase-types';
 	import { triggerConfetti } from '$lib/actions/confetti';
 	import { resolve } from '$app/paths';
@@ -56,16 +53,6 @@
 
 	let viewMode = $state<'grid' | 'list'>('grid');
 	let filterSubject = $state<string>('all');
-
-	let diplomaData = $state<{
-		student: StudentsResponse | null;
-		event: EventsResponse | null;
-		subject: SubjectsResponse | null;
-	}>({
-		student: null,
-		event: null,
-		subject: null
-	});
 
 	$effect(() => {
 		participations = data.participations as ParticipationWithExpand[];
@@ -155,29 +142,43 @@
 	let totalStudents = $derived(participations.length);
 	let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
 
-	// --- DIPLOMA HANDLER ---
+	// --- DIPLOMA HANDLER (Server-Side) ---
 	async function handleDiplomaDownload(participation: ParticipationWithExpand) {
-		// Update data for the hidden template
-		// For Coding Camps, we take the primary subject (first) for the diploma title
-		diplomaData = {
-			student: participation.expand?.student ?? null,
-			event: data.event,
-			subject: participation.expand?.subjects?.[0] ?? null
-		};
+		const toastId = toast.loading('Génération du diplôme...');
 
-		// Allow slight delay for DOM to update the hidden component
-		setTimeout(async () => {
-			try {
-				const student = participation.expand?.student;
-				const filename = student ? `Diplome_${student.nom}_${student.prenom}.pdf` : 'Diplome.pdf';
-				await generateDiplomaFromHTML('diploma-render-target', filename);
-				triggerConfetti();
-				toast.success('Diplôme téléchargé !');
-			} catch (e) {
-				console.error(e);
-				toast.error('Erreur lors de la génération du PDF');
+		try {
+			const apiUrl = `${resolve('/api/diploma')}?participationId=${participation.id}`;
+			const res = await fetch(apiUrl);
+
+			if (!res.ok) {
+				const errorData = await res.json().catch(() => ({}));
+				throw new Error(errorData.message || 'Erreur lors de la génération');
 			}
-		}, 100);
+
+			const blob = await res.blob();
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+
+			// Extract filename from header
+			const disposition = res.headers.get('Content-Disposition');
+			let filename = 'Diplome.pdf';
+			if (disposition && disposition.indexOf('filename=') !== -1) {
+				filename = disposition.split('filename=')[1].replace(/"/g, '');
+			}
+
+			a.download = filename;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);
+
+			toast.success('Diplôme téléchargé !', { id: toastId });
+			triggerConfetti();
+		} catch (e: any) {
+			console.error(e);
+			toast.error(`Erreur : ${e.message}`, { id: toastId });
+		}
 	}
 </script>
 
@@ -524,16 +525,4 @@
 			</div>
 		{/if}
 	</div>
-</div>
-
-<!-- HIDDEN RENDER TARGET FOR DIPLOMAS -->
-<!-- Positioned far off-screen so user doesn't see it flickering, but html2canvas can capture it. -->
-<div class="fixed top-0 -left-full -z-1">
-	{#if diplomaData.student}
-		<DiplomaTemplate
-			student={diplomaData.student}
-			event={diplomaData.event}
-			subject={diplomaData.subject}
-		/>
-	{/if}
 </div>

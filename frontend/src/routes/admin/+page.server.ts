@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import type { CampusesResponse } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Retrieve global statistics
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			id: e.id,
 			titre: e.titre,
 			date: new Date(e.date),
-			campus: e.expand?.campus?.name || 'Inconnu'
+			campus: (e.expand as { campus?: CampusesResponse })?.campus?.name || 'Inconnu'
 		}))
 	};
 };

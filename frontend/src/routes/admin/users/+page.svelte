@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { CampusesResponse } from '$lib/pocketbase-types';
 	import { Users, Trash2, Mail } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
@@ -82,7 +83,7 @@
 								<input type="hidden" name="userId" value={user.id} />
 								<Select.Root type="single" name="campusId" value={user.campus}>
 									<Select.Trigger class="h-8 w-40 text-xs">
-										{user.expand?.campus?.name || 'Aucun campus'}
+										{(user.expand as { campus?: CampusesResponse })?.campus?.name || 'Aucun campus'}
 									</Select.Trigger>
 									<Select.Content>
 										<Select.Item value="">Aucun campus</Select.Item>

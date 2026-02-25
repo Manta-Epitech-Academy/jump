@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { Plus, Pencil, Trash2, Map } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -12,14 +13,17 @@
 	let { data } = $props();
 
 	// Form handling logic
-	const { form, errors, enhance, delayed, reset } = superForm(data.form, {
-		onResult: ({ result }) => {
-			if (result.type === 'success') {
-				open = false;
-				toast.success(result.data?.form?.message || 'Action réussie');
+	const { form, errors, enhance, delayed, reset } = superForm(
+		untrack(() => data.form),
+		{
+			onResult: ({ result }) => {
+				if (result.type === 'success') {
+					open = false;
+					toast.success(result.data?.form?.message || 'Action réussie');
+				}
 			}
 		}
-	});
+	);
 
 	// Dialog and edit state variables
 	let open = $state(false);

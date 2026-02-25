@@ -22,8 +22,12 @@
 	import { fly, fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import type { UsersResponse, CampusesResponse } from '$lib/pocketbase-types';
+
+	type AppUser = UsersResponse<{ campus?: CampusesResponse }>;
 
 	let { children, data } = $props();
+	let user = $derived(data.user as AppUser | null);
 
 	let commandOpen = $state(false);
 	let mobileMenuOpen = $state(false);
@@ -123,11 +127,11 @@
 				</Button>
 				<a href={resolve('/')} class="flex items-center gap-2">
 					<span class="text-lg font-bold uppercase">TekCamp</span>
-					{#if data.user?.expand?.campus?.name}
+					{#if user?.expand?.campus?.name}
 						<span
 							class="hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-header-foreground/90 uppercase md:inline-block"
 						>
-							{data.user.expand.campus.name}
+							{user.expand.campus.name}
 						</span>
 					{/if}
 				</a>
@@ -174,17 +178,15 @@
 							<span class="font-mono text-[10px] font-bold text-header-foreground/80 uppercase">
 								{displayedGreeting}<span class="animate-pulse">_</span>
 							</span>
-							<span class="text-sm leading-none font-bold"
-								>{data.user?.name || data.user?.username}</span
-							>
+							<span class="text-sm leading-none font-bold">{user?.name || user?.username}</span>
 						</div>
 
 						<div class="flex items-center gap-2">
 							<Avatar.Root class="h-9 w-9 rounded-sm bg-header-foreground/20 md:h-11 md:w-11">
-								{#if data.user?.avatar}
+								{#if user?.avatar}
 									<Avatar.Image
-										src={getAvatarUrl(data.user)}
-										alt={data.user.name ?? data.user.username}
+										src={getAvatarUrl(user)}
+										alt={user.name ?? user.username}
 										class="object-cover"
 									/>
 								{/if}

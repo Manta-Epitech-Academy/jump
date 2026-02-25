@@ -6,6 +6,7 @@ import { subjectSchema } from '$lib/validation/subjects';
 import { ClientResponseError } from 'pocketbase';
 import { createScoped } from '$lib/pocketbase';
 import { SubjectsDifficulteOptions } from '$lib/pocketbase-types';
+import type { UsersResponse } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Fetch ALL subjects (Official + Local + Community)
@@ -92,7 +93,7 @@ export const actions: Actions = {
 		try {
 			const subject = await locals.pb.collection('subjects').getOne(id);
 
-			if (subject.campus !== locals.user?.campus) {
+			if (subject.campus !== (locals.user as UsersResponse)?.campus) {
 				return message(form, "Vous ne pouvez pas modifier un sujet qui n'est pas le vôtre.", {
 					status: 403
 				});
@@ -120,7 +121,7 @@ export const actions: Actions = {
 		try {
 			const subject = await locals.pb.collection('subjects').getOne(id);
 
-			if (subject.campus !== locals.user?.campus) {
+			if (subject.campus !== (locals.user as UsersResponse)?.campus) {
 				return fail(403, {
 					message: "Vous ne pouvez pas supprimer un sujet qui n'est pas le vôtre."
 				});
