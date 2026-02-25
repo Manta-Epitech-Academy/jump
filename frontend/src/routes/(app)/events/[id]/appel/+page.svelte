@@ -461,8 +461,8 @@
 							<div class="flex flex-col">
 								<span class="flex items-center gap-2 text-sm font-bold">
 									<span>
-										{p.expand?.student?.prenom}
 										<span class="uppercase">{p.expand?.student?.nom}</span>
+										{p.expand?.student?.prenom}
 									</span>
 									{#if isNew}
 										<Badge

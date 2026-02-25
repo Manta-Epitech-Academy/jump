@@ -40,9 +40,20 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		.getFullList<ParticipationsResponse<ParticipationExpand>>({
 			filter: `event = "${event.id}"`,
 			expand: 'student,subjects',
-			sort: '-created',
 			requestKey: null
 		});
+
+	// Sort alphabetically by NOM then Prenom
+	participationsRaw.sort((a, b) => {
+		const nomA = a.expand?.student?.nom?.toUpperCase() ?? '';
+		const nomB = b.expand?.student?.nom?.toUpperCase() ?? '';
+		if (nomA < nomB) return -1;
+		if (nomA > nomB) return 1;
+
+		const prenomA = a.expand?.student?.prenom?.toLowerCase() ?? '';
+		const prenomB = b.expand?.student?.prenom?.toLowerCase() ?? '';
+		return prenomA.localeCompare(prenomB);
+	});
 
 	const participations = await Promise.all(
 		participationsRaw.map(async (p) => {

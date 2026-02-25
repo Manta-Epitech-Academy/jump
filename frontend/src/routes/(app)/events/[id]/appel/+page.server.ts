@@ -26,9 +26,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			});
 
 		const participations = rawParticipations.sort((a, b) => {
-			const nameA = a.expand?.student?.nom ?? '';
-			const nameB = b.expand?.student?.nom ?? '';
-			return nameA.localeCompare(nameB);
+			const nomA = a.expand?.student?.nom?.toUpperCase() ?? '';
+			const nomB = b.expand?.student?.nom?.toUpperCase() ?? '';
+			if (nomA < nomB) return -1;
+			if (nomA > nomB) return 1;
+
+			// If noms are equal, sort by prenom
+			const prenomA = a.expand?.student?.prenom?.toLowerCase() ?? '';
+			const prenomB = b.expand?.student?.prenom?.toLowerCase() ?? '';
+			return prenomA.localeCompare(prenomB);
 		});
 
 		return {

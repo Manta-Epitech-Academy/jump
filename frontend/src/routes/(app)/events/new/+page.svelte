@@ -373,9 +373,10 @@
 
 													<div class="flex-1 space-y-1 pl-2">
 														<div class="flex items-center gap-2">
-															<span class="text-sm font-bold"
-																>{row.csvData.prenom} {row.csvData.nom}</span
-															>
+															<span class="text-sm font-bold">
+																{row.csvData.nom}
+																{row.csvData.prenom}
+															</span>
 															<Badge variant="outline" class="text-[10px]"
 																>{row.csvData.niveau}</Badge
 															>
@@ -415,8 +416,8 @@
 														<div class="rounded border bg-white p-2 text-sm shadow-sm">
 															<div class="font-bold text-muted-foreground">En Base :</div>
 															<div class="font-medium">
-																{row.existingStudent.prenom}
 																{row.existingStudent.nom}
+																{row.existingStudent.prenom}
 															</div>
 															<div class="text-xs text-muted-foreground">
 																{row.existingStudent.email}

@@ -15,7 +15,7 @@
 		size?: 'sm' | 'md';
 	} = $props();
 
-	let initials = $derived(((student.prenom?.[0] ?? '') + (student.nom?.[0] ?? '')).toUpperCase());
+	let initials = $derived(((student.nom?.[0] ?? '') + (student.prenom?.[0] ?? '')).toUpperCase());
 
 	let isNew = $derived((student.events_count || 0) === 0);
 
@@ -34,7 +34,8 @@
 	<div class="flex flex-col">
 		<span class="flex items-center gap-2 truncate text-sm font-bold">
 			<span>
-				{formatFirstName(student.prenom)} <span class="uppercase">{student.nom}</span>
+				<span class="uppercase">{student.nom}</span>
+				{formatFirstName(student.prenom)}
 			</span>
 			{#if showBadge && isNew}
 				<Badge

@@ -60,15 +60,15 @@
 		<div class="relative">
 			<Avatar.Root class="rounded-sm border-2 border-transparent">
 				<Avatar.Fallback class="bg-primary/5 font-bold text-primary">
-					{participation.expand.student.prenom[0]}{participation.expand.student.nom[0]}
+					{participation.expand.student.nom[0]}{participation.expand.student.prenom[0]}
 				</Avatar.Fallback>
 			</Avatar.Root>
 		</div>
 		<div>
 			<div class="flex items-center gap-2">
 				<p class="text-sm font-bold">
-					{formatFirstName(participation.expand.student.prenom)}
 					<span class="uppercase">{participation.expand.student.nom}</span>
+					{formatFirstName(participation.expand.student.prenom)}
 				</p>
 				{#if isNewStudent}
 					<Badge

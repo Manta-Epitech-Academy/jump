@@ -61,7 +61,7 @@
 	let deleteDialogOpen = $state(false);
 
 	function getInitials(prenom: string, nom: string) {
-		return (prenom?.[0] || '' + nom?.[0] || '').toUpperCase();
+		return (nom[0] + prenom[0]).toUpperCase();
 	}
 
 	const niveaux = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
@@ -109,15 +109,15 @@
 	<div class="grid gap-6 md:grid-cols-12">
 		<div class="space-y-6 md:col-span-4 lg:col-span-3">
 			<Card.Root class="overflow-hidden border-t-4 border-t-epi-blue shadow-md">
-				<Card.Header class="items-center pb-2 text-center">
+				<Card.Header class="flex flex-col items-center pb-2 text-center">
 					<Avatar.Root class="h-24 w-24 border-4 border-muted bg-white shadow-sm">
 						<Avatar.Fallback class="bg-secondary text-2xl font-bold text-secondary-foreground">
 							{getInitials(data.student.prenom, data.student.nom)}
 						</Avatar.Fallback>
 					</Avatar.Root>
 					<Card.Title class="mt-4 text-xl uppercase">
-						{data.student.prenom}
 						{data.student.nom}
+						{data.student.prenom}
 					</Card.Title>
 					<div class="mt-1 flex flex-col items-center gap-1">
 						<Badge variant="outline" class="border-epi-blue font-bold text-epi-blue uppercase">

@@ -89,8 +89,8 @@
 								: 'border-border'}"
 						>
 							<Avatar.Fallback class="bg-muted font-bold">
-								{(participation.expand?.student?.prenom?.[0] ?? '').toUpperCase()}
 								{(participation.expand?.student?.nom?.[0] ?? '').toUpperCase()}
+								{(participation.expand?.student?.prenom?.[0] ?? '').toUpperCase()}
 							</Avatar.Fallback>
 						</Avatar.Root>
 						{#if participation.is_present}
@@ -111,8 +111,8 @@
 					<div class="flex flex-col items-start gap-1">
 						<div class="flex items-center gap-2">
 							<span class="text-base leading-none font-bold">
-								{formatFirstName(participation.expand?.student?.prenom)}
 								<span class="uppercase">{participation.expand?.student?.nom}</span>
+								{formatFirstName(participation.expand?.student?.prenom)}
 							</span>
 							{#if isNewStudent}
 								<Badge
