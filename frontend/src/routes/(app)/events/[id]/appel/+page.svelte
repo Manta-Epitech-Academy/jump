@@ -14,7 +14,8 @@
 		Award,
 		Info,
 		Sprout,
-		Clock
+		Clock,
+		GraduationCap
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -53,6 +54,7 @@
 
 	let viewMode = $state<'grid' | 'list'>('grid');
 	let filterSubject = $state<string>('all');
+	let filterNiveau = $state<string>('all');
 
 	$effect(() => {
 		participations = data.participations as ParticipationWithExpand[];
@@ -116,6 +118,26 @@
 		return Array.from(subjects.entries());
 	});
 
+	// Get unique classes (niveaux) for filter dropdown
+	let uniqueNiveaux = $derived.by(() => {
+		const niveaux = new Set<string>();
+		const typedParticipations = data.participations as ParticipationWithExpand[];
+		typedParticipations.forEach((p) => {
+			if (p.expand?.student?.niveau) {
+				niveaux.add(p.expand.student.niveau);
+			}
+		});
+		const order = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
+		return Array.from(niveaux).sort((a, b) => {
+			const indexA = order.indexOf(a);
+			const indexB = order.indexOf(b);
+			if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+			if (indexA !== -1) return -1;
+			if (indexB !== -1) return 1;
+			return a.localeCompare(b);
+		});
+	});
+
 	let filteredParticipations = $derived(
 		participations.filter((p) => {
 			const matchesSearch =
@@ -130,8 +152,9 @@
 				(filterStatus === 'late' && (p.delay || 0) > 0);
 
 			const matchesSubject = filterSubject === 'all' || p.subjects?.includes(filterSubject);
+			const matchesNiveau = filterNiveau === 'all' || p.expand?.student?.niveau === filterNiveau;
 
-			return matchesStatus && matchesSubject;
+			return matchesStatus && matchesSubject && matchesNiveau;
 		})
 	);
 
@@ -285,6 +308,20 @@
 						<Select.Item value="all">Tous les sujets</Select.Item>
 						{#each uniqueSubjects as [id, nom]}
 							<Select.Item value={id}>{nom}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+
+				<!-- NIVEAU FILTER -->
+				<Select.Root type="single" bind:value={filterNiveau}>
+					<Select.Trigger class="h-9 w-full text-xs sm:w-45">
+						<GraduationCap class="mr-2 h-3 w-3" />
+						{filterNiveau === 'all' ? 'Toutes les classes' : filterNiveau}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="all">Toutes les classes</Select.Item>
+						{#each uniqueNiveaux as niveau}
+							<Select.Item value={niveau}>{niveau}</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
