@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
+import { pbUrl } from '$lib/pocketbase';
 import { now } from '@internationalized/date';
 import { EventService } from '$lib/server/events';
 import type { EventsResponse, ThemesResponse, UsersResponse } from '$lib/pocketbase-types';
@@ -33,7 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				theme: event.expand?.theme?.nom,
 				mantas: event.expand?.mantas?.map(m => ({
 					name: m.name || m.username,
-					avatarUrl: m.avatar ? `${locals.pb.baseURL}/api/files/${m.collectionId}/${m.id}/${m.avatar}` : null
+					avatarUrl: m.avatar ? `${pbUrl}/api/files/${m.collectionId}/${m.id}/${m.avatar}` : null
 				})) ||[]
 			}))
 		};
