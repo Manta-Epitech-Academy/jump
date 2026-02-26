@@ -97,7 +97,7 @@
 								{#if event.mantas && event.mantas.length > 0}
 									<div class="flex justify-center -space-x-2">
 										{#each event.mantas as manta}
-											<Tooltip.Provider delayDuration={300}>
+											<Tooltip.Provider delayDuration={0}>
 												<Tooltip.Root>
 													<Tooltip.Trigger>
 														<Avatar.Root

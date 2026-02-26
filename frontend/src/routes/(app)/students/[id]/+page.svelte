@@ -346,7 +346,7 @@
 									{#if p.expand?.event?.expand?.mantas && p.expand.event.expand.mantas.length > 0}
 										<div class="flex justify-end -space-x-2">
 											{#each p.expand.event.expand.mantas as manta}
-												<Tooltip.Provider delayDuration={300}>
+												<Tooltip.Provider delayDuration={0}>
 													<Tooltip.Root>
 														<Tooltip.Trigger>
 															<Avatar.Root class="relative h-6 w-6 border-2 border-card hover:z-10">
