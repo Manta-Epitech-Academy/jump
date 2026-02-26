@@ -110,6 +110,7 @@ export type EventsRecord = {
 	created: IsoAutoDateString
 	date: IsoDateString
 	id: string
+	mantas?: RecordIdString[]
 	notes?: string
 	theme?: RecordIdString
 	titre: string
@@ -125,6 +126,7 @@ export type ParticipationsRecord = {
 	id: string
 	is_present?: boolean
 	note?: string
+	note_author?: RecordIdString
 	student: RecordIdString
 	subjects?: RecordIdString[]
 	updated: IsoAutoDateString

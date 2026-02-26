@@ -10,6 +10,7 @@
 	} from '$lib/components/ui/table';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as Avatar from '$lib/components/ui/avatar';
 	import {
 		Calendar,
 		Tag,
@@ -95,9 +96,12 @@
 						<TableHead class="text-xs font-bold uppercase">Événement</TableHead>
 						<TableHead class="text-xs font-bold uppercase">Date & Heure</TableHead>
 						<TableHead class="hidden text-xs font-bold uppercase md:table-cell">Thème</TableHead>
-						<TableHead class="hidden text-center text-xs font-bold uppercase md:table-cell"
-							>Statut</TableHead
-						>
+						<TableHead class="hidden text-center text-xs font-bold uppercase md:table-cell">
+							Mantas
+						</TableHead>
+						<TableHead class="hidden text-center text-xs font-bold uppercase md:table-cell">
+							Statut
+						</TableHead>
 						<TableHead class="text-right"></TableHead>
 					</TableRow>
 				</TableHeader>
@@ -129,6 +133,35 @@
 									</div>
 								{:else}
 									<span class="text-sm text-muted-foreground italic">Aucun thème</span>
+								{/if}
+							</TableCell>
+							<TableCell class="hidden text-center md:table-cell">
+								{#if event.mantas && event.mantas.length > 0}
+									<div class="flex justify-center -space-x-2">
+										{#each event.mantas as manta}
+											<Tooltip.Provider delayDuration={300}>
+												<Tooltip.Root>
+													<Tooltip.Trigger>
+														<Avatar.Root
+															class="relative h-7 w-7 border-2 border-background hover:z-10"
+														>
+															{#if manta.avatarUrl}
+																<Avatar.Image src={manta.avatarUrl} alt={manta.name} />
+															{/if}
+															<Avatar.Fallback
+																class="bg-muted text-[9px] font-bold text-foreground"
+															>
+																{manta.name.substring(0, 2).toUpperCase()}
+															</Avatar.Fallback>
+														</Avatar.Root>
+													</Tooltip.Trigger>
+													<Tooltip.Content><p>{manta.name}</p></Tooltip.Content>
+												</Tooltip.Root>
+											</Tooltip.Provider>
+										{/each}
+									</div>
+								{:else}
+									<span class="text-xs text-muted-foreground italic">-</span>
 								{/if}
 							</TableCell>
 							<TableCell class="hidden text-center md:table-cell">

@@ -15,10 +15,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sort: 'nom'
 	});
 
+	const user = locals.user as any;
+	const staff = await locals.pb.collection('users').getFullList({
+		filter: user?.campus ? `campus = "${user.campus}"` : '',
+		sort: 'name'
+	});
+
 	const form = await superValidate(zod4(eventSchema));
 
 	return {
 		themes,
+		staff,
 		form
 	};
 };
@@ -28,7 +35,6 @@ type ImportAction = {
 	csvData: CsvStudent;
 	suggestedStatus: 'NEW' | 'MERGE' | 'CONFLICT' | 'SIBLING';
 	decision: 'CREATE_NEW' | 'LINK_EXISTING';
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	existingStudent?: any;
 	matchReason?: string;
 	bring_pc: boolean;
@@ -57,7 +63,8 @@ export const actions: Actions = {
 			titre: (formData.get('titre') as string) || '',
 			date: calendarDateTime,
 			time: timeStr,
-			theme: themeInput
+			theme: themeInput,
+			mantas: formData.getAll('mantas') as string[]
 		};
 
 		const form = await superValidate(transformedData, zod4(eventSchema));
@@ -94,7 +101,8 @@ export const actions: Actions = {
 			const payload = {
 				titre: form.data.titre,
 				date: jsDate.toISOString(),
-				theme: themeId ?? undefined
+				theme: themeId ?? undefined,
+				mantas: form.data.mantas
 			};
 
 			const record = await createScoped(locals.pb, 'events', payload);
@@ -211,6 +219,7 @@ export const actions: Actions = {
 		const rawData = formData.get('importData') as string;
 		const eventName = formData.get('eventName') as string;
 		const eventDateStr = formData.get('eventDate') as string;
+		const mantas = formData.getAll('mantas') as string[];
 
 		if (!rawData) return fail(400, { error: 'Données manquantes' });
 
@@ -221,7 +230,8 @@ export const actions: Actions = {
 			// 1. Create Event
 			const eventRecord = await createScoped(locals.pb, 'events', {
 				titre: eventName,
-				date: new Date(eventDateStr).toISOString()
+				date: new Date(eventDateStr).toISOString(),
+				mantas: mantas
 			});
 			newEventId = eventRecord.id;
 

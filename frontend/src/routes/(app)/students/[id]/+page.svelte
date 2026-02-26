@@ -36,6 +36,7 @@
 	import { enhance as kitEnhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { difficultes } from '$lib/validation/students';
+	import { pbUrl } from '$lib/pocketbase';
 
 	let { data }: { data: PageData } = $props();
 
@@ -340,6 +341,34 @@
 											{p.expand?.event?.titre || 'Événement inconnu'}
 										</Card.Title>
 									</div>
+
+									<!-- MANTAS AVATARS DISPLAY -->
+									{#if p.expand?.event?.expand?.mantas && p.expand.event.expand.mantas.length > 0}
+										<div class="flex justify-end -space-x-2">
+											{#each p.expand.event.expand.mantas as manta}
+												<Tooltip.Provider delayDuration={300}>
+													<Tooltip.Root>
+														<Tooltip.Trigger>
+															<Avatar.Root class="relative h-6 w-6 border-2 border-card hover:z-10">
+																{#if manta.avatar}
+																	<Avatar.Image
+																		src={`${pbUrl}/api/files/${manta.collectionId}/${manta.id}/${manta.avatar}`}
+																		alt={manta.name}
+																	/>
+																{/if}
+																<Avatar.Fallback
+																	class="bg-muted text-[8px] font-bold text-foreground"
+																>
+																	{(manta.name || 'ST').substring(0, 2).toUpperCase()}
+																</Avatar.Fallback>
+															</Avatar.Root>
+														</Tooltip.Trigger>
+														<Tooltip.Content><p>{manta.name}</p></Tooltip.Content>
+													</Tooltip.Root>
+												</Tooltip.Provider>
+											{/each}
+										</div>
+									{/if}
 								</div>
 							</Card.Header>
 
@@ -400,10 +429,36 @@
 										<MessageSquareQuote
 											class="absolute -top-2 -right-2 h-6 w-6 fill-yellow-100 text-yellow-400"
 										/>
-										<span class="mb-1 block text-[10px] font-bold text-yellow-700/70 uppercase"
-											>Observation encadrant :</span
-										>
-										<p class="italic">« {p.note} »</p>
+										<div class="mb-1.5 flex items-center gap-2">
+											{#if p.expand?.note_author}
+												<Tooltip.Provider delayDuration={300}>
+													<Tooltip.Root>
+														<Tooltip.Trigger>
+															<Avatar.Root class="h-5 w-5 border border-yellow-300 shadow-xs">
+																{#if p.expand.note_author.avatar}
+																	<Avatar.Image
+																		src={`${pbUrl}/api/files/${p.expand.note_author.collectionId}/${p.expand.note_author.id}/${p.expand.note_author.avatar}`}
+																		alt={p.expand.note_author.name}
+																	/>
+																{/if}
+																<Avatar.Fallback
+																	class="bg-yellow-200 text-[8px] font-bold text-yellow-800"
+																>
+																	{(p.expand.note_author.name || 'ST')
+																		.substring(0, 2)
+																		.toUpperCase()}
+																</Avatar.Fallback>
+															</Avatar.Root>
+														</Tooltip.Trigger>
+														<Tooltip.Content><p>{p.expand.note_author.name}</p></Tooltip.Content>
+													</Tooltip.Root>
+												</Tooltip.Provider>
+											{/if}
+											<span class="text-[10px] font-bold text-yellow-700/70 uppercase">
+												Observation encadrant :
+											</span>
+										</div>
+										<p class="leading-relaxed italic">« {p.note} »</p>
 									</div>
 								{:else if p.is_present}
 									<p class="pl-1 text-xs text-muted-foreground italic">

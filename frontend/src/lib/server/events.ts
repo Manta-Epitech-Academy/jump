@@ -49,7 +49,8 @@ export const EventService = {
 		const newEvent = await createScoped(pb, 'events', {
 			titre: newData.titre,
 			date: newData.date,
-			theme: original.theme
+			theme: original.theme,
+			mantas: original.mantas
 		});
 
 		// 3. Fetch original participations

@@ -15,7 +15,8 @@ export const eventSchema = z.object({
 	time: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Format horaire invalide (HH:MM)'),
 	theme: z.string().default(''),
 	notes: z.string().optional().or(z.literal('')),
-	subject: z.string().optional()
+	subject: z.string().optional(),
+	mantas: z.array(z.string()).default([])
 });
 
 export const addParticipantSchema = z.object({

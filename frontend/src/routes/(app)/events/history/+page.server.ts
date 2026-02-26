@@ -1,10 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import type { EventsResponse, ThemesResponse } from '$lib/pocketbase-types';
+import type { EventsResponse, ThemesResponse, UsersResponse } from '$lib/pocketbase-types';
 import { EventService } from '$lib/server/events';
 
 type EventExpand = {
 	theme?: ThemesResponse;
+	mantas?: UsersResponse[];
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -14,7 +15,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.getFullList<EventsResponse<EventExpand>>({
 				sort: '-date',
 				filter: `date < '${new Date().toISOString()}'`,
-				expand: 'theme',
+				expand: 'theme,mantas',
 				requestKey: null
 			});
 
@@ -31,7 +32,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 					titre: event.titre,
 					date: new Date(event.date),
 					theme: event.expand?.theme?.nom,
-					presentCount: participations.totalItems
+					presentCount: participations.totalItems,
+					mantas: event.expand?.mantas?.map(m => ({
+						name: m.name || m.username,
+						avatarUrl: m.avatar ? `${locals.pb.baseURL}/api/files/${m.collectionId}/${m.id}/${m.avatar}` : null
+					})) ||[]
 				};
 			})
 		);

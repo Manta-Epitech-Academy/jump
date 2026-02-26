@@ -142,7 +142,8 @@ export const actions: Actions = {
 
 		try {
 			await locals.pb.collection('participations').update(id, {
-				note: note
+				note: note,
+				note_author: locals.user?.id
 			});
 			return { success: true };
 		} catch (err) {

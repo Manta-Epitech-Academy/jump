@@ -34,6 +34,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
+	import MultiStaffSelect from '$lib/components/MultiStaffSelect.svelte';
 	import StudentParticipationRow from '$lib/components/events/StudentParticipationRow.svelte';
 	import SubjectPicker from '$lib/components/events/SubjectPicker.svelte';
 	import DatePicker from '$lib/components/DatePicker.svelte';
@@ -302,12 +303,26 @@
 									</p>{/if}
 							</div>
 
-							<div class="space-y-2">
-								<Label>Thème</Label>
-								<ThemeSelect themes={data.themes} bind:value={$editForm.theme} name="theme" />
-								{#if $editErrors.theme}<p class="text-xs text-destructive">
-										{$editErrors.theme}
-									</p>{/if}
+							<div class="grid gap-4">
+								<div class="space-y-2">
+									<Label>Thème</Label>
+									<ThemeSelect themes={data.themes} bind:value={$editForm.theme} name="theme" />
+									{#if $editErrors.theme}<p class="text-xs text-destructive">
+											{$editErrors.theme}
+										</p>{/if}
+								</div>
+
+								<div class="space-y-2">
+									<Label>Mantas</Label>
+									<MultiStaffSelect
+										staff={data.staff}
+										bind:value={$editForm.mantas}
+										name="mantas"
+									/>
+									{#if $editErrors.mantas}<p class="text-xs text-destructive">
+											{$editErrors.mantas}
+										</p>{/if}
+								</div>
 							</div>
 
 							<div class="grid grid-cols-2 gap-4">

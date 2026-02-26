@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	let event;
 	try {
 		event = await locals.pb.collection('events').getOne(params.id, {
-			expand: 'theme',
+			expand: 'theme,mantas',
 			requestKey: null
 		});
 	} catch (e) {
@@ -118,6 +118,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		requestKey: null
 	});
 
+	// Load staff from the same campus for the Mantas selector
+	const user = locals.user as any;
+	const staff = await locals.pb.collection('users').getFullList({
+		filter: user?.campus ? `campus = "${user.campus}"` : '',
+		sort: 'name'
+	});
+
 	const eventDate = new Date(event.date);
 	const dateString = eventDate.toISOString().split('T')[0];
 
@@ -138,7 +145,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			theme: (event as { expand?: { theme?: { nom?: string } } }).expand?.theme?.nom || '',
 			date: dateString,
 			time: timeString,
-			notes: event.notes || ''
+			notes: event.notes || '',
+			mantas: event.mantas || []
 		},
 		zod4(eventSchema)
 	);
@@ -152,6 +160,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		allStudents,
 		subjects,
 		themes,
+		staff,
 		addForm,
 		createStudentForm,
 		editForm
@@ -346,7 +355,8 @@ export const actions: Actions = {
 			date: dateStr,
 			time: timeStr,
 			theme: themeInput,
-			notes: notesInput
+			notes: notesInput,
+			mantas: formData.getAll('mantas') as string[]
 		};
 
 		const form = await superValidate(transformedData, zod4(eventSchema));
@@ -388,7 +398,8 @@ export const actions: Actions = {
 				titre: form.data.titre,
 				date: jsDate.toISOString(),
 				theme: newThemeId ?? undefined,
-				notes: form.data.notes
+				notes: form.data.notes,
+				mantas: form.data.mantas
 			});
 
 			if (oldThemeId !== newThemeId) {

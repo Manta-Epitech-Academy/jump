@@ -31,6 +31,7 @@
 	import { untrack } from 'svelte';
 	import { formatDateFr, cn } from '$lib/utils';
 	import ThemeSelect from '$lib/components/ThemeSelect.svelte';
+	import MultiStaffSelect from '$lib/components/MultiStaffSelect.svelte';
 	import { enhance as kitEnhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { resolve } from '$app/paths';
@@ -50,6 +51,7 @@
 	let isAnalyzing = $state(false);
 	let isConfirming = $state(false);
 	let analysisResult = $state<any>(null);
+	let importMantas = $state<string[]>([]);
 
 	// --- DRAG & DROP STATE ---
 	let isDragActive = $state(false);
@@ -502,7 +504,7 @@
 										});
 									};
 								}}
-								class="flex flex-col items-center justify-between gap-4 pt-4 sm:flex-row"
+								class="space-y-6 pt-4"
 							>
 								<input
 									type="hidden"
@@ -512,22 +514,35 @@
 								<input type="hidden" name="eventName" value={analysisResult.eventName} />
 								<input type="hidden" name="eventDate" value={analysisResult.eventDate} />
 
-								<Button
-									variant="ghost"
-									type="button"
-									class="w-full sm:w-auto"
-									onclick={() => (analysisResult = null)}
-								>
-									Annuler et Retour
-								</Button>
+								<div class="space-y-2 rounded-md border bg-muted/20 p-4">
+									<Label>Mantas pour cet événement</Label>
+									<MultiStaffSelect staff={data.staff} bind:value={importMantas} name="mantas" />
+									<p class="text-[10px] font-bold text-muted-foreground uppercase">
+										Assignez l'équipe qui encadrera cet événement. Vous pourrez modifier cela plus
+										tard.
+									</p>
+								</div>
 
-								<Button
-									type="submit"
-									disabled={isConfirming}
-									class="w-full bg-green-600 hover:bg-green-700 sm:w-auto"
+								<div
+									class="flex flex-col items-center justify-between gap-4 border-t pt-4 sm:flex-row"
 								>
-									{isConfirming ? 'Création en cours...' : "Valider l'import et les décisions"}
-								</Button>
+									<Button
+										variant="ghost"
+										type="button"
+										class="w-full sm:w-auto"
+										onclick={() => (analysisResult = null)}
+									>
+										Annuler et Retour
+									</Button>
+
+									<Button
+										type="submit"
+										disabled={isConfirming}
+										class="w-full bg-green-600 hover:bg-green-700 sm:w-auto"
+									>
+										{isConfirming ? 'Création en cours...' : "Valider l'import et les décisions"}
+									</Button>
+								</div>
 							</form>
 						</div>
 					{/if}
@@ -614,13 +629,24 @@
 							</div>
 						</div>
 
-						<div class="space-y-2">
-							<Label for="theme">Thème (Optionnel)</Label>
-							<ThemeSelect themes={data.themes} bind:value={$form.theme} name="theme" />
-							<p class="text-[10px] font-bold text-muted-foreground uppercase">
-								Sélectionnez un thème existant ou tapez-en un nouveau pour le créer.
-							</p>
-							{#if $errors.theme}<p class="text-sm text-destructive">{$errors.theme}</p>{/if}
+						<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+							<div class="space-y-2">
+								<Label for="theme">Thème (Optionnel)</Label>
+								<ThemeSelect themes={data.themes} bind:value={$form.theme} name="theme" />
+								<p class="text-[10px] font-bold text-muted-foreground uppercase">
+									Sélectionnez un thème existant ou tapez-en un nouveau pour le créer.
+								</p>
+								{#if $errors.theme}<p class="text-sm text-destructive">{$errors.theme}</p>{/if}
+							</div>
+
+							<div class="space-y-2">
+								<Label>Mantas</Label>
+								<MultiStaffSelect staff={data.staff} bind:value={$form.mantas} name="mantas" />
+								<p class="text-[10px] font-bold text-muted-foreground uppercase">
+									Staff assigné à l'encadrement de cet événement.
+								</p>
+								{#if $errors.mantas}<p class="text-sm text-destructive">{$errors.mantas}</p>{/if}
+							</div>
 						</div>
 					</form>
 				</Card.Content>

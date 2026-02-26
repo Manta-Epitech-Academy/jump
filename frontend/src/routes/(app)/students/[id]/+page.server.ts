@@ -9,6 +9,7 @@ import type {
 	EventsResponse,
 	SubjectsResponse,
 	ThemesResponse,
+	UsersResponse,
 	StudentsNiveauDifficulteOptions
 } from '$lib/pocketbase-types';
 
@@ -17,8 +18,9 @@ type SubjectExpand = {
 };
 
 type ParticipationExpand = {
-	event?: EventsResponse;
+	event?: EventsResponse<{ mantas?: UsersResponse[] }>;
 	subjects?: SubjectsResponse<SubjectExpand>[];
+	note_author?: UsersResponse;
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -30,7 +32,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.getFullList<ParticipationsResponse<ParticipationExpand>>({
 				filter: `student = "${student.id}"`,
 				sort: '-event.date',
-				expand: 'event,subjects,subjects.themes'
+				expand: 'event,event.mantas,subjects,subjects.themes,note_author'
 			});
 
 		const stats = {
