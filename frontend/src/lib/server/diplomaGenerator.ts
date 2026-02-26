@@ -162,7 +162,15 @@ export async function generateDiplomaPDF(data: {
 		// 2. Launch Puppeteer
 		const browser = await puppeteer.launch({
 			headless: true,
-			args: ['--no-sandbox', '--disable-setuid-sandbox']
+			// Uses system path (set in Dockerfile) on VPS, or local chromium if undefined
+			executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+			args: [
+				'--no-sandbox',
+				'--disable-setuid-sandbox',
+				'--disable-dev-shm-usage', // Essential for Docker memory constraints
+				'--disable-gpu',
+				'--no-zygote'
+			]
 		});
 		const page = await browser.newPage();
 

@@ -9,6 +9,9 @@ ARG PUBLIC_INTERNAL_POCKETBASE_URL
 ENV PUBLIC_POCKETBASE_URL=$PUBLIC_POCKETBASE_URL
 ENV PUBLIC_INTERNAL_POCKETBASE_URL=$PUBLIC_INTERNAL_POCKETBASE_URL
 
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 WORKDIR /app
 
 # Install dependencies
@@ -24,11 +27,22 @@ FROM oven/bun:alpine
 
 WORKDIR /app
 
-# Timezone support for Alpine
-RUN apk add --no-cache tzdata
-ENV TZ=Europe/Paris
+# INSTALLATION OF CHROMIUM DEPENDENCIES FOR ALPINE
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    tzdata
 
+ENV TZ=Europe/Paris
 ENV NODE_ENV=production
+
+# ENV VARIABLES SO THAT PUPPETEER USES ALPINE'S CHROMIUM
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Copy built files and dependencies from the builder
 COPY --from=builder /app/node_modules ./node_modules
