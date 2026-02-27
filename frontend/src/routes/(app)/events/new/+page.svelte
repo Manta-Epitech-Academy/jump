@@ -3,6 +3,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from '$lib/components/ui/select';
 	import * as Card from '$lib/components/ui/card';
@@ -52,6 +53,7 @@
 	let isConfirming = $state(false);
 	let analysisResult = $state<any>(null);
 	let importMantas = $state<string[]>([]);
+	let importNotes = $state('');
 
 	// --- DRAG & DROP STATE ---
 	let isDragActive = $state(false);
@@ -514,13 +516,25 @@
 								<input type="hidden" name="eventName" value={analysisResult.eventName} />
 								<input type="hidden" name="eventDate" value={analysisResult.eventDate} />
 
-								<div class="space-y-2 rounded-md border bg-muted/20 p-4">
-									<Label>Mantas pour cet événement</Label>
-									<MultiStaffSelect staff={data.staff} bind:value={importMantas} name="mantas" />
-									<p class="text-[10px] font-bold text-muted-foreground uppercase">
-										Assignez l'équipe qui encadrera cet événement. Vous pourrez modifier cela plus
-										tard.
-									</p>
+								<div class="grid gap-4 md:grid-cols-2">
+									<div class="space-y-2 rounded-md border bg-muted/20 p-4">
+										<Label>Mantas pour cet événement</Label>
+										<MultiStaffSelect staff={data.staff} bind:value={importMantas} name="mantas" />
+										<p class="text-[10px] font-bold text-muted-foreground uppercase">
+											Assignez l'équipe qui encadrera cet événement.
+										</p>
+									</div>
+
+									<div class="space-y-2 rounded-md border bg-muted/20 p-4">
+										<Label for="notes">Notes / Planning</Label>
+										<Textarea
+											id="notes"
+											name="notes"
+											bind:value={importNotes}
+											placeholder="Notes pour l'événement (planning, instructions...)"
+											class="min-h-20"
+										/>
+									</div>
 								</div>
 
 								<div
@@ -647,6 +661,18 @@
 								</p>
 								{#if $errors.mantas}<p class="text-sm text-destructive">{$errors.mantas}</p>{/if}
 							</div>
+						</div>
+
+						<div class="space-y-2">
+							<Label for="notes">Notes & Planning</Label>
+							<Textarea
+								id="notes"
+								name="notes"
+								bind:value={$form.notes}
+								placeholder="Planning, instructions, ou notes spécifiques..."
+								class="min-h-25"
+							/>
+							{#if $errors.notes}<p class="text-sm text-destructive">{$errors.notes}</p>{/if}
 						</div>
 					</form>
 				</Card.Content>

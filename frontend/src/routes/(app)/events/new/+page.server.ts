@@ -64,6 +64,7 @@ export const actions: Actions = {
 			date: calendarDateTime,
 			time: timeStr,
 			theme: themeInput,
+			notes: (formData.get('notes') as string) || '',
 			mantas: formData.getAll('mantas') as string[]
 		};
 
@@ -102,6 +103,7 @@ export const actions: Actions = {
 				titre: form.data.titre,
 				date: jsDate.toISOString(),
 				theme: themeId ?? undefined,
+				notes: form.data.notes,
 				mantas: form.data.mantas
 			};
 
@@ -220,6 +222,7 @@ export const actions: Actions = {
 		const eventName = formData.get('eventName') as string;
 		const eventDateStr = formData.get('eventDate') as string;
 		const mantas = formData.getAll('mantas') as string[];
+		const notes = formData.get('notes') as string;
 
 		if (!rawData) return fail(400, { error: 'Données manquantes' });
 
@@ -231,7 +234,8 @@ export const actions: Actions = {
 			const eventRecord = await createScoped(locals.pb, 'events', {
 				titre: eventName,
 				date: new Date(eventDateStr).toISOString(),
-				mantas: mantas
+				mantas: mantas,
+				notes: notes
 			});
 			newEventId = eventRecord.id;
 
