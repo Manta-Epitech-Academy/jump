@@ -182,7 +182,7 @@
 						</div>
 
 						<div class="flex items-center gap-2">
-							<Avatar.Root class="h-9 w-9 rounded-sm bg-header-foreground/20 md:h-11 md:w-11">
+							<Avatar.Root class="h-9 w-9 rounded-full bg-header-foreground/20 md:h-11 md:w-11">
 								{#if user?.avatar}
 									<Avatar.Image
 										src={getAvatarUrl(user)}

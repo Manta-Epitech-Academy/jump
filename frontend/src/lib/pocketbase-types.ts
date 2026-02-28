@@ -14,6 +14,8 @@ export enum Collections {
 	Campuses = "campuses",
 	Events = "events",
 	Participations = "participations",
+	PortfolioItems = "portfolio_items",
+	StepsProgress = "steps_progress",
 	Students = "students",
 	Subjects = "subjects",
 	Themes = "themes",
@@ -132,6 +134,34 @@ export type ParticipationsRecord = {
 	updated: IsoAutoDateString
 }
 
+export type PortfolioItemsRecord = {
+	caption?: string
+	created: IsoAutoDateString
+	event: RecordIdString
+	file?: FileNameString
+	id: string
+	student: RecordIdString
+	updated: IsoAutoDateString
+	url?: string
+}
+
+export enum StepsProgressStatusOptions {
+	"active" = "active",
+	"needs_help" = "needs_help",
+	"completed" = "completed",
+}
+export type StepsProgressRecord = {
+	created: IsoAutoDateString
+	current_step_id?: string
+	event: RecordIdString
+	id: string
+	status?: StepsProgressStatusOptions
+	student: RecordIdString
+	subject: RecordIdString
+	unlocked_step_id?: string
+	updated: IsoAutoDateString
+}
+
 export enum StudentsNiveauOptions {
 	"6eme" = "6eme",
 	"5eme" = "5eme",
@@ -148,20 +178,32 @@ export enum StudentsNiveauDifficulteOptions {
 	"Intermédiaire" = "Intermédiaire",
 	"Avancé" = "Avancé",
 }
-export type StudentsRecord = {
+
+export enum StudentsLevelOptions {
+	"Novice" = "Novice",
+	"Apprentice" = "Apprentice",
+	"Expert" = "Expert",
+}
+export type StudentsRecord<Tbadges = unknown> = {
+	badges?: null | Tbadges
 	campus: RecordIdString
 	created: IsoAutoDateString
 	email?: string
+	emailVisibility?: boolean
 	events_count?: number
 	id: string
+	level?: StudentsLevelOptions
 	niveau?: StudentsNiveauOptions
 	niveau_difficulte?: StudentsNiveauDifficulteOptions
 	nom: string
 	parent_email?: string
 	parent_phone?: string
+	password: string
 	phone?: string
 	prenom: string
+	tokenKey: string
 	updated: IsoAutoDateString
+	verified?: boolean
 	xp?: number
 }
 
@@ -170,8 +212,9 @@ export enum SubjectsDifficulteOptions {
 	"Intermédiaire" = "Intermédiaire",
 	"Avancé" = "Avancé",
 }
-export type SubjectsRecord = {
+export type SubjectsRecord<Tcontent_structure = unknown> = {
 	campus?: RecordIdString
+	content_structure?: null | Tcontent_structure
 	created: IsoAutoDateString
 	description?: string
 	difficulte: SubjectsDifficulteOptions
@@ -213,8 +256,10 @@ export type SuperusersResponse<Texpand = unknown> = Required<SuperusersRecord> &
 export type CampusesResponse<Texpand = unknown> = Required<CampusesRecord> & BaseSystemFields<Texpand>
 export type EventsResponse<Texpand = unknown> = Required<EventsRecord> & BaseSystemFields<Texpand>
 export type ParticipationsResponse<Texpand = unknown> = Required<ParticipationsRecord> & BaseSystemFields<Texpand>
-export type StudentsResponse<Texpand = unknown> = Required<StudentsRecord> & BaseSystemFields<Texpand>
-export type SubjectsResponse<Texpand = unknown> = Required<SubjectsRecord> & BaseSystemFields<Texpand>
+export type PortfolioItemsResponse<Texpand = unknown> = Required<PortfolioItemsRecord> & BaseSystemFields<Texpand>
+export type StepsProgressResponse<Texpand = unknown> = Required<StepsProgressRecord> & BaseSystemFields<Texpand>
+export type StudentsResponse<Tbadges = unknown, Texpand = unknown> = Required<StudentsRecord<Tbadges>> & AuthSystemFields<Texpand>
+export type SubjectsResponse<Tcontent_structure = unknown, Texpand = unknown> = Required<SubjectsRecord<Tcontent_structure>> & BaseSystemFields<Texpand>
 export type ThemesResponse<Texpand = unknown> = Required<ThemesRecord> & BaseSystemFields<Texpand>
 export type UsersResponse<Texpand = unknown> = Required<UsersRecord> & AuthSystemFields<Texpand>
 
@@ -229,6 +274,8 @@ export type CollectionRecords = {
 	campuses: CampusesRecord
 	events: EventsRecord
 	participations: ParticipationsRecord
+	portfolio_items: PortfolioItemsRecord
+	steps_progress: StepsProgressRecord
 	students: StudentsRecord
 	subjects: SubjectsRecord
 	themes: ThemesRecord
@@ -244,6 +291,8 @@ export type CollectionResponses = {
 	campuses: CampusesResponse
 	events: EventsResponse
 	participations: ParticipationsResponse
+	portfolio_items: PortfolioItemsResponse
+	steps_progress: StepsProgressResponse
 	students: StudentsResponse
 	subjects: SubjectsResponse
 	themes: ThemesResponse
