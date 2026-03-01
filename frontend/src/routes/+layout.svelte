@@ -6,6 +6,11 @@
 	import { onNavigate } from '$app/navigation';
 	import { ModeWatcher } from 'mode-watcher';
 	import { page } from '$app/state';
+	import { dev } from '$app/environment';
+
+	// Import SVGs as URLs using Vite's ?url suffix
+	import faviconProd from '$lib/assets/favicon.svg?url';
+	import faviconDev from '$lib/assets/favicon-dev.svg?url';
 
 	let { children } = $props();
 
@@ -26,6 +31,7 @@
 
 <svelte:head>
 	<title>TekCamp {userCampusName ? `| ${userCampusName}` : ''}</title>
+	<link rel="icon" href={dev ? faviconDev : faviconProd} />
 </svelte:head>
 
 <ModeWatcher />

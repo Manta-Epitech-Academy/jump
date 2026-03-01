@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+    <defs>
+        <!-- Clip path to keep the hazard stripes neatly inside the enlarged badge -->
+        <clipPath id="stripes-clip">
+            <rect x="15" y="25" width="32" height="22" rx="3"/>
+        </clipPath>
+    </defs>
+
+    <!-- Original Production Logo -->
+    <path fill="#013afb" d="
+          M5 6H11V7H8V22H7V23H6V25H7V26H8V41H12V42H5V41H4V26H3V25H2V23H3V22H4V7H5Z
+          M36 6H43V7H44V22H45V23H46V25H45V26H44V41H43V42H36V41H40V26H41V25H42V23H41V22H40V7H36Z
+          M17 13H32V18H19V21H21V22H32V26H20V27H19V30H32V35H18V34H16V33H15V31H14V26H15V24H16V23H15V22H14V16H15V15H16V14H17V13Z
+          " />
+    
+    <!-- White Cutout Border (Expanded) -->
+    <rect x="13" y="23" width="36" height="26" rx="4" fill="#ffffff" />
+    
+    <!-- Yellow Base (Expanded) -->
+    <rect x="15" y="25" width="32" height="22" rx="3" fill="#facc15" />
+    
+    <!-- Black Hazard Stripes -->
+    <path fill="#171717" d="M-5 50 L25 20 H35 L5 50 Z M15 50 L45 20 H55 L25 50 Z M35 50 L65 20 H75 L45 50 Z M55 50 L85 20 H95 L65 50 Z" clip-path="url(#stripes-clip)"/>
+    
+    <!-- DEV Plaque (Expanded) -->
+    <rect x="18" y="29" width="26" height="14" rx="2" fill="#171717" />
+    <text x="31" y="40.5" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="11" fill="#facc15" text-anchor="middle">DEV</text>
+</svg>
