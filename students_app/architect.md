@@ -5,6 +5,7 @@
 | Date       | Version | Description                                        | Author    |
 | ---------- | ------- | -------------------------------------------------- | --------- |
 | 2026-02-27 | 1.0     | Initial Brownfield Architecture for Student Portal | Architect |
+| 2026-03-01 | 1.1     | Updated UI Strategy for "User-Centric Skinning"    | Architect |
 
 ---
 
@@ -55,7 +56,11 @@ This document supplements the existing project architecture by defining how the 
 
 - **Existing API Compatibility:** The staff app routes `/(app)` must remain untouched and fully functional.
 - **Database Schema Compatibility:** New collections must relate to existing `students` and `events` without altering their core definition or breaking existing queries.
-- **UI/UX Consistency:** The new portal must use the existing Tailwind configuration (`layout.css`) variables.
+- **UI/UX Strategy - "User-Centric Skinning":**
+  - The Student Portal (`/(camper)`) shares the core design tokens (colors, fonts) with the Staff App but applies a distinct **"Friendly Tech"** skin.
+  - **Radiuses:** Use `rounded-xl` or `rounded-2xl` (vs `rounded-sm`) to create a softer, more modern feel.
+  - **Theme:** Defaults to Light Mode (Soft Slate/White) to reduce cognitive load, diverging from the Staff App's potential defaults.
+  - **Components:** Reuse logic from `$lib/components` but wrap them or style them specifically for the camper context if visual divergence is required.
 - **Performance Impact:** The 2,000 concurrent user load must not degrade the staff dashboard's responsiveness.
 
 ---
@@ -75,7 +80,7 @@ This document supplements the existing project architecture by defining how the 
 ### New Technology Additions
 
 - **PDF Generation:** `puppeteer` (already present in `api/diploma`) or `pdf-lib` for generating certificates.
-- **No other new libraries.** We strictly adhere to the existing stack to minimize complexity and bundle size.
+- **Animations:** Svelte's native `transition` and `animate` directives are preferred. Use `svelte/motion` for more complex interactions (e.g., progress bars, unlocking effects) to support the "Emotional Design" requirement without adding heavy external libraries.
 
 ---
 
@@ -146,7 +151,7 @@ This document supplements the existing project architecture by defining how the 
 ### Student Portal Components (`/(camper)`)
 
 - **`StudentAuthGuard`:** Logic in `hooks.server.ts` to validate `pb_student_auth` cookies. Redirects unauthenticated users to `/login`.
-- **`CockpitLayout`:** A new layout wrapper implementing the **Adaptive** paradigm (Focus Mode vs Compact Mode).
+- **`CockpitLayout`:** A new layout wrapper implementing the **Adaptive** paradigm (Focus Mode vs Compact Mode). Must support **Transition Groups** to allow for smooth step transitions (e.g., `fly`, `fade`) as part of the emotional design strategy.
 - **`MarkdownViewer`:** A component that takes the `content_structure` JSON and renders _only_ the active step using a Markdown parser (e.g., `marked` or `svelte-markdown`).
 - **`MantaSignalButton`:** A floating action button.
   - _Action:_ Sends a POST request to update `steps_progress.status = 'needs_help'`.

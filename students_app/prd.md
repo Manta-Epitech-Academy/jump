@@ -2,9 +2,10 @@
 
 ### Document Control
 
-| Date       | Version | Description                    | Author          |
-| ---------- | ------- | ------------------------------ | --------------- |
-| 2026-02-27 | 1.0     | Initial PRD for Student Portal | Product Manager |
+| Date       | Version | Description                                       | Author          |
+| ---------- | ------- | ------------------------------------------------- | --------------- |
+| 2026-02-27 | 1.0     | Initial PRD for Student Portal                    | Product Manager |
+| 2026-03-01 | 1.1     | Pivoted UX Vision to "Friendly Tech" & Light Mode | Product Manager |
 
 ---
 
@@ -68,7 +69,7 @@
 
 - **CR1: Database Schema Compatibility:** New collections (`steps_progress`, `portfolio_items`, `student_sessions`) must cleanly link to the existing `students`, `participations`, `events`, and `subjects` tables without requiring destructive migrations.
 - **CR2: Routing & Auth Isolation:** The student portal must live under a distinct SvelteKit route group (e.g., `/(camper)`) with its own dedicated auth store (e.g., `pb_student_auth` in `hooks.server.ts`), entirely isolated from the existing `pb_admin_auth` and `pb_staff_auth`.
-- **CR3: UI Consistency:** The student portal should utilize the existing Tailwind design system (Epitech colors, fonts like Anton and IBM Plex Sans) defined in `layout.css` to maintain brand consistency, but strip out heavy admin UI elements.
+- **CR3: UI Consistency:** The student portal should utilize the existing Tailwind design system (Epitech colors, fonts like Anton and IBM Plex Sans) defined in `layout.css`, **but adapted for a younger audience (see Section 3).**
 - **CR4: Existing Staff Dashboard Integration:** The "Manta-Signal" receiver must be integrated directly into the _existing_ `/(app)/events/[id]/appel` page so staff do not have to switch tabs to see who needs help.
 
 ---
@@ -77,7 +78,9 @@
 
 ### Overall UX Vision
 
-The TekCamp Student Portal ("The Cockpit") should feel less like a traditional school website and more like a modern, gamified learning companion. It should draw inspiration from tools like Duolingo, Codecademy, and modern IDEs. The interface must be "quiet" enough not to distract from the actual coding work happening in another window, but "loud" enough when a success is achieved (level up, step completed). It uses the existing Epitech brand colors (Blue, Teal, Orange, Pink) to create a high-contrast, energetic tech aesthetic.
+**"Friendly Tech" / Modern EdTech.**
+The TekCamp Student Portal ("The Cockpit") should feel less like a traditional school website or a terminal, and more like a modern, welcoming, and gamified learning companion (inspired by Duolingo, Zenly, or Notion).
+The primary goal is to **lower student anxiety** and **increase engagement**. The interface must be approachable, using light, airy layouts with playful touches, while retaining the "Epitech Expert" identity through typography and branding colors.
 
 ### Key Interaction Paradigms
 
@@ -86,12 +89,15 @@ The TekCamp Student Portal ("The Cockpit") should feel less like a traditional s
   2.  **Compact Mode (Split Screen):** When the window is resized below ~900px, sidebars vanish, margins collapse, and the interface behaves like a mobile app _on desktop_. This allows the 10% of power users to keep coding side-by-side without horizontal scrolling.
 - **Instant Context Recovery:** Since most students Alt-Tab away to their IDE, coming back to the app must be frictionless. The "Current Active Step" must be visually dominant (high contrast, highlighted background) so the eye lands on it immediately upon returning to the window.
 - **Progressive Disclosure:** Users only see the current step they are working on, plus a blurred/locked preview of the next step. They cannot scroll ahead and read the end of the subject. This keeps focus absolute.
-- **Immediate Feedback Loops:** Micro-interactions are critical. Clicking "Validate" on a QCM should immediately yield a satisfying success state (e.g., a green flash, a sound, or confetti) or a clear, gentle error state.
+- **Emotional Payoffs (Gamification):** Every success must be celebrated visually.
+  - **Step Unlocked:** Green flash, smooth expansion animations, playful sounds (optional).
+  - **Waiting for Manta:** Clear, reassuring states (e.g., "Manta is on the way") rather than generic loading spinners.
+  - **Completion:** Confetti, badges, and high-energy visuals.
 - **The "Call for Help" Lifeline:** The button to call a Manta must be omnipresent, floating, and frictionless. It should have a visual state confirming "A Manta is on the way."
 
 ### Core Screens and Views
 
-1.  **Auth & Welcome Flow:** A minimalist, highly stylized login screen requesting an email, followed by a screen to enter the 6-digit OTP (if the magic link wasn't used).
+1.  **Auth & Welcome Flow:** A welcoming, bright login screen with Epitech-colored orbs/gradients, requesting email and OTP. It uses friendly copy ("Ready for takeoff?") rather than administrative jargon.
 2.  **The Event Lobby:** A landing page showing the current event details, the assigned subject(s), and the student's current XP/Level.
 3.  **The "Cockpit" (Active Subject View):** The core screen. An adaptive layout showing:
     - _Content:_ The current step content (Markdown), QCMs, and the "Call Manta" button.
@@ -101,15 +107,18 @@ The TekCamp Student Portal ("The Cockpit") should feel less like a traditional s
 ### Accessibility
 
 **WCAG AA**
-_Rationale:_ Given the target audience (middle and high schoolers in an educational setting), we must ensure high contrast ratios (especially with the dark/cyberpunk aesthetic) and full keyboard navigability.
+_Rationale:_ Given the target audience (middle and high schoolers) and the educational setting, ensuring high readability and contrast is non-negotiable. The move to Light Mode assists in readability for long-form content.
 
-### Branding
+### Branding & Aesthetic
 
-We will utilize the existing `layout.css` variables found in the codebase to maintain absolute consistency with the staff app, but we will lean heavier into the "Dark Mode" aesthetic by default for the Cockpit to reduce eye strain during coding sessions.
+**Concept: "Epitech Remix"**
+We retain the core DNA of Epitech but soften the edges for a younger audience.
 
-- **Primary:** `--epi-blue` (#013afb)
-- **Accents:** `--epi-teal` for successes/unlocks, `--epi-orange` for warnings/Manta calls, `--epi-pink` for level-ups/major achievements.
-- **Typography:** 'Anton' for major headings (gamified feel), 'IBM Plex Sans' for readability in technical instructions.
+- **Theme:** **Light Mode by default.** Use soft slate/white backgrounds (`bg-slate-50`) to create a "breathing" workspace. Dark mode remains available but is not the primary target.
+- **Shape Language:** **Soft & Rounded.** Use `rounded-xl` or `rounded-2xl` for containers, buttons, and inputs. Avoid the sharp `rounded-sm` used in the Staff App to differentiate the student experience as more modern and accessible.
+- **Primary:** `--epi-blue` (#013afb) used for primary actions and brand anchors.
+- **Accents:** `--epi-teal` for successes/unlocks, `--epi-orange` for warnings/Manta calls.
+- **Typography:** Retain **'Anton'** for major headings to keep the Epitech "Tech" identity strong, but use **'IBM Plex Sans'** for all body text to ensure maximum readability.
 
 ### Target Device and Platforms
 
@@ -191,12 +200,12 @@ _Rationale:_ While some brownfield enhancements fit into a single Epic, the scop
 
 - **Story 1.3: The Passwordless Login UI & Flow**
   - **As a** Student (Camper),
-  - **I want** to log in using only my email address and a 6-digit code,
-  - **so that** I don't have to remember a password during the workshop.
+  - **I want** to log in using only my email address and a 6-digit code via a friendly, welcoming interface,
+  - **so that** I feel confident and don't have to remember a password during the workshop.
   - **Acceptance Criteria:**
-    - 1. A `/login` page exists within the `/(camper)` group featuring the Epitech design system.
+    - 1. A `/login` page exists within the `/(camper)` group featuring the **"Friendly Tech"** aesthetic (Light mode, rounded corners, welcoming copy).
     - 2. The student enters their email. If the email exists in the `students` DB, the system generates a 6-digit OTP and sends an email.
-    - 3. The UI transitions to an "Enter Code" screen.
+    - 3. The UI transitions smoothly (animations) to an "Enter Code" screen.
     - 4. Upon entering the correct code before it expires, the system sets the `pb_student_auth` cookie and redirects to the Camper Dashboard.
     - 5. Invalid or expired codes display a clear error message.
 
@@ -229,7 +238,7 @@ _Rationale:_ While some brownfield enhancements fit into a single Epic, the scop
   - **so that** the next step unlocks immediately without waiting for a Manta.
   - **Acceptance Criteria:**
     - 1. A QCM form is rendered at the bottom of steps tagged for auto-validation.
-    - 2. Submitting the correct answer updates the database (`steps_progress`) and immediately reveals the next step.
+    - 2. Submitting the correct answer updates the database (`steps_progress`) and immediately reveals the next step with a success animation.
     - 3. Incorrect answers show a gentle error.
     - 4. After 3 consecutive incorrect attempts, the QCM locks and prompts the user to use the "Call Manta" button.
 
@@ -297,49 +306,3 @@ _Rationale:_ While some brownfield enhancements fit into a single Epic, the scop
     - 1. A "Download Certificate" button is available at the end of the event or on the student's lobby page.
     - 2. The system triggers a backend function (likely utilizing the existing Puppeteer/EJS setup you have in `api/diploma`) to generate a PDF.
     - 3. The new PDF includes: The specific subjects completed, total duration (e.g., 6 hours or 2 weeks), and thumbnails of their uploaded portfolio screenshots.
-
----
-
-## 7. Checklist Results Report
-
-### Category Statuses
-
-| Category                         | Status   | Critical Issues                                                             |
-| -------------------------------- | -------- | --------------------------------------------------------------------------- |
-| 1. Problem Definition & Context  | **PASS** | None. Problem (student engagement, scaling tracking) is clearly defined.    |
-| 2. MVP Scope Definition          | **PASS** | Scope is strict: synchronous use only, no "homework" features to bloat MVP. |
-| 3. User Experience Requirements  | **PASS** | "Split-Screen" vs "Alt-Tab" reality addressed with adaptive layout.         |
-| 4. Functional Requirements       | **PASS** | Requirements are testable (e.g., "After 3 incorrect attempts...").          |
-| 5. Non-Functional Requirements   | **PASS** | 2,000 concurrent user constraint addressed via SSE architecture decision.   |
-| 6. Epic & Story Structure        | **PASS** | Logical flow: Foundation -> Cockpit -> Staff Integration -> Showcase.       |
-| 7. Technical Guidance            | **PASS** | Clear direction on leveraging existing SvelteKit/PocketBase stack.          |
-| 8. Cross-Functional Requirements | **PASS** | Integration with existing Staff App explicitly defined (Story 3.2).         |
-| 9. Clarity & Communication       | **PASS** | Terminology (Manta, Cockpit, Camper) is consistent.                         |
-
-### Final Decision
-
-- **READY FOR ARCHITECT:** The PRD is comprehensive, properly structured, and ready for architectural design.
-
----
-
-## 8. Next Steps
-
-### UX Expert Prompt
-
-"Please create the UI/UX Specification for the **TekCamp Student Portal ('The Cockpit')**.
-Key focus areas:
-
-1.  **Adaptive 'Cockpit' Layout:** Design a view that works beautifully in Full Screen (Focus Mode) but collapses gracefully to a mobile-like column when resized to <900px (for split-screen coding).
-2.  **Visual Hierarchy:** The 'Current Step' must be instantly identifiable when Alt-Tabbing back to the browser.
-3.  **Gamification Feedback:** Design the visual payoffs for unlocking a step (QCM success) and the 'Waiting State' when the Manta-Signal is active.
-4.  **Portfolio Drawer:** A collapsible sidebar for dragging-and-dropping screenshots without cluttering the main view."
-
-### Architect Prompt
-
-"Please create the **Brownfield Enhancement Architecture** for adding the Student Portal to the existing **TekCamp** repo.
-Key constraints to address:
-
-1.  **Concurrency:** How to configure PocketBase (Go/SQLite) to handle 2,000 concurrent SSE listeners without locking up.
-2.  **Auth Isolation:** Detail the implementation of `hooks.server.ts` to support a secondary `pb_student_auth` cookie alongside the existing staff auth.
-3.  **Schema Design:** Define the `student_sessions`, `otps`, and `steps_progress` collections, ensuring efficient querying at scale.
-4.  **Real-time Optimization:** Design the SSE subscription model so students only listen to their _own_ record changes."
