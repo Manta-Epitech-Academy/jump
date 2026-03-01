@@ -67,7 +67,7 @@
 ### Compatibility Requirements (CR)
 
 - **CR1: Database Schema Compatibility:** New collections (`steps_progress`, `portfolio_items`, `student_sessions`) must cleanly link to the existing `students`, `participations`, `events`, and `subjects` tables without requiring destructive migrations.
-- **CR2: Routing & Auth Isolation:** The student portal must live under a distinct SvelteKit route group (e.g., `/(camper)`) with its own dedicated auth store (e.g., `pb_student_auth` in `hooks.server.ts`), entirely isolated from the existing `pb_admin_auth` and `pb_user_auth`.
+- **CR2: Routing & Auth Isolation:** The student portal must live under a distinct SvelteKit route group (e.g., `/(camper)`) with its own dedicated auth store (e.g., `pb_student_auth` in `hooks.server.ts`), entirely isolated from the existing `pb_admin_auth` and `pb_staff_auth`.
 - **CR3: UI Consistency:** The student portal should utilize the existing Tailwind design system (Epitech colors, fonts like Anton and IBM Plex Sans) defined in `layout.css` to maintain brand consistency, but strip out heavy admin UI elements.
 - **CR4: Existing Staff Dashboard Integration:** The "Manta-Signal" receiver must be integrated directly into the _existing_ `/(app)/events/[id]/appel` page so staff do not have to switch tabs to see who needs help.
 

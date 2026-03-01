@@ -19,7 +19,7 @@ export const actions: Actions = {
 			throw redirect(302, resolve('/admin/login'));
 		} else {
 			// Clear User/Staff Auth
-			if (locals.userPb) locals.userPb.authStore.clear();
+			if (locals.staffPb) locals.staffPb.authStore.clear();
 
 			if (locals.user?.collectionName === 'users') {
 				locals.user = null;

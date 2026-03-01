@@ -1,4 +1,4 @@
-import type { TypedPocketBase, UsersResponse, SuperusersResponse } from '$lib/pocketbase-types';
+import type { TypedPocketBase, UsersResponse, SuperusersResponse, StudentsResponse } from '$lib/pocketbase-types';
 
 declare global {
 	namespace App {
@@ -6,8 +6,10 @@ declare global {
 		interface Locals {
 			pb: TypedPocketBase;
 			adminPb: TypedPocketBase;
-			userPb: TypedPocketBase;
+			staffPb: TypedPocketBase;
+			studentPb: TypedPocketBase;
 			user: UsersResponse | SuperusersResponse | null;
+			student: StudentsResponse | null;
 		}
 		// interface PageData {}
 		// interface PageState {}
