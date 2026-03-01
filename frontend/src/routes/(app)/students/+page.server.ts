@@ -4,7 +4,11 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 import { createScoped } from '$lib/pocketbase';
-import { StudentsNiveauOptions, StudentsNiveauDifficulteOptions } from '$lib/pocketbase-types';
+import {
+	StudentsNiveauOptions,
+	StudentsNiveauDifficulteOptions,
+	StudentsLevelOptions
+} from '$lib/pocketbase-types';
 import { ClientResponseError } from 'pocketbase';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -25,11 +29,24 @@ export const actions: Actions = {
 		const form = await superValidate(request, zod4(studentSchema));
 		if (!form.valid) return fail(400, { form });
 		try {
+			// Random password (they will use OTP anyway)
+			const tempPassword = crypto.randomUUID() + Math.random().toString(36);
+
 			// Scoped Creation
 			await createScoped(locals.pb, 'students', {
 				...form.data,
 				niveau: form.data.niveau as StudentsNiveauOptions,
-				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions
+				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions,
+
+				// Auth & Default Fields
+				emailVisibility: true,
+				password: tempPassword,
+				passwordConfirm: tempPassword,
+				verified: false,
+				level: StudentsLevelOptions.Novice,
+				badges: [],
+				xp: 0,
+				events_count: 0
 			});
 			return message(form, 'Élève ajouté avec succès !');
 		} catch (err) {

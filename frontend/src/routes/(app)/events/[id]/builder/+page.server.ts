@@ -13,7 +13,8 @@ import {
 	type StudentsResponse,
 	type SubjectsResponse,
 	StudentsNiveauOptions,
-	StudentsNiveauDifficulteOptions
+	StudentsNiveauDifficulteOptions,
+	StudentsLevelOptions
 } from '$lib/pocketbase-types';
 import { CalendarDateTime } from '@internationalized/date';
 import { ClientResponseError } from 'pocketbase';
@@ -78,9 +79,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 					// Warning Logic: Map difficulty to numeric weights for comparison
 					const difficultyWeights: Record<string, number> = {
-						'Débutant': 0,
-						'Intermédiaire': 1,
-						'Avancé': 2
+						Débutant: 0,
+						Intermédiaire: 1,
+						Avancé: 2
 					};
 
 					const studentLevel = difficultyWeights[student.niveau_difficulte || 'Débutant'] ?? 0;
@@ -307,11 +308,24 @@ export const actions: Actions = {
 		if (!form.valid) return fail(400, { form });
 
 		try {
+			// Random password (they will use OTP anyway)
+			const tempPassword = crypto.randomUUID() + Math.random().toString(36);
+
 			// SCOPED creation
 			const newStudent = await createScoped(locals.pb, 'students', {
 				...form.data,
 				niveau: form.data.niveau as StudentsNiveauOptions,
-				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions
+				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions,
+
+				// Auth & Default Fields
+				emailVisibility: true,
+				password: tempPassword,
+				passwordConfirm: tempPassword,
+				verified: true,
+				level: StudentsLevelOptions.Novice,
+				badges: [],
+				xp: 0,
+				events_count: 0
 			});
 
 			const event = await locals.pb.collection('events').getOne(params.id);

@@ -8,7 +8,7 @@ import { CalendarDateTime } from '@internationalized/date';
 import { parseEventImportCsv, type CsvStudent } from '$lib/csvUtils';
 import { suggestBestSubject } from '$lib/recommender';
 import { createScoped } from '$lib/pocketbase';
-import { StudentsNiveauOptions } from '$lib/pocketbase-types';
+import { StudentsNiveauOptions, StudentsLevelOptions } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const themes = await locals.pb.collection('themes').getFullList({
@@ -250,6 +250,7 @@ export const actions: Actions = {
 						studentId = item.existingStudent.id;
 					} else {
 						// CREATE NEW STUDENT
+						const tempPassword = crypto.randomUUID() + Math.random().toString(36);
 						const studentData = {
 							prenom: item.csvData.prenom,
 							nom: item.csvData.nom,
@@ -259,7 +260,15 @@ export const actions: Actions = {
 							xp: 0,
 							events_count: 0,
 							parent_email: item.csvData.parentEmail,
-							parent_phone: item.csvData.parentPhone
+							parent_phone: item.csvData.parentPhone,
+
+							// Auth & Default Fields
+							emailVisibility: true,
+							password: tempPassword,
+							passwordConfirm: tempPassword,
+							verified: true,
+							level: StudentsLevelOptions.Novice,
+							badges: []
 						};
 
 						try {
