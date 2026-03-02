@@ -531,10 +531,12 @@
 								>
 									<div class="grid grid-cols-2 gap-4">
 										<div class="space-y-2">
-											<Label>Prénom</Label><Input name="prenom" bind:value={$createForm.prenom} />
+											<Label>Nom</Label>
+											<Input name="nom" bind:value={$createForm.nom} />
 										</div>
 										<div class="space-y-2">
-											<Label>Nom</Label><Input name="nom" bind:value={$createForm.nom} />
+											<Label>Prénom</Label>
+											<Input name="prenom" bind:value={$createForm.prenom} />
 										</div>
 									</div>
 

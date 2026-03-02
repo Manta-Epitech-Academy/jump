@@ -266,7 +266,7 @@ export const actions: Actions = {
 							emailVisibility: true,
 							password: tempPassword,
 							passwordConfirm: tempPassword,
-							verified: true,
+							verified: false,
 							level: StudentsLevelOptions.Novice,
 							badges: []
 						};

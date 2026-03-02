@@ -186,15 +186,15 @@
 
 					<div class="grid grid-cols-2 gap-4">
 						<div class="grid gap-2">
+							<Label for="nom">Nom</Label>
+							<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Dupont" />
+							{#if $errors.nom}<span class="text-xs text-destructive">{$errors.nom}</span>{/if}
+						</div>
+						<div class="grid gap-2">
 							<Label for="prenom">Prénom</Label>
 							<Input id="prenom" name="prenom" bind:value={$form.prenom} placeholder="Jean" />
 							{#if $errors.prenom}<span class="text-xs text-destructive">{$errors.prenom}</span
 								>{/if}
-						</div>
-						<div class="grid gap-2">
-							<Label for="nom">Nom</Label>
-							<Input id="nom" name="nom" bind:value={$form.nom} placeholder="Dupont" />
-							{#if $errors.nom}<span class="text-xs text-destructive">{$errors.nom}</span>{/if}
 						</div>
 					</div>
 

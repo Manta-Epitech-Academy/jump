@@ -116,8 +116,8 @@
 							{getInitials(data.student.prenom, data.student.nom)}
 						</Avatar.Fallback>
 					</Avatar.Root>
-					<Card.Title class="mt-4 text-xl uppercase">
-						{data.student.nom}
+					<Card.Title class="mt-4 text-xl">
+						<span class="uppercase">{data.student.nom}</span>
 						{data.student.prenom}
 					</Card.Title>
 					<div class="mt-1 flex flex-col items-center gap-1">
@@ -493,14 +493,14 @@
 			<form method="POST" action="?/update" use:superEnhance class="grid gap-4 py-4">
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-2">
-						<Label>Prénom</Label>
-						<Input name="prenom" bind:value={$form.prenom} />
-						{#if $errors.prenom}<p class="text-xs text-destructive">{$errors.prenom}</p>{/if}
-					</div>
-					<div class="space-y-2">
 						<Label>Nom</Label>
 						<Input name="nom" bind:value={$form.nom} />
 						{#if $errors.nom}<p class="text-xs text-destructive">{$errors.nom}</p>{/if}
+					</div>
+					<div class="space-y-2">
+						<Label>Prénom</Label>
+						<Input name="prenom" bind:value={$form.prenom} />
+						{#if $errors.prenom}<p class="text-xs text-destructive">{$errors.prenom}</p>{/if}
 					</div>
 				</div>
 
