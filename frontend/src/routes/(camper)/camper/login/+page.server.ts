@@ -33,6 +33,19 @@ export const actions: Actions = {
 			// Normalize email to lowercase
 			const normalizedEmail = emailForm.data.email.toLowerCase().trim();
 
+			try {
+				await locals.systemPb
+					.collection('students')
+					.getFirstListItem(`email="${normalizedEmail}"`, { fields: 'id' });
+			} catch (err) {
+				return message(
+					emailForm,
+					{ type: 'error', text: 'Aucun profil trouvé avec cette adresse email.' },
+					{ status: 404 }
+				);
+			}
+
+			// 2. L'utilisateur existe, nous pouvons demander l'OTP en toute sécurité
 			const result = await locals.studentPb.collection('students').requestOTP(normalizedEmail);
 
 			// Pass the otpId back to the client via Superforms message
@@ -41,13 +54,6 @@ export const actions: Actions = {
 			console.error('OTP Request Error:', err);
 
 			if (err instanceof ClientResponseError) {
-				if (err.status === 404) {
-					return message(
-						emailForm,
-						{ type: 'error', text: 'Aucun profil trouvé avec cette adresse email.' },
-						{ status: 404 }
-					);
-				}
 				if (err.status === 429) {
 					return message(
 						emailForm,

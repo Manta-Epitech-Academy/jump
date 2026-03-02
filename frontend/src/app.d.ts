@@ -8,6 +8,7 @@ declare global {
 			adminPb: TypedPocketBase;
 			staffPb: TypedPocketBase;
 			studentPb: TypedPocketBase;
+			systemPb: TypedPocketBase;
 			user: UsersResponse | SuperusersResponse | null;
 			student: StudentsResponse | null;
 		}

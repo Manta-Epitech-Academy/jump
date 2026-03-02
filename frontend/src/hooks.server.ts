@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { createInstance } from '$lib/pocketbase';
 import { dev } from '$app/environment';
 import { resolve as resolvePath } from '$app/paths';
+import { env } from '$env/dynamic/private';
 import type { UsersResponse, SuperusersResponse, StudentsResponse } from '$lib/pocketbase-types';
 import { BaseAuthStore } from 'pocketbase';
 
@@ -69,11 +70,35 @@ const createPocketBase = (cookieName: string) => {
 	return pb;
 };
 
+// ==========================================
+// GLOBAL SYSTEM CLIENT (Server Operations)
+// ==========================================
+const globalSystemClient = createInstance();
+
+globalSystemClient.autoCancellation(false);
+
+const getSystemClient = async () => {
+	if (!globalSystemClient.authStore.isValid) {
+		try {
+			await globalSystemClient
+				.collection('_superusers')
+				.authWithPassword(env.PB_ADMIN_EMAIL, env.PB_ADMIN_PASS, { autoRefreshThreshold: 30 * 60 });
+		} catch (err) {
+			console.error("Erreur critique: Impossible d'authentifier le client System PB", err);
+		}
+	}
+	return globalSystemClient;
+};
+// ==========================================
+
 export const handle: Handle = async ({ event, resolve }) => {
-	// 1. Initialize three distinct instances
+	// 1. Initialize distinct instances
 	const adminPb = createPocketBase('pb_admin_auth');
 	const staffPb = createPocketBase('pb_staff_auth');
 	const studentPb = createPocketBase('pb_student_auth');
+
+	// 1.b Initialize global System instance for internal checks
+	const systemPb = await getSystemClient();
 
 	// 2. Load auth state from request cookies
 	const cookieHeader = event.request.headers.get('cookie') || '';
@@ -81,7 +106,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	staffPb.authStore.loadFromCookie(cookieHeader);
 	studentPb.authStore.loadFromCookie(cookieHeader);
 
-	// 3. Refresh Admin Token
+	// 3. Refresh Admin Token (Human admins)
 	try {
 		if (adminPb.authStore.isValid && adminPb.authStore.token) {
 			await adminPb.collection('_superusers').authRefresh();
@@ -138,6 +163,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.adminPb = adminPb;
 	event.locals.staffPb = staffPb;
 	event.locals.studentPb = studentPb;
+	event.locals.systemPb = systemPb;
 
 	// Set Auth Locals
 	event.locals.user = null; // Default
