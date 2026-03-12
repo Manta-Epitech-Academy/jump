@@ -31,15 +31,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			if (nomA < nomB) return -1;
 			if (nomA > nomB) return 1;
 
-			// If noms are equal, sort by prenom
 			const prenomA = a.expand?.student?.prenom?.toLowerCase() ?? '';
 			const prenomB = b.expand?.student?.prenom?.toLowerCase() ?? '';
 			return prenomA.localeCompare(prenomB);
 		});
 
+		// Fetch all step_progress for this event to populate initial Manta-Signals
+		const progressData = await locals.pb.collection('steps_progress').getFullList({
+			filter: `event = "${event.id}"`,
+			requestKey: null
+		});
+
 		return {
 			event,
-			participations
+			participations,
+			progressData
 		};
 	} catch (e) {
 		console.error(e);
@@ -148,6 +154,46 @@ export const actions: Actions = {
 			return { success: true };
 		} catch (err) {
 			return fail(500, { error: 'Erreur sauvegarde note' });
+		}
+	},
+
+	unlockStep: async ({ request, locals }) => {
+		const data = await request.formData();
+		const progressId = data.get('progressId') as string;
+
+		try {
+			const progress = await locals.pb.collection('steps_progress').getOne(progressId);
+			const subject = await locals.pb.collection('subjects').getOne(progress.subject);
+			const content = subject.content_structure;
+			const steps = content.steps || [];
+
+			const currentIndex = steps.findIndex((s: any) => s.id === progress.current_step_id);
+			if (currentIndex === -1) return fail(400);
+
+			const isLastStep = currentIndex === steps.length - 1;
+			const nextStepId = !isLastStep ? steps[currentIndex + 1].id : 'COMPLETED';
+
+			await locals.pb.collection('steps_progress').update(progressId, {
+				current_step_id: nextStepId === 'COMPLETED' ? progress.current_step_id : nextStepId,
+				unlocked_step_id: nextStepId,
+				status: nextStepId === 'COMPLETED' ? 'completed' : 'active'
+			});
+
+			return { success: true };
+		} catch (err) {
+			console.error('Remote unlock error:', err);
+			return fail(500, { error: 'Erreur lors du déblocage distant' });
+		}
+	},
+
+	dismissAlert: async ({ request, locals }) => {
+		const data = await request.formData();
+		const progressId = data.get('progressId') as string;
+		try {
+			await locals.pb.collection('steps_progress').update(progressId, { status: 'active' });
+			return { success: true };
+		} catch (err) {
+			return fail(500, { error: "Erreur lors de l'annulation de l'alerte" });
 		}
 	}
 };

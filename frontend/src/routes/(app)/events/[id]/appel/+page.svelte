@@ -15,7 +15,8 @@
 		Info,
 		Sprout,
 		Clock,
-		GraduationCap
+		GraduationCap,
+		LifeBuoy
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -49,23 +50,43 @@
 	let participations: ParticipationWithExpand[] = $state(
 		untrack(() => data.participations as ParticipationWithExpand[])
 	);
-	let searchQuery = $state('');
-	let filterStatus = $state<'all' | 'present' | 'late'>('all');
 
+	let progressRecords = $state<any[]>(untrack(() => data.progressData));
+
+	let studentProgressMap = $derived.by(() => {
+		const map = new Map<string, any[]>();
+		progressRecords.forEach((p) => {
+			if (!map.has(p.student)) map.set(p.student, []);
+			map.get(p.student)?.push(p);
+		});
+		return map;
+	});
+
+	let searchQuery = $state('');
+	let filterStatus = $state<'all' | 'present' | 'late' | 'help'>('all');
 	let viewMode = $state<'grid' | 'list'>('grid');
 	let filterSubject = $state<string>('all');
 	let filterNiveau = $state<string>('all');
 
 	$effect(() => {
 		participations = data.participations as ParticipationWithExpand[];
+		progressRecords = data.progressData;
 	});
 
 	const pb = new PocketBase(pbUrl);
 
 	$effect(() => {
 		if (browser) {
-			pb.authStore.loadFromCookie(document.cookie);
+			const staffCookie = document.cookie
+				.split(';')
+				.find((c) => c.trim().startsWith('pb_staff_auth='));
+			if (staffCookie) {
+				const value = staffCookie.substring(staffCookie.indexOf('=') + 1);
+				const { token, model } = JSON.parse(decodeURIComponent(value));
+				pb.authStore.save(token, model);
+			}
 
+			// Existing participation subscription
 			pb.collection('participations').subscribe('*', (e) => {
 				if (e.record.event !== data.event.id) return;
 				if (e.action === 'update') {
@@ -84,20 +105,34 @@
 					location.reload();
 				}
 			});
+
+			pb.collection('steps_progress').subscribe('*', (e) => {
+				if (e.record.event !== data.event.id) return;
+				if (e.action === 'update') {
+					const index = progressRecords.findIndex((p) => p.id === e.record.id);
+					if (index !== -1) {
+						progressRecords[index] = e.record;
+					}
+				} else if (e.action === 'create') {
+					progressRecords = [...progressRecords, e.record];
+				}
+			});
 		}
 		return () => {
-			if (browser) pb.collection('participations').unsubscribe('*');
+			if (browser) {
+				pb.collection('participations').unsubscribe('*');
+				pb.collection('steps_progress').unsubscribe('*');
+			}
 		};
 	});
 
 	const optimisticToggle = (id: string, field: 'is_present' | 'bring_pc') => {
-		return ({ formData }: { formData: FormData }) => {
+		return () => {
 			const index = participations.findIndex((p) => p.id === id);
 			if (index !== -1) {
 				const p = participations[index];
 				if (field === 'is_present') {
 					p.is_present = !p.is_present;
-					// If marking absent, reset delay optimistically
 					if (!p.is_present) p.delay = 0;
 				}
 				if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
@@ -146,10 +181,13 @@
 
 			if (!matchesSearch) return false;
 
-			const matchesStatus =
-				filterStatus === 'all' ||
-				(filterStatus === 'present' && p.is_present) ||
-				(filterStatus === 'late' && (p.delay || 0) > 0);
+			let matchesStatus = filterStatus === 'all';
+			if (filterStatus === 'present') matchesStatus = p.is_present === true;
+			if (filterStatus === 'late') matchesStatus = (p.delay || 0) > 0;
+			if (filterStatus === 'help') {
+				const prgs = studentProgressMap.get(p.student) || [];
+				matchesStatus = prgs.some((prog) => prog.status === 'needs_help');
+			}
 
 			const matchesSubject = filterSubject === 'all' || p.subjects?.includes(filterSubject);
 			const matchesNiveau = filterNiveau === 'all' || p.expand?.student?.niveau === filterNiveau;
@@ -160,15 +198,13 @@
 
 	let presentCount = $derived(participations.filter((p) => p.is_present).length);
 	let lateCount = $derived(participations.filter((p) => (p.delay || 0) > 0).length);
+	let helpCount = $derived(progressRecords.filter((p) => p.status === 'needs_help').length);
 
-	// Logistics Metrics
 	let totalStudents = $derived(participations.length);
 	let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
 
-	// --- DIPLOMA HANDLER (Server-Side) ---
 	async function handleDiplomaDownload(participation: ParticipationWithExpand) {
 		const toastId = toast.loading('Génération du diplôme...');
-
 		try {
 			const apiUrl = `${resolve('/api/diploma')}?participationId=${participation.id}`;
 			const res = await fetch(apiUrl);
@@ -227,6 +263,14 @@
 							class="rounded-sm bg-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-800 uppercase"
 						>
 							{lateCount} En retard
+						</div>
+					{/if}
+					{#if helpCount > 0}
+						<div
+							class="flex animate-pulse items-center gap-1 rounded-sm bg-epi-orange px-2 py-0.5 text-[10px] font-black text-white uppercase"
+						>
+							<LifeBuoy class="h-3 w-3" />
+							{helpCount} Appels
 						</div>
 					{/if}
 				</div>
@@ -372,9 +416,8 @@
 				</div>
 			</div>
 
-			<!-- Mobile Filter/Toggle Row -->
 			<div class="mt-2 flex items-center justify-between sm:hidden">
-				<div class="flex gap-1">
+				<div class="flex flex-wrap gap-1">
 					<Button
 						variant={filterStatus === 'all' ? 'default' : 'outline'}
 						size="sm"
@@ -388,10 +431,10 @@
 						onclick={() => (filterStatus = 'present')}>Présents</Button
 					>
 					<Button
-						variant={filterStatus === 'late' ? 'default' : 'outline'}
+						variant={filterStatus === 'help' ? 'default' : 'outline'}
 						size="sm"
 						class="h-8 text-[10px]"
-						onclick={() => (filterStatus = 'late')}>Retards</Button
+						onclick={() => (filterStatus = 'help')}>Appels ({helpCount})</Button
 					>
 				</div>
 				<div class="flex rounded-md border bg-card p-0.5">
@@ -402,10 +445,8 @@
 								? 'bg-muted text-foreground shadow-sm'
 								: 'text-muted-foreground hover:text-foreground'
 						)}
-						onclick={() => (viewMode = 'grid')}
+						onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></button
 					>
-						<LayoutGrid class="h-4 w-4" />
-					</button>
 					<button
 						class={cn(
 							'rounded-sm p-1.5 transition-all',
@@ -413,13 +454,11 @@
 								? 'bg-muted text-foreground shadow-sm'
 								: 'text-muted-foreground hover:text-foreground'
 						)}
-						onclick={() => (viewMode = 'list')}
+						onclick={() => (viewMode = 'list')}><ListIcon class="h-4 w-4" /></button
 					>
-						<ListIcon class="h-4 w-4" />
-					</button>
 				</div>
 			</div>
-			<!-- Desktop status filter (hidden on mobile to save space) -->
+
 			<div class="mt-2 hidden gap-1 sm:flex">
 				<Button
 					variant={filterStatus === 'all' ? 'default' : 'outline'}
@@ -439,19 +478,30 @@
 					class="h-8 text-[10px]"
 					onclick={() => (filterStatus = 'late')}>Retards</Button
 				>
+				<Button
+					variant={filterStatus === 'help' ? 'default' : 'outline'}
+					size="sm"
+					class="h-8 text-[10px]"
+					onclick={() => (filterStatus = 'help')}
+				>
+					Appels
+					{#if helpCount > 0}<span
+							class="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white"
+							>{helpCount}</span
+						>{/if}
+				</Button>
 			</div>
 		</div>
 	</div>
 
-	<!-- DATA DISPLAY -->
 	<div class="container mx-auto mt-6 max-w-2xl px-4 pb-20">
 		{#if viewMode === 'grid'}
 			<div class="space-y-3">
-				<!-- Passing index 'i' for staggered animation -->
 				{#each filteredParticipations as p, i (p.id)}
 					<ParticipationCard
 						participation={p}
 						event={data.event}
+						progress={studentProgressMap.get(p.student) || []}
 						{optimisticToggle}
 						onDownload={() => handleDiplomaDownload(p)}
 						index={i}
@@ -459,15 +509,19 @@
 				{/each}
 			</div>
 		{:else}
-			<!-- COMPACT LIST VIEW -->
 			<div class="rounded-sm border bg-card">
 				{#each filteredParticipations as p (p.id)}
 					{@const count = p.expand?.student?.events_count || 0}
 					{@const isPresent = p.is_present ? 1 : 0}
 					{@const isNew = count - isPresent === 0}
+					{@const pProgress = studentProgressMap.get(p.student) || []}
+					{@const needsHelp = pProgress.some((prog) => prog.status === 'needs_help')}
 
 					<div
-						class="flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20"
+						class={cn(
+							'flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20',
+							needsHelp && 'bg-orange-50/50 dark:bg-orange-950/20'
+						)}
 					>
 						<div class="flex items-center gap-3">
 							<form
@@ -488,67 +542,57 @@
 											: 'border-border text-muted-foreground hover:border-epi-teal'
 									)}
 								>
-									{#if (p.delay || 0) > 0}
-										<Clock class="h-4 w-4" />
-									{:else}
-										<User class="h-4 w-4" />
-									{/if}
+									{#if (p.delay || 0) > 0}<Clock class="h-4 w-4" />{:else}<User
+											class="h-4 w-4"
+										/>{/if}
 								</button>
 							</form>
 
 							<div class="flex flex-col">
 								<span class="flex items-center gap-2 text-sm font-bold">
-									<span>
-										<span class="uppercase">{p.expand?.student?.nom}</span>
-										{p.expand?.student?.prenom}
-									</span>
-									{#if isNew}
-										<Badge
+									<span
+										><span class="uppercase">{p.expand?.student?.nom}</span>
+										{p.expand?.student?.prenom}</span
+									>
+									{#if isNew}<Badge
 											variant="outline"
 											class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
-										>
-											<Sprout class="h-2.5 w-2.5" /> Nouveau
-										</Badge>
-									{/if}
+											><Sprout class="h-2.5 w-2.5" /> Nouveau</Badge
+										>{/if}
 								</span>
 								<div class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase">
 									<span>{p.expand?.student?.niveau}</span>
-									{#if (p.delay || 0) > 0}
-										<span class="flex items-center gap-1 font-bold text-orange-500">
-											<Clock class="h-2.5 w-2.5" />
-											{p.delay}m
-										</span>
-									{/if}
+									{#if (p.delay || 0) > 0}<span
+											class="flex items-center gap-1 font-bold text-orange-500"
+											><Clock class="h-2.5 w-2.5" />{p.delay}m</span
+										>{/if}
+									{#if needsHelp}<span class="flex items-center gap-1 font-bold text-epi-orange"
+											><LifeBuoy class="h-3 w-3" /> Aide Demandée</span
+										>{/if}
 								</div>
 							</div>
 						</div>
 
-						<!-- Note Input (Compact) -->
 						{#if p.is_present}
 							<div class="flex items-center gap-2">
 								{#if !p.bring_pc}
 									<Tooltip.Provider delayDuration={300}>
 										<Tooltip.Root>
-											<Tooltip.Trigger>
-												<MonitorX class="h-4 w-4 text-orange-400" />
-											</Tooltip.Trigger>
+											<Tooltip.Trigger><MonitorX class="h-4 w-4 text-orange-400" /></Tooltip.Trigger
+											>
 											<Tooltip.Content><p>Besoin d'un PC</p></Tooltip.Content>
 										</Tooltip.Root>
 									</Tooltip.Provider>
 								{/if}
-
 								<div class="w-40 sm:w-48">
 									<NoteInput id={p.id} value={p.note} placeholder="..." class="h-8 text-xs" />
 								</div>
-
 								<Button
 									variant="ghost"
 									size="icon"
 									class="h-8 w-8"
-									onclick={() => handleDiplomaDownload(p)}
+									onclick={() => handleDiplomaDownload(p)}><Award class="h-4 w-4" /></Button
 								>
-									<Award class="h-4 w-4" />
-								</Button>
 							</div>
 						{/if}
 					</div>

@@ -111,7 +111,14 @@ export const actions: Actions = {
 				}
 			}
 
-			// 2. Calculate next progress states
+			// 2. Manual Manta PIN Fallback Validation
+			if (step.validation?.type === 'manual_manta' && step.validation.unlock_code) {
+				const pinInput = data.get('pin') as string;
+				if (!pinInput || pinInput !== step.validation.unlock_code) {
+					return fail(400, { incorrect: true, message: 'Code PIN incorrect.' });
+				}
+			}
+
 			const progress = await locals.studentPb.collection('steps_progress').getOne(progressId);
 			const isLastStep = stepIndex === steps.length - 1;
 			const nextStepId = !isLastStep ? steps[stepIndex + 1].id : 'COMPLETED';
@@ -151,6 +158,23 @@ export const actions: Actions = {
 			return { success: true };
 		} catch (err) {
 			return fail(500, { message: 'Erreur de navigation' });
+		}
+	},
+
+	// Action to trigger or cancel the Manta Signal
+	toggleHelp: async ({ request, locals }) => {
+		const data = await request.formData();
+		const progressId = data.get('progressId') as string;
+		const currentStatus = data.get('currentStatus') as string;
+
+		try {
+			const newStatus = currentStatus === 'needs_help' ? 'active' : 'needs_help';
+			await locals.studentPb.collection('steps_progress').update(progressId, {
+				status: newStatus
+			});
+			return { success: true, status: newStatus };
+		} catch (err) {
+			return fail(500, { message: 'Erreur lors de la notification du Manta.' });
 		}
 	}
 };

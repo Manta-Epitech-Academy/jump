@@ -16,7 +16,10 @@
 		Award,
 		Sprout,
 		Clock,
-		Check
+		Check,
+		LifeBuoy,
+		X,
+		LockOpen
 	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
@@ -28,13 +31,15 @@
 		event,
 		optimisticToggle,
 		onDownload,
-		index = 0
+		index = 0,
+		progress = []
 	}: {
 		participation: any;
 		event: any;
 		optimisticToggle: (id: string, field: 'is_present' | 'bring_pc') => any;
 		onDownload?: () => void;
 		index?: number;
+		progress?: any[];
 	} = $props();
 
 	function formatFirstName(name: string | undefined) {
@@ -60,6 +65,21 @@
 
 	let delayOpen = $state(false);
 	const delays = [5, 10, 15, 30, 45, 60];
+
+	let needsHelpProgress = $derived(progress.find((p: any) => p.status === 'needs_help'));
+
+	let helpSubject = $derived(
+		needsHelpProgress
+			? participation.expand?.subjects?.find((s: any) => s.id === needsHelpProgress.subject)
+			: null
+	);
+	let helpStep = $derived(
+		helpSubject
+			? helpSubject.content_structure?.steps?.find(
+					(s: any) => s.id === needsHelpProgress.current_step_id
+				)
+			: null
+	);
 </script>
 
 <!--
@@ -73,20 +93,70 @@
 	out:fly={{ y: 20, duration: 200 }}
 >
 	<Card.Root
-		class="overflow-hidden border-2 shadow-sm transition-all duration-200 {participation.is_present
-			? 'border-epi-teal bg-card'
-			: 'border-transparent opacity-80'}"
+		class={cn(
+			'overflow-hidden border-2 shadow-sm transition-all duration-300',
+			needsHelpProgress
+				? 'border-epi-orange bg-orange-50/10 ring-4 ring-epi-orange/20 dark:bg-orange-950/10'
+				: participation.is_present
+					? 'border-epi-teal bg-card'
+					: 'border-transparent opacity-80'
+		)}
 	>
 		<Card.Content class="flex flex-col gap-4 p-4">
+			<!-- MANTA ALERT BANNER -->
+			{#if needsHelpProgress && helpStep}
+				<div
+					class="flex animate-in flex-col justify-between gap-3 rounded-lg bg-epi-orange px-4 py-3 text-white shadow-md fade-in slide-in-from-top-2 sm:flex-row sm:items-center"
+				>
+					<div class="flex items-center gap-3">
+						<LifeBuoy class="h-6 w-6 animate-bounce" />
+						<div class="flex flex-col">
+							<span class="text-sm font-bold tracking-wider uppercase">Demande d'aide</span>
+							<span class="text-xs opacity-90">Bloqué sur : <strong>{helpStep.title}</strong></span>
+						</div>
+					</div>
+					<div class="flex w-full items-center gap-2 sm:w-auto">
+						<form action="?/dismissAlert" method="POST" use:enhance class="flex-1 sm:flex-none">
+							<input type="hidden" name="progressId" value={needsHelpProgress.id} />
+							<Button
+								type="submit"
+								variant="ghost"
+								size="sm"
+								class="w-full text-white hover:bg-white/20 hover:text-white"
+							>
+								<X class="h-4 w-4" />
+							</Button>
+						</form>
+						<form action="?/unlockStep" method="POST" use:enhance class="flex-1 sm:flex-none">
+							<input type="hidden" name="progressId" value={needsHelpProgress.id} />
+							<Button
+								type="submit"
+								variant="secondary"
+								size="sm"
+								class="w-full font-bold text-epi-orange hover:bg-white/90"
+							>
+								<LockOpen class="mr-2 h-4 w-4" />
+								Débloquer
+							</Button>
+						</form>
+					</div>
+				</div>
+			{/if}
+
 			<div class="flex w-full items-center justify-between">
 				<div class="flex flex-1 items-center gap-4">
 					<div class="relative">
 						<Avatar.Root
-							class="h-12 w-12 rounded-full border-2 {participation.is_present
-								? participation.delay > 0
-									? 'border-orange-300'
-									: 'border-epi-teal'
-								: 'border-border'}"
+							class={cn(
+								'h-12 w-12 rounded-full border-2',
+								needsHelpProgress
+									? 'border-epi-orange'
+									: participation.is_present
+										? participation.delay > 0
+											? 'border-orange-300'
+											: 'border-epi-teal'
+										: 'border-border'
+							)}
 						>
 							<Avatar.Fallback class="bg-muted font-bold">
 								{(participation.expand?.student?.nom?.[0] ?? '').toUpperCase()}
@@ -95,12 +165,18 @@
 						</Avatar.Root>
 						{#if participation.is_present}
 							<div
-								class="absolute -right-1 -bottom-1 rounded-full p-0.5 ring-2 ring-card {participation.delay >
-								0
-									? 'bg-orange-200 text-orange-800'
-									: 'bg-epi-teal text-black'}"
+								class={cn(
+									'absolute -right-1 -bottom-1 rounded-full p-0.5 ring-2 ring-card',
+									needsHelpProgress
+										? 'bg-epi-orange text-white'
+										: participation.delay > 0
+											? 'bg-orange-200 text-orange-800'
+											: 'bg-epi-teal text-black'
+								)}
 							>
-								{#if participation.delay > 0}
+								{#if needsHelpProgress}
+									<LifeBuoy class="animate-spin-slow h-3 w-3" />
+								{:else if participation.delay > 0}
 									<Clock class="h-3 w-3" />
 								{:else}
 									<CircleCheck class="h-3 w-3" />
@@ -319,14 +395,11 @@
 												target="_blank"
 												rel="noopener noreferrer"
 												class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+												><ExternalLink class="h-3.5 w-3.5" /></Button
 											>
-												<ExternalLink class="h-3.5 w-3.5" />
-											</Button>
 										{/snippet}
 									</Tooltip.Trigger>
-									<Tooltip.Content>
-										<p>Ouvrir le sujet</p>
-									</Tooltip.Content>
+									<Tooltip.Content><p>Ouvrir le support original</p></Tooltip.Content>
 								</Tooltip.Root>
 							</Tooltip.Provider>
 						{/if}
@@ -365,8 +438,18 @@
 			transform: translateY(0);
 		}
 	}
-
 	.card-entry {
 		animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+	}
+	@keyframes spin-slow {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	.animate-spin-slow {
+		animation: spin-slow 3s linear infinite;
 	}
 </style>

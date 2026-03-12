@@ -9,6 +9,7 @@
 	import { cn } from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Input } from '$lib/components/ui/input';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import {
 		ArrowLeft,
@@ -19,15 +20,19 @@
 		Trophy,
 		CirclePlay,
 		Send,
-		ArrowRight
+		ArrowRight,
+		ShieldCheck
 	} from 'lucide-svelte';
+	import PocketBase from 'pocketbase';
+	import { pbUrl } from '$lib/pocketbase';
+	import { browser } from '$app/environment';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
 	let progress = $derived(data.progress);
 	let steps = $derived(data.content.steps || []);
 
-	// Indexes logic
 	let currentIndex = $derived(steps.findIndex((s) => s.id === progress.current_step_id));
 	let unlockedIndex = $derived(
 		progress.unlocked_step_id === 'COMPLETED'
@@ -37,24 +42,56 @@
 
 	let currentStep = $derived(steps[currentIndex] || steps[0]);
 	let isCompleted = $derived(progress.status === 'completed');
-
-	// Parse Markdown securely
 	let parsedHtml = $derived(marked.parse(currentStep.content_markdown) as string);
 
-	// QCM State
 	let selectedAnswer = $state<number | null>(null);
 	let qcmFails = $state(0);
 	let isValidating = $state(false);
-
-	// Mobile Sidebar State
+	let isCallingManta = $state(false);
 	let showRoadmapMobile = $state(false);
 
 	$effect(() => {
-		// Reset local QCM states when currentStep changes
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		currentStep.id;
 		selectedAnswer = null;
 		qcmFails = 0;
+	});
+
+	// Real-time listener for remote Manta unlocks
+	const realtimePb = browser ? new PocketBase(pbUrl) : null;
+
+	if (browser && realtimePb) {
+		const studentCookie = document.cookie
+			.split(';')
+			.find((c) => c.trim().startsWith('pb_student_auth='));
+		if (studentCookie) {
+			const value = studentCookie.substring(studentCookie.indexOf('=') + 1);
+			const { token, model } = JSON.parse(decodeURIComponent(value));
+			realtimePb.authStore.save(token, model);
+		}
+	}
+
+	let progressId = $derived(data.progress.id);
+
+	$effect(() => {
+		if (!realtimePb) return;
+
+		const id = progressId;
+		realtimePb.collection('steps_progress').subscribe(id, async (e) => {
+			if (e.action === 'update') {
+				if (e.record.unlocked_step_id !== progress.unlocked_step_id) {
+					toast.success('Le Manta a validé ton étape !', { duration: 4000 });
+					triggerConfetti();
+					await invalidateAll();
+				} else if (e.record.status !== progress.status) {
+					await invalidateAll();
+				}
+			}
+		});
+
+		return () => {
+			realtimePb.collection('steps_progress').unsubscribe(id);
+		};
 	});
 
 	function getStepStatus(index: number) {
@@ -333,22 +370,23 @@
 											{/each}
 										</div>
 
-										<div class="mt-6 flex items-center justify-between">
+										<div
+											class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+										>
 											<Button
 												type="submit"
 												disabled={selectedAnswer === null || isValidating || qcmFails >= 3}
-												class="rounded-xl bg-epi-blue font-bold text-white hover:bg-epi-blue/90"
+												class="w-full rounded-xl bg-epi-blue font-bold text-white hover:bg-epi-blue/90 sm:w-auto"
 											>
-												{#if isValidating}
-													Vérification...
-												{:else}
-													<Send class="mr-2 h-4 w-4" /> Valider ma réponse
-												{/if}
+												{#if isValidating}Vérification...{:else}<Send class="mr-2 h-4 w-4" /> Valider
+													ma réponse{/if}
 											</Button>
 
 											{#if qcmFails >= 3}
-												<span class="animate-pulse text-xs font-bold text-epi-orange uppercase">
-													Besoin d'aide ? Appelle un Manta 👇
+												<span
+													class="animate-pulse text-center text-xs font-bold text-epi-orange uppercase sm:text-right"
+												>
+													Bloqué ? Utilise le bouton "Appeler un Manta" 👇
 												</span>
 											{/if}
 										</div>
@@ -362,10 +400,55 @@
 									<h3 class="mb-2 font-bold text-slate-900 uppercase dark:text-white">
 										Validation Manta
 									</h3>
-									<p class="max-w-sm text-sm text-slate-500">
-										Cette étape requiert la validation physique d'un Manta. Montre ton travail, puis
-										clique sur le bouton "Appeler un Manta".
+									<p class="mb-6 max-w-sm text-sm text-slate-500">
+										Montre ton travail, puis clique sur "Appeler un Manta". Le Manta validera à
+										distance.
 									</p>
+
+									<!-- Fallback local PIN form -->
+									<div
+										class="w-full max-w-xs rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+									>
+										<p class="mb-3 text-[10px] font-bold text-slate-400 uppercase">
+											Secours Manta (Local PIN)
+										</p>
+										<form
+											action="?/validateStep"
+											method="POST"
+											use:enhance={() => {
+												isValidating = true;
+												return async ({ result, update }) => {
+													isValidating = false;
+													if (result.type === 'success') {
+														toast.success('Étape débloquée localement !');
+														triggerConfetti();
+													} else {
+														toast.error(result.data?.message || 'PIN Incorrect');
+													}
+													await update({ reset: false });
+												};
+											}}
+											class="flex gap-2"
+										>
+											<input type="hidden" name="stepId" value={currentStep.id} />
+											<input type="hidden" name="progressId" value={progress.id} />
+											<Input
+												name="pin"
+												type="password"
+												placeholder="••••"
+												maxlength={4}
+												class="h-10 text-center font-mono font-bold tracking-widest"
+											/>
+											<Button
+												type="submit"
+												disabled={isValidating}
+												variant="secondary"
+												class="h-10 px-3"
+											>
+												<ShieldCheck class="h-4 w-4" />
+											</Button>
+										</form>
+									</div>
 								</div>
 							{:else}
 								<div class="flex items-center justify-between">
@@ -401,17 +484,50 @@
 			{/if}
 		</main>
 
-		<!-- FLOATING "CALL MANTA" BUTTON (Epic 3 Placeholder) -->
+		<!-- THE MANTA SIGNAL BUTTON -->
 		<div class="absolute right-6 bottom-6 z-30">
-			<Button
-				size="lg"
-				class="h-14 gap-2 rounded-full bg-epi-orange font-bold text-white shadow-xl shadow-epi-orange/20 transition-transform hover:scale-105"
-				onclick={() =>
-					toast.success('Le signal Manta sera activé dans le prochain module ! (Epic 3)')}
+			<form
+				method="POST"
+				action="?/toggleHelp"
+				use:enhance={() => {
+					isCallingManta = true;
+					// Optimistic UI update
+					const previousStatus = progress.status;
+					progress.status = previousStatus === 'needs_help' ? 'active' : 'needs_help';
+
+					return async ({ result, update }) => {
+						isCallingManta = false;
+						if (result.type !== 'success') {
+							progress.status = previousStatus; // Revert on failure
+							toast.error('Impossible de contacter le serveur.');
+						}
+						await update({ reset: false });
+					};
+				}}
 			>
-				<LifeBuoy class="h-5 w-5" />
-				<span class="hidden sm:inline">Appeler un Manta</span>
-			</Button>
+				<input type="hidden" name="progressId" value={progress.id} />
+				<input type="hidden" name="currentStatus" value={progress.status} />
+
+				<Button
+					type="submit"
+					size="lg"
+					disabled={isCallingManta || isCompleted}
+					class={cn(
+						'h-14 gap-2 rounded-full font-bold text-white shadow-xl transition-all duration-300',
+						progress.status === 'needs_help'
+							? 'scale-100 bg-slate-700 ring-2 shadow-slate-900/20 ring-slate-400 ring-offset-2 hover:bg-slate-800 dark:ring-offset-slate-950'
+							: 'bg-epi-orange shadow-epi-orange/30 hover:scale-105 hover:bg-epi-orange/90 active:scale-95'
+					)}
+				>
+					{#if progress.status === 'needs_help'}
+						<CircleCheck class="h-5 w-5" />
+						<span class="hidden sm:inline">Manta prévenu ! (Annuler)</span>
+					{:else}
+						<LifeBuoy class={cn('h-5 w-5', isCompleted ? '' : 'animate-pulse')} />
+						<span class="hidden sm:inline">Appeler un Manta</span>
+					{/if}
+				</Button>
+			</form>
 		</div>
 	</div>
 </div>
