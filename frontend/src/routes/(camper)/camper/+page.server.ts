@@ -37,12 +37,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 				sort: 'event.date'
 			});
 
+		// Check if student has ANY completed past events to unlock the PDF download
+		const completedCount = await locals.studentPb.collection('participations').getList(1, 1, {
+			filter: `student = "${locals.student.id}" && is_present = true`,
+			fields: 'id'
+		});
+
 		// If there are multiple events today, grab the first one
 		const todayParticipation = participations.length > 0 ? participations[0] : null;
 
 		return {
 			student: locals.student,
-			participation: todayParticipation
+			participation: todayParticipation,
+			hasCompletedEvents: completedCount.totalItems > 0
 		};
 	} catch (err) {
 		console.error('Error fetching camper dashboard data:', err);

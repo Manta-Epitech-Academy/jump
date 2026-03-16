@@ -3,9 +3,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { resolve } from '$app/paths';
-	import { fade, fly } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
+	import { triggerConfetti } from '$lib/actions/confetti';
 	import {
 		Rocket,
 		Trophy,
@@ -18,12 +19,14 @@
 		MapPin,
 		Share2,
 		ExternalLink,
-		Check
+		Check,
+		FileDown,
+		LoaderCircle
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
 
-	let { student, participation } = data;
+	let { student, participation, hasCompletedEvents } = data;
 
 	let levelLabel =
 		student?.level === 'Expert'
@@ -48,7 +51,7 @@
 
 	// Sharing Logic
 	let copied = $state(false);
-	let copyTimeout: ReturnType<typeof setTimeout>;
+	// Construct the absolute URL using the current origin
 	let shareUrl = $derived(`${page.url.origin}${resolve(`/p/${student?.id}`)}`);
 
 	async function copyLink() {
@@ -56,17 +59,50 @@
 			await navigator.clipboard.writeText(shareUrl);
 			copied = true;
 			toast.success('Lien copié dans le presse-papier !');
-			clearTimeout(copyTimeout);
-			copyTimeout = setTimeout(() => {
+			setTimeout(() => {
 				copied = false;
 			}, 2000);
 		} catch (err) {
 			toast.error('Erreur lors de la copie du lien.');
 		}
 	}
+
+	// PDF Download Logic
+	let isDownloading = $state(false);
+
+	async function downloadCertificate() {
+		isDownloading = true;
+		try {
+			const res = await fetch(resolve('/api/certificate'));
+			if (!res.ok) throw new Error('Erreur réseau');
+
+			const blob = await res.blob();
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+
+			const disposition = res.headers.get('Content-Disposition');
+			let filename = 'Attestation_TekCamp.pdf';
+			if (disposition && disposition.includes('filename=')) {
+				filename = disposition.split('filename=')[1].replace(/"/g, '');
+			}
+
+			a.download = filename;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);
+			toast.success('Attestation téléchargée !');
+			triggerConfetti();
+		} catch (e) {
+			toast.error("Erreur lors de la génération de l'attestation.");
+		} finally {
+			isDownloading = false;
+		}
+	}
 </script>
 
-<div class="mx-auto max-w-4xl px-4 py-8 pb-20 sm:py-12">
+<div class="mx-auto max-w-5xl px-4 py-8 pb-20 sm:py-12">
 	<!-- HEADER: Greeting & Context -->
 	<header class="mb-10" in:fly={{ y: -20, duration: 400, delay: 100 }}>
 		<div class="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
@@ -157,6 +193,27 @@
 							</Button>
 						</div>
 					</div>
+
+					<!-- PDF Download Section -->
+					{#if hasCompletedEvents}
+						<div class="mt-4 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+							<h3 class="text-xs font-bold text-slate-400 uppercase">Mes Documents</h3>
+							<Button
+								variant="secondary"
+								class="h-auto w-full rounded-xl bg-blue-50/80 py-2.5 text-xs font-bold text-epi-blue transition-colors hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+								onclick={downloadCertificate}
+								disabled={isDownloading}
+							>
+								{#if isDownloading}
+									<LoaderCircle class="mr-2 h-4 w-4 shrink-0 animate-spin" />
+									<span class="truncate">Génération...</span>
+								{:else}
+									<FileDown class="mr-2 h-4 w-4 shrink-0" />
+									<span class="truncate">Attestation Parcoursup</span>
+								{/if}
+							</Button>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
