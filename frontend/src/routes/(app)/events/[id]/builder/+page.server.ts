@@ -466,9 +466,13 @@ export const actions: Actions = {
 				const subjects = p.expand?.subjects || [];
 				const xpValue = getTotalXp(subjects);
 
+				const student = await locals.pb.collection('students').getOne(p.student);
+				const currentXp = student.xp ?? 0;
+				const currentEventsCount = student.events_count ?? 0;
+
 				await locals.pb.collection('students').update(p.student, {
-					'xp-': xpValue,
-					'events_count-': 1
+					'xp-': Math.min(xpValue, currentXp),
+					'events_count-': Math.min(1, currentEventsCount)
 				});
 			}
 
@@ -492,9 +496,14 @@ export const actions: Actions = {
 			for (const p of participations) {
 				const subjects = p.expand?.subjects || [];
 				const xpValue = getTotalXp(subjects);
+
+				const student = await locals.pb.collection('students').getOne(p.student);
+				const currentXp = student.xp ?? 0;
+				const currentEventsCount = student.events_count ?? 0;
+
 				await locals.pb.collection('students').update(p.student, {
-					'xp-': xpValue,
-					'events_count-': 1
+					'xp-': Math.min(xpValue, currentXp),
+					'events_count-': Math.min(1, currentEventsCount)
 				});
 			}
 

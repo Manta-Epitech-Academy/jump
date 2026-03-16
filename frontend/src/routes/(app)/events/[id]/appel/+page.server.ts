@@ -86,13 +86,21 @@ export const actions: Actions = {
 
 			// Only update student stats if status actually changed
 			if (p.is_present !== isNowPresent) {
-				const xpChange = isNowPresent ? xpValue : -xpValue;
-				const eventChange = isNowPresent ? 1 : -1;
+				if (isNowPresent) {
+					await locals.pb.collection('students').update(studentId, {
+						'xp+': xpValue,
+						'events_count+': 1
+					});
+				} else {
+					const student = await locals.pb.collection('students').getOne(studentId);
+					const currentXp = student.xp ?? 0;
+					const currentEventsCount = student.events_count ?? 0;
 
-				await locals.pb.collection('students').update(studentId, {
-					'xp+': xpChange,
-					'events_count+': eventChange
-				});
+					await locals.pb.collection('students').update(studentId, {
+						'xp-': Math.min(xpValue, currentXp),
+						'events_count-': Math.min(1, currentEventsCount)
+					});
+				}
 			}
 
 			return { success: true };
