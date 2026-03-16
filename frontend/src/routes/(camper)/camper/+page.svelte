@@ -4,6 +4,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { resolve } from '$app/paths';
 	import { fade, fly } from 'svelte/transition';
+	import { toast } from 'svelte-sonner';
+	import { page } from '$app/state';
 	import {
 		Rocket,
 		Trophy,
@@ -13,7 +15,10 @@
 		Clock,
 		Coffee,
 		Hourglass,
-		MapPin
+		MapPin,
+		Share2,
+		ExternalLink,
+		Check
 	} from 'lucide-svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -40,6 +45,25 @@
 			minute: '2-digit'
 		});
 	}
+
+	// Sharing Logic
+	let copied = $state(false);
+	let copyTimeout: ReturnType<typeof setTimeout>;
+	let shareUrl = $derived(`${page.url.origin}${resolve(`/p/${student?.id}`)}`);
+
+	async function copyLink() {
+		try {
+			await navigator.clipboard.writeText(shareUrl);
+			copied = true;
+			toast.success('Lien copié dans le presse-papier !');
+			clearTimeout(copyTimeout);
+			copyTimeout = setTimeout(() => {
+				copied = false;
+			}, 2000);
+		} catch (err) {
+			toast.error('Erreur lors de la copie du lien.');
+		}
+	}
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-8 pb-20 sm:py-12">
@@ -61,7 +85,7 @@
 	</header>
 
 	<div class="grid gap-6 md:grid-cols-12">
-		<!-- LEFT COLUMN: Stats -->
+		<!-- LEFT COLUMN: Stats & Profile -->
 		<div class="md:col-span-4" in:fly={{ x: -20, duration: 400, delay: 200 }}>
 			<div
 				class="relative overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
@@ -103,6 +127,34 @@
 								class="h-full rounded-full bg-epi-orange transition-all duration-1000 ease-out"
 								style="width: {xpProgress}%"
 							></div>
+						</div>
+					</div>
+
+					<!-- Public Profile Share Section -->
+					<div class="mt-8 w-full space-y-3 border-t border-slate-100 pt-6 dark:border-slate-800">
+						<h3 class="text-xs font-bold text-slate-400 uppercase">Mon Profil Public</h3>
+						<div class="flex flex-col gap-2">
+							<Button
+								variant="outline"
+								class="w-full justify-between rounded-xl border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300"
+								onclick={copyLink}
+							>
+								<span class="truncate text-xs">{shareUrl}</span>
+								{#if copied}
+									<Check class="ml-2 h-4 w-4 shrink-0 text-epi-teal" />
+								{:else}
+									<Share2 class="ml-2 h-4 w-4 shrink-0" />
+								{/if}
+							</Button>
+							<Button
+								variant="ghost"
+								href={resolve(`/p/${student?.id}`)}
+								target="_blank"
+								class="w-full rounded-xl text-xs font-bold text-epi-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"
+							>
+								<ExternalLink class="mr-2 h-4 w-4" />
+								Voir la page
+							</Button>
 						</div>
 					</div>
 				</div>

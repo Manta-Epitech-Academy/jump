@@ -189,12 +189,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const pathOnboarding = new URL(resolvePath('/onboarding'), event.url).pathname;
 	const pathLogout = new URL(resolvePath('/logout'), event.url).pathname;
 	const pathOAuth = new URL(resolvePath('/oauth'), event.url).pathname;
+	const pathPublicShowcase = new URL(resolvePath('/p/'), event.url).pathname;
 
 	const isPublicPath =
 		currentPath.startsWith(pathOnboarding) ||
 		currentPath.startsWith(pathLogout) ||
 		currentPath.startsWith(pathOAuth) ||
-		currentPath.startsWith(pathAdminLogin);
+		currentPath.startsWith(pathAdminLogin) ||
+		currentPath.startsWith(pathPublicShowcase);
 
 	// --- Camper Guards ---
 	const pathCamperLogin = new URL(resolvePath('/camper/login'), event.url).pathname;
@@ -212,7 +214,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	} else {
 		// --- Role Isolation: Student trying to access Staff App ---
 		// If we are NOT in admin/camper routes (implies Staff App), and user is a Student but NOT a Staff
-		// AND we are not trying to access a public route (like /logout)
+		// AND we are not trying to access a public route (like /logout or /p/)
 		if (event.locals.student && !event.locals.user && !isAdminPath && !isPublicPath) {
 			// Redirect them back to their portal
 			return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
