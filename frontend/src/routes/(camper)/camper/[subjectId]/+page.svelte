@@ -21,7 +21,13 @@
 		CirclePlay,
 		Send,
 		ArrowRight,
-		ShieldCheck
+		ShieldCheck,
+		FolderOpen,
+		X,
+		ImagePlus,
+		Link as LinkIcon,
+		Trash2,
+		LoaderCircle,
 	} from 'lucide-svelte';
 	import PocketBase from 'pocketbase';
 	import { pbUrl } from '$lib/pocketbase';
@@ -32,6 +38,7 @@
 
 	let progress = $derived(data.progress);
 	let steps = $derived(data.content.steps || []);
+	let portfolioItems = $derived(data.portfolioItems || []);
 
 	let currentIndex = $derived(steps.findIndex((s) => s.id === progress.current_step_id));
 	let unlockedIndex = $derived(
@@ -48,7 +55,15 @@
 	let qcmFails = $state(0);
 	let isValidating = $state(false);
 	let isCallingManta = $state(false);
+
 	let showRoadmapMobile = $state(false);
+	let showPortfolio = $state(false);
+	let isUploadingPortfolio = $state(false);
+
+	let portfolioFile = $state<File | null>(null);
+	let portfolioUrl = $state('');
+	let portfolioCaption = $state('');
+	let fileInputRef: HTMLInputElement;
 
 	$effect(() => {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -99,6 +114,13 @@
 		if (index === unlockedIndex) return 'active';
 		return 'locked';
 	}
+
+	function handleFileChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		if (target.files && target.files.length > 0) {
+			portfolioFile = target.files[0];
+		}
+	}
 </script>
 
 <div class="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
@@ -125,6 +147,24 @@
 				onclick={() => (showRoadmapMobile = !showRoadmapMobile)}
 			>
 				<MapIcon class="mr-2 h-4 w-4" /> Carte
+			</Button>
+
+			<!-- Portfolio Trigger -->
+			<Button
+				variant="secondary"
+				size="sm"
+				class="bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300"
+				onclick={() => (showPortfolio = true)}
+			>
+				<FolderOpen class="mr-2 h-4 w-4" />
+				<span class="hidden sm:inline">Mon Portfolio</span>
+				{#if portfolioItems.length > 0}
+					<Badge
+						variant="default"
+						class="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 p-0 text-[10px]"
+						>{portfolioItems.length}</Badge
+					>
+				{/if}
 			</Button>
 
 			<div
@@ -198,13 +238,9 @@
 												: 'bg-slate-200 text-slate-500 dark:bg-slate-800'
 									)}
 								>
-									{#if status === 'done'}
-										<CircleCheck class="h-4 w-4" />
-									{:else if status === 'locked'}
-										<Lock class="h-4 w-4" />
-									{:else}
-										{i + 1}
-									{/if}
+									{#if status === 'done'}<CircleCheck
+											class="h-4 w-4"
+										/>{:else if status === 'locked'}<Lock class="h-4 w-4" />{:else}{i + 1}{/if}
 								</div>
 								<div class="flex flex-col overflow-hidden">
 									<span
@@ -252,13 +288,23 @@
 					<p class="mb-8 max-w-md text-lg text-slate-500">
 						Excellent travail. Tu as validé toutes les étapes de cette mission.
 					</p>
-					<Button
-						size="lg"
-						href={resolve('/camper')}
-						class="rounded-xl bg-epi-blue font-bold text-white shadow-lg hover:bg-epi-blue/90"
-					>
-						Retourner au Cockpit
-					</Button>
+
+					<div class="flex gap-4">
+						<Button
+							size="lg"
+							href={resolve('/camper')}
+							class="rounded-xl bg-epi-blue font-bold text-white shadow-lg hover:bg-epi-blue/90"
+							>Retourner au Cockpit</Button
+						>
+						<Button
+							size="lg"
+							variant="outline"
+							class="rounded-xl border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+							onclick={() => (showPortfolio = true)}
+						>
+							<FolderOpen class="mr-2 h-5 w-5" /> Gérer mon Portfolio
+						</Button>
+					</div>
 				</div>
 			{:else}
 				{#key currentStep.id}
@@ -498,7 +544,7 @@
 					return async ({ result, update }) => {
 						isCallingManta = false;
 						if (result.type !== 'success') {
-							progress.status = previousStatus; // Revert on failure
+							progress.status = previousStatus;
 							toast.error('Impossible de contacter le serveur.');
 						}
 						await update({ reset: false });
@@ -530,6 +576,227 @@
 			</form>
 		</div>
 	</div>
+
+	<!-- PORTFOLIO SLIDING DRAWER -->
+	{#if showPortfolio}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="absolute inset-0 z-40 bg-slate-900/40 backdrop-blur-sm"
+			transition:fade={{ duration: 200 }}
+			onclick={() => (showPortfolio = false)}
+		></div>
+
+		<div
+			class="absolute inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl dark:bg-slate-900"
+			transition:fly={{ x: 100, duration: 300 }}
+		>
+			<div
+				class="flex items-center justify-between border-b border-slate-200 p-4 dark:border-slate-800"
+			>
+				<div class="flex items-center gap-3">
+					<div
+						class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+					>
+						<FolderOpen class="h-5 w-5" />
+					</div>
+					<h2 class="font-heading text-lg uppercase">Mon Portfolio</h2>
+				</div>
+				<Button variant="ghost" size="icon" onclick={() => (showPortfolio = false)}
+					><X class="h-5 w-5" /></Button
+				>
+			</div>
+
+			<ScrollArea class="flex-1 p-6">
+				<!-- Upload Form -->
+				<div
+					class="mb-8 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50"
+				>
+					<h3 class="mb-4 text-xs font-bold text-slate-500 uppercase">Ajouter une création</h3>
+					<form
+						method="POST"
+						action="?/addPortfolioItem"
+						enctype="multipart/form-data"
+						use:enhance={() => {
+							isUploadingPortfolio = true;
+							return async ({ result, update }) => {
+								isUploadingPortfolio = false;
+								if (result.type === 'success') {
+									toast.success('Élément ajouté au portfolio !');
+									portfolioFile = null;
+									portfolioUrl = '';
+									portfolioCaption = '';
+									if (fileInputRef) fileInputRef.value = '';
+								} else {
+									toast.error(result.data?.message || "Erreur lors de l'ajout.");
+								}
+								await update();
+							};
+						}}
+						class="space-y-4"
+					>
+						<input type="hidden" name="eventId" value={data.eventId} />
+
+						<!-- File Upload -->
+						<div class="space-y-2">
+							<div class="flex w-full items-center justify-center">
+								<!-- svelte-ignore a11y_click_events_have_key_events -->
+								<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+								<label
+									for="dropzone-file"
+									class="flex h-24 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+								>
+									<div class="flex flex-col items-center justify-center pt-5 pb-6">
+										{#if portfolioFile}
+											<CircleCheck class="mb-2 h-6 w-6 text-epi-teal" />
+											<p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+												{portfolioFile.name}
+											</p>
+										{:else}
+											<ImagePlus class="mb-2 h-6 w-6 text-slate-400" />
+											<p class="text-xs text-slate-500">
+												<span class="font-bold text-epi-blue">Clique</span> pour ajouter une image
+											</p>
+										{/if}
+									</div>
+									<input
+										bind:this={fileInputRef}
+										id="dropzone-file"
+										name="file"
+										type="file"
+										accept="image/png, image/jpeg, image/webp"
+										class="hidden"
+										onchange={handleFileChange}
+									/>
+								</label>
+							</div>
+						</div>
+
+						<div class="relative flex items-center py-2">
+							<div class="grow border-t border-slate-200 dark:border-slate-800"></div>
+							<span class="shrink-0 px-3 text-[10px] font-bold text-slate-400 uppercase">OU</span>
+							<div class="grow border-t border-slate-200 dark:border-slate-800"></div>
+						</div>
+
+						<!-- URL Input -->
+						<div class="relative">
+							<LinkIcon class="absolute top-3 left-3 h-4 w-4 text-slate-400" />
+							<Input
+								name="url"
+								bind:value={portfolioUrl}
+								placeholder="Lien GitHub, Replit, Figma..."
+								class="h-10 rounded-xl pl-9"
+							/>
+						</div>
+
+						<!-- Caption -->
+						<Input
+							name="caption"
+							bind:value={portfolioCaption}
+							placeholder="Petite description (Ex: Mon premier jeu Python)"
+							class="h-10 rounded-xl"
+						/>
+
+						<Button
+							type="submit"
+							disabled={isUploadingPortfolio || (!portfolioFile && !portfolioUrl)}
+							class="w-full rounded-xl bg-purple-600 font-bold text-white hover:bg-purple-700"
+						>
+							{#if isUploadingPortfolio}
+								<LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Ajout en cours...
+							{:else}
+								Enregistrer dans mon Portfolio
+							{/if}
+						</Button>
+					</form>
+				</div>
+
+				<!-- Gallery -->
+				<div class="space-y-4">
+					<h3 class="text-xs font-bold text-slate-500 uppercase">
+						Mes Créations ({portfolioItems.length})
+					</h3>
+
+					{#if portfolioItems.length === 0}
+						<div
+							class="flex flex-col items-center justify-center rounded-xl bg-slate-100 p-8 text-center dark:bg-slate-800/50"
+						>
+							<FolderOpen class="mb-2 h-8 w-8 text-slate-300" />
+							<p class="text-sm text-slate-500">Ton portfolio est vide pour le moment.</p>
+						</div>
+					{:else}
+						<div class="grid gap-4 sm:grid-cols-2">
+							{#each portfolioItems as item (item.id)}
+								<div
+									class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+								>
+									{#if item.file}
+										<div class="aspect-video w-full bg-slate-100 dark:bg-slate-800">
+											<img
+												src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
+												alt={item.caption || 'Création'}
+												class="h-full w-full object-cover"
+											/>
+										</div>
+									{:else if item.url}
+										<div
+											class="flex aspect-video w-full flex-col items-center justify-center bg-purple-50 p-4 dark:bg-purple-900/20"
+										>
+											<LinkIcon class="mb-2 h-8 w-8 text-purple-400" />
+											<a
+												href={item.url}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="line-clamp-2 text-center text-xs font-bold break-all text-purple-600 hover:underline"
+											>
+												{item.url}
+											</a>
+										</div>
+									{/if}
+
+									{#if item.caption}
+										<div class="p-3">
+											<p
+												class="line-clamp-2 text-xs font-medium text-slate-700 dark:text-slate-300"
+											>
+												{item.caption}
+											</p>
+										</div>
+									{/if}
+
+									<!-- Delete Button -->
+									<div
+										class="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
+									>
+										<form
+											action="?/deletePortfolioItem"
+											method="POST"
+											use:enhance={() => {
+												return async ({ update }) => {
+													toast.success('Élément supprimé');
+													await update();
+												};
+											}}
+										>
+											<input type="hidden" name="itemId" value={item.id} />
+											<Button
+												type="submit"
+												variant="destructive"
+												size="icon"
+												class="h-8 w-8 rounded-full shadow-md"
+											>
+												<Trash2 class="h-4 w-4" />
+											</Button>
+										</form>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			</ScrollArea>
+		</div>
+	{/if}
 </div>
 
 <style>

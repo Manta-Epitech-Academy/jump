@@ -68,11 +68,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			});
 		}
 
+		// 4. Fetch Portfolio Items for this event
+		const portfolioItems = await locals.studentPb.collection('portfolio_items').getFullList({
+			filter: `student = "${locals.student.id}" && event = "${eventId}"`,
+			sort: '-created'
+		});
+
 		return {
 			subject,
 			content,
 			progress,
-			eventId
+			eventId,
+			portfolioItems
 		};
 	} catch (err: any) {
 		console.error('Error loading subject cockpit:', err);
@@ -81,10 +88,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 };
 
 export const actions: Actions = {
-	/**
-	 * Generic action to complete a step.
-	 * Handles both QCM validation and simple "Continue" for theory steps.
-	 */
 	validateStep: async ({ request, locals, params }) => {
 		const data = await request.formData();
 		const stepId = data.get('stepId') as string;
@@ -126,14 +129,12 @@ export const actions: Actions = {
 			let newUnlockedId = progress.unlocked_step_id;
 			const currentUnlockedIndex = steps.findIndex((s) => s.id === newUnlockedId);
 
-			// Logic: Only advance the "Unlocked" boundary if the user is completing their furthest step
+			// Only advance the "Unlocked" boundary if the user is completing their furthest step
 			if (newUnlockedId !== 'COMPLETED' && (isLastStep || stepIndex >= currentUnlockedIndex)) {
 				newUnlockedId = nextStepId;
 			}
 
-			// 3. Update DB
 			await locals.studentPb.collection('steps_progress').update(progressId, {
-				// Move view to next step if not finished
 				current_step_id: nextStepId === 'COMPLETED' ? stepId : nextStepId,
 				unlocked_step_id: newUnlockedId,
 				status: nextStepId === 'COMPLETED' ? 'completed' : 'active'
@@ -161,7 +162,6 @@ export const actions: Actions = {
 		}
 	},
 
-	// Action to trigger or cancel the Manta Signal
 	toggleHelp: async ({ request, locals }) => {
 		const data = await request.formData();
 		const progressId = data.get('progressId') as string;
@@ -175,6 +175,54 @@ export const actions: Actions = {
 			return { success: true, status: newStatus };
 		} catch (err) {
 			return fail(500, { message: 'Erreur lors de la notification du Manta.' });
+		}
+	},
+
+	// EPIC 4: Portfolio Actions
+	addPortfolioItem: async ({ request, locals }) => {
+		if (!locals.student) return fail(401, { message: 'Non autorisé' });
+
+		const data = await request.formData();
+		const eventId = data.get('eventId') as string;
+		const caption = data.get('caption') as string;
+		const url = data.get('url') as string;
+		const file = data.get('file') as File;
+
+		// Validate at least one input
+		if ((!file || file.size === 0) && !url) {
+			return fail(400, { message: 'Tu dois fournir une image ou un lien.' });
+		}
+
+		try {
+			const formData = new FormData();
+			formData.append('student', locals.student.id);
+			formData.append('event', eventId);
+			if (caption) formData.append('caption', caption);
+			if (url) formData.append('url', url);
+			if (file && file.size > 0) formData.append('file', file);
+
+			await locals.studentPb.collection('portfolio_items').create(formData);
+			return { success: true };
+		} catch (err) {
+			console.error('Portfolio Add Error:', err);
+			return fail(500, { message: "Erreur lors de l'ajout au portfolio." });
+		}
+	},
+
+	deletePortfolioItem: async ({ request, locals }) => {
+		if (!locals.student) return fail(401, { message: 'Non autorisé' });
+
+		const data = await request.formData();
+		const itemId = data.get('itemId') as string;
+
+		try {
+			// PocketBase API rules ensures a student can only delete their own items,
+			// but we enforce the delete directly since the token is scoped to the student.
+			await locals.studentPb.collection('portfolio_items').delete(itemId);
+			return { success: true };
+		} catch (err) {
+			console.error('Portfolio Delete Error:', err);
+			return fail(500, { message: 'Erreur lors de la suppression.' });
 		}
 	}
 };
