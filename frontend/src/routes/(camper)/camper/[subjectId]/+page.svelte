@@ -5,6 +5,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { resolve } from '$app/paths';
+	import { StepsProgressStatusOptions } from '$lib/pocketbase-types';
 	import { triggerConfetti } from '$lib/actions/confetti';
 	import { cn } from '$lib/utils';
 	import { Button } from '$lib/components/ui/button';
@@ -63,7 +64,7 @@
 	let portfolioFile = $state<File | null>(null);
 	let portfolioUrl = $state('');
 	let portfolioCaption = $state('');
-	let fileInputRef: HTMLInputElement;
+	let fileInputRef = $state<HTMLInputElement>(undefined!);
 
 	$effect(() => {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -377,7 +378,7 @@
 													qcmFails = 0;
 												} else if (result.type === 'failure') {
 													qcmFails++;
-													toast.error(result.data?.message || 'Mauvaise réponse.');
+													toast.error((result.data as Record<string, unknown>)?.message as string || 'Mauvaise réponse.');
 												}
 												await update({ reset: false });
 											};
@@ -469,7 +470,7 @@
 														toast.success('Étape débloquée localement !');
 														triggerConfetti();
 													} else {
-														toast.error(result.data?.message || 'PIN Incorrect');
+														toast.error((result as any).data?.message || 'PIN Incorrect');
 													}
 													await update({ reset: false });
 												};
@@ -539,7 +540,7 @@
 					isCallingManta = true;
 					// Optimistic UI update
 					const previousStatus = progress.status;
-					progress.status = previousStatus === 'needs_help' ? 'active' : 'needs_help';
+					progress.status = previousStatus === 'needs_help' ? StepsProgressStatusOptions.active : StepsProgressStatusOptions.needs_help;
 
 					return async ({ result, update }) => {
 						isCallingManta = false;
@@ -628,7 +629,7 @@
 									portfolioCaption = '';
 									if (fileInputRef) fileInputRef.value = '';
 								} else {
-									toast.error(result.data?.message || "Erreur lors de l'ajout.");
+									toast.error((result as any).data?.message || "Erreur lors de l'ajout.");
 								}
 								await update();
 							};
@@ -799,34 +800,3 @@
 	{/if}
 </div>
 
-<style>
-	@reference "../../../layout.css";
-
-	:global(.markdown-content) {
-		@apply font-sans;
-	}
-	:global(.markdown-content h1, .markdown-content h2, .markdown-content h3) {
-		@apply mt-8 mb-4 font-heading tracking-wide text-slate-900 uppercase dark:text-white;
-	}
-	:global(.markdown-content p) {
-		@apply mb-4 text-slate-700 dark:text-slate-300;
-	}
-	:global(.markdown-content pre) {
-		@apply mb-6 overflow-x-auto rounded-xl bg-slate-900 p-4 text-slate-50 shadow-inner dark:bg-black;
-	}
-	:global(.markdown-content code) {
-		@apply rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-epi-blue dark:bg-slate-800 dark:text-blue-300;
-	}
-	:global(.markdown-content pre code) {
-		@apply bg-transparent p-0 text-inherit;
-	}
-	:global(.markdown-content ul) {
-		@apply mb-4 list-inside list-disc space-y-2 text-slate-700 dark:text-slate-300;
-	}
-	:global(.markdown-content a) {
-		@apply font-bold text-epi-blue underline decoration-2 underline-offset-2 transition-colors hover:text-epi-blue/80;
-	}
-	:global(.markdown-content blockquote) {
-		@apply my-6 rounded-r-xl border-l-4 border-epi-teal bg-slate-50 py-2 pr-4 pl-4 text-slate-600 italic dark:bg-slate-900/50 dark:text-slate-400;
-	}
-</style>

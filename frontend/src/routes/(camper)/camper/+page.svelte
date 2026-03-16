@@ -26,20 +26,23 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let { student, participation, hasCompletedEvents } = data;
+	let student = $derived(data.student);
+	let participation = $derived(data.participation);
+	let hasCompletedEvents = $derived(data.hasCompletedEvents);
 
-	let levelLabel =
+	let levelLabel = $derived(
 		student?.level === 'Expert'
 			? 'Expert ✦'
 			: student?.level === 'Apprentice'
 				? 'Apprenti'
-				: 'Novice';
+				: 'Novice'
+	);
 
 	// Assuming 1000 XP is the max for the progress bar visual (can be adjusted)
-	let xpProgress = Math.min(((student?.xp || 0) / 1000) * 100, 100);
+	let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
-	let eventTitle = participation?.expand?.event?.titre || 'Atelier Epitech';
-	let subjects = participation?.expand?.subjects || [];
+	let eventTitle = $derived(participation?.expand?.event?.titre || 'Atelier Epitech');
+	let subjects = $derived(participation?.expand?.subjects || []);
 
 	function formatTime(dateString: string | undefined) {
 		if (!dateString) return '';

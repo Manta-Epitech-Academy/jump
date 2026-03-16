@@ -172,7 +172,7 @@ export const actions: Actions = {
 		try {
 			const progress = await locals.pb.collection('steps_progress').getOne(progressId);
 			const subject = await locals.pb.collection('subjects').getOne(progress.subject);
-			const content = subject.content_structure;
+			const content = subject.content_structure as { steps?: { id: string }[] };
 			const steps = content.steps || [];
 
 			const currentIndex = steps.findIndex((s: any) => s.id === progress.current_step_id);

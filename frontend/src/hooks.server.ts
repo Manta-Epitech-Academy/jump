@@ -82,7 +82,7 @@ const getSystemClient = async () => {
 		try {
 			await globalSystemClient
 				.collection('_superusers')
-				.authWithPassword(env.PB_ADMIN_EMAIL, env.PB_ADMIN_PASS, { autoRefreshThreshold: 30 * 60 });
+				.authWithPassword(env.PB_ADMIN_EMAIL!, env.PB_ADMIN_PASS!, { autoRefreshThreshold: 30 * 60 });
 		} catch (err) {
 			console.error("Erreur critique: Impossible d'authentifier le client System PB", err);
 		}

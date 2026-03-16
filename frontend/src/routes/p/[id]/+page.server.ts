@@ -16,6 +16,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			expand: 'event'
 		});
 
+		type PortfolioExpand = { event?: { titre?: string } };
+
 		return {
 			student: {
 				id: student.id,
@@ -27,7 +29,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				badges: student.badges,
 				events_count: student.events_count
 			},
-			portfolioItems: portfolioItems.map((item) => ({
+			portfolioItems: portfolioItems.map((item: any) => ({
 				id: item.id,
 				collectionId: item.collectionId,
 				file: item.file,

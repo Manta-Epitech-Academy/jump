@@ -6,15 +6,16 @@
 	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
-	let student = data.student;
-	let items = data.portfolioItems;
+	let student = $derived(data.student);
+	let items = $derived(data.portfolioItems);
 
-	let levelLabel =
+	let levelLabel = $derived(
 		student.level === 'Expert'
 			? 'Expert ✦'
 			: student.level === 'Apprentice'
 				? 'Apprenti'
-				: 'Novice';
+				: 'Novice'
+	);
 </script>
 
 <div class="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">

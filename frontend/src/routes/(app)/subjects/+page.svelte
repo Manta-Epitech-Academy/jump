@@ -4,7 +4,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { page } from '$app/state';
 
-	type SubjectWithExpand = SubjectsResponse<{
+	type SubjectWithExpand = SubjectsResponse<unknown, {
 		themes?: ThemesResponse[];
 		campus?: CampusesResponse;
 	}>;

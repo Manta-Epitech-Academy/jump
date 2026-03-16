@@ -35,6 +35,7 @@ export const actions: Actions = {
 			// Scoped Creation
 			await createScoped(locals.pb, 'students', {
 				...form.data,
+				email: form.data.email || '',
 				niveau: form.data.niveau as StudentsNiveauOptions,
 				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions,
 

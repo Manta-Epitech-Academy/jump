@@ -320,7 +320,7 @@ export type CreateAuth<T> = {
 	password: string
 	passwordConfirm: string
 	verified?: boolean
-} & ProcessCreateAndUpdateFields<T>
+} & Omit<ProcessCreateAndUpdateFields<T>, 'tokenKey'>
 
 // Create type for Base collections
 export type CreateBase<T> = {

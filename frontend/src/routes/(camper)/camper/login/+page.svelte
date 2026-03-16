@@ -7,6 +7,7 @@
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { Rocket, Lock, ArrowLeft, CircleAlert, Sparkles } from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
+	import { untrack } from 'svelte';
 
 	let { data } = $props();
 
@@ -18,7 +19,7 @@
 		enhance: emailEnhance,
 		delayed: emailDelayed,
 		message: emailMessage
-	} = superForm(data.emailForm, {
+	} = superForm(untrack(() => data.emailForm), {
 		resetForm: false,
 		onUpdated: ({ form }) => {
 			if (form.valid && form.message?.type === 'success') {
@@ -35,7 +36,7 @@
 		enhance: otpEnhance,
 		delayed: otpDelayed,
 		message: otpMessage
-	} = superForm(data.otpForm, {
+	} = superForm(untrack(() => data.otpForm), {
 		resetForm: false
 	});
 

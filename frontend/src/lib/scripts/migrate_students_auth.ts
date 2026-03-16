@@ -1,5 +1,20 @@
 import PocketBase from 'pocketbase';
-import type { OldStudentsResponse } from '../pocketbase-types';
+
+// Local type for the legacy collection (no longer in generated types)
+type OldStudentsResponse = {
+    id: string;
+    old_email: string;
+    campus: string;
+    nom: string;
+    prenom: string;
+    phone: string;
+    parent_email: string;
+    parent_phone: string;
+    niveau: string;
+    niveau_difficulte: string;
+    xp: number;
+    events_count: number;
+};
 
 // CONFIGURATION
 const PB_URL = process.env.PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';

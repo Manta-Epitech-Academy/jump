@@ -19,7 +19,7 @@ type SubjectExpand = {
 
 type ParticipationExpand = {
 	event?: EventsResponse<{ mantas?: UsersResponse[] }>;
-	subjects?: SubjectsResponse<SubjectExpand>[];
+	subjects?: SubjectsResponse<unknown, SubjectExpand>[];
 	note_author?: UsersResponse;
 };
 
