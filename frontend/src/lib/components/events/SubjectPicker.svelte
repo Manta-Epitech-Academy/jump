@@ -17,7 +17,8 @@
 		X,
 		SignalLow,
 		SignalMedium,
-		SignalHigh
+		SignalHigh,
+		ExternalLink
 	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { page } from '$app/state';
@@ -323,6 +324,19 @@
 							<div class="flex flex-col gap-1">
 								<div class="flex items-center gap-2">
 									<span class="font-bold text-foreground uppercase">{sub.nom}</span>
+
+									{#if sub.link}
+										<a
+											href={sub.link}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-muted-foreground hover:text-epi-blue"
+											title="Voir le support"
+											onclick={(e) => e.stopPropagation()}
+										>
+											<ExternalLink class="h-4 w-4" />
+										</a>
+									{/if}
 
 									{#if isOfficial}
 										<div

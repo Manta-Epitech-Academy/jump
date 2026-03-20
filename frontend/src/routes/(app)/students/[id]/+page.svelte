@@ -337,8 +337,14 @@
 												</Badge>
 											{/if}
 										</div>
-										<Card.Title class="text-base leading-tight font-bold uppercase">
-											{p.expand?.event?.titre || 'Événement inconnu'}
+										<Card.Title class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue">
+											{#if p.expand?.event?.id}
+												<a href={resolve(`/events/${p.expand.event.id}/builder`)}>
+													{p.expand.event.titre}
+												</a>
+											{:else}
+												Événement inconnu
+											{/if}
 										</Card.Title>
 									</div>
 
@@ -382,7 +388,15 @@
 												<div class="flex items-start gap-2">
 													<BookOpen class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
 													<div>
-														<p class="text-sm font-bold">{subject.nom}</p>
+														<p class="text-sm font-bold">
+														{#if subject.link}
+															<a href={subject.link} target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-epi-blue hover:underline">
+																{subject.nom}
+															</a>
+														{:else}
+															{subject.nom}
+														{/if}
+													</p>
 														{#if subject.expand?.themes}
 															<div class="mt-1 flex flex-wrap gap-1">
 																{#each subject.expand.themes as theme}

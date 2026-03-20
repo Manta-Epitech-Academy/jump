@@ -550,10 +550,14 @@
 
 							<div class="flex flex-col">
 								<span class="flex items-center gap-2 text-sm font-bold">
-									<span
-										><span class="uppercase">{p.expand?.student?.nom}</span>
-										{p.expand?.student?.prenom}</span
-									>
+									{#if p.expand?.student?.id}
+										<a href={resolve(`/students/${p.expand.student.id}`)} class="transition-colors hover:text-epi-blue"
+											><span class="uppercase">{p.expand.student.nom}</span>
+											{p.expand.student.prenom}</a
+										>
+									{:else}
+										<span>Étudiant inconnu</span>
+									{/if}
 									{#if isNew}<Badge
 											variant="outline"
 											class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"

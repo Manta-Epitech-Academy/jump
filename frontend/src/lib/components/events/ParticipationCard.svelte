@@ -25,6 +25,7 @@
 	import { toast } from 'svelte-sonner';
 	import NoteInput from '$lib/components/events/NoteInput.svelte';
 	import { cn } from '$lib/utils';
+	import { resolve } from '$app/paths';
 
 	let {
 		participation = $bindable(),
@@ -145,7 +146,7 @@
 
 			<div class="flex w-full items-center justify-between">
 				<div class="flex flex-1 items-center gap-4">
-					<div class="relative">
+					<a href={resolve(`/students/${participation.expand?.student?.id}`)} class="relative block transition-transform hover:scale-105" tabindex="-1" aria-hidden="true">
 						<Avatar.Root
 							class={cn(
 								'h-12 w-12 rounded-full border-2',
@@ -183,13 +184,13 @@
 								{/if}
 							</div>
 						{/if}
-					</div>
+					</a>
 					<div class="flex flex-col items-start gap-1">
 						<div class="flex items-center gap-2">
-							<span class="text-base leading-none font-bold">
+							<a href={resolve(`/students/${participation.expand?.student?.id}`)} class="text-base leading-none font-bold transition-colors hover:text-epi-blue">
 								<span class="uppercase">{participation.expand?.student?.nom}</span>
 								{formatFirstName(participation.expand?.student?.prenom)}
-							</span>
+							</a>
 							{#if isNewStudent}
 								<Badge
 									variant="outline"

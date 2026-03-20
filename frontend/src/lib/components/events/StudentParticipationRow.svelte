@@ -13,6 +13,7 @@
 		TriangleAlert
 	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { resolve } from '$app/paths';
 
 	let {
 		participation,
@@ -57,19 +58,19 @@
 			: 'border-l-transparent bg-card'}"
 >
 	<div class="flex items-center gap-4">
-		<div class="relative">
+		<a href={resolve(`/students/${participation.expand?.student?.id}`)} class="relative block transition-opacity hover:opacity-80" tabindex="-1" aria-hidden="true">
 			<Avatar.Root class="rounded-sm border-2 border-transparent">
 				<Avatar.Fallback class="bg-primary/5 font-bold text-primary">
-					{participation.expand.student.nom[0]}{participation.expand.student.prenom[0]}
+					{participation.expand?.student?.nom?.[0]}{participation.expand?.student?.prenom?.[0]}
 				</Avatar.Fallback>
 			</Avatar.Root>
-		</div>
+		</a>
 		<div>
 			<div class="flex items-center gap-2">
-				<p class="text-sm font-bold">
-					<span class="uppercase">{participation.expand.student.nom}</span>
-					{formatFirstName(participation.expand.student.prenom)}
-				</p>
+				<a href={resolve(`/students/${participation.expand?.student?.id}`)} class="text-sm font-bold transition-colors hover:text-epi-blue">
+					<span class="uppercase">{participation.expand?.student?.nom}</span>
+					{formatFirstName(participation.expand?.student?.prenom)}
+				</a>
 				{#if isNewStudent}
 					<Badge
 						variant="outline"

@@ -353,7 +353,15 @@
 									<span class="text-xs font-bold text-foreground/70">{xp} XP</span>
 								</div>
 
-								<h3 class="mb-2 line-clamp-2 text-lg leading-tight">{subject.nom}</h3>
+								<h3 class="mb-2 line-clamp-2 text-lg leading-tight">
+									{#if subject.link}
+										<a href={subject.link} target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-epi-blue hover:underline">
+											{subject.nom}
+										</a>
+									{:else}
+										{subject.nom}
+									{/if}
+								</h3>
 								<p class="mb-4 line-clamp-3 flex-1 text-sm text-muted-foreground">
 									{subject.description || 'Aucune description.'}
 								</p>

@@ -74,7 +74,9 @@
 					{#each data.events as event}
 						<TableRow class="hover:bg-muted/30">
 							<TableCell class="font-bold">
-								<span class="text-muted-foreground">{event.titre}</span>
+								<a href={resolve(`/events/${event.id}/builder`)} class="text-muted-foreground transition-colors hover:text-epi-blue hover:underline">
+									{event.titre}
+								</a>
 							</TableCell>
 							<TableCell>
 								<div class="flex items-center gap-2">

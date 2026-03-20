@@ -589,12 +589,14 @@
 							>
 								<input type="hidden" name="studentId" value={student.id} />
 								<div class="flex flex-col overflow-hidden">
-									<StudentAvatarItem
-										{student}
-										subText={combinedSubText}
-										showBadge={true}
-										size="sm"
-									/>
+									<a href={resolve(`/students/${student.id}`)} target="_blank" class="group">
+										<StudentAvatarItem
+											{student}
+											subText={combinedSubText}
+											showBadge={true}
+											size="sm"
+										/>
+									</a>
 								</div>
 								<Button
 									variant={isAdded ? 'secondary' : 'default'}

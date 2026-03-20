@@ -110,9 +110,11 @@
 						{@const status = getEventStatus(event.date)}
 						<TableRow class="hover:bg-muted/30">
 							<TableCell class="font-bold">
-								<span style:view-transition-name="event-title-{event.id}">
-									{event.titre}
-								</span>
+								<a href={resolve(`/events/${event.id}/builder`)} class="transition-colors hover:text-epi-blue hover:underline">
+									<span style:view-transition-name="event-title-{event.id}">
+										{event.titre}
+									</span>
+								</a>
 							</TableCell>
 							<TableCell>
 								<div class="flex items-center gap-2">
