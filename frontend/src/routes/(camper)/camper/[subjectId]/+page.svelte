@@ -97,7 +97,7 @@
 			if (e.action === 'update') {
 				if (e.record.unlocked_step_id !== progress.unlocked_step_id) {
 					toast.success('Le Manta a validé ton étape !', { duration: 4000 });
-					triggerConfetti();
+					if (e.record.unlocked_step_id === 'COMPLETED') triggerConfetti();
 					await invalidateAll();
 				} else if (e.record.status !== progress.status) {
 					await invalidateAll();
@@ -471,7 +471,7 @@
 													isValidating = false;
 													if (result.type === 'success') {
 														toast.success('Étape débloquée localement !');
-														triggerConfetti();
+														if (currentIndex === steps.length - 1) triggerConfetti();
 													} else {
 														toast.error((result as any).data?.message || 'PIN Incorrect');
 													}
