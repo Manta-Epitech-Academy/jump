@@ -104,7 +104,20 @@
 							><BookOpen class="mx-auto h-4 w-4 text-muted-foreground" /></Table.Cell
 						>
 						<Table.Cell>
-							<div class="font-bold">{subject.nom}</div>
+							<div class="font-bold">
+								{#if subject.link}
+									<a
+										href={subject.link}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="transition-colors hover:text-epi-pink hover:underline"
+									>
+										{subject.nom}
+									</a>
+								{:else}
+									{subject.nom}
+								{/if}
+							</div>
 							<div class="line-clamp-1 max-w-sm text-xs text-muted-foreground">
 								{subject.description}
 							</div>

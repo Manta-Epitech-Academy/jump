@@ -28,7 +28,7 @@
 		ImagePlus,
 		Link as LinkIcon,
 		Trash2,
-		LoaderCircle,
+		LoaderCircle
 	} from 'lucide-svelte';
 	import PocketBase from 'pocketbase';
 	import { pbUrl } from '$lib/pocketbase';
@@ -378,7 +378,10 @@
 													qcmFails = 0;
 												} else if (result.type === 'failure') {
 													qcmFails++;
-													toast.error((result.data as Record<string, unknown>)?.message as string || 'Mauvaise réponse.');
+													toast.error(
+														((result.data as Record<string, unknown>)?.message as string) ||
+															'Mauvaise réponse.'
+													);
 												}
 												await update({ reset: false });
 											};
@@ -540,7 +543,10 @@
 					isCallingManta = true;
 					// Optimistic UI update
 					const previousStatus = progress.status;
-					progress.status = previousStatus === 'needs_help' ? StepsProgressStatusOptions.active : StepsProgressStatusOptions.needs_help;
+					progress.status =
+						previousStatus === 'needs_help'
+							? StepsProgressStatusOptions.active
+							: StepsProgressStatusOptions.needs_help;
 
 					return async ({ result, update }) => {
 						isCallingManta = false;
@@ -732,13 +738,19 @@
 									class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
 								>
 									{#if item.file}
-										<div class="aspect-video w-full bg-slate-100 dark:bg-slate-800">
+										<a
+											href={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="block aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-800"
+											title="Voir l'image en plein écran"
+										>
 											<img
 												src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
 												alt={item.caption || 'Création'}
-												class="h-full w-full object-cover"
+												class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
 											/>
-										</div>
+										</a>
 									{:else if item.url}
 										<div
 											class="flex aspect-video w-full flex-col items-center justify-center bg-purple-50 p-4 dark:bg-purple-900/20"
@@ -799,4 +811,3 @@
 		</div>
 	{/if}
 </div>
-

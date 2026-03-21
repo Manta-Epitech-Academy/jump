@@ -10,6 +10,7 @@
 		TableRow
 	} from '$lib/components/ui/table';
 	import { formatDateFr } from '$lib/utils';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
 </script>
@@ -26,16 +27,35 @@
 
 	<!-- KPIs -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-		<Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-bold uppercase">Réseau</Card.Title>
-				<Map class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-black">{data.stats.campuses}</div>
-				<p class="text-xs text-muted-foreground">Campus actifs</p>
-			</Card.Content>
-		</Card.Root>
+		<a href={resolve('/admin/campuses')} class="block transition-all hover:-translate-y-1">
+			<Card.Root class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80">
+				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<Card.Title class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+						>Réseau</Card.Title
+					>
+					<Map class="h-4 w-4 text-muted-foreground" />
+				</Card.Header>
+				<Card.Content>
+					<div class="text-2xl font-black">{data.stats.campuses}</div>
+					<p class="text-xs text-muted-foreground">Campus actifs</p>
+				</Card.Content>
+			</Card.Root>
+		</a>
+
+		<a href={resolve('/admin/users')} class="block transition-all hover:-translate-y-1">
+			<Card.Root class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80">
+				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<Card.Title class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+						>Staff</Card.Title
+					>
+					<Users class="h-4 w-4 text-muted-foreground" />
+				</Card.Header>
+				<Card.Content>
+					<div class="text-2xl font-black">{data.stats.users}</div>
+					<p class="text-xs text-muted-foreground">Membres de l'équipe</p>
+				</Card.Content>
+			</Card.Root>
+		</a>
 
 		<Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
 			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">

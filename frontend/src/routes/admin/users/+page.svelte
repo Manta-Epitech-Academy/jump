@@ -66,7 +66,12 @@
 						<Table.Cell>
 							<div class="flex items-center gap-2 text-sm text-muted-foreground">
 								<Mail class="h-3 w-3" />
-								{user.email}
+								<a
+									href="mailto:{user.email}"
+									class="transition-colors hover:text-epi-pink hover:underline"
+								>
+									{user.email}
+								</a>
 							</div>
 						</Table.Cell>
 						<Table.Cell>

@@ -10,11 +10,7 @@
 	let items = $derived(data.portfolioItems);
 
 	let levelLabel = $derived(
-		student.level === 'Expert'
-			? 'Expert ✦'
-			: student.level === 'Apprentice'
-				? 'Apprenti'
-				: 'Novice'
+		student.level === 'Expert' ? 'Expert ✦' : student.level === 'Apprentice' ? 'Apprenti' : 'Novice'
 	);
 </script>
 
@@ -103,14 +99,20 @@
 							class="group break-inside-avoid overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900"
 						>
 							{#if item.file}
-								<div class="w-full bg-slate-100 dark:bg-slate-950">
+								<a
+									href={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="block w-full overflow-hidden bg-slate-100 dark:bg-slate-950"
+									title="Ouvrir l'image"
+								>
 									<img
 										src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
 										alt={item.caption || 'Portfolio item'}
 										class="w-full object-cover transition-transform duration-500 group-hover:scale-105"
 										loading="lazy"
 									/>
-								</div>
+								</a>
 							{:else if item.url}
 								<div
 									class="flex aspect-video flex-col items-center justify-center bg-purple-50 p-8 dark:bg-purple-900/20"
