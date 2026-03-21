@@ -4,6 +4,8 @@
 	import { SearchX, ServerCrash, Terminal, House } from 'lucide-svelte';
 
 	let is404 = $derived(page.status === 404);
+	let isStudent = $derived(page.data.student && !page.data.user);
+	let dashboardHref = $derived(isStudent ? resolve('/camper') : resolve('/'));
 </script>
 
 <div class="error-container">
@@ -74,7 +76,7 @@
 		</div>
 
 		<!-- Action Buttons -->
-		<a href={resolve('/')} class="btn-home">
+		<a href={dashboardHref} class="btn-home">
 			<House size={18} />
 			Retour au Dashboard
 		</a>
