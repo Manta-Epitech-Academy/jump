@@ -21,8 +21,10 @@
 		ExternalLink,
 		Check,
 		FileDown,
-		LoaderCircle
+		LoaderCircle,
+		LogOut
 	} from 'lucide-svelte';
+	import ModeToggle from '$lib/components/ModeToggle.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -108,17 +110,33 @@
 <div class="mx-auto max-w-5xl px-4 py-8 pb-20 sm:py-12">
 	<!-- HEADER: Greeting & Context -->
 	<header class="mb-10" in:fly={{ y: -20, duration: 400, delay: 100 }}>
-		<div class="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
-			<div
-				class="flex h-16 w-16 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
-			>
-				<Rocket class="h-8 w-8" />
+		<div class="flex items-center gap-2">
+			<div class="flex flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
+				<div
+					class="flex h-16 w-16 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
+				>
+					<Rocket class="h-8 w-8" />
+				</div>
+				<div class="sm:ml-4">
+					<h1 class="font-heading text-4xl tracking-tight text-slate-900 uppercase dark:text-white">
+						Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
+					</h1>
+					<p class="font-bold text-slate-500 uppercase">Bienvenue dans ton cockpit.</p>
+				</div>
 			</div>
-			<div class="sm:ml-4">
-				<h1 class="font-heading text-4xl tracking-tight text-slate-900 uppercase dark:text-white">
-					Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
-				</h1>
-				<p class="font-bold text-slate-500 uppercase">Bienvenue dans ton cockpit.</p>
+			<div class="flex items-center gap-1">
+				<ModeToggle />
+				<form action="{resolve('/logout')}?type=student" method="POST">
+					<Button
+						type="submit"
+						variant="ghost"
+						size="icon"
+						class="h-8 w-8 text-slate-400 hover:text-destructive"
+					>
+						<LogOut class="h-4 w-4" />
+						<span class="sr-only">Déconnexion</span>
+					</Button>
+				</form>
 			</div>
 		</div>
 	</header>

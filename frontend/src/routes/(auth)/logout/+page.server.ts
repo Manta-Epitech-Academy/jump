@@ -17,6 +17,12 @@ export const actions: Actions = {
 			}
 
 			throw redirect(302, resolve('/admin/login'));
+		} else if (type === 'student') {
+			// Clear Student Auth
+			if (locals.studentPb) locals.studentPb.authStore.clear();
+			locals.student = null;
+
+			throw redirect(302, resolve('/camper/login'));
 		} else {
 			// Clear User/Staff Auth
 			if (locals.staffPb) locals.staffPb.authStore.clear();
