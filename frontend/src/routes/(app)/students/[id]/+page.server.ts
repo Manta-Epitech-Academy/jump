@@ -12,6 +12,7 @@ import type {
 	UsersResponse,
 	StudentsNiveauDifficulteOptions
 } from '$lib/pocketbase-types';
+import { ClientResponseError } from 'pocketbase';
 
 type SubjectExpand = {
 	themes?: ThemesResponse[];
@@ -87,6 +88,9 @@ export const actions: Actions = {
 			});
 			return message(form, 'Profil mis à jour avec succès !');
 		} catch (err) {
+			if (err instanceof ClientResponseError && err.status === 400) {
+				return message(form, 'Un élève avec ce nom et cet email existe déjà.', { status: 400 });
+			}
 			return message(form, 'Erreur lors de la mise à jour', { status: 500 });
 		}
 	},
