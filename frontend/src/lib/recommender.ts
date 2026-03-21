@@ -8,12 +8,46 @@ import { getSubjectXpValue } from './xp';
  * 3. Prioritizes subjects matching the Event Theme.
  * 4. Prioritizes subjects with higher XP values.
  */
+/**
+ * Pre-fetch completed subject IDs for multiple students in a single query.
+ * Use this before calling suggestBestSubject in a loop to avoid N+1 queries.
+ */
+export async function preloadCompletedSubjects(
+	pb: TypedPocketBase,
+	studentIds: string[]
+): Promise<Map<string, Set<string>>> {
+	const map = new Map<string, Set<string>>();
+	if (studentIds.length === 0) return map;
+
+	// Initialize all students with empty sets
+	for (const id of studentIds) {
+		map.set(id, new Set());
+	}
+
+	// Batch fetch all completed participations for these students
+	const allParticipations = await pb.collection('participations').getFullList({
+		filter: `(${studentIds.map((id) => `student = "${id}"`).join(' || ')}) && is_present = true`,
+		fields: 'student,subjects',
+		requestKey: null
+	});
+
+	for (const p of allParticipations) {
+		const set = map.get(p.student);
+		if (set && p.subjects && Array.isArray(p.subjects)) {
+			for (const s of p.subjects) set.add(s);
+		}
+	}
+
+	return map;
+}
+
 export async function suggestBestSubject(
 	pb: TypedPocketBase,
 	studentId: string,
 	subjects: any[],
 	eventThemeId?: string | null,
-	currentSubjectIds: string[] = []
+	currentSubjectIds: string[] = [],
+	preloadedCompleted?: Set<string>
 ) {
 	try {
 		// 1. Get student details to find their difficulty level
@@ -22,19 +56,23 @@ export async function suggestBestSubject(
 		const studentDifficulty = student.niveau_difficulte || 'Débutant';
 
 		// 2. Get student's presence history to avoid repeats
-		const completedParticipations = await pb.collection('participations').getFullList({
-			filter: `student = "${studentId}" && is_present = true`,
-			fields: 'subjects',
-			requestKey: null
-		});
+		let completedSubjectIds: Set<string>;
+		if (preloadedCompleted) {
+			completedSubjectIds = preloadedCompleted;
+		} else {
+			const completedParticipations = await pb.collection('participations').getFullList({
+				filter: `student = "${studentId}" && is_present = true`,
+				fields: 'subjects',
+				requestKey: null
+			});
 
-		// Flatten all completed subjects
-		const completedSubjectIds = new Set<string>();
-		completedParticipations.forEach((p) => {
-			if (p.subjects && Array.isArray(p.subjects)) {
-				p.subjects.forEach((s) => completedSubjectIds.add(s));
-			}
-		});
+			completedSubjectIds = new Set<string>();
+			completedParticipations.forEach((p) => {
+				if (p.subjects && Array.isArray(p.subjects)) {
+					p.subjects.forEach((s) => completedSubjectIds.add(s));
+				}
+			});
+		}
 
 		// 3. Filter and Score subjects
 		const recommendations = subjects

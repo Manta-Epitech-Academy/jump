@@ -155,11 +155,38 @@
 		}
 	});
 
-	let filteredStudents = $derived(
-		data.allStudents.filter((s) => {
-			const fullName = `${s.prenom} ${s.nom}`.toLowerCase();
-			return fullName.includes(searchQuery.toLowerCase());
-		})
+	let searchResults: any[] = $state([]);
+	let topStudents: any[] = $state([]);
+	let searchTimeout: ReturnType<typeof setTimeout>;
+	let searching = $state(false);
+
+	// Load most active students on mount
+	$effect(() => {
+		fetch(`${resolve('/api/students')}?top=1`)
+			.then((res) => (res.ok ? res.json() : []))
+			.then((items) => { topStudents = items; });
+	});
+
+	$effect(() => {
+		const query = searchQuery.trim();
+		if (query.length < 2) {
+			searchResults = [];
+			return;
+		}
+		searching = true;
+		const timeout = setTimeout(async () => {
+			try {
+				const res = await fetch(`${resolve('/api/students')}?q=${encodeURIComponent(query)}`);
+				if (res.ok) searchResults = await res.json();
+			} finally {
+				searching = false;
+			}
+		}, 300);
+		return () => clearTimeout(timeout);
+	});
+
+	let displayedStudents = $derived(
+		searchQuery.trim().length >= 2 ? searchResults : topStudents
 	);
 
 	function isAlreadyInEvent(studentId: string) {
@@ -574,41 +601,47 @@
 				</Card.Header>
 				<ScrollArea class="min-h-0 flex-1 border-t bg-muted/10">
 					<div class="space-y-1 p-2">
-						{#each filteredStudents as student (student.id)}
-							{@const isAdded = isAlreadyInEvent(student.id)}
-							{@const count = student.events_count || 0}
-							{@const combinedSubText =
-								count > 0 && !isAdded
-									? `${student.niveau} • ${count} participation${count > 1 ? 's' : ''}`
-									: student.niveau}
-							<form
-								method="POST"
-								action="?/addExisting"
-								use:addEnhance
-								class="flex items-center justify-between rounded-sm border bg-background p-2"
-							>
-								<input type="hidden" name="studentId" value={student.id} />
-								<div class="flex flex-col overflow-hidden">
-									<a href={resolve(`/students/${student.id}`)} target="_blank" class="group">
-										<StudentAvatarItem
-											{student}
-											subText={combinedSubText}
-											showBadge={true}
-											size="sm"
-										/>
-									</a>
-								</div>
-								<Button
-									variant={isAdded ? 'secondary' : 'default'}
-									size="sm"
-									type="submit"
-									disabled={isAdded || $addDelayed}
-									class="h-8 px-2"
+						{#if searching}
+							<p class="py-8 text-center text-xs text-muted-foreground">Recherche...</p>
+						{:else if searchQuery.trim().length >= 2 && displayedStudents.length === 0}
+							<p class="py-8 text-center text-xs text-muted-foreground">Aucun résultat.</p>
+						{:else}
+							{#each displayedStudents as student (student.id)}
+								{@const isAdded = isAlreadyInEvent(student.id)}
+								{@const count = student.events_count || 0}
+								{@const combinedSubText =
+									count > 0 && !isAdded
+										? `${student.niveau} • ${count} participation${count > 1 ? 's' : ''}`
+										: student.niveau}
+								<form
+									method="POST"
+									action="?/addExisting"
+									use:addEnhance
+									class="flex items-center justify-between rounded-sm border bg-background p-2"
 								>
-									{#if isAdded}<CircleCheck class="h-4 w-4" />{:else}<Plus class="h-4 w-4" />{/if}
-								</Button>
-							</form>
-						{/each}
+									<input type="hidden" name="studentId" value={student.id} />
+									<div class="flex flex-col overflow-hidden">
+										<a href={resolve(`/students/${student.id}`)} target="_blank" class="group">
+											<StudentAvatarItem
+												{student}
+												subText={combinedSubText}
+												showBadge={true}
+												size="sm"
+											/>
+										</a>
+									</div>
+									<Button
+										variant={isAdded ? 'secondary' : 'default'}
+										size="sm"
+										type="submit"
+										disabled={isAdded || $addDelayed}
+										class="h-8 px-2"
+									>
+										{#if isAdded}<CircleCheck class="h-4 w-4" />{:else}<Plus class="h-4 w-4" />{/if}
+									</Button>
+								</form>
+							{/each}
+						{/if}
 					</div>
 				</ScrollArea>
 			</Card.Root>

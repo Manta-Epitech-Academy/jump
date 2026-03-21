@@ -12,7 +12,9 @@
 		Users,
 		SignalLow,
 		SignalMedium,
-		SignalHigh
+		SignalHigh,
+		ChevronLeft,
+		ChevronRight
 	} from 'lucide-svelte';
 	import { buttonVariants, Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -22,7 +24,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
-	import { replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
@@ -53,24 +55,37 @@
 	let open = $state(false);
 	let isEditing = $state(false);
 	let editId = $state('');
-	let searchQuery = $state('');
+	let searchQuery = $state(page.url.searchParams.get('q') || '');
 	let selectedLevel = $state(page.url.searchParams.get('niveau') || 'all');
 
 	// Deletion state
 	let deleteDialogOpen = $state(false);
 	let studentToDelete = $state<string | null>(null);
 
-	let filteredStudents = $derived(
-		data.students.filter((student) => {
-			const matchesLevel = selectedLevel === 'all' || student.niveau === selectedLevel;
-			const searchLower = searchQuery.toLowerCase();
-			const matchesSearch =
-				student.nom.toLowerCase().includes(searchLower) ||
-				student.prenom.toLowerCase().includes(searchLower);
+	let searchTimeout: ReturnType<typeof setTimeout>;
 
-			return matchesLevel && matchesSearch;
-		})
-	);
+	function navigateWithParams(params: Record<string, string>) {
+		const url = new URL(page.url);
+		// Reset to page 1 on filter changes
+		url.searchParams.delete('page');
+		for (const [key, value] of Object.entries(params)) {
+			if (value) {
+				url.searchParams.set(key, value);
+			} else {
+				url.searchParams.delete(key);
+			}
+		}
+		goto(url.toString(), { keepFocus: true });
+	}
+
+	function handleSearchInput(e: Event) {
+		const value = (e.target as HTMLInputElement).value;
+		searchQuery = value;
+		clearTimeout(searchTimeout);
+		searchTimeout = setTimeout(() => {
+			navigateWithParams({ q: value });
+		}, 300);
+	}
 
 	function openCreate() {
 		reset();
@@ -98,13 +113,17 @@
 
 	function handleFilterChange(value: string) {
 		selectedLevel = value;
+		navigateWithParams({ niveau: value === 'all' ? '' : value });
+	}
+
+	function goToPage(p: number) {
 		const url = new URL(page.url);
-		if (value && value !== 'all') {
-			url.searchParams.set('niveau', value);
+		if (p > 1) {
+			url.searchParams.set('page', String(p));
 		} else {
-			url.searchParams.delete('niveau');
+			url.searchParams.delete('page');
 		}
-		replaceState(url, page.state);
+		goto(url.toString());
 	}
 
 	function confirmDelete(id: string) {
@@ -143,7 +162,8 @@
 			<Input
 				placeholder="Rechercher..."
 				class="rounded-sm bg-white pl-9"
-				bind:value={searchQuery}
+				value={searchQuery}
+				oninput={handleSearchInput}
 			/>
 		</div>
 
@@ -313,7 +333,7 @@
 		/>
 	</div>
 
-	{#if filteredStudents.length > 0}
+	{#if data.students.length > 0}
 		<div class="rounded-sm border bg-card shadow-sm">
 			<Table.Root>
 				<Table.Header class="bg-muted/50">
@@ -328,7 +348,7 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each filteredStudents as student (student.id)}
+					{#each data.students as student (student.id)}
 						{@const diff = student.niveau_difficulte || 'Débutant'}
 						<Table.Row class="hover:bg-muted/30">
 							<Table.Cell class="font-bold">
@@ -401,6 +421,38 @@
 				</Table.Body>
 			</Table.Root>
 		</div>
+
+		<!-- Pagination -->
+		{#if data.totalPages > 1}
+			<div class="flex items-center justify-between">
+				<p class="text-sm text-muted-foreground">
+					{data.totalItems} élève{data.totalItems > 1 ? 's' : ''} au total
+				</p>
+				<div class="flex items-center gap-1">
+					<Button
+						variant="outline"
+						size="icon"
+						class="h-8 w-8"
+						disabled={data.currentPage <= 1}
+						onclick={() => goToPage(data.currentPage - 1)}
+					>
+						<ChevronLeft class="h-4 w-4" />
+					</Button>
+					<span class="px-3 text-sm text-muted-foreground">
+						{data.currentPage} / {data.totalPages}
+					</span>
+					<Button
+						variant="outline"
+						size="icon"
+						class="h-8 w-8"
+						disabled={data.currentPage >= data.totalPages}
+						onclick={() => goToPage(data.currentPage + 1)}
+					>
+						<ChevronRight class="h-4 w-4" />
+					</Button>
+				</div>
+			</div>
+		{/if}
 	{:else}
 		<EmptyState
 			icon={Users}

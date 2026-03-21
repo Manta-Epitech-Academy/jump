@@ -11,15 +11,37 @@ import {
 } from '$lib/pocketbase-types';
 import { ClientResponseError } from 'pocketbase';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	const students = await locals.pb.collection('students').getFullList({
-		sort: 'nom,prenom'
+const PER_PAGE = 50;
+
+export const load: PageServerLoad = async ({ locals, url }) => {
+	const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+	const search = url.searchParams.get('q') || '';
+	const niveau = url.searchParams.get('niveau') || '';
+
+	const filters: string[] = [];
+	if (search) {
+		const sanitized = search.replace(/[^a-zA-ZÀ-ÿ0-9\s'-]/g, '').trim();
+		if (sanitized) {
+			const escaped = sanitized.replace(/"/g, '\\"');
+			filters.push(`(nom ~ "${escaped}" || prenom ~ "${escaped}")`);
+		}
+	}
+	if (niveau) {
+		filters.push(`niveau = "${niveau}"`);
+	}
+
+	const students = await locals.pb.collection('students').getList(page, PER_PAGE, {
+		sort: 'nom,prenom',
+		filter: filters.length > 0 ? filters.join(' && ') : ''
 	});
 
 	const form = await superValidate(zod4(studentSchema));
 
 	return {
-		students,
+		students: students.items,
+		totalPages: students.totalPages,
+		totalItems: students.totalItems,
+		currentPage: page,
 		form
 	};
 };

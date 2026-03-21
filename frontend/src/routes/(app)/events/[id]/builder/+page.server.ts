@@ -6,7 +6,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import { studentSchema } from '$lib/validation/students';
 import { getTotalXp } from '$lib/xp';
-import { suggestBestSubject } from '$lib/recommender';
+import { suggestBestSubject, preloadCompletedSubjects } from '$lib/recommender';
 import { createScoped } from '$lib/pocketbase';
 import {
 	type ParticipationsResponse,
@@ -103,11 +103,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		})
 	);
 
-	const allStudents = await locals.pb.collection('students').getFullList({
-		sort: 'nom,prenom',
-		requestKey: null
-	});
-
 	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: 'nom',
 		expand: 'themes,campus',
@@ -158,7 +153,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	return {
 		event,
 		participations,
-		allStudents,
 		subjects,
 		themes,
 		staff,
@@ -278,14 +272,21 @@ export const actions: Actions = {
 			const subjects = await locals.pb.collection('subjects').getFullList();
 			const event = await locals.pb.collection('events').getOne(params.id, { expand: 'theme' });
 
+			// Pre-fetch completed subjects for all unassigned students in one query
+			const studentIds = unassigned.map((p) => p.expand?.student?.id).filter(Boolean) as string[];
+			const completedMap = await preloadCompletedSubjects(locals.pb, studentIds);
+
 			let count = 0;
 
 			for (const p of unassigned) {
+				const studentId = p.expand?.student?.id ?? '';
 				const suggestedId = await suggestBestSubject(
 					locals.pb,
-					p.expand?.student?.id ?? '',
+					studentId,
 					subjects,
-					event.theme
+					event.theme,
+					[],
+					completedMap.get(studentId)
 				);
 
 				if (suggestedId) {
@@ -425,6 +426,12 @@ export const actions: Actions = {
 
 				const subjects = await locals.pb.collection('subjects').getFullList();
 
+				// Pre-fetch completed subjects for eligible students
+				const eligibleStudentIds = participations
+					.filter((p) => !p.is_present && (!p.subjects || p.subjects.length === 0))
+					.map((p) => p.student);
+				const completedMap = await preloadCompletedSubjects(locals.pb, eligibleStudentIds);
+
 				for (const p of participations) {
 					// Only re-suggest for those without subjects
 					if (!p.is_present && (!p.subjects || p.subjects.length === 0)) {
@@ -432,7 +439,9 @@ export const actions: Actions = {
 							locals.pb,
 							p.student,
 							subjects,
-							newThemeId
+							newThemeId,
+							[],
+							completedMap.get(p.student)
 						);
 
 						if (newSubjectId) {
