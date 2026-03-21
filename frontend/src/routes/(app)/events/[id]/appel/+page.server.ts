@@ -184,7 +184,8 @@ export const actions: Actions = {
 			await locals.pb.collection('steps_progress').update(progressId, {
 				current_step_id: nextStepId === 'COMPLETED' ? progress.current_step_id : nextStepId,
 				unlocked_step_id: nextStepId,
-				status: nextStepId === 'COMPLETED' ? 'completed' : 'active'
+				status: nextStepId === 'COMPLETED' ? 'completed' : 'active',
+				last_unlock_source: 'staff'
 			});
 
 			return { success: true };

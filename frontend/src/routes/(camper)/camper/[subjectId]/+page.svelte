@@ -96,8 +96,10 @@
 		realtimePb.collection('steps_progress').subscribe(id, async (e) => {
 			if (e.action === 'update') {
 				if (e.record.unlocked_step_id !== progress.unlocked_step_id) {
-					toast.success('Le Manta a validé ton étape !', { duration: 4000 });
-					if (e.record.unlocked_step_id === 'COMPLETED') triggerConfetti();
+					if (e.record.last_unlock_source === 'staff') {
+						toast.success('Le Manta a validé ton étape !', { duration: 4000 });
+						if (e.record.unlocked_step_id === 'COMPLETED') triggerConfetti();
+					}
 					await invalidateAll();
 				} else if (e.record.status !== progress.status) {
 					await invalidateAll();

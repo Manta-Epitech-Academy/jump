@@ -150,11 +150,16 @@ export enum StepsProgressStatusOptions {
 	"needs_help" = "needs_help",
 	"completed" = "completed",
 }
+export enum StepsProgressLastUnlockSourceOptions {
+	"student" = "student",
+	"staff" = "staff",
+}
 export type StepsProgressRecord = {
 	created: IsoAutoDateString
 	current_step_id?: string
 	event: RecordIdString
 	id: string
+	last_unlock_source?: StepsProgressLastUnlockSourceOptions
 	status?: StepsProgressStatusOptions
 	student: RecordIdString
 	subject: RecordIdString

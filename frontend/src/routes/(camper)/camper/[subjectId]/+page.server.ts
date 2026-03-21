@@ -137,7 +137,8 @@ export const actions: Actions = {
 			await locals.studentPb.collection('steps_progress').update(progressId, {
 				current_step_id: nextStepId === 'COMPLETED' ? stepId : nextStepId,
 				unlocked_step_id: newUnlockedId,
-				status: nextStepId === 'COMPLETED' ? 'completed' : 'active'
+				status: nextStepId === 'COMPLETED' ? 'completed' : 'active',
+				last_unlock_source: 'student'
 			});
 
 			return { success: true };
