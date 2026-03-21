@@ -1,13 +1,15 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
 	try {
 		// We use `systemPb` to bypass client authentication rules for this public endpoint.
 		// We explicitly filter down the returned fields to ensure absolutely NO PII is leaked.
 		const student = await locals.systemPb.collection('students').getOne(params.id, {
 			fields: 'id,prenom,nom,niveau,xp,level,badges,events_count'
 		});
+
+		setHeaders({ 'Cache-Control': 'public, s-maxage=300, max-age=60' });
 
 		const portfolioItems = await locals.systemPb.collection('portfolio_items').getFullList({
 			filter: `student = "${student.id}"`,

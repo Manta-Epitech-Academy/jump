@@ -94,7 +94,7 @@
 
 	function getAvatarUrl(user: any) {
 		if (user?.avatar && user?.collectionId && user?.id) {
-			return `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
+			return `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}?thumb=100x100`;
 		}
 		return undefined;
 	}

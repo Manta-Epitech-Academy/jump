@@ -86,9 +86,8 @@
 				pb.authStore.save(token, model);
 			}
 
-			// Existing participation subscription
+			// Participation subscription filtered server-side by event
 			pb.collection('participations').subscribe('*', (e) => {
-				if (e.record.event !== data.event.id) return;
 				if (e.action === 'update') {
 					const index = participations.findIndex((p) => p.id === e.record.id);
 					if (index !== -1) {
@@ -104,10 +103,9 @@
 				} else if (e.action === 'create' || e.action === 'delete') {
 					location.reload();
 				}
-			});
+			}, { filter: `event = "${data.event.id}"` });
 
 			pb.collection('steps_progress').subscribe('*', (e) => {
-				if (e.record.event !== data.event.id) return;
 				if (e.action === 'update') {
 					const index = progressRecords.findIndex((p) => p.id === e.record.id);
 					if (index !== -1) {
@@ -116,7 +114,7 @@
 				} else if (e.action === 'create') {
 					progressRecords = [...progressRecords, e.record];
 				}
-			});
+			}, { filter: `event = "${data.event.id}"` });
 		}
 		return () => {
 			if (browser) {

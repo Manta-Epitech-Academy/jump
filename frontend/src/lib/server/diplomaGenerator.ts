@@ -1,5 +1,5 @@
 import ejs from 'ejs';
-import puppeteer from 'puppeteer';
+import { withBrowser } from './browserPool';
 import { epitechLogoSvg } from './epitechLogo';
 
 // --- Staff Diploma Template ---
@@ -234,7 +234,7 @@ export async function generateCertificatePDF(data: {
 	); // Portrait (A4)
 }
 
-// Shared Puppeteer logic
+// Shared Puppeteer logic — uses a browser pool instead of launching per request
 async function generatePDF(
 	templateString: string,
 	data: any,
@@ -242,33 +242,23 @@ async function generatePDF(
 ): Promise<Uint8Array<ArrayBuffer>> {
 	const htmlContent = await ejs.render(templateString, { data }, { async: true });
 
-	const browser = await puppeteer.launch({
-		headless: true,
-		executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-		args: [
-			'--no-sandbox',
-			'--disable-setuid-sandbox',
-			'--disable-dev-shm-usage',
-			'--disable-gpu',
-			'--no-zygote'
-		]
-	});
-	try {
+	return withBrowser(async (browser) => {
 		const page = await browser.newPage();
+		try {
+			await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+			await page.evaluateHandle('document.fonts.ready');
 
-		await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-		await page.evaluateHandle('document.fonts.ready');
+			const pdfBuffer = await page.pdf({
+				width: format.width,
+				height: format.height,
+				printBackground: true,
+				preferCSSPageSize: true,
+				margin: { top: 0, right: 0, bottom: 0, left: 0 }
+			});
 
-		const pdfBuffer = await page.pdf({
-			width: format.width,
-			height: format.height,
-			printBackground: true,
-			preferCSSPageSize: true,
-			margin: { top: 0, right: 0, bottom: 0, left: 0 }
-		});
-
-		return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;
-	} finally {
-		await browser.close();
-	}
+			return new Uint8Array(pdfBuffer) as Uint8Array<ArrayBuffer>;
+		} finally {
+			await page.close();
+		}
+	});
 }

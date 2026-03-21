@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					presentCount: participations.totalItems,
 					mantas: event.expand?.mantas?.map(m => ({
 						name: m.name || m.username,
-						avatarUrl: m.avatar ? `${pbUrl}/api/files/${m.collectionId}/${m.id}/${m.avatar}` : null
+						avatarUrl: m.avatar ? `${pbUrl}/api/files/${m.collectionId}/${m.id}/${m.avatar}?thumb=100x100` : null
 					})) ||[]
 				};
 			})

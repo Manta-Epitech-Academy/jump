@@ -35,7 +35,7 @@
 
 	function getAvatarUrl(user: any) {
 		return user.avatar
-			? `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}`
+			? `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}?thumb=100x100`
 			: undefined;
 	}
 

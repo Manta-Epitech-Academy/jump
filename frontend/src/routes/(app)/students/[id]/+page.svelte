@@ -358,7 +358,7 @@
 															<Avatar.Root class="relative h-6 w-6 border-2 border-card hover:z-10">
 																{#if manta.avatar}
 																	<Avatar.Image
-																		src={`${pbUrl}/api/files/${manta.collectionId}/${manta.id}/${manta.avatar}`}
+																		src={`${pbUrl}/api/files/${manta.collectionId}/${manta.id}/${manta.avatar}?thumb=100x100`}
 																		alt={manta.name}
 																	/>
 																{/if}
@@ -451,7 +451,7 @@
 															<Avatar.Root class="h-5 w-5 border border-yellow-300 shadow-xs">
 																{#if p.expand.note_author.avatar}
 																	<Avatar.Image
-																		src={`${pbUrl}/api/files/${p.expand.note_author.collectionId}/${p.expand.note_author.id}/${p.expand.note_author.avatar}`}
+																		src={`${pbUrl}/api/files/${p.expand.note_author.collectionId}/${p.expand.note_author.id}/${p.expand.note_author.avatar}?thumb=100x100`}
 																		alt={p.expand.note_author.name}
 																	/>
 																{/if}

@@ -24,7 +24,7 @@
 
 	// Retrieve user avatar through the PocketBase files API
 	function getAvatarUrl(user: any) {
-		if (user?.avatar) return `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}`;
+		if (user?.avatar) return `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}?thumb=100x100`;
 		return undefined;
 	}
 </script>
