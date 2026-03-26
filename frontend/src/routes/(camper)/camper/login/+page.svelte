@@ -5,9 +5,16 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
-	import { Rocket, Lock, ArrowLeft, CircleAlert, Sparkles } from 'lucide-svelte';
+	import {
+		Rocket,
+		Lock,
+		ArrowLeft,
+		CircleAlert,
+		Sparkles
+	} from 'lucide-svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { untrack } from 'svelte';
+	import { cn } from '$lib/utils';
 
 	let { data } = $props();
 
@@ -46,13 +53,63 @@
 		$otpMessage = undefined;
 	}
 
-	// Robust autofocus for Svelte 5
+	let digitRefs = $state<HTMLInputElement[]>([]);
+	let digits = $derived($otpForm.password.padEnd(6, '').slice(0, 6).split(''));
+	let otpComplete = $derived($otpForm.password.length === 6);
+
+	function handleDigitInput(index: number, e: Event) {
+		const input = e.target as HTMLInputElement;
+		const raw = input.value.replace(/\D/g, '');
+
+		// Handle autofill / multi-char input (browser may dump full code into one box)
+		if (raw.length > 1) {
+			const pasted = raw.slice(0, 6);
+			$otpForm.password = pasted;
+			const focusIndex = Math.min(pasted.length, 5);
+			digitRefs[focusIndex]?.focus();
+			return;
+		}
+
+		const val = raw.slice(-1);
+		const chars = $otpForm.password.padEnd(6, ' ').slice(0, 6).split('');
+		chars[index] = val || ' ';
+		$otpForm.password = chars.join('').replace(/\s/g, '');
+		if (val && index < 5) {
+			digitRefs[index + 1]?.focus();
+		}
+	}
+
+	function handleDigitKeydown(index: number, e: KeyboardEvent) {
+		if (e.key === 'Backspace' && !digits[index]?.trim() && index > 0) {
+			e.preventDefault();
+			const chars = $otpForm.password.split('');
+			chars[index - 1] = '';
+			$otpForm.password = chars.join('').replace(/\s/g, '');
+			digitRefs[index - 1]?.focus();
+		}
+	}
+
+	function handleDigitPaste(e: ClipboardEvent) {
+		e.preventDefault();
+		const pasted = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+		$otpForm.password = pasted;
+		const focusIndex = Math.min(pasted.length, 5);
+		digitRefs[focusIndex]?.focus();
+	}
+
+	let otpFormRef = $state<HTMLFormElement>(undefined!);
+
+	// Auto-submit when 6 digits are entered
+	$effect(() => {
+		if (otpComplete && otpFormRef && !$otpDelayed) {
+			otpFormRef.requestSubmit();
+		}
+	});
+
+	// Autofocus first digit box on step 2
 	$effect(() => {
 		if (step === 2) {
-			// Timeout ensures DOM is ready after transition
-			setTimeout(() => {
-				document.getElementById('password')?.focus();
-			}, 100);
+			setTimeout(() => digitRefs[0]?.focus(), 100);
 		}
 	});
 </script>
@@ -161,23 +218,39 @@
 							<p class="font-bold text-epi-blue">{$otpForm.email}</p>
 						</div>
 
-						<form method="POST" action="?/verifyOtp" use:otpEnhance class="space-y-6">
+						<form bind:this={otpFormRef} method="POST" action="?/verifyOtp" use:otpEnhance class="space-y-6">
 							<input type="hidden" name="otpId" bind:value={$otpForm.otpId} />
 							<input type="hidden" name="email" bind:value={$otpForm.email} />
 
-							<div class="space-y-2">
-								<Label for="password" class="sr-only">Code à 6 chiffres</Label>
-								<Input
-									id="password"
-									name="password"
-									type="text"
-									inputmode="numeric"
-									autocomplete="one-time-code"
-									maxlength={6}
-									placeholder="000000"
-									bind:value={$otpForm.password}
-									class="h-16 rounded-xl border-2 border-slate-100 bg-white text-center font-mono text-3xl font-black tracking-[0.3em] text-slate-900 focus-visible:border-epi-blue focus-visible:ring-0 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-								/>
+							<div class="space-y-3">
+								<Label for="otp-digit-0" class="sr-only">Code à 6 chiffres</Label>
+								<input type="hidden" name="password" bind:value={$otpForm.password} />
+
+								<div class="flex justify-center gap-2.5">
+									{#each { length: 6 } as _, i}
+										<input
+											bind:this={digitRefs[i]}
+											id="otp-digit-{i}"
+											type="text"
+											inputmode="numeric"
+											autocomplete={i === 0 ? 'one-time-code' : 'off'}
+											maxlength={1}
+											placeholder=" "
+											value={digits[i]?.trim() || ''}
+											oninput={(e) => handleDigitInput(i, e)}
+											onkeydown={(e) => handleDigitKeydown(i, e)}
+											onpaste={handleDigitPaste}
+											class={cn(
+												'otp-digit h-14 w-12 rounded-xl border-2 bg-white text-center font-mono text-2xl font-black text-slate-900 shadow-sm outline-none transition-all duration-200 dark:bg-slate-950 dark:text-white',
+												digits[i]?.trim()
+													? 'border-epi-teal shadow-epi-teal/10'
+													: 'border-slate-200 dark:border-slate-800',
+												'focus:border-epi-blue focus:ring-2 focus:ring-epi-blue/20'
+											)}
+										/>
+									{/each}
+								</div>
+
 								{#if $otpErrors.password}<span
 										class="block text-center text-xs font-bold text-red-500"
 										>{$otpErrors.password}</span
@@ -187,7 +260,7 @@
 							<div class="space-y-3">
 								<Button
 									type="submit"
-									disabled={$otpDelayed || $otpForm.password.length !== 6}
+									disabled={$otpDelayed || !otpComplete}
 									class="h-12 w-full rounded-xl bg-epi-teal text-base font-bold text-slate-950 shadow-md transition-all hover:bg-epi-teal/90 active:scale-[0.98] disabled:opacity-50"
 								>
 									{#if $otpDelayed}
@@ -237,5 +310,21 @@
 
 	.absolute.rounded-full {
 		animation: pulse-slow 15s ease-in-out infinite;
+	}
+
+	@keyframes digit-pop {
+		0% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(1.08);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
+
+	:global(.otp-digit:not(:placeholder-shown):not(:focus)) {
+		animation: digit-pop 0.2s ease-out;
 	}
 </style>
