@@ -1,5 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { getCachedSubject, setCachedSubject } from '$lib/server/subjectCache';
 
 export type StepValidation = {
 	type: 'auto_qcm' | 'manual_manta';
@@ -27,8 +28,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.student) throw error(401, 'Non autorisé');
 
 	try {
-		// 1. Fetch Subject & Structure
-		const subject = await locals.studentPb.collection('subjects').getOne(params.subjectId);
+		// 1. Fetch Subject & Structure (cached — subject content is identical for all authenticated users)
+		let subject = getCachedSubject<any>(params.subjectId);
+		if (!subject) {
+			subject = await locals.studentPb.collection('subjects').getOne(params.subjectId);
+			setCachedSubject(params.subjectId, subject);
+		}
 		const content = subject.content_structure as SubjectStructure | null;
 
 		if (!content || !content.steps || content.steps.length === 0) {
@@ -95,7 +100,11 @@ export const actions: Actions = {
 		const answerIndexStr = data.get('answerIndex') as string;
 
 		try {
-			const subject = await locals.studentPb.collection('subjects').getOne(params.subjectId);
+			let subject = getCachedSubject<any>(params.subjectId);
+			if (!subject) {
+				subject = await locals.studentPb.collection('subjects').getOne(params.subjectId);
+				setCachedSubject(params.subjectId, subject);
+			}
 			const content = subject.content_structure as SubjectStructure;
 			const steps = content.steps || [];
 

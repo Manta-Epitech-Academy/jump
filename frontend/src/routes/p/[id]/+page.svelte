@@ -107,7 +107,7 @@
 									title="Ouvrir l'image"
 								>
 									<img
-										src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
+										src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}?thumb=600x0`}
 										alt={item.caption || 'Portfolio item'}
 										class="w-full object-cover transition-transform duration-500 group-hover:scale-105"
 										loading="lazy"

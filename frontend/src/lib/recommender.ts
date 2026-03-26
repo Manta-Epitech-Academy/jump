@@ -14,7 +14,8 @@ import { getSubjectXpValue } from './xp';
  */
 export async function preloadCompletedSubjects(
 	pb: TypedPocketBase,
-	studentIds: string[]
+	studentIds: string[],
+	excludeEventId?: string
 ): Promise<Map<string, Set<string>>> {
 	const map = new Map<string, Set<string>>();
 	if (studentIds.length === 0) return map;
@@ -25,8 +26,9 @@ export async function preloadCompletedSubjects(
 	}
 
 	// Batch fetch all completed participations for these students
+	const eventFilter = excludeEventId ? ` && event != "${excludeEventId}"` : '';
 	const allParticipations = await pb.collection('participations').getFullList({
-		filter: `(${studentIds.map((id) => `student = "${id}"`).join(' || ')}) && is_present = true`,
+		filter: `(${studentIds.map((id) => `student = "${id}"`).join(' || ')}) && is_present = true${eventFilter}`,
 		fields: 'student,subjects',
 		requestKey: null
 	});

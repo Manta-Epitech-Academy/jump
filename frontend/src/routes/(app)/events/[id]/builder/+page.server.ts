@@ -56,52 +56,51 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		return prenomA.localeCompare(prenomB);
 	});
 
-	const participations = await Promise.all(
-		participationsRaw.map(async (p) => {
-			const student = p.expand?.student;
-			const currentSubjects = p.expand?.subjects || [];
+	// Batch-fetch completed subject history for all students in this event (fixes N+1)
+	const studentIds = participationsRaw
+		.map((p) => p.expand?.student?.id)
+		.filter(Boolean) as string[];
 
-			const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
+	const completedMap = studentIds.length > 0
+		? await preloadCompletedSubjects(locals.pb, studentIds, event.id)
+		: new Map<string, Set<string>>();
 
-			if (student && currentSubjects.length > 0) {
-				for (const subject of currentSubjects) {
-					const history = await locals.pb.collection('participations').getList(1, 1, {
-						filter: `student = "${student.id}" && subjects ~ "${subject.id}" && is_present = true && event != "${event.id}"`,
-						requestKey: null
+	const difficultyWeights: Record<string, number> = {
+		Débutant: 0,
+		Intermédiaire: 1,
+		Avancé: 2
+	};
+
+	const participations = participationsRaw.map((p) => {
+		const student = p.expand?.student;
+		const currentSubjects = p.expand?.subjects || [];
+		const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
+
+		if (student && currentSubjects.length > 0) {
+			const completed = completedMap.get(student.id) ?? new Set();
+
+			for (const subject of currentSubjects) {
+				if (completed.has(subject.id)) {
+					alerts.push({
+						type: 'danger',
+						message: `DÉJÀ FAIT : L'élève a déjà validé "${subject.nom}".`
 					});
+				}
 
-					if (history.totalItems > 0) {
-						alerts.push({
-							type: 'danger',
-							message: `DÉJÀ FAIT : L'élève a déjà validé "${subject.nom}".`
-						});
-					}
+				const studentLevel = difficultyWeights[student.niveau_difficulte || 'Débutant'] ?? 0;
+				const subjectLevel = difficultyWeights[subject.difficulte] ?? 0;
 
-					// Warning Logic: Map difficulty to numeric weights for comparison
-					const difficultyWeights: Record<string, number> = {
-						Débutant: 0,
-						Intermédiaire: 1,
-						Avancé: 2
-					};
-
-					const studentLevel = difficultyWeights[student.niveau_difficulte || 'Débutant'] ?? 0;
-					const subjectLevel = difficultyWeights[subject.difficulte] ?? 0;
-
-					if (subjectLevel > studentLevel) {
-						alerts.push({
-							type: 'warning',
-							message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveau_difficulte || 'Débutant'}).`
-						});
-					}
+				if (subjectLevel > studentLevel) {
+					alerts.push({
+						type: 'warning',
+						message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveau_difficulte || 'Débutant'}).`
+					});
 				}
 			}
+		}
 
-			return {
-				...p,
-				alerts
-			};
-		})
-	);
+		return { ...p, alerts };
+	});
 
 	const subjects = await locals.pb.collection('subjects').getFullList({
 		sort: 'nom',
@@ -274,7 +273,7 @@ export const actions: Actions = {
 
 			// Pre-fetch completed subjects for all unassigned students in one query
 			const studentIds = unassigned.map((p) => p.expand?.student?.id).filter(Boolean) as string[];
-			const completedMap = await preloadCompletedSubjects(locals.pb, studentIds);
+			const completedMap = await preloadCompletedSubjects(locals.pb, studentIds, params.id);
 
 			let count = 0;
 
@@ -430,7 +429,7 @@ export const actions: Actions = {
 				const eligibleStudentIds = participations
 					.filter((p) => !p.is_present && (!p.subjects || p.subjects.length === 0))
 					.map((p) => p.student);
-				const completedMap = await preloadCompletedSubjects(locals.pb, eligibleStudentIds);
+				const completedMap = await preloadCompletedSubjects(locals.pb, eligibleStudentIds, params.id);
 
 				for (const p of participations) {
 					// Only re-suggest for those without subjects

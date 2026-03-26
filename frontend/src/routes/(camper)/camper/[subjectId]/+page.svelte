@@ -56,6 +56,7 @@
 	let qcmFails = $state(0);
 	let isValidating = $state(false);
 	let isCallingManta = $state(false);
+	let mantaCooldown = $state(false);
 
 	let showRoadmapMobile = $state(false);
 	let showPortfolio = $state(false);
@@ -555,6 +556,9 @@
 						if (result.type !== 'success') {
 							progress.status = previousStatus;
 							toast.error('Impossible de contacter le serveur.');
+						} else {
+							mantaCooldown = true;
+							setTimeout(() => (mantaCooldown = false), 5000);
 						}
 						await update({ reset: false });
 					};
@@ -566,7 +570,7 @@
 				<Button
 					type="submit"
 					size="lg"
-					disabled={isCallingManta || isCompleted}
+					disabled={isCallingManta || isCompleted || mantaCooldown}
 					class={cn(
 						'h-14 gap-2 rounded-full font-bold text-white shadow-xl transition-all duration-300',
 						progress.status === 'needs_help'
@@ -748,8 +752,9 @@
 											title="Voir l'image en plein écran"
 										>
 											<img
-												src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
+												src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}?thumb=400x300`}
 												alt={item.caption || 'Création'}
+												loading="lazy"
 												class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
 											/>
 										</a>
