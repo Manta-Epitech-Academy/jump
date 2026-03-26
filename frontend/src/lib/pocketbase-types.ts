@@ -114,6 +114,7 @@ export type EventsRecord = {
 	id: string
 	mantas?: RecordIdString[]
 	notes?: string
+	pin?: string
 	theme?: RecordIdString
 	titre: string
 	updated: IsoAutoDateString

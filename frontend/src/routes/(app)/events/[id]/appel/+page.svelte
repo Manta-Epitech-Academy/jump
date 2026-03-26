@@ -16,7 +16,8 @@
 		Sprout,
 		Clock,
 		GraduationCap,
-		LifeBuoy
+		LifeBuoy,
+		KeyRound
 	} from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -302,7 +303,7 @@
 
 			<!-- LOGISTICS DASHBOARD (outside sticky area) -->
 			<div
-				class="mt-4 grid grid-cols-2 gap-4 rounded-sm border border-border bg-slate-900 p-4 text-white shadow-md sm:grid-cols-2 dark:bg-card"
+				class="mt-4 grid gap-4 rounded-sm border border-border bg-slate-900 p-4 text-white shadow-md dark:bg-card {data.event.pin ? 'grid-cols-3' : 'grid-cols-2'}"
 			>
 				<div class="flex flex-col">
 					<span class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
@@ -319,6 +320,17 @@
 					</div>
 					<MonitorSmartphone class="h-8 w-8 text-slate-700" />
 				</div>
+				{#if data.event.pin}
+					<div class="flex items-center justify-between border-l border-slate-700 pl-4">
+						<div class="flex flex-col">
+							<span class="text-[10px] font-black tracking-widest text-amber-400 uppercase"
+								>PIN Manta</span
+							>
+							<span class="text-3xl font-bold tracking-widest text-amber-400 font-mono">{data.event.pin}</span>
+						</div>
+						<KeyRound class="h-8 w-8 text-slate-700" />
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>

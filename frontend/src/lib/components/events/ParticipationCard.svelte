@@ -19,8 +19,7 @@
 		Check,
 		LifeBuoy,
 		X,
-		LockOpen,
-		KeyRound
+		LockOpen
 	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
@@ -82,20 +81,6 @@
 				)
 			: null
 	);
-
-	// Map subject ID → current step's unlock_code (PIN), if any
-	let subjectPinMap = $derived.by(() => {
-		const map = new Map<string, string>();
-		for (const p of progress) {
-			const sub = subjects.find((s: any) => s.id === p.subject);
-			if (!sub) continue;
-			const step = sub.content_structure?.steps?.find((s: any) => s.id === p.current_step_id);
-			if (step?.validation?.unlock_code) {
-				map.set(sub.id, step.validation.unlock_code);
-			}
-		}
-		return map;
-	});
 </script>
 
 <!--
@@ -129,12 +114,6 @@
 						<div class="flex flex-col">
 							<span class="text-sm font-bold tracking-wider uppercase">Demande d'aide</span>
 							<span class="text-xs opacity-90">Bloqué sur : <strong>{helpStep.title}</strong></span>
-							{#if helpStep.validation?.unlock_code}
-								<span class="flex items-center gap-1 text-xs font-bold opacity-90">
-									<KeyRound class="h-3 w-3" />
-									PIN : {helpStep.validation.unlock_code}
-								</span>
-							{/if}
 						</div>
 					</div>
 					<div class="flex w-full items-center gap-2 sm:w-auto">
@@ -397,7 +376,6 @@
 			<!-- Subject Display Section -->
 			<div class="flex flex-col gap-1.5">
 				{#each subjects as sub}
-					{@const pin = subjectPinMap.get(sub.id)}
 					<div class="flex items-center justify-between rounded-sm bg-muted/50 px-3 py-1.5">
 						<div class="flex items-center gap-2 overflow-hidden">
 							<BookOpen class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -405,16 +383,6 @@
 								{sub.nom}
 							</span>
 						</div>
-						<div class="flex items-center gap-2">
-							{#if pin}
-								<Badge
-									variant="outline"
-									class="gap-1 border-amber-200 bg-amber-50 px-1.5 py-0 text-[10px] font-bold text-amber-700 dark:border-amber-900 dark:bg-amber-900/30 dark:text-amber-400"
-								>
-									<KeyRound class="h-2.5 w-2.5" />
-									PIN : {pin}
-								</Badge>
-							{/if}
 						{#if sub.link}
 							<Tooltip.Provider delayDuration={300}>
 								<Tooltip.Root>
@@ -436,7 +404,6 @@
 								</Tooltip.Root>
 							</Tooltip.Provider>
 						{/if}
-						</div>
 					</div>
 				{:else}
 					<div

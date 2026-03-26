@@ -8,6 +8,7 @@ import { CalendarDateTime } from '@internationalized/date';
 import { parseEventImportCsv, type CsvStudent } from '$lib/csvUtils';
 import { suggestBestSubject } from '$lib/recommender';
 import { createScoped } from '$lib/pocketbase';
+import { generatePin } from '$lib/utils';
 import { StudentsNiveauOptions, StudentsLevelOptions } from '$lib/pocketbase-types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -104,7 +105,8 @@ export const actions: Actions = {
 				date: jsDate.toISOString(),
 				theme: themeId ?? undefined,
 				notes: form.data.notes,
-				mantas: form.data.mantas
+				mantas: form.data.mantas,
+				pin: generatePin()
 			};
 
 			const record = await createScoped(locals.pb, 'events', payload);
@@ -235,7 +237,8 @@ export const actions: Actions = {
 				titre: eventName,
 				date: new Date(eventDateStr).toISOString(),
 				mantas: mantas,
-				notes: notes
+				notes: notes,
+				pin: generatePin()
 			});
 			newEventId = eventRecord.id;
 

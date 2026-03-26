@@ -114,10 +114,26 @@ export const actions: Actions = {
 				}
 			}
 
-			// 2. Manual Manta PIN Fallback Validation
-			if (step.validation?.type === 'manual_manta' && step.validation.unlock_code) {
+			// 2. Manual Manta PIN Fallback Validation (event-level PIN)
+			if (step.validation?.type === 'manual_manta') {
 				const pinInput = data.get('pin') as string;
-				if (!pinInput || pinInput !== step.validation.unlock_code) {
+				if (!pinInput) {
+					return fail(400, { incorrect: true, message: 'Code PIN requis.' });
+				}
+
+				// Fetch participation to find the event
+				const participations = await locals.studentPb.collection('participations').getFullList({
+					filter: `student = "${locals.student!.id}" && subjects ~ "${params.subjectId}"`,
+					sort: '-created'
+				});
+				if (participations.length === 0) {
+					return fail(403, { message: "Tu n'es pas assigné à ce sujet." });
+				}
+
+				// Use systemPb (admin) to read the PIN so it doesn't need to be exposed to the student client
+				const event = await locals.systemPb.collection('events').getOne(participations[0].event);
+
+				if (!event.pin || pinInput !== event.pin) {
 					return fail(400, { incorrect: true, message: 'Code PIN incorrect.' });
 				}
 			}
