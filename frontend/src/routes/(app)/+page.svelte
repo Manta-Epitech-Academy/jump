@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import { Button } from '$lib/components/ui/button';
   import {
     Table,
     TableBody,
@@ -8,26 +8,16 @@
     TableHeader,
     TableRow,
   } from '$lib/components/ui/table';
-  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as Avatar from '$lib/components/ui/avatar';
-  import {
-    Calendar,
-    Tag,
-    Plus,
-    Ellipsis,
-    Trash2,
-    Pencil,
-    Coffee,
-    UserCheck,
-    Copy,
-  } from 'lucide-svelte';
+  import { Calendar, Tag, Plus, Coffee, UserCheck } from 'lucide-svelte';
 
   import { resolve } from '$app/paths';
   import DuplicateEventDialog from '$lib/components/events/DuplicateEventDialog.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import EventDropdownMenu from '$lib/components/events/EventDropdownMenu.svelte';
 
   let { data } = $props();
 
@@ -64,7 +54,6 @@
 
   let deleteDialogOpen = $state(false);
   let eventToDelete = $state<string | null>(null);
-
   let duplicateDialogOpen = $state(false);
   let eventToDuplicate = $state<{
     id: string;
@@ -115,14 +104,12 @@
             >
             <TableHead
               class="hidden text-center text-xs font-bold uppercase md:table-cell"
+              >Mantas</TableHead
             >
-              Mantas
-            </TableHead>
             <TableHead
               class="hidden text-center text-xs font-bold uppercase md:table-cell"
+              >Statut</TableHead
             >
-              Statut
-            </TableHead>
             <TableHead class="text-right"></TableHead>
           </TableRow>
         </TableHeader>
@@ -135,9 +122,9 @@
                   href={resolve(`/events/${event.id}/builder`)}
                   class="transition-colors hover:text-epi-blue hover:underline"
                 >
-                  <span style:view-transition-name="event-title-{event.id}">
-                    {event.titre}
-                  </span>
+                  <span style:view-transition-name="event-title-{event.id}"
+                    >{event.titre}</span
+                  >
                 </a>
               </TableCell>
               <TableCell>
@@ -203,21 +190,18 @@
                 {#if status === 'future'}
                   <span
                     class="inline-block rounded-sm bg-blue-100 px-2 py-1 text-[10px] font-black tracking-widest text-blue-700 uppercase"
+                    >À venir</span
                   >
-                    À venir
-                  </span>
                 {:else if status === 'now'}
                   <span
                     class="inline-block rounded-sm bg-epi-orange/20 px-2 py-1 text-[10px] font-black tracking-widest text-epi-orange uppercase"
+                    >En cours</span
                   >
-                    En cours
-                  </span>
                 {:else}
                   <span
                     class="inline-block rounded-sm bg-epi-teal/20 px-2 py-1 text-[10px] font-black tracking-widest text-green-700 uppercase"
+                    >Terminé</span
                   >
-                    Terminé
-                  </span>
                 {/if}
               </TableCell>
               <TableCell class="text-right">
@@ -237,55 +221,14 @@
                           </Button>
                         {/snippet}
                       </Tooltip.Trigger>
-                      <Tooltip.Content>
-                        <p>Faire l'appel</p>
-                      </Tooltip.Content>
+                      <Tooltip.Content><p>Faire l'appel</p></Tooltip.Content>
                     </Tooltip.Root>
                   </Tooltip.Provider>
-
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger
-                      class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-                    >
-                      <Ellipsis class="h-4 w-4" />
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content align="end">
-                      <DropdownMenu.Item class="p-0">
-                        {#snippet child({ props })}
-                          <a
-                            {...props}
-                            href={resolve(`/events/${event.id}/builder`)}
-                            class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-                          >
-                            <Pencil
-                              class="mr-2 h-4 w-4 text-muted-foreground"
-                            />
-                            Modifier / Builder
-                          </a>
-                        {/snippet}
-                      </DropdownMenu.Item>
-
-                      <DropdownMenu.Separator />
-
-                      <DropdownMenu.Item
-                        class="cursor-pointer"
-                        onclick={() => openDuplicate(event)}
-                      >
-                        <Copy class="mr-2 h-4 w-4 text-muted-foreground" />
-                        Dupliquer
-                      </DropdownMenu.Item>
-
-                      <DropdownMenu.Separator />
-
-                      <DropdownMenu.Item
-                        class="cursor-pointer text-destructive"
-                        onclick={() => confirmDelete(event.id)}
-                      >
-                        <Trash2 class="mr-2 h-4 w-4" />
-                        Supprimer
-                      </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
+                  <EventDropdownMenu
+                    {event}
+                    onDuplicate={openDuplicate}
+                    onDelete={confirmDelete}
+                  />
                 </div>
               </TableCell>
             </TableRow>
@@ -305,7 +248,6 @@
 
   <!-- DIALOGS -->
   <DuplicateEventDialog bind:open={duplicateDialogOpen} {eventToDuplicate} />
-
   <ConfirmDeleteDialog
     bind:open={deleteDialogOpen}
     action="?/deleteEvent&id={eventToDelete}"

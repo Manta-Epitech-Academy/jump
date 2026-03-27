@@ -23,30 +23,20 @@
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
-  import * as Dialog from '$lib/components/ui/dialog';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { Badge } from '$lib/components/ui/badge';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
   import { Separator } from '$lib/components/ui/separator';
   import { toast } from 'svelte-sonner';
   import { formatDateFr, cn } from '$lib/utils';
   import { enhance as kitEnhance } from '$app/forms';
   import { resolve } from '$app/paths';
-  import { difficultes } from '$lib/validation/students';
   import { pbUrl } from '$lib/pocketbase';
+  import StudentFormDialog from '$lib/components/students/StudentFormDialog.svelte';
 
   let { data }: { data: PageData } = $props();
 
-  const {
-    form,
-    errors,
-    delayed,
-    enhance: superEnhance,
-    reset,
-  } = superForm(
+  const { form, errors, delayed, enhance, reset } = superForm(
     untrack(() => data.form),
     {
       onResult: ({ result }) => {
@@ -64,17 +54,6 @@
   function getInitials(prenom: string, nom: string) {
     return (nom[0] + prenom[0]).toUpperCase();
   }
-
-  const niveaux = [
-    '6eme',
-    '5eme',
-    '4eme',
-    '3eme',
-    '2nde',
-    '1ere',
-    'Terminale',
-    'Sup',
-  ];
 
   let xpProgress = $derived(Math.min((data.student.xp / 1000) * 100, 100));
 
@@ -106,17 +85,17 @@
 </script>
 
 <div class="space-y-6 pb-10">
-  <!-- HEADER NAVIGATION -->
   <div class="flex items-center gap-4">
-    <Button variant="ghost" size="icon" href={resolve('/students')}>
-      <ArrowLeft class="h-4 w-4" />
-    </Button>
+    <Button variant="ghost" size="icon" href={resolve('/students')}
+      ><ArrowLeft class="h-4 w-4" /></Button
+    >
     <h1 class="text-3xl font-bold text-epi-blue uppercase">
       Dossier Élève<span class="text-epi-teal">_</span>
     </h1>
   </div>
 
   <div class="grid gap-6 md:grid-cols-12">
+    <!-- LEFT SIDE PROFILE CARD -->
     <div class="space-y-6 md:col-span-4 lg:col-span-3">
       <Card.Root class="overflow-hidden border-t-4 border-t-epi-blue shadow-md">
         <Card.Header class="flex flex-col items-center pb-2 text-center">
@@ -125,21 +104,22 @@
           >
             <Avatar.Fallback
               class="bg-secondary text-2xl font-bold text-secondary-foreground"
+              >{getInitials(
+                data.student.prenom,
+                data.student.nom,
+              )}</Avatar.Fallback
             >
-              {getInitials(data.student.prenom, data.student.nom)}
-            </Avatar.Fallback>
           </Avatar.Root>
-          <Card.Title class="mt-4 text-xl">
-            <span class="uppercase">{data.student.nom}</span>
-            {data.student.prenom}
-          </Card.Title>
+          <Card.Title class="mt-4 text-xl"
+            ><span class="uppercase">{data.student.nom}</span>
+            {data.student.prenom}</Card.Title
+          >
           <div class="mt-1 flex flex-col items-center gap-1">
             <Badge
               variant="outline"
               class="border-epi-blue font-bold text-epi-blue uppercase"
+              >{data.student.niveau}</Badge
             >
-              {data.student.niveau}
-            </Badge>
             <Badge
               variant="outline"
               class={cn(
@@ -155,50 +135,44 @@
           </div>
         </Card.Header>
         <Card.Content class="space-y-6">
-          <!-- Contact Info -->
           <div class="flex flex-col gap-2 text-sm text-muted-foreground">
-            {#if data.student.email}
-              <div class="flex items-center gap-2">
-                <Mail class="h-3.5 w-3.5" />
-                <span class="truncate">{data.student.email}</span>
-              </div>
-            {/if}
-            {#if data.student.phone}
-              <div class="flex items-center gap-2">
-                <Phone class="h-3.5 w-3.5" />
-                <span>{data.student.phone}</span>
-              </div>
-            {/if}
+            {#if data.student.email}<div class="flex items-center gap-2">
+                <Mail class="h-3.5 w-3.5" /><span class="truncate"
+                  >{data.student.email}</span
+                >
+              </div>{/if}
+            {#if data.student.phone}<div class="flex items-center gap-2">
+                <Phone class="h-3.5 w-3.5" /><span>{data.student.phone}</span>
+              </div>{/if}
             {#if data.student.parent_email || data.student.parent_phone}
               <Separator class="my-1" />
               <div class="flex flex-col gap-1">
                 <span
                   class="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase"
+                  ><Users class="h-3 w-3" /> Contact Parent</span
                 >
-                  <Users class="h-3 w-3" /> Contact Parent
-                </span>
-                {#if data.student.parent_email}
-                  <div class="flex items-center gap-2">
-                    <Mail class="h-3.5 w-3.5" />
-                    <span class="truncate">{data.student.parent_email}</span>
-                  </div>
-                {/if}
-                {#if data.student.parent_phone}
-                  <div class="flex items-center gap-2">
-                    <Phone class="h-3.5 w-3.5" />
-                    <span>{data.student.parent_phone}</span>
-                  </div>
-                {/if}
+                {#if data.student.parent_email}<div
+                    class="flex items-center gap-2"
+                  >
+                    <Mail class="h-3.5 w-3.5" /><span class="truncate"
+                      >{data.student.parent_email}</span
+                    >
+                  </div>{/if}
+                {#if data.student.parent_phone}<div
+                    class="flex items-center gap-2"
+                  >
+                    <Phone class="h-3.5 w-3.5" /><span
+                      >{data.student.parent_phone}</span
+                    >
+                  </div>{/if}
               </div>
             {/if}
           </div>
 
           <Separator />
 
-          <!-- XP SECTION -->
           <div class="space-y-3 text-center">
             <div class="relative inline-flex items-center justify-center">
-              <!-- Glowing effect behind the icon -->
               <div
                 class="absolute inset-0 rounded-full bg-epi-orange/30 blur-lg"
               ></div>
@@ -206,9 +180,7 @@
                 class="duration-2000ms relative h-8 w-8 animate-bounce text-epi-orange"
               />
             </div>
-
             <div class="flex flex-col items-center">
-              <!-- SHINY BADGE LOGIC -->
               <Badge
                 variant="outline"
                 class={cn(
@@ -220,19 +192,16 @@
               >
                 {data.student.xp >= 500 ? 'Expert ✦' : 'Novice'}
               </Badge>
-
               <span
                 class="text-3xl font-black tracking-tighter text-foreground italic"
+                >{data.student.xp}<span
+                  class="text-lg text-epi-orange not-italic">XP</span
+                ></span
               >
-                {data.student.xp}
-                <span class="text-lg text-epi-orange not-italic">XP</span>
-              </span>
             </div>
-
             <div
               class="relative h-4 w-full overflow-hidden rounded-full bg-muted shadow-inner"
             >
-              <!-- Striped animated background for the progress bar -->
               <div
                 class="relative h-full overflow-hidden bg-epi-orange transition-all duration-1000 ease-out"
                 style="width: {xpProgress}%;"
@@ -242,7 +211,6 @@
                 ></div>
               </div>
             </div>
-
             <div
               class="flex justify-between px-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
             >
@@ -274,18 +242,18 @@
             {/if}
           </div>
 
-          <Button variant="outline" class="w-full" onclick={openEdit}>
-            <Pencil class="mr-2 h-3.5 w-3.5" /> Modifier le profil
-          </Button>
+          <Button variant="outline" class="w-full" onclick={openEdit}
+            ><Pencil class="mr-2 h-3.5 w-3.5" /> Modifier le profil</Button
+          >
         </Card.Content>
       </Card.Root>
     </div>
 
+    <!-- RIGHT SIDE HISTORY -->
     <div class="space-y-6 md:col-span-8 lg:col-span-9">
       <div class="flex items-center justify-between">
         <h2 class="flex items-center gap-2 text-xl font-bold uppercase">
-          <Clock class="h-5 w-5 text-muted-foreground" />
-          Historique Pédagogique
+          <Clock class="h-5 w-5 text-muted-foreground" /> Historique Pédagogique
         </h2>
         <Badge variant="secondary">{data.participations.length} sessions</Badge>
       </div>
@@ -315,17 +283,13 @@
                     : 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
               )}
             >
-              {#if isPresent}
-                {#if isLate}
-                  <Clock class="h-5 w-5" />
-                {:else}
-                  <CircleCheck class="h-5 w-5" />
-                {/if}
-              {:else if isUpcoming}
-                <CalendarClock class="h-5 w-5" />
-              {:else}
-                <CircleX class="h-5 w-5" />
-              {/if}
+              {#if isPresent}{#if isLate}<Clock
+                    class="h-5 w-5"
+                  />{:else}<CircleCheck
+                    class="h-5 w-5"
+                  />{/if}{:else if isUpcoming}<CalendarClock
+                  class="h-5 w-5"
+                />{:else}<CircleX class="h-5 w-5" />{/if}
             </div>
 
             <Card.Root
@@ -338,10 +302,8 @@
                       <Badge
                         variant="outline"
                         class="h-5 px-1.5 text-[10px] font-normal"
+                        >{formatDateFr(p.expand?.event?.date)}</Badge
                       >
-                        {formatDateFr(p.expand?.event?.date)}
-                      </Badge>
-
                       {#if isPresent}
                         <Badge
                           variant="default"
@@ -350,50 +312,37 @@
                             isLate
                               ? 'bg-orange-200 text-orange-900 hover:bg-orange-300'
                               : 'bg-epi-teal hover:bg-epi-teal/80',
-                          )}
+                          )}>Présent</Badge
                         >
-                          Présent
-                        </Badge>
-                        {#if isLate}
-                          <Badge
+                        {#if isLate}<Badge
                             variant="outline"
                             class="h-5 border-orange-200 bg-orange-50 px-1.5 text-[10px] font-bold text-orange-600 uppercase dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
-                          >
-                            Retard: {p.delay >= 60 ? '+60' : p.delay} min
-                          </Badge>
-                        {/if}
+                            >Retard: {p.delay >= 60 ? '+60' : p.delay} min</Badge
+                          >{/if}
                       {:else if isUpcoming}
                         <Badge
                           variant="secondary"
-                          class="h-5 border-blue-200 bg-blue-100 px-1.5 text-[10px] text-blue-700 uppercase hover:bg-blue-200 dark:border-blue-900 dark:bg-blue-900/40 dark:text-blue-400"
+                          class="h-5 border-blue-200 bg-blue-100 px-1.5 text-[10px] text-blue-700 uppercase"
+                          >Inscrit</Badge
                         >
-                          Inscrit
-                        </Badge>
                       {:else}
                         <Badge
                           variant="destructive"
-                          class="h-5 px-1.5 text-[10px] uppercase"
+                          class="h-5 px-1.5 text-[10px] uppercase">Absent</Badge
                         >
-                          Absent
-                        </Badge>
                       {/if}
                     </div>
                     <Card.Title
                       class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue"
                     >
-                      {#if p.expand?.event?.id}
-                        <a
+                      {#if p.expand?.event?.id}<a
                           href={resolve(`/events/${p.expand.event.id}/builder`)}
-                        >
-                          {p.expand.event.titre}
-                        </a>
-                      {:else}
-                        Événement inconnu
-                      {/if}
+                          >{p.expand.event.titre}</a
+                        >{:else}Événement inconnu{/if}
                     </Card.Title>
                   </div>
 
-                  <!-- MANTAS AVATARS DISPLAY -->
+                  <!-- Mantas Avatars -->
                   {#if p.expand?.event?.expand?.mantas && p.expand.event.expand.mantas.length > 0}
                     <div class="flex justify-end -space-x-2">
                       {#each p.expand.event.expand.mantas as manta}
@@ -428,7 +377,6 @@
                   {/if}
                 </div>
               </Card.Header>
-
               <Card.Content class="space-y-3 p-4 pt-2">
                 {#if p.expand?.subjects && p.expand.subjects.length > 0}
                   <div class="flex flex-col gap-2">
@@ -480,9 +428,8 @@
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+                                    ><ExternalLink class="h-3.5 w-3.5" /></Button
                                   >
-                                    <ExternalLink class="h-3.5 w-3.5" />
-                                  </Button>
                                 {/snippet}
                               </Tooltip.Trigger>
                               <Tooltip.Content
@@ -495,7 +442,6 @@
                     {/each}
                   </div>
                 {/if}
-
                 {#if p.note}
                   <div
                     class="relative rounded-sm border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900"
@@ -527,18 +473,15 @@
                               </Avatar.Root>
                             </Tooltip.Trigger>
                             <Tooltip.Content
-                              ><p>
-                                {p.expand.note_author.name}
-                              </p></Tooltip.Content
+                              ><p>{p.expand.note_author.name}</p></Tooltip.Content
                             >
                           </Tooltip.Root>
                         </Tooltip.Provider>
                       {/if}
                       <span
                         class="text-[10px] font-bold text-yellow-700/70 uppercase"
+                        >Observation encadrant :</span
                       >
-                        Observation encadrant :
-                      </span>
                     </div>
                     <p class="leading-relaxed italic">« {p.note} »</p>
                   </div>
@@ -569,164 +512,49 @@
     </div>
   </div>
 
-  <Dialog.Root bind:open={editOpen}>
-    <Dialog.Content class="sm:max-w-125">
-      <Dialog.Header>
-        <Dialog.Title>Modifier le profil</Dialog.Title>
-      </Dialog.Header>
-      <form
-        method="POST"
-        action="?/update"
-        use:superEnhance
-        class="grid gap-4 py-4"
-      >
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <Label>Nom</Label>
-            <Input name="nom" bind:value={$form.nom} />
-            {#if $errors.nom}<p class="text-xs text-destructive">
-                {$errors.nom}
-              </p>{/if}
-          </div>
-          <div class="space-y-2">
-            <Label>Prénom</Label>
-            <Input name="prenom" bind:value={$form.prenom} />
-            {#if $errors.prenom}<p class="text-xs text-destructive">
-                {$errors.prenom}
-              </p>{/if}
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <Label>Email</Label>
-            <Input name="email" type="email" bind:value={$form.email} />
-            {#if $errors.email}<p class="text-xs text-destructive">
-                {$errors.email}
-              </p>{/if}
-          </div>
-          <div class="space-y-2">
-            <Label>Téléphone</Label>
-            <Input name="phone" type="tel" bind:value={$form.phone} />
-            {#if $errors.phone}<p class="text-xs text-destructive">
-                {$errors.phone}
-              </p>{/if}
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <Label>Email Parent</Label>
-            <Input
-              name="parent_email"
-              type="email"
-              bind:value={$form.parent_email}
-            />
-            {#if $errors.parent_email}<p class="text-xs text-destructive">
-                {$errors.parent_email}
-              </p>{/if}
-          </div>
-          <div class="space-y-2">
-            <Label>Téléphone Parent</Label>
-            <Input
-              name="parent_phone"
-              type="tel"
-              bind:value={$form.parent_phone}
-            />
-            {#if $errors.parent_phone}<p class="text-xs text-destructive">
-                {$errors.parent_phone}
-              </p>{/if}
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <Label>Niveau Scolaire</Label>
-            <Select.Root type="single" name="niveau" bind:value={$form.niveau}>
-              <Select.Trigger>{$form.niveau}</Select.Trigger>
-              <Select.Content>
-                {#each niveaux as n}
-                  <Select.Item value={n}>{n}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <input type="hidden" name="niveau" value={$form.niveau} />
-            {#if $errors.niveau}<p class="text-xs text-destructive">
-                {$errors.niveau}
-              </p>{/if}
-          </div>
-          <div class="space-y-2">
-            <Label>Niveau de Difficulté</Label>
-            <Select.Root
-              type="single"
-              name="niveau_difficulte"
-              bind:value={$form.niveau_difficulte}
-            >
-              <Select.Trigger
-                >{$form.niveau_difficulte || 'Débutant'}</Select.Trigger
-              >
-              <Select.Content>
-                {#each difficultes as d}
-                  <Select.Item value={d}>{d}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <input
-              type="hidden"
-              name="niveau_difficulte"
-              value={$form.niveau_difficulte}
-            />
-            {#if $errors.niveau_difficulte}<p class="text-xs text-destructive">
-                {$errors.niveau_difficulte}
-              </p>{/if}
-          </div>
-        </div>
-
-        <Dialog.Footer class="flex items-center justify-between">
-          <Button type="submit" disabled={$delayed} class="w-full">
-            {$delayed ? 'Sauvegarde...' : 'Enregistrer'}
-          </Button>
-        </Dialog.Footer>
-      </form>
-
-      <Separator class="my-2" />
-
-      <div
-        class="space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-4"
-      >
-        <div class="space-y-1">
-          <h4 class="text-sm font-bold text-destructive uppercase">
-            Zone de danger
-          </h4>
-          <p class="text-xs text-muted-foreground">
-            La suppression d'un élève est définitive et entraînera la
-            suppression de tout son historique.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="destructive"
-          class="w-full"
-          onclick={() => {
-            editOpen = false;
-            deleteDialogOpen = true;
-          }}
-        >
-          <Trash2 class="mr-2 h-4 w-4" />
-          Supprimer le dossier
-        </Button>
+  <StudentFormDialog
+    bind:open={editOpen}
+    isEditing={true}
+    editId={data.student.id}
+    {form}
+    {errors}
+    {delayed}
+    {enhance}
+    action="?/update"
+  >
+    <Separator class="my-2" />
+    <div
+      class="space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-4"
+    >
+      <div class="space-y-1">
+        <h4 class="text-sm font-bold text-destructive uppercase">
+          Zone de danger
+        </h4>
+        <p class="text-xs text-muted-foreground">
+          La suppression d'un élève est définitive et entraînera la suppression
+          de tout son historique.
+        </p>
       </div>
-    </Dialog.Content>
-  </Dialog.Root>
+      <Button
+        type="button"
+        variant="destructive"
+        class="w-full"
+        onclick={() => {
+          editOpen = false;
+          deleteDialogOpen = true;
+        }}><Trash2 class="mr-2 h-4 w-4" /> Supprimer le dossier</Button
+      >
+    </div>
+  </StudentFormDialog>
 
   <AlertDialog.Root bind:open={deleteDialogOpen}>
     <AlertDialog.Content>
       <AlertDialog.Header>
         <AlertDialog.Title>Confirmer la suppression</AlertDialog.Title>
-        <AlertDialog.Description>
-          Êtes-vous sûr de vouloir supprimer définitivement cet élève et tout
-          son historique ?
-        </AlertDialog.Description>
+        <AlertDialog.Description
+          >Êtes-vous sûr de vouloir supprimer définitivement cet élève et tout
+          son historique ?</AlertDialog.Description
+        >
       </AlertDialog.Header>
       <AlertDialog.Footer>
         <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
@@ -734,9 +562,8 @@
           <AlertDialog.Action
             type="submit"
             class={buttonVariants({ variant: 'destructive' })}
+            >Supprimer définitivement</AlertDialog.Action
           >
-            Supprimer définitivement
-          </AlertDialog.Action>
         </form>
       </AlertDialog.Footer>
     </AlertDialog.Content>
@@ -744,7 +571,6 @@
 </div>
 
 <style>
-  /* Shiny badge effect for EXPERT level */
   @keyframes sheen {
     0% {
       background-position: 200% center;
@@ -753,7 +579,6 @@
       background-position: -200% center;
     }
   }
-
   :global(.shiny-badge) {
     background-image: linear-gradient(
       120deg,
@@ -766,7 +591,6 @@
     position: relative;
     overflow: hidden;
   }
-
   :global(.dark .shiny-badge) {
     background-image: linear-gradient(
       120deg,

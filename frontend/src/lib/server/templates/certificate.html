@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="fr">
+	<head>
+		<meta charset="UTF-8" />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;700;900&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			body,
+			html {
+				margin: 0;
+				padding: 0;
+				width: 794px;
+				height: 1123px;
+				background-color: #ffffff;
+				font-family: 'IBM Plex Sans', sans-serif;
+				color: #1e293b;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+				box-sizing: border-box;
+			}
+			@page {
+				size: 794px 1123px;
+				margin: 0;
+			}
+
+			.container {
+				position: relative;
+				width: 100%;
+				height: 100%;
+				padding: 60px;
+				box-sizing: border-box;
+				display: flex;
+				flex-direction: column;
+			}
+			.bg-shape-1 {
+				position: absolute;
+				top: -100px;
+				left: -100px;
+				width: 300px;
+				height: 300px;
+				border-radius: 50%;
+				background-color: #f1f5f9;
+				z-index: -1;
+			}
+			.bg-shape-2 {
+				position: absolute;
+				bottom: 40px;
+				right: -50px;
+				width: 200px;
+				height: 200px;
+				border-radius: 50%;
+				background: radial-gradient(circle, #00ff97 0%, transparent 70%);
+				opacity: 0.15;
+				z-index: -1;
+			}
+
+			.header {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-start;
+				border-bottom: 4px solid #013afb;
+				padding-bottom: 20px;
+				margin-bottom: 30px;
+			}
+			.title-area h1 {
+				font-family: 'Anton', sans-serif;
+				font-size: 54px;
+				font-weight: normal;
+				text-transform: uppercase;
+				color: #0f172a;
+				margin: 0;
+				line-height: 1.1;
+				letter-spacing: 0.02em;
+			}
+			.title-area h2 {
+				font-size: 20px;
+				color: #013afb;
+				text-transform: uppercase;
+				font-weight: 900;
+				letter-spacing: 0.1em;
+				margin: 5px 0 0 0;
+			}
+
+			.logo svg {
+				width: auto;
+				height: 40px;
+			}
+
+			.intro {
+				font-size: 18px;
+				line-height: 1.6;
+				margin-bottom: 30px;
+			}
+			.student-name {
+				font-size: 24px;
+				font-weight: 900;
+				color: #013afb;
+				text-transform: uppercase;
+				background: #eff6ff;
+				padding: 4px 12px;
+				border-radius: 6px;
+			}
+
+			.stats-grid {
+				display: flex;
+				justify-content: space-between;
+				background: #f8fafc;
+				border: 1px solid #e2e8f0;
+				border-radius: 12px;
+				padding: 25px;
+				margin-bottom: 30px;
+			}
+			.stat-item {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				width: 30%;
+			}
+			.stat-value {
+				font-size: 36px;
+				font-weight: 900;
+				color: #0f172a;
+				line-height: 1;
+				margin-bottom: 5px;
+			}
+			.stat-label {
+				font-size: 12px;
+				font-weight: 700;
+				color: #64748b;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+
+			.section-title {
+				font-size: 18px;
+				font-weight: 900;
+				color: #0f172a;
+				text-transform: uppercase;
+				margin-bottom: 15px;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.section-title::after {
+				content: '';
+				flex-grow: 1;
+				height: 2px;
+				background: #e2e8f0;
+			}
+
+			.subjects ul {
+				list-style: none;
+				padding: 0;
+				margin: 0 0 30px 0;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 10px;
+			}
+			.subjects li {
+				background: #013afb;
+				color: white;
+				padding: 6px 14px;
+				border-radius: 20px;
+				font-size: 13px;
+				font-weight: 700;
+				letter-spacing: 0.05em;
+			}
+
+			.portfolio {
+				margin-bottom: auto;
+			}
+			.gallery {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 15px;
+			}
+			.gallery-item {
+				position: relative;
+				height: 160px;
+				border-radius: 8px;
+				overflow: hidden;
+				border: 2px solid #e2e8f0;
+			}
+			.gallery-item img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+
+			.footer {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-end;
+				border-top: 2px solid #e2e8f0;
+				padding-top: 20px;
+				margin-top: 40px;
+			}
+			.footer-info {
+				font-size: 14px;
+				color: #64748b;
+			}
+			.footer-info strong {
+				color: #0f172a;
+			}
+			.watermark {
+				font-family: 'Anton', sans-serif;
+				font-size: 24px;
+				color: #cbd5e1;
+				text-transform: uppercase;
+				letter-spacing: 0.1em;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="bg-shape-1"></div>
+			<div class="bg-shape-2"></div>
+
+			<div class="header">
+				<div class="title-area">
+					<h1>Attestation <br />de Compétences</h1>
+					<h2>Epitech TekCamp</h2>
+				</div>
+				<div class="logo"><%- data.logoSvg %></div>
+			</div>
+
+			<div class="intro">
+				Nous certifions que <span class="student-name"><%= data.studentName %></span> a participé
+				activement au programme d'immersion technique Epitech TekCamp. L'étudiant(e) y a développé
+				des compétences en programmation, résolution de problèmes et gestion de projets numériques.
+			</div>
+
+			<div class="stats-grid">
+				<div class="stat-item">
+					<div class="stat-value"><%= data.hours %>h</div>
+					<div class="stat-label">Volume de pratique</div>
+				</div>
+				<div class="stat-item">
+					<div class="stat-value"><%= data.xp %></div>
+					<div class="stat-label">Points d'XP</div>
+				</div>
+				<div class="stat-item">
+					<div class="stat-value" style="color: #ff5f3a"><%= data.level %></div>
+					<div class="stat-label">Niveau final</div>
+				</div>
+			</div>
+
+			<div class="subjects">
+				<div class="section-title">Domaines & Technologies explorés</div>
+				<ul>
+					<% data.subjects.forEach(function(sub) { %>
+					<li><%= sub %></li>
+					<% }); %>
+				</ul>
+			</div>
+
+			<% if (data.images && data.images.length > 0) { %>
+			<div class="portfolio">
+				<div class="section-title">Extraits du Portfolio Technique</div>
+				<div class="gallery">
+					<% data.images.forEach(function(img) { %>
+					<div class="gallery-item">
+						<img src="<%= img %>" />
+					</div>
+					<% }); %>
+				</div>
+			</div>
+			<% } %>
+
+			<div class="footer">
+				<div class="footer-info">
+					Fait le <strong><%= data.todayDate %></strong><br />
+					Certificat généré automatiquement. Document destiné à enrichir les dossiers académiques
+					(ex: Parcoursup).
+				</div>
+				<div class="watermark">EPITECH 2026</div>
+			</div>
+		</div>
+	</body>
+</html>

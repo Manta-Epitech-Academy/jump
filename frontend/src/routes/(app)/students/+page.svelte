@@ -17,12 +17,10 @@
     ChevronRight,
   } from 'lucide-svelte';
   import { buttonVariants, Button } from '$lib/components/ui/button';
-  import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
   import * as Select from '$lib/components/ui/select';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
   import { Badge } from '$lib/components/ui/badge';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -30,11 +28,11 @@
   import { untrack } from 'svelte';
   import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
-  import { difficultes } from '$lib/validation/students';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
+  import StudentFormDialog from '$lib/components/students/StudentFormDialog.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -57,34 +55,30 @@
   let editId = $state('');
   let searchQuery = $state(page.url.searchParams.get('q') || '');
   let selectedLevel = $state(page.url.searchParams.get('niveau') || 'all');
-
-  // Deletion state
   let deleteDialogOpen = $state(false);
   let studentToDelete = $state<string | null>(null);
-
   let searchTimeout: ReturnType<typeof setTimeout>;
 
   function navigateWithParams(params: Record<string, string>) {
     const url = new URL(page.url);
-    // Reset to page 1 on filter changes
     url.searchParams.delete('page');
     for (const [key, value] of Object.entries(params)) {
-      if (value) {
-        url.searchParams.set(key, value);
-      } else {
-        url.searchParams.delete(key);
-      }
+      if (value) url.searchParams.set(key, value);
+      else url.searchParams.delete(key);
     }
     goto(url.toString(), { keepFocus: true });
+  }
+
+  function handleFilterChange(value: string) {
+    selectedLevel = value;
+    navigateWithParams({ niveau: value === 'all' ? '' : value });
   }
 
   function handleSearchInput(e: Event) {
     const value = (e.target as HTMLInputElement).value;
     searchQuery = value;
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      navigateWithParams({ q: value });
-    }, 300);
+    searchTimeout = setTimeout(() => navigateWithParams({ q: value }), 300);
   }
 
   function openCreate() {
@@ -105,24 +99,15 @@
     $form.parent_phone = student.parent_phone || '';
     $form.niveau = student.niveau;
     $form.niveau_difficulte = student.niveau_difficulte || 'Débutant';
-
     isEditing = true;
     editId = student.id;
     open = true;
   }
 
-  function handleFilterChange(value: string) {
-    selectedLevel = value;
-    navigateWithParams({ niveau: value === 'all' ? '' : value });
-  }
-
   function goToPage(p: number) {
     const url = new URL(page.url);
-    if (p > 1) {
-      url.searchParams.set('page', String(p));
-    } else {
-      url.searchParams.delete('page');
-    }
+    if (p > 1) url.searchParams.set('page', String(p));
+    else url.searchParams.delete('page');
     goto(url.toString());
   }
 
@@ -161,10 +146,9 @@
     title="Élèves"
     subtitle="Annuaire et progression des étudiants du camp."
   >
-    <Button onclick={openCreate}>
-      <Plus class="mr-2 h-4 w-4" />
-      Nouvel Élève
-    </Button>
+    <Button onclick={openCreate}
+      ><Plus class="mr-2 h-4 w-4" /> Nouvel Élève</Button
+    >
   </PageHeader>
 
   <div class="flex items-center gap-2">
@@ -178,7 +162,6 @@
         oninput={handleSearchInput}
       />
     </div>
-
     <!-- Level Filter -->
     <div class="w-45">
       <Select.Root
@@ -192,184 +175,23 @@
         </Select.Trigger>
         <Select.Content>
           <Select.Item value="all">Tous les niveaux</Select.Item>
-          {#each niveaux as niveau}
-            <Select.Item value={niveau}>{niveau}</Select.Item>
-          {/each}
+          {#each niveaux as niveau}<Select.Item value={niveau}
+              >{niveau}</Select.Item
+            >{/each}
         </Select.Content>
       </Select.Root>
     </div>
 
-    <Dialog.Root bind:open>
-      <Dialog.Content class="sm:max-w-125">
-        <Dialog.Header>
-          <Dialog.Title
-            >{isEditing ? 'Modifier' : 'Ajouter'} un élève</Dialog.Title
-          >
-          <Dialog.Description>
-            {isEditing
-              ? 'Mettez à jour les informations du profil.'
-              : "Créez le profil d'un nouvel étudiant."}
-          </Dialog.Description>
-        </Dialog.Header>
-
-        <form
-          method="POST"
-          action={isEditing ? '?/update' : '?/create'}
-          use:enhance
-          class="grid gap-4 py-4"
-        >
-          {#if isEditing}
-            <input type="hidden" name="id" value={editId} />
-          {/if}
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="grid gap-2">
-              <Label for="nom">Nom</Label>
-              <Input
-                id="nom"
-                name="nom"
-                bind:value={$form.nom}
-                placeholder="Dupont"
-              />
-              {#if $errors.nom}<span class="text-xs text-destructive"
-                  >{$errors.nom}</span
-                >{/if}
-            </div>
-            <div class="grid gap-2">
-              <Label for="prenom">Prénom</Label>
-              <Input
-                id="prenom"
-                name="prenom"
-                bind:value={$form.prenom}
-                placeholder="Jean"
-              />
-              {#if $errors.prenom}<span class="text-xs text-destructive"
-                  >{$errors.prenom}</span
-                >{/if}
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="grid gap-2">
-              <Label for="email">Email (Optionnel)</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                bind:value={$form.email}
-                placeholder="email@example.com"
-              />
-              {#if $errors.email}<span class="text-xs text-destructive"
-                  >{$errors.email}</span
-                >{/if}
-            </div>
-            <div class="grid gap-2">
-              <Label for="phone">Téléphone (Optionnel)</Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                bind:value={$form.phone}
-                placeholder="06..."
-              />
-              {#if $errors.phone}<span class="text-xs text-destructive"
-                  >{$errors.phone}</span
-                >{/if}
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="grid gap-2">
-              <Label for="parent_email">Email Parent (Optionnel)</Label>
-              <Input
-                id="parent_email"
-                name="parent_email"
-                type="email"
-                bind:value={$form.parent_email}
-                placeholder="parent@example.com"
-              />
-              {#if $errors.parent_email}<span class="text-xs text-destructive"
-                  >{$errors.parent_email}</span
-                >{/if}
-            </div>
-            <div class="grid gap-2">
-              <Label for="parent_phone">Téléphone Parent (Optionnel)</Label>
-              <Input
-                id="parent_phone"
-                name="parent_phone"
-                type="tel"
-                bind:value={$form.parent_phone}
-                placeholder="06..."
-              />
-              {#if $errors.parent_phone}<span class="text-xs text-destructive"
-                  >{$errors.parent_phone}</span
-                >{/if}
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="grid gap-2">
-              <Label for="niveau">Niveau Scolaire</Label>
-              <Select.Root
-                type="single"
-                name="niveau"
-                bind:value={$form.niveau}
-              >
-                <Select.Trigger>
-                  {$form.niveau ? $form.niveau : 'Sélectionner...'}
-                </Select.Trigger>
-                <Select.Content>
-                  {#each niveaux as niveau}
-                    <Select.Item value={niveau}>{niveau}</Select.Item>
-                  {/each}
-                </Select.Content>
-              </Select.Root>
-              <input type="hidden" name="niveau" value={$form.niveau} />
-              {#if $errors.niveau}<span class="text-xs text-destructive"
-                  >{$errors.niveau}</span
-                >{/if}
-            </div>
-
-            <div class="grid gap-2">
-              <Label for="niveau_difficulte">Difficulté</Label>
-              <Select.Root
-                type="single"
-                name="niveau_difficulte"
-                bind:value={$form.niveau_difficulte}
-              >
-                <Select.Trigger>
-                  {$form.niveau_difficulte
-                    ? $form.niveau_difficulte
-                    : 'Débutant'}
-                </Select.Trigger>
-                <Select.Content>
-                  {#each difficultes as diff}
-                    <Select.Item value={diff}>{diff}</Select.Item>
-                  {/each}
-                </Select.Content>
-              </Select.Root>
-              <input
-                type="hidden"
-                name="niveau_difficulte"
-                value={$form.niveau_difficulte}
-              />
-              {#if $errors.niveau_difficulte}<span
-                  class="text-xs text-destructive"
-                  >{$errors.niveau_difficulte}</span
-                >{/if}
-            </div>
-          </div>
-
-          <Dialog.Footer>
-            <Button type="submit" disabled={$delayed}>
-              {#if $delayed}Enregistrement...{:else}{isEditing
-                  ? 'Mettre à jour'
-                  : "Créer l'élève"}{/if}
-            </Button>
-          </Dialog.Footer>
-        </form>
-      </Dialog.Content>
-    </Dialog.Root>
+    <StudentFormDialog
+      bind:open
+      {isEditing}
+      {editId}
+      {form}
+      {errors}
+      {delayed}
+      {enhance}
+      action={isEditing ? '?/update' : '?/create'}
+    />
 
     <ConfirmDeleteDialog
       bind:open={deleteDialogOpen}
@@ -426,13 +248,11 @@
                     getDifficultyColor(diff),
                   )}
                 >
-                  {#if diff === 'Débutant'}
-                    <SignalLow class="mr-1 h-3 w-3" />
-                  {:else if diff === 'Intermédiaire'}
-                    <SignalMedium class="mr-1 h-3 w-3" />
-                  {:else}
-                    <SignalHigh class="mr-1 h-3 w-3" />
-                  {/if}
+                  {#if diff === 'Débutant'}<SignalLow
+                      class="mr-1 h-3 w-3"
+                    />{:else if diff === 'Intermédiaire'}<SignalMedium
+                      class="mr-1 h-3 w-3"
+                    />{:else}<SignalHigh class="mr-1 h-3 w-3" />{/if}
                   {diff}
                 </Badge>
               </Table.Cell>
@@ -451,30 +271,25 @@
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger
                     class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+                    ><Ellipsis class="h-4 w-4" /></DropdownMenu.Trigger
                   >
-                    <Ellipsis class="h-4 w-4" />
-                  </DropdownMenu.Trigger>
                   <DropdownMenu.Content align="end">
                     <a
                       href={resolve(`/students/${student.id}`)}
                       class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
                     >
-                      <Eye class="mr-2 h-4 w-4 text-epi-blue" />
-                      Voir le dossier
+                      <Eye class="mr-2 h-4 w-4 text-epi-blue" /> Voir le dossier
                     </a>
                     <DropdownMenu.Separator />
-                    <DropdownMenu.Item onclick={() => openEdit(student)}>
-                      <Pencil class="mr-2 h-4 w-4" />
-                      Modifier
-                    </DropdownMenu.Item>
+                    <DropdownMenu.Item onclick={() => openEdit(student)}
+                      ><Pencil class="mr-2 h-4 w-4" /> Modifier</DropdownMenu.Item
+                    >
                     <DropdownMenu.Separator />
                     <DropdownMenu.Item
                       class="cursor-pointer text-destructive"
                       onclick={() => confirmDelete(student.id)}
+                      ><Trash2 class="mr-2 h-4 w-4" /> Supprimer</DropdownMenu.Item
                     >
-                      <Trash2 class="mr-2 h-4 w-4" />
-                      Supprimer
-                    </DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </Table.Cell>
