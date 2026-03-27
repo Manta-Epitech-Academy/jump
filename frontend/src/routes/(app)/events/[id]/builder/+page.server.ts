@@ -9,519 +9,577 @@ import { getTotalXp } from '$lib/xp';
 import { suggestBestSubject, preloadCompletedSubjects } from '$lib/recommender';
 import { createScoped } from '$lib/pocketbase';
 import {
-	type ParticipationsResponse,
-	type StudentsResponse,
-	type SubjectsResponse,
-	StudentsNiveauOptions,
-	StudentsNiveauDifficulteOptions,
-	StudentsLevelOptions
+  type ParticipationsResponse,
+  type StudentsResponse,
+  type SubjectsResponse,
+  StudentsNiveauOptions,
+  StudentsNiveauDifficulteOptions,
+  StudentsLevelOptions,
 } from '$lib/pocketbase-types';
 import { CalendarDateTime } from '@internationalized/date';
 import { ClientResponseError } from 'pocketbase';
 
 type ParticipationExpand = {
-	student?: StudentsResponse;
-	subjects?: SubjectsResponse[];
+  student?: StudentsResponse;
+  subjects?: SubjectsResponse[];
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	let event;
-	try {
-		event = await locals.pb.collection('events').getOne(params.id, {
-			expand: 'theme,mantas',
-			requestKey: null
-		});
-	} catch (e) {
-		console.error(e);
-		throw error(404, 'Événement introuvable');
-	}
+  let event;
+  try {
+    event = await locals.pb.collection('events').getOne(params.id, {
+      expand: 'theme,mantas',
+      requestKey: null,
+    });
+  } catch (e) {
+    console.error(e);
+    throw error(404, 'Événement introuvable');
+  }
 
-	const participationsRaw = await locals.pb
-		.collection('participations')
-		.getFullList<ParticipationsResponse<ParticipationExpand>>({
-			filter: `event = "${event.id}"`,
-			expand: 'student,subjects',
-			requestKey: null
-		});
+  const participationsRaw = await locals.pb
+    .collection('participations')
+    .getFullList<ParticipationsResponse<ParticipationExpand>>({
+      filter: `event = "${event.id}"`,
+      expand: 'student,subjects',
+      requestKey: null,
+    });
 
-	// Sort alphabetically by NOM then Prenom
-	participationsRaw.sort((a, b) => {
-		const nomA = a.expand?.student?.nom?.toUpperCase() ?? '';
-		const nomB = b.expand?.student?.nom?.toUpperCase() ?? '';
-		if (nomA < nomB) return -1;
-		if (nomA > nomB) return 1;
+  // Sort alphabetically by NOM then Prenom
+  participationsRaw.sort((a, b) => {
+    const nomA = a.expand?.student?.nom?.toUpperCase() ?? '';
+    const nomB = b.expand?.student?.nom?.toUpperCase() ?? '';
+    if (nomA < nomB) return -1;
+    if (nomA > nomB) return 1;
 
-		const prenomA = a.expand?.student?.prenom?.toLowerCase() ?? '';
-		const prenomB = b.expand?.student?.prenom?.toLowerCase() ?? '';
-		return prenomA.localeCompare(prenomB);
-	});
+    const prenomA = a.expand?.student?.prenom?.toLowerCase() ?? '';
+    const prenomB = b.expand?.student?.prenom?.toLowerCase() ?? '';
+    return prenomA.localeCompare(prenomB);
+  });
 
-	// Batch-fetch completed subject history for all students in this event (fixes N+1)
-	const studentIds = participationsRaw
-		.map((p) => p.expand?.student?.id)
-		.filter(Boolean) as string[];
+  // Batch-fetch completed subject history for all students in this event (fixes N+1)
+  const studentIds = participationsRaw
+    .map((p) => p.expand?.student?.id)
+    .filter(Boolean) as string[];
 
-	const completedMap = studentIds.length > 0
-		? await preloadCompletedSubjects(locals.pb, studentIds, event.id)
-		: new Map<string, Set<string>>();
+  const completedMap =
+    studentIds.length > 0
+      ? await preloadCompletedSubjects(locals.pb, studentIds, event.id)
+      : new Map<string, Set<string>>();
 
-	const difficultyWeights: Record<string, number> = {
-		Débutant: 0,
-		Intermédiaire: 1,
-		Avancé: 2
-	};
+  const difficultyWeights: Record<string, number> = {
+    Débutant: 0,
+    Intermédiaire: 1,
+    Avancé: 2,
+  };
 
-	const participations = participationsRaw.map((p) => {
-		const student = p.expand?.student;
-		const currentSubjects = p.expand?.subjects || [];
-		const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
+  const participations = participationsRaw.map((p) => {
+    const student = p.expand?.student;
+    const currentSubjects = p.expand?.subjects || [];
+    const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
 
-		if (student && currentSubjects.length > 0) {
-			const completed = completedMap.get(student.id) ?? new Set();
+    if (student && currentSubjects.length > 0) {
+      const completed = completedMap.get(student.id) ?? new Set();
 
-			for (const subject of currentSubjects) {
-				if (completed.has(subject.id)) {
-					alerts.push({
-						type: 'danger',
-						message: `DÉJÀ FAIT : L'élève a déjà validé "${subject.nom}".`
-					});
-				}
+      for (const subject of currentSubjects) {
+        if (completed.has(subject.id)) {
+          alerts.push({
+            type: 'danger',
+            message: `DÉJÀ FAIT : L'élève a déjà validé "${subject.nom}".`,
+          });
+        }
 
-				const studentLevel = difficultyWeights[student.niveau_difficulte || 'Débutant'] ?? 0;
-				const subjectLevel = difficultyWeights[subject.difficulte] ?? 0;
+        const studentLevel =
+          difficultyWeights[student.niveau_difficulte || 'Débutant'] ?? 0;
+        const subjectLevel = difficultyWeights[subject.difficulte] ?? 0;
 
-				if (subjectLevel > studentLevel) {
-					alerts.push({
-						type: 'warning',
-						message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveau_difficulte || 'Débutant'}).`
-					});
-				}
-			}
-		}
+        if (subjectLevel > studentLevel) {
+          alerts.push({
+            type: 'warning',
+            message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveau_difficulte || 'Débutant'}).`,
+          });
+        }
+      }
+    }
 
-		return { ...p, alerts };
-	});
+    return { ...p, alerts };
+  });
 
-	const subjects = await locals.pb.collection('subjects').getFullList({
-		sort: 'nom',
-		expand: 'themes,campus',
-		requestKey: null
-	});
+  const subjects = await locals.pb.collection('subjects').getFullList({
+    sort: 'nom',
+    expand: 'themes,campus',
+    requestKey: null,
+  });
 
-	const themes = await locals.pb.collection('themes').getFullList({
-		sort: 'nom',
-		requestKey: null
-	});
+  const themes = await locals.pb.collection('themes').getFullList({
+    sort: 'nom',
+    requestKey: null,
+  });
 
-	// Load staff from the same campus for the Mantas selector
-	const user = locals.user as any;
-	const staff = await locals.pb.collection('users').getFullList({
-		filter: user?.campus ? `campus = "${user.campus}"` : '',
-		sort: 'name'
-	});
+  // Load staff from the same campus for the Mantas selector
+  const user = locals.user as any;
+  const staff = await locals.pb.collection('users').getFullList({
+    filter: user?.campus ? `campus = "${user.campus}"` : '',
+    sort: 'name',
+  });
 
-	const eventDate = new Date(event.date);
-	const dateString = eventDate.toISOString().split('T')[0];
+  const eventDate = new Date(event.date);
+  const dateString = eventDate.toISOString().split('T')[0];
 
-	const timeParts = new Intl.DateTimeFormat('fr-FR', {
-		hour: '2-digit',
-		minute: '2-digit',
-		hour12: false,
-		timeZone: 'Europe/Paris'
-	}).formatToParts(eventDate);
+  const timeParts = new Intl.DateTimeFormat('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Europe/Paris',
+  }).formatToParts(eventDate);
 
-	const hours = timeParts.find((p) => p.type === 'hour')?.value || '00';
-	const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
-	const timeString = `${hours}:${minutes}`;
+  const hours = timeParts.find((p) => p.type === 'hour')?.value || '00';
+  const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
+  const timeString = `${hours}:${minutes}`;
 
-	const editForm = await superValidate(
-		{
-			titre: event.titre,
-			theme: (event as { expand?: { theme?: { nom?: string } } }).expand?.theme?.nom || '',
-			date: dateString,
-			time: timeString,
-			notes: event.notes || '',
-			mantas: event.mantas || []
-		},
-		zod4(eventSchema)
-	);
+  const editForm = await superValidate(
+    {
+      titre: event.titre,
+      theme:
+        (event as { expand?: { theme?: { nom?: string } } }).expand?.theme
+          ?.nom || '',
+      date: dateString,
+      time: timeString,
+      notes: event.notes || '',
+      mantas: event.mantas || [],
+    },
+    zod4(eventSchema),
+  );
 
-	const addForm = await superValidate(zod4(addParticipantSchema));
-	const createStudentForm = await superValidate(zod4(studentSchema));
+  const addForm = await superValidate(zod4(addParticipantSchema));
+  const createStudentForm = await superValidate(zod4(studentSchema));
 
-	return {
-		event,
-		participations,
-		subjects,
-		themes,
-		staff,
-		addForm,
-		createStudentForm,
-		editForm
-	};
+  return {
+    event,
+    participations,
+    subjects,
+    themes,
+    staff,
+    addForm,
+    createStudentForm,
+    editForm,
+  };
 };
 
 export const actions: Actions = {
-	addExisting: async ({ request, locals, params }) => {
-		const form = await superValidate(request, zod4(addParticipantSchema));
-		if (!form.valid) return fail(400, { form });
+  addExisting: async ({ request, locals, params }) => {
+    const form = await superValidate(request, zod4(addParticipantSchema));
+    if (!form.valid) return fail(400, { form });
 
-		try {
-			const duplicate = await locals.pb.collection('participations').getList(1, 1, {
-				filter: `student = "${form.data.studentId}" && event = "${params.id}"`
-			});
+    try {
+      const duplicate = await locals.pb
+        .collection('participations')
+        .getList(1, 1, {
+          filter: `student = "${form.data.studentId}" && event = "${params.id}"`,
+        });
 
-			if (duplicate.totalItems > 0) {
-				return message(form, 'Cet élève est déjà inscrit à cet événement.', { status: 400 });
-			}
+      if (duplicate.totalItems > 0) {
+        return message(form, 'Cet élève est déjà inscrit à cet événement.', {
+          status: 400,
+        });
+      }
 
-			const event = await locals.pb.collection('events').getOne(params.id);
+      const event = await locals.pb.collection('events').getOne(params.id);
 
-			const subjects = await locals.pb.collection('subjects').getFullList();
-			const suggestedSubjectId = await suggestBestSubject(
-				locals.pb,
-				form.data.studentId,
-				subjects,
-				event.theme
-			);
+      const subjects = await locals.pb.collection('subjects').getFullList();
+      const suggestedSubjectId = await suggestBestSubject(
+        locals.pb,
+        form.data.studentId,
+        subjects,
+        event.theme,
+      );
 
-			await createScoped(locals.pb, 'participations', {
-				student: form.data.studentId,
-				event: params.id,
-				subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
-				is_present: false
-			});
+      await createScoped(locals.pb, 'participations', {
+        student: form.data.studentId,
+        event: params.id,
+        subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
+        is_present: false,
+      });
 
-			return message(form, 'Élève ajouté avec une suggestion intelligente !');
-		} catch (err) {
-			console.error(err);
-			return message(form, "Erreur technique lors de l'ajout.", { status: 500 });
-		}
-	},
+      return message(form, 'Élève ajouté avec une suggestion intelligente !');
+    } catch (err) {
+      console.error(err);
+      return message(form, "Erreur technique lors de l'ajout.", {
+        status: 500,
+      });
+    }
+  },
 
-	updateSubjects: async ({ request, locals }) => {
-		const data = await request.formData();
-		const participationId = data.get('participationId') as string;
-		const subjectsRaw = data.get('subjectIds') as string;
-		const subjectIds = subjectsRaw ? subjectsRaw.split(',').filter(Boolean) : [];
+  updateSubjects: async ({ request, locals }) => {
+    const data = await request.formData();
+    const participationId = data.get('participationId') as string;
+    const subjectsRaw = data.get('subjectIds') as string;
+    const subjectIds = subjectsRaw
+      ? subjectsRaw.split(',').filter(Boolean)
+      : [];
 
-		try {
-			await locals.pb.collection('participations').update(participationId, {
-				subjects: subjectIds
-			});
-			return { success: true };
-		} catch (err) {
-			console.error(err);
-			return fail(500);
-		}
-	},
+    try {
+      await locals.pb.collection('participations').update(participationId, {
+        subjects: subjectIds,
+      });
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      return fail(500);
+    }
+  },
 
-	bulkAssign: async ({ request, locals, params }) => {
-		const data = await request.formData();
-		const subjectsRaw = data.get('subjectIds') as string;
+  bulkAssign: async ({ request, locals, params }) => {
+    const data = await request.formData();
+    const subjectsRaw = data.get('subjectIds') as string;
 
-		if (!subjectsRaw) {
-			return fail(400, { message: 'Aucun sujet sélectionné.' });
-		}
+    if (!subjectsRaw) {
+      return fail(400, { message: 'Aucun sujet sélectionné.' });
+    }
 
-		const newSubjectIds = subjectsRaw.split(',').filter(Boolean);
+    const newSubjectIds = subjectsRaw.split(',').filter(Boolean);
 
-		try {
-			const participations = await locals.pb.collection('participations').getFullList({
-				filter: `event = "${params.id}"`,
-				requestKey: null
-			});
+    try {
+      const participations = await locals.pb
+        .collection('participations')
+        .getFullList({
+          filter: `event = "${params.id}"`,
+          requestKey: null,
+        });
 
-			let updateCount = 0;
+      let updateCount = 0;
 
-			await Promise.all(
-				participations.map(async (p) => {
-					const currentSubjects = p.subjects || [];
-					const combinedSubjects = new Set([...currentSubjects, ...newSubjectIds]);
+      await Promise.all(
+        participations.map(async (p) => {
+          const currentSubjects = p.subjects || [];
+          const combinedSubjects = new Set([
+            ...currentSubjects,
+            ...newSubjectIds,
+          ]);
 
-					if (combinedSubjects.size > currentSubjects.length) {
-						await locals.pb.collection('participations').update(p.id, {
-							subjects: Array.from(combinedSubjects)
-						});
-						updateCount++;
-					}
-				})
-			);
+          if (combinedSubjects.size > currentSubjects.length) {
+            await locals.pb.collection('participations').update(p.id, {
+              subjects: Array.from(combinedSubjects),
+            });
+            updateCount++;
+          }
+        }),
+      );
 
-			return { success: true, message: `${updateCount} élèves mis à jour avec succès !` };
-		} catch (err) {
-			console.error('Bulk assign error:', err);
-			return fail(500, { message: "Erreur lors de l'assignation de masse." });
-		}
-	},
+      return {
+        success: true,
+        message: `${updateCount} élèves mis à jour avec succès !`,
+      };
+    } catch (err) {
+      console.error('Bulk assign error:', err);
+      return fail(500, { message: "Erreur lors de l'assignation de masse." });
+    }
+  },
 
-	autoAssignAll: async ({ params, locals }) => {
-		try {
-			const unassigned = await locals.pb
-				.collection('participations')
-				.getFullList<ParticipationsResponse<ParticipationExpand>>({
-					filter: `event = "${params.id}" && subjects:length = 0`,
-					expand: 'student'
-				});
+  autoAssignAll: async ({ params, locals }) => {
+    try {
+      const unassigned = await locals.pb
+        .collection('participations')
+        .getFullList<ParticipationsResponse<ParticipationExpand>>({
+          filter: `event = "${params.id}" && subjects:length = 0`,
+          expand: 'student',
+        });
 
-			if (unassigned.length === 0) {
-				return { success: true, message: 'Aucun élève à assigner.' };
-			}
+      if (unassigned.length === 0) {
+        return { success: true, message: 'Aucun élève à assigner.' };
+      }
 
-			const subjects = await locals.pb.collection('subjects').getFullList();
-			const event = await locals.pb.collection('events').getOne(params.id, { expand: 'theme' });
+      const subjects = await locals.pb.collection('subjects').getFullList();
+      const event = await locals.pb
+        .collection('events')
+        .getOne(params.id, { expand: 'theme' });
 
-			// Pre-fetch completed subjects for all unassigned students in one query
-			const studentIds = unassigned.map((p) => p.expand?.student?.id).filter(Boolean) as string[];
-			const completedMap = await preloadCompletedSubjects(locals.pb, studentIds, params.id);
+      // Pre-fetch completed subjects for all unassigned students in one query
+      const studentIds = unassigned
+        .map((p) => p.expand?.student?.id)
+        .filter(Boolean) as string[];
+      const completedMap = await preloadCompletedSubjects(
+        locals.pb,
+        studentIds,
+        params.id,
+      );
 
-			let count = 0;
+      let count = 0;
 
-			for (const p of unassigned) {
-				const studentId = p.expand?.student?.id ?? '';
-				const suggestedId = await suggestBestSubject(
-					locals.pb,
-					studentId,
-					subjects,
-					event.theme,
-					[],
-					completedMap.get(studentId)
-				);
+      for (const p of unassigned) {
+        const studentId = p.expand?.student?.id ?? '';
+        const suggestedId = await suggestBestSubject(
+          locals.pb,
+          studentId,
+          subjects,
+          event.theme,
+          [],
+          completedMap.get(studentId),
+        );
 
-				if (suggestedId) {
-					await locals.pb.collection('participations').update(p.id, {
-						subjects: [suggestedId]
-					});
-					count++;
-				}
-			}
+        if (suggestedId) {
+          await locals.pb.collection('participations').update(p.id, {
+            subjects: [suggestedId],
+          });
+          count++;
+        }
+      }
 
-			return { success: true, message: `${count} élèves assignés automatiquement !` };
-		} catch (err) {
-			console.error('Auto-assign error:', err);
-			return fail(500, { message: "Erreur lors de l'auto-assignation" });
-		}
-	},
+      return {
+        success: true,
+        message: `${count} élèves assignés automatiquement !`,
+      };
+    } catch (err) {
+      console.error('Auto-assign error:', err);
+      return fail(500, { message: "Erreur lors de l'auto-assignation" });
+    }
+  },
 
-	quickCreateStudent: async ({ request, locals, params }) => {
-		const form = await superValidate(request, zod4(studentSchema));
-		if (!form.valid) return fail(400, { form });
+  quickCreateStudent: async ({ request, locals, params }) => {
+    const form = await superValidate(request, zod4(studentSchema));
+    if (!form.valid) return fail(400, { form });
 
-		try {
-			// Random password (they will use OTP anyway)
-			const tempPassword = crypto.randomUUID() + Math.random().toString(36);
+    try {
+      // Random password (they will use OTP anyway)
+      const tempPassword = crypto.randomUUID() + Math.random().toString(36);
 
-			// SCOPED creation
-			const newStudent = await createScoped(locals.pb, 'students', {
-				...form.data,
-				email: form.data.email || '',
-				niveau: form.data.niveau as StudentsNiveauOptions,
-				niveau_difficulte: form.data.niveau_difficulte as StudentsNiveauDifficulteOptions,
+      // SCOPED creation
+      const newStudent = await createScoped(locals.pb, 'students', {
+        ...form.data,
+        email: form.data.email || '',
+        niveau: form.data.niveau as StudentsNiveauOptions,
+        niveau_difficulte: form.data
+          .niveau_difficulte as StudentsNiveauDifficulteOptions,
 
-				// Auth & Default Fields
-				emailVisibility: true,
-				password: tempPassword,
-				passwordConfirm: tempPassword,
-				verified: false,
-				level: StudentsLevelOptions.Novice,
-				badges: [],
-				xp: 0,
-				events_count: 0
-			});
+        // Auth & Default Fields
+        emailVisibility: true,
+        password: tempPassword,
+        passwordConfirm: tempPassword,
+        verified: false,
+        level: StudentsLevelOptions.Novice,
+        badges: [],
+        xp: 0,
+        events_count: 0,
+      });
 
-			const event = await locals.pb.collection('events').getOne(params.id);
+      const event = await locals.pb.collection('events').getOne(params.id);
 
-			const subjects = await locals.pb.collection('subjects').getFullList();
-			const suggestedSubjectId = await suggestBestSubject(
-				locals.pb,
-				newStudent.id,
-				subjects,
-				event.theme
-			);
+      const subjects = await locals.pb.collection('subjects').getFullList();
+      const suggestedSubjectId = await suggestBestSubject(
+        locals.pb,
+        newStudent.id,
+        subjects,
+        event.theme,
+      );
 
-			await createScoped(locals.pb, 'participations', {
-				student: newStudent.id,
-				event: params.id,
-				subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
-				is_present: false
-			});
-			return message(form, 'Élève créé et assigné automatiquement !');
-		} catch (err) {
-			if (err instanceof ClientResponseError && err.status === 400) {
-				return message(form, 'Un élève identique (Même nom, prénom et email) existe déjà.', {
-					status: 400
-				});
-			}
-			console.error(err);
-			return message(form, 'Erreur lors de la création rapide.', { status: 500 });
-		}
-	},
+      await createScoped(locals.pb, 'participations', {
+        student: newStudent.id,
+        event: params.id,
+        subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
+        is_present: false,
+      });
+      return message(form, 'Élève créé et assigné automatiquement !');
+    } catch (err) {
+      if (err instanceof ClientResponseError && err.status === 400) {
+        return message(
+          form,
+          'Un élève identique (Même nom, prénom et email) existe déjà.',
+          {
+            status: 400,
+          },
+        );
+      }
+      console.error(err);
+      return message(form, 'Erreur lors de la création rapide.', {
+        status: 500,
+      });
+    }
+  },
 
-	updateEvent: async ({ request, locals, params }) => {
-		const formData = await request.formData();
+  updateEvent: async ({ request, locals, params }) => {
+    const formData = await request.formData();
 
-		const dateStr = formData.get('date') as string;
-		const timeStr = formData.get('time') as string;
-		const themeInput = formData.get('theme') as string;
-		const notesInput = formData.get('notes') as string;
+    const dateStr = formData.get('date') as string;
+    const timeStr = formData.get('time') as string;
+    const themeInput = formData.get('theme') as string;
+    const notesInput = formData.get('notes') as string;
 
-		const transformedData = {
-			titre: (formData.get('titre') as string) || '',
-			date: dateStr,
-			time: timeStr,
-			theme: themeInput,
-			notes: notesInput,
-			mantas: formData.getAll('mantas') as string[]
-		};
+    const transformedData = {
+      titre: (formData.get('titre') as string) || '',
+      date: dateStr,
+      time: timeStr,
+      theme: themeInput,
+      notes: notesInput,
+      mantas: formData.getAll('mantas') as string[],
+    };
 
-		const form = await superValidate(transformedData, zod4(eventSchema));
+    const form = await superValidate(transformedData, zod4(eventSchema));
 
-		if (!form.valid) {
-			return fail(400, { form });
-		}
+    if (!form.valid) {
+      return fail(400, { form });
+    }
 
-		try {
-			const currentEvent = await locals.pb.collection('events').getOne(params.id);
-			const oldThemeId = currentEvent.theme;
+    try {
+      const currentEvent = await locals.pb
+        .collection('events')
+        .getOne(params.id);
+      const oldThemeId = currentEvent.theme;
 
-			if (!dateStr || !timeStr) throw new Error('Date ou heure manquante');
+      if (!dateStr || !timeStr) throw new Error('Date ou heure manquante');
 
-			const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
-			const [hour, minute] = timeStr.split(':').map(Number);
-			const cdt = new CalendarDateTime(year, month, day, hour, minute);
-			const jsDate = cdt.toDate('Europe/Paris');
+      const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+      const [hour, minute] = timeStr.split(':').map(Number);
+      const cdt = new CalendarDateTime(year, month, day, hour, minute);
+      const jsDate = cdt.toDate('Europe/Paris');
 
-			if (isNaN(jsDate.getTime())) {
-				return message(form, 'Format de date invalide', { status: 400 });
-			}
+      if (isNaN(jsDate.getTime())) {
+        return message(form, 'Format de date invalide', { status: 400 });
+      }
 
-			let newThemeId: string | null = null;
-			if (form.data.theme && form.data.theme.trim() !== '') {
-				const existing = await locals.pb
-					.collection('themes')
-					.getList(1, 1, { filter: `nom = "${form.data.theme.replace(/"/g, '\\"')}"` });
+      let newThemeId: string | null = null;
+      if (form.data.theme && form.data.theme.trim() !== '') {
+        const existing = await locals.pb
+          .collection('themes')
+          .getList(1, 1, {
+            filter: `nom = "${form.data.theme.replace(/"/g, '\\"')}"`,
+          });
 
-				if (existing.items.length > 0) {
-					newThemeId = existing.items[0].id;
-				} else {
-					const created = await createScoped(locals.pb, 'themes', { nom: form.data.theme });
-					newThemeId = created.id;
-				}
-			}
+        if (existing.items.length > 0) {
+          newThemeId = existing.items[0].id;
+        } else {
+          const created = await createScoped(locals.pb, 'themes', {
+            nom: form.data.theme,
+          });
+          newThemeId = created.id;
+        }
+      }
 
-			await locals.pb.collection('events').update(params.id, {
-				titre: form.data.titre,
-				date: jsDate.toISOString(),
-				theme: newThemeId ?? undefined,
-				notes: form.data.notes,
-				mantas: form.data.mantas
-			});
+      await locals.pb.collection('events').update(params.id, {
+        titre: form.data.titre,
+        date: jsDate.toISOString(),
+        theme: newThemeId ?? undefined,
+        notes: form.data.notes,
+        mantas: form.data.mantas,
+      });
 
-			if (oldThemeId !== newThemeId) {
-				const participations = await locals.pb.collection('participations').getFullList({
-					filter: `event = "${params.id}"`,
-					requestKey: null
-				});
+      if (oldThemeId !== newThemeId) {
+        const participations = await locals.pb
+          .collection('participations')
+          .getFullList({
+            filter: `event = "${params.id}"`,
+            requestKey: null,
+          });
 
-				const subjects = await locals.pb.collection('subjects').getFullList();
+        const subjects = await locals.pb.collection('subjects').getFullList();
 
-				// Pre-fetch completed subjects for eligible students
-				const eligibleStudentIds = participations
-					.filter((p) => !p.is_present && (!p.subjects || p.subjects.length === 0))
-					.map((p) => p.student);
-				const completedMap = await preloadCompletedSubjects(locals.pb, eligibleStudentIds, params.id);
+        // Pre-fetch completed subjects for eligible students
+        const eligibleStudentIds = participations
+          .filter(
+            (p) => !p.is_present && (!p.subjects || p.subjects.length === 0),
+          )
+          .map((p) => p.student);
+        const completedMap = await preloadCompletedSubjects(
+          locals.pb,
+          eligibleStudentIds,
+          params.id,
+        );
 
-				for (const p of participations) {
-					// Only re-suggest for those without subjects
-					if (!p.is_present && (!p.subjects || p.subjects.length === 0)) {
-						const newSubjectId = await suggestBestSubject(
-							locals.pb,
-							p.student,
-							subjects,
-							newThemeId,
-							[],
-							completedMap.get(p.student)
-						);
+        for (const p of participations) {
+          // Only re-suggest for those without subjects
+          if (!p.is_present && (!p.subjects || p.subjects.length === 0)) {
+            const newSubjectId = await suggestBestSubject(
+              locals.pb,
+              p.student,
+              subjects,
+              newThemeId,
+              [],
+              completedMap.get(p.student),
+            );
 
-						if (newSubjectId) {
-							await locals.pb.collection('participations').update(p.id, {
-								subjects: [newSubjectId]
-							});
-						}
-					}
-				}
-				return message(form, 'Événement mis à jour et sujets recalculés !');
-			}
+            if (newSubjectId) {
+              await locals.pb.collection('participations').update(p.id, {
+                subjects: [newSubjectId],
+              });
+            }
+          }
+        }
+        return message(form, 'Événement mis à jour et sujets recalculés !');
+      }
 
-			return message(form, 'Événement mis à jour !');
-		} catch (err) {
-			console.error('Update Event Error:', err);
-			return message(form, "Impossible de mettre à jour l'événement", { status: 500 });
-		}
-	},
+      return message(form, 'Événement mis à jour !');
+    } catch (err) {
+      console.error('Update Event Error:', err);
+      return message(form, "Impossible de mettre à jour l'événement", {
+        status: 500,
+      });
+    }
+  },
 
-	remove: async ({ url, locals }) => {
-		const id = url.searchParams.get('id');
-		if (!id) return fail(400);
+  remove: async ({ url, locals }) => {
+    const id = url.searchParams.get('id');
+    if (!id) return fail(400);
 
-		try {
-			const p = await locals.pb
-				.collection('participations')
-				.getOne<ParticipationsResponse<ParticipationExpand>>(id, {
-					expand: 'subjects'
-				});
+    try {
+      const p = await locals.pb
+        .collection('participations')
+        .getOne<ParticipationsResponse<ParticipationExpand>>(id, {
+          expand: 'subjects',
+        });
 
-			if (p.is_present) {
-				const subjects = p.expand?.subjects || [];
-				const xpValue = getTotalXp(subjects);
+      if (p.is_present) {
+        const subjects = p.expand?.subjects || [];
+        const xpValue = getTotalXp(subjects);
 
-				const student = await locals.pb.collection('students').getOne(p.student);
-				const currentXp = student.xp ?? 0;
-				const currentEventsCount = student.events_count ?? 0;
+        const student = await locals.pb
+          .collection('students')
+          .getOne(p.student);
+        const currentXp = student.xp ?? 0;
+        const currentEventsCount = student.events_count ?? 0;
 
-				await locals.pb.collection('students').update(p.student, {
-					'xp-': Math.min(xpValue, currentXp),
-					'events_count-': Math.min(1, currentEventsCount)
-				});
-			}
+        await locals.pb.collection('students').update(p.student, {
+          'xp-': Math.min(xpValue, currentXp),
+          'events_count-': Math.min(1, currentEventsCount),
+        });
+      }
 
-			await locals.pb.collection('participations').delete(id);
-			return { success: true };
-		} catch (err) {
-			console.error('Error on remove participation:', err);
-			return fail(500);
-		}
-	},
+      await locals.pb.collection('participations').delete(id);
+      return { success: true };
+    } catch (err) {
+      console.error('Error on remove participation:', err);
+      return fail(500);
+    }
+  },
 
-	deleteEvent: async ({ params, locals }) => {
-		try {
-			const participations = await locals.pb
-				.collection('participations')
-				.getFullList<ParticipationsResponse<ParticipationExpand>>({
-					filter: `event = "${params.id}" && is_present = true`,
-					expand: 'subjects'
-				});
+  deleteEvent: async ({ params, locals }) => {
+    try {
+      const participations = await locals.pb
+        .collection('participations')
+        .getFullList<ParticipationsResponse<ParticipationExpand>>({
+          filter: `event = "${params.id}" && is_present = true`,
+          expand: 'subjects',
+        });
 
-			for (const p of participations) {
-				const subjects = p.expand?.subjects || [];
-				const xpValue = getTotalXp(subjects);
+      for (const p of participations) {
+        const subjects = p.expand?.subjects || [];
+        const xpValue = getTotalXp(subjects);
 
-				const student = await locals.pb.collection('students').getOne(p.student);
-				const currentXp = student.xp ?? 0;
-				const currentEventsCount = student.events_count ?? 0;
+        const student = await locals.pb
+          .collection('students')
+          .getOne(p.student);
+        const currentXp = student.xp ?? 0;
+        const currentEventsCount = student.events_count ?? 0;
 
-				await locals.pb.collection('students').update(p.student, {
-					'xp-': Math.min(xpValue, currentXp),
-					'events_count-': Math.min(1, currentEventsCount)
-				});
-			}
+        await locals.pb.collection('students').update(p.student, {
+          'xp-': Math.min(xpValue, currentXp),
+          'events_count-': Math.min(1, currentEventsCount),
+        });
+      }
 
-			await locals.pb.collection('events').delete(params.id);
-		} catch (err) {
-			console.error('Error deleting event:', err);
-			return fail(500);
-		}
+      await locals.pb.collection('events').delete(params.id);
+    } catch (err) {
+      console.error('Error deleting event:', err);
+      return fail(500);
+    }
 
-		throw redirect(303, resolve('/'));
-	}
+    throw redirect(303, resolve('/'));
+  },
 };

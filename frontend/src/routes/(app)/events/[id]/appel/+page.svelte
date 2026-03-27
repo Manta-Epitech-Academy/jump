@@ -1,623 +1,698 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { pbUrl } from '$lib/pocketbase';
-	import PocketBase from 'pocketbase';
-	import {
-		ArrowLeft,
-		Search,
-		MonitorSmartphone,
-		LayoutGrid,
-		List as ListIcon,
-		Funnel,
-		User,
-		MonitorX,
-		Award,
-		Info,
-		Sprout,
-		Clock,
-		GraduationCap,
-		LifeBuoy,
-		KeyRound
-	} from 'lucide-svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Button } from '$lib/components/ui/button';
-	import * as Select from '$lib/components/ui/select';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { browser } from '$app/environment';
-	import { untrack } from 'svelte';
-	import ParticipationCard from '$lib/components/events/ParticipationCard.svelte';
-	import { toast } from 'svelte-sonner';
-	import { cn } from '$lib/utils';
-	import { enhance } from '$app/forms';
-	import NoteInput from '$lib/components/events/NoteInput.svelte';
-	import type {
-		ParticipationsResponse,
-		StudentsResponse,
-		SubjectsResponse
-	} from '$lib/pocketbase-types';
-	import { triggerConfetti } from '$lib/actions/confetti';
-	import { resolve } from '$app/paths';
-	import { Badge } from '$lib/components/ui/badge';
+  import type { PageData } from './$types';
+  import { pbUrl } from '$lib/pocketbase';
+  import PocketBase from 'pocketbase';
+  import {
+    ArrowLeft,
+    Search,
+    MonitorSmartphone,
+    LayoutGrid,
+    List as ListIcon,
+    Funnel,
+    User,
+    MonitorX,
+    Award,
+    Info,
+    Sprout,
+    Clock,
+    GraduationCap,
+    LifeBuoy,
+    KeyRound,
+  } from 'lucide-svelte';
+  import { Input } from '$lib/components/ui/input';
+  import { Button } from '$lib/components/ui/button';
+  import * as Select from '$lib/components/ui/select';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { browser } from '$app/environment';
+  import { untrack } from 'svelte';
+  import ParticipationCard from '$lib/components/events/ParticipationCard.svelte';
+  import { toast } from 'svelte-sonner';
+  import { cn } from '$lib/utils';
+  import { enhance } from '$app/forms';
+  import NoteInput from '$lib/components/events/NoteInput.svelte';
+  import type {
+    ParticipationsResponse,
+    StudentsResponse,
+    SubjectsResponse,
+  } from '$lib/pocketbase-types';
+  import { triggerConfetti } from '$lib/actions/confetti';
+  import { resolve } from '$app/paths';
+  import { Badge } from '$lib/components/ui/badge';
 
-	type ParticipationExpand = {
-		student?: StudentsResponse;
-		subjects?: SubjectsResponse[];
-	};
+  type ParticipationExpand = {
+    student?: StudentsResponse;
+    subjects?: SubjectsResponse[];
+  };
 
-	type ParticipationWithExpand = ParticipationsResponse<ParticipationExpand>;
+  type ParticipationWithExpand = ParticipationsResponse<ParticipationExpand>;
 
-	let { data }: { data: PageData } = $props();
+  let { data }: { data: PageData } = $props();
 
-	let participations: ParticipationWithExpand[] = $state(
-		untrack(() => data.participations as ParticipationWithExpand[])
-	);
+  let participations: ParticipationWithExpand[] = $state(
+    untrack(() => data.participations as ParticipationWithExpand[]),
+  );
 
-	let progressRecords = $state<any[]>(untrack(() => data.progressData));
+  let progressRecords = $state<any[]>(untrack(() => data.progressData));
 
-	let studentProgressMap = $derived.by(() => {
-		const map = new Map<string, any[]>();
-		progressRecords.forEach((p) => {
-			if (!map.has(p.student)) map.set(p.student, []);
-			map.get(p.student)?.push(p);
-		});
-		return map;
-	});
+  let studentProgressMap = $derived.by(() => {
+    const map = new Map<string, any[]>();
+    progressRecords.forEach((p) => {
+      if (!map.has(p.student)) map.set(p.student, []);
+      map.get(p.student)?.push(p);
+    });
+    return map;
+  });
 
-	let searchQuery = $state('');
-	let filterStatus = $state<'all' | 'present' | 'late' | 'help'>('all');
-	let viewMode = $state<'grid' | 'list'>('grid');
-	let filterSubject = $state<string>('all');
-	let filterNiveau = $state<string>('all');
+  let searchQuery = $state('');
+  let filterStatus = $state<'all' | 'present' | 'late' | 'help'>('all');
+  let viewMode = $state<'grid' | 'list'>('grid');
+  let filterSubject = $state<string>('all');
+  let filterNiveau = $state<string>('all');
 
-	$effect(() => {
-		participations = data.participations as ParticipationWithExpand[];
-		progressRecords = data.progressData;
-	});
+  $effect(() => {
+    participations = data.participations as ParticipationWithExpand[];
+    progressRecords = data.progressData;
+  });
 
-	const pb = new PocketBase(pbUrl);
+  const pb = new PocketBase(pbUrl);
 
-	$effect(() => {
-		if (browser) {
-			const staffCookie = document.cookie
-				.split(';')
-				.find((c) => c.trim().startsWith('pb_staff_auth='));
-			if (staffCookie) {
-				const value = staffCookie.substring(staffCookie.indexOf('=') + 1);
-				const { token, model } = JSON.parse(decodeURIComponent(value));
-				pb.authStore.save(token, model);
-			}
+  $effect(() => {
+    if (browser) {
+      const staffCookie = document.cookie
+        .split(';')
+        .find((c) => c.trim().startsWith('pb_staff_auth='));
+      if (staffCookie) {
+        const value = staffCookie.substring(staffCookie.indexOf('=') + 1);
+        const { token, model } = JSON.parse(decodeURIComponent(value));
+        pb.authStore.save(token, model);
+      }
 
-			// Participation subscription filtered server-side by event
-			pb.collection('participations').subscribe('*', (e) => {
-				if (e.action === 'update') {
-					const index = participations.findIndex((p) => p.id === e.record.id);
-					if (index !== -1) {
-						participations[index] = {
-							...participations[index],
-							is_present: e.record.is_present as boolean,
-							bring_pc: e.record.bring_pc as boolean,
-							note: e.record.note as string,
-							subjects: e.record.subjects as string[],
-							delay: e.record.delay as number
-						};
-					}
-				} else if (e.action === 'create' || e.action === 'delete') {
-					location.reload();
-				}
-			}, { filter: `event = "${data.event.id}"` });
+      // Participation subscription filtered server-side by event
+      pb.collection('participations').subscribe(
+        '*',
+        (e) => {
+          if (e.action === 'update') {
+            const index = participations.findIndex((p) => p.id === e.record.id);
+            if (index !== -1) {
+              participations[index] = {
+                ...participations[index],
+                is_present: e.record.is_present as boolean,
+                bring_pc: e.record.bring_pc as boolean,
+                note: e.record.note as string,
+                subjects: e.record.subjects as string[],
+                delay: e.record.delay as number,
+              };
+            }
+          } else if (e.action === 'create' || e.action === 'delete') {
+            location.reload();
+          }
+        },
+        { filter: `event = "${data.event.id}"` },
+      );
 
-			pb.collection('steps_progress').subscribe('*', (e) => {
-				if (e.action === 'update') {
-					const index = progressRecords.findIndex((p) => p.id === e.record.id);
-					if (index !== -1) {
-						progressRecords[index] = e.record;
-					}
-				} else if (e.action === 'create') {
-					progressRecords = [...progressRecords, e.record];
-				}
-			}, { filter: `event = "${data.event.id}"` });
-		}
-		return () => {
-			if (browser) {
-				pb.collection('participations').unsubscribe('*');
-				pb.collection('steps_progress').unsubscribe('*');
-			}
-		};
-	});
+      pb.collection('steps_progress').subscribe(
+        '*',
+        (e) => {
+          if (e.action === 'update') {
+            const index = progressRecords.findIndex(
+              (p) => p.id === e.record.id,
+            );
+            if (index !== -1) {
+              progressRecords[index] = e.record;
+            }
+          } else if (e.action === 'create') {
+            progressRecords = [...progressRecords, e.record];
+          }
+        },
+        { filter: `event = "${data.event.id}"` },
+      );
+    }
+    return () => {
+      if (browser) {
+        pb.collection('participations').unsubscribe('*');
+        pb.collection('steps_progress').unsubscribe('*');
+      }
+    };
+  });
 
-	const optimisticToggle = (id: string, field: 'is_present' | 'bring_pc') => {
-		return () => {
-			const index = participations.findIndex((p) => p.id === id);
-			if (index !== -1) {
-				const p = participations[index];
-				if (field === 'is_present') {
-					p.is_present = !p.is_present;
-					if (!p.is_present) p.delay = 0;
-				}
-				if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
-			}
-			return async ({ update }: { update: () => Promise<void> }) => await update();
-		};
-	};
+  const optimisticToggle = (id: string, field: 'is_present' | 'bring_pc') => {
+    return () => {
+      const index = participations.findIndex((p) => p.id === id);
+      if (index !== -1) {
+        const p = participations[index];
+        if (field === 'is_present') {
+          p.is_present = !p.is_present;
+          if (!p.is_present) p.delay = 0;
+        }
+        if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
+      }
+      return async ({ update }: { update: () => Promise<void> }) =>
+        await update();
+    };
+  };
 
-	// Get unique subjects for filter dropdown
-	let uniqueSubjects = $derived.by(() => {
-		const subjects = new Map<string, string>();
-		const typedParticipations = data.participations as ParticipationWithExpand[];
-		typedParticipations.forEach((p) => {
-			p.expand?.subjects?.forEach((s) => {
-				subjects.set(s.id, s.nom);
-			});
-		});
-		return Array.from(subjects.entries());
-	});
+  // Get unique subjects for filter dropdown
+  let uniqueSubjects = $derived.by(() => {
+    const subjects = new Map<string, string>();
+    const typedParticipations =
+      data.participations as ParticipationWithExpand[];
+    typedParticipations.forEach((p) => {
+      p.expand?.subjects?.forEach((s) => {
+        subjects.set(s.id, s.nom);
+      });
+    });
+    return Array.from(subjects.entries());
+  });
 
-	// Get unique classes (niveaux) for filter dropdown
-	let uniqueNiveaux = $derived.by(() => {
-		const niveaux = new Set<string>();
-		const typedParticipations = data.participations as ParticipationWithExpand[];
-		typedParticipations.forEach((p) => {
-			if (p.expand?.student?.niveau) {
-				niveaux.add(p.expand.student.niveau);
-			}
-		});
-		const order = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'];
-		return Array.from(niveaux).sort((a, b) => {
-			const indexA = order.indexOf(a);
-			const indexB = order.indexOf(b);
-			if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-			if (indexA !== -1) return -1;
-			if (indexB !== -1) return 1;
-			return a.localeCompare(b);
-		});
-	});
+  // Get unique classes (niveaux) for filter dropdown
+  let uniqueNiveaux = $derived.by(() => {
+    const niveaux = new Set<string>();
+    const typedParticipations =
+      data.participations as ParticipationWithExpand[];
+    typedParticipations.forEach((p) => {
+      if (p.expand?.student?.niveau) {
+        niveaux.add(p.expand.student.niveau);
+      }
+    });
+    const order = [
+      '6eme',
+      '5eme',
+      '4eme',
+      '3eme',
+      '2nde',
+      '1ere',
+      'Terminale',
+      'Sup',
+    ];
+    return Array.from(niveaux).sort((a, b) => {
+      const indexA = order.indexOf(a);
+      const indexB = order.indexOf(b);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  });
 
-	let filteredParticipations = $derived(
-		participations.filter((p) => {
-			const matchesSearch =
-				p.expand?.student?.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				p.expand?.student?.prenom.toLowerCase().includes(searchQuery.toLowerCase());
+  let filteredParticipations = $derived(
+    participations.filter((p) => {
+      const matchesSearch =
+        p.expand?.student?.nom
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        p.expand?.student?.prenom
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
 
-			if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
 
-			let matchesStatus = filterStatus === 'all';
-			if (filterStatus === 'present') matchesStatus = p.is_present === true;
-			if (filterStatus === 'late') matchesStatus = (p.delay || 0) > 0;
-			if (filterStatus === 'help') {
-				const prgs = studentProgressMap.get(p.student) || [];
-				matchesStatus = prgs.some((prog) => prog.status === 'needs_help');
-			}
+      let matchesStatus = filterStatus === 'all';
+      if (filterStatus === 'present') matchesStatus = p.is_present === true;
+      if (filterStatus === 'late') matchesStatus = (p.delay || 0) > 0;
+      if (filterStatus === 'help') {
+        const prgs = studentProgressMap.get(p.student) || [];
+        matchesStatus = prgs.some((prog) => prog.status === 'needs_help');
+      }
 
-			const matchesSubject = filterSubject === 'all' || p.subjects?.includes(filterSubject);
-			const matchesNiveau = filterNiveau === 'all' || p.expand?.student?.niveau === filterNiveau;
+      const matchesSubject =
+        filterSubject === 'all' || p.subjects?.includes(filterSubject);
+      const matchesNiveau =
+        filterNiveau === 'all' || p.expand?.student?.niveau === filterNiveau;
 
-			return matchesStatus && matchesSubject && matchesNiveau;
-		})
-	);
+      return matchesStatus && matchesSubject && matchesNiveau;
+    }),
+  );
 
-	let presentCount = $derived(participations.filter((p) => p.is_present).length);
-	let lateCount = $derived(participations.filter((p) => (p.delay || 0) > 0).length);
-	let helpCount = $derived(progressRecords.filter((p) => p.status === 'needs_help').length);
+  let presentCount = $derived(
+    participations.filter((p) => p.is_present).length,
+  );
+  let lateCount = $derived(
+    participations.filter((p) => (p.delay || 0) > 0).length,
+  );
+  let helpCount = $derived(
+    progressRecords.filter((p) => p.status === 'needs_help').length,
+  );
 
-	let totalStudents = $derived(participations.length);
-	let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
+  let totalStudents = $derived(participations.length);
+  let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
 
-	async function handleDiplomaDownload(participation: ParticipationWithExpand) {
-		const toastId = toast.loading('Génération du diplôme...');
-		try {
-			const apiUrl = `${resolve('/api/diploma')}?participationId=${participation.id}`;
-			const res = await fetch(apiUrl);
+  async function handleDiplomaDownload(participation: ParticipationWithExpand) {
+    const toastId = toast.loading('Génération du diplôme...');
+    try {
+      const apiUrl = `${resolve('/api/diploma')}?participationId=${participation.id}`;
+      const res = await fetch(apiUrl);
 
-			if (!res.ok) {
-				const errorData = await res.json().catch(() => ({}));
-				throw new Error(errorData.message || 'Erreur lors de la génération');
-			}
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Erreur lors de la génération');
+      }
 
-			const blob = await res.blob();
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
 
-			// Extract filename from header
-			const disposition = res.headers.get('Content-Disposition');
-			let filename = 'Diplome.pdf';
-			if (disposition && disposition.indexOf('filename=') !== -1) {
-				filename = disposition.split('filename=')[1].replace(/"/g, '');
-			}
+      // Extract filename from header
+      const disposition = res.headers.get('Content-Disposition');
+      let filename = 'Diplome.pdf';
+      if (disposition && disposition.indexOf('filename=') !== -1) {
+        filename = disposition.split('filename=')[1].replace(/"/g, '');
+      }
 
-			a.download = filename;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			window.URL.revokeObjectURL(url);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
 
-			toast.success('Diplôme téléchargé !', { id: toastId });
-			triggerConfetti();
-		} catch (e: any) {
-			console.error(e);
-			toast.error(`Erreur : ${e.message}`, { id: toastId });
-		}
-	}
+      toast.success('Diplôme téléchargé !', { id: toastId });
+      triggerConfetti();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Erreur : ${e.message}`, { id: toastId });
+    }
+  }
 </script>
 
 <div class="flex min-h-screen flex-col bg-background pb-20">
-	<!-- 1. STATIC HEADER (Scrolls away) -->
-	<div class="border-b border-border bg-background pt-4 pb-4">
-		<div class="container mx-auto max-w-2xl px-4">
-			<div class="mb-4 flex items-center justify-between">
-				<a
-					href={resolve(`/events/${data.event.id}/builder`)}
-					class="flex items-center gap-1 text-xs font-black tracking-widest text-muted-foreground uppercase transition-colors hover:text-epi-blue"
-				>
-					<ArrowLeft class="h-3 w-3" /> Retour au builder
-				</a>
-				<div class="flex gap-2">
-					<div
-						class="rounded-sm bg-epi-teal px-2 py-0.5 text-[10px] font-black text-black uppercase"
-					>
-						{presentCount} Présents
-					</div>
-					{#if lateCount > 0}
-						<div
-							class="rounded-sm bg-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-800 uppercase"
-						>
-							{lateCount} En retard
-						</div>
-					{/if}
-					{#if helpCount > 0}
-						<div
-							class="flex animate-pulse items-center gap-1 rounded-sm bg-epi-orange px-2 py-0.5 text-[10px] font-black text-white uppercase"
-						>
-							<LifeBuoy class="h-3 w-3" />
-							{helpCount} Appels
-						</div>
-					{/if}
-				</div>
-			</div>
+  <!-- 1. STATIC HEADER (Scrolls away) -->
+  <div class="border-b border-border bg-background pt-4 pb-4">
+    <div class="container mx-auto max-w-2xl px-4">
+      <div class="mb-4 flex items-center justify-between">
+        <a
+          href={resolve(`/events/${data.event.id}/builder`)}
+          class="flex items-center gap-1 text-xs font-black tracking-widest text-muted-foreground uppercase transition-colors hover:text-epi-blue"
+        >
+          <ArrowLeft class="h-3 w-3" /> Retour au builder
+        </a>
+        <div class="flex gap-2">
+          <div
+            class="rounded-sm bg-epi-teal px-2 py-0.5 text-[10px] font-black text-black uppercase"
+          >
+            {presentCount} Présents
+          </div>
+          {#if lateCount > 0}
+            <div
+              class="rounded-sm bg-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-800 uppercase"
+            >
+              {lateCount} En retard
+            </div>
+          {/if}
+          {#if helpCount > 0}
+            <div
+              class="flex animate-pulse items-center gap-1 rounded-sm bg-epi-orange px-2 py-0.5 text-[10px] font-black text-white uppercase"
+            >
+              <LifeBuoy class="h-3 w-3" />
+              {helpCount} Appels
+            </div>
+          {/if}
+        </div>
+      </div>
 
-			<h1 class="text-xl font-bold uppercase">
-				Appel : <span style:view-transition-name="event-title-{data.event.id}"
-					>{data.event.titre}</span
-				>
-			</h1>
+      <h1 class="text-xl font-bold uppercase">
+        Appel : <span style:view-transition-name="event-title-{data.event.id}"
+          >{data.event.titre}</span
+        >
+      </h1>
 
-			{#if data.event.notes}
-				<div
-					class="mt-4 rounded-sm border-l-4 border-l-epi-blue bg-blue-50/50 p-4 dark:bg-blue-900/10"
-				>
-					<div class="flex items-start gap-3">
-						<Info class="mt-0.5 h-5 w-5 shrink-0 text-epi-blue" />
-						<div class="space-y-1">
-							<h4 class="text-sm font-bold text-blue-900 uppercase dark:text-blue-100">
-								Note / Planning
-							</h4>
-							<p
-								class="text-sm leading-relaxed whitespace-pre-wrap text-blue-800 dark:text-blue-200"
-							>
-								{data.event.notes}
-							</p>
-						</div>
-					</div>
-				</div>
-			{/if}
+      {#if data.event.notes}
+        <div
+          class="mt-4 rounded-sm border-l-4 border-l-epi-blue bg-blue-50/50 p-4 dark:bg-blue-900/10"
+        >
+          <div class="flex items-start gap-3">
+            <Info class="mt-0.5 h-5 w-5 shrink-0 text-epi-blue" />
+            <div class="space-y-1">
+              <h4
+                class="text-sm font-bold text-blue-900 uppercase dark:text-blue-100"
+              >
+                Note / Planning
+              </h4>
+              <p
+                class="text-sm leading-relaxed whitespace-pre-wrap text-blue-800 dark:text-blue-200"
+              >
+                {data.event.notes}
+              </p>
+            </div>
+          </div>
+        </div>
+      {/if}
 
-			<!-- LOGISTICS DASHBOARD (outside sticky area) -->
-			<div
-				class="mt-4 grid gap-4 rounded-sm border border-border bg-slate-900 p-4 text-white shadow-md dark:bg-card {data.event.pin ? 'grid-cols-3' : 'grid-cols-2'}"
-			>
-				<div class="flex flex-col">
-					<span class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
-						>Total Élèves</span
-					>
-					<span class="text-2xl font-bold">{totalStudents}</span>
-				</div>
-				<div class="flex items-center justify-between border-l border-slate-700 pl-4">
-					<div class="flex flex-col">
-						<span class="text-[10px] font-black tracking-widest text-epi-orange uppercase"
-							>PC à Préparer</span
-						>
-						<span class="text-3xl font-bold text-epi-orange">{pcsNeeded}</span>
-					</div>
-					<MonitorSmartphone class="h-8 w-8 text-slate-700" />
-				</div>
-				{#if data.event.pin}
-					<div class="flex items-center justify-between border-l border-slate-700 pl-4">
-						<div class="flex flex-col">
-							<span class="text-[10px] font-black tracking-widest text-amber-400 uppercase"
-								>PIN Manta</span
-							>
-							<span class="text-3xl font-bold tracking-widest text-amber-400 font-mono">{data.event.pin}</span>
-						</div>
-						<KeyRound class="h-8 w-8 text-slate-700" />
-					</div>
-				{/if}
-			</div>
-		</div>
-	</div>
+      <!-- LOGISTICS DASHBOARD (outside sticky area) -->
+      <div
+        class="mt-4 grid gap-4 rounded-sm border border-border bg-slate-900 p-4 text-white shadow-md dark:bg-card {data
+          .event.pin
+          ? 'grid-cols-3'
+          : 'grid-cols-2'}"
+      >
+        <div class="flex flex-col">
+          <span
+            class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
+            >Total Élèves</span
+          >
+          <span class="text-2xl font-bold">{totalStudents}</span>
+        </div>
+        <div
+          class="flex items-center justify-between border-l border-slate-700 pl-4"
+        >
+          <div class="flex flex-col">
+            <span
+              class="text-[10px] font-black tracking-widest text-epi-orange uppercase"
+              >PC à Préparer</span
+            >
+            <span class="text-3xl font-bold text-epi-orange">{pcsNeeded}</span>
+          </div>
+          <MonitorSmartphone class="h-8 w-8 text-slate-700" />
+        </div>
+        {#if data.event.pin}
+          <div
+            class="flex items-center justify-between border-l border-slate-700 pl-4"
+          >
+            <div class="flex flex-col">
+              <span
+                class="text-[10px] font-black tracking-widest text-amber-400 uppercase"
+                >PIN Manta</span
+              >
+              <span
+                class="font-mono text-3xl font-bold tracking-widest text-amber-400"
+                >{data.event.pin}</span
+              >
+            </div>
+            <KeyRound class="h-8 w-8 text-slate-700" />
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
 
-	<!-- 2. STICKY TOOLBAR (Sticks to top) -->
-	<div
-		class="sticky top-0 z-20 border-b border-border bg-background/95 py-3 backdrop-blur-sm transition-all"
-	>
-		<div class="container mx-auto max-w-2xl px-4">
-			<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-				<div class="relative flex-1">
-					<Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-					<Input
-						placeholder="Rechercher un élève..."
-						class="rounded-sm bg-card pl-9"
-						bind:value={searchQuery}
-					/>
-				</div>
+  <!-- 2. STICKY TOOLBAR (Sticks to top) -->
+  <div
+    class="sticky top-0 z-20 border-b border-border bg-background/95 py-3 backdrop-blur-sm transition-all"
+  >
+    <div class="container mx-auto max-w-2xl px-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div class="relative flex-1">
+          <Search
+            class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
+          />
+          <Input
+            placeholder="Rechercher un élève..."
+            class="rounded-sm bg-card pl-9"
+            bind:value={searchQuery}
+          />
+        </div>
 
-				<!-- SUBJECT FILTER -->
-				<Select.Root type="single" bind:value={filterSubject}>
-					<Select.Trigger class="h-9 w-full text-xs sm:w-45">
-						<Funnel class="mr-2 h-3 w-3" />
-						{filterSubject === 'all'
-							? 'Tous les sujets'
-							: uniqueSubjects.find((s) => s[0] === filterSubject)?.[1]}
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="all">Tous les sujets</Select.Item>
-						{#each uniqueSubjects as [id, nom]}
-							<Select.Item value={id}>{nom}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+        <!-- SUBJECT FILTER -->
+        <Select.Root type="single" bind:value={filterSubject}>
+          <Select.Trigger class="h-9 w-full text-xs sm:w-45">
+            <Funnel class="mr-2 h-3 w-3" />
+            {filterSubject === 'all'
+              ? 'Tous les sujets'
+              : uniqueSubjects.find((s) => s[0] === filterSubject)?.[1]}
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Item value="all">Tous les sujets</Select.Item>
+            {#each uniqueSubjects as [id, nom]}
+              <Select.Item value={id}>{nom}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
 
-				<!-- NIVEAU FILTER -->
-				<Select.Root type="single" bind:value={filterNiveau}>
-					<Select.Trigger class="h-9 w-full text-xs sm:w-45">
-						<GraduationCap class="mr-2 h-3 w-3" />
-						{filterNiveau === 'all' ? 'Toutes les classes' : filterNiveau}
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value="all">Toutes les classes</Select.Item>
-						{#each uniqueNiveaux as niveau}
-							<Select.Item value={niveau}>{niveau}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
+        <!-- NIVEAU FILTER -->
+        <Select.Root type="single" bind:value={filterNiveau}>
+          <Select.Trigger class="h-9 w-full text-xs sm:w-45">
+            <GraduationCap class="mr-2 h-3 w-3" />
+            {filterNiveau === 'all' ? 'Toutes les classes' : filterNiveau}
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Item value="all">Toutes les classes</Select.Item>
+            {#each uniqueNiveaux as niveau}
+              <Select.Item value={niveau}>{niveau}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
 
-				<!-- VIEW TOGGLE -->
-				<div class="hidden rounded-md border bg-card p-1 sm:flex">
-					<Tooltip.Provider delayDuration={300}>
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								{#snippet child({ props })}
-									<button
-										{...props}
-										class={cn(
-											'cursor-pointer rounded-sm p-1.5 transition-all',
-											viewMode === 'grid'
-												? 'bg-muted text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										)}
-										onclick={() => (viewMode = 'grid')}
-									>
-										<LayoutGrid class="h-4 w-4" />
-									</button>
-								{/snippet}
-							</Tooltip.Trigger>
-							<Tooltip.Content><p>Vue Grille</p></Tooltip.Content>
-						</Tooltip.Root>
+        <!-- VIEW TOGGLE -->
+        <div class="hidden rounded-md border bg-card p-1 sm:flex">
+          <Tooltip.Provider delayDuration={300}>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <button
+                    {...props}
+                    class={cn(
+                      'cursor-pointer rounded-sm p-1.5 transition-all',
+                      viewMode === 'grid'
+                        ? 'bg-muted text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onclick={() => (viewMode = 'grid')}
+                  >
+                    <LayoutGrid class="h-4 w-4" />
+                  </button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content><p>Vue Grille</p></Tooltip.Content>
+            </Tooltip.Root>
 
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								{#snippet child({ props })}
-									<button
-										{...props}
-										class={cn(
-											'cursor-pointer rounded-sm p-1.5 transition-all',
-											viewMode === 'list'
-												? 'bg-muted text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										)}
-										onclick={() => (viewMode = 'list')}
-									>
-										<ListIcon class="h-4 w-4" />
-									</button>
-								{/snippet}
-							</Tooltip.Trigger>
-							<Tooltip.Content><p>Vue Liste</p></Tooltip.Content>
-						</Tooltip.Root>
-					</Tooltip.Provider>
-				</div>
-			</div>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <button
+                    {...props}
+                    class={cn(
+                      'cursor-pointer rounded-sm p-1.5 transition-all',
+                      viewMode === 'list'
+                        ? 'bg-muted text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onclick={() => (viewMode = 'list')}
+                  >
+                    <ListIcon class="h-4 w-4" />
+                  </button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content><p>Vue Liste</p></Tooltip.Content>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        </div>
+      </div>
 
-			<div class="mt-2 flex items-center justify-between sm:hidden">
-				<div class="flex flex-wrap gap-1">
-					<Button
-						variant={filterStatus === 'all' ? 'default' : 'outline'}
-						size="sm"
-						class="h-8 text-[10px]"
-						onclick={() => (filterStatus = 'all')}>Tous</Button
-					>
-					<Button
-						variant={filterStatus === 'present' ? 'default' : 'outline'}
-						size="sm"
-						class="h-8 text-[10px]"
-						onclick={() => (filterStatus = 'present')}>Présents</Button
-					>
-					<Button
-						variant={filterStatus === 'help' ? 'default' : 'outline'}
-						size="sm"
-						class="h-8 text-[10px]"
-						onclick={() => (filterStatus = 'help')}>Appels ({helpCount})</Button
-					>
-				</div>
-				<div class="flex rounded-md border bg-card p-0.5">
-					<button
-						class={cn(
-							'rounded-sm p-1.5 transition-all',
-							viewMode === 'grid'
-								? 'bg-muted text-foreground shadow-sm'
-								: 'text-muted-foreground hover:text-foreground'
-						)}
-						onclick={() => (viewMode = 'grid')}><LayoutGrid class="h-4 w-4" /></button
-					>
-					<button
-						class={cn(
-							'rounded-sm p-1.5 transition-all',
-							viewMode === 'list'
-								? 'bg-muted text-foreground shadow-sm'
-								: 'text-muted-foreground hover:text-foreground'
-						)}
-						onclick={() => (viewMode = 'list')}><ListIcon class="h-4 w-4" /></button
-					>
-				</div>
-			</div>
+      <div class="mt-2 flex items-center justify-between sm:hidden">
+        <div class="flex flex-wrap gap-1">
+          <Button
+            variant={filterStatus === 'all' ? 'default' : 'outline'}
+            size="sm"
+            class="h-8 text-[10px]"
+            onclick={() => (filterStatus = 'all')}>Tous</Button
+          >
+          <Button
+            variant={filterStatus === 'present' ? 'default' : 'outline'}
+            size="sm"
+            class="h-8 text-[10px]"
+            onclick={() => (filterStatus = 'present')}>Présents</Button
+          >
+          <Button
+            variant={filterStatus === 'help' ? 'default' : 'outline'}
+            size="sm"
+            class="h-8 text-[10px]"
+            onclick={() => (filterStatus = 'help')}>Appels ({helpCount})</Button
+          >
+        </div>
+        <div class="flex rounded-md border bg-card p-0.5">
+          <button
+            class={cn(
+              'rounded-sm p-1.5 transition-all',
+              viewMode === 'grid'
+                ? 'bg-muted text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            onclick={() => (viewMode = 'grid')}
+            ><LayoutGrid class="h-4 w-4" /></button
+          >
+          <button
+            class={cn(
+              'rounded-sm p-1.5 transition-all',
+              viewMode === 'list'
+                ? 'bg-muted text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            onclick={() => (viewMode = 'list')}
+            ><ListIcon class="h-4 w-4" /></button
+          >
+        </div>
+      </div>
 
-			<div class="mt-2 hidden gap-1 sm:flex">
-				<Button
-					variant={filterStatus === 'all' ? 'default' : 'outline'}
-					size="sm"
-					class="h-8 text-[10px]"
-					onclick={() => (filterStatus = 'all')}>Tous</Button
-				>
-				<Button
-					variant={filterStatus === 'present' ? 'default' : 'outline'}
-					size="sm"
-					class="h-8 text-[10px]"
-					onclick={() => (filterStatus = 'present')}>Présents</Button
-				>
-				<Button
-					variant={filterStatus === 'late' ? 'default' : 'outline'}
-					size="sm"
-					class="h-8 text-[10px]"
-					onclick={() => (filterStatus = 'late')}>Retards</Button
-				>
-				<Button
-					variant={filterStatus === 'help' ? 'default' : 'outline'}
-					size="sm"
-					class="h-8 text-[10px]"
-					onclick={() => (filterStatus = 'help')}
-				>
-					Appels
-					{#if helpCount > 0}<span
-							class="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white"
-							>{helpCount}</span
-						>{/if}
-				</Button>
-			</div>
-		</div>
-	</div>
+      <div class="mt-2 hidden gap-1 sm:flex">
+        <Button
+          variant={filterStatus === 'all' ? 'default' : 'outline'}
+          size="sm"
+          class="h-8 text-[10px]"
+          onclick={() => (filterStatus = 'all')}>Tous</Button
+        >
+        <Button
+          variant={filterStatus === 'present' ? 'default' : 'outline'}
+          size="sm"
+          class="h-8 text-[10px]"
+          onclick={() => (filterStatus = 'present')}>Présents</Button
+        >
+        <Button
+          variant={filterStatus === 'late' ? 'default' : 'outline'}
+          size="sm"
+          class="h-8 text-[10px]"
+          onclick={() => (filterStatus = 'late')}>Retards</Button
+        >
+        <Button
+          variant={filterStatus === 'help' ? 'default' : 'outline'}
+          size="sm"
+          class="h-8 text-[10px]"
+          onclick={() => (filterStatus = 'help')}
+        >
+          Appels
+          {#if helpCount > 0}<span
+              class="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white"
+              >{helpCount}</span
+            >{/if}
+        </Button>
+      </div>
+    </div>
+  </div>
 
-	<div class="container mx-auto mt-6 max-w-2xl px-4 pb-20">
-		{#if viewMode === 'grid'}
-			<div class="space-y-3">
-				{#each filteredParticipations as p, i (p.id)}
-					<ParticipationCard
-						participation={p}
-						event={data.event}
-						progress={studentProgressMap.get(p.student) || []}
-						{optimisticToggle}
-						onDownload={() => handleDiplomaDownload(p)}
-						index={i}
-					/>
-				{/each}
-			</div>
-		{:else}
-			<div class="rounded-sm border bg-card">
-				{#each filteredParticipations as p (p.id)}
-					{@const count = p.expand?.student?.events_count || 0}
-					{@const isPresent = p.is_present ? 1 : 0}
-					{@const isNew = count - isPresent === 0}
-					{@const pProgress = studentProgressMap.get(p.student) || []}
-					{@const needsHelp = pProgress.some((prog) => prog.status === 'needs_help')}
+  <div class="container mx-auto mt-6 max-w-2xl px-4 pb-20">
+    {#if viewMode === 'grid'}
+      <div class="space-y-3">
+        {#each filteredParticipations as p, i (p.id)}
+          <ParticipationCard
+            participation={p}
+            event={data.event}
+            progress={studentProgressMap.get(p.student) || []}
+            {optimisticToggle}
+            onDownload={() => handleDiplomaDownload(p)}
+            index={i}
+          />
+        {/each}
+      </div>
+    {:else}
+      <div class="rounded-sm border bg-card">
+        {#each filteredParticipations as p (p.id)}
+          {@const count = p.expand?.student?.events_count || 0}
+          {@const isPresent = p.is_present ? 1 : 0}
+          {@const isNew = count - isPresent === 0}
+          {@const pProgress = studentProgressMap.get(p.student) || []}
+          {@const needsHelp = pProgress.some(
+            (prog) => prog.status === 'needs_help',
+          )}
 
-					<div
-						class={cn(
-							'flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20',
-							needsHelp && 'bg-orange-50/50 dark:bg-orange-950/20'
-						)}
-					>
-						<div class="flex items-center gap-3">
-							<form
-								method="POST"
-								action="?/togglePresent"
-								use:enhance={optimisticToggle(p.id, 'is_present')}
-							>
-								<input type="hidden" name="id" value={p.id} />
-								<input type="hidden" name="state" value={p.is_present.toString()} />
-								<button
-									type="submit"
-									class={cn(
-										'flex h-8 w-8 items-center justify-center rounded-sm border transition-all',
-										p.is_present
-											? (p.delay || 0) > 0
-												? 'border-orange-300 bg-orange-100 text-orange-800 hover:bg-orange-200'
-												: 'border-epi-teal bg-epi-teal text-black'
-											: 'border-border text-muted-foreground hover:border-epi-teal'
-									)}
-								>
-									{#if (p.delay || 0) > 0}<Clock class="h-4 w-4" />{:else}<User
-											class="h-4 w-4"
-										/>{/if}
-								</button>
-							</form>
+          <div
+            class={cn(
+              'flex items-center justify-between border-b p-3 last:border-0 hover:bg-muted/20',
+              needsHelp && 'bg-orange-50/50 dark:bg-orange-950/20',
+            )}
+          >
+            <div class="flex items-center gap-3">
+              <form
+                method="POST"
+                action="?/togglePresent"
+                use:enhance={optimisticToggle(p.id, 'is_present')}
+              >
+                <input type="hidden" name="id" value={p.id} />
+                <input
+                  type="hidden"
+                  name="state"
+                  value={p.is_present.toString()}
+                />
+                <button
+                  type="submit"
+                  class={cn(
+                    'flex h-8 w-8 items-center justify-center rounded-sm border transition-all',
+                    p.is_present
+                      ? (p.delay || 0) > 0
+                        ? 'border-orange-300 bg-orange-100 text-orange-800 hover:bg-orange-200'
+                        : 'border-epi-teal bg-epi-teal text-black'
+                      : 'border-border text-muted-foreground hover:border-epi-teal',
+                  )}
+                >
+                  {#if (p.delay || 0) > 0}<Clock class="h-4 w-4" />{:else}<User
+                      class="h-4 w-4"
+                    />{/if}
+                </button>
+              </form>
 
-							<div class="flex flex-col">
-								<span class="flex items-center gap-2 text-sm font-bold">
-									{#if p.expand?.student?.id}
-										<a href={resolve(`/students/${p.expand.student.id}`)} class="transition-colors hover:text-epi-blue"
-											><span class="uppercase">{p.expand.student.nom}</span>
-											{p.expand.student.prenom}</a
-										>
-									{:else}
-										<span>Étudiant inconnu</span>
-									{/if}
-									{#if isNew}<Badge
-											variant="outline"
-											class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
-											><Sprout class="h-2.5 w-2.5" /> Nouveau</Badge
-										>{/if}
-								</span>
-								<div class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase">
-									<span>{p.expand?.student?.niveau}</span>
-									{#if (p.delay || 0) > 0}<span
-											class="flex items-center gap-1 font-bold text-orange-500"
-											><Clock class="h-2.5 w-2.5" />{p.delay}m</span
-										>{/if}
-									{#if needsHelp}<span class="flex items-center gap-1 font-bold text-epi-orange"
-											><LifeBuoy class="h-3 w-3" /> Aide Demandée</span
-										>{/if}
-								</div>
-							</div>
-						</div>
+              <div class="flex flex-col">
+                <span class="flex items-center gap-2 text-sm font-bold">
+                  {#if p.expand?.student?.id}
+                    <a
+                      href={resolve(`/students/${p.expand.student.id}`)}
+                      class="transition-colors hover:text-epi-blue"
+                      ><span class="uppercase">{p.expand.student.nom}</span>
+                      {p.expand.student.prenom}</a
+                    >
+                  {:else}
+                    <span>Étudiant inconnu</span>
+                  {/if}
+                  {#if isNew}<Badge
+                      variant="outline"
+                      class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
+                      ><Sprout class="h-2.5 w-2.5" /> Nouveau</Badge
+                    >{/if}
+                </span>
+                <div
+                  class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase"
+                >
+                  <span>{p.expand?.student?.niveau}</span>
+                  {#if (p.delay || 0) > 0}<span
+                      class="flex items-center gap-1 font-bold text-orange-500"
+                      ><Clock class="h-2.5 w-2.5" />{p.delay}m</span
+                    >{/if}
+                  {#if needsHelp}<span
+                      class="flex items-center gap-1 font-bold text-epi-orange"
+                      ><LifeBuoy class="h-3 w-3" /> Aide Demandée</span
+                    >{/if}
+                </div>
+              </div>
+            </div>
 
-						{#if p.is_present}
-							<div class="flex items-center gap-2">
-								{#if !p.bring_pc}
-									<Tooltip.Provider delayDuration={300}>
-										<Tooltip.Root>
-											<Tooltip.Trigger><MonitorX class="h-4 w-4 text-orange-400" /></Tooltip.Trigger
-											>
-											<Tooltip.Content><p>Besoin d'un PC</p></Tooltip.Content>
-										</Tooltip.Root>
-									</Tooltip.Provider>
-								{/if}
-								<div class="w-40 sm:w-48">
-									<NoteInput id={p.id} value={p.note} placeholder="..." class="h-8 text-xs" />
-								</div>
-								<Button
-									variant="ghost"
-									size="icon"
-									class="h-8 w-8"
-									onclick={() => handleDiplomaDownload(p)}><Award class="h-4 w-4" /></Button
-								>
-							</div>
-						{/if}
-					</div>
-				{/each}
-			</div>
-		{/if}
+            {#if p.is_present}
+              <div class="flex items-center gap-2">
+                {#if !p.bring_pc}
+                  <Tooltip.Provider delayDuration={300}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger
+                        ><MonitorX
+                          class="h-4 w-4 text-orange-400"
+                        /></Tooltip.Trigger
+                      >
+                      <Tooltip.Content><p>Besoin d'un PC</p></Tooltip.Content>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                {/if}
+                <div class="w-40 sm:w-48">
+                  <NoteInput
+                    id={p.id}
+                    value={p.note}
+                    placeholder="..."
+                    class="h-8 text-xs"
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8"
+                  onclick={() => handleDiplomaDownload(p)}
+                  ><Award class="h-4 w-4" /></Button
+                >
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
 
-		{#if filteredParticipations.length === 0}
-			<div class="py-20 text-center">
-				<p class="font-bold text-muted-foreground uppercase">Aucun élève à afficher.</p>
-			</div>
-		{/if}
-	</div>
+    {#if filteredParticipations.length === 0}
+      <div class="py-20 text-center">
+        <p class="font-bold text-muted-foreground uppercase">
+          Aucun élève à afficher.
+        </p>
+      </div>
+    {/if}
+  </div>
 </div>

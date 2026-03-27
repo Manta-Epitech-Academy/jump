@@ -4,238 +4,240 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	--font-sans: 'IBM Plex Sans Variable', sans-serif;
-	--font-heading: 'Anton', sans-serif;
+  --font-sans: 'IBM Plex Sans Variable', sans-serif;
+  --font-heading: 'Anton', sans-serif;
 
-	/* --- Epitech Brand Colors --- */
-	--epi-blue: #013afb;
-	--epi-teal: #00ff97;
-	--epi-orange: #ff5f3a;
-	--epi-pink: #ff1ef7;
+  /* --- Epitech Brand Colors --- */
+  --epi-blue: #013afb;
+  --epi-teal: #00ff97;
+  --epi-orange: #ff5f3a;
+  --epi-pink: #ff1ef7;
 
-	/* --- Gray Scale (Light Mode Defaults) --- */
-	--color-gray-0: #f8f9fa;
-	--color-gray-1: #f1f3f5;
-	--color-gray-2: #e9ecef;
-	--color-gray-3: #dee2e6;
-	--color-gray-4: #ced4da;
-	--color-gray-5: #adb5bd;
-	--color-gray-6: #868e96;
-	--color-gray-7: #495057;
-	--color-gray-8: #343a40;
-	--color-gray-9: #212529;
+  /* --- Gray Scale (Light Mode Defaults) --- */
+  --color-gray-0: #f8f9fa;
+  --color-gray-1: #f1f3f5;
+  --color-gray-2: #e9ecef;
+  --color-gray-3: #dee2e6;
+  --color-gray-4: #ced4da;
+  --color-gray-5: #adb5bd;
+  --color-gray-6: #868e96;
+  --color-gray-7: #495057;
+  --color-gray-8: #343a40;
+  --color-gray-9: #212529;
 
-	/* Functional Variables (Light) */
-	--radius: 0.125rem; /* 2px */
+  /* Functional Variables (Light) */
+  --radius: 0.125rem; /* 2px */
 
-	--background: var(--color-gray-0);
-	--foreground: #1a1b1e;
+  --background: var(--color-gray-0);
+  --foreground: #1a1b1e;
 
-	--card: #ffffff;
-	--card-foreground: #1a1b1e;
+  --card: #ffffff;
+  --card-foreground: #1a1b1e;
 
-	--popover: #ffffff;
-	--popover-foreground: #1a1b1e;
+  --popover: #ffffff;
+  --popover-foreground: #1a1b1e;
 
-	--primary: var(--epi-blue);
-	--primary-foreground: #ffffff;
+  --primary: var(--epi-blue);
+  --primary-foreground: #ffffff;
 
-	--secondary: var(--color-gray-1);
-	--secondary-foreground: #1a1b1e;
+  --secondary: var(--color-gray-1);
+  --secondary-foreground: #1a1b1e;
 
-	--muted: var(--color-gray-1);
-	--muted-foreground: var(--color-gray-6);
+  --muted: var(--color-gray-1);
+  --muted-foreground: var(--color-gray-6);
 
-	--accent: rgba(1, 58, 251, 0.1);
-	--accent-foreground: var(--epi-blue);
+  --accent: rgba(1, 58, 251, 0.1);
+  --accent-foreground: var(--epi-blue);
 
-	--destructive: #fa5252;
-	--destructive-foreground: #ffffff;
+  --destructive: #fa5252;
+  --destructive-foreground: #ffffff;
 
-	--border: var(--color-gray-3);
-	--input: var(--color-gray-3);
-	--ring: var(--epi-blue);
+  --border: var(--color-gray-3);
+  --input: var(--color-gray-3);
+  --ring: var(--epi-blue);
 
-	--header-bg: var(--epi-blue);
-	--header-foreground: #ffffff; /* NEW: Force white text on blue header in light mode */
-	--sidebar-bg: var(--color-gray-0);
+  --header-bg: var(--epi-blue);
+  --header-foreground: #ffffff; /* NEW: Force white text on blue header in light mode */
+  --sidebar-bg: var(--color-gray-0);
 }
 
 .dark {
-	/* --- Dark Scale --- */
-	--color-dark-0: #c9c9c9; /* Text */
-	--color-dark-1: #b8b8b8;
-	--color-dark-2: #828282; /* Dimmed */
-	--color-dark-3: #696969;
-	--color-dark-4: #424242; /* Borders */
-	--color-dark-5: #3b3b3b; /* Hover */
-	--color-dark-6: #2e2e2e; /* Cards / Surface */
-	--color-dark-7: #242424; /* Body Background */
-	--color-dark-8: #1f1f1f; /* Pre/Code blocks */
-	--color-dark-9: #141414;
+  /* --- Dark Scale --- */
+  --color-dark-0: #c9c9c9; /* Text */
+  --color-dark-1: #b8b8b8;
+  --color-dark-2: #828282; /* Dimmed */
+  --color-dark-3: #696969;
+  --color-dark-4: #424242; /* Borders */
+  --color-dark-5: #3b3b3b; /* Hover */
+  --color-dark-6: #2e2e2e; /* Cards / Surface */
+  --color-dark-7: #242424; /* Body Background */
+  --color-dark-8: #1f1f1f; /* Pre/Code blocks */
+  --color-dark-9: #141414;
 
-	/* Brand Adjustments for Dark Mode */
-	--epi-blue: #809dfd;
+  /* Brand Adjustments for Dark Mode */
+  --epi-blue: #809dfd;
 
-	/* Functional Variables (Mapped to Epitech Dark Scale) */
-	--background: var(--color-dark-7); /* #242424 */
-	--foreground: var(--color-dark-0); /* #c9c9c9 */
+  /* Functional Variables (Mapped to Epitech Dark Scale) */
+  --background: var(--color-dark-7); /* #242424 */
+  --foreground: var(--color-dark-0); /* #c9c9c9 */
 
-	--card: var(--color-dark-6); /* #2e2e2e */
-	--card-foreground: var(--color-dark-0);
+  --card: var(--color-dark-6); /* #2e2e2e */
+  --card-foreground: var(--color-dark-0);
 
-	--popover: var(--color-dark-6);
-	--popover-foreground: var(--color-dark-0);
+  --popover: var(--color-dark-6);
+  --popover-foreground: var(--color-dark-0);
 
-	--primary: var(--epi-blue);
-	--primary-foreground: #141517;
+  --primary: var(--epi-blue);
+  --primary-foreground: #141517;
 
-	--secondary: var(--color-dark-6);
-	--secondary-foreground: var(--color-dark-0);
+  --secondary: var(--color-dark-6);
+  --secondary-foreground: var(--color-dark-0);
 
-	--muted: var(--color-dark-6);
-	--muted-foreground: var(--color-dark-2); /* #828282 */
+  --muted: var(--color-dark-6);
+  --muted-foreground: var(--color-dark-2); /* #828282 */
 
-	--accent: rgba(128, 157, 253, 0.15);
-	--accent-foreground: #809dfd;
+  --accent: rgba(128, 157, 253, 0.15);
+  --accent-foreground: #809dfd;
 
-	--destructive: #ff6b6b;
-	--destructive-foreground: #ffffff;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #ffffff;
 
-	--border: var(--color-dark-4); /* #424242 */
-	--input: var(--color-dark-4);
-	--ring: #809dfd;
+  --border: var(--color-dark-4); /* #424242 */
+  --input: var(--color-dark-4);
+  --ring: #809dfd;
 
-	--header-bg: var(--color-dark-7);
-	--header-foreground: var(--foreground); /* Standard text color in dark mode */
-	--sidebar-bg: var(--color-dark-7);
+  --header-bg: var(--color-dark-7);
+  --header-foreground: var(--foreground); /* Standard text color in dark mode */
+  --sidebar-bg: var(--color-dark-7);
 }
 
 @theme inline {
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
-	--color-card: var(--card);
-	--color-card-foreground: var(--card-foreground);
-	--color-popover: var(--popover);
-	--color-popover-foreground: var(--popover-foreground);
-	--color-primary: var(--primary);
-	--color-primary-foreground: var(--primary-foreground);
-	--color-secondary: var(--secondary);
-	--color-secondary-foreground: var(--secondary-foreground);
-	--color-muted: var(--muted);
-	--color-muted-foreground: var(--muted-foreground);
-	--color-accent: var(--accent);
-	--color-accent-foreground: var(--accent-foreground);
-	--color-destructive: var(--destructive);
-	--color-destructive-foreground: var(--destructive-foreground);
-	--color-border: var(--border);
-	--color-input: var(--input);
-	--color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
-	/* Epitech Specifics */
-	--color-epi-blue: var(--epi-blue);
-	--color-epi-teal: var(--epi-teal);
-	--color-epi-orange: var(--epi-orange);
-	--color-epi-pink: var(--epi-pink);
+  /* Epitech Specifics */
+  --color-epi-blue: var(--epi-blue);
+  --color-epi-teal: var(--epi-teal);
+  --color-epi-orange: var(--epi-orange);
+  --color-epi-pink: var(--epi-pink);
 
-	--color-header: var(--header-bg);
-	--color-header-foreground: var(--header-foreground); /* Added to theme */
-	--color-sidebar: var(--sidebar-bg);
+  --color-header: var(--header-bg);
+  --color-header-foreground: var(--header-foreground); /* Added to theme */
+  --color-sidebar: var(--sidebar-bg);
 
-	--font-sans: var(--font-sans);
-	--font-heading: var(--font-heading);
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
 
-	--radius-sm: var(--radius);
-	--radius-md: var(--radius);
-	--radius-lg: var(--radius);
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
 }
 
 @layer base {
-	* {
-		@apply border-border;
-	}
-	body {
-		@apply bg-background font-sans text-foreground antialiased selection:bg-epi-blue selection:text-white;
-	}
-	h1,
-	h2,
-	h3,
-	h4,
-	h5,
-	h6,
-	.font-heading {
-		@apply font-heading font-normal tracking-wide uppercase;
-	}
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased selection:bg-epi-blue selection:text-white;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .font-heading {
+    @apply font-heading font-normal tracking-wide uppercase;
+  }
 
-	.sidebar-section-title {
-		@apply mt-4 mb-2 font-heading text-sm tracking-wider text-epi-blue uppercase;
-	}
+  .sidebar-section-title {
+    @apply mt-4 mb-2 font-heading text-sm tracking-wider text-epi-blue uppercase;
+  }
 
-	header {
-		view-transition-name: main-header;
-	}
+  header {
+    view-transition-name: main-header;
+  }
 
-	aside {
-		view-transition-name: main-sidebar;
-	}
+  aside {
+    view-transition-name: main-sidebar;
+  }
 
-	main {
-		view-transition-name: main-content;
-	}
+  main {
+    view-transition-name: main-content;
+  }
 }
 
 /* --- Markdown Content (Camper Subject Viewer) --- */
 .markdown-content {
-	@apply font-sans;
+  @apply font-sans;
 }
-.markdown-content h1, .markdown-content h2, .markdown-content h3 {
-	@apply mt-8 mb-4 font-heading tracking-wide text-slate-900 uppercase dark:text-white;
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  @apply mt-8 mb-4 font-heading tracking-wide text-slate-900 uppercase dark:text-white;
 }
 .markdown-content p {
-	@apply mb-4 text-slate-700 dark:text-slate-300;
+  @apply mb-4 text-slate-700 dark:text-slate-300;
 }
 .markdown-content pre {
-	@apply mb-6 overflow-x-auto rounded-xl bg-slate-900 p-4 text-slate-50 shadow-inner dark:bg-black;
+  @apply mb-6 overflow-x-auto rounded-xl bg-slate-900 p-4 text-slate-50 shadow-inner dark:bg-black;
 }
 .markdown-content code {
-	@apply rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-epi-blue dark:bg-slate-800 dark:text-blue-300;
+  @apply rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-epi-blue dark:bg-slate-800 dark:text-blue-300;
 }
 .markdown-content pre code {
-	@apply bg-transparent p-0 text-inherit;
+  @apply bg-transparent p-0 text-inherit;
 }
 .markdown-content ul {
-	@apply mb-4 list-inside list-disc space-y-2 text-slate-700 dark:text-slate-300;
+  @apply mb-4 list-inside list-disc space-y-2 text-slate-700 dark:text-slate-300;
 }
 .markdown-content a {
-	@apply font-bold text-epi-blue underline decoration-2 underline-offset-2 transition-colors hover:text-epi-blue/80;
+  @apply font-bold text-epi-blue underline decoration-2 underline-offset-2 transition-colors hover:text-epi-blue/80;
 }
 .markdown-content blockquote {
-	@apply my-6 rounded-r-xl border-l-4 border-epi-teal bg-slate-50 py-2 pr-4 pl-4 text-slate-600 italic dark:bg-slate-900/50 dark:text-slate-400;
+  @apply my-6 rounded-r-xl border-l-4 border-epi-teal bg-slate-50 py-2 pr-4 pl-4 text-slate-600 italic dark:bg-slate-900/50 dark:text-slate-400;
 }
 
 /* --- Animations for Emotional Design --- */
 @keyframes stripes {
-	from {
-		background-position: 1rem 0;
-	}
-	to {
-		background-position: 0 0;
-	}
+  from {
+    background-position: 1rem 0;
+  }
+  to {
+    background-position: 0 0;
+  }
 }
 
 .animate-stripes {
-	animation: stripes 1s linear infinite;
+  animation: stripes 1s linear infinite;
 }
 
 @keyframes shake {
-	0%,
-	100% {
-		transform: translateX(0);
-	}
-	25% {
-		transform: translateX(-4px);
-	}
-	75% {
-		transform: translateX(4px);
-	}
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
 }
