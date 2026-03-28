@@ -1,5 +1,5 @@
-import { parseEventImportCsv, type CsvStudent } from '$lib/csvUtils';
-import { suggestBestSubject } from '$lib/recommender';
+import { parseEventImportCsv, type CsvStudent } from '$lib/domain/csv';
+import { suggestBestSubject } from '$lib/domain/recommender';
 import { createScoped } from '$lib/pocketbase';
 import { generatePin } from '$lib/utils';
 import {

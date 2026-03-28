@@ -1,4 +1,4 @@
-import { getCachedSubject, setCachedSubject } from '$lib/server/subjectCache';
+import { getCachedSubject, setCachedSubject } from '$lib/server/infra/subjectCache';
 import type { TypedPocketBase, SubjectsResponse } from '$lib/pocketbase-types';
 
 export type StepValidation = {

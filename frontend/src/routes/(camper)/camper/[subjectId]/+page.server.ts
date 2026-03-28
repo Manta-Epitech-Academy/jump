@@ -1,11 +1,11 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getCachedSubject, setCachedSubject } from '$lib/server/subjectCache';
+import { getCachedSubject, setCachedSubject } from '$lib/server/infra/subjectCache';
 import {
   ProgressService,
   ValidationError,
   type SubjectStructure,
-} from '$lib/server/progressService';
+} from '$lib/server/services/progressService';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.student) throw error(401, 'Non autorisé');

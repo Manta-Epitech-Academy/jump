@@ -21,7 +21,7 @@
   import { toast } from 'svelte-sonner';
   import { difficultes } from '$lib/validation/subjects';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
-  import { getSubjectXpValue } from '$lib/xp';
+  import { getSubjectXpValue } from '$lib/domain/xp';
 
   let { data } = $props();
 

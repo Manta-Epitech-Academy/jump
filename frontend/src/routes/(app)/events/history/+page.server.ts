@@ -6,7 +6,7 @@ import type {
   ThemesResponse,
   UsersResponse,
 } from '$lib/pocketbase-types';
-import { EventService } from '$lib/server/events';
+import { EventService } from '$lib/server/services/events';
 
 type EventExpand = {
   theme?: ThemesResponse;

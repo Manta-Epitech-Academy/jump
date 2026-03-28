@@ -1,4 +1,4 @@
-import type { TypedPocketBase } from './pocketbase-types';
+import type { TypedPocketBase } from '$lib/pocketbase-types';
 import { getSubjectXpValue } from './xp';
 
 /**

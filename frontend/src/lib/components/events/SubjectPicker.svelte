@@ -22,7 +22,7 @@
   } from 'lucide-svelte';
   import { cn } from '$lib/utils';
   import { page } from '$app/state';
-  import { getSubjectXpValue } from '$lib/xp';
+  import { getSubjectXpValue } from '$lib/domain/xp';
 
   let {
     open = $bindable(false),

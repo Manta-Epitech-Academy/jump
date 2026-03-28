@@ -4,7 +4,7 @@
   import { ArrowLeft, CircleCheck, Lock } from 'lucide-svelte';
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
-  import type { SubjectStep } from '$lib/server/progressService';
+  import type { SubjectStep } from '$lib/server/services/progressService';
   import type { StepsProgressResponse } from '$lib/pocketbase-types';
 
   let {

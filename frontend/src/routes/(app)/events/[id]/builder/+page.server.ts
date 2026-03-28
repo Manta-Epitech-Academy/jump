@@ -5,10 +5,10 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import { studentSchema } from '$lib/validation/students';
-import { getTotalXp } from '$lib/xp';
-import { suggestBestSubject, preloadCompletedSubjects } from '$lib/recommender';
+import { getTotalXp } from '$lib/domain/xp';
+import { suggestBestSubject, preloadCompletedSubjects } from '$lib/domain/recommender';
 import { createScoped } from '$lib/pocketbase';
-import { EventService } from '$lib/server/events';
+import { EventService } from '$lib/server/services/events';
 import {
   type ParticipationsResponse,
   type StudentsResponse,

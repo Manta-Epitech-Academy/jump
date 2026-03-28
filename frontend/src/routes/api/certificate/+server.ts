@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { generateCertificatePDF } from '$lib/server/diplomaGenerator';
+import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
 import { pbUrl } from '$lib/pocketbase';
 import { formatDateFr } from '$lib/utils';
 import type {

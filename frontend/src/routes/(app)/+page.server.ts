@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { pbUrl } from '$lib/pocketbase';
 import { now } from '@internationalized/date';
-import { EventService } from '$lib/server/events';
+import { EventService } from '$lib/server/services/events';
 import type {
   EventsResponse,
   ThemesResponse,

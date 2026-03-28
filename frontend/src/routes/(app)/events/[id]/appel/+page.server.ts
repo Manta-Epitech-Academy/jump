@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { getTotalXp } from '$lib/xp';
+import { getTotalXp } from '$lib/domain/xp';
 import type {
   ParticipationsResponse,
   StudentsResponse,

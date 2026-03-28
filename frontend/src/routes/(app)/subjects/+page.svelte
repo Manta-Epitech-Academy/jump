@@ -56,7 +56,7 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import { getSubjectXpValue } from '$lib/xp';
+  import { getSubjectXpValue } from '$lib/domain/xp';
 
   let { data }: { data: PageData } = $props();
 

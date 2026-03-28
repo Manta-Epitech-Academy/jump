@@ -11,7 +11,7 @@ import {
   analyzeCampaignFile,
   importCampaignData,
   type ImportAction,
-} from '$lib/server/campaignService';
+} from '$lib/server/services/campaignService';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const themes = await locals.pb

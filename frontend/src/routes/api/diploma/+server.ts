@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { generateDiplomaPDF } from '$lib/server/diplomaGenerator';
+import { generateDiplomaPDF } from '$lib/server/services/diplomaGenerator';
 import { formatDateFr } from '$lib/utils';
 import type {
   EventsResponse,
@@ -16,6 +16,10 @@ type ParticipationExpand = {
 };
 
 export const GET: RequestHandler = async ({ url, locals }) => {
+  if (!locals.user) {
+    throw error(401, 'Non autorisé');
+  }
+
   const participationId = url.searchParams.get('participationId');
 
   if (!participationId) {

@@ -1,6 +1,6 @@
-// TekCamp/frontend/src/lib/scripts/seed_subjects.ts
+// TekCamp/frontend/scripts/seed_subjects.ts
 import PocketBase from 'pocketbase';
-import { SubjectsDifficulteOptions } from '../pocketbase-types';
+import { SubjectsDifficulteOptions } from '../src/lib/pocketbase-types';
 
 // 1. Configuration
 const PB_URL = process.env.PUBLIC_POCKETBASE_URL;

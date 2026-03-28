@@ -13,7 +13,7 @@
   } from 'lucide-svelte';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import type { SubjectStep } from '$lib/server/progressService';
+  import type { SubjectStep } from '$lib/server/services/progressService';
   import type { StepsProgressResponse } from '$lib/pocketbase-types';
 
   let {

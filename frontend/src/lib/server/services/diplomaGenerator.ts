@@ -1,8 +1,8 @@
 import ejs from 'ejs';
-import { withBrowser } from './browserPool';
-import { epitechLogoSvg } from './epitechLogo';
-import diplomaTemplate from './templates/diploma.html?raw';
-import certificateTemplate from './templates/certificate.html?raw';
+import { withBrowser } from '../infra/browserPool';
+import { epitechLogoSvg } from '../templates/epitechLogo';
+import diplomaTemplate from '../templates/diploma.html?raw';
+import certificateTemplate from '../templates/certificate.html?raw';
 
 export async function generateDiplomaPDF(data: {
   studentName: string;
