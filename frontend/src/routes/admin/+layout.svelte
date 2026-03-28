@@ -51,8 +51,66 @@
 	`;
 </script>
 
+{#snippet navMenu()}
+  <div
+    class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
+  >
+    Système<span class="text-epi-pink">_</span>
+  </div>
+  <nav class="mb-8 space-y-1">
+    <a href={resolve('/admin')} class={navLinkClass(isActive('/admin'))}>
+      <LayoutDashboard class="h-4 w-4" />
+      <span>Vue d'ensemble</span>
+    </a>
+  </nav>
+
+  <div
+    class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
+  >
+    Organisation<span class="text-epi-pink">_</span>
+  </div>
+  <nav class="mb-8 space-y-1">
+    <a
+      href={resolve('/admin/campuses')}
+      class={navLinkClass(isActive('/admin/campuses'))}
+    >
+      <Map class="h-4 w-4" />
+      <span>Réseau Campus</span>
+    </a>
+    <a
+      href={resolve('/admin/users')}
+      class={navLinkClass(isActive('/admin/users'))}
+    >
+      <Users class="h-4 w-4" />
+      <span>Équipe Staff</span>
+    </a>
+  </nav>
+
+  <div
+    class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
+  >
+    Pédagogie<span class="text-epi-pink">_</span>
+  </div>
+  <nav class="space-y-1">
+    <a
+      href={resolve('/admin/subjects')}
+      class={navLinkClass(isActive('/admin/subjects'))}
+    >
+      <BookOpen class="h-4 w-4" />
+      <span>Sujets Officiels</span>
+    </a>
+    <a
+      href={resolve('/admin/themes')}
+      class={navLinkClass(isActive('/admin/themes'))}
+    >
+      <Tags class="h-4 w-4" />
+      <span>Thèmes Officiels</span>
+    </a>
+  </nav>
+{/snippet}
+
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
-  <!-- Admin Header (Fixed to dark background for "Root" contrast) -->
+  <!-- Admin Header -->
   <header
     class="z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950 px-4 shadow-md md:px-6"
   >
@@ -91,7 +149,6 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <!-- Mode Toggle allows switching the <main> area between light and dark -->
       <ModeToggle />
 
       <div class="ml-2 flex items-center gap-4">
@@ -142,146 +199,30 @@
       class="hidden w-64 flex-col border-r border-slate-800 bg-slate-950 md:flex"
     >
       <div class="flex-1 overflow-y-auto py-6 pr-4">
-        <div
-          class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-        >
-          Système<span class="text-epi-pink">_</span>
-        </div>
-        <nav class="mb-8 space-y-1">
-          <a href={resolve('/admin')} class={navLinkClass(isActive('/admin'))}>
-            <LayoutDashboard class="h-4 w-4" />
-            <span>Vue d'ensemble</span>
-          </a>
-        </nav>
-
-        <div
-          class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-        >
-          Organisation<span class="text-epi-pink">_</span>
-        </div>
-        <nav class="mb-8 space-y-1">
-          <a
-            href={resolve('/admin/campuses')}
-            class={navLinkClass(isActive('/admin/campuses'))}
-          >
-            <Map class="h-4 w-4" />
-            <span>Réseau Campus</span>
-          </a>
-          <a
-            href={resolve('/admin/users')}
-            class={navLinkClass(isActive('/admin/users'))}
-          >
-            <Users class="h-4 w-4" />
-            <span>Équipe Staff</span>
-          </a>
-        </nav>
-
-        <div
-          class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-        >
-          Pédagogie<span class="text-epi-pink">_</span>
-        </div>
-        <nav class="space-y-1">
-          <a
-            href={resolve('/admin/subjects')}
-            class={navLinkClass(isActive('/admin/subjects'))}
-          >
-            <BookOpen class="h-4 w-4" />
-            <span>Sujets Officiels</span>
-          </a>
-          <a
-            href={resolve('/admin/themes')}
-            class={navLinkClass(isActive('/admin/themes'))}
-          >
-            <Tags class="h-4 w-4" />
-            <span>Thèmes Officiels</span>
-          </a>
-        </nav>
+        {@render navMenu()}
       </div>
     </aside>
 
     <!-- Mobile Admin Sidebar Overlay -->
     {#if mobileMenuOpen}
-      <!-- Backdrop -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden"
         transition:fade={{ duration: 200 }}
         onclick={() => (mobileMenuOpen = false)}
-        role="button"
-        tabindex="0"
-        onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
       ></div>
 
-      <!-- Drawer -->
       <aside
         class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-xs flex-col border-r border-slate-800 bg-slate-950 shadow-2xl md:hidden"
         transition:fly={{ x: -300, duration: 300 }}
       >
         <div class="flex-1 overflow-y-auto py-6 pr-2">
-          <div
-            class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-          >
-            Système<span class="text-epi-pink">_</span>
-          </div>
-          <nav class="mb-8 space-y-1">
-            <a
-              href={resolve('/admin')}
-              class={navLinkClass(isActive('/admin'))}
-            >
-              <LayoutDashboard class="h-4 w-4" />
-              <span>Vue d'ensemble</span>
-            </a>
-          </nav>
-
-          <div
-            class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-          >
-            Organisation<span class="text-epi-pink">_</span>
-          </div>
-          <nav class="mb-8 space-y-1">
-            <a
-              href={resolve('/admin/campuses')}
-              class={navLinkClass(isActive('/admin/campuses'))}
-            >
-              <Map class="h-4 w-4" />
-              <span>Réseau Campus</span>
-            </a>
-            <a
-              href={resolve('/admin/users')}
-              class={navLinkClass(isActive('/admin/users'))}
-            >
-              <Users class="h-4 w-4" />
-              <span>Équipe Staff</span>
-            </a>
-          </nav>
-
-          <div
-            class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
-          >
-            Pédagogie<span class="text-epi-pink">_</span>
-          </div>
-          <nav class="space-y-1">
-            <a
-              href={resolve('/admin/subjects')}
-              class={navLinkClass(isActive('/admin/subjects'))}
-            >
-              <BookOpen class="h-4 w-4" />
-              <span>Sujets Officiels</span>
-            </a>
-            <a
-              href={resolve('/admin/themes')}
-              class={navLinkClass(isActive('/admin/themes'))}
-            >
-              <Tags class="h-4 w-4" />
-              <span>Thèmes Officiels</span>
-            </a>
-          </nav>
+          {@render navMenu()}
         </div>
       </aside>
     {/if}
 
-    <!-- Page Content -->
-    <!-- The content area adapts to light/dark mode using standard CSS variables -->
     <main class="flex-1 overflow-y-auto bg-background p-4 md:p-8">
       {@render children()}
     </main>

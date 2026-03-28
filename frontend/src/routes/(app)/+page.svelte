@@ -13,8 +13,7 @@
   import { Calendar, Tag, Plus, Coffee, UserCheck } from 'lucide-svelte';
 
   import { resolve } from '$app/paths';
-  import DuplicateEventDialog from '$lib/components/events/DuplicateEventDialog.svelte';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import EventActionManager from '$lib/components/events/EventActionManager.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import EventDropdownMenu from '$lib/components/events/EventDropdownMenu.svelte';
@@ -36,12 +35,6 @@
     });
   }
 
-  /**
-   * Logic:
-   * - If date is > 1 hour in the future: "À venir"
-   * - If date is between 1h ago and 3h in the future: "En cours" (broad window for the event day)
-   * - If date is > 3h in the past: "Terminé"
-   */
   function getEventStatus(date: Date) {
     const now = new Date();
     const diff = date.getTime() - now.getTime();
@@ -52,24 +45,7 @@
     return 'now';
   }
 
-  let deleteDialogOpen = $state(false);
-  let eventToDelete = $state<string | null>(null);
-  let duplicateDialogOpen = $state(false);
-  let eventToDuplicate = $state<{
-    id: string;
-    titre: string;
-    date: Date;
-  } | null>(null);
-
-  function confirmDelete(id: string) {
-    eventToDelete = id;
-    deleteDialogOpen = true;
-  }
-
-  function openDuplicate(event: { id: string; titre: string; date: Date }) {
-    eventToDuplicate = event;
-    duplicateDialogOpen = true;
-  }
+  let actionManager: ReturnType<typeof EventActionManager>;
 </script>
 
 <div class="space-y-6">
@@ -226,8 +202,8 @@
                   </Tooltip.Provider>
                   <EventDropdownMenu
                     {event}
-                    onDuplicate={openDuplicate}
-                    onDelete={confirmDelete}
+                    onDuplicate={(e) => actionManager.openDuplicate(e)}
+                    onDelete={(id) => actionManager.confirmDelete(id)}
                   />
                 </div>
               </TableCell>
@@ -246,13 +222,5 @@
     />
   {/if}
 
-  <!-- DIALOGS -->
-  <DuplicateEventDialog bind:open={duplicateDialogOpen} {eventToDuplicate} />
-  <ConfirmDeleteDialog
-    bind:open={deleteDialogOpen}
-    action="?/deleteEvent&id={eventToDelete}"
-    title="Supprimer l'événement"
-    description="Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible et retirera les XP acquis par les participants."
-    buttonText="Supprimer définitivement"
-  />
+  <EventActionManager bind:this={actionManager} />
 </div>

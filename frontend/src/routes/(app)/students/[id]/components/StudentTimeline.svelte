@@ -1,0 +1,269 @@
+<script lang="ts">
+  import {
+    Calendar,
+    CircleCheck,
+    CircleX,
+    Clock,
+    BookOpen,
+    ExternalLink,
+    CalendarClock,
+    MessageSquareQuote,
+  } from 'lucide-svelte';
+  import * as Card from '$lib/components/ui/card';
+  import * as Avatar from '$lib/components/ui/avatar';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Badge } from '$lib/components/ui/badge';
+  import { Button } from '$lib/components/ui/button';
+  import { formatDateFr, cn } from '$lib/utils';
+  import { pbUrl } from '$lib/pocketbase';
+  import { resolve } from '$app/paths';
+  import type {
+    ParticipationsResponse,
+    EventsResponse,
+    SubjectsResponse,
+    ThemesResponse,
+    UsersResponse,
+  } from '$lib/pocketbase-types';
+
+  type TimelineParticipation = ParticipationsResponse<{
+    event?: EventsResponse<{ mantas?: UsersResponse[] }>;
+    subjects?: SubjectsResponse<unknown, { themes?: ThemesResponse[] }>[];
+    note_author?: UsersResponse;
+  }>;
+
+  let { participations }: { participations: TimelineParticipation[] } = $props();
+</script>
+
+<div
+  class="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-px before:bg-linear-to-b before:from-transparent before:via-slate-300 before:to-transparent md:before:mx-auto md:before:translate-x-0"
+>
+  {#each participations as p (p.id)}
+    {@const eventDate = new Date(p.expand?.event?.date ?? '')}
+    {@const now = new Date()}
+    {@const isUpcoming = eventDate > now}
+    {@const isPresent = p.is_present}
+    {@const isLate = isPresent && (p.delay || 0) > 0}
+
+    <div
+      class="group is-active relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse"
+    >
+      <div
+        class={cn(
+          'z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-background shadow-sm md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2',
+          isPresent
+            ? isLate
+              ? 'bg-orange-200 text-orange-800'
+              : 'bg-epi-teal text-black'
+            : isUpcoming
+              ? 'bg-blue-100 text-epi-blue dark:bg-blue-900/30 dark:text-blue-400'
+              : 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
+        )}
+      >
+        {#if isPresent}{#if isLate}<Clock class="h-5 w-5" />{:else}<CircleCheck
+              class="h-5 w-5"
+            />{/if}{:else if isUpcoming}<CalendarClock
+            class="h-5 w-5"
+          />{:else}<CircleX class="h-5 w-5" />{/if}
+      </div>
+
+      <Card.Root
+        class="w-[calc(100%-4rem)] shadow-sm transition-shadow hover:shadow-md md:w-[calc(50%-2.5rem)]"
+      >
+        <Card.Header class="p-4 pb-2">
+          <div class="flex items-start justify-between">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  class="h-5 px-1.5 text-[10px] font-normal"
+                  >{formatDateFr(p.expand?.event?.date)}</Badge
+                >
+                {#if isPresent}
+                  <Badge
+                    variant="default"
+                    class={cn(
+                      'h-5 px-1.5 text-[10px] font-bold text-black uppercase',
+                      isLate
+                        ? 'bg-orange-200 text-orange-900 hover:bg-orange-300'
+                        : 'bg-epi-teal hover:bg-epi-teal/80',
+                    )}>Présent</Badge
+                  >
+                  {#if isLate}<Badge
+                      variant="outline"
+                      class="h-5 border-orange-200 bg-orange-50 px-1.5 text-[10px] font-bold text-orange-600 uppercase dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
+                      >Retard: {p.delay >= 60 ? '+60' : p.delay} min</Badge
+                    >{/if}
+                {:else if isUpcoming}
+                  <Badge
+                    variant="secondary"
+                    class="h-5 border-blue-200 bg-blue-100 px-1.5 text-[10px] text-blue-700 uppercase"
+                    >Inscrit</Badge
+                  >
+                {:else}
+                  <Badge
+                    variant="destructive"
+                    class="h-5 px-1.5 text-[10px] uppercase">Absent</Badge
+                  >
+                {/if}
+              </div>
+              <Card.Title
+                class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue"
+              >
+                {#if p.expand?.event?.id}<a
+                    href={resolve(`/events/${p.expand.event.id}/builder`)}
+                    >{p.expand.event.titre}</a
+                  >{:else}Événement inconnu{/if}
+              </Card.Title>
+            </div>
+
+            {#if p.expand?.event?.expand?.mantas && p.expand.event.expand.mantas.length > 0}
+              <div class="flex justify-end -space-x-2">
+                {#each p.expand.event.expand.mantas as manta}
+                  <Tooltip.Provider delayDuration={0}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        <Avatar.Root
+                          class="relative h-6 w-6 border-2 border-card hover:z-10"
+                        >
+                          {#if manta.avatar}<Avatar.Image
+                              src={`${pbUrl}/api/files/${manta.collectionId}/${manta.id}/${manta.avatar}?thumb=100x100`}
+                              alt={manta.name}
+                            />{/if}
+                          <Avatar.Fallback
+                            class="bg-muted text-[8px] font-bold text-foreground"
+                            >{(manta.name || 'ST')
+                              .substring(0, 2)
+                              .toUpperCase()}</Avatar.Fallback
+                          >
+                        </Avatar.Root>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content><p>{manta.name}</p></Tooltip.Content>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </Card.Header>
+        <Card.Content class="space-y-3 p-4 pt-2">
+          {#if p.expand?.subjects && p.expand.subjects.length > 0}
+            <div class="flex flex-col gap-2">
+              {#each p.expand.subjects as subject}
+                <div
+                  class="flex items-start justify-between gap-2 rounded-sm bg-muted/50 p-2"
+                >
+                  <div class="flex items-start gap-2">
+                    <BookOpen
+                      class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                    />
+                    <div>
+                      <p class="text-sm font-bold">
+                        {#if subject.link}<a
+                            href={subject.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="transition-colors hover:text-epi-blue hover:underline"
+                            >{subject.nom}</a
+                          >{:else}{subject.nom}{/if}
+                      </p>
+                      {#if subject.expand?.themes}
+                        <div class="mt-1 flex flex-wrap gap-1">
+                          {#each subject.expand.themes as theme}
+                            <span
+                              class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
+                              >#{theme.nom}</span
+                            >
+                          {/each}
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                  {#if subject.link}
+                    <Tooltip.Provider delayDuration={300}>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger>
+                          {#snippet child({ props })}
+                            <Button
+                              {...props}
+                              variant="ghost"
+                              size="icon"
+                              href={subject.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+                              ><ExternalLink class="h-3.5 w-3.5" /></Button
+                            >
+                          {/snippet}
+                        </Tooltip.Trigger>
+                        <Tooltip.Content><p>Voir le support</p></Tooltip.Content
+                        >
+                      </Tooltip.Root>
+                    </Tooltip.Provider>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {/if}
+          {#if p.note}
+            <div
+              class="relative rounded-sm border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900"
+            >
+              <MessageSquareQuote
+                class="absolute -top-2 -right-2 h-6 w-6 fill-yellow-100 text-yellow-400"
+              />
+              <div class="mb-1.5 flex items-center gap-2">
+                {#if p.expand?.note_author}
+                  <Tooltip.Provider delayDuration={300}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        <Avatar.Root
+                          class="h-5 w-5 border border-yellow-300 shadow-xs"
+                        >
+                          {#if p.expand.note_author.avatar}<Avatar.Image
+                              src={`${pbUrl}/api/files/${p.expand.note_author.collectionId}/${p.expand.note_author.id}/${p.expand.note_author.avatar}?thumb=100x100`}
+                              alt={p.expand.note_author.name}
+                            />{/if}
+                          <Avatar.Fallback
+                            class="bg-yellow-200 text-[8px] font-bold text-yellow-800"
+                            >{(p.expand.note_author.name || 'ST')
+                              .substring(0, 2)
+                              .toUpperCase()}</Avatar.Fallback
+                          >
+                        </Avatar.Root>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content
+                        ><p>{p.expand.note_author.name}</p></Tooltip.Content
+                      >
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                {/if}
+                <span class="text-[10px] font-bold text-yellow-700/70 uppercase"
+                  >Observation encadrant :</span
+                >
+              </div>
+              <p class="leading-relaxed italic">« {p.note} »</p>
+            </div>
+          {:else if p.is_present}
+            <p class="pl-1 text-xs text-muted-foreground italic">
+              Aucune observation enregistrée.
+            </p>
+          {/if}
+        </Card.Content>
+      </Card.Root>
+    </div>
+  {:else}
+    <div class="py-12 text-center">
+      <div
+        class="inline-flex items-center justify-center mb-4 h-16 w-16 rounded-full bg-muted"
+      >
+        <Calendar class="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h3 class="text-lg font-bold text-muted-foreground uppercase">
+        Aucun historique
+      </h3>
+      <p class="text-sm text-muted-foreground">
+        Cet élève n'a pas encore participé à un événement.
+      </p>
+    </div>
+  {/each}
+</div>

@@ -3,25 +3,14 @@
   import { pbUrl } from '$lib/pocketbase';
   import PocketBase from 'pocketbase';
   import {
-    ArrowLeft,
-    Search,
-    MonitorSmartphone,
-    LayoutGrid,
-    List as ListIcon,
-    Funnel,
     User,
     MonitorX,
     Award,
-    Info,
     Sprout,
     Clock,
-    GraduationCap,
     LifeBuoy,
-    KeyRound,
   } from 'lucide-svelte';
-  import { Input } from '$lib/components/ui/input';
   import { Button } from '$lib/components/ui/button';
-  import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { browser } from '$app/environment';
   import { untrack } from 'svelte';
@@ -39,11 +28,13 @@
   import { resolve } from '$app/paths';
   import { Badge } from '$lib/components/ui/badge';
 
+  import AppelLogisticsHeader from './components/AppelLogisticsHeader.svelte';
+  import AppelFilterBar from './components/AppelFilterBar.svelte';
+
   type ParticipationExpand = {
     student?: StudentsResponse;
     subjects?: SubjectsResponse[];
   };
-
   type ParticipationWithExpand = ParticipationsResponse<ParticipationExpand>;
 
   let { data }: { data: PageData } = $props();
@@ -51,7 +42,6 @@
   let participations: ParticipationWithExpand[] = $state(
     untrack(() => data.participations as ParticipationWithExpand[]),
   );
-
   let progressRecords = $state<any[]>(untrack(() => data.progressData));
 
   let studentProgressMap = $derived.by(() => {
@@ -87,7 +77,6 @@
         pb.authStore.save(token, model);
       }
 
-      // Participation subscription filtered server-side by event
       pb.collection('participations').subscribe(
         '*',
         (e) => {
@@ -117,9 +106,7 @@
             const index = progressRecords.findIndex(
               (p) => p.id === e.record.id,
             );
-            if (index !== -1) {
-              progressRecords[index] = e.record;
-            }
+            if (index !== -1) progressRecords[index] = e.record;
           } else if (e.action === 'create') {
             progressRecords = [...progressRecords, e.record];
           }
@@ -151,28 +138,22 @@
     };
   };
 
-  // Get unique subjects for filter dropdown
   let uniqueSubjects = $derived.by(() => {
     const subjects = new Map<string, string>();
     const typedParticipations =
       data.participations as ParticipationWithExpand[];
     typedParticipations.forEach((p) => {
-      p.expand?.subjects?.forEach((s) => {
-        subjects.set(s.id, s.nom);
-      });
+      p.expand?.subjects?.forEach((s) => subjects.set(s.id, s.nom));
     });
     return Array.from(subjects.entries());
   });
 
-  // Get unique classes (niveaux) for filter dropdown
   let uniqueNiveaux = $derived.by(() => {
     const niveaux = new Set<string>();
     const typedParticipations =
       data.participations as ParticipationWithExpand[];
     typedParticipations.forEach((p) => {
-      if (p.expand?.student?.niveau) {
-        niveaux.add(p.expand.student.niveau);
-      }
+      if (p.expand?.student?.niveau) niveaux.add(p.expand.student.niveau);
     });
     const order = [
       '6eme',
@@ -203,7 +184,6 @@
         p.expand?.student?.prenom
           .toLowerCase()
           .includes(searchQuery.toLowerCase());
-
       if (!matchesSearch) return false;
 
       let matchesStatus = filterStatus === 'all';
@@ -232,16 +212,15 @@
   let helpCount = $derived(
     progressRecords.filter((p) => p.status === 'needs_help').length,
   );
-
   let totalStudents = $derived(participations.length);
   let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
 
   async function handleDiplomaDownload(participation: ParticipationWithExpand) {
     const toastId = toast.loading('Génération du diplôme...');
     try {
-      const apiUrl = `${resolve('/api/diploma')}?participationId=${participation.id}`;
-      const res = await fetch(apiUrl);
-
+      const res = await fetch(
+        `${resolve('/api/diploma')}?participationId=${participation.id}`,
+      );
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.message || 'Erreur lors de la génération');
@@ -252,7 +231,6 @@
       const a = document.createElement('a');
       a.href = url;
 
-      // Extract filename from header
       const disposition = res.headers.get('Content-Disposition');
       let filename = 'Diplome.pdf';
       if (disposition && disposition.indexOf('filename=') !== -1) {
@@ -275,287 +253,25 @@
 </script>
 
 <div class="flex min-h-screen flex-col bg-background pb-20">
-  <!-- 1. STATIC HEADER (Scrolls away) -->
-  <div class="border-b border-border bg-background pt-4 pb-4">
-    <div class="container mx-auto max-w-2xl px-4">
-      <div class="mb-4 flex items-center justify-between">
-        <a
-          href={resolve(`/events/${data.event.id}/builder`)}
-          class="flex items-center gap-1 text-xs font-black tracking-widest text-muted-foreground uppercase transition-colors hover:text-epi-blue"
-        >
-          <ArrowLeft class="h-3 w-3" /> Retour au builder
-        </a>
-        <div class="flex gap-2">
-          <div
-            class="rounded-sm bg-epi-teal px-2 py-0.5 text-[10px] font-black text-black uppercase"
-          >
-            {presentCount} Présents
-          </div>
-          {#if lateCount > 0}
-            <div
-              class="rounded-sm bg-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-800 uppercase"
-            >
-              {lateCount} En retard
-            </div>
-          {/if}
-          {#if helpCount > 0}
-            <div
-              class="flex animate-pulse items-center gap-1 rounded-sm bg-epi-orange px-2 py-0.5 text-[10px] font-black text-white uppercase"
-            >
-              <LifeBuoy class="h-3 w-3" />
-              {helpCount} Appels
-            </div>
-          {/if}
-        </div>
-      </div>
+  <AppelLogisticsHeader
+    event={data.event}
+    {presentCount}
+    {lateCount}
+    {helpCount}
+    {totalStudents}
+    {pcsNeeded}
+  />
 
-      <h1 class="text-xl font-bold uppercase">
-        Appel : <span style:view-transition-name="event-title-{data.event.id}"
-          >{data.event.titre}</span
-        >
-      </h1>
-
-      {#if data.event.notes}
-        <div
-          class="mt-4 rounded-sm border-l-4 border-l-epi-blue bg-blue-50/50 p-4 dark:bg-blue-900/10"
-        >
-          <div class="flex items-start gap-3">
-            <Info class="mt-0.5 h-5 w-5 shrink-0 text-epi-blue" />
-            <div class="space-y-1">
-              <h4
-                class="text-sm font-bold text-blue-900 uppercase dark:text-blue-100"
-              >
-                Note / Planning
-              </h4>
-              <p
-                class="text-sm leading-relaxed whitespace-pre-wrap text-blue-800 dark:text-blue-200"
-              >
-                {data.event.notes}
-              </p>
-            </div>
-          </div>
-        </div>
-      {/if}
-
-      <!-- LOGISTICS DASHBOARD (outside sticky area) -->
-      <div
-        class="mt-4 grid gap-4 rounded-sm border border-border bg-slate-900 p-4 text-white shadow-md dark:bg-card {data
-          .event.pin
-          ? 'grid-cols-3'
-          : 'grid-cols-2'}"
-      >
-        <div class="flex flex-col">
-          <span
-            class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
-            >Total Élèves</span
-          >
-          <span class="text-2xl font-bold">{totalStudents}</span>
-        </div>
-        <div
-          class="flex items-center justify-between border-l border-slate-700 pl-4"
-        >
-          <div class="flex flex-col">
-            <span
-              class="text-[10px] font-black tracking-widest text-epi-orange uppercase"
-              >PC à Préparer</span
-            >
-            <span class="text-3xl font-bold text-epi-orange">{pcsNeeded}</span>
-          </div>
-          <MonitorSmartphone class="h-8 w-8 text-slate-700" />
-        </div>
-        {#if data.event.pin}
-          <div
-            class="flex items-center justify-between border-l border-slate-700 pl-4"
-          >
-            <div class="flex flex-col">
-              <span
-                class="text-[10px] font-black tracking-widest text-amber-400 uppercase"
-                >PIN Manta</span
-              >
-              <span
-                class="font-mono text-3xl font-bold tracking-widest text-amber-400"
-                >{data.event.pin}</span
-              >
-            </div>
-            <KeyRound class="h-8 w-8 text-slate-700" />
-          </div>
-        {/if}
-      </div>
-    </div>
-  </div>
-
-  <!-- 2. STICKY TOOLBAR (Sticks to top) -->
-  <div
-    class="sticky top-0 z-20 border-b border-border bg-background/95 py-3 backdrop-blur-sm transition-all"
-  >
-    <div class="container mx-auto max-w-2xl px-4">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div class="relative flex-1">
-          <Search
-            class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
-          />
-          <Input
-            placeholder="Rechercher un élève..."
-            class="rounded-sm bg-card pl-9"
-            bind:value={searchQuery}
-          />
-        </div>
-
-        <!-- SUBJECT FILTER -->
-        <Select.Root type="single" bind:value={filterSubject}>
-          <Select.Trigger class="h-9 w-full text-xs sm:w-45">
-            <Funnel class="mr-2 h-3 w-3" />
-            {filterSubject === 'all'
-              ? 'Tous les sujets'
-              : uniqueSubjects.find((s) => s[0] === filterSubject)?.[1]}
-          </Select.Trigger>
-          <Select.Content>
-            <Select.Item value="all">Tous les sujets</Select.Item>
-            {#each uniqueSubjects as [id, nom]}
-              <Select.Item value={id}>{nom}</Select.Item>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-
-        <!-- NIVEAU FILTER -->
-        <Select.Root type="single" bind:value={filterNiveau}>
-          <Select.Trigger class="h-9 w-full text-xs sm:w-45">
-            <GraduationCap class="mr-2 h-3 w-3" />
-            {filterNiveau === 'all' ? 'Toutes les classes' : filterNiveau}
-          </Select.Trigger>
-          <Select.Content>
-            <Select.Item value="all">Toutes les classes</Select.Item>
-            {#each uniqueNiveaux as niveau}
-              <Select.Item value={niveau}>{niveau}</Select.Item>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-
-        <!-- VIEW TOGGLE -->
-        <div class="hidden rounded-md border bg-card p-1 sm:flex">
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <button
-                    {...props}
-                    class={cn(
-                      'cursor-pointer rounded-sm p-1.5 transition-all',
-                      viewMode === 'grid'
-                        ? 'bg-muted text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                    onclick={() => (viewMode = 'grid')}
-                  >
-                    <LayoutGrid class="h-4 w-4" />
-                  </button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content><p>Vue Grille</p></Tooltip.Content>
-            </Tooltip.Root>
-
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <button
-                    {...props}
-                    class={cn(
-                      'cursor-pointer rounded-sm p-1.5 transition-all',
-                      viewMode === 'list'
-                        ? 'bg-muted text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground',
-                    )}
-                    onclick={() => (viewMode = 'list')}
-                  >
-                    <ListIcon class="h-4 w-4" />
-                  </button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content><p>Vue Liste</p></Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
-        </div>
-      </div>
-
-      <div class="mt-2 flex items-center justify-between sm:hidden">
-        <div class="flex flex-wrap gap-1">
-          <Button
-            variant={filterStatus === 'all' ? 'default' : 'outline'}
-            size="sm"
-            class="h-8 text-[10px]"
-            onclick={() => (filterStatus = 'all')}>Tous</Button
-          >
-          <Button
-            variant={filterStatus === 'present' ? 'default' : 'outline'}
-            size="sm"
-            class="h-8 text-[10px]"
-            onclick={() => (filterStatus = 'present')}>Présents</Button
-          >
-          <Button
-            variant={filterStatus === 'help' ? 'default' : 'outline'}
-            size="sm"
-            class="h-8 text-[10px]"
-            onclick={() => (filterStatus = 'help')}>Appels ({helpCount})</Button
-          >
-        </div>
-        <div class="flex rounded-md border bg-card p-0.5">
-          <button
-            class={cn(
-              'rounded-sm p-1.5 transition-all',
-              viewMode === 'grid'
-                ? 'bg-muted text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            onclick={() => (viewMode = 'grid')}
-            ><LayoutGrid class="h-4 w-4" /></button
-          >
-          <button
-            class={cn(
-              'rounded-sm p-1.5 transition-all',
-              viewMode === 'list'
-                ? 'bg-muted text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            onclick={() => (viewMode = 'list')}
-            ><ListIcon class="h-4 w-4" /></button
-          >
-        </div>
-      </div>
-
-      <div class="mt-2 hidden gap-1 sm:flex">
-        <Button
-          variant={filterStatus === 'all' ? 'default' : 'outline'}
-          size="sm"
-          class="h-8 text-[10px]"
-          onclick={() => (filterStatus = 'all')}>Tous</Button
-        >
-        <Button
-          variant={filterStatus === 'present' ? 'default' : 'outline'}
-          size="sm"
-          class="h-8 text-[10px]"
-          onclick={() => (filterStatus = 'present')}>Présents</Button
-        >
-        <Button
-          variant={filterStatus === 'late' ? 'default' : 'outline'}
-          size="sm"
-          class="h-8 text-[10px]"
-          onclick={() => (filterStatus = 'late')}>Retards</Button
-        >
-        <Button
-          variant={filterStatus === 'help' ? 'default' : 'outline'}
-          size="sm"
-          class="h-8 text-[10px]"
-          onclick={() => (filterStatus = 'help')}
-        >
-          Appels
-          {#if helpCount > 0}<span
-              class="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white"
-              >{helpCount}</span
-            >{/if}
-        </Button>
-      </div>
-    </div>
-  </div>
+  <AppelFilterBar
+    bind:searchQuery
+    bind:filterSubject
+    bind:filterNiveau
+    bind:filterStatus
+    bind:viewMode
+    {uniqueSubjects}
+    {uniqueNiveaux}
+    {helpCount}
+  />
 
   <div class="container mx-auto mt-6 max-w-2xl px-4 pb-20">
     {#if viewMode === 'grid'}

@@ -1,14 +1,17 @@
 import { getTotalXp } from '$lib/xp';
 import { createScoped } from '$lib/pocketbase';
 import { generatePin } from '$lib/utils';
+import { suggestBestSubject, preloadCompletedSubjects } from '$lib/recommender';
 import type {
   TypedPocketBase,
   ParticipationsResponse,
   SubjectsResponse,
+  StudentsResponse,
 } from '$lib/pocketbase-types';
 
 type ParticipationExpand = {
   subjects?: SubjectsResponse[];
+  student?: StudentsResponse;
 };
 
 export const EventService = {
@@ -16,7 +19,6 @@ export const EventService = {
    * Deletes an event and automatically rolls back XP for all present students.
    */
   async deleteEvent(pb: TypedPocketBase, eventId: string) {
-    // 1. Fetch participations to calculate XP to remove
     const participations = await pb
       .collection('participations')
       .getFullList<ParticipationsResponse<ParticipationExpand>>({
@@ -24,7 +26,6 @@ export const EventService = {
         expand: 'subjects',
       });
 
-    // 2. Rollback XP (clamp to avoid going below 0)
     const studentIds = [...new Set(participations.map((p) => p.student))];
     const students =
       studentIds.length > 0
@@ -49,7 +50,6 @@ export const EventService = {
       });
     }
 
-    // 3. Delete the event record
     await pb.collection('events').delete(eventId);
   },
 
@@ -61,10 +61,7 @@ export const EventService = {
     originalId: string,
     newData: { titre: string; date: string },
   ) {
-    // 1. Get original event to copy theme
     const original = await pb.collection('events').getOne(originalId);
-
-    // 2. Create new event
     const pin = generatePin();
 
     const newEvent = await createScoped(pb, 'events', {
@@ -75,13 +72,11 @@ export const EventService = {
       pin,
     });
 
-    // 3. Fetch original participations
     const participations = await pb.collection('participations').getFullList({
       filter: `event = "${originalId}"`,
       requestKey: null,
     });
 
-    // 4. Duplicate participants (resetting status)
     for (const p of participations) {
       await createScoped(pb, 'participations', {
         student: p.student,
@@ -94,5 +89,139 @@ export const EventService = {
     }
 
     return newEvent.id;
+  },
+
+  /**
+   * Auto-assigns the best subject to all unassigned students in an event.
+   */
+  async autoAssignAll(pb: TypedPocketBase, eventId: string) {
+    const unassigned = await pb
+      .collection('participations')
+      .getFullList<ParticipationsResponse<ParticipationExpand>>({
+        filter: `event = "${eventId}" && subjects:length = 0`,
+        expand: 'student',
+      });
+
+    if (unassigned.length === 0) return 0;
+
+    const subjects = await pb.collection('subjects').getFullList();
+    const event = await pb
+      .collection('events')
+      .getOne(eventId, { expand: 'theme' });
+
+    const studentIds = unassigned
+      .map((p) => p.expand?.student?.id)
+      .filter(Boolean) as string[];
+    const completedMap = await preloadCompletedSubjects(
+      pb,
+      studentIds,
+      eventId,
+    );
+
+    let count = 0;
+
+    for (const p of unassigned) {
+      const studentId = p.expand?.student?.id ?? '';
+      const suggestedId = await suggestBestSubject(
+        pb,
+        studentId,
+        subjects,
+        event.theme,
+        [],
+        completedMap.get(studentId),
+      );
+
+      if (suggestedId) {
+        await pb.collection('participations').update(p.id, {
+          subjects: [suggestedId],
+        });
+        count++;
+      }
+    }
+
+    return count;
+  },
+
+  /**
+   * Updates an event. If the theme is changed, it automatically recalculates
+   * subjects for eligible unassigned/absent students.
+   */
+  async updateEvent(
+    pb: TypedPocketBase,
+    eventId: string,
+    data: {
+      titre: string;
+      date: string;
+      theme?: string;
+      notes?: string;
+      mantas?: string[];
+    },
+  ) {
+    const currentEvent = await pb.collection('events').getOne(eventId);
+    const oldThemeId = currentEvent.theme;
+
+    let newThemeId: string | null = null;
+    if (data.theme && data.theme.trim() !== '') {
+      const existing = await pb.collection('themes').getList(1, 1, {
+        filter: `nom = "${data.theme.replace(/"/g, '\\"')}"`,
+      });
+
+      if (existing.items.length > 0) {
+        newThemeId = existing.items[0].id;
+      } else {
+        const created = await createScoped(pb, 'themes', { nom: data.theme });
+        newThemeId = created.id;
+      }
+    }
+
+    await pb.collection('events').update(eventId, {
+      titre: data.titre,
+      date: data.date, // Assumes ISO string
+      theme: newThemeId ?? undefined,
+      notes: data.notes,
+      mantas: data.mantas,
+    });
+
+    if (oldThemeId !== newThemeId) {
+      const participations = await pb.collection('participations').getFullList({
+        filter: `event = "${eventId}"`,
+        requestKey: null,
+      });
+
+      const subjects = await pb.collection('subjects').getFullList();
+
+      const eligibleStudentIds = participations
+        .filter(
+          (p) => !p.is_present && (!p.subjects || p.subjects.length === 0),
+        )
+        .map((p) => p.student);
+
+      const completedMap = await preloadCompletedSubjects(
+        pb,
+        eligibleStudentIds,
+        eventId,
+      );
+
+      for (const p of participations) {
+        if (!p.is_present && (!p.subjects || p.subjects.length === 0)) {
+          const newSubjectId = await suggestBestSubject(
+            pb,
+            p.student,
+            subjects,
+            newThemeId,
+            [],
+            completedMap.get(p.student),
+          );
+
+          if (newSubjectId) {
+            await pb.collection('participations').update(p.id, {
+              subjects: [newSubjectId],
+            });
+          }
+        }
+      }
+      return true; // Indicates theme changed
+    }
+    return false; // Indicates standard update
   },
 };

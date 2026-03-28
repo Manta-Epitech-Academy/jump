@@ -63,9 +63,9 @@
     }
   });
 
+  // resolve('/') gives the base-prefixed root (e.g. '/tekcamp/')
+  // Strip trailing slash to avoid double-slashes when concatenating with path
   function isActive(path: string) {
-    // resolve('/') gives the base-prefixed root (e.g. '/tekcamp/')
-    // Strip trailing slash to avoid double-slashes when concatenating with path
     const basePath = resolve('/').replace(/\/$/, '');
     const fullPath = path === '/' ? basePath || '/' : `${basePath}${path}`;
     if (path === '/')
@@ -102,6 +102,39 @@
     return undefined;
   }
 </script>
+
+{#snippet navMenu()}
+  <div class="sidebar-section-title">
+    Overview<span class="text-epi-orange">_</span>
+  </div>
+  <nav class="space-y-1">
+    <a href={resolve('/')} class={navLinkClass(isActive('/'))}>
+      <LayoutDashboard class="h-5 w-5" />
+      <span>Dashboard</span>
+    </a>
+    <a
+      href={resolve('/events/history')}
+      class={navLinkClass(isActive('/events/history'))}
+    >
+      <History class="h-5 w-5" />
+      <span>Historique</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-section-title">
+    Management<span class="text-epi-teal">_</span>
+  </div>
+  <nav class="space-y-1">
+    <a href={resolve('/students')} class={navLinkClass(isActive('/students'))}>
+      <Users class="h-5 w-5" />
+      <span>Élèves</span>
+    </a>
+    <a href={resolve('/subjects')} class={navLinkClass(isActive('/subjects'))}>
+      <Cuboid class="h-5 w-5" />
+      <span>Sujets</span>
+    </a>
+  </nav>
+{/snippet}
 
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
   <!-- HEADER (FULL WIDTH) -->
@@ -238,44 +271,7 @@
       class="hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
     >
       <div class="flex-1 overflow-y-auto p-4">
-        <!-- OVERVIEW -->
-        <div class="sidebar-section-title">
-          Overview<span class="text-epi-orange">_</span>
-        </div>
-        <nav class="space-y-1">
-          <a href={resolve('/')} class={navLinkClass(isActive('/'))}>
-            <LayoutDashboard class="h-5 w-5" />
-            <span>Dashboard</span>
-          </a>
-          <a
-            href={resolve('/events/history')}
-            class={navLinkClass(isActive('/events/history'))}
-          >
-            <History class="h-5 w-5" />
-            <span>Historique</span>
-          </a>
-        </nav>
-
-        <!-- MANAGEMENT -->
-        <div class="sidebar-section-title">
-          Management<span class="text-epi-teal">_</span>
-        </div>
-        <nav class="space-y-1">
-          <a
-            href={resolve('/students')}
-            class={navLinkClass(isActive('/students'))}
-          >
-            <Users class="h-5 w-5" />
-            <span>Élèves</span>
-          </a>
-          <a
-            href={resolve('/subjects')}
-            class={navLinkClass(isActive('/subjects'))}
-          >
-            <Cuboid class="h-5 w-5" />
-            <span>Sujets</span>
-          </a>
-        </nav>
+        {@render navMenu()}
       </div>
 
       <div class="border-t border-border p-4">
@@ -308,42 +304,7 @@
         transition:fly={{ x: -300, duration: 300 }}
       >
         <div class="flex-1 overflow-y-auto p-4">
-          <div class="sidebar-section-title">
-            Overview<span class="text-epi-orange">_</span>
-          </div>
-          <nav class="space-y-1">
-            <a href={resolve('/')} class={navLinkClass(isActive('/'))}>
-              <LayoutDashboard class="h-5 w-5" />
-              <span>Dashboard</span>
-            </a>
-            <a
-              href={resolve('/events/history')}
-              class={navLinkClass(isActive('/events/history'))}
-            >
-              <History class="h-5 w-5" />
-              <span>Historique</span>
-            </a>
-          </nav>
-
-          <div class="sidebar-section-title">
-            Management<span class="text-epi-teal">_</span>
-          </div>
-          <nav class="space-y-1">
-            <a
-              href={resolve('/students')}
-              class={navLinkClass(isActive('/students'))}
-            >
-              <Users class="h-5 w-5" />
-              <span>Élèves</span>
-            </a>
-            <a
-              href={resolve('/subjects')}
-              class={navLinkClass(isActive('/subjects'))}
-            >
-              <Cuboid class="h-5 w-5" />
-              <span>Sujets</span>
-            </a>
-          </nav>
+          {@render navMenu()}
         </div>
         <div class="border-t border-border p-4">
           <Button

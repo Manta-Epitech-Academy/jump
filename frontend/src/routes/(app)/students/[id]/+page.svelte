@@ -2,37 +2,17 @@
   import type { PageData } from './$types';
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import {
-    ArrowLeft,
-    Trophy,
-    Calendar,
-    MessageSquareQuote,
-    Pencil,
-    CircleCheck,
-    CircleX,
-    Clock,
-    BookOpen,
-    Mail,
-    Phone,
-    Users,
-    ExternalLink,
-    Trash2,
-    CalendarClock,
-    SignalLow,
-  } from 'lucide-svelte';
+  import { ArrowLeft, Clock, Trash2 } from 'lucide-svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
-  import * as Card from '$lib/components/ui/card';
-  import * as Avatar from '$lib/components/ui/avatar';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import { Badge } from '$lib/components/ui/badge';
   import { Separator } from '$lib/components/ui/separator';
   import { toast } from 'svelte-sonner';
-  import { formatDateFr, cn } from '$lib/utils';
   import { enhance as kitEnhance } from '$app/forms';
   import { resolve } from '$app/paths';
-  import { pbUrl } from '$lib/pocketbase';
   import StudentFormDialog from '$lib/components/students/StudentFormDialog.svelte';
+  import StudentProfileCard from './components/StudentProfileCard.svelte';
+  import StudentTimeline from './components/StudentTimeline.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -51,24 +31,7 @@
   let editOpen = $state(false);
   let deleteDialogOpen = $state(false);
 
-  function getInitials(prenom: string, nom: string) {
-    return (nom[0] + prenom[0]).toUpperCase();
-  }
-
   let xpProgress = $derived(Math.min((data.student.xp / 1000) * 100, 100));
-
-  function getDifficultyColor(diff: string) {
-    switch (diff) {
-      case 'Débutant':
-        return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400';
-      case 'Intermédiaire':
-        return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'Avancé':
-        return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/30 dark:bg-purple-900/20 dark:text-purple-400';
-      default:
-        return 'border-border text-muted-foreground';
-    }
-  }
 
   function openEdit() {
     reset();
@@ -86,170 +49,24 @@
 
 <div class="space-y-6 pb-10">
   <div class="flex items-center gap-4">
-    <Button variant="ghost" size="icon" href={resolve('/students')}
-      ><ArrowLeft class="h-4 w-4" /></Button
-    >
+    <Button variant="ghost" size="icon" href={resolve('/students')}>
+      <ArrowLeft class="h-4 w-4" />
+    </Button>
     <h1 class="text-3xl font-bold text-epi-blue uppercase">
       Dossier Élève<span class="text-epi-teal">_</span>
     </h1>
   </div>
 
   <div class="grid gap-6 md:grid-cols-12">
-    <!-- LEFT SIDE PROFILE CARD -->
     <div class="space-y-6 md:col-span-4 lg:col-span-3">
-      <Card.Root class="overflow-hidden border-t-4 border-t-epi-blue shadow-md">
-        <Card.Header class="flex flex-col items-center pb-2 text-center">
-          <Avatar.Root
-            class="h-24 w-24 border-4 border-muted bg-white shadow-sm"
-          >
-            <Avatar.Fallback
-              class="bg-secondary text-2xl font-bold text-secondary-foreground"
-              >{getInitials(
-                data.student.prenom,
-                data.student.nom,
-              )}</Avatar.Fallback
-            >
-          </Avatar.Root>
-          <Card.Title class="mt-4 text-xl"
-            ><span class="uppercase">{data.student.nom}</span>
-            {data.student.prenom}</Card.Title
-          >
-          <div class="mt-1 flex flex-col items-center gap-1">
-            <Badge
-              variant="outline"
-              class="border-epi-blue font-bold text-epi-blue uppercase"
-              >{data.student.niveau}</Badge
-            >
-            <Badge
-              variant="outline"
-              class={cn(
-                'text-[10px] font-bold uppercase',
-                getDifficultyColor(
-                  data.student.niveau_difficulte || 'Débutant',
-                ),
-              )}
-            >
-              <SignalLow class="mr-1 h-3 w-3" />
-              {data.student.niveau_difficulte || 'Débutant'}
-            </Badge>
-          </div>
-        </Card.Header>
-        <Card.Content class="space-y-6">
-          <div class="flex flex-col gap-2 text-sm text-muted-foreground">
-            {#if data.student.email}<div class="flex items-center gap-2">
-                <Mail class="h-3.5 w-3.5" /><span class="truncate"
-                  >{data.student.email}</span
-                >
-              </div>{/if}
-            {#if data.student.phone}<div class="flex items-center gap-2">
-                <Phone class="h-3.5 w-3.5" /><span>{data.student.phone}</span>
-              </div>{/if}
-            {#if data.student.parent_email || data.student.parent_phone}
-              <Separator class="my-1" />
-              <div class="flex flex-col gap-1">
-                <span
-                  class="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase"
-                  ><Users class="h-3 w-3" /> Contact Parent</span
-                >
-                {#if data.student.parent_email}<div
-                    class="flex items-center gap-2"
-                  >
-                    <Mail class="h-3.5 w-3.5" /><span class="truncate"
-                      >{data.student.parent_email}</span
-                    >
-                  </div>{/if}
-                {#if data.student.parent_phone}<div
-                    class="flex items-center gap-2"
-                  >
-                    <Phone class="h-3.5 w-3.5" /><span
-                      >{data.student.parent_phone}</span
-                    >
-                  </div>{/if}
-              </div>
-            {/if}
-          </div>
-
-          <Separator />
-
-          <div class="space-y-3 text-center">
-            <div class="relative inline-flex items-center justify-center">
-              <div
-                class="absolute inset-0 rounded-full bg-epi-orange/30 blur-lg"
-              ></div>
-              <Trophy
-                class="duration-2000ms relative h-8 w-8 animate-bounce text-epi-orange"
-              />
-            </div>
-            <div class="flex flex-col items-center">
-              <Badge
-                variant="outline"
-                class={cn(
-                  'mt-2 mb-2 px-3 py-1 text-sm font-black tracking-widest uppercase',
-                  data.student.xp >= 500
-                    ? 'shiny-badge border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
-                    : 'border-border text-muted-foreground',
-                )}
-              >
-                {data.student.xp >= 500 ? 'Expert ✦' : 'Novice'}
-              </Badge>
-              <span
-                class="text-3xl font-black tracking-tighter text-foreground italic"
-                >{data.student.xp}<span
-                  class="text-lg text-epi-orange not-italic">XP</span
-                ></span
-              >
-            </div>
-            <div
-              class="relative h-4 w-full overflow-hidden rounded-full bg-muted shadow-inner"
-            >
-              <div
-                class="relative h-full overflow-hidden bg-epi-orange transition-all duration-1000 ease-out"
-                style="width: {xpProgress}%;"
-              >
-                <div
-                  class="animate-stripes absolute inset-0 h-full w-full bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)] bg-size-[1rem_1rem]"
-                ></div>
-              </div>
-            </div>
-            <div
-              class="flex justify-between px-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-            >
-              <span>Novice</span>
-              <span>Expert</span>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div class="grid grid-cols-2 gap-4 text-center">
-            <div class="rounded-sm bg-muted/30 p-2">
-              <div class="text-lg font-bold">{data.stats.presentCount}</div>
-              <div class="text-[9px] font-bold text-muted-foreground uppercase">
-                Présences
-              </div>
-            </div>
-            {#if data.stats.lateCount > 0}
-              <div class="rounded-sm bg-muted/30 p-2">
-                <div class="text-lg font-bold text-orange-500">
-                  {data.stats.lateCount}
-                </div>
-                <div
-                  class="text-[9px] font-bold text-muted-foreground uppercase"
-                >
-                  Retards
-                </div>
-              </div>
-            {/if}
-          </div>
-
-          <Button variant="outline" class="w-full" onclick={openEdit}
-            ><Pencil class="mr-2 h-3.5 w-3.5" /> Modifier le profil</Button
-          >
-        </Card.Content>
-      </Card.Root>
+      <StudentProfileCard
+        student={data.student}
+        stats={data.stats}
+        {xpProgress}
+        onOpenEdit={openEdit}
+      />
     </div>
 
-    <!-- RIGHT SIDE HISTORY -->
     <div class="space-y-6 md:col-span-8 lg:col-span-9">
       <div class="flex items-center justify-between">
         <h2 class="flex items-center gap-2 text-xl font-bold uppercase">
@@ -258,257 +75,7 @@
         <Badge variant="secondary">{data.participations.length} sessions</Badge>
       </div>
 
-      <div
-        class="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-px before:bg-linear-to-b before:from-transparent before:via-slate-300 before:to-transparent md:before:mx-auto md:before:translate-x-0"
-      >
-        {#each data.participations as p (p.id)}
-          {@const eventDate = new Date(p.expand?.event?.date ?? '')}
-          {@const now = new Date()}
-          {@const isUpcoming = eventDate > now}
-          {@const isPresent = p.is_present}
-          {@const isLate = isPresent && (p.delay || 0) > 0}
-
-          <div
-            class="group is-active relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse"
-          >
-            <div
-              class={cn(
-                'z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-background shadow-sm md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2',
-                isPresent
-                  ? isLate
-                    ? 'bg-orange-200 text-orange-800'
-                    : 'bg-epi-teal text-black'
-                  : isUpcoming
-                    ? 'bg-blue-100 text-epi-blue dark:bg-blue-900/30 dark:text-blue-400'
-                    : 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
-              )}
-            >
-              {#if isPresent}{#if isLate}<Clock
-                    class="h-5 w-5"
-                  />{:else}<CircleCheck
-                    class="h-5 w-5"
-                  />{/if}{:else if isUpcoming}<CalendarClock
-                  class="h-5 w-5"
-                />{:else}<CircleX class="h-5 w-5" />{/if}
-            </div>
-
-            <Card.Root
-              class="w-[calc(100%-4rem)] shadow-sm transition-shadow hover:shadow-md md:w-[calc(50%-2.5rem)]"
-            >
-              <Card.Header class="p-4 pb-2">
-                <div class="flex items-start justify-between">
-                  <div class="space-y-1">
-                    <div class="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        class="h-5 px-1.5 text-[10px] font-normal"
-                        >{formatDateFr(p.expand?.event?.date)}</Badge
-                      >
-                      {#if isPresent}
-                        <Badge
-                          variant="default"
-                          class={cn(
-                            'h-5 px-1.5 text-[10px] font-bold text-black uppercase',
-                            isLate
-                              ? 'bg-orange-200 text-orange-900 hover:bg-orange-300'
-                              : 'bg-epi-teal hover:bg-epi-teal/80',
-                          )}>Présent</Badge
-                        >
-                        {#if isLate}<Badge
-                            variant="outline"
-                            class="h-5 border-orange-200 bg-orange-50 px-1.5 text-[10px] font-bold text-orange-600 uppercase dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
-                            >Retard: {p.delay >= 60 ? '+60' : p.delay} min</Badge
-                          >{/if}
-                      {:else if isUpcoming}
-                        <Badge
-                          variant="secondary"
-                          class="h-5 border-blue-200 bg-blue-100 px-1.5 text-[10px] text-blue-700 uppercase"
-                          >Inscrit</Badge
-                        >
-                      {:else}
-                        <Badge
-                          variant="destructive"
-                          class="h-5 px-1.5 text-[10px] uppercase">Absent</Badge
-                        >
-                      {/if}
-                    </div>
-                    <Card.Title
-                      class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue"
-                    >
-                      {#if p.expand?.event?.id}<a
-                          href={resolve(`/events/${p.expand.event.id}/builder`)}
-                          >{p.expand.event.titre}</a
-                        >{:else}Événement inconnu{/if}
-                    </Card.Title>
-                  </div>
-
-                  <!-- Mantas Avatars -->
-                  {#if p.expand?.event?.expand?.mantas && p.expand.event.expand.mantas.length > 0}
-                    <div class="flex justify-end -space-x-2">
-                      {#each p.expand.event.expand.mantas as manta}
-                        <Tooltip.Provider delayDuration={0}>
-                          <Tooltip.Root>
-                            <Tooltip.Trigger>
-                              <Avatar.Root
-                                class="relative h-6 w-6 border-2 border-card hover:z-10"
-                              >
-                                {#if manta.avatar}
-                                  <Avatar.Image
-                                    src={`${pbUrl}/api/files/${manta.collectionId}/${manta.id}/${manta.avatar}?thumb=100x100`}
-                                    alt={manta.name}
-                                  />
-                                {/if}
-                                <Avatar.Fallback
-                                  class="bg-muted text-[8px] font-bold text-foreground"
-                                >
-                                  {(manta.name || 'ST')
-                                    .substring(0, 2)
-                                    .toUpperCase()}
-                                </Avatar.Fallback>
-                              </Avatar.Root>
-                            </Tooltip.Trigger>
-                            <Tooltip.Content
-                              ><p>{manta.name}</p></Tooltip.Content
-                            >
-                          </Tooltip.Root>
-                        </Tooltip.Provider>
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-              </Card.Header>
-              <Card.Content class="space-y-3 p-4 pt-2">
-                {#if p.expand?.subjects && p.expand.subjects.length > 0}
-                  <div class="flex flex-col gap-2">
-                    {#each p.expand.subjects as subject}
-                      <div
-                        class="flex items-start justify-between gap-2 rounded-sm bg-muted/50 p-2"
-                      >
-                        <div class="flex items-start gap-2">
-                          <BookOpen
-                            class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
-                          />
-                          <div>
-                            <p class="text-sm font-bold">
-                              {#if subject.link}
-                                <a
-                                  href={subject.link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  class="transition-colors hover:text-epi-blue hover:underline"
-                                >
-                                  {subject.nom}
-                                </a>
-                              {:else}
-                                {subject.nom}
-                              {/if}
-                            </p>
-                            {#if subject.expand?.themes}
-                              <div class="mt-1 flex flex-wrap gap-1">
-                                {#each subject.expand.themes as theme}
-                                  <span
-                                    class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
-                                    >#{theme.nom}</span
-                                  >
-                                {/each}
-                              </div>
-                            {/if}
-                          </div>
-                        </div>
-                        {#if subject.link}
-                          <Tooltip.Provider delayDuration={300}>
-                            <Tooltip.Root>
-                              <Tooltip.Trigger>
-                                {#snippet child({ props })}
-                                  <Button
-                                    {...props}
-                                    variant="ghost"
-                                    size="icon"
-                                    href={subject.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
-                                    ><ExternalLink class="h-3.5 w-3.5" /></Button
-                                  >
-                                {/snippet}
-                              </Tooltip.Trigger>
-                              <Tooltip.Content
-                                ><p>Voir le support</p></Tooltip.Content
-                              >
-                            </Tooltip.Root>
-                          </Tooltip.Provider>
-                        {/if}
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-                {#if p.note}
-                  <div
-                    class="relative rounded-sm border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900"
-                  >
-                    <MessageSquareQuote
-                      class="absolute -top-2 -right-2 h-6 w-6 fill-yellow-100 text-yellow-400"
-                    />
-                    <div class="mb-1.5 flex items-center gap-2">
-                      {#if p.expand?.note_author}
-                        <Tooltip.Provider delayDuration={300}>
-                          <Tooltip.Root>
-                            <Tooltip.Trigger>
-                              <Avatar.Root
-                                class="h-5 w-5 border border-yellow-300 shadow-xs"
-                              >
-                                {#if p.expand.note_author.avatar}
-                                  <Avatar.Image
-                                    src={`${pbUrl}/api/files/${p.expand.note_author.collectionId}/${p.expand.note_author.id}/${p.expand.note_author.avatar}?thumb=100x100`}
-                                    alt={p.expand.note_author.name}
-                                  />
-                                {/if}
-                                <Avatar.Fallback
-                                  class="bg-yellow-200 text-[8px] font-bold text-yellow-800"
-                                >
-                                  {(p.expand.note_author.name || 'ST')
-                                    .substring(0, 2)
-                                    .toUpperCase()}
-                                </Avatar.Fallback>
-                              </Avatar.Root>
-                            </Tooltip.Trigger>
-                            <Tooltip.Content
-                              ><p>{p.expand.note_author.name}</p></Tooltip.Content
-                            >
-                          </Tooltip.Root>
-                        </Tooltip.Provider>
-                      {/if}
-                      <span
-                        class="text-[10px] font-bold text-yellow-700/70 uppercase"
-                        >Observation encadrant :</span
-                      >
-                    </div>
-                    <p class="leading-relaxed italic">« {p.note} »</p>
-                  </div>
-                {:else if p.is_present}
-                  <p class="pl-1 text-xs text-muted-foreground italic">
-                    Aucune observation enregistrée.
-                  </p>
-                {/if}
-              </Card.Content>
-            </Card.Root>
-          </div>
-        {:else}
-          <div class="py-12 text-center">
-            <div
-              class="inline-flex items-center justify-center mb-4 h-16 w-16 rounded-full bg-muted"
-            >
-              <Calendar class="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 class="text-lg font-bold text-muted-foreground uppercase">
-              Aucun historique
-            </h3>
-            <p class="text-sm text-muted-foreground">
-              Cet élève n'a pas encore participé à un événement.
-            </p>
-          </div>
-        {/each}
-      </div>
+      <StudentTimeline participations={data.participations} />
     </div>
   </div>
 

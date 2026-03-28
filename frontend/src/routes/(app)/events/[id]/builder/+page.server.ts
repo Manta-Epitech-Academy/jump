@@ -8,6 +8,7 @@ import { studentSchema } from '$lib/validation/students';
 import { getTotalXp } from '$lib/xp';
 import { suggestBestSubject, preloadCompletedSubjects } from '$lib/recommender';
 import { createScoped } from '$lib/pocketbase';
+import { EventService } from '$lib/server/events';
 import {
   type ParticipationsResponse,
   type StudentsResponse,
@@ -115,7 +116,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     requestKey: null,
   });
 
-  // Load staff from the same campus for the Mantas selector
   const user = locals.user as any;
   const staff = await locals.pb.collection('users').getFullList({
     filter: user?.campus ? `campus = "${user.campus}"` : '',
@@ -184,7 +184,6 @@ export const actions: Actions = {
       }
 
       const event = await locals.pb.collection('events').getOne(params.id);
-
       const subjects = await locals.pb.collection('subjects').getFullList();
       const suggestedSubjectId = await suggestBestSubject(
         locals.pb,
@@ -218,12 +217,12 @@ export const actions: Actions = {
       : [];
 
     try {
-      await locals.pb.collection('participations').update(participationId, {
-        subjects: subjectIds,
-      });
+      await locals.pb
+        .collection('participations')
+        .update(participationId, { subjects: subjectIds });
       return { success: true };
     } catch (err) {
-      console.error(err);
+      console.error('Update subjects error:', err);
       return fail(500);
     }
   },
@@ -232,19 +231,13 @@ export const actions: Actions = {
     const data = await request.formData();
     const subjectsRaw = data.get('subjectIds') as string;
 
-    if (!subjectsRaw) {
-      return fail(400, { message: 'Aucun sujet sélectionné.' });
-    }
-
+    if (!subjectsRaw) return fail(400, { message: 'Aucun sujet sélectionné.' });
     const newSubjectIds = subjectsRaw.split(',').filter(Boolean);
 
     try {
       const participations = await locals.pb
         .collection('participations')
-        .getFullList({
-          filter: `event = "${params.id}"`,
-          requestKey: null,
-        });
+        .getFullList({ filter: `event = "${params.id}"`, requestKey: null });
 
       let updateCount = 0;
 
@@ -265,10 +258,7 @@ export const actions: Actions = {
         }),
       );
 
-      return {
-        success: true,
-        message: `${updateCount} élèves mis à jour avec succès !`,
-      };
+      return { success: true, message: `${updateCount} élèves mis à jour !` };
     } catch (err) {
       console.error('Bulk assign error:', err);
       return fail(500, { message: "Erreur lors de l'assignation de masse." });
@@ -277,53 +267,9 @@ export const actions: Actions = {
 
   autoAssignAll: async ({ params, locals }) => {
     try {
-      const unassigned = await locals.pb
-        .collection('participations')
-        .getFullList<ParticipationsResponse<ParticipationExpand>>({
-          filter: `event = "${params.id}" && subjects:length = 0`,
-          expand: 'student',
-        });
-
-      if (unassigned.length === 0) {
+      const count = await EventService.autoAssignAll(locals.pb, params.id);
+      if (count === 0)
         return { success: true, message: 'Aucun élève à assigner.' };
-      }
-
-      const subjects = await locals.pb.collection('subjects').getFullList();
-      const event = await locals.pb
-        .collection('events')
-        .getOne(params.id, { expand: 'theme' });
-
-      // Pre-fetch completed subjects for all unassigned students in one query
-      const studentIds = unassigned
-        .map((p) => p.expand?.student?.id)
-        .filter(Boolean) as string[];
-      const completedMap = await preloadCompletedSubjects(
-        locals.pb,
-        studentIds,
-        params.id,
-      );
-
-      let count = 0;
-
-      for (const p of unassigned) {
-        const studentId = p.expand?.student?.id ?? '';
-        const suggestedId = await suggestBestSubject(
-          locals.pb,
-          studentId,
-          subjects,
-          event.theme,
-          [],
-          completedMap.get(studentId),
-        );
-
-        if (suggestedId) {
-          await locals.pb.collection('participations').update(p.id, {
-            subjects: [suggestedId],
-          });
-          count++;
-        }
-      }
-
       return {
         success: true,
         message: `${count} élèves assignés automatiquement !`,
@@ -339,18 +285,14 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     try {
-      // Random password (they will use OTP anyway)
       const tempPassword = crypto.randomUUID() + Math.random().toString(36);
 
-      // SCOPED creation
       const newStudent = await createScoped(locals.pb, 'students', {
         ...form.data,
         email: form.data.email || '',
         niveau: form.data.niveau as StudentsNiveauOptions,
         niveau_difficulte: form.data
           .niveau_difficulte as StudentsNiveauDifficulteOptions,
-
-        // Auth & Default Fields
         emailVisibility: true,
         password: tempPassword,
         passwordConfirm: tempPassword,
@@ -362,7 +304,6 @@ export const actions: Actions = {
       });
 
       const event = await locals.pb.collection('events').getOne(params.id);
-
       const subjects = await locals.pb.collection('subjects').getFullList();
       const suggestedSubjectId = await suggestBestSubject(
         locals.pb,
@@ -377,18 +318,15 @@ export const actions: Actions = {
         subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
         is_present: false,
       });
+
       return message(form, 'Élève créé et assigné automatiquement !');
     } catch (err) {
       if (err instanceof ClientResponseError && err.status === 400) {
-        return message(
-          form,
-          'Un élève identique (Même nom, prénom et email) existe déjà.',
-          {
-            status: 400,
-          },
-        );
+        return message(form, 'Un élève identique (même nom, prénom et email) existe déjà.', {
+          status: 400,
+        });
       }
-      console.error(err);
+      console.error('Quick create student error:', err);
       return message(form, 'Erreur lors de la création rapide.', {
         status: 500,
       });
@@ -397,33 +335,22 @@ export const actions: Actions = {
 
   updateEvent: async ({ request, locals, params }) => {
     const formData = await request.formData();
-
     const dateStr = formData.get('date') as string;
     const timeStr = formData.get('time') as string;
-    const themeInput = formData.get('theme') as string;
-    const notesInput = formData.get('notes') as string;
 
     const transformedData = {
       titre: (formData.get('titre') as string) || '',
       date: dateStr,
       time: timeStr,
-      theme: themeInput,
-      notes: notesInput,
+      theme: formData.get('theme') as string,
+      notes: formData.get('notes') as string,
       mantas: formData.getAll('mantas') as string[],
     };
 
     const form = await superValidate(transformedData, zod4(eventSchema));
-
-    if (!form.valid) {
-      return fail(400, { form });
-    }
+    if (!form.valid) return fail(400, { form });
 
     try {
-      const currentEvent = await locals.pb
-        .collection('events')
-        .getOne(params.id);
-      const oldThemeId = currentEvent.theme;
-
       if (!dateStr || !timeStr) throw new Error('Date ou heure manquante');
 
       const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
@@ -435,73 +362,16 @@ export const actions: Actions = {
         return message(form, 'Format de date invalide', { status: 400 });
       }
 
-      let newThemeId: string | null = null;
-      if (form.data.theme && form.data.theme.trim() !== '') {
-        const existing = await locals.pb
-          .collection('themes')
-          .getList(1, 1, {
-            filter: `nom = "${form.data.theme.replace(/"/g, '\\"')}"`,
-          });
+      const themeChanged = await EventService.updateEvent(
+        locals.pb,
+        params.id,
+        {
+          ...form.data,
+          date: jsDate.toISOString(),
+        },
+      );
 
-        if (existing.items.length > 0) {
-          newThemeId = existing.items[0].id;
-        } else {
-          const created = await createScoped(locals.pb, 'themes', {
-            nom: form.data.theme,
-          });
-          newThemeId = created.id;
-        }
-      }
-
-      await locals.pb.collection('events').update(params.id, {
-        titre: form.data.titre,
-        date: jsDate.toISOString(),
-        theme: newThemeId ?? undefined,
-        notes: form.data.notes,
-        mantas: form.data.mantas,
-      });
-
-      if (oldThemeId !== newThemeId) {
-        const participations = await locals.pb
-          .collection('participations')
-          .getFullList({
-            filter: `event = "${params.id}"`,
-            requestKey: null,
-          });
-
-        const subjects = await locals.pb.collection('subjects').getFullList();
-
-        // Pre-fetch completed subjects for eligible students
-        const eligibleStudentIds = participations
-          .filter(
-            (p) => !p.is_present && (!p.subjects || p.subjects.length === 0),
-          )
-          .map((p) => p.student);
-        const completedMap = await preloadCompletedSubjects(
-          locals.pb,
-          eligibleStudentIds,
-          params.id,
-        );
-
-        for (const p of participations) {
-          // Only re-suggest for those without subjects
-          if (!p.is_present && (!p.subjects || p.subjects.length === 0)) {
-            const newSubjectId = await suggestBestSubject(
-              locals.pb,
-              p.student,
-              subjects,
-              newThemeId,
-              [],
-              completedMap.get(p.student),
-            );
-
-            if (newSubjectId) {
-              await locals.pb.collection('participations').update(p.id, {
-                subjects: [newSubjectId],
-              });
-            }
-          }
-        }
+      if (themeChanged) {
         return message(form, 'Événement mis à jour et sujets recalculés !');
       }
 
@@ -521,65 +391,38 @@ export const actions: Actions = {
     try {
       const p = await locals.pb
         .collection('participations')
-        .getOne<ParticipationsResponse<ParticipationExpand>>(id, {
-          expand: 'subjects',
-        });
+        .getOne<
+          ParticipationsResponse<ParticipationExpand>
+        >(id, { expand: 'subjects' });
 
       if (p.is_present) {
         const subjects = p.expand?.subjects || [];
         const xpValue = getTotalXp(subjects);
-
         const student = await locals.pb
           .collection('students')
           .getOne(p.student);
-        const currentXp = student.xp ?? 0;
-        const currentEventsCount = student.events_count ?? 0;
 
         await locals.pb.collection('students').update(p.student, {
-          'xp-': Math.min(xpValue, currentXp),
-          'events_count-': Math.min(1, currentEventsCount),
+          'xp-': Math.min(xpValue, student.xp ?? 0),
+          'events_count-': Math.min(1, student.events_count ?? 0),
         });
       }
 
       await locals.pb.collection('participations').delete(id);
       return { success: true };
     } catch (err) {
-      console.error('Error on remove participation:', err);
+      console.error('Remove participation error:', err);
       return fail(500);
     }
   },
 
   deleteEvent: async ({ params, locals }) => {
     try {
-      const participations = await locals.pb
-        .collection('participations')
-        .getFullList<ParticipationsResponse<ParticipationExpand>>({
-          filter: `event = "${params.id}" && is_present = true`,
-          expand: 'subjects',
-        });
-
-      for (const p of participations) {
-        const subjects = p.expand?.subjects || [];
-        const xpValue = getTotalXp(subjects);
-
-        const student = await locals.pb
-          .collection('students')
-          .getOne(p.student);
-        const currentXp = student.xp ?? 0;
-        const currentEventsCount = student.events_count ?? 0;
-
-        await locals.pb.collection('students').update(p.student, {
-          'xp-': Math.min(xpValue, currentXp),
-          'events_count-': Math.min(1, currentEventsCount),
-        });
-      }
-
-      await locals.pb.collection('events').delete(params.id);
+      await EventService.deleteEvent(locals.pb, params.id);
     } catch (err) {
-      console.error('Error deleting event:', err);
+      console.error('Delete event error:', err);
       return fail(500);
     }
-
     throw redirect(303, resolve('/'));
   },
 };
