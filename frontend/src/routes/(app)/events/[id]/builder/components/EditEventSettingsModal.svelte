@@ -10,7 +10,7 @@
   import { Settings, Trash2 } from 'lucide-svelte';
   import { buttonVariants } from '$lib/components/ui/button';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
-  import MultiStaffSelect from '$lib/components/MultiStaffSelect.svelte';
+  import MultiStaffSelect from '../../../components/MultiStaffSelect.svelte';
   import DatePicker from '$lib/components/DatePicker.svelte';
   import { CalendarDateTime } from '@internationalized/date';
   import type { Readable } from 'svelte/store';

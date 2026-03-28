@@ -14,7 +14,7 @@
   import type { PageData } from './$types';
   import type { ThemesResponse } from '$lib/pocketbase-types';
   import { Button, buttonVariants } from '$lib/components/ui/button';
-  import SubjectPicker from '$lib/components/events/SubjectPicker.svelte';
+  import SubjectPicker from './components/SubjectPicker.svelte';
   import { resolve } from '$app/paths';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
 

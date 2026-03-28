@@ -10,7 +10,7 @@
   import { toast } from 'svelte-sonner';
   import { enhance as kitEnhance } from '$app/forms';
   import { resolve } from '$app/paths';
-  import StudentFormDialog from '$lib/components/students/StudentFormDialog.svelte';
+  import StudentFormDialog from '../components/StudentFormDialog.svelte';
   import StudentProfileCard from './components/StudentProfileCard.svelte';
   import StudentTimeline from './components/StudentTimeline.svelte';
 

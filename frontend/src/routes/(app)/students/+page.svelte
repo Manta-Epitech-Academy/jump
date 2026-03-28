@@ -32,7 +32,7 @@
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
-  import StudentFormDialog from '$lib/components/students/StudentFormDialog.svelte';
+  import StudentFormDialog from './components/StudentFormDialog.svelte';
 
   let { data }: { data: PageData } = $props();
 

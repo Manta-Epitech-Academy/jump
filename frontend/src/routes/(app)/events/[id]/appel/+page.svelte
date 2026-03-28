@@ -14,11 +14,11 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { browser } from '$app/environment';
   import { untrack } from 'svelte';
-  import ParticipationCard from '$lib/components/events/ParticipationCard.svelte';
+  import ParticipationCard from './components/ParticipationCard.svelte';
   import { toast } from 'svelte-sonner';
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
-  import NoteInput from '$lib/components/events/NoteInput.svelte';
+  import NoteInput from './components/NoteInput.svelte';
   import type {
     ParticipationsResponse,
     StudentsResponse,

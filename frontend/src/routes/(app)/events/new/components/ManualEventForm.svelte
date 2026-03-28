@@ -14,7 +14,7 @@
   } from '@internationalized/date';
   import { formatDateFr } from '$lib/utils';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
-  import MultiStaffSelect from '$lib/components/MultiStaffSelect.svelte';
+  import MultiStaffSelect from '../../components/MultiStaffSelect.svelte';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { eventSchema } from '$lib/validation/events';
 

@@ -23,7 +23,7 @@
   } from 'lucide-svelte';
   import { fly } from 'svelte/transition';
   import { toast } from 'svelte-sonner';
-  import NoteInput from '$lib/components/events/NoteInput.svelte';
+  import NoteInput from './NoteInput.svelte';
   import { cn } from '$lib/utils';
   import { resolve } from '$app/paths';
 

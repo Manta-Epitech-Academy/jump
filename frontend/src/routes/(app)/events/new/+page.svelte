@@ -12,7 +12,7 @@
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
-  import MultiStaffSelect from '$lib/components/MultiStaffSelect.svelte';
+  import MultiStaffSelect from '../components/MultiStaffSelect.svelte';
 
   import FakeProgressLoader from './components/FakeProgressLoader.svelte';
   import CsvDropzone from './components/CsvDropzone.svelte';
