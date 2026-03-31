@@ -53,7 +53,7 @@
   let subjects = $derived(participation?.expand?.subjects || []);
 
   let previewMissions = $derived(flattenMissions(data.pastParticipations));
-  let totalPastParticipations = $derived(data.totalPastParticipations);
+  let totalPastMissions = $derived(data.totalPastMissions);
 
   // RPG Aspect : Top Skills
   let topThemes = $derived(data.topThemes);
@@ -422,14 +422,14 @@
             <History class="h-4 w-4 text-epi-blue" />
             Missions précédentes<span class="text-epi-teal">_</span>
           </h2>
-          {#if totalPastParticipations > 2}
+          {#if totalPastMissions > 2}
             <Button
               variant="ghost"
               size="sm"
               href={resolve('/camper/history')}
               class="text-xs font-bold text-epi-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"
             >
-              Voir tout ({totalPastParticipations})
+              Voir tout ({totalPastMissions})
               <ArrowRight class="ml-1 h-3 w-3" />
             </Button>
           {/if}

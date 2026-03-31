@@ -36,25 +36,33 @@ export const load: PageServerLoad = async ({ locals }) => {
         sort: 'event.date',
       });
 
-    // Fetch a small preview of past completed participations + total count
-    const pastPage = await locals.studentPb
+    // Single query: all completed participations (past + today) with full expands
+    const allCompleted = await locals.studentPb
       .collection('participations')
-      .getList<ParticipationsResponse<ParticipationExpand>>(1, 2, {
-        filter: `student = "${locals.student.id}" && event.date < "${filterDateStart}" && is_present = true`,
-        expand: 'event,subjects',
+      .getFullList<ParticipationsResponse<ParticipationExpand>>({
+        filter: `student = "${locals.student.id}" && is_present = true`,
+        expand: 'event,subjects,subjects.themes',
         sort: '-event.date',
       });
 
-    // Fetch all completed participations to build the RPG Skill Radar
-    const allCompleted = await locals.studentPb
-      .collection('participations')
-      .getFullList<ThemeExpandedParticipation>({
-        filter: `student = "${locals.student.id}" && is_present = true`,
-        expand: 'subjects.themes',
-        fields: 'id,expand.subjects.expand.themes.nom',
-      });
+    // Split past participations (before today) from the full set
+    const allPast = allCompleted.filter(
+      (p) => p.expand?.event && p.expand.event.date < filterDateStart,
+    );
 
-    const topThemes = tallyTopThemes(allCompleted, 3);
+    // Only show the first 2 as a preview on the dashboard
+    const pastPreview = allPast.slice(0, 2);
+
+    // Count missions (subjects), not participations, for the "Voir tout" badge
+    const totalPastMissions = allPast.reduce(
+      (sum, p) => sum + (p.expand?.subjects?.length ?? 0),
+      0,
+    );
+
+    const topThemes = tallyTopThemes(
+      allCompleted as unknown as ThemeExpandedParticipation[],
+      3,
+    );
 
     // If there are multiple events today, grab the first one
     const todayParticipation =
@@ -63,9 +71,9 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {
       student: locals.student,
       participation: todayParticipation,
-      pastParticipations: pastPage.items,
-      totalPastParticipations: pastPage.totalItems,
-      hasCompletedEvents: pastPage.totalItems > 0,
+      pastParticipations: pastPreview,
+      totalPastMissions,
+      hasCompletedEvents: allPast.length > 0,
       topThemes,
     };
   } catch (err) {
