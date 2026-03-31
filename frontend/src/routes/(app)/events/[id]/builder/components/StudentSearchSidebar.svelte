@@ -1,9 +1,5 @@
 <script lang="ts">
-  import {
-    Search,
-    Plus,
-    CircleCheck,
-  } from 'lucide-svelte';
+  import { Search, Plus, CircleCheck } from 'lucide-svelte';
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
@@ -115,9 +111,7 @@
         />
       </div>
       <div class="relative">
-        <Search
-          class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground"
-        />
+        <Search class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Rechercher..."
           class="rounded-sm pl-8"

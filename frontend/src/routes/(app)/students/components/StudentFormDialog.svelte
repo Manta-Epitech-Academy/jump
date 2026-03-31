@@ -167,10 +167,7 @@
 
         <div class="grid gap-2">
           <Label for="niveau_difficulte">Difficulté</Label>
-          <Select.Root
-            type="single"
-            bind:value={$form.niveau_difficulte}
-          >
+          <Select.Root type="single" bind:value={$form.niveau_difficulte}>
             <Select.Trigger>
               {$form.niveau_difficulte ? $form.niveau_difficulte : 'Débutant'}
             </Select.Trigger>

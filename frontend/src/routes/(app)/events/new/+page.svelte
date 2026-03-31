@@ -157,7 +157,7 @@
                 </Button>
               </div>
             </form>
-          <!-- STEP 2: REVIEW & DECIDE -->
+            <!-- STEP 2: REVIEW & DECIDE -->
           {:else}
             <div class="space-y-6">
               <div class="grid gap-4 sm:grid-cols-2">

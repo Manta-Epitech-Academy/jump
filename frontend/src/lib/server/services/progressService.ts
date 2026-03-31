@@ -1,4 +1,7 @@
-import { getCachedSubject, setCachedSubject } from '$lib/server/infra/subjectCache';
+import {
+  getCachedSubject,
+  setCachedSubject,
+} from '$lib/server/infra/subjectCache';
 import type { TypedPocketBase, SubjectsResponse } from '$lib/pocketbase-types';
 
 export type StepValidation = {
@@ -46,13 +49,16 @@ export const ProgressService = {
     answerIndexStr: string | null,
     pinInput: string | null,
   ) {
-    let subject = getCachedSubject<SubjectsResponse<SubjectStructure>>(subjectId);
+    let subject =
+      getCachedSubject<SubjectsResponse<SubjectStructure>>(subjectId);
     if (!subject) {
       subject = await studentPb.collection('subjects').getOne(subjectId);
       setCachedSubject(subjectId, subject);
     }
 
-    const content = (subject.content_structure ?? { steps: [] }) as SubjectStructure;
+    const content = (subject.content_structure ?? {
+      steps: [],
+    }) as SubjectStructure;
     const steps = content.steps || [];
 
     const stepIndex = steps.findIndex((s) => s.id === stepId);

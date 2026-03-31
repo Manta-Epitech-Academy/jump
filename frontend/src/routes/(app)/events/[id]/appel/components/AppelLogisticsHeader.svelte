@@ -1,9 +1,22 @@
 <script lang="ts">
-  import { ArrowLeft, Info, MonitorSmartphone, KeyRound, LifeBuoy } from 'lucide-svelte';
+  import {
+    ArrowLeft,
+    Info,
+    MonitorSmartphone,
+    KeyRound,
+    LifeBuoy,
+  } from 'lucide-svelte';
   import { resolve } from '$app/paths';
   import type { EventsResponse } from '$lib/pocketbase-types';
 
-  let { event, presentCount, lateCount, helpCount, totalStudents, pcsNeeded }: {
+  let {
+    event,
+    presentCount,
+    lateCount,
+    helpCount,
+    totalStudents,
+    pcsNeeded,
+  }: {
     event: EventsResponse;
     presentCount: number;
     lateCount: number;

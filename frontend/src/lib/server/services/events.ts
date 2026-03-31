@@ -1,7 +1,10 @@
 import { getTotalXp } from '$lib/domain/xp';
 import { createScoped } from '$lib/pocketbase';
 import { generatePin } from '$lib/utils';
-import { suggestBestSubject, preloadCompletedSubjects } from '$lib/domain/recommender';
+import {
+  suggestBestSubject,
+  preloadCompletedSubjects,
+} from '$lib/domain/recommender';
 import type {
   TypedPocketBase,
   ParticipationsResponse,

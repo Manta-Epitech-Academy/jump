@@ -32,9 +32,7 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Trigger
-    class={buttonVariants({ variant: 'outline', size: 'sm' })}
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>
     <Plus class="mr-2 h-4 w-4" /> Nouveau
   </Dialog.Trigger>
   <Dialog.Content>

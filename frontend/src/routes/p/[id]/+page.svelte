@@ -133,7 +133,10 @@
                 >
                   <div
                     class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"
-                    style="width: {Math.min((theme.count / THEME_TIER_CEILING) * 100, 100)}%"
+                    style="width: {Math.min(
+                      (theme.count / THEME_TIER_CEILING) * 100,
+                      100,
+                    )}%"
                   ></div>
                 </div>
               </div>

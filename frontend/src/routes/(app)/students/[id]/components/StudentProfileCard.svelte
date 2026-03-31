@@ -9,7 +9,12 @@
   import { SignalLow } from 'lucide-svelte';
   import type { StudentsResponse } from '$lib/pocketbase-types';
 
-  let { student, stats, xpProgress, onOpenEdit }: {
+  let {
+    student,
+    stats,
+    xpProgress,
+    onOpenEdit,
+  }: {
     student: StudentsResponse;
     stats: { presentCount: number; lateCount: number };
     xpProgress: number;
@@ -117,7 +122,8 @@
         </Badge>
         <span
           class="text-3xl font-black tracking-tighter text-foreground italic"
-          >{student.xp}<span class="ml-1 text-lg text-epi-orange not-italic">XP</span
+          >{student.xp}<span class="ml-1 text-lg text-epi-orange not-italic"
+            >XP</span
           ></span
         >
       </div>

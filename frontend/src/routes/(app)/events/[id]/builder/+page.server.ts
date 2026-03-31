@@ -6,7 +6,10 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import { studentSchema } from '$lib/validation/students';
 import { getTotalXp } from '$lib/domain/xp';
-import { suggestBestSubject, preloadCompletedSubjects } from '$lib/domain/recommender';
+import {
+  suggestBestSubject,
+  preloadCompletedSubjects,
+} from '$lib/domain/recommender';
 import { createScoped } from '$lib/pocketbase';
 import { EventService } from '$lib/server/services/events';
 import {
@@ -322,9 +325,13 @@ export const actions: Actions = {
       return message(form, 'Élève créé et assigné automatiquement !');
     } catch (err) {
       if (err instanceof ClientResponseError && err.status === 400) {
-        return message(form, 'Un élève identique (même nom, prénom et email) existe déjà.', {
-          status: 400,
-        });
+        return message(
+          form,
+          'Un élève identique (même nom, prénom et email) existe déjà.',
+          {
+            status: 400,
+          },
+        );
       }
       console.error('Quick create student error:', err);
       return message(form, 'Erreur lors de la création rapide.', {

@@ -61,8 +61,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Derive past participations from the set we already have
     const allPast = allCompleted
-      .filter((p) => p.expand?.event?.date && p.expand.event.date < filterDateStart)
-      .sort((a, b) => (b.expand?.event?.date ?? '').localeCompare(a.expand?.event?.date ?? ''));
+      .filter(
+        (p) => p.expand?.event?.date && p.expand.event.date < filterDateStart,
+      )
+      .sort((a, b) =>
+        (b.expand?.event?.date ?? '').localeCompare(
+          a.expand?.event?.date ?? '',
+        ),
+      );
 
     const pastPreview = allPast.slice(0, 2);
 
@@ -80,7 +86,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       student: locals.student,
       participation: todayParticipation,
       upcomingParticipation,
-      pastParticipations: pastPreview as unknown as ParticipationsResponse<ParticipationExpand>[],
+      pastParticipations:
+        pastPreview as unknown as ParticipationsResponse<ParticipationExpand>[],
       totalPastMissions,
       hasCompletedEvents: allPast.length > 0,
       topThemes,

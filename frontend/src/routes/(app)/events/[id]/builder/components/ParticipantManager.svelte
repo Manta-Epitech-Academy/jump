@@ -1,12 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import {
-    Users,
-    TriangleAlert,
-    Sparkles,
-    Library,
-  } from 'lucide-svelte';
+  import { Users, TriangleAlert, Sparkles, Library } from 'lucide-svelte';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import { Separator } from '$lib/components/ui/separator';
@@ -33,7 +28,10 @@
     unassignedParticipations: ParticipationWithExpand[];
     assignedParticipations: ParticipationWithExpand[];
     onDelete: (id: string) => void;
-    onManageSubjects: (participationId: string, currentSubjectIds: string[]) => void;
+    onManageSubjects: (
+      participationId: string,
+      currentSubjectIds: string[],
+    ) => void;
     onBulkAssign: () => void;
   } = $props();
 
@@ -90,9 +88,7 @@
                       const data = result.data as
                         | { message?: string }
                         | undefined;
-                      toast.success(
-                        data?.message || 'Assignation terminée',
-                      );
+                      toast.success(data?.message || 'Assignation terminée');
                       await update();
                     } else {
                       toast.error("Erreur lors de l'auto-assignation");
@@ -130,8 +126,8 @@
             {#each unassignedParticipations as p (p.id)}
               <StudentParticipationRow
                 participation={p}
-                onDelete={onDelete}
-                onManageSubjects={onManageSubjects}
+                {onDelete}
+                {onManageSubjects}
               />
             {/each}
           </div>
@@ -146,8 +142,8 @@
           {#each assignedParticipations as p (p.id)}
             <StudentParticipationRow
               participation={p}
-              onDelete={onDelete}
-              onManageSubjects={onManageSubjects}
+              {onDelete}
+              {onManageSubjects}
             />
           {:else}
             {#if unassignedParticipations.length === 0}
@@ -155,12 +151,8 @@
                 class="flex flex-col items-center justify-center py-20 text-center"
               >
                 <Users class="mb-4 h-12 w-12 text-muted" />
-                <h3 class="text-lg font-bold uppercase">
-                  Aucun participant
-                </h3>
-                <p
-                  class="text-sm font-bold text-muted-foreground uppercase"
-                >
+                <h3 class="text-lg font-bold uppercase">Aucun participant</h3>
+                <p class="text-sm font-bold text-muted-foreground uppercase">
                   Ajoutez des élèves via le panneau latéral.
                 </p>
               </div>

@@ -24,10 +24,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  const {
-    enhance: addEnhance,
-    delayed: addDelayed,
-  } = superForm(
+  const { enhance: addEnhance, delayed: addDelayed } = superForm(
     untrack(() => data.addForm),
     { id: 'add-existing', invalidateAll: true },
   );
