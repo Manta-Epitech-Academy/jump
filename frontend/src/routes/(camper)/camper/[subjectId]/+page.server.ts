@@ -1,6 +1,9 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { getCachedSubject, setCachedSubject } from '$lib/server/infra/subjectCache';
+import {
+  getCachedSubject,
+  setCachedSubject,
+} from '$lib/server/infra/subjectCache';
 import {
   ProgressService,
   ValidationError,
@@ -34,7 +37,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     if (participations.length === 0) {
       throw error(403, "Tu n'es pas assigné à ce sujet.");
     }
-    const eventId = participations[0].event;
+    const participation = participations[0];
+    const eventId = participation.event;
 
     let progress;
     try {
@@ -67,6 +71,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       content,
       progress,
       eventId,
+      participation,
       portfolioItems,
     };
   } catch (err: any) {
@@ -174,13 +179,37 @@ export const actions: Actions = {
     const itemId = data.get('itemId') as string;
 
     try {
-      // PocketBase API rules ensure a student can only delete their own items,
-      // but we enforce the delete via the scoped studentPb token directly.
       await locals.studentPb.collection('portfolio_items').delete(itemId);
       return { success: true };
     } catch (err) {
       console.error('Portfolio delete error:', err);
       return fail(500, { message: 'Erreur lors de la suppression.' });
+    }
+  },
+
+  submitFeedback: async ({ request, locals }) => {
+    if (!locals.student) return fail(401, { message: 'Non autorisé' });
+
+    const data = await request.formData();
+    const participationId = data.get('participationId') as string;
+    const ratingStr = data.get('rating') as string;
+    const feedback = data.get('feedback') as string;
+
+    const rating = parseInt(ratingStr, 10);
+    if (!participationId || ![1, 2, 3].includes(rating))
+      return fail(400, { message: 'Données invalides' });
+
+    try {
+      await locals.studentPb
+        .collection('participations')
+        .update(participationId, {
+          camper_rating: rating,
+          camper_feedback: feedback,
+        });
+      return { success: true };
+    } catch (err) {
+      console.error('Erreur soumission feedback:', err);
+      return fail(500, { message: "Erreur lors de l'envoi du feedback" });
     }
   },
 };

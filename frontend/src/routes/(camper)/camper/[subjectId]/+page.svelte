@@ -11,7 +11,9 @@
   import { browser } from '$app/environment';
   import { invalidateAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
+  import { enhance } from '$app/forms';
   import { triggerConfetti } from '$lib/actions/confetti';
+  import { cn } from '$lib/utils';
 
   import RoadmapSidebar from './components/RoadmapSidebar.svelte';
   import StepValidationBlock from './components/StepValidationBlock.svelte';
@@ -20,6 +22,7 @@
 
   let { data }: { data: PageData } = $props();
 
+  let participation = $derived(data.participation);
   let progress = $derived(data.progress);
   let steps = $derived(data.content.steps || []);
   let portfolioItems = $derived(data.portfolioItems || []);
@@ -45,6 +48,11 @@
 
   let showRoadmapMobile = $state(false);
   let showPortfolio = $state(false);
+
+  // Feedback State
+  let feedbackRating = $state<number | null>(null);
+  let feedbackText = $state('');
+  let isSubmittingFeedback = $state(false);
 
   $effect(() => {
     currentStep.id;
@@ -184,30 +192,129 @@
             <Trophy class="h-16 w-16 text-epi-teal" />
           </div>
           <h2
-            class="mb-4 font-heading text-4xl text-slate-900 uppercase dark:text-white"
+            class="mb-2 font-heading text-4xl text-slate-900 uppercase dark:text-white"
           >
             Sujet Terminé !
           </h2>
-          <p class="mb-8 max-w-md text-lg text-slate-500">
-            Excellent travail. Tu as validé toutes les étapes de cette mission.
-          </p>
 
-          <div class="flex gap-4">
-            <Button
-              size="lg"
-              href={resolve('/camper')}
-              class="rounded-xl bg-epi-blue font-bold text-white shadow-lg hover:bg-epi-blue/90"
-              >Retourner au Cockpit</Button
+          {#if participation.camper_rating}
+            <p class="mb-8 max-w-md text-lg text-slate-500">
+              Merci pour ton retour ! Ton feedback aide les Mantas à améliorer
+              les ateliers.
+            </p>
+            <div class="flex flex-col gap-4 sm:flex-row">
+              <Button
+                size="lg"
+                href={resolve('/camper')}
+                class="rounded-xl bg-epi-blue font-bold text-white shadow-lg hover:bg-epi-blue/90"
+              >
+                Retourner au Cockpit
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                class="rounded-xl border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
+                onclick={() => (showPortfolio = true)}
+              >
+                <FolderOpen class="mr-2 h-5 w-5" /> Gérer mon Portfolio
+              </Button>
+            </div>
+          {:else}
+            <p class="mb-6 max-w-md text-sm text-slate-500">
+              Excellent travail. Avant de partir, dis-nous ce que tu as pensé de
+              cette mission :
+            </p>
+            <form
+              method="POST"
+              action="?/submitFeedback"
+              use:enhance={() => {
+                isSubmittingFeedback = true;
+                return async ({ result, update }) => {
+                  isSubmittingFeedback = false;
+                  if (result.type === 'success') {
+                    toast.success('Feedback envoyé !');
+                  } else {
+                    toast.error("Erreur lors de l'envoi du feedback");
+                  }
+                  await update();
+                };
+              }}
+              class="w-full max-w-md space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
             >
-            <Button
-              size="lg"
-              variant="outline"
-              class="rounded-xl border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
-              onclick={() => (showPortfolio = true)}
-            >
-              <FolderOpen class="mr-2 h-5 w-5" /> Gérer mon Portfolio
-            </Button>
-          </div>
+              <input
+                type="hidden"
+                name="participationId"
+                value={participation.id}
+              />
+              <input type="hidden" name="rating" value={feedbackRating ?? ''} />
+
+              <div class="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onclick={() => (feedbackRating = 1)}
+                  class={cn(
+                    'flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all',
+                    feedbackRating === 1
+                      ? 'border-red-400 bg-red-50 text-red-700 dark:bg-red-900/20'
+                      : 'border-slate-100 bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950',
+                  )}
+                >
+                  <span class="text-3xl">🤯</span>
+                  <span class="text-xs font-bold uppercase">Difficile</span>
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (feedbackRating = 2)}
+                  class={cn(
+                    'flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all',
+                    feedbackRating === 2
+                      ? 'border-blue-400 bg-blue-50 text-blue-700 dark:bg-blue-900/20'
+                      : 'border-slate-100 bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950',
+                  )}
+                >
+                  <span class="text-3xl">💪</span>
+                  <span class="text-xs font-bold uppercase">Moyen</span>
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (feedbackRating = 3)}
+                  class={cn(
+                    'flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all',
+                    feedbackRating === 3
+                      ? 'border-teal-400 bg-teal-50 text-teal-700 dark:bg-teal-900/20'
+                      : 'border-slate-100 bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950',
+                  )}
+                >
+                  <span class="text-3xl">🚀</span>
+                  <span class="text-xs font-bold uppercase">Facile</span>
+                </button>
+              </div>
+
+              <div class="space-y-2 text-left">
+                <label
+                  for="feedback"
+                  class="text-xs font-bold text-slate-500 uppercase"
+                  >Un commentaire pour les Mantas ? (Optionnel)</label
+                >
+                <textarea
+                  id="feedback"
+                  name="feedback"
+                  bind:value={feedbackText}
+                  placeholder="Ce qui était cool, ce qui était dur..."
+                  class="min-h-20 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-epi-blue focus:ring-1 focus:ring-epi-blue dark:border-slate-800 dark:bg-slate-950 dark:focus:border-epi-blue dark:focus:ring-epi-blue"
+                ></textarea>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={!feedbackRating || isSubmittingFeedback}
+                class="w-full rounded-xl bg-epi-blue font-bold text-white hover:bg-epi-blue/90"
+              >
+                {#if isSubmittingFeedback}Envoi en cours...{:else}Envoyer mon
+                  retour{/if}
+              </Button>
+            </form>
+          {/if}
         </div>
       {:else}
         {#key currentStep.id}

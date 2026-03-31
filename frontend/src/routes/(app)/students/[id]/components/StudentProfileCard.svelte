@@ -117,7 +117,7 @@
         </Badge>
         <span
           class="text-3xl font-black tracking-tighter text-foreground italic"
-          >{student.xp}<span class="text-lg text-epi-orange not-italic">XP</span
+          >{student.xp}<span class="ml-1 text-lg text-epi-orange not-italic">XP</span
           ></span
         >
       </div>

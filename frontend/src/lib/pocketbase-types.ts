@@ -122,6 +122,8 @@ export type EventsRecord = {
 
 export type ParticipationsRecord = {
 	bring_pc?: boolean
+	camper_feedback?: string
+	camper_rating?: number
 	campus: RecordIdString
 	created: IsoAutoDateString
 	delay?: number

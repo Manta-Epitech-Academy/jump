@@ -8,6 +8,7 @@
     ExternalLink,
     CalendarClock,
     MessageSquareQuote,
+    MessageCircleReply,
   } from 'lucide-svelte';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -31,7 +32,8 @@
     note_author?: UsersResponse;
   }>;
 
-  let { participations }: { participations: TimelineParticipation[] } = $props();
+  let { participations }: { participations: TimelineParticipation[] } =
+    $props();
 </script>
 
 <div
@@ -204,12 +206,60 @@
               {/each}
             </div>
           {/if}
+
+          <!-- CAMPER FEEDBACK (COMMENT BUBBLE STYLE) -->
+          {#if p.camper_rating}
+            <div class="flex items-start gap-3 pt-2">
+              <div
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
+              >
+                <MessageCircleReply class="h-3.5 w-3.5 text-slate-500" />
+              </div>
+              <div class="flex-1 pt-0.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase">
+                    Ressenti de l'élève :
+                  </span>
+                  <div class="flex items-center gap-1">
+                    {#if p.camper_rating === 1}
+                      <span class="text-sm leading-none">🤯</span>
+                      <span
+                        class="text-xs font-bold text-red-600 dark:text-red-400"
+                        >Difficile</span
+                      >
+                    {:else if p.camper_rating === 2}
+                      <span class="text-sm leading-none">💪</span>
+                      <span
+                        class="text-xs font-bold text-blue-600 dark:text-blue-400"
+                        >Moyen</span
+                      >
+                    {:else if p.camper_rating === 3}
+                      <span class="text-sm leading-none">🚀</span>
+                      <span
+                        class="text-xs font-bold text-teal-600 dark:text-teal-400"
+                        >Facile</span
+                      >
+                    {/if}
+                  </div>
+                </div>
+                {#if p.camper_feedback}
+                  <p
+                    class="mt-1 text-sm text-slate-600 italic dark:text-slate-300"
+                  >
+                    « {p.camper_feedback} »
+                  </p>
+                {/if}
+              </div>
+            </div>
+          {/if}
+
+          <!-- TEACHER NOTE (OFFICIAL YELLOW POST-IT STYLE) -->
           {#if p.note}
             <div
-              class="relative rounded-sm border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900"
+              class="relative mt-2 rounded-sm border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900 dark:border-yellow-900/30 dark:bg-yellow-950/20 dark:text-yellow-200"
             >
               <MessageSquareQuote
-                class="absolute -top-2 -right-2 h-6 w-6 fill-yellow-100 text-yellow-400"
+                class="absolute -top-2 -right-2 h-6 w-6 fill-yellow-100 text-yellow-400 dark:fill-yellow-900/40"
               />
               <div class="mb-1.5 flex items-center gap-2">
                 {#if p.expand?.note_author}
@@ -244,7 +294,7 @@
               <p class="leading-relaxed italic">« {p.note} »</p>
             </div>
           {:else if p.is_present}
-            <p class="pl-1 text-xs text-muted-foreground italic">
+            <p class="pt-1 pl-1 text-xs text-muted-foreground italic">
               Aucune observation enregistrée.
             </p>
           {/if}

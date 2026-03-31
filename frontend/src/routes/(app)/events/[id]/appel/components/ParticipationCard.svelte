@@ -20,6 +20,7 @@
     LifeBuoy,
     X,
     LockOpen,
+    MessageCircleReply,
   } from 'lucide-svelte';
   import { fly } from 'svelte/transition';
   import { toast } from 'svelte-sonner';
@@ -87,11 +88,6 @@
   );
 </script>
 
-<!--
-    Hybrid Animation Strategy:
-    1. CSS @keyframes (card-entry) handles the initial "Staggered Load".
-    2. Svelte `out:fly` handles smooth removal when filtering reduces the list.
--->
 <div
   class="card-entry"
   style="animation-delay: {Math.min(index * 50, 500)}ms"
@@ -477,7 +473,47 @@
       </div>
 
       {#if participation.is_present}
-        <div class="border-t border-border pt-2">
+        <div class="flex flex-col gap-2 border-t border-border pt-2">
+          <!-- Camper Feedback Area -->
+          {#if participation.camper_rating}
+            <div
+              class="flex items-start gap-2 rounded-sm bg-slate-50 p-2 dark:bg-slate-900/50"
+            >
+              <MessageCircleReply
+                class="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400"
+              />
+              <div class="flex flex-col gap-0.5">
+                <div class="flex items-center gap-1.5 text-xs font-bold">
+                  <span class="text-[9px] text-slate-500 uppercase"
+                    >Retour campeur :</span
+                  >
+                  {#if participation.camper_rating === 1}
+                    <span
+                      class="flex items-center gap-1 text-red-600 dark:text-red-400"
+                      >🤯 Difficile</span
+                    >
+                  {:else if participation.camper_rating === 2}
+                    <span
+                      class="flex items-center gap-1 text-blue-600 dark:text-blue-400"
+                      >💪 Moyen</span
+                    >
+                  {:else if participation.camper_rating === 3}
+                    <span
+                      class="flex items-center gap-1 text-teal-600 dark:text-teal-400"
+                      >🚀 Facile</span
+                    >
+                  {/if}
+                </div>
+                {#if participation.camper_feedback}
+                  <p class="text-xs text-slate-600 italic dark:text-slate-400">
+                    "{participation.camper_feedback}"
+                  </p>
+                {/if}
+              </div>
+            </div>
+          {/if}
+
+          <!-- Manta Note Input -->
           <NoteInput
             id={participation.id}
             value={participation.note}
