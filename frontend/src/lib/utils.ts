@@ -2,8 +2,14 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
   getLocalTimeZone,
+  now,
   type CalendarDateTime,
 } from '@internationalized/date';
+import type {
+  EventsResponse,
+  SubjectsResponse,
+  ParticipationsResponse,
+} from '$lib/pocketbase-types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -33,6 +39,46 @@ export function formatDateFr(
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+export type ParticipationExpand = {
+  event: EventsResponse;
+  subjects: SubjectsResponse[];
+};
+
+export type Mission = {
+  subject: { id: string; nom: string };
+  eventDate: string;
+  eventTitle: string;
+};
+
+export function flattenMissions(
+  participations: ParticipationsResponse<ParticipationExpand>[],
+): Mission[] {
+  const missions: Mission[] = [];
+  for (const p of participations) {
+    if (p.expand?.subjects) {
+      for (const sub of p.expand.subjects) {
+        missions.push({
+          subject: sub,
+          eventDate: p.expand.event?.date || '',
+          eventTitle: p.expand.event?.titre || 'Atelier',
+        });
+      }
+    }
+  }
+  return missions;
+}
+
+export function getParisStartOfDay(): string {
+  const parisNow = now('Europe/Paris');
+  const startOfDay = parisNow.set({
+    hour: 0,
+    minute: 0,
+    second: 0,
+    millisecond: 0,
+  });
+  return startOfDay.toDate().toISOString().replace('T', ' ');
 }
 
 export function generatePin(): string {

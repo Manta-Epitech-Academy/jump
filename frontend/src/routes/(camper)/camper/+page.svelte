@@ -7,6 +7,7 @@
   import { toast } from 'svelte-sonner';
   import { page } from '$app/state';
   import { triggerConfetti } from '$lib/actions/confetti';
+  import { formatDateFr, flattenMissions } from '$lib/utils';
   import {
     Rocket,
     Trophy,
@@ -23,6 +24,8 @@
     FileDown,
     LoaderCircle,
     LogOut,
+    History,
+    Calendar,
   } from 'lucide-svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
 
@@ -47,6 +50,9 @@
     participation?.expand?.event?.titre || 'Atelier Epitech',
   );
   let subjects = $derived(participation?.expand?.subjects || []);
+
+  let previewMissions = $derived(flattenMissions(data.pastParticipations));
+  let totalPastParticipations = $derived(data.totalPastParticipations);
 
   function formatTime(dateString: string | undefined) {
     if (!dateString) return '';
@@ -261,8 +267,9 @@
       </div>
     </div>
 
-    <!-- RIGHT COLUMN: Today's Mission -->
+    <!-- RIGHT COLUMN: Today's Mission & History -->
     <div class="md:col-span-8" in:fly={{ x: 20, duration: 400, delay: 300 }}>
+      <!-- Today's Mission -->
       <h2
         class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
       >
@@ -357,6 +364,57 @@
             Aucun atelier n'est planifié pour toi aujourd'hui. Profites-en pour
             te reposer ou revoir tes anciens projets !
           </p>
+        </div>
+      {/if}
+
+      <!-- Past Missions (History) - compact preview -->
+      {#if previewMissions.length > 0}
+        <div class="mt-6 flex items-center justify-between">
+          <h2
+            class="flex items-center gap-2 font-heading text-sm text-slate-800 uppercase dark:text-slate-200"
+          >
+            <History class="h-4 w-4 text-epi-blue" />
+            Missions précédentes<span class="text-epi-teal">_</span>
+          </h2>
+          {#if totalPastParticipations > 2}
+            <Button
+              variant="ghost"
+              size="sm"
+              href={resolve('/camper/history')}
+              class="text-xs font-bold text-epi-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"
+            >
+              Voir tout ({totalPastParticipations})
+              <ArrowRight class="ml-1 h-3 w-3" />
+            </Button>
+          {/if}
+        </div>
+        <div class="mt-3 grid gap-4 sm:grid-cols-2">
+          {#each previewMissions as mission}
+            <div
+              class="group flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-epi-blue/30 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div class="mb-4">
+                <div
+                  class="mb-2 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase"
+                >
+                  <Calendar class="h-3 w-3" />
+                  {formatDateFr(mission.eventDate)}
+                </div>
+                <h3
+                  class="line-clamp-2 font-normal text-slate-900 dark:text-white"
+                >
+                  {mission.subject.nom}
+                </h3>
+              </div>
+              <Button
+                variant="outline"
+                href={resolve(`/camper/${mission.subject.id}`)}
+                class="w-full gap-2 rounded-xl border-slate-200 transition-colors group-hover:border-epi-blue group-hover:bg-epi-blue group-hover:text-white dark:border-slate-800 dark:group-hover:border-epi-blue dark:group-hover:bg-epi-blue dark:group-hover:text-white"
+              >
+                <BookOpen class="h-4 w-4" /> Revoir la mission
+              </Button>
+            </div>
+          {/each}
         </div>
       {/if}
     </div>

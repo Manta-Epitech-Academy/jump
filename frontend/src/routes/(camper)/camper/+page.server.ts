@@ -1,16 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
-import type {
-  ParticipationsResponse,
-  EventsResponse,
-  SubjectsResponse,
-} from '$lib/pocketbase-types';
-
-type ParticipationExpand = {
-  event: EventsResponse;
-  subjects: SubjectsResponse[];
-};
+import type { ParticipationsResponse } from '$lib/pocketbase-types';
+import { getParisStartOfDay, type ParticipationExpand } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // Security guard: Ensure we have a logged-in student
@@ -20,22 +12,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   try {
     // Calculate boundaries for "Today" in the user's timezone (Europe/Paris)
+    const filterDateStart = getParisStartOfDay();
     const parisNow = now('Europe/Paris');
-    const startOfDay = parisNow.set({
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-    });
     const endOfDay = parisNow.set({
       hour: 23,
       minute: 59,
       second: 59,
       millisecond: 999,
     });
-
-    // PocketBase expects UTC datetime strings in the format "YYYY-MM-DD HH:mm:ss.SSSZ"
-    const filterDateStart = startOfDay.toDate().toISOString().replace('T', ' ');
     const filterDateEnd = endOfDay.toDate().toISOString().replace('T', ' ');
 
     // Fetch participations for today
@@ -47,12 +31,13 @@ export const load: PageServerLoad = async ({ locals }) => {
         sort: 'event.date',
       });
 
-    // Check if student has ANY completed past events to unlock the PDF download
-    const completedCount = await locals.studentPb
+    // Fetch a small preview of past completed participations + total count
+    const pastPage = await locals.studentPb
       .collection('participations')
-      .getList(1, 1, {
-        filter: `student = "${locals.student.id}" && is_present = true`,
-        fields: 'id',
+      .getList<ParticipationsResponse<ParticipationExpand>>(1, 2, {
+        filter: `student = "${locals.student.id}" && event.date < "${filterDateStart}" && is_present = true`,
+        expand: 'event,subjects',
+        sort: '-event.date',
       });
 
     // If there are multiple events today, grab the first one
@@ -62,7 +47,9 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {
       student: locals.student,
       participation: todayParticipation,
-      hasCompletedEvents: completedCount.totalItems > 0,
+      pastParticipations: pastPage.items,
+      totalPastParticipations: pastPage.totalItems,
+      hasCompletedEvents: pastPage.totalItems > 0,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
