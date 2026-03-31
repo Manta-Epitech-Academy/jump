@@ -121,7 +121,7 @@
 
 <div class="mx-auto max-w-5xl px-4 py-8 pb-20 sm:py-12">
   <!-- HEADER: Greeting & Context -->
-  <header class="mb-10" in:fly={{ y: -20, duration: 400, delay: 100 }}>
+  <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
     <div class="flex items-center gap-2">
       <div
         class="flex flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:text-left"
@@ -179,12 +179,12 @@
 
           <Badge
             variant="outline"
-            class="mb-4 border-orange-200 bg-orange-50 px-3 py-1 text-[10px] font-black tracking-widest text-orange-600 uppercase dark:border-orange-900/50 dark:bg-orange-900/20"
+            class="mb-3 border-orange-200 bg-orange-50 px-3 py-1 text-[10px] font-black tracking-widest text-orange-600 uppercase dark:border-orange-900/50 dark:bg-orange-900/20"
           >
             {levelLabel}
           </Badge>
 
-          <div class="mb-6">
+          <div class="mb-4">
             <span
               class="text-5xl font-black tracking-tighter text-slate-900 dark:text-white"
             >
@@ -214,7 +214,7 @@
           <!-- RPG Skill Radar / Top Themes -->
           {#if topThemes.length > 0}
             <div
-              class="mt-8 w-full space-y-4 border-t border-slate-100 pt-6 dark:border-slate-800"
+              class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
             >
               <h3
                 class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
@@ -253,7 +253,7 @@
 
           <!-- Public Profile Share Section -->
           <div
-            class="mt-8 w-full space-y-3 border-t border-slate-100 pt-6 dark:border-slate-800"
+            class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
           >
             <h3 class="text-xs font-bold text-slate-400 uppercase">
               Mon Profil Public
@@ -288,7 +288,7 @@
           <!-- PDF Download Section -->
           {#if hasCompletedEvents}
             <div
-              class="mt-4 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
+              class="mt-4 w-full space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800"
             >
               <h3 class="text-xs font-bold text-slate-400 uppercase">
                 Mes Documents
