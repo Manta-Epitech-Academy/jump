@@ -59,6 +59,13 @@
     participation?.expand?.event?.titre || 'Atelier Epitech',
   );
   let subjects = $derived(participation?.expand?.subjects || []);
+  let completedSubjectIds = $derived(new Set(data.completedSubjectIds));
+  let currentSubject = $derived(
+    subjects.find((s) => !completedSubjectIds.has(s.id)) ?? subjects[0],
+  );
+  let otherSubjects = $derived(
+    subjects.filter((s) => s.id !== currentSubject?.id),
+  );
 
   let previewMissions = $derived(flattenMissions(data.pastParticipations));
   let totalPastMissions = $derived(data.totalPastMissions);
@@ -356,17 +363,17 @@
           </div>
 
           <div class="flex flex-1 flex-col p-6">
-            {#if subjects.length > 0}
+            {#if subjects.length > 0 && currentSubject}
               <div class="mb-6 flex items-start gap-4">
                 <div class="rounded-xl bg-teal-50 p-3 dark:bg-teal-950/30">
                   <BookOpen class="h-6 w-6 text-teal-600 dark:text-epi-teal" />
                 </div>
                 <div>
                   <h3 class="text-xl font-bold text-slate-900 dark:text-white">
-                    {subjects[0].nom}
+                    {currentSubject.nom}
                   </h3>
                   <p class="mt-1 line-clamp-2 text-sm text-slate-500">
-                    {subjects[0].description ||
+                    {currentSubject.description ||
                       'Prépare-toi à coder et à relever de nouveaux défis !'}
                   </p>
                 </div>
@@ -374,17 +381,34 @@
 
               <div class="mt-auto pt-4">
                 <Button
-                  href={resolve(`/camper/${subjects[0].id}`)}
+                  href={resolve(`/camper/${currentSubject.id}`)}
                   class="h-14 w-full rounded-2xl bg-epi-blue text-lg font-bold text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-epi-blue/90 active:scale-[0.98]"
                 >
                   <Sparkles class="mr-2 h-5 w-5" />
-                  Démarrer la mission
+                  {completedSubjectIds.has(currentSubject.id)
+                    ? 'Revoir la mission'
+                    : 'Démarrer la mission'}
                   <ArrowRight class="ml-2 h-5 w-5" />
                 </Button>
-                {#if subjects.length > 1}
-                  <p class="mt-3 text-center text-xs font-bold text-slate-400">
-                    + {subjects.length - 1} autre(s) sujet(s) t'attendent ensuite.
-                  </p>
+                {#if otherSubjects.length > 0}
+                  <div class="mt-4 space-y-2">
+                    {#each otherSubjects as subject}
+                      <Button
+                        variant="outline"
+                        href={resolve(`/camper/${subject.id}`)}
+                        class="h-11 w-full justify-between rounded-xl border-slate-200 dark:border-slate-800"
+                      >
+                        <span class="truncate text-sm">{subject.nom}</span>
+                        {#if completedSubjectIds.has(subject.id)}
+                          <Check
+                            class="ml-2 h-4 w-4 shrink-0 text-teal-600 dark:text-epi-teal"
+                          />
+                        {:else}
+                          <ArrowRight class="ml-2 h-4 w-4 shrink-0" />
+                        {/if}
+                      </Button>
+                    {/each}
+                  </div>
                 {/if}
               </div>
             {:else}

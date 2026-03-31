@@ -82,9 +82,25 @@ export const load: PageServerLoad = async ({ locals }) => {
     const todayParticipation =
       participations.length > 0 ? participations[0] : null;
 
+    // Fetch completion status for today's subjects
+    const completedSubjectIds: Set<string> = new Set();
+    const todaySubjects = todayParticipation?.expand?.subjects ?? [];
+    if (todaySubjects.length > 0 && todayParticipation?.expand?.event) {
+      const progressRecords = await locals.studentPb
+        .collection('steps_progress')
+        .getFullList({
+          filter: `student = "${locals.student.id}" && event = "${todayParticipation.expand.event.id}" && status = "completed"`,
+          fields: 'subject',
+        });
+      for (const p of progressRecords) {
+        completedSubjectIds.add(p.subject);
+      }
+    }
+
     return {
       student: locals.student,
       participation: todayParticipation,
+      completedSubjectIds: [...completedSubjectIds],
       upcomingParticipation,
       pastParticipations:
         pastPreview as unknown as ParticipationsResponse<ParticipationExpand>[],
