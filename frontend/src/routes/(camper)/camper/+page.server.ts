@@ -36,32 +36,40 @@ export const load: PageServerLoad = async ({ locals }) => {
         sort: 'event.date',
       });
 
-    // Single query: all completed participations (past + today) with full expands
+    // Fetch the NEXT upcoming participation (if any)
+    const upcomingPage = await locals.studentPb
+      .collection('participations')
+      .getList<ParticipationsResponse<ParticipationExpand>>(1, 1, {
+        filter: `student = "${locals.student.id}" && event.date > "${filterDateEnd}"`,
+        expand: 'event,subjects',
+        sort: 'event.date',
+      });
+    const upcomingParticipation =
+      upcomingPage.items.length > 0 ? upcomingPage.items[0] : null;
+
+    // Fetch all completed participations to build themes + past preview
     const allCompleted = await locals.studentPb
       .collection('participations')
-      .getFullList<ParticipationsResponse<ParticipationExpand>>({
+      .getFullList<ThemeExpandedParticipation>({
         filter: `student = "${locals.student.id}" && is_present = true`,
-        expand: 'event,subjects,subjects.themes',
-        sort: '-event.date',
+        expand: 'event,subjects.themes',
+        fields:
+          'id,expand.event.date,expand.event.titre,expand.subjects.id,expand.subjects.nom,expand.subjects.expand.themes.nom',
       });
 
-    // Split past participations (before today) from the full set
-    const allPast = allCompleted.filter(
-      (p) => p.expand?.event && p.expand.event.date < filterDateStart,
-    );
+    const topThemes = tallyTopThemes(allCompleted, 3);
 
-    // Only show the first 2 as a preview on the dashboard
+    // Derive past participations from the set we already have
+    const allPast = allCompleted
+      .filter((p) => p.expand?.event?.date && p.expand.event.date < filterDateStart)
+      .sort((a, b) => (b.expand?.event?.date ?? '').localeCompare(a.expand?.event?.date ?? ''));
+
     const pastPreview = allPast.slice(0, 2);
 
     // Count missions (subjects), not participations, for the "Voir tout" badge
     const totalPastMissions = allPast.reduce(
       (sum, p) => sum + (p.expand?.subjects?.length ?? 0),
       0,
-    );
-
-    const topThemes = tallyTopThemes(
-      allCompleted as unknown as ThemeExpandedParticipation[],
-      3,
     );
 
     // If there are multiple events today, grab the first one
@@ -71,7 +79,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {
       student: locals.student,
       participation: todayParticipation,
-      pastParticipations: pastPreview,
+      upcomingParticipation,
+      pastParticipations: pastPreview as unknown as ParticipationsResponse<ParticipationExpand>[],
       totalPastMissions,
       hasCompletedEvents: allPast.length > 0,
       topThemes,

@@ -7,7 +7,11 @@
   import { toast } from 'svelte-sonner';
   import { page } from '$app/state';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import { formatDateFr, flattenMissions, THEME_TIER_CEILING } from '$lib/utils';
+  import {
+    formatDateFr,
+    flattenMissions,
+    THEME_TIER_CEILING,
+  } from '$lib/utils';
   import {
     Rocket,
     Trophy,
@@ -27,6 +31,9 @@
     History,
     Calendar,
     Target,
+    CalendarClock,
+    Laptop,
+    Monitor,
   } from 'lucide-svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
 
@@ -34,6 +41,7 @@
 
   let student = $derived(data.student);
   let participation = $derived(data.participation);
+  let upcomingParticipation = $derived(data.upcomingParticipation);
   let hasCompletedEvents = $derived(data.hasCompletedEvents);
 
   let levelLabel = $derived(
@@ -242,7 +250,10 @@
                     >
                       <div
                         class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"
-                        style="width: {Math.min((theme.count / THEME_TIER_CEILING) * 100, 100)}%"
+                        style="width: {Math.min(
+                          (theme.count / THEME_TIER_CEILING) * 100,
+                          100,
+                        )}%"
                       ></div>
                     </div>
                   </div>
@@ -393,8 +404,64 @@
             {/if}
           </div>
         </div>
+      {:else if upcomingParticipation}
+        <!-- Upcoming Event -->
+        <div
+          class="flex min-h-62.5 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
+        >
+          <div
+            class="border-b border-blue-50 bg-blue-50/50 px-6 py-4 dark:border-blue-900/20 dark:bg-blue-950/20"
+          >
+            <div
+              class="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
+            >
+              <CalendarClock class="h-4 w-4" />
+              <span>Mission à venir</span>
+            </div>
+          </div>
+          <div
+            class="flex flex-1 flex-col items-center justify-center p-6 text-center"
+          >
+            <div class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20">
+              <Rocket class="h-8 w-8 text-epi-blue" />
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white">
+              {upcomingParticipation.expand?.event?.titre || 'Atelier Epitech'}
+            </h3>
+            <p class="mt-2 max-w-md text-sm text-slate-500">
+              Ta prochaine session est prévue le <strong
+                class="text-slate-700 dark:text-slate-300"
+                >{formatDateFr(
+                  upcomingParticipation.expand?.event?.date,
+                )}</strong
+              >
+              à
+              <strong class="text-slate-700 dark:text-slate-300"
+                >{formatTime(upcomingParticipation.expand?.event?.date)}</strong
+              >.
+            </p>
+
+            <div class="mt-6 flex gap-3">
+              {#if upcomingParticipation.bring_pc}
+                <div
+                  class="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
+                >
+                  <Laptop class="h-4 w-4 shrink-0" />
+                  <span>N'oublie pas d'apporter ton PC !</span>
+                </div>
+              {:else}
+                <div
+                  class="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700 dark:border-teal-900/30 dark:bg-teal-900/20 dark:text-teal-400"
+                >
+                  <Monitor class="h-4 w-4 shrink-0" />
+                  <span>Le matériel sera fourni sur place.</span>
+                </div>
+              {/if}
+            </div>
+          </div>
+        </div>
       {:else}
-        <!-- No event today -->
+        <!-- No event today AND no upcoming events -->
         <div
           class="flex min-h-62.5 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
         >
@@ -407,8 +474,8 @@
             Repos aujourd'hui
           </h3>
           <p class="mt-2 max-w-sm text-sm text-slate-500">
-            Aucun atelier n'est planifié pour toi aujourd'hui. Profites-en pour
-            te reposer ou revoir tes anciens projets !
+            Aucun atelier n'est planifié pour toi. Profites-en pour te reposer
+            ou revoir tes anciens projets dans ton portfolio !
           </p>
         </div>
       {/if}

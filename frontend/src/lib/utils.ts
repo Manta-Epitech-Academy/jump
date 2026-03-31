@@ -72,6 +72,7 @@ export function flattenMissions(
 }
 
 export type ThemeExpandedParticipation = ParticipationsResponse<{
+  event?: EventsResponse;
   subjects?: SubjectsResponse<unknown, { themes?: ThemesResponse[] }>[];
 }>;
 
