@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
+import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
@@ -389,6 +390,11 @@ export const actions: Actions = {
         status: 500,
       });
     }
+  },
+
+  toggleBringPc: async ({ request, locals }) => {
+    const data = await request.formData();
+    return toggleBringPc(data, locals.pb);
   },
 
   remove: async ({ url, locals }) => {

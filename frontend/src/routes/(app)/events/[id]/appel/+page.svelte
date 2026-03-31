@@ -4,6 +4,7 @@
   import PocketBase from 'pocketbase';
   import {
     User,
+    Laptop,
     MonitorX,
     Award,
     Sprout,
@@ -133,8 +134,19 @@
         }
         if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
       }
-      return async ({ update }: { update: () => Promise<void> }) =>
+      return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
+        if (result.type === 'failure' || result.type === 'error') {
+          const i = participations.findIndex((p) => p.id === id);
+          if (i !== -1) {
+            const p = participations[i];
+            if (field === 'is_present') {
+              p.is_present = !p.is_present;
+            }
+            if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
+          }
+        }
         await update();
+      };
     };
   };
 
@@ -367,20 +379,47 @@
               </div>
             </div>
 
-            {#if p.is_present}
-              <div class="flex items-center gap-2">
-                {#if !p.bring_pc}
-                  <Tooltip.Provider delayDuration={300}>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger
-                        ><MonitorX
-                          class="h-4 w-4 text-orange-400"
-                        /></Tooltip.Trigger
-                      >
-                      <Tooltip.Content><p>Besoin d'un PC</p></Tooltip.Content>
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-                {/if}
+            <div class="flex items-center gap-2">
+              <form
+                method="POST"
+                action="?/toggleBringPc"
+                use:enhance={optimisticToggle(p.id, 'bring_pc')}
+                class="inline"
+              >
+                <input type="hidden" name="id" value={p.id} />
+                <input
+                  type="hidden"
+                  name="state"
+                  value={p.bring_pc.toString()}
+                />
+                <Tooltip.Provider delayDuration={300}>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <button
+                          {...props}
+                          type="submit"
+                          class="cursor-pointer rounded p-1 transition-colors hover:bg-muted"
+                        >
+                          {#if p.bring_pc}
+                            <Laptop class="h-4 w-4 text-purple-400" />
+                          {:else}
+                            <MonitorX class="h-4 w-4 text-orange-400" />
+                          {/if}
+                        </button>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>
+                      <p>
+                        {p.bring_pc
+                          ? 'Avec PC — cliquer pour changer'
+                          : 'Besoin PC — cliquer pour changer'}
+                      </p>
+                    </Tooltip.Content>
+                  </Tooltip.Root>
+                </Tooltip.Provider>
+              </form>
+              {#if p.is_present}
                 <div class="w-40 sm:w-48">
                   <NoteInput
                     id={p.id}
@@ -396,8 +435,8 @@
                   onclick={() => handleDiplomaDownload(p)}
                   ><Award class="h-4 w-4" /></Button
                 >
-              </div>
-            {/if}
+              {/if}
+            </div>
           </div>
         {/each}
       </div>

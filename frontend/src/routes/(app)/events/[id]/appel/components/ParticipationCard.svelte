@@ -9,8 +9,6 @@
   import {
     CircleCheck,
     User,
-    Laptop,
-    MonitorX,
     ExternalLink,
     BookOpen,
     Award,
@@ -27,6 +25,7 @@
   import NoteInput from './NoteInput.svelte';
   import { cn } from '$lib/utils';
   import { resolve } from '$app/paths';
+  import BringPcBadge from '../../components/BringPcBadge.svelte';
 
   let {
     participation = $bindable(),
@@ -240,21 +239,20 @@
               >
                 {participation.expand?.student?.niveau}
               </span>
-              {#if participation.bring_pc}
-                <Badge
-                  variant="outline"
-                  class="h-4 border-purple-200 bg-purple-50 px-1 py-0 text-[9px] text-purple-700 dark:border-purple-900 dark:bg-purple-900/30 dark:text-purple-300"
-                >
-                  <Laptop class="mr-1 h-2 w-2" /> Avec PC
-                </Badge>
-              {:else}
-                <Badge
-                  variant="outline"
-                  class="h-4 border-orange-200 bg-orange-50 px-1 py-0 text-[9px] text-orange-700 dark:border-orange-900 dark:bg-orange-900/30 dark:text-orange-300"
-                >
-                  <MonitorX class="mr-1 h-2 w-2" /> Besoin PC
-                </Badge>
-              {/if}
+              <form
+                method="POST"
+                action="?/toggleBringPc"
+                use:enhance={optimisticToggle(participation.id, 'bring_pc')}
+                class="inline"
+              >
+                <input type="hidden" name="id" value={participation.id} />
+                <input
+                  type="hidden"
+                  name="state"
+                  value={participation.bring_pc.toString()}
+                />
+                <BringPcBadge bringPc={participation.bring_pc} />
+              </form>
 
               {#if participation.delay > 0}
                 <Badge

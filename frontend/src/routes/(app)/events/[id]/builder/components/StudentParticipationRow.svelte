@@ -12,8 +12,10 @@
     Ban,
     TriangleAlert,
   } from 'lucide-svelte';
+  import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';
   import { resolve } from '$app/paths';
+  import BringPcBadge from '../../components/BringPcBadge.svelte';
 
   let {
     participation,
@@ -94,10 +96,32 @@
         {/if}
       </div>
 
-      <div class="mt-0.5 flex flex-col gap-1">
+      <div class="mt-0.5 flex items-center gap-2">
         <span class="text-xs font-black text-muted-foreground uppercase">
           {participation.expand.student.niveau}
         </span>
+        <form
+          method="POST"
+          action="?/toggleBringPc"
+          use:enhance={() => {
+            participation.bring_pc = !participation.bring_pc;
+            return async ({ result, update }) => {
+              if (result.type === 'failure' || result.type === 'error') {
+                participation.bring_pc = !participation.bring_pc;
+              }
+              await update();
+            };
+          }}
+          class="inline"
+        >
+          <input type="hidden" name="id" value={participation.id} />
+          <input
+            type="hidden"
+            name="state"
+            value={participation.bring_pc.toString()}
+          />
+          <BringPcBadge bringPc={participation.bring_pc} />
+        </form>
       </div>
     </div>
   </div>

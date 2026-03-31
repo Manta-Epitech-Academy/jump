@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
+import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { getTotalXp } from '$lib/domain/xp';
 import type {
   ParticipationsResponse,
@@ -204,6 +205,11 @@ export const actions: Actions = {
       console.error('Remote unlock error:', err);
       return fail(500, { error: 'Erreur lors du déblocage distant' });
     }
+  },
+
+  toggleBringPc: async ({ request, locals }) => {
+    const data = await request.formData();
+    return toggleBringPc(data, locals.pb);
   },
 
   dismissAlert: async ({ request, locals }) => {
