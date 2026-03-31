@@ -8,6 +8,7 @@ import {
 import type {
   EventsResponse,
   SubjectsResponse,
+  ThemesResponse,
   ParticipationsResponse,
 } from '$lib/pocketbase-types';
 
@@ -68,6 +69,50 @@ export function flattenMissions(
     }
   }
   return missions;
+}
+
+export type ThemeExpandedParticipation = ParticipationsResponse<{
+  subjects?: SubjectsResponse<unknown, { themes?: ThemesResponse[] }>[];
+}>;
+
+/**
+ * Tallies up theme occurrences from completed participations and returns the top N.
+ * Subjects without themes are counted under "Général".
+ */
+const THEME_TIERS = [
+  { min: 4, label: 'Expert' },
+  { min: 2, label: 'Confirmé' },
+  { min: 0, label: 'Initié' },
+] as const;
+
+/** The count at which the progress bar reaches 100% — derived from the highest tier threshold. */
+export const THEME_TIER_CEILING = THEME_TIERS[0].min;
+
+export function themeTierLabel(count: number): string {
+  return (THEME_TIERS.find((t) => count >= t.min) ?? THEME_TIERS.at(-1)!).label;
+}
+
+export function tallyTopThemes(
+  participations: ThemeExpandedParticipation[],
+  limit: number,
+): { name: string; count: number; label: string }[] {
+  const tally: Record<string, number> = {};
+  for (const p of participations) {
+    for (const subject of p.expand?.subjects ?? []) {
+      const themes = subject.expand?.themes ?? [];
+      if (themes.length === 0) {
+        tally['Général'] = (tally['Général'] || 0) + 1;
+      } else {
+        for (const t of themes) {
+          tally[t.nom] = (tally[t.nom] || 0) + 1;
+        }
+      }
+    }
+  }
+  return Object.entries(tally)
+    .map(([name, count]) => ({ name, count, label: themeTierLabel(count) }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
 }
 
 export function getParisStartOfDay(): string {

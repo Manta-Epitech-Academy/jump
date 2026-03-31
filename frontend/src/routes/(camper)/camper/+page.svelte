@@ -7,7 +7,7 @@
   import { toast } from 'svelte-sonner';
   import { page } from '$app/state';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import { formatDateFr, flattenMissions } from '$lib/utils';
+  import { formatDateFr, flattenMissions, THEME_TIER_CEILING } from '$lib/utils';
   import {
     Rocket,
     Trophy,
@@ -26,6 +26,7 @@
     LogOut,
     History,
     Calendar,
+    Target,
   } from 'lucide-svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
 
@@ -53,6 +54,9 @@
 
   let previewMissions = $derived(flattenMissions(data.pastParticipations));
   let totalPastParticipations = $derived(data.totalPastParticipations);
+
+  // RPG Aspect : Top Skills
+  let topThemes = $derived(data.topThemes);
 
   function formatTime(dateString: string | undefined) {
     if (!dateString) return '';
@@ -207,6 +211,46 @@
             </div>
           </div>
 
+          <!-- RPG Skill Radar / Top Themes -->
+          {#if topThemes.length > 0}
+            <div
+              class="mt-8 w-full space-y-4 border-t border-slate-100 pt-6 dark:border-slate-800"
+            >
+              <h3
+                class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
+              >
+                <Target class="h-4 w-4 text-teal-600 dark:text-epi-teal" /> Spécialités
+              </h3>
+              <div class="flex flex-col gap-3">
+                {#each topThemes as theme}
+                  <div class="space-y-1">
+                    <div
+                      class="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300"
+                    >
+                      <span class="truncate pr-2">{theme.name}</span>
+                      <span class="shrink-0 text-teal-700 dark:text-epi-teal"
+                        >{theme.label}</span
+                      >
+                    </div>
+                    <div
+                      class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                      role="progressbar"
+                      aria-valuenow={Math.min(theme.count, THEME_TIER_CEILING)}
+                      aria-valuemin={0}
+                      aria-valuemax={THEME_TIER_CEILING}
+                      aria-label="{theme.name} : {theme.label}"
+                    >
+                      <div
+                        class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"
+                        style="width: {Math.min((theme.count / THEME_TIER_CEILING) * 100, 100)}%"
+                      ></div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
           <!-- Public Profile Share Section -->
           <div
             class="mt-8 w-full space-y-3 border-t border-slate-100 pt-6 dark:border-slate-800"
@@ -222,7 +266,9 @@
               >
                 <span class="truncate text-xs">{shareUrl}</span>
                 {#if copied}
-                  <Check class="ml-2 h-4 w-4 shrink-0 text-epi-teal" />
+                  <Check
+                    class="ml-2 h-4 w-4 shrink-0 text-teal-600 dark:text-epi-teal"
+                  />
                 {:else}
                   <Share2 class="ml-2 h-4 w-4 shrink-0" />
                 {/if}
@@ -298,7 +344,7 @@
             {#if subjects.length > 0}
               <div class="mb-6 flex items-start gap-4">
                 <div class="rounded-xl bg-teal-50 p-3 dark:bg-teal-950/30">
-                  <BookOpen class="h-6 w-6 text-epi-teal" />
+                  <BookOpen class="h-6 w-6 text-teal-600 dark:text-epi-teal" />
                 </div>
                 <div>
                   <h3 class="text-xl font-bold text-slate-900 dark:text-white">

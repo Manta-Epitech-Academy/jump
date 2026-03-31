@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { tallyTopThemes, type ThemeExpandedParticipation } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
   try {
@@ -22,7 +23,16 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
         expand: 'event',
       });
 
-    type PortfolioExpand = { event?: { titre?: string } };
+    // Fetch completed participations to build the RPG Skill Radar
+    const allCompleted = await locals.systemPb
+      .collection('participations')
+      .getFullList<ThemeExpandedParticipation>({
+        filter: `student = "${student.id}" && is_present = true`,
+        expand: 'subjects.themes',
+        fields: 'id,expand.subjects.expand.themes.nom',
+      });
+
+    const topThemes = tallyTopThemes(allCompleted, 5);
 
     return {
       student: {
@@ -45,6 +55,7 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
         caption: item.caption,
         eventName: item.expand?.event?.titre || 'TekCamp',
       })),
+      topThemes,
     };
   } catch (err) {
     console.error('Public showcase fetch error:', err);

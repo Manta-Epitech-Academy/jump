@@ -2,27 +2,27 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
 import { pbUrl } from '$lib/pocketbase';
-import { formatDateFr } from '$lib/utils';
+import {
+  formatDateFr,
+  tallyTopThemes,
+  type ThemeExpandedParticipation,
+} from '$lib/utils';
 import type {
   ParticipationsResponse,
-  SubjectsResponse,
   PortfolioItemsResponse,
 } from '$lib/pocketbase-types';
-
-type ParticipationExpand = {
-  subjects: SubjectsResponse[];
-};
 
 export const GET: RequestHandler = async ({ locals }) => {
   if (!locals.student) throw error(401, 'Non autorisé');
 
   try {
-    // 1. Fetch completed events
+    // 1. Fetch completed events with themes expanded to calculate RPG Stats
     const participations = await locals.studentPb
       .collection('participations')
-      .getFullList<ParticipationsResponse<ParticipationExpand>>({
+      .getFullList<ThemeExpandedParticipation>({
         filter: `student = "${locals.student.id}" && is_present = true`,
-        expand: 'subjects',
+        expand: 'subjects.themes',
+        fields: 'id,expand.subjects.expand.themes.nom',
       });
 
     if (participations.length === 0) {
@@ -37,11 +37,8 @@ export const GET: RequestHandler = async ({ locals }) => {
         sort: '-created',
       });
 
-    // 3. Deduplicate Subject names
-    const subjectsSet = new Set<string>();
-    participations.forEach((p) => {
-      p.expand?.subjects?.forEach((s) => subjectsSet.add(s.nom));
-    });
+    // 3. Tally up the themes to show the Top 5 "Spécialités Validées" on the certificate
+    const topThemes = tallyTopThemes(participations, 5);
 
     // 4. Assemble Data
     const data = {
@@ -49,8 +46,8 @@ export const GET: RequestHandler = async ({ locals }) => {
       xp: locals.student.xp || 0,
       hours: participations.length * 3, // Assuming avg 3h per workshop/session
       level: locals.student.level || 'Novice',
-      subjects: Array.from(subjectsSet),
-      todayDate: formatDateFr(new Date()), // Replaced with project utility
+      topThemes,
+      todayDate: formatDateFr(new Date()),
       images: portfolio.items.map(
         (item) =>
           `${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`,
@@ -64,7 +61,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     const safeFirstName = locals.student.prenom.replace(/[^a-zA-Z0-9]/g, '');
     const safeLastName = locals.student.nom.replace(/[^a-zA-Z0-9]/g, '');
 
-    // 7. Return as downloadable file wrapped in a Blob (matching existing pattern)
+    // 7. Return as downloadable file wrapped in a Blob
     return new Response(new Blob([pdfBytes], { type: 'application/pdf' }), {
       status: 200,
       headers: {

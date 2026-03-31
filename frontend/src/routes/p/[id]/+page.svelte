@@ -8,12 +8,16 @@
     Link as LinkIcon,
     Calendar,
     Image as ImageIcon,
+    Target,
   } from 'lucide-svelte';
   import { resolve } from '$app/paths';
 
   let { data }: { data: PageData } = $props();
   let student = $derived(data.student);
   let items = $derived(data.portfolioItems);
+  let topThemes = $derived(data.topThemes);
+
+  import { THEME_TIER_CEILING } from '$lib/utils';
 
   let levelLabel = $derived(
     student.level === 'Expert'
@@ -94,6 +98,50 @@
         </div>
       </div>
     </div>
+
+    <!-- Specialties Radar Section -->
+    {#if topThemes.length > 0}
+      <div class="mt-10">
+        <h2
+          class="mb-6 flex items-center gap-2 font-heading text-2xl tracking-wide uppercase"
+        >
+          <Target class="h-6 w-6 text-teal-600 dark:text-epi-teal" />
+          Arbre de Compétences<span class="text-epi-teal">_</span>
+        </h2>
+
+        <div
+          class="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8 dark:border-slate-800 dark:bg-slate-900"
+        >
+          <div class="grid gap-6 sm:grid-cols-2">
+            {#each topThemes as theme}
+              <div class="space-y-2">
+                <div
+                  class="flex justify-between text-sm font-bold text-slate-700 dark:text-slate-300"
+                >
+                  <span class="truncate pr-2">{theme.name}</span>
+                  <span class="shrink-0 text-teal-700 dark:text-epi-teal"
+                    >{theme.label}</span
+                  >
+                </div>
+                <div
+                  class="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                  role="progressbar"
+                  aria-valuenow={Math.min(theme.count, THEME_TIER_CEILING)}
+                  aria-valuemin={0}
+                  aria-valuemax={THEME_TIER_CEILING}
+                  aria-label="{theme.name} : {theme.label}"
+                >
+                  <div
+                    class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"
+                    style="width: {Math.min((theme.count / THEME_TIER_CEILING) * 100, 100)}%"
+                  ></div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      </div>
+    {/if}
 
     <!-- Portfolio Section -->
     <div class="mt-10">

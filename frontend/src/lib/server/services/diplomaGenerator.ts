@@ -23,7 +23,7 @@ export async function generateCertificatePDF(data: {
   xp: number;
   hours: number;
   level: string;
-  subjects: string[];
+  topThemes: { name: string; count: number; label: string }[];
   todayDate: string;
   images: string[];
 }): Promise<Uint8Array<ArrayBuffer>> {

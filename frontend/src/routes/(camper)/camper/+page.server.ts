@@ -2,7 +2,12 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import type { ParticipationsResponse } from '$lib/pocketbase-types';
-import { getParisStartOfDay, type ParticipationExpand } from '$lib/utils';
+import {
+  getParisStartOfDay,
+  tallyTopThemes,
+  type ParticipationExpand,
+  type ThemeExpandedParticipation,
+} from '$lib/utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // Security guard: Ensure we have a logged-in student
@@ -40,6 +45,17 @@ export const load: PageServerLoad = async ({ locals }) => {
         sort: '-event.date',
       });
 
+    // Fetch all completed participations to build the RPG Skill Radar
+    const allCompleted = await locals.studentPb
+      .collection('participations')
+      .getFullList<ThemeExpandedParticipation>({
+        filter: `student = "${locals.student.id}" && is_present = true`,
+        expand: 'subjects.themes',
+        fields: 'id,expand.subjects.expand.themes.nom',
+      });
+
+    const topThemes = tallyTopThemes(allCompleted, 3);
+
     // If there are multiple events today, grab the first one
     const todayParticipation =
       participations.length > 0 ? participations[0] : null;
@@ -50,6 +66,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       pastParticipations: pastPage.items,
       totalPastParticipations: pastPage.totalItems,
       hasCompletedEvents: pastPage.totalItems > 0,
+      topThemes,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
