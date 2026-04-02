@@ -196,6 +196,7 @@ export enum StudentsLevelOptions {
 export type StudentsRecord<Tbadges = unknown> = {
 	badges?: null | Tbadges
 	campus: RecordIdString
+	charter_accepted_at?: IsoDateString
 	created: IsoAutoDateString
 	email?: string
 	emailVisibility?: boolean

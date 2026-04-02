@@ -34,11 +34,35 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     .pathname;
   const pathCamperRoot = new URL(resolvePath('/camper'), event.url).pathname;
 
+  const pathCamperCharter = new URL(resolvePath('/camper/charter'), event.url)
+    .pathname;
+
   if (isCamperRoute) {
     if (!event.locals.student && currentPath !== pathCamperLogin) {
       return Response.redirect(new URL(pathCamperLogin, event.url).href, 303);
     }
     if (event.locals.student && currentPath === pathCamperLogin) {
+      return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
+    }
+
+    // Charter guard: redirect to charter page if not accepted yet
+    if (
+      event.locals.student &&
+      !event.locals.student.charter_accepted_at &&
+      currentPath !== pathCamperCharter &&
+      currentPath !== pathCamperLogin
+    ) {
+      return Response.redirect(
+        new URL(pathCamperCharter, event.url).href,
+        303,
+      );
+    }
+
+    // Already accepted: prevent going back to charter page
+    if (
+      event.locals.student?.charter_accepted_at &&
+      currentPath === pathCamperCharter
+    ) {
       return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
     }
   } else {
