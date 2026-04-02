@@ -20,10 +20,15 @@ export async function generateDiplomaPDF(data: {
 
 export async function generateCertificatePDF(data: {
   studentName: string;
+  campus: string;
+  schoolLevel: string;
   xp: number;
   hours: number;
+  eventsAttended: number;
+  subjectsCompleted: number;
   level: string;
   topThemes: { name: string; count: number; label: string }[];
+  subjects: { name: string; eventDate: string; difficulty: string }[];
   todayDate: string;
   images: string[];
 }): Promise<Uint8Array<ArrayBuffer>> {
