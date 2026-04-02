@@ -67,7 +67,7 @@
     subjects.filter((s) => s.id !== currentSubject?.id),
   );
 
-  let previewMissions = $derived(flattenMissions(data.pastParticipations));
+  let previewMissions = $derived(flattenMissions(data.pastParticipations).slice(0, 2));
   let totalPastMissions = $derived(data.totalPastMissions);
 
   // RPG Aspect : Top Skills

@@ -70,7 +70,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         ),
       );
 
-    const pastPreview = allPast.slice(0, 2);
+    const pastPreview = allPast;
 
     // Count missions (subjects), not participations, for the "Voir tout" badge
     const totalPastMissions = allPast.reduce(
