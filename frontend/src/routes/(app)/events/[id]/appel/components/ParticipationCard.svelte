@@ -19,7 +19,7 @@
     X,
     LockOpen,
     MessageCircleReply,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { toast } from 'svelte-sonner';
   import NoteInput from './NoteInput.svelte';

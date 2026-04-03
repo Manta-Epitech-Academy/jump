@@ -5,7 +5,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import { buttonVariants } from '$lib/components/ui/button';
-  import { Plus } from 'lucide-svelte';
+  import { Plus } from '@lucide/svelte';
   import type { SuperForm } from 'sveltekit-superforms/client';
   import type { StudentForm } from '$lib/validation/students';
 

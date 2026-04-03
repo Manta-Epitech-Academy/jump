@@ -8,7 +8,7 @@
     BookOpen,
     ExternalLink,
     Globe,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import type { ThemesResponse } from '$lib/pocketbase-types';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Map, Users, GraduationCap, CalendarDays } from 'lucide-svelte';
+  import { Map, Users, GraduationCap, CalendarDays } from '@lucide/svelte';
   import * as Card from '$lib/components/ui/card';
   import {
     Table,

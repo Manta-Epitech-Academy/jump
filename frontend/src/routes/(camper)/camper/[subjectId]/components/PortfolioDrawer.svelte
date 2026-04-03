@@ -11,7 +11,7 @@
     Link as LinkIcon,
     LoaderCircle,
     Trash2,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import { enhance } from '$app/forms';
   import { pbUrl } from '$lib/pocketbase';

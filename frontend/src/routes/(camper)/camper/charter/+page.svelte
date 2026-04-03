@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { ShieldCheck } from 'lucide-svelte';
+  import { ShieldCheck } from '@lucide/svelte';
 
   let accepted = $state(false);
 </script>

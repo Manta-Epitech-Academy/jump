@@ -1,7 +1,7 @@
 <script lang="ts">
   import { superForm } from 'sveltekit-superforms';
   import * as Card from '$lib/components/ui/card';
-  import { Rocket } from 'lucide-svelte';
+  import { Rocket } from '@lucide/svelte';
   import { untrack } from 'svelte';
 
   import LoginEmailStep from './components/LoginEmailStep.svelte';

@@ -3,7 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import { Copy, LoaderCircle } from 'lucide-svelte';
+  import { Copy, LoaderCircle } from '@lucide/svelte';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { goto } from '$app/navigation';

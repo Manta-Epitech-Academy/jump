@@ -6,7 +6,7 @@
     ArrowLeft,
     UserCheck,
     Tag,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';

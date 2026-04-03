@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Calendar as CalendarIcon } from 'lucide-svelte';
+  import { Calendar as CalendarIcon } from '@lucide/svelte';
   import {
     DateFormatter,
     type DateValue,

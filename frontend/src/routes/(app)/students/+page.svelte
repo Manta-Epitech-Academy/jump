@@ -15,7 +15,7 @@
     SignalHigh,
     ChevronLeft,
     ChevronRight,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { buttonVariants, Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import * as Select from '$lib/components/ui/select';

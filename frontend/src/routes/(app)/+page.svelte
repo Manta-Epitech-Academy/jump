@@ -10,7 +10,7 @@
   } from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as Avatar from '$lib/components/ui/avatar';
-  import { Calendar, Tag, Plus, Coffee, UserCheck } from 'lucide-svelte';
+  import { Calendar, Tag, Plus, Coffee, UserCheck } from '@lucide/svelte';
 
   import { resolve } from '$app/paths';
   import EventActionManager from '$lib/components/events/EventActionManager.svelte';

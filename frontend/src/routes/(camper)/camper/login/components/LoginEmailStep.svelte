@@ -3,7 +3,7 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { Alert, AlertDescription } from '$lib/components/ui/alert';
-  import { CircleAlert, Sparkles } from 'lucide-svelte';
+  import { CircleAlert, Sparkles } from '@lucide/svelte';
   import { fade } from 'svelte/transition';
 
   let { emailForm, emailErrors, emailEnhance, emailDelayed, emailMessage } =

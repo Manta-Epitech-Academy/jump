@@ -9,7 +9,7 @@
     Calendar,
     Image as ImageIcon,
     Target,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { resolve } from '$app/paths';
 
   let { data }: { data: PageData } = $props();

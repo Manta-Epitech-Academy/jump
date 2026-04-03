@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import { Button } from '$lib/components/ui/button';
-  import { ArrowLeft, CircleCheck, Lock } from 'lucide-svelte';
+  import { ArrowLeft, CircleCheck, Lock } from '@lucide/svelte';
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
   import type { SubjectStep } from '$lib/server/services/progressService';

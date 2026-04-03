@@ -1,7 +1,7 @@
 <script lang="ts">
   import { buttonVariants } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { Ellipsis, Pencil, Copy, Trash2 } from 'lucide-svelte';
+  import { Ellipsis, Pencil, Copy, Trash2 } from '@lucide/svelte';
   import { resolve } from '$app/paths';
 
   let { event, onDuplicate, onDelete } = $props<{

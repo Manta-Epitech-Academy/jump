@@ -9,7 +9,7 @@
     CalendarClock,
     MessageSquareQuote,
     MessageCircleReply,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as Tooltip from '$lib/components/ui/tooltip';

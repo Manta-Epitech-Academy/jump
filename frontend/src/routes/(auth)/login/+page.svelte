@@ -6,7 +6,7 @@
     AlertDescription,
     AlertTitle,
   } from '$lib/components/ui/alert';
-  import { CircleAlert, Terminal, Lock } from 'lucide-svelte';
+  import { CircleAlert, Terminal, Lock } from '@lucide/svelte';
 
   let { data } = $props();
 </script>

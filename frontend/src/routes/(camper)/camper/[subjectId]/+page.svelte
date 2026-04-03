@@ -5,7 +5,7 @@
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { ArrowLeft, Map as MapIcon, FolderOpen, Trophy } from 'lucide-svelte';
+  import { ArrowLeft, Map as MapIcon, FolderOpen, Trophy } from '@lucide/svelte';
   import PocketBase from 'pocketbase';
   import { pbUrl } from '$lib/pocketbase';
   import { browser } from '$app/environment';

@@ -19,7 +19,7 @@
     SignalMedium,
     SignalHigh,
     ExternalLink,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { cn } from '$lib/utils';
   import { page } from '$app/state';
   import { getSubjectXpValue } from '$lib/domain/xp';

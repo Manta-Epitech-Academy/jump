@@ -9,7 +9,7 @@
     Tag,
     Globe,
     MapPin,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { cn } from '$lib/utils';
 
   let {

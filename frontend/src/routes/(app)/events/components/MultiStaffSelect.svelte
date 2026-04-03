@@ -3,7 +3,7 @@
   import * as Popover from '$lib/components/ui/popover';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
-  import { Check, Users, X } from 'lucide-svelte';
+  import { Check, Users, X } from '@lucide/svelte';
   import * as Avatar from '$lib/components/ui/avatar';
   import { pbUrl } from '$lib/pocketbase';
 

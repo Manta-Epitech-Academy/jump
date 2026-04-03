@@ -10,7 +10,7 @@
     ArrowRight,
     ShieldCheck,
     Lock,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
   import type { SubjectStep } from '$lib/server/services/progressService';

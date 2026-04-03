@@ -5,7 +5,7 @@
     MonitorSmartphone,
     KeyRound,
     LifeBuoy,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import type { EventsResponse } from '$lib/pocketbase-types';
 

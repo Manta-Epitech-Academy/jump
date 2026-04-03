@@ -10,7 +10,7 @@
     Sprout,
     Clock,
     LifeBuoy,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { browser } from '$app/environment';

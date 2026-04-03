@@ -34,7 +34,7 @@
     CalendarClock,
     Laptop,
     Monitor,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
 
   let { data }: { data: PageData } = $props();

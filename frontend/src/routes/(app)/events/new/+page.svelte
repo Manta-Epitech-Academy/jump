@@ -7,7 +7,7 @@
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
   import * as Tabs from '$lib/components/ui/tabs';
-  import { ChevronLeft, FileSpreadsheet, PenTool, Save } from 'lucide-svelte';
+  import { ChevronLeft, FileSpreadsheet, PenTool, Save } from '@lucide/svelte';
   import { untrack } from 'svelte';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';

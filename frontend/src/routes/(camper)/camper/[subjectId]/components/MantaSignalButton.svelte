@@ -2,7 +2,7 @@
   import { Button } from '$lib/components/ui/button';
   import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';
-  import { CircleCheck, LifeBuoy } from 'lucide-svelte';
+  import { CircleCheck, LifeBuoy } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import {
     StepsProgressStatusOptions,

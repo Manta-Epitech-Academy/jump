@@ -11,7 +11,7 @@
     Sprout,
     Ban,
     TriangleAlert,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';
   import { resolve } from '$app/paths';

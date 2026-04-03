@@ -34,7 +34,7 @@
     X,
     Funnel,
     ArrowUpRight,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { buttonVariants, Button } from '$lib/components/ui/button';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';

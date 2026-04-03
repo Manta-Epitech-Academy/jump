@@ -2,7 +2,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Label } from '$lib/components/ui/label';
   import { Alert, AlertDescription } from '$lib/components/ui/alert';
-  import { CircleAlert, Lock, ArrowLeft } from 'lucide-svelte';
+  import { CircleAlert, Lock, ArrowLeft } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { cn } from '$lib/utils';
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { SearchX, ServerCrash, Terminal, House } from 'lucide-svelte';
+  import { SearchX, ServerCrash, Terminal, House } from '@lucide/svelte';
 
   let is404 = $derived(page.status === 404);
   let isStudent = $derived(page.data.student && !page.data.user);

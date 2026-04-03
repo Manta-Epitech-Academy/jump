@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { Trophy, Mail, Phone, Users, Pencil } from 'lucide-svelte';
+  import { Trophy, Mail, Phone, Users, Pencil } from '@lucide/svelte';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';
   import { Separator } from '$lib/components/ui/separator';
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
-  import { SignalLow } from 'lucide-svelte';
+  import { SignalLow } from '@lucide/svelte';
   import type { StudentsResponse } from '$lib/pocketbase-types';
 
   let {

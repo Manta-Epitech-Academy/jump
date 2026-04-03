@@ -7,7 +7,7 @@
     History,
     Users,
     Cuboid,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { onMount, onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
 

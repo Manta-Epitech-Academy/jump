@@ -9,7 +9,7 @@
     UserPlus,
     Link as LinkIcon,
     Split,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
 
   let { analysisResult = $bindable() } = $props();
 

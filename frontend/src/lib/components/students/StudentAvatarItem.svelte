@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';
-  import { Sprout } from 'lucide-svelte';
+  import { Sprout } from '@lucide/svelte';
   import { cn } from '$lib/utils';
 
   let {

@@ -11,7 +11,7 @@
     Search,
     X,
     MapPin,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';

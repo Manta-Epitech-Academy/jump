@@ -6,7 +6,7 @@
   import * as Select from '$lib/components/ui/select';
   import * as Popover from '$lib/components/ui/popover';
   import { Calendar } from '$lib/components/ui/calendar';
-  import { ChevronDown } from 'lucide-svelte';
+  import { ChevronDown } from '@lucide/svelte';
   import {
     CalendarDateTime,
     getLocalTimeZone,

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Upload, FileCheck } from 'lucide-svelte';
+  import { Upload, FileCheck } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { toast } from 'svelte-sonner';
   import { cn } from '$lib/utils';

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { Users, TriangleAlert, Sparkles, Library } from 'lucide-svelte';
+  import { Users, TriangleAlert, Sparkles, Library } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import { Separator } from '$lib/components/ui/separator';

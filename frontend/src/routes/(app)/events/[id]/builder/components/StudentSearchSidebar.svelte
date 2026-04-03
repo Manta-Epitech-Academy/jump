@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Search, Plus, CircleCheck } from 'lucide-svelte';
+  import { Search, Plus, CircleCheck } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';

@@ -10,7 +10,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as Avatar from '$lib/components/ui/avatar';
-  import { Calendar, Tag, Archive, Users, UserCheck } from 'lucide-svelte';
+  import { Calendar, Tag, Archive, Users, UserCheck } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { formatDateFr } from '$lib/utils';
   import { resolve } from '$app/paths';

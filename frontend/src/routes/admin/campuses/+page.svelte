@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Plus, Pencil, Trash2, Map } from 'lucide-svelte';
+  import { Plus, Pencil, Trash2, Map } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';

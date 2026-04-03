@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { ArrowLeft, Clock, Trash2 } from 'lucide-svelte';
+  import { ArrowLeft, Clock, Trash2 } from '@lucide/svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { Badge } from '$lib/components/ui/badge';
