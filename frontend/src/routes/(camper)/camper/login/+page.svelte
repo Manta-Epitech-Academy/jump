@@ -108,68 +108,66 @@
 
       <Card.Content class="pb-10">
         {#if step === 'oauth'}
-          <!-- Error from OAuth callback -->
-          {#if data.errorMessage}
-            <Alert
-              variant="destructive"
-              class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
-            >
-              <CircleAlert class="h-4 w-4" />
-              <AlertDescription class="text-xs font-medium">
-                {data.errorMessage}
-              </AlertDescription>
-            </Alert>
-          {/if}
-
-          <div class="space-y-4">
-            <!-- Primary: Office 365 -->
-            <form action="?/oauth2" method="POST">
-              <Button
-                type="submit"
-                size="lg"
-                class="relative h-12 w-full gap-3 rounded-xl bg-epi-blue text-base font-bold text-white shadow-md transition-all hover:bg-epi-blue/90 active:scale-[0.98]"
+          <div class="animate-slide-in-left">
+            {#if data.errorMessage}
+              <Alert
+                variant="destructive"
+                class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
               >
-                <svg
-                  viewBox="0 0 23 23"
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5"
+                <CircleAlert class="h-4 w-4" />
+                <AlertDescription class="text-xs font-medium">
+                  {data.errorMessage}
+                </AlertDescription>
+              </Alert>
+            {/if}
+
+            <div class="space-y-4">
+              <form action="?/oauth2" method="POST">
+                <Button
+                  type="submit"
+                  size="lg"
+                  class="relative h-12 w-full gap-3 rounded-xl bg-epi-blue text-base font-bold text-white shadow-md transition-all hover:bg-epi-blue/90 active:scale-[0.98]"
                 >
-                  <path fill="#f3f3f3" d="M0 0h23v23H0z" />
-                  <path fill="#f35325" d="M1 1h10v10H1z" />
-                  <path fill="#81bc06" d="M12 1h10v10H12z" />
-                  <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                  <path fill="#ffba08" d="M12 12h10v10H12z" />
-                </svg>
-                Se connecter avec Office 365
+                  <svg
+                    viewBox="0 0 23 23"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                  >
+                    <path fill="#f3f3f3" d="M0 0h23v23H0z" />
+                    <path fill="#f35325" d="M1 1h10v10H1z" />
+                    <path fill="#81bc06" d="M12 1h10v10H12z" />
+                    <path fill="#05a6f0" d="M1 12h10v10H1z" />
+                    <path fill="#ffba08" d="M12 12h10v10H12z" />
+                  </svg>
+                  Se connecter avec Office 365
+                </Button>
+              </form>
+
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center">
+                  <span
+                    class="w-full border-t border-slate-200 dark:border-slate-800"
+                  ></span>
+                </div>
+                <div class="relative flex justify-center text-[10px] uppercase">
+                  <span
+                    class="bg-white/70 px-2 font-bold tracking-wider text-slate-400 dark:bg-slate-900/80"
+                  >
+                    ou
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                size="lg"
+                class="h-12 w-full gap-3 rounded-xl border-slate-200 text-base font-bold transition-all hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue dark:border-slate-800"
+                onclick={() => (step = 'email')}
+              >
+                <Mail class="h-5 w-5" />
+                Se connecter par email
               </Button>
-            </form>
-
-            <!-- Divider -->
-            <div class="relative">
-              <div class="absolute inset-0 flex items-center">
-                <span
-                  class="w-full border-t border-slate-200 dark:border-slate-800"
-                ></span>
-              </div>
-              <div class="relative flex justify-center text-[10px] uppercase">
-                <span
-                  class="bg-white/70 px-2 font-bold tracking-wider text-slate-400 dark:bg-slate-900/80"
-                >
-                  ou
-                </span>
-              </div>
             </div>
-
-            <!-- Secondary: Email login -->
-            <Button
-              variant="outline"
-              size="lg"
-              class="h-12 w-full gap-3 rounded-xl border-slate-200 text-base font-bold transition-all hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue dark:border-slate-800"
-              onclick={() => (step = 'email')}
-            >
-              <Mail class="h-5 w-5" />
-              Se connecter par email
-            </Button>
           </div>
         {:else if step === 'email'}
           <LoginEmailStep
@@ -217,5 +215,35 @@
 
   .absolute.rounded-full {
     animation: pulse-slow 15s ease-in-out infinite;
+  }
+
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  :global(.animate-slide-in-right) {
+    animation: slide-in-right 300ms ease-out;
+  }
+
+  :global(.animate-slide-in-left) {
+    animation: slide-in-left 300ms ease-out;
   }
 </style>
