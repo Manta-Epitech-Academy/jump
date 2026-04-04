@@ -6,8 +6,21 @@
   import { CircleAlert, Sparkles } from '@lucide/svelte';
   import { fade } from 'svelte/transition';
 
-  let { emailForm, emailErrors, emailEnhance, emailDelayed, emailMessage } =
-    $props();
+  let {
+    emailForm,
+    emailErrors,
+    emailEnhance,
+    emailDelayed,
+    emailMessage,
+    goBack,
+  }: {
+    emailForm: any;
+    emailErrors: any;
+    emailEnhance: any;
+    emailDelayed: any;
+    emailMessage: any;
+    goBack?: () => void;
+  } = $props();
 </script>
 
 <div in:fade={{ duration: 200 }}>
@@ -55,4 +68,14 @@
       {/if}
     </Button>
   </form>
+
+  {#if goBack}
+    <button
+      type="button"
+      onclick={goBack}
+      class="mt-4 w-full text-center text-xs font-bold text-slate-400 transition-colors hover:text-epi-blue"
+    >
+      Retour
+    </button>
+  {/if}
 </div>

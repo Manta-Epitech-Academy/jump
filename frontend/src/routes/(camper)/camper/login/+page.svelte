@@ -1,7 +1,9 @@
 <script lang="ts">
   import { superForm } from 'sveltekit-superforms';
+  import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
-  import { Rocket } from '@lucide/svelte';
+  import { Alert, AlertDescription } from '$lib/components/ui/alert';
+  import { Rocket, CircleAlert, Mail } from '@lucide/svelte';
   import { untrack } from 'svelte';
 
   import LoginEmailStep from './components/LoginEmailStep.svelte';
@@ -9,7 +11,8 @@
 
   let { data } = $props();
 
-  let step = $state(1);
+  // 'oauth' = default view, 'email' = email step, 'otp' = OTP step
+  let step = $state<'oauth' | 'email' | 'otp'>('oauth');
 
   const {
     form: emailForm,
@@ -25,7 +28,7 @@
         if (form.valid && form.message?.type === 'success') {
           $otpForm.otpId = form.message.otpId;
           $otpForm.email = $emailForm.email.toLowerCase().trim();
-          step = 2;
+          step = 'otp';
         }
       },
     },
@@ -44,10 +47,15 @@
     },
   );
 
-  function goBack() {
-    step = 1;
+  function goBackToEmail() {
+    step = 'email';
     $otpForm.password = '';
     $otpMessage = undefined;
+  }
+
+  function goBackToOAuth() {
+    step = 'oauth';
+    $emailMessage = undefined;
   }
 </script>
 
@@ -87,8 +95,10 @@
           <Card.Description
             class="text-sm font-bold tracking-tight text-slate-500 uppercase"
           >
-            {#if step === 1}
+            {#if step === 'oauth'}
               Prêt pour l'aventure ?
+            {:else if step === 'email'}
+              Connexion par email
             {:else}
               Dernière étape !
             {/if}
@@ -97,13 +107,78 @@
       </Card.Header>
 
       <Card.Content class="pb-10">
-        {#if step === 1}
+        {#if step === 'oauth'}
+          <!-- Error from OAuth callback -->
+          {#if data.errorMessage}
+            <Alert
+              variant="destructive"
+              class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
+            >
+              <CircleAlert class="h-4 w-4" />
+              <AlertDescription class="text-xs font-medium">
+                {data.errorMessage}
+              </AlertDescription>
+            </Alert>
+          {/if}
+
+          <div class="space-y-4">
+            <!-- Primary: Office 365 -->
+            <form action="?/oauth2" method="POST">
+              <Button
+                type="submit"
+                size="lg"
+                class="relative h-12 w-full gap-3 rounded-xl bg-epi-blue text-base font-bold text-white shadow-md transition-all hover:bg-epi-blue/90 active:scale-[0.98]"
+              >
+                <svg
+                  viewBox="0 0 23 23"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                >
+                  <path fill="#f3f3f3" d="M0 0h23v23H0z" />
+                  <path fill="#f35325" d="M1 1h10v10H1z" />
+                  <path fill="#81bc06" d="M12 1h10v10H12z" />
+                  <path fill="#05a6f0" d="M1 12h10v10H1z" />
+                  <path fill="#ffba08" d="M12 12h10v10H12z" />
+                </svg>
+                Se connecter avec Office 365
+              </Button>
+            </form>
+
+            <!-- Divider -->
+            <div class="relative">
+              <div class="absolute inset-0 flex items-center">
+                <span
+                  class="w-full border-t border-slate-200 dark:border-slate-800"
+                ></span>
+              </div>
+              <div class="relative flex justify-center text-[10px] uppercase">
+                <span
+                  class="bg-white/70 px-2 font-bold tracking-wider text-slate-400 dark:bg-slate-900/80"
+                >
+                  ou
+                </span>
+              </div>
+            </div>
+
+            <!-- Secondary: Email login -->
+            <Button
+              variant="outline"
+              size="lg"
+              class="h-12 w-full gap-3 rounded-xl border-slate-200 text-base font-bold transition-all hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue dark:border-slate-800"
+              onclick={() => (step = 'email')}
+            >
+              <Mail class="h-5 w-5" />
+              Se connecter par email
+            </Button>
+          </div>
+        {:else if step === 'email'}
           <LoginEmailStep
             {emailForm}
             {emailErrors}
             {emailEnhance}
             {emailDelayed}
             {emailMessage}
+            goBack={goBackToOAuth}
           />
         {:else}
           <LoginOtpStep
@@ -112,7 +187,7 @@
             {otpEnhance}
             {otpDelayed}
             {otpMessage}
-            {goBack}
+            goBack={goBackToEmail}
           />
         {/if}
       </Card.Content>

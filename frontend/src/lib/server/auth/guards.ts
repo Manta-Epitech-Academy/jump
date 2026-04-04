@@ -37,8 +37,15 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const pathCamperCharter = new URL(resolvePath('/camper/charter'), event.url)
     .pathname;
 
+  const pathCamperOAuth = new URL(resolvePath('/camper/oauth'), event.url)
+    .pathname;
+
   if (isCamperRoute) {
-    if (!event.locals.student && currentPath !== pathCamperLogin) {
+    if (
+      !event.locals.student &&
+      currentPath !== pathCamperLogin &&
+      !currentPath.startsWith(pathCamperOAuth)
+    ) {
       return Response.redirect(new URL(pathCamperLogin, event.url).href, 303);
     }
     if (event.locals.student && currentPath === pathCamperLogin) {
