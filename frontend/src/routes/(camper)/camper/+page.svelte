@@ -34,6 +34,7 @@
     CalendarClock,
     Laptop,
     Monitor,
+    Settings,
   } from '@lucide/svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
 
@@ -163,6 +164,15 @@
       </div>
       <div class="flex items-center gap-1">
         <ModeToggle />
+        <Button
+          variant="ghost"
+          size="icon"
+          href={resolve('/camper/settings')}
+          class="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+        >
+          <Settings class="h-4 w-4" />
+          <span class="sr-only">Paramètres</span>
+        </Button>
         <form action="{resolve('/logout')}?type=student" method="POST">
           <Button
             type="submit"
@@ -560,4 +570,5 @@
       {/if}
     </div>
   </div>
+
 </div>
