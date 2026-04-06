@@ -9,7 +9,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/intra
 
 jobs:
   build-sveltekit:
@@ -21,9 +20,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set image tag
-        id: tag
+      - name: Set image tag and prefix
+        id: meta
         run: |
+          PREFIX=$(echo "ghcr.io/${{ github.repository_owner }}/intra" | tr '[:upper:]' '[:lower:]')
+          echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
           case "${{ github.ref_name }}" in
             main)    echo "tag=latest"  >> "$GITHUB_OUTPUT" ;;
             staging) echo "tag=staging" >> "$GITHUB_OUTPUT" ;;
@@ -42,7 +43,7 @@ jobs:
         with:
           context: frontend
           push: true
-          tags: ${{ env.IMAGE_PREFIX }}-sveltekit:${{ steps.tag.outputs.tag }}
+          tags: ${{ steps.meta.outputs.prefix }}-sveltekit:${{ steps.meta.outputs.tag }}
           build-args: |
             PUBLIC_POCKETBASE_URL=${{ vars.PUBLIC_POCKETBASE_URL }}
             PUBLIC_INTERNAL_POCKETBASE_URL=${{ vars.PUBLIC_INTERNAL_POCKETBASE_URL }}
