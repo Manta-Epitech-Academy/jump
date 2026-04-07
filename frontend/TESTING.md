@@ -321,6 +321,15 @@ npm run test:e2e
 npm run test:e2e:ui
 ```
 
+### Fichiers de configuration
+
+| Fichier | Rôle |
+|---------|------|
+| `vitest.config.ts` | Configure Vitest avec deux projets : **unit** (tous les `*.test.ts` dans `src/`) et **integration** (les `*.integration.test.ts` dans les dossiers `__integration__/`). Exclut les tests E2E qui sont gérés par Playwright. |
+| `playwright.config.ts` | Configure Playwright pour les tests E2E. Pointe sur `tests/e2e/`, lance automatiquement le serveur de dev si besoin, et utilise Chromium par défaut. |
+| `docker-compose.test.yml` | Lance une **base de données Postgres Supabase isolée** sur le port `54322`, dédiée aux tests d'intégration. Elle permet de taper sur une vraie DB sans jamais toucher à celle de dev ou de prod. Chaque lancement donne une instance propre qu'on peut remplir, vider et détruire sans risque. |
+| `.env.test.example` | Modèle à copier en `.env.test` (qui est gitignored). Documente toutes les variables d'environnement nécessaires pour lancer les tests d'intégration et E2E (URL Supabase, clés, credentials des users de test). Aucun secret dedans — les vrais mots de passe sont à renseigner localement. |
+
 ### Prérequis pour les tests d'intégration et E2E
 
 ```bash
