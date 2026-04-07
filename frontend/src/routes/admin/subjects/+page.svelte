@@ -9,7 +9,6 @@
     ExternalLink,
     Globe,
   } from '@lucide/svelte';
-  import type { ThemesResponse } from '$lib/pocketbase-types';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
@@ -64,7 +63,7 @@
     $form.description = subject.description;
     $form.difficulte = subject.difficulte;
     $form.link = subject.link || '';
-    $form.themes = subject.expand?.themes?.map((t: any) => t.nom) || [];
+    $form.themes = subject.subjectThemes?.map((st: any) => st.theme.nom) || [];
     isEditing = true;
     editId = subject.id;
     open = true;
@@ -136,9 +135,9 @@
             </Table.Cell>
             <Table.Cell>
               <div class="flex flex-wrap gap-1">
-                {#each (subject.expand as { themes?: ThemesResponse[] })?.themes || [] as theme}
+                {#each subject.subjectThemes || [] as st}
                   <Badge variant="secondary" class="text-[10px]"
-                    >#{theme.nom}</Badge
+                    >#{st.theme.nom}</Badge
                   >
                 {/each}
               </div>

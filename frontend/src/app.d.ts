@@ -1,21 +1,18 @@
+import type { User, Session } from '$lib/server/auth';
 import type {
-  TypedPocketBase,
-  UsersResponse,
-  SuperusersResponse,
-  StudentsResponse,
-} from '$lib/pocketbase-types';
+  StaffProfile,
+  StudentProfile,
+  Campus,
+} from '@prisma/client';
 
 declare global {
   namespace App {
     // interface Error {}
     interface Locals {
-      pb: TypedPocketBase;
-      adminPb: TypedPocketBase;
-      staffPb: TypedPocketBase;
-      studentPb: TypedPocketBase;
-      systemPb: TypedPocketBase;
-      user: UsersResponse | SuperusersResponse | null;
-      student: StudentsResponse | null;
+      user: User | null;
+      session: Session | null;
+      staffProfile: (StaffProfile & { campus: Campus | null }) | null;
+      studentProfile: (StudentProfile & { campus: Campus | null }) | null;
     }
     // interface PageData {}
     // interface PageState {}

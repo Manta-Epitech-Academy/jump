@@ -29,7 +29,7 @@
     if (!analysisResult) return;
     const row = analysisResult.analysisData.find((r: any) => r.id === rowId);
     if (row) {
-      row.bring_pc = !row.bring_pc;
+      row.bringPc = !row.bringPc;
       analysisResult.analysisData = [...analysisResult.analysisData];
     }
   }
@@ -66,9 +66,9 @@
                     {#snippet child({ props })}
                       <Button
                         {...props}
-                        variant={row.bring_pc ? 'secondary' : 'outline'}
+                        variant={row.bringPc ? 'secondary' : 'outline'}
                         size="icon"
-                        class="h-10 w-10 transition-colors {row.bring_pc
+                        class="h-10 w-10 transition-colors {row.bringPc
                           ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                           : 'text-gray-400'}"
                         onclick={() => toggleBringPc(row.id)}
@@ -83,7 +83,7 @@
               <span
                 class="mt-1 text-[9px] font-bold text-muted-foreground uppercase"
               >
-                {row.bring_pc ? 'Avec PC' : 'Sans PC'}
+                {row.bringPc ? 'Avec PC' : 'Sans PC'}
               </span>
             </div>
 

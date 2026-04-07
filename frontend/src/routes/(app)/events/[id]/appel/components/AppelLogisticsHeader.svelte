@@ -7,8 +7,6 @@
     LifeBuoy,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
-  import type { EventsResponse } from '$lib/pocketbase-types';
-
   let {
     event,
     presentCount,
@@ -17,7 +15,7 @@
     totalStudents,
     pcsNeeded,
   }: {
-    event: EventsResponse;
+    event: any;
     presentCount: number;
     lateCount: number;
     helpCount: number;

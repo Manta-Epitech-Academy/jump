@@ -57,15 +57,17 @@
   let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
   let eventTitle = $derived(
-    participation?.expand?.event?.titre || 'Atelier Epitech',
+    participation?.event?.titre || 'Atelier Epitech',
   );
-  let subjects = $derived(participation?.expand?.subjects || []);
+  let subjects = $derived(
+    participation?.subjects?.map((ps: any) => ps.subject) || [],
+  );
   let completedSubjectIds = $derived(new Set(data.completedSubjectIds));
   let currentSubject = $derived(
-    subjects.find((s) => !completedSubjectIds.has(s.id)) ?? subjects[0],
+    subjects.find((s: any) => !completedSubjectIds.has(s.id)) ?? subjects[0],
   );
   let otherSubjects = $derived(
-    subjects.filter((s) => s.id !== currentSubject?.id),
+    subjects.filter((s: any) => s.id !== currentSubject?.id),
   );
 
   let previewMissions = $derived(flattenMissions(data.pastParticipations).slice(0, 2));
@@ -74,7 +76,7 @@
   // RPG Aspect : Top Skills
   let topThemes = $derived(data.topThemes);
 
-  function formatTime(dateString: string | undefined) {
+  function formatTime(dateString: string | Date | undefined) {
     if (!dateString) return '';
     return new Date(dateString).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
@@ -368,7 +370,7 @@
               <span>{eventTitle}</span>
               <span class="text-slate-300 dark:text-slate-700">•</span>
               <Clock class="h-4 w-4" />
-              <span>{formatTime(participation.expand?.event?.date)}</span>
+              <span>{formatTime(participation?.event?.date)}</span>
             </div>
           </div>
 
@@ -464,23 +466,23 @@
               <Rocket class="h-8 w-8 text-epi-blue" />
             </div>
             <h3 class="text-xl font-bold text-slate-900 dark:text-white">
-              {upcomingParticipation.expand?.event?.titre || 'Atelier Epitech'}
+              {upcomingParticipation.event?.titre || 'Atelier Epitech'}
             </h3>
             <p class="mt-2 max-w-md text-sm text-slate-500">
               Ta prochaine session est prévue le <strong
                 class="text-slate-700 dark:text-slate-300"
                 >{formatDateFr(
-                  upcomingParticipation.expand?.event?.date,
+                  upcomingParticipation.event?.date,
                 )}</strong
               >
               à
               <strong class="text-slate-700 dark:text-slate-300"
-                >{formatTime(upcomingParticipation.expand?.event?.date)}</strong
+                >{formatTime(upcomingParticipation.event?.date)}</strong
               >.
             </p>
 
             <div class="mt-6 flex gap-3">
-              {#if upcomingParticipation.bring_pc}
+              {#if upcomingParticipation.bringPc}
                 <div
                   class="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
                 >

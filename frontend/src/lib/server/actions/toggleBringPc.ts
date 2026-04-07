@@ -1,17 +1,27 @@
-import { fail } from '@sveltejs/kit';
-import type PocketBase from 'pocketbase';
+import { error, fail } from '@sveltejs/kit';
+import { prisma } from '$lib/server/db';
 
-export async function toggleBringPc(formData: FormData, pb: PocketBase) {
-	const id = formData.get('id') as string;
-	const currentState = formData.get('state') === 'true';
+export async function toggleBringPc(formData: FormData, campusId: string) {
+  const id = formData.get('id') as string;
+  const currentState = formData.get('state') === 'true';
 
-	try {
-		await pb.collection('participations').update(id, {
-			bring_pc: !currentState,
-		});
-		return { success: true };
-	} catch (err) {
-		console.error('Error toggling bring_pc:', err);
-		return fail(500, { error: 'Erreur mise à jour PC' });
-	}
+  try {
+    const participation = await prisma.participation.findUniqueOrThrow({
+      where: { id },
+      select: { campusId: true },
+    });
+    if (participation.campusId !== campusId) {
+      throw error(403, 'Accès refusé.');
+    }
+
+    await prisma.participation.update({
+      where: { id },
+      data: { bringPc: !currentState },
+    });
+    return { success: true };
+  } catch (err: any) {
+    if (err?.status === 403) throw err;
+    console.error('Error toggling bring_pc:', err);
+    return fail(500, { error: 'Erreur mise à jour PC' });
+  }
 }

@@ -1,24 +1,36 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 
-const STUDENT_FIELDS =
-  'id,nom,prenom,niveau,niveau_difficulte,events_count,xp,level,badges';
+const STUDENT_SELECT = {
+  id: true,
+  nom: true,
+  prenom: true,
+  niveau: true,
+  niveauDifficulte: true,
+  eventsCount: true,
+  xp: true,
+  level: true,
+  badges: true,
+} as const;
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (!locals.user) {
+  if (!locals.user || (locals.user.role !== 'staff' && locals.user.role !== 'admin')) {
     return new Response('Unauthorized', { status: 401 });
   }
+  const db = scopedPrisma(getCampusId(locals));
 
   const query = url.searchParams.get('q') || '';
   const top = url.searchParams.has('top');
 
   // Default view: most active students (highest participation count)
   if (top) {
-    const results = await locals.pb.collection('students').getList(1, 20, {
-      sort: '-events_count,nom,prenom',
-      fields: STUDENT_FIELDS,
+    const results = await db.studentProfile.findMany({
+      take: 20,
+      orderBy: [{ eventsCount: 'desc' }, { nom: 'asc' }, { prenom: 'asc' }],
+      select: STUDENT_SELECT,
     });
-    return json(results.items);
+    return json(results);
   }
 
   if (!query || query.length < 2) {
@@ -28,14 +40,17 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const sanitized = query.replace(/[^a-zA-ZÀ-ÿ0-9\s'-]/g, '').trim();
   if (!sanitized) return json([]);
 
-  const escaped = sanitized.replace(/"/g, '\\"');
-
-  const results = await locals.pb.collection('students').getList(1, 20, {
-    sort: 'nom,prenom',
-    filter: `(nom ~ "${escaped}" || prenom ~ "${escaped}")`,
-    fields: STUDENT_FIELDS,
-    requestKey: null,
+  const results = await db.studentProfile.findMany({
+    take: 20,
+    orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+    where: {
+      OR: [
+        { nom: { contains: sanitized, mode: 'insensitive' } },
+        { prenom: { contains: sanitized, mode: 'insensitive' } },
+      ],
+    },
+    select: STUDENT_SELECT,
   });
 
-  return json(results.items);
+  return json(results);
 };

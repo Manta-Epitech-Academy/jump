@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { CampusesResponse } from '$lib/pocketbase-types';
   import { Users, Trash2, Mail } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
@@ -9,8 +8,6 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
-  import { pbUrl } from '$lib/pocketbase';
-
   let { data } = $props();
 
   // Handle component deletion confirmations
@@ -22,10 +19,8 @@
     deleteDialogOpen = true;
   }
 
-  // Retrieve user avatar through the PocketBase files API
   function getAvatarUrl(user: any) {
-    if (user?.avatar)
-      return `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}?thumb=100x100`;
+    // TODO: implement S3 file storage
     return undefined;
   }
 </script>
@@ -80,6 +75,7 @@
             </Table.Cell>
             <Table.Cell>
               <form
+                id="campus-form-{user.id}"
                 method="POST"
                 action="?/updateCampus"
                 use:enhance={() => {
@@ -91,10 +87,20 @@
                 }}
               >
                 <input type="hidden" name="userId" value={user.id} />
-                <Select.Root type="single" name="campusId" value={user.campus}>
+                <Select.Root
+                  type="single"
+                  name="campusId"
+                  value={user.staffProfile?.campusId ?? ''}
+                  onValueChange={() => {
+                    // Wait for the hidden input to update, then submit
+                    requestAnimationFrame(() => {
+                      const form = document.querySelector<HTMLFormElement>(`#campus-form-${user.id}`);
+                      form?.requestSubmit();
+                    });
+                  }}
+                >
                   <Select.Trigger class="h-8 w-40 text-xs">
-                    {(user.expand as { campus?: CampusesResponse })?.campus
-                      ?.name || 'Aucun campus'}
+                    {user.staffProfile?.campus?.name || 'Aucun campus'}
                   </Select.Trigger>
                   <Select.Content>
                     <Select.Item value="">Aucun campus</Select.Item>
@@ -103,7 +109,6 @@
                     {/each}
                   </Select.Content>
                 </Select.Root>
-                <button type="submit" class="hidden">Save</button>
               </form>
             </Table.Cell>
             <Table.Cell class="text-right">

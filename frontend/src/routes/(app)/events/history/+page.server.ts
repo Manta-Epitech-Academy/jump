@@ -1,58 +1,39 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { pbUrl } from '$lib/pocketbase';
-import type {
-  EventsResponse,
-  ThemesResponse,
-  UsersResponse,
-} from '$lib/pocketbase-types';
 import { EventService } from '$lib/server/services/events';
-
-type EventExpand = {
-  theme?: ThemesResponse;
-  mantas?: UsersResponse[];
-};
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {
-    const events = await locals.pb
-      .collection('events')
-      .getFullList<EventsResponse<EventExpand>>({
-        sort: '-date',
-        filter: `date < '${new Date().toISOString()}'`,
-        expand: 'theme,mantas',
-        requestKey: null,
-      });
-
-    const eventsWithStats = await Promise.all(
-      events.map(async (event) => {
-        const participations = await locals.pb
-          .collection('participations')
-          .getList(1, 1, {
-            filter: `event = "${event.id}" && is_present = true`,
-            fields: 'id',
-            requestKey: null,
-          });
-
-        return {
-          id: event.id,
-          titre: event.titre,
-          date: new Date(event.date),
-          theme: event.expand?.theme?.nom,
-          presentCount: participations.totalItems,
-          mantas:
-            event.expand?.mantas?.map((m) => ({
-              name: m.name || m.username,
-              avatarUrl: m.avatar
-                ? `${pbUrl}/api/files/${m.collectionId}/${m.id}/${m.avatar}?thumb=100x100`
-                : null,
-            })) || [],
-        };
-      }),
-    );
+    const db = scopedPrisma(getCampusId(locals));
+    const events = await db.event.findMany({
+      where: {
+        date: { lt: new Date() },
+      },
+      include: {
+        theme: true,
+        mantas: { include: { staffProfile: { include: { user: true } } } },
+        participations: {
+          where: { isPresent: true },
+          select: { id: true },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
 
     return {
-      events: eventsWithStats,
+      events: events.map((event) => ({
+        id: event.id,
+        titre: event.titre,
+        date: event.date,
+        theme: event.theme?.nom,
+        presentCount: event.participations.length,
+        mantas: event.mantas.map((m) => ({
+          name: m.staffProfile.user?.name || '',
+          // TODO: implement S3 file storage for avatars
+          avatarUrl: m.staffProfile.avatar,
+        })),
+      })),
     };
   } catch (err) {
     console.error('Error loading history:', err);
@@ -66,7 +47,7 @@ export const actions: Actions = {
     if (!id) return fail(400);
 
     try {
-      await EventService.deleteEvent(locals.pb, id);
+      await EventService.deleteEvent(id, getCampusId(locals));
       return { success: true };
     } catch (err) {
       console.error('Erreur suppression événement:', err);
@@ -94,13 +75,11 @@ export const actions: Actions = {
         return fail(400, { message: 'Valeur de temps invalide' });
       }
 
+      const campusId = getCampusId(locals);
       const newEventId = await EventService.duplicateEvent(
-        locals.pb,
         originalId,
-        {
-          titre,
-          date: newDate.toISOString(),
-        },
+        { titre, date: newDate.toISOString() },
+        campusId,
       );
 
       return { success: true, newEventId };

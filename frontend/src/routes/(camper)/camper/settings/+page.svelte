@@ -10,7 +10,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  let student = $derived(data.student);
+  let student = $derived(data.studentProfile);
   let deleteDialogOpen = $state(false);
   let deleting = $state(false);
 </script>
@@ -83,7 +83,7 @@
               <p
                 class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
               >
-                {student?.email}
+                {data.user?.email}
               </p>
             </div>
           </div>

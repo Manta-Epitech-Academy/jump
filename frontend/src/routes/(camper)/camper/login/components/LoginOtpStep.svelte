@@ -94,7 +94,6 @@
     use:otpEnhance
     class="space-y-6"
   >
-    <input type="hidden" name="otpId" bind:value={$otpForm.otpId} />
     <input type="hidden" name="email" bind:value={$otpForm.email} />
 
     <div class="space-y-3">

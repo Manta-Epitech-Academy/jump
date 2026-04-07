@@ -11,78 +11,57 @@ import {
   suggestBestSubject,
   preloadCompletedSubjects,
 } from '$lib/domain/recommender';
-import { createScoped } from '$lib/pocketbase';
 import { EventService } from '$lib/server/services/events';
-import {
-  type ParticipationsResponse,
-  type StudentsResponse,
-  type SubjectsResponse,
-  StudentsNiveauOptions,
-  StudentsNiveauDifficulteOptions,
-  StudentsLevelOptions,
-} from '$lib/pocketbase-types';
+import { prisma } from '$lib/server/db';
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
-import { ClientResponseError } from 'pocketbase';
 
-type ParticipationExpand = {
-  student?: StudentsResponse;
-  subjects?: SubjectsResponse[];
+const difficultyWeights: Record<string, number> = {
+  'Débutant': 0, 'Intermédiaire': 1, 'Avancé': 2,
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
+  const db = scopedPrisma(getCampusId(locals));
   let event;
   try {
-    event = await locals.pb.collection('events').getOne(params.id, {
-      expand: 'theme,mantas',
-      requestKey: null,
+    event = await db.event.findUniqueOrThrow({
+      where: { id: params.id },
+      include: {
+        theme: true,
+        mantas: { include: { staffProfile: { include: { user: true } } } },
+      },
     });
-  } catch (e) {
-    console.error(e);
+  } catch {
     throw error(404, 'Événement introuvable');
   }
 
-  const participationsRaw = await locals.pb
-    .collection('participations')
-    .getFullList<ParticipationsResponse<ParticipationExpand>>({
-      filter: `event = "${event.id}"`,
-      expand: 'student,subjects',
-      requestKey: null,
-    });
-
-  // Sort alphabetically by NOM then Prenom
-  participationsRaw.sort((a, b) => {
-    const nomA = a.expand?.student?.nom?.toUpperCase() ?? '';
-    const nomB = b.expand?.student?.nom?.toUpperCase() ?? '';
-    if (nomA < nomB) return -1;
-    if (nomA > nomB) return 1;
-
-    const prenomA = a.expand?.student?.prenom?.toLowerCase() ?? '';
-    const prenomB = b.expand?.student?.prenom?.toLowerCase() ?? '';
-    return prenomA.localeCompare(prenomB);
+  const participationsRaw = await db.participation.findMany({
+    where: { eventId: event.id },
+    include: {
+      studentProfile: true,
+      subjects: { include: { subject: true } },
+    },
   });
 
-  // Batch-fetch completed subject history for all students in this event (fixes N+1)
-  const studentIds = participationsRaw
-    .map((p) => p.expand?.student?.id)
-    .filter(Boolean) as string[];
+  participationsRaw.sort((a, b) => {
+    const nomA = a.studentProfile.nom.toUpperCase();
+    const nomB = b.studentProfile.nom.toUpperCase();
+    if (nomA < nomB) return -1;
+    if (nomA > nomB) return 1;
+    return a.studentProfile.prenom.toLowerCase().localeCompare(b.studentProfile.prenom.toLowerCase());
+  });
 
-  const completedMap =
-    studentIds.length > 0
-      ? await preloadCompletedSubjects(locals.pb, studentIds, event.id)
-      : new Map<string, Set<string>>();
-
-  const difficultyWeights: Record<string, number> = {
-    Débutant: 0,
-    Intermédiaire: 1,
-    Avancé: 2,
-  };
+  const studentProfileIds = participationsRaw.map((p) => p.studentProfileId);
+  const completedMap = studentProfileIds.length > 0
+    ? await preloadCompletedSubjects(studentProfileIds, event.id)
+    : new Map<string, Set<string>>();
 
   const participations = participationsRaw.map((p) => {
-    const student = p.expand?.student;
-    const currentSubjects = p.expand?.subjects || [];
+    const student = p.studentProfile;
+    const currentSubjects = p.subjects.map((ps) => ps.subject);
     const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
 
-    if (student && currentSubjects.length > 0) {
+    if (currentSubjects.length > 0) {
       const completed = completedMap.get(student.id) ?? new Set();
 
       for (const subject of currentSubjects) {
@@ -93,14 +72,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
           });
         }
 
-        const studentLevel =
-          difficultyWeights[student.niveau_difficulte || 'Débutant'] ?? 0;
+        const studentLevel = difficultyWeights[student.niveauDifficulte || 'Débutant'] ?? 0;
         const subjectLevel = difficultyWeights[subject.difficulte] ?? 0;
 
         if (subjectLevel > studentLevel) {
           alerts.push({
             type: 'warning',
-            message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveau_difficulte || 'Débutant'}).`,
+            message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveauDifficulte || 'Débutant'}).`,
           });
         }
       }
@@ -109,33 +87,23 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     return { ...p, alerts };
   });
 
-  const subjects = await locals.pb.collection('subjects').getFullList({
-    sort: 'nom',
-    expand: 'themes,campus',
-    requestKey: null,
+  const subjects = await db.subject.findMany({
+    include: { subjectThemes: { include: { theme: true } }, campus: true },
+    orderBy: { nom: 'asc' },
   });
 
-  const themes = await locals.pb.collection('themes').getFullList({
-    sort: 'nom',
-    requestKey: null,
-  });
+  const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
 
-  const user = locals.user as any;
-  const staff = await locals.pb.collection('users').getFullList({
-    filter: user?.campus ? `campus = "${user.campus}"` : '',
-    sort: 'name',
+  const staff = await db.staffProfile.findMany({
+    include: { user: true },
+    orderBy: { user: { name: 'asc' } },
   });
 
   const eventDate = new Date(event.date);
   const dateString = eventDate.toISOString().split('T')[0];
-
   const timeParts = new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Europe/Paris',
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Paris',
   }).formatToParts(eventDate);
-
   const hours = timeParts.find((p) => p.type === 'hour')?.value || '00';
   const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
   const timeString = `${hours}:${minutes}`;
@@ -143,13 +111,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const editForm = await superValidate(
     {
       titre: event.titre,
-      theme:
-        (event as { expand?: { theme?: { nom?: string } } }).expand?.theme
-          ?.nom || '',
+      theme: event.theme?.nom || '',
       date: dateString,
       time: timeString,
       notes: event.notes || '',
-      mantas: event.mantas || [],
+      mantas: event.mantas.map((m) => m.staffProfileId),
     },
     zod4(eventSchema),
   );
@@ -175,40 +141,43 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     try {
-      const duplicate = await locals.pb
-        .collection('participations')
-        .getList(1, 1, {
-          filter: `student = "${form.data.studentId}" && event = "${params.id}"`,
-        });
+      const existing = await prisma.participation.findUnique({
+        where: {
+          studentProfileId_eventId: {
+            studentProfileId: form.data.studentId,
+            eventId: params.id,
+          },
+        },
+      });
 
-      if (duplicate.totalItems > 0) {
-        return message(form, 'Cet élève est déjà inscrit à cet événement.', {
-          status: 400,
-        });
+      if (existing) {
+        return message(form, 'Cet élève est déjà inscrit à cet événement.', { status: 400 });
       }
 
-      const event = await locals.pb.collection('events').getOne(params.id);
-      const subjects = await locals.pb.collection('subjects').getFullList();
+      const db = scopedPrisma(getCampusId(locals));
+      const event = await db.event.findUniqueOrThrow({ where: { id: params.id } });
+      const subjects = await db.subject.findMany({ include: { subjectThemes: true } });
       const suggestedSubjectId = await suggestBestSubject(
-        locals.pb,
-        form.data.studentId,
-        subjects,
-        event.theme,
+        form.data.studentId, subjects, event.themeId,
       );
 
-      await createScoped(locals.pb, 'participations', {
-        student: form.data.studentId,
-        event: params.id,
-        subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
-        is_present: false,
+      const campusId = getCampusId(locals);
+      await prisma.participation.create({
+        data: {
+          studentProfileId: form.data.studentId,
+          eventId: params.id,
+          campusId,
+          isPresent: false,
+          subjects: suggestedSubjectId
+            ? { create: [{ subjectId: suggestedSubjectId }] }
+            : undefined,
+        },
       });
 
       return message(form, 'Élève ajouté avec une suggestion intelligente !');
     } catch (err) {
       console.error(err);
-      return message(form, "Erreur technique lors de l'ajout.", {
-        status: 500,
-      });
+      return message(form, "Erreur technique lors de l'ajout.", { status: 500 });
     }
   },
 
@@ -216,14 +185,17 @@ export const actions: Actions = {
     const data = await request.formData();
     const participationId = data.get('participationId') as string;
     const subjectsRaw = data.get('subjectIds') as string;
-    const subjectIds = subjectsRaw
-      ? subjectsRaw.split(',').filter(Boolean)
-      : [];
+    const subjectIds = subjectsRaw ? subjectsRaw.split(',').filter(Boolean) : [];
+    const db = scopedPrisma(getCampusId(locals));
 
     try {
-      await locals.pb
-        .collection('participations')
-        .update(participationId, { subjects: subjectIds });
+      await db.participation.findUniqueOrThrow({ where: { id: participationId } });
+      await prisma.participationSubject.deleteMany({ where: { participationId } });
+      if (subjectIds.length > 0) {
+        await prisma.participationSubject.createMany({
+          data: subjectIds.map((subjectId) => ({ participationId, subjectId })),
+        });
+      }
       return { success: true };
     } catch (err) {
       console.error('Update subjects error:', err);
@@ -231,7 +203,7 @@ export const actions: Actions = {
     }
   },
 
-  bulkAssign: async ({ request, locals, params }) => {
+  bulkAssign: async ({ request, params, locals }) => {
     const data = await request.formData();
     const subjectsRaw = data.get('subjectIds') as string;
 
@@ -239,23 +211,26 @@ export const actions: Actions = {
     const newSubjectIds = subjectsRaw.split(',').filter(Boolean);
 
     try {
-      const participations = await locals.pb
-        .collection('participations')
-        .getFullList({ filter: `event = "${params.id}"`, requestKey: null });
+      const db = scopedPrisma(getCampusId(locals));
+      await db.event.findUniqueOrThrow({ where: { id: params.id } });
+      const participations = await prisma.participation.findMany({
+        where: { eventId: params.id },
+        include: { subjects: true },
+      });
 
       let updateCount = 0;
 
       await Promise.all(
         participations.map(async (p) => {
-          const currentSubjects = p.subjects || [];
-          const combinedSubjects = new Set([
-            ...currentSubjects,
-            ...newSubjectIds,
-          ]);
+          const currentSubjectIds = p.subjects.map((s) => s.subjectId);
+          const toAdd = newSubjectIds.filter((id) => !currentSubjectIds.includes(id));
 
-          if (combinedSubjects.size > currentSubjects.length) {
-            await locals.pb.collection('participations').update(p.id, {
-              subjects: Array.from(combinedSubjects),
+          if (toAdd.length > 0) {
+            await prisma.participationSubject.createMany({
+              data: toAdd.map((subjectId) => ({
+                participationId: p.id,
+                subjectId,
+              })),
             });
             updateCount++;
           }
@@ -271,13 +246,9 @@ export const actions: Actions = {
 
   autoAssignAll: async ({ params, locals }) => {
     try {
-      const count = await EventService.autoAssignAll(locals.pb, params.id);
-      if (count === 0)
-        return { success: true, message: 'Aucun élève à assigner.' };
-      return {
-        success: true,
-        message: `${count} élèves assignés automatiquement !`,
-      };
+      const count = await EventService.autoAssignAll(params.id, getCampusId(locals));
+      if (count === 0) return { success: true, message: 'Aucun élève à assigner.' };
+      return { success: true, message: `${count} élèves assignés automatiquement !` };
     } catch (err) {
       console.error('Auto-assign error:', err);
       return fail(500, { message: "Erreur lors de l'auto-assignation" });
@@ -289,55 +260,59 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     try {
-      const tempPassword = crypto.randomUUID() + Math.random().toString(36);
+      const campusId = getCampusId(locals);
 
-      const newStudent = await createScoped(locals.pb, 'students', {
-        ...form.data,
-        email: form.data.email || '',
-        niveau: form.data.niveau as StudentsNiveauOptions,
-        niveau_difficulte: form.data
-          .niveau_difficulte as StudentsNiveauDifficulteOptions,
-        emailVisibility: true,
-        password: tempPassword,
-        passwordConfirm: tempPassword,
-        verified: false,
-        level: StudentsLevelOptions.Novice,
-        badges: [],
-        xp: 0,
-        events_count: 0,
+      const user = await prisma.user.create({
+        data: {
+          email: form.data.email || `${crypto.randomUUID()}@placeholder.local`,
+          role: 'student',
+          name: `${form.data.prenom} ${form.data.nom}`,
+          studentProfile: {
+            create: {
+              nom: form.data.nom,
+              prenom: form.data.prenom,
+              campusId,
+              niveau: form.data.niveau || null,
+              niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
+              xp: 0,
+              eventsCount: 0,
+              parentEmail: form.data.parent_email || null,
+              parentPhone: form.data.parent_phone || null,
+              phone: form.data.phone || null,
+            },
+          },
+        },
+        include: { studentProfile: true },
       });
 
-      const event = await locals.pb.collection('events').getOne(params.id);
-      const subjects = await locals.pb.collection('subjects').getFullList();
+      const studentProfileId = user.studentProfile!.id;
+      const db = scopedPrisma(campusId);
+
+      const event = await db.event.findUniqueOrThrow({ where: { id: params.id } });
+      const subjects = await db.subject.findMany({ include: { subjectThemes: true } });
       const suggestedSubjectId = await suggestBestSubject(
-        locals.pb,
-        newStudent.id,
-        subjects,
-        event.theme,
+        studentProfileId, subjects, event.themeId,
       );
 
-      await createScoped(locals.pb, 'participations', {
-        student: newStudent.id,
-        event: params.id,
-        subjects: suggestedSubjectId ? [suggestedSubjectId] : [],
-        is_present: false,
+      await prisma.participation.create({
+        data: {
+          studentProfileId,
+          eventId: params.id,
+          campusId,
+          isPresent: false,
+          subjects: suggestedSubjectId
+            ? { create: [{ subjectId: suggestedSubjectId }] }
+            : undefined,
+        },
       });
 
       return message(form, 'Élève créé et assigné automatiquement !');
-    } catch (err) {
-      if (err instanceof ClientResponseError && err.status === 400) {
-        return message(
-          form,
-          'Un élève identique (même nom, prénom et email) existe déjà.',
-          {
-            status: 400,
-          },
-        );
+    } catch (err: any) {
+      if (err.code === 'P2002') {
+        return message(form, 'Un élève identique (même nom, prénom et email) existe déjà.', { status: 400 });
       }
       console.error('Quick create student error:', err);
-      return message(form, 'Erreur lors de la création rapide.', {
-        status: 500,
-      });
+      return message(form, 'Erreur lors de la création rapide.', { status: 500 });
     }
   },
 
@@ -370,58 +345,60 @@ export const actions: Actions = {
         return message(form, 'Format de date invalide', { status: 400 });
       }
 
+      const campusId = getCampusId(locals);
       const themeChanged = await EventService.updateEvent(
-        locals.pb,
         params.id,
-        {
-          ...form.data,
-          date: jsDate.toISOString(),
-        },
+        campusId,
+        { ...form.data, date: jsDate.toISOString() },
       );
 
       if (themeChanged) {
         return message(form, 'Événement mis à jour et sujets recalculés !');
       }
-
       return message(form, 'Événement mis à jour !');
     } catch (err) {
       console.error('Update Event Error:', err);
-      return message(form, "Impossible de mettre à jour l'événement", {
-        status: 500,
-      });
+      return message(form, "Impossible de mettre à jour l'événement", { status: 500 });
     }
   },
 
   toggleBringPc: async ({ request, locals }) => {
     const data = await request.formData();
-    return toggleBringPc(data, locals.pb);
+    return toggleBringPc(data, getCampusId(locals));
   },
 
   remove: async ({ url, locals }) => {
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
+    const db = scopedPrisma(getCampusId(locals));
 
     try {
-      const p = await locals.pb
-        .collection('participations')
-        .getOne<
-          ParticipationsResponse<ParticipationExpand>
-        >(id, { expand: 'subjects' });
+      const p = await db.participation.findUniqueOrThrow({
+        where: { id },
+        include: { subjects: { include: { subject: true } } },
+      });
 
-      if (p.is_present) {
-        const subjects = p.expand?.subjects || [];
+      if (p.isPresent) {
+        const subjects = p.subjects.map((ps) => ({
+          difficulte: ps.subject.difficulte,
+        }));
         const xpValue = getTotalXp(subjects);
-        const student = await locals.pb
-          .collection('students')
-          .getOne(p.student);
 
-        await locals.pb.collection('students').update(p.student, {
-          'xp-': Math.min(xpValue, student.xp ?? 0),
-          'events_count-': Math.min(1, student.events_count ?? 0),
+        const profile = await prisma.studentProfile.findUniqueOrThrow({
+          where: { id: p.studentProfileId },
+          select: { xp: true, eventsCount: true },
+        });
+        await prisma.studentProfile.update({
+          where: { id: p.studentProfileId },
+          data: {
+            xp: Math.max(0, profile.xp - xpValue),
+            eventsCount: Math.max(0, profile.eventsCount - 1),
+          },
         });
       }
 
-      await locals.pb.collection('participations').delete(id);
+      await prisma.participationSubject.deleteMany({ where: { participationId: id } });
+      await prisma.participation.delete({ where: { id } });
       return { success: true };
     } catch (err) {
       console.error('Remove participation error:', err);
@@ -431,7 +408,7 @@ export const actions: Actions = {
 
   deleteEvent: async ({ params, locals }) => {
     try {
-      await EventService.deleteEvent(locals.pb, params.id);
+      await EventService.deleteEvent(params.id, getCampusId(locals));
     } catch (err) {
       console.error('Delete event error:', err);
       return fail(500);

@@ -6,8 +6,6 @@
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import { ArrowLeft, Map as MapIcon, FolderOpen, Trophy } from '@lucide/svelte';
-  import PocketBase from 'pocketbase';
-  import { pbUrl } from '$lib/pocketbase';
   import { browser } from '$app/environment';
   import { invalidateAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
@@ -28,12 +26,12 @@
   let portfolioItems = $derived(data.portfolioItems || []);
 
   let currentIndex = $derived(
-    steps.findIndex((s) => s.id === progress.current_step_id),
+    steps.findIndex((s) => s.id === progress.currentStepId),
   );
   let unlockedIndex = $derived(
-    progress.unlocked_step_id === 'COMPLETED'
+    progress.unlockedStepId === 'COMPLETED'
       ? steps.length
-      : steps.findIndex((s) => s.id === progress.unlocked_step_id),
+      : steps.findIndex((s) => s.id === progress.unlockedStepId),
   );
 
   let currentStep = $derived(steps[currentIndex] || steps[0]);
@@ -60,38 +58,14 @@
     qcmFails = 0;
   });
 
-  const realtimePb = browser ? new PocketBase(pbUrl) : null;
-  if (browser && realtimePb) {
-    const studentCookie = document.cookie
-      .split(';')
-      .find((c) => c.trim().startsWith('pb_student_auth='));
-    if (studentCookie) {
-      const value = studentCookie.substring(studentCookie.indexOf('=') + 1);
-      const { token, model } = JSON.parse(decodeURIComponent(value));
-      realtimePb.authStore.save(token, model);
-    }
-  }
-
   let progressId = $derived(data.progress.id);
 
-  $effect(() => {
-    if (!realtimePb) return;
-    const id = progressId;
-    realtimePb.collection('steps_progress').subscribe(id, async (e) => {
-      if (e.action === 'update') {
-        if (e.record.unlocked_step_id !== progress.unlocked_step_id) {
-          if (e.record.last_unlock_source === 'staff') {
-            toast.success('Le Manta a validé ton étape !', { duration: 4000 });
-            if (e.record.unlocked_step_id === 'COMPLETED') triggerConfetti();
-          }
-          await invalidateAll();
-        } else if (e.record.status !== progress.status) {
-          await invalidateAll();
-        }
-      }
-    });
-    return () => realtimePb.collection('steps_progress').unsubscribe(id);
-  });
+  // TODO: implement SSE or polling to replace PocketBase realtime subscription
+  // Previously subscribed to steps_progress record by ID for:
+  // - Staff unlock notifications (toast + confetti on completion)
+  // - Status change detection (needs_help toggle)
+  // On update: check unlocked_step_id change, last_unlock_source === 'staff' → toast
+  // Then invalidateAll() to refetch data
 </script>
 
 <div
@@ -197,7 +171,7 @@
             Sujet Terminé !
           </h2>
 
-          {#if participation.camper_rating}
+          {#if participation.camperRating}
             <p class="mb-8 max-w-md text-lg text-slate-500">
               Merci pour ton retour ! Ton feedback aide les Mantas à améliorer
               les ateliers.
