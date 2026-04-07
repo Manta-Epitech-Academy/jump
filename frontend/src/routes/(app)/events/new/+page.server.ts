@@ -5,8 +5,9 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { eventSchema } from '$lib/validation/events';
 import { CalendarDateTime } from '@internationalized/date';
-import { createScoped } from '$lib/pocketbase';
 import { generatePin } from '$lib/utils';
+import { prisma } from '$lib/server/db';
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import {
   analyzeCampaignFile,
   importCampaignData,
@@ -14,13 +15,12 @@ import {
 } from '$lib/server/services/campaignService';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const themes = await locals.pb
-    .collection('themes')
-    .getFullList({ sort: 'nom' });
-  const user = locals.user as any;
-  const staff = await locals.pb.collection('users').getFullList({
-    filter: user?.campus ? `campus = "${user.campus}"` : '',
-    sort: 'name',
+  const db = scopedPrisma(getCampusId(locals));
+
+  const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
+  const staff = await db.staffProfile.findMany({
+    include: { user: true },
+    orderBy: { user: { name: 'asc' } },
   });
 
   const form = await superValidate(zod4(eventSchema));
@@ -40,7 +40,7 @@ export const actions: Actions = {
         const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
         const [hour, minute] = timeStr.split(':').map(Number);
         calendarDateTime = new CalendarDateTime(year, month, day, hour, minute);
-      } catch (e) {
+      } catch {
         // handled by validation
       }
     }
@@ -61,16 +61,19 @@ export const actions: Actions = {
 
     let newEventId = '';
     try {
+      const campusId = getCampusId(locals);
+      const db = scopedPrisma(campusId);
+
       let themeId: string | null = null;
       if (form.data.theme && form.data.theme.trim() !== '') {
-        const existing = await locals.pb
-          .collection('themes')
-          .getList(1, 1, { filter: `nom = "${form.data.theme}"` });
-        if (existing.items.length > 0) {
-          themeId = existing.items[0].id;
+        const existing = await db.theme.findFirst({
+          where: { nom: form.data.theme },
+        });
+        if (existing) {
+          themeId = existing.id;
         } else {
-          const created = await createScoped(locals.pb, 'themes', {
-            nom: form.data.theme,
+          const created = await db.theme.create({
+            data: { nom: form.data.theme },
           });
           themeId = created.id;
         }
@@ -79,13 +82,18 @@ export const actions: Actions = {
       if (!calendarDateTime) throw new Error('Date invalide');
       const jsDate = calendarDateTime.toDate('Europe/Paris');
 
-      const record = await createScoped(locals.pb, 'events', {
-        titre: form.data.titre,
-        date: jsDate.toISOString(),
-        theme: themeId ?? undefined,
-        notes: form.data.notes,
-        mantas: form.data.mantas,
-        pin: generatePin(),
+      const record = await prisma.event.create({
+        data: {
+          titre: form.data.titre,
+          date: jsDate,
+          themeId,
+          notes: form.data.notes,
+          campusId,
+          pin: generatePin(),
+          mantas: form.data.mantas.length > 0
+            ? { create: form.data.mantas.map((id) => ({ staffProfileId: id })) }
+            : undefined,
+        },
       });
       newEventId = record.id;
     } catch (err) {
@@ -97,7 +105,7 @@ export const actions: Actions = {
     throw redirect(303, resolve(`/events/${newEventId}/builder`));
   },
 
-  analyzeCampaign: async ({ request, locals }) => {
+  analyzeCampaign: async ({ request }) => {
     const formData = await request.formData();
     const file = formData.get('csvFile') as File;
 
@@ -107,7 +115,7 @@ export const actions: Actions = {
       });
 
     try {
-      const result = await analyzeCampaignFile(locals.pb, file);
+      const result = await analyzeCampaignFile(file);
       return result;
     } catch (err) {
       console.error('CSV Analysis Error:', err);
@@ -129,14 +137,15 @@ export const actions: Actions = {
 
     let newEventId = '';
     try {
+      const campusId = getCampusId(locals);
       const importList = JSON.parse(rawData) as ImportAction[];
       newEventId = await importCampaignData(
-        locals.pb,
         importList,
         eventName,
         eventDateStr,
         mantas,
         notes,
+        campusId,
       );
     } catch (err) {
       console.error('Final Import Error:', err);

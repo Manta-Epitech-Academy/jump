@@ -3,11 +3,11 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 
 export const load: LayoutServerLoad = async ({ parent }) => {
-  const { user } = await parent();
+  const { user, staffProfile } = await parent();
 
   if (!user) {
     throw redirect(302, resolve('/login'));
   }
 
-  return { user };
+  return { user, staffProfile };
 };

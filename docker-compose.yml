@@ -1,59 +1,43 @@
 services:
-  pocketbase:
-    image: ghcr.io/mateo-cabrera/tekcamp-pocketbase:latest
-    ports:
-      - "8090:8090"
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: tekcamp
+      POSTGRES_USER: tekcamp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - pb_data:/pb/pb_data
+      - pg_data:/var/lib/postgresql/data
     networks:
       - tekcamp-network
     restart: unless-stopped
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:8090/api/health",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U tekcamp"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   sveltekit:
-    image: ghcr.io/mateo-cabrera/tekcamp-sveltekit:latest
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
     env_file:
       - .env
     ports:
       - "${PORT}:${PORT}"
     depends_on:
-      pocketbase:
+      postgres:
         condition: service_healthy
     networks:
       - tekcamp-network
     environment:
       - PORT=${PORT}
       - ORIGIN=${ORIGIN}
-      - PUBLIC_POCKETBASE_URL=${PUBLIC_POCKETBASE_URL}
-      - PUBLIC_INTERNAL_POCKETBASE_URL=http://pocketbase:8090
+      - DATABASE_URL=postgresql://tekcamp:${POSTGRES_PASSWORD}@postgres:5432/tekcamp
       - HOST_HEADER=x-forwarded-host
     restart: unless-stopped
 
-  watchtower:
-    image: containrrr/watchtower:1.7.1
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /root/.docker/config.json:/config/config.json:ro
-    environment:
-      - DOCKER_API_VERSION=1.45
-      - DOCKER_CONFIG=/config
-    command: --interval 60 --cleanup --warn-on-head-failure never tekcamp-pocketbase-1 tekcamp-sveltekit-1
-    restart: unless-stopped
-
 volumes:
-  pb_data:
+  pg_data:
 
 networks:
   tekcamp-network:

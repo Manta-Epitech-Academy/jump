@@ -3,13 +3,8 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
-import { createScoped } from '$lib/pocketbase';
-import {
-  StudentsNiveauOptions,
-  StudentsNiveauDifficulteOptions,
-  StudentsLevelOptions,
-} from '$lib/pocketbase-types';
-import { ClientResponseError } from 'pocketbase';
+import { prisma } from '$lib/server/db';
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 
 const PER_PAGE = 50;
 
@@ -17,32 +12,41 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
   const search = url.searchParams.get('q') || '';
   const niveau = url.searchParams.get('niveau') || '';
+  const db = scopedPrisma(getCampusId(locals));
 
-  const filters: string[] = [];
+  const where: any = {};
+
   if (search) {
     const sanitized = search.replace(/[^a-zA-ZÀ-ÿ0-9\s'-]/g, '').trim();
     if (sanitized) {
-      const escaped = sanitized.replace(/"/g, '\\"');
-      filters.push(`(nom ~ "${escaped}" || prenom ~ "${escaped}")`);
+      where.OR = [
+        { nom: { contains: sanitized, mode: 'insensitive' } },
+        { prenom: { contains: sanitized, mode: 'insensitive' } },
+      ];
     }
   }
+
   if (niveau) {
-    filters.push(`niveau = "${niveau}"`);
+    where.niveau = niveau;
   }
 
-  const students = await locals.pb
-    .collection('students')
-    .getList(page, PER_PAGE, {
-      sort: 'nom,prenom',
-      filter: filters.length > 0 ? filters.join(' && ') : '',
-    });
+  const [students, totalItems] = await Promise.all([
+    db.studentProfile.findMany({
+      where,
+      orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+      skip: (page - 1) * PER_PAGE,
+      take: PER_PAGE,
+      include: { user: true, campus: true },
+    }),
+    db.studentProfile.count({ where }),
+  ]);
 
   const form = await superValidate(zod4(studentSchema));
 
   return {
-    students: students.items,
-    totalPages: students.totalPages,
-    totalItems: students.totalItems,
+    students,
+    totalPages: Math.ceil(totalItems / PER_PAGE),
+    totalItems,
     currentPage: page,
     form,
   };
@@ -52,38 +56,39 @@ export const actions: Actions = {
   create: async ({ request, locals }) => {
     const form = await superValidate(request, zod4(studentSchema));
     if (!form.valid) return fail(400, { form });
+
     try {
-      // Random password (they will use OTP anyway)
-      const tempPassword = crypto.randomUUID() + Math.random().toString(36);
+      const campusId = getCampusId(locals);
 
-      // Scoped Creation
-      await createScoped(locals.pb, 'students', {
-        ...form.data,
-        email: form.data.email || '',
-        niveau: form.data.niveau as StudentsNiveauOptions,
-        niveau_difficulte: form.data
-          .niveau_difficulte as StudentsNiveauDifficulteOptions,
-
-        // Auth & Default Fields
-        emailVisibility: true,
-        password: tempPassword,
-        passwordConfirm: tempPassword,
-        verified: false,
-        level: StudentsLevelOptions.Novice,
-        badges: [],
-        xp: 0,
-        events_count: 0,
+      await prisma.user.create({
+        data: {
+          email: form.data.email || `${crypto.randomUUID()}@placeholder.local`,
+          role: 'student',
+          name: `${form.data.prenom} ${form.data.nom}`,
+          studentProfile: {
+            create: {
+              nom: form.data.nom,
+              prenom: form.data.prenom,
+              campusId,
+              niveau: form.data.niveau || null,
+              niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
+              xp: 0,
+              eventsCount: 0,
+              parentEmail: form.data.parent_email || null,
+              parentPhone: form.data.parent_phone || null,
+              phone: form.data.phone || null,
+            },
+          },
+        },
       });
+
       return message(form, 'Élève ajouté avec succès !');
-    } catch (err) {
-      // Handle unique constraint violation (Campus + Nom + Prénom + Email)
-      if (err instanceof ClientResponseError && err.status === 400) {
+    } catch (err: any) {
+      if (err.code === 'P2002') {
         return message(
           form,
           'Un élève identique (Même nom, prénom et email) existe déjà.',
-          {
-            status: 400,
-          },
+          { status: 400 },
         );
       }
       console.error(err);
@@ -96,15 +101,35 @@ export const actions: Actions = {
     const form = await superValidate(formData, zod4(studentSchema));
     const id = formData.get('id') as string;
     if (!form.valid || !id) return fail(400, { form });
+    const db = scopedPrisma(getCampusId(locals));
+
     try {
-      await locals.pb.collection('students').update(id, {
-        ...form.data,
-        niveau_difficulte: form.data
-          .niveau_difficulte as StudentsNiveauDifficulteOptions,
+      await db.studentProfile.update({
+        where: { id },
+        data: {
+          nom: form.data.nom,
+          prenom: form.data.prenom,
+          niveau: form.data.niveau || null,
+          niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
+          parentEmail: form.data.parent_email || null,
+          parentPhone: form.data.parent_phone || null,
+          phone: form.data.phone || null,
+        },
       });
+
+      if (form.data.email) {
+        const profile = await db.studentProfile.findUniqueOrThrow({
+          where: { id },
+        });
+        await prisma.user.update({
+          where: { id: profile.userId },
+          data: { email: form.data.email },
+        });
+      }
+
       return message(form, 'Élève modifié avec succès !');
-    } catch (err) {
-      if (err instanceof ClientResponseError && err.status === 400) {
+    } catch (err: any) {
+      if (err.code === 'P2002') {
         return message(form, 'Un élève avec ce nom et cet email existe déjà.', {
           status: 400,
         });
@@ -116,10 +141,15 @@ export const actions: Actions = {
   delete: async ({ url, locals }) => {
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
+    const db = scopedPrisma(getCampusId(locals));
+
     try {
-      await locals.pb.collection('students').delete(id);
+      const profile = await db.studentProfile.findUniqueOrThrow({
+        where: { id },
+      });
+      await prisma.user.delete({ where: { id: profile.userId } });
       return { success: true };
-    } catch (err) {
+    } catch {
       return fail(500);
     }
   },

@@ -1,27 +1,35 @@
 import type { Handle } from '@sveltejs/kit';
-import { dev } from '$app/environment';
-import {
-  createAllContexts,
-  refreshAll,
-  setLocals,
-  exportAllCookies,
-  getSystemClient,
-  applyRouteGuards,
-} from '$lib/server/auth';
+import { auth } from '$lib/server/auth';
+import { prisma } from '$lib/server/db';
+import { applyRouteGuards } from '$lib/server/auth/guards';
 
 export const handle: Handle = async ({ event, resolve }) => {
-  const cookieHeader = event.request.headers.get('cookie') || '';
-  const { adminPb, staffPb, studentPb } = createAllContexts(cookieHeader);
-  const systemPb = await getSystemClient();
+  // 1. Get session from BetterAuth
+  const sessionData = await auth.api.getSession({
+    headers: event.request.headers,
+  });
 
-  await refreshAll(adminPb, staffPb, studentPb);
-  setLocals(event, adminPb, staffPb, studentPb, systemPb);
+  event.locals.user = sessionData?.user ?? null;
+  event.locals.session = sessionData?.session ?? null;
+  event.locals.staffProfile = null;
+  event.locals.studentProfile = null;
 
+  // 2. Load domain profiles — check both since the cached role may be stale
+  if (event.locals.user) {
+    event.locals.staffProfile = await prisma.staffProfile.findUnique({
+      where: { userId: event.locals.user.id },
+      include: { campus: true },
+    });
+
+    event.locals.studentProfile = await prisma.studentProfile.findUnique({
+      where: { userId: event.locals.user.id },
+      include: { campus: true },
+    });
+  }
+
+  // 3. Route guards
   const guardResponse = applyRouteGuards(event);
   if (guardResponse) return guardResponse;
 
-  const response = await resolve(event);
-  exportAllCookies(response, adminPb, staffPb, studentPb, dev);
-
-  return response;
+  return resolve(event);
 };

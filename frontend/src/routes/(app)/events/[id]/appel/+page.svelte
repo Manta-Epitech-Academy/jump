@@ -1,7 +1,5 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { pbUrl } from '$lib/pocketbase';
-  import PocketBase from 'pocketbase';
   import {
     User,
     Laptop,
@@ -20,11 +18,6 @@
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
   import NoteInput from './components/NoteInput.svelte';
-  import type {
-    ParticipationsResponse,
-    StudentsResponse,
-    SubjectsResponse,
-  } from '$lib/pocketbase-types';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { resolve } from '$app/paths';
   import { Badge } from '$lib/components/ui/badge';
@@ -32,24 +25,22 @@
   import AppelLogisticsHeader from './components/AppelLogisticsHeader.svelte';
   import AppelFilterBar from './components/AppelFilterBar.svelte';
 
-  type ParticipationExpand = {
-    student?: StudentsResponse;
-    subjects?: SubjectsResponse[];
-  };
-  type ParticipationWithExpand = ParticipationsResponse<ParticipationExpand>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type ParticipationWithExpand = Record<string, any>;
 
   let { data }: { data: PageData } = $props();
 
-  let participations: ParticipationWithExpand[] = $state(
-    untrack(() => data.participations as ParticipationWithExpand[]),
+  let participations = $state<any[]>(
+    untrack(() => data.participations),
   );
   let progressRecords = $state<any[]>(untrack(() => data.progressData));
 
   let studentProgressMap = $derived.by(() => {
     const map = new Map<string, any[]>();
     progressRecords.forEach((p) => {
-      if (!map.has(p.student)) map.set(p.student, []);
-      map.get(p.student)?.push(p);
+      const key = p.studentProfileId;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)?.push(p);
     });
     return map;
   });
@@ -65,84 +56,32 @@
     progressRecords = data.progressData;
   });
 
-  const pb = new PocketBase(pbUrl);
+  // TODO: implement SSE or polling to replace PocketBase realtime subscriptions
+  // Previously subscribed to:
+  // - participations (filter: event = data.event.id) for live attendance updates
+  // - steps_progress (filter: event = data.event.id) for live step progress updates
+  // Options: (a) SSE via /api/events/[id]/stream, (b) short polling every 3s
 
-  $effect(() => {
-    if (browser) {
-      const staffCookie = document.cookie
-        .split(';')
-        .find((c) => c.trim().startsWith('pb_staff_auth='));
-      if (staffCookie) {
-        const value = staffCookie.substring(staffCookie.indexOf('=') + 1);
-        const { token, model } = JSON.parse(decodeURIComponent(value));
-        pb.authStore.save(token, model);
-      }
-
-      pb.collection('participations').subscribe(
-        '*',
-        (e) => {
-          if (e.action === 'update') {
-            const index = participations.findIndex((p) => p.id === e.record.id);
-            if (index !== -1) {
-              participations[index] = {
-                ...participations[index],
-                is_present: e.record.is_present as boolean,
-                bring_pc: e.record.bring_pc as boolean,
-                note: e.record.note as string,
-                subjects: e.record.subjects as string[],
-                delay: e.record.delay as number,
-              };
-            }
-          } else if (e.action === 'create' || e.action === 'delete') {
-            location.reload();
-          }
-        },
-        { filter: `event = "${data.event.id}"` },
-      );
-
-      pb.collection('steps_progress').subscribe(
-        '*',
-        (e) => {
-          if (e.action === 'update') {
-            const index = progressRecords.findIndex(
-              (p) => p.id === e.record.id,
-            );
-            if (index !== -1) progressRecords[index] = e.record;
-          } else if (e.action === 'create') {
-            progressRecords = [...progressRecords, e.record];
-          }
-        },
-        { filter: `event = "${data.event.id}"` },
-      );
-    }
-    return () => {
-      if (browser) {
-        pb.collection('participations').unsubscribe('*');
-        pb.collection('steps_progress').unsubscribe('*');
-      }
-    };
-  });
-
-  const optimisticToggle = (id: string, field: 'is_present' | 'bring_pc') => {
+  const optimisticToggle = (id: string, field: 'isPresent' | 'bringPc') => {
     return () => {
       const index = participations.findIndex((p) => p.id === id);
       if (index !== -1) {
         const p = participations[index];
-        if (field === 'is_present') {
-          p.is_present = !p.is_present;
-          if (!p.is_present) p.delay = 0;
+        if (field === 'isPresent') {
+          p.isPresent = !p.isPresent;
+          if (!p.isPresent) p.delay = 0;
         }
-        if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
+        if (field === 'bringPc') p.bringPc = !p.bringPc;
       }
       return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
         if (result.type === 'failure' || result.type === 'error') {
           const i = participations.findIndex((p) => p.id === id);
           if (i !== -1) {
             const p = participations[i];
-            if (field === 'is_present') {
-              p.is_present = !p.is_present;
+            if (field === 'isPresent') {
+              p.isPresent = !p.isPresent;
             }
-            if (field === 'bring_pc') p.bring_pc = !p.bring_pc;
+            if (field === 'bringPc') p.bringPc = !p.bringPc;
           }
         }
         await update();
@@ -155,7 +94,7 @@
     const typedParticipations =
       data.participations as ParticipationWithExpand[];
     typedParticipations.forEach((p) => {
-      p.expand?.subjects?.forEach((s) => subjects.set(s.id, s.nom));
+      p.subjects?.forEach((ps: any) => { const s = ps.subject; subjects.set(s.id, s.nom); });
     });
     return Array.from(subjects.entries());
   });
@@ -165,7 +104,7 @@
     const typedParticipations =
       data.participations as ParticipationWithExpand[];
     typedParticipations.forEach((p) => {
-      if (p.expand?.student?.niveau) niveaux.add(p.expand.student.niveau);
+      if (p.studentProfile?.niveau) niveaux.add(p.studentProfile.niveau);
     });
     const order = [
       '6eme',
@@ -190,33 +129,33 @@
   let filteredParticipations = $derived(
     participations.filter((p) => {
       const matchesSearch =
-        p.expand?.student?.nom
-          .toLowerCase()
+        p.studentProfile?.nom
+          ?.toLowerCase()
           .includes(searchQuery.toLowerCase()) ||
-        p.expand?.student?.prenom
-          .toLowerCase()
+        p.studentProfile?.prenom
+          ?.toLowerCase()
           .includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
 
       let matchesStatus = filterStatus === 'all';
-      if (filterStatus === 'present') matchesStatus = p.is_present === true;
+      if (filterStatus === 'present') matchesStatus = p.isPresent === true;
       if (filterStatus === 'late') matchesStatus = (p.delay || 0) > 0;
       if (filterStatus === 'help') {
-        const prgs = studentProgressMap.get(p.student) || [];
+        const prgs = studentProgressMap.get(p.studentProfileId) || [];
         matchesStatus = prgs.some((prog) => prog.status === 'needs_help');
       }
 
       const matchesSubject =
-        filterSubject === 'all' || p.subjects?.includes(filterSubject);
+        filterSubject === 'all' || p.subjects?.some((ps: any) => ps.subjectId === filterSubject);
       const matchesNiveau =
-        filterNiveau === 'all' || p.expand?.student?.niveau === filterNiveau;
+        filterNiveau === 'all' || p.studentProfile?.niveau === filterNiveau;
 
       return matchesStatus && matchesSubject && matchesNiveau;
     }),
   );
 
   let presentCount = $derived(
-    participations.filter((p) => p.is_present).length,
+    participations.filter((p) => p.isPresent).length,
   );
   let lateCount = $derived(
     participations.filter((p) => (p.delay || 0) > 0).length,
@@ -225,7 +164,7 @@
     progressRecords.filter((p) => p.status === 'needs_help').length,
   );
   let totalStudents = $derived(participations.length);
-  let pcsNeeded = $derived(participations.filter((p) => !p.bring_pc).length);
+  let pcsNeeded = $derived(participations.filter((p) => !p.bringPc).length);
 
   async function handleDiplomaDownload(participation: ParticipationWithExpand) {
     const toastId = toast.loading('Génération du diplôme...');
@@ -292,7 +231,7 @@
           <ParticipationCard
             participation={p}
             event={data.event}
-            progress={studentProgressMap.get(p.student) || []}
+            progress={studentProgressMap.get(p.studentProfileId) || []}
             {optimisticToggle}
             onDownload={() => handleDiplomaDownload(p)}
             index={i}
@@ -302,10 +241,10 @@
     {:else}
       <div class="rounded-sm border bg-card">
         {#each filteredParticipations as p (p.id)}
-          {@const count = p.expand?.student?.events_count || 0}
-          {@const isPresent = p.is_present ? 1 : 0}
+          {@const count = p.studentProfile?.eventsCount || 0}
+          {@const isPresent = p.isPresent ? 1 : 0}
           {@const isNew = count - isPresent === 0}
-          {@const pProgress = studentProgressMap.get(p.student) || []}
+          {@const pProgress = studentProgressMap.get(p.studentProfileId) || []}
           {@const needsHelp = pProgress.some(
             (prog) => prog.status === 'needs_help',
           )}
@@ -320,19 +259,19 @@
               <form
                 method="POST"
                 action="?/togglePresent"
-                use:enhance={optimisticToggle(p.id, 'is_present')}
+                use:enhance={optimisticToggle(p.id, 'isPresent')}
               >
                 <input type="hidden" name="id" value={p.id} />
                 <input
                   type="hidden"
                   name="state"
-                  value={p.is_present.toString()}
+                  value={p.isPresent.toString()}
                 />
                 <button
                   type="submit"
                   class={cn(
                     'flex h-8 w-8 items-center justify-center rounded-sm border transition-all',
-                    p.is_present
+                    p.isPresent
                       ? (p.delay || 0) > 0
                         ? 'border-orange-300 bg-orange-100 text-orange-800 hover:bg-orange-200'
                         : 'border-epi-teal bg-epi-teal text-black'
@@ -347,12 +286,12 @@
 
               <div class="flex flex-col">
                 <span class="flex items-center gap-2 text-sm font-bold">
-                  {#if p.expand?.student?.id}
+                  {#if p.studentProfile?.id}
                     <a
-                      href={resolve(`/students/${p.expand.student.id}`)}
+                      href={resolve(`/students/${p.studentProfile.id}`)}
                       class="transition-colors hover:text-epi-blue"
-                      ><span class="uppercase">{p.expand.student.nom}</span>
-                      {p.expand.student.prenom}</a
+                      ><span class="uppercase">{p.studentProfile.nom}</span>
+                      {p.studentProfile.prenom}</a
                     >
                   {:else}
                     <span>Étudiant inconnu</span>
@@ -366,7 +305,7 @@
                 <div
                   class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase"
                 >
-                  <span>{p.expand?.student?.niveau}</span>
+                  <span>{p.studentProfile?.niveau}</span>
                   {#if (p.delay || 0) > 0}<span
                       class="flex items-center gap-1 font-bold text-orange-500"
                       ><Clock class="h-2.5 w-2.5" />{p.delay}m</span
@@ -383,14 +322,14 @@
               <form
                 method="POST"
                 action="?/toggleBringPc"
-                use:enhance={optimisticToggle(p.id, 'bring_pc')}
+                use:enhance={optimisticToggle(p.id, 'bringPc')}
                 class="inline"
               >
                 <input type="hidden" name="id" value={p.id} />
                 <input
                   type="hidden"
                   name="state"
-                  value={p.bring_pc.toString()}
+                  value={p.bringPc.toString()}
                 />
                 <Tooltip.Provider delayDuration={300}>
                   <Tooltip.Root>
@@ -401,7 +340,7 @@
                           type="submit"
                           class="cursor-pointer rounded p-1 transition-colors hover:bg-muted"
                         >
-                          {#if p.bring_pc}
+                          {#if p.bringPc}
                             <Laptop class="h-4 w-4 text-purple-400" />
                           {:else}
                             <MonitorX class="h-4 w-4 text-orange-400" />
@@ -411,7 +350,7 @@
                     </Tooltip.Trigger>
                     <Tooltip.Content>
                       <p>
-                        {p.bring_pc
+                        {p.bringPc
                           ? 'Avec PC — cliquer pour changer'
                           : 'Besoin PC — cliquer pour changer'}
                       </p>
@@ -419,7 +358,7 @@
                   </Tooltip.Root>
                 </Tooltip.Provider>
               </form>
-              {#if p.is_present}
+              {#if p.isPresent}
                 <div class="w-40 sm:w-48">
                   <NoteInput
                     id={p.id}

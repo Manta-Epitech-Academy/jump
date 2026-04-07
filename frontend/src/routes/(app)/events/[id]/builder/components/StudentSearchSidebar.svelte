@@ -11,18 +11,10 @@
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import QuickCreateStudentModal from './QuickCreateStudentModal.svelte';
-  import type {
-    ParticipationsResponse,
-    StudentsResponse,
-    SubjectsResponse,
-  } from '$lib/pocketbase-types';
   import type { SuperForm } from 'sveltekit-superforms/client';
   import type { AddParticipantForm } from '$lib/validation/events';
 
-  type ParticipationWithExpand = ParticipationsResponse<{
-    student?: StudentsResponse;
-    subjects?: SubjectsResponse[];
-  }>;
+  type ParticipationWithExpand = Record<string, any>;
 
   let {
     participations,
@@ -56,8 +48,8 @@
   );
 
   let searchQuery = $state('');
-  let searchResults: StudentsResponse[] = $state([]);
-  let topStudents: StudentsResponse[] = $state([]);
+  let searchResults: any[] = $state([]);
+  let topStudents: any[] = $state([]);
   let searching = $state(false);
 
   $effect(() => {
@@ -93,7 +85,7 @@
   );
 
   function isAlreadyInEvent(studentId: string) {
-    return participations.some((p) => p.expand?.student?.id === studentId);
+    return participations.some((p) => p.studentProfile?.id === studentId);
   }
 </script>
 
@@ -132,7 +124,7 @@
         {:else}
           {#each displayedStudents as student (student.id)}
             {@const isAdded = isAlreadyInEvent(student.id)}
-            {@const count = student.events_count || 0}
+            {@const count = student.eventsCount || 0}
             <form
               method="POST"
               action="?/addExisting"

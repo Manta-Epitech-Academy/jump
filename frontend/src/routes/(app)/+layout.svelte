@@ -17,17 +17,12 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import { pbUrl } from '$lib/pocketbase';
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
-  import type { UsersResponse, CampusesResponse } from '$lib/pocketbase-types';
-
-  type AppUser = UsersResponse<{ campus?: CampusesResponse }>;
-
   let { children, data } = $props();
-  let user = $derived(data.user as AppUser | null);
+  let user = $derived(data.user as any);
 
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
@@ -96,9 +91,7 @@
   }
 
   function getAvatarUrl(user: any) {
-    if (user?.avatar && user?.collectionId && user?.id) {
-      return `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}?thumb=100x100`;
-    }
+    // TODO: implement S3 file storage
     return undefined;
   }
 </script>
@@ -163,11 +156,11 @@
         </Button>
         <a href={resolve('/')} class="flex items-center gap-2">
           <span class="text-lg font-bold uppercase">TekCamp</span>
-          {#if user?.expand?.campus?.name}
+          {#if data.staffProfile?.campus?.name}
             <span
               class="hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-header-foreground/90 uppercase md:inline-block"
             >
-              {user.expand.campus.name}
+              {data.staffProfile.campus.name}
             </span>
           {/if}
         </a>

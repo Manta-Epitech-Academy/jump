@@ -1,93 +1,115 @@
+import { error } from '@sveltejs/kit';
 import { getTotalXp } from '$lib/domain/xp';
-import { createScoped } from '$lib/pocketbase';
 import { generatePin } from '$lib/utils';
 import {
   suggestBestSubject,
   preloadCompletedSubjects,
 } from '$lib/domain/recommender';
-import type {
-  TypedPocketBase,
-  ParticipationsResponse,
-  SubjectsResponse,
-  StudentsResponse,
-} from '$lib/pocketbase-types';
-
-type ParticipationExpand = {
-  subjects?: SubjectsResponse[];
-  student?: StudentsResponse;
-};
+import { prisma } from '$lib/server/db';
 
 export const EventService = {
   /**
    * Deletes an event and automatically rolls back XP for all present students.
+   * Verifies the event belongs to the given campus before proceeding.
    */
-  async deleteEvent(pb: TypedPocketBase, eventId: string) {
-    const participations = await pb
-      .collection('participations')
-      .getFullList<ParticipationsResponse<ParticipationExpand>>({
-        filter: `event = "${eventId}" && is_present = true`,
-        expand: 'subjects',
-      });
-
-    const studentIds = [...new Set(participations.map((p) => p.student))];
-    const students =
-      studentIds.length > 0
-        ? await pb.collection('students').getFullList({
-            filter: studentIds.map((id) => `id = "${id}"`).join(' || '),
-          })
-        : [];
-    const studentMap = new Map(students.map((s) => [s.id, s]));
-
-    for (const p of participations) {
-      const subjects = p.expand?.subjects || [];
-      const xpValue = getTotalXp(subjects);
-      const student = studentMap.get(p.student);
-      if (!student) continue;
-
-      const currentXp = student.xp ?? 0;
-      const currentEventsCount = student.events_count ?? 0;
-
-      await pb.collection('students').update(p.student, {
-        'xp-': Math.min(xpValue, currentXp),
-        'events_count-': Math.min(1, currentEventsCount),
-      });
+  async deleteEvent(eventId: string, campusId: string) {
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { campusId: true },
+    });
+    if (event.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
     }
 
-    await pb.collection('events').delete(eventId);
+    await prisma.$transaction(async (tx) => {
+      const participations = await tx.participation.findMany({
+        where: { eventId, isPresent: true },
+        include: {
+          subjects: { include: { subject: true } },
+        },
+      });
+
+      for (const p of participations) {
+        const subjects = p.subjects.map((ps) => ({
+          difficulte: ps.subject.difficulte,
+        }));
+        const xpValue = getTotalXp(subjects);
+
+        const profile = await tx.studentProfile.findUniqueOrThrow({
+          where: { id: p.studentProfileId },
+          select: { xp: true, eventsCount: true },
+        });
+        await tx.studentProfile.update({
+          where: { id: p.studentProfileId },
+          data: {
+            xp: Math.max(0, profile.xp - xpValue),
+            eventsCount: Math.max(0, profile.eventsCount - 1),
+          },
+        });
+      }
+
+      // All related records (participations, subjects, mantas, progress, portfolio)
+      // are cascade-deleted by PostgreSQL foreign keys.
+      await tx.event.delete({ where: { id: eventId } });
+    });
   },
 
   /**
    * Duplicates an event and its participants (resetting status).
    */
   async duplicateEvent(
-    pb: TypedPocketBase,
     originalId: string,
     newData: { titre: string; date: string },
+    campusId: string,
   ) {
-    const original = await pb.collection('events').getOne(originalId);
+    const original = await prisma.event.findUniqueOrThrow({
+      where: { id: originalId },
+      include: {
+        mantas: true,
+        participations: {
+          include: { subjects: true },
+        },
+      },
+    });
+    if (original.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
+
     const pin = generatePin();
 
-    const newEvent = await createScoped(pb, 'events', {
-      titre: newData.titre,
-      date: newData.date,
-      theme: original.theme,
-      mantas: original.mantas,
-      pin,
+    const newEvent = await prisma.event.create({
+      data: {
+        titre: newData.titre,
+        date: new Date(newData.date),
+        themeId: original.themeId,
+        campusId,
+        pin,
+        mantas: {
+          create: original.mantas.map((m) => ({
+            staffProfileId: m.staffProfileId,
+          })),
+        },
+      },
     });
 
-    const participations = await pb.collection('participations').getFullList({
-      filter: `event = "${originalId}"`,
-      requestKey: null,
-    });
-
-    for (const p of participations) {
-      await createScoped(pb, 'participations', {
-        student: p.student,
-        event: newEvent.id,
-        subjects: p.subjects,
-        bring_pc: p.bring_pc,
-        is_present: false,
-        note: '',
+    for (const p of original.participations) {
+      await prisma.participation.create({
+        data: {
+          studentProfileId: p.studentProfileId,
+          eventId: newEvent.id,
+          campusId,
+          bringPc: p.bringPc,
+          isPresent: false,
+          subjects: {
+            create: p.subjects.map((s) => ({ subjectId: s.subjectId })),
+          },
+        },
       });
     }
 
@@ -96,47 +118,56 @@ export const EventService = {
 
   /**
    * Auto-assigns the best subject to all unassigned students in an event.
+   * Verifies the event belongs to the given campus.
    */
-  async autoAssignAll(pb: TypedPocketBase, eventId: string) {
-    const unassigned = await pb
-      .collection('participations')
-      .getFullList<ParticipationsResponse<ParticipationExpand>>({
-        filter: `event = "${eventId}" && subjects:length = 0`,
-        expand: 'student',
-      });
+  async autoAssignAll(eventId: string, campusId: string) {
+    const unassigned = await prisma.participation.findMany({
+      where: {
+        eventId,
+        subjects: { none: {} },
+      },
+      include: { studentProfile: true },
+    });
 
     if (unassigned.length === 0) return 0;
 
-    const subjects = await pb.collection('subjects').getFullList();
-    const event = await pb
-      .collection('events')
-      .getOne(eventId, { expand: 'theme' });
+    const subjects = await prisma.subject.findMany({
+      where: { OR: [{ campusId }, { campusId: null }] },
+      include: { subjectThemes: true },
+    });
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+    });
+    if (event.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
 
-    const studentIds = unassigned
-      .map((p) => p.expand?.student?.id)
-      .filter(Boolean) as string[];
+    const studentProfileIds = unassigned.map((p) => p.studentProfileId);
     const completedMap = await preloadCompletedSubjects(
-      pb,
-      studentIds,
+      studentProfileIds,
       eventId,
     );
 
     let count = 0;
 
     for (const p of unassigned) {
-      const studentId = p.expand?.student?.id ?? '';
       const suggestedId = await suggestBestSubject(
-        pb,
-        studentId,
+        p.studentProfileId,
         subjects,
-        event.theme,
+        event.themeId,
         [],
-        completedMap.get(studentId),
+        completedMap.get(p.studentProfileId),
       );
 
       if (suggestedId) {
-        await pb.collection('participations').update(p.id, {
-          subjects: [suggestedId],
+        await prisma.participationSubject.create({
+          data: {
+            participationId: p.id,
+            subjectId: suggestedId,
+          },
         });
         count++;
       }
@@ -150,8 +181,8 @@ export const EventService = {
    * subjects for eligible unassigned/absent students.
    */
   async updateEvent(
-    pb: TypedPocketBase,
     eventId: string,
+    campusId: string,
     data: {
       titre: string;
       date: string;
@@ -160,71 +191,100 @@ export const EventService = {
       mantas?: string[];
     },
   ) {
-    const currentEvent = await pb.collection('events').getOne(eventId);
-    const oldThemeId = currentEvent.theme;
+    const currentEvent = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+    });
+    if (currentEvent.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
+    const oldThemeId = currentEvent.themeId;
 
     let newThemeId: string | null = null;
     if (data.theme && data.theme.trim() !== '') {
-      const existing = await pb.collection('themes').getList(1, 1, {
-        filter: `nom = "${data.theme.replace(/"/g, '\\"')}"`,
+      const existing = await prisma.theme.findFirst({
+        where: { nom: data.theme },
       });
 
-      if (existing.items.length > 0) {
-        newThemeId = existing.items[0].id;
+      if (existing) {
+        newThemeId = existing.id;
       } else {
-        const created = await createScoped(pb, 'themes', { nom: data.theme });
+        const created = await prisma.theme.create({
+          data: { nom: data.theme, campusId },
+        });
         newThemeId = created.id;
       }
     }
 
-    await pb.collection('events').update(eventId, {
-      titre: data.titre,
-      date: data.date, // Assumes ISO string
-      theme: newThemeId ?? undefined,
-      notes: data.notes,
-      mantas: data.mantas,
+    // Update mantas and event atomically
+    await prisma.$transaction(async (tx) => {
+      if (data.mantas) {
+        await tx.eventManta.deleteMany({ where: { eventId } });
+        if (data.mantas.length > 0) {
+          await tx.eventManta.createMany({
+            data: data.mantas.map((staffProfileId) => ({
+              eventId,
+              staffProfileId,
+            })),
+          });
+        }
+      }
+
+      await tx.event.update({
+        where: { id: eventId },
+        data: {
+          titre: data.titre,
+          date: new Date(data.date),
+          themeId: newThemeId ?? undefined,
+          notes: data.notes,
+        },
+      });
     });
 
     if (oldThemeId !== newThemeId) {
-      const participations = await pb.collection('participations').getFullList({
-        filter: `event = "${eventId}"`,
-        requestKey: null,
+      const participations = await prisma.participation.findMany({
+        where: { eventId },
+        include: { subjects: true },
       });
 
-      const subjects = await pb.collection('subjects').getFullList();
+      const subjects = await prisma.subject.findMany({
+        where: { OR: [{ campusId }, { campusId: null }] },
+        include: { subjectThemes: true },
+      });
 
-      const eligibleStudentIds = participations
-        .filter(
-          (p) => !p.is_present && (!p.subjects || p.subjects.length === 0),
-        )
-        .map((p) => p.student);
+      const eligibleStudentProfileIds = participations
+        .filter((p) => !p.isPresent && p.subjects.length === 0)
+        .map((p) => p.studentProfileId);
 
       const completedMap = await preloadCompletedSubjects(
-        pb,
-        eligibleStudentIds,
+        eligibleStudentProfileIds,
         eventId,
       );
 
       for (const p of participations) {
-        if (!p.is_present && (!p.subjects || p.subjects.length === 0)) {
+        if (!p.isPresent && p.subjects.length === 0) {
           const newSubjectId = await suggestBestSubject(
-            pb,
-            p.student,
+            p.studentProfileId,
             subjects,
             newThemeId,
             [],
-            completedMap.get(p.student),
+            completedMap.get(p.studentProfileId),
           );
 
           if (newSubjectId) {
-            await pb.collection('participations').update(p.id, {
-              subjects: [newSubjectId],
+            await prisma.participationSubject.create({
+              data: {
+                participationId: p.id,
+                subjectId: newSubjectId,
+              },
             });
           }
         }
       }
-      return true; // Indicates theme changed
+      return true;
     }
-    return false; // Indicates standard update
+    return false;
   },
 };

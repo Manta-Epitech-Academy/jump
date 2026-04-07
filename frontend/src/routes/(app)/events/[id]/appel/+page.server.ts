@@ -2,48 +2,39 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { getTotalXp } from '$lib/domain/xp';
-import type {
-  ParticipationsResponse,
-  StudentsResponse,
-  SubjectsResponse,
-} from '$lib/pocketbase-types';
+import { prisma } from '$lib/server/db';
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { assertEventCampus } from '$lib/server/db/assert';
 
-type ParticipationExpand = {
-  student?: StudentsResponse;
-  subjects?: SubjectsResponse[];
-};
-
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
   try {
-    const event = await locals.pb.collection('events').getOne(params.id, {
-      expand: 'theme',
+    const db = scopedPrisma(getCampusId(locals));
+    const event = await db.event.findUniqueOrThrow({
+      where: { id: params.id },
+      include: { theme: true },
     });
 
-    const rawParticipations = await locals.pb
-      .collection('participations')
-      .getFullList<ParticipationsResponse<ParticipationExpand>>({
-        filter: `event = "${event.id}"`,
-        expand: 'student,subjects',
-      });
+    const rawParticipations = await db.participation.findMany({
+      where: { eventId: event.id },
+      include: {
+        studentProfile: true,
+        subjects: { include: { subject: true } },
+      },
+    });
 
     const participations = rawParticipations.sort((a, b) => {
-      const nomA = a.expand?.student?.nom?.toUpperCase() ?? '';
-      const nomB = b.expand?.student?.nom?.toUpperCase() ?? '';
+      const nomA = a.studentProfile.nom.toUpperCase();
+      const nomB = b.studentProfile.nom.toUpperCase();
       if (nomA < nomB) return -1;
       if (nomA > nomB) return 1;
-
-      const prenomA = a.expand?.student?.prenom?.toLowerCase() ?? '';
-      const prenomB = b.expand?.student?.prenom?.toLowerCase() ?? '';
-      return prenomA.localeCompare(prenomB);
+      return a.studentProfile.prenom
+        .toLowerCase()
+        .localeCompare(b.studentProfile.prenom.toLowerCase());
     });
 
-    // Fetch all step_progress for this event to populate initial Manta-Signals
-    const progressData = await locals.pb
-      .collection('steps_progress')
-      .getFullList({
-        filter: `event = "${event.id}"`,
-        requestKey: null,
-      });
+    const progressData = await prisma.stepsProgress.findMany({
+      where: { eventId: event.id },
+    });
 
     return {
       event,
@@ -61,49 +52,49 @@ export const actions: Actions = {
     const data = await request.formData();
     const id = data.get('id') as string;
     const currentState = data.get('state') === 'true';
+    const db = scopedPrisma(getCampusId(locals));
 
     try {
-      const p = await locals.pb
-        .collection('participations')
-        .getOne<ParticipationsResponse<ParticipationExpand>>(id, {
-          expand: 'subjects',
-        });
+      const p = await db.participation.findUniqueOrThrow({
+        where: { id },
+        include: { subjects: { include: { subject: true } } },
+      });
 
-      const studentId = p.student;
       const isNowPresent = !currentState;
 
-      // Sum XP of all assigned subjects
-      const subjects = p.expand?.subjects || [];
+      const subjects = p.subjects.map((ps) => ({
+        difficulte: ps.subject.difficulte,
+      }));
       const xpValue = getTotalXp(subjects);
 
-      const updatePayload: any = {
-        is_present: isNowPresent,
-      };
+      await prisma.participation.update({
+        where: { id },
+        data: {
+          isPresent: isNowPresent,
+          ...(isNowPresent ? {} : { delay: 0 }),
+        },
+      });
 
-      // If marking absent, reset delay to 0
-      if (!isNowPresent) {
-        updatePayload.delay = 0;
-      }
-
-      await locals.pb.collection('participations').update(id, updatePayload);
-
-      // Only update student stats if status actually changed
-      if (p.is_present !== isNowPresent) {
+      if (p.isPresent !== isNowPresent) {
         if (isNowPresent) {
-          await locals.pb.collection('students').update(studentId, {
-            'xp+': xpValue,
-            'events_count+': 1,
+          await prisma.studentProfile.update({
+            where: { id: p.studentProfileId },
+            data: {
+              xp: { increment: xpValue },
+              eventsCount: { increment: 1 },
+            },
           });
         } else {
-          const student = await locals.pb
-            .collection('students')
-            .getOne(studentId);
-          const currentXp = student.xp ?? 0;
-          const currentEventsCount = student.events_count ?? 0;
-
-          await locals.pb.collection('students').update(studentId, {
-            'xp-': Math.min(xpValue, currentXp),
-            'events_count-': Math.min(1, currentEventsCount),
+          const profile = await prisma.studentProfile.findUniqueOrThrow({
+            where: { id: p.studentProfileId },
+            select: { xp: true, eventsCount: true },
+          });
+          await prisma.studentProfile.update({
+            where: { id: p.studentProfileId },
+            data: {
+              xp: Math.max(0, profile.xp - xpValue),
+              eventsCount: Math.max(0, profile.eventsCount - 1),
+            },
           });
         }
       }
@@ -122,28 +113,33 @@ export const actions: Actions = {
     const delay = parseInt(delayStr, 10);
 
     if (isNaN(delay)) return fail(400);
+    const db = scopedPrisma(getCampusId(locals));
 
     try {
-      const p = await locals.pb
-        .collection('participations')
-        .getOne<ParticipationsResponse<ParticipationExpand>>(id, {
-          expand: 'subjects',
-        });
+      const p = await db.participation.findUniqueOrThrow({
+        where: { id },
+        include: { subjects: { include: { subject: true } } },
+      });
 
-      // If previously absent and now marking late, they become present
-      const wasAbsent = !p.is_present;
+      const wasAbsent = !p.isPresent;
 
-      await locals.pb.collection('participations').update(id, {
-        delay: delay,
-        is_present: true, // Implicitly present if late
+      await prisma.participation.update({
+        where: { id },
+        data: { delay, isPresent: true },
       });
 
       if (wasAbsent) {
-        const subjects = p.expand?.subjects || [];
+        const subjects = p.subjects.map((ps) => ({
+          difficulte: ps.subject.difficulte,
+        }));
         const xpValue = getTotalXp(subjects);
-        await locals.pb.collection('students').update(p.student, {
-          'xp+': xpValue,
-          'events_count+': 1,
+
+        await prisma.studentProfile.update({
+          where: { id: p.studentProfileId },
+          data: {
+            xp: { increment: xpValue },
+            eventsCount: { increment: 1 },
+          },
         });
       }
 
@@ -158,14 +154,18 @@ export const actions: Actions = {
     const data = await request.formData();
     const id = data.get('id') as string;
     const note = data.get('note') as string;
+    const db = scopedPrisma(getCampusId(locals));
 
     try {
-      await locals.pb.collection('participations').update(id, {
-        note: note,
-        note_author: locals.user?.id,
+      await db.participation.update({
+        where: { id },
+        data: {
+          note,
+          noteAuthorId: locals.staffProfile?.id || null,
+        },
       });
       return { success: true };
-    } catch (err) {
+    } catch {
       return fail(500, { error: 'Erreur sauvegarde note' });
     }
   },
@@ -175,29 +175,33 @@ export const actions: Actions = {
     const progressId = data.get('progressId') as string;
 
     try {
-      const progress = await locals.pb
-        .collection('steps_progress')
-        .getOne(progressId);
-      const subject = await locals.pb
-        .collection('subjects')
-        .getOne(progress.subject);
-      const content = subject.content_structure as { steps?: { id: string }[] };
-      const steps = content.steps || [];
+      const progress = await prisma.stepsProgress.findUniqueOrThrow({
+        where: { id: progressId },
+      });
+      await assertEventCampus(progress.eventId, getCampusId(locals));
+      const subject = await prisma.subject.findUniqueOrThrow({
+        where: { id: progress.subjectId },
+      });
+      const content = subject.contentStructure as { steps?: { id: string }[] };
+      const steps = content?.steps || [];
 
       const currentIndex = steps.findIndex(
-        (s: any) => s.id === progress.current_step_id,
+        (s) => s.id === progress.currentStepId,
       );
       if (currentIndex === -1) return fail(400);
 
       const isLastStep = currentIndex === steps.length - 1;
       const nextStepId = !isLastStep ? steps[currentIndex + 1].id : 'COMPLETED';
 
-      await locals.pb.collection('steps_progress').update(progressId, {
-        current_step_id:
-          nextStepId === 'COMPLETED' ? progress.current_step_id : nextStepId,
-        unlocked_step_id: nextStepId,
-        status: nextStepId === 'COMPLETED' ? 'completed' : 'active',
-        last_unlock_source: 'staff',
+      await prisma.stepsProgress.update({
+        where: { id: progressId },
+        data: {
+          currentStepId:
+            nextStepId === 'COMPLETED' ? progress.currentStepId : nextStepId,
+          unlockedStepId: nextStepId,
+          status: nextStepId === 'COMPLETED' ? 'completed' : 'active',
+          lastUnlockSource: 'staff',
+        },
       });
 
       return { success: true };
@@ -209,18 +213,24 @@ export const actions: Actions = {
 
   toggleBringPc: async ({ request, locals }) => {
     const data = await request.formData();
-    return toggleBringPc(data, locals.pb);
+    return toggleBringPc(data, getCampusId(locals));
   },
 
   dismissAlert: async ({ request, locals }) => {
     const data = await request.formData();
     const progressId = data.get('progressId') as string;
     try {
-      await locals.pb
-        .collection('steps_progress')
-        .update(progressId, { status: 'active' });
+      const progress = await prisma.stepsProgress.findUniqueOrThrow({
+        where: { id: progressId },
+        select: { eventId: true },
+      });
+      await assertEventCampus(progress.eventId, getCampusId(locals));
+      await prisma.stepsProgress.update({
+        where: { id: progressId },
+        data: { status: 'active' },
+      });
       return { success: true };
-    } catch (err) {
+    } catch {
       return fail(500, { error: "Erreur lors de l'annulation de l'alerte" });
     }
   },

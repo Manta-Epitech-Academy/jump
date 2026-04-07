@@ -7,16 +7,7 @@
   import { Separator } from '$lib/components/ui/separator';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import StudentParticipationRow from './StudentParticipationRow.svelte';
-  import type {
-    ParticipationsResponse,
-    StudentsResponse,
-    SubjectsResponse,
-  } from '$lib/pocketbase-types';
-
-  type ParticipationWithExpand = ParticipationsResponse<{
-    student?: StudentsResponse;
-    subjects?: SubjectsResponse[];
-  }>;
+  type ParticipationWithExpand = Record<string, any>;
 
   let {
     unassignedParticipations,

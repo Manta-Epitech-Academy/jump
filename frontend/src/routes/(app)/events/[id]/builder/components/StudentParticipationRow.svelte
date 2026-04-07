@@ -36,7 +36,7 @@
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   }
 
-  let subjects = $derived(participation.expand?.subjects || []);
+  let subjects = $derived(participation.subjects?.map((ps: any) => ps.subject) || []);
   let hasSubjects = $derived(subjects.length > 0);
 
   let alerts = $derived(participation.alerts || []);
@@ -44,8 +44,8 @@
   let hasDanger = $derived(alerts.some((a: any) => a.type === 'danger'));
 
   let isNewStudent = $derived.by(() => {
-    const count = participation.expand?.student?.events_count || 0;
-    const isPresent = participation.is_present ? 1 : 0;
+    const count = participation.studentProfile?.eventsCount || 0;
+    const isPresent = participation.isPresent ? 1 : 0;
     return count - isPresent === 0;
   });
 
@@ -64,26 +64,25 @@
 >
   <div class="flex items-center gap-4">
     <a
-      href={resolve(`/students/${participation.expand?.student?.id}`)}
+      href={resolve(`/students/${participation.studentProfile?.id}`)}
       class="relative block transition-opacity hover:opacity-80"
       tabindex="-1"
       aria-hidden="true"
     >
       <Avatar.Root class="rounded-sm border-2 border-transparent">
         <Avatar.Fallback class="bg-primary/5 font-bold text-primary">
-          {participation.expand?.student?.nom?.[0]}{participation.expand
-            ?.student?.prenom?.[0]}
+          {participation.studentProfile?.nom?.[0]}{participation.studentProfile?.prenom?.[0]}
         </Avatar.Fallback>
       </Avatar.Root>
     </a>
     <div>
       <div class="flex items-center gap-2">
         <a
-          href={resolve(`/students/${participation.expand?.student?.id}`)}
+          href={resolve(`/students/${participation.studentProfile?.id}`)}
           class="text-sm font-bold transition-colors hover:text-epi-blue"
         >
-          <span class="uppercase">{participation.expand?.student?.nom}</span>
-          {formatFirstName(participation.expand?.student?.prenom)}
+          <span class="uppercase">{participation.studentProfile?.nom}</span>
+          {formatFirstName(participation.studentProfile?.prenom)}
         </a>
         {#if isNewStudent}
           <Badge
@@ -98,16 +97,16 @@
 
       <div class="mt-0.5 flex items-center gap-2">
         <span class="text-xs font-black text-muted-foreground uppercase">
-          {participation.expand.student.niveau}
+          {participation.studentProfile?.niveau}
         </span>
         <form
           method="POST"
           action="?/toggleBringPc"
           use:enhance={() => {
-            participation.bring_pc = !participation.bring_pc;
+            participation.bringPc = !participation.bringPc;
             return async ({ result, update }) => {
               if (result.type === 'failure' || result.type === 'error') {
-                participation.bring_pc = !participation.bring_pc;
+                participation.bringPc = !participation.bringPc;
               }
               await update();
             };
@@ -118,9 +117,9 @@
           <input
             type="hidden"
             name="state"
-            value={participation.bring_pc.toString()}
+            value={participation.bringPc.toString()}
           />
-          <BringPcBadge bringPc={participation.bring_pc} />
+          <BringPcBadge bringPc={participation.bringPc} />
         </form>
       </div>
     </div>

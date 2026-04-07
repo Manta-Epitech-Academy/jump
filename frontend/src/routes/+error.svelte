@@ -4,7 +4,7 @@
   import { SearchX, ServerCrash, Terminal, House } from '@lucide/svelte';
 
   let is404 = $derived(page.status === 404);
-  let isStudent = $derived(page.data.student && !page.data.user);
+  let isStudent = $derived(page.data.studentProfile && !page.data.user);
   let dashboardHref = $derived(isStudent ? resolve('/camper') : resolve('/'));
 </script>
 

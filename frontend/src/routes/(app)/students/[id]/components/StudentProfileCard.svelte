@@ -7,15 +7,13 @@
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
   import { SignalLow } from '@lucide/svelte';
-  import type { StudentsResponse } from '$lib/pocketbase-types';
-
   let {
     student,
     stats,
     xpProgress,
     onOpenEdit,
   }: {
-    student: StudentsResponse;
+    student: any;
     stats: { presentCount: number; lateCount: number };
     xpProgress: number;
     onOpenEdit: () => void;
@@ -60,38 +58,38 @@
         variant="outline"
         class={cn(
           'text-[10px] font-bold uppercase',
-          getDifficultyColor(student.niveau_difficulte || 'Débutant'),
+          getDifficultyColor(student.niveauDifficulte || 'Débutant'),
         )}
       >
         <SignalLow class="mr-1 h-3 w-3" />
-        {student.niveau_difficulte || 'Débutant'}
+        {student.niveauDifficulte || 'Débutant'}
       </Badge>
     </div>
   </Card.Header>
   <Card.Content class="space-y-6">
     <div class="flex flex-col gap-2 text-sm text-muted-foreground">
-      {#if student.email}<div class="flex items-center gap-2">
+      {#if student.user?.email}<div class="flex items-center gap-2">
           <Mail class="h-3.5 w-3.5" /><span class="truncate"
-            >{student.email}</span
+            >{student.user.email}</span
           >
         </div>{/if}
       {#if student.phone}<div class="flex items-center gap-2">
           <Phone class="h-3.5 w-3.5" /><span>{student.phone}</span>
         </div>{/if}
-      {#if student.parent_email || student.parent_phone}
+      {#if student.parentEmail || student.parentPhone}
         <Separator class="my-1" />
         <div class="flex flex-col gap-1">
           <span
             class="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase"
             ><Users class="h-3 w-3" /> Contact Parent</span
           >
-          {#if student.parent_email}<div class="flex items-center gap-2">
+          {#if student.parentEmail}<div class="flex items-center gap-2">
               <Mail class="h-3.5 w-3.5" /><span class="truncate"
-                >{student.parent_email}</span
+                >{student.parentEmail}</span
               >
             </div>{/if}
-          {#if student.parent_phone}<div class="flex items-center gap-2">
-              <Phone class="h-3.5 w-3.5" /><span>{student.parent_phone}</span>
+          {#if student.parentPhone}<div class="flex items-center gap-2">
+              <Phone class="h-3.5 w-3.5" /><span>{student.parentPhone}</span>
             </div>{/if}
         </div>
       {/if}

@@ -1,0 +1,291 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───
+
+// Difficulty stored as plain string: "Débutant", "Intermédiaire", "Avancé"
+// This avoids enum mapping issues between Prisma TS names and French display values.
+
+// StudentLevel stored as plain string: "Novice", "Apprentice", "Expert"
+// Niveau stored as plain string: "6eme", "5eme", "4eme", "3eme", "2nde", "1ere", "Terminale", "Sup"
+
+enum StepStatus {
+  active
+  needs_help
+  completed
+}
+
+enum UnlockSource {
+  student
+  staff
+}
+
+// ─── Auth (BetterAuth managed) ───
+
+model user {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String?
+  image         String?
+  role          String    @default("user")
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions       session[]
+  accounts       account[]
+  staffProfile   StaffProfile?
+  studentProfile StudentProfile?
+}
+
+model session {
+  id             String   @id @default(cuid())
+  userId         String
+  token          String   @unique
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  impersonatedBy String?
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model verification {
+  id         String   @id @default(cuid())
+  identifier String   @unique
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ─── Domain Profiles ───
+
+model StaffProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  campusId  String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus        Campus?         @relation(fields: [campusId], references: [id])
+  eventMantas   EventManta[]
+  notesAuthored Participation[] @relation("NoteAuthor")
+}
+
+model StudentProfile {
+  id                String       @id @default(cuid())
+  userId            String       @unique
+  nom               String
+  prenom            String
+  campusId          String?
+  niveau            String?
+  niveauDifficulte  String?
+  level             String    @default("Novice")
+  xp                Int          @default(0)
+  eventsCount       Int          @default(0)
+  charterAcceptedAt DateTime?
+  badges            Json?
+  parentEmail       String?
+  parentPhone       String?
+  phone             String?
+  salesforceId      String?      @unique
+  lastSyncedAt      DateTime?
+  lastActiveAt      DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user           user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus         Campus?         @relation(fields: [campusId], references: [id])
+  participations Participation[]
+  stepsProgress  StepsProgress[]
+  portfolioItems PortfolioItem[]
+}
+
+// ─── Domain Tables ───
+
+model Campus {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staffProfiles   StaffProfile[]
+  studentProfiles StudentProfile[]
+  events          Event[]
+  themes          Theme[]
+  subjects        Subject[]
+  participations  Participation[]
+}
+
+model Theme {
+  id        String   @id @default(cuid())
+  nom       String
+  campusId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campus        Campus?        @relation(fields: [campusId], references: [id])
+  events        Event[]
+  subjectThemes SubjectTheme[]
+
+  @@unique([nom, campusId])
+}
+
+model Subject {
+  id               String     @id @default(cuid())
+  nom              String
+  description      String?
+  difficulte       String
+  campusId         String?
+  link             String?
+  contentStructure Json?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  campus                Campus?                @relation(fields: [campusId], references: [id])
+  subjectThemes         SubjectTheme[]
+  participationSubjects ParticipationSubject[]
+  stepsProgress         StepsProgress[]
+}
+
+model SubjectTheme {
+  subjectId String
+  themeId   String
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  theme   Theme   @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([subjectId, themeId])
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  titre     String
+  date      DateTime
+  campusId  String
+  themeId   String?
+  pin       String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campus         Campus          @relation(fields: [campusId], references: [id])
+  theme          Theme?          @relation(fields: [themeId], references: [id])
+  mantas         EventManta[]
+  participations Participation[]
+  stepsProgress  StepsProgress[]
+  portfolioItems PortfolioItem[]
+}
+
+model EventManta {
+  eventId        String
+  staffProfileId String
+
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  staffProfile StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, staffProfileId])
+}
+
+model Participation {
+  id               String   @id @default(cuid())
+  studentProfileId String
+  eventId          String
+  campusId         String
+  isPresent        Boolean  @default(false)
+  delay            Int?     @default(0)
+  bringPc          Boolean  @default(false)
+  note             String?
+  noteAuthorId     String?
+  camperRating     Int?
+  camperFeedback   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  studentProfile StudentProfile         @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  event          Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  campus         Campus                 @relation(fields: [campusId], references: [id])
+  noteAuthor     StaffProfile?          @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
+  subjects       ParticipationSubject[]
+
+  @@unique([studentProfileId, eventId])
+  @@index([eventId])
+  @@index([campusId])
+}
+
+model ParticipationSubject {
+  participationId String
+  subjectId       String
+
+  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  subject       Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([participationId, subjectId])
+}
+
+model StepsProgress {
+  id               String        @id @default(cuid())
+  studentProfileId String
+  subjectId        String
+  eventId          String
+  currentStepId    String?
+  unlockedStepId   String?
+  status           StepStatus    @default(active)
+  lastUnlockSource UnlockSource?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  subject        Subject        @relation(fields: [subjectId], references: [id])
+  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, subjectId, eventId])
+  @@index([eventId])
+}
+
+model PortfolioItem {
+  id               String   @id @default(cuid())
+  studentProfileId String
+  eventId          String
+  file             String?
+  url              String?
+  caption          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([studentProfileId])
+}

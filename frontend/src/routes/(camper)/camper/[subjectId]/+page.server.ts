@@ -1,5 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { prisma } from '$lib/server/db';
+import { assertStudentOwns } from '$lib/server/db/assert';
 import {
   getCachedSubject,
   setCachedSubject,
@@ -11,60 +13,69 @@ import {
 } from '$lib/server/services/progressService';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-  if (!locals.student) throw error(401, 'Non autorisé');
+  if (!locals.studentProfile) throw error(401, 'Non autorisé');
 
   try {
     let subject = getCachedSubject<any>(params.subjectId);
     if (!subject) {
-      subject = await locals.studentPb
-        .collection('subjects')
-        .getOne(params.subjectId);
+      subject = await prisma.subject.findUnique({
+        where: { id: params.subjectId },
+      });
+      if (!subject) throw error(404, 'Sujet introuvable');
       setCachedSubject(params.subjectId, subject);
     }
-    const content = subject.content_structure as SubjectStructure | null;
+    const content = subject.contentStructure as SubjectStructure | null;
 
     if (!content || !content.steps || content.steps.length === 0) {
       throw new Error('Ce sujet ne contient aucune étape configurée.');
     }
 
-    const participations = await locals.studentPb
-      .collection('participations')
-      .getFullList({
-        filter: `student = "${locals.student.id}" && subjects ~ "${subject.id}"`,
-        sort: '-created',
-      });
+    const participation = await prisma.participation.findFirst({
+      where: {
+        studentProfileId: locals.studentProfile.id,
+        subjects: { some: { subjectId: subject.id } },
+      },
+      include: {
+        event: true,
+        subjects: { include: { subject: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    if (participations.length === 0) {
+    if (!participation) {
       throw error(403, "Tu n'es pas assigné à ce sujet.");
     }
-    const participation = participations[0];
-    const eventId = participation.event;
+    const eventId = participation.eventId;
 
-    let progress;
-    try {
-      progress = await locals.studentPb
-        .collection('steps_progress')
-        .getFirstListItem(
-          `student="${locals.student.id}" && subject="${subject.id}" && event="${eventId}"`,
-        );
-    } catch (e) {
+    let progress = await prisma.stepsProgress.findFirst({
+      where: {
+        studentProfileId: locals.studentProfile.id,
+        subjectId: subject.id,
+        eventId,
+      },
+    });
+
+    if (!progress) {
       const firstStepId = content.steps[0].id;
-      progress = await locals.studentPb.collection('steps_progress').create({
-        student: locals.student.id,
-        subject: subject.id,
-        event: eventId,
-        current_step_id: firstStepId,
-        unlocked_step_id: firstStepId,
-        status: 'active',
+      progress = await prisma.stepsProgress.create({
+        data: {
+          studentProfileId: locals.studentProfile.id,
+          subjectId: subject.id,
+          eventId,
+          currentStepId: firstStepId,
+          unlockedStepId: firstStepId,
+          status: 'active',
+        },
       });
     }
 
-    const portfolioItems = await locals.studentPb
-      .collection('portfolio_items')
-      .getFullList({
-        filter: `student = "${locals.student.id}" && event = "${eventId}"`,
-        sort: '-created',
-      });
+    const portfolioItems = await prisma.portfolioItem.findMany({
+      where: {
+        studentProfileId: locals.studentProfile.id,
+        eventId,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     return {
       subject,
@@ -93,9 +104,7 @@ export const actions: Actions = {
 
     try {
       await ProgressService.validateStep(
-        locals.studentPb,
-        locals.systemPb,
-        locals.student!.id,
+        locals.studentProfile!.id,
         params.subjectId,
         stepId,
         progressId,
@@ -115,11 +124,12 @@ export const actions: Actions = {
   changeStep: async ({ request, locals }) => {
     const data = await request.formData();
     try {
-      await locals.studentPb
-        .collection('steps_progress')
-        .update(data.get('progressId') as string, {
-          current_step_id: data.get('stepId') as string,
-        });
+      const progressId = data.get('progressId') as string;
+      await assertStudentOwns(locals.studentProfile!.id, progressId, 'stepsProgress');
+      await prisma.stepsProgress.update({
+        where: { id: progressId },
+        data: { currentStepId: data.get('stepId') as string },
+      });
       return { success: true };
     } catch (err) {
       return fail(500, { message: 'Erreur de navigation' });
@@ -131,13 +141,14 @@ export const actions: Actions = {
     const currentStatus = data.get('currentStatus') as string;
 
     try {
+      const progressId = data.get('progressId') as string;
+      await assertStudentOwns(locals.studentProfile!.id, progressId, 'stepsProgress');
       const newStatus =
         currentStatus === 'needs_help' ? 'active' : 'needs_help';
-      await locals.studentPb
-        .collection('steps_progress')
-        .update(data.get('progressId') as string, {
-          status: newStatus,
-        });
+      await prisma.stepsProgress.update({
+        where: { id: progressId },
+        data: { status: newStatus },
+      });
       return { success: true, status: newStatus };
     } catch (err) {
       return fail(500, { message: 'Erreur lors de la notification du Manta.' });
@@ -145,7 +156,7 @@ export const actions: Actions = {
   },
 
   addPortfolioItem: async ({ request, locals }) => {
-    if (!locals.student) return fail(401, { message: 'Non autorisé' });
+    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
 
     const data = await request.formData();
     const file = data.get('file') as File;
@@ -156,15 +167,17 @@ export const actions: Actions = {
     }
 
     try {
-      const formData = new FormData();
-      formData.append('student', locals.student.id);
-      formData.append('event', data.get('eventId') as string);
-      if (data.get('caption'))
-        formData.append('caption', data.get('caption') as string);
-      if (url) formData.append('url', url);
-      if (file && file.size > 0) formData.append('file', file);
-
-      await locals.studentPb.collection('portfolio_items').create(formData);
+      await prisma.portfolioItem.create({
+        data: {
+          studentProfileId: locals.studentProfile.id,
+          eventId: data.get('eventId') as string,
+          caption: (data.get('caption') as string) || undefined,
+          url: url || undefined,
+          // NOTE: File upload handling may need a separate storage solution
+          // since Prisma does not handle file blobs like PocketBase did.
+          // For now, only the URL path is stored.
+        },
+      });
       return { success: true };
     } catch (err) {
       console.error('Portfolio add error:', err);
@@ -173,13 +186,14 @@ export const actions: Actions = {
   },
 
   deletePortfolioItem: async ({ request, locals }) => {
-    if (!locals.student) return fail(401, { message: 'Non autorisé' });
+    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
 
     const data = await request.formData();
     const itemId = data.get('itemId') as string;
 
     try {
-      await locals.studentPb.collection('portfolio_items').delete(itemId);
+      await assertStudentOwns(locals.studentProfile!.id, itemId, 'portfolioItem');
+      await prisma.portfolioItem.delete({ where: { id: itemId } });
       return { success: true };
     } catch (err) {
       console.error('Portfolio delete error:', err);
@@ -188,7 +202,7 @@ export const actions: Actions = {
   },
 
   submitFeedback: async ({ request, locals }) => {
-    if (!locals.student) return fail(401, { message: 'Non autorisé' });
+    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
 
     const data = await request.formData();
     const participationId = data.get('participationId') as string;
@@ -200,12 +214,14 @@ export const actions: Actions = {
       return fail(400, { message: 'Données invalides' });
 
     try {
-      await locals.studentPb
-        .collection('participations')
-        .update(participationId, {
-          camper_rating: rating,
-          camper_feedback: feedback,
-        });
+      await assertStudentOwns(locals.studentProfile!.id, participationId, 'participation');
+      await prisma.participation.update({
+        where: { id: participationId },
+        data: {
+          camperRating: rating,
+          camperFeedback: feedback,
+        },
+      });
       return { success: true };
     } catch (err) {
       console.error('Erreur soumission feedback:', err);

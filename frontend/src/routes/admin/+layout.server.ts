@@ -6,7 +6,7 @@ export const load: LayoutServerLoad = async ({ parent }) => {
   const { user } = await parent();
 
   // Final server-side security check for this area
-  if (!user || user.collectionName !== '_superusers') {
+  if (!user || user.role !== 'admin') {
     throw redirect(302, resolve('/admin/login'));
   }
 

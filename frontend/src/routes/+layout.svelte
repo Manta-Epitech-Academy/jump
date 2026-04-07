@@ -25,8 +25,8 @@
     });
   });
 
-  // Access expanded user campus from page data (via layout.server.ts -> hooks)
-  let userCampusName = $derived(page.data.user?.expand?.campus?.name);
+  // Access staff campus from page data (via layout.server.ts -> hooks)
+  let userCampusName = $derived(page.data.staffProfile?.campus?.name);
 </script>
 
 <svelte:head>
