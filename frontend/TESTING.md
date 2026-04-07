@@ -355,7 +355,19 @@ cp .env.test.example .env.test
 
 ---
 
-## 9. Tests en CI
+## 9. Vérification des conventions
+
+Un script vérifie automatiquement que les fichiers de test respectent les règles de ce document (nommage, emplacement, imports, structure AAA, etc.) :
+
+```bash
+npx tsx scripts/lint-tests.ts
+```
+
+Pour le détail des règles vérifiées et les limites du script, voir [scripts/LINT-TESTS.md](scripts/LINT-TESTS.md).
+
+---
+
+## 10. Tests en CI
 
 Chaque Pull Request déclenche automatiquement dans l'ordre :
 
@@ -367,7 +379,7 @@ lint → svelte-check → test → test:coverage → build → test:e2e
 
 ---
 
-## 10. Processus quand un Test ne Passe Plus
+## 11. Processus quand un Test ne Passe Plus
 
 ### Si le test échoue en CI sur ta branche
 
@@ -414,7 +426,7 @@ Does this broken test block merges on main? Yes / No
 
 ---
 
-## 11. Ressources
+## 12. Ressources
 
 - [Vitest — Documentation officielle](https://vitest.dev)
 - [Playwright — Documentation officielle](https://playwright.dev)
