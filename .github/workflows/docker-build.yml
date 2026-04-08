@@ -44,9 +44,6 @@ jobs:
           context: frontend
           push: ${{ steps.meta.outputs.push == 'true' }}
           tags: ${{ steps.meta.outputs.prefix }}-sveltekit:${{ steps.meta.outputs.tag }}
-          build-args: |
-            PUBLIC_POCKETBASE_URL=${{ vars.PUBLIC_POCKETBASE_URL }}
-            PUBLIC_INTERNAL_POCKETBASE_URL=${{ vars.PUBLIC_INTERNAL_POCKETBASE_URL }}
           cache-from: type=gha,scope=sveltekit-${{ github.ref_name }}
           cache-to: type=gha,mode=max,scope=sveltekit-${{ github.ref_name }}
 

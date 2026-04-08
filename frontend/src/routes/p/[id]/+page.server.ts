@@ -5,8 +5,7 @@ import { tallyTopThemes } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   try {
-    // Prisma always has full DB access server-side — no systemPb needed.
-    // We explicitly select only safe fields to ensure NO PII is leaked.
+    // Select only safe fields to ensure NO PII is leaked.
     const student = await prisma.studentProfile.findUnique({
       where: { id: params.id },
       select: {
