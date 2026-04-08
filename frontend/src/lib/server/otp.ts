@@ -1,10 +1,17 @@
 import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
 
-const resend = new Resend(env.RESEND_API_KEY);
+let resend: Resend;
+
+function getResend() {
+  if (!resend) {
+    resend = new Resend(env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 export async function sendOtpEmail(email: string, otp: string) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: env.RESEND_FROM_EMAIL || 'TekCamp <noreply@tekcamp.fr>',
     to: email,
     subject: 'Ton code de connexion TekCamp',
