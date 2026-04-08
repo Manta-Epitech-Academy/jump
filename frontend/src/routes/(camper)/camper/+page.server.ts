@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
-import { getParisStartOfDay } from '$lib/utils';
+import { getParisStartOfDay, tallyTopThemes } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.studentProfile) {
@@ -76,7 +76,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     });
 
     // Tally top themes from completed participations
-    const topThemes = tallyTopThemesPrisma(allCompleted, 3);
+    const topThemes = tallyTopThemes(allCompleted, 3);
 
     // Derive past participations from the set we already have
     const allPast = allCompleted
@@ -128,43 +128,3 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 };
 
-/* ── Theme tallying (Prisma-shaped data) ─────────────────────── */
-
-const THEME_TIERS = [
-  { min: 4, label: 'Expert' },
-  { min: 2, label: 'Confirmé' },
-  { min: 0, label: 'Initié' },
-] as const;
-
-function themeTierLabel(count: number): string {
-  return (THEME_TIERS.find((t) => count >= t.min) ?? THEME_TIERS.at(-1)!).label;
-}
-
-function tallyTopThemesPrisma(
-  participations: {
-    subjects: {
-      subject: {
-        subjectThemes: { theme: { nom: string } }[];
-      };
-    }[];
-  }[],
-  limit: number,
-): { name: string; count: number; label: string }[] {
-  const tally: Record<string, number> = {};
-  for (const p of participations) {
-    for (const ps of p.subjects) {
-      const themes = ps.subject.subjectThemes;
-      if (themes.length === 0) {
-        tally['Général'] = (tally['Général'] || 0) + 1;
-      } else {
-        for (const st of themes) {
-          tally[st.theme.nom] = (tally[st.theme.nom] || 0) + 1;
-        }
-      }
-    }
-  }
-  return Object.entries(tally)
-    .map(([name, count]) => ({ name, count, label: themeTierLabel(count) }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, limit);
-}

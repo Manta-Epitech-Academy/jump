@@ -105,7 +105,7 @@ export const actions: Actions = {
     throw redirect(303, resolve(`/events/${newEventId}/builder`));
   },
 
-  analyzeCampaign: async ({ request }) => {
+  analyzeCampaign: async ({ request, locals }) => {
     const formData = await request.formData();
     const file = formData.get('csvFile') as File;
 
@@ -115,7 +115,8 @@ export const actions: Actions = {
       });
 
     try {
-      const result = await analyzeCampaignFile(file);
+      const campusId = getCampusId(locals);
+      const result = await analyzeCampaignFile(file, campusId);
       return result;
     } catch (err) {
       console.error('CSV Analysis Error:', err);

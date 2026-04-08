@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
-import { themeTierLabel } from '$lib/utils';
+import { tallyTopThemes } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   try {
@@ -62,7 +62,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
       },
     });
 
-    const topThemes = tallyTopThemesPrisma(allCompleted, 5);
+    const topThemes = tallyTopThemes(allCompleted, 5);
 
     return {
       student: {
@@ -96,35 +96,3 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
   }
 };
 
-/**
- * Tally theme occurrences from Prisma participation data.
- * Subjects without themes are counted under "General".
- */
-function tallyTopThemesPrisma(
-  participations: {
-    subjects: {
-      subject: {
-        subjectThemes: { theme: { nom: string } }[];
-      };
-    }[];
-  }[],
-  limit: number,
-): { name: string; count: number; label: string }[] {
-  const tally: Record<string, number> = {};
-  for (const p of participations) {
-    for (const ps of p.subjects) {
-      const themes = ps.subject.subjectThemes;
-      if (themes.length === 0) {
-        tally['General'] = (tally['General'] || 0) + 1;
-      } else {
-        for (const st of themes) {
-          tally[st.theme.nom] = (tally[st.theme.nom] || 0) + 1;
-        }
-      }
-    }
-  }
-  return Object.entries(tally)
-    .map(([name, count]) => ({ name, count, label: themeTierLabel(count) }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, limit);
-}
