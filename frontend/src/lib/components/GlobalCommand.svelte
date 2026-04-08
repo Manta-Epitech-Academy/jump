@@ -9,7 +9,8 @@
     Cuboid,
   } from '@lucide/svelte';
   import { onMount, onDestroy } from 'svelte';
-  import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
+  import { i18nHref } from '$lib/utils';
 
   let { open = $bindable(false) } = $props();
 
@@ -37,34 +38,34 @@
 </script>
 
 <Command.Dialog bind:open>
-  <Command.Input placeholder="Tapez une commande ou cherchez..." />
+  <Command.Input placeholder={m.nav_command_placeholder()} />
   <Command.List>
-    <Command.Empty>Aucun résultat.</Command.Empty>
-    <Command.Group heading="Navigation">
-      <Command.Item onSelect={() => runCommand(resolve('/'))}>
+    <Command.Empty>{m.common_no_result()}</Command.Empty>
+    <Command.Group heading={m.nav_navigation()}>
+      <Command.Item onSelect={() => runCommand(i18nHref('/'))}>
         <LayoutDashboard class="mr-2 h-4 w-4" />
-        Dashboard
+        {m.nav_dashboard()}
       </Command.Item>
-      <Command.Item onSelect={() => runCommand(resolve('/students'))}>
+      <Command.Item onSelect={() => runCommand(i18nHref('/students'))}>
         <Users class="mr-2 h-4 w-4" />
-        Élèves
+        {m.nav_students()}
       </Command.Item>
-      <Command.Item onSelect={() => runCommand(resolve('/subjects'))}>
+      <Command.Item onSelect={() => runCommand(i18nHref('/subjects'))}>
         <Cuboid class="mr-2 h-4 w-4" />
-        Sujets
+        {m.nav_subjects()}
       </Command.Item>
-      <Command.Item onSelect={() => runCommand(resolve('/events/history'))}>
+      <Command.Item onSelect={() => runCommand(i18nHref('/events/history'))}>
         <History class="mr-2 h-4 w-4" />
-        Historique
+        {m.nav_history()}
       </Command.Item>
     </Command.Group>
 
     <Command.Separator />
 
-    <Command.Group heading="Actions Rapides">
-      <Command.Item onSelect={() => runCommand(resolve('/events/new'))}>
+    <Command.Group heading={m.nav_quick_actions()}>
+      <Command.Item onSelect={() => runCommand(i18nHref('/events/new'))}>
         <Calendar class="mr-2 h-4 w-4" />
-        Nouvel Événement
+        {m.nav_new_event()}
       </Command.Item>
     </Command.Group>
   </Command.List>

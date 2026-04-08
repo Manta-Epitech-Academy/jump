@@ -3,13 +3,14 @@
   import { buttonVariants } from '$lib/components/ui/button';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     open = $bindable(false),
     action,
-    title = 'Êtes-vous sûr ?',
-    description = 'Cette action est irréversible.',
-    buttonText = 'Supprimer',
+    title = m.confirm_delete_title(),
+    description = m.confirm_delete_description(),
+    buttonText = m.common_delete(),
     onSuccess,
   }: {
     open: boolean;
@@ -28,7 +29,7 @@
       <AlertDialog.Description>{description}</AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
       <form
         {action}
         method="POST"
@@ -36,13 +37,13 @@
           return async ({ result, update }) => {
             if (result.type === 'success' || result.type === 'redirect') {
               if (result.type === 'success') {
-                toast.success('Action effectuée');
+                toast.success(m.common_action_success());
               }
               open = false;
               if (onSuccess) onSuccess();
               await update();
             } else {
-              toast.error('Une erreur est survenue');
+              toast.error(m.common_error_generic());
             }
           };
         }}

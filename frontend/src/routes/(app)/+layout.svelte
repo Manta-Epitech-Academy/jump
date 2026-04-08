@@ -11,6 +11,7 @@
     Search,
     X,
     MapPin,
+    Languages,
   } from '@lucide/svelte';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -21,6 +22,9 @@
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
+  import { i18nHref } from '$lib/utils';
+  import { getLocale, setLocale } from '$lib/paraglide/runtime';
   let { children, data } = $props();
   let user = $derived(data.user as any);
 
@@ -98,33 +102,33 @@
 
 {#snippet navMenu()}
   <div class="sidebar-section-title">
-    Overview<span class="text-epi-orange">_</span>
+    {m.nav_overview()}<span class="text-epi-orange">_</span>
   </div>
   <nav class="space-y-1">
-    <a href={resolve('/')} class={navLinkClass(isActive('/'))}>
+    <a href={i18nHref('/')} class={navLinkClass(isActive('/'))}>
       <LayoutDashboard class="h-5 w-5" />
-      <span>Dashboard</span>
+      <span>{m.nav_dashboard()}</span>
     </a>
     <a
-      href={resolve('/events/history')}
+      href={i18nHref('/events/history')}
       class={navLinkClass(isActive('/events/history'))}
     >
       <History class="h-5 w-5" />
-      <span>Historique</span>
+      <span>{m.nav_history()}</span>
     </a>
   </nav>
 
   <div class="sidebar-section-title">
-    Management<span class="text-epi-teal">_</span>
+    {m.nav_management()}<span class="text-epi-teal">_</span>
   </div>
   <nav class="space-y-1">
-    <a href={resolve('/students')} class={navLinkClass(isActive('/students'))}>
+    <a href={i18nHref('/students')} class={navLinkClass(isActive('/students'))}>
       <Users class="h-5 w-5" />
-      <span>Élèves</span>
+      <span>{m.nav_students()}</span>
     </a>
-    <a href={resolve('/subjects')} class={navLinkClass(isActive('/subjects'))}>
+    <a href={i18nHref('/subjects')} class={navLinkClass(isActive('/subjects'))}>
       <Cuboid class="h-5 w-5" />
-      <span>Sujets</span>
+      <span>{m.nav_subjects()}</span>
     </a>
   </nav>
 {/snippet}
@@ -152,9 +156,9 @@
               ? 'scale-100 rotate-0 opacity-100'
               : 'scale-0 -rotate-90 opacity-0'}"
           />
-          <span class="sr-only">Toggle menu</span>
+          <span class="sr-only">{m.nav_toggle_menu()}</span>
         </Button>
-        <a href={resolve('/')} class="flex items-center gap-2">
+        <a href={i18nHref('/')} class="flex items-center gap-2">
           <span class="text-lg font-bold uppercase">TekCamp</span>
           {#if data.staffProfile?.campus?.name}
             <span
@@ -173,7 +177,7 @@
       >
         <span class="flex items-center gap-2">
           <Search class="h-4 w-4" />
-          <span class="text-xs font-medium">Rechercher...</span>
+          <span class="text-xs font-medium">{m.nav_search_placeholder()}</span>
         </span>
         <kbd
           class="pointer-events-none flex h-5 items-center gap-1 rounded border border-header-foreground/20 bg-header-foreground/10 px-1.5 font-mono text-[10px] font-medium opacity-100 select-none"
@@ -236,19 +240,30 @@
             </div>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
-            <DropdownMenu.Label>Mon Profil</DropdownMenu.Label>
+            <DropdownMenu.Label>{m.nav_my_profile()}</DropdownMenu.Label>
             <DropdownMenu.Separator />
-            <a href={`${resolve('/onboarding')}?change=true`}>
+            <a href={`${i18nHref('/onboarding')}?change=true`}>
               <DropdownMenu.Item class="cursor-pointer">
                 <MapPin class="mr-2 h-4 w-4" />
-                Changer de campus
+                {m.nav_change_campus()}
               </DropdownMenu.Item>
             </a>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Label class="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+              <Languages class="mr-1 inline h-3 w-3" />
+              {m.nav_language()}
+            </DropdownMenu.Label>
+            <DropdownMenu.Item class="cursor-pointer {getLocale() === 'fr' ? 'font-bold text-epi-blue' : ''}" onclick={() => setLocale('fr')}>
+              Français
+            </DropdownMenu.Item>
+            <DropdownMenu.Item class="cursor-pointer {getLocale() === 'en' ? 'font-bold text-epi-blue' : ''}" onclick={() => setLocale('en')}>
+              English
+            </DropdownMenu.Item>
             <form action={resolve('/logout')} method="POST">
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item class="cursor-pointer text-destructive">
                   <LogOut class="mr-2 h-4 w-4" />
-                  Déconnexion
+                  {m.nav_logout()}
                 </DropdownMenu.Item>
               </button>
             </form>
@@ -271,10 +286,10 @@
         <Button
           variant="outline"
           class="w-full justify-start border-dashed"
-          href={resolve('/events/new')}
+          href={i18nHref('/events/new')}
         >
           <Plus class="mr-2 h-4 w-4" />
-          Nouvel Événement
+          {m.nav_new_event()}
         </Button>
       </div>
     </aside>
@@ -303,10 +318,10 @@
           <Button
             variant="outline"
             class="w-full justify-center border-dashed"
-            href={resolve('/events/new')}
+            href={i18nHref('/events/new')}
           >
             <Plus class="mr-2 h-4 w-4" />
-            Nouvel Événement
+            {m.nav_new_event()}
           </Button>
         </div>
       </aside>

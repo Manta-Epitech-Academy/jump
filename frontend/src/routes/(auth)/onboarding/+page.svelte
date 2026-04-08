@@ -4,13 +4,14 @@
   import * as Card from '$lib/components/ui/card';
   import * as Select from '$lib/components/ui/select';
   import { MapPin, ArrowRight } from '@lucide/svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data } = $props();
   let selectedCampusId = $state('');
 
   let selectedCampusName = $derived(
     data.campuses.find((c) => c.id === selectedCampusId)?.name ||
-      'Sélectionner une ville',
+      m.onboarding_select_city(),
   );
 </script>
 
@@ -32,11 +33,10 @@
         <MapPin class="h-7 w-7" />
       </div>
       <Card.Title class="font-heading text-2xl uppercase"
-        >Bienvenue !</Card.Title
+        >{m.onboarding_title()}</Card.Title
       >
       <Card.Description>
-        Pour finaliser votre inscription, veuillez sélectionner votre campus
-        Epitech de rattachement.
+        {m.onboarding_description()}
       </Card.Description>
     </Card.Header>
 
@@ -74,7 +74,7 @@
           size="lg"
           disabled={!selectedCampusId}
         >
-          Valider et Accéder
+          {m.onboarding_submit()}
           <ArrowRight class="ml-2 h-4 w-4" />
         </Button>
       </form>

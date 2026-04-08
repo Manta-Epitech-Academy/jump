@@ -9,9 +9,19 @@ import type {
   ParticipationWithEvent,
   ParticipationWithThemes,
 } from '$lib/types';
+import { resolve } from '$app/paths';
+import { localizeHref } from '$lib/paraglide/runtime';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+/**
+ * Resolves a path with the base prefix and localizes it for the current locale.
+ * Use this instead of resolve() for all internal navigation links.
+ */
+export function i18nHref(path: string): string {
+  return localizeHref(resolve(path));
 }
 
 /**

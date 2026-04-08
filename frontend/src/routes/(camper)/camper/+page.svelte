@@ -11,7 +11,9 @@
     formatDateFr,
     flattenMissions,
     THEME_TIER_CEILING,
+    i18nHref,
   } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
   import {
     Rocket,
     Trophy,
@@ -47,17 +49,17 @@
 
   let levelLabel = $derived(
     student?.level === 'Expert'
-      ? 'Expert ✦'
+      ? m.camper_level_expert()
       : student?.level === 'Apprentice'
-        ? 'Apprenti'
-        : 'Novice',
+        ? m.camper_level_apprentice()
+        : m.camper_level_novice(),
   );
 
   // Assuming 1000 XP is the max for the progress bar visual (can be adjusted)
   let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
   let eventTitle = $derived(
-    participation?.event?.titre || 'Atelier Epitech',
+    participation?.event?.titre || m.camper_default_event(),
   );
   let subjects = $derived(
     participation?.subjects?.map((ps: any) => ps.subject) || [],
@@ -93,12 +95,12 @@
     try {
       await navigator.clipboard.writeText(shareUrl);
       copied = true;
-      toast.success('Lien copié dans le presse-papier !');
+      toast.success(m.camper_link_copied());
       setTimeout(() => {
         copied = false;
       }, 2000);
     } catch (err) {
-      toast.error('Erreur lors de la copie du lien.');
+      toast.error(m.camper_link_copy_error());
     }
   }
 
@@ -109,7 +111,7 @@
     isDownloading = true;
     try {
       const res = await fetch(resolve('/api/certificate'));
-      if (!res.ok) throw new Error('Erreur réseau');
+      if (!res.ok) throw new Error(m.common_error_network());
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -127,10 +129,10 @@
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      toast.success('Attestation téléchargée !');
+      toast.success(m.camper_certificate_downloaded());
       triggerConfetti();
     } catch (e) {
-      toast.error("Erreur lors de la génération de l'attestation.");
+      toast.error(m.camper_certificate_error());
     } finally {
       isDownloading = false;
     }
@@ -157,10 +159,10 @@
           <h1
             class="font-heading text-4xl tracking-tight text-slate-900 uppercase dark:text-white"
           >
-            Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
+            {m.camper_greeting({ name: student?.prenom ?? '' })}
           </h1>
           <p class="font-bold text-slate-500 uppercase">
-            Bienvenue dans ton cockpit.
+            {m.camper_welcome()}
           </p>
         </div>
       </div>
@@ -169,11 +171,11 @@
         <Button
           variant="ghost"
           size="icon"
-          href={resolve('/camper/settings')}
+          href={i18nHref('/camper/settings')}
           class="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
         >
           <Settings class="h-4 w-4" />
-          <span class="sr-only">Paramètres</span>
+          <span class="sr-only">{m.camper_settings()}</span>
         </Button>
         <form action="{resolve('/logout')}?type=student" method="POST">
           <Button
@@ -183,7 +185,7 @@
             class="h-8 w-8 text-slate-400 hover:text-destructive"
           >
             <LogOut class="h-4 w-4" />
-            <span class="sr-only">Déconnexion</span>
+            <span class="sr-only">{m.camper_logout()}</span>
           </Button>
         </form>
       </div>
@@ -229,7 +231,7 @@
             <div
               class="flex justify-between text-[10px] font-bold text-slate-400 uppercase"
             >
-              <span>Progression</span>
+              <span>{m.camper_progression()}</span>
               <span>{Math.round(xpProgress)}%</span>
             </div>
             <div
@@ -250,7 +252,7 @@
               <h3
                 class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
               >
-                <Target class="h-4 w-4 text-teal-600 dark:text-epi-teal" /> Spécialités
+                <Target class="h-4 w-4 text-teal-600 dark:text-epi-teal" /> {m.camper_specialties()}
               </h3>
               <div class="flex flex-col gap-3">
                 {#each topThemes as theme}
@@ -290,7 +292,7 @@
             class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
           >
             <h3 class="text-xs font-bold text-slate-400 uppercase">
-              Mon Profil Public
+              {m.camper_public_profile()}
             </h3>
             <div class="flex flex-col gap-2">
               <Button
@@ -309,12 +311,12 @@
               </Button>
               <Button
                 variant="ghost"
-                href={resolve(`/p/${student?.id}`)}
+                href={i18nHref(`/p/${student?.id}`)}
                 target="_blank"
                 class="w-full rounded-xl text-xs font-bold text-epi-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"
               >
                 <ExternalLink class="mr-2 h-4 w-4" />
-                Voir la page
+                {m.common_view_page()}
               </Button>
             </div>
           </div>
@@ -325,7 +327,7 @@
               class="mt-4 w-full space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800"
             >
               <h3 class="text-xs font-bold text-slate-400 uppercase">
-                Mes Documents
+                {m.camper_documents()}
               </h3>
               <Button
                 variant="secondary"
@@ -335,10 +337,10 @@
               >
                 {#if isDownloading}
                   <LoaderCircle class="mr-2 h-4 w-4 shrink-0 animate-spin" />
-                  <span class="truncate">Génération...</span>
+                  <span class="truncate">{m.camper_generating()}</span>
                 {:else}
                   <FileDown class="mr-2 h-4 w-4 shrink-0" />
-                  <span class="truncate">Attestation Parcoursup</span>
+                  <span class="truncate">{m.camper_certificate()}</span>
                 {/if}
               </Button>
             </div>
@@ -353,7 +355,7 @@
       <h2
         class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
       >
-        Mission du jour<span class="text-epi-teal">_</span>
+        {m.camper_mission_today()}<span class="text-epi-teal">_</span>
       </h2>
 
       {#if participation}
@@ -386,20 +388,20 @@
                   </h3>
                   <p class="mt-1 line-clamp-2 text-sm text-slate-500">
                     {currentSubject.description ||
-                      'Prépare-toi à coder et à relever de nouveaux défis !'}
+                      m.camper_subject_default_description()}
                   </p>
                 </div>
               </div>
 
               <div class="mt-auto pt-4">
                 <Button
-                  href={resolve(`/camper/${currentSubject.id}`)}
+                  href={i18nHref(`/camper/${currentSubject.id}`)}
                   class="h-14 w-full rounded-2xl bg-epi-blue text-lg font-bold text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-epi-blue/90 active:scale-[0.98]"
                 >
                   <Sparkles class="mr-2 h-5 w-5" />
                   {completedSubjectIds.has(currentSubject.id)
-                    ? 'Revoir la mission'
-                    : 'Démarrer la mission'}
+                    ? m.camper_review_mission()
+                    : m.camper_start_mission()}
                   <ArrowRight class="ml-2 h-5 w-5" />
                 </Button>
                 {#if otherSubjects.length > 0}
@@ -407,7 +409,7 @@
                     {#each otherSubjects as subject}
                       <Button
                         variant="outline"
-                        href={resolve(`/camper/${subject.id}`)}
+                        href={i18nHref(`/camper/${subject.id}`)}
                         class="h-11 w-full justify-between rounded-xl border-slate-200 dark:border-slate-800"
                       >
                         <span class="truncate text-sm">{subject.nom}</span>
@@ -434,11 +436,10 @@
                   <Hourglass class="h-8 w-8 animate-pulse text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  Ton sujet arrive...
+                  {m.camper_subject_loading_title()}
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-slate-500">
-                  Le Manta est en train de préparer ta mission. Patiente
-                  quelques instants, la page se mettra à jour.
+                  {m.camper_subject_loading_description()}
                 </p>
               </div>
             {/if}
@@ -456,7 +457,7 @@
               class="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
             >
               <CalendarClock class="h-4 w-4" />
-              <span>Mission à venir</span>
+              <span>{m.camper_upcoming_label()}</span>
             </div>
           </div>
           <div
@@ -466,7 +467,7 @@
               <Rocket class="h-8 w-8 text-epi-blue" />
             </div>
             <h3 class="text-xl font-bold text-slate-900 dark:text-white">
-              {upcomingParticipation.event?.titre || 'Atelier Epitech'}
+              {upcomingParticipation.event?.titre || m.camper_default_event()}
             </h3>
             <p class="mt-2 max-w-md text-sm text-slate-500">
               Ta prochaine session est prévue le <strong
@@ -487,14 +488,14 @@
                   class="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
                 >
                   <Laptop class="h-4 w-4 shrink-0" />
-                  <span>N'oublie pas d'apporter ton PC !</span>
+                  <span>{m.camper_bring_pc()}</span>
                 </div>
               {:else}
                 <div
                   class="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700 dark:border-teal-900/30 dark:bg-teal-900/20 dark:text-teal-400"
                 >
                   <Monitor class="h-4 w-4 shrink-0" />
-                  <span>Le matériel sera fourni sur place.</span>
+                  <span>{m.camper_equipment_provided()}</span>
                 </div>
               {/if}
             </div>
@@ -511,11 +512,10 @@
           <h3
             class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
           >
-            Repos aujourd'hui
+            {m.camper_rest_title()}
           </h3>
           <p class="mt-2 max-w-sm text-sm text-slate-500">
-            Aucun atelier n'est planifié pour toi. Profites-en pour te reposer
-            ou revoir tes anciens projets dans ton portfolio !
+            {m.camper_rest_description()}
           </p>
         </div>
       {/if}
@@ -527,16 +527,16 @@
             class="flex items-center gap-2 font-heading text-sm text-slate-800 uppercase dark:text-slate-200"
           >
             <History class="h-4 w-4 text-epi-blue" />
-            Missions précédentes<span class="text-epi-teal">_</span>
+            {m.camper_past_missions()}<span class="text-epi-teal">_</span>
           </h2>
           {#if totalPastMissions > 2}
             <Button
               variant="ghost"
               size="sm"
-              href={resolve('/camper/history')}
+              href={i18nHref('/camper/history')}
               class="text-xs font-bold text-epi-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"
             >
-              Voir tout ({totalPastMissions})
+              {m.camper_view_all({ count: totalPastMissions })}
               <ArrowRight class="ml-1 h-3 w-3" />
             </Button>
           {/if}
@@ -561,10 +561,10 @@
               </div>
               <Button
                 variant="outline"
-                href={resolve(`/camper/${mission.subject.id}`)}
+                href={i18nHref(`/camper/${mission.subject.id}`)}
                 class="w-full gap-2 rounded-xl border-slate-200 transition-colors group-hover:border-epi-blue group-hover:bg-epi-blue group-hover:text-white dark:border-slate-800 dark:group-hover:border-epi-blue dark:group-hover:bg-epi-blue dark:group-hover:text-white"
               >
-                <BookOpen class="h-4 w-4" /> Revoir la mission
+                <BookOpen class="h-4 w-4" /> {m.camper_review_mission()}
               </Button>
             </div>
           {/each}

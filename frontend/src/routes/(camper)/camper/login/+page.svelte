@@ -10,6 +10,7 @@
   import LoginOtpStep from './components/LoginOtpStep.svelte';
   import { authClient } from '$lib/auth-client';
   import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data } = $props();
   let isOAuthLoading = $state(false);
@@ -106,11 +107,11 @@
             class="text-sm font-bold tracking-tight text-slate-500 uppercase"
           >
             {#if step === 'oauth'}
-              Prêt pour l'aventure ?
+              {m.auth_login_ready()}
             {:else if step === 'email'}
-              Connexion par email
+              {m.auth_login_email_title()}
             {:else}
-              Dernière étape !
+              {m.auth_login_last_step()}
             {/if}
           </Card.Description>
         </div>
@@ -150,8 +151,8 @@
                   <path fill="#ffba08" d="M12 12h10v10H12z" />
                 </svg>
                 {isOAuthLoading
-                  ? 'Redirection...'
-                  : 'Se connecter avec Office 365'}
+                  ? m.auth_login_redirect()
+                  : m.auth_login_submit()}
               </Button>
 
               <div class="relative">
@@ -164,7 +165,7 @@
                   <span
                     class="bg-white/70 px-2 font-bold tracking-wider text-slate-400 dark:bg-slate-900/80"
                   >
-                    ou
+                    {m.common_or()}
                   </span>
                 </div>
               </div>
@@ -176,7 +177,7 @@
                 onclick={() => (step = 'email')}
               >
                 <Mail class="h-5 w-5" />
-                Se connecter par email
+                {m.auth_login_email()}
               </Button>
             </div>
           </div>
@@ -205,7 +206,7 @@
     <p
       class="mt-8 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
     >
-      Propulsé par Epitech Academy
+      {m.auth_login_powered_by()}
     </p>
   </div>
 </div>

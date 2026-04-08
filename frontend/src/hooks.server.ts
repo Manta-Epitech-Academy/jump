@@ -1,10 +1,20 @@
 import type { Handle } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
+import { paraglideMiddleware } from '$lib/paraglide/server';
 import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 
-export const handle: Handle = async ({ event, resolve }) => {
-  // 1. Get session from BetterAuth
+const i18nHandle: Handle = ({ event, resolve }) =>
+  paraglideMiddleware(event.request, ({ request: localizedRequest, locale }) => {
+    event.request = localizedRequest;
+    return resolve(event, {
+      transformPageChunk: ({ html }) =>
+        html.replace('%lang%', locale).replace('%dir%', 'ltr'),
+    });
+  });
+
+const authHandle: Handle = async ({ event, resolve }) => {
   const sessionData = await auth.api.getSession({
     headers: event.request.headers,
   });
@@ -14,7 +24,6 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.staffProfile = null;
   event.locals.studentProfile = null;
 
-  // 2. Load domain profiles — check both since the cached role may be stale
   if (event.locals.user) {
     event.locals.staffProfile = await prisma.staffProfile.findUnique({
       where: { userId: event.locals.user.id },
@@ -27,9 +36,10 @@ export const handle: Handle = async ({ event, resolve }) => {
     });
   }
 
-  // 3. Route guards
   const guardResponse = applyRouteGuards(event);
   if (guardResponse) return guardResponse;
 
   return resolve(event);
 };
+
+export const handle: Handle = sequence(i18nHandle, authHandle);

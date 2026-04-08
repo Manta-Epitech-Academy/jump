@@ -39,6 +39,7 @@
   import { untrack } from 'svelte';
   import { difficultes } from '$lib/validation/subjects';
   import { cn } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
   import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
   import { fly } from 'svelte/transition';
   import EmptyState from '$lib/components/EmptyState.svelte';
@@ -60,7 +61,7 @@
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
           toast.error(
-            result.data?.form.message || 'Erreur lors de la validation',
+            result.data?.form.message || m.subject_form_error_validation(),
           );
         }
       },
@@ -190,15 +191,15 @@
 
 <div class="space-y-6">
   <PageHeader
-    title="Bibliothèque"
-    subtitle="Gérez et explorez les supports pédagogiques."
+    title={m.subject_library_title()}
+    subtitle={m.subject_library_subtitle()}
   >
     <Button
       onclick={openCreate}
       class="bg-epi-blue text-white shadow-md hover:bg-epi-blue/90"
     >
       <Plus class="mr-2 h-4 w-4" />
-      Nouveau Sujet
+      {m.subject_new()}
     </Button>
   </PageHeader>
 
@@ -215,7 +216,7 @@
           value="all"
           class="rounded-sm px-3 py-1.5 text-xs font-bold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
         >
-          Tous <span class="ml-2 text-[10px] text-muted-foreground"
+          {m.subject_tab_all()} <span class="ml-2 text-[10px] text-muted-foreground"
             >{stats.total}</span
           >
         </Tabs.Trigger>
@@ -223,7 +224,7 @@
           value="official"
           class="rounded-sm px-3 py-1.5 text-xs font-bold transition-all data-[state=active]:bg-background data-[state=active]:text-epi-blue data-[state=active]:shadow-sm"
         >
-          Officiels <span class="ml-2 text-[10px] text-muted-foreground"
+          {m.subject_tab_official()} <span class="ml-2 text-[10px] text-muted-foreground"
             >{stats.official}</span
           >
         </Tabs.Trigger>
@@ -231,7 +232,7 @@
           value="mine"
           class="rounded-sm px-3 py-1.5 text-xs font-bold transition-all data-[state=active]:bg-background data-[state=active]:text-epi-teal data-[state=active]:shadow-sm"
         >
-          Mon Campus <span class="ml-2 text-[10px] text-muted-foreground"
+          {m.subject_tab_mine()} <span class="ml-2 text-[10px] text-muted-foreground"
             >{stats.mine}</span
           >
         </Tabs.Trigger>
@@ -239,7 +240,7 @@
           value="community"
           class="rounded-sm px-3 py-1.5 text-xs font-bold transition-all data-[state=active]:bg-background data-[state=active]:text-purple-600 data-[state=active]:shadow-sm"
         >
-          Communauté <span class="ml-2 text-[10px] text-muted-foreground"
+          {m.subject_tab_community()} <span class="ml-2 text-[10px] text-muted-foreground"
             >{stats.community}</span
           >
         </Tabs.Trigger>
@@ -266,7 +267,7 @@
                 </button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content><p>Vue Grille</p></Tooltip.Content>
+            <Tooltip.Content><p>{m.subject_view_grid()}</p></Tooltip.Content>
           </Tooltip.Root>
 
           <Tooltip.Root>
@@ -286,7 +287,7 @@
                 </button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content><p>Vue Liste</p></Tooltip.Content>
+            <Tooltip.Content><p>{m.subject_view_list()}</p></Tooltip.Content>
           </Tooltip.Root>
         </Tooltip.Provider>
       </div>
@@ -298,7 +299,7 @@
           class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
         />
         <Input
-          placeholder="Chercher un sujet..."
+          placeholder={m.subject_search_placeholder()}
           class="h-9 w-full rounded-md border-input bg-background pl-9 md:max-w-sm"
           bind:value={searchQuery}
         />
@@ -309,11 +310,11 @@
           <Select.Trigger class="h-9 w-40 text-xs">
             <SignalLow class="mr-2 h-3.5 w-3.5 text-muted-foreground" />
             <span class="truncate">
-              {difficultyFilter === 'all' ? 'Difficulté' : difficultyFilter}
+              {difficultyFilter === 'all' ? m.subject_filter_difficulty() : difficultyFilter}
             </span>
           </Select.Trigger>
           <Select.Content>
-            <Select.Item value="all">Toutes</Select.Item>
+            <Select.Item value="all">{m.common_all_feminine()}</Select.Item>
             {#each difficultes as diff}<Select.Item value={diff}
                 >{diff}</Select.Item
               >{/each}
@@ -324,11 +325,11 @@
           <Select.Trigger class="h-9 w-37.5 text-xs">
             <Tag class="mr-2 h-3.5 w-3.5 text-muted-foreground" />
             {themeFilter === 'all'
-              ? 'Thème'
-              : uniqueThemes.find((t) => t[0] === themeFilter)?.[1] || 'Thème'}
+              ? m.subject_filter_theme()
+              : uniqueThemes.find((t) => t[0] === themeFilter)?.[1] || m.subject_filter_theme()}
           </Select.Trigger>
           <Select.Content class="max-h-60">
-            <Select.Item value="all">Tous</Select.Item>
+            <Select.Item value="all">{m.common_all()}</Select.Item>
             {#each uniqueThemes as [id, nom]}<Select.Item value={id}
                 >{nom}</Select.Item
               >{/each}
@@ -350,9 +351,9 @@
       {#if filteredSubjects.length === 0}
         <EmptyState
           icon={Funnel}
-          title="404 Knowledge Not Found"
-          description="Aucun sujet ne correspond à vos filtres.<br/>C'est le moment de créer du contenu !"
-          actionLabel="Effacer les filtres"
+          title={m.subject_empty_title()}
+          description={m.subject_empty_description()}
+          actionLabel={m.subject_empty_action()}
           actionCallback={clearFilters}
         />
       {:else if viewMode === 'grid'}
@@ -381,7 +382,7 @@
                           : 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
                     )}
                   >
-                    {isOfficial ? 'Officiel' : isMine ? 'Local' : 'Communauté'}
+                    {isOfficial ? m.subject_badge_official() : isMine ? m.subject_badge_local() : m.subject_badge_community()}
                   </Badge>
                   <span class="text-xs font-bold text-foreground/70"
                     >{xp} XP</span
@@ -405,7 +406,7 @@
                 <p
                   class="mb-4 line-clamp-3 flex-1 text-sm text-muted-foreground"
                 >
-                  {subject.description || 'Aucune description.'}
+                  {subject.description || m.subject_no_description()}
                 </p>
 
                 <div class="mt-auto space-y-4">
@@ -454,11 +455,11 @@
                         target="_blank"
                         rel="noopener noreferrer"
                         class="flex items-center gap-1 text-xs font-bold text-epi-blue hover:underline"
-                        >Support <ArrowUpRight class="h-3 w-3" /></a
+                        >{m.subject_support()} <ArrowUpRight class="h-3 w-3" /></a
                       >
                     {:else}
                       <span class="text-xs text-muted-foreground italic"
-                        >Pas de lien</span
+                        >{m.subject_no_link()}</span
                       >
                     {/if}
 
@@ -482,7 +483,7 @@
                               {/snippet}
                             </Tooltip.Trigger>
                             <Tooltip.Content>
-                              <p>Modifier</p>
+                              <p>{m.common_edit()}</p>
                             </Tooltip.Content>
                           </Tooltip.Root>
 
@@ -501,7 +502,7 @@
                               {/snippet}
                             </Tooltip.Trigger>
                             <Tooltip.Content>
-                              <p>Supprimer</p>
+                              <p>{m.common_delete()}</p>
                             </Tooltip.Content>
                           </Tooltip.Root>
                         </Tooltip.Provider>
@@ -519,9 +520,9 @@
             <Table.Header>
               <Table.Row>
                 <Table.Head class="w-12.5"></Table.Head>
-                <Table.Head>Sujet</Table.Head>
-                <Table.Head class="hidden md:table-cell">Thèmes</Table.Head>
-                <Table.Head class="hidden sm:table-cell">Difficulté</Table.Head>
+                <Table.Head>{m.subject_column_subject()}</Table.Head>
+                <Table.Head class="hidden md:table-cell">{m.subject_column_themes()}</Table.Head>
+                <Table.Head class="hidden sm:table-cell">{m.subject_column_difficulty()}</Table.Head>
                 <Table.Head class="text-right">XP</Table.Head>
                 <Table.Head class="w-20"></Table.Head>
               </Table.Row>
@@ -551,7 +552,7 @@
                     ><div class="flex flex-col">
                       <span class="font-bold">{subject.nom}</span><span
                         class="line-clamp-1 text-xs text-muted-foreground"
-                        >{subject.description || 'Pas de description'}</span
+                        >{subject.description || m.subject_no_description_short()}</span
                       >
                     </div></Table.Cell
                   >
@@ -594,13 +595,13 @@
                           >
                           <DropdownMenu.Content align="end">
                             <DropdownMenu.Item onclick={() => openEdit(subject)}
-                              ><Pencil class="mr-2 h-4 w-4" /> Modifier</DropdownMenu.Item
+                              ><Pencil class="mr-2 h-4 w-4" /> {m.common_edit()}</DropdownMenu.Item
                             >
                             <DropdownMenu.Separator />
                             <DropdownMenu.Item
                               class="text-destructive focus:text-destructive"
                               onclick={() => confirmDelete(subject.id)}
-                              ><Trash2 class="mr-2 h-4 w-4" /> Supprimer</DropdownMenu.Item
+                              ><Trash2 class="mr-2 h-4 w-4" /> {m.common_delete()}</DropdownMenu.Item
                             >
                           </DropdownMenu.Content>
                         </DropdownMenu.Root>
@@ -622,7 +623,7 @@
                               {/snippet}
                             </Tooltip.Trigger>
                             <Tooltip.Content>
-                              <p>Voir le support</p>
+                              <p>{m.subject_view_support()}</p>
                             </Tooltip.Content>
                           </Tooltip.Root>
                         </Tooltip.Provider>
@@ -642,7 +643,7 @@
     <Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-xl">
       <Dialog.Header
         ><Dialog.Title
-          >{isEditing ? 'Modifier le sujet' : 'Nouveau sujet'}</Dialog.Title
+          >{isEditing ? m.subject_form_title_edit() : m.subject_form_title_create()}</Dialog.Title
         ></Dialog.Header
       >
       <form
@@ -653,12 +654,12 @@
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
         <div class="grid gap-2">
-          <Label for="nom">Nom</Label>
+          <Label for="nom">{m.subject_form_nom()}</Label>
           <Input
             id="nom"
             name="nom"
             bind:value={$form.nom}
-            placeholder="Ex: Master Class Python"
+            placeholder={m.subject_form_nom_placeholder()}
             class="font-medium"
           />
           {#if $errors.nom}<span class="text-xs text-destructive"
@@ -666,7 +667,7 @@
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label for="link">Support (URL)</Label>
+          <Label for="link">{m.subject_form_link()}</Label>
           <Input
             id="link"
             name="link"
@@ -678,14 +679,14 @@
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label>Thèmes</Label>
+          <Label>{m.subject_form_themes()}</Label>
           <MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
           {#if $errors.themes}<span class="text-xs text-destructive"
               >{$errors.themes}</span
             >{/if}
         </div>
         <div class="grid gap-3 rounded-md border bg-muted/20 p-4">
-          <Label>Difficulté</Label>
+          <Label>{m.subject_form_difficulty()}</Label>
           <div class="flex flex-wrap gap-2">
             {#each difficultes as diff}
               {@const isActive = $form.difficulte === diff}
@@ -712,12 +713,12 @@
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label for="description">Description</Label>
+          <Label for="description">{m.subject_form_description()}</Label>
           <Textarea
             id="description"
             name="description"
             bind:value={$form.description}
-            placeholder="Objectifs..."
+            placeholder={m.subject_form_description_placeholder()}
             class="min-h-32 resize-none"
           />
           {#if $errors.description}<span class="text-xs text-destructive"
@@ -726,16 +727,16 @@
         </div>
         <Dialog.Footer class="gap-2 pt-2"
           ><Button type="button" variant="ghost" onclick={() => (open = false)}
-            >Annuler</Button
+            >{m.common_cancel()}</Button
           ><Button
             type="submit"
             disabled={$delayed}
             class="bg-epi-blue text-white"
             >{$delayed
-              ? 'Traitement...'
+              ? m.common_processing()
               : isEditing
-                ? 'Mettre à jour'
-                : 'Créer'}</Button
+                ? m.common_update()
+                : m.common_create()}</Button
           ></Dialog.Footer
         >
       </form>
@@ -745,8 +746,8 @@
   <ConfirmDeleteDialog
     bind:open={deleteDialogOpen}
     action="?/delete&id={subjectToDelete}"
-    title="Suppression définitive"
-    description="Êtes-vous sûr de vouloir supprimer ce sujet ?"
-    buttonText="Supprimer"
+    title={m.subject_delete_title()}
+    description={m.subject_delete_description()}
+    buttonText={m.common_delete()}
   />
 </div>

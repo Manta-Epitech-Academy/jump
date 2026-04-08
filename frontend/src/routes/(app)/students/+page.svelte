@@ -27,7 +27,8 @@
   import { toast } from 'svelte-sonner';
   import { untrack } from 'svelte';
   import { resolve } from '$app/paths';
-  import { cn } from '$lib/utils';
+  import { cn, i18nHref } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -44,7 +45,7 @@
           open = false;
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
-          toast.error(result.data?.form.message || 'Erreur de validation');
+          toast.error(result.data?.form.message || m.common_error_validation());
         }
       },
     },
@@ -143,11 +144,11 @@
 
 <div class="space-y-6">
   <PageHeader
-    title="Élèves"
-    subtitle="Annuaire et progression des étudiants du camp."
+    title={m.student_list_title()}
+    subtitle={m.student_list_subtitle()}
   >
     <Button onclick={openCreate}
-      ><Plus class="mr-2 h-4 w-4" /> Nouvel Élève</Button
+      ><Plus class="mr-2 h-4 w-4" /> {m.student_list_new()}</Button
     >
   </PageHeader>
 
@@ -156,7 +157,7 @@
     <div class="relative w-full max-w-50">
       <Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
       <Input
-        placeholder="Rechercher..."
+        placeholder={m.common_search()}
         class="rounded-sm bg-white pl-9"
         value={searchQuery}
         oninput={handleSearchInput}
@@ -171,10 +172,10 @@
       >
         <Select.Trigger>
           <Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
-          {selectedLevel === 'all' ? 'Tous les niveaux' : selectedLevel}
+          {selectedLevel === 'all' ? m.student_list_all_levels() : selectedLevel}
         </Select.Trigger>
         <Select.Content>
-          <Select.Item value="all">Tous les niveaux</Select.Item>
+          <Select.Item value="all">{m.student_list_all_levels()}</Select.Item>
           {#each niveaux as niveau}<Select.Item value={niveau}
               >{niveau}</Select.Item
             >{/each}
@@ -196,9 +197,9 @@
     <ConfirmDeleteDialog
       bind:open={deleteDialogOpen}
       action="?/delete&id={studentToDelete}"
-      title="Supprimer l'élève"
-      description="Êtes-vous sûr ? Cette action est définitive."
-      buttonText="Supprimer"
+      title={m.student_delete_title()}
+      description={m.student_delete_description()}
+      buttonText={m.common_delete()}
     />
   </div>
 
@@ -208,14 +209,14 @@
         <Table.Header class="bg-muted/50">
           <Table.Row>
             <Table.Head class="w-60 text-xs font-bold uppercase"
-              >Étudiant</Table.Head
+              >{m.student_list_column_student()}</Table.Head
             >
-            <Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
+            <Table.Head class="text-xs font-bold uppercase">{m.student_list_column_level()}</Table.Head>
             <Table.Head class="hidden text-xs font-bold uppercase sm:table-cell"
-              >Difficulté</Table.Head
+              >{m.student_list_column_difficulty()}</Table.Head
             >
             <Table.Head class="text-right text-xs font-bold uppercase"
-              >XP / Événements</Table.Head
+              >{m.student_list_column_xp()}</Table.Head
             >
             <Table.Head class="w-12.5"></Table.Head>
           </Table.Row>
@@ -226,7 +227,7 @@
             <Table.Row class="hover:bg-muted/30">
               <Table.Cell class="font-bold">
                 <a
-                  href={resolve(`/students/${student.id}`)}
+                  href={i18nHref(`/students/${student.id}`)}
                   class="group block"
                 >
                   <StudentAvatarItem {student} showBadge={false} />
@@ -261,9 +262,7 @@
                   <span class="font-black text-foreground">{student.xp} XP</span
                   >
                   <span class="text-[10px] font-bold tracking-widest uppercase"
-                    >{student.eventsCount} événement{student.eventsCount > 1
-                      ? 's'
-                      : ''}</span
+                    >{m.student_list_event_count({ count: student.eventsCount })}</span
                   >
                 </div>
               </Table.Cell>
@@ -275,20 +274,20 @@
                   >
                   <DropdownMenu.Content align="end">
                     <a
-                      href={resolve(`/students/${student.id}`)}
+                      href={i18nHref(`/students/${student.id}`)}
                       class="relative flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground"
                     >
-                      <Eye class="mr-2 h-4 w-4 text-epi-blue" /> Voir le dossier
+                      <Eye class="mr-2 h-4 w-4 text-epi-blue" /> {m.common_view_record()}
                     </a>
                     <DropdownMenu.Separator />
                     <DropdownMenu.Item onclick={() => openEdit(student)}
-                      ><Pencil class="mr-2 h-4 w-4" /> Modifier</DropdownMenu.Item
+                      ><Pencil class="mr-2 h-4 w-4" /> {m.common_edit()}</DropdownMenu.Item
                     >
                     <DropdownMenu.Separator />
                     <DropdownMenu.Item
                       class="cursor-pointer text-destructive"
                       onclick={() => confirmDelete(student.id)}
-                      ><Trash2 class="mr-2 h-4 w-4" /> Supprimer</DropdownMenu.Item
+                      ><Trash2 class="mr-2 h-4 w-4" /> {m.common_delete()}</DropdownMenu.Item
                     >
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
@@ -303,7 +302,7 @@
     {#if data.totalPages > 1}
       <div class="flex items-center justify-between">
         <p class="text-sm text-muted-foreground">
-          {data.totalItems} élève{data.totalItems > 1 ? 's' : ''} au total
+          {m.student_list_total({ count: data.totalItems })}
         </p>
         <div class="flex items-center gap-1">
           <Button
@@ -333,9 +332,9 @@
   {:else}
     <EmptyState
       icon={Users}
-      title="Salle de classe vide"
-      description="Aucun élève ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
-      actionLabel="Ajouter un élève"
+      title={m.student_list_empty_title()}
+      description={m.student_list_empty_description()}
+      actionLabel={m.student_list_empty_action()}
       actionCallback={openCreate}
     />
   {/if}

@@ -13,6 +13,8 @@
   import { Calendar, Tag, Plus, Coffee, UserCheck } from '@lucide/svelte';
 
   import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
+  import { i18nHref } from '$lib/utils';
   import EventActionManager from '$lib/components/events/EventActionManager.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -50,19 +52,17 @@
 
 <div class="space-y-6">
   <PageHeader
-    title="Dashboard"
-    subtitle="{data.events.length} événement{data.events.length > 1
-      ? 's'
-      : ''} programmés"
+    title={m.nav_dashboard()}
+    subtitle={m.event_dashboard_subtitle({ count: data.events.length })}
   >
     <Button
       size="sm"
-      href={resolve('/events/new')}
+      href={i18nHref('/events/new')}
       class="bg-epi-blue shadow-lg"
     >
       <Plus class="mr-2 h-4 w-4" />
-      <span class="hidden sm:inline">Nouvel Événement</span>
-      <span class="inline sm:hidden">Nouveau</span>
+      <span class="hidden sm:inline">{m.nav_new_event()}</span>
+      <span class="inline sm:hidden">{m.nav_new_event()}</span>
     </Button>
   </PageHeader>
 
@@ -71,20 +71,20 @@
       <Table>
         <TableHeader class="bg-muted/50">
           <TableRow>
-            <TableHead class="text-xs font-bold uppercase">Événement</TableHead>
+            <TableHead class="text-xs font-bold uppercase">{m.event_column_event()}</TableHead>
             <TableHead class="text-xs font-bold uppercase"
-              >Date & Heure</TableHead
+              >{m.event_column_date_time()}</TableHead
             >
             <TableHead class="hidden text-xs font-bold uppercase md:table-cell"
-              >Thème</TableHead
+              >{m.event_column_theme()}</TableHead
             >
             <TableHead
               class="hidden text-center text-xs font-bold uppercase md:table-cell"
-              >Mantas</TableHead
+              >{m.event_column_mantas()}</TableHead
             >
             <TableHead
               class="hidden text-center text-xs font-bold uppercase md:table-cell"
-              >Statut</TableHead
+              >{m.event_column_status()}</TableHead
             >
             <TableHead class="text-right"></TableHead>
           </TableRow>
@@ -95,7 +95,7 @@
             <TableRow class="hover:bg-muted/30">
               <TableCell class="font-bold">
                 <a
-                  href={resolve(`/events/${event.id}/builder`)}
+                  href={i18nHref(`/events/${event.id}/builder`)}
                   class="transition-colors hover:text-epi-blue hover:underline"
                 >
                   <span style:view-transition-name="event-title-{event.id}"
@@ -126,7 +126,7 @@
                   </div>
                 {:else}
                   <span class="text-sm text-muted-foreground italic"
-                    >Aucun thème</span
+                    >{m.event_no_theme()}</span
                   >
                 {/if}
               </TableCell>
@@ -166,17 +166,17 @@
                 {#if status === 'future'}
                   <span
                     class="inline-block rounded-sm bg-blue-100 px-2 py-1 text-[10px] font-black tracking-widest text-blue-700 uppercase"
-                    >À venir</span
+                    >{m.event_status_upcoming()}</span
                   >
                 {:else if status === 'now'}
                   <span
                     class="inline-block rounded-sm bg-epi-orange/20 px-2 py-1 text-[10px] font-black tracking-widest text-epi-orange uppercase"
-                    >En cours</span
+                    >{m.event_status_ongoing()}</span
                   >
                 {:else}
                   <span
                     class="inline-block rounded-sm bg-epi-teal/20 px-2 py-1 text-[10px] font-black tracking-widest text-green-700 uppercase"
-                    >Terminé</span
+                    >{m.event_status_done()}</span
                   >
                 {/if}
               </TableCell>
@@ -190,14 +190,14 @@
                             {...props}
                             variant="outline"
                             size="icon"
-                            href={resolve(`/events/${event.id}/appel`)}
+                            href={i18nHref(`/events/${event.id}/appel`)}
                             class="h-9 w-9 border-epi-teal/30 bg-epi-teal/10 text-teal-700 hover:bg-epi-teal hover:text-black dark:text-epi-teal dark:hover:text-black"
                           >
                             <UserCheck class="h-5 w-5" />
                           </Button>
                         {/snippet}
                       </Tooltip.Trigger>
-                      <Tooltip.Content><p>Faire l'appel</p></Tooltip.Content>
+                      <Tooltip.Content><p>{m.event_attendance()}</p></Tooltip.Content>
                     </Tooltip.Root>
                   </Tooltip.Provider>
                   <EventDropdownMenu
@@ -215,10 +215,10 @@
   {:else}
     <EmptyState
       icon={Coffee}
-      title="Allo l'équipe Dev ?"
-      description="C'est louche... Le calendrier est vide.<br />Vous êtes partis en vacances ou vous avez fini le game ?"
-      actionLabel="Créer un événement"
-      actionLink={resolve('/events/new')}
+      title={m.event_empty_title()}
+      description={m.event_empty_description()}
+      actionLabel={m.event_empty_action()}
+      actionLink={i18nHref('/events/new')}
     />
   {/if}
 

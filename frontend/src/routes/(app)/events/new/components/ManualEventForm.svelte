@@ -13,6 +13,7 @@
     today,
   } from '@internationalized/date';
   import { formatDateFr } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
   import MultiStaffSelect from '../../components/MultiStaffSelect.svelte';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
@@ -53,12 +54,12 @@
 
 <div class="space-y-6">
   <div class="space-y-2">
-    <Label for="titre">Titre de l'événement</Label>
+    <Label for="titre">{m.event_form_title_label()}</Label>
     <Input
       id="titre"
       name="titre"
       bind:value={$form.titre}
-      placeholder="Ex: Atelier hebdomadaire - Mercredi"
+      placeholder={m.event_form_title_placeholder()}
     />
     {#if $errors.titre}<p class="text-sm text-destructive">
         {$errors.titre}
@@ -67,7 +68,7 @@
 
   <div class="flex flex-col gap-4 sm:flex-row">
     <div class="flex-1 space-y-2">
-      <Label for="date">Date</Label>
+      <Label for="date">{m.event_form_date_label()}</Label>
       <Popover.Root bind:open>
         <Popover.Trigger id="date">
           {#snippet child({ props })}
@@ -106,7 +107,7 @@
     </div>
 
     <div class="flex-1 space-y-2">
-      <Label>Heure</Label>
+      <Label>{m.event_form_time_label()}</Label>
       <div class="flex gap-2">
         <Select.Root type="single" bind:value={hour}>
           <Select.Trigger class="w-full">{hour}</Select.Trigger>
@@ -119,7 +120,7 @@
         <Select.Root type="single" bind:value={minute}>
           <Select.Trigger class="w-full">{minute}</Select.Trigger>
           <Select.Content>
-            {#each minutes as m (m)}<Select.Item value={m}>{m}</Select.Item
+            {#each minutes as min (min)}<Select.Item value={min}>{min}</Select.Item
               >{/each}
           </Select.Content>
         </Select.Root>
@@ -130,20 +131,20 @@
 
   <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
     <div class="space-y-2">
-      <Label for="theme">Thème (Optionnel)</Label>
+      <Label for="theme">{m.event_form_theme_label()}</Label>
       <ThemeSelect {themes} bind:value={$form.theme} name="theme" />
       <p class="text-[10px] font-bold text-muted-foreground uppercase">
-        Sélectionnez un thème existant ou tapez-en un nouveau pour le créer.
+        {m.event_form_theme_hint()}
       </p>
       {#if $errors.theme}<p class="text-sm text-destructive">
           {$errors.theme}
         </p>{/if}
     </div>
     <div class="space-y-2">
-      <Label>Mantas</Label>
+      <Label>{m.event_form_mantas_label()}</Label>
       <MultiStaffSelect {staff} bind:value={$form.mantas} name="mantas" />
       <p class="text-[10px] font-bold text-muted-foreground uppercase">
-        Staff assigné à l'encadrement de cet événement.
+        {m.event_form_mantas_hint()}
       </p>
       {#if $errors.mantas}<p class="text-sm text-destructive">
           {$errors.mantas}
@@ -152,12 +153,12 @@
   </div>
 
   <div class="space-y-2">
-    <Label for="notes">Notes & Planning</Label>
+    <Label for="notes">{m.event_form_notes_label()}</Label>
     <Textarea
       id="notes"
       name="notes"
       bind:value={$form.notes}
-      placeholder="Planning, instructions, ou notes spécifiques..."
+      placeholder={m.event_form_notes_placeholder()}
       class="min-h-25"
     />
     {#if $errors.notes}<p class="text-sm text-destructive">

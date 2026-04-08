@@ -12,8 +12,9 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { Calendar, Tag, Archive, Users, UserCheck } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
-  import { formatDateFr } from '$lib/utils';
+  import { formatDateFr, i18nHref } from '$lib/utils';
   import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import EventDropdownMenu from '$lib/components/events/EventDropdownMenu.svelte';
   import EventActionManager from '$lib/components/events/EventActionManager.svelte';
@@ -31,24 +32,24 @@
 </script>
 
 <div class="space-y-6">
-  <PageHeader title="Historique" subtitle="Archives des événements passés" />
+  <PageHeader title={m.event_history_title()} subtitle={m.event_history_subtitle()} />
 
   {#if data.events.length > 0}
     <div class="rounded-sm border bg-card shadow-sm">
       <Table>
         <TableHeader class="bg-muted/50">
           <TableRow>
-            <TableHead class="text-xs font-bold uppercase">Événement</TableHead>
-            <TableHead class="text-xs font-bold uppercase">Date</TableHead>
+            <TableHead class="text-xs font-bold uppercase">{m.event_column_event()}</TableHead>
+            <TableHead class="text-xs font-bold uppercase">{m.event_label_date()}</TableHead>
             <TableHead class="hidden text-xs font-bold uppercase md:table-cell"
-              >Thème</TableHead
+              >{m.event_column_theme()}</TableHead
             >
             <TableHead
               class="hidden text-center text-xs font-bold uppercase md:table-cell"
-              >Mantas</TableHead
+              >{m.event_column_mantas()}</TableHead
             >
             <TableHead class="text-center text-xs font-bold uppercase"
-              >Participation</TableHead
+              >{m.event_history_column_participation()}</TableHead
             >
             <TableHead class="text-right"></TableHead>
           </TableRow>
@@ -58,7 +59,7 @@
             <TableRow class="hover:bg-muted/30">
               <TableCell class="font-bold">
                 <a
-                  href={resolve(`/events/${event.id}/builder`)}
+                  href={i18nHref(`/events/${event.id}/builder`)}
                   class="text-muted-foreground transition-colors hover:text-epi-blue hover:underline"
                 >
                   {event.titre}
@@ -82,7 +83,7 @@
                   </div>
                 {:else}
                   <span class="text-sm text-muted-foreground italic"
-                    >Aucun thème</span
+                    >{m.event_no_theme()}</span
                   >
                 {/if}
               </TableCell>
@@ -134,14 +135,14 @@
                             {...props}
                             variant="outline"
                             size="icon"
-                            href={resolve(`/events/${event.id}/appel`)}
+                            href={i18nHref(`/events/${event.id}/appel`)}
                             class="h-9 w-9 border-epi-teal/30 bg-epi-teal/10 text-teal-700 hover:bg-epi-teal hover:text-black dark:text-epi-teal dark:hover:text-black"
                           >
                             <UserCheck class="h-5 w-5" />
                           </Button>
                         {/snippet}
                       </Tooltip.Trigger>
-                      <Tooltip.Content><p>Consulter l'appel</p></Tooltip.Content
+                      <Tooltip.Content><p>{m.event_history_attendance()}</p></Tooltip.Content
                       >
                     </Tooltip.Root>
                   </Tooltip.Provider>
@@ -162,9 +163,9 @@
       class="flex flex-col items-center justify-center rounded-sm border bg-card p-20 text-center shadow-sm"
     >
       <Archive class="mx-auto h-12 w-12 text-muted" />
-      <h3 class="mt-4 text-lg font-bold uppercase">Historique vide</h3>
+      <h3 class="mt-4 text-lg font-bold uppercase">{m.event_history_empty_title()}</h3>
       <p class="mt-1 text-sm font-bold text-muted-foreground uppercase">
-        Aucun événement passé n'a été trouvé.
+        {m.event_history_empty_description()}
       </p>
     </div>
   {/if}

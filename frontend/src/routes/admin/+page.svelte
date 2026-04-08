@@ -9,8 +9,8 @@
     TableHeader,
     TableRow,
   } from '$lib/components/ui/table';
-  import { formatDateFr } from '$lib/utils';
-  import { resolve } from '$app/paths';
+  import { formatDateFr, i18nHref } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data } = $props();
 </script>
@@ -18,17 +18,17 @@
 <div class="space-y-6">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Système <span class="text-epi-pink">Global</span>
+      {m.admin_dashboard_title()} <span class="text-epi-pink">{m.admin_dashboard_title_accent()}</span>
     </h1>
     <p class="text-sm font-bold text-muted-foreground uppercase">
-      Vue d'ensemble du réseau TekCamp
+      {m.admin_dashboard_subtitle()}
     </p>
   </div>
 
   <!-- KPIs -->
   <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
     <a
-      href={resolve('/admin/campuses')}
+      href={i18nHref('/admin/campuses')}
       class="block transition-all hover:-translate-y-1"
     >
       <Card.Root
@@ -39,19 +39,19 @@
         >
           <Card.Title
             class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
-            >Réseau</Card.Title
+            >{m.admin_kpi_network()}</Card.Title
           >
           <Map class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
           <div class="text-2xl font-black">{data.stats.campuses}</div>
-          <p class="text-xs text-muted-foreground">Campus actifs</p>
+          <p class="text-xs text-muted-foreground">{m.admin_kpi_network_detail()}</p>
         </Card.Content>
       </Card.Root>
     </a>
 
     <a
-      href={resolve('/admin/users')}
+      href={i18nHref('/admin/users')}
       class="block transition-all hover:-translate-y-1"
     >
       <Card.Root
@@ -62,13 +62,13 @@
         >
           <Card.Title
             class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
-            >Staff</Card.Title
+            >{m.admin_kpi_staff()}</Card.Title
           >
           <Users class="h-4 w-4 text-muted-foreground" />
         </Card.Header>
         <Card.Content>
           <div class="text-2xl font-black">{data.stats.users}</div>
-          <p class="text-xs text-muted-foreground">Membres de l'équipe</p>
+          <p class="text-xs text-muted-foreground">{m.admin_kpi_staff_detail()}</p>
         </Card.Content>
       </Card.Root>
     </a>
@@ -77,25 +77,12 @@
       <Card.Header
         class="flex flex-row items-center justify-between space-y-0 pb-2"
       >
-        <Card.Title class="text-sm font-bold uppercase">Staff</Card.Title>
-        <Users class="h-4 w-4 text-muted-foreground" />
-      </Card.Header>
-      <Card.Content>
-        <div class="text-2xl font-black">{data.stats.users}</div>
-        <p class="text-xs text-muted-foreground">Membres de l'équipe</p>
-      </Card.Content>
-    </Card.Root>
-
-    <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
-      <Card.Header
-        class="flex flex-row items-center justify-between space-y-0 pb-2"
-      >
-        <Card.Title class="text-sm font-bold uppercase">Étudiants</Card.Title>
+        <Card.Title class="text-sm font-bold uppercase">{m.admin_kpi_students()}</Card.Title>
         <GraduationCap class="h-4 w-4 text-muted-foreground" />
       </Card.Header>
       <Card.Content>
         <div class="text-2xl font-black">{data.stats.students}</div>
-        <p class="text-xs text-muted-foreground">Inscrits en base</p>
+        <p class="text-xs text-muted-foreground">{m.admin_kpi_students_detail()}</p>
       </Card.Content>
     </Card.Root>
 
@@ -103,12 +90,12 @@
       <Card.Header
         class="flex flex-row items-center justify-between space-y-0 pb-2"
       >
-        <Card.Title class="text-sm font-bold uppercase">Événements</Card.Title>
+        <Card.Title class="text-sm font-bold uppercase">{m.admin_kpi_events()}</Card.Title>
         <CalendarDays class="h-4 w-4 text-muted-foreground" />
       </Card.Header>
       <Card.Content>
         <div class="text-2xl font-black">{data.stats.events}</div>
-        <p class="text-xs text-muted-foreground">Organisés au total</p>
+        <p class="text-xs text-muted-foreground">{m.admin_kpi_events_detail()}</p>
       </Card.Content>
     </Card.Root>
   </div>
@@ -116,15 +103,15 @@
   <!-- Latest Events -->
   <Card.Root>
     <Card.Header>
-      <Card.Title class="uppercase">Derniers événements créés</Card.Title>
+      <Card.Title class="uppercase">{m.admin_recent_events()}</Card.Title>
     </Card.Header>
     <Card.Content>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Titre</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead class="text-right">Campus</TableHead>
+            <TableHead>{m.admin_column_title()}</TableHead>
+            <TableHead>{m.admin_column_date()}</TableHead>
+            <TableHead class="text-right">{m.admin_column_campus()}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -139,7 +126,7 @@
           {:else}
             <TableRow>
               <TableCell colspan={3} class="text-center text-muted-foreground"
-                >Aucun événement.</TableCell
+                >{m.admin_no_events()}</TableCell
               >
             </TableRow>
           {/each}

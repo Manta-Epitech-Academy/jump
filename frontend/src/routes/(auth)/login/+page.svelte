@@ -9,6 +9,7 @@
   import { CircleAlert, Terminal, Lock } from '@lucide/svelte';
   import { authClient } from '$lib/auth-client';
   import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data } = $props();
   let isLoading = $state(false);
@@ -60,7 +61,7 @@
             TekCamp<span class="text-epi-teal">_</span>
           </Card.Title>
           <Card.Description
-            >Plateforme de gestion pédagogique Epitech</Card.Description
+            >{m.auth_login_subtitle()}</Card.Description
           >
         </div>
       </Card.Header>
@@ -74,7 +75,7 @@
           >
             <CircleAlert class="h-4 w-4" />
             <AlertTitle class="text-[11px] font-bold tracking-widest uppercase"
-              >Erreur d'accès</AlertTitle
+              >{m.auth_login_error_title()}</AlertTitle
             >
             <AlertDescription class="text-xs">
               {data.errorMessage}
@@ -102,7 +103,7 @@
             <path fill="#05a6f0" d="M1 12h10v10H1z" />
             <path fill="#ffba08" d="M12 12h10v10H12z" />
           </svg>
-          {isLoading ? 'Redirection...' : 'Se connecter avec Office 365'}
+          {isLoading ? m.auth_login_redirect() : m.auth_login_submit()}
         </Button>
 
         <div class="relative">
@@ -113,7 +114,7 @@
             <span
               class="bg-card px-2 font-bold tracking-wider text-muted-foreground"
             >
-              Accès Sécurisé
+              {m.auth_login_secure()}
             </span>
           </div>
         </div>
@@ -124,9 +125,7 @@
         >
           <Lock class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
           <span>
-            L'accès est strictement réservé aux adresses <strong
-              class="text-foreground">@epitech.eu</strong
-            >. Veuillez utiliser votre compte organisationnel.
+            {m.auth_login_restricted()}
           </span>
         </div>
       </Card.Content>

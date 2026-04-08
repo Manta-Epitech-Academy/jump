@@ -1,6 +1,7 @@
 <script lang="ts">
   import DuplicateEventDialog from '$lib/components/events/DuplicateEventDialog.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let deleteDialogOpen = $state(false);
   let eventToDelete = $state<string | null>(null);
@@ -31,7 +32,7 @@
 <ConfirmDeleteDialog
   bind:open={deleteDialogOpen}
   action="?/deleteEvent&id={eventToDelete}"
-  title="Supprimer l'événement"
-  description="Êtes-vous sûr de vouloir supprimer cet événement ? Cette action est irréversible et retirera les XP acquis par les participants."
-  buttonText="Supprimer définitivement"
+  title={m.event_delete_title()}
+  description={m.event_delete_description()}
+  buttonText={m.event_delete_confirm()}
 />

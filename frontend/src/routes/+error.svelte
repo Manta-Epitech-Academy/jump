@@ -1,11 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { resolve } from '$app/paths';
   import { SearchX, ServerCrash, Terminal, House } from '@lucide/svelte';
+  import { m } from '$lib/paraglide/messages.js';
+  import { i18nHref } from '$lib/utils';
 
   let is404 = $derived(page.status === 404);
   let isStudent = $derived(page.data.studentProfile && !page.data.user);
-  let dashboardHref = $derived(isStudent ? resolve('/camper') : resolve('/'));
+  let dashboardHref = $derived(isStudent ? i18nHref('/camper') : i18nHref('/'));
 </script>
 
 <div class="error-container">
@@ -44,9 +45,9 @@
     <!-- Error Message -->
     <h2 class="error-subtitle">
       {#if is404}
-        Page introuvable<span class="text-teal">_</span>
+        {m.error_404_title()}<span class="text-teal">_</span>
       {:else}
-        Erreur Système<span class="text-error">_</span>
+        {m.error_500_title()}<span class="text-error">_</span>
       {/if}
     </h2>
 
@@ -54,7 +55,7 @@
     <div class="terminal">
       <div class="terminal-header">
         <Terminal size={14} />
-        <span>System Log</span>
+        <span>{m.error_system_log()}</span>
       </div>
       <div class="terminal-body">
         <div class="log-line">
@@ -67,18 +68,17 @@
           </span>
           <span>
             {#if is404}
-              Segmentation fault (core dumped). L'URL demandée pointe vers une
-              zone mémoire non allouée.
+              {m.error_404_message()}
             {:else}
               {page.error?.message ||
-                'Exception non gérée survenue lors du traitement.'}
+                m.error_500_fallback()}
             {/if}
           </span>
         </div>
         {#if !is404}
           <div class="log-line hint">
             <span class="log-prompt">&gt; hint:</span>
-            <span>Veuillez contacter l'administrateur système.</span>
+            <span>{m.error_500_hint()}</span>
           </div>
         {/if}
       </div>
@@ -87,7 +87,7 @@
     <!-- Action Buttons -->
     <a href={dashboardHref} class="btn-home">
       <House size={18} />
-      Retour au Dashboard
+      {m.error_back_dashboard()}
     </a>
   </div>
 </div>

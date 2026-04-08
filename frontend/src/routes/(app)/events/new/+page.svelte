@@ -12,6 +12,8 @@
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
+  import { i18nHref } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
   import MultiStaffSelect from '../components/MultiStaffSelect.svelte';
 
   import FakeProgressLoader from './components/FakeProgressLoader.svelte';
@@ -35,13 +37,13 @@
 
   // Loading messaging state
   let loadingMessages = [
-    'Lecture du fichier CSV...',
-    'Comparaison avec la base de données...',
-    'Détection des homonymes...',
-    'Vérification des niveaux scolaires...',
-    'Recherche de doublons...',
-    'Préparation de la liste...',
-    'Synchronisation en cours...',
+    m.event_new_loading_csv(),
+    m.event_new_loading_compare(),
+    m.event_new_loading_homonyms(),
+    m.event_new_loading_levels(),
+    m.event_new_loading_duplicates(),
+    m.event_new_loading_prepare(),
+    m.event_new_loading_sync(),
   ];
   let currentMessage = $state('');
   let progress = $state(0);
@@ -80,23 +82,23 @@
 <div class="mx-auto max-w-5xl space-y-6">
   <div class="flex items-center gap-4">
     <a
-      href={resolve('/')}
+      href={i18nHref('/')}
       class={buttonVariants({ variant: 'ghost', size: 'icon' })}
     >
       <ChevronLeft class="h-4 w-4" />
     </a>
     <h1 class="text-3xl font-bold text-epi-blue uppercase">
-      Nouvel Événement<span class="text-epi-teal">_</span>
+      {m.event_new_title()}<span class="text-epi-teal">_</span>
     </h1>
   </div>
 
   <Tabs.Root value="import" class="w-full">
     <Tabs.List class="grid w-full grid-cols-2">
       <Tabs.Trigger value="import"
-        ><FileSpreadsheet class="mr-2 h-4 w-4" /> Import Campagne CSV</Tabs.Trigger
+        ><FileSpreadsheet class="mr-2 h-4 w-4" /> {m.event_new_tab_import()}</Tabs.Trigger
       >
       <Tabs.Trigger value="manual"
-        ><PenTool class="mr-2 h-4 w-4" /> Création Manuelle</Tabs.Trigger
+        ><PenTool class="mr-2 h-4 w-4" /> {m.event_new_tab_manual()}</Tabs.Trigger
       >
     </Tabs.List>
 
@@ -104,10 +106,9 @@
     <Tabs.Content value="import">
       <Card.Root class="mt-4 border-t-4 border-t-epi-teal shadow-md">
         <Card.Header>
-          <Card.Title>Import Automatique (Campagne)</Card.Title>
+          <Card.Title>{m.event_new_import_title()}</Card.Title>
           <Card.Description>
-            Importez un fichier CSV. Vous pourrez ensuite spécifier si les
-            élèves apportent leur PC.
+            {m.event_new_import_description()}
           </Card.Description>
         </Card.Header>
         <Card.Content>
@@ -129,16 +130,16 @@
                       } else {
                         toast.error(
                           (result.data as Record<string, any>).error ||
-                            "Erreur d'analyse",
+                            m.event_new_import_error(),
                         );
                       }
                     } else if (result.type === 'failure') {
                       toast.error(
                         (result.data as Record<string, any> | undefined)
-                          ?.error || "Erreur d'analyse",
+                          ?.error || m.event_new_import_error(),
                       );
                     } else {
-                      toast.error("Erreur d'analyse");
+                      toast.error(m.event_new_import_error());
                     }
                   });
                 };
@@ -153,7 +154,7 @@
                   class="bg-epi-blue hover:bg-epi-blue/90"
                   disabled={isAnalyzing || !selectedFileName}
                 >
-                  {isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}
+                  {isAnalyzing ? m.event_new_import_analyzing() : m.event_new_import_analyze()}
                 </Button>
               </div>
             </form>
@@ -162,14 +163,14 @@
             <div class="space-y-6">
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="space-y-2">
-                  <Label>Événement</Label><Input
+                  <Label>{m.event_new_import_event_label()}</Label><Input
                     value={analysisResult.eventName}
                     readonly
                     class="bg-muted font-bold"
                   />
                 </div>
                 <div class="space-y-2">
-                  <Label>Date</Label><Input
+                  <Label>{m.event_new_import_date_label()}</Label><Input
                     value={new Date(
                       analysisResult.eventDate,
                     ).toLocaleDateString()}
@@ -214,7 +215,7 @@
 
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="space-y-2 rounded-md border bg-muted/20 p-4">
-                    <Label>Mantas pour cet événement</Label>
+                    <Label>{m.event_new_import_mantas_label()}</Label>
                     <MultiStaffSelect
                       staff={data.staff}
                       bind:value={importMantas}
@@ -223,16 +224,16 @@
                     <p
                       class="text-[10px] font-bold text-muted-foreground uppercase"
                     >
-                      Assignez l'équipe qui encadrera cet événement.
+                      {m.event_new_import_mantas_hint()}
                     </p>
                   </div>
                   <div class="space-y-2 rounded-md border bg-muted/20 p-4">
-                    <Label for="notes">Notes / Planning</Label>
+                    <Label for="notes">{m.event_new_import_notes_label()}</Label>
                     <Textarea
                       id="notes"
                       name="notes"
                       bind:value={importNotes}
-                      placeholder="Notes pour l'événement (planning, instructions...)"
+                      placeholder={m.event_new_import_notes_placeholder()}
                       class="min-h-20"
                     />
                   </div>
@@ -242,15 +243,15 @@
                   <Button
                     variant="ghost"
                     type="button"
-                    onclick={() => (analysisResult = null)}>Annuler</Button
+                    onclick={() => (analysisResult = null)}>{m.common_cancel()}</Button
                   >
                   <Button
                     type="submit"
                     disabled={isConfirming}
                     class="bg-green-600 hover:bg-green-700"
                     >{isConfirming
-                      ? 'Création en cours...'
-                      : "Valider l'import"}</Button
+                      ? m.event_new_import_confirming()
+                      : m.event_new_import_confirm()}</Button
                   >
                 </div>
               </form>
@@ -264,7 +265,7 @@
     <Tabs.Content value="manual">
       <Card.Root class="mt-4">
         <Card.Header
-          ><Card.Title>Configuration Manuelle</Card.Title></Card.Header
+          ><Card.Title>{m.event_new_manual_title()}</Card.Title></Card.Header
         >
         <Card.Content>
           <form
@@ -284,8 +285,8 @@
         <Card.Footer class="justify-end border-t bg-muted/50 px-6 py-4">
           <Button type="submit" form="event-form" disabled={$delayed}
             ><Save class="mr-2 h-4 w-4" />{$delayed
-              ? 'Création...'
-              : "Créer l'événement"}</Button
+              ? m.common_creating()
+              : m.event_new_manual_submit()}</Button
           >
         </Card.Footer>
       </Card.Root>

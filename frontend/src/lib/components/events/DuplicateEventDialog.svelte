@@ -8,6 +8,8 @@
   import { toast } from 'svelte-sonner';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
+  import { i18nHref } from '$lib/utils';
   import DatePicker from '$lib/components/DatePicker.svelte';
   import {
     CalendarDateTime,
@@ -42,7 +44,7 @@
   // Reset form when modal opens with a new event
   $effect(() => {
     if (open && eventToDuplicate) {
-      title = `${eventToDuplicate.titre} (Copie)`;
+      title = `${eventToDuplicate.titre} (${m.event_duplicate_copy_suffix()})`;
 
       const sourceDate = new Date(eventToDuplicate.date);
       const h = sourceDate.getHours();
@@ -68,11 +70,10 @@
     <Dialog.Header>
       <Dialog.Title class="flex items-center gap-2">
         <Copy class="h-5 w-5 text-epi-blue" />
-        Dupliquer l'événement
+        {m.event_duplicate_title()}
       </Dialog.Title>
       <Dialog.Description>
-        Configurez la copie de l'événement. Les participants seront copiés mais
-        leur statut (présence, note) sera réinitialisé.
+        {m.event_duplicate_description()}
       </Dialog.Description>
     </Dialog.Header>
 
@@ -87,18 +88,18 @@
             if (result.type === 'success') {
               const newId = result.data?.newEventId;
 
-              toast.success('Événement dupliqué !', {
+              toast.success(m.event_duplicate_success(), {
                 duration: 5000,
                 action: {
-                  label: 'Ouvrir le Builder',
-                  onClick: () => goto(resolve(`/events/${newId}/builder`)),
+                  label: m.event_duplicate_open_builder(),
+                  onClick: () => goto(i18nHref(`/events/${newId}/builder`)),
                 },
               });
 
               open = false;
               await update();
             } else {
-              toast.error('Erreur lors de la duplication');
+              toast.error(m.event_duplicate_error());
               await update();
             }
           };
@@ -108,17 +109,17 @@
         <input type="hidden" name="originalId" value={eventToDuplicate.id} />
 
         <div class="grid gap-2">
-          <Label for="titre">Titre</Label>
+          <Label for="titre">{m.event_label_title()}</Label>
           <Input id="titre" name="titre" bind:value={title} required />
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <Label>Date</Label>
+            <Label>{m.event_label_date()}</Label>
             <DatePicker bind:value={dateValue} name="date" />
           </div>
           <div class="space-y-2">
-            <Label>Heure</Label>
+            <Label>{m.event_label_time()}</Label>
             <div class="flex gap-2">
               <Select.Root type="single" bind:value={hour}>
                 <Select.Trigger>{hour}</Select.Trigger>
@@ -142,7 +143,7 @@
 
         <Dialog.Footer>
           <Button type="button" variant="ghost" onclick={() => (open = false)}
-            >Annuler</Button
+            >{m.common_cancel()}</Button
           >
           <Button
             type="submit"
@@ -151,9 +152,9 @@
           >
             {#if isLoading}
               <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-              Création...
+              {m.common_creating()}
             {:else}
-              Dupliquer
+              {m.event_dropdown_duplicate()}
             {/if}
           </Button>
         </Dialog.Footer>

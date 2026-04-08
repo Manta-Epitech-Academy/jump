@@ -17,6 +17,8 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { fly, fade } from 'svelte/transition';
+  import { m } from '$lib/paraglide/messages.js';
+  import { i18nHref } from '$lib/utils';
 
   let { children, data } = $props();
 
@@ -55,56 +57,56 @@
   <div
     class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
   >
-    Système<span class="text-epi-pink">_</span>
+    {m.admin_section_system()}<span class="text-epi-pink">_</span>
   </div>
   <nav class="mb-8 space-y-1">
-    <a href={resolve('/admin')} class={navLinkClass(isActive('/admin'))}>
+    <a href={i18nHref('/admin')} class={navLinkClass(isActive('/admin'))}>
       <LayoutDashboard class="h-4 w-4" />
-      <span>Vue d'ensemble</span>
+      <span>{m.admin_nav_overview()}</span>
     </a>
   </nav>
 
   <div
     class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
   >
-    Organisation<span class="text-epi-pink">_</span>
+    {m.admin_section_organization()}<span class="text-epi-pink">_</span>
   </div>
   <nav class="mb-8 space-y-1">
     <a
-      href={resolve('/admin/campuses')}
+      href={i18nHref('/admin/campuses')}
       class={navLinkClass(isActive('/admin/campuses'))}
     >
       <Map class="h-4 w-4" />
-      <span>Réseau Campus</span>
+      <span>{m.admin_nav_campuses()}</span>
     </a>
     <a
-      href={resolve('/admin/users')}
+      href={i18nHref('/admin/users')}
       class={navLinkClass(isActive('/admin/users'))}
     >
       <Users class="h-4 w-4" />
-      <span>Équipe Staff</span>
+      <span>{m.admin_nav_staff()}</span>
     </a>
   </nav>
 
   <div
     class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
   >
-    Pédagogie<span class="text-epi-pink">_</span>
+    {m.admin_section_pedagogy()}<span class="text-epi-pink">_</span>
   </div>
   <nav class="space-y-1">
     <a
-      href={resolve('/admin/subjects')}
+      href={i18nHref('/admin/subjects')}
       class={navLinkClass(isActive('/admin/subjects'))}
     >
       <BookOpen class="h-4 w-4" />
-      <span>Sujets Officiels</span>
+      <span>{m.admin_nav_subjects()}</span>
     </a>
     <a
-      href={resolve('/admin/themes')}
+      href={i18nHref('/admin/themes')}
       class={navLinkClass(isActive('/admin/themes'))}
     >
       <Tags class="h-4 w-4" />
-      <span>Thèmes Officiels</span>
+      <span>{m.admin_nav_themes()}</span>
     </a>
   </nav>
 {/snippet}
@@ -131,10 +133,10 @@
             ? 'scale-100 rotate-0 opacity-100'
             : 'scale-0 -rotate-90 opacity-0'}"
         />
-        <span class="sr-only">Toggle menu</span>
+        <span class="sr-only">{m.nav_toggle_menu()}</span>
       </Button>
 
-      <a href={resolve('/admin')} class="flex items-center gap-3">
+      <a href={i18nHref('/admin')} class="flex items-center gap-3">
         <div
           class="flex h-8 w-8 items-center justify-center rounded-sm bg-epi-pink text-white shadow-[0_0_10px_rgba(255,30,247,0.4)]"
         >
@@ -160,7 +162,7 @@
               <span
                 class="text-[10px] font-black tracking-widest text-slate-500 uppercase"
               >
-                Superuser
+                {m.admin_superuser()}
               </span>
               <span class="text-sm font-bold text-slate-200"
                 >{data.user?.email}</span
@@ -174,7 +176,7 @@
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
             <DropdownMenu.Label class="text-xs text-muted-foreground uppercase"
-              >Session Globale</DropdownMenu.Label
+              >{m.admin_session_label()}</DropdownMenu.Label
             >
             <DropdownMenu.Separator />
             <form action="{resolve('/logout')}?type=admin" method="POST">
@@ -183,7 +185,7 @@
                   class="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
                 >
                   <LogOut class="mr-2 h-4 w-4" />
-                  Fermer la session
+                  {m.admin_logout()}
                 </DropdownMenu.Item>
               </button>
             </form>

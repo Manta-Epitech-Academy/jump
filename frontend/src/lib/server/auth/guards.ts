@@ -1,8 +1,9 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
+import { deLocalizeUrl } from '$lib/paraglide/runtime';
 
 export function applyRouteGuards(event: RequestEvent): Response | null {
-  const currentPath = event.url.pathname;
+  const currentPath = deLocalizeUrl(event.url).pathname;
   const routeId = event.route.id || '';
 
   const pathAdmin = new URL(resolvePath('/admin'), event.url).pathname;

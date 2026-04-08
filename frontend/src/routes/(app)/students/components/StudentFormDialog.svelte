@@ -5,6 +5,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import { difficultes, type StudentForm } from '$lib/validation/students';
+  import { m } from '$lib/paraglide/messages.js';
   import type { Snippet } from 'svelte';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { studentSchema } from '$lib/validation/students';
@@ -48,11 +49,11 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="sm:max-w-125">
     <Dialog.Header>
-      <Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un élève</Dialog.Title>
+      <Dialog.Title>{isEditing ? m.student_form_title_edit() : m.student_form_title_create()}</Dialog.Title>
       <Dialog.Description>
         {isEditing
-          ? 'Mettez à jour les informations du profil.'
-          : "Créez le profil d'un nouvel étudiant."}
+          ? m.student_form_description_edit()
+          : m.student_form_description_create()}
       </Dialog.Description>
     </Dialog.Header>
 
@@ -63,7 +64,7 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div class="grid gap-2">
-          <Label for="nom">Nom</Label>
+          <Label for="nom">{m.student_form_nom()}</Label>
           <Input
             id="nom"
             name="nom"
@@ -75,7 +76,7 @@
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label for="prenom">Prénom</Label>
+          <Label for="prenom">{m.student_form_prenom()}</Label>
           <Input
             id="prenom"
             name="prenom"
@@ -90,7 +91,7 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div class="grid gap-2">
-          <Label for="email">Email (Optionnel)</Label>
+          <Label for="email">{m.student_form_email()}</Label>
           <Input
             id="email"
             name="email"
@@ -103,7 +104,7 @@
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label for="phone">Téléphone (Optionnel)</Label>
+          <Label for="phone">{m.student_form_phone()}</Label>
           <Input
             id="phone"
             name="phone"
@@ -119,7 +120,7 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div class="grid gap-2">
-          <Label for="parent_email">Email Parent (Optionnel)</Label>
+          <Label for="parent_email">{m.student_form_parent_email()}</Label>
           <Input
             id="parent_email"
             name="parent_email"
@@ -132,7 +133,7 @@
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label for="parent_phone">Téléphone Parent (Optionnel)</Label>
+          <Label for="parent_phone">{m.student_form_parent_phone()}</Label>
           <Input
             id="parent_phone"
             name="parent_phone"
@@ -148,10 +149,10 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div class="grid gap-2">
-          <Label for="niveau">Niveau Scolaire</Label>
+          <Label for="niveau">{m.student_form_level()}</Label>
           <Select.Root type="single" bind:value={$form.niveau}>
             <Select.Trigger>
-              {$form.niveau ? $form.niveau : 'Sélectionner...'}
+              {$form.niveau ? $form.niveau : m.common_select()}
             </Select.Trigger>
             <Select.Content>
               {#each niveaux as niveau}
@@ -166,7 +167,7 @@
         </div>
 
         <div class="grid gap-2">
-          <Label for="niveau_difficulte">Difficulté</Label>
+          <Label for="niveau_difficulte">{m.student_form_difficulty()}</Label>
           <Select.Root type="single" bind:value={$form.niveau_difficulte}>
             <Select.Trigger>
               {$form.niveau_difficulte ? $form.niveau_difficulte : 'Débutant'}
@@ -190,9 +191,9 @@
 
       <Dialog.Footer>
         <Button type="submit" disabled={$delayed} class="w-full">
-          {#if $delayed}Enregistrement...{:else}{isEditing
-              ? 'Mettre à jour'
-              : "Créer l'élève"}{/if}
+          {#if $delayed}{m.common_saving()}{:else}{isEditing
+              ? m.student_form_submit_edit()
+              : m.student_form_submit_create()}{/if}
         </Button>
       </Dialog.Footer>
     </form>

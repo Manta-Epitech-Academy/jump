@@ -83,3 +83,6 @@ Thumbs.db
 
 # Prisma
 frontend/prisma/generated/
+
+# Paraglide (generated)
+frontend/src/lib/paraglide/
