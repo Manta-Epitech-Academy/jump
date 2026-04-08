@@ -4,6 +4,9 @@ import {
     type Campaign, type Student,
 } from "../model/Student.ts";
 
+const SF_ID_RE = /^[a-zA-Z0-9]{15,18}$/;
+const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+
 export class SalesforceService {
     private conn: Connection | null = null;
 
@@ -32,6 +35,8 @@ export class SalesforceService {
     async getChildCampaigns(parentId: string): Promise<Campaign[]> {
         if (!this.conn)
             throw new Error("Not logged in to Salesforce");
+        if (!SF_ID_RE.test(parentId))
+            throw new Error("Invalid Salesforce ID");
         const records = await this.conn.sobject("Campaign")
             .find({ParentId: parentId}, "Id, Name");
         return records.map((r) => buildCampaign(r));
@@ -40,6 +45,8 @@ export class SalesforceService {
     async getCampaign(id: string): Promise<Campaign | null> {
         if (!this.conn)
             throw new Error("Not logged in to Salesforce");
+        if (!SF_ID_RE.test(id))
+            throw new Error("Invalid Salesforce ID");
         const c = await this.conn.sobject("Campaign").retrieve(id);
         if (!c)
             return null;
@@ -49,6 +56,8 @@ export class SalesforceService {
     async getStudentsFromCampaign(campaignId: string): Promise<Student[]> {
         if (!this.conn)
             throw new Error("Not logged in to Salesforce");
+        if (!SF_ID_RE.test(campaignId))
+            throw new Error("Invalid Salesforce ID");
 
         const result = await this.conn.query(
             `SELECT Id, CampaignId, LeadId, AccountId, ContactId, FirstName, LastName, Email, MobilePhone
@@ -88,6 +97,8 @@ export class SalesforceService {
     async getStudentFromEmail(email: string): Promise<Student | null> {
         if (!this.conn)
             throw new Error("Not logged in to Salesforce");
+        if (!EMAIL_RE.test(email))
+            throw new Error("Invalid email address");
         const result = await this.conn.query(
             `SELECT *
              FROM Lead
