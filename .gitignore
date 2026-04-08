@@ -81,9 +81,5 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-students_app/
-load-tests/
-frontend/src/routes/api/load-test/
-
 # Prisma
 frontend/prisma/generated/
