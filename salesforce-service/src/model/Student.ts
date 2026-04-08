@@ -1,11 +1,9 @@
-export interface StageStudent {
+export interface Student {
     id: string;
     firstName: string;
     lastName: string;
     emailAddress: string;
     mobilePhone: string | null;
-    parentPhone: string | null;
-    parentEmail: string | null;
 }
 
 export interface Campaign {
@@ -20,14 +18,12 @@ export function buildCampaign(data: any): Campaign {
     };
 }
 
-export function buildStageStudent(data: any): StageStudent {
+export function buildStudent(data: any): Student {
     return {
         id: data.Id,
         firstName: data.FirstName,
         lastName: data.LastName,
         emailAddress: data.Email,
         mobilePhone: data.MobilePhone ?? null,
-        parentPhone: data.Lead?.Telephone_Parents__c ?? null,
-        parentEmail: null, // Not available in the current query
     };
 }

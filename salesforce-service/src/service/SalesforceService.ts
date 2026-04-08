@@ -1,9 +1,7 @@
 import jsforce, {Connection} from "jsforce";
 import {
-    buildCampaign,
-    buildStageStudent,
-    type Campaign,
-    type StageStudent,
+    buildCampaign, buildStudent,
+    type Campaign, type Student,
 } from "../model/Student.ts";
 
 export class SalesforceService {
@@ -48,7 +46,7 @@ export class SalesforceService {
         return buildCampaign(c);
     }
 
-    async getStageStudentsFromCampaign(campaignId: string): Promise<StageStudent[]> {
+    async getStudentsFromCampaign(campaignId: string): Promise<Student[]> {
         if (!this.conn)
             throw new Error("Not logged in to Salesforce");
 
@@ -58,22 +56,36 @@ export class SalesforceService {
              WHERE CampaignId = '${campaignId}'
                AND Status = '3 - Convention validée'`
         );
-        for (const r of result.records) {
-            // get lead
-            console.log("CampaignMember:", r);
-            const contact = await this.conn.sobject("Contact").retrieve(r.ContactId);
-            console.log("Contact:", contact);
-            // if AccountId, get account
-            if (contact.AccountId) {
-                const account = await this.conn.sobject("Account").retrieve(contact.AccountId);
-                console.log("Account:", account);
-            }
-        }
-       //console.log(result)
-        return result.records.map((r: any) => buildStageStudent(r));
+        return result.records.map((r: any) => buildStudent(r));
     }
 
-    async getUserFromEmail(email: string): Promise<StageStudent | null> {
+    // EXPERIMENTAL: try to get more info about students by fetching their contact and account
+    // async getStageStudentsFromCampaign(campaignId: string): Promise<StageStudent[]> {
+    //     if (!this.conn)
+    //         throw new Error("Not logged in to Salesforce");
+    //
+    //     const result = await this.conn.query(
+    //         `SELECT Id, CampaignId, LeadId, AccountId, ContactId, FirstName, LastName, Email, MobilePhone
+    //          FROM CampaignMember
+    //          WHERE CampaignId = '${campaignId}'
+    //            AND Status = '3 - Convention validée'`
+    //     );
+    //     for (const r of result.records) {
+    //         // get lead
+    //         console.log("CampaignMember:", r);
+    //         const contact = await this.conn.sobject("Contact").retrieve(r.ContactId);
+    //         console.log("Contact:", contact);
+    //         // if AccountId, get account
+    //         if (contact.AccountId) {
+    //             const account = await this.conn.sobject("Account").retrieve(contact.AccountId);
+    //             console.log("Account:", account);
+    //         }
+    //     }
+    //    //console.log(result)
+    //     return result.records.map((r: any) => buildStageStudent(r));
+    // }
+
+    async getStudentFromEmail(email: string): Promise<Student | null> {
         if (!this.conn)
             throw new Error("Not logged in to Salesforce");
         const result = await this.conn.query(
@@ -83,7 +95,7 @@ export class SalesforceService {
         );
         if (result.totalSize === 0)
             return null;
-        return buildStageStudent(result.records[0]);
+        return buildStudent(result.records[0]);
     }
 }
 
