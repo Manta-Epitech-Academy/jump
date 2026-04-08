@@ -1,12 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import type { SubjectWithThemes } from '$lib/types';
   import { superForm } from 'sveltekit-superforms';
   import { page } from '$app/state';
-
-  type SubjectWithExpand = Record<string, any> & {
-    subjectThemes?: { theme: { id: string; nom: string } }[];
-    campusId?: string | null;
-  };
 
   import {
     Plus,
@@ -87,7 +83,7 @@
   let uniqueThemes = $derived.by(() => {
     const themes = new Map<string, string>();
     data.subjects.forEach((s) => {
-      const typedS = s as SubjectWithExpand;
+      const typedS = s as SubjectWithThemes;
       typedS.subjectThemes?.forEach((st) => {
         themes.set(st.theme.id, st.theme.nom);
       });
@@ -140,7 +136,7 @@
 
   let filteredSubjects = $derived(
     data.subjects.filter((s) => {
-      const typedS = s as SubjectWithExpand;
+      const typedS = s as SubjectWithThemes;
       if (sourceFilter === 'official' && s.campusId != null) return false;
       if (sourceFilter === 'mine' && s.campusId !== userCampusId) return false;
       if (
@@ -362,7 +358,7 @@
       {:else if viewMode === 'grid'}
         <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {#each filteredSubjects as subject, i (subject.id)}
-            {@const typedSubject = subject as SubjectWithExpand}
+            {@const typedSubject = subject as SubjectWithThemes}
             {@const isOfficial = !subject.campusId}
             {@const isMine = subject.campusId === userCampusId}
             {@const xp = getSubjectXpValue(subject.difficulte)}
@@ -532,7 +528,7 @@
             </Table.Header>
             <Table.Body>
               {#each filteredSubjects as subject (subject.id)}
-                {@const typedSubject = subject as SubjectWithExpand}
+                {@const typedSubject = subject as SubjectWithThemes}
                 {@const isOfficial = !subject.campus}
                 {@const isMine = subject.campus === userCampusId}
                 {@const xp = getSubjectXpValue(subject.difficulte)}

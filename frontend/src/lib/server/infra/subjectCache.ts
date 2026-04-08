@@ -1,6 +1,6 @@
 /**
  * Simple LRU cache for subject records.
- * Subjects are static content — caching them avoids redundant PocketBase reads
+ * Subjects are static content — caching them avoids redundant DB reads
  * when 2000 students load the same ~10 subjects.
  *
  * Subject content is identical for all authenticated users, so a shared
