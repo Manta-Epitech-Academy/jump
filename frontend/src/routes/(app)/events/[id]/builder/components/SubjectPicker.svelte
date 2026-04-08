@@ -45,7 +45,7 @@
   } = $props();
 
   // Get user campus ID to detect "Mine" vs "Community"
-  let userCampusId = $derived(page.data.user?.campus);
+  let userCampusId = $derived(page.data.staffProfile?.campusId);
 
   let searchQuery = $state('');
   let selectedDifficulte = $state('all');
@@ -86,11 +86,11 @@
         // Theme Filter
         const matchesTheme =
           selectedTheme === 'all' ||
-          (sub.themes && sub.themes.includes(selectedTheme));
+          sub.subjectThemes?.some((st: any) => st.theme.id === selectedTheme);
 
         // Source Filter Logic
-        const isOfficial = !sub.campus;
-        const isMine = sub.campus === userCampusId;
+        const isOfficial = !sub.campusId;
+        const isMine = sub.campusId === userCampusId;
         let matchesSource = true;
         if (selectedSource === 'official') matchesSource = isOfficial;
         if (selectedSource === 'mine') matchesSource = isMine;
@@ -311,8 +311,8 @@
           {@const isSelected = currentSelection.includes(sub.id)}
           {@const isRecommended =
             studentLevel && sub.difficulte === studentLevel}
-          {@const isOfficial = !sub.campus}
-          {@const isMine = sub.campus === userCampusId}
+          {@const isOfficial = !sub.campusId}
+          {@const isMine = sub.campusId === userCampusId}
 
           <button
             class={cn(
@@ -401,12 +401,12 @@
                     {sub.difficulte}
                   </Badge>
 
-                  {#if sub.themes && sub.themes.length > 0}
+                  {#if sub.subjectThemes && sub.subjectThemes.length > 0}
                     <div class="flex items-center gap-1">
                       <Tag class="h-3 w-3 text-muted-foreground" />
-                      {#each sub.themes as tId}
+                      {#each sub.subjectThemes as st}
                         <span class="text-[9px] text-muted-foreground"
-                          >#{getThemeName(tId)}</span
+                          >#{st.theme.nom}</span
                         >
                       {/each}
                     </div>
