@@ -133,7 +133,6 @@ CI builds and pushes Docker images to GHCR on pushes to `main`, `staging`, and `
 | ------------------------- | ---------------------------------- |
 | `DATABASE_URL`            | PostgreSQL connection string       |
 | `BETTER_AUTH_SECRET`      | Session signing secret             |
-| `BETTER_AUTH_URL`         | Auth base URL (include `/tekcamp`) |
 | `MICROSOFT_CLIENT_ID`     | Azure OAuth app ID                 |
 | `MICROSOFT_CLIENT_SECRET` | Azure OAuth secret                 |
 | `MICROSOFT_TENANT_ID`     | Azure AD tenant                    |
