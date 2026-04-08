@@ -2,10 +2,6 @@ name: Build and Push Docker Images
 
 on:
   push:
-    branches:
-      - main
-      - staging
-      - dev
 
 env:
   REGISTRY: ghcr.io
@@ -25,13 +21,17 @@ jobs:
         run: |
           PREFIX=$(echo "ghcr.io/${{ github.repository_owner }}/intra" | tr '[:upper:]' '[:lower:]')
           echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
+          SHOULD_PUSH=false
           case "${{ github.ref_name }}" in
-            main)    echo "tag=latest"  >> "$GITHUB_OUTPUT" ;;
-            staging) echo "tag=staging" >> "$GITHUB_OUTPUT" ;;
-            dev)     echo "tag=dev"     >> "$GITHUB_OUTPUT" ;;
+            main)    echo "tag=latest"  >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
+            staging) echo "tag=staging" >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
+            dev)     echo "tag=dev"     >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
+            *)       echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT" ;;
           esac
+          echo "push=$SHOULD_PUSH" >> "$GITHUB_OUTPUT"
 
       - uses: docker/login-action@v3
+        if: steps.meta.outputs.push == 'true'
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -42,7 +42,10 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: frontend
-          push: true
+          push: ${{ steps.meta.outputs.push == 'true' }}
           tags: ${{ steps.meta.outputs.prefix }}-sveltekit:${{ steps.meta.outputs.tag }}
+          build-args: |
+            PUBLIC_POCKETBASE_URL=${{ vars.PUBLIC_POCKETBASE_URL }}
+            PUBLIC_INTERNAL_POCKETBASE_URL=${{ vars.PUBLIC_INTERNAL_POCKETBASE_URL }}
           cache-from: type=gha,scope=sveltekit-${{ github.ref_name }}
           cache-to: type=gha,mode=max,scope=sveltekit-${{ github.ref_name }}
