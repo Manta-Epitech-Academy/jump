@@ -303,22 +303,22 @@ it('works correctly')
 
 ```bash
 # All unit tests
-npm run test
+bun run test
 
 # Unit tests in watch mode (development)
-npm run test:watch
+bun run test:watch
 
 # Tests with coverage report
-npm run test:coverage
+bun run test:coverage
 
 # Integration tests only
-npm run test:integration
+bun run test:integration
 
 # E2E tests (requires app + Supabase to be running)
-npm run test:e2e
+bun run test:e2e
 
 # E2E tests in UI mode (debug)
-npm run test:e2e:ui
+bun run test:e2e:ui
 ```
 
 ### Fichiers de configuration
