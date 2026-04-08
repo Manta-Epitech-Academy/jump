@@ -1,12 +1,8 @@
 import { parseEventImportCsv, type CsvStudent } from '$lib/domain/csv';
 import { suggestBestSubject } from '$lib/domain/recommender';
-import { createScoped } from '$lib/pocketbase';
 import { generatePin } from '$lib/utils';
-import {
-  type TypedPocketBase,
-  StudentsNiveauOptions,
-  StudentsLevelOptions,
-} from '$lib/pocketbase-types';
+import { prisma } from '$lib/server/db';
+import { scopedPrisma } from '$lib/server/db/scoped';
 
 export type ImportAction = {
   id: string;
@@ -15,10 +11,10 @@ export type ImportAction = {
   decision: 'CREATE_NEW' | 'LINK_EXISTING';
   existingStudent?: Record<string, unknown>;
   matchReason?: string;
-  bring_pc: boolean;
+  bringPc: boolean;
 };
 
-export async function analyzeCampaignFile(pb: TypedPocketBase, file: File) {
+export async function analyzeCampaignFile(file: File, campusId: string) {
   let text = await file.text();
   if (text.includes('\ufffd')) {
     const buffer = await file.arrayBuffer();
@@ -27,65 +23,59 @@ export async function analyzeCampaignFile(pb: TypedPocketBase, file: File) {
   }
 
   const { eventName, eventDate, students } = await parseEventImportCsv(text);
+  const db = scopedPrisma(campusId);
 
   const analysis = await Promise.all(
     students.map(async (csvS, i) => {
       const index = i + 1;
-      let existing: any = null;
+      let existing: Record<string, unknown> | null = null;
       let status: ImportAction['suggestedStatus'] = 'NEW';
       let decision: ImportAction['decision'] = 'CREATE_NEW';
       let reason = '';
 
-      const escape = (s: string) => s.replace(/["\\]/g, '\\$&');
-      const safeNom = escape(csvS.nom);
-      const safePrenom = escape(csvS.prenom);
-      const safeEmail = escape(csvS.email);
+      // Try exact match (nom + prenom + email)
+      const exactMatch = await db.studentProfile.findFirst({
+        where: {
+          nom: csvS.nom,
+          prenom: csvS.prenom,
+          user: { email: csvS.email },
+        },
+        include: { user: true },
+      });
 
-      try {
-        existing = await pb
-          .collection('students')
-          .getFirstListItem(
-            `nom = "${safeNom}" && prenom = "${safePrenom}" && email = "${safeEmail}"`,
-            { requestKey: null },
-          );
+      if (exactMatch) {
         status = 'MERGE';
         decision = 'LINK_EXISTING';
         reason = 'Profil identique trouvé (Nom + Email)';
-      } catch (_) {
+        existing = { ...exactMatch };
+      } else {
+        // Check for sibling (same email)
         if (csvS.email) {
-          try {
-            const siblingMatch = await pb
-              .collection('students')
-              .getFirstListItem(`email = "${safeEmail}"`, {
-                requestKey: null,
-              });
+          const siblingMatch = await db.studentProfile.findFirst({
+            where: { user: { email: csvS.email } },
+            include: { user: true },
+          });
 
+          if (siblingMatch) {
             status = 'SIBLING';
             decision = 'CREATE_NEW';
-            existing = siblingMatch;
+            existing = { ...siblingMatch };
             reason = `Fratrie détectée : Email identique à ${siblingMatch.prenom} ${siblingMatch.nom}`;
-          } catch (__) {
-            /* Truly new email */
           }
         }
 
+        // Check for homonym (same name, different email)
         if (status === 'NEW') {
-          try {
-            const nameMatch = await pb
-              .collection('students')
-              .getFirstListItem(
-                `nom = "${safeNom}" && prenom = "${safePrenom}"`,
-                {
-                  requestKey: null,
-                },
-              );
+          const nameMatch = await db.studentProfile.findFirst({
+            where: { nom: csvS.nom, prenom: csvS.prenom },
+            include: { user: true },
+          });
 
+          if (nameMatch) {
             status = 'CONFLICT';
             decision = 'CREATE_NEW';
-            existing = nameMatch;
+            existing = { ...nameMatch };
             reason = 'Nom identique mais email différent (Homonyme possible)';
-          } catch (___) {
-            /* Truly new person */
           }
         }
       }
@@ -94,10 +84,10 @@ export async function analyzeCampaignFile(pb: TypedPocketBase, file: File) {
         id: `row-${index}`,
         csvData: csvS,
         suggestedStatus: status,
-        decision: decision,
-        existingStudent: existing,
+        decision,
+        existingStudent: existing ?? undefined,
         matchReason: reason,
-        bring_pc: true,
+        bringPc: true,
       } as ImportAction;
     }),
   );
@@ -111,89 +101,109 @@ export async function analyzeCampaignFile(pb: TypedPocketBase, file: File) {
 }
 
 export async function importCampaignData(
-  pb: TypedPocketBase,
   importList: ImportAction[],
   eventName: string,
   eventDateStr: string,
   mantas: string[],
   notes: string,
+  campusId: string,
 ) {
   // 1. Create Event
-  const eventRecord = await createScoped(pb, 'events', {
-    titre: eventName,
-    date: new Date(eventDateStr).toISOString(),
-    mantas: mantas,
-    notes: notes,
-    pin: generatePin(),
+  const newEvent = await prisma.event.create({
+    data: {
+      titre: eventName,
+      date: new Date(eventDateStr),
+      campusId,
+      pin: generatePin(),
+      notes,
+      mantas: {
+        create: mantas.map((staffProfileId) => ({ staffProfileId })),
+      },
+    },
   });
-  const newEventId = eventRecord.id;
 
-  const subjects = await pb.collection('subjects').getFullList();
+  const subjects = await prisma.subject.findMany({
+    include: { subjectThemes: true },
+  });
 
-  // 2. Process Students in Parallel
+  // 2. Process Students
   await Promise.all(
     importList.map(async (item) => {
-      let studentId: string | undefined;
+      let studentProfileId: string | undefined;
 
-      if (item.decision === 'LINK_EXISTING' && item.existingStudent) {
-        studentId = item.existingStudent.id;
+      if (
+        item.decision === 'LINK_EXISTING' &&
+        item.existingStudent
+      ) {
+        studentProfileId = item.existingStudent.id as string;
       } else {
-        // CREATE NEW STUDENT
-        const tempPassword = crypto.randomUUID() + Math.random().toString(36);
-        const studentData = {
-          prenom: item.csvData.prenom,
-          nom: item.csvData.nom,
-          email: item.csvData.email,
-          phone: item.csvData.phone,
-          niveau: item.csvData.niveau as StudentsNiveauOptions,
-          xp: 0,
-          events_count: 0,
-          parent_email: item.csvData.parentEmail,
-          parent_phone: item.csvData.parentPhone,
-          emailVisibility: true,
-          password: tempPassword,
-          passwordConfirm: tempPassword,
-          verified: false,
-          level: StudentsLevelOptions.Novice,
-          badges: [],
-        };
-
+        // CREATE NEW USER + STUDENT PROFILE
         try {
-          const newS = await createScoped(pb, 'students', studentData);
-          studentId = newS.id;
+          const user = await prisma.user.create({
+            data: {
+              email: item.csvData.email,
+              role: 'student',
+              name: `${item.csvData.prenom} ${item.csvData.nom}`,
+              studentProfile: {
+                create: {
+                  prenom: item.csvData.prenom,
+                  nom: item.csvData.nom,
+                  campusId,
+                  niveau: item.csvData.niveau || null,
+                  xp: 0,
+                  eventsCount: 0,
+                  parentEmail: item.csvData.parentEmail,
+                  parentPhone: item.csvData.parentPhone,
+                  phone: item.csvData.phone,
+                },
+              },
+            },
+            include: { studentProfile: true },
+          });
+          studentProfileId = user.studentProfile!.id;
         } catch (err) {
           console.error(`Creation failed for ${item.csvData.nom}`, err);
         }
       }
 
-      if (studentId) {
+      if (studentProfileId) {
         try {
-          const check = await pb.collection('participations').getList(1, 1, {
-            filter: `student = "${studentId}" && event = "${newEventId}"`,
-            requestKey: null,
+          // Check if participation already exists
+          const existing = await prisma.participation.findUnique({
+            where: {
+              studentProfileId_eventId: {
+                studentProfileId,
+                eventId: newEvent.id,
+              },
+            },
           });
 
-          if (check.totalItems === 0) {
+          if (!existing) {
             const subjectId = await suggestBestSubject(
-              pb,
-              studentId,
+              studentProfileId,
               subjects,
               null,
             );
-            await createScoped(pb, 'participations', {
-              student: studentId,
-              event: newEventId,
-              subjects: subjectId ? [subjectId] : [],
-              is_present: false,
-              bring_pc: item.bring_pc,
+
+            await prisma.participation.create({
+              data: {
+                studentProfileId,
+                eventId: newEvent.id,
+                campusId,
+                bringPc: item.bringPc,
+                isPresent: false,
+                subjects: subjectId
+                  ? { create: [{ subjectId }] }
+                  : undefined,
+              },
             });
           }
         } catch (err) {
-          console.error(`Failed to assign student ${studentId}`, err);
+          console.error(`Failed to assign student ${studentProfileId}`, err);
         }
       }
     }),
   );
 
-  return newEventId;
+  return newEvent.id;
 }

@@ -14,8 +14,6 @@
   } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import { enhance } from '$app/forms';
-  import { pbUrl } from '$lib/pocketbase';
-
   let { showPortfolio = $bindable(), portfolioItems, eventId } = $props();
 
   let isUploadingPortfolio = $state(false);
@@ -196,15 +194,16 @@
               <div
                 class="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
               >
+                <!-- TODO: implement S3 file storage -->
                 {#if item.file}
                   <a
-                    href={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
+                    href={'#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     class="block aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-800"
                   >
                     <img
-                      src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}?thumb=400x300`}
+                      src={''}
                       alt={item.caption || 'Création'}
                       loading="lazy"
                       class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"

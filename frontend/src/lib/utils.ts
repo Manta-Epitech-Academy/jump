@@ -5,12 +5,8 @@ import {
   now,
   type CalendarDateTime,
 } from '@internationalized/date';
-import type {
-  EventsResponse,
-  SubjectsResponse,
-  ThemesResponse,
-  ParticipationsResponse,
-} from '$lib/pocketbase-types';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PBRecord = { id: string; nom: string } & Record<string, any>;
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -43,8 +39,8 @@ export function formatDateFr(
 }
 
 export type ParticipationExpand = {
-  event: EventsResponse;
-  subjects: SubjectsResponse[];
+  event?: { date?: string | Date; titre?: string };
+  subjects?: { subject: { id: string; nom: string } }[];
 };
 
 export type Mission = {
@@ -54,16 +50,18 @@ export type Mission = {
 };
 
 export function flattenMissions(
-  participations: ParticipationsResponse<ParticipationExpand>[],
+  participations: (Record<string, any> & ParticipationExpand)[],
 ): Mission[] {
   const missions: Mission[] = [];
   for (const p of participations) {
-    if (p.expand?.subjects) {
-      for (const sub of p.expand.subjects) {
+    const subs = p.subjects;
+    if (subs) {
+      for (const ps of subs) {
+        const sub = ps.subject ?? ps;
         missions.push({
           subject: sub,
-          eventDate: p.expand.event?.date || '',
-          eventTitle: p.expand.event?.titre || 'Atelier',
+          eventDate: String(p.event?.date || ''),
+          eventTitle: (p.event?.titre as string) || 'Atelier',
         });
       }
     }
@@ -71,10 +69,10 @@ export function flattenMissions(
   return missions;
 }
 
-export type ThemeExpandedParticipation = ParticipationsResponse<{
-  event?: EventsResponse;
-  subjects?: SubjectsResponse<unknown, { themes?: ThemesResponse[] }>[];
-}>;
+export type ThemeExpandedParticipation = Record<string, any> & {
+  event?: Record<string, any>;
+  subjects?: (Record<string, any> & { subject: Record<string, any> & { subjectThemes?: { theme: Record<string, any> }[] } })[];
+};
 
 /**
  * Tallies up theme occurrences from completed participations and returns the top N.
@@ -99,8 +97,9 @@ export function tallyTopThemes(
 ): { name: string; count: number; label: string }[] {
   const tally: Record<string, number> = {};
   for (const p of participations) {
-    for (const subject of p.expand?.subjects ?? []) {
-      const themes = subject.expand?.themes ?? [];
+    for (const ps of p.subjects ?? []) {
+      const subject = ps.subject ?? ps;
+      const themes = subject.subjectThemes?.map((st: any) => st.theme) ?? [];
       if (themes.length === 0) {
         tally['Général'] = (tally['Général'] || 0) + 1;
       } else {

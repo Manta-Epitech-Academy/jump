@@ -3,20 +3,21 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { subjectSchema } from '$lib/validation/subjects';
-import { SubjectsDifficulteOptions } from '$lib/pocketbase-types';
+import { prisma } from '$lib/server/db';
 
-export const load: PageServerLoad = async ({ locals }) => {
-  // Load ONLY official subjects and themes (campus = "" or null)
-  const subjects = await locals.pb.collection('subjects').getFullList({
-    filter: 'campus = "" || campus = null',
-    sort: '-created',
-    expand: 'themes',
-  });
-
-  const themes = await locals.pb.collection('themes').getFullList({
-    filter: 'campus = "" || campus = null',
-    sort: 'nom',
-  });
+export const load: PageServerLoad = async () => {
+  // Load ONLY official subjects and themes (campusId = null)
+  const [subjects, themes] = await Promise.all([
+    prisma.subject.findMany({
+      where: { campusId: null },
+      orderBy: { createdAt: 'desc' },
+      include: { subjectThemes: { include: { theme: true } } },
+    }),
+    prisma.theme.findMany({
+      where: { campusId: null },
+      orderBy: { nom: 'asc' },
+    }),
+  ]);
 
   const form = await superValidate(zod4(subjectSchema));
 
@@ -24,46 +25,48 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 // Strict global creation logic for themes
-async function processOfficialThemes(
-  pb: App.Locals['pb'],
-  themeNames: string[],
-) {
+async function processOfficialThemes(themeNames: string[]): Promise<string[]> {
   const themeIds: string[] = [];
   for (const name of themeNames) {
     if (!name.trim()) continue;
-    try {
-      // Look for an existing official theme
-      const existing = await pb
-        .collection('themes')
-        .getFirstListItem(
-          `nom = "${name.replace(/"/g, '\\"')}" && (campus = "" || campus = null)`,
-        );
-      themeIds.push(existing.id);
-    } catch {
-      // Create a new OFFICIAL theme (without a campus)
-      const created = await pb
-        .collection('themes')
-        .create({ nom: name, campus: null });
-      themeIds.push(created.id);
-    }
+    // Look for an existing official theme, or create one
+    const theme = await prisma.theme.upsert({
+      where: { nom_campusId: { nom: name, campusId: '' } },
+      // upsert doesn't support null in compound unique; fall back to findFirst + create
+      update: {},
+      create: { nom: name, campusId: null },
+    }).catch(async () => {
+      // Compound unique with null campusId not supported by upsert, use manual approach
+      const existing = await prisma.theme.findFirst({
+        where: { nom: name, campusId: null },
+      });
+      if (existing) return existing;
+      return prisma.theme.create({ data: { nom: name, campusId: null } });
+    });
+    themeIds.push(theme.id);
   }
   return themeIds;
 }
 
 export const actions: Actions = {
-  create: async ({ request, locals }) => {
+  create: async ({ request }) => {
     const form = await superValidate(request, zod4(subjectSchema));
     if (!form.valid) return fail(400, { form });
 
     try {
-      const themeIds = await processOfficialThemes(locals.pb, form.data.themes);
+      const themeIds = await processOfficialThemes(form.data.themes);
 
-      // Creation via the standard API, without injecting a campus
-      await locals.pb.collection('subjects').create({
-        ...form.data,
-        difficulte: form.data.difficulte as SubjectsDifficulteOptions,
-        themes: themeIds,
-        campus: null,
+      await prisma.subject.create({
+        data: {
+          nom: form.data.nom,
+          description: form.data.description,
+          difficulte: form.data.difficulte,
+          link: form.data.link || null,
+          campusId: null,
+          subjectThemes: {
+            create: themeIds.map((themeId) => ({ themeId })),
+          },
+        },
       });
 
       return message(form, 'Sujet officiel publié !');
@@ -73,7 +76,7 @@ export const actions: Actions = {
     }
   },
 
-  update: async ({ request, locals }) => {
+  update: async ({ request }) => {
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(subjectSchema));
     const id = formData.get('id') as string;
@@ -81,11 +84,20 @@ export const actions: Actions = {
     if (!form.valid || !id) return fail(400, { form });
 
     try {
-      const themeIds = await processOfficialThemes(locals.pb, form.data.themes);
-      await locals.pb.collection('subjects').update(id, {
-        ...form.data,
-        difficulte: form.data.difficulte as SubjectsDifficulteOptions,
-        themes: themeIds,
+      const themeIds = await processOfficialThemes(form.data.themes);
+
+      await prisma.subject.update({
+        where: { id },
+        data: {
+          nom: form.data.nom,
+          description: form.data.description,
+          difficulte: form.data.difficulte,
+          link: form.data.link || null,
+          subjectThemes: {
+            deleteMany: {},
+            create: themeIds.map((themeId) => ({ themeId })),
+          },
+        },
       });
       return message(form, 'Sujet officiel mis à jour !');
     } catch (err) {
@@ -93,27 +105,24 @@ export const actions: Actions = {
     }
   },
 
-  delete: async ({ url, locals }) => {
+  delete: async ({ url }) => {
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 
     try {
       // SECURITY : Check if the subject is present in at least one participation
-      const usedInParticipations = await locals.pb
-        .collection('participations')
-        .getList(1, 1, {
-          filter: `subjects ~ "${id}"`,
-          requestKey: null,
-        });
+      const usedInParticipations = await prisma.participationSubject.count({
+        where: { subjectId: id },
+      });
 
-      if (usedInParticipations.totalItems > 0) {
+      if (usedInParticipations > 0) {
         return fail(400, {
           message:
             "Suppression bloquée : Ce sujet a déjà été utilisé lors d'événements. Le supprimer corromprait l'historique d'XP des élèves.",
         });
       }
 
-      await locals.pb.collection('subjects').delete(id);
+      await prisma.subject.delete({ where: { id } });
       return { success: true };
     } catch (err) {
       return fail(500, { message: 'Erreur lors de la suppression.' });

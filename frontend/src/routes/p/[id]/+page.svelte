@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { pbUrl } from '$lib/pocketbase';
   import { Badge } from '$lib/components/ui/badge';
   import {
     Trophy,
@@ -90,7 +89,7 @@
           class="flex flex-col items-center justify-center rounded-2xl bg-slate-50 p-4 dark:bg-slate-950/50"
         >
           <Calendar class="mb-2 h-6 w-6 text-epi-teal" />
-          <span class="text-3xl font-black">{student.events_count}</span>
+          <span class="text-3xl font-black">{student.eventsCount}</span>
           <span
             class="text-[10px] font-bold tracking-widest text-slate-500 uppercase"
             >Événements</span
@@ -170,15 +169,16 @@
               class="group break-inside-avoid overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900"
             >
               {#if item.file}
+                <!-- TODO: implement S3 file storage -->
                 <a
-                  href={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`}
+                  href={'#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   class="block w-full overflow-hidden bg-slate-100 dark:bg-slate-950"
                   title="Ouvrir l'image"
                 >
                   <img
-                    src={`${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}?thumb=600x0`}
+                    src={''}
                     alt={item.caption || 'Portfolio item'}
                     class="w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"

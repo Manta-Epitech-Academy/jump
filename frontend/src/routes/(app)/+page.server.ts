@@ -1,25 +1,16 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
-import { pbUrl } from '$lib/pocketbase';
 import { now } from '@internationalized/date';
 import { EventService } from '$lib/server/services/events';
-import type {
-  EventsResponse,
-  ThemesResponse,
-  UsersResponse,
-} from '$lib/pocketbase-types';
-
-type EventExpand = {
-  theme?: ThemesResponse;
-  mantas?: UsersResponse[];
-};
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.pb.authStore.isValid) {
+  if (!locals.user) {
     throw error(401, 'Authentification requise');
   }
 
   try {
+    const db = scopedPrisma(getCampusId(locals));
     const parisNow = now('Europe/Paris');
     const startOfDayParis = parisNow.set({
       hour: 0,
@@ -29,27 +20,28 @@ export const load: PageServerLoad = async ({ locals }) => {
     });
     const filterDate = startOfDayParis.toDate();
 
-    const events = await locals.pb
-      .collection('events')
-      .getFullList<EventsResponse<EventExpand>>({
-        sort: 'date',
-        filter: `date >= '${filterDate.toISOString()}'`,
-        expand: 'theme,mantas',
-      });
+    const events = await db.event.findMany({
+      where: {
+        date: { gte: filterDate },
+      },
+      include: {
+        theme: true,
+        mantas: { include: { staffProfile: { include: { user: true } } } },
+      },
+      orderBy: { date: 'asc' },
+    });
 
     return {
       events: events.map((event) => ({
         id: event.id,
         titre: event.titre,
-        date: new Date(event.date),
-        theme: event.expand?.theme?.nom,
-        mantas:
-          event.expand?.mantas?.map((m) => ({
-            name: m.name || m.username,
-            avatarUrl: m.avatar
-              ? `${pbUrl}/api/files/${m.collectionId}/${m.id}/${m.avatar}?thumb=100x100`
-              : null,
-          })) || [],
+        date: event.date,
+        theme: event.theme?.nom,
+        mantas: event.mantas.map((m) => ({
+          name: m.staffProfile.user?.name || '',
+          // TODO: implement S3 file storage for avatars
+          avatarUrl: m.staffProfile.avatar,
+        })),
       })),
     };
   } catch (err) {
@@ -64,7 +56,7 @@ export const actions: Actions = {
     if (!id) return fail(400);
 
     try {
-      await EventService.deleteEvent(locals.pb, id);
+      await EventService.deleteEvent(id, getCampusId(locals));
       return { success: true };
     } catch (err) {
       console.error('Erreur suppression événement:', err);
@@ -77,7 +69,7 @@ export const actions: Actions = {
     const originalId = data.get('originalId') as string;
     const titre = data.get('titre') as string;
     const dateStr = data.get('date') as string;
-    const timeStr = data.get('time') as string; // HH:MM
+    const timeStr = data.get('time') as string;
 
     if (!originalId || !titre || !dateStr || !timeStr) {
       return fail(400, { message: 'Données manquantes' });
@@ -92,13 +84,11 @@ export const actions: Actions = {
         return fail(400, { message: 'Valeur de temps invalide' });
       }
 
+      const campusId = getCampusId(locals);
       const newEventId = await EventService.duplicateEvent(
-        locals.pb,
         originalId,
-        {
-          titre,
-          date: newDate.toISOString(),
-        },
+        { titre, date: newDate.toISOString() },
+        campusId,
       );
 
       return { success: true, newEventId };

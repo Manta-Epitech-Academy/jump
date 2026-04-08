@@ -14,7 +14,7 @@
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
   import type { SubjectStep } from '$lib/server/services/progressService';
-  import type { StepsProgressResponse } from '$lib/pocketbase-types';
+  import type { StepsProgress } from '@prisma/client';
 
   let {
     currentStep,
@@ -30,7 +30,7 @@
     currentIndex: number;
     unlockedIndex: number;
     steps: SubjectStep[];
-    progress: StepsProgressResponse;
+    progress: StepsProgress;
     selectedAnswer: number | null;
     qcmFails: number;
     isValidating: boolean;

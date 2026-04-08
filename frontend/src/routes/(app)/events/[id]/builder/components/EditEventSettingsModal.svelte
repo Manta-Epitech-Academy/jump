@@ -14,7 +14,6 @@
   import DatePicker from '$lib/components/DatePicker.svelte';
   import { CalendarDateTime } from '@internationalized/date';
   import type { Readable } from 'svelte/store';
-  import type { ThemesResponse, UsersResponse } from '$lib/pocketbase-types';
   import type { SuperForm } from 'sveltekit-superforms/client';
   import type { EventForm } from '$lib/validation/events';
 
@@ -34,8 +33,8 @@
     editErrors: SuperForm<EventForm>['errors'];
     editEnhance: SuperForm<EventForm>['enhance'];
     editDelayed: Readable<boolean>;
-    themes: ThemesResponse[];
-    staff: UsersResponse[];
+    themes: any[];
+    staff: any[];
   } = $props();
 
   function parseInitialDate(val: any) {

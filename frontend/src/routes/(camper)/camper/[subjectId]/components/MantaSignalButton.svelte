@@ -4,16 +4,13 @@
   import { cn } from '$lib/utils';
   import { CircleCheck, LifeBuoy } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
-  import {
-    StepsProgressStatusOptions,
-    type StepsProgressResponse,
-  } from '$lib/pocketbase-types';
+  import type { StepsProgress } from '@prisma/client';
 
   let {
     progress,
     isCompleted,
   }: {
-    progress: StepsProgressResponse;
+    progress: StepsProgress;
     isCompleted: boolean;
   } = $props();
 
@@ -29,9 +26,7 @@
       isCallingManta = true;
       const previousStatus = progress.status;
       progress.status =
-        previousStatus === 'needs_help'
-          ? StepsProgressStatusOptions.active
-          : StepsProgressStatusOptions.needs_help;
+        previousStatus === 'needs_help' ? 'active' : 'needs_help';
 
       return async ({ result, update }) => {
         isCallingManta = false;

@@ -17,15 +17,18 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const pathOnboarding = new URL(resolvePath('/onboarding'), event.url)
     .pathname;
   const pathLogout = new URL(resolvePath('/logout'), event.url).pathname;
-  const pathOAuth = new URL(resolvePath('/oauth'), event.url).pathname;
-  const pathPublicShowcase = new URL(resolvePath('/p/'), event.url).pathname;
-  const pathApi = new URL(resolvePath('/api/'), event.url).pathname;
+  const pathOAuth = new URL(resolvePath('/oauth' as any), event.url).pathname;
+  const pathPublicShowcase = new URL(resolvePath('/p/' as any), event.url).pathname;
+  const pathApi = new URL(resolvePath('/api/' as any), event.url).pathname;
+
+  const pathLogin = new URL(resolvePath('/login'), event.url).pathname;
 
   const isPublicPath =
     currentPath.startsWith(pathOnboarding) ||
     currentPath.startsWith(pathLogout) ||
     currentPath.startsWith(pathOAuth) ||
     currentPath.startsWith(pathAdminLogin) ||
+    currentPath === pathLogin ||
     currentPath.startsWith(pathPublicShowcase) ||
     currentPath.startsWith(pathApi);
 
@@ -42,20 +45,20 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
 
   if (isCamperRoute) {
     if (
-      !event.locals.student &&
+      !event.locals.studentProfile &&
       currentPath !== pathCamperLogin &&
       !currentPath.startsWith(pathCamperOAuth)
     ) {
       return Response.redirect(new URL(pathCamperLogin, event.url).href, 303);
     }
-    if (event.locals.student && currentPath === pathCamperLogin) {
+    if (event.locals.studentProfile && currentPath === pathCamperLogin) {
       return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
     }
 
     // Charter guard: redirect to charter page if not accepted yet
     if (
-      event.locals.student &&
-      !event.locals.student.charter_accepted_at &&
+      event.locals.studentProfile &&
+      !event.locals.studentProfile.charterAcceptedAt &&
       currentPath !== pathCamperCharter &&
       currentPath !== pathCamperLogin
     ) {
@@ -67,35 +70,32 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
 
     // Already accepted: prevent going back to charter page
     if (
-      event.locals.student?.charter_accepted_at &&
+      event.locals.studentProfile?.charterAcceptedAt &&
       currentPath === pathCamperCharter
     ) {
       return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
     }
-  } else {
-    // --- Role Isolation: Student trying to access Staff App ---
-    if (
-      event.locals.student &&
-      !event.locals.user &&
-      !isAdminPath &&
-      !isPublicPath
-    ) {
+  } else if (!isPublicPath && !isAdminPath) {
+    // --- Auth + Role Isolation for Staff App ---
+    if (!event.locals.user) {
+      return Response.redirect(new URL(pathLogin, event.url).href, 303);
+    }
+    if (event.locals.user.role === 'student') {
       return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
     }
   }
 
   // --- Staff/Admin Guards ---
   if (isAdminPath) {
-    if (!currentPath.startsWith(pathAdminLogin) && !event.locals.user) {
+    if (
+      !currentPath.startsWith(pathAdminLogin) &&
+      event.locals.user?.role !== 'admin'
+    ) {
       return Response.redirect(new URL(pathAdminLogin, event.url).href, 303);
     }
-  } else if (!isCamperRoute) {
-    if (event.locals.user) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const staffUser = event.locals.user as any;
-      if (!staffUser.campus && !isPublicPath) {
-        return Response.redirect(new URL(pathOnboarding, event.url).href, 303);
-      }
+  } else if (!isCamperRoute && !isPublicPath) {
+    if (event.locals.user && !event.locals.staffProfile?.campusId) {
+      return Response.redirect(new URL(pathOnboarding, event.url).href, 303);
     }
   }
 

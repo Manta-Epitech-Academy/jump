@@ -1,54 +1,56 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
-import { pbUrl } from '$lib/pocketbase';
-import {
-  formatDateFr,
-  tallyTopThemes,
-  type ThemeExpandedParticipation,
-} from '$lib/utils';
-import type {
-  EventsResponse,
-  ParticipationsResponse,
-  PortfolioItemsResponse,
-  SubjectsResponse,
-} from '$lib/pocketbase-types';
-
-type CertificateParticipation = ParticipationsResponse<{
-  event?: EventsResponse;
-  subjects?: SubjectsResponse<unknown, never>[];
-}>;
+import { prisma } from '$lib/server/db';
+import { formatDateFr, tallyTopThemes } from '$lib/utils';
 
 export const GET: RequestHandler = async ({ locals }) => {
-  if (!locals.student) throw error(401, 'Non autorisé');
+  if (!locals.studentProfile) throw error(401, 'Non autorise');
+
+  const studentProfileId = locals.studentProfile.id;
 
   try {
-    // 1. Fetch completed participations with event + subject details for the certificate
-    const participations = await locals.studentPb
-      .collection('participations')
-      .getFullList<
-        ThemeExpandedParticipation & CertificateParticipation
-      >({
-        filter: `student = "${locals.student.id}" && is_present = true`,
-        expand: 'event,subjects.themes',
-      });
+    // 1. Fetch completed participations with event + subject + theme details
+    const participations = await prisma.participation.findMany({
+      where: {
+        studentProfileId,
+        isPresent: true,
+      },
+      include: {
+        event: true,
+        subjects: {
+          include: {
+            subject: {
+              include: {
+                subjectThemes: {
+                  include: { theme: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (participations.length === 0) {
-      throw error(400, 'Aucun événement complété.');
+      throw error(400, 'Aucun evenement complete.');
     }
 
     // 2. Gather Portfolio Images (Max 4 for the A4 PDF)
-    const portfolio = await locals.studentPb
-      .collection('portfolio_items')
-      .getList<PortfolioItemsResponse>(1, 4, {
-        filter: `student = "${locals.student.id}" && file != ""`,
-        sort: '-created',
-      });
+    const portfolioItems = await prisma.portfolioItem.findMany({
+      where: {
+        studentProfileId,
+        file: { not: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 4,
+    });
 
     // 3. Fetch campus name
-    const campus = await locals.studentPb
-      .collection('campuses')
-      .getOne(locals.student.campus);
+    const student = await prisma.studentProfile.findUniqueOrThrow({
+      where: { id: studentProfileId },
+      include: { campus: true },
+    });
 
     // 4. Tally up themes (show up to 6 for the progress-bar view)
     const topThemes = tallyTopThemes(participations, 6);
@@ -59,13 +61,12 @@ export const GET: RequestHandler = async ({ locals }) => {
       { name: string; eventDate: string; difficulty: string }
     >();
     for (const p of participations) {
-      for (const subject of p.expand?.subjects ?? []) {
+      for (const ps of p.subjects) {
+        const subject = ps.subject;
         if (!subjectMap.has(subject.id)) {
           subjectMap.set(subject.id, {
             name: subject.nom,
-            eventDate: p.expand?.event
-              ? formatDateFr(new Date(p.expand.event.date))
-              : '',
+            eventDate: p.event ? formatDateFr(new Date(p.event.date)) : '',
             difficulty: subject.difficulte || '',
           });
         }
@@ -87,31 +88,36 @@ export const GET: RequestHandler = async ({ locals }) => {
 
     // 7. Assemble Data
     const data = {
-      studentName: `${locals.student.prenom} ${locals.student.nom}`,
-      campus: campus.name,
-      schoolLevel: locals.student.niveau
-        ? niveauLabels[locals.student.niveau] || locals.student.niveau
+      studentName: `${locals.studentProfile.prenom} ${locals.studentProfile.nom}`,
+      campus: student.campus?.name || '',
+      schoolLevel: locals.studentProfile.niveau
+        ? niveauLabels[locals.studentProfile.niveau] ||
+          locals.studentProfile.niveau
         : '',
-      xp: locals.student.xp || 0,
+      xp: locals.studentProfile.xp || 0,
       hours: participations.length * 3,
       eventsAttended: participations.length,
       subjectsCompleted: subjectMap.size,
-      level: locals.student.level || 'Novice',
+      level: locals.studentProfile.level || 'Novice',
       topThemes,
       subjects,
       todayDate: formatDateFr(new Date()),
-      images: portfolio.items.map(
-        (item) =>
-          `${pbUrl}/api/files/${item.collectionId}/${item.id}/${item.file}`,
-      ),
+      // TODO: implement S3 file storage
+      images: [] as string[],
     };
 
     // 8. Generate PDF Buffer via Puppeteer
     const pdfBytes = await generateCertificatePDF(data);
 
     // 9. Sanitize filename
-    const safeFirstName = locals.student.prenom.replace(/[^a-zA-Z0-9]/g, '');
-    const safeLastName = locals.student.nom.replace(/[^a-zA-Z0-9]/g, '');
+    const safeFirstName = locals.studentProfile.prenom.replace(
+      /[^a-zA-Z0-9]/g,
+      '',
+    );
+    const safeLastName = locals.studentProfile.nom.replace(
+      /[^a-zA-Z0-9]/g,
+      '',
+    );
 
     return new Response(new Blob([pdfBytes], { type: 'application/pdf' }), {
       status: 200,
@@ -124,6 +130,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     if (typeof err === 'object' && err !== null && 'status' in err) {
       throw err;
     }
-    throw error(500, "Erreur lors de la génération de l'attestation.");
+    throw error(500, "Erreur lors de la generation de l'attestation.");
   }
 };
+

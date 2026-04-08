@@ -1,36 +1,66 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { tallyTopThemes, type ThemeExpandedParticipation } from '$lib/utils';
+import { prisma } from '$lib/server/db';
+import { tallyTopThemes } from '$lib/utils';
 
-export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
+export const load: PageServerLoad = async ({ params, setHeaders }) => {
   try {
-    // We use `systemPb` to bypass client authentication rules for this public endpoint.
-    // We explicitly filter down the returned fields to ensure absolutely NO PII is leaked.
-    const student = await locals.systemPb
-      .collection('students')
-      .getOne(params.id, {
-        fields: 'id,prenom,nom,niveau,xp,level,badges,events_count',
-      });
+    // Prisma always has full DB access server-side — no systemPb needed.
+    // We explicitly select only safe fields to ensure NO PII is leaked.
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: params.id },
+      select: {
+        id: true,
+        prenom: true,
+        nom: true,
+        niveau: true,
+        xp: true,
+        level: true,
+        badges: true,
+        eventsCount: true,
+      },
+    });
+
+    if (!student) {
+      throw error(404, 'Profil introuvable');
+    }
 
     setHeaders({ 'Cache-Control': 'public, s-maxage=300, max-age=60' });
 
-    const portfolioItems = await locals.systemPb
-      .collection('portfolio_items')
-      .getFullList({
-        filter: `student = "${student.id}"`,
-        fields: 'id,collectionId,file,url,caption,expand.event.titre',
-        sort: '-created',
-        expand: 'event',
-      });
+    const portfolioItems = await prisma.portfolioItem.findMany({
+      where: { studentProfileId: student.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        file: true,
+        url: true,
+        caption: true,
+        event: {
+          select: { titre: true },
+        },
+      },
+    });
 
     // Fetch completed participations to build the RPG Skill Radar
-    const allCompleted = await locals.systemPb
-      .collection('participations')
-      .getFullList<ThemeExpandedParticipation>({
-        filter: `student = "${student.id}" && is_present = true`,
-        expand: 'subjects.themes',
-        fields: 'id,expand.subjects.expand.themes.nom',
-      });
+    const allCompleted = await prisma.participation.findMany({
+      where: {
+        studentProfileId: student.id,
+        isPresent: true,
+      },
+      include: {
+        subjects: {
+          include: {
+            subject: {
+              include: {
+                subjectThemes: {
+                  include: { theme: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
 
     const topThemes = tallyTopThemes(allCompleted, 5);
 
@@ -45,20 +75,24 @@ export const load: PageServerLoad = async ({ params, locals, setHeaders }) => {
         xp: student.xp,
         level: student.level,
         badges: student.badges,
-        events_count: student.events_count,
+        eventsCount: student.eventsCount,
       },
-      portfolioItems: portfolioItems.map((item: any) => ({
+      portfolioItems: portfolioItems.map((item) => ({
         id: item.id,
-        collectionId: item.collectionId,
+        // TODO: implement S3 file storage
         file: item.file,
         url: item.url,
         caption: item.caption,
-        eventName: item.expand?.event?.titre || 'TekCamp',
+        eventName: item.event?.titre || 'TekCamp',
       })),
       topThemes,
     };
   } catch (err) {
     console.error('Public showcase fetch error:', err);
+    if (typeof err === 'object' && err !== null && 'status' in err) {
+      throw err;
+    }
     throw error(404, 'Profil introuvable');
   }
 };
+

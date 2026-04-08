@@ -7,8 +7,19 @@
     AlertTitle,
   } from '$lib/components/ui/alert';
   import { CircleAlert, Terminal, Lock } from '@lucide/svelte';
+  import { authClient } from '$lib/auth-client';
+  import { resolve } from '$app/paths';
 
   let { data } = $props();
+  let isLoading = $state(false);
+
+  async function handleMicrosoftLogin() {
+    isLoading = true;
+    await authClient.signIn.social({
+      provider: 'microsoft',
+      callbackURL: resolve('/oauth/callback'),
+    });
+  }
 </script>
 
 <!-- Outer Container with Custom Background Class -->
@@ -71,29 +82,28 @@
           </Alert>
         {/if}
 
-        <!-- Login Form -->
-        <form action="?/oauth2" method="POST">
-          <Button
-            type="submit"
-            variant="outline"
-            size="lg"
-            class="relative h-12 w-full gap-3 border-input bg-background font-bold transition-all hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue"
+        <!-- Login Button -->
+        <Button
+          onclick={handleMicrosoftLogin}
+          disabled={isLoading}
+          variant="outline"
+          size="lg"
+          class="relative h-12 w-full gap-3 border-input bg-background font-bold transition-all hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue"
+        >
+          <!-- Microsoft Icon (Small) -->
+          <svg
+            viewBox="0 0 23 23"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5"
           >
-            <!-- Microsoft Icon (Small) -->
-            <svg
-              viewBox="0 0 23 23"
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
-            >
-              <path fill="#f3f3f3" d="M0 0h23v23H0z" />
-              <path fill="#f35325" d="M1 1h10v10H1z" />
-              <path fill="#81bc06" d="M12 1h10v10H12z" />
-              <path fill="#05a6f0" d="M1 12h10v10H1z" />
-              <path fill="#ffba08" d="M12 12h10v10H12z" />
-            </svg>
-            Se connecter avec Office 365
-          </Button>
-        </form>
+            <path fill="#f3f3f3" d="M0 0h23v23H0z" />
+            <path fill="#f35325" d="M1 1h10v10H1z" />
+            <path fill="#81bc06" d="M12 1h10v10H12z" />
+            <path fill="#05a6f0" d="M1 12h10v10H1z" />
+            <path fill="#ffba08" d="M12 12h10v10H12z" />
+          </svg>
+          {isLoading ? 'Redirection...' : 'Se connecter avec Office 365'}
+        </Button>
 
         <div class="relative">
           <div class="absolute inset-0 flex items-center">

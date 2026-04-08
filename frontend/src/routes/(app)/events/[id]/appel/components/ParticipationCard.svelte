@@ -37,7 +37,7 @@
   }: {
     participation: any;
     event: any;
-    optimisticToggle: (id: string, field: 'is_present' | 'bring_pc') => any;
+    optimisticToggle: (id: string, field: 'isPresent' | 'bringPc') => any;
     onDownload?: () => void;
     index?: number;
     progress?: any[];
@@ -49,18 +49,18 @@
   }
 
   function handleDownloadClick() {
-    if (!participation.is_present) {
+    if (!participation.isPresent) {
       toast.error("L'élève doit être présent pour recevoir un diplôme.");
       return;
     }
     if (onDownload) onDownload();
   }
 
-  let subjects = $derived(participation.expand?.subjects || []);
+  let subjects = $derived(participation.subjects?.map((ps: any) => ps.subject) || []);
 
   let isNewStudent = $derived.by(() => {
-    const count = participation.expand?.student?.events_count || 0;
-    const isPresent = participation.is_present ? 1 : 0;
+    const count = participation.studentProfile?.eventsCount || 0;
+    const isPresent = participation.isPresent ? 1 : 0;
     return count - isPresent === 0;
   });
 
@@ -73,15 +73,15 @@
 
   let helpSubject = $derived(
     needsHelpProgress
-      ? participation.expand?.subjects?.find(
-          (s: any) => s.id === needsHelpProgress.subject,
+      ? subjects?.find(
+          (s: any) => s.id === needsHelpProgress.subjectId,
         )
       : null,
   );
   let helpStep = $derived(
     helpSubject
-      ? helpSubject.content_structure?.steps?.find(
-          (s: any) => s.id === needsHelpProgress.current_step_id,
+      ? helpSubject.contentStructure?.steps?.find(
+          (s: any) => s.id === needsHelpProgress.currentStepId,
         )
       : null,
   );
@@ -97,7 +97,7 @@
       'overflow-hidden border-2 shadow-sm transition-all duration-300',
       needsHelpProgress
         ? 'border-epi-orange bg-orange-50/10 ring-4 ring-epi-orange/20 dark:bg-orange-950/10'
-        : participation.is_present
+        : participation.isPresent
           ? 'border-epi-teal bg-card'
           : 'border-transparent opacity-80',
     )}
@@ -168,7 +168,7 @@
       <div class="flex w-full items-center justify-between">
         <div class="flex flex-1 items-center gap-4">
           <a
-            href={resolve(`/students/${participation.expand?.student?.id}`)}
+            href={resolve(`/students/${participation.studentProfile?.id}`)}
             class="relative block transition-transform hover:scale-105"
             tabindex="-1"
             aria-hidden="true"
@@ -178,7 +178,7 @@
                 'h-12 w-12 rounded-full border-2',
                 needsHelpProgress
                   ? 'border-epi-orange'
-                  : participation.is_present
+                  : participation.isPresent
                     ? participation.delay > 0
                       ? 'border-orange-300'
                       : 'border-epi-teal'
@@ -186,13 +186,13 @@
               )}
             >
               <Avatar.Fallback class="bg-muted font-bold">
-                {(participation.expand?.student?.nom?.[0] ?? '').toUpperCase()}
+                {(participation.studentProfile?.nom?.[0] ?? '').toUpperCase()}
                 {(
-                  participation.expand?.student?.prenom?.[0] ?? ''
+                  participation.studentProfile?.prenom?.[0] ?? ''
                 ).toUpperCase()}
               </Avatar.Fallback>
             </Avatar.Root>
-            {#if participation.is_present}
+            {#if participation.isPresent}
               <div
                 class={cn(
                   'absolute -right-1 -bottom-1 rounded-full p-0.5 ring-2 ring-card',
@@ -216,13 +216,13 @@
           <div class="flex flex-col items-start gap-1">
             <div class="flex items-center gap-2">
               <a
-                href={resolve(`/students/${participation.expand?.student?.id}`)}
+                href={resolve(`/students/${participation.studentProfile?.id}`)}
                 class="text-base leading-none font-bold transition-colors hover:text-epi-blue"
               >
                 <span class="uppercase"
-                  >{participation.expand?.student?.nom}</span
+                  >{participation.studentProfile?.nom}</span
                 >
-                {formatFirstName(participation.expand?.student?.prenom)}
+                {formatFirstName(participation.studentProfile?.prenom)}
               </a>
               {#if isNewStudent}
                 <Badge
@@ -237,21 +237,21 @@
               <span
                 class="text-xs font-bold tracking-wider text-muted-foreground uppercase"
               >
-                {participation.expand?.student?.niveau}
+                {participation.studentProfile?.niveau}
               </span>
               <form
                 method="POST"
                 action="?/toggleBringPc"
-                use:enhance={optimisticToggle(participation.id, 'bring_pc')}
+                use:enhance={optimisticToggle(participation.id, 'bringPc')}
                 class="inline"
               >
                 <input type="hidden" name="id" value={participation.id} />
                 <input
                   type="hidden"
                   name="state"
-                  value={participation.bring_pc.toString()}
+                  value={participation.bringPc.toString()}
                 />
-                <BringPcBadge bringPc={participation.bring_pc} />
+                <BringPcBadge bringPc={participation.bringPc} />
               </form>
 
               {#if participation.delay > 0}
@@ -269,7 +269,7 @@
 
         <div class="flex items-center gap-2">
           <Tooltip.Provider delayDuration={300}>
-            {#if participation.is_present}
+            {#if participation.isPresent}
               <Tooltip.Root>
                 <Tooltip.Trigger>
                   {#snippet child({ props })}
@@ -386,13 +386,13 @@
             <form
               method="POST"
               action="?/togglePresent"
-              use:enhance={optimisticToggle(participation.id, 'is_present')}
+              use:enhance={optimisticToggle(participation.id, 'isPresent')}
             >
               <input type="hidden" name="id" value={participation.id} />
               <input
                 type="hidden"
                 name="state"
-                value={participation.is_present.toString()}
+                value={participation.isPresent.toString()}
               />
               <Tooltip.Root>
                 <Tooltip.Trigger>
@@ -400,9 +400,9 @@
                     <Button
                       {...props}
                       type="submit"
-                      variant={participation.is_present ? 'default' : 'outline'}
+                      variant={participation.isPresent ? 'default' : 'outline'}
                       size="icon"
-                      class="h-12 w-12 rounded-sm transition-all {participation.is_present
+                      class="h-12 w-12 rounded-sm transition-all {participation.isPresent
                         ? participation.delay > 0
                           ? 'bg-orange-100 text-orange-800 hover:bg-orange-200'
                           : 'bg-epi-teal text-black hover:bg-epi-teal/90'
@@ -414,7 +414,7 @@
                 </Tooltip.Trigger>
                 <Tooltip.Content>
                   <p>
-                    {participation.is_present
+                    {participation.isPresent
                       ? 'Marquer absent'
                       : 'Marquer présent'}
                   </p>
@@ -470,10 +470,10 @@
         {/each}
       </div>
 
-      {#if participation.is_present}
+      {#if participation.isPresent}
         <div class="flex flex-col gap-2 border-t border-border pt-2">
           <!-- Camper Feedback Area -->
-          {#if participation.camper_rating}
+          {#if participation.camperRating}
             <div
               class="flex items-start gap-2 rounded-sm bg-slate-50 p-2 dark:bg-slate-900/50"
             >
@@ -485,26 +485,26 @@
                   <span class="text-[9px] text-slate-500 uppercase"
                     >Retour campeur :</span
                   >
-                  {#if participation.camper_rating === 1}
+                  {#if participation.camperRating === 1}
                     <span
                       class="flex items-center gap-1 text-red-600 dark:text-red-400"
                       >🤯 Difficile</span
                     >
-                  {:else if participation.camper_rating === 2}
+                  {:else if participation.camperRating === 2}
                     <span
                       class="flex items-center gap-1 text-blue-600 dark:text-blue-400"
                       >💪 Moyen</span
                     >
-                  {:else if participation.camper_rating === 3}
+                  {:else if participation.camperRating === 3}
                     <span
                       class="flex items-center gap-1 text-teal-600 dark:text-teal-400"
                       >🚀 Facile</span
                     >
                   {/if}
                 </div>
-                {#if participation.camper_feedback}
+                {#if participation.camperFeedback}
                   <p class="text-xs text-slate-600 italic dark:text-slate-400">
-                    "{participation.camper_feedback}"
+                    "{participation.camperFeedback}"
                   </p>
                 {/if}
               </div>

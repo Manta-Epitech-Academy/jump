@@ -12,7 +12,6 @@
   import { toast } from 'svelte-sonner';
 
   import type { PageData } from './$types';
-  import type { ThemesResponse } from '$lib/pocketbase-types';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import SubjectPicker from './components/SubjectPicker.svelte';
   import { resolve } from '$app/paths';
@@ -96,7 +95,7 @@
     pickerParticipationId = participationId;
     pickerSelectedIds = currentSubjectIds;
     const p = data.participations.find((x) => x.id === participationId);
-    pickerStudentLevel = p?.expand?.student?.niveau_difficulte || null;
+    pickerStudentLevel = p?.studentProfile?.niveauDifficulte || null;
     pickerOpen = true;
   }
 
@@ -167,12 +166,11 @@
               })}</span
             >
           </div>
-          {#if (data.event as { expand?: { theme?: ThemesResponse } }).expand?.theme}
+          {#if data.event.theme}
             <div class="flex items-center gap-1">
               <Tag class="h-3 w-3 text-teal-700" />
               <span class="text-teal-800"
-                >{(data.event as { expand?: { theme?: ThemesResponse } }).expand
-                  ?.theme?.nom}</span
+                >{data.event.theme?.nom}</span
               >
             </div>
           {/if}
@@ -260,7 +258,7 @@
   themes={data.themes}
   selectedSubjectIds={pickerSelectedIds}
   studentLevel={pickerStudentLevel}
-  defaultThemeId={data.event.theme}
+  defaultThemeId={data.event.theme?.id ?? null}
   onSave={handleSubjectsSaved}
 />
 
@@ -271,7 +269,7 @@
   themes={data.themes}
   selectedSubjectIds={[]}
   studentLevel={null}
-  defaultThemeId={data.event.theme}
+  defaultThemeId={data.event.theme?.id ?? null}
   onSave={handleBulkSubjectsSaved}
 />
 

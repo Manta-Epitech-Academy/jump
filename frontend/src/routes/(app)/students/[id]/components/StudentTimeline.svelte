@@ -16,23 +16,9 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import { formatDateFr, cn } from '$lib/utils';
-  import { pbUrl } from '$lib/pocketbase';
   import { resolve } from '$app/paths';
-  import type {
-    ParticipationsResponse,
-    EventsResponse,
-    SubjectsResponse,
-    ThemesResponse,
-    UsersResponse,
-  } from '$lib/pocketbase-types';
 
-  type TimelineParticipation = ParticipationsResponse<{
-    event?: EventsResponse<{ mantas?: UsersResponse[] }>;
-    subjects?: SubjectsResponse<unknown, { themes?: ThemesResponse[] }>[];
-    note_author?: UsersResponse;
-  }>;
-
-  let { participations }: { participations: TimelineParticipation[] } =
+  let { participations }: { participations: any[] } =
     $props();
 </script>
 
@@ -40,10 +26,10 @@
   class="relative space-y-4 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:-translate-x-px before:bg-linear-to-b before:from-transparent before:via-slate-300 before:to-transparent md:before:mx-auto md:before:translate-x-0"
 >
   {#each participations as p (p.id)}
-    {@const eventDate = new Date(p.expand?.event?.date ?? '')}
+    {@const eventDate = new Date(p.event?.date ?? '')}
     {@const now = new Date()}
     {@const isUpcoming = eventDate > now}
-    {@const isPresent = p.is_present}
+    {@const isPresent = p.isPresent}
     {@const isLate = isPresent && (p.delay || 0) > 0}
 
     <div
@@ -78,7 +64,7 @@
                 <Badge
                   variant="outline"
                   class="h-5 px-1.5 text-[10px] font-normal"
-                  >{formatDateFr(p.expand?.event?.date)}</Badge
+                  >{formatDateFr(p.event?.date)}</Badge
                 >
                 {#if isPresent}
                   <Badge
@@ -111,35 +97,37 @@
               <Card.Title
                 class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue"
               >
-                {#if p.expand?.event?.id}<a
-                    href={resolve(`/events/${p.expand.event.id}/builder`)}
-                    >{p.expand.event.titre}</a
+                {#if p.event?.id}<a
+                    href={resolve(`/events/${p.event.id}/builder`)}
+                    >{p.event.titre}</a
                   >{:else}Événement inconnu{/if}
               </Card.Title>
             </div>
 
-            {#if p.expand?.event?.expand?.mantas && p.expand.event.expand.mantas.length > 0}
+            {#if p.event?.mantas && p.event.mantas.length > 0}
               <div class="flex justify-end -space-x-2">
-                {#each p.expand.event.expand.mantas as manta}
+                {#each p.event.mantas as manta}
+                  {@const staff = manta.staffProfile}
                   <Tooltip.Provider delayDuration={0}>
                     <Tooltip.Root>
                       <Tooltip.Trigger>
                         <Avatar.Root
                           class="relative h-6 w-6 border-2 border-card hover:z-10"
                         >
-                          {#if manta.avatar}<Avatar.Image
-                              src={`${pbUrl}/api/files/${manta.collectionId}/${manta.id}/${manta.avatar}?thumb=100x100`}
-                              alt={manta.name}
+                          <!-- TODO: implement S3 file storage -->
+                          {#if staff?.avatar}<Avatar.Image
+                              src={''}
+                              alt={staff?.user?.name}
                             />{/if}
                           <Avatar.Fallback
                             class="bg-muted text-[8px] font-bold text-foreground"
-                            >{(manta.name || 'ST')
+                            >{(staff?.user?.name || 'ST')
                               .substring(0, 2)
                               .toUpperCase()}</Avatar.Fallback
                           >
                         </Avatar.Root>
                       </Tooltip.Trigger>
-                      <Tooltip.Content><p>{manta.name}</p></Tooltip.Content>
+                      <Tooltip.Content><p>{staff?.user?.name}</p></Tooltip.Content>
                     </Tooltip.Root>
                   </Tooltip.Provider>
                 {/each}
@@ -148,9 +136,10 @@
           </div>
         </Card.Header>
         <Card.Content class="space-y-3 p-4 pt-2">
-          {#if p.expand?.subjects && p.expand.subjects.length > 0}
+          {#if p.subjects && p.subjects.length > 0}
             <div class="flex flex-col gap-2">
-              {#each p.expand.subjects as subject}
+              {#each p.subjects as ps}
+                {@const subject = ps.subject}
                 <div
                   class="flex items-start justify-between gap-2 rounded-sm bg-muted/50 p-2"
                 >
@@ -168,12 +157,12 @@
                             >{subject.nom}</a
                           >{:else}{subject.nom}{/if}
                       </p>
-                      {#if subject.expand?.themes}
+                      {#if subject.subjectThemes}
                         <div class="mt-1 flex flex-wrap gap-1">
-                          {#each subject.expand.themes as theme}
+                          {#each subject.subjectThemes as st}
                             <span
                               class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
-                              >#{theme.nom}</span
+                              >#{st.theme.nom}</span
                             >
                           {/each}
                         </div>
@@ -208,7 +197,7 @@
           {/if}
 
           <!-- CAMPER FEEDBACK (COMMENT BUBBLE STYLE) -->
-          {#if p.camper_rating}
+          {#if p.camperRating}
             <div class="flex items-start gap-3 pt-2">
               <div
                 class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
@@ -221,19 +210,19 @@
                     Ressenti de l'élève :
                   </span>
                   <div class="flex items-center gap-1">
-                    {#if p.camper_rating === 1}
+                    {#if p.camperRating === 1}
                       <span class="text-sm leading-none">🤯</span>
                       <span
                         class="text-xs font-bold text-red-600 dark:text-red-400"
                         >Difficile</span
                       >
-                    {:else if p.camper_rating === 2}
+                    {:else if p.camperRating === 2}
                       <span class="text-sm leading-none">💪</span>
                       <span
                         class="text-xs font-bold text-blue-600 dark:text-blue-400"
                         >Moyen</span
                       >
-                    {:else if p.camper_rating === 3}
+                    {:else if p.camperRating === 3}
                       <span class="text-sm leading-none">🚀</span>
                       <span
                         class="text-xs font-bold text-teal-600 dark:text-teal-400"
@@ -242,11 +231,11 @@
                     {/if}
                   </div>
                 </div>
-                {#if p.camper_feedback}
+                {#if p.camperFeedback}
                   <p
                     class="mt-1 text-sm text-slate-600 italic dark:text-slate-300"
                   >
-                    « {p.camper_feedback} »
+                    « {p.camperFeedback} »
                   </p>
                 {/if}
               </div>
@@ -262,27 +251,28 @@
                 class="absolute -top-2 -right-2 h-6 w-6 fill-yellow-100 text-yellow-400 dark:fill-yellow-900/40"
               />
               <div class="mb-1.5 flex items-center gap-2">
-                {#if p.expand?.note_author}
+                {#if p.noteAuthor}
                   <Tooltip.Provider delayDuration={300}>
                     <Tooltip.Root>
                       <Tooltip.Trigger>
                         <Avatar.Root
                           class="h-5 w-5 border border-yellow-300 shadow-xs"
                         >
-                          {#if p.expand.note_author.avatar}<Avatar.Image
-                              src={`${pbUrl}/api/files/${p.expand.note_author.collectionId}/${p.expand.note_author.id}/${p.expand.note_author.avatar}?thumb=100x100`}
-                              alt={p.expand.note_author.name}
+                          <!-- TODO: implement S3 file storage -->
+                          {#if p.noteAuthor.avatar}<Avatar.Image
+                              src={''}
+                              alt={p.noteAuthor.user?.name}
                             />{/if}
                           <Avatar.Fallback
                             class="bg-yellow-200 text-[8px] font-bold text-yellow-800"
-                            >{(p.expand.note_author.name || 'ST')
+                            >{(p.noteAuthor.user?.name || 'ST')
                               .substring(0, 2)
                               .toUpperCase()}</Avatar.Fallback
                           >
                         </Avatar.Root>
                       </Tooltip.Trigger>
                       <Tooltip.Content
-                        ><p>{p.expand.note_author.name}</p></Tooltip.Content
+                        ><p>{p.noteAuthor.user?.name}</p></Tooltip.Content
                       >
                     </Tooltip.Root>
                   </Tooltip.Provider>
@@ -293,7 +283,7 @@
               </div>
               <p class="leading-relaxed italic">« {p.note} »</p>
             </div>
-          {:else if p.is_present}
+          {:else if p.isPresent}
             <p class="pt-1 pl-1 text-xs text-muted-foreground italic">
               Aucune observation enregistrée.
             </p>

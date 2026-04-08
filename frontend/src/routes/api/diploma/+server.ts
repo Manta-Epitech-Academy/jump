@@ -2,22 +2,11 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateDiplomaPDF } from '$lib/server/services/diplomaGenerator';
 import { formatDateFr } from '$lib/utils';
-import type {
-  EventsResponse,
-  ParticipationsResponse,
-  StudentsResponse,
-  SubjectsResponse,
-} from '$lib/pocketbase-types';
-
-type ParticipationExpand = {
-  student: StudentsResponse;
-  event: EventsResponse;
-  subjects: SubjectsResponse[];
-};
+import { prisma } from '$lib/server/db';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (!locals.user) {
-    throw error(401, 'Non autorisé');
+  if (!locals.user || (locals.user.role !== 'staff' && locals.user.role !== 'admin')) {
+    throw error(401, 'Non autorise');
   }
 
   const participationId = url.searchParams.get('participationId');
@@ -27,19 +16,28 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   }
 
   try {
-    // 1. Fetch data from PocketBase
-    const participation = await locals.pb
-      .collection('participations')
-      .getOne<ParticipationsResponse<ParticipationExpand>>(participationId, {
-        expand: 'student,event,subjects',
-      });
+    // 1. Fetch data from Prisma
+    const participation = await prisma.participation.findUnique({
+      where: { id: participationId },
+      include: {
+        studentProfile: true,
+        event: true,
+        subjects: {
+          include: { subject: true },
+        },
+      },
+    });
 
-    const student = participation.expand?.student;
-    const event = participation.expand?.event;
-    const subject = participation.expand?.subjects?.[0];
+    if (!participation) {
+      throw error(404, 'Participation introuvable.');
+    }
+
+    const student = participation.studentProfile;
+    const event = participation.event;
+    const subject = participation.subjects[0]?.subject;
 
     if (!student || !event) {
-      throw error(400, 'Données incomplètes pour générer le diplôme.');
+      throw error(400, 'Donnees incompletes pour generer le diplome.');
     }
 
     // 2. Prepare data for EJS template
@@ -66,6 +64,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     });
   } catch (err: unknown) {
     console.error('Erreur API Diploma :', err);
-    throw error(500, 'Erreur lors de la génération du PDF.');
+    if (typeof err === 'object' && err !== null && 'status' in err) {
+      throw err;
+    }
+    throw error(500, 'Erreur lors de la generation du PDF.');
   }
 };

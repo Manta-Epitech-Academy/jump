@@ -4,24 +4,23 @@ import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { adminLoginSchema } from '$lib/validation/auth';
+import { auth } from '$lib/server/auth';
+import { forwardAuthCookies } from '$lib/server/auth/cookies';
+import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const adminPb = locals.adminPb;
-
   // If already authenticated as an Admin
-  if (adminPb?.authStore.isValid) {
+  if (locals.user?.role === 'admin') {
     throw redirect(303, resolve('/admin'));
   }
 
   const form = await superValidate(zod4(adminLoginSchema));
 
-  return {
-    form,
-  };
+  return { form };
 };
 
 export const actions: Actions = {
-  default: async ({ request, locals }) => {
+  default: async ({ request, cookies }) => {
     const form = await superValidate(request, zod4(adminLoginSchema));
 
     if (!form.valid) {
@@ -29,19 +28,43 @@ export const actions: Actions = {
     }
 
     try {
-      // Authenticate against the PocketBase system collection dedicated to admins
-      await locals.pb
-        .collection('_superusers')
-        .authWithPassword(form.data.email, form.data.password);
+      const response = await auth.api.signInEmail({
+        body: {
+          email: form.data.email,
+          password: form.data.password,
+        },
+        asResponse: true,
+        headers: request.headers,
+      });
+
+      forwardAuthCookies(response, cookies);
+
+      if (!response.ok) {
+        return message(form, 'Identifiants invalides ou accès refusé.', {
+          status: 400,
+        });
+      }
+
+      // Verify the authenticated user actually has the admin role
+      const user = await prisma.user.findUnique({
+        where: { email: form.data.email },
+        select: { role: true },
+      });
+
+      if (user?.role !== 'admin') {
+        cookies.delete('better-auth.session_token', { path: '/' });
+        cookies.delete('better-auth.session_data', { path: '/' });
+        return message(form, 'Identifiants invalides ou accès refusé.', {
+          status: 400,
+        });
+      }
     } catch (err) {
       console.error('Admin login error:', err);
-      // Do not provide specific error details (wrong email or password) for security reasons
       return message(form, 'Identifiants invalides ou accès refusé.', {
         status: 400,
       });
     }
 
-    // Redirect to the admin dashboard on successful login
     throw redirect(303, resolve('/admin'));
   },
 };
