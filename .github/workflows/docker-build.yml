@@ -26,7 +26,7 @@ jobs:
             main)    echo "tag=latest"  >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
             staging) echo "tag=staging" >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
             dev)     echo "tag=dev"     >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
-            *)       echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "tag=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> "$GITHUB_OUTPUT" ;;
           esac
           echo "push=$SHOULD_PUSH" >> "$GITHUB_OUTPUT"
 
