@@ -7,12 +7,12 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 WORKDIR /app
 
 # Install dependencies
-COPY frontend/package.json frontend/bun.lock ./
-COPY frontend/prisma ./prisma
+COPY package.json bun.lock ./
+COPY prisma ./prisma
 RUN bun install --frozen-lockfile
 
 # Copy source and build
-COPY frontend/ .
+COPY . .
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bunx prisma generate
 RUN bun run build
 
