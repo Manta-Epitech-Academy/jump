@@ -2,7 +2,8 @@ import {
   getCachedSubject,
   setCachedSubject,
 } from '$lib/server/infra/subjectCache';
-import type { TypedPocketBase, SubjectsResponse } from '$lib/pocketbase-types';
+import { prisma } from '$lib/server/db';
+import type { Subject } from '@prisma/client';
 
 export type StepValidation = {
   type: 'auto_qcm' | 'manual_manta';
@@ -34,31 +35,23 @@ export class ValidationError extends Error {
 }
 
 export const ProgressService = {
-  /**
-   * Validates a step (QCM or Manta PIN) and advances the student's progress boundaries.
-   * Throws ValidationError for user-facing errors (wrong answer, bad PIN).
-   * Throws regular Error for unexpected server failures.
-   */
   async validateStep(
-    studentPb: TypedPocketBase,
-    systemPb: TypedPocketBase,
-    studentId: string,
+    studentProfileId: string,
     subjectId: string,
     stepId: string,
     progressId: string,
     answerIndexStr: string | null,
     pinInput: string | null,
   ) {
-    let subject =
-      getCachedSubject<SubjectsResponse<SubjectStructure>>(subjectId);
+    let subject = getCachedSubject<Subject & { contentStructure: SubjectStructure }>(subjectId);
     if (!subject) {
-      subject = await studentPb.collection('subjects').getOne(subjectId);
+      subject = await prisma.subject.findUniqueOrThrow({
+        where: { id: subjectId },
+      }) as Subject & { contentStructure: SubjectStructure };
       setCachedSubject(subjectId, subject);
     }
 
-    const content = (subject.content_structure ?? {
-      steps: [],
-    }) as SubjectStructure;
+    const content = (subject.contentStructure ?? { steps: [] }) as SubjectStructure;
     const steps = content.steps || [];
 
     const stepIndex = steps.findIndex((s) => s.id === stepId);
@@ -81,22 +74,23 @@ export const ProgressService = {
     if (step.validation?.type === 'manual_manta') {
       if (!pinInput) throw new ValidationError('Code PIN requis.');
 
-      // Fetch participation to find the event
-      const participations = await studentPb
-        .collection('participations')
-        .getFullList({
-          filter: `student = "${studentId}" && subjects ~ "${subjectId}"`,
-          sort: '-created',
-        });
+      // Find the event via participation
+      const participation = await prisma.participation.findFirst({
+        where: {
+          studentProfileId,
+          subjects: { some: { subjectId } },
+        },
+        select: { eventId: true },
+        orderBy: { createdAt: 'desc' },
+      });
 
-      if (participations.length === 0) {
+      if (!participation) {
         throw new ValidationError("Tu n'es pas assigné à ce sujet.");
       }
 
-      // Use systemPb (admin) to read the PIN safely
-      const event = await systemPb
-        .collection('events')
-        .getOne(participations[0].event);
+      const event = await prisma.event.findUniqueOrThrow({
+        where: { id: participation.eventId },
+      });
 
       if (!event.pin || pinInput !== event.pin) {
         throw new ValidationError('Code PIN incorrect.');
@@ -104,16 +98,18 @@ export const ProgressService = {
     }
 
     // 3. Advance Progress Boundary
-    const progress = await studentPb
-      .collection('steps_progress')
-      .getOne(progressId);
+    const progress = await prisma.stepsProgress.findUniqueOrThrow({
+      where: { id: progressId },
+    });
+    if (progress.studentProfileId !== studentProfileId) {
+      throw new ValidationError('Accès refusé.');
+    }
     const isLastStep = stepIndex === steps.length - 1;
     const nextStepId = !isLastStep ? steps[stepIndex + 1].id : 'COMPLETED';
 
-    let newUnlockedId = progress.unlocked_step_id;
+    let newUnlockedId = progress.unlockedStepId;
     const currentUnlockedIndex = steps.findIndex((s) => s.id === newUnlockedId);
 
-    // Only advance if completing their furthest step
     if (
       newUnlockedId !== 'COMPLETED' &&
       (isLastStep || stepIndex >= currentUnlockedIndex)
@@ -121,11 +117,14 @@ export const ProgressService = {
       newUnlockedId = nextStepId;
     }
 
-    await studentPb.collection('steps_progress').update(progressId, {
-      current_step_id: nextStepId === 'COMPLETED' ? stepId : nextStepId,
-      unlocked_step_id: newUnlockedId,
-      status: nextStepId === 'COMPLETED' ? 'completed' : 'active',
-      last_unlock_source: 'student',
+    await prisma.stepsProgress.update({
+      where: { id: progressId },
+      data: {
+        currentStepId: nextStepId === 'COMPLETED' ? stepId : nextStepId,
+        unlockedStepId: newUnlockedId,
+        status: nextStepId === 'COMPLETED' ? 'completed' : 'active',
+        lastUnlockSource: 'student',
+      },
     });
   },
 };

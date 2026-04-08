@@ -5,8 +5,6 @@
   import { Button } from '$lib/components/ui/button';
   import { Check, Users, X } from '@lucide/svelte';
   import * as Avatar from '$lib/components/ui/avatar';
-  import { pbUrl } from '$lib/pocketbase';
-
   let {
     staff = [],
     value = $bindable([]),
@@ -34,9 +32,8 @@
   }
 
   function getAvatarUrl(user: any) {
-    return user.avatar
-      ? `${pbUrl}/api/files/${user.collectionId}/${user.id}/${user.avatar}?thumb=100x100`
-      : undefined;
+    // TODO: implement S3 file storage
+    return undefined;
   }
 
   function getInitials(name: string) {
@@ -72,10 +69,10 @@
                   <Avatar.Root class="h-4 w-4">
                     <Avatar.Image src={getAvatarUrl(person)} />
                     <Avatar.Fallback class="bg-background text-[8px]"
-                      >{getInitials(person.name)}</Avatar.Fallback
+                      >{getInitials(person.user.name)}</Avatar.Fallback
                     >
                   </Avatar.Root>
-                  {person.name}
+                  {person.user.name}
                   <button
                     class="ml-1 rounded-full ring-offset-background hover:bg-black/10 focus:ring-2 focus:ring-ring focus:outline-none dark:hover:bg-white/10"
                     onclick={(e) => {
@@ -105,7 +102,7 @@
           <Command.Group heading="Équipe du campus">
             {#each staff as person}
               <Command.Item
-                value={person.name}
+                value={person.user.name}
                 onSelect={() => toggleStaff(person.id)}
               >
                 <div class="mr-2 flex items-center justify-center">
@@ -120,10 +117,10 @@
                   <Avatar.Fallback
                     class="bg-muted text-[10px] font-bold text-foreground"
                   >
-                    {getInitials(person.name)}
+                    {getInitials(person.user.name)}
                   </Avatar.Fallback>
                 </Avatar.Root>
-                <span>{person.name}</span>
+                <span>{person.user.name}</span>
               </Command.Item>
             {/each}
           </Command.Group>

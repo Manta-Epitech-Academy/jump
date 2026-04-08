@@ -1,33 +1,33 @@
 import type { PageServerLoad } from './$types';
-import type { CampusesResponse } from '$lib/pocketbase-types';
+import { prisma } from '$lib/server/db';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async () => {
   // Retrieve global statistics
-  // Use getList(1, 1) to retrieve totalItems efficiently without loading the actual records
-  const [campuses, users, students, events] = await Promise.all([
-    locals.pb.collection('campuses').getList(1, 1, { requestKey: null }),
-    locals.pb.collection('users').getList(1, 1, { requestKey: null }),
-    locals.pb.collection('students').getList(1, 1, { requestKey: null }),
-    locals.pb.collection('events').getList(1, 5, {
-      sort: '-created',
-      expand: 'campus',
-      requestKey: null,
-    }),
-  ]);
+  const [campusCount, userCount, studentCount, eventCount, recentEvents] =
+    await Promise.all([
+      prisma.campus.count(),
+      prisma.user.count(),
+      prisma.studentProfile.count(),
+      prisma.event.count(),
+      prisma.event.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { campus: true },
+      }),
+    ]);
 
   return {
     stats: {
-      campuses: campuses.totalItems,
-      users: users.totalItems,
-      students: students.totalItems,
-      events: events.totalItems,
+      campuses: campusCount,
+      users: userCount,
+      students: studentCount,
+      events: eventCount,
     },
-    recentEvents: events.items.map((e) => ({
+    recentEvents: recentEvents.map((e) => ({
       id: e.id,
       titre: e.titre,
-      date: new Date(e.date),
-      campus:
-        (e.expand as { campus?: CampusesResponse })?.campus?.name || 'Inconnu',
+      date: e.date,
+      campus: e.campus?.name || 'Inconnu',
     })),
   };
 };

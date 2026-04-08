@@ -3,15 +3,16 @@ import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
+import { prisma } from '$lib/server/db';
 
 const campusSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
 });
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async () => {
   // Fetch all campuses ordered by name
-  const campuses = await locals.pb.collection('campuses').getFullList({
-    sort: 'name',
+  const campuses = await prisma.campus.findMany({
+    orderBy: { name: 'asc' },
   });
 
   const form = await superValidate(zod4(campusSchema));
@@ -21,12 +22,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   // Create a new campus
-  create: async ({ request, locals }) => {
+  create: async ({ request }) => {
     const form = await superValidate(request, zod4(campusSchema));
     if (!form.valid) return fail(400, { form });
 
     try {
-      await locals.pb.collection('campuses').create(form.data);
+      await prisma.campus.create({ data: form.data });
       return message(form, 'Campus créé avec succès.');
     } catch (err) {
       console.error(err);
@@ -37,7 +38,7 @@ export const actions: Actions = {
   },
 
   // Update an existing campus by its ID
-  update: async ({ request, locals }) => {
+  update: async ({ request }) => {
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(campusSchema));
     const id = formData.get('id') as string;
@@ -45,7 +46,7 @@ export const actions: Actions = {
     if (!form.valid || !id) return fail(400, { form });
 
     try {
-      await locals.pb.collection('campuses').update(id, form.data);
+      await prisma.campus.update({ where: { id }, data: form.data });
       return message(form, 'Campus mis à jour.');
     } catch (err) {
       return message(form, 'Erreur lors de la mise à jour.', { status: 500 });
@@ -53,35 +54,25 @@ export const actions: Actions = {
   },
 
   // Delete a campus and prevent deletion if linked to external data
-  delete: async ({ url, locals }) => {
+  delete: async ({ url }) => {
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 
     try {
-      // SECURITY : Checkk if the campus is used before deleting
+      // SECURITY : Check if the campus is used before deleting
       const [studentsUsed, eventsUsed, staffUsed] = await Promise.all([
-        locals.pb
-          .collection('students')
-          .getList(1, 1, { filter: `campus = "${id}"`, requestKey: null }),
-        locals.pb
-          .collection('events')
-          .getList(1, 1, { filter: `campus = "${id}"`, requestKey: null }),
-        locals.pb
-          .collection('users')
-          .getList(1, 1, { filter: `campus = "${id}"`, requestKey: null }),
+        prisma.studentProfile.count({ where: { campusId: id } }),
+        prisma.event.count({ where: { campusId: id } }),
+        prisma.staffProfile.count({ where: { campusId: id } }),
       ]);
 
-      if (
-        studentsUsed.totalItems > 0 ||
-        eventsUsed.totalItems > 0 ||
-        staffUsed.totalItems > 0
-      ) {
+      if (studentsUsed > 0 || eventsUsed > 0 || staffUsed > 0) {
         return fail(400, {
-          message: `Suppression impossible : Ce campus contient ${studentsUsed.totalItems} élèves, ${eventsUsed.totalItems} événements et ${staffUsed.totalItems} membres du staff.`,
+          message: `Suppression impossible : Ce campus contient ${studentsUsed} élèves, ${eventsUsed} événements et ${staffUsed} membres du staff.`,
         });
       }
 
-      await locals.pb.collection('campuses').delete(id);
+      await prisma.campus.delete({ where: { id } });
       return { success: true };
     } catch (err) {
       return fail(500, { message: 'Erreur lors de la suppression.' });

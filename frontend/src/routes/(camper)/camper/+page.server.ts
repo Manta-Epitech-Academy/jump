@@ -1,21 +1,17 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
-import type { ParticipationsResponse } from '$lib/pocketbase-types';
-import {
-  getParisStartOfDay,
-  tallyTopThemes,
-  type ParticipationExpand,
-  type ThemeExpandedParticipation,
-} from '$lib/utils';
+import { prisma } from '$lib/server/db';
+import { getParisStartOfDay, tallyTopThemes } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  // Security guard: Ensure we have a logged-in student
-  if (!locals.student) {
+  if (!locals.studentProfile) {
     throw error(401, 'Non autorisé');
   }
 
   try {
+    const studentId = locals.studentProfile.id;
+
     // Calculate boundaries for "Today" in the user's timezone (Europe/Paris)
     const filterDateStart = getParisStartOfDay();
     const parisNow = now('Europe/Paris');
@@ -25,56 +21,73 @@ export const load: PageServerLoad = async ({ locals }) => {
       second: 59,
       millisecond: 999,
     });
-    const filterDateEnd = endOfDay.toDate().toISOString().replace('T', ' ');
+    const filterDateEnd = endOfDay.toDate();
+    const filterDateStartDate = new Date(filterDateStart);
 
     // Fetch participations for today
-    const participations = await locals.studentPb
-      .collection('participations')
-      .getFullList<ParticipationsResponse<ParticipationExpand>>({
-        filter: `student = "${locals.student.id}" && event.date >= "${filterDateStart}" && event.date <= "${filterDateEnd}"`,
-        expand: 'event,subjects',
-        sort: 'event.date',
-      });
+    const participations = await prisma.participation.findMany({
+      where: {
+        studentProfileId: studentId,
+        event: {
+          date: {
+            gte: filterDateStartDate,
+            lte: filterDateEnd,
+          },
+        },
+      },
+      include: {
+        event: true,
+        subjects: { include: { subject: true } },
+      },
+      orderBy: { event: { date: 'asc' } },
+    });
 
     // Fetch the NEXT upcoming participation (if any)
-    const upcomingPage = await locals.studentPb
-      .collection('participations')
-      .getList<ParticipationsResponse<ParticipationExpand>>(1, 1, {
-        filter: `student = "${locals.student.id}" && event.date > "${filterDateEnd}"`,
-        expand: 'event,subjects',
-        sort: 'event.date',
-      });
-    const upcomingParticipation =
-      upcomingPage.items.length > 0 ? upcomingPage.items[0] : null;
+    const upcomingParticipation = await prisma.participation.findFirst({
+      where: {
+        studentProfileId: studentId,
+        event: { date: { gt: filterDateEnd } },
+      },
+      include: {
+        event: true,
+        subjects: { include: { subject: true } },
+      },
+      orderBy: { event: { date: 'asc' } },
+    });
 
     // Fetch all completed participations to build themes + past preview
-    const allCompleted = await locals.studentPb
-      .collection('participations')
-      .getFullList<ThemeExpandedParticipation>({
-        filter: `student = "${locals.student.id}" && is_present = true`,
-        expand: 'event,subjects.themes',
-        fields:
-          'id,expand.event.date,expand.event.titre,expand.subjects.id,expand.subjects.nom,expand.subjects.expand.themes.nom',
-      });
+    const allCompleted = await prisma.participation.findMany({
+      where: {
+        studentProfileId: studentId,
+        isPresent: true,
+      },
+      include: {
+        event: true,
+        subjects: {
+          include: {
+            subject: {
+              include: {
+                subjectThemes: { include: { theme: true } },
+              },
+            },
+          },
+        },
+      },
+    });
 
+    // Tally top themes from completed participations
     const topThemes = tallyTopThemes(allCompleted, 3);
 
     // Derive past participations from the set we already have
     const allPast = allCompleted
-      .filter(
-        (p) => p.expand?.event?.date && p.expand.event.date < filterDateStart,
-      )
-      .sort((a, b) =>
-        (b.expand?.event?.date ?? '').localeCompare(
-          a.expand?.event?.date ?? '',
-        ),
-      );
+      .filter((p) => p.event.date < filterDateStartDate)
+      .sort((a, b) => b.event.date.getTime() - a.event.date.getTime());
 
     const pastPreview = allPast;
 
     // Count missions (subjects), not participations, for the "Voir tout" badge
     const totalPastMissions = allPast.reduce(
-      (sum, p) => sum + (p.expand?.subjects?.length ?? 0),
+      (sum, p) => sum + p.subjects.length,
       0,
     );
 
@@ -84,28 +97,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Fetch completion status for today's subjects
     const completedSubjectIds: Set<string> = new Set();
-    const todaySubjects = todayParticipation?.expand?.subjects ?? [];
-    if (todaySubjects.length > 0 && todayParticipation?.expand?.event) {
-      const progressRecords = await locals.studentPb
-        .collection('steps_progress')
-        .getFullList({
-          filter: `student = "${locals.student.id}" && event = "${todayParticipation.expand.event.id}" && status = "completed"`,
-          fields: 'subject',
-        });
+    const todaySubjects = todayParticipation?.subjects ?? [];
+    if (todaySubjects.length > 0 && todayParticipation?.event) {
+      const progressRecords = await prisma.stepsProgress.findMany({
+        where: {
+          studentProfileId: studentId,
+          eventId: todayParticipation.event.id,
+          status: 'completed',
+        },
+        select: { subjectId: true },
+      });
       for (const p of progressRecords) {
-        completedSubjectIds.add(p.subject);
+        completedSubjectIds.add(p.subjectId);
       }
     }
 
     return {
-      student: locals.student,
+      student: locals.studentProfile,
       participation: todayParticipation,
       completedSubjectIds: [...completedSubjectIds],
       upcomingParticipation,
-      pastParticipations:
-        pastPreview as unknown as ParticipationsResponse<ParticipationExpand>[],
+      pastParticipations: pastPreview,
       totalPastMissions,
-      hasCompletedEvents: allPast.length > 0,
+      hasCompletedEvents: allCompleted.length > 0,
       topThemes,
     };
   } catch (err) {
@@ -113,3 +127,4 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw error(500, 'Erreur lors du chargement du dashboard');
   }
 };
+

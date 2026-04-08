@@ -8,8 +8,19 @@
 
   import LoginEmailStep from './components/LoginEmailStep.svelte';
   import LoginOtpStep from './components/LoginOtpStep.svelte';
+  import { authClient } from '$lib/auth-client';
+  import { resolve } from '$app/paths';
 
   let { data } = $props();
+  let isOAuthLoading = $state(false);
+
+  async function handleMicrosoftLogin() {
+    isOAuthLoading = true;
+    await authClient.signIn.social({
+      provider: 'microsoft',
+      callbackURL: resolve('/camper/oauth/callback'),
+    });
+  }
 
   // 'oauth' = default view, 'email' = email step, 'otp' = OTP step
   let step = $state<'oauth' | 'email' | 'otp'>('oauth');
@@ -26,7 +37,6 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.valid && form.message?.type === 'success') {
-          $otpForm.otpId = form.message.otpId;
           $otpForm.email = $emailForm.email.toLowerCase().trim();
           step = 'otp';
         }
@@ -122,26 +132,27 @@
             {/if}
 
             <div class="space-y-4">
-              <form action="?/oauth2" method="POST">
-                <Button
-                  type="submit"
-                  size="lg"
-                  class="relative h-12 w-full gap-3 rounded-xl bg-epi-blue text-base font-bold text-white shadow-md transition-all hover:bg-epi-blue/90 active:scale-[0.98]"
+              <Button
+                onclick={handleMicrosoftLogin}
+                disabled={isOAuthLoading}
+                size="lg"
+                class="relative h-12 w-full gap-3 rounded-xl bg-epi-blue text-base font-bold text-white shadow-md transition-all hover:bg-epi-blue/90 active:scale-[0.98]"
+              >
+                <svg
+                  viewBox="0 0 23 23"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
                 >
-                  <svg
-                    viewBox="0 0 23 23"
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                  >
-                    <path fill="#f3f3f3" d="M0 0h23v23H0z" />
-                    <path fill="#f35325" d="M1 1h10v10H1z" />
-                    <path fill="#81bc06" d="M12 1h10v10H12z" />
-                    <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                    <path fill="#ffba08" d="M12 12h10v10H12z" />
-                  </svg>
-                  Se connecter avec Office 365
-                </Button>
-              </form>
+                  <path fill="#f3f3f3" d="M0 0h23v23H0z" />
+                  <path fill="#f35325" d="M1 1h10v10H1z" />
+                  <path fill="#81bc06" d="M12 1h10v10H12z" />
+                  <path fill="#05a6f0" d="M1 12h10v10H1z" />
+                  <path fill="#ffba08" d="M12 12h10v10H12z" />
+                </svg>
+                {isOAuthLoading
+                  ? 'Redirection...'
+                  : 'Se connecter avec Office 365'}
+              </Button>
 
               <div class="relative">
                 <div class="absolute inset-0 flex items-center">

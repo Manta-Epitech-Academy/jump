@@ -1,25 +1,19 @@
 # Step 1: Build the application
 FROM oven/bun:alpine AS builder
 
-# Define build-time arguments for SvelteKit
-ARG PUBLIC_POCKETBASE_URL
-ARG PUBLIC_INTERNAL_POCKETBASE_URL
-
-# Make them available as environment variables during build
-ENV PUBLIC_POCKETBASE_URL=$PUBLIC_POCKETBASE_URL
-ENV PUBLIC_INTERNAL_POCKETBASE_URL=$PUBLIC_INTERNAL_POCKETBASE_URL
-
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 WORKDIR /app
 
 # Install dependencies
-COPY package.json bun.lock ./
+COPY frontend/package.json frontend/bun.lock ./
+COPY frontend/prisma ./prisma
 RUN bun install --frozen-lockfile
 
 # Copy source and build
-COPY . .
+COPY frontend/ .
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bunx prisma generate
 RUN bun run build
 
 # Step 2: Runtime image
@@ -48,6 +42,8 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
 
 # Use the pre-existing 'bun' user for security
 USER bun
@@ -55,5 +51,5 @@ USER bun
 # EXPOSE is documented; the PORT env var will still be used by the adapter
 EXPOSE 3030
 
-# Start the server with Bun
-CMD ["bun", "./build/index.js"]
+# Run migrations then start the server
+CMD ["sh", "-c", "bunx prisma migrate deploy && bun ./build/index.js"]

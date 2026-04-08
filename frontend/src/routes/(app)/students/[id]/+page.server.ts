@@ -4,56 +4,51 @@ import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
-import type {
-  ParticipationsResponse,
-  EventsResponse,
-  SubjectsResponse,
-  ThemesResponse,
-  UsersResponse,
-  StudentsNiveauDifficulteOptions,
-} from '$lib/pocketbase-types';
-import { ClientResponseError } from 'pocketbase';
+import { prisma } from '$lib/server/db';
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 
-type SubjectExpand = {
-  themes?: ThemesResponse[];
-};
-
-type ParticipationExpand = {
-  event?: EventsResponse<{ mantas?: UsersResponse[] }>;
-  subjects?: SubjectsResponse<unknown, SubjectExpand>[];
-  note_author?: UsersResponse;
-};
-
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
+  const db = scopedPrisma(getCampusId(locals));
   try {
-    const student = await locals.pb.collection('students').getOne(params.id);
+    const student = await db.studentProfile.findUniqueOrThrow({
+      where: { id: params.id },
+      include: { user: true, campus: true },
+    });
 
-    const participations = await locals.pb
-      .collection('participations')
-      .getFullList<ParticipationsResponse<ParticipationExpand>>({
-        filter: `student = "${student.id}"`,
-        sort: '-event.date',
-        expand: 'event,event.mantas,subjects,subjects.themes,note_author',
-      });
+    const participations = await prisma.participation.findMany({
+      where: { studentProfileId: student.id },
+      include: {
+        event: {
+          include: {
+            mantas: { include: { staffProfile: { include: { user: true } } } },
+          },
+        },
+        subjects: {
+          include: {
+            subject: { include: { subjectThemes: { include: { theme: true } } } },
+          },
+        },
+        noteAuthor: { include: { user: true } },
+      },
+      orderBy: { event: { date: 'desc' } },
+    });
 
     const stats = {
       totalEvents: participations.length,
-      presentCount: participations.filter((p) => p.is_present).length,
+      presentCount: participations.filter((p) => p.isPresent).length,
       lateCount: participations.filter(
-        (p) => p.is_present && (p.delay || 0) > 0,
+        (p) => p.isPresent && (p.delay || 0) > 0,
       ).length,
       favoriteTheme: 'Aucun',
     };
 
     const themeCounts: Record<string, number> = {};
     participations.forEach((p) => {
-      if (p.is_present && p.expand?.subjects) {
-        p.expand.subjects.forEach((subject) => {
-          if (subject.expand?.themes) {
-            subject.expand.themes.forEach((t) => {
-              themeCounts[t.nom] = (themeCounts[t.nom] || 0) + 1;
-            });
-          }
+      if (p.isPresent) {
+        p.subjects.forEach((ps) => {
+          ps.subject.subjectThemes.forEach((st) => {
+            themeCounts[st.theme.nom] = (themeCounts[st.theme.nom] || 0) + 1;
+          });
         });
       }
     });
@@ -65,8 +60,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       stats.favoriteTheme = sortedThemes[0][0];
     }
 
-    const form = await superValidate(student, zod4(studentSchema));
-    if (!student.niveau_difficulte) form.data.niveau_difficulte = 'Débutant';
+    const form = await superValidate(zod4(studentSchema));
 
     return {
       student,
@@ -81,19 +75,27 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 };
 
 export const actions: Actions = {
-  update: async ({ request, locals, params }) => {
+  update: async ({ request, params, locals }) => {
     const form = await superValidate(request, zod4(studentSchema));
     if (!form.valid) return fail(400, { form });
+    const db = scopedPrisma(getCampusId(locals));
 
     try {
-      await locals.pb.collection('students').update(params.id, {
-        ...form.data,
-        niveau_difficulte: form.data
-          .niveau_difficulte as StudentsNiveauDifficulteOptions,
+      await db.studentProfile.update({
+        where: { id: params.id },
+        data: {
+          nom: form.data.nom,
+          prenom: form.data.prenom,
+          niveau: form.data.niveau || null,
+          niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
+          parentEmail: form.data.parent_email || null,
+          parentPhone: form.data.parent_phone || null,
+          phone: form.data.phone || null,
+        },
       });
       return message(form, 'Profil mis à jour avec succès !');
-    } catch (err) {
-      if (err instanceof ClientResponseError && err.status === 400) {
+    } catch (err: any) {
+      if (err.code === 'P2002') {
         return message(form, 'Un élève avec ce nom et cet email existe déjà.', {
           status: 400,
         });
@@ -103,8 +105,12 @@ export const actions: Actions = {
   },
 
   delete: async ({ params, locals }) => {
+    const db = scopedPrisma(getCampusId(locals));
     try {
-      await locals.pb.collection('students').delete(params.id);
+      const profile = await db.studentProfile.findUniqueOrThrow({
+        where: { id: params.id },
+      });
+      await prisma.user.delete({ where: { id: profile.userId } });
     } catch (err) {
       console.error('Error deleting student:', err);
       return fail(500, { message: 'Impossible de supprimer cet élève' });

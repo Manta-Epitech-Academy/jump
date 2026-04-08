@@ -16,6 +16,7 @@
 
   let { data }: { data: PageData } = $props();
 
+
   const { form, errors, delayed, enhance, reset } = superForm(
     untrack(() => data.form),
     {
@@ -37,12 +38,12 @@
     reset();
     $form.prenom = data.student.prenom;
     $form.nom = data.student.nom;
-    $form.email = data.student.email ?? '';
+    $form.email = data.student.user?.email ?? '';
     $form.phone = data.student.phone ?? '';
-    $form.parent_email = data.student.parent_email ?? '';
-    $form.parent_phone = data.student.parent_phone ?? '';
-    $form.niveau = data.student.niveau;
-    $form.niveau_difficulte = data.student.niveau_difficulte ?? 'Débutant';
+    $form.parent_email = data.student.parentEmail ?? '';
+    $form.parent_phone = data.student.parentPhone ?? '';
+    $form.niveau = (data.student.niveau || '') as any;
+    $form.niveau_difficulte = (data.student.niveauDifficulte || 'Débutant') as any;
     editOpen = true;
   }
 </script>

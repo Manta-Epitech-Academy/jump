@@ -3,6 +3,8 @@ import type { LayoutServerLoad } from './$types';
 export const load: LayoutServerLoad = async ({ locals }) => {
   return {
     user: locals.user,
-    student: locals.student,
+    session: locals.session,
+    staffProfile: locals.staffProfile,
+    studentProfile: locals.studentProfile,
   };
 };

@@ -1,34 +1,30 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
-import type { UsersResponse } from '$lib/pocketbase-types';
+import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
+  if (!locals.user) {
+    throw redirect(303, resolve('/login'));
+  }
+
   // If already has a campus, go home, UNLESS we are explicitly asking to change it
-  const user = locals.user as UsersResponse | null;
-  if (user?.campus && !url.searchParams.get('change')) {
+  if (locals.staffProfile?.campusId && !url.searchParams.get('change')) {
     throw redirect(303, resolve('/'));
   }
 
-  try {
-    // List all available campuses
-    // Ensure your 'campuses' collection API rules allow public or auth-only list
-    const campuses = await locals.pb.collection('campuses').getFullList({
-      sort: 'name',
-    });
+  const campuses = await prisma.campus.findMany({
+    orderBy: { name: 'asc' },
+  });
 
-    return {
-      campuses,
-    };
-  } catch (e) {
-    console.error('Error loading campuses:', e);
-    return { campuses: [] };
-  }
+  return { campuses };
 };
 
 export const actions: Actions = {
   joinCampus: async ({ request, locals }) => {
-    if (!locals.user) throw redirect(303, resolve('/login'));
+    if (!locals.user) {
+      throw redirect(303, resolve('/login'));
+    }
 
     const formData = await request.formData();
     const campusId = formData.get('campusId') as string;
@@ -38,13 +34,20 @@ export const actions: Actions = {
     }
 
     try {
-      // Update the user's profile with the selected campus
-      await locals.pb.collection('users').update(locals.user.id, {
-        campus: campusId,
+      // Ensure StaffProfile exists (create if missing)
+      const staffProfile = await prisma.staffProfile.upsert({
+        where: { userId: locals.user.id },
+        update: { campusId },
+        create: { userId: locals.user.id, campusId },
       });
 
-      // Refresh locals just in case (though redirect will trigger hook again)
-      (locals.user as UsersResponse).campus = campusId;
+      // Also ensure role is set to staff
+      if (locals.user.role !== 'staff' && locals.user.role !== 'admin') {
+        await prisma.user.update({
+          where: { id: locals.user.id },
+          data: { role: 'staff' },
+        });
+      }
     } catch (err) {
       console.error('Error joining campus:', err);
       return fail(500, { message: 'Erreur lors de la sauvegarde du campus.' });

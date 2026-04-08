@@ -1,5 +1,43 @@
-import type { TypedPocketBase } from '$lib/pocketbase-types';
+import { prisma } from '$lib/server/db';
 import { getSubjectXpValue } from './xp';
+import type { Subject } from '@prisma/client';
+
+/**
+ * Pre-fetch completed subject IDs for multiple students in a single query.
+ * Use this before calling suggestBestSubject in a loop to avoid N+1 queries.
+ */
+export async function preloadCompletedSubjects(
+  studentProfileIds: string[],
+  excludeEventId?: string,
+): Promise<Map<string, Set<string>>> {
+  const map = new Map<string, Set<string>>();
+  if (studentProfileIds.length === 0) return map;
+
+  for (const id of studentProfileIds) {
+    map.set(id, new Set());
+  }
+
+  const participations = await prisma.participation.findMany({
+    where: {
+      studentProfileId: { in: studentProfileIds },
+      isPresent: true,
+      ...(excludeEventId ? { eventId: { not: excludeEventId } } : {}),
+    },
+    select: {
+      studentProfileId: true,
+      subjects: { select: { subjectId: true } },
+    },
+  });
+
+  for (const p of participations) {
+    const set = map.get(p.studentProfileId);
+    if (set) {
+      for (const s of p.subjects) set.add(s.subjectId);
+    }
+  }
+
+  return map;
+}
 
 /**
  * Intelligent Algorithm to guess the best subject for a student.
@@ -8,109 +46,61 @@ import { getSubjectXpValue } from './xp';
  * 3. Prioritizes subjects matching the Event Theme.
  * 4. Prioritizes subjects with higher XP values.
  */
-/**
- * Pre-fetch completed subject IDs for multiple students in a single query.
- * Use this before calling suggestBestSubject in a loop to avoid N+1 queries.
- */
-export async function preloadCompletedSubjects(
-  pb: TypedPocketBase,
-  studentIds: string[],
-  excludeEventId?: string,
-): Promise<Map<string, Set<string>>> {
-  const map = new Map<string, Set<string>>();
-  if (studentIds.length === 0) return map;
-
-  // Initialize all students with empty sets
-  for (const id of studentIds) {
-    map.set(id, new Set());
-  }
-
-  // Batch fetch all completed participations for these students
-  const eventFilter = excludeEventId ? ` && event != "${excludeEventId}"` : '';
-  const allParticipations = await pb.collection('participations').getFullList({
-    filter: `(${studentIds.map((id) => `student = "${id}"`).join(' || ')}) && is_present = true${eventFilter}`,
-    fields: 'student,subjects',
-    requestKey: null,
-  });
-
-  for (const p of allParticipations) {
-    const set = map.get(p.student);
-    if (set && p.subjects && Array.isArray(p.subjects)) {
-      for (const s of p.subjects) set.add(s);
-    }
-  }
-
-  return map;
-}
-
 export async function suggestBestSubject(
-  pb: TypedPocketBase,
-  studentId: string,
-  subjects: any[],
+  studentProfileId: string,
+  subjects: (Subject & { subjectThemes?: { themeId: string }[] })[],
   eventThemeId?: string | null,
   currentSubjectIds: string[] = [],
   preloadedCompleted?: Set<string>,
-) {
+): Promise<string | null> {
   try {
-    // 1. Get student details to find their difficulty level
-    const student = await pb
-      .collection('students')
-      .getOne(studentId, { requestKey: null });
+    const studentProfile = await prisma.studentProfile.findUniqueOrThrow({
+      where: { id: studentProfileId },
+    });
 
-    const studentDifficulty = student.niveau_difficulte || 'Débutant';
+    const studentDifficulty = studentProfile.niveauDifficulte || 'Débutant';
 
-    // 2. Get student's presence history to avoid repeats
     let completedSubjectIds: Set<string>;
     if (preloadedCompleted) {
       completedSubjectIds = preloadedCompleted;
     } else {
-      const completedParticipations = await pb
-        .collection('participations')
-        .getFullList({
-          filter: `student = "${studentId}" && is_present = true`,
-          fields: 'subjects',
-          requestKey: null,
-        });
+      const completedParticipations = await prisma.participation.findMany({
+        where: {
+          studentProfileId,
+          isPresent: true,
+        },
+        select: {
+          subjects: { select: { subjectId: true } },
+        },
+      });
 
       completedSubjectIds = new Set<string>();
-      completedParticipations.forEach((p) => {
-        if (p.subjects && Array.isArray(p.subjects)) {
-          p.subjects.forEach((s) => completedSubjectIds.add(s));
-        }
-      });
+      for (const p of completedParticipations) {
+        for (const s of p.subjects) completedSubjectIds.add(s.subjectId);
+      }
     }
 
-    // 3. Filter and Score subjects
     const recommendations = subjects
       .filter((sub) => {
-        // Must match the student's assigned difficulty
         const difficultyMatch = sub.difficulte === studentDifficulty;
-
-        // Must not be already done
         const alreadyDone = completedSubjectIds.has(sub.id);
-
-        // Must not be currently assigned
         const currentlyAssigned = currentSubjectIds.includes(sub.id);
-
         return difficultyMatch && !alreadyDone && !currentlyAssigned;
       })
       .map((sub) => {
         let score = getSubjectXpValue(sub.difficulte);
 
-        // Boost score if subject themes include the event theme
-        if (eventThemeId && sub.themes && sub.themes.includes(eventThemeId)) {
+        if (
+          eventThemeId &&
+          sub.subjectThemes?.some((st) => st.themeId === eventThemeId)
+        ) {
           score += 1000;
         }
 
-        return {
-          subject: sub,
-          score,
-        };
+        return { subject: sub, score };
       })
-      .sort((a, b) => b.score - a.score); // Highest Score (Theme + XP) first
+      .sort((a, b) => b.score - a.score);
 
-    // Fallback: If no strict match found (e.g. they finished all "Débutant" subjects),
-    // try suggesting the next tier up (e.g. "Intermédiaire")
     if (recommendations.length === 0 && studentDifficulty === 'Débutant') {
       const fallback = subjects.find(
         (s) =>

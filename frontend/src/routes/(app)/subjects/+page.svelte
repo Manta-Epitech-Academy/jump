@@ -1,20 +1,12 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import type {
-    SubjectsResponse,
-    ThemesResponse,
-    CampusesResponse,
-  } from '$lib/pocketbase-types';
   import { superForm } from 'sveltekit-superforms';
   import { page } from '$app/state';
 
-  type SubjectWithExpand = SubjectsResponse<
-    unknown,
-    {
-      themes?: ThemesResponse[];
-      campus?: CampusesResponse;
-    }
-  >;
+  type SubjectWithExpand = Record<string, any> & {
+    subjectThemes?: { theme: { id: string; nom: string } }[];
+    campusId?: string | null;
+  };
 
   import {
     Plus,
@@ -60,7 +52,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  let userCampusId = $derived(page.data.user?.campus);
+  let userCampusId = $derived(page.data.staffProfile?.campusId);
 
   const { form, errors, enhance, delayed, reset } = superForm(
     untrack(() => data.form),
@@ -96,8 +88,8 @@
     const themes = new Map<string, string>();
     data.subjects.forEach((s) => {
       const typedS = s as SubjectWithExpand;
-      typedS.expand?.themes?.forEach((t) => {
-        themes.set(t.id, t.nom);
+      typedS.subjectThemes?.forEach((st) => {
+        themes.set(st.theme.id, st.theme.nom);
       });
     });
     return Array.from(themes.entries()).sort((a, b) =>
@@ -121,8 +113,8 @@
     $form.description = subject.description;
     $form.difficulte = subject.difficulte || 'Débutant';
     $form.link = subject.link || '';
-    if (subject.expand && subject.expand.themes) {
-      $form.themes = subject.expand.themes.map((t: any) => t.nom);
+    if (subject.subjectThemes && subject.subjectThemes.length > 0) {
+      $form.themes = subject.subjectThemes.map((st: any) => st.theme.nom);
     } else {
       $form.themes = [];
     }
@@ -149,18 +141,18 @@
   let filteredSubjects = $derived(
     data.subjects.filter((s) => {
       const typedS = s as SubjectWithExpand;
-      if (sourceFilter === 'official' && s.campus !== '') return false;
-      if (sourceFilter === 'mine' && s.campus !== userCampusId) return false;
+      if (sourceFilter === 'official' && s.campusId != null) return false;
+      if (sourceFilter === 'mine' && s.campusId !== userCampusId) return false;
       if (
         sourceFilter === 'community' &&
-        (s.campus === '' || s.campus === userCampusId)
+        (s.campusId == null || s.campusId === userCampusId)
       )
         return false;
       if (difficultyFilter !== 'all' && s.difficulte !== difficultyFilter)
         return false;
       if (themeFilter !== 'all') {
-        const hasTheme = typedS.expand?.themes?.some(
-          (t) => t.id === themeFilter,
+        const hasTheme = typedS.subjectThemes?.some(
+          (st) => st.theme.id === themeFilter,
         );
         if (!hasTheme) return false;
       }
@@ -168,8 +160,8 @@
         const query = searchQuery.toLowerCase();
         const matchesName = s.nom.toLowerCase().includes(query);
         const matchesDesc = s.description?.toLowerCase().includes(query);
-        const matchesTheme = typedS.expand?.themes?.some((t) =>
-          t.nom.toLowerCase().includes(query),
+        const matchesTheme = typedS.subjectThemes?.some((st) =>
+          st.theme.nom.toLowerCase().includes(query),
         );
         if (!matchesName && !matchesDesc && !matchesTheme) return false;
       }
@@ -179,10 +171,10 @@
 
   let stats = $derived({
     total: data.subjects.length,
-    official: data.subjects.filter((s) => !s.campus).length,
-    mine: data.subjects.filter((s) => s.campus === userCampusId).length,
+    official: data.subjects.filter((s) => !s.campusId).length,
+    mine: data.subjects.filter((s) => s.campusId === userCampusId).length,
     community: data.subjects.filter(
-      (s) => s.campus && s.campus !== userCampusId,
+      (s) => s.campusId && s.campusId !== userCampusId,
     ).length,
   });
 
@@ -371,8 +363,8 @@
         <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {#each filteredSubjects as subject, i (subject.id)}
             {@const typedSubject = subject as SubjectWithExpand}
-            {@const isOfficial = !subject.campus}
-            {@const isMine = subject.campus === userCampusId}
+            {@const isOfficial = !subject.campusId}
+            {@const isMine = subject.campusId === userCampusId}
             {@const xp = getSubjectXpValue(subject.difficulte)}
 
             <div
@@ -422,17 +414,17 @@
 
                 <div class="mt-auto space-y-4">
                   <div class="flex flex-wrap gap-1.5">
-                    {#if typedSubject.expand?.themes}
-                      {#each typedSubject.expand.themes.slice(0, 3) as theme}
+                    {#if typedSubject.subjectThemes?.length}
+                      {#each typedSubject.subjectThemes.slice(0, 3) as st}
                         <span
                           class="rounded-sm bg-secondary px-2 py-0.5 text-[10px] font-bold text-secondary-foreground shadow-sm"
-                          >#{theme.nom}</span
+                          >#{st.theme.nom}</span
                         >
                       {/each}
-                      {#if typedSubject.expand.themes.length > 3}
+                      {#if typedSubject.subjectThemes.length > 3}
                         <span
                           class="text-[10px] font-bold text-muted-foreground"
-                          >+{typedSubject.expand.themes.length - 3}</span
+                          >+{typedSubject.subjectThemes.length - 3}</span
                         >
                       {/if}
                     {/if}
@@ -569,10 +561,10 @@
                   >
                   <Table.Cell class="hidden md:table-cell"
                     ><div class="flex flex-wrap gap-1">
-                      {#if typedSubject.expand?.themes}{#each typedSubject.expand.themes.slice(0, 3) as theme}<Badge
+                      {#if typedSubject.subjectThemes?.length}{#each typedSubject.subjectThemes.slice(0, 3) as st}<Badge
                             variant="secondary"
                             class="text-[10px] font-bold tracking-tight"
-                            >#{theme.nom}</Badge
+                            >#{st.theme.nom}</Badge
                           >{/each}{/if}
                     </div></Table.Cell
                   >

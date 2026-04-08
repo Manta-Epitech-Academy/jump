@@ -93,12 +93,12 @@
     reset();
     $form.nom = student.nom;
     $form.prenom = student.prenom;
-    $form.email = student.email || '';
+    $form.email = student.user?.email || '';
     $form.phone = student.phone || '';
-    $form.parent_email = student.parent_email || '';
-    $form.parent_phone = student.parent_phone || '';
+    $form.parent_email = student.parentEmail || '';
+    $form.parent_phone = student.parentPhone || '';
     $form.niveau = student.niveau;
-    $form.niveau_difficulte = student.niveau_difficulte || 'Débutant';
+    $form.niveau_difficulte = student.niveauDifficulte || 'Débutant';
     isEditing = true;
     editId = student.id;
     open = true;
@@ -222,7 +222,7 @@
         </Table.Header>
         <Table.Body>
           {#each data.students as student (student.id)}
-            {@const diff = student.niveau_difficulte || 'Débutant'}
+            {@const diff = student.niveauDifficulte || 'Débutant'}
             <Table.Row class="hover:bg-muted/30">
               <Table.Cell class="font-bold">
                 <a
@@ -261,7 +261,7 @@
                   <span class="font-black text-foreground">{student.xp} XP</span
                   >
                   <span class="text-[10px] font-bold tracking-widest uppercase"
-                    >{student.events_count} événement{student.events_count > 1
+                    >{student.eventsCount} événement{student.eventsCount > 1
                       ? 's'
                       : ''}</span
                   >

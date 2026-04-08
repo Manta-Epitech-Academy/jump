@@ -5,7 +5,7 @@
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
   import type { SubjectStep } from '$lib/server/services/progressService';
-  import type { StepsProgressResponse } from '$lib/pocketbase-types';
+  import type { StepsProgress } from '@prisma/client';
 
   let {
     steps,
@@ -15,14 +15,14 @@
     showRoadmapMobile = $bindable(),
   }: {
     steps: SubjectStep[];
-    progress: StepsProgressResponse;
+    progress: StepsProgress;
     currentIndex: number;
     unlockedIndex: number;
     showRoadmapMobile: boolean;
   } = $props();
 
   function getStepStatus(index: number) {
-    if (progress.unlocked_step_id === 'COMPLETED' || index < unlockedIndex)
+    if (progress.unlockedStepId === 'COMPLETED' || index < unlockedIndex)
       return 'done';
     if (index === unlockedIndex) return 'active';
     return 'locked';
