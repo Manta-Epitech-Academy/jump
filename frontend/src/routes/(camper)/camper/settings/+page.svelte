@@ -128,14 +128,14 @@
           La suppression de ton compte est définitive. Toutes tes données seront
           perdues.
         </p>
-        <button
-          type="button"
-          class="h-11 w-full rounded-2xl border border-red-200 bg-red-50/80 text-sm font-bold text-red-500 transition-all hover:scale-[1.02] hover:border-red-300 hover:bg-red-100 active:scale-[0.98] dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40"
+        <Button
+          variant="ghost"
+          class="h-11 w-full rounded-2xl border border-red-200 bg-red-50/80 normal-case tracking-normal text-red-500 transition-all hover:scale-[1.02] hover:border-red-300 hover:bg-red-100 active:scale-[0.98] dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40"
           onclick={() => (deleteDialogOpen = true)}
         >
           <Trash2 class="mr-2 inline h-4 w-4" />
           Supprimer mon compte
-        </button>
+        </Button>
       </div>
     </div>
   </div>
@@ -177,17 +177,17 @@
           };
         }}
       >
-        <button
+        <Button
           type="submit"
           disabled={deleting}
-          class="h-12 w-full rounded-2xl bg-red-500 text-sm font-bold text-white shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] hover:bg-red-600 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+          class="h-12 w-full rounded-2xl bg-red-500 normal-case tracking-normal text-white shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] hover:bg-red-600 active:scale-[0.98]"
         >
           {#if deleting}
             Suppression en cours…
           {:else}
             Supprimer définitivement
           {/if}
-        </button>
+        </Button>
       </form>
       <AlertDialog.Cancel
         class="h-12 w-full rounded-2xl border border-slate-200 bg-transparent text-sm font-bold text-slate-600 transition-all hover:bg-slate-50 active:scale-[0.98] dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
