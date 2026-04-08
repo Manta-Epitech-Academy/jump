@@ -173,9 +173,7 @@ export const actions: Actions = {
           eventId: data.get('eventId') as string,
           caption: (data.get('caption') as string) || undefined,
           url: url || undefined,
-          // NOTE: File upload handling may need a separate storage solution
-          // since Prisma does not handle file blobs like PocketBase did.
-          // For now, only the URL path is stored.
+          // File URLs are stored directly; binary uploads go to S3.
         },
       });
       return { success: true };

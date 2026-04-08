@@ -25,12 +25,11 @@
   import AppelLogisticsHeader from './components/AppelLogisticsHeader.svelte';
   import AppelFilterBar from './components/AppelFilterBar.svelte';
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  type ParticipationWithExpand = Record<string, any>;
+  import type { ParticipationWithDetails } from '$lib/types';
 
   let { data }: { data: PageData } = $props();
 
-  let participations = $state<any[]>(
+  let participations = $state<ParticipationWithDetails[]>(
     untrack(() => data.participations),
   );
   let progressRecords = $state<any[]>(untrack(() => data.progressData));
@@ -52,15 +51,11 @@
   let filterNiveau = $state<string>('all');
 
   $effect(() => {
-    participations = data.participations as ParticipationWithExpand[];
+    participations = data.participations as ParticipationWithDetails[];
     progressRecords = data.progressData;
   });
 
-  // TODO: implement SSE or polling to replace PocketBase realtime subscriptions
-  // Previously subscribed to:
-  // - participations (filter: event = data.event.id) for live attendance updates
-  // - steps_progress (filter: event = data.event.id) for live step progress updates
-  // Options: (a) SSE via /api/events/[id]/stream, (b) short polling every 3s
+  // TODO: implement SSE or polling for live attendance and step progress updates
 
   const optimisticToggle = (id: string, field: 'isPresent' | 'bringPc') => {
     return () => {
@@ -92,7 +87,7 @@
   let uniqueSubjects = $derived.by(() => {
     const subjects = new Map<string, string>();
     const typedParticipations =
-      data.participations as ParticipationWithExpand[];
+      data.participations as ParticipationWithDetails[];
     typedParticipations.forEach((p) => {
       p.subjects?.forEach((ps: any) => { const s = ps.subject; subjects.set(s.id, s.nom); });
     });
@@ -102,7 +97,7 @@
   let uniqueNiveaux = $derived.by(() => {
     const niveaux = new Set<string>();
     const typedParticipations =
-      data.participations as ParticipationWithExpand[];
+      data.participations as ParticipationWithDetails[];
     typedParticipations.forEach((p) => {
       if (p.studentProfile?.niveau) niveaux.add(p.studentProfile.niveau);
     });
@@ -166,7 +161,7 @@
   let totalStudents = $derived(participations.length);
   let pcsNeeded = $derived(participations.filter((p) => !p.bringPc).length);
 
-  async function handleDiplomaDownload(participation: ParticipationWithExpand) {
+  async function handleDiplomaDownload(participation: ParticipationWithDetails) {
     const toastId = toast.loading('Génération du diplôme...');
     try {
       const res = await fetch(
@@ -362,7 +357,7 @@
                 <div class="w-40 sm:w-48">
                   <NoteInput
                     id={p.id}
-                    value={p.note}
+                    value={p.note ?? undefined}
                     placeholder="..."
                     class="h-8 text-xs"
                   />

@@ -5,8 +5,10 @@ import {
   now,
   type CalendarDateTime,
 } from '@internationalized/date';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PBRecord = { id: string; nom: string } & Record<string, any>;
+import type {
+  ParticipationWithEvent,
+  ParticipationWithThemes,
+} from '$lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -38,11 +40,6 @@ export function formatDateFr(
   });
 }
 
-export type ParticipationExpand = {
-  event?: { date?: string | Date; titre?: string };
-  subjects?: { subject: { id: string; nom: string } }[];
-};
-
 export type Mission = {
   subject: { id: string; nom: string };
   eventDate: string;
@@ -50,34 +47,21 @@ export type Mission = {
 };
 
 export function flattenMissions(
-  participations: (Record<string, any> & ParticipationExpand)[],
+  participations: ParticipationWithEvent[],
 ): Mission[] {
   const missions: Mission[] = [];
   for (const p of participations) {
-    const subs = p.subjects;
-    if (subs) {
-      for (const ps of subs) {
-        const sub = ps.subject ?? ps;
-        missions.push({
-          subject: sub,
-          eventDate: String(p.event?.date || ''),
-          eventTitle: (p.event?.titre as string) || 'Atelier',
-        });
-      }
+    for (const ps of p.subjects) {
+      missions.push({
+        subject: ps.subject,
+        eventDate: String(p.event?.date || ''),
+        eventTitle: p.event?.titre || 'Atelier',
+      });
     }
   }
   return missions;
 }
 
-export type ThemeExpandedParticipation = Record<string, any> & {
-  event?: Record<string, any>;
-  subjects?: (Record<string, any> & { subject: Record<string, any> & { subjectThemes?: { theme: Record<string, any> }[] } })[];
-};
-
-/**
- * Tallies up theme occurrences from completed participations and returns the top N.
- * Subjects without themes are counted under "Général".
- */
 const THEME_TIERS = [
   { min: 4, label: 'Expert' },
   { min: 2, label: 'Confirmé' },
@@ -91,15 +75,18 @@ export function themeTierLabel(count: number): string {
   return (THEME_TIERS.find((t) => count >= t.min) ?? THEME_TIERS.at(-1)!).label;
 }
 
+/**
+ * Tallies up theme occurrences from completed participations and returns the top N.
+ * Subjects without themes are counted under "Général".
+ */
 export function tallyTopThemes(
-  participations: ThemeExpandedParticipation[],
+  participations: ParticipationWithThemes[],
   limit: number,
 ): { name: string; count: number; label: string }[] {
   const tally: Record<string, number> = {};
   for (const p of participations) {
-    for (const ps of p.subjects ?? []) {
-      const subject = ps.subject ?? ps;
-      const themes = subject.subjectThemes?.map((st: any) => st.theme) ?? [];
+    for (const ps of p.subjects) {
+      const themes = ps.subject.subjectThemes?.map((st) => st.theme) ?? [];
       if (themes.length === 0) {
         tally['Général'] = (tally['Général'] || 0) + 1;
       } else {
