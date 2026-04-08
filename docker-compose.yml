@@ -18,8 +18,8 @@ services:
 
   sveltekit:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: frontend
+      dockerfile: Dockerfile
     env_file:
       - .env
     ports:
