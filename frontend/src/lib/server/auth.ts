@@ -14,7 +14,18 @@ export const auth = betterAuth({
   baseURL: env.ORIGIN!,
   basePath: `${base}/api/auth`,
 
-  emailAndPassword: { enabled: true },
+  emailAndPassword: {
+    enabled: true,
+    password: {
+      hash: (password) =>
+        Bun.password.hash(password, {
+          algorithm: 'argon2id',
+          memoryCost: 19456, // 19 MiB — OWASP minimum recommendation
+          timeCost: 2,
+        }),
+      verify: ({ password, hash }) => Bun.password.verify(password, hash),
+    },
+  },
 
   socialProviders: {
     microsoft: {
