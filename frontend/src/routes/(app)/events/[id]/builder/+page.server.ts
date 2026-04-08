@@ -213,7 +213,7 @@ export const actions: Actions = {
     try {
       const db = scopedPrisma(getCampusId(locals));
       await db.event.findUniqueOrThrow({ where: { id: params.id } });
-      const participations = await prisma.participation.findMany({
+      const participations = await db.participation.findMany({
         where: { eventId: params.id },
         include: { subjects: true },
       });

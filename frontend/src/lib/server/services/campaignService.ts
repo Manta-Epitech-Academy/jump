@@ -2,6 +2,7 @@ import { parseEventImportCsv, type CsvStudent } from '$lib/domain/csv';
 import { suggestBestSubject } from '$lib/domain/recommender';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
+import { scopedPrisma } from '$lib/server/db/scoped';
 
 export type ImportAction = {
   id: string;
@@ -13,7 +14,7 @@ export type ImportAction = {
   bringPc: boolean;
 };
 
-export async function analyzeCampaignFile(file: File) {
+export async function analyzeCampaignFile(file: File, campusId: string) {
   let text = await file.text();
   if (text.includes('\ufffd')) {
     const buffer = await file.arrayBuffer();
@@ -22,6 +23,7 @@ export async function analyzeCampaignFile(file: File) {
   }
 
   const { eventName, eventDate, students } = await parseEventImportCsv(text);
+  const db = scopedPrisma(campusId);
 
   const analysis = await Promise.all(
     students.map(async (csvS, i) => {
@@ -32,7 +34,7 @@ export async function analyzeCampaignFile(file: File) {
       let reason = '';
 
       // Try exact match (nom + prenom + email)
-      const exactMatch = await prisma.studentProfile.findFirst({
+      const exactMatch = await db.studentProfile.findFirst({
         where: {
           nom: csvS.nom,
           prenom: csvS.prenom,
@@ -49,7 +51,7 @@ export async function analyzeCampaignFile(file: File) {
       } else {
         // Check for sibling (same email)
         if (csvS.email) {
-          const siblingMatch = await prisma.studentProfile.findFirst({
+          const siblingMatch = await db.studentProfile.findFirst({
             where: { user: { email: csvS.email } },
             include: { user: true },
           });
@@ -64,7 +66,7 @@ export async function analyzeCampaignFile(file: File) {
 
         // Check for homonym (same name, different email)
         if (status === 'NEW') {
-          const nameMatch = await prisma.studentProfile.findFirst({
+          const nameMatch = await db.studentProfile.findFirst({
             where: { nom: csvS.nom, prenom: csvS.prenom },
             include: { user: true },
           });

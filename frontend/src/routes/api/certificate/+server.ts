@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
 import { prisma } from '$lib/server/db';
-import { formatDateFr, themeTierLabel } from '$lib/utils';
+import { formatDateFr, tallyTopThemes } from '$lib/utils';
 
 export const GET: RequestHandler = async ({ locals }) => {
   if (!locals.studentProfile) throw error(401, 'Non autorise');
@@ -53,7 +53,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     });
 
     // 4. Tally up themes (show up to 6 for the progress-bar view)
-    const topThemes = tallyTopThemesPrisma(participations, 6);
+    const topThemes = tallyTopThemes(participations, 6);
 
     // 5. Build deduplicated subjects list with event date and difficulty
     const subjectMap = new Map<
@@ -76,12 +76,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 
     // 6. Map school level to readable label
     const niveauLabels: Record<string, string> = {
-      sixieme: '6eme',
-      cinquieme: '5eme',
-      quatrieme: '4eme',
-      troisieme: '3eme',
-      seconde: '2nde',
-      premiere: '1ere',
+      '6eme': '6ème',
+      '5eme': '5ème',
+      '4eme': '4ème',
+      '3eme': '3ème',
+      '2nde': '2nde',
+      '1ere': '1ère',
       Terminale: 'Terminale',
       Sup: 'Sup',
     };
@@ -134,35 +134,3 @@ export const GET: RequestHandler = async ({ locals }) => {
   }
 };
 
-/**
- * Tally theme occurrences from Prisma participation data.
- * Subjects without themes are counted under "General".
- */
-function tallyTopThemesPrisma(
-  participations: {
-    subjects: {
-      subject: {
-        subjectThemes: { theme: { nom: string } }[];
-      };
-    }[];
-  }[],
-  limit: number,
-): { name: string; count: number; label: string }[] {
-  const tally: Record<string, number> = {};
-  for (const p of participations) {
-    for (const ps of p.subjects) {
-      const themes = ps.subject.subjectThemes;
-      if (themes.length === 0) {
-        tally['General'] = (tally['General'] || 0) + 1;
-      } else {
-        for (const st of themes) {
-          tally[st.theme.nom] = (tally[st.theme.nom] || 0) + 1;
-        }
-      }
-    }
-  }
-  return Object.entries(tally)
-    .map(([name, count]) => ({ name, count, label: themeTierLabel(count) }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, limit);
-}

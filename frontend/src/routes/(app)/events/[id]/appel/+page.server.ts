@@ -67,7 +67,7 @@ export const actions: Actions = {
       }));
       const xpValue = getTotalXp(subjects);
 
-      await prisma.participation.update({
+      await db.participation.update({
         where: { id },
         data: {
           isPresent: isNowPresent,
@@ -77,7 +77,7 @@ export const actions: Actions = {
 
       if (p.isPresent !== isNowPresent) {
         if (isNowPresent) {
-          await prisma.studentProfile.update({
+          await db.studentProfile.update({
             where: { id: p.studentProfileId },
             data: {
               xp: { increment: xpValue },
@@ -85,11 +85,11 @@ export const actions: Actions = {
             },
           });
         } else {
-          const profile = await prisma.studentProfile.findUniqueOrThrow({
+          const profile = await db.studentProfile.findUniqueOrThrow({
             where: { id: p.studentProfileId },
             select: { xp: true, eventsCount: true },
           });
-          await prisma.studentProfile.update({
+          await db.studentProfile.update({
             where: { id: p.studentProfileId },
             data: {
               xp: Math.max(0, profile.xp - xpValue),
@@ -123,7 +123,7 @@ export const actions: Actions = {
 
       const wasAbsent = !p.isPresent;
 
-      await prisma.participation.update({
+      await db.participation.update({
         where: { id },
         data: { delay, isPresent: true },
       });
@@ -134,7 +134,7 @@ export const actions: Actions = {
         }));
         const xpValue = getTotalXp(subjects);
 
-        await prisma.studentProfile.update({
+        await db.studentProfile.update({
           where: { id: p.studentProfileId },
           data: {
             xp: { increment: xpValue },
