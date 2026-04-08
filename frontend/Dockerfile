@@ -6,9 +6,6 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 WORKDIR /app
 
-# Copy .env to parent dir so `bun --env-file=../.env` works
-COPY .env /app/../.env
-
 # Install dependencies
 COPY frontend/package.json frontend/bun.lock ./
 COPY frontend/prisma ./prisma
