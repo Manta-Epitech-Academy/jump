@@ -119,6 +119,7 @@ model StudentProfile {
   parentEmail       String?
   parentPhone       String?
   phone             String?
+  discordId         String?      @unique
   salesforceId      String?      @unique
   lastSyncedAt      DateTime?
   lastActiveAt      DateTime?
