@@ -529,8 +529,8 @@
             <Table.Body>
               {#each filteredSubjects as subject (subject.id)}
                 {@const typedSubject = subject as SubjectWithThemes}
-                {@const isOfficial = !subject.campus}
-                {@const isMine = subject.campus === userCampusId}
+                {@const isOfficial = !subject.campusId}
+                {@const isMine = subject.campusId === userCampusId}
                 {@const xp = getSubjectXpValue(subject.difficulte)}
                 <Table.Row class="group hover:bg-muted/30">
                   <Table.Cell class="text-center">
