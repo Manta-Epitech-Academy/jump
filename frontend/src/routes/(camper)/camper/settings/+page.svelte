@@ -5,9 +5,11 @@
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
   import { fly } from 'svelte/transition';
-  import { ArrowLeft, Trash2, User, Mail, Sun, Moon } from '@lucide/svelte';
+  import { ArrowLeft, Trash2, User, Mail, Sun, Moon, Languages } from '@lucide/svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { m } from '$lib/paraglide/messages.js';
+  import { getLocale, setLocale } from '$lib/paraglide/runtime';
+  import { cn } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
 
@@ -113,6 +115,55 @@
             >
           </div>
           <ModeToggle />
+        </div>
+      </div>
+
+      <!-- Language -->
+      <div
+        class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+      >
+        <h2
+          class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+        >
+          {m.nav_language()}
+        </h2>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
+            >
+              <Languages class="h-4 w-4 text-epi-teal" />
+            </div>
+            <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
+              >{getLocale() === 'fr' ? 'Français' : 'English'}</span
+            >
+          </div>
+          <div class="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
+            <button
+              type="button"
+              onclick={() => setLocale('fr')}
+              class={cn(
+                'rounded-lg px-3 py-1 text-xs font-bold transition-all',
+                getLocale() === 'fr'
+                  ? 'bg-white text-epi-blue shadow-sm dark:bg-slate-800'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
+              )}
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              onclick={() => setLocale('en')}
+              class={cn(
+                'rounded-lg px-3 py-1 text-xs font-bold transition-all',
+                getLocale() === 'en'
+                  ? 'bg-white text-epi-blue shadow-sm dark:bg-slate-800'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
+              )}
+            >
+              EN
+            </button>
+          </div>
         </div>
       </div>
 
