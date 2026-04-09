@@ -5,7 +5,6 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { hashPassword } from 'better-auth/crypto';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -1098,7 +1097,11 @@ async function main() {
 // ─── Helpers ───
 
 async function upsertCredential(userId: string, password: string) {
-  const hashed = await hashPassword(password);
+  const hashed = await Bun.password.hash(password, {
+    algorithm: 'argon2id',
+    memoryCost: 19456,
+    timeCost: 2,
+  });
   const existing = await prisma.account.findFirst({
     where: { userId, providerId: 'credential' },
   });
