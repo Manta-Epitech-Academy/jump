@@ -10,16 +10,7 @@ export default defineConfig({
     paraglideVitePlugin({
       project: './project.inlang',
       outdir: './src/lib/paraglide',
-      strategy: ['url', 'cookie', 'baseLocale'],
-      urlPatterns: [
-        {
-          pattern: '/tekcamp/:path(.*)?',
-          localized: [
-            ['en', '/tekcamp/en/:path(.*)?'],
-            ['fr', '/tekcamp/:path(.*)?'],
-          ],
-        },
-      ],
+      strategy: ['cookie', 'baseLocale'],
     }),
   ],
 });

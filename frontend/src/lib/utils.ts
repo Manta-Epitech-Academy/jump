@@ -10,7 +10,7 @@ import type {
   ParticipationWithThemes,
 } from '$lib/types';
 import { resolve } from '$app/paths';
-import { localizeHref, getLocale } from '$lib/paraglide/runtime';
+import { getLocale } from '$lib/paraglide/runtime';
 import { m } from '$lib/paraglide/messages.js';
 
 export function cn(...inputs: ClassValue[]) {
@@ -18,12 +18,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Resolves a path with the base prefix and localizes it for the current locale.
- * Use this instead of resolve() for all internal navigation links.
+ * Resolves a path with the SvelteKit base prefix.
+ * Kept as a thin wrapper around resolve() so we have a single point to
+ * extend if URL-based locale routing is reintroduced later.
  */
 export function i18nHref(path: string): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return localizeHref(resolve(path as any));
+  return resolve(path as any);
 }
 
 /**
