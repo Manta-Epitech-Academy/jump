@@ -203,7 +203,7 @@
             <div
               class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
             >
-              {m.subject_filter_difficulty()}
+              {m.common_field_difficulty()}
             </div>
             <Select.Root type="single" bind:value={selectedDifficulte}>
               <Select.Trigger
@@ -225,7 +225,7 @@
             <div
               class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
             >
-              {m.subject_filter_theme()}
+              {m.common_field_theme()}
             </div>
             <Select.Root type="single" bind:value={selectedTheme}>
               <Select.Trigger
@@ -256,13 +256,13 @@
                 {#if selectedSource === 'all'}{m.common_all()}
                 {:else if selectedSource === 'official'}{m.subject_badge_official()}
                 {:else if selectedSource === 'mine'}{m.subject_badge_local()}
-                {:else}{m.subject_badge_community()}{/if}
+                {:else}{m.subject_tab_community()}{/if}
               </Select.Trigger>
               <Select.Content>
                 <Select.Item value="all">{m.common_all()}</Select.Item>
                 <Select.Item value="official">{m.subject_badge_official()}</Select.Item>
                 <Select.Item value="mine">{m.subject_tab_mine()}</Select.Item>
-                <Select.Item value="community">{m.subject_badge_community()}</Select.Item>
+                <Select.Item value="community">{m.subject_tab_community()}</Select.Item>
               </Select.Content>
             </Select.Root>
           </div>

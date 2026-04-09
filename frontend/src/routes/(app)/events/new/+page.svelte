@@ -163,14 +163,14 @@
             <div class="space-y-6">
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="space-y-2">
-                  <Label>{m.event_new_import_event_label()}</Label><Input
+                  <Label>{m.event_column_event()}</Label><Input
                     value={analysisResult.eventName}
                     readonly
                     class="bg-muted font-bold"
                   />
                 </div>
                 <div class="space-y-2">
-                  <Label>{m.event_new_import_date_label()}</Label><Input
+                  <Label>{m.common_field_date()}</Label><Input
                     value={new Date(
                       analysisResult.eventDate,
                     ).toLocaleDateString()}

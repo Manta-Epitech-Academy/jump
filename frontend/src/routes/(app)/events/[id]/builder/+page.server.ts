@@ -315,7 +315,7 @@ export const actions: Actions = {
       return message(form, 'Élève créé et assigné automatiquement !');
     } catch (err: any) {
       if (err.code === 'P2002') {
-        return message(form, m.event_builder_quick_create_duplicate(), { status: 400 });
+        return message(form, m.student_create_error_duplicate(), { status: 400 });
       }
       console.error('Quick create student error:', err);
       return message(form, m.event_builder_quick_create_error(), { status: 500 });

@@ -46,7 +46,7 @@
     >
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-2">
-          <Label>{m.student_form_nom()}</Label>
+          <Label>{m.common_field_name()}</Label>
           <Input name="nom" bind:value={$createForm.nom} />
         </div>
         <div class="space-y-2">

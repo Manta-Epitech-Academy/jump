@@ -81,7 +81,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        {m.admin_subjects_page_title()} <span class="text-epi-pink">{m.admin_subjects_page_title_accent()}</span>
+        {m.admin_subjects_page_title()} <span class="text-epi-pink">{m.subject_tab_official()}</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
         {m.admin_subjects_subtitle()}
@@ -102,8 +102,8 @@
           <Table.Head class="w-12 text-center"
             ><Globe class="mx-auto h-4 w-4 text-epi-pink" /></Table.Head
           >
-          <Table.Head>{m.admin_subjects_col_subject()}</Table.Head>
-          <Table.Head>{m.admin_subjects_col_themes()}</Table.Head>
+          <Table.Head>{m.subject_column_subject()}</Table.Head>
+          <Table.Head>{m.common_field_themes()}</Table.Head>
           <Table.Head>{m.admin_subjects_col_level_xp()}</Table.Head>
           <Table.Head class="text-right">{m.common_actions()}</Table.Head>
         </Table.Row>
@@ -203,7 +203,7 @@
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
         <div class="grid gap-2">
-          <Label>{m.subject_form_nom()}</Label>
+          <Label>{m.common_field_name()}</Label>
           <Input name="nom" bind:value={$form.nom} />
           {#if $errors.nom}<span class="text-xs text-destructive"
               >{$errors.nom}</span
@@ -221,7 +221,7 @@
           <MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
         </div>
         <div class="grid gap-2">
-          <Label>{m.subject_form_difficulty()}</Label>
+          <Label>{m.common_field_difficulty()}</Label>
           <div class="flex gap-2">
             {#each difficultes as diff}
               <Button

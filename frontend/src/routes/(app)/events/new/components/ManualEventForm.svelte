@@ -68,7 +68,7 @@
 
   <div class="flex flex-col gap-4 sm:flex-row">
     <div class="flex-1 space-y-2">
-      <Label for="date">{m.event_form_date_label()}</Label>
+      <Label for="date">{m.common_field_date()}</Label>
       <Popover.Root bind:open>
         <Popover.Trigger id="date">
           {#snippet child({ props })}
@@ -107,7 +107,7 @@
     </div>
 
     <div class="flex-1 space-y-2">
-      <Label>{m.event_form_time_label()}</Label>
+      <Label>{m.common_field_time()}</Label>
       <div class="flex gap-2">
         <Select.Root type="single" bind:value={hour}>
           <Select.Trigger class="w-full">{hour}</Select.Trigger>

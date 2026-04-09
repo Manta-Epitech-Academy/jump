@@ -18,7 +18,7 @@
 <div class="space-y-6">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      {m.admin_dashboard_title()} <span class="text-epi-pink">{m.admin_dashboard_title_accent()}</span>
+      {m.admin_section_system()} <span class="text-epi-pink">{m.admin_dashboard_title_accent()}</span>
     </h1>
     <p class="text-sm font-bold text-muted-foreground uppercase">
       {m.admin_dashboard_subtitle()}
@@ -109,9 +109,9 @@
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>{m.admin_column_title()}</TableHead>
-            <TableHead>{m.admin_column_date()}</TableHead>
-            <TableHead class="text-right">{m.admin_column_campus()}</TableHead>
+            <TableHead>{m.common_field_title()}</TableHead>
+            <TableHead>{m.common_field_date()}</TableHead>
+            <TableHead class="text-right">{m.admin_staff_col_campus()}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

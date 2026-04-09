@@ -33,13 +33,13 @@
         <TableHeader class="bg-muted/50">
           <TableRow>
             <TableHead class="text-xs font-bold uppercase">{m.event_column_event()}</TableHead>
-            <TableHead class="text-xs font-bold uppercase">{m.event_label_date()}</TableHead>
+            <TableHead class="text-xs font-bold uppercase">{m.common_field_date()}</TableHead>
             <TableHead class="hidden text-xs font-bold uppercase md:table-cell"
-              >{m.event_column_theme()}</TableHead
+              >{m.common_field_theme()}</TableHead
             >
             <TableHead
               class="hidden text-center text-xs font-bold uppercase md:table-cell"
-              >{m.event_column_mantas()}</TableHead
+              >{m.event_form_mantas_label()}</TableHead
             >
             <TableHead class="text-center text-xs font-bold uppercase"
               >{m.event_history_column_participation()}</TableHead

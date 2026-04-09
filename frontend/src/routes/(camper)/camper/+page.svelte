@@ -51,10 +51,10 @@
 
   let levelLabel = $derived(
     student?.level === 'Expert'
-      ? m.camper_level_expert()
+      ? m.student_detail_xp_expert()
       : student?.level === 'Apprentice'
         ? m.camper_level_apprentice()
-        : m.camper_level_novice(),
+        : m.student_detail_xp_novice(),
   );
 
   // Assuming 1000 XP is the max for the progress bar visual (can be adjusted)
@@ -126,7 +126,7 @@
       toast.success(m.camper_certificate_downloaded());
       triggerConfetti();
     } catch (e) {
-      toast.error(m.camper_certificate_error());
+      toast.error(m.certificate_generation_error());
     } finally {
       isDownloading = false;
     }
@@ -179,7 +179,7 @@
             class="h-8 w-8 text-slate-400 hover:text-destructive"
           >
             <LogOut class="h-4 w-4" />
-            <span class="sr-only">{m.camper_logout()}</span>
+            <span class="sr-only">{m.nav_logout()}</span>
           </Button>
         </form>
       </div>

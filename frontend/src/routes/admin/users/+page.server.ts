@@ -33,7 +33,7 @@ export const actions: Actions = {
       return { success: true };
     } catch (err) {
       console.error(err);
-      return fail(500, { message: m.admin_user_update_error() });
+      return fail(500, { message: m.server_error_generic_update() });
     }
   },
 

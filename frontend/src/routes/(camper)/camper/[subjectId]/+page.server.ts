@@ -196,7 +196,7 @@ export const actions: Actions = {
       return { success: true };
     } catch (err) {
       console.error('Portfolio delete error:', err);
-      return fail(500, { message: m.camper_portfolio_delete_error() });
+      return fail(500, { message: m.server_error_generic_delete_dot() });
     }
   },
 

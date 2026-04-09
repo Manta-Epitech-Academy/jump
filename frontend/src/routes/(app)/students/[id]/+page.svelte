@@ -97,7 +97,7 @@
     >
       <div class="space-y-1">
         <h4 class="text-sm font-bold text-destructive uppercase">
-          {m.student_detail_danger_zone()}
+          {m.common_danger_zone()}
         </h4>
         <p class="text-xs text-muted-foreground">
           {m.student_detail_danger_warning()}
@@ -118,7 +118,7 @@
   <AlertDialog.Root bind:open={deleteDialogOpen}>
     <AlertDialog.Content>
       <AlertDialog.Header>
-        <AlertDialog.Title>{m.student_detail_delete_confirm_title()}</AlertDialog.Title>
+        <AlertDialog.Title>{m.common_delete_confirm()}</AlertDialog.Title>
         <AlertDialog.Description
           >{m.student_detail_delete_confirm_description()}</AlertDialog.Description
         >
@@ -129,7 +129,7 @@
           <AlertDialog.Action
             type="submit"
             class={buttonVariants({ variant: 'destructive' })}
-            >{m.camper_settings_delete_definitive()}</AlertDialog.Action
+            >{m.common_delete_permanently()}</AlertDialog.Action
           >
         </form>
       </AlertDialog.Footer>

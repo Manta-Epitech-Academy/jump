@@ -216,7 +216,7 @@
           value="all"
           class="rounded-sm px-3 py-1.5 text-xs font-bold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
         >
-          {m.subject_tab_all()} <span class="ml-2 text-[10px] text-muted-foreground"
+          {m.common_all()} <span class="ml-2 text-[10px] text-muted-foreground"
             >{stats.total}</span
           >
         </Tabs.Trigger>
@@ -310,7 +310,7 @@
           <Select.Trigger class="h-9 w-40 text-xs">
             <SignalLow class="mr-2 h-3.5 w-3.5 text-muted-foreground" />
             <span class="truncate">
-              {difficultyFilter === 'all' ? m.subject_filter_difficulty() : translateDifficulty(difficultyFilter)}
+              {difficultyFilter === 'all' ? m.common_field_difficulty() : translateDifficulty(difficultyFilter)}
             </span>
           </Select.Trigger>
           <Select.Content>
@@ -325,8 +325,8 @@
           <Select.Trigger class="h-9 w-37.5 text-xs">
             <Tag class="mr-2 h-3.5 w-3.5 text-muted-foreground" />
             {themeFilter === 'all'
-              ? m.subject_filter_theme()
-              : translateTheme(uniqueThemes.find((t) => t[0] === themeFilter)?.[1]) || m.subject_filter_theme()}
+              ? m.common_field_theme()
+              : translateTheme(uniqueThemes.find((t) => t[0] === themeFilter)?.[1]) || m.common_field_theme()}
           </Select.Trigger>
           <Select.Content class="max-h-60">
             <Select.Item value="all">{m.common_all()}</Select.Item>
@@ -382,7 +382,7 @@
                           : 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
                     )}
                   >
-                    {isOfficial ? m.subject_badge_official() : isMine ? m.subject_badge_local() : m.subject_badge_community()}
+                    {isOfficial ? m.subject_badge_official() : isMine ? m.subject_badge_local() : m.subject_tab_community()}
                   </Badge>
                   <span class="text-xs font-bold text-foreground/70"
                     >{xp} XP</span
@@ -521,8 +521,8 @@
               <Table.Row>
                 <Table.Head class="w-12.5"></Table.Head>
                 <Table.Head>{m.subject_column_subject()}</Table.Head>
-                <Table.Head class="hidden md:table-cell">{m.subject_column_themes()}</Table.Head>
-                <Table.Head class="hidden sm:table-cell">{m.subject_column_difficulty()}</Table.Head>
+                <Table.Head class="hidden md:table-cell">{m.common_field_themes()}</Table.Head>
+                <Table.Head class="hidden sm:table-cell">{m.common_field_difficulty()}</Table.Head>
                 <Table.Head class="text-right">XP</Table.Head>
                 <Table.Head class="w-20"></Table.Head>
               </Table.Row>
@@ -654,7 +654,7 @@
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
         <div class="grid gap-2">
-          <Label for="nom">{m.subject_form_nom()}</Label>
+          <Label for="nom">{m.common_field_name()}</Label>
           <Input
             id="nom"
             name="nom"
@@ -679,14 +679,14 @@
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label>{m.subject_form_themes()}</Label>
+          <Label>{m.common_field_themes()}</Label>
           <MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
           {#if $errors.themes}<span class="text-xs text-destructive"
               >{$errors.themes}</span
             >{/if}
         </div>
         <div class="grid gap-3 rounded-md border bg-muted/20 p-4">
-          <Label>{m.subject_form_difficulty()}</Label>
+          <Label>{m.common_field_difficulty()}</Label>
           <div class="flex flex-wrap gap-2">
             {#each difficultes as diff}
               {@const isActive = $form.difficulte === diff}

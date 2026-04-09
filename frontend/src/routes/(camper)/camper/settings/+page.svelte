@@ -17,7 +17,7 @@
 </script>
 
 <svelte:head>
-  <title>{m.camper_settings_title()}</title>
+  <title>{m.camper_settings()}</title>
 </svelte:head>
 
 <div
@@ -39,7 +39,7 @@
         <h1
           class="font-heading text-3xl tracking-tight text-slate-900 uppercase dark:text-white"
         >
-          {m.camper_settings_title()}<span class="text-epi-teal">_</span>
+          {m.camper_settings()}<span class="text-epi-teal">_</span>
         </h1>
       </div>
     </header>
@@ -62,7 +62,7 @@
               <User class="h-4 w-4 text-epi-blue" />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] font-bold text-slate-400 uppercase">{m.camper_settings_field_name()}</p>
+              <p class="text-[10px] font-bold text-slate-400 uppercase">{m.common_field_name()}</p>
               <p
                 class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
               >
@@ -79,7 +79,7 @@
             </div>
             <div class="min-w-0">
               <p class="text-[10px] font-bold text-slate-400 uppercase">
-                {m.camper_settings_field_email()}
+                {m.common_field_email()}
               </p>
               <p
                 class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
@@ -123,7 +123,7 @@
         <h2
           class="mb-1 text-base font-bold tracking-widest text-red-400 uppercase dark:text-red-500/70"
         >
-          {m.camper_settings_danger_zone()}
+          {m.common_danger_zone()}
         </h2>
         <p class="mb-4 text-xs leading-relaxed text-slate-400">
           {m.camper_settings_delete_warning()}
@@ -182,7 +182,7 @@
           {#if deleting}
             {m.camper_settings_deleting()}
           {:else}
-            {m.camper_settings_delete_definitive()}
+            {m.common_delete_permanently()}
           {/if}
         </button>
       </form>

@@ -187,7 +187,7 @@
                             >
                           {/snippet}
                         </Tooltip.Trigger>
-                        <Tooltip.Content><p>{m.student_timeline_view_resource()}</p></Tooltip.Content
+                        <Tooltip.Content><p>{m.subject_view_support()}</p></Tooltip.Content
                         >
                       </Tooltip.Root>
                     </Tooltip.Provider>

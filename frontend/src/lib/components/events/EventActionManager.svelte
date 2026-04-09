@@ -34,5 +34,5 @@
   action="?/deleteEvent&id={eventToDelete}"
   title={m.event_delete_title()}
   description={m.event_delete_description()}
-  buttonText={m.event_delete_confirm()}
+  buttonText={m.common_delete_permanently()}
 />

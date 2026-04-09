@@ -280,7 +280,7 @@
   action="?/deleteEvent"
   title={m.event_builder_delete_event_title()}
   description={m.event_builder_delete_event_description()}
-  buttonText={m.event_builder_delete_event_confirm()}
+  buttonText={m.common_delete_confirm()}
   onSuccess={() => goto(resolve('/'))}
 />
 

@@ -213,7 +213,7 @@
             >
             <Table.Head class="text-xs font-bold uppercase">{m.student_list_column_level()}</Table.Head>
             <Table.Head class="hidden text-xs font-bold uppercase sm:table-cell"
-              >{m.student_list_column_difficulty()}</Table.Head
+              >{m.common_field_difficulty()}</Table.Head
             >
             <Table.Head class="text-right text-xs font-bold uppercase"
               >{m.student_list_column_xp()}</Table.Head
@@ -334,7 +334,7 @@
       icon={Users}
       title={m.student_list_empty_title()}
       description={m.student_list_empty_description()}
-      actionLabel={m.student_list_empty_action()}
+      actionLabel={m.student_form_title_create()}
       actionCallback={openCreate}
     />
   {/if}

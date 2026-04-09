@@ -141,7 +141,7 @@
       <div
         class="flex justify-between px-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
       >
-        <span>{m.student_detail_xp_scale_min()}</span>
+        <span>{m.student_detail_xp_novice()}</span>
         <span>{m.student_detail_xp_scale_max()}</span>
       </div>
     </div>
@@ -159,7 +159,7 @@
         <div class="rounded-sm bg-muted/30 p-2">
           <div class="text-lg font-bold text-orange-500">{stats.lateCount}</div>
           <div class="text-[9px] font-bold text-muted-foreground uppercase">
-            {m.student_detail_stat_lates()}
+            {m.appel_filter_late()}
           </div>
         </div>
       {/if}

@@ -61,11 +61,11 @@
               >{m.event_column_date_time()}</TableHead
             >
             <TableHead class="hidden text-xs font-bold uppercase md:table-cell"
-              >{m.event_column_theme()}</TableHead
+              >{m.common_field_theme()}</TableHead
             >
             <TableHead
               class="hidden text-center text-xs font-bold uppercase md:table-cell"
-              >{m.event_column_mantas()}</TableHead
+              >{m.event_form_mantas_label()}</TableHead
             >
             <TableHead
               class="hidden text-center text-xs font-bold uppercase md:table-cell"

@@ -103,7 +103,7 @@
         class="space-y-4 py-2"
       >
         <div class="space-y-2">
-          <Label>{m.event_label_title()}</Label>
+          <Label>{m.common_field_title()}</Label>
           <Input name="titre" bind:value={$editForm.titre} />
           {#if $editErrors.titre}<p class="text-xs text-destructive">
               {$editErrors.titre}
@@ -125,7 +125,7 @@
 
         <div class="grid gap-4">
           <div class="space-y-2">
-            <Label>{m.event_column_theme()}</Label>
+            <Label>{m.common_field_theme()}</Label>
             <ThemeSelect {themes} bind:value={$editForm.theme} name="theme" />
             {#if $editErrors.theme}<p class="text-xs text-destructive">
                 {$editErrors.theme}
@@ -146,14 +146,14 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <Label>{m.event_label_date()}</Label>
+            <Label>{m.common_field_date()}</Label>
             <DatePicker bind:value={dateValue} name="date" />
             {#if $editErrors.date}<p class="text-xs text-destructive">
                 {$editErrors.date}
               </p>{/if}
           </div>
           <div class="space-y-2">
-            <Label>{m.event_label_time()}</Label>
+            <Label>{m.common_field_time()}</Label>
             <div class="flex gap-2">
               <Select.Root type="single" bind:value={hour}>
                 <Select.Trigger>{hour}</Select.Trigger>
@@ -191,7 +191,7 @@
       >
         <div class="space-y-1">
           <h4 class="text-sm font-bold text-destructive uppercase">
-            {m.student_detail_danger_zone()}
+            {m.common_danger_zone()}
           </h4>
           <p class="text-xs text-muted-foreground">
             {m.event_builder_delete_event_warning()}

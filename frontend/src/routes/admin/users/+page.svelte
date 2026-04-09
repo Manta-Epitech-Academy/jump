@@ -29,7 +29,7 @@
 <div class="space-y-6">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      {m.admin_staff_title()} <span class="text-epi-pink">{m.admin_staff_title_accent()}</span>
+      {m.admin_staff_title()} <span class="text-epi-pink">{m.admin_kpi_staff()}</span>
     </h1>
     <p class="text-sm font-bold text-muted-foreground uppercase">
       {m.admin_staff_subtitle()}
@@ -41,7 +41,7 @@
       <Table.Header>
         <Table.Row>
           <Table.Head>{m.admin_staff_col_user()}</Table.Head>
-          <Table.Head>{m.admin_staff_col_email()}</Table.Head>
+          <Table.Head>{m.common_field_email()}</Table.Head>
           <Table.Head>{m.admin_staff_col_campus()}</Table.Head>
           <Table.Head class="text-right">{m.common_actions()}</Table.Head>
         </Table.Row>

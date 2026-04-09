@@ -60,7 +60,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        {m.admin_campuses_title()} <span class="text-epi-pink">{m.admin_campuses_title_accent()}</span>
+        {m.admin_kpi_network()} <span class="text-epi-pink">{m.admin_staff_col_campus()}</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
         {m.admin_campuses_subtitle()}

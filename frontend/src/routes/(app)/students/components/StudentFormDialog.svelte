@@ -65,7 +65,7 @@
 
       <div class="grid grid-cols-2 gap-4">
         <div class="grid gap-2">
-          <Label for="nom">{m.student_form_nom()}</Label>
+          <Label for="nom">{m.common_field_name()}</Label>
           <Input
             id="nom"
             name="nom"
@@ -168,7 +168,7 @@
         </div>
 
         <div class="grid gap-2">
-          <Label for="niveau_difficulte">{m.student_form_difficulty()}</Label>
+          <Label for="niveau_difficulte">{m.common_field_difficulty()}</Label>
           <Select.Root type="single" bind:value={$form.niveau_difficulte}>
             <Select.Trigger>
               {translateDifficulty($form.niveau_difficulte || 'Débutant')}
@@ -193,7 +193,7 @@
       <Dialog.Footer>
         <Button type="submit" disabled={$delayed} class="w-full">
           {#if $delayed}{m.common_saving()}{:else}{isEditing
-              ? m.student_form_submit_edit()
+              ? m.common_update()
               : m.student_form_submit_create()}{/if}
         </Button>
       </Dialog.Footer>

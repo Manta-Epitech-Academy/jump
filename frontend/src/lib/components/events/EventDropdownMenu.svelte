@@ -40,7 +40,7 @@
       onclick={() => onDuplicate(event)}
     >
       <Copy class="mr-2 h-4 w-4 text-muted-foreground" />
-      {m.event_dropdown_duplicate()}
+      {m.common_duplicate()}
     </DropdownMenu.Item>
 
     <DropdownMenu.Separator />
@@ -50,7 +50,7 @@
       onclick={() => onDelete(event.id)}
     >
       <Trash2 class="mr-2 h-4 w-4" />
-      {m.event_dropdown_delete()}
+      {m.common_delete()}
     </DropdownMenu.Item>
   </DropdownMenu.Content>
 </DropdownMenu.Root>

@@ -99,7 +99,7 @@
               open = false;
               await update();
             } else {
-              toast.error(m.event_duplicate_error());
+              toast.error(m.server_error_generic_duplicate());
               await update();
             }
           };
@@ -109,17 +109,17 @@
         <input type="hidden" name="originalId" value={eventToDuplicate.id} />
 
         <div class="grid gap-2">
-          <Label for="titre">{m.event_label_title()}</Label>
+          <Label for="titre">{m.common_field_title()}</Label>
           <Input id="titre" name="titre" bind:value={title} required />
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <Label>{m.event_label_date()}</Label>
+            <Label>{m.common_field_date()}</Label>
             <DatePicker bind:value={dateValue} name="date" />
           </div>
           <div class="space-y-2">
-            <Label>{m.event_label_time()}</Label>
+            <Label>{m.common_field_time()}</Label>
             <div class="flex gap-2">
               <Select.Root type="single" bind:value={hour}>
                 <Select.Trigger>{hour}</Select.Trigger>
@@ -154,7 +154,7 @@
               <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
               {m.common_creating()}
             {:else}
-              {m.event_dropdown_duplicate()}
+              {m.common_duplicate()}
             {/if}
           </Button>
         </Dialog.Footer>
