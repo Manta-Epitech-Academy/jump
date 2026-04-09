@@ -10,10 +10,19 @@ defaults:
   run:
     working-directory: frontend
 
-# Dummy DATABASE_URL needed by prisma.config.ts during `prisma generate`
-# (postinstall step). Tests that need a real DB override this.
+# Dummy env vars so prisma generate (postinstall) and the SvelteKit build
+# (which evaluates BetterAuth at module load) succeed in CI.
+# Jobs that need real values should override these in their step `env`.
 env:
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  ORIGIN: http://localhost:3030
+  BETTER_AUTH_SECRET: ci-dummy-secret-not-used-at-runtime
+  BETTER_AUTH_URL: http://localhost:3030
+  MICROSOFT_CLIENT_ID: ci-dummy
+  MICROSOFT_CLIENT_SECRET: ci-dummy
+  MICROSOFT_TENANT_ID: ci-dummy
+  RESEND_API_KEY: ci-dummy
+  RESEND_FROM_EMAIL: noreply@example.com
 
 jobs:
   lint-and-check:
