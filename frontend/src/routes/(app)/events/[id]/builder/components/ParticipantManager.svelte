@@ -7,7 +7,7 @@
   import { Separator } from '$lib/components/ui/separator';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import StudentParticipationRow from './StudentParticipationRow.svelte';
-  type ParticipationWithExpand = Record<string, any>;
+  import type { ParticipationWithDetails } from '$lib/types';
 
   let {
     unassignedParticipations,
@@ -16,8 +16,8 @@
     onManageSubjects,
     onBulkAssign,
   }: {
-    unassignedParticipations: ParticipationWithExpand[];
-    assignedParticipations: ParticipationWithExpand[];
+    unassignedParticipations: ParticipationWithDetails[];
+    assignedParticipations: ParticipationWithDetails[];
     onDelete: (id: string) => void;
     onManageSubjects: (
       participationId: string,

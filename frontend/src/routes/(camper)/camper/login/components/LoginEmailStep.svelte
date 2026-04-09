@@ -69,12 +69,12 @@
   </form>
 
   {#if goBack}
-    <button
-      type="button"
+    <Button
+      variant="ghost"
       onclick={goBack}
-      class="mt-4 w-full cursor-pointer text-center text-xs font-bold text-slate-400 transition-colors hover:text-epi-blue"
+      class="mt-4 w-full normal-case tracking-normal text-xs text-slate-400 transition-colors hover:bg-transparent hover:text-epi-blue"
     >
       Retour
-    </button>
+    </Button>
   {/if}
 </div>

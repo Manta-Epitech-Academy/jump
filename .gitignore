@@ -18,11 +18,6 @@ yarn-error.log*
 .env.test
 .env.*.local
 
-# PocketBase
-pocketbase-backend/pocketbase
-pocketbase-backend/pocketbase.exe
-pocketbase-backend/pb_data/
-
 # Logs
 logs
 *.log
@@ -87,3 +82,6 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Prisma
+frontend/prisma/generated/

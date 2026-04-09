@@ -14,7 +14,7 @@
   import type { SuperForm } from 'sveltekit-superforms/client';
   import type { AddParticipantForm } from '$lib/validation/events';
 
-  type ParticipationWithExpand = Record<string, any>;
+  import type { ParticipationWithDetails } from '$lib/types';
 
   let {
     participations,
@@ -22,7 +22,7 @@
     addDelayed,
     createStudentForm,
   }: {
-    participations: ParticipationWithExpand[];
+    participations: ParticipationWithDetails[];
     addEnhance: SuperForm<AddParticipantForm>['enhance'];
     addDelayed: Readable<boolean>;
     createStudentForm: any;

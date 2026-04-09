@@ -60,12 +60,7 @@
 
   let progressId = $derived(data.progress.id);
 
-  // TODO: implement SSE or polling to replace PocketBase realtime subscription
-  // Previously subscribed to steps_progress record by ID for:
-  // - Staff unlock notifications (toast + confetti on completion)
-  // - Status change detection (needs_help toggle)
-  // On update: check unlocked_step_id change, last_unlock_source === 'staff' → toast
-  // Then invalidateAll() to refetch data
+  // TODO: implement SSE or polling for live staff unlock notifications and status changes
 </script>
 
 <div
