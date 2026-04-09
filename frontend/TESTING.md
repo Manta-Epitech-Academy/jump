@@ -1,6 +1,6 @@
 # Politique de Tests — Epitech Intra Lycéens
 
-> Stack : SvelteKit · TypeScript · Vitest · Playwright · Supabase
+> Stack : SvelteKit · TypeScript · Vitest · Playwright · Prisma · PostgreSQL · BetterAuth
 
 ---
 
@@ -92,7 +92,7 @@ describe('validateAge', () => {
 
 **Ce qu'on teste :**
 - Les services métier qui interagissent avec la DB
-- Le wrapper DB (adaptateur Supabase)
+- Le client Prisma et les services qui l'utilisent
 - Les interactions entre plusieurs services
 
 **Ce qu'on ne teste PAS ici :**
@@ -100,7 +100,7 @@ describe('validateAge', () => {
 - Le comportement interne des bibliothèques tierces
 
 **Règles :**
-- Utiliser une instance Supabase de test dédiée — jamais la production, jamais le staging
+- Utiliser une instance PostgreSQL de test dédiée (via `docker-compose.test.yml`) — jamais la production, jamais le staging
 - Nettoyer les données après chaque test (`afterEach`)
 - Les tests d'intégration sont suffixés `.integration.test.ts` et placés dans un dossier `__integration__`
 
@@ -201,8 +201,8 @@ src/
     │   ├── validation.ts
     │   └── validation.test.ts
     └── db/
-        ├── supabase.adapter.ts
-        └── supabase.adapter.test.ts
+        ├── prisma.client.ts
+        └── prisma.client.test.ts
 
 tests/
 └── e2e/                                        ← all Playwright tests
@@ -314,7 +314,7 @@ bun run test:coverage
 # Integration tests only
 bun run test:integration
 
-# E2E tests (requires app + Supabase to be running)
+# E2E tests (requires app + test Postgres instance to be running)
 bun run test:e2e
 
 # E2E tests in UI mode (debug)
@@ -327,13 +327,13 @@ bun run test:e2e:ui
 |---------|------|
 | `vitest.config.ts` | Configure Vitest avec deux projets : **unit** (tous les `*.test.ts` dans `src/`) et **integration** (les `*.integration.test.ts` dans les dossiers `__integration__/`). Exclut les tests E2E qui sont gérés par Playwright. |
 | `playwright.config.ts` | Configure Playwright pour les tests E2E. Pointe sur `tests/e2e/`, lance automatiquement le serveur de dev si besoin, et utilise Chromium par défaut. |
-| `docker-compose.test.yml` | Lance une **base de données Postgres Supabase isolée** sur le port `54322`, dédiée aux tests d'intégration. Elle permet de taper sur une vraie DB sans jamais toucher à celle de dev ou de prod. Chaque lancement donne une instance propre qu'on peut remplir, vider et détruire sans risque. |
-| `.env.test.example` | Modèle à copier en `.env.test` (qui est gitignored). Documente toutes les variables d'environnement nécessaires pour lancer les tests d'intégration et E2E (URL Supabase, clés, credentials des users de test). Aucun secret dedans — les vrais mots de passe sont à renseigner localement. |
+| `docker-compose.test.yml` | Lance une **base de données PostgreSQL isolée** sur le port `5434`, dédiée aux tests d'intégration. Elle permet de taper sur une vraie DB sans jamais toucher à celle de dev ou de prod. Chaque lancement donne une instance propre qu'on peut remplir, vider et détruire sans risque. |
+| `.env.test.example` | Modèle à copier en `.env.test` (qui est gitignored). Documente toutes les variables d'environnement nécessaires pour lancer les tests d'intégration et E2E (URL de la base de test, credentials des users de test). Aucun secret dedans — les vrais mots de passe sont à renseigner localement. |
 
 ### Prérequis pour les tests d'intégration et E2E
 
 ```bash
-# Start the test Supabase instance (separate port from dev/production)
+# Start the test Postgres instance (separate port from dev/production)
 docker-compose -f docker-compose.test.yml up -d
 
 # Make sure test environment variables are configured

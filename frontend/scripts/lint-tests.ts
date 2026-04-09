@@ -225,10 +225,8 @@ const rules: Rule[] = [
     check() {
       const files = allTestFiles()
       const prodPatterns = [
-        // URLs Supabase/PocketBase de prod/staging
-        /(prod|production|staging)\.(supabase|pocketbase)/i,
-        // Domaine Supabase en dur (pas localhost)
-        /https?:\/\/[a-z0-9-]+\.supabase\.co/i,
+        // URLs Postgres prod/staging en dur (autorise localhost, 127.0.0.1, postgres-test, host.docker.internal)
+        /postgres(ql)?:\/\/[^@\s]+@(?!localhost|127\.0\.0\.1|postgres-test|host\.docker\.internal)/i,
         // URLs d'API en dur (adapter selon vos domaines)
         /https?:\/\/[a-z0-9-]*\.?epitech\.(eu|net|digital)/i,
       ]

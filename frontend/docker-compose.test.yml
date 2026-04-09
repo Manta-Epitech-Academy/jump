@@ -1,20 +1,20 @@
 services:
-  supabase-test-db:
-    image: supabase/postgres:latest
-    container_name: supabase-test-db
+  postgres-test:
+    image: postgres:18-alpine
+    container_name: tekcamp-postgres-test
     ports:
-      - '54322:5432'
+      - '5434:5432'
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${SUPABASE_TEST_DB_PASSWORD:-testpassword123}
-      POSTGRES_DB: postgres
+      POSTGRES_USER: tekcamp
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: tekcamp_test
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      test: ['CMD-SHELL', 'pg_isready -U tekcamp']
       interval: 5s
       timeout: 3s
       retries: 5
     volumes:
-      - supabase-test-data:/var/lib/postgresql/data
+      - postgres-test-data:/var/lib/postgresql/data
 
 volumes:
-  supabase-test-data:
+  postgres-test-data:
