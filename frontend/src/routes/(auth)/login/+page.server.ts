@@ -3,7 +3,10 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-  if (locals.user && (locals.user.role === 'staff' || locals.user.role === 'admin')) {
+  if (
+    locals.user &&
+    (locals.user.role === 'staff' || locals.user.role === 'admin')
+  ) {
     throw redirect(302, resolve('/'));
   }
 

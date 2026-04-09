@@ -19,7 +19,7 @@ export function forwardAuthCookies(response: Response, cookies: Cookies) {
     const encodedValue = nameValueStr.substring(equalsIndex + 1).trim();
     const value = decodeURIComponent(encodedValue);
 
-    const opts: Record<string, any> = { path: '/' };
+    const opts: Parameters<Cookies['set']>[2] = { path: '/' };
     for (const part of restParts) {
       const trimmed = part.trim();
       const lower = trimmed.toLowerCase();

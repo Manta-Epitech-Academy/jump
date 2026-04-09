@@ -130,7 +130,7 @@
         </p>
         <Button
           variant="ghost"
-          class="h-11 w-full rounded-2xl border border-red-200 bg-red-50/80 normal-case tracking-normal text-red-500 transition-all hover:scale-[1.02] hover:border-red-300 hover:bg-red-100 active:scale-[0.98] dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40"
+          class="h-11 w-full rounded-2xl border border-red-200 bg-red-50/80 tracking-normal text-red-500 normal-case transition-all hover:scale-[1.02] hover:border-red-300 hover:bg-red-100 active:scale-[0.98] dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40"
           onclick={() => (deleteDialogOpen = true)}
         >
           <Trash2 class="mr-2 inline h-4 w-4" />
@@ -180,7 +180,7 @@
         <Button
           type="submit"
           disabled={deleting}
-          class="h-12 w-full rounded-2xl bg-red-500 normal-case tracking-normal text-white shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] hover:bg-red-600 active:scale-[0.98]"
+          class="h-12 w-full rounded-2xl bg-red-500 tracking-normal text-white normal-case shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] hover:bg-red-600 active:scale-[0.98]"
         >
           {#if deleting}
             Suppression en cours…

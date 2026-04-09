@@ -90,9 +90,14 @@ export const actions: Actions = {
           notes: form.data.notes,
           campusId,
           pin: generatePin(),
-          mantas: form.data.mantas.length > 0
-            ? { create: form.data.mantas.map((id) => ({ staffProfileId: id })) }
-            : undefined,
+          mantas:
+            form.data.mantas.length > 0
+              ? {
+                  create: form.data.mantas.map((id) => ({
+                    staffProfileId: id,
+                  })),
+                }
+              : undefined,
         },
       });
       newEventId = record.id;

@@ -94,4 +94,3 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     throw error(404, 'Profil introuvable');
   }
 };
-

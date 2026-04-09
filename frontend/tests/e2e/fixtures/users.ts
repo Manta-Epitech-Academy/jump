@@ -10,4 +10,4 @@ export const testUsers = {
     email: process.env.TEST_STUDENT_EMAIL ?? 'student@test.fr',
     password: process.env.TEST_STUDENT_PASSWORD ?? '',
   },
-}
+};

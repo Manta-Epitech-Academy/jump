@@ -9,7 +9,12 @@
     AlertDescription,
     AlertTitle,
   } from '$lib/components/ui/alert';
-  import { ShieldAlert, FingerprintPattern, Lock, Server } from '@lucide/svelte';
+  import {
+    ShieldAlert,
+    FingerprintPattern,
+    Lock,
+    Server,
+  } from '@lucide/svelte';
 
   let { data } = $props();
 
