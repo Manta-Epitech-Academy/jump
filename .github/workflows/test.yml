@@ -10,6 +10,11 @@ defaults:
   run:
     working-directory: frontend
 
+# Dummy DATABASE_URL needed by prisma.config.ts during `prisma generate`
+# (postinstall step). Tests that need a real DB override this.
+env:
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
 jobs:
   lint-and-check:
     name: Lint & Type Check
