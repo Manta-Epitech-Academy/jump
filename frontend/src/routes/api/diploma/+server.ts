@@ -1,18 +1,19 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateDiplomaPDF } from '$lib/server/services/diplomaGenerator';
-import { formatDateFr } from '$lib/utils';
+import { formatDate } from '$lib/utils';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   if (!locals.user || (locals.user.role !== 'staff' && locals.user.role !== 'admin')) {
-    throw error(401, 'Non autorise');
+    throw error(401, m.server_error_unauthorized());
   }
 
   const participationId = url.searchParams.get('participationId');
 
   if (!participationId) {
-    throw error(400, 'ID de participation manquant.');
+    throw error(400, m.diploma_participation_id_missing());
   }
 
   try {
@@ -29,7 +30,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     });
 
     if (!participation) {
-      throw error(404, 'Participation introuvable.');
+      throw error(404, m.diploma_not_found());
     }
 
     const student = participation.studentProfile;
@@ -37,7 +38,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const subject = participation.subjects[0]?.subject;
 
     if (!student || !event) {
-      throw error(400, 'Donnees incompletes pour generer le diplome.');
+      throw error(400, m.diploma_incomplete_data());
     }
 
     // 2. Prepare data for EJS template
@@ -45,8 +46,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       studentName: `${student.prenom} ${student.nom}`,
       subjectName: subject?.nom || 'Atelier Programmation',
       eventTitle: event.titre,
-      eventDate: formatDateFr(event.date),
-      todayDate: formatDateFr(new Date()),
+      eventDate: formatDate(event.date),
+      todayDate: formatDate(new Date()),
     };
 
     // 3. Generate PDF Buffer via Puppeteer
@@ -67,6 +68,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     if (typeof err === 'object' && err !== null && 'status' in err) {
       throw err;
     }
-    throw error(500, 'Erreur lors de la generation du PDF.');
+    throw error(500, m.diploma_generation_error());
   }
 };

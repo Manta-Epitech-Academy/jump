@@ -11,6 +11,7 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     searchQuery = $bindable(''),
@@ -43,7 +44,7 @@
           class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
         />
         <Input
-          placeholder="Rechercher un élève..."
+          placeholder={m.appel_search_placeholder()}
           class="rounded-sm bg-card pl-9"
           bind:value={searchQuery}
         />
@@ -53,11 +54,11 @@
         <Select.Trigger class="h-9 w-full text-xs sm:w-45">
           <Funnel class="mr-2 h-3 w-3" />
           {filterSubject === 'all'
-            ? 'Tous les sujets'
+            ? m.appel_all_subjects()
             : uniqueSubjects.find((s) => s[0] === filterSubject)?.[1]}
         </Select.Trigger>
         <Select.Content>
-          <Select.Item value="all">Tous les sujets</Select.Item>
+          <Select.Item value="all">{m.appel_all_subjects()}</Select.Item>
           {#each uniqueSubjects as [id, nom]}
             <Select.Item value={id}>{nom}</Select.Item>
           {/each}
@@ -67,10 +68,10 @@
       <Select.Root type="single" bind:value={filterNiveau}>
         <Select.Trigger class="h-9 w-full text-xs sm:w-45">
           <GraduationCap class="mr-2 h-3 w-3" />
-          {filterNiveau === 'all' ? 'Toutes les classes' : filterNiveau}
+          {filterNiveau === 'all' ? m.appel_all_classes() : filterNiveau}
         </Select.Trigger>
         <Select.Content>
-          <Select.Item value="all">Toutes les classes</Select.Item>
+          <Select.Item value="all">{m.appel_all_classes()}</Select.Item>
           {#each uniqueNiveaux as niveau}
             <Select.Item value={niveau}>{niveau}</Select.Item>
           {/each}
@@ -96,7 +97,7 @@
                 </button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content><p>Vue Grille</p></Tooltip.Content>
+            <Tooltip.Content><p>{m.subject_view_grid()}</p></Tooltip.Content>
           </Tooltip.Root>
           <Tooltip.Root>
             <Tooltip.Trigger>
@@ -115,7 +116,7 @@
                 </button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content><p>Vue Liste</p></Tooltip.Content>
+            <Tooltip.Content><p>{m.subject_view_list()}</p></Tooltip.Content>
           </Tooltip.Root>
         </Tooltip.Provider>
       </div>
@@ -127,19 +128,19 @@
           variant={filterStatus === 'all' ? 'default' : 'outline'}
           size="sm"
           class="h-8 text-[10px]"
-          onclick={() => (filterStatus = 'all')}>Tous</Button
+          onclick={() => (filterStatus = 'all')}>{m.common_all()}</Button
         >
         <Button
           variant={filterStatus === 'present' ? 'default' : 'outline'}
           size="sm"
           class="h-8 text-[10px]"
-          onclick={() => (filterStatus = 'present')}>Présents</Button
+          onclick={() => (filterStatus = 'present')}>{m.appel_filter_present()}</Button
         >
         <Button
           variant={filterStatus === 'help' ? 'default' : 'outline'}
           size="sm"
           class="h-8 text-[10px]"
-          onclick={() => (filterStatus = 'help')}>Appels ({helpCount})</Button
+          onclick={() => (filterStatus = 'help')}>{m.appel_filter_help()} ({helpCount})</Button
         >
       </div>
       <div class="flex rounded-md border bg-card p-0.5">
@@ -171,19 +172,19 @@
         variant={filterStatus === 'all' ? 'default' : 'outline'}
         size="sm"
         class="h-8 text-[10px]"
-        onclick={() => (filterStatus = 'all')}>Tous</Button
+        onclick={() => (filterStatus = 'all')}>{m.common_all()}</Button
       >
       <Button
         variant={filterStatus === 'present' ? 'default' : 'outline'}
         size="sm"
         class="h-8 text-[10px]"
-        onclick={() => (filterStatus = 'present')}>Présents</Button
+        onclick={() => (filterStatus = 'present')}>{m.appel_filter_present()}</Button
       >
       <Button
         variant={filterStatus === 'late' ? 'default' : 'outline'}
         size="sm"
         class="h-8 text-[10px]"
-        onclick={() => (filterStatus = 'late')}>Retards</Button
+        onclick={() => (filterStatus = 'late')}>{m.appel_filter_late()}</Button
       >
       <Button
         variant={filterStatus === 'help' ? 'default' : 'outline'}
@@ -191,7 +192,7 @@
         class="h-8 text-[10px]"
         onclick={() => (filterStatus = 'help')}
       >
-        Appels
+        {m.appel_filter_help()}
         {#if helpCount > 0}<span
             class="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white"
             >{helpCount}</span

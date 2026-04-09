@@ -7,6 +7,7 @@
     LifeBuoy,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
   let {
     event,
     presentCount,
@@ -31,19 +32,19 @@
         href={resolve(`/events/${event.id}/builder`)}
         class="flex items-center gap-1 text-xs font-black tracking-widest text-muted-foreground uppercase transition-colors hover:text-epi-blue"
       >
-        <ArrowLeft class="h-3 w-3" /> Retour au builder
+        <ArrowLeft class="h-3 w-3" /> {m.appel_back_to_builder()}
       </a>
       <div class="flex gap-2">
         <div
           class="rounded-sm bg-epi-teal px-2 py-0.5 text-[10px] font-black text-black uppercase"
         >
-          {presentCount} Présents
+          {m.appel_present_count({ count: presentCount })}
         </div>
         {#if lateCount > 0}
           <div
             class="rounded-sm bg-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-800 uppercase"
           >
-            {lateCount} En retard
+            {m.appel_late_count({ count: lateCount })}
           </div>
         {/if}
         {#if helpCount > 0}
@@ -51,14 +52,14 @@
             class="flex animate-pulse items-center gap-1 rounded-sm bg-epi-orange px-2 py-0.5 text-[10px] font-black text-white uppercase"
           >
             <LifeBuoy class="h-3 w-3" />
-            {helpCount} Appels
+            {m.appel_help_count({ count: helpCount })}
           </div>
         {/if}
       </div>
     </div>
 
     <h1 class="text-xl font-bold uppercase">
-      Appel : <span style:view-transition-name="event-title-{event.id}"
+      {m.appel_event_title_prefix()} <span style:view-transition-name="event-title-{event.id}"
         >{event.titre}</span
       >
     </h1>
@@ -73,7 +74,7 @@
             <h4
               class="text-sm font-bold text-blue-900 uppercase dark:text-blue-100"
             >
-              Note / Planning
+              {m.appel_note_planning()}
             </h4>
             <p
               class="text-sm leading-relaxed whitespace-pre-wrap text-blue-800 dark:text-blue-200"
@@ -93,7 +94,7 @@
       <div class="flex flex-col">
         <span
           class="text-[10px] font-black tracking-widest text-slate-400 uppercase"
-          >Total Élèves</span
+          >{m.appel_total_students()}</span
         >
         <span class="text-2xl font-bold">{totalStudents}</span>
       </div>
@@ -103,7 +104,7 @@
         <div class="flex flex-col">
           <span
             class="text-[10px] font-black tracking-widest text-epi-orange uppercase"
-            >PC à Préparer</span
+            >{m.appel_pc_to_prepare()}</span
           >
           <span class="text-3xl font-bold text-epi-orange">{pcsNeeded}</span>
         </div>
@@ -116,7 +117,7 @@
           <div class="flex flex-col">
             <span
               class="text-[10px] font-black tracking-widest text-amber-400 uppercase"
-              >PIN Manta</span
+              >{m.appel_pin_manta()}</span
             >
             <span
               class="font-mono text-3xl font-bold tracking-widest text-amber-400"

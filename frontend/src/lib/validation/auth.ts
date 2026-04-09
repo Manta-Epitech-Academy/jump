@@ -1,22 +1,25 @@
 import { z } from 'zod';
+import { m } from '$lib/paraglide/messages.js';
 
 export const adminLoginSchema = z.object({
-  email: z.email('Adresse email invalide'),
-  password: z.string().min(1, 'Mot de passe requis'),
+  email: z.email({ error: () => m.validation_email_invalid() }),
+  password: z
+    .string()
+    .min(1, { error: () => m.validation_password_required() }),
 });
 
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 
 export const camperEmailSchema = z.object({
-  email: z.email('Adresse email invalide'),
+  email: z.email({ error: () => m.validation_email_invalid() }),
 });
 
 export const camperOtpSchema = z.object({
   email: z.email(),
   password: z
     .string()
-    .regex(/^\d+$/, 'Le code ne doit contenir que des chiffres')
-    .length(6, 'Le code doit contenir 6 chiffres'),
+    .regex(/^\d+$/, { error: () => m.validation_otp_numeric() })
+    .length(6, { error: () => m.validation_otp_length() }),
 });
 
 export type CamperEmailInput = z.infer<typeof camperEmailSchema>;

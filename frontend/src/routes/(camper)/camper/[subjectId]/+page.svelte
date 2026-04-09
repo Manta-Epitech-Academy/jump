@@ -12,6 +12,7 @@
   import { enhance } from '$app/forms';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { cn } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   import RoadmapSidebar from './components/RoadmapSidebar.svelte';
   import StepValidationBlock from './components/StepValidationBlock.svelte';
@@ -92,7 +93,7 @@
         class="md:hidden"
         onclick={() => (showRoadmapMobile = !showRoadmapMobile)}
       >
-        <MapIcon class="mr-2 h-4 w-4" /> Carte
+        <MapIcon class="mr-2 h-4 w-4" /> {m.camper_subject_map_btn()}
       </Button>
 
       <Button
@@ -102,7 +103,7 @@
         onclick={() => (showPortfolio = true)}
       >
         <FolderOpen class="mr-2 h-4 w-4" />
-        <span class="hidden sm:inline">Mon Portfolio</span>
+        <span class="hidden sm:inline">{m.camper_portfolio_title()}</span>
         {#if portfolioItems.length > 0}
           <Badge
             variant="default"
@@ -163,13 +164,12 @@
           <h2
             class="mb-2 font-heading text-4xl text-slate-900 uppercase dark:text-white"
           >
-            Sujet Terminé !
+            {m.camper_subject_completed()}
           </h2>
 
           {#if participation.camperRating}
             <p class="mb-8 max-w-md text-lg text-slate-500">
-              Merci pour ton retour ! Ton feedback aide les Mantas à améliorer
-              les ateliers.
+              {m.camper_feedback_thanks()}
             </p>
             <div class="flex flex-col gap-4 sm:flex-row">
               <Button
@@ -177,7 +177,7 @@
                 href={resolve('/camper')}
                 class="rounded-xl bg-epi-blue font-bold text-white shadow-lg hover:bg-epi-blue/90"
               >
-                Retourner au Cockpit
+                {m.camper_return_cockpit()}
               </Button>
               <Button
                 size="lg"
@@ -185,13 +185,12 @@
                 class="rounded-xl border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100"
                 onclick={() => (showPortfolio = true)}
               >
-                <FolderOpen class="mr-2 h-5 w-5" /> Gérer mon Portfolio
+                <FolderOpen class="mr-2 h-5 w-5" /> {m.camper_portfolio_manage()}
               </Button>
             </div>
           {:else}
             <p class="mb-6 max-w-md text-sm text-slate-500">
-              Excellent travail. Avant de partir, dis-nous ce que tu as pensé de
-              cette mission :
+              {m.camper_feedback_intro()}
             </p>
             <form
               method="POST"
@@ -201,9 +200,9 @@
                 return async ({ result, update }) => {
                   isSubmittingFeedback = false;
                   if (result.type === 'success') {
-                    toast.success('Feedback envoyé !');
+                    toast.success(m.camper_feedback_sent());
                   } else {
-                    toast.error("Erreur lors de l'envoi du feedback");
+                    toast.error(m.camper_feedback_send_error());
                   }
                   await update();
                 };
@@ -229,7 +228,7 @@
                   )}
                 >
                   <span class="text-3xl">🤯</span>
-                  <span class="text-xs font-bold uppercase">Difficile</span>
+                  <span class="text-xs font-bold uppercase">{m.camper_feedback_hard()}</span>
                 </button>
                 <button
                   type="button"
@@ -242,7 +241,7 @@
                   )}
                 >
                   <span class="text-3xl">💪</span>
-                  <span class="text-xs font-bold uppercase">Moyen</span>
+                  <span class="text-xs font-bold uppercase">{m.camper_feedback_medium()}</span>
                 </button>
                 <button
                   type="button"
@@ -255,7 +254,7 @@
                   )}
                 >
                   <span class="text-3xl">🚀</span>
-                  <span class="text-xs font-bold uppercase">Facile</span>
+                  <span class="text-xs font-bold uppercase">{m.camper_feedback_easy()}</span>
                 </button>
               </div>
 
@@ -263,13 +262,13 @@
                 <label
                   for="feedback"
                   class="text-xs font-bold text-slate-500 uppercase"
-                  >Un commentaire pour les Mantas ? (Optionnel)</label
+                  >{m.camper_feedback_comment_label()}</label
                 >
                 <textarea
                   id="feedback"
                   name="feedback"
                   bind:value={feedbackText}
-                  placeholder="Ce qui était cool, ce qui était dur..."
+                  placeholder={m.camper_feedback_comment_placeholder()}
                   class="min-h-20 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-epi-blue focus:ring-1 focus:ring-epi-blue dark:border-slate-800 dark:bg-slate-950 dark:focus:border-epi-blue dark:focus:ring-epi-blue"
                 ></textarea>
               </div>
@@ -279,8 +278,7 @@
                 disabled={!feedbackRating || isSubmittingFeedback}
                 class="w-full rounded-xl bg-epi-blue font-bold text-white hover:bg-epi-blue/90"
               >
-                {#if isSubmittingFeedback}Envoi en cours...{:else}Envoyer mon
-                  retour{/if}
+                {#if isSubmittingFeedback}{m.camper_feedback_sending()}{:else}{m.camper_feedback_submit()}{/if}
               </Button>
             </form>
           {/if}
@@ -294,7 +292,7 @@
             <Badge
               variant="outline"
               class="mb-4 border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-950"
-              >Étape {currentIndex + 1}</Badge
+              >{m.camper_step_label({ n: currentIndex + 1 })}</Badge
             >
             <h2
               class="mb-8 font-heading text-3xl tracking-wide text-slate-900 uppercase dark:text-white"

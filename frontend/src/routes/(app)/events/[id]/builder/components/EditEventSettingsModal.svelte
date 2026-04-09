@@ -16,6 +16,7 @@
   import type { Readable } from 'svelte/store';
   import type { SuperForm } from 'sveltekit-superforms/client';
   import type { EventForm } from '$lib/validation/events';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     open = $bindable(false),
@@ -86,13 +87,13 @@
           </Dialog.Trigger>
         {/snippet}
       </Tooltip.Trigger>
-      <Tooltip.Content><p>Paramètres de l'événement</p></Tooltip.Content>
+      <Tooltip.Content><p>{m.event_builder_settings_title()}</p></Tooltip.Content>
     </Tooltip.Root>
   </Tooltip.Provider>
 
   <Dialog.Content class="sm:max-w-125">
     <Dialog.Header>
-      <Dialog.Title>Paramètres de l'événement</Dialog.Title>
+      <Dialog.Title>{m.event_builder_settings_title()}</Dialog.Title>
     </Dialog.Header>
     <div class="space-y-6">
       <form
@@ -102,7 +103,7 @@
         class="space-y-4 py-2"
       >
         <div class="space-y-2">
-          <Label>Titre</Label>
+          <Label>{m.event_label_title()}</Label>
           <Input name="titre" bind:value={$editForm.titre} />
           {#if $editErrors.titre}<p class="text-xs text-destructive">
               {$editErrors.titre}
@@ -110,11 +111,11 @@
         </div>
 
         <div class="space-y-2">
-          <Label>Notes & Planning</Label>
+          <Label>{m.event_form_notes_label()}</Label>
           <Textarea
             name="notes"
             bind:value={$editForm.notes}
-            placeholder="Ex: 14h00 Intro, 15h30 Pause... Attention aux élèves de 4ème sur les boucles."
+            placeholder={m.event_builder_notes_placeholder()}
             class="min-h-25"
           />
           {#if $editErrors.notes}<p class="text-xs text-destructive">
@@ -124,14 +125,14 @@
 
         <div class="grid gap-4">
           <div class="space-y-2">
-            <Label>Thème</Label>
+            <Label>{m.event_column_theme()}</Label>
             <ThemeSelect {themes} bind:value={$editForm.theme} name="theme" />
             {#if $editErrors.theme}<p class="text-xs text-destructive">
                 {$editErrors.theme}
               </p>{/if}
           </div>
           <div class="space-y-2">
-            <Label>Mantas</Label>
+            <Label>{m.event_form_mantas_label()}</Label>
             <MultiStaffSelect
               {staff}
               bind:value={$editForm.mantas}
@@ -145,14 +146,14 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <Label>Date</Label>
+            <Label>{m.event_label_date()}</Label>
             <DatePicker bind:value={dateValue} name="date" />
             {#if $editErrors.date}<p class="text-xs text-destructive">
                 {$editErrors.date}
               </p>{/if}
           </div>
           <div class="space-y-2">
-            <Label>Heure</Label>
+            <Label>{m.event_label_time()}</Label>
             <div class="flex gap-2">
               <Select.Root type="single" bind:value={hour}>
                 <Select.Trigger>{hour}</Select.Trigger>
@@ -178,7 +179,7 @@
 
         <div class="flex justify-end pt-4">
           <Button type="submit" disabled={$editDelayed}
-            >Sauvegarder les modifications</Button
+            >{m.event_builder_save_changes()}</Button
           >
         </div>
       </form>
@@ -190,11 +191,10 @@
       >
         <div class="space-y-1">
           <h4 class="text-sm font-bold text-destructive uppercase">
-            Zone de danger
+            {m.student_detail_danger_zone()}
           </h4>
           <p class="text-xs text-muted-foreground">
-            La suppression d'un événement est irréversible. Les XP des élèves
-            validés seront automatiquement retirés.
+            {m.event_builder_delete_event_warning()}
           </p>
         </div>
         <Button
@@ -204,7 +204,7 @@
           onclick={() => (deleteEventDialogOpen = true)}
         >
           <Trash2 class="mr-2 h-4 w-4" />
-          Supprimer définitivement l'événement
+          {m.event_builder_delete_event_button()}
         </Button>
       </div>
     </div>

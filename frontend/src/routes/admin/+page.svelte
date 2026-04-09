@@ -9,7 +9,7 @@
     TableHeader,
     TableRow,
   } from '$lib/components/ui/table';
-  import { formatDateFr, i18nHref } from '$lib/utils';
+  import { formatDate, i18nHref } from '$lib/utils';
   import { m } from '$lib/paraglide/messages.js';
 
   let { data } = $props();
@@ -118,7 +118,7 @@
           {#each data.recentEvents as event}
             <TableRow>
               <TableCell class="font-bold">{event.titre}</TableCell>
-              <TableCell>{formatDateFr(event.date)}</TableCell>
+              <TableCell>{formatDate(event.date)}</TableCell>
               <TableCell class="text-right text-epi-pink"
                 >{event.campus}</TableCell
               >

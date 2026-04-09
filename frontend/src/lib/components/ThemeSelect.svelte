@@ -10,7 +10,7 @@
     Globe,
     MapPin,
   } from '@lucide/svelte';
-  import { cn } from '$lib/utils';
+  import { cn, translateTheme } from '$lib/utils';
 
   let {
     themes = [],
@@ -63,7 +63,7 @@
             {/if}
 
             {#if value}
-              <span class="font-bold">{value}</span>
+              <span class="font-bold">{translateTheme(value)}</span>
             {:else}
               <span class="text-muted-foreground"
                 >Sélectionner ou créer un thème...</span
@@ -130,7 +130,7 @@
                     {/if}
                   </div>
                   <div class="flex flex-col">
-                    <span>{theme.nom}</span>
+                    <span>{translateTheme(theme.nom)}</span>
                     <span class="text-[9px] text-muted-foreground uppercase">
                       {!theme.campus ? 'Officiel (Global)' : 'Local (Campus)'}
                     </span>

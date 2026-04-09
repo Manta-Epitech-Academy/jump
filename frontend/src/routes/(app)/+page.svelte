@@ -14,28 +14,13 @@
 
   import { resolve } from '$app/paths';
   import { m } from '$lib/paraglide/messages.js';
-  import { i18nHref } from '$lib/utils';
+  import { i18nHref, formatDateLong, formatTime, translateTheme } from '$lib/utils';
   import EventActionManager from '$lib/components/events/EventActionManager.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import EventDropdownMenu from '$lib/components/events/EventDropdownMenu.svelte';
 
   let { data } = $props();
-
-  function formatDate(date: Date): string {
-    return date.toLocaleDateString('fr-FR', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    });
-  }
-
-  function formatTime(date: Date): string {
-    return date.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
 
   function getEventStatus(date: Date) {
     const now = new Date();
@@ -111,7 +96,7 @@
                   <div
                     class="flex flex-col sm:flex-row sm:items-center sm:gap-2"
                   >
-                    <span class="font-medium">{formatDate(event.date)}</span>
+                    <span class="font-medium">{formatDateLong(event.date)}</span>
                     <span class="text-xs text-muted-foreground sm:text-sm"
                       >• {formatTime(event.date)}</span
                     >
@@ -122,7 +107,7 @@
                 {#if event.theme}
                   <div class="flex items-center gap-2">
                     <Tag class="h-4 w-4 text-teal-700" />
-                    <span class="font-bold text-teal-800">{event.theme}</span>
+                    <span class="font-bold text-teal-800">{translateTheme(event.theme)}</span>
                   </div>
                 {:else}
                   <span class="text-sm text-muted-foreground italic"

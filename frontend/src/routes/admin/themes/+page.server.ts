@@ -4,6 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 const themeSchema = z.object({
   nom: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
@@ -31,10 +32,10 @@ export const actions: Actions = {
       await prisma.theme.create({
         data: { nom: form.data.nom, campusId: null },
       });
-      return message(form, 'Thème officiel créé.');
+      return message(form, m.admin_theme_create_success());
     } catch (err) {
       console.error(err);
-      return message(form, 'Erreur lors de la création du thème.', {
+      return message(form, m.admin_theme_create_error(), {
         status: 500,
       });
     }
@@ -52,9 +53,9 @@ export const actions: Actions = {
         where: { id },
         data: { nom: form.data.nom },
       });
-      return message(form, 'Thème mis à jour.');
+      return message(form, m.admin_theme_update_success());
     } catch (err) {
-      return message(form, 'Erreur lors de la mise à jour.', { status: 500 });
+      return message(form, m.server_error_generic_update_dot(), { status: 500 });
     }
   },
 
@@ -78,7 +79,7 @@ export const actions: Actions = {
       await prisma.theme.delete({ where: { id } });
       return { success: true };
     } catch (err) {
-      return fail(500, { message: 'Erreur lors de la suppression.' });
+      return fail(500, { message: m.server_error_generic_delete_dot() });
     }
   },
 };

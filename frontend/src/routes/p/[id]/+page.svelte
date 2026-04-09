@@ -16,7 +16,7 @@
   let items = $derived(data.portfolioItems);
   let topThemes = $derived(data.topThemes);
 
-  import { THEME_TIER_CEILING } from '$lib/utils';
+  import { THEME_TIER_CEILING, translateTheme } from '$lib/utils';
 
   let levelLabel = $derived(
     student.level === 'Expert'
@@ -117,7 +117,7 @@
                 <div
                   class="flex justify-between text-sm font-bold text-slate-700 dark:text-slate-300"
                 >
-                  <span class="truncate pr-2">{theme.name}</span>
+                  <span class="truncate pr-2">{translateTheme(theme.name)}</span>
                   <span class="shrink-0 text-teal-700 dark:text-epi-teal"
                     >{theme.label}</span
                   >
@@ -128,7 +128,7 @@
                   aria-valuenow={Math.min(theme.count, THEME_TIER_CEILING)}
                   aria-valuemin={0}
                   aria-valuemax={THEME_TIER_CEILING}
-                  aria-label="{theme.name} : {theme.label}"
+                  aria-label="{translateTheme(theme.name)} : {theme.label}"
                 >
                   <div
                     class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"

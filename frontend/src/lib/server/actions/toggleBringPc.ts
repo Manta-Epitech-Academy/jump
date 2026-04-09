@@ -1,4 +1,5 @@
 import { error, fail } from '@sveltejs/kit';
+import { m } from '$lib/paraglide/messages.js';
 import { prisma } from '$lib/server/db';
 
 export async function toggleBringPc(formData: FormData, campusId: string) {
@@ -11,7 +12,7 @@ export async function toggleBringPc(formData: FormData, campusId: string) {
       select: { campusId: true },
     });
     if (participation.campusId !== campusId) {
-      throw error(403, 'Accès refusé.');
+      throw error(403, m.server_error_forbidden());
     }
 
     await prisma.participation.update({

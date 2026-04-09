@@ -9,6 +9,7 @@
   import * as Table from '$lib/components/ui/table';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data } = $props();
 
@@ -19,7 +20,7 @@
       onResult: ({ result }) => {
         if (result.type === 'success') {
           open = false;
-          toast.success(result.data?.form?.message || 'Action réussie');
+          toast.success(result.data?.form?.message ?? m.common_action_success());
         }
       },
     },
@@ -59,17 +60,17 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Réseau <span class="text-epi-pink">Campus</span>
+        {m.admin_campuses_title()} <span class="text-epi-pink">{m.admin_campuses_title_accent()}</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
-        Gérer les villes d'implantation
+        {m.admin_campuses_subtitle()}
       </p>
     </div>
     <Button
       onclick={openCreate}
       class="bg-epi-pink text-white hover:bg-epi-pink/90"
     >
-      <Plus class="mr-2 h-4 w-4" /> Ajouter
+      <Plus class="mr-2 h-4 w-4" /> {m.common_add()}
     </Button>
   </div>
 
@@ -78,8 +79,8 @@
       <Table.Header>
         <Table.Row>
           <Table.Head class="w-12"></Table.Head>
-          <Table.Head>Nom du Campus</Table.Head>
-          <Table.Head class="text-right">Actions</Table.Head>
+          <Table.Head>{m.admin_campuses_col_name()}</Table.Head>
+          <Table.Head class="text-right">{m.common_actions()}</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
@@ -115,7 +116,7 @@
   <Dialog.Root bind:open>
     <Dialog.Content class="sm:max-w-md">
       <Dialog.Header>
-        <Dialog.Title>{isEditing ? 'Modifier' : 'Nouveau'} Campus</Dialog.Title>
+        <Dialog.Title>{isEditing ? m.admin_campuses_form_edit_title() : m.admin_campuses_form_create_title()}</Dialog.Title>
       </Dialog.Header>
       <form
         method="POST"
@@ -125,7 +126,7 @@
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
         <div class="space-y-2">
-          <Label>Nom de la ville / campus</Label>
+          <Label>{m.admin_campuses_form_label()}</Label>
           <Input name="name" bind:value={$form.name} placeholder="Ex: Paris" />
           {#if $errors.name}<span class="text-xs text-destructive"
               >{$errors.name}</span
@@ -137,7 +138,7 @@
             disabled={$delayed}
             class="bg-epi-pink text-white"
           >
-            {$delayed ? 'Sauvegarde...' : 'Enregistrer'}
+            {$delayed ? m.common_saving() : m.common_save()}
           </Button>
         </Dialog.Footer>
       </form>
@@ -147,7 +148,7 @@
   <ConfirmDeleteDialog
     bind:open={deleteDialogOpen}
     action="?/delete&id={itemToDelete}"
-    title="Supprimer le campus"
-    description="Êtes-vous sûr ? Impossible si des données y sont attachées."
+    title={m.admin_campuses_delete_title()}
+    description={m.admin_campuses_delete_description()}
   />
 </div>

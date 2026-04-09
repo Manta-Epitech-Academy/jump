@@ -5,15 +5,16 @@
     type DateValue,
     getLocalTimeZone,
   } from '@internationalized/date';
-  import { cn } from '$lib/utils';
+  import { cn, intlLocale } from '$lib/utils';
   import { Button } from '$lib/components/ui/button';
   import { Calendar } from '$lib/components/ui/calendar';
   import * as Popover from '$lib/components/ui/popover';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     value = $bindable(),
     name = 'date',
-    placeholder = 'Sélectionner une date',
+    placeholder = m.date_select_placeholder(),
     class: className,
   }: {
     value: DateValue | undefined;
@@ -22,9 +23,7 @@
     class?: string;
   } = $props();
 
-  const df = new DateFormatter('fr-FR', {
-    dateStyle: 'long',
-  });
+  const df = $derived(new DateFormatter(intlLocale(), { dateStyle: 'long' }));
 
   let open = $state(false);
 </script>

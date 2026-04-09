@@ -8,6 +8,7 @@
   import { Plus } from '@lucide/svelte';
   import type { SuperForm } from 'sveltekit-superforms/client';
   import type { StudentForm } from '$lib/validation/students';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     open = $bindable(false),
@@ -33,10 +34,10 @@
 
 <Dialog.Root bind:open>
   <Dialog.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>
-    <Plus class="mr-2 h-4 w-4" /> Nouveau
+    <Plus class="mr-2 h-4 w-4" /> {m.common_new()}
   </Dialog.Trigger>
   <Dialog.Content>
-    <Dialog.Header><Dialog.Title>Ajout Rapide</Dialog.Title></Dialog.Header>
+    <Dialog.Header><Dialog.Title>{m.event_builder_quick_add_title()}</Dialog.Title></Dialog.Header>
     <form
       method="POST"
       action="?/quickCreateStudent"
@@ -45,34 +46,34 @@
     >
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-2">
-          <Label>Nom</Label>
+          <Label>{m.student_form_nom()}</Label>
           <Input name="nom" bind:value={$createForm.nom} />
         </div>
         <div class="space-y-2">
-          <Label>Prénom</Label>
+          <Label>{m.student_form_prenom()}</Label>
           <Input name="prenom" bind:value={$createForm.prenom} />
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-2">
-          <Label>Email (Optionnel)</Label>
+          <Label>{m.student_form_email()}</Label>
           <Input name="email" type="email" bind:value={$createForm.email} />
         </div>
         <div class="space-y-2">
-          <Label>Téléphone (Optionnel)</Label>
+          <Label>{m.student_form_phone()}</Label>
           <Input name="phone" type="tel" bind:value={$createForm.phone} />
         </div>
       </div>
 
       <div class="space-y-2">
-        <Label>Niveau</Label>
+        <Label>{m.student_form_level()}</Label>
         <Select.Root
           type="single"
           name="niveau"
           bind:value={$createForm.niveau}
         >
-          <Select.Trigger>{$createForm.niveau || 'Sélectionner'}</Select.Trigger
+          <Select.Trigger>{$createForm.niveau || m.common_select()}</Select.Trigger
           >
           <Select.Content>
             {#each niveauxScolaires as nv}
@@ -83,7 +84,7 @@
         <input type="hidden" name="niveau" value={$createForm.niveau} />
       </div>
       <Dialog.Footer
-        ><Button type="submit">Créer et Inscrire</Button></Dialog.Footer
+        ><Button type="submit">{m.event_builder_quick_create_submit()}</Button></Dialog.Footer
       >
     </form>
   </Dialog.Content>

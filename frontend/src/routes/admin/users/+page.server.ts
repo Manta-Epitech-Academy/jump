@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async () => {
   // Load all users with their staff profiles (which hold campus info) and all campuses
@@ -32,7 +33,7 @@ export const actions: Actions = {
       return { success: true };
     } catch (err) {
       console.error(err);
-      return fail(500, { message: 'Erreur lors de la mise à jour' });
+      return fail(500, { message: m.admin_user_update_error() });
     }
   },
 
@@ -45,7 +46,7 @@ export const actions: Actions = {
       await prisma.user.delete({ where: { id } });
       return { success: true };
     } catch (err) {
-      return fail(500, { message: 'Erreur lors de la suppression du membre.' });
+      return fail(500, { message: m.admin_user_delete_error() });
     }
   },
 };

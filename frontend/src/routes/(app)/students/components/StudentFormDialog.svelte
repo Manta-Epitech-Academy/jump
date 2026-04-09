@@ -6,6 +6,7 @@
   import * as Select from '$lib/components/ui/select';
   import { difficultes, type StudentForm } from '$lib/validation/students';
   import { m } from '$lib/paraglide/messages.js';
+  import { translateDifficulty } from '$lib/utils';
   import type { Snippet } from 'svelte';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { studentSchema } from '$lib/validation/students';
@@ -170,11 +171,11 @@
           <Label for="niveau_difficulte">{m.student_form_difficulty()}</Label>
           <Select.Root type="single" bind:value={$form.niveau_difficulte}>
             <Select.Trigger>
-              {$form.niveau_difficulte ? $form.niveau_difficulte : 'Débutant'}
+              {translateDifficulty($form.niveau_difficulte || 'Débutant')}
             </Select.Trigger>
             <Select.Content>
               {#each difficultes as diff}
-                <Select.Item value={diff}>{diff}</Select.Item>
+                <Select.Item value={diff}>{translateDifficulty(diff)}</Select.Item>
               {/each}
             </Select.Content>
           </Select.Root>

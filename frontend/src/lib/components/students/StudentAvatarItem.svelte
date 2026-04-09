@@ -3,6 +3,7 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Sprout } from '@lucide/svelte';
   import { cn } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     student,
@@ -53,7 +54,7 @@
           class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 transition-colors group-hover:border-epi-blue/30 group-hover:bg-epi-blue/10 group-hover:text-epi-blue dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
         >
           <Sprout class="h-2.5 w-2.5" />
-          Nouveau
+          {m.event_builder_new_student()}
         </Badge>
       {/if}
     </span>

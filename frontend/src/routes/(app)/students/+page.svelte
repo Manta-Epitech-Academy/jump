@@ -27,7 +27,7 @@
   import { toast } from 'svelte-sonner';
   import { untrack } from 'svelte';
   import { resolve } from '$app/paths';
-  import { cn, i18nHref } from '$lib/utils';
+  import { cn, i18nHref, translateDifficulty } from '$lib/utils';
   import { m } from '$lib/paraglide/messages.js';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
@@ -254,7 +254,7 @@
                     />{:else if diff === 'Intermédiaire'}<SignalMedium
                       class="mr-1 h-3 w-3"
                     />{:else}<SignalHigh class="mr-1 h-3 w-3" />{/if}
-                  {diff}
+                  {translateDifficulty(diff)}
                 </Badge>
               </Table.Cell>
               <Table.Cell class="text-right text-muted-foreground">

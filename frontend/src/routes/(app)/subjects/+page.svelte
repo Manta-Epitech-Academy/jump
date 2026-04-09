@@ -38,7 +38,7 @@
   import { toast } from 'svelte-sonner';
   import { untrack } from 'svelte';
   import { difficultes } from '$lib/validation/subjects';
-  import { cn } from '$lib/utils';
+  import { cn, translateDifficulty, translateTheme } from '$lib/utils';
   import { m } from '$lib/paraglide/messages.js';
   import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
   import { fly } from 'svelte/transition';
@@ -310,13 +310,13 @@
           <Select.Trigger class="h-9 w-40 text-xs">
             <SignalLow class="mr-2 h-3.5 w-3.5 text-muted-foreground" />
             <span class="truncate">
-              {difficultyFilter === 'all' ? m.subject_filter_difficulty() : difficultyFilter}
+              {difficultyFilter === 'all' ? m.subject_filter_difficulty() : translateDifficulty(difficultyFilter)}
             </span>
           </Select.Trigger>
           <Select.Content>
             <Select.Item value="all">{m.common_all_feminine()}</Select.Item>
             {#each difficultes as diff}<Select.Item value={diff}
-                >{diff}</Select.Item
+                >{translateDifficulty(diff)}</Select.Item
               >{/each}
           </Select.Content>
         </Select.Root>
@@ -326,12 +326,12 @@
             <Tag class="mr-2 h-3.5 w-3.5 text-muted-foreground" />
             {themeFilter === 'all'
               ? m.subject_filter_theme()
-              : uniqueThemes.find((t) => t[0] === themeFilter)?.[1] || m.subject_filter_theme()}
+              : translateTheme(uniqueThemes.find((t) => t[0] === themeFilter)?.[1]) || m.subject_filter_theme()}
           </Select.Trigger>
           <Select.Content class="max-h-60">
             <Select.Item value="all">{m.common_all()}</Select.Item>
             {#each uniqueThemes as [id, nom]}<Select.Item value={id}
-                >{nom}</Select.Item
+                >{translateTheme(nom)}</Select.Item
               >{/each}
           </Select.Content>
         </Select.Root>
@@ -415,7 +415,7 @@
                       {#each typedSubject.subjectThemes.slice(0, 3) as st}
                         <span
                           class="rounded-sm bg-secondary px-2 py-0.5 text-[10px] font-bold text-secondary-foreground shadow-sm"
-                          >#{st.theme.nom}</span
+                          >#{translateTheme(st.theme.nom)}</span
                         >
                       {/each}
                       {#if typedSubject.subjectThemes.length > 3}
@@ -442,7 +442,7 @@
                       {:else}
                         <SignalHigh class="mr-1 h-3 w-3" />
                       {/if}
-                      {subject.difficulte}
+                      {translateDifficulty(subject.difficulte)}
                     </Badge>
                   </div>
 
@@ -561,7 +561,7 @@
                       {#if typedSubject.subjectThemes?.length}{#each typedSubject.subjectThemes.slice(0, 3) as st}<Badge
                             variant="secondary"
                             class="text-[10px] font-bold tracking-tight"
-                            >#{st.theme.nom}</Badge
+                            >#{translateTheme(st.theme.nom)}</Badge
                           >{/each}{/if}
                     </div></Table.Cell
                   >
@@ -573,7 +573,7 @@
                         getDifficultyColor(subject.difficulte),
                       )}
                     >
-                      {subject.difficulte}
+                      {translateDifficulty(subject.difficulte)}
                     </Badge>
                   </Table.Cell>
                   <Table.Cell class="text-right font-bold text-foreground/80"
@@ -701,7 +701,7 @@
                     ? 'bg-epi-blue hover:bg-epi-blue/90'
                     : 'text-muted-foreground',
                 )}
-                >{diff}{#if isActive}<Check
+                >{translateDifficulty(diff)}{#if isActive}<Check
                     class="ml-1.5 h-3 w-3"
                   />{/if}</Button
               >

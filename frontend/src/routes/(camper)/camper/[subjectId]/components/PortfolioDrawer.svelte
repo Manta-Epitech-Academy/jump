@@ -14,6 +14,7 @@
   } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import { enhance } from '$app/forms';
+  import { m } from '$lib/paraglide/messages.js';
   let { showPortfolio = $bindable(), portfolioItems, eventId } = $props();
 
   let isUploadingPortfolio = $state(false);
@@ -52,7 +53,7 @@
         >
           <FolderOpen class="h-5 w-5" />
         </div>
-        <h2 class="font-heading text-lg uppercase">Mon Portfolio</h2>
+        <h2 class="font-heading text-lg uppercase">{m.camper_portfolio_title()}</h2>
       </div>
       <Button
         variant="ghost"
@@ -66,7 +67,7 @@
         class="mb-8 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50"
       >
         <h3 class="mb-4 text-xs font-bold text-slate-500 uppercase">
-          Ajouter une création
+          {m.camper_portfolio_add_section()}
         </h3>
         <form
           method="POST"
@@ -77,14 +78,14 @@
             return async ({ result, update }) => {
               isUploadingPortfolio = false;
               if (result.type === 'success') {
-                toast.success('Élément ajouté au portfolio !');
+                toast.success(m.camper_portfolio_add_success());
                 portfolioFile = null;
                 portfolioUrl = '';
                 portfolioCaption = '';
                 if (fileInputRef) fileInputRef.value = '';
               } else {
                 toast.error(
-                  (result as any).data?.message || "Erreur lors de l'ajout.",
+                  (result as any).data?.message ?? m.camper_portfolio_add_error(),
                 );
               }
               await update();
@@ -113,8 +114,7 @@
                   {:else}
                     <ImagePlus class="mb-2 h-6 w-6 text-slate-400" />
                     <p class="text-xs text-slate-500">
-                      <span class="font-bold text-epi-blue">Clique</span> pour ajouter
-                      une image
+                      {@html m.camper_portfolio_drop_zone()}
                     </p>
                   {/if}
                 </div>
@@ -137,7 +137,7 @@
             ></div>
             <span
               class="shrink-0 px-3 text-[10px] font-bold text-slate-400 uppercase"
-              >OU</span
+              >{m.common_or()}</span
             >
             <div
               class="grow border-t border-slate-200 dark:border-slate-800"
@@ -149,7 +149,7 @@
             <Input
               name="url"
               bind:value={portfolioUrl}
-              placeholder="Lien GitHub, Replit, Figma..."
+              placeholder={m.camper_portfolio_link_placeholder()}
               class="h-10 rounded-xl pl-9"
             />
           </div>
@@ -157,7 +157,7 @@
           <Input
             name="caption"
             bind:value={portfolioCaption}
-            placeholder="Petite description (Ex: Mon premier jeu Python)"
+            placeholder={m.camper_portfolio_caption_placeholder()}
             class="h-10 rounded-xl"
           />
 
@@ -167,9 +167,9 @@
             class="w-full rounded-xl bg-purple-600 font-bold text-white hover:bg-purple-700"
           >
             {#if isUploadingPortfolio}
-              <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Ajout en cours...
+              <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> {m.camper_portfolio_uploading()}
             {:else}
-              Enregistrer dans mon Portfolio
+              {m.camper_portfolio_save()}
             {/if}
           </Button>
         </form>
@@ -177,7 +177,7 @@
 
       <div class="space-y-4">
         <h3 class="text-xs font-bold text-slate-500 uppercase">
-          Mes Créations ({portfolioItems.length})
+          {m.camper_portfolio_my_creations({ count: portfolioItems.length })}
         </h3>
         {#if portfolioItems.length === 0}
           <div
@@ -185,7 +185,7 @@
           >
             <FolderOpen class="mb-2 h-8 w-8 text-slate-300" />
             <p class="text-sm text-slate-500">
-              Ton portfolio est vide pour le moment.
+              {m.camper_portfolio_empty()}
             </p>
           </div>
         {:else}
@@ -204,7 +204,7 @@
                   >
                     <img
                       src={''}
-                      alt={item.caption || 'Création'}
+                      alt={item.caption || m.camper_portfolio_default_alt()}
                       loading="lazy"
                       class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
@@ -242,7 +242,7 @@
                     method="POST"
                     use:enhance={() =>
                       async ({ update }) => {
-                        toast.success('Élément supprimé');
+                        toast.success(m.camper_portfolio_item_deleted());
                         await update();
                       }}
                   >

@@ -13,6 +13,8 @@ import {
 } from '$lib/domain/recommender';
 import { EventService } from '$lib/server/services/events';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
+import { translateDifficulty } from '$lib/utils';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
 
@@ -68,7 +70,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
         if (completed.has(subject.id)) {
           alerts.push({
             type: 'danger',
-            message: `DÉJÀ FAIT : L'élève a déjà validé "${subject.nom}".`,
+            message: m.event_builder_alert_already_done({ subject: subject.nom }),
           });
         }
 
@@ -78,7 +80,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
         if (subjectLevel > studentLevel) {
           alerts.push({
             type: 'warning',
-            message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveauDifficulte || 'Débutant'}).`,
+            message: m.event_builder_alert_too_hard({
+              subject: subject.nom,
+              level: translateDifficulty(subject.difficulte),
+              studentLevel: translateDifficulty(student.niveauDifficulte || 'Débutant'),
+            }),
           });
         }
       }
@@ -151,7 +157,7 @@ export const actions: Actions = {
       });
 
       if (existing) {
-        return message(form, 'Cet élève est déjà inscrit à cet événement.', { status: 400 });
+        return message(form, m.event_builder_student_already_enrolled(), { status: 400 });
       }
 
       const db = scopedPrisma(getCampusId(locals));
@@ -177,7 +183,7 @@ export const actions: Actions = {
       return message(form, 'Élève ajouté avec une suggestion intelligente !');
     } catch (err) {
       console.error(err);
-      return message(form, "Erreur technique lors de l'ajout.", { status: 500 });
+      return message(form, m.event_builder_student_add_error(), { status: 500 });
     }
   },
 
@@ -207,7 +213,7 @@ export const actions: Actions = {
     const data = await request.formData();
     const subjectsRaw = data.get('subjectIds') as string;
 
-    if (!subjectsRaw) return fail(400, { message: 'Aucun sujet sélectionné.' });
+    if (!subjectsRaw) return fail(400, { message: m.event_builder_no_subjects() });
     const newSubjectIds = subjectsRaw.split(',').filter(Boolean);
 
     try {
@@ -240,7 +246,7 @@ export const actions: Actions = {
       return { success: true, message: `${updateCount} élèves mis à jour !` };
     } catch (err) {
       console.error('Bulk assign error:', err);
-      return fail(500, { message: "Erreur lors de l'assignation de masse." });
+      return fail(500, { message: m.event_builder_mass_assign_error() });
     }
   },
 
@@ -251,7 +257,7 @@ export const actions: Actions = {
       return { success: true, message: `${count} élèves assignés automatiquement !` };
     } catch (err) {
       console.error('Auto-assign error:', err);
-      return fail(500, { message: "Erreur lors de l'auto-assignation" });
+      return fail(500, { message: m.event_builder_auto_assign_error() });
     }
   },
 
@@ -309,10 +315,10 @@ export const actions: Actions = {
       return message(form, 'Élève créé et assigné automatiquement !');
     } catch (err: any) {
       if (err.code === 'P2002') {
-        return message(form, 'Un élève identique (même nom, prénom et email) existe déjà.', { status: 400 });
+        return message(form, m.event_builder_quick_create_duplicate(), { status: 400 });
       }
       console.error('Quick create student error:', err);
-      return message(form, 'Erreur lors de la création rapide.', { status: 500 });
+      return message(form, m.event_builder_quick_create_error(), { status: 500 });
     }
   },
 
@@ -342,7 +348,7 @@ export const actions: Actions = {
       const jsDate = cdt.toDate('Europe/Paris');
 
       if (isNaN(jsDate.getTime())) {
-        return message(form, 'Format de date invalide', { status: 400 });
+        return message(form, m.server_error_invalid_date_format(), { status: 400 });
       }
 
       const campusId = getCampusId(locals);
@@ -358,7 +364,7 @@ export const actions: Actions = {
       return message(form, 'Événement mis à jour !');
     } catch (err) {
       console.error('Update Event Error:', err);
-      return message(form, "Impossible de mettre à jour l'événement", { status: 500 });
+      return message(form, m.event_update_error(), { status: 500 });
     }
   },
 

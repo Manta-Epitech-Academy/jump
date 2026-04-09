@@ -20,7 +20,8 @@
     SignalHigh,
     ExternalLink,
   } from '@lucide/svelte';
-  import { cn } from '$lib/utils';
+  import { cn, translateDifficulty, translateTheme } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
   import { page } from '$app/state';
   import { getSubjectXpValue } from '$lib/domain/xp';
 
@@ -154,9 +155,9 @@
   }
 
   function getThemeName(id: string) {
-    if (id === 'all') return 'Tous';
+    if (id === 'all') return m.common_all();
     const t = themes.find((th) => th.id === id);
-    return t ? t.nom : id;
+    return t ? translateTheme(t.nom) : id;
   }
 </script>
 
@@ -167,11 +168,11 @@
     <Dialog.Header class="shrink-0 px-6 py-4 pb-2">
       <Dialog.Title class="flex items-center gap-2 uppercase">
         <BookOpen class="h-5 w-5 text-epi-blue" />
-        Gérer les sujets
+        {m.event_builder_subject_picker_title()}
       </Dialog.Title>
       <Dialog.Description>
-        Assignez des sujets. Niveau actuel de l'élève : <span
-          class="font-bold text-foreground">{studentLevel || 'Non défini'}</span
+        {m.event_builder_subject_picker_description_prefix()} <span
+          class="font-bold text-foreground">{studentLevel ? translateDifficulty(studentLevel) : m.event_builder_level_undefined()}</span
         >.
       </Dialog.Description>
     </Dialog.Header>
@@ -185,14 +186,14 @@
               class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
             />
             <Input
-              placeholder="Rechercher par nom..."
+              placeholder={m.event_builder_search_by_name()}
               class="bg-background pl-9"
               bind:value={searchQuery}
             />
           </div>
           <Button onclick={handleSave} class="bg-epi-blue shadow-lg">
             <Save class="mr-2 h-4 w-4" />
-            Enregistrer ({currentSelection.length})
+            {m.event_builder_save_count({ count: currentSelection.length })}
           </Button>
         </div>
 
@@ -202,18 +203,18 @@
             <div
               class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
             >
-              Difficulté
+              {m.subject_filter_difficulty()}
             </div>
             <Select.Root type="single" bind:value={selectedDifficulte}>
               <Select.Trigger
                 class="h-full min-w-20 border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
               >
-                {selectedDifficulte === 'all' ? 'Toutes' : selectedDifficulte}
+                {selectedDifficulte === 'all' ? m.common_all_feminine() : translateDifficulty(selectedDifficulte)}
               </Select.Trigger>
               <Select.Content>
-                <Select.Item value="all">Toutes</Select.Item>
+                <Select.Item value="all">{m.common_all_feminine()}</Select.Item>
                 {#each difficulties as diff}
-                  <Select.Item value={diff}>{diff}</Select.Item>
+                  <Select.Item value={diff}>{translateDifficulty(diff)}</Select.Item>
                 {/each}
               </Select.Content>
             </Select.Root>
@@ -224,7 +225,7 @@
             <div
               class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
             >
-              Thème
+              {m.subject_filter_theme()}
             </div>
             <Select.Root type="single" bind:value={selectedTheme}>
               <Select.Trigger
@@ -233,9 +234,9 @@
                 {getThemeName(selectedTheme)}
               </Select.Trigger>
               <Select.Content>
-                <Select.Item value="all">Tous</Select.Item>
+                <Select.Item value="all">{m.common_all()}</Select.Item>
                 {#each themes as t}
-                  <Select.Item value={t.id}>{t.nom}</Select.Item>
+                  <Select.Item value={t.id}>{translateTheme(t.nom)}</Select.Item>
                 {/each}
               </Select.Content>
             </Select.Root>
@@ -246,22 +247,22 @@
             <div
               class="flex h-full items-center border-r bg-muted/10 px-2 text-xs font-bold text-muted-foreground uppercase"
             >
-              Origine
+              {m.event_builder_source_label()}
             </div>
             <Select.Root type="single" bind:value={selectedSource}>
               <Select.Trigger
                 class="h-full min-w-25 border-0 bg-transparent px-2 text-xs font-bold uppercase shadow-none focus:ring-0"
               >
-                {#if selectedSource === 'all'}Tous
-                {:else if selectedSource === 'official'}Officiel
-                {:else if selectedSource === 'mine'}Local
-                {:else}Communauté{/if}
+                {#if selectedSource === 'all'}{m.common_all()}
+                {:else if selectedSource === 'official'}{m.subject_badge_official()}
+                {:else if selectedSource === 'mine'}{m.subject_badge_local()}
+                {:else}{m.subject_badge_community()}{/if}
               </Select.Trigger>
               <Select.Content>
-                <Select.Item value="all">Tous</Select.Item>
-                <Select.Item value="official">Officiel</Select.Item>
-                <Select.Item value="mine">Mon Campus</Select.Item>
-                <Select.Item value="community">Communauté</Select.Item>
+                <Select.Item value="all">{m.common_all()}</Select.Item>
+                <Select.Item value="official">{m.subject_badge_official()}</Select.Item>
+                <Select.Item value="mine">{m.subject_tab_mine()}</Select.Item>
+                <Select.Item value="community">{m.subject_badge_community()}</Select.Item>
               </Select.Content>
             </Select.Root>
           </div>
@@ -274,7 +275,7 @@
               onclick={() => (selectedDifficulte = studentLevel || 'all')}
             >
               <Sparkles class="mr-1 h-3 w-3" />
-              Recommandé ({studentLevel})
+              {m.event_builder_recommended_label({ level: translateDifficulty(studentLevel) })}
             </Button>
           {/if}
         </div>
@@ -348,7 +349,7 @@
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-muted-foreground hover:text-epi-blue"
-                      title="Voir le support"
+                      title={m.subject_view_support()}
                       onclick={(e) => e.stopPropagation()}
                     >
                       <ExternalLink class="h-4 w-4" />
@@ -374,7 +375,7 @@
                       variant="outline"
                       class="h-4 border-epi-teal bg-epi-teal/10 px-1 text-[8px] text-teal-700"
                     >
-                      RECOMMANDÉ
+                      {m.event_builder_recommended_badge()}
                     </Badge>
                   {/if}
                 </div>
@@ -398,7 +399,7 @@
                     {:else}
                       <SignalHigh class="mr-1 h-3 w-3" />
                     {/if}
-                    {sub.difficulte}
+                    {translateDifficulty(sub.difficulte)}
                   </Badge>
 
                   {#if sub.themes && sub.themes.length > 0}
@@ -411,6 +412,7 @@
                       {/each}
                     </div>
                   {/if}
+
                 </div>
               </div>
             </div>
@@ -430,7 +432,7 @@
           >
             <BookOpen class="mb-2 h-8 w-8 text-muted-foreground/50" />
             <p class="text-sm font-bold text-muted-foreground uppercase">
-              Aucun sujet trouvé.
+              {m.event_builder_no_subject_found()}
             </p>
           </div>
         {/each}

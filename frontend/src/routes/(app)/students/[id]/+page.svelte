@@ -13,6 +13,7 @@
   import StudentFormDialog from '../components/StudentFormDialog.svelte';
   import StudentProfileCard from './components/StudentProfileCard.svelte';
   import StudentTimeline from './components/StudentTimeline.svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data }: { data: PageData } = $props();
 
@@ -23,7 +24,7 @@
       onResult: ({ result }) => {
         if (result.type === 'success') {
           editOpen = false;
-          toast.success('Profil mis à jour');
+          toast.success(m.student_detail_update_success());
         }
       },
     },
@@ -54,7 +55,7 @@
       <ArrowLeft class="h-4 w-4" />
     </Button>
     <h1 class="text-3xl font-bold text-epi-blue uppercase">
-      Dossier Élève<span class="text-epi-teal">_</span>
+      {m.student_detail_title()}<span class="text-epi-teal">_</span>
     </h1>
   </div>
 
@@ -71,9 +72,9 @@
     <div class="space-y-6 md:col-span-8 lg:col-span-9">
       <div class="flex items-center justify-between">
         <h2 class="flex items-center gap-2 text-xl font-bold uppercase">
-          <Clock class="h-5 w-5 text-muted-foreground" /> Historique Pédagogique
+          <Clock class="h-5 w-5 text-muted-foreground" /> {m.student_detail_history_title()}
         </h2>
-        <Badge variant="secondary">{data.participations.length} sessions</Badge>
+        <Badge variant="secondary">{m.student_detail_sessions_count({ count: data.participations.length })}</Badge>
       </div>
 
       <StudentTimeline participations={data.participations} />
@@ -96,11 +97,10 @@
     >
       <div class="space-y-1">
         <h4 class="text-sm font-bold text-destructive uppercase">
-          Zone de danger
+          {m.student_detail_danger_zone()}
         </h4>
         <p class="text-xs text-muted-foreground">
-          La suppression d'un élève est définitive et entraînera la suppression
-          de tout son historique.
+          {m.student_detail_danger_warning()}
         </p>
       </div>
       <Button
@@ -110,7 +110,7 @@
         onclick={() => {
           editOpen = false;
           deleteDialogOpen = true;
-        }}><Trash2 class="mr-2 h-4 w-4" /> Supprimer le dossier</Button
+        }}><Trash2 class="mr-2 h-4 w-4" /> {m.student_detail_delete_button()}</Button
       >
     </div>
   </StudentFormDialog>
@@ -118,19 +118,18 @@
   <AlertDialog.Root bind:open={deleteDialogOpen}>
     <AlertDialog.Content>
       <AlertDialog.Header>
-        <AlertDialog.Title>Confirmer la suppression</AlertDialog.Title>
+        <AlertDialog.Title>{m.student_detail_delete_confirm_title()}</AlertDialog.Title>
         <AlertDialog.Description
-          >Êtes-vous sûr de vouloir supprimer définitivement cet élève et tout
-          son historique ?</AlertDialog.Description
+          >{m.student_detail_delete_confirm_description()}</AlertDialog.Description
         >
       </AlertDialog.Header>
       <AlertDialog.Footer>
-        <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+        <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
         <form action="?/delete" method="POST" use:kitEnhance>
           <AlertDialog.Action
             type="submit"
             class={buttonVariants({ variant: 'destructive' })}
-            >Supprimer définitivement</AlertDialog.Action
+            >{m.camper_settings_delete_definitive()}</AlertDialog.Action
           >
         </form>
       </AlertDialog.Footer>

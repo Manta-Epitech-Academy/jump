@@ -6,6 +6,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -70,7 +71,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   } catch (e) {
     console.error('Erreur chargement élève:', e);
-    throw error(404, 'Élève introuvable');
+    throw error(404, m.student_not_found());
   }
 };
 
@@ -93,14 +94,14 @@ export const actions: Actions = {
           phone: form.data.phone || null,
         },
       });
-      return message(form, 'Profil mis à jour avec succès !');
+      return message(form, m.student_update_success_profile());
     } catch (err: any) {
       if (err.code === 'P2002') {
-        return message(form, 'Un élève avec ce nom et cet email existe déjà.', {
+        return message(form, m.student_update_error_duplicate(), {
           status: 400,
         });
       }
-      return message(form, 'Erreur lors de la mise à jour', { status: 500 });
+      return message(form, m.server_error_generic_update(), { status: 500 });
     }
   },
 
@@ -113,7 +114,7 @@ export const actions: Actions = {
       await prisma.user.delete({ where: { id: profile.userId } });
     } catch (err) {
       console.error('Error deleting student:', err);
-      return fail(500, { message: 'Impossible de supprimer cet élève' });
+      return fail(500, { message: m.student_delete_error() });
     }
     throw redirect(303, resolve('/students'));
   },

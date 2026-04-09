@@ -3,10 +3,11 @@ import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getParisStartOfDay, tallyTopThemes } from '$lib/utils';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.studentProfile) {
-    throw error(401, 'Non autorisé');
+    throw error(401, m.server_error_unauthorized());
   }
 
   try {
@@ -124,7 +125,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
-    throw error(500, 'Erreur lors du chargement du dashboard');
+    throw error(500, m.server_error_dashboard_load());
   }
 };
 

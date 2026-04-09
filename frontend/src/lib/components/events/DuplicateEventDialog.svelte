@@ -48,7 +48,7 @@
 
       const sourceDate = new Date(eventToDuplicate.date);
       const h = sourceDate.getHours();
-      const m = sourceDate.getMinutes();
+      const min = sourceDate.getMinutes();
 
       const tomorrow = today(getLocalTimeZone()).add({ days: 1 });
 
@@ -57,10 +57,10 @@
         tomorrow.month,
         tomorrow.day,
         h,
-        m,
+        min,
       );
       hour = String(h).padStart(2, '0');
-      minute = String(m).padStart(2, '0');
+      minute = String(min).padStart(2, '0');
     }
   });
 </script>

@@ -1,23 +1,31 @@
 import { z } from 'zod';
+import { m } from '$lib/paraglide/messages.js';
 
 export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
 
 export const studentSchema = z.object({
-  nom: z.string().min(2, 'Le nom doit faire au moins 2 caractères').trim(),
+  nom: z
+    .string()
+    .min(2, { error: () => m.validation_min_length({ min: 2 }) })
+    .trim(),
   prenom: z
     .string()
-    .min(2, 'Le prénom doit faire au moins 2 caractères')
+    .min(2, { error: () => m.validation_min_length({ min: 2 }) })
     .trim(),
-  email: z.email('Email invalide').optional().or(z.literal('')),
+  email: z
+    .email({ error: () => m.validation_email_invalid() })
+    .optional()
+    .or(z.literal('')),
   phone: z.string().optional(),
   niveau: z.enum(
     ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale', 'Sup'],
-    {
-      message: 'Veuillez sélectionner un niveau scolaire valide',
-    },
+    { error: () => m.validation_niveau_required() },
   ),
   niveau_difficulte: z.enum(difficultes).default('Débutant'),
-  parent_email: z.email('Email parent invalide').optional().or(z.literal('')),
+  parent_email: z
+    .email({ error: () => m.validation_email_parent_invalid() })
+    .optional()
+    .or(z.literal('')),
   parent_phone: z.string().optional(),
 });
 

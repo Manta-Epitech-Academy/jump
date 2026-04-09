@@ -3,10 +3,11 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { auth } from '$lib/server/auth';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.studentProfile) {
-    throw error(401, 'Non autorisé');
+    throw error(401, m.server_error_unauthorized());
   }
 
   return { studentProfile: locals.studentProfile };
@@ -15,7 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   deleteAccount: async ({ request, locals }) => {
     if (!locals.studentProfile || !locals.user) {
-      return fail(401, { message: 'Non autorisé' });
+      return fail(401, { message: m.server_error_unauthorized() });
     }
 
     try {
@@ -47,7 +48,7 @@ export const actions: Actions = {
       ]);
     } catch (err) {
       console.error('Error deleting student account:', err);
-      return fail(500, { message: 'Erreur lors de la suppression du compte' });
+      return fail(500, { message: m.camper_settings_delete_error() });
     }
 
     throw redirect(303, resolve('/camper/login'));

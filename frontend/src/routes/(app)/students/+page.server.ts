@@ -5,6 +5,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { m } from '$lib/paraglide/messages.js';
 
 const PER_PAGE = 50;
 
@@ -82,17 +83,17 @@ export const actions: Actions = {
         },
       });
 
-      return message(form, 'Élève ajouté avec succès !');
+      return message(form, m.student_create_success());
     } catch (err: any) {
       if (err.code === 'P2002') {
         return message(
           form,
-          'Un élève identique (Même nom, prénom et email) existe déjà.',
+          m.student_create_error_duplicate(),
           { status: 400 },
         );
       }
       console.error(err);
-      return message(form, "Erreur lors de l'ajout", { status: 500 });
+      return message(form, m.student_create_error(), { status: 500 });
     }
   },
 
@@ -127,14 +128,14 @@ export const actions: Actions = {
         });
       }
 
-      return message(form, 'Élève modifié avec succès !');
+      return message(form, m.student_update_success());
     } catch (err: any) {
       if (err.code === 'P2002') {
-        return message(form, 'Un élève avec ce nom et cet email existe déjà.', {
+        return message(form, m.student_update_error_duplicate(), {
           status: 400,
         });
       }
-      return message(form, 'Erreur lors de la modification', { status: 500 });
+      return message(form, m.student_update_error(), { status: 500 });
     }
   },
 

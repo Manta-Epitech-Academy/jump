@@ -16,6 +16,7 @@
   import { cn } from '$lib/utils';
   import { resolve } from '$app/paths';
   import BringPcBadge from '../../components/BringPcBadge.svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     participation,
@@ -90,7 +91,7 @@
             class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
           >
             <Sprout class="h-2.5 w-2.5" />
-            Nouveau
+            {m.event_builder_new_student()}
           </Badge>
         {/if}
       </div>
@@ -175,7 +176,7 @@
       <span
         class="animate-pulse text-[10px] font-black tracking-widest text-epi-orange uppercase"
       >
-        Sélection requise
+        {m.event_builder_selection_required()}
       </span>
     {/if}
   </div>
@@ -200,16 +201,16 @@
             >
               {#if !hasSubjects}
                 <Plus class="h-3 w-3" />
-                Assigner
+                {m.event_builder_assign()}
               {:else}
                 <ArrowRightLeft class="h-3 w-3" />
-                Gérer
+                {m.event_builder_manage()}
               {/if}
             </Button>
           {/snippet}
         </Tooltip.Trigger>
         <Tooltip.Content>
-          <p>{!hasSubjects ? 'Choisir un sujet' : 'Modifier les sujets'}</p>
+          <p>{!hasSubjects ? m.event_builder_choose_subject() : m.event_builder_modify_subjects()}</p>
         </Tooltip.Content>
       </Tooltip.Root>
 
@@ -230,7 +231,7 @@
           </Tooltip.Trigger>
           <Tooltip.Content>
             <p class="font-bold text-destructive uppercase">
-              Retirer de l'événement
+              {m.event_builder_remove_from_event()}
             </p>
           </Tooltip.Content>
         </Tooltip.Root>

@@ -12,7 +12,7 @@
     getLocalTimeZone,
     today,
   } from '@internationalized/date';
-  import { formatDateFr } from '$lib/utils';
+  import { formatDate } from '$lib/utils';
   import { m } from '$lib/paraglide/messages.js';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
   import MultiStaffSelect from '../../components/MultiStaffSelect.svelte';
@@ -77,7 +77,7 @@
               variant="outline"
               class="w-full justify-between font-normal"
             >
-              {formatDateFr(dateValue)}
+              {formatDate(dateValue)}
               <ChevronDown class="h-4 w-4" />
             </Button>
           {/snippet}

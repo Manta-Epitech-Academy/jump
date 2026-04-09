@@ -2,6 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) {
@@ -30,7 +31,7 @@ export const actions: Actions = {
     const campusId = formData.get('campusId') as string;
 
     if (!campusId) {
-      return fail(400, { message: 'Veuillez sélectionner un campus.' });
+      return fail(400, { message: m.onboarding_campus_required() });
     }
 
     try {
@@ -50,7 +51,7 @@ export const actions: Actions = {
       }
     } catch (err) {
       console.error('Error joining campus:', err);
-      return fail(500, { message: 'Erreur lors de la sauvegarde du campus.' });
+      return fail(500, { message: m.onboarding_save_error() });
     }
 
     throw redirect(303, resolve('/'));

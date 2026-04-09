@@ -5,6 +5,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { subjectSchema } from '$lib/validation/subjects';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -76,10 +77,10 @@ export const actions: Actions = {
         },
       });
 
-      return message(form, 'Sujet créé avec succès !');
+      return message(form, m.subject_create_success());
     } catch (err) {
       console.error('Erreur création sujet:', err);
-      return message(form, 'Erreur lors de la création', { status: 500 });
+      return message(form, m.server_error_generic_create(), { status: 500 });
     }
   },
 
@@ -89,7 +90,7 @@ export const actions: Actions = {
     const id = formData.get('id') as string;
 
     if (!form.valid) return fail(400, { form });
-    if (!id) return message(form, 'ID sujet manquant', { status: 400 });
+    if (!id) return message(form, m.subject_id_missing(), { status: 400 });
 
     try {
       const subject = await prisma.subject.findUniqueOrThrow({
@@ -123,10 +124,10 @@ export const actions: Actions = {
         },
       });
 
-      return message(form, 'Sujet mis à jour avec succès !');
+      return message(form, m.subject_update_success());
     } catch (err) {
       console.error('Erreur update sujet:', err);
-      return message(form, 'Erreur lors de la modification', { status: 500 });
+      return message(form, m.server_error_generic_update(), { status: 500 });
     }
   },
 

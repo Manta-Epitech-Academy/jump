@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
 import { tallyTopThemes } from '$lib/utils';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   try {
@@ -21,7 +22,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     });
 
     if (!student) {
-      throw error(404, 'Profil introuvable');
+      throw error(404, m.profile_not_found());
     }
 
     setHeaders({ 'Cache-Control': 'public, s-maxage=300, max-age=60' });
@@ -91,7 +92,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     if (typeof err === 'object' && err !== null && 'status' in err) {
       throw err;
     }
-    throw error(404, 'Profil introuvable');
+    throw error(404, m.profile_not_found());
   }
 };
 

@@ -15,6 +15,7 @@
   import type { AddParticipantForm } from '$lib/validation/events';
 
   import type { ParticipationWithDetails } from '$lib/types';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     participations,
@@ -40,7 +41,7 @@
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
           toast.error(
-            result.data?.form.message || 'Erreur lors de la création',
+            result.data?.form.message ?? m.server_error_generic_create(),
           );
         }
       },
@@ -95,7 +96,7 @@
   >
     <Card.Header class="space-y-4 pb-3">
       <div class="flex items-center justify-between">
-        <Card.Title class="uppercase">Inscrire des élèves</Card.Title>
+        <Card.Title class="uppercase">{m.event_builder_enroll_students()}</Card.Title>
         <QuickCreateStudentModal
           bind:open={openQuickCreate}
           {createForm}
@@ -105,7 +106,7 @@
       <div class="relative">
         <Search class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Rechercher..."
+          placeholder={m.common_search()}
           class="rounded-sm pl-8"
           bind:value={searchQuery}
         />
@@ -115,11 +116,11 @@
       <div class="space-y-1 p-2">
         {#if searching}
           <p class="py-8 text-center text-xs text-muted-foreground">
-            Recherche...
+            {m.event_builder_searching()}
           </p>
         {:else if searchQuery.trim().length >= 2 && displayedStudents.length === 0}
           <p class="py-8 text-center text-xs text-muted-foreground">
-            Aucun résultat.
+            {m.common_no_result()}
           </p>
         {:else}
           {#each displayedStudents as student (student.id)}
@@ -141,7 +142,7 @@
                   <StudentAvatarItem
                     {student}
                     subText={count > 0 && !isAdded
-                      ? `${student.niveau} • ${count} participation${count > 1 ? 's' : ''}`
+                      ? `${student.niveau} • ${m.event_builder_participations_count({ count })}`
                       : student.niveau}
                     showBadge={true}
                     size="sm"

@@ -2,10 +2,11 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.studentProfile) {
-    throw error(401, 'Non autorisé');
+    throw error(401, m.server_error_unauthorized());
   }
 
   if (locals.studentProfile.charterAcceptedAt) {
@@ -16,7 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   accept: async ({ locals }) => {
     if (!locals.studentProfile) {
-      throw error(401, 'Non autorisé');
+      throw error(401, m.server_error_unauthorized());
     }
 
     await prisma.studentProfile.update({

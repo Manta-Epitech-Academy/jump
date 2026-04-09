@@ -4,9 +4,13 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 const campusSchema = z.object({
-  name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
+  name: z
+    .string()
+    .min(2, { error: () => m.validation_min_length({ min: 2 }) })
+    .trim(),
 });
 
 export const load: PageServerLoad = async () => {
@@ -28,10 +32,10 @@ export const actions: Actions = {
 
     try {
       await prisma.campus.create({ data: form.data });
-      return message(form, 'Campus créé avec succès.');
+      return message(form, m.admin_campus_create_success());
     } catch (err) {
       console.error(err);
-      return message(form, 'Erreur lors de la création du campus.', {
+      return message(form, m.admin_campus_create_error(), {
         status: 500,
       });
     }
@@ -47,9 +51,9 @@ export const actions: Actions = {
 
     try {
       await prisma.campus.update({ where: { id }, data: form.data });
-      return message(form, 'Campus mis à jour.');
+      return message(form, m.admin_campus_update_success());
     } catch (err) {
-      return message(form, 'Erreur lors de la mise à jour.', { status: 500 });
+      return message(form, m.server_error_generic_update_dot(), { status: 500 });
     }
   },
 
@@ -75,7 +79,7 @@ export const actions: Actions = {
       await prisma.campus.delete({ where: { id } });
       return { success: true };
     } catch (err) {
-      return fail(500, { message: 'Erreur lors de la suppression.' });
+      return fail(500, { message: m.server_error_generic_delete_dot() });
     }
   },
 };

@@ -7,6 +7,7 @@
   import { fly } from 'svelte/transition';
   import { ArrowLeft, Trash2, User, Mail, Sun, Moon } from '@lucide/svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data }: { data: PageData } = $props();
 
@@ -16,7 +17,7 @@
 </script>
 
 <svelte:head>
-  <title>Paramètres</title>
+  <title>{m.camper_settings_title()}</title>
 </svelte:head>
 
 <div
@@ -33,12 +34,12 @@
           class="h-10 w-10 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
         >
           <ArrowLeft class="h-5 w-5" />
-          <span class="sr-only">Retour</span>
+          <span class="sr-only">{m.common_back()}</span>
         </Button>
         <h1
           class="font-heading text-3xl tracking-tight text-slate-900 uppercase dark:text-white"
         >
-          Paramètres<span class="text-epi-teal">_</span>
+          {m.camper_settings_title()}<span class="text-epi-teal">_</span>
         </h1>
       </div>
     </header>
@@ -51,7 +52,7 @@
         <h2
           class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
         >
-          Mon compte
+          {m.camper_settings_my_account()}
         </h2>
         <div class="space-y-3">
           <div class="flex items-center gap-3">
@@ -61,7 +62,7 @@
               <User class="h-4 w-4 text-epi-blue" />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] font-bold text-slate-400 uppercase">Nom</p>
+              <p class="text-[10px] font-bold text-slate-400 uppercase">{m.camper_settings_field_name()}</p>
               <p
                 class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
               >
@@ -78,7 +79,7 @@
             </div>
             <div class="min-w-0">
               <p class="text-[10px] font-bold text-slate-400 uppercase">
-                Email
+                {m.camper_settings_field_email()}
               </p>
               <p
                 class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
@@ -97,7 +98,7 @@
         <h2
           class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
         >
-          Apparence
+          {m.camper_settings_appearance()}
         </h2>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -108,7 +109,7 @@
               <Moon class="hidden h-4 w-4 text-epi-orange dark:block" />
             </div>
             <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
-              >Thème sombre</span
+              >{m.camper_settings_dark_mode()}</span
             >
           </div>
           <ModeToggle />
@@ -122,11 +123,10 @@
         <h2
           class="mb-1 text-base font-bold tracking-widest text-red-400 uppercase dark:text-red-500/70"
         >
-          Zone de danger
+          {m.camper_settings_danger_zone()}
         </h2>
         <p class="mb-4 text-xs leading-relaxed text-slate-400">
-          La suppression de ton compte est définitive. Toutes tes données seront
-          perdues.
+          {m.camper_settings_delete_warning()}
         </p>
         <button
           type="button"
@@ -134,7 +134,7 @@
           onclick={() => (deleteDialogOpen = true)}
         >
           <Trash2 class="mr-2 inline h-4 w-4" />
-          Supprimer mon compte
+          {m.camper_settings_delete_account()}
         </button>
       </div>
     </div>
@@ -154,15 +154,12 @@
       <AlertDialog.Title
         class="font-heading text-xl tracking-tight text-slate-900 uppercase dark:text-white"
       >
-        Supprimer mon compte
+        {m.camper_settings_delete_account()}
       </AlertDialog.Title>
       <AlertDialog.Description
         class="mt-3 text-sm leading-relaxed text-slate-500"
       >
-        Cette action est <strong class="text-slate-700 dark:text-slate-300"
-          >définitive et irréversible</strong
-        >. Ton profil, tes participations, ta progression et ton portfolio
-        seront supprimés de manière permanente.
+        {@html m.camper_settings_delete_confirmation()}
       </AlertDialog.Description>
     </div>
     <div class="mt-6 flex flex-col gap-3">
@@ -183,16 +180,16 @@
           class="h-12 w-full rounded-2xl bg-red-500 text-sm font-bold text-white shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] hover:bg-red-600 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
         >
           {#if deleting}
-            Suppression en cours…
+            {m.camper_settings_deleting()}
           {:else}
-            Supprimer définitivement
+            {m.camper_settings_delete_definitive()}
           {/if}
         </button>
       </form>
       <AlertDialog.Cancel
         class="h-12 w-full rounded-2xl border border-slate-200 bg-transparent text-sm font-bold text-slate-600 transition-all hover:bg-slate-50 active:scale-[0.98] dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
       >
-        Annuler
+        {m.common_cancel()}
       </AlertDialog.Cancel>
     </div>
   </AlertDialog.Content>

@@ -10,7 +10,8 @@ import type {
   ParticipationWithThemes,
 } from '$lib/types';
 import { resolve } from '$app/paths';
-import { localizeHref } from '$lib/paraglide/runtime';
+import { localizeHref, getLocale } from '$lib/paraglide/runtime';
+import { m } from '$lib/paraglide/messages.js';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,16 +22,17 @@ export function cn(...inputs: ClassValue[]) {
  * Use this instead of resolve() for all internal navigation links.
  */
 export function i18nHref(path: string): string {
-  return localizeHref(resolve(path));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return localizeHref(resolve(path as any));
 }
 
 /**
  * Formats a CalendarDateTime, Date object, or ISO string to a French date string (DD/MM/YYYY)
  */
-export function formatDateFr(
+export function formatDate(
   date: CalendarDateTime | Date | string | undefined,
 ): string {
-  if (!date) return 'Sélectionner une date';
+  if (!date) return m.date_select_placeholder();
 
   let jsDate: Date;
 
@@ -43,11 +45,76 @@ export function formatDateFr(
     jsDate = date.toDate(getLocalTimeZone());
   }
 
-  return jsDate.toLocaleDateString('fr-FR', {
+  return jsDate.toLocaleDateString(intlLocale(), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+/** Returns the active locale in `xx-XX` form for `Intl.*` APIs. */
+export function intlLocale(): string {
+  return getLocale() === 'fr' ? 'fr-FR' : 'en-US';
+}
+
+/** Locale-aware long date format (e.g. "Wed, Apr 15" / "mer. 15 avr."). */
+export function formatDateLong(date: Date | string | undefined): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString(intlLocale(), {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+/** Locale-aware short time format (HH:mm). */
+export function formatTime(date: Date | string | undefined): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleTimeString(intlLocale(), {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** Translates a stored difficulty enum value (FR canonical) to a localized label. */
+export function translateDifficulty(value: string | null | undefined): string {
+  switch (value) {
+    case 'Débutant':
+      return m.difficulty_beginner();
+    case 'Intermédiaire':
+      return m.difficulty_intermediate();
+    case 'Avancé':
+      return m.difficulty_advanced();
+    default:
+      return value ?? '';
+  }
+}
+
+/**
+ * Translates a stored theme name (FR canonical, see prisma/seed.ts) to a localized label.
+ * Unknown / custom theme names fall through unchanged.
+ */
+export function translateTheme(value: string | null | undefined): string {
+  switch (value) {
+    case 'Développement Web':
+      return m.theme_web_dev();
+    case 'Robotique':
+      return m.theme_robotics();
+    case 'Jeux Vidéo':
+      return m.theme_video_games();
+    case 'Cybersécurité':
+      return m.theme_cybersecurity();
+    case 'Intelligence Artificielle':
+      return m.theme_ai();
+    case 'Design & Création':
+      return m.theme_design_creation();
+    case 'Général':
+      return m.theme_general();
+    default:
+      return value ?? '';
+  }
 }
 
 export type Mission = {

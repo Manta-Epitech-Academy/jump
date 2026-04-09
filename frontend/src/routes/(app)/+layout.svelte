@@ -33,9 +33,9 @@
 
   // Time-based greeting logic
   const hour = new Date().getHours();
-  let baseGreeting = 'Bonjour';
-  if (hour >= 18) baseGreeting = 'Bonsoir';
-  if (hour < 5) baseGreeting = 'Bonne nuit, codeur';
+  let baseGreeting = m.greeting_morning();
+  if (hour >= 18) baseGreeting = m.greeting_evening();
+  if (hour < 5) baseGreeting = m.greeting_night();
 
   let displayedGreeting = $state('');
 
@@ -259,6 +259,7 @@
             <DropdownMenu.Item class="cursor-pointer {getLocale() === 'en' ? 'font-bold text-epi-blue' : ''}" onclick={() => setLocale('en')}>
               English
             </DropdownMenu.Item>
+            <DropdownMenu.Separator />
             <form action={resolve('/logout')} method="POST">
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item class="cursor-pointer text-destructive">

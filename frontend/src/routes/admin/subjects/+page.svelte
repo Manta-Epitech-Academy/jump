@@ -21,6 +21,8 @@
   import { difficultes } from '$lib/validation/subjects';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import { getSubjectXpValue } from '$lib/domain/xp';
+  import { m } from '$lib/paraglide/messages.js';
+  import { translateDifficulty, translateTheme } from '$lib/utils';
 
   let { data } = $props();
 
@@ -79,17 +81,17 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Sujets <span class="text-epi-pink">Officiels</span>
+        {m.admin_subjects_page_title()} <span class="text-epi-pink">{m.admin_subjects_page_title_accent()}</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
-        Base de connaissances distribuée à tous les campus
+        {m.admin_subjects_subtitle()}
       </p>
     </div>
     <Button
       onclick={openCreate}
       class="bg-epi-pink text-white hover:bg-epi-pink/90"
     >
-      <Plus class="mr-2 h-4 w-4" /> Nouveau Sujet Global
+      <Plus class="mr-2 h-4 w-4" /> {m.admin_subjects_new()}
     </Button>
   </div>
 
@@ -100,10 +102,10 @@
           <Table.Head class="w-12 text-center"
             ><Globe class="mx-auto h-4 w-4 text-epi-pink" /></Table.Head
           >
-          <Table.Head>Sujet</Table.Head>
-          <Table.Head>Thèmes</Table.Head>
-          <Table.Head>Niveau / XP</Table.Head>
-          <Table.Head class="text-right">Actions</Table.Head>
+          <Table.Head>{m.admin_subjects_col_subject()}</Table.Head>
+          <Table.Head>{m.admin_subjects_col_themes()}</Table.Head>
+          <Table.Head>{m.admin_subjects_col_level_xp()}</Table.Head>
+          <Table.Head class="text-right">{m.common_actions()}</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
@@ -137,14 +139,14 @@
               <div class="flex flex-wrap gap-1">
                 {#each subject.subjectThemes || [] as st}
                   <Badge variant="secondary" class="text-[10px]"
-                    >#{st.theme.nom}</Badge
+                    >#{translateTheme(st.theme.nom)}</Badge
                   >
                 {/each}
               </div>
             </Table.Cell>
             <Table.Cell>
               <Badge variant="outline" class="text-[10px] uppercase"
-                >{subject.difficulte}</Badge
+                >{translateDifficulty(subject.difficulte)}</Badge
               >
               <span class="ml-2 text-xs font-bold text-muted-foreground"
                 >{getSubjectXpValue(subject.difficulte)} XP</span
@@ -189,8 +191,8 @@
       <Dialog.Header>
         <Dialog.Title
           >{isEditing
-            ? 'Modifier le sujet'
-            : 'Créer un sujet OFFICIEL'}</Dialog.Title
+            ? m.subject_form_title_edit()
+            : m.admin_subjects_form_create()}</Dialog.Title
         >
       </Dialog.Header>
       <form
@@ -201,25 +203,25 @@
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
         <div class="grid gap-2">
-          <Label>Nom</Label>
+          <Label>{m.subject_form_nom()}</Label>
           <Input name="nom" bind:value={$form.nom} />
           {#if $errors.nom}<span class="text-xs text-destructive"
               >{$errors.nom}</span
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label>Support (Lien URL)</Label>
+          <Label>{m.admin_subjects_form_link()}</Label>
           <Input name="link" bind:value={$form.link} />
           {#if $errors.link}<span class="text-xs text-destructive"
               >{$errors.link}</span
             >{/if}
         </div>
         <div class="grid gap-2">
-          <Label>Thèmes Officiels</Label>
+          <Label>{m.admin_subjects_form_themes()}</Label>
           <MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
         </div>
         <div class="grid gap-2">
-          <Label>Difficulté</Label>
+          <Label>{m.subject_form_difficulty()}</Label>
           <div class="flex gap-2">
             {#each difficultes as diff}
               <Button
@@ -229,14 +231,14 @@
                 onclick={() => ($form.difficulte = diff)}
                 class={$form.difficulte === diff ? 'bg-epi-pink' : ''}
               >
-                {diff}
+                {translateDifficulty(diff)}
               </Button>
             {/each}
             <input type="hidden" name="difficulte" value={$form.difficulte} />
           </div>
         </div>
         <div class="grid gap-2">
-          <Label>Description</Label>
+          <Label>{m.subject_form_description()}</Label>
           <Textarea
             name="description"
             bind:value={$form.description}
@@ -249,7 +251,7 @@
             disabled={$delayed}
             class="bg-epi-pink text-white"
           >
-            {$delayed ? 'Traitement...' : 'Publier'}
+            {$delayed ? m.common_processing() : m.admin_subjects_publish()}
           </Button>
         </Dialog.Footer>
       </form>
@@ -259,7 +261,7 @@
   <ConfirmDeleteDialog
     bind:open={deleteDialogOpen}
     action="?/delete&id={itemToDelete}"
-    title="Supprimer un sujet officiel ?"
-    description="Cela le supprimera des bibliothèques de TOUS les campus."
+    title={m.admin_subjects_delete_title()}
+    description={m.admin_subjects_delete_description()}
   />
 </div>

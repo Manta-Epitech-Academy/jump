@@ -3,10 +3,11 @@ import { error, fail } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { EventService } from '$lib/server/services/events';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) {
-    throw error(401, 'Authentification requise');
+    throw error(401, m.server_error_auth_required());
   }
 
   try {
@@ -46,7 +47,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     };
   } catch (err) {
     console.error('Erreur load dashboard:', err);
-    throw error(500, 'Erreur chargement événements');
+    throw error(500, m.server_error_events_load());
   }
 };
 
@@ -60,7 +61,7 @@ export const actions: Actions = {
       return { success: true };
     } catch (err) {
       console.error('Erreur suppression événement:', err);
-      return fail(500, { message: 'Erreur lors de la suppression' });
+      return fail(500, { message: m.server_error_generic_delete() });
     }
   },
 
@@ -72,7 +73,7 @@ export const actions: Actions = {
     const timeStr = data.get('time') as string;
 
     if (!originalId || !titre || !dateStr || !timeStr) {
-      return fail(400, { message: 'Données manquantes' });
+      return fail(400, { message: m.server_error_missing_data() });
     }
 
     try {
@@ -81,7 +82,7 @@ export const actions: Actions = {
       const newDate = new Date(year, month - 1, day, hour, minute);
 
       if (isNaN(newDate.getTime())) {
-        return fail(400, { message: 'Valeur de temps invalide' });
+        return fail(400, { message: m.server_error_invalid_time() });
       }
 
       const campusId = getCampusId(locals);
@@ -94,7 +95,7 @@ export const actions: Actions = {
       return { success: true, newEventId };
     } catch (err) {
       console.error('Erreur duplication événement:', err);
-      return fail(500, { message: 'Erreur lors de la duplication' });
+      return fail(500, { message: m.server_error_generic_duplicate() });
     }
   },
 };

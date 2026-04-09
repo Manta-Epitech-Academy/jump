@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { m } from '$lib/paraglide/messages.js';
 import { prisma } from '../db';
 
 /**
@@ -40,7 +41,7 @@ export async function assertStudentOwns(
   }
 
   if (ownerId !== studentProfileId) {
-    throw error(403, 'Accès refusé : cette ressource ne vous appartient pas.');
+    throw error(403, m.server_error_forbidden_not_owner());
   }
 }
 
@@ -55,6 +56,6 @@ export async function assertEventCampus(eventId: string, campusId: string) {
   });
 
   if (event.campusId !== campusId) {
-    throw error(403, 'Accès refusé : cet événement appartient à un autre campus.');
+    throw error(403, m.server_error_forbidden_event_campus());
   }
 }

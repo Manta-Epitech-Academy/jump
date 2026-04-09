@@ -5,7 +5,8 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Separator } from '$lib/components/ui/separator';
   import { Button } from '$lib/components/ui/button';
-  import { cn } from '$lib/utils';
+  import { cn, translateDifficulty } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
   import { SignalLow } from '@lucide/svelte';
   let {
     student,
@@ -62,7 +63,7 @@
         )}
       >
         <SignalLow class="mr-1 h-3 w-3" />
-        {student.niveauDifficulte || 'Débutant'}
+        {translateDifficulty(student.niveauDifficulte || 'Débutant')}
       </Badge>
     </div>
   </Card.Header>
@@ -81,7 +82,7 @@
         <div class="flex flex-col gap-1">
           <span
             class="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase"
-            ><Users class="h-3 w-3" /> Contact Parent</span
+            ><Users class="h-3 w-3" /> {m.student_detail_contact_parent()}</span
           >
           {#if student.parentEmail}<div class="flex items-center gap-2">
               <Mail class="h-3.5 w-3.5" /><span class="truncate"
@@ -116,7 +117,7 @@
               : 'border-border text-muted-foreground',
           )}
         >
-          {student.xp >= 500 ? 'Expert ✦' : 'Novice'}
+          {student.xp >= 500 ? m.student_detail_xp_expert() : m.student_detail_xp_novice()}
         </Badge>
         <span
           class="text-3xl font-black tracking-tighter text-foreground italic"
@@ -140,8 +141,8 @@
       <div
         class="flex justify-between px-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
       >
-        <span>Novice</span>
-        <span>Expert</span>
+        <span>{m.student_detail_xp_scale_min()}</span>
+        <span>{m.student_detail_xp_scale_max()}</span>
       </div>
     </div>
 
@@ -151,21 +152,21 @@
       <div class="rounded-sm bg-muted/30 p-2">
         <div class="text-lg font-bold">{stats.presentCount}</div>
         <div class="text-[9px] font-bold text-muted-foreground uppercase">
-          Présences
+          {m.student_detail_stat_presences()}
         </div>
       </div>
       {#if stats.lateCount > 0}
         <div class="rounded-sm bg-muted/30 p-2">
           <div class="text-lg font-bold text-orange-500">{stats.lateCount}</div>
           <div class="text-[9px] font-bold text-muted-foreground uppercase">
-            Retards
+            {m.student_detail_stat_lates()}
           </div>
         </div>
       {/if}
     </div>
 
     <Button variant="outline" class="w-full" onclick={onOpenEdit}
-      ><Pencil class="mr-2 h-3.5 w-3.5" /> Modifier le profil</Button
+      ><Pencil class="mr-2 h-3.5 w-3.5" /> {m.student_detail_edit_profile()}</Button
     >
   </Card.Content>
 </Card.Root>

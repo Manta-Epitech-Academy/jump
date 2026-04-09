@@ -4,6 +4,7 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { setMode, mode, userPrefersMode } from 'mode-watcher';
+  import { m } from '$lib/paraglide/messages.js';
 </script>
 
 <Tooltip.Provider delayDuration={300}>
@@ -37,19 +38,19 @@
                     </div>
                   {/if}
                 </div>
-                <span class="sr-only">Toggle theme</span>
+                <span class="sr-only">{m.mode_toggle_label()}</span>
               </Button>
             {/snippet}
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end">
             <DropdownMenu.Item onclick={() => setMode('light')}>
-              <Sun class="mr-2 h-4 w-4" /> Light
+              <Sun class="mr-2 h-4 w-4" /> {m.mode_light()}
             </DropdownMenu.Item>
             <DropdownMenu.Item onclick={() => setMode('dark')}>
-              <Moon class="mr-2 h-4 w-4" /> Dark
+              <Moon class="mr-2 h-4 w-4" /> {m.mode_dark()}
             </DropdownMenu.Item>
             <DropdownMenu.Item onclick={() => setMode('system')}>
-              <SunMoon class="mr-2 h-4 w-4" /> System
+              <SunMoon class="mr-2 h-4 w-4" /> {m.mode_system()}
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
@@ -57,10 +58,10 @@
     </Tooltip.Trigger>
     <Tooltip.Content side="bottom">
       <p>
-        Thème :
-        {#if userPrefersMode.current === 'light'}Clair
-        {:else if userPrefersMode.current === 'dark'}Sombre
-        {:else}Système ({mode.current === 'dark' ? 'Sombre' : 'Clair'}){/if}
+        {m.mode_label()}
+        {#if userPrefersMode.current === 'light'}{m.mode_light()}
+        {:else if userPrefersMode.current === 'dark'}{m.mode_dark()}
+        {:else}{m.mode_system()} ({mode.current === 'dark' ? m.mode_dark() : m.mode_light()}){/if}
       </p>
     </Tooltip.Content>
   </Tooltip.Root>

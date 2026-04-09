@@ -4,6 +4,7 @@
   import { ArrowLeft, CircleCheck, Lock } from '@lucide/svelte';
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
+  import { m } from '$lib/paraglide/messages.js';
   import type { SubjectStep } from '$lib/server/services/progressService';
   import type { StepsProgress } from '@prisma/client';
 
@@ -36,7 +37,7 @@
   )}
 >
   <div class="flex items-center justify-between p-4 md:hidden">
-    <span class="font-bold text-slate-500 uppercase">Plan de vol</span>
+    <span class="font-bold text-slate-500 uppercase">{m.camper_roadmap_title()}</span>
     <Button
       variant="ghost"
       size="icon"
@@ -105,7 +106,7 @@
               <span
                 class="text-[10px] font-bold tracking-wider text-slate-400 uppercase"
               >
-                {#if step.type === 'theory'}Théorie{:else if step.type === 'exercise'}Exercice{:else}Validation{/if}
+                {#if step.type === 'theory'}{m.camper_step_type_theory()}{:else if step.type === 'exercise'}{m.camper_step_type_exercise()}{:else}{m.camper_step_type_validation()}{/if}
               </span>
             </div>
           </button>

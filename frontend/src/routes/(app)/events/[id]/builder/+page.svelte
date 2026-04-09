@@ -16,6 +16,8 @@
   import SubjectPicker from './components/SubjectPicker.svelte';
   import { resolve } from '$app/paths';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { intlLocale, translateTheme } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
   import ParticipantManager from './components/ParticipantManager.svelte';
@@ -147,7 +149,7 @@
       </a>
       <div>
         <h1 class="text-3xl font-bold text-epi-blue uppercase">
-          Événement<span class="text-epi-teal">_</span>
+          {m.event_builder_title()}<span class="text-epi-teal">_</span>
         </h1>
         <div
           class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-muted-foreground uppercase"
@@ -158,7 +160,7 @@
               >{data.event.titre}</span
             >
             <span
-              >• {new Date(data.event.date).toLocaleDateString('fr-FR', {
+              >• {new Date(data.event.date).toLocaleDateString(intlLocale(), {
                 day: 'numeric',
                 month: 'long',
                 hour: '2-digit',
@@ -170,7 +172,7 @@
             <div class="flex items-center gap-1">
               <Tag class="h-3 w-3 text-teal-700" />
               <span class="text-teal-800"
-                >{data.event.theme?.nom}</span
+                >{translateTheme(data.event.theme?.nom)}</span
               >
             </div>
           {/if}
@@ -194,8 +196,8 @@
         class="shadow-lg"
       >
         <UserCheck class="mr-2 h-4 w-4" />
-        <span class="hidden sm:inline">Faire l'appel</span>
-        <span class="sm:hidden">Appel</span>
+        <span class="hidden sm:inline">{m.event_attendance()}</span>
+        <span class="sm:hidden">{m.event_attendance_short()}</span>
       </Button>
     </div>
   </div>
@@ -238,10 +240,10 @@
       isBulkAssigning = false;
       if (result.type === 'success') {
         const data = result.data as { message?: string } | undefined;
-        toast.success(data?.message || 'Assignation terminée');
+        toast.success(data?.message ?? m.event_builder_assignment_complete());
         await update();
       } else {
-        toast.error("Erreur lors de l'assignation de masse");
+        toast.error(m.event_builder_mass_assign_error());
       }
     };
   }}
@@ -276,16 +278,16 @@
 <ConfirmDeleteDialog
   bind:open={deleteEventDialogOpen}
   action="?/deleteEvent"
-  title="Supprimer définitivement ?"
-  description="Cette action est irréversible. Toutes les données associées à cet événement seront perdues."
-  buttonText="Confirmer la suppression"
+  title={m.event_builder_delete_event_title()}
+  description={m.event_builder_delete_event_description()}
+  buttonText={m.event_builder_delete_event_confirm()}
   onSuccess={() => goto(resolve('/'))}
 />
 
 <ConfirmDeleteDialog
   bind:open={deleteParticipationDialogOpen}
   action="?/remove&id={participationToDelete}"
-  title="Retirer l'élève ?"
-  description="Voulez-vous retirer cet élève de l'événement ? S'il était validé, son XP sera annulé."
-  buttonText="Retirer"
+  title={m.event_builder_remove_student_title()}
+  description={m.event_builder_remove_student_description()}
+  buttonText={m.event_builder_remove_student_confirm()}
 />

@@ -8,6 +8,7 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { m } from '$lib/paraglide/messages.js';
   let { data } = $props();
 
   // Handle component deletion confirmations
@@ -28,10 +29,10 @@
 <div class="space-y-6">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
-      Équipe <span class="text-epi-pink">Staff</span>
+      {m.admin_staff_title()} <span class="text-epi-pink">{m.admin_staff_title_accent()}</span>
     </h1>
     <p class="text-sm font-bold text-muted-foreground uppercase">
-      Gérer les accès et rattachements
+      {m.admin_staff_subtitle()}
     </p>
   </div>
 
@@ -39,10 +40,10 @@
     <Table.Root>
       <Table.Header>
         <Table.Row>
-          <Table.Head>Utilisateur</Table.Head>
-          <Table.Head>Email</Table.Head>
-          <Table.Head>Campus</Table.Head>
-          <Table.Head class="text-right">Actions</Table.Head>
+          <Table.Head>{m.admin_staff_col_user()}</Table.Head>
+          <Table.Head>{m.admin_staff_col_email()}</Table.Head>
+          <Table.Head>{m.admin_staff_col_campus()}</Table.Head>
+          <Table.Head class="text-right">{m.common_actions()}</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
@@ -57,7 +58,7 @@
                       'ST'}</Avatar.Fallback
                   >
                 </Avatar.Root>
-                <span class="font-bold">{user.name || 'Sans nom'}</span>
+                <span class="font-bold">{user.name || m.admin_staff_no_name()}</span>
               </div>
             </Table.Cell>
             <Table.Cell>
@@ -81,7 +82,7 @@
                 use:enhance={() => {
                   return async ({ update, result }) => {
                     if (result.type === 'success')
-                      toast.success('Campus mis à jour');
+                      toast.success(m.admin_campus_update_success());
                     await update();
                   };
                 }}
@@ -100,10 +101,10 @@
                   }}
                 >
                   <Select.Trigger class="h-8 w-40 text-xs">
-                    {user.staffProfile?.campus?.name || 'Aucun campus'}
+                    {user.staffProfile?.campus?.name || m.admin_staff_no_campus()}
                   </Select.Trigger>
                   <Select.Content>
-                    <Select.Item value="">Aucun campus</Select.Item>
+                    <Select.Item value="">{m.admin_staff_no_campus()}</Select.Item>
                     {#each data.campuses as c}
                       <Select.Item value={c.id}>{c.name}</Select.Item>
                     {/each}
@@ -130,7 +131,7 @@
   <ConfirmDeleteDialog
     bind:open={deleteDialogOpen}
     action="?/deleteUser&id={userToDelete}"
-    title="Révoquer l'accès"
-    description="Êtes-vous sûr de vouloir supprimer ce membre du Staff ? Il perdra l'accès à l'application."
+    title={m.admin_staff_revoke_title()}
+    description={m.admin_staff_revoke_description()}
   />
 </div>

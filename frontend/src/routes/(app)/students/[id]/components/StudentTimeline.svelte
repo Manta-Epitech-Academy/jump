@@ -15,8 +15,9 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
-  import { formatDateFr, cn } from '$lib/utils';
+  import { formatDate, cn, translateTheme } from '$lib/utils';
   import { resolve } from '$app/paths';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { participations }: { participations: any[] } =
     $props();
@@ -64,7 +65,7 @@
                 <Badge
                   variant="outline"
                   class="h-5 px-1.5 text-[10px] font-normal"
-                  >{formatDateFr(p.event?.date)}</Badge
+                  >{formatDate(p.event?.date)}</Badge
                 >
                 {#if isPresent}
                   <Badge
@@ -74,23 +75,23 @@
                       isLate
                         ? 'bg-orange-200 text-orange-900 hover:bg-orange-300'
                         : 'bg-epi-teal hover:bg-epi-teal/80',
-                    )}>Présent</Badge
+                    )}>{m.student_timeline_status_present()}</Badge
                   >
                   {#if isLate}<Badge
                       variant="outline"
                       class="h-5 border-orange-200 bg-orange-50 px-1.5 text-[10px] font-bold text-orange-600 uppercase dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
-                      >Retard: {p.delay >= 60 ? '+60' : p.delay} min</Badge
+                      >{m.student_timeline_status_late({ min: p.delay >= 60 ? '+60' : p.delay })}</Badge
                     >{/if}
                 {:else if isUpcoming}
                   <Badge
                     variant="secondary"
                     class="h-5 border-blue-200 bg-blue-100 px-1.5 text-[10px] text-blue-700 uppercase"
-                    >Inscrit</Badge
+                    >{m.student_timeline_status_registered()}</Badge
                   >
                 {:else}
                   <Badge
                     variant="destructive"
-                    class="h-5 px-1.5 text-[10px] uppercase">Absent</Badge
+                    class="h-5 px-1.5 text-[10px] uppercase">{m.student_timeline_status_absent()}</Badge
                   >
                 {/if}
               </div>
@@ -100,7 +101,7 @@
                 {#if p.event?.id}<a
                     href={resolve(`/events/${p.event.id}/builder`)}
                     >{p.event.titre}</a
-                  >{:else}Événement inconnu{/if}
+                  >{:else}{m.student_timeline_unknown_event()}{/if}
               </Card.Title>
             </div>
 
@@ -162,7 +163,7 @@
                           {#each subject.subjectThemes as st}
                             <span
                               class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
-                              >#{st.theme.nom}</span
+                              >#{translateTheme(st.theme.nom)}</span
                             >
                           {/each}
                         </div>
@@ -186,7 +187,7 @@
                             >
                           {/snippet}
                         </Tooltip.Trigger>
-                        <Tooltip.Content><p>Voir le support</p></Tooltip.Content
+                        <Tooltip.Content><p>{m.student_timeline_view_resource()}</p></Tooltip.Content
                         >
                       </Tooltip.Root>
                     </Tooltip.Provider>
@@ -207,26 +208,26 @@
               <div class="flex-1 pt-0.5">
                 <div class="flex items-center gap-2">
                   <span class="text-[10px] font-bold text-slate-400 uppercase">
-                    Ressenti de l'élève :
+                    {m.student_timeline_camper_feeling()}
                   </span>
                   <div class="flex items-center gap-1">
                     {#if p.camperRating === 1}
                       <span class="text-sm leading-none">🤯</span>
                       <span
                         class="text-xs font-bold text-red-600 dark:text-red-400"
-                        >Difficile</span
+                        >{m.camper_feedback_hard()}</span
                       >
                     {:else if p.camperRating === 2}
                       <span class="text-sm leading-none">💪</span>
                       <span
                         class="text-xs font-bold text-blue-600 dark:text-blue-400"
-                        >Moyen</span
+                        >{m.camper_feedback_medium()}</span
                       >
                     {:else if p.camperRating === 3}
                       <span class="text-sm leading-none">🚀</span>
                       <span
                         class="text-xs font-bold text-teal-600 dark:text-teal-400"
-                        >Facile</span
+                        >{m.camper_feedback_easy()}</span
                       >
                     {/if}
                   </div>
@@ -278,14 +279,14 @@
                   </Tooltip.Provider>
                 {/if}
                 <span class="text-[10px] font-bold text-yellow-700/70 uppercase"
-                  >Observation encadrant :</span
+                  >{m.student_timeline_staff_observation()}</span
                 >
               </div>
               <p class="leading-relaxed italic">« {p.note} »</p>
             </div>
           {:else if p.isPresent}
             <p class="pt-1 pl-1 text-xs text-muted-foreground italic">
-              Aucune observation enregistrée.
+              {m.student_timeline_no_observation()}
             </p>
           {/if}
         </Card.Content>
@@ -299,10 +300,10 @@
         <Calendar class="h-8 w-8 text-muted-foreground" />
       </div>
       <h3 class="text-lg font-bold text-muted-foreground uppercase">
-        Aucun historique
+        {m.student_timeline_empty_title()}
       </h3>
       <p class="text-sm text-muted-foreground">
-        Cet élève n'a pas encore participé à un événement.
+        {m.student_timeline_empty_description()}
       </p>
     </div>
   {/each}

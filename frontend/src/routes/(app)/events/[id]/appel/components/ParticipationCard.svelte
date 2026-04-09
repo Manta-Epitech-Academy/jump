@@ -26,6 +26,7 @@
   import { cn } from '$lib/utils';
   import { resolve } from '$app/paths';
   import BringPcBadge from '../../components/BringPcBadge.svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     participation = $bindable(),
@@ -50,7 +51,7 @@
 
   function handleDownloadClick() {
     if (!participation.isPresent) {
-      toast.error("L'élève doit être présent pour recevoir un diplôme.");
+      toast.error(m.appel_student_must_be_present());
       return;
     }
     if (onDownload) onDownload();
@@ -112,10 +113,10 @@
             <LifeBuoy class="h-6 w-6 animate-bounce" />
             <div class="flex flex-col">
               <span class="text-sm font-bold tracking-wider uppercase"
-                >Demande d'aide</span
+                >{m.appel_help_request()}</span
               >
               <span class="text-xs opacity-90"
-                >Bloqué sur : <strong>{helpStep.title}</strong></span
+                >{m.appel_blocked_on()} <strong>{helpStep.title}</strong></span
               >
             </div>
           </div>
@@ -158,7 +159,7 @@
                 class="w-full font-bold text-epi-orange hover:bg-white/90"
               >
                 <LockOpen class="mr-2 h-4 w-4" />
-                Débloquer
+                {m.appel_unlock()}
               </Button>
             </form>
           </div>
@@ -285,7 +286,7 @@
                   {/snippet}
                 </Tooltip.Trigger>
                 <Tooltip.Content>
-                  <p>Télécharger le diplôme</p>
+                  <p>{m.appel_download_diploma()}</p>
                 </Tooltip.Content>
               </Tooltip.Root>
             {/if}
@@ -314,7 +315,7 @@
                     <p
                       class="text-xs font-black text-muted-foreground uppercase"
                     >
-                      Retard estimé
+                      {m.appel_delay_estimated()}
                     </p>
                     {#if participation.delay > 0}
                       <span class="text-[10px] font-bold text-orange-600"
@@ -376,7 +377,7 @@
                       )}
                     >
                       <Check class="h-3.5 w-3.5" />
-                      Pas de retard
+                      {m.appel_no_delay()}
                     </button>
                   </form>
                 </div>
@@ -415,8 +416,8 @@
                 <Tooltip.Content>
                   <p>
                     {participation.isPresent
-                      ? 'Marquer absent'
-                      : 'Marquer présent'}
+                      ? m.appel_mark_absent()
+                      : m.appel_mark_present()}
                   </p>
                 </Tooltip.Content>
               </Tooltip.Root>
@@ -455,7 +456,7 @@
                     {/snippet}
                   </Tooltip.Trigger>
                   <Tooltip.Content
-                    ><p>Ouvrir le support original</p></Tooltip.Content
+                    ><p>{m.appel_open_original()}</p></Tooltip.Content
                   >
                 </Tooltip.Root>
               </Tooltip.Provider>
@@ -465,7 +466,7 @@
           <div
             class="rounded-sm border border-dashed p-2 text-center text-[10px] text-muted-foreground italic"
           >
-            Aucun sujet assigné
+            {m.appel_no_subject()}
           </div>
         {/each}
       </div>
@@ -483,22 +484,22 @@
               <div class="flex flex-col gap-0.5">
                 <div class="flex items-center gap-1.5 text-xs font-bold">
                   <span class="text-[9px] text-slate-500 uppercase"
-                    >Retour campeur :</span
+                    >{m.appel_camper_feedback_label()}</span
                   >
                   {#if participation.camperRating === 1}
                     <span
                       class="flex items-center gap-1 text-red-600 dark:text-red-400"
-                      >🤯 Difficile</span
+                      >🤯 {m.camper_feedback_hard()}</span
                     >
                   {:else if participation.camperRating === 2}
                     <span
                       class="flex items-center gap-1 text-blue-600 dark:text-blue-400"
-                      >💪 Moyen</span
+                      >💪 {m.camper_feedback_medium()}</span
                     >
                   {:else if participation.camperRating === 3}
                     <span
                       class="flex items-center gap-1 text-teal-600 dark:text-teal-400"
-                      >🚀 Facile</span
+                      >🚀 {m.camper_feedback_easy()}</span
                     >
                   {/if}
                 </div>
@@ -515,7 +516,7 @@
           <NoteInput
             id={participation.id}
             value={participation.note}
-            placeholder="Observation (ex: Difficultés sur les boucles...)"
+            placeholder={m.appel_observation_placeholder()}
             class="h-9 text-xs"
           />
         </div>

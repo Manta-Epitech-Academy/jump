@@ -12,7 +12,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { Calendar, Tag, Archive, Users, UserCheck } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
-  import { formatDateFr, i18nHref } from '$lib/utils';
+  import { formatDate, formatTime, i18nHref, translateTheme } from '$lib/utils';
   import { resolve } from '$app/paths';
   import { m } from '$lib/paraglide/messages.js';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -20,13 +20,6 @@
   import EventActionManager from '$lib/components/events/EventActionManager.svelte';
 
   let { data } = $props();
-
-  function formatTime(date: Date): string {
-    return date.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
 
   let actionManager: ReturnType<typeof EventActionManager>;
 </script>
@@ -68,7 +61,7 @@
               <TableCell>
                 <div class="flex items-center gap-2">
                   <Calendar class="h-4 w-4 text-muted-foreground" />
-                  <span class="font-medium">{formatDateFr(event.date)}</span>
+                  <span class="font-medium">{formatDate(event.date)}</span>
                   <span class="text-xs text-muted-foreground"
                     >{formatTime(event.date)}</span
                   >
@@ -78,7 +71,7 @@
                 {#if event.theme}
                   <div class="flex items-center gap-2">
                     <Tag class="h-4 w-4 text-teal-700/70" />
-                    <span class="font-bold text-teal-800/70">{event.theme}</span
+                    <span class="font-bold text-teal-800/70">{translateTheme(event.theme)}</span
                     >
                   </div>
                 {:else}

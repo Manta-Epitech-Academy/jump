@@ -5,6 +5,7 @@ import { getTotalXp } from '$lib/domain/xp';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { assertEventCampus } from '$lib/server/db/assert';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   try {
@@ -43,7 +44,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     };
   } catch (e) {
     console.error(e);
-    throw error(404, 'Événement introuvable');
+    throw error(404, m.event_not_found());
   }
 };
 

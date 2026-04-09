@@ -2,10 +2,11 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
 import { prisma } from '$lib/server/db';
-import { formatDateFr, tallyTopThemes } from '$lib/utils';
+import { formatDate, tallyTopThemes } from '$lib/utils';
+import { m } from '$lib/paraglide/messages.js';
 
 export const GET: RequestHandler = async ({ locals }) => {
-  if (!locals.studentProfile) throw error(401, 'Non autorise');
+  if (!locals.studentProfile) throw error(401, m.server_error_unauthorized());
 
   const studentProfileId = locals.studentProfile.id;
 
@@ -33,7 +34,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     });
 
     if (participations.length === 0) {
-      throw error(400, 'Aucun evenement complete.');
+      throw error(400, m.certificate_no_completed_event());
     }
 
     // 2. Gather Portfolio Images (Max 4 for the A4 PDF)
@@ -66,7 +67,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         if (!subjectMap.has(subject.id)) {
           subjectMap.set(subject.id, {
             name: subject.nom,
-            eventDate: p.event ? formatDateFr(new Date(p.event.date)) : '',
+            eventDate: p.event ? formatDate(new Date(p.event.date)) : '',
             difficulty: subject.difficulte || '',
           });
         }
@@ -101,7 +102,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       level: locals.studentProfile.level || 'Novice',
       topThemes,
       subjects,
-      todayDate: formatDateFr(new Date()),
+      todayDate: formatDate(new Date()),
       // TODO: implement S3 file storage
       images: [] as string[],
     };
@@ -130,7 +131,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     if (typeof err === 'object' && err !== null && 'status' in err) {
       throw err;
     }
-    throw error(500, "Erreur lors de la generation de l'attestation.");
+    throw error(500, m.certificate_generation_error());
   }
 };
 

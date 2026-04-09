@@ -13,6 +13,7 @@ import {
   importCampaignData,
   type ImportAction,
 } from '$lib/server/services/campaignService';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -98,7 +99,7 @@ export const actions: Actions = {
       newEventId = record.id;
     } catch (err) {
       console.error('Erreur création événement:', err);
-      return message(form, 'Erreur technique lors de la création.', {
+      return message(form, m.event_create_error(), {
         status: 500,
       });
     }

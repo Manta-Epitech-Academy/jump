@@ -11,9 +11,10 @@ import {
   ValidationError,
   type SubjectStructure,
 } from '$lib/server/services/progressService';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-  if (!locals.studentProfile) throw error(401, 'Non autorisé');
+  if (!locals.studentProfile) throw error(401, m.server_error_unauthorized());
 
   try {
     let subject = getCachedSubject<any>(params.subjectId);
@@ -21,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       subject = await prisma.subject.findUnique({
         where: { id: params.subjectId },
       });
-      if (!subject) throw error(404, 'Sujet introuvable');
+      if (!subject) throw error(404, m.subject_not_found());
       setCachedSubject(params.subjectId, subject);
     }
     const content = subject.contentStructure as SubjectStructure | null;
@@ -43,7 +44,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     });
 
     if (!participation) {
-      throw error(403, "Tu n'es pas assigné à ce sujet.");
+      throw error(403, m.camper_subject_not_assigned());
     }
     const eventId = participation.eventId;
 
@@ -117,7 +118,7 @@ export const actions: Actions = {
         return fail(400, { incorrect: true, message: err.message });
       }
       console.error('Step validation error:', err);
-      return fail(500, { message: 'Erreur serveur lors de la validation.' });
+      return fail(500, { message: m.camper_step_validation_error() });
     }
   },
 
@@ -132,7 +133,7 @@ export const actions: Actions = {
       });
       return { success: true };
     } catch (err) {
-      return fail(500, { message: 'Erreur de navigation' });
+      return fail(500, { message: m.camper_navigation_error() });
     }
   },
 
@@ -151,19 +152,19 @@ export const actions: Actions = {
       });
       return { success: true, status: newStatus };
     } catch (err) {
-      return fail(500, { message: 'Erreur lors de la notification du Manta.' });
+      return fail(500, { message: m.camper_manta_notify_error() });
     }
   },
 
   addPortfolioItem: async ({ request, locals }) => {
-    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
+    if (!locals.studentProfile) return fail(401, { message: m.server_error_unauthorized() });
 
     const data = await request.formData();
     const file = data.get('file') as File;
     const url = data.get('url') as string;
 
     if ((!file || file.size === 0) && !url) {
-      return fail(400, { message: 'Tu dois fournir une image ou un lien.' });
+      return fail(400, { message: m.camper_portfolio_missing_content() });
     }
 
     try {
@@ -179,12 +180,12 @@ export const actions: Actions = {
       return { success: true };
     } catch (err) {
       console.error('Portfolio add error:', err);
-      return fail(500, { message: "Erreur lors de l'ajout au portfolio." });
+      return fail(500, { message: m.camper_portfolio_add_error() });
     }
   },
 
   deletePortfolioItem: async ({ request, locals }) => {
-    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
+    if (!locals.studentProfile) return fail(401, { message: m.server_error_unauthorized() });
 
     const data = await request.formData();
     const itemId = data.get('itemId') as string;
@@ -195,12 +196,12 @@ export const actions: Actions = {
       return { success: true };
     } catch (err) {
       console.error('Portfolio delete error:', err);
-      return fail(500, { message: 'Erreur lors de la suppression.' });
+      return fail(500, { message: m.camper_portfolio_delete_error() });
     }
   },
 
   submitFeedback: async ({ request, locals }) => {
-    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
+    if (!locals.studentProfile) return fail(401, { message: m.server_error_unauthorized() });
 
     const data = await request.formData();
     const participationId = data.get('participationId') as string;
@@ -209,7 +210,7 @@ export const actions: Actions = {
 
     const rating = parseInt(ratingStr, 10);
     if (!participationId || ![1, 2, 3].includes(rating))
-      return fail(400, { message: 'Données invalides' });
+      return fail(400, { message: m.server_error_invalid_data() });
 
     try {
       await assertStudentOwns(locals.studentProfile!.id, participationId, 'participation');
@@ -223,7 +224,7 @@ export const actions: Actions = {
       return { success: true };
     } catch (err) {
       console.error('Erreur soumission feedback:', err);
-      return fail(500, { message: "Erreur lors de l'envoi du feedback" });
+      return fail(500, { message: m.camper_feedback_send_error() });
     }
   },
 };

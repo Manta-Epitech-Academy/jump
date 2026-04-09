@@ -8,10 +8,12 @@
   import { page } from '$app/state';
   import { triggerConfetti } from '$lib/actions/confetti';
   import {
-    formatDateFr,
+    formatDate,
+    formatTime,
     flattenMissions,
     THEME_TIER_CEILING,
     i18nHref,
+    translateTheme,
   } from '$lib/utils';
   import { m } from '$lib/paraglide/messages.js';
   import {
@@ -77,14 +79,6 @@
 
   // RPG Aspect : Top Skills
   let topThemes = $derived(data.topThemes);
-
-  function formatTime(dateString: string | Date | undefined) {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
 
   // Sharing Logic
   let copied = $state(false);
@@ -260,7 +254,7 @@
                     <div
                       class="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300"
                     >
-                      <span class="truncate pr-2">{theme.name}</span>
+                      <span class="truncate pr-2">{translateTheme(theme.name)}</span>
                       <span class="shrink-0 text-teal-700 dark:text-epi-teal"
                         >{theme.label}</span
                       >
@@ -271,7 +265,7 @@
                       aria-valuenow={Math.min(theme.count, THEME_TIER_CEILING)}
                       aria-valuemin={0}
                       aria-valuemax={THEME_TIER_CEILING}
-                      aria-label="{theme.name} : {theme.label}"
+                      aria-label="{translateTheme(theme.name)} : {theme.label}"
                     >
                       <div
                         class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"
@@ -472,7 +466,7 @@
             <p class="mt-2 max-w-md text-sm text-slate-500">
               Ta prochaine session est prévue le <strong
                 class="text-slate-700 dark:text-slate-300"
-                >{formatDateFr(
+                >{formatDate(
                   upcomingParticipation.event?.date,
                 )}</strong
               >
@@ -551,7 +545,7 @@
                   class="mb-2 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase"
                 >
                   <Calendar class="h-3 w-3" />
-                  {formatDateFr(mission.eventDate)}
+                  {formatDate(mission.eventDate)}
                 </div>
                 <h3
                   class="line-clamp-2 font-normal text-slate-900 dark:text-white"

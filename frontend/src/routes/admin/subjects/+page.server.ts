@@ -4,6 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { subjectSchema } from '$lib/validation/subjects';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async () => {
   // Load ONLY official subjects and themes (campusId = null)
@@ -69,10 +70,10 @@ export const actions: Actions = {
         },
       });
 
-      return message(form, 'Sujet officiel publié !');
+      return message(form, m.admin_subject_create_success());
     } catch (err) {
       console.error(err);
-      return message(form, 'Erreur lors de la création', { status: 500 });
+      return message(form, m.server_error_generic_create(), { status: 500 });
     }
   },
 
@@ -99,9 +100,9 @@ export const actions: Actions = {
           },
         },
       });
-      return message(form, 'Sujet officiel mis à jour !');
+      return message(form, m.admin_subject_update_success());
     } catch (err) {
-      return message(form, 'Erreur lors de la modification', { status: 500 });
+      return message(form, m.server_error_generic_update(), { status: 500 });
     }
   },
 
@@ -125,7 +126,7 @@ export const actions: Actions = {
       await prisma.subject.delete({ where: { id } });
       return { success: true };
     } catch (err) {
-      return fail(500, { message: 'Erreur lors de la suppression.' });
+      return fail(500, { message: m.server_error_generic_delete_dot() });
     }
   },
 };

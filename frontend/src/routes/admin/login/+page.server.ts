@@ -7,6 +7,7 @@ import { adminLoginSchema } from '$lib/validation/auth';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // If already authenticated as an Admin
@@ -40,7 +41,7 @@ export const actions: Actions = {
       forwardAuthCookies(response, cookies);
 
       if (!response.ok) {
-        return message(form, 'Identifiants invalides ou accès refusé.', {
+        return message(form, m.admin_login_invalid(), {
           status: 400,
         });
       }
@@ -54,13 +55,13 @@ export const actions: Actions = {
       if (user?.role !== 'admin') {
         cookies.delete('better-auth.session_token', { path: '/' });
         cookies.delete('better-auth.session_data', { path: '/' });
-        return message(form, 'Identifiants invalides ou accès refusé.', {
+        return message(form, m.admin_login_invalid(), {
           status: 400,
         });
       }
     } catch (err) {
       console.error('Admin login error:', err);
-      return message(form, 'Identifiants invalides ou accès refusé.', {
+      return message(form, m.admin_login_invalid(), {
         status: 400,
       });
     }

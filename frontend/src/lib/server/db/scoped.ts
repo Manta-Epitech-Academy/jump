@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { m } from '$lib/paraglide/messages.js';
 import { prisma } from '../db';
 
 /**
@@ -26,7 +27,7 @@ export function getCampusId(locals: App.Locals): string {
  */
 export function scopedPrisma(campusId: string) {
   function accessDenied(model: string): never {
-    throw error(403, `Accès refusé : cette ressource (${model}) appartient à un autre campus.`);
+    throw error(403, m.server_error_forbidden_resource_campus({ model }));
   }
 
   return prisma.$extends({

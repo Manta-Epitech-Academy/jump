@@ -4,11 +4,12 @@
   import { LoaderCircle, Check, Save, TriangleAlert } from '@lucide/svelte';
   import { cn } from '$lib/utils';
   import { onDestroy } from 'svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     id,
     value = '',
-    placeholder = 'Ajouter une note...',
+    placeholder = m.appel_note_placeholder(),
     class: className,
   } = $props();
 

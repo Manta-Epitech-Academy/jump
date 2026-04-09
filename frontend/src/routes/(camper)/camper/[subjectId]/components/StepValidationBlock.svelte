@@ -13,6 +13,7 @@
   } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
+  import { m } from '$lib/paraglide/messages.js';
   import type { SubjectStep } from '$lib/server/services/progressService';
   import type { StepsProgress } from '@prisma/client';
 
@@ -44,7 +45,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3 text-epi-teal">
         <CircleCheck class="h-6 w-6" />
-        <span class="font-bold uppercase">Étape validée</span>
+        <span class="font-bold uppercase">{m.camper_step_validated()}</span>
       </div>
       {#if currentIndex < steps.length - 1}
         <form method="POST" action="?/changeStep" use:enhance>
@@ -55,7 +56,7 @@
           />
           <input type="hidden" name="progressId" value={progress.id} />
           <Button type="submit" variant="outline" class="gap-2 rounded-xl">
-            Passer à la suite <ArrowRight class="h-4 w-4" />
+            {m.camper_step_next()} <ArrowRight class="h-4 w-4" />
           </Button>
         </form>
       {/if}
@@ -65,7 +66,7 @@
       <div class="flex items-center gap-2">
         <CirclePlay class="h-5 w-5 text-epi-blue" />
         <h3 class="font-bold text-slate-900 uppercase dark:text-white">
-          Validation Requise
+          {m.camper_step_validation_required()}
         </h3>
       </div>
       <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -80,14 +81,14 @@
           return async ({ result, update }) => {
             isValidating = false;
             if (result.type === 'success') {
-              toast.success('Bonne réponse !');
+              toast.success(m.camper_step_good_answer());
               triggerConfetti();
               qcmFails = 0;
             } else if (result.type === 'failure') {
               qcmFails++;
               toast.error(
-                ((result.data as Record<string, unknown>)?.message as string) ||
-                  'Mauvaise réponse.',
+                ((result.data as Record<string, unknown>)?.message as string) ??
+                  m.camper_step_wrong_answer(),
               );
             }
             await update({ reset: false });
@@ -135,16 +136,16 @@
             disabled={selectedAnswer === null || isValidating || qcmFails >= 3}
             class="w-full rounded-xl bg-epi-blue font-bold text-white hover:bg-epi-blue/90 sm:w-auto"
           >
-            {#if isValidating}Vérification...{:else}<Send
+            {#if isValidating}{m.camper_step_verifying()}{:else}<Send
                 class="mr-2 h-4 w-4"
-              /> Valider ma réponse{/if}
+              /> {m.camper_step_submit_answer()}{/if}
           </Button>
 
           {#if qcmFails >= 3}
             <span
               class="animate-pulse text-center text-xs font-bold text-epi-orange uppercase sm:text-right"
             >
-              Bloqué ? Utilise le bouton "Appeler un Manta" 👇
+              {m.camper_step_blocked_hint()}
             </span>
           {/if}
         </div>
@@ -156,18 +157,17 @@
         <Lock class="h-8 w-8 text-epi-orange" />
       </div>
       <h3 class="mb-2 font-bold text-slate-900 uppercase dark:text-white">
-        Validation Manta
+        {m.camper_step_manta_validation()}
       </h3>
       <p class="mb-6 max-w-sm text-sm text-slate-500">
-        Montre ton travail, puis clique sur "Appeler un Manta". Le Manta
-        validera à distance.
+        {m.camper_step_manta_instructions()}
       </p>
 
       <div
         class="w-full max-w-xs rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
       >
         <p class="mb-3 text-[10px] font-bold text-slate-400 uppercase">
-          Secours Manta (Local PIN)
+          {m.camper_step_manta_pin_label()}
         </p>
         <form
           action="?/validateStep"
@@ -177,10 +177,10 @@
             return async ({ result, update }) => {
               isValidating = false;
               if (result.type === 'success') {
-                toast.success('Étape débloquée localement !');
+                toast.success(m.camper_step_unlocked_locally());
                 if (currentIndex === steps.length - 1) triggerConfetti();
               } else {
-                toast.error((result as any).data?.message || 'PIN Incorrect');
+                toast.error((result as any).data?.message ?? m.camper_step_pin_incorrect());
               }
               await update({ reset: false });
             };
@@ -211,9 +211,9 @@
     <div class="flex items-center justify-between">
       <div>
         <h3 class="font-bold text-slate-900 uppercase dark:text-white">
-          Fin de la lecture
+          {m.camper_step_reading_end()}
         </h3>
-        <p class="text-sm text-slate-500">Prêt pour la suite ?</p>
+        <p class="text-sm text-slate-500">{m.camper_step_ready_next()}</p>
       </div>
       <form
         method="POST"
@@ -230,7 +230,7 @@
           type="submit"
           class="rounded-xl bg-epi-teal font-bold text-black shadow-md transition-transform hover:bg-epi-teal/80 active:scale-95"
         >
-          Continuer <ArrowRight class="ml-2 h-4 w-4" />
+          {m.camper_step_continue()} <ArrowRight class="ml-2 h-4 w-4" />
         </Button>
       </form>
     </div>

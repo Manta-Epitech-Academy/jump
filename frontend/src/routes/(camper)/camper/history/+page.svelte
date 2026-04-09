@@ -3,7 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
-  import { formatDateFr, flattenMissions } from '$lib/utils';
+  import { formatDate, flattenMissions } from '$lib/utils';
   import { History, Calendar, BookOpen, ArrowLeft } from '@lucide/svelte';
 
   let { data }: { data: PageData } = $props();
@@ -48,7 +48,7 @@
               class="mb-2 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase"
             >
               <Calendar class="h-3 w-3" />
-              {formatDateFr(mission.eventDate)}
+              {formatDate(mission.eventDate)}
             </div>
             <h3 class="line-clamp-2 font-normal text-slate-900 dark:text-white">
               {mission.subject.nom}

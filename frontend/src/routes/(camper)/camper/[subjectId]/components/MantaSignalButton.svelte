@@ -4,6 +4,7 @@
   import { cn } from '$lib/utils';
   import { CircleCheck, LifeBuoy } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
+  import { m } from '$lib/paraglide/messages.js';
   import type { StepsProgress } from '@prisma/client';
 
   let {
@@ -32,7 +33,7 @@
         isCallingManta = false;
         if (result.type !== 'success') {
           progress.status = previousStatus;
-          toast.error('Impossible de contacter le serveur.');
+          toast.error(m.camper_manta_server_unreachable());
         } else {
           mantaCooldown = true;
           setTimeout(() => (mantaCooldown = false), 5000);
@@ -57,10 +58,10 @@
     >
       {#if progress.status === 'needs_help'}
         <CircleCheck class="h-5 w-5" />
-        <span class="hidden sm:inline">Manta prévenu ! (Annuler)</span>
+        <span class="hidden sm:inline">{m.camper_manta_called_cancel()}</span>
       {:else}
         <LifeBuoy class={cn('h-5 w-5', isCompleted ? '' : 'animate-pulse')} />
-        <span class="hidden sm:inline">Appeler un Manta</span>
+        <span class="hidden sm:inline">{m.camper_manta_call()}</span>
       {/if}
     </Button>
   </form>

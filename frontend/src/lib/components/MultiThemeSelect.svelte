@@ -4,6 +4,7 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import { Plus, X, Tag, Globe, MapPin } from '@lucide/svelte';
+  import { translateTheme } from '$lib/utils';
 
   let {
     themes = [],
@@ -74,7 +75,7 @@
                   {:else}
                     <MapPin class="mr-1 h-3 w-3" />
                   {/if}
-                  {item}
+                  {translateTheme(item)}
                   <button
                     class="ml-1 rounded-full ring-offset-background hover:bg-black/10 focus:ring-2 focus:ring-ring focus:outline-none dark:hover:bg-white/10"
                     onclick={(e) => {
@@ -135,7 +136,7 @@
                   {/if}
                 </div>
                 <div class="flex flex-col">
-                  <span>{theme.nom}</span>
+                  <span>{translateTheme(theme.nom)}</span>
                   <span class="text-[9px] text-muted-foreground uppercase">
                     {!theme.campus ? 'Officiel (Global)' : 'Local (Campus)'}
                   </span>
