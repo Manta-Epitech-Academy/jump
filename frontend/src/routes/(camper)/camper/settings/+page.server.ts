@@ -19,15 +19,10 @@ export const actions: Actions = {
     }
 
     try {
-      await prisma.$transaction([
-        prisma.account.deleteMany({
-          where: { userId: locals.user.id, providerId: 'discord' },
-        }),
-        prisma.studentProfile.update({
-          where: { id: locals.studentProfile.id },
-          data: { discordId: null },
-        }),
-      ]);
+      await prisma.studentProfile.update({
+        where: { id: locals.studentProfile.id },
+        data: { discordId: null },
+      });
     } catch (err) {
       console.error('Error unlinking Discord:', err);
       return fail(500, { message: 'Erreur lors de la déconnexion de Discord' });
