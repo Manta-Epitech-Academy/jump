@@ -13,6 +13,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
+  unlinkDiscord: async ({ locals }) => {
+    if (!locals.studentProfile || !locals.user) {
+      return fail(401, { message: 'Non autorisé' });
+    }
+
+    try {
+      await prisma.studentProfile.update({
+        where: { id: locals.studentProfile.id },
+        data: { discordId: null },
+      });
+    } catch (err) {
+      console.error('Error unlinking Discord:', err);
+      return fail(500, { message: 'Erreur lors de la déconnexion de Discord' });
+    }
+
+    return { discordUnlinked: true };
+  },
+
   deleteAccount: async ({ request, locals }) => {
     if (!locals.studentProfile || !locals.user) {
       return fail(401, { message: 'Non autorisé' });
