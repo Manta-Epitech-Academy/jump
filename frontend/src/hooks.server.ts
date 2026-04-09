@@ -25,6 +25,24 @@ export const handle: Handle = async ({ event, resolve }) => {
       where: { userId: event.locals.user.id },
       include: { campus: true },
     });
+
+    // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget)
+    if (event.locals.studentProfile) {
+      const now = new Date();
+      const lastActive = event.locals.studentProfile.lastActiveAt;
+      if (
+        !lastActive ||
+        now.getTime() - lastActive.getTime() > 1000 * 60 * 60 * 24
+      ) {
+        prisma.studentProfile
+          .update({
+            where: { id: event.locals.studentProfile.id },
+            data: { lastActiveAt: now },
+          })
+          .catch(() => {});
+        event.locals.studentProfile.lastActiveAt = now;
+      }
+    }
   }
 
   // 3. Route guards
