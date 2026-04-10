@@ -21,6 +21,7 @@
   import { triggerConfetti } from '$lib/actions/confetti';
   import { resolve } from '$app/paths';
   import { Badge } from '$lib/components/ui/badge';
+  import { m } from '$lib/paraglide/messages.js';
 
   import AppelLogisticsHeader from './components/AppelLogisticsHeader.svelte';
   import AppelFilterBar from './components/AppelFilterBar.svelte';
@@ -162,14 +163,14 @@
   let pcsNeeded = $derived(participations.filter((p) => !p.bringPc).length);
 
   async function handleDiplomaDownload(participation: ParticipationWithDetails) {
-    const toastId = toast.loading('Génération du diplôme...');
+    const toastId = toast.loading(m.appel_diploma_generating());
     try {
       const res = await fetch(
         `${resolve('/api/diploma')}?participationId=${participation.id}`,
       );
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Erreur lors de la génération');
+        throw new Error(errorData.message || m.common_error_generic());
       }
 
       const blob = await res.blob();
@@ -189,11 +190,11 @@
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      toast.success('Diplôme téléchargé !', { id: toastId });
+      toast.success(m.appel_diploma_downloaded(), { id: toastId });
       triggerConfetti();
     } catch (e: any) {
       console.error(e);
-      toast.error(`Erreur : ${e.message}`, { id: toastId });
+      toast.error(m.appel_diploma_error({ message: e.message }), { id: toastId });
     }
   }
 </script>
@@ -294,7 +295,7 @@
                   {#if isNew}<Badge
                       variant="outline"
                       class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
-                      ><Sprout class="h-2.5 w-2.5" /> Nouveau</Badge
+                      ><Sprout class="h-2.5 w-2.5" /> {m.event_builder_new_student()}</Badge
                     >{/if}
                 </span>
                 <div
@@ -307,7 +308,7 @@
                     >{/if}
                   {#if needsHelp}<span
                       class="flex items-center gap-1 font-bold text-epi-orange"
-                      ><LifeBuoy class="h-3 w-3" /> Aide Demandée</span
+                      ><LifeBuoy class="h-3 w-3" /> {m.appel_help_requested()}</span
                     >{/if}
                 </div>
               </div>
@@ -346,8 +347,8 @@
                     <Tooltip.Content>
                       <p>
                         {p.bringPc
-                          ? 'Avec PC — cliquer pour changer'
-                          : 'Besoin PC — cliquer pour changer'}
+                          ? m.appel_pc_with_click()
+                          : m.appel_pc_needs_click()}
                       </p>
                     </Tooltip.Content>
                   </Tooltip.Root>
@@ -379,7 +380,7 @@
     {#if filteredParticipations.length === 0}
       <div class="py-20 text-center">
         <p class="font-bold text-muted-foreground uppercase">
-          Aucun élève à afficher.
+          {m.appel_empty_students()}
         </p>
       </div>
     {/if}

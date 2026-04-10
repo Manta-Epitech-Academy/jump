@@ -464,16 +464,10 @@
               {upcomingParticipation.event?.titre || m.camper_default_event()}
             </h3>
             <p class="mt-2 max-w-md text-sm text-slate-500">
-              Ta prochaine session est prévue le <strong
-                class="text-slate-700 dark:text-slate-300"
-                >{formatDate(
-                  upcomingParticipation.event?.date,
-                )}</strong
-              >
-              à
-              <strong class="text-slate-700 dark:text-slate-300"
-                >{formatTime(upcomingParticipation.event?.date)}</strong
-              >.
+              {@html m.camper_upcoming_session({
+                date: `<strong class="text-slate-700 dark:text-slate-300">${formatDate(upcomingParticipation.event?.date)}</strong>`,
+                time: `<strong class="text-slate-700 dark:text-slate-300">${formatTime(upcomingParticipation.event?.date)}</strong>`,
+              })}
             </p>
 
             <div class="mt-6 flex gap-3">

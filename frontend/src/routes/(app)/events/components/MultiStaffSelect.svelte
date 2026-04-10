@@ -5,6 +5,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Check, Users, X } from '@lucide/svelte';
   import * as Avatar from '$lib/components/ui/avatar';
+  import { m } from '$lib/paraglide/messages.js';
   let {
     staff = [],
     value = $bindable([]),
@@ -58,7 +59,7 @@
                 class="flex items-center gap-2 font-normal text-muted-foreground"
               >
                 <Users class="h-3.5 w-3.5" />
-                Assigner des Mantas...
+                {m.staff_select_placeholder()}
               </span>
             {:else}
               {#each selectedStaff as person}
@@ -91,15 +92,15 @@
     </Popover.Trigger>
     <Popover.Content class="w-[--bits-popover-anchor-width] p-0" align="start">
       <Command.Root>
-        <Command.Input placeholder="Chercher un manta..." />
+        <Command.Input placeholder={m.staff_select_search()} />
         <Command.List class="max-h-75 overflow-y-auto">
           <Command.Empty>
             <p class="py-6 text-center text-sm text-muted-foreground">
-              Aucun staff trouvé.
+              {m.staff_select_empty()}
             </p>
           </Command.Empty>
 
-          <Command.Group heading="Équipe du campus">
+          <Command.Group heading={m.staff_select_heading()}>
             {#each staff as person}
               <Command.Item
                 value={person.user.name}

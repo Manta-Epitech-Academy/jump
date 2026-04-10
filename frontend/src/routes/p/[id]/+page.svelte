@@ -17,13 +17,14 @@
   let topThemes = $derived(data.topThemes);
 
   import { THEME_TIER_CEILING, translateTheme } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   let levelLabel = $derived(
     student.level === 'Expert'
-      ? 'Expert ✦'
+      ? m.student_detail_xp_expert()
       : student.level === 'Apprentice'
-        ? 'Apprenti'
-        : 'Novice',
+        ? m.camper_level_apprentice()
+        : m.student_detail_xp_novice(),
   );
 </script>
 
@@ -92,7 +93,7 @@
           <span class="text-3xl font-black">{student.eventsCount}</span>
           <span
             class="text-[10px] font-bold tracking-widest text-slate-500 uppercase"
-            >Événements</span
+            >{m.public_profile_events()}</span
           >
         </div>
       </div>
@@ -105,7 +106,7 @@
           class="mb-6 flex items-center gap-2 font-heading text-2xl tracking-wide uppercase"
         >
           <Target class="h-6 w-6 text-teal-600 dark:text-epi-teal" />
-          Arbre de Compétences<span class="text-epi-teal">_</span>
+          {m.public_profile_skill_tree()}<span class="text-epi-teal">_</span>
         </h2>
 
         <div
@@ -151,7 +152,7 @@
         class="mb-6 flex items-center gap-2 font-heading text-2xl tracking-wide uppercase"
       >
         <ImageIcon class="h-6 w-6 text-purple-500" />
-        Créations & Portfolio<span class="text-epi-pink">_</span>
+        {m.public_profile_portfolio()}<span class="text-epi-pink">_</span>
       </h2>
 
       {#if items.length === 0}
@@ -159,7 +160,7 @@
           class="rounded-3xl border-2 border-dashed border-slate-200 bg-white/50 py-12 text-center dark:border-slate-800 dark:bg-slate-900/50"
         >
           <p class="font-medium text-slate-500">
-            Ce profil est encore en construction.
+            {m.public_profile_empty_portfolio()}
           </p>
         </div>
       {:else}
@@ -175,7 +176,7 @@
                   target="_blank"
                   rel="noopener noreferrer"
                   class="block w-full overflow-hidden bg-slate-100 dark:bg-slate-950"
-                  title="Ouvrir l'image"
+                  title={m.public_profile_open_image()}
                 >
                   <img
                     src={''}
@@ -226,7 +227,7 @@
         href={resolve('/')}
         class="inline-flex items-center gap-2 text-xs font-bold tracking-widest text-slate-400 uppercase transition-colors hover:text-epi-blue"
       >
-        Propulsé par Epitech TekCamp
+        {m.public_profile_powered_by()}
       </a>
     </div>
   </div>

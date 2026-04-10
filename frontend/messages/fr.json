@@ -575,5 +575,59 @@
   "bring_pc_needs": "Besoin PC",
 
   "event_builder_alert_already_done": "DÉJÀ FAIT : L'élève a déjà validé \"{subject}\".",
-  "event_builder_alert_too_hard": "DIFFICILE : Le sujet \"{subject}\" est de niveau \"{level}\", ce qui est supérieur au niveau de l'élève ({studentLevel})."
+  "event_builder_alert_too_hard": "DIFFICILE : Le sujet \"{subject}\" est de niveau \"{level}\", ce qui est supérieur au niveau de l'élève ({studentLevel}).",
+
+  "admin_themes_title": "Thèmes",
+  "admin_themes_title_accent": "Officiels",
+  "admin_themes_subtitle": "Catégories globales pour les sujets",
+  "admin_themes_col_name": "Nom du Thème",
+  "admin_themes_form_edit_title": "Modifier Thème Officiel",
+  "admin_themes_form_create_title": "Nouveau Thème Officiel",
+  "admin_themes_form_placeholder": "Ex: Python, Cybersécurité...",
+  "admin_themes_delete_title": "Supprimer le thème",
+  "admin_themes_delete_description": "Êtes-vous sûr ? Impossible s'il est utilisé par un ou plusieurs sujets.",
+
+  "admin_login_subtitle": "Authentification Superuser Requise",
+  "admin_login_security_alert": "Alerte de sécurité",
+  "admin_login_email_label": "Adresse Email",
+  "admin_login_password_label": "Mot de passe",
+  "admin_login_authenticating": "Authentification en cours...",
+  "admin_login_submit": "Accéder au système",
+  "admin_login_info": "Cet espace est réservé à l'administration technique (Gestion des campus, Base de connaissances globale). L'accès y est formellement surveillé.",
+
+  "public_profile_events": "Événements",
+  "public_profile_skill_tree": "Arbre de Compétences",
+  "public_profile_portfolio": "Créations & Portfolio",
+  "public_profile_empty_portfolio": "Ce profil est encore en construction.",
+  "public_profile_open_image": "Ouvrir l'image",
+  "public_profile_powered_by": "Propulsé par Epitech TekCamp",
+
+  "camper_upcoming_session": "Ta prochaine session est prévue le {date} à {time}.",
+
+  "appel_diploma_generating": "Génération du diplôme...",
+  "appel_diploma_downloaded": "Diplôme téléchargé !",
+  "appel_diploma_error": "Erreur : {message}",
+  "appel_help_requested": "Aide Demandée",
+  "appel_empty_students": "Aucun élève à afficher.",
+  "appel_pc_with_click": "Avec PC — cliquer pour changer",
+  "appel_pc_needs_click": "Besoin PC — cliquer pour changer",
+
+  "otp_code_sent_to": "Code envoyé à",
+  "otp_code_label": "Code à 6 chiffres",
+  "otp_launching": "Lancement...",
+  "otp_enter_cockpit": "Entrer dans le Cockpit",
+  "otp_change_email": "Changer d'email",
+
+  "csv_drop_error": "Veuillez déposer un fichier CSV valide.",
+  "csv_file_ready": "Fichier prêt à l'analyse",
+  "csv_change_file": "Changer de fichier",
+  "csv_drop_active": "Déposez le fichier !",
+  "csv_drop_idle": "Glissez le CSV ici",
+  "csv_formats": "Formats acceptés : CSV SalesForce",
+  "csv_browse": "Ou cliquer pour parcourir",
+
+  "staff_select_placeholder": "Assigner des Mantas...",
+  "staff_select_search": "Chercher un manta...",
+  "staff_select_empty": "Aucun staff trouvé.",
+  "staff_select_heading": "Équipe du campus"
 }

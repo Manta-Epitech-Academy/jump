@@ -575,5 +575,59 @@
   "bring_pc_needs": "Needs PC",
 
   "event_builder_alert_already_done": "ALREADY DONE: The student has already validated \"{subject}\".",
-  "event_builder_alert_too_hard": "TOO HARD: The subject \"{subject}\" is at \"{level}\" level, which is above the student's level ({studentLevel})."
+  "event_builder_alert_too_hard": "TOO HARD: The subject \"{subject}\" is at \"{level}\" level, which is above the student's level ({studentLevel}).",
+
+  "admin_themes_title": "Themes",
+  "admin_themes_title_accent": "Official",
+  "admin_themes_subtitle": "Global categories for subjects",
+  "admin_themes_col_name": "Theme Name",
+  "admin_themes_form_edit_title": "Edit Official Theme",
+  "admin_themes_form_create_title": "New Official Theme",
+  "admin_themes_form_placeholder": "E.g.: Python, Cybersecurity...",
+  "admin_themes_delete_title": "Delete theme",
+  "admin_themes_delete_description": "Are you sure? Not possible if it's used by one or more subjects.",
+
+  "admin_login_subtitle": "Superuser Authentication Required",
+  "admin_login_security_alert": "Security alert",
+  "admin_login_email_label": "Email Address",
+  "admin_login_password_label": "Password",
+  "admin_login_authenticating": "Authenticating...",
+  "admin_login_submit": "Access system",
+  "admin_login_info": "This area is reserved for technical administration (Campus management, Global knowledge base). Access is formally monitored.",
+
+  "public_profile_events": "Events",
+  "public_profile_skill_tree": "Skill Tree",
+  "public_profile_portfolio": "Creations & Portfolio",
+  "public_profile_empty_portfolio": "This profile is still under construction.",
+  "public_profile_open_image": "Open image",
+  "public_profile_powered_by": "Powered by Epitech TekCamp",
+
+  "camper_upcoming_session": "Your next session is scheduled on {date} at {time}.",
+
+  "appel_diploma_generating": "Generating diploma...",
+  "appel_diploma_downloaded": "Diploma downloaded!",
+  "appel_diploma_error": "Error: {message}",
+  "appel_help_requested": "Help Requested",
+  "appel_empty_students": "No students to display.",
+  "appel_pc_with_click": "With PC — click to change",
+  "appel_pc_needs_click": "Needs PC — click to change",
+
+  "otp_code_sent_to": "Code sent to",
+  "otp_code_label": "6-digit code",
+  "otp_launching": "Launching...",
+  "otp_enter_cockpit": "Enter the Cockpit",
+  "otp_change_email": "Change email",
+
+  "csv_drop_error": "Please drop a valid CSV file.",
+  "csv_file_ready": "File ready for analysis",
+  "csv_change_file": "Change file",
+  "csv_drop_active": "Drop the file!",
+  "csv_drop_idle": "Drag CSV here",
+  "csv_formats": "Accepted formats: CSV SalesForce",
+  "csv_browse": "Or click to browse",
+
+  "staff_select_placeholder": "Assign Mantas...",
+  "staff_select_search": "Search for a manta...",
+  "staff_select_empty": "No staff found.",
+  "staff_select_heading": "Campus team"
 }

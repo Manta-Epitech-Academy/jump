@@ -9,28 +9,26 @@
   import * as Table from '$lib/components/ui/table';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data } = $props();
 
-  // Form handling and state update upon completion
   const { form, errors, enhance, delayed, reset } = superForm(
     untrack(() => data.form),
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
           open = false;
-          toast.success(result.data?.form?.message || 'Action réussie');
+          toast.success(result.data?.form?.message ?? m.common_action_success());
         }
       },
     },
   );
 
-  // Dialog status and mode configuration
   let open = $state(false);
   let isEditing = $state(false);
   let editId = $state('');
 
-  // Theme deletion status
   let deleteDialogOpen = $state(false);
   let itemToDelete = $state<string | null>(null);
 
@@ -59,17 +57,17 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Thèmes <span class="text-epi-pink">Officiels</span>
+        {m.admin_themes_title()} <span class="text-epi-pink">{m.admin_themes_title_accent()}</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
-        Catégories globales pour les sujets
+        {m.admin_themes_subtitle()}
       </p>
     </div>
     <Button
       onclick={openCreate}
       class="bg-epi-pink text-white hover:bg-epi-pink/90"
     >
-      <Plus class="mr-2 h-4 w-4" /> Ajouter
+      <Plus class="mr-2 h-4 w-4" /> {m.common_add()}
     </Button>
   </div>
 
@@ -80,8 +78,8 @@
           <Table.Head class="w-12 text-center"
             ><Globe class="mx-auto h-4 w-4 text-epi-pink" /></Table.Head
           >
-          <Table.Head>Nom du Thème</Table.Head>
-          <Table.Head class="text-right">Actions</Table.Head>
+          <Table.Head>{m.admin_themes_col_name()}</Table.Head>
+          <Table.Head class="text-right">{m.common_actions()}</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
@@ -120,7 +118,7 @@
     <Dialog.Content class="sm:max-w-md">
       <Dialog.Header>
         <Dialog.Title
-          >{isEditing ? 'Modifier' : 'Nouveau'} Thème Officiel</Dialog.Title
+          >{isEditing ? m.admin_themes_form_edit_title() : m.admin_themes_form_create_title()}</Dialog.Title
         >
       </Dialog.Header>
       <form
@@ -131,11 +129,11 @@
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
         <div class="space-y-2">
-          <Label>Nom du Thème</Label>
+          <Label>{m.admin_themes_col_name()}</Label>
           <Input
             name="nom"
             bind:value={$form.nom}
-            placeholder="Ex: Python, Cybersécurité..."
+            placeholder={m.admin_themes_form_placeholder()}
           />
           {#if $errors.nom}<span class="text-xs text-destructive"
               >{$errors.nom}</span
@@ -147,7 +145,7 @@
             disabled={$delayed}
             class="bg-epi-pink text-white"
           >
-            {$delayed ? 'Sauvegarde...' : 'Enregistrer'}
+            {$delayed ? m.common_saving() : m.common_save()}
           </Button>
         </Dialog.Footer>
       </form>
@@ -157,7 +155,7 @@
   <ConfirmDeleteDialog
     bind:open={deleteDialogOpen}
     action="?/delete&id={itemToDelete}"
-    title="Supprimer le thème"
-    description="Êtes-vous sûr ? Impossible s'il est utilisé par un ou plusieurs sujets."
+    title={m.admin_themes_delete_title()}
+    description={m.admin_themes_delete_description()}
   />
 </div>

@@ -3,6 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import { toast } from 'svelte-sonner';
   import { cn } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   /** This component renders a hidden file input — it must be placed inside a <form> for submission to work. */
   let {
@@ -42,7 +43,7 @@
           selectedFileName = files[0].name;
         }
       } else {
-        toast.error('Veuillez déposer un fichier CSV valide.');
+        toast.error(m.csv_drop_error());
       }
     }
   }
@@ -83,9 +84,9 @@
     <h3 class="mt-4 text-lg font-bold text-green-800">
       {selectedFileName}
     </h3>
-    <p class="mb-4 text-sm text-green-600">Fichier prêt à l'analyse</p>
+    <p class="mb-4 text-sm text-green-600">{m.csv_file_ready()}</p>
     <Button variant="outline" size="sm" class="pointer-events-none mt-2">
-      Changer de fichier
+      {m.csv_change_file()}
     </Button>
   {:else}
     <div class="rounded-full bg-muted p-4">
@@ -97,13 +98,13 @@
       />
     </div>
     <h3 class="mt-4 text-lg font-bold">
-      {isDragActive ? 'Déposez le fichier !' : 'Glissez le CSV ici'}
+      {isDragActive ? m.csv_drop_active() : m.csv_drop_idle()}
     </h3>
     <p class="mb-4 text-sm text-muted-foreground">
-      Formats acceptés : CSV SalesForce
+      {m.csv_formats()}
     </p>
     <Button variant="secondary" size="sm" class="pointer-events-none">
-      Ou cliquer pour parcourir
+      {m.csv_browse()}
     </Button>
   {/if}
 

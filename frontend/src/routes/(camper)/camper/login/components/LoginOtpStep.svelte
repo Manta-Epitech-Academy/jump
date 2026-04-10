@@ -5,6 +5,7 @@
   import { CircleAlert, Lock, ArrowLeft } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { cn } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { otpForm, otpErrors, otpEnhance, otpDelayed, otpMessage, goBack } =
     $props();
@@ -83,7 +84,7 @@
   {/if}
 
   <div class="mb-6 rounded-xl bg-slate-50 p-4 text-center dark:bg-slate-950">
-    <p class="text-xs font-bold text-slate-500 uppercase">Code envoyé à</p>
+    <p class="text-xs font-bold text-slate-500 uppercase">{m.otp_code_sent_to()}</p>
     <p class="font-bold text-epi-blue">{$otpForm.email}</p>
   </div>
 
@@ -97,7 +98,7 @@
     <input type="hidden" name="email" bind:value={$otpForm.email} />
 
     <div class="space-y-3">
-      <Label for="otp-digit-0" class="sr-only">Code à 6 chiffres</Label>
+      <Label for="otp-digit-0" class="sr-only">{m.otp_code_label()}</Label>
       <input type="hidden" name="password" bind:value={$otpForm.password} />
 
       <div class="flex justify-center gap-2.5">
@@ -138,9 +139,9 @@
         class="h-12 w-full rounded-xl bg-epi-teal text-base font-bold text-slate-950 shadow-md transition-all hover:bg-epi-teal/90 active:scale-[0.98] disabled:opacity-50"
       >
         {#if $otpDelayed}
-          Lancement...
+          {m.otp_launching()}
         {:else}
-          <Lock class="mr-2 h-4 w-4" /> Entrer dans le Cockpit
+          <Lock class="mr-2 h-4 w-4" /> {m.otp_enter_cockpit()}
         {/if}
       </Button>
 
@@ -151,7 +152,7 @@
         onclick={goBack}
         disabled={$otpDelayed}
       >
-        <ArrowLeft class="mr-1.5 h-3.5 w-3.5" /> Changer d'email
+        <ArrowLeft class="mr-1.5 h-3.5 w-3.5" /> {m.otp_change_email()}
       </Button>
     </div>
   </form>

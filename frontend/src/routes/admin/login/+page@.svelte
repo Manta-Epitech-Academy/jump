@@ -10,6 +10,7 @@
     AlertTitle,
   } from '$lib/components/ui/alert';
   import { ShieldAlert, FingerprintPattern, Lock, Server } from '@lucide/svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let { data } = $props();
 
@@ -58,7 +59,7 @@
             System Admin<span class="animate-pulse text-epi-pink">_</span>
           </Card.Title>
           <Card.Description class="text-slate-400">
-            Authentification Superuser Requise
+            {m.admin_login_subtitle()}
           </Card.Description>
         </div>
       </Card.Header>
@@ -74,7 +75,7 @@
             <AlertTitle
               class="text-[11px] font-bold tracking-widest text-red-300 uppercase"
             >
-              Alerte de sécurité
+              {m.admin_login_security_alert()}
             </AlertTitle>
             <AlertDescription class="text-xs">
               {$message}
@@ -85,7 +86,7 @@
         <!-- Admin Login Form -->
         <form method="POST" use:enhance class="space-y-4">
           <div class="space-y-2">
-            <Label for="email" class="text-slate-300">Adresse Email</Label>
+            <Label for="email" class="text-slate-300">{m.admin_login_email_label()}</Label>
             <Input
               id="email"
               name="email"
@@ -100,7 +101,7 @@
           </div>
 
           <div class="space-y-2">
-            <Label for="password" class="text-slate-300">Mot de passe</Label>
+            <Label for="password" class="text-slate-300">{m.admin_login_password_label()}</Label>
             <Input
               id="password"
               name="password"
@@ -120,10 +121,10 @@
             class="mt-2 w-full bg-epi-pink text-white transition-all hover:bg-epi-pink/80 hover:shadow-[0_0_15px_rgba(255,30,247,0.3)]"
           >
             {#if $delayed}
-              Authentification en cours...
+              {m.admin_login_authenticating()}
             {:else}
               <Lock class="mr-2 h-4 w-4" />
-              Accéder au système
+              {m.admin_login_submit()}
             {/if}
           </Button>
         </form>
@@ -134,9 +135,7 @@
         >
           <Server class="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
           <span>
-            Cet espace est réservé à l'administration technique (Gestion des
-            campus, Base de connaissances globale). L'accès y est formellement
-            surveillé.
+            {m.admin_login_info()}
           </span>
         </div>
       </Card.Content>
