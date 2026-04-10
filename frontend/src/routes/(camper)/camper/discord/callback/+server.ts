@@ -1,21 +1,24 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { base } from '$app/paths';
-import { handleDiscordCallback, linkDiscordToStudent } from '$lib/server/discord';
+import {
+  handleDiscordCallback,
+  linkDiscordToStudent,
+} from '$lib/server/discord';
 
 export const GET: RequestHandler = async ({ locals, url, cookies }) => {
-	if (!locals.user || !locals.studentProfile) {
-		throw redirect(303, `${base}/camper/login`);
-	}
+  if (!locals.user || !locals.studentProfile) {
+    throw redirect(303, `${base}/camper/login`);
+  }
 
-	const { discordId } = await handleDiscordCallback(
-		url,
-		cookies,
-		'/camper/discord/callback',
-		`${base}/camper/settings`,
-	);
+  const { discordId } = await handleDiscordCallback(
+    url,
+    cookies,
+    '/camper/discord/callback',
+    `${base}/camper/settings`,
+  );
 
-	await linkDiscordToStudent(locals.studentProfile.id, discordId);
+  await linkDiscordToStudent(locals.studentProfile.id, discordId);
 
-	throw redirect(303, `${base}/camper/settings`);
+  throw redirect(303, `${base}/camper/settings`);
 };

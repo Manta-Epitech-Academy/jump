@@ -11,26 +11,29 @@ import type { Cookies } from '@sveltejs/kit';
  * `callbackPath` is the absolute path (without origin) for the OAuth callback, e.g. '/camper/discord/callback'.
  */
 export function startDiscordOAuth(cookies: Cookies, callbackPath: string) {
-	const state = crypto.randomBytes(16).toString('hex');
-	cookies.set('discord_oauth_state', state, {
-		path: `${base}/${callbackPath.split('/').slice(0, -1).join('/')}`.replace(/\/+/g, '/'),
-		httpOnly: true,
-		secure: !dev,
-		sameSite: 'lax',
-		maxAge: 300,
-	});
+  const state = crypto.randomBytes(16).toString('hex');
+  cookies.set('discord_oauth_state', state, {
+    path: `${base}/${callbackPath.split('/').slice(0, -1).join('/')}`.replace(
+      /\/+/g,
+      '/',
+    ),
+    httpOnly: true,
+    secure: !dev,
+    sameSite: 'lax',
+    maxAge: 300,
+  });
 
-	const redirectUri = `${env.ORIGIN}${base}${callbackPath}`;
+  const redirectUri = `${env.ORIGIN}${base}${callbackPath}`;
 
-	const params = new URLSearchParams({
-		client_id: env.DISCORD_CLIENT_ID!,
-		response_type: 'code',
-		redirect_uri: redirectUri,
-		scope: 'identify',
-		state,
-	});
+  const params = new URLSearchParams({
+    client_id: env.DISCORD_CLIENT_ID!,
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    scope: 'identify',
+    state,
+  });
 
-	throw redirect(303, `https://discord.com/api/oauth2/authorize?${params}`);
+  throw redirect(303, `https://discord.com/api/oauth2/authorize?${params}`);
 }
 
 /**
@@ -38,94 +41,103 @@ export function startDiscordOAuth(cookies: Cookies, callbackPath: string) {
  * Returns `null` on failure (redirects to errorRedirect with ?error= param).
  */
 export async function handleDiscordCallback(
-	url: URL,
-	cookies: Cookies,
-	callbackPath: string,
-	errorRedirect: string,
+  url: URL,
+  cookies: Cookies,
+  callbackPath: string,
+  errorRedirect: string,
 ): Promise<{ discordId: string } | never> {
-	const state = url.searchParams.get('state');
-	const storedState = cookies.get('discord_oauth_state');
-	cookies.delete('discord_oauth_state', {
-		path: `${base}/${callbackPath.split('/').slice(0, -1).join('/')}`.replace(/\/+/g, '/'),
-	});
+  const state = url.searchParams.get('state');
+  const storedState = cookies.get('discord_oauth_state');
+  cookies.delete('discord_oauth_state', {
+    path: `${base}/${callbackPath.split('/').slice(0, -1).join('/')}`.replace(
+      /\/+/g,
+      '/',
+    ),
+  });
 
-	if (!state || state !== storedState) {
-		throw redirect(303, `${errorRedirect}?error=InvalidState`);
-	}
+  if (!state || state !== storedState) {
+    throw redirect(303, `${errorRedirect}?error=InvalidState`);
+  }
 
-	const code = url.searchParams.get('code');
-	if (!code) {
-		throw redirect(303, `${errorRedirect}?error=OAuthFailed`);
-	}
+  const code = url.searchParams.get('code');
+  if (!code) {
+    throw redirect(303, `${errorRedirect}?error=OAuthFailed`);
+  }
 
-	const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-		body: new URLSearchParams({
-			client_id: env.DISCORD_CLIENT_ID!,
-			client_secret: env.DISCORD_CLIENT_SECRET!,
-			grant_type: 'authorization_code',
-			code,
-			redirect_uri: `${env.ORIGIN}${base}${callbackPath}`,
-		}),
-	});
+  const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: env.DISCORD_CLIENT_ID!,
+      client_secret: env.DISCORD_CLIENT_SECRET!,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: `${env.ORIGIN}${base}${callbackPath}`,
+    }),
+  });
 
-	if (!tokenRes.ok) {
-		console.error('Discord token exchange failed:', await tokenRes.text());
-		throw redirect(303, `${errorRedirect}?error=OAuthFailed`);
-	}
+  if (!tokenRes.ok) {
+    console.error('Discord token exchange failed:', await tokenRes.text());
+    throw redirect(303, `${errorRedirect}?error=OAuthFailed`);
+  }
 
-	const tokenData = await tokenRes.json();
+  const tokenData = await tokenRes.json();
 
-	const userRes = await fetch('https://discord.com/api/users/@me', {
-		headers: { Authorization: `Bearer ${tokenData.access_token}` },
-	});
+  const userRes = await fetch('https://discord.com/api/users/@me', {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
 
-	if (!userRes.ok) {
-		console.error('Discord user fetch failed:', await userRes.text());
-		throw redirect(303, `${errorRedirect}?error=OAuthFailed`);
-	}
+  if (!userRes.ok) {
+    console.error('Discord user fetch failed:', await userRes.text());
+    throw redirect(303, `${errorRedirect}?error=OAuthFailed`);
+  }
 
-	const discordUser = await userRes.json();
-	return { discordId: discordUser.id };
+  const discordUser = await userRes.json();
+  return { discordId: discordUser.id };
 }
 
 /**
  * Links a Discord ID to a staff profile, clearing any previous owner.
  */
-export async function linkDiscordToStaff(staffProfileId: string, discordId: string) {
-	await prisma.$transaction([
-		prisma.staffProfile.updateMany({
-			where: { discordId, id: { not: staffProfileId } },
-			data: { discordId: null },
-		}),
-		prisma.studentProfile.updateMany({
-			where: { discordId },
-			data: { discordId: null },
-		}),
-		prisma.staffProfile.update({
-			where: { id: staffProfileId },
-			data: { discordId },
-		}),
-	]);
+export async function linkDiscordToStaff(
+  staffProfileId: string,
+  discordId: string,
+) {
+  await prisma.$transaction([
+    prisma.staffProfile.updateMany({
+      where: { discordId, id: { not: staffProfileId } },
+      data: { discordId: null },
+    }),
+    prisma.studentProfile.updateMany({
+      where: { discordId },
+      data: { discordId: null },
+    }),
+    prisma.staffProfile.update({
+      where: { id: staffProfileId },
+      data: { discordId },
+    }),
+  ]);
 }
 
 /**
  * Links a Discord ID to a student profile, clearing any previous owner.
  */
-export async function linkDiscordToStudent(studentProfileId: string, discordId: string) {
-	await prisma.$transaction([
-		prisma.studentProfile.updateMany({
-			where: { discordId, id: { not: studentProfileId } },
-			data: { discordId: null },
-		}),
-		prisma.staffProfile.updateMany({
-			where: { discordId },
-			data: { discordId: null },
-		}),
-		prisma.studentProfile.update({
-			where: { id: studentProfileId },
-			data: { discordId },
-		}),
-	]);
+export async function linkDiscordToStudent(
+  studentProfileId: string,
+  discordId: string,
+) {
+  await prisma.$transaction([
+    prisma.studentProfile.updateMany({
+      where: { discordId, id: { not: studentProfileId } },
+      data: { discordId: null },
+    }),
+    prisma.staffProfile.updateMany({
+      where: { discordId },
+      data: { discordId: null },
+    }),
+    prisma.studentProfile.update({
+      where: { id: studentProfileId },
+      data: { discordId },
+    }),
+  ]);
 }
