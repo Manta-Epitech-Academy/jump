@@ -16,6 +16,7 @@
   import { Badge } from '$lib/components/ui/badge';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
   import { toast } from 'svelte-sonner';
   import { difficultes } from '$lib/validation/subjects';
@@ -151,32 +152,58 @@
               >
             </Table.Cell>
             <Table.Cell class="text-right">
-              {#if subject.link}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  href={subject.link}
-                  target="_blank"
-                  class="text-epi-blue"
-                >
-                  <ExternalLink class="h-4 w-4" />
-                </Button>
-              {/if}
-              <Button
-                variant="ghost"
-                size="icon"
-                onclick={() => openEdit(subject)}
-              >
-                <Pencil class="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="text-destructive hover:text-destructive"
-                onclick={() => confirmDelete(subject.id)}
-              >
-                <Trash2 class="h-4 w-4" />
-              </Button>
+              <Tooltip.Provider delayDuration={300}>
+                {#if subject.link}
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          variant="ghost"
+                          size="icon"
+                          href={subject.link}
+                          target="_blank"
+                          class="text-epi-blue"
+                        >
+                          <ExternalLink class="h-4 w-4" />
+                        </Button>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content><p>Voir le support</p></Tooltip.Content>
+                  </Tooltip.Root>
+                {/if}
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        onclick={() => openEdit(subject)}
+                      >
+                        <Pencil class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content><p>Modifier</p></Tooltip.Content>
+                </Tooltip.Root>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        class="text-destructive hover:text-destructive"
+                        onclick={() => confirmDelete(subject.id)}
+                      >
+                        <Trash2 class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content><p>Supprimer</p></Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             </Table.Cell>
           </Table.Row>
         {/each}
@@ -216,7 +243,11 @@
         </div>
         <div class="grid gap-2">
           <Label>Thèmes Officiels</Label>
-          <MultiThemeSelect themes={data.themes} bind:value={$form.themes} />
+          <MultiThemeSelect
+            themes={data.themes}
+            bind:value={$form.themes}
+            officialOnly
+          />
         </div>
         <div class="grid gap-2">
           <Label>Difficulté</Label>
@@ -249,7 +280,11 @@
             disabled={$delayed}
             class="bg-epi-pink text-white"
           >
-            {$delayed ? 'Traitement...' : 'Publier'}
+            {$delayed
+              ? 'Traitement...'
+              : isEditing
+                ? 'Mettre à jour'
+                : 'Publier'}
           </Button>
         </Dialog.Footer>
       </form>

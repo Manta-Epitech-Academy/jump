@@ -12,6 +12,7 @@
     X,
     LayoutDashboard,
     FingerprintPattern,
+    FileText,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -98,6 +99,13 @@
     >
       <BookOpen class="h-4 w-4" />
       <span>Sujets Officiels</span>
+    </a>
+    <a
+      href={resolve('/admin/templates')}
+      class={navLinkClass(isActive('/admin/templates'))}
+    >
+      <FileText class="h-4 w-4" />
+      <span>Templates Officiels</span>
     </a>
     <a
       href={resolve('/admin/themes')}

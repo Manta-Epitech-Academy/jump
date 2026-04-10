@@ -4,6 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { subjectSchema } from '$lib/validation/subjects';
 import { prisma } from '$lib/server/db';
+import { processOfficialThemes } from '$lib/server/services/themes';
 
 export const load: PageServerLoad = async () => {
   // Load ONLY official subjects and themes (campusId = null)
@@ -23,30 +24,6 @@ export const load: PageServerLoad = async () => {
 
   return { subjects, themes, form };
 };
-
-// Strict global creation logic for themes
-async function processOfficialThemes(themeNames: string[]): Promise<string[]> {
-  const themeIds: string[] = [];
-  for (const name of themeNames) {
-    if (!name.trim()) continue;
-    // Look for an existing official theme, or create one
-    const theme = await prisma.theme.upsert({
-      where: { nom_campusId: { nom: name, campusId: '' } },
-      // upsert doesn't support null in compound unique; fall back to findFirst + create
-      update: {},
-      create: { nom: name, campusId: null },
-    }).catch(async () => {
-      // Compound unique with null campusId not supported by upsert, use manual approach
-      const existing = await prisma.theme.findFirst({
-        where: { nom: name, campusId: null },
-      });
-      if (existing) return existing;
-      return prisma.theme.create({ data: { nom: name, campusId: null } });
-    });
-    themeIds.push(theme.id);
-  }
-  return themeIds;
-}
 
 export const actions: Actions = {
   create: async ({ request }) => {

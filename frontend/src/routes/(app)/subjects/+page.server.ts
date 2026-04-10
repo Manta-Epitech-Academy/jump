@@ -17,6 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   });
 
   const themes = await db.theme.findMany({
+    include: { campus: true },
     orderBy: { nom: 'asc' },
   });
 

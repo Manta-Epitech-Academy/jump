@@ -210,6 +210,7 @@ model ActivityTemplate {
   isDynamic        Boolean      @default(false)
   campusId         String?
   link             String?
+  content          String?
   contentStructure Json?
   defaultDuration  Int?
   createdAt        DateTime     @default(now())
@@ -262,6 +263,7 @@ model Activity {
   activityType     ActivityType
   isDynamic        Boolean      @default(false)
   link             String?
+  content          String?
   contentStructure Json?
   timeSlotId       String
   templateId       String?
