@@ -37,6 +37,7 @@
     Settings,
   } from '@lucide/svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -189,6 +190,12 @@
       </div>
     </div>
   </header>
+
+  {#if !student?.discordId}
+    <div class="mb-6" in:fly={{ y: -10, duration: 300, delay: 150 }}>
+      <DiscordLinkBanner />
+    </div>
+  {/if}
 
   <div class="grid gap-6 md:grid-cols-12">
     <!-- LEFT COLUMN: Stats & Profile -->
