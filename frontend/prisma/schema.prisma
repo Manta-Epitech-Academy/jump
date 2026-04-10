@@ -94,6 +94,7 @@ model StaffProfile {
   userId    String   @unique
   campusId  String?
   avatar    String?
+  discordId String?  @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -119,6 +120,7 @@ model StudentProfile {
   parentEmail       String?
   parentPhone       String?
   phone             String?
+  discordId         String?   @unique
   salesforceId      String?   @unique
   lastSyncedAt      DateTime?
   lastActiveAt      DateTime?
