@@ -17,13 +17,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   // Domain verification (defense in depth)
   if (!locals.user.email.endsWith('@epitech.eu')) {
     // Delete the user BetterAuth just created
-    await prisma.user.delete({ where: { id: locals.user.id } });
+    await prisma.bauth_user.delete({ where: { id: locals.user.id } });
     throw redirect(303, `${resolve('/login')}?error=UnauthorizedDomain`);
   }
 
   // Set role to staff if not already set
   if (locals.user.role !== 'staff' && locals.user.role !== 'admin') {
-    await prisma.user.update({
+    await prisma.bauth_user.update({
       where: { id: locals.user.id },
       data: { role: 'staff' },
     });
@@ -37,7 +37,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
   if (!existingProfile) {
     // Fetch avatar from Microsoft Graph API if we have an account with access token
     let avatarUrl: string | null = null;
-    const account = await prisma.account.findFirst({
+    const account = await prisma.bauth_account.findFirst({
       where: { userId: locals.user.id, providerId: 'microsoft' },
     });
 
@@ -65,7 +65,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
   // Update user name from Microsoft if not set
   if (!locals.user.name) {
-    const account = await prisma.account.findFirst({
+    const account = await prisma.bauth_account.findFirst({
       where: { userId: locals.user.id, providerId: 'microsoft' },
     });
     if (account) {
