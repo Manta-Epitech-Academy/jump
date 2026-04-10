@@ -169,9 +169,7 @@
           {#if data.event.theme}
             <div class="flex items-center gap-1">
               <Tag class="h-3 w-3 text-teal-700" />
-              <span class="text-teal-800"
-                >{data.event.theme?.nom}</span
-              >
+              <span class="text-teal-800">{data.event.theme?.nom}</span>
             </div>
           {/if}
         </div>

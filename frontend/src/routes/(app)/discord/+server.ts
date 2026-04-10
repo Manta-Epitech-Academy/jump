@@ -6,23 +6,23 @@ import { startDiscordOAuth } from '$lib/server/discord';
 
 // GET /discord — redirects to Discord OAuth consent screen
 export const GET: RequestHandler = async ({ locals, cookies }) => {
-	if (!locals.user || !locals.staffProfile) {
-		throw redirect(303, `${base}/login`);
-	}
+  if (!locals.user || !locals.staffProfile) {
+    throw redirect(303, `${base}/login`);
+  }
 
-	startDiscordOAuth(cookies, '/discord/callback');
+  throw startDiscordOAuth(cookies, '/discord/callback');
 };
 
 // POST /discord — unlinks Discord from staff profile
 export const POST: RequestHandler = async ({ locals }) => {
-	if (!locals.user || !locals.staffProfile) {
-		throw redirect(303, `${base}/login`);
-	}
+  if (!locals.user || !locals.staffProfile) {
+    throw redirect(303, `${base}/login`);
+  }
 
-	await prisma.staffProfile.update({
-		where: { id: locals.staffProfile.id },
-		data: { discordId: null },
-	});
+  await prisma.staffProfile.update({
+    where: { id: locals.staffProfile.id },
+    data: { discordId: null },
+  });
 
-	throw redirect(303, base || '/');
+  throw redirect(303, base || '/');
 };

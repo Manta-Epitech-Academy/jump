@@ -125,7 +125,11 @@ export const actions: Actions = {
     const data = await request.formData();
     try {
       const progressId = data.get('progressId') as string;
-      await assertStudentOwns(locals.studentProfile!.id, progressId, 'stepsProgress');
+      await assertStudentOwns(
+        locals.studentProfile!.id,
+        progressId,
+        'stepsProgress',
+      );
       await prisma.stepsProgress.update({
         where: { id: progressId },
         data: { currentStepId: data.get('stepId') as string },
@@ -142,7 +146,11 @@ export const actions: Actions = {
 
     try {
       const progressId = data.get('progressId') as string;
-      await assertStudentOwns(locals.studentProfile!.id, progressId, 'stepsProgress');
+      await assertStudentOwns(
+        locals.studentProfile!.id,
+        progressId,
+        'stepsProgress',
+      );
       const newStatus =
         currentStatus === 'needs_help' ? 'active' : 'needs_help';
       await prisma.stepsProgress.update({
@@ -190,7 +198,11 @@ export const actions: Actions = {
     const itemId = data.get('itemId') as string;
 
     try {
-      await assertStudentOwns(locals.studentProfile!.id, itemId, 'portfolioItem');
+      await assertStudentOwns(
+        locals.studentProfile!.id,
+        itemId,
+        'portfolioItem',
+      );
       await prisma.portfolioItem.delete({ where: { id: itemId } });
       return { success: true };
     } catch (err) {
@@ -212,7 +224,11 @@ export const actions: Actions = {
       return fail(400, { message: 'Données invalides' });
 
     try {
-      await assertStudentOwns(locals.studentProfile!.id, participationId, 'participation');
+      await assertStudentOwns(
+        locals.studentProfile!.id,
+        participationId,
+        'participation',
+      );
       await prisma.participation.update({
         where: { id: participationId },
         data: {

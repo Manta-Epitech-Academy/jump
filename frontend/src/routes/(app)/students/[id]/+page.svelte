@@ -16,7 +16,6 @@
 
   let { data }: { data: PageData } = $props();
 
-
   const { form, errors, delayed, enhance, reset } = superForm(
     untrack(() => data.form),
     {
@@ -43,7 +42,8 @@
     $form.parent_email = data.student.parentEmail ?? '';
     $form.parent_phone = data.student.parentPhone ?? '';
     $form.niveau = (data.student.niveau || '') as any;
-    $form.niveau_difficulte = (data.student.niveauDifficulte || 'Débutant') as any;
+    $form.niveau_difficulte = (data.student.niveauDifficulte ||
+      'Débutant') as any;
     editOpen = true;
   }
 </script>

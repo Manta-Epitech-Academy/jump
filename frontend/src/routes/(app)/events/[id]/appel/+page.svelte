@@ -68,7 +68,13 @@
         }
         if (field === 'bringPc') p.bringPc = !p.bringPc;
       }
-      return async ({ result, update }: { result: any; update: () => Promise<void> }) => {
+      return async ({
+        result,
+        update,
+      }: {
+        result: any;
+        update: () => Promise<void>;
+      }) => {
         if (result.type === 'failure' || result.type === 'error') {
           const i = participations.findIndex((p) => p.id === id);
           if (i !== -1) {
@@ -89,7 +95,10 @@
     const typedParticipations =
       data.participations as ParticipationWithDetails[];
     typedParticipations.forEach((p) => {
-      p.subjects?.forEach((ps: any) => { const s = ps.subject; subjects.set(s.id, s.nom); });
+      p.subjects?.forEach((ps: any) => {
+        const s = ps.subject;
+        subjects.set(s.id, s.nom);
+      });
     });
     return Array.from(subjects.entries());
   });
@@ -141,7 +150,8 @@
       }
 
       const matchesSubject =
-        filterSubject === 'all' || p.subjects?.some((ps: any) => ps.subjectId === filterSubject);
+        filterSubject === 'all' ||
+        p.subjects?.some((ps: any) => ps.subjectId === filterSubject);
       const matchesNiveau =
         filterNiveau === 'all' || p.studentProfile?.niveau === filterNiveau;
 
@@ -149,9 +159,7 @@
     }),
   );
 
-  let presentCount = $derived(
-    participations.filter((p) => p.isPresent).length,
-  );
+  let presentCount = $derived(participations.filter((p) => p.isPresent).length);
   let lateCount = $derived(
     participations.filter((p) => (p.delay || 0) > 0).length,
   );
@@ -161,7 +169,9 @@
   let totalStudents = $derived(participations.length);
   let pcsNeeded = $derived(participations.filter((p) => !p.bringPc).length);
 
-  async function handleDiplomaDownload(participation: ParticipationWithDetails) {
+  async function handleDiplomaDownload(
+    participation: ParticipationWithDetails,
+  ) {
     const toastId = toast.loading('Génération du diplôme...');
     try {
       const res = await fetch(
