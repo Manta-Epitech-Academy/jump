@@ -227,25 +227,9 @@ export function scopedPrisma(campusId: string) {
       },
 
       // ── Subject (campusId nullable — null means global/official) ──
+      // Subjects are visible across all campuses (official, own, community).
+      // Only create is scoped to auto-assign the current campus.
       subject: {
-        async findMany({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
-        async findFirst({ args, query }) {
-          if (!args.where?.campusId) {
-            args.where = {
-              ...args.where,
-              OR: [{ campusId }, { campusId: null }],
-            };
-          }
-          return query(args);
-        },
         async create({ args, query }) {
           args.data = { ...args.data, campusId } as any;
           return query(args);

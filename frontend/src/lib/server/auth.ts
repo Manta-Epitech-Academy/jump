@@ -41,7 +41,11 @@ export const auth = betterAuth({
     }),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {
-        await sendOtpEmail(email, otp);
+        const student = await prisma.studentProfile.findFirst({
+          where: { user: { email } },
+          select: { prenom: true },
+        });
+        await sendOtpEmail(email, otp, student?.prenom);
       },
       otpLength: 6,
       expiresIn: 600,

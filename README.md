@@ -16,7 +16,7 @@ Built for the **stage de seconde** (2-week high school internship, ~2000 student
 | PDF        | Puppeteer (diplomas & certificates)               |
 | Email      | Resend (OTP delivery)                             |
 | Runtime    | Bun                                               |
-| Deployment | Docker + GitHub Actions + Watchtower              |
+| Deployment | Docker + GitHub Actions                           |
 
 ## Getting Started
 
@@ -127,17 +127,12 @@ CI builds and pushes Docker images to GHCR on pushes to `main`, `staging`, and `
 | `staging` | `staging` |
 | `dev`     | `dev`     |
 
-[Watchtower](https://github.com/containrrr/watchtower) auto-pulls the `latest` tag in production.
-
-Manual deployment is also available via `./deploy.sh`. Rollback with `./rollback.sh <tag>`.
-
 ## Environment Variables
 
 | Variable                  | Purpose                            |
 | ------------------------- | ---------------------------------- |
 | `DATABASE_URL`            | PostgreSQL connection string       |
 | `BETTER_AUTH_SECRET`      | Session signing secret             |
-| `BETTER_AUTH_URL`         | Auth base URL (include `/tekcamp`) |
 | `MICROSOFT_CLIENT_ID`     | Azure OAuth app ID                 |
 | `MICROSOFT_CLIENT_SECRET` | Azure OAuth secret                 |
 | `MICROSOFT_TENANT_ID`     | Azure AD tenant                    |

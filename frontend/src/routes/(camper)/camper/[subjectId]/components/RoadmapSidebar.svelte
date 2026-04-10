@@ -66,11 +66,12 @@
           <input type="hidden" name="stepId" value={step.id} />
           <input type="hidden" name="progressId" value={progress.id} />
 
-          <button
+          <Button
             type="submit"
+            variant="ghost"
             disabled={status === 'locked'}
             class={cn(
-              'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all',
+              'flex h-auto w-full items-center gap-3 rounded-xl border p-3 text-left normal-case tracking-normal transition-all',
               isCurrent
                 ? 'border-epi-teal bg-teal-50 shadow-sm dark:bg-teal-950/20'
                 : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800',
@@ -109,7 +110,7 @@
                 {#if step.type === 'theory'}{m.camper_step_type_theory()}{:else if step.type === 'exercise'}{m.camper_step_type_exercise()}{:else}{m.camper_step_type_validation()}{/if}
               </span>
             </div>
-          </button>
+          </Button>
         </form>
       {/each}
     </div>

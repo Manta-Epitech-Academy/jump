@@ -19,14 +19,14 @@ jobs:
       - name: Set image tag and prefix
         id: meta
         run: |
-          PREFIX=$(echo "ghcr.io/${{ github.repository_owner }}/intra" | tr '[:upper:]' '[:lower:]')
+          PREFIX=$(echo "ghcr.io/${{ github.repository_owner }}/jump" | tr '[:upper:]' '[:lower:]')
           echo "prefix=$PREFIX" >> "$GITHUB_OUTPUT"
           SHOULD_PUSH=false
           case "${{ github.ref_name }}" in
             main)    echo "tag=latest"  >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
             staging) echo "tag=staging" >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
             dev)     echo "tag=dev"     >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true ;;
-            *)       echo "tag=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "tag=ci" >> "$GITHUB_OUTPUT" ;;
           esac
           echo "push=$SHOULD_PUSH" >> "$GITHUB_OUTPUT"
 
