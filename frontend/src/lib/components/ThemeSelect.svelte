@@ -11,6 +11,7 @@
     MapPin,
   } from '@lucide/svelte';
   import { cn, translateTheme } from '$lib/utils';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     themes = [],
@@ -66,7 +67,7 @@
               <span class="font-bold">{translateTheme(value)}</span>
             {:else}
               <span class="text-muted-foreground"
-                >Sélectionner ou créer un thème...</span
+                >{m.theme_select_placeholder()}</span
               >
             {/if}
           </div>
@@ -77,7 +78,7 @@
     <Popover.Content class="w-[--bits-popover-anchor-width] p-0" align="start">
       <Command.Root>
         <Command.Input
-          placeholder="Rechercher un thème..."
+          placeholder={m.common_search()}
           bind:value={searchValue}
         />
         <Command.List class="max-height-[300px] overflow-y-auto">
@@ -90,22 +91,22 @@
               >
                 <Plus class="h-4 w-4 text-epi-blue" />
                 <div class="flex flex-col">
-                  <span class="text-sm font-bold">Créer "{searchValue}"</span>
+                  <span class="text-sm font-bold">{m.theme_select_create({ name: searchValue })}</span>
                   <span
                     class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-                    >Nouveau thème local</span
+                    >{m.multi_theme_new_local()}</span
                   >
                 </div>
               </Button>
             {:else}
               <p class="py-6 text-center text-sm text-muted-foreground">
-                Aucun thème trouvé.
+                {m.common_no_result()}
               </p>
             {/if}
           </Command.Empty>
 
           {#if themes.length > 0}
-            <Command.Group heading="Thèmes existants">
+            <Command.Group heading={m.theme_select_group_existing()}>
               {#each themes as theme}
                 <Command.Item
                   value={theme.nom}
@@ -132,7 +133,7 @@
                   <div class="flex flex-col">
                     <span>{translateTheme(theme.nom)}</span>
                     <span class="text-[9px] text-muted-foreground uppercase">
-                      {!theme.campus ? 'Officiel (Global)' : 'Local (Campus)'}
+                      {!theme.campus ? m.theme_select_official() : m.theme_select_local()}
                     </span>
                   </div>
                 </Command.Item>
@@ -142,13 +143,13 @@
 
           {#if searchValue && !exactMatch}
             <Command.Separator />
-            <Command.Group heading="Action">
+            <Command.Group heading={m.theme_select_group_action()}>
               <Command.Item
                 value={searchValue}
                 onSelect={() => selectTheme(searchValue)}
               >
                 <Plus class="mr-2 h-4 w-4 text-epi-blue" />
-                Créer "{searchValue}"
+                {m.theme_select_create({ name: searchValue })}
               </Command.Item>
             </Command.Group>
           {/if}

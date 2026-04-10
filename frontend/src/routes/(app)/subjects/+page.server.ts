@@ -100,7 +100,7 @@ export const actions: Actions = {
       if (subject.campusId !== locals.staffProfile?.campusId) {
         return message(
           form,
-          "Vous ne pouvez pas modifier un sujet qui n'est pas le vôtre.",
+          m.admin_subject_update_not_owner(),
           { status: 403 },
         );
       }
@@ -143,7 +143,7 @@ export const actions: Actions = {
       if (subject.campusId !== locals.staffProfile?.campusId) {
         return fail(403, {
           message:
-            "Vous ne pouvez pas supprimer un sujet qui n'est pas le vôtre.",
+            m.admin_subject_delete_not_owner(),
         });
       }
 
@@ -155,7 +155,7 @@ export const actions: Actions = {
       if (usageCount > 0) {
         return fail(400, {
           message:
-            'Impossible de supprimer le sujet car il est lié à un ou plusieurs événements.',
+            m.admin_subject_delete_blocked(),
         });
       }
 
@@ -165,7 +165,7 @@ export const actions: Actions = {
     } catch (err) {
       console.error('Erreur suppression sujet:', err);
       return fail(500, {
-        message: 'Une erreur technique est survenue lors de la suppression.',
+        message: m.server_error_generic_delete_dot(),
       });
     }
   },

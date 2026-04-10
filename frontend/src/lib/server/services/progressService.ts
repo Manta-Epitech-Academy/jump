@@ -3,6 +3,7 @@ import {
   setCachedSubject,
 } from '$lib/server/infra/subjectCache';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 import type { Subject } from '@prisma/client';
 
 export type StepValidation = {
@@ -102,7 +103,7 @@ export const ProgressService = {
       where: { id: progressId },
     });
     if (progress.studentProfileId !== studentProfileId) {
-      throw new ValidationError('Accès refusé.');
+      throw new ValidationError(m.server_error_forbidden());
     }
     const isLastStep = stepIndex === steps.length - 1;
     const nextStepId = !isLastStep ? steps[stepIndex + 1].id : 'COMPLETED';

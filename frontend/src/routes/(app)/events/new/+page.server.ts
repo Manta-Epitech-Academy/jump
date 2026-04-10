@@ -8,12 +8,12 @@ import { CalendarDateTime } from '@internationalized/date';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { m } from '$lib/paraglide/messages.js';
 import {
   analyzeCampaignFile,
   importCampaignData,
   type ImportAction,
 } from '$lib/server/services/campaignService';
-import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -135,7 +135,7 @@ export const actions: Actions = {
     const mantas = formData.getAll('mantas') as string[];
     const notes = formData.get('notes') as string;
 
-    if (!rawData) return fail(400, { error: 'Données manquantes' });
+    if (!rawData) return fail(400, { error: m.server_error_missing_data() });
 
     let newEventId = '';
     try {

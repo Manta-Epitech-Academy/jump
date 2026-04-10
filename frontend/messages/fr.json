@@ -629,5 +629,48 @@
   "staff_select_placeholder": "Assigner des Mantas...",
   "staff_select_search": "Chercher un manta...",
   "staff_select_empty": "Aucun staff trouvé.",
-  "staff_select_heading": "Équipe du campus"
+  "staff_select_heading": "Équipe du campus",
+
+  "discord_link": "Lier Discord",
+  "discord_unlink": "Déconnecter Discord",
+  "discord_unlinking": "Déconnexion...",
+  "discord_connect": "Connecter",
+  "discord_linked": "Compte lié",
+  "discord_connected": "Connecté",
+  "discord_not_connected": "Non connecté",
+  "discord_banner_title": "Relie ton compte Discord",
+  "discord_banner_description": "Connecte ton Discord pour rejoindre la communauté.",
+  "discord_close": "Fermer",
+
+  "auth_error_unauthorized_domain": "Accès refusé. Veuillez utiliser une adresse @epitech.eu.",
+  "auth_error_oauth_failed": "Échec de l'authentification Microsoft.",
+  "auth_error_state_mismatch": "Erreur de sécurité (State Mismatch). Veuillez réessayer.",
+  "auth_error_provider_missing": "Le fournisseur d'authentification Microsoft n'est pas configuré.",
+  "auth_error_student_not_found": "Aucun profil étudiant trouvé pour cette adresse email. Contactez l'administration.",
+
+  "admin_subject_delete_blocked": "Suppression bloquée : Ce sujet a déjà été utilisé lors d'événements. Le supprimer corromprait l'historique d'XP des élèves.",
+  "admin_subject_delete_not_owner": "Vous ne pouvez pas supprimer un sujet qui n'est pas le vôtre.",
+  "admin_subject_update_not_owner": "Vous ne pouvez pas modifier un sujet qui n'est pas le vôtre.",
+  "admin_theme_delete_blocked": "Suppression bloquée : Ce thème est utilisé par {subjects} sujet(s) et {events} événement(s).",
+
+  "theme_select_placeholder": "Sélectionner ou créer un thème...",
+  "theme_select_create": "Créer \"{name}\"",
+  "theme_select_group_existing": "Thèmes existants",
+  "theme_select_group_action": "Action",
+  "theme_select_official": "Officiel (Global)",
+  "theme_select_local": "Local (Campus)",
+
+  "multi_theme_select_placeholder": "Sélectionner des thèmes...",
+  "multi_theme_new_local": "Nouveau thème local",
+  "multi_theme_group_available": "Thèmes disponibles",
+
+  "camper_cockpit_title": "Cockpit",
+  "placeholder_lastname": "Dupont",
+  "progress_analyzing": "Analyse du fichier",
+  "progress_processing": "Traitement en cours",
+  "campaign_create_new": "Créer un nouveau",
+
+  "otp_email_subject": "Ton code d'accès secret pour Jump 🔑",
+  "otp_email_disclaimer": "Si tu n'as pas essayé de te connecter, tu peux supprimer cet email sans t'inquiéter. Ce code expirera rapidement.",
+  "otp_email_footer": "Bon atelier !<br/>L'équipe Epitech Academy"
 }

@@ -188,12 +188,12 @@
             </div>
             {#if student?.discordId}
               <div class="min-w-0">
-                <p class="text-[10px] font-bold text-slate-400 uppercase">Compte lié</p>
-                <p class="text-sm font-bold text-teal-600 dark:text-epi-teal">Connecté</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase">{m.discord_linked()}</p>
+                <p class="text-sm font-bold text-teal-600 dark:text-epi-teal">{m.discord_connected()}</p>
               </div>
             {:else}
               <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
-                >Non connecté</span
+                >{m.discord_not_connected()}</span
               >
             {/if}
           </div>
@@ -215,7 +215,7 @@
                 class="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50/80 px-3 py-2 text-xs font-bold text-red-500 transition-all hover:border-red-300 hover:bg-red-100 active:scale-[0.98] disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40"
               >
                 <Unlink class="h-3.5 w-3.5" />
-                {unlinkingDiscord ? 'Déconnexion...' : 'Déconnecter Discord'}
+                {unlinkingDiscord ? m.discord_unlinking() : m.discord_unlink()}
               </button>
             </form>
           {:else}
@@ -223,7 +223,7 @@
               href={resolve('/camper/discord')}
               class="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition-all hover:scale-[1.02] hover:bg-indigo-700 active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-600"
             >
-              Connecter
+              {m.discord_connect()}
             </a>
           {/if}
         </div>

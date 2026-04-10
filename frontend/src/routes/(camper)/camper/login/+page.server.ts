@@ -7,6 +7,7 @@ import { camperEmailSchema, camperOtpSchema } from '$lib/validation/auth';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   // If already authenticated as a Student, route directly to the dashboard
@@ -19,17 +20,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   let errorMessage = '';
 
   if (errorType === 'UnauthorizedDomain') {
-    errorMessage = 'Accès refusé. Veuillez utiliser une adresse @epitech.eu.';
+    errorMessage = m.auth_error_unauthorized_domain();
   } else if (errorType === 'OAuthFailed') {
-    errorMessage = "Échec de l'authentification Microsoft.";
+    errorMessage = m.auth_error_oauth_failed();
   } else if (errorType === 'OAuthStateMismatch') {
-    errorMessage = 'Erreur de sécurité (State Mismatch). Veuillez réessayer.';
+    errorMessage = m.auth_error_state_mismatch();
   } else if (errorType === 'ProviderMissing') {
-    errorMessage =
-      "Le fournisseur d'authentification Microsoft n'est pas configuré.";
+    errorMessage = m.auth_error_provider_missing();
   } else if (errorType === 'StudentNotFound') {
-    errorMessage =
-      "Aucun profil étudiant trouvé pour cette adresse email. Contactez l'administration.";
+    errorMessage = m.auth_error_student_not_found();
   }
 
   const emailForm = await superValidate(zod4(camperEmailSchema));

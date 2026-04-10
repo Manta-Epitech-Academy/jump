@@ -72,7 +72,7 @@ export const actions: Actions = {
 
       if (usedInSubjects > 0 || usedInEvents > 0) {
         return fail(400, {
-          message: `Suppression bloquée : Ce thème est utilisé par ${usedInSubjects} sujet(s) et ${usedInEvents} événement(s).`,
+          message: m.admin_theme_delete_blocked({ subjects: usedInSubjects, events: usedInEvents }),
         });
       }
 

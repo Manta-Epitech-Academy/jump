@@ -6,6 +6,7 @@ import {
   preloadCompletedSubjects,
 } from '$lib/domain/recommender';
 import { prisma } from '$lib/server/db';
+import { m } from '$lib/paraglide/messages.js';
 
 export const EventService = {
   /**
@@ -20,7 +21,7 @@ export const EventService = {
     if (event.campusId !== campusId) {
       throw error(
         403,
-        'Accès refusé : cet événement appartient à un autre campus.',
+        m.server_error_forbidden_event_campus(),
       );
     }
 
@@ -77,7 +78,7 @@ export const EventService = {
     if (original.campusId !== campusId) {
       throw error(
         403,
-        'Accès refusé : cet événement appartient à un autre campus.',
+        m.server_error_forbidden_event_campus(),
       );
     }
 
@@ -141,7 +142,7 @@ export const EventService = {
     if (event.campusId !== campusId) {
       throw error(
         403,
-        'Accès refusé : cet événement appartient à un autre campus.',
+        m.server_error_forbidden_event_campus(),
       );
     }
 
@@ -197,7 +198,7 @@ export const EventService = {
     if (currentEvent.campusId !== campusId) {
       throw error(
         403,
-        'Accès refusé : cet événement appartient à un autre campus.',
+        m.server_error_forbidden_event_campus(),
       );
     }
     const oldThemeId = currentEvent.themeId;

@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
+import { m } from '$lib/paraglide/messages.js';
 
 let resend: Resend;
 
@@ -19,7 +20,7 @@ export async function sendOtpEmail(
   await getResend().emails.send({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
     to: email,
-    subject: "Ton code d'accès secret pour Jump 🔑",
+    subject: m.otp_email_subject(),
     html: `
       <div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;">
         <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; padding: 40px 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 5px solid #00ff97; text-align: left;">
@@ -30,9 +31,9 @@ export async function sendOtpEmail(
             <strong style="font-size: 32px; font-family: monospace; letter-spacing: 8px; color: #ff5f3a;">${otp}</strong>
           </div>
 
-          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;"><i>Si tu n'as pas essayé de te connecter, tu peux supprimer cet email sans t'inquiéter. Ce code expirera rapidement.</i></p>
+          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;"><i>${m.otp_email_disclaimer()}</i></p>
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
-          <p style="font-size: 14px; color: #64748b; margin: 0;">Bon atelier !<br/>L'équipe Epitech Academy</p>
+          <p style="font-size: 14px; color: #64748b; margin: 0;">${m.otp_email_footer()}</p>
         </div>
       </div>
     `,

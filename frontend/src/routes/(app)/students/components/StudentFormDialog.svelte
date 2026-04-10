@@ -70,7 +70,7 @@
             id="nom"
             name="nom"
             bind:value={$form.nom}
-            placeholder="Dupont"
+            placeholder={m.placeholder_lastname()}
           />
           {#if $errors.nom}<span class="text-xs text-destructive"
               >{$errors.nom}</span

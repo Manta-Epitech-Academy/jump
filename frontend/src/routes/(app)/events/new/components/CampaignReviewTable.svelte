@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { m } from '$lib/paraglide/messages.js';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -171,7 +172,7 @@
                   {#if row.suggestedStatus === 'SIBLING'}<Split
                       class="h-3.5 w-3.5"
                     />{:else}<UserPlus class="h-3.5 w-3.5" />{/if}
-                  <span>Créer un nouveau</span>
+                  <span>{m.campaign_create_new()}</span>
                 </div>
                 {#if row.decision === 'CREATE_NEW'}<div
                     class="h-2 w-2 rounded-full bg-blue-500"

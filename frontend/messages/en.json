@@ -629,5 +629,48 @@
   "staff_select_placeholder": "Assign Mantas...",
   "staff_select_search": "Search for a manta...",
   "staff_select_empty": "No staff found.",
-  "staff_select_heading": "Campus team"
+  "staff_select_heading": "Campus team",
+
+  "discord_link": "Link Discord",
+  "discord_unlink": "Disconnect Discord",
+  "discord_unlinking": "Disconnecting...",
+  "discord_connect": "Connect",
+  "discord_linked": "Account linked",
+  "discord_connected": "Connected",
+  "discord_not_connected": "Not connected",
+  "discord_banner_title": "Link your Discord account",
+  "discord_banner_description": "Connect your Discord to join the community.",
+  "discord_close": "Close",
+
+  "auth_error_unauthorized_domain": "Access denied. Please use an @epitech.eu address.",
+  "auth_error_oauth_failed": "Microsoft authentication failed.",
+  "auth_error_state_mismatch": "Security error (State Mismatch). Please try again.",
+  "auth_error_provider_missing": "Microsoft authentication provider is not configured.",
+  "auth_error_student_not_found": "No student profile found for this email. Contact the administration.",
+
+  "admin_subject_delete_blocked": "Deletion blocked: This subject has already been used in events. Deleting it would corrupt students' XP history.",
+  "admin_subject_delete_not_owner": "You cannot delete a subject that doesn't belong to you.",
+  "admin_subject_update_not_owner": "You cannot edit a subject that doesn't belong to you.",
+  "admin_theme_delete_blocked": "Deletion blocked: This theme is used by {subjects} subject(s) and {events} event(s).",
+
+  "theme_select_placeholder": "Select or create a theme...",
+  "theme_select_create": "Create \"{name}\"",
+  "theme_select_group_existing": "Existing themes",
+  "theme_select_group_action": "Action",
+  "theme_select_official": "Official (Global)",
+  "theme_select_local": "Local (Campus)",
+
+  "multi_theme_select_placeholder": "Select themes...",
+  "multi_theme_new_local": "New local theme",
+  "multi_theme_group_available": "Available themes",
+
+  "camper_cockpit_title": "Cockpit",
+  "placeholder_lastname": "Smith",
+  "progress_analyzing": "Analyzing file",
+  "progress_processing": "Processing",
+  "campaign_create_new": "Create new",
+
+  "otp_email_subject": "Your secret access code for Jump 🔑",
+  "otp_email_disclaimer": "If you didn't try to log in, you can delete this email. This code will expire shortly.",
+  "otp_email_footer": "Have a great workshop!<br/>The Epitech Academy Team"
 }

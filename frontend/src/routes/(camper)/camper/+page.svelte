@@ -135,7 +135,7 @@
 </script>
 
 <svelte:head>
-  <title>Cockpit</title>
+  <title>{m.camper_cockpit_title()}</title>
 </svelte:head>
 
 <div class="mx-auto max-w-5xl px-4 py-8 pb-20 sm:py-12">

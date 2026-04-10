@@ -1,5 +1,6 @@
 <script lang="ts">
   import { LoaderCircle } from '@lucide/svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let {
     isAnalyzing,
@@ -28,7 +29,7 @@
       </div>
       <div class="space-y-1">
         <h3 class="text-lg font-bold tracking-tight uppercase">
-          {isAnalyzing ? 'Analyse du fichier' : 'Traitement en cours'}
+          {isAnalyzing ? m.progress_analyzing() : m.progress_processing()}
         </h3>
         <p class="min-h-[1.5em] font-mono text-xs text-muted-foreground">
           {currentMessage}<span class="animate-pulse">_</span>

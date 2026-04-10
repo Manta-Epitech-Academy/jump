@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { X } from '@lucide/svelte';
+  import { m } from '$lib/paraglide/messages.js';
 
   let dismissed = $state(false);
 </script>
@@ -18,17 +19,17 @@
     </div>
     <div class="flex-1 min-w-0">
       <p class="text-sm font-bold text-indigo-900 dark:text-indigo-200">
-        Relie ton compte Discord
+        {m.discord_banner_title()}
       </p>
       <p class="text-xs text-indigo-600/70 dark:text-indigo-400/60">
-        Connecte ton Discord pour rejoindre la communauté.
+        {m.discord_banner_description()}
       </p>
     </div>
     <a
       href={resolve('/camper/discord')}
       class="shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:bg-indigo-700 active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-600"
     >
-      Connecter
+      {m.discord_connect()}
     </a>
     <button
       type="button"
@@ -36,7 +37,7 @@
       class="absolute top-2 right-2 rounded-lg p-1 text-indigo-400 transition-colors hover:bg-indigo-100 hover:text-indigo-600 dark:hover:bg-indigo-900/40"
     >
       <X class="h-3.5 w-3.5" />
-      <span class="sr-only">Fermer</span>
+      <span class="sr-only">{m.discord_close()}</span>
     </button>
   </div>
 {/if}
