@@ -8,5 +8,5 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
     throw redirect(303, `${base}/camper/login`);
   }
 
-  startDiscordOAuth(cookies, '/camper/discord/callback');
+  throw startDiscordOAuth(cookies, '/camper/discord/callback');
 };
