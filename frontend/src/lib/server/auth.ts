@@ -56,6 +56,10 @@ export const auth = betterAuth({
     modelName: 'bauth_account',
   },
 
+  verification: {
+    modelName: 'bauth_verification',
+  },
+
   session: {
     modelName: 'bauth_session',
     cookieCache: { enabled: true, maxAge: 5 * 60 },

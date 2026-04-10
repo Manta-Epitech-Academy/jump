@@ -78,7 +78,7 @@ model bauth_account {
   user bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model verification {
+model bauth_verification {
   id         String   @id @default(cuid())
   identifier String   @unique
   value      String
