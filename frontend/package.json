@@ -68,5 +68,9 @@
   },
   "prisma": {
     "seed": "bun run prisma/seed.ts"
+  },
+  "overrides": {
+    "basic-ftp": "^5.2.1",
+    "picomatch": "^4.0.4"
   }
 }
