@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { marked } from 'marked';
+  import DOMPurify from 'isomorphic-dompurify';
   import { fade, fly } from 'svelte/transition';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
@@ -37,7 +38,7 @@
   let currentStep = $derived(steps[currentIndex] || steps[0]);
   let isCompleted = $derived(progress.status === 'completed');
   let parsedHtml = $derived(
-    marked.parse(currentStep.content_markdown) as string,
+    DOMPurify.sanitize(marked.parse(currentStep.content_markdown) as string),
   );
 
   let selectedAnswer = $state<number | null>(null);
