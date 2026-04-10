@@ -131,10 +131,7 @@ export async function importCampaignData(
     importList.map(async (item) => {
       let studentProfileId: string | undefined;
 
-      if (
-        item.decision === 'LINK_EXISTING' &&
-        item.existingStudent
-      ) {
+      if (item.decision === 'LINK_EXISTING' && item.existingStudent) {
         studentProfileId = item.existingStudent.id as string;
       } else {
         // CREATE NEW USER + STUDENT PROFILE
@@ -192,9 +189,7 @@ export async function importCampaignData(
                 campusId,
                 bringPc: item.bringPc,
                 isPresent: false,
-                subjects: subjectId
-                  ? { create: [{ subjectId }] }
-                  : undefined,
+                subjects: subjectId ? { create: [{ subjectId }] } : undefined,
               },
             });
           }

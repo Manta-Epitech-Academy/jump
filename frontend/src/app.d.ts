@@ -1,9 +1,5 @@
 import type { User, Session } from '$lib/server/auth';
-import type {
-  StaffProfile,
-  StudentProfile,
-  Campus,
-} from '@prisma/client';
+import type { StaffProfile, StudentProfile, Campus } from '@prisma/client';
 
 declare global {
   namespace App {

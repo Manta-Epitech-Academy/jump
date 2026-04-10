@@ -1,0 +1,84 @@
+name: "Broken Test"
+description: Report a test that is failing and needs to be fixed.
+title: "[BROKEN TEST] "
+labels: ["test-broken", "priority:high"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when a test is failing in CI or locally.
+        **Do not use `it.skip()` to work around it — open this issue instead.**
+
+  - type: input
+    id: test-file
+    attributes:
+      label: Test file
+      description: Path to the file containing the failing test.
+      placeholder: "src/lib/services/student.service.test.ts"
+    validations:
+      required: true
+
+  - type: input
+    id: test-name
+    attributes:
+      label: Test name
+      description: Exact name of the failing test (copy from the CI output).
+      placeholder: "should return null if the student does not exist"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: test-type
+    attributes:
+      label: Test type
+      options:
+        - Unit test
+        - Integration test
+        - E2E test
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-message
+    attributes:
+      label: Error message
+      description: Paste the full error output from CI or your terminal.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: |
+        - Since which commit does the test fail?
+        - Which recent PR might have caused this?
+      placeholder: "Failing since commit abc1234 / PR #42"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: blocks-merges
+    attributes:
+      label: Does this broken test block merges on main?
+      options:
+        - "Yes — needs immediate fix"
+        - "No — test is isolated"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cause
+    attributes:
+      label: Suspected cause
+      options:
+        - The code changed and broke an existing behaviour
+        - The test is outdated (behaviour was intentionally changed)
+        - Flaky test (passes sometimes, fails sometimes)
+        - Environment / CI issue
+        - Unknown
+    validations:
+      required: false

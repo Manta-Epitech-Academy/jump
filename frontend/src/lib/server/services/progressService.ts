@@ -43,15 +43,19 @@ export const ProgressService = {
     answerIndexStr: string | null,
     pinInput: string | null,
   ) {
-    let subject = getCachedSubject<Subject & { contentStructure: SubjectStructure }>(subjectId);
+    let subject = getCachedSubject<
+      Subject & { contentStructure: SubjectStructure }
+    >(subjectId);
     if (!subject) {
-      subject = await prisma.subject.findUniqueOrThrow({
+      subject = (await prisma.subject.findUniqueOrThrow({
         where: { id: subjectId },
-      }) as Subject & { contentStructure: SubjectStructure };
+      })) as Subject & { contentStructure: SubjectStructure };
       setCachedSubject(subjectId, subject);
     }
 
-    const content = (subject.contentStructure ?? { steps: [] }) as SubjectStructure;
+    const content = (subject.contentStructure ?? {
+      steps: [],
+    }) as SubjectStructure;
     const steps = content.steps || [];
 
     const stepIndex = steps.findIndex((s) => s.id === stepId);

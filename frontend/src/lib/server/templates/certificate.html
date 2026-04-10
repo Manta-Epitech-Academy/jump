@@ -469,7 +469,9 @@
         <!-- Header -->
         <div class="header">
           <div class="header-left">
-            <span class="header-label">Programme TekCamp · <%= data.campus %></span>
+            <span class="header-label"
+              >Programme TekCamp · <%= data.campus %></span
+            >
             <h1>Attestation<br />de Compétences</h1>
             <div class="header-line"></div>
           </div>
@@ -481,7 +483,8 @@
           <div class="student-info">
             <div class="student-name"><%= data.studentName %></div>
             <div class="student-meta">
-              <% if (data.schoolLevel) { %><%= data.schoolLevel %> · <% } %>Immersion numérique & programmation
+              <% if (data.schoolLevel) { %><%= data.schoolLevel %> · <% }
+              %>Immersion numérique & programmation
             </div>
           </div>
           <div class="level-badge">
@@ -520,10 +523,16 @@
               <div class="theme-item">
                 <div class="theme-header">
                   <span class="theme-name"><%= theme.name %></span>
-                  <span class="theme-tier<%= theme.label === 'Expert' ? ' expert' : theme.label === 'Confirmé' ? ' confirme' : '' %>"><%= theme.label %></span>
+                  <span
+                    class="theme-tier<%= theme.label === 'Expert' ? ' expert' : theme.label === 'Confirmé' ? ' confirme' : '' %>"
+                    ><%= theme.label %></span
+                  >
                 </div>
                 <div class="progress-bar">
-                  <div class="progress-fill" style="width: <%= Math.min(theme.count / 4 * 100, 100) %>%"></div>
+                  <div
+                    class="progress-fill"
+                    style="width: <%= Math.min(theme.count / 4 * 100, 100) %>%"
+                  ></div>
                 </div>
               </div>
               <% }); %>
@@ -537,14 +546,25 @@
               <% data.subjects.forEach(function(s) { %>
               <div class="subject-row">
                 <div class="subject-check">
-                  <svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <svg viewBox="0 0 10 10" fill="none">
+                    <path
+                      d="M2 5.5L4 7.5L8 3"
+                      stroke="white"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
                 </div>
                 <div class="subject-details">
                   <div class="subject-name"><%= s.name %></div>
                   <div class="subject-event-date"><%= s.eventDate %></div>
                 </div>
                 <% if (s.difficulty) { %>
-                <span class="subject-difficulty<%= s.difficulty === 'Débutant' ? ' beginner' : s.difficulty === 'Intermédiaire' ? ' intermediate' : ' advanced' %>"><%= s.difficulty %></span>
+                <span
+                  class="subject-difficulty<%= s.difficulty === 'Débutant' ? ' beginner' : s.difficulty === 'Intermédiaire' ? ' intermediate' : ' advanced' %>"
+                  ><%= s.difficulty %></span
+                >
                 <% } %>
               </div>
               <% }); %>
@@ -569,10 +589,14 @@
         <!-- Footer -->
         <div class="footer">
           <div class="footer-left">
-            <div class="footer-date">Fait le <strong><%= data.todayDate %></strong></div>
+            <div class="footer-date">
+              Fait le <strong><%= data.todayDate %></strong>
+            </div>
             <div class="footer-legal">
-              Attestation générée automatiquement par la plateforme Epitech TekCamp.<br />
-              Document destiné à enrichir les dossiers académiques (ex : Parcoursup).
+              Attestation générée automatiquement par la plateforme Epitech
+              TekCamp.<br />
+              Document destiné à enrichir les dossiers académiques (ex :
+              Parcoursup).
             </div>
           </div>
           <div class="footer-right">
