@@ -37,8 +37,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install osv-scanner
+        run: |
+          curl -sSfL https://github.com/google/osv-scanner/releases/download/v2.0.2/osv-scanner_2.0.2_linux_amd64.tar.gz | tar xz
+          sudo mv osv-scanner /usr/local/bin/
+
       - name: Audit dependencies
-        run: bunx osv-scanner --lockfile=bun.lock
+        run: osv-scanner --lockfile=bun.lock
 
   secret-scan:
     name: Secret Scanning
