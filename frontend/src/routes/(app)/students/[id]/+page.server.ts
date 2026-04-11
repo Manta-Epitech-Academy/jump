@@ -111,7 +111,7 @@ export const actions: Actions = {
       const profile = await db.studentProfile.findUniqueOrThrow({
         where: { id: params.id },
       });
-      await prisma.user.delete({ where: { id: profile.userId } });
+      await prisma.bauth_user.delete({ where: { id: profile.userId } });
     } catch (err) {
       console.error('Error deleting student:', err);
       return fail(500, { message: 'Impossible de supprimer cet élève' });

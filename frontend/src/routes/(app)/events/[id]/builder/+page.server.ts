@@ -296,7 +296,7 @@ export const actions: Actions = {
     try {
       const campusId = getCampusId(locals);
 
-      const user = await prisma.user.create({
+      const user = await prisma.bauth_user.create({
         data: {
           email: form.data.email || `${crypto.randomUUID()}@placeholder.local`,
           role: 'student',

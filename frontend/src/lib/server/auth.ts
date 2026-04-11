@@ -52,12 +52,22 @@ export const auth = betterAuth({
     }),
   ],
 
+  account: {
+    modelName: 'bauth_account',
+  },
+
+  verification: {
+    modelName: 'bauth_verification',
+  },
+
   session: {
+    modelName: 'bauth_session',
     cookieCache: { enabled: true, maxAge: 5 * 60 },
     expiresIn: 14 * 24 * 60 * 60,
   },
 
   user: {
+    modelName: 'bauth_user',
     additionalFields: {
       role: {
         type: 'string' as const,

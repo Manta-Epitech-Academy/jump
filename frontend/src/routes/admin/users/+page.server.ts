@@ -5,7 +5,7 @@ import { prisma } from '$lib/server/db';
 export const load: PageServerLoad = async () => {
   // Load all users with their staff profiles (which hold campus info) and all campuses
   const [users, campuses] = await Promise.all([
-    prisma.user.findMany({
+    prisma.bauth_user.findMany({
       orderBy: [{ name: 'asc' }, { email: 'asc' }],
       include: { staffProfile: { include: { campus: true } } },
     }),
@@ -42,7 +42,7 @@ export const actions: Actions = {
     if (!id) return fail(400);
 
     try {
-      await prisma.user.delete({ where: { id } });
+      await prisma.bauth_user.delete({ where: { id } });
       return { success: true };
     } catch (err) {
       return fail(500, { message: 'Erreur lors de la suppression du membre.' });

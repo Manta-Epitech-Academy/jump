@@ -43,7 +43,7 @@ export const actions: Actions = {
 
       // Also ensure role is set to staff
       if (locals.user.role !== 'staff' && locals.user.role !== 'admin') {
-        await prisma.user.update({
+        await prisma.bauth_user.update({
           where: { id: locals.user.id },
           data: { role: 'staff' },
         });

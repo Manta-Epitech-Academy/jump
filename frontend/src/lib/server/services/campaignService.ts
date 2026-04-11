@@ -136,7 +136,7 @@ export async function importCampaignData(
       } else {
         // CREATE NEW USER + STUDENT PROFILE
         try {
-          const user = await prisma.user.create({
+          const user = await prisma.bauth_user.create({
             data: {
               email: item.csvData.email,
               role: 'student',

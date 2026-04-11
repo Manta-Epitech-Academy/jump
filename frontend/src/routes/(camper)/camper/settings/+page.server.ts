@@ -59,7 +59,7 @@ export const actions: Actions = {
           where: { id: locals.studentProfile.id },
         }),
         // Deleting the user cascades to sessions and accounts
-        prisma.user.delete({
+        prisma.bauth_user.delete({
           where: { id: locals.user.id },
         }),
       ]);
