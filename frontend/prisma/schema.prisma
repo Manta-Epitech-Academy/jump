@@ -137,10 +137,11 @@ model StudentProfile {
 // ─── Domain Tables ───
 
 model Campus {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String   @unique
+  external_name String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   staffProfiles   StaffProfile[]
   studentProfiles StudentProfile[]
