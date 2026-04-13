@@ -24,7 +24,8 @@ export const templateSchema = z
 			.enum(difficultes, {
 				message: 'Veuillez sélectionner une difficulté valide',
 			})
-			.default('Débutant'),
+			.optional()
+			.or(z.literal('')),
 		activityType: z.enum(activityTypes, {
 			message: "Veuillez sélectionner un type d'activité",
 		}),

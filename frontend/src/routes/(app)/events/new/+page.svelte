@@ -1,14 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { superForm } from 'sveltekit-superforms';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import * as Tabs from '$lib/components/ui/tabs';
-  import { ChevronLeft, FileSpreadsheet, PenTool, Save } from '@lucide/svelte';
-  import { untrack } from 'svelte';
+  import { ChevronLeft, FileSpreadsheet } from '@lucide/svelte';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
@@ -17,13 +14,8 @@
   import FakeProgressLoader from './components/FakeProgressLoader.svelte';
   import CsvDropzone from './components/CsvDropzone.svelte';
   import CampaignReviewTable from './components/CampaignReviewTable.svelte';
-  import ManualEventForm from './components/ManualEventForm.svelte';
 
   let { data }: { data: PageData } = $props();
-
-  const { form, errors, delayed, enhance } = superForm(
-    untrack(() => data.form),
-  );
 
   let isAnalyzing = $state(false);
   let isConfirming = $state(false);
@@ -90,27 +82,18 @@
     </h1>
   </div>
 
-  <Tabs.Root value="import" class="w-full">
-    <Tabs.List class="grid w-full grid-cols-2">
-      <Tabs.Trigger value="import"
-        ><FileSpreadsheet class="mr-2 h-4 w-4" /> Import Campagne CSV</Tabs.Trigger
-      >
-      <Tabs.Trigger value="manual"
-        ><PenTool class="mr-2 h-4 w-4" /> Création Manuelle</Tabs.Trigger
-      >
-    </Tabs.List>
-
-    <!-- IMPORT TAB -->
-    <Tabs.Content value="import">
-      <Card.Root class="mt-4 border-t-4 border-t-epi-teal shadow-md">
-        <Card.Header>
-          <Card.Title>Import Automatique (Campagne)</Card.Title>
-          <Card.Description>
-            Importez un fichier CSV. Vous pourrez ensuite spécifier si les
-            élèves apportent leur PC.
-          </Card.Description>
-        </Card.Header>
-        <Card.Content>
+  <Card.Root class="border-t-4 border-t-epi-teal shadow-md">
+    <Card.Header>
+      <Card.Title class="flex items-center gap-2">
+        <FileSpreadsheet class="h-5 w-5" />
+        Import Campagne CSV
+      </Card.Title>
+      <Card.Description>
+        Importez un fichier CSV de campagne Salesforce. Vous pourrez ensuite spécifier si les
+        élèves apportent leur PC.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content>
           <!-- STEP 1: UPLOAD & ANALYZE -->
           {#if !analysisResult}
             <form
@@ -258,39 +241,6 @@
           {/if}
         </Card.Content>
       </Card.Root>
-    </Tabs.Content>
-
-    <!-- MANUAL TAB -->
-    <Tabs.Content value="manual">
-      <Card.Root class="mt-4">
-        <Card.Header
-          ><Card.Title>Configuration Manuelle</Card.Title></Card.Header
-        >
-        <Card.Content>
-          <form
-            method="POST"
-            action="?/createManual"
-            use:enhance
-            id="event-form"
-          >
-            <ManualEventForm
-              {form}
-              {errors}
-              themes={data.themes}
-              staff={data.staff}
-            />
-          </form>
-        </Card.Content>
-        <Card.Footer class="justify-end border-t bg-muted/50 px-6 py-4">
-          <Button type="submit" form="event-form" disabled={$delayed}
-            ><Save class="mr-2 h-4 w-4" />{$delayed
-              ? 'Création...'
-              : "Créer l'événement"}</Button
-          >
-        </Card.Footer>
-      </Card.Root>
-    </Tabs.Content>
-  </Tabs.Root>
 </div>
 
 <FakeProgressLoader {isAnalyzing} {isConfirming} {currentMessage} {progress} />

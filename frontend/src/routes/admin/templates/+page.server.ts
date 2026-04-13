@@ -42,7 +42,7 @@ export const actions: Actions = {
 				data: {
 					nom: form.data.nom,
 					description: form.data.description || null,
-					difficulte: form.data.difficulte,
+					difficulte: form.data.difficulte || null,
 					activityType: form.data.activityType,
 					isDynamic,
 					defaultDuration: form.data.defaultDuration || null,
@@ -84,7 +84,7 @@ export const actions: Actions = {
 				data: {
 					nom: form.data.nom,
 					description: form.data.description || null,
-					difficulte: form.data.difficulte,
+					difficulte: form.data.difficulte || null,
 					activityType: form.data.activityType,
 					isDynamic,
 					defaultDuration: form.data.defaultDuration || null,

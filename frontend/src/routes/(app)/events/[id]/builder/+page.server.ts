@@ -6,6 +6,11 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import { studentSchema } from '$lib/validation/students';
+import {
+  timeSlotSchema,
+  createActivityFromTemplateSchema,
+  createStaticActivitySchema,
+} from '$lib/validation/planning';
 import { getTotalXp } from '$lib/domain/xp';
 import {
   suggestBestSubject,
@@ -108,6 +113,23 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
   const timeString = `${hours}:${minutes}`;
 
+  const planning = await prisma.planning.findUnique({
+    where: { eventId: params.id },
+    include: {
+      timeSlots: {
+        orderBy: { startTime: 'asc' },
+        include: { activities: true },
+      },
+    },
+  });
+
+  const campusId = getCampusId(locals);
+  const templates = await prisma.activityTemplate.findMany({
+    where: { OR: [{ campusId: null }, { campusId }] },
+    include: { activityTemplateThemes: { include: { theme: true } } },
+    orderBy: { nom: 'asc' },
+  });
+
   const editForm = await superValidate(
     {
       titre: event.titre,
@@ -122,6 +144,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const addForm = await superValidate(zod4(addParticipantSchema));
   const createStudentForm = await superValidate(zod4(studentSchema));
+  const tsForm = await superValidate(zod4(timeSlotSchema));
+  const staticActivityForm = await superValidate(zod4(createStaticActivitySchema));
+  const templateActivityForm = await superValidate(zod4(createActivityFromTemplateSchema));
 
   return {
     event,
@@ -132,6 +157,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     addForm,
     createStudentForm,
     editForm,
+    planning,
+    templates,
+    tsForm,
+    staticActivityForm,
+    templateActivityForm,
   };
 };
 
@@ -414,5 +444,187 @@ export const actions: Actions = {
       return fail(500);
     }
     throw redirect(303, resolve('/'));
+  },
+
+  createTimeSlot: async ({ request, locals, params }) => {
+    const form = await superValidate(request, zod4(timeSlotSchema));
+    if (!form.valid) return fail(400, { form });
+
+    try {
+      const campusId = getCampusId(locals);
+      const db = scopedPrisma(campusId);
+      const event = await db.event.findUniqueOrThrow({ where: { id: params.id } });
+
+      const eventDate = new Date(event.date);
+      const [startH, startM] = form.data.startTime.split(':').map(Number);
+      const [endH, endM] = form.data.endTime.split(':').map(Number);
+
+      const startCdt = new CalendarDateTime(
+        eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(),
+        startH, startM,
+      );
+      const endCdt = new CalendarDateTime(
+        eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(),
+        endH, endM,
+      );
+
+      const planning = await prisma.planning.upsert({
+        where: { eventId: params.id },
+        create: { eventId: params.id },
+        update: {},
+      });
+
+      await prisma.timeSlot.create({
+        data: {
+          planningId: planning.id,
+          startTime: startCdt.toDate('Europe/Paris'),
+          endTime: endCdt.toDate('Europe/Paris'),
+          label: form.data.label || null,
+        },
+      });
+
+      return message(form, 'Créneau ajouté !');
+    } catch (err) {
+      console.error('Create time slot error:', err);
+      return message(form, 'Erreur lors de la création du créneau.', { status: 500 });
+    }
+  },
+
+  updateTimeSlot: async ({ request, locals, params }) => {
+    const formData = await request.formData();
+    const timeSlotId = formData.get('timeSlotId') as string;
+    if (!timeSlotId) return fail(400);
+
+    const form = await superValidate(formData, zod4(timeSlotSchema));
+    if (!form.valid) return fail(400, { form });
+
+    try {
+      const campusId = getCampusId(locals);
+      const db = scopedPrisma(campusId);
+      const event = await db.event.findUniqueOrThrow({ where: { id: params.id } });
+
+      const eventDate = new Date(event.date);
+      const [startH, startM] = form.data.startTime.split(':').map(Number);
+      const [endH, endM] = form.data.endTime.split(':').map(Number);
+
+      const startCdt = new CalendarDateTime(
+        eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(),
+        startH, startM,
+      );
+      const endCdt = new CalendarDateTime(
+        eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(),
+        endH, endM,
+      );
+
+      await prisma.timeSlot.update({
+        where: { id: timeSlotId },
+        data: {
+          startTime: startCdt.toDate('Europe/Paris'),
+          endTime: endCdt.toDate('Europe/Paris'),
+          label: form.data.label || null,
+        },
+      });
+
+      return message(form, 'Créneau mis à jour !');
+    } catch (err) {
+      console.error('Update time slot error:', err);
+      return message(form, 'Erreur lors de la mise à jour du créneau.', { status: 500 });
+    }
+  },
+
+  deleteTimeSlot: async ({ url, locals, params }) => {
+    const timeSlotId = url.searchParams.get('id');
+    if (!timeSlotId) return fail(400);
+
+    try {
+      const db = scopedPrisma(getCampusId(locals));
+      await db.event.findUniqueOrThrow({ where: { id: params.id } });
+      await prisma.timeSlot.delete({ where: { id: timeSlotId } });
+      return { success: true };
+    } catch (err) {
+      console.error('Delete time slot error:', err);
+      return fail(500);
+    }
+  },
+
+  addActivityFromTemplate: async ({ request, locals, params }) => {
+    const form = await superValidate(request, zod4(createActivityFromTemplateSchema));
+    if (!form.valid) return fail(400, { form });
+
+    try {
+      const db = scopedPrisma(getCampusId(locals));
+      await db.event.findUniqueOrThrow({ where: { id: params.id } });
+
+      const template = await prisma.activityTemplate.findUniqueOrThrow({
+        where: { id: form.data.templateId },
+        include: { activityTemplateThemes: true },
+      });
+
+      await prisma.activity.create({
+        data: {
+          nom: template.nom,
+          description: template.description,
+          difficulte: template.difficulte,
+          activityType: template.activityType,
+          isDynamic: template.isDynamic,
+          link: template.link,
+          content: template.content,
+          contentStructure: template.contentStructure ?? undefined,
+          templateId: template.id,
+          timeSlotId: form.data.timeSlotId,
+          activityThemes: template.activityTemplateThemes.length > 0
+            ? { create: template.activityTemplateThemes.map((att) => ({ themeId: att.themeId })) }
+            : undefined,
+        },
+      });
+
+      return message(form, `Activité "${template.nom}" ajoutée !`);
+    } catch (err) {
+      console.error('Add activity from template error:', err);
+      return message(form, "Erreur lors de l'ajout de l'activité.", { status: 500 });
+    }
+  },
+
+  createStaticActivity: async ({ request, locals, params }) => {
+    const form = await superValidate(request, zod4(createStaticActivitySchema));
+    if (!form.valid) return fail(400, { form });
+
+    try {
+      const db = scopedPrisma(getCampusId(locals));
+      await db.event.findUniqueOrThrow({ where: { id: params.id } });
+
+      await prisma.activity.create({
+        data: {
+          nom: form.data.nom,
+          description: form.data.description || null,
+          difficulte: form.data.difficulte || null,
+          activityType: form.data.activityType,
+          isDynamic: false,
+          link: form.data.link || null,
+          content: form.data.content,
+          timeSlotId: form.data.timeSlotId,
+        },
+      });
+
+      return message(form, `Activité "${form.data.nom}" créée !`);
+    } catch (err) {
+      console.error('Create static activity error:', err);
+      return message(form, "Erreur lors de la création de l'activité.", { status: 500 });
+    }
+  },
+
+  deleteActivity: async ({ url, locals, params }) => {
+    const activityId = url.searchParams.get('id');
+    if (!activityId) return fail(400);
+
+    try {
+      const db = scopedPrisma(getCampusId(locals));
+      await db.event.findUniqueOrThrow({ where: { id: params.id } });
+      await prisma.activity.delete({ where: { id: activityId } });
+      return { success: true };
+    } catch (err) {
+      console.error('Delete activity error:', err);
+      return fail(500);
+    }
   },
 };

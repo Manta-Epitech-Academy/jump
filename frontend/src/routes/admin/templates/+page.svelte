@@ -63,7 +63,7 @@
   let filteredTemplates = $derived(
     data.templates.filter((t) => {
       if (filterType !== 'all' && t.activityType !== filterType) return false;
-      if (filterDifficulty !== 'all' && t.difficulte !== filterDifficulty)
+      if (filterDifficulty !== 'all' && (t.difficulte || '') !== filterDifficulty)
         return false;
       if (
         filterTheme !== 'all' &&
@@ -84,9 +84,21 @@
     filterTheme = 'all';
   }
 
+  const activityTypesWithoutDifficulty = ['conference', 'orga', 'special'];
+
+  let showDifficulty = $derived(
+    !activityTypesWithoutDifficulty.includes($form.activityType),
+  );
+
+  $effect(() => {
+    if (!showDifficulty) {
+      $form.difficulte = '';
+    }
+  });
+
   function openCreate() {
     reset();
-    $form.difficulte = 'Débutant';
+    $form.difficulte = '';
     $form.activityType = 'atelier';
     $form.isDynamic = false;
     $form.themes = [];
@@ -104,7 +116,7 @@
     reset();
     $form.nom = template.nom;
     $form.description = template.description || '';
-    $form.difficulte = template.difficulte as typeof $form.difficulte;
+    $form.difficulte = (template.difficulte || '') as typeof $form.difficulte;
     $form.activityType = template.activityType as typeof $form.activityType;
     $form.isDynamic = template.isDynamic;
     $form.defaultDuration = template.defaultDuration ?? undefined;
@@ -292,9 +304,13 @@
                 </div>
               </Table.Cell>
               <Table.Cell>
-                <Badge variant="outline" class="text-[10px] uppercase">
-                  {template.difficulte}
-                </Badge>
+                {#if template.difficulte}
+                  <Badge variant="outline" class="text-[10px] uppercase">
+                    {template.difficulte}
+                  </Badge>
+                {:else}
+                  <span class="text-xs text-muted-foreground">—</span>
+                {/if}
               </Table.Cell>
               <Table.Cell class="text-right">
                 <Tooltip.Provider delayDuration={300}>
@@ -451,23 +467,25 @@
           </div>
         </div>
 
-        <div class="grid gap-2">
-          <Label>Difficulté</Label>
-          <div class="flex gap-2">
-            {#each difficultes as diff}
-              <Button
-                type="button"
-                variant={$form.difficulte === diff ? 'default' : 'outline'}
-                size="sm"
-                onclick={() => ($form.difficulte = diff)}
-                class={$form.difficulte === diff ? 'bg-epi-pink' : ''}
-              >
-                {diff}
-              </Button>
-            {/each}
-            <input type="hidden" name="difficulte" value={$form.difficulte} />
+        {#if showDifficulty}
+          <div class="grid gap-2">
+            <Label>Difficulté</Label>
+            <div class="flex gap-2">
+              {#each difficultes as diff}
+                <Button
+                  type="button"
+                  variant={$form.difficulte === diff ? 'default' : 'outline'}
+                  size="sm"
+                  onclick={() => ($form.difficulte = diff)}
+                  class={$form.difficulte === diff ? 'bg-epi-pink' : ''}
+                >
+                  {diff}
+                </Button>
+              {/each}
+            </div>
           </div>
-        </div>
+        {/if}
+        <input type="hidden" name="difficulte" value={$form.difficulte || ''} />
 
         <div class="flex items-center gap-3">
           <Switch

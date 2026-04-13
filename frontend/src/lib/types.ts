@@ -54,3 +54,17 @@ export type SubjectWithThemes = Prisma.SubjectGetPayload<{
     campus: true;
   };
 }>;
+
+/** Planning with nested time slots and their activities. */
+export type PlanningWithSlots = Prisma.PlanningGetPayload<{
+  include: {
+    timeSlots: {
+      include: { activities: true };
+    };
+  };
+}>;
+
+/** TimeSlot with its activities. */
+export type TimeSlotWithActivities = Prisma.TimeSlotGetPayload<{
+  include: { activities: true };
+}>;

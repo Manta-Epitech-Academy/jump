@@ -6,6 +6,8 @@
     ArrowLeft,
     UserCheck,
     Tag,
+    CalendarDays,
+    Users,
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { enhance } from '$app/forms';
@@ -13,6 +15,7 @@
 
   import type { PageData } from './$types';
   import { Button, buttonVariants } from '$lib/components/ui/button';
+  import * as Tabs from '$lib/components/ui/tabs';
   import SubjectPicker from './components/SubjectPicker.svelte';
   import { resolve } from '$app/paths';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
@@ -20,6 +23,7 @@
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
   import ParticipantManager from './components/ParticipantManager.svelte';
   import StudentSearchSidebar from './components/StudentSearchSidebar.svelte';
+  import PlanningView from './components/PlanningView.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -200,22 +204,47 @@
     </div>
   </div>
 
-  <div class="min-0 grid h-auto flex-1 gap-6 md:h-full md:grid-cols-12">
-    <ParticipantManager
-      {unassignedParticipations}
-      {assignedParticipations}
-      onDelete={confirmDeleteParticipation}
-      onManageSubjects={openSubjectPicker}
-      onBulkAssign={openBulkSubjectPicker}
-    />
+  <Tabs.Root value="planning" class="flex-1 flex flex-col min-h-0">
+    <Tabs.List class="grid w-full grid-cols-2">
+      <Tabs.Trigger value="planning" class="gap-2">
+        <CalendarDays class="h-4 w-4" />
+        Planning
+      </Tabs.Trigger>
+      <Tabs.Trigger value="participants" class="gap-2">
+        <Users class="h-4 w-4" />
+        Participants ({data.participations.length})
+      </Tabs.Trigger>
+    </Tabs.List>
 
-    <StudentSearchSidebar
-      participations={data.participations}
-      {addEnhance}
-      {addDelayed}
-      createStudentForm={data.createStudentForm}
-    />
-  </div>
+    <Tabs.Content value="planning" class="flex-1 pt-4">
+      <PlanningView
+        planning={data.planning}
+        templates={data.templates}
+        tsForm={data.tsForm}
+        staticActivityForm={data.staticActivityForm}
+        templateActivityForm={data.templateActivityForm}
+      />
+    </Tabs.Content>
+
+    <Tabs.Content value="participants" class="flex-1 pt-4">
+      <div class="min-0 grid h-auto flex-1 gap-6 md:h-full md:grid-cols-12">
+        <ParticipantManager
+          {unassignedParticipations}
+          {assignedParticipations}
+          onDelete={confirmDeleteParticipation}
+          onManageSubjects={openSubjectPicker}
+          onBulkAssign={openBulkSubjectPicker}
+        />
+
+        <StudentSearchSidebar
+          participations={data.participations}
+          {addEnhance}
+          {addDelayed}
+          createStudentForm={data.createStudentForm}
+        />
+      </div>
+    </Tabs.Content>
+  </Tabs.Root>
 </div>
 
 <form
