@@ -214,7 +214,7 @@
       </Tabs.Trigger>
     </Tabs.List>
 
-    <Tabs.Content value="planning" class="flex-1 pt-4">
+    <Tabs.Content value="planning" class="flex-1 pt-4 pb-12">
       <PlanningView
         planning={data.planning}
         templates={data.templates}
@@ -225,7 +225,7 @@
       />
     </Tabs.Content>
 
-    <Tabs.Content value="participants" class="flex-1 pt-4">
+    <Tabs.Content value="participants" class="flex-1 pt-4 pb-12">
       <div class="min-0 grid h-auto flex-1 gap-6 md:h-full md:grid-cols-12">
         <ParticipantManager
           {unassignedParticipations}
