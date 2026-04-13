@@ -115,8 +115,11 @@ model StudentProfile {
   level             String    @default("Novice")
   xp                Int       @default(0)
   eventsCount       Int       @default(0)
-  charterAcceptedAt DateTime?
-  badges            Json?
+  charterAcceptedAt     DateTime?
+  rulesSignedAt         DateTime?
+  imageRightsSignedAt   DateTime?
+  imageRightsSignerName String?
+  badges                Json?
   parentEmail       String?
   parentPhone       String?
   phone             String?

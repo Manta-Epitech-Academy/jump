@@ -38,8 +38,10 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     .pathname;
   const pathCamperRoot = new URL(resolvePath('/camper'), event.url).pathname;
 
-  const pathCamperCharter = new URL(resolvePath('/camper/charter'), event.url)
-    .pathname;
+  const pathCamperOnboarding = new URL(
+    resolvePath('/camper/onboarding'),
+    event.url,
+  ).pathname;
 
   const pathCamperOAuth = new URL(resolvePath('/camper/oauth'), event.url)
     .pathname;
@@ -56,22 +58,27 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
       return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
     }
 
-    // Charter guard: redirect to charter page if not accepted yet
-    if (
-      event.locals.studentProfile &&
-      !event.locals.studentProfile.charterAcceptedAt &&
-      currentPath !== pathCamperCharter &&
-      currentPath !== pathCamperLogin
-    ) {
-      return Response.redirect(new URL(pathCamperCharter, event.url).href, 303);
-    }
+    // Onboarding guard: redirect if any document is not signed yet
+    if (event.locals.studentProfile) {
+      const p = event.locals.studentProfile;
+      const needsOnboarding =
+        !p.charterAcceptedAt || !p.rulesSignedAt || !p.imageRightsSignedAt;
 
-    // Already accepted: prevent going back to charter page
-    if (
-      event.locals.studentProfile?.charterAcceptedAt &&
-      currentPath === pathCamperCharter
-    ) {
-      return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
+      if (
+        needsOnboarding &&
+        !currentPath.startsWith(pathCamperOnboarding) &&
+        currentPath !== pathCamperLogin
+      ) {
+        return Response.redirect(
+          new URL(pathCamperOnboarding, event.url).href,
+          303,
+        );
+      }
+
+      // Already completed: prevent going back to onboarding
+      if (!needsOnboarding && currentPath.startsWith(pathCamperOnboarding)) {
+        return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
+      }
     }
   } else if (!isPublicPath && !isAdminPath) {
     // --- Auth + Role Isolation for Staff App ---

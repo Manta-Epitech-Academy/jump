@@ -473,7 +473,7 @@ async function main() {
   console.log('✓ Campuses seeded');
 
   // ─── Admin user ───
-  const adminUser = await prisma.user.upsert({
+  const adminUser = await prisma.bauth_user.upsert({
     where: { email: ADMIN_EMAIL },
     update: { role: 'admin' },
     create: {
@@ -497,7 +497,7 @@ async function main() {
   const staffProfiles: Record<string, { id: string; campusId: string }> = {};
 
   for (const s of staffData) {
-    const user = await prisma.user.upsert({
+    const user = await prisma.bauth_user.upsert({
       where: { email: s.email },
       update: {},
       create: {
@@ -807,7 +807,7 @@ async function main() {
   }[] = [];
 
   for (const s of studentsData) {
-    const user = await prisma.user.upsert({
+    const user = await prisma.bauth_user.upsert({
       where: { email: s.email },
       update: {},
       create: {
@@ -1229,19 +1229,23 @@ async function upsertCredential(userId: string, password: string) {
     memoryCost: 19456,
     timeCost: 2,
   });
-  const existing = await prisma.account.findFirst({
-    where: { userId, providerId: 'credential' },
+  await prisma.bauth_account.upsert({
+    where: {
+      id: (
+        await prisma.bauth_account.findFirst({
+          where: { userId, providerId: 'credential' },
+          select: { id: true },
+        })
+      )?.id ?? '',
+    },
+    update: { password: hashed },
+    create: {
+      userId,
+      accountId: userId,
+      providerId: 'credential',
+      password: hashed,
+    },
   });
-  if (!existing) {
-    await prisma.account.create({
-      data: {
-        userId,
-        accountId: userId,
-        providerId: 'credential',
-        password: hashed,
-      },
-    });
-  }
 }
 
 async function upsertEvent(data: {
