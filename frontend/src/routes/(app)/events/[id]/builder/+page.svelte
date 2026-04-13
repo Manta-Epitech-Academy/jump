@@ -202,7 +202,7 @@
     </div>
   </div>
 
-  <Tabs.Root value="planning" class="flex-1 flex flex-col min-h-0">
+  <Tabs.Root value="planning" class="flex min-h-0 flex-1 flex-col">
     <Tabs.List class="grid w-full grid-cols-2">
       <Tabs.Trigger value="planning" class="gap-2">
         <CalendarDays class="h-4 w-4" />
@@ -221,6 +221,7 @@
         tsForm={data.tsForm}
         staticActivityForm={data.staticActivityForm}
         templateActivityForm={data.templateActivityForm}
+        eventId={data.event.id}
       />
     </Tabs.Content>
 

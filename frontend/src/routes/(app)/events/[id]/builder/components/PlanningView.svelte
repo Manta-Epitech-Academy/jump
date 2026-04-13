@@ -14,12 +14,16 @@
     tsForm,
     staticActivityForm,
     templateActivityForm,
+    eventId,
   }: {
     planning: PlanningWithSlots | null;
-    templates: (ActivityTemplate & { activityTemplateThemes: { theme: { nom: string } }[] })[];
+    templates: (ActivityTemplate & {
+      activityTemplateThemes: { theme: { nom: string } }[];
+    })[];
     tsForm: any;
     staticActivityForm: any;
     templateActivityForm: any;
+    eventId: string;
   } = $props();
 
   let addSlotOpen = $state(false);
@@ -28,7 +32,9 @@
 
   const slots = $derived(planning?.timeSlots ?? []);
   const hasEmptySlots = $derived(slots.some((s) => s.activities.length === 0));
-  const hasNoActivities = $derived(slots.length > 0 && slots.every((s) => s.activities.length === 0));
+  const hasNoActivities = $derived(
+    slots.length > 0 && slots.every((s) => s.activities.length === 0),
+  );
 
   function openEditSlot(slot: TimeSlotWithActivities) {
     editingSlot = slot;
@@ -42,7 +48,8 @@
       <AlertTriangle class="h-4 w-4" />
       <Alert.Title>Planning vide</Alert.Title>
       <Alert.Description>
-        Aucun créneau ne contient d'activité. Ajoutez des activités pour compléter le planning.
+        Aucun créneau ne contient d'activité. Ajoutez des activités pour
+        compléter le planning.
       </Alert.Description>
     </Alert.Root>
   {:else if hasEmptySlots}
@@ -72,6 +79,7 @@
           {staticActivityForm}
           {templateActivityForm}
           onEdit={openEditSlot}
+          {eventId}
         />
       {/each}
     </div>
@@ -92,9 +100,5 @@
 <AddTimeSlotDialog bind:open={addSlotOpen} {tsForm} />
 
 {#if editingSlot}
-  <AddTimeSlotDialog
-    bind:open={editSlotOpen}
-    {tsForm}
-    {editingSlot}
-  />
+  <AddTimeSlotDialog bind:open={editSlotOpen} {tsForm} {editingSlot} />
 {/if}

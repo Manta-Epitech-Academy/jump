@@ -45,14 +45,20 @@ export function scopedPrisma(campusId: string) {
           return query(args);
         },
         async findUnique({ args, query }) {
-          const result = await query(args);
-          if (result && result.campusId !== campusId) accessDenied('Event');
-          return result;
+          const existing = await prisma.event.findUnique({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing && existing.campusId !== campusId) accessDenied('Event');
+          return query(args);
         },
         async findUniqueOrThrow({ args, query }) {
-          const result = await query(args);
-          if (result.campusId !== campusId) accessDenied('Event');
-          return result;
+          const existing = await prisma.event.findUniqueOrThrow({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing.campusId !== campusId) accessDenied('Event');
+          return query(args);
         },
         async create({ args, query }) {
           args.data = { ...args.data, campusId } as any;
@@ -87,15 +93,21 @@ export function scopedPrisma(campusId: string) {
           return query(args);
         },
         async findUnique({ args, query }) {
-          const result = await query(args);
-          if (result && result.campusId !== campusId)
+          const existing = await prisma.participation.findUnique({
+            where: args.where as any,
+            select: { campusId: true },
+          });
+          if (existing && existing.campusId !== campusId)
             accessDenied('Participation');
-          return result;
+          return query(args);
         },
         async findUniqueOrThrow({ args, query }) {
-          const result = await query(args);
-          if (result.campusId !== campusId) accessDenied('Participation');
-          return result;
+          const existing = await prisma.participation.findUniqueOrThrow({
+            where: args.where as any,
+            select: { campusId: true },
+          });
+          if (existing.campusId !== campusId) accessDenied('Participation');
+          return query(args);
         },
         async create({ args, query }) {
           args.data = { ...args.data, campusId } as any;
@@ -134,15 +146,21 @@ export function scopedPrisma(campusId: string) {
           return query(args);
         },
         async findUnique({ args, query }) {
-          const result = await query(args);
-          if (result && result.campusId !== campusId)
+          const existing = await prisma.studentProfile.findUnique({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing && existing.campusId !== campusId)
             accessDenied('StudentProfile');
-          return result;
+          return query(args);
         },
         async findUniqueOrThrow({ args, query }) {
-          const result = await query(args);
-          if (result.campusId !== campusId) accessDenied('StudentProfile');
-          return result;
+          const existing = await prisma.studentProfile.findUniqueOrThrow({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing.campusId !== campusId) accessDenied('StudentProfile');
+          return query(args);
         },
         async update({ args, query }) {
           const existing = await prisma.studentProfile.findUniqueOrThrow({
@@ -177,15 +195,21 @@ export function scopedPrisma(campusId: string) {
           return query(args);
         },
         async findUnique({ args, query }) {
-          const result = await query(args);
-          if (result && result.campusId !== campusId)
+          const existing = await prisma.staffProfile.findUnique({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing && existing.campusId !== campusId)
             accessDenied('StaffProfile');
-          return result;
+          return query(args);
         },
         async findUniqueOrThrow({ args, query }) {
-          const result = await query(args);
-          if (result.campusId !== campusId) accessDenied('StaffProfile');
-          return result;
+          const existing = await prisma.staffProfile.findUniqueOrThrow({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing.campusId !== campusId) accessDenied('StaffProfile');
+          return query(args);
         },
         async update({ args, query }) {
           const existing = await prisma.staffProfile.findUniqueOrThrow({
@@ -201,6 +225,67 @@ export function scopedPrisma(campusId: string) {
             select: { campusId: true },
           });
           if (existing.campusId !== campusId) accessDenied('StaffProfile');
+          return query(args);
+        },
+      },
+
+      // ── ParticipationActivity (scoped through participation.campusId) ──
+      participationActivity: {
+        async findMany({ args, query }) {
+          args.where = {
+            ...args.where,
+            participation: {
+              ...((args.where as any)?.participation ?? {}),
+              campusId,
+            },
+          };
+          return query(args);
+        },
+        async findFirst({ args, query }) {
+          args.where = {
+            ...args.where,
+            participation: {
+              ...((args.where as any)?.participation ?? {}),
+              campusId,
+            },
+          };
+          return query(args);
+        },
+        async findUniqueOrThrow({ args, query }) {
+          const result = await query(args);
+          const participation = await prisma.participation.findUniqueOrThrow({
+            where: { id: result.participationId },
+            select: { campusId: true },
+          });
+          if (participation.campusId !== campusId)
+            accessDenied('ParticipationActivity');
+          return result;
+        },
+        async createMany({ args, query }) {
+          return query(args);
+        },
+        async update({ args, query }) {
+          const where = args.where as any;
+          if (where.participationId_activityId) {
+            const participation = await prisma.participation.findUniqueOrThrow({
+              where: { id: where.participationId_activityId.participationId },
+              select: { campusId: true },
+            });
+            if (participation.campusId !== campusId)
+              accessDenied('ParticipationActivity');
+          }
+          return query(args);
+        },
+        async delete({ args, query }) {
+          const where = args.where as any;
+          if (where.participationId_activityId) {
+            const participation = await prisma.participation.findUniqueOrThrow({
+              where: { id: where.participationId_activityId.participationId },
+              select: { campusId: true },
+            });
+            if (participation.campusId !== campusId)
+              accessDenied('ParticipationActivity');
+          }
           return query(args);
         },
       },

@@ -362,6 +362,8 @@ model ParticipationSubject {
 model ParticipationActivity {
   participationId String
   activityId      String
+  isPresent       Boolean @default(false)
+  delay           Int     @default(0)
 
   participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
   activity      Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)

@@ -14,12 +14,16 @@
     staticActivityForm,
     templateActivityForm,
     onEdit,
+    eventId,
   }: {
     slot: TimeSlotWithActivities;
-    templates: (ActivityTemplate & { activityTemplateThemes: { theme: { nom: string } }[] })[];
+    templates: (ActivityTemplate & {
+      activityTemplateThemes: { theme: { nom: string } }[];
+    })[];
     staticActivityForm: any;
     templateActivityForm: any;
     onEdit: (slot: TimeSlotWithActivities) => void;
+    eventId: string;
   } = $props();
 
   let addActivityOpen = $state(false);
@@ -36,10 +40,12 @@
 </script>
 
 <Card.Root class="overflow-hidden">
-  <Card.Header class="flex flex-row items-center justify-between border-b bg-muted/30 py-3">
+  <Card.Header
+    class="flex flex-row items-center justify-between border-b bg-muted/30 py-3"
+  >
     <div class="flex items-center gap-2">
       <Clock class="h-4 w-4 text-epi-blue" />
-      <span class="font-semibold text-sm">
+      <span class="text-sm font-semibold">
         {formatTime(slot.startTime)} — {formatTime(slot.endTime)}
       </span>
       {#if slot.label}
@@ -47,10 +53,20 @@
       {/if}
     </div>
     <div class="flex items-center gap-1">
-      <Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => onEdit(slot)}>
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7"
+        onclick={() => onEdit(slot)}
+      >
         <Pencil class="h-3.5 w-3.5" />
       </Button>
-      <Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => (deleteOpen = true)}>
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7"
+        onclick={() => (deleteOpen = true)}
+      >
         <Trash2 class="h-3.5 w-3.5 text-destructive" />
       </Button>
     </div>
@@ -67,7 +83,7 @@
     {:else}
       <div class="flex flex-wrap gap-3">
         {#each slot.activities as activity (activity.id)}
-          <ActivityCard {activity} />
+          <ActivityCard {activity} {eventId} />
         {/each}
         <button
           onclick={() => (addActivityOpen = true)}

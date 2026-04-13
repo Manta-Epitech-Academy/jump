@@ -2,14 +2,23 @@
   import type { Activity } from '@prisma/client';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
-  import { Trash2, Zap, FileText, ExternalLink } from '@lucide/svelte';
+  import {
+    Trash2,
+    Zap,
+    FileText,
+    ExternalLink,
+    ClipboardCheck,
+  } from '@lucide/svelte';
   import { activityTypeLabels } from '$lib/validation/templates';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { resolve } from '$app/paths';
 
   let {
     activity,
+    eventId,
   }: {
     activity: Activity;
+    eventId: string;
   } = $props();
 
   let deleteOpen = $state(false);
@@ -73,6 +82,16 @@
       <Badge variant="secondary" class="text-[10px]">Dynamique</Badge>
     {/if}
   </div>
+
+  {#if activity.activityType === 'orga'}
+    <a
+      href={resolve(`/events/${eventId}/appel/${activity.id}`)}
+      class="flex items-center gap-1.5 rounded-md bg-epi-teal/10 px-2.5 py-1.5 text-xs font-bold text-teal-700 transition-colors hover:bg-epi-teal hover:text-black dark:text-epi-teal dark:hover:text-black"
+    >
+      <ClipboardCheck class="h-3.5 w-3.5" />
+      Faire l'appel
+    </a>
+  {/if}
 </div>
 
 <ConfirmDeleteDialog
