@@ -53,10 +53,10 @@
       </Alert.Description>
     </Alert.Root>
   {:else if hasEmptySlots}
-    <Alert.Root>
-      <AlertTriangle class="h-4 w-4" />
+    <Alert.Root class="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+      <AlertTriangle class="h-4 w-4 text-amber-600 dark:text-amber-400" />
       <Alert.Title>Créneaux vides</Alert.Title>
-      <Alert.Description>
+      <Alert.Description class="text-amber-800 dark:text-amber-300">
         Certains créneaux n'ont pas encore d'activité assignée.
       </Alert.Description>
     </Alert.Root>
