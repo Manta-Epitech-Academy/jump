@@ -64,7 +64,7 @@ export const AnonymizationService = {
           });
 
           // 2. Update User (BetterAuth table)
-          await tx.user.update({
+          await tx.bauth_user.update({
             where: { id: student.userId },
             data: {
               name: 'Utilisateur Anonymisé',
@@ -74,10 +74,10 @@ export const AnonymizationService = {
           });
 
           // 3. Clear sessions and auth accounts
-          await tx.session.deleteMany({
+          await tx.bauth_session.deleteMany({
             where: { userId: student.userId },
           });
-          await tx.account.deleteMany({
+          await tx.bauth_account.deleteMany({
             where: { userId: student.userId },
           });
 
