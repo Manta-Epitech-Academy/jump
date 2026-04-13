@@ -15,7 +15,10 @@ const STUDENT_SELECT = {
 } as const;
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (!locals.user || (locals.user.role !== 'staff' && locals.user.role !== 'admin')) {
+  if (
+    !locals.user ||
+    (locals.user.role !== 'staff' && locals.user.role !== 'admin')
+  ) {
     return new Response('Unauthorized', { status: 401 });
   }
   const db = scopedPrisma(getCampusId(locals));

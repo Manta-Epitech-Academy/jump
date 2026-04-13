@@ -7,3 +7,10 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# SvelteKit auto-generated
+.svelte-kit/
+build/
+
+# Paraglide auto-generated
+src/lib/paraglide/

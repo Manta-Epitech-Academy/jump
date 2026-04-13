@@ -18,8 +18,7 @@
   import { formatDateFr, cn } from '$lib/utils';
   import { resolve } from '$app/paths';
 
-  let { participations }: { participations: any[] } =
-    $props();
+  let { participations }: { participations: any[] } = $props();
 </script>
 
 <div
@@ -127,7 +126,9 @@
                           >
                         </Avatar.Root>
                       </Tooltip.Trigger>
-                      <Tooltip.Content><p>{staff?.user?.name}</p></Tooltip.Content>
+                      <Tooltip.Content
+                        ><p>{staff?.user?.name}</p></Tooltip.Content
+                      >
                     </Tooltip.Root>
                   </Tooltip.Provider>
                 {/each}

@@ -54,7 +54,7 @@ export const actions: Actions = {
       const normalizedEmail = emailForm.data.email.toLowerCase().trim();
 
       // Verify a student profile exists for this email
-      const user = await prisma.user.findUnique({
+      const user = await prisma.bauth_user.findUnique({
         where: { email: normalizedEmail },
         include: { studentProfile: true },
       });

@@ -60,7 +60,7 @@ export const actions: Actions = {
     try {
       const campusId = getCampusId(locals);
 
-      await prisma.user.create({
+      await prisma.bauth_user.create({
         data: {
           email: form.data.email || `${crypto.randomUUID()}@placeholder.local`,
           role: 'student',
@@ -121,7 +121,7 @@ export const actions: Actions = {
         const profile = await db.studentProfile.findUniqueOrThrow({
           where: { id },
         });
-        await prisma.user.update({
+        await prisma.bauth_user.update({
           where: { id: profile.userId },
           data: { email: form.data.email },
         });
@@ -147,7 +147,7 @@ export const actions: Actions = {
       const profile = await db.studentProfile.findUniqueOrThrow({
         where: { id },
       });
-      await prisma.user.delete({ where: { id: profile.userId } });
+      await prisma.bauth_user.delete({ where: { id: profile.userId } });
       return { success: true };
     } catch {
       return fail(500);

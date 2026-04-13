@@ -30,19 +30,21 @@ async function processOfficialThemes(themeNames: string[]): Promise<string[]> {
   for (const name of themeNames) {
     if (!name.trim()) continue;
     // Look for an existing official theme, or create one
-    const theme = await prisma.theme.upsert({
-      where: { nom_campusId: { nom: name, campusId: '' } },
-      // upsert doesn't support null in compound unique; fall back to findFirst + create
-      update: {},
-      create: { nom: name, campusId: null },
-    }).catch(async () => {
-      // Compound unique with null campusId not supported by upsert, use manual approach
-      const existing = await prisma.theme.findFirst({
-        where: { nom: name, campusId: null },
+    const theme = await prisma.theme
+      .upsert({
+        where: { nom_campusId: { nom: name, campusId: '' } },
+        // upsert doesn't support null in compound unique; fall back to findFirst + create
+        update: {},
+        create: { nom: name, campusId: null },
+      })
+      .catch(async () => {
+        // Compound unique with null campusId not supported by upsert, use manual approach
+        const existing = await prisma.theme.findFirst({
+          where: { nom: name, campusId: null },
+        });
+        if (existing) return existing;
+        return prisma.theme.create({ data: { nom: name, campusId: null } });
       });
-      if (existing) return existing;
-      return prisma.theme.create({ data: { nom: name, campusId: null } });
-    });
     themeIds.push(theme.id);
   }
   return themeIds;

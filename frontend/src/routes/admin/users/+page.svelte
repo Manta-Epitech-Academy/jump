@@ -94,7 +94,9 @@
                   onValueChange={() => {
                     // Wait for the hidden input to update, then submit
                     requestAnimationFrame(() => {
-                      const form = document.querySelector<HTMLFormElement>(`#campus-form-${user.id}`);
+                      const form = document.querySelector<HTMLFormElement>(
+                        `#campus-form-${user.id}`,
+                      );
                       form?.requestSubmit();
                     });
                   }}

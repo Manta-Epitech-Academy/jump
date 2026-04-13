@@ -36,7 +36,9 @@
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   }
 
-  let subjects = $derived(participation.subjects?.map((ps: any) => ps.subject) || []);
+  let subjects = $derived(
+    participation.subjects?.map((ps: any) => ps.subject) || [],
+  );
   let hasSubjects = $derived(subjects.length > 0);
 
   let alerts = $derived(participation.alerts || []);
@@ -71,7 +73,8 @@
     >
       <Avatar.Root class="rounded-sm border-2 border-transparent">
         <Avatar.Fallback class="bg-primary/5 font-bold text-primary">
-          {participation.studentProfile?.nom?.[0]}{participation.studentProfile?.prenom?.[0]}
+          {participation.studentProfile?.nom?.[0]}{participation.studentProfile
+            ?.prenom?.[0]}
         </Avatar.Fallback>
       </Avatar.Root>
     </a>

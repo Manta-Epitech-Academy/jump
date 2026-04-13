@@ -6,7 +6,12 @@
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { ArrowLeft, Map as MapIcon, FolderOpen, Trophy } from '@lucide/svelte';
+  import {
+    ArrowLeft,
+    Map as MapIcon,
+    FolderOpen,
+    Trophy,
+  } from '@lucide/svelte';
   import { browser } from '$app/environment';
   import { invalidateAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';

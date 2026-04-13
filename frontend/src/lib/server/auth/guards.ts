@@ -18,7 +18,8 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     .pathname;
   const pathLogout = new URL(resolvePath('/logout'), event.url).pathname;
   const pathOAuth = new URL(resolvePath('/oauth' as any), event.url).pathname;
-  const pathPublicShowcase = new URL(resolvePath('/p/' as any), event.url).pathname;
+  const pathPublicShowcase = new URL(resolvePath('/p/' as any), event.url)
+    .pathname;
   const pathApi = new URL(resolvePath('/api/' as any), event.url).pathname;
 
   const pathLogin = new URL(resolvePath('/login'), event.url).pathname;
@@ -62,10 +63,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
       currentPath !== pathCamperCharter &&
       currentPath !== pathCamperLogin
     ) {
-      return Response.redirect(
-        new URL(pathCamperCharter, event.url).href,
-        303,
-      );
+      return Response.redirect(new URL(pathCamperCharter, event.url).href, 303);
     }
 
     // Already accepted: prevent going back to charter page

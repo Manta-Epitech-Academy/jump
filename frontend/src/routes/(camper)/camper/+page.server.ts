@@ -127,4 +127,3 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw error(500, 'Erreur lors du chargement du dashboard');
   }
 };
-
