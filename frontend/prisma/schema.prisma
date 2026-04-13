@@ -35,7 +35,7 @@ enum ActivityType {
 
 // ─── Auth (BetterAuth managed) ───
 
-model user {
+model bauth_user {
   id            String    @id @default(cuid())
   email         String    @unique
   emailVerified Boolean   @default(false)
@@ -48,13 +48,13 @@ model user {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions       session[]
-  accounts       account[]
+  sessions       bauth_session[]
+  accounts       bauth_account[]
   staffProfile   StaffProfile?
   studentProfile StudentProfile?
 }
 
-model session {
+model bauth_session {
   id             String   @id @default(cuid())
   userId         String
   token          String   @unique
@@ -65,10 +65,10 @@ model session {
   updatedAt      DateTime @updatedAt
   impersonatedBy String?
 
-  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model account {
+model bauth_account {
   id                    String    @id @default(cuid())
   userId                String
   accountId             String
@@ -83,10 +83,10 @@ model account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model verification {
+model bauth_verification {
   id         String   @id @default(cuid())
   identifier String   @unique
   value      String
@@ -106,36 +106,36 @@ model StaffProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user          user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
   campus        Campus?         @relation(fields: [campusId], references: [id])
   eventMantas   EventManta[]
   notesAuthored Participation[] @relation("NoteAuthor")
 }
 
 model StudentProfile {
-  id                String       @id @default(cuid())
-  userId            String       @unique
+  id                String    @id @default(cuid())
+  userId            String    @unique
   nom               String
   prenom            String
   campusId          String?
   niveau            String?
   niveauDifficulte  String?
   level             String    @default("Novice")
-  xp                Int          @default(0)
-  eventsCount       Int          @default(0)
+  xp                Int       @default(0)
+  eventsCount       Int       @default(0)
   charterAcceptedAt DateTime?
   badges            Json?
   parentEmail       String?
   parentPhone       String?
   phone             String?
-  discordId         String?      @unique
-  salesforceId      String?      @unique
+  discordId         String?   @unique
+  salesforceId      String?   @unique
   lastSyncedAt      DateTime?
   lastActiveAt      DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  user           user            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
   campus         Campus?         @relation(fields: [campusId], references: [id])
   participations Participation[]
   stepsProgress  StepsProgress[]
@@ -176,15 +176,15 @@ model Theme {
 }
 
 model Subject {
-  id               String     @id @default(cuid())
+  id               String   @id @default(cuid())
   nom              String
   description      String?
   difficulte       String
   campusId         String?
   link             String?
   contentStructure Json?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   campus                Campus?                @relation(fields: [campusId], references: [id])
   subjectThemes         SubjectTheme[]

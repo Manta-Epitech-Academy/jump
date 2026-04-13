@@ -70,7 +70,7 @@
             variant="ghost"
             disabled={status === 'locked'}
             class={cn(
-              'flex h-auto w-full items-center gap-3 rounded-xl border p-3 text-left normal-case tracking-normal transition-all',
+              'flex h-auto w-full items-center gap-3 rounded-xl border p-3 text-left tracking-normal normal-case transition-all',
               isCurrent
                 ? 'border-epi-teal bg-teal-50 shadow-sm dark:bg-teal-950/20'
                 : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800',

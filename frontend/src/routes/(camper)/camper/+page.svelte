@@ -57,9 +57,7 @@
   // Assuming 1000 XP is the max for the progress bar visual (can be adjusted)
   let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
-  let eventTitle = $derived(
-    participation?.event?.titre || 'Atelier Epitech',
-  );
+  let eventTitle = $derived(participation?.event?.titre || 'Atelier Epitech');
   let subjects = $derived(
     participation?.subjects?.map((ps: any) => ps.subject) || [],
   );
@@ -71,7 +69,9 @@
     subjects.filter((s: any) => s.id !== currentSubject?.id),
   );
 
-  let previewMissions = $derived(flattenMissions(data.pastParticipations).slice(0, 2));
+  let previewMissions = $derived(
+    flattenMissions(data.pastParticipations).slice(0, 2),
+  );
   let totalPastMissions = $derived(data.totalPastMissions);
 
   // RPG Aspect : Top Skills
@@ -478,9 +478,7 @@
             <p class="mt-2 max-w-md text-sm text-slate-500">
               Ta prochaine session est prévue le <strong
                 class="text-slate-700 dark:text-slate-300"
-                >{formatDateFr(
-                  upcomingParticipation.event?.date,
-                )}</strong
+                >{formatDateFr(upcomingParticipation.event?.date)}</strong
               >
               à
               <strong class="text-slate-700 dark:text-slate-300"
@@ -579,5 +577,4 @@
       {/if}
     </div>
   </div>
-
 </div>

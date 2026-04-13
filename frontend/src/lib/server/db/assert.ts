@@ -55,6 +55,9 @@ export async function assertEventCampus(eventId: string, campusId: string) {
   });
 
   if (event.campusId !== campusId) {
-    throw error(403, 'Accès refusé : cet événement appartient à un autre campus.');
+    throw error(
+      403,
+      'Accès refusé : cet événement appartient à un autre campus.',
+    );
   }
 }

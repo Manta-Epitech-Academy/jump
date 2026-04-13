@@ -42,7 +42,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       id: 'html-1',
       title: "Qu'est-ce que le HTML ?",
       content_markdown:
-        "Le **HTML** (HyperText Markup Language) est le langage qui structure les pages web.\n\nChaque page est composée de **balises** comme `<h1>`, `<p>`, `<img>` qui décrivent le contenu.",
+        'Le **HTML** (HyperText Markup Language) est le langage qui structure les pages web.\n\nChaque page est composée de **balises** comme `<h1>`, `<p>`, `<img>` qui décrivent le contenu.',
       type: 'theory',
     },
     {
@@ -70,7 +70,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       id: 'html-4',
       title: 'Images et liens',
       content_markdown:
-        "Ajoute une image et un lien à ta page :\n```html\n<img src=\"photo.jpg\" alt=\"Ma photo\">\n<a href=\"https://example.com\">Clique ici</a>\n```",
+        'Ajoute une image et un lien à ta page :\n```html\n<img src="photo.jpg" alt="Ma photo">\n<a href="https://example.com">Clique ici</a>\n```',
       type: 'exercise',
     },
     {
@@ -105,8 +105,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       validation: {
         type: 'auto_qcm',
         qcm_data: {
-          question:
-            'Quelle propriété CSS change la couleur du texte ?',
+          question: 'Quelle propriété CSS change la couleur du texte ?',
           options: ['background-color', 'font-size', 'color', 'margin'],
           correct_index: 2,
         },
@@ -152,8 +151,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
     {
       id: 'js-5',
       title: 'Validation finale',
-      content_markdown:
-        'Montre ton mini-projet interactif à ton Manta.',
+      content_markdown: 'Montre ton mini-projet interactif à ton Manta.',
       type: 'checkpoint',
       validation: { type: 'manual_manta' },
     },
@@ -170,7 +168,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       id: 'robot-2',
       title: 'Assemblage',
       content_markdown:
-        "Suis les instructions pour assembler le châssis et connecter les moteurs au microcontrôleur.\n\n⚠️ Attention à la polarité des câbles !",
+        'Suis les instructions pour assembler le châssis et connecter les moteurs au microcontrôleur.\n\n⚠️ Attention à la polarité des câbles !',
       type: 'exercise',
     },
     {
@@ -183,8 +181,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
     {
       id: 'robot-4',
       title: 'Validation du robot',
-      content_markdown:
-        'Fais rouler ton robot devant ton Manta pour valider.',
+      content_markdown: 'Fais rouler ton robot devant ton Manta pour valider.',
       type: 'checkpoint',
       validation: { type: 'manual_manta' },
     },
@@ -231,7 +228,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       id: 'scratch-2',
       title: 'Ton premier sprite',
       content_markdown:
-        "Fais bouger ton personnage avec les flèches du clavier :\n1. Ajoute le bloc **quand touche flèche droite pressée**\n2. Ajoute **avancer de 10 pas**\n3. Répète pour les 4 directions !",
+        'Fais bouger ton personnage avec les flèches du clavier :\n1. Ajoute le bloc **quand touche flèche droite pressée**\n2. Ajoute **avancer de 10 pas**\n3. Répète pour les 4 directions !',
       type: 'exercise',
     },
     {
@@ -254,14 +251,14 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       id: 'cyber-1',
       title: "C'est quoi la cybersécurité ?",
       content_markdown:
-        "La **cybersécurité** protège les systèmes informatiques contre les attaques.\n\nLes 3 piliers : **Confidentialité**, **Intégrité**, **Disponibilité** (CIA).",
+        'La **cybersécurité** protège les systèmes informatiques contre les attaques.\n\nLes 3 piliers : **Confidentialité**, **Intégrité**, **Disponibilité** (CIA).',
       type: 'theory',
     },
     {
       id: 'cyber-2',
       title: 'Les mots de passe',
       content_markdown:
-        "Un bon mot de passe doit :\n- Avoir au moins **12 caractères**\n- Mélanger majuscules, minuscules, chiffres, symboles\n- Ne pas être un mot du dictionnaire\n\nExercice : évalue la force de différents mots de passe sur [howsecureismypassword.net](https://howsecureismypassword.net).",
+        'Un bon mot de passe doit :\n- Avoir au moins **12 caractères**\n- Mélanger majuscules, minuscules, chiffres, symboles\n- Ne pas être un mot du dictionnaire\n\nExercice : évalue la force de différents mots de passe sur [howsecureismypassword.net](https://howsecureismypassword.net).',
       type: 'exercise',
     },
     {
@@ -308,7 +305,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
         type: 'auto_qcm',
         qcm_data: {
           question:
-            "Quel est le processus par lequel une IA apprend à partir de données ?",
+            'Quel est le processus par lequel une IA apprend à partir de données ?',
           options: [
             'Le codage',
             "L'apprentissage automatique (Machine Learning)",
@@ -386,14 +383,14 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       id: 'gd-2',
       title: 'Conçois ton game design document',
       content_markdown:
-        "Rédige un **GDD** (Game Design Document) pour ton jeu :\n- Concept en une phrase\n- Mécaniques principales\n- Boucle de gameplay\n- 3 niveaux de difficulté croissante",
+        'Rédige un **GDD** (Game Design Document) pour ton jeu :\n- Concept en une phrase\n- Mécaniques principales\n- Boucle de gameplay\n- 3 niveaux de difficulté croissante',
       type: 'exercise',
     },
     {
       id: 'gd-3',
       title: 'Prototype papier',
       content_markdown:
-        "Crée un **prototype papier** de ton premier niveau.\nDessine les obstacles, ennemis et récompenses.\nFais tester par un camarade !",
+        'Crée un **prototype papier** de ton premier niveau.\nDessine les obstacles, ennemis et récompenses.\nFais tester par un camarade !',
       type: 'exercise',
     },
     {
@@ -439,12 +436,12 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       validation: {
         type: 'auto_qcm',
         qcm_data: {
-          question: "Quel est le principe du chiffre de César ?",
+          question: 'Quel est le principe du chiffre de César ?',
           options: [
-            "Remplacer chaque lettre par un symbole",
+            'Remplacer chaque lettre par un symbole',
             "Décaler chaque lettre d'un nombre fixe dans l'alphabet",
-            "Inverser le message",
-            "Supprimer les voyelles",
+            'Inverser le message',
+            'Supprimer les voyelles',
           ],
           correct_index: 1,
         },
@@ -546,7 +543,11 @@ async function main() {
 
   // Lyon themes (subset)
   const lyonThemes: Record<string, { id: string }> = {};
-  for (const nom of ['Développement Web', 'Robotique', 'Intelligence Artificielle']) {
+  for (const nom of [
+    'Développement Web',
+    'Robotique',
+    'Intelligence Artificielle',
+  ]) {
     lyonThemes[nom] = await prisma.theme.upsert({
       where: { nom_campusId: { nom, campusId: lyon.id } },
       update: {},
@@ -684,28 +685,126 @@ async function main() {
     }
   }
 
-  console.log(`✓ Subjects seeded (${Object.keys(subjectRecords).length} with content structures)`);
+  console.log(
+    `✓ Subjects seeded (${Object.keys(subjectRecords).length} with content structures)`,
+  );
 
   // ─── Students ───
   const studentsData = [
     // Paris students
-    { email: 'alice.martin@mail.com', prenom: 'Alice', nom: 'Martin', niveau: '4eme', niveauDifficulte: 'Débutant', campus: paris },
-    { email: 'lucas.dupont@mail.com', prenom: 'Lucas', nom: 'Dupont', niveau: '3eme', niveauDifficulte: 'Intermédiaire', campus: paris },
-    { email: 'emma.bernard@mail.com', prenom: 'Emma', nom: 'Bernard', niveau: '5eme', niveauDifficulte: 'Débutant', campus: paris },
-    { email: 'hugo.petit@mail.com', prenom: 'Hugo', nom: 'Petit', niveau: '6eme', niveauDifficulte: 'Débutant', campus: paris },
-    { email: 'lea.moreau@mail.com', prenom: 'Léa', nom: 'Moreau', niveau: '2nde', niveauDifficulte: 'Avancé', campus: paris },
-    { email: 'nathan.garcia@mail.com', prenom: 'Nathan', nom: 'Garcia', niveau: '4eme', niveauDifficulte: 'Intermédiaire', campus: paris },
-    { email: 'chloe.roux@mail.com', prenom: 'Chloé', nom: 'Roux', niveau: '3eme', niveauDifficulte: 'Intermédiaire', campus: paris },
-    { email: 'theo.fournier@mail.com', prenom: 'Théo', nom: 'Fournier', niveau: '5eme', niveauDifficulte: 'Débutant', campus: paris },
-    { email: 'jade.morel@mail.com', prenom: 'Jade', nom: 'Morel', niveau: '6eme', niveauDifficulte: 'Débutant', campus: paris },
-    { email: 'louis.simon@mail.com', prenom: 'Louis', nom: 'Simon', niveau: '1ere', niveauDifficulte: 'Avancé', campus: paris },
+    {
+      email: 'alice.martin@mail.com',
+      prenom: 'Alice',
+      nom: 'Martin',
+      niveau: '4eme',
+      niveauDifficulte: 'Débutant',
+      campus: paris,
+    },
+    {
+      email: 'lucas.dupont@mail.com',
+      prenom: 'Lucas',
+      nom: 'Dupont',
+      niveau: '3eme',
+      niveauDifficulte: 'Intermédiaire',
+      campus: paris,
+    },
+    {
+      email: 'emma.bernard@mail.com',
+      prenom: 'Emma',
+      nom: 'Bernard',
+      niveau: '5eme',
+      niveauDifficulte: 'Débutant',
+      campus: paris,
+    },
+    {
+      email: 'hugo.petit@mail.com',
+      prenom: 'Hugo',
+      nom: 'Petit',
+      niveau: '6eme',
+      niveauDifficulte: 'Débutant',
+      campus: paris,
+    },
+    {
+      email: 'lea.moreau@mail.com',
+      prenom: 'Léa',
+      nom: 'Moreau',
+      niveau: '2nde',
+      niveauDifficulte: 'Avancé',
+      campus: paris,
+    },
+    {
+      email: 'nathan.garcia@mail.com',
+      prenom: 'Nathan',
+      nom: 'Garcia',
+      niveau: '4eme',
+      niveauDifficulte: 'Intermédiaire',
+      campus: paris,
+    },
+    {
+      email: 'chloe.roux@mail.com',
+      prenom: 'Chloé',
+      nom: 'Roux',
+      niveau: '3eme',
+      niveauDifficulte: 'Intermédiaire',
+      campus: paris,
+    },
+    {
+      email: 'theo.fournier@mail.com',
+      prenom: 'Théo',
+      nom: 'Fournier',
+      niveau: '5eme',
+      niveauDifficulte: 'Débutant',
+      campus: paris,
+    },
+    {
+      email: 'jade.morel@mail.com',
+      prenom: 'Jade',
+      nom: 'Morel',
+      niveau: '6eme',
+      niveauDifficulte: 'Débutant',
+      campus: paris,
+    },
+    {
+      email: 'louis.simon@mail.com',
+      prenom: 'Louis',
+      nom: 'Simon',
+      niveau: '1ere',
+      niveauDifficulte: 'Avancé',
+      campus: paris,
+    },
     // Lyon students
-    { email: 'ines.durand@mail.com', prenom: 'Inès', nom: 'Durand', niveau: '4eme', niveauDifficulte: 'Débutant', campus: lyon },
-    { email: 'adam.leroy@mail.com', prenom: 'Adam', nom: 'Leroy', niveau: '3eme', niveauDifficulte: 'Intermédiaire', campus: lyon },
-    { email: 'manon.david@mail.com', prenom: 'Manon', nom: 'David', niveau: '5eme', niveauDifficulte: 'Débutant', campus: lyon },
+    {
+      email: 'ines.durand@mail.com',
+      prenom: 'Inès',
+      nom: 'Durand',
+      niveau: '4eme',
+      niveauDifficulte: 'Débutant',
+      campus: lyon,
+    },
+    {
+      email: 'adam.leroy@mail.com',
+      prenom: 'Adam',
+      nom: 'Leroy',
+      niveau: '3eme',
+      niveauDifficulte: 'Intermédiaire',
+      campus: lyon,
+    },
+    {
+      email: 'manon.david@mail.com',
+      prenom: 'Manon',
+      nom: 'David',
+      niveau: '5eme',
+      niveauDifficulte: 'Débutant',
+      campus: lyon,
+    },
   ];
 
-  const studentProfiles: { id: string; nom: string; prenom: string; campusId: string }[] = [];
+  const studentProfiles: {
+    id: string;
+    nom: string;
+    prenom: string;
+    campusId: string;
+  }[] = [];
 
   for (const s of studentsData) {
     const user = await prisma.user.upsert({
@@ -733,7 +832,12 @@ async function main() {
       },
     });
 
-    studentProfiles.push({ id: profile.id, nom: s.nom, prenom: s.prenom, campusId: s.campus.id });
+    studentProfiles.push({
+      id: profile.id,
+      nom: s.nom,
+      prenom: s.prenom,
+      campusId: s.campus.id,
+    });
     await upsertCredential(user.id, STUDENT_PASSWORD);
   }
 
@@ -767,7 +871,8 @@ async function main() {
   for (let i = 0; i < parisStudents.length; i++) {
     const sp = parisStudents[i];
     const isPresent = i < 8; // 8 out of 10 present
-    const subjectName = i % 2 === 0 ? 'Ma première page HTML' : 'CSS : Styliser sa page';
+    const subjectName =
+      i % 2 === 0 ? 'Ma première page HTML' : 'CSS : Styliser sa page';
 
     await upsertParticipation({
       studentProfileId: sp.id,
@@ -777,10 +882,14 @@ async function main() {
       delay: i === 3 ? 15 : i === 5 ? 5 : 0,
       bringPc: i % 3 !== 0,
       subjectId: subjectRecords[subjectName].id,
-      note: isPresent && i === 0 ? 'Très motivée, a aidé ses camarades.' : undefined,
+      note:
+        isPresent && i === 0
+          ? 'Très motivée, a aidé ses camarades.'
+          : undefined,
       noteAuthorId: isPresent && i === 0 ? parisStaff1.id : undefined,
       camperRating: isPresent ? [3, 2, 3, 3, 2, 3, 3, 2][i] : undefined,
-      camperFeedback: isPresent && i === 0 ? "J'ai adoré créer ma page web !" : undefined,
+      camperFeedback:
+        isPresent && i === 0 ? "J'ai adoré créer ma page web !" : undefined,
     });
   }
 
@@ -813,9 +922,7 @@ async function main() {
       subjectId: subjectRecords['Construis ton robot'].id,
       camperRating: isPresent ? [3, 3, 2, 3, 2, 3][i] : undefined,
       camperFeedback:
-        isPresent && i === 1
-          ? 'Le robot était trop cool !'
-          : undefined,
+        isPresent && i === 1 ? 'Le robot était trop cool !' : undefined,
     });
   }
 
@@ -951,7 +1058,11 @@ async function main() {
 
   // Group by student
   const xpByStudent: Record<string, { events: number; xp: number }> = {};
-  const XP_MAP: Record<string, number> = { 'Débutant': 20, 'Intermédiaire': 45, 'Avancé': 75 };
+  const XP_MAP: Record<string, number> = {
+    Débutant: 20,
+    Intermédiaire: 45,
+    Avancé: 75,
+  };
 
   for (const p of allParticipations) {
     if (!xpByStudent[p.studentProfileId]) {
@@ -960,7 +1071,9 @@ async function main() {
     xpByStudent[p.studentProfileId].events++;
 
     for (const ps of p.subjects) {
-      const subject = await prisma.subject.findUnique({ where: { id: ps.subjectId } });
+      const subject = await prisma.subject.findUnique({
+        where: { id: ps.subjectId },
+      });
       if (subject) {
         xpByStudent[p.studentProfileId].xp += XP_MAP[subject.difficulte] ?? 10;
       }
@@ -989,9 +1102,9 @@ async function main() {
 
     for (const p of participations) {
       for (const ps of p.subjects) {
-        const cs = ps.subject.contentStructure as
-          | { steps: { id: string }[] }
-          | null;
+        const cs = ps.subject.contentStructure as {
+          steps: { id: string }[];
+        } | null;
         if (!cs?.steps?.length) continue;
 
         const lastStepId = cs.steps[cs.steps.length - 1].id;
@@ -1058,7 +1171,11 @@ async function main() {
   for (const p of portfolioData) {
     const sp = parisStudents[p.studentIndex];
     const existing = await prisma.portfolioItem.findFirst({
-      where: { studentProfileId: sp.id, eventId: p.eventId, caption: p.caption },
+      where: {
+        studentProfileId: sp.id,
+        eventId: p.eventId,
+        caption: p.caption,
+      },
     });
     if (!existing) {
       await prisma.portfolioItem.create({
@@ -1081,16 +1198,26 @@ async function main() {
   console.log('        SEED COMPLETE');
   console.log('══════════════════════════════════');
   console.log(`\nAdmin:    ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  console.log(`Staff:    ${staffData.map((s) => s.email).join(', ')} / ${STAFF_PASSWORD}`);
+  console.log(
+    `Staff:    ${staffData.map((s) => s.email).join(', ')} / ${STAFF_PASSWORD}`,
+  );
   console.log(`Students: any student email / ${STUDENT_PASSWORD}`);
-  console.log(`\nCampuses: Paris (${parisStudents.length} students), Lyon (${lyonStudents.length} students), Marseille (empty)`);
-  console.log(`Subjects: ${Object.keys(subjectRecords).length} (all with step content)`);
+  console.log(
+    `\nCampuses: Paris (${parisStudents.length} students), Lyon (${lyonStudents.length} students), Marseille (empty)`,
+  );
+  console.log(
+    `Subjects: ${Object.keys(subjectRecords).length} (all with step content)`,
+  );
   console.log(`Themes:   ${themeNames.length} (Paris) + 3 (Lyon)`);
-  console.log(`Events:   4 Paris (1 past-3w, 1 past-2w, 1 past-1w, 1 today, 1 upcoming) + 1 Lyon`);
+  console.log(
+    `Events:   4 Paris (1 past-3w, 1 past-2w, 1 past-1w, 1 today, 1 upcoming) + 1 Lyon`,
+  );
   console.log(`\n${origin}/tekcamp/admin    — Admin panel`);
   console.log(`${origin}/tekcamp/         — Staff app`);
   console.log(`${origin}/tekcamp/camper   — Camper app`);
-  console.log(`${origin}/tekcamp/p/${parisStudents[0].id} — Public profile (Alice)`);
+  console.log(
+    `${origin}/tekcamp/p/${parisStudents[0].id} — Public profile (Alice)`,
+  );
   console.log('══════════════════════════════════\n');
 }
 

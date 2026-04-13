@@ -25,7 +25,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         },
         subjects: {
           include: {
-            subject: { include: { subjectThemes: { include: { theme: true } } } },
+            subject: {
+              include: { subjectThemes: { include: { theme: true } } },
+            },
           },
         },
         noteAuthor: { include: { user: true } },
@@ -36,9 +38,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const stats = {
       totalEvents: participations.length,
       presentCount: participations.filter((p) => p.isPresent).length,
-      lateCount: participations.filter(
-        (p) => p.isPresent && (p.delay || 0) > 0,
-      ).length,
+      lateCount: participations.filter((p) => p.isPresent && (p.delay || 0) > 0)
+        .length,
       favoriteTheme: 'Aucun',
     };
 
@@ -110,7 +111,7 @@ export const actions: Actions = {
       const profile = await db.studentProfile.findUniqueOrThrow({
         where: { id: params.id },
       });
-      await prisma.user.delete({ where: { id: profile.userId } });
+      await prisma.bauth_user.delete({ where: { id: profile.userId } });
     } catch (err) {
       console.error('Error deleting student:', err);
       return fail(500, { message: 'Impossible de supprimer cet élève' });

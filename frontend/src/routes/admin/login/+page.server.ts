@@ -46,7 +46,7 @@ export const actions: Actions = {
       }
 
       // Verify the authenticated user actually has the admin role
-      const user = await prisma.user.findUnique({
+      const user = await prisma.bauth_user.findUnique({
         where: { email: form.data.email },
         select: { role: true },
       });

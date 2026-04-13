@@ -72,7 +72,7 @@
     <Button
       variant="ghost"
       onclick={goBack}
-      class="mt-4 w-full normal-case tracking-normal text-xs text-slate-400 transition-colors hover:bg-transparent hover:text-epi-blue"
+      class="mt-4 w-full text-xs tracking-normal text-slate-400 normal-case transition-colors hover:bg-transparent hover:text-epi-blue"
     >
       Retour
     </Button>

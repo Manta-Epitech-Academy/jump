@@ -56,7 +56,9 @@
     if (onDownload) onDownload();
   }
 
-  let subjects = $derived(participation.subjects?.map((ps: any) => ps.subject) || []);
+  let subjects = $derived(
+    participation.subjects?.map((ps: any) => ps.subject) || [],
+  );
 
   let isNewStudent = $derived.by(() => {
     const count = participation.studentProfile?.eventsCount || 0;
@@ -73,9 +75,7 @@
 
   let helpSubject = $derived(
     needsHelpProgress
-      ? subjects?.find(
-          (s: any) => s.id === needsHelpProgress.subjectId,
-        )
+      ? subjects?.find((s: any) => s.id === needsHelpProgress.subjectId)
       : null,
   );
   let helpStep = $derived(

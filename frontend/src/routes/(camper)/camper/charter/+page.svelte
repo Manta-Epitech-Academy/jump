@@ -42,31 +42,40 @@
     <div
       class="max-h-[50vh] overflow-y-auto rounded-2xl border-none bg-white/70 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
     >
-      <div class="space-y-5 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+      <div
+        class="space-y-5 text-sm leading-relaxed text-slate-700 dark:text-slate-300"
+      >
         <section>
-          <h2 class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white">
+          <h2
+            class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
+          >
             Quelles donn&eacute;es collectons-nous ?
           </h2>
           <p>
-            Ton nom, pr&eacute;nom, et ta progression p&eacute;dagogique : &eacute;tapes
-            compl&eacute;t&eacute;es, comp&eacute;tences valid&eacute;es, points
-            d'exp&eacute;rience (XP), badges obtenus, et les cr&eacute;ations que tu
-            ajoutes &agrave; ton portfolio.
+            Ton nom, pr&eacute;nom, et ta progression p&eacute;dagogique :
+            &eacute;tapes compl&eacute;t&eacute;es, comp&eacute;tences
+            valid&eacute;es, points d'exp&eacute;rience (XP), badges obtenus, et
+            les cr&eacute;ations que tu ajoutes &agrave; ton portfolio.
           </p>
         </section>
 
         <section>
-          <h2 class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white">
+          <h2
+            class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
+          >
             Pourquoi ?
           </h2>
           <p>
-            Pour suivre ta progression pendant les ateliers, g&eacute;n&eacute;rer tes
-            certifications, et te permettre de partager ton portfolio.
+            Pour suivre ta progression pendant les ateliers,
+            g&eacute;n&eacute;rer tes certifications, et te permettre de
+            partager ton portfolio.
           </p>
         </section>
 
         <section>
-          <h2 class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white">
+          <h2
+            class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
+          >
             Combien de temps ?
           </h2>
           <p>
@@ -77,18 +86,22 @@
         </section>
 
         <section>
-          <h2 class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white">
+          <h2
+            class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
+          >
             Tes droits
           </h2>
           <p>
             Tu peux &agrave; tout moment consulter, modifier ou supprimer tes
-            donn&eacute;es depuis ton cockpit. Tu peux aussi demander la suppression
-            compl&egrave;te de ton compte.
+            donn&eacute;es depuis ton cockpit. Tu peux aussi demander la
+            suppression compl&egrave;te de ton compte.
           </p>
         </section>
 
         <section>
-          <h2 class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white">
+          <h2
+            class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
+          >
             O&ugrave; sont stock&eacute;es tes donn&eacute;es ?
           </h2>
           <p>

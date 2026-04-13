@@ -26,7 +26,10 @@ export function getCampusId(locals: App.Locals): string {
  */
 export function scopedPrisma(campusId: string) {
   function accessDenied(model: string): never {
-    throw error(403, `Accès refusé : cette ressource (${model}) appartient à un autre campus.`);
+    throw error(
+      403,
+      `Accès refusé : cette ressource (${model}) appartient à un autre campus.`,
+    );
   }
 
   return prisma.$extends({
@@ -85,7 +88,8 @@ export function scopedPrisma(campusId: string) {
         },
         async findUnique({ args, query }) {
           const result = await query(args);
-          if (result && result.campusId !== campusId) accessDenied('Participation');
+          if (result && result.campusId !== campusId)
+            accessDenied('Participation');
           return result;
         },
         async findUniqueOrThrow({ args, query }) {
@@ -131,7 +135,8 @@ export function scopedPrisma(campusId: string) {
         },
         async findUnique({ args, query }) {
           const result = await query(args);
-          if (result && result.campusId !== campusId) accessDenied('StudentProfile');
+          if (result && result.campusId !== campusId)
+            accessDenied('StudentProfile');
           return result;
         },
         async findUniqueOrThrow({ args, query }) {
@@ -173,7 +178,8 @@ export function scopedPrisma(campusId: string) {
         },
         async findUnique({ args, query }) {
           const result = await query(args);
-          if (result && result.campusId !== campusId) accessDenied('StaffProfile');
+          if (result && result.campusId !== campusId)
+            accessDenied('StaffProfile');
           return result;
         },
         async findUniqueOrThrow({ args, query }) {

@@ -6,7 +6,7 @@ export const load: PageServerLoad = async () => {
   const [campusCount, userCount, studentCount, eventCount, recentEvents] =
     await Promise.all([
       prisma.campus.count(),
-      prisma.user.count(),
+      prisma.bauth_user.count(),
       prisma.studentProfile.count(),
       prisma.event.count(),
       prisma.event.findMany({

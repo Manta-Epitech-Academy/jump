@@ -114,10 +114,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       /[^a-zA-Z0-9]/g,
       '',
     );
-    const safeLastName = locals.studentProfile.nom.replace(
-      /[^a-zA-Z0-9]/g,
-      '',
-    );
+    const safeLastName = locals.studentProfile.nom.replace(/[^a-zA-Z0-9]/g, '');
 
     return new Response(new Blob([pdfBytes], { type: 'application/pdf' }), {
       status: 200,
@@ -133,4 +130,3 @@ export const GET: RequestHandler = async ({ locals }) => {
     throw error(500, "Erreur lors de la generation de l'attestation.");
   }
 };
-

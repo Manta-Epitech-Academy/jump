@@ -17,13 +17,13 @@ export const GET: RequestHandler = async ({ locals }) => {
 
   // Domain verification (defense in depth)
   if (!locals.user.email.endsWith('@epitech.eu')) {
-    await prisma.user.delete({ where: { id: locals.user.id } });
+    await prisma.bauth_user.delete({ where: { id: locals.user.id } });
     throw redirect(303, `${loginPath}?error=UnauthorizedDomain`);
   }
 
   // Set role to student. Preserve existing admin role to prevent privilege downgrade.
   if (locals.user.role !== 'admin') {
-    await prisma.user.update({
+    await prisma.bauth_user.update({
       where: { id: locals.user.id },
       data: { role: 'student' },
     });
@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
   if (!existingProfile) {
     // Try to extract name from Microsoft Graph data
-    const account = await prisma.account.findFirst({
+    const account = await prisma.bauth_account.findFirst({
       where: { userId: locals.user.id, providerId: 'microsoft' },
     });
 
