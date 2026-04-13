@@ -80,6 +80,8 @@
   },
   "overrides": {
     "basic-ftp": "^5.2.1",
-    "picomatch": "^4.0.4"
+    "picomatch": "^4.0.4",
+    "cookie": "^0.7.0",
+    "@hono/node-server": "^1.19.13"
   }
 }
