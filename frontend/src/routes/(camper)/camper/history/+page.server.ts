@@ -18,7 +18,18 @@ export const load: PageServerLoad = async ({ locals }) => {
     },
     include: {
       event: true,
-      subjects: { include: { subject: true } },
+      activities: {
+        include: {
+          activity: {
+            select: {
+              id: true,
+              nom: true,
+              isDynamic: true,
+              activityType: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { event: { date: 'desc' } },
   });

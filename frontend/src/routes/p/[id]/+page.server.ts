@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
-import { tallyTopThemes } from '$lib/utils';
+import { tallyTopThemesFromActivities } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   try {
@@ -47,13 +47,12 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
         isPresent: true,
       },
       include: {
-        subjects: {
+        event: true,
+        activities: {
           include: {
-            subject: {
+            activity: {
               include: {
-                subjectThemes: {
-                  include: { theme: true },
-                },
+                activityThemes: { include: { theme: true } },
               },
             },
           },
@@ -61,7 +60,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
       },
     });
 
-    const topThemes = tallyTopThemes(allCompleted, 5);
+    const topThemes = tallyTopThemesFromActivities(allCompleted, 5);
 
     return {
       student: {

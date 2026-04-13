@@ -1050,6 +1050,284 @@ async function main() {
 
   console.log('✓ Events seeded (4 Paris + 1 Lyon)');
 
+  // ─── Planning → TimeSlots → Activities for each event ───
+  // Maps event → subject names used, so we can create activities from them
+  const eventActivityMap: Record<string, string[]> = {};
+
+  async function createPlanningForEvent(
+    eventId: string,
+    eventDate: Date,
+    activityDefs: {
+      subjectName: string;
+      slotStart: number; // hour
+      slotEnd: number;
+      slotLabel?: string;
+    }[],
+  ) {
+    // Create or find planning
+    let planning = await prisma.planning.findUnique({
+      where: { eventId },
+    });
+    if (!planning) {
+      planning = await prisma.planning.create({
+        data: { eventId },
+      });
+    }
+
+    const activityIds: Record<string, string> = {};
+
+    for (const def of activityDefs) {
+      const subject = subjectRecords[def.subjectName];
+      if (!subject) continue;
+
+      const fullSubject = await prisma.subject.findUnique({
+        where: { id: subject.id },
+        include: { subjectThemes: true },
+      });
+      if (!fullSubject) continue;
+
+      const startTime = new Date(eventDate);
+      startTime.setHours(def.slotStart, 0, 0, 0);
+      const endTime = new Date(eventDate);
+      endTime.setHours(def.slotEnd, 0, 0, 0);
+
+      // Upsert time slot
+      let timeSlot = await prisma.timeSlot.findFirst({
+        where: { planningId: planning.id, startTime, endTime },
+      });
+      if (!timeSlot) {
+        timeSlot = await prisma.timeSlot.create({
+          data: {
+            planningId: planning.id,
+            startTime,
+            endTime,
+            label: def.slotLabel,
+          },
+        });
+      }
+
+      // Create activity from subject data
+      let activity = await prisma.activity.findFirst({
+        where: { timeSlotId: timeSlot.id, nom: fullSubject.nom },
+      });
+      if (!activity) {
+        activity = await prisma.activity.create({
+          data: {
+            nom: fullSubject.nom,
+            description: fullSubject.description,
+            difficulte: fullSubject.difficulte,
+            activityType: 'atelier',
+            isDynamic: true,
+            contentStructure: fullSubject.contentStructure as
+              | object
+              | undefined,
+            timeSlotId: timeSlot.id,
+          },
+        });
+
+        // Link activity themes
+        for (const st of fullSubject.subjectThemes) {
+          await prisma.activityTheme
+            .create({
+              data: { activityId: activity.id, themeId: st.themeId },
+            })
+            .catch(() => {}); // ignore duplicates
+        }
+      }
+
+      activityIds[def.subjectName] = activity.id;
+    }
+
+    if (!eventActivityMap[eventId]) eventActivityMap[eventId] = [];
+    for (const [name, id] of Object.entries(activityIds)) {
+      eventActivityMap[eventId].push(id);
+    }
+
+    return activityIds;
+  }
+
+  // Past event 1: Web (2 parallel tracks)
+  const pe1Activities = await createPlanningForEvent(pastEvent1.id, pastDate1, [
+    {
+      subjectName: 'Ma première page HTML',
+      slotStart: 14,
+      slotEnd: 16,
+      slotLabel: 'Après-midi',
+    },
+    {
+      subjectName: 'CSS : Styliser sa page',
+      slotStart: 14,
+      slotEnd: 16,
+      slotLabel: 'Après-midi',
+    },
+  ]);
+
+  // Past event 2: Robotique (single track)
+  const pe2Activities = await createPlanningForEvent(pastEvent2.id, pastDate2, [
+    {
+      subjectName: 'Construis ton robot',
+      slotStart: 14,
+      slotEnd: 17,
+      slotLabel: 'Après-midi',
+    },
+  ]);
+
+  // Past event 3: Cyber (2 parallel tracks)
+  const pe3Activities = await createPlanningForEvent(pastEvent3.id, pastDate3, [
+    {
+      subjectName: 'Initiation à la cybersécurité',
+      slotStart: 14,
+      slotEnd: 16,
+      slotLabel: 'Après-midi',
+    },
+    {
+      subjectName: 'Cryptographie : les secrets du code',
+      slotStart: 14,
+      slotEnd: 16,
+      slotLabel: 'Après-midi',
+    },
+  ]);
+
+  // Today's event: IA (2 parallel tracks + a static conference slot)
+  const todayActivities = await createPlanningForEvent(
+    todayEvent.id,
+    todayDate,
+    [
+      {
+        subjectName: "L'IA et moi",
+        slotStart: 14,
+        slotEnd: 16,
+        slotLabel: 'Ateliers',
+      },
+      {
+        subjectName: 'Entraîne ton modèle',
+        slotStart: 14,
+        slotEnd: 16,
+        slotLabel: 'Ateliers',
+      },
+    ],
+  );
+
+  // Add a static conference to today's event
+  {
+    const planning = await prisma.planning.findUnique({
+      where: { eventId: todayEvent.id },
+    });
+    if (planning) {
+      const confStart = new Date(todayDate);
+      confStart.setHours(13, 0, 0, 0);
+      const confEnd = new Date(todayDate);
+      confEnd.setHours(14, 0, 0, 0);
+
+      let confSlot = await prisma.timeSlot.findFirst({
+        where: { planningId: planning.id, startTime: confStart },
+      });
+      if (!confSlot) {
+        confSlot = await prisma.timeSlot.create({
+          data: {
+            planningId: planning.id,
+            startTime: confStart,
+            endTime: confEnd,
+            label: 'Conférence',
+          },
+        });
+      }
+
+      let confActivity = await prisma.activity.findFirst({
+        where: { timeSlotId: confSlot.id, nom: "Bienvenue à l'atelier IA" },
+      });
+      if (!confActivity) {
+        confActivity = await prisma.activity.create({
+          data: {
+            nom: "Bienvenue à l'atelier IA",
+            description:
+              "Présentation de l'intelligence artificielle et du déroulé de l'après-midi.",
+            activityType: 'conference',
+            isDynamic: false,
+            content:
+              "## Bienvenue !\n\nAujourd'hui nous allons explorer **l'intelligence artificielle**.\n\n### Programme\n1. Conférence d'introduction (13h-14h)\n2. Ateliers pratiques (14h-16h)\n\n### Liens utiles\n- [Teachable Machine](https://teachablemachine.withgoogle.com/)\n- [Scratch](https://scratch.mit.edu/)",
+            link: 'https://teachablemachine.withgoogle.com/',
+            timeSlotId: confSlot.id,
+          },
+        });
+      }
+    }
+  }
+
+  // Upcoming event: Jeux Vidéo
+  const upcomingActivities = await createPlanningForEvent(
+    upcomingEvent.id,
+    upcomingDate,
+    [
+      {
+        subjectName: 'Crée ton jeu Scratch',
+        slotStart: 14,
+        slotEnd: 17,
+        slotLabel: 'Après-midi',
+      },
+    ],
+  );
+
+  // Lyon event
+  const lyonActivities = await createPlanningForEvent(
+    lyonEvent.id,
+    lyonPastDate,
+    [
+      {
+        subjectName: 'Ma première page HTML',
+        slotStart: 14,
+        slotEnd: 16,
+        slotLabel: 'Après-midi',
+      },
+    ],
+  );
+
+  console.log('✓ Planning + TimeSlots + Activities seeded');
+
+  // ─── ParticipationActivity records ───
+  // Link each participation to the activity matching their assigned subject
+  async function linkParticipationActivities(
+    eventId: string,
+    activityMap: Record<string, string>,
+  ) {
+    const participations = await prisma.participation.findMany({
+      where: { eventId },
+      include: { subjects: { include: { subject: true } } },
+    });
+
+    for (const p of participations) {
+      for (const ps of p.subjects) {
+        const activityId = activityMap[ps.subject.nom];
+        if (!activityId) continue;
+
+        await prisma.participationActivity.upsert({
+          where: {
+            participationId_activityId: {
+              participationId: p.id,
+              activityId,
+            },
+          },
+          update: {},
+          create: {
+            participationId: p.id,
+            activityId,
+            isPresent: p.isPresent,
+            delay: p.delay ?? 0,
+          },
+        });
+      }
+    }
+  }
+
+  await linkParticipationActivities(pastEvent1.id, pe1Activities);
+  await linkParticipationActivities(pastEvent2.id, pe2Activities);
+  await linkParticipationActivities(pastEvent3.id, pe3Activities);
+  await linkParticipationActivities(todayEvent.id, todayActivities);
+  await linkParticipationActivities(upcomingEvent.id, upcomingActivities);
+  await linkParticipationActivities(lyonEvent.id, lyonActivities);
+
+  console.log('✓ ParticipationActivity records seeded');
+
   // ─── XP & eventsCount for present students ───
   const allParticipations = await prisma.participation.findMany({
     where: { isPresent: true },
@@ -1091,10 +1369,18 @@ async function main() {
 
   console.log('✓ XP & levels computed');
 
-  // ─── StepsProgress (completed subjects for past events) ───
-  const pastEvents = [pastEvent1, pastEvent2, pastEvent3, lyonEvent];
+  // ─── StepsProgress (completed activities for past events) ───
+  const pastEventsWithActivities: {
+    event: { id: string };
+    activityMap: Record<string, string>;
+  }[] = [
+    { event: pastEvent1, activityMap: pe1Activities },
+    { event: pastEvent2, activityMap: pe2Activities },
+    { event: pastEvent3, activityMap: pe3Activities },
+    { event: lyonEvent, activityMap: lyonActivities },
+  ];
 
-  for (const event of pastEvents) {
+  for (const { event, activityMap } of pastEventsWithActivities) {
     const participations = await prisma.participation.findMany({
       where: { eventId: event.id, isPresent: true },
       include: { subjects: { include: { subject: true } } },
@@ -1102,32 +1388,40 @@ async function main() {
 
     for (const p of participations) {
       for (const ps of p.subjects) {
-        const cs = ps.subject.contentStructure as {
+        const activityId = activityMap[ps.subject.nom];
+        if (!activityId) continue;
+
+        // Get content structure from the activity
+        const activity = await prisma.activity.findUnique({
+          where: { id: activityId },
+        });
+        const cs = activity?.contentStructure as {
           steps: { id: string }[];
         } | null;
         if (!cs?.steps?.length) continue;
 
         const lastStepId = cs.steps[cs.steps.length - 1].id;
 
-        await prisma.stepsProgress.upsert({
+        // Create progress with activityId
+        const existing = await prisma.stepsProgress.findFirst({
           where: {
-            studentProfileId_subjectId_eventId: {
-              studentProfileId: p.studentProfileId,
-              subjectId: ps.subjectId,
-              eventId: event.id,
-            },
-          },
-          update: {},
-          create: {
             studentProfileId: p.studentProfileId,
-            subjectId: ps.subjectId,
-            eventId: event.id,
-            currentStepId: lastStepId,
-            unlockedStepId: lastStepId,
-            status: 'completed',
-            lastUnlockSource: 'staff',
+            activityId,
           },
         });
+        if (!existing) {
+          await prisma.stepsProgress.create({
+            data: {
+              studentProfileId: p.studentProfileId,
+              activityId,
+              eventId: event.id,
+              currentStepId: lastStepId,
+              unlockedStepId: lastStepId,
+              status: 'completed',
+              lastUnlockSource: 'staff',
+            },
+          });
+        }
       }
     }
   }

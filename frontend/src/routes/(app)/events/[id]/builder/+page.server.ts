@@ -154,8 +154,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const addForm = await superValidate(zod4(addParticipantSchema));
   const createStudentForm = await superValidate(zod4(studentSchema));
   const tsForm = await superValidate(zod4(timeSlotSchema));
-  const staticActivityForm = await superValidate(zod4(createStaticActivitySchema));
-  const templateActivityForm = await superValidate(zod4(createActivityFromTemplateSchema));
+  const staticActivityForm = await superValidate(
+    zod4(createStaticActivitySchema),
+  );
+  const templateActivityForm = await superValidate(
+    zod4(createActivityFromTemplateSchema),
+  );
 
   return {
     event,
@@ -502,19 +506,27 @@ export const actions: Actions = {
     try {
       const campusId = getCampusId(locals);
       const db = scopedPrisma(campusId);
-      const event = await db.event.findUniqueOrThrow({ where: { id: params.id } });
+      const event = await db.event.findUniqueOrThrow({
+        where: { id: params.id },
+      });
 
       const eventDate = new Date(event.date);
       const [startH, startM] = form.data.startTime.split(':').map(Number);
       const [endH, endM] = form.data.endTime.split(':').map(Number);
 
       const startCdt = new CalendarDateTime(
-        eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(),
-        startH, startM,
+        eventDate.getFullYear(),
+        eventDate.getMonth() + 1,
+        eventDate.getDate(),
+        startH,
+        startM,
       );
       const endCdt = new CalendarDateTime(
-        eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(),
-        endH, endM,
+        eventDate.getFullYear(),
+        eventDate.getMonth() + 1,
+        eventDate.getDate(),
+        endH,
+        endM,
       );
 
       const planning = await prisma.planning.upsert({
@@ -535,7 +547,9 @@ export const actions: Actions = {
       return message(form, 'Créneau ajouté !');
     } catch (err) {
       console.error('Create time slot error:', err);
-      return message(form, 'Erreur lors de la création du créneau.', { status: 500 });
+      return message(form, 'Erreur lors de la création du créneau.', {
+        status: 500,
+      });
     }
   },
 
@@ -550,19 +564,27 @@ export const actions: Actions = {
     try {
       const campusId = getCampusId(locals);
       const db = scopedPrisma(campusId);
-      const event = await db.event.findUniqueOrThrow({ where: { id: params.id } });
+      const event = await db.event.findUniqueOrThrow({
+        where: { id: params.id },
+      });
 
       const eventDate = new Date(event.date);
       const [startH, startM] = form.data.startTime.split(':').map(Number);
       const [endH, endM] = form.data.endTime.split(':').map(Number);
 
       const startCdt = new CalendarDateTime(
-        eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(),
-        startH, startM,
+        eventDate.getFullYear(),
+        eventDate.getMonth() + 1,
+        eventDate.getDate(),
+        startH,
+        startM,
       );
       const endCdt = new CalendarDateTime(
-        eventDate.getFullYear(), eventDate.getMonth() + 1, eventDate.getDate(),
-        endH, endM,
+        eventDate.getFullYear(),
+        eventDate.getMonth() + 1,
+        eventDate.getDate(),
+        endH,
+        endM,
       );
 
       await prisma.timeSlot.update({
@@ -577,7 +599,9 @@ export const actions: Actions = {
       return message(form, 'Créneau mis à jour !');
     } catch (err) {
       console.error('Update time slot error:', err);
-      return message(form, 'Erreur lors de la mise à jour du créneau.', { status: 500 });
+      return message(form, 'Erreur lors de la mise à jour du créneau.', {
+        status: 500,
+      });
     }
   },
 
@@ -597,7 +621,10 @@ export const actions: Actions = {
   },
 
   addActivityFromTemplate: async ({ request, locals, params }) => {
-    const form = await superValidate(request, zod4(createActivityFromTemplateSchema));
+    const form = await superValidate(
+      request,
+      zod4(createActivityFromTemplateSchema),
+    );
     if (!form.valid) return fail(400, { form });
 
     try {
@@ -621,16 +648,23 @@ export const actions: Actions = {
           contentStructure: template.contentStructure ?? undefined,
           templateId: template.id,
           timeSlotId: form.data.timeSlotId,
-          activityThemes: template.activityTemplateThemes.length > 0
-            ? { create: template.activityTemplateThemes.map((att) => ({ themeId: att.themeId })) }
-            : undefined,
+          activityThemes:
+            template.activityTemplateThemes.length > 0
+              ? {
+                  create: template.activityTemplateThemes.map((att) => ({
+                    themeId: att.themeId,
+                  })),
+                }
+              : undefined,
         },
       });
 
       return message(form, `Activité "${template.nom}" ajoutée !`);
     } catch (err) {
       console.error('Add activity from template error:', err);
-      return message(form, "Erreur lors de l'ajout de l'activité.", { status: 500 });
+      return message(form, "Erreur lors de l'ajout de l'activité.", {
+        status: 500,
+      });
     }
   },
 
@@ -658,7 +692,9 @@ export const actions: Actions = {
       return message(form, `Activité "${form.data.nom}" créée !`);
     } catch (err) {
       console.error('Create static activity error:', err);
-      return message(form, "Erreur lors de la création de l'activité.", { status: 500 });
+      return message(form, "Erreur lors de la création de l'activité.", {
+        status: 500,
+      });
     }
   },
 

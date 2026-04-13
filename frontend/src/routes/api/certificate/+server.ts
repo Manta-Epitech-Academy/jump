@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
 import { prisma } from '$lib/server/db';
-import { formatDateFr, tallyTopThemes } from '$lib/utils';
+import { formatDateFr, tallyTopThemesFromActivities } from '$lib/utils';
 
 export const GET: RequestHandler = async ({ locals }) => {
   if (!locals.studentProfile) throw error(401, 'Non autorise');
@@ -10,7 +10,7 @@ export const GET: RequestHandler = async ({ locals }) => {
   const studentProfileId = locals.studentProfile.id;
 
   try {
-    // 1. Fetch completed participations with event + subject + theme details
+    // 1. Fetch completed participations with event + activity + theme details
     const participations = await prisma.participation.findMany({
       where: {
         studentProfileId,
@@ -18,13 +18,11 @@ export const GET: RequestHandler = async ({ locals }) => {
       },
       include: {
         event: true,
-        subjects: {
+        activities: {
           include: {
-            subject: {
+            activity: {
               include: {
-                subjectThemes: {
-                  include: { theme: true },
-                },
+                activityThemes: { include: { theme: true } },
               },
             },
           },
@@ -53,26 +51,27 @@ export const GET: RequestHandler = async ({ locals }) => {
     });
 
     // 4. Tally up themes (show up to 6 for the progress-bar view)
-    const topThemes = tallyTopThemes(participations, 6);
+    const topThemes = tallyTopThemesFromActivities(participations, 6);
 
-    // 5. Build deduplicated subjects list with event date and difficulty
-    const subjectMap = new Map<
+    // 5. Build deduplicated activity list with event date and difficulty
+    const activityMap = new Map<
       string,
       { name: string; eventDate: string; difficulty: string }
     >();
     for (const p of participations) {
-      for (const ps of p.subjects) {
-        const subject = ps.subject;
-        if (!subjectMap.has(subject.id)) {
-          subjectMap.set(subject.id, {
-            name: subject.nom,
+      for (const pa of p.activities) {
+        const activity = pa.activity;
+        if (activity.activityType === 'orga') continue;
+        if (!activityMap.has(activity.id)) {
+          activityMap.set(activity.id, {
+            name: activity.nom,
             eventDate: p.event ? formatDateFr(new Date(p.event.date)) : '',
-            difficulty: subject.difficulte || '',
+            difficulty: activity.difficulte || '',
           });
         }
       }
     }
-    const subjects = [...subjectMap.values()].slice(0, 10);
+    const subjects = [...activityMap.values()].slice(0, 10);
 
     // 6. Map school level to readable label
     const niveauLabels: Record<string, string> = {
@@ -97,7 +96,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       xp: locals.studentProfile.xp || 0,
       hours: participations.length * 3,
       eventsAttended: participations.length,
-      subjectsCompleted: subjectMap.size,
+      subjectsCompleted: activityMap.size,
       level: locals.studentProfile.level || 'Novice',
       topThemes,
       subjects,

@@ -2,55 +2,77 @@ import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
 import { assertStudentOwns } from '$lib/server/db/assert';
-import {
-  getCachedSubject,
-  setCachedSubject,
-} from '$lib/server/infra/subjectCache';
+import { getCached, setCached } from '$lib/server/infra/contentCache';
 import {
   ProgressService,
   ValidationError,
-  type SubjectStructure,
+  type ActivityStructure,
 } from '$lib/server/services/progressService';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.studentProfile) throw error(401, 'Non autorisé');
 
   try {
-    let subject = getCachedSubject<any>(params.subjectId);
-    if (!subject) {
-      subject = await prisma.subject.findUnique({
-        where: { id: params.subjectId },
+    // Cache with prefix to avoid collision with progressService cache
+    const cacheKey = `activity-load:${params.activityId}`;
+    let activityWithSlot = getCached<any>(cacheKey);
+    if (!activityWithSlot) {
+      activityWithSlot = await prisma.activity.findUnique({
+        where: { id: params.activityId },
+        include: {
+          timeSlot: {
+            include: {
+              planning: { select: { eventId: true } },
+            },
+          },
+        },
       });
-      if (!subject) throw error(404, 'Sujet introuvable');
-      setCachedSubject(params.subjectId, subject);
-    }
-    const content = subject.contentStructure as SubjectStructure | null;
-
-    if (!content || !content.steps || content.steps.length === 0) {
-      throw new Error('Ce sujet ne contient aucune étape configurée.');
+      if (!activityWithSlot) throw error(404, 'Activité introuvable');
+      setCached(cacheKey, activityWithSlot);
     }
 
+    const activity = activityWithSlot;
+    const eventId = activityWithSlot.timeSlot?.planning?.eventId;
+    if (!eventId) {
+      throw error(404, 'Activité non rattachée à un événement.');
+    }
+
+    // Check student has a participation for this event
     const participation = await prisma.participation.findFirst({
       where: {
         studentProfileId: locals.studentProfile.id,
-        subjects: { some: { subjectId: subject.id } },
+        eventId,
       },
-      include: {
-        event: true,
-        subjects: { include: { subject: true } },
-      },
-      orderBy: { createdAt: 'desc' },
+      include: { event: true },
     });
 
     if (!participation) {
-      throw error(403, "Tu n'es pas assigné à ce sujet.");
+      throw error(403, 'Tu ne participes pas à cet événement.');
     }
-    const eventId = participation.eventId;
+
+    // Static activities: return early with markdown content, no steps/progress
+    if (!activity.isDynamic) {
+      return {
+        activity,
+        content: null,
+        progress: null,
+        eventId,
+        participation,
+        portfolioItems: [],
+      };
+    }
+
+    // Dynamic activities: full steps flow
+    const content = activity.contentStructure as ActivityStructure | null;
+
+    if (!content || !content.steps || content.steps.length === 0) {
+      throw new Error('Cette activité ne contient aucune étape configurée.');
+    }
 
     let progress = await prisma.stepsProgress.findFirst({
       where: {
         studentProfileId: locals.studentProfile.id,
-        subjectId: subject.id,
+        activityId: activity.id,
         eventId,
       },
     });
@@ -60,7 +82,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       progress = await prisma.stepsProgress.create({
         data: {
           studentProfileId: locals.studentProfile.id,
-          subjectId: subject.id,
+          activityId: activity.id,
           eventId,
           currentStepId: firstStepId,
           unlockedStepId: firstStepId,
@@ -78,7 +100,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     });
 
     return {
-      subject,
+      activity,
       content,
       progress,
       eventId,
@@ -86,10 +108,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       portfolioItems,
     };
   } catch (err: any) {
-    if (!err.status) console.error('Subject cockpit load error:', err);
+    if (!err.status) console.error('Activity cockpit load error:', err);
     throw error(
       err.status || 500,
-      err.message || 'Erreur lors du chargement du sujet',
+      err.message || "Erreur lors du chargement de l'activité",
     );
   }
 };
@@ -103,9 +125,9 @@ export const actions: Actions = {
     const pinInput = data.get('pin') as string | null;
 
     try {
-      await ProgressService.validateStep(
+      await ProgressService.validateActivityStep(
         locals.studentProfile!.id,
-        params.subjectId,
+        params.activityId,
         stepId,
         progressId,
         answerIndexStr,
@@ -181,7 +203,6 @@ export const actions: Actions = {
           eventId: data.get('eventId') as string,
           caption: (data.get('caption') as string) || undefined,
           url: url || undefined,
-          // File URLs are stored directly; binary uploads go to S3.
         },
       });
       return { success: true };

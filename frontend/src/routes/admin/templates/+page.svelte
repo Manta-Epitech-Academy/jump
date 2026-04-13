@@ -63,7 +63,10 @@
   let filteredTemplates = $derived(
     data.templates.filter((t) => {
       if (filterType !== 'all' && t.activityType !== filterType) return false;
-      if (filterDifficulty !== 'all' && (t.difficulte || '') !== filterDifficulty)
+      if (
+        filterDifficulty !== 'all' &&
+        (t.difficulte || '') !== filterDifficulty
+      )
         return false;
       if (
         filterTheme !== 'all' &&

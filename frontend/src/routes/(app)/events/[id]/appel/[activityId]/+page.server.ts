@@ -239,6 +239,7 @@ export const actions: Actions = {
         where: { id: progressId },
       });
       await assertEventCampus(progress.eventId, getCampusId(locals));
+      if (!progress.subjectId) return fail(400);
       const subject = await prisma.subject.findUniqueOrThrow({
         where: { id: progress.subjectId },
       });

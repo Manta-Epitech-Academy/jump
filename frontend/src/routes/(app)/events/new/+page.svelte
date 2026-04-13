@@ -89,158 +89,156 @@
         Import Campagne CSV
       </Card.Title>
       <Card.Description>
-        Importez un fichier CSV de campagne Salesforce. Vous pourrez ensuite spécifier si les
-        élèves apportent leur PC.
+        Importez un fichier CSV de campagne Salesforce. Vous pourrez ensuite
+        spécifier si les élèves apportent leur PC.
       </Card.Description>
     </Card.Header>
     <Card.Content>
-          <!-- STEP 1: UPLOAD & ANALYZE -->
-          {#if !analysisResult}
-            <form
-              action="?/analyzeCampaign"
-              method="POST"
-              enctype="multipart/form-data"
-              use:kitEnhance={() => {
-                isAnalyzing = true;
-                startFakeProgress();
-                return async ({ result }) => {
-                  completeProgress(() => {
-                    isAnalyzing = false;
-                    if (result.type === 'success' && result.data) {
-                      if (result.data.analysisSuccess) {
-                        analysisResult = result.data;
-                      } else {
-                        toast.error(
-                          (result.data as Record<string, any>).error ||
-                            "Erreur d'analyse",
-                        );
-                      }
-                    } else if (result.type === 'failure') {
-                      toast.error(
-                        (result.data as Record<string, any> | undefined)
-                          ?.error || "Erreur d'analyse",
-                      );
-                    } else {
-                      toast.error("Erreur d'analyse");
-                    }
-                  });
-                };
-              }}
-              class="space-y-6 py-6"
+      <!-- STEP 1: UPLOAD & ANALYZE -->
+      {#if !analysisResult}
+        <form
+          action="?/analyzeCampaign"
+          method="POST"
+          enctype="multipart/form-data"
+          use:kitEnhance={() => {
+            isAnalyzing = true;
+            startFakeProgress();
+            return async ({ result }) => {
+              completeProgress(() => {
+                isAnalyzing = false;
+                if (result.type === 'success' && result.data) {
+                  if (result.data.analysisSuccess) {
+                    analysisResult = result.data;
+                  } else {
+                    toast.error(
+                      (result.data as Record<string, any>).error ||
+                        "Erreur d'analyse",
+                    );
+                  }
+                } else if (result.type === 'failure') {
+                  toast.error(
+                    (result.data as Record<string, any> | undefined)?.error ||
+                      "Erreur d'analyse",
+                  );
+                } else {
+                  toast.error("Erreur d'analyse");
+                }
+              });
+            };
+          }}
+          class="space-y-6 py-6"
+        >
+          <CsvDropzone bind:selectedFileName />
+
+          <div class="flex justify-end">
+            <Button
+              type="submit"
+              class="bg-epi-blue hover:bg-epi-blue/90"
+              disabled={isAnalyzing || !selectedFileName}
             >
-              <CsvDropzone bind:selectedFileName />
-
-              <div class="flex justify-end">
-                <Button
-                  type="submit"
-                  class="bg-epi-blue hover:bg-epi-blue/90"
-                  disabled={isAnalyzing || !selectedFileName}
-                >
-                  {isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}
-                </Button>
-              </div>
-            </form>
-            <!-- STEP 2: REVIEW & DECIDE -->
-          {:else}
-            <div class="space-y-6">
-              <div class="grid gap-4 sm:grid-cols-2">
-                <div class="space-y-2">
-                  <Label>Événement</Label><Input
-                    value={analysisResult.eventName}
-                    readonly
-                    class="bg-muted font-bold"
-                  />
-                </div>
-                <div class="space-y-2">
-                  <Label>Date</Label><Input
-                    value={new Date(
-                      analysisResult.eventDate,
-                    ).toLocaleDateString()}
-                    readonly
-                    class="bg-muted font-bold"
-                  />
-                </div>
-              </div>
-
-              <CampaignReviewTable bind:analysisResult />
-
-              <form
-                action="?/confirmCampaignImport"
-                method="POST"
-                use:kitEnhance={() => {
-                  isConfirming = true;
-                  startFakeProgress();
-                  return async ({ update }) => {
-                    completeProgress(async () => {
-                      await update();
-                      isConfirming = false;
-                    });
-                  };
-                }}
-                class="space-y-6 pt-4"
-              >
-                <input
-                  type="hidden"
-                  name="importData"
-                  value={JSON.stringify(analysisResult.analysisData)}
-                />
-                <input
-                  type="hidden"
-                  name="eventName"
-                  value={analysisResult.eventName}
-                />
-                <input
-                  type="hidden"
-                  name="eventDate"
-                  value={analysisResult.eventDate}
-                />
-
-                <div class="grid gap-4 md:grid-cols-2">
-                  <div class="space-y-2 rounded-md border bg-muted/20 p-4">
-                    <Label>Mantas pour cet événement</Label>
-                    <MultiStaffSelect
-                      staff={data.staff}
-                      bind:value={importMantas}
-                      name="mantas"
-                    />
-                    <p
-                      class="text-[10px] font-bold text-muted-foreground uppercase"
-                    >
-                      Assignez l'équipe qui encadrera cet événement.
-                    </p>
-                  </div>
-                  <div class="space-y-2 rounded-md border bg-muted/20 p-4">
-                    <Label for="notes">Notes / Planning</Label>
-                    <Textarea
-                      id="notes"
-                      name="notes"
-                      bind:value={importNotes}
-                      placeholder="Notes pour l'événement (planning, instructions...)"
-                      class="min-h-20"
-                    />
-                  </div>
-                </div>
-
-                <div class="flex justify-between border-t pt-4">
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    onclick={() => (analysisResult = null)}>Annuler</Button
-                  >
-                  <Button
-                    type="submit"
-                    disabled={isConfirming}
-                    class="bg-green-600 hover:bg-green-700"
-                    >{isConfirming
-                      ? 'Création en cours...'
-                      : "Valider l'import"}</Button
-                  >
-                </div>
-              </form>
+              {isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}
+            </Button>
+          </div>
+        </form>
+        <!-- STEP 2: REVIEW & DECIDE -->
+      {:else}
+        <div class="space-y-6">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="space-y-2">
+              <Label>Événement</Label><Input
+                value={analysisResult.eventName}
+                readonly
+                class="bg-muted font-bold"
+              />
             </div>
-          {/if}
-        </Card.Content>
-      </Card.Root>
+            <div class="space-y-2">
+              <Label>Date</Label><Input
+                value={new Date(analysisResult.eventDate).toLocaleDateString()}
+                readonly
+                class="bg-muted font-bold"
+              />
+            </div>
+          </div>
+
+          <CampaignReviewTable bind:analysisResult />
+
+          <form
+            action="?/confirmCampaignImport"
+            method="POST"
+            use:kitEnhance={() => {
+              isConfirming = true;
+              startFakeProgress();
+              return async ({ update }) => {
+                completeProgress(async () => {
+                  await update();
+                  isConfirming = false;
+                });
+              };
+            }}
+            class="space-y-6 pt-4"
+          >
+            <input
+              type="hidden"
+              name="importData"
+              value={JSON.stringify(analysisResult.analysisData)}
+            />
+            <input
+              type="hidden"
+              name="eventName"
+              value={analysisResult.eventName}
+            />
+            <input
+              type="hidden"
+              name="eventDate"
+              value={analysisResult.eventDate}
+            />
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2 rounded-md border bg-muted/20 p-4">
+                <Label>Mantas pour cet événement</Label>
+                <MultiStaffSelect
+                  staff={data.staff}
+                  bind:value={importMantas}
+                  name="mantas"
+                />
+                <p
+                  class="text-[10px] font-bold text-muted-foreground uppercase"
+                >
+                  Assignez l'équipe qui encadrera cet événement.
+                </p>
+              </div>
+              <div class="space-y-2 rounded-md border bg-muted/20 p-4">
+                <Label for="notes">Notes / Planning</Label>
+                <Textarea
+                  id="notes"
+                  name="notes"
+                  bind:value={importNotes}
+                  placeholder="Notes pour l'événement (planning, instructions...)"
+                  class="min-h-20"
+                />
+              </div>
+            </div>
+
+            <div class="flex justify-between border-t pt-4">
+              <Button
+                variant="ghost"
+                type="button"
+                onclick={() => (analysisResult = null)}>Annuler</Button
+              >
+              <Button
+                type="submit"
+                disabled={isConfirming}
+                class="bg-green-600 hover:bg-green-700"
+                >{isConfirming
+                  ? 'Création en cours...'
+                  : "Valider l'import"}</Button
+              >
+            </div>
+          </form>
+        </div>
+      {/if}
+    </Card.Content>
+  </Card.Root>
 </div>
 
 <FakeProgressLoader {isAnalyzing} {isConfirming} {currentMessage} {progress} />

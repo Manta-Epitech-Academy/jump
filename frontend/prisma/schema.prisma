@@ -374,7 +374,7 @@ model ParticipationActivity {
 model StepsProgress {
   id               String        @id @default(cuid())
   studentProfileId String
-  subjectId        String
+  subjectId        String?
   eventId          String
   activityId       String?
   currentStepId    String?
@@ -385,7 +385,7 @@ model StepsProgress {
   updatedAt        DateTime      @updatedAt
 
   studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  subject        Subject        @relation(fields: [subjectId], references: [id])
+  subject        Subject?       @relation(fields: [subjectId], references: [id])
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   activity       Activity?      @relation(fields: [activityId], references: [id])
 

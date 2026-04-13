@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import * as Alert from '$lib/components/ui/alert';
-  import { CalendarDays, Plus, AlertTriangle } from '@lucide/svelte';
+  import { CalendarDays, Plus, TriangleAlert } from '@lucide/svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import TimeSlotCard from './TimeSlotCard.svelte';
   import AddTimeSlotDialog from './AddTimeSlotDialog.svelte';
@@ -45,7 +45,7 @@
 <div class="space-y-4">
   {#if slots.length > 0 && hasNoActivities}
     <Alert.Root variant="destructive">
-      <AlertTriangle class="h-4 w-4" />
+      <TriangleAlert class="h-4 w-4" />
       <Alert.Title>Planning vide</Alert.Title>
       <Alert.Description>
         Aucun créneau ne contient d'activité. Ajoutez des activités pour
@@ -53,8 +53,10 @@
       </Alert.Description>
     </Alert.Root>
   {:else if hasEmptySlots}
-    <Alert.Root class="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
-      <AlertTriangle class="h-4 w-4 text-amber-600 dark:text-amber-400" />
+    <Alert.Root
+      class="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
+    >
+      <TriangleAlert class="h-4 w-4 text-amber-600 dark:text-amber-400" />
       <Alert.Title>Créneaux vides</Alert.Title>
       <Alert.Description class="text-amber-800 dark:text-amber-300">
         Certains créneaux n'ont pas encore d'activité assignée.
