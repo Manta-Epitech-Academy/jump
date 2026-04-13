@@ -71,7 +71,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         }
       }
     }
-    const subjects = [...activityMap.values()].slice(0, 10);
+    const activities = [...activityMap.values()].slice(0, 10);
 
     // 6. Map school level to readable label
     const niveauLabels: Record<string, string> = {
@@ -96,10 +96,10 @@ export const GET: RequestHandler = async ({ locals }) => {
       xp: locals.studentProfile.xp || 0,
       hours: participations.length * 3,
       eventsAttended: participations.length,
-      subjectsCompleted: activityMap.size,
+      activitiesCompleted: activityMap.size,
       level: locals.studentProfile.level || 'Novice',
       topThemes,
-      subjects,
+      activities,
       todayDate: formatDateFr(new Date()),
       // TODO: implement S3 file storage
       images: [] as string[],

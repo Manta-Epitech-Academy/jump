@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { getTotalXp } from '$lib/domain/xp';
+import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { generatePin } from '$lib/utils';
 import {
   suggestBestSubject,
@@ -28,15 +28,12 @@ export const EventService = {
       const participations = await tx.participation.findMany({
         where: { eventId, isPresent: true },
         include: {
-          subjects: { include: { subject: true } },
+          activities: { include: { activity: true } },
         },
       });
 
       for (const p of participations) {
-        const subjects = p.subjects.map((ps) => ({
-          difficulte: ps.subject.difficulte,
-        }));
-        const xpValue = getTotalXp(subjects);
+        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
 
         const profile = await tx.studentProfile.findUniqueOrThrow({
           where: { id: p.studentProfileId },

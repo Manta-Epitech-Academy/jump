@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
-import { getTotalXp } from '$lib/domain/xp';
+import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { assertEventCampus } from '$lib/server/db/assert';
@@ -111,15 +111,12 @@ async function syncEventPresence(
 
   const participation = await db.participation.findUniqueOrThrow({
     where: { id: participationId },
-    include: { subjects: { include: { subject: true } } },
+    include: { activities: { include: { activity: true } } },
   });
 
   if (participation.isPresent === presentInAny) return;
 
-  const subjects = participation.subjects.map((ps) => ({
-    difficulte: ps.subject.difficulte,
-  }));
-  const xpValue = getTotalXp(subjects);
+  const xpValue = getTotalXp(getXpEligibleActivities(participation.activities));
 
   await db.participation.update({
     where: { id: participationId },

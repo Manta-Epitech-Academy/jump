@@ -11,7 +11,7 @@ import {
   createActivityFromTemplateSchema,
   createStaticActivitySchema,
 } from '$lib/validation/planning';
-import { getTotalXp } from '$lib/domain/xp';
+import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import {
   suggestBestSubject,
   preloadCompletedSubjects,
@@ -456,14 +456,11 @@ export const actions: Actions = {
     try {
       const p = await db.participation.findUniqueOrThrow({
         where: { id },
-        include: { subjects: { include: { subject: true } } },
+        include: { activities: { include: { activity: true } } },
       });
 
       if (p.isPresent) {
-        const subjects = p.subjects.map((ps) => ({
-          difficulte: ps.subject.difficulte,
-        }));
-        const xpValue = getTotalXp(subjects);
+        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
 
         const profile = await prisma.studentProfile.findUniqueOrThrow({
           where: { id: p.studentProfileId },
