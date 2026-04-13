@@ -645,49 +645,14 @@ async function main() {
     },
   ];
 
-  const subjectRecords: Record<string, { id: string }> = {};
-  for (const s of subjectsData) {
-    const existing = await prisma.subject.findFirst({
-      where: { nom: s.nom, campusId: paris.id },
-    });
+  // subjectsData is used as source data for Activity creation in createPlanningForEvent below.
+  // A lookup from subject name → data for the planning builder:
+  const subjectDataByName: Record<
+    string,
+    (typeof subjectsData)[0]
+  > = Object.fromEntries(subjectsData.map((s) => [s.nom, s]));
 
-    const subject = existing
-      ? await prisma.subject.update({
-          where: { id: existing.id },
-          data: {
-            description: s.description,
-            difficulte: s.difficulte,
-            contentStructure: contentStructures[s.nom] ?? undefined,
-          },
-        })
-      : await prisma.subject.create({
-          data: {
-            nom: s.nom,
-            description: s.description,
-            difficulte: s.difficulte,
-            campusId: paris.id,
-            contentStructure: contentStructures[s.nom] ?? undefined,
-          },
-        });
-
-    subjectRecords[s.nom] = subject;
-
-    for (const themeName of s.themes) {
-      const theme = themes[themeName];
-      if (!theme) continue;
-      await prisma.subjectTheme.upsert({
-        where: {
-          subjectId_themeId: { subjectId: subject.id, themeId: theme.id },
-        },
-        update: {},
-        create: { subjectId: subject.id, themeId: theme.id },
-      });
-    }
-  }
-
-  console.log(
-    `✓ Subjects seeded (${Object.keys(subjectRecords).length} with content structures)`,
-  );
+  console.log(`✓ Activity definitions ready (${subjectsData.length} entries)`);
 
   // ─── Students ───
   const studentsData = [
@@ -881,7 +846,7 @@ async function main() {
       isPresent,
       delay: i === 3 ? 15 : i === 5 ? 5 : 0,
       bringPc: i % 3 !== 0,
-      subjectId: subjectRecords[subjectName].id,
+
       note:
         isPresent && i === 0
           ? 'Très motivée, a aidé ses camarades.'
@@ -919,7 +884,6 @@ async function main() {
       isPresent,
       delay: i === 1 ? 10 : 0,
       bringPc: false,
-      subjectId: subjectRecords['Construis ton robot'].id,
       camperRating: isPresent ? [3, 3, 2, 3, 2, 3][i] : undefined,
       camperFeedback:
         isPresent && i === 1 ? 'Le robot était trop cool !' : undefined,
@@ -952,10 +916,6 @@ async function main() {
       isPresent,
       delay: 0,
       bringPc: true,
-      subjectId:
-        i % 2 === 0
-          ? subjectRecords['Initiation à la cybersécurité'].id
-          : subjectRecords['Cryptographie : les secrets du code'].id,
       camperRating: isPresent ? 3 : undefined,
     });
   }
@@ -987,7 +947,7 @@ async function main() {
       isPresent: false, // not checked in yet
       delay: 0,
       bringPc: i % 2 === 0,
-      subjectId: subjectRecords[subjectName].id,
+
     });
   }
 
@@ -1015,7 +975,6 @@ async function main() {
       isPresent: false,
       delay: 0,
       bringPc: true,
-      subjectId: subjectRecords['Crée ton jeu Scratch'].id,
     });
   }
 
@@ -1043,7 +1002,6 @@ async function main() {
       isPresent: true,
       delay: 0,
       bringPc: true,
-      subjectId: subjectRecords['Ma première page HTML'].id,
       camperRating: 3,
     });
   }
@@ -1051,7 +1009,6 @@ async function main() {
   console.log('✓ Events seeded (4 Paris + 1 Lyon)');
 
   // ─── Planning → TimeSlots → Activities for each event ───
-  // Maps event → subject names used, so we can create activities from them
   const eventActivityMap: Record<string, string[]> = {};
 
   async function createPlanningForEvent(
@@ -1064,7 +1021,6 @@ async function main() {
       slotLabel?: string;
     }[],
   ) {
-    // Create or find planning
     let planning = await prisma.planning.findUnique({
       where: { eventId },
     });
@@ -1077,21 +1033,14 @@ async function main() {
     const activityIds: Record<string, string> = {};
 
     for (const def of activityDefs) {
-      const subject = subjectRecords[def.subjectName];
-      if (!subject) continue;
-
-      const fullSubject = await prisma.subject.findUnique({
-        where: { id: subject.id },
-        include: { subjectThemes: true },
-      });
-      if (!fullSubject) continue;
+      const srcData = subjectDataByName[def.subjectName];
+      if (!srcData) continue;
 
       const startTime = new Date(eventDate);
       startTime.setHours(def.slotStart, 0, 0, 0);
       const endTime = new Date(eventDate);
       endTime.setHours(def.slotEnd, 0, 0, 0);
 
-      // Upsert time slot
       let timeSlot = await prisma.timeSlot.findFirst({
         where: { planningId: planning.id, startTime, endTime },
       });
@@ -1106,30 +1055,29 @@ async function main() {
         });
       }
 
-      // Create activity from subject data
       let activity = await prisma.activity.findFirst({
-        where: { timeSlotId: timeSlot.id, nom: fullSubject.nom },
+        where: { timeSlotId: timeSlot.id, nom: srcData.nom },
       });
       if (!activity) {
         activity = await prisma.activity.create({
           data: {
-            nom: fullSubject.nom,
-            description: fullSubject.description,
-            difficulte: fullSubject.difficulte,
+            nom: srcData.nom,
+            description: srcData.description,
+            difficulte: srcData.difficulte,
             activityType: 'atelier',
             isDynamic: true,
-            contentStructure: fullSubject.contentStructure as
-              | object
-              | undefined,
+            contentStructure: contentStructures[srcData.nom] ?? undefined,
             timeSlotId: timeSlot.id,
           },
         });
 
         // Link activity themes
-        for (const st of fullSubject.subjectThemes) {
+        for (const themeName of srcData.themes) {
+          const theme = themes[themeName];
+          if (!theme) continue;
           await prisma.activityTheme
             .create({
-              data: { activityId: activity.id, themeId: st.themeId },
+              data: { activityId: activity.id, themeId: theme.id },
             })
             .catch(() => {}); // ignore duplicates
         }
@@ -1139,7 +1087,7 @@ async function main() {
     }
 
     if (!eventActivityMap[eventId]) eventActivityMap[eventId] = [];
-    for (const [name, id] of Object.entries(activityIds)) {
+    for (const [, id] of Object.entries(activityIds)) {
       eventActivityMap[eventId].push(id);
     }
 
@@ -1285,21 +1233,18 @@ async function main() {
   console.log('✓ Planning + TimeSlots + Activities seeded');
 
   // ─── ParticipationActivity records ───
-  // Link each participation to the activity matching their assigned subject
+  // Link each participation to activities from the event's planning
   async function linkParticipationActivities(
     eventId: string,
     activityMap: Record<string, string>,
   ) {
     const participations = await prisma.participation.findMany({
       where: { eventId },
-      include: { subjects: { include: { subject: true } } },
     });
 
+    const activityIds = Object.values(activityMap);
     for (const p of participations) {
-      for (const ps of p.subjects) {
-        const activityId = activityMap[ps.subject.nom];
-        if (!activityId) continue;
-
+      for (const activityId of activityIds) {
         await prisma.participationActivity.upsert({
           where: {
             participationId_activityId: {
@@ -1331,7 +1276,9 @@ async function main() {
   // ─── XP & eventsCount for present students ───
   const allParticipations = await prisma.participation.findMany({
     where: { isPresent: true },
-    include: { subjects: true },
+    include: {
+      activities: { include: { activity: true } },
+    },
   });
 
   // Group by student
@@ -1348,13 +1295,10 @@ async function main() {
     }
     xpByStudent[p.studentProfileId].events++;
 
-    for (const ps of p.subjects) {
-      const subject = await prisma.subject.findUnique({
-        where: { id: ps.subjectId },
-      });
-      if (subject) {
-        xpByStudent[p.studentProfileId].xp += XP_MAP[subject.difficulte] ?? 10;
-      }
+    for (const pa of p.activities) {
+      if (!pa.isPresent || pa.activity.activityType === 'orga') continue;
+      xpByStudent[p.studentProfileId].xp +=
+        XP_MAP[pa.activity.difficulte ?? ''] ?? 10;
     }
   }
 
@@ -1383,15 +1327,12 @@ async function main() {
   for (const { event, activityMap } of pastEventsWithActivities) {
     const participations = await prisma.participation.findMany({
       where: { eventId: event.id, isPresent: true },
-      include: { subjects: { include: { subject: true } } },
     });
 
-    for (const p of participations) {
-      for (const ps of p.subjects) {
-        const activityId = activityMap[ps.subject.nom];
-        if (!activityId) continue;
+    const activityIds = Object.values(activityMap);
 
-        // Get content structure from the activity
+    for (const p of participations) {
+      for (const activityId of activityIds) {
         const activity = await prisma.activity.findUnique({
           where: { id: activityId },
         });
@@ -1500,7 +1441,7 @@ async function main() {
     `\nCampuses: Paris (${parisStudents.length} students), Lyon (${lyonStudents.length} students), Marseille (empty)`,
   );
   console.log(
-    `Subjects: ${Object.keys(subjectRecords).length} (all with step content)`,
+    `Activities: ${subjectsData.length} definitions (seeded via planning)`,
   );
   console.log(`Themes:   ${themeNames.length} (Paris) + 3 (Lyon)`);
   console.log(
@@ -1574,7 +1515,6 @@ async function upsertParticipation(data: {
   isPresent: boolean;
   delay: number;
   bringPc: boolean;
-  subjectId: string;
   note?: string;
   noteAuthorId?: string;
   camperRating?: number;
@@ -1599,9 +1539,6 @@ async function upsertParticipation(data: {
       noteAuthorId: data.noteAuthorId,
       camperRating: data.camperRating,
       camperFeedback: data.camperFeedback,
-      subjects: {
-        create: [{ subjectId: data.subjectId }],
-      },
     },
   });
 }

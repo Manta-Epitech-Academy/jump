@@ -46,7 +46,6 @@
   let searchQuery = $state('');
   let filterStatus = $state<'all' | 'present' | 'late' | 'help'>('all');
   let viewMode = $state<'grid' | 'list'>('grid');
-  let filterSubject = $state<string>('all');
   let filterNiveau = $state<string>('all');
 
   $effect(() => {
@@ -88,19 +87,6 @@
       };
     };
   };
-
-  let uniqueSubjects = $derived.by(() => {
-    const subjects = new Map<string, string>();
-    const typedParticipations =
-      data.participations as ParticipationWithDetails[];
-    typedParticipations.forEach((p) => {
-      p.subjects?.forEach((ps: any) => {
-        const s = ps.subject;
-        subjects.set(s.id, s.nom);
-      });
-    });
-    return Array.from(subjects.entries());
-  });
 
   let uniqueNiveaux = $derived.by(() => {
     const niveaux = new Set<string>();
@@ -148,13 +134,10 @@
         matchesStatus = prgs.some((prog) => prog.status === 'needs_help');
       }
 
-      const matchesSubject =
-        filterSubject === 'all' ||
-        p.subjects?.some((ps: any) => ps.subjectId === filterSubject);
       const matchesNiveau =
         filterNiveau === 'all' || p.studentProfile?.niveau === filterNiveau;
 
-      return matchesStatus && matchesSubject && matchesNiveau;
+      return matchesStatus && matchesNiveau;
     }),
   );
 
@@ -219,11 +202,9 @@
 
   <AppelFilterBar
     bind:searchQuery
-    bind:filterSubject
     bind:filterNiveau
     bind:filterStatus
     bind:viewMode
-    {uniqueSubjects}
     {uniqueNiveaux}
     {helpCount}
   />

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { difficultes } from './subjects';
+import { difficultes } from '$lib/domain/xp';
 
 export { difficultes };
 

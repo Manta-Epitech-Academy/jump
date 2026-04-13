@@ -9,8 +9,6 @@
   import {
     CircleCheck,
     User,
-    ExternalLink,
-    BookOpen,
     Award,
     Sprout,
     Clock,
@@ -56,10 +54,6 @@
     if (onDownload) onDownload();
   }
 
-  let subjects = $derived(
-    participation.subjects?.map((ps: any) => ps.subject) || [],
-  );
-
   let isNewStudent = $derived.by(() => {
     const count = participation.studentProfile?.eventsCount || 0;
     const isPresent = participation.isPresent ? 1 : 0;
@@ -73,14 +67,9 @@
     progress.find((p: any) => p.status === 'needs_help'),
   );
 
-  let helpSubject = $derived(
-    needsHelpProgress
-      ? subjects?.find((s: any) => s.id === needsHelpProgress.subjectId)
-      : null,
-  );
   let helpStep = $derived(
-    helpSubject
-      ? helpSubject.contentStructure?.steps?.find(
+    needsHelpProgress
+      ? needsHelpProgress.activity?.contentStructure?.steps?.find(
           (s: any) => s.id === needsHelpProgress.currentStepId,
         )
       : null,
@@ -425,50 +414,6 @@
         </div>
       </div>
 
-      <!-- Subject Display Section -->
-      <div class="flex flex-col gap-1.5">
-        {#each subjects as sub}
-          <div
-            class="flex items-center justify-between rounded-sm bg-muted/50 px-3 py-1.5"
-          >
-            <div class="flex items-center gap-2 overflow-hidden">
-              <BookOpen class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span class="truncate text-xs font-bold text-foreground">
-                {sub.nom}
-              </span>
-            </div>
-            {#if sub.link}
-              <Tooltip.Provider delayDuration={300}>
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      <Button
-                        {...props}
-                        variant="ghost"
-                        size="icon"
-                        href={sub.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
-                        ><ExternalLink class="h-3.5 w-3.5" /></Button
-                      >
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content
-                    ><p>Ouvrir le support original</p></Tooltip.Content
-                  >
-                </Tooltip.Root>
-              </Tooltip.Provider>
-            {/if}
-          </div>
-        {:else}
-          <div
-            class="rounded-sm border border-dashed p-2 text-center text-[10px] text-muted-foreground italic"
-          >
-            Aucun sujet assigné
-          </div>
-        {/each}
-      </div>
 
       {#if participation.isPresent}
         <div class="flex flex-col gap-2 border-t border-border pt-2">

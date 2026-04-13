@@ -154,7 +154,6 @@ model Campus {
   studentProfiles    StudentProfile[]
   events             Event[]
   themes             Theme[]
-  subjects           Subject[]
   participations     Participation[]
   activityTemplates  ActivityTemplate[]
 }
@@ -168,38 +167,10 @@ model Theme {
 
   campus                 Campus?                 @relation(fields: [campusId], references: [id])
   events                 Event[]
-  subjectThemes          SubjectTheme[]
   activityTemplateThemes ActivityTemplateTheme[]
   activityThemes         ActivityTheme[]
 
   @@unique([nom, campusId])
-}
-
-model Subject {
-  id               String   @id @default(cuid())
-  nom              String
-  description      String?
-  difficulte       String
-  campusId         String?
-  link             String?
-  contentStructure Json?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  campus                Campus?                @relation(fields: [campusId], references: [id])
-  subjectThemes         SubjectTheme[]
-  participationSubjects ParticipationSubject[]
-  stepsProgress         StepsProgress[]
-}
-
-model SubjectTheme {
-  subjectId String
-  themeId   String
-
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  theme   Theme   @relation(fields: [themeId], references: [id], onDelete: Cascade)
-
-  @@id([subjectId, themeId])
 }
 
 model ActivityTemplate {
@@ -341,22 +312,11 @@ model Participation {
   event          Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   campus         Campus                 @relation(fields: [campusId], references: [id])
   noteAuthor     StaffProfile?          @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
-  subjects       ParticipationSubject[]
   activities     ParticipationActivity[]
 
   @@unique([studentProfileId, eventId])
   @@index([eventId])
   @@index([campusId])
-}
-
-model ParticipationSubject {
-  participationId String
-  subjectId       String
-
-  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  subject       Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-
-  @@id([participationId, subjectId])
 }
 
 model ParticipationActivity {
@@ -374,7 +334,6 @@ model ParticipationActivity {
 model StepsProgress {
   id               String        @id @default(cuid())
   studentProfileId String
-  subjectId        String?
   eventId          String
   activityId       String?
   currentStepId    String?
@@ -385,11 +344,9 @@ model StepsProgress {
   updatedAt        DateTime      @updatedAt
 
   studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  subject        Subject?       @relation(fields: [subjectId], references: [id])
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   activity       Activity?      @relation(fields: [activityId], references: [id])
 
-  @@unique([studentProfileId, subjectId, eventId])
   @@unique([studentProfileId, activityId])
   @@index([eventId])
 }

@@ -1,6 +1,5 @@
 import { z } from 'zod';
-
-export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
+import { difficultes } from '$lib/domain/xp';
 
 export const studentSchema = z.object({
   nom: z.string().min(2, 'Le nom doit faire au moins 2 caractères').trim(),

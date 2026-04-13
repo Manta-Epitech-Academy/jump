@@ -19,7 +19,7 @@ export function getCampusId(locals: App.Locals): string {
  * Returns a Prisma client extension that auto-injects campusId filters.
  *
  * - Event, Participation, StudentProfile, StaffProfile: strict campusId match
- * - Theme, Subject: OR pattern (campus-specific + global where campusId is null)
+ * - Theme, ActivityTemplate: OR pattern (campus-specific + global where campusId is null)
  *
  * For findUnique/findUniqueOrThrow/update/delete (which only accept unique
  * fields in `where`), we use a post-query check pattern.
@@ -316,15 +316,6 @@ export function scopedPrisma(campusId: string) {
         },
       },
 
-      // ── Subject (campusId nullable — null means global/official) ──
-      // Subjects are visible across all campuses (official, own, community).
-      // Only create is scoped to auto-assign the current campus.
-      subject: {
-        async create({ args, query }) {
-          args.data = { ...args.data, campusId } as any;
-          return query(args);
-        },
-      },
     },
   });
 }

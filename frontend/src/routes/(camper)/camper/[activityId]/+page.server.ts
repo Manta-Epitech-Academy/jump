@@ -125,7 +125,7 @@ export const actions: Actions = {
     const pinInput = data.get('pin') as string | null;
 
     try {
-      await ProgressService.validateActivityStep(
+      await ProgressService.validateStep(
         locals.studentProfile!.id,
         params.activityId,
         stepId,

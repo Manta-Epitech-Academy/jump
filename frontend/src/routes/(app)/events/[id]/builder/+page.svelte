@@ -16,7 +16,6 @@
   import type { PageData } from './$types';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as Tabs from '$lib/components/ui/tabs';
-  import SubjectPicker from './components/SubjectPicker.svelte';
   import { resolve } from '$app/paths';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
 
@@ -51,90 +50,15 @@
     },
   );
 
-  let isBulkAssigning = $state(false);
-
   let openEditEvent = $state(false);
 
   let deleteEventDialogOpen = $state(false);
   let deleteParticipationDialogOpen = $state(false);
   let participationToDelete = $state<string | null>(null);
 
-  // --- Subject Picker State ---
-  let pickerOpen = $state(false);
-  let bulkPickerOpen = $state(false);
-  let pickerParticipationId = $state<string | null>(null);
-  let pickerSelectedIds = $state<string[]>([]);
-  let pickerStudentLevel = $state<string | null>(null);
-  let assignmentForm: HTMLFormElement;
-  let bulkAssignForm: HTMLFormElement;
-
-  let unassignedParticipations = $derived(
-    data.participations.filter((p) => !p.subjects || p.subjects.length === 0),
-  );
-  let assignedParticipations = $derived(
-    data.participations
-      .filter((p) => p.subjects && p.subjects.length > 0)
-      .toSorted((a, b) => {
-        const aHasDanger = a.alerts?.some((al: any) => al.type === 'danger')
-          ? 2
-          : 0;
-        const aHasWarning = a.alerts?.length > 0 ? 1 : 0;
-        const bHasDanger = b.alerts?.some((al: any) => al.type === 'danger')
-          ? 2
-          : 0;
-        const bHasWarning = b.alerts?.length > 0 ? 1 : 0;
-        return (bHasDanger || bHasWarning) - (aHasDanger || aHasWarning);
-      }),
-  );
-
   function confirmDeleteParticipation(id: string) {
     participationToDelete = id;
     deleteParticipationDialogOpen = true;
-  }
-
-  function openSubjectPicker(
-    participationId: string,
-    currentSubjectIds: string[],
-  ) {
-    pickerParticipationId = participationId;
-    pickerSelectedIds = currentSubjectIds;
-    const p = data.participations.find((x) => x.id === participationId);
-    pickerStudentLevel = p?.studentProfile?.niveauDifficulte || null;
-    pickerOpen = true;
-  }
-
-  function handleSubjectsSaved(ids: string[]) {
-    if (!pickerParticipationId) return;
-    const pIdInput = assignmentForm.querySelector(
-      'input[name="participationId"]',
-    ) as HTMLInputElement;
-    const sIdsInput = assignmentForm.querySelector(
-      'input[name="subjectIds"]',
-    ) as HTMLInputElement;
-    if (pIdInput && sIdsInput) {
-      pIdInput.value = pickerParticipationId;
-      sIdsInput.value = ids.join(',');
-      assignmentForm.requestSubmit();
-    }
-  }
-
-  function openBulkSubjectPicker() {
-    pickerParticipationId = null;
-    pickerSelectedIds = [];
-    pickerStudentLevel = null;
-    bulkPickerOpen = true;
-  }
-
-  function handleBulkSubjectsSaved(ids: string[]) {
-    if (ids.length === 0) return;
-    const sIdsInput = bulkAssignForm.querySelector(
-      'input[name="subjectIds"]',
-    ) as HTMLInputElement;
-    if (sIdsInput) {
-      sIdsInput.value = ids.join(',');
-      bulkAssignForm.requestSubmit();
-    }
-    bulkPickerOpen = false;
   }
 </script>
 
@@ -228,11 +152,8 @@
     <Tabs.Content value="participants" class="flex-1 pt-4 pb-12">
       <div class="min-0 grid h-auto flex-1 gap-6 md:h-full md:grid-cols-12">
         <ParticipantManager
-          {unassignedParticipations}
-          {assignedParticipations}
+          participations={data.participations}
           onDelete={confirmDeleteParticipation}
-          onManageSubjects={openSubjectPicker}
-          onBulkAssign={openBulkSubjectPicker}
         />
 
         <StudentSearchSidebar
@@ -245,61 +166,6 @@
     </Tabs.Content>
   </Tabs.Root>
 </div>
-
-<form
-  action="?/updateSubjects"
-  method="POST"
-  use:enhance
-  bind:this={assignmentForm}
-  class="hidden"
->
-  <input type="hidden" name="participationId" />
-  <input type="hidden" name="subjectIds" />
-</form>
-
-<form
-  action="?/bulkAssign"
-  method="POST"
-  use:enhance={() => {
-    isBulkAssigning = true;
-    return async ({ result, update }) => {
-      isBulkAssigning = false;
-      if (result.type === 'success') {
-        const data = result.data as { message?: string } | undefined;
-        toast.success(data?.message || 'Assignation terminée');
-        await update();
-      } else {
-        toast.error("Erreur lors de l'assignation de masse");
-      }
-    };
-  }}
-  bind:this={bulkAssignForm}
-  class="hidden"
->
-  <input type="hidden" name="subjectIds" />
-</form>
-
-<!-- Global Subject Manager Modal -->
-<SubjectPicker
-  bind:open={pickerOpen}
-  subjects={data.subjects}
-  themes={data.themes}
-  selectedSubjectIds={pickerSelectedIds}
-  studentLevel={pickerStudentLevel}
-  defaultThemeId={data.event.theme?.id ?? null}
-  onSave={handleSubjectsSaved}
-/>
-
-<!-- Bulk Subject Picker -->
-<SubjectPicker
-  bind:open={bulkPickerOpen}
-  subjects={data.subjects}
-  themes={data.themes}
-  selectedSubjectIds={[]}
-  studentLevel={null}
-  defaultThemeId={data.event.theme?.id ?? null}
-  onSave={handleBulkSubjectsSaved}
-/>
 
 <ConfirmDeleteDialog
   bind:open={deleteEventDialogOpen}

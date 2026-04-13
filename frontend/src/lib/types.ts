@@ -1,18 +1,9 @@
 import type { Prisma } from '@prisma/client';
 
-/** Participation with its student profile and assigned subjects. */
+/** Participation with its student profile. */
 export type ParticipationWithDetails = Prisma.ParticipationGetPayload<{
   include: {
     studentProfile: true;
-    subjects: { include: { subject: true } };
-  };
-}>;
-
-/** Subject with its theme associations and optional campus. */
-export type SubjectWithThemes = Prisma.SubjectGetPayload<{
-  include: {
-    subjectThemes: { include: { theme: true } };
-    campus: true;
   };
 }>;
 

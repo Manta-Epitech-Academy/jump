@@ -5,7 +5,6 @@
     ShieldAlert,
     Map,
     Users,
-    BookOpen,
     Tags,
     LogOut,
     Menu,
@@ -93,13 +92,6 @@
     Pédagogie<span class="text-epi-pink">_</span>
   </div>
   <nav class="space-y-1">
-    <a
-      href={resolve('/admin/subjects')}
-      class={navLinkClass(isActive('/admin/subjects'))}
-    >
-      <BookOpen class="h-4 w-4" />
-      <span>Sujets Officiels</span>
-    </a>
     <a
       href={resolve('/admin/templates')}
       class={navLinkClass(isActive('/admin/templates'))}

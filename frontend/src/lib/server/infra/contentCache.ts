@@ -1,5 +1,5 @@
 /**
- * Simple LRU cache for static content records (subjects, activities, etc.).
+ * Simple LRU cache for static content records (activities, templates, etc.).
  * These are identical for all authenticated users, so a shared
  * process-global cache is safe regardless of which client fetches the data.
  *

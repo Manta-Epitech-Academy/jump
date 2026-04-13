@@ -14,7 +14,7 @@
   import { toast } from 'svelte-sonner';
   import { enhance as kitEnhance } from '$app/forms';
   import { activityTypeLabels } from '$lib/validation/templates';
-  import { difficultes } from '$lib/validation/subjects';
+  import { difficultes } from '$lib/domain/xp';
   import type { ActivityTemplate } from '@prisma/client';
 
   let {

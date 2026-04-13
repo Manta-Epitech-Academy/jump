@@ -1,3 +1,5 @@
+export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
+
 export const DIFFICULTY_XP: Record<string, number> = {
   Débutant: 20,
   Intermédiaire: 45,
@@ -12,20 +14,18 @@ export function getActivityXpValue(difficulte: string): number {
 }
 
 /**
- * @deprecated Use getActivityXpValue — kept for Subject pages that still display Subject XP.
- * TODO: Remove once subject→activity rename is done in: admin/subjects, (app)/subjects, SubjectPicker, recommender
- */
-export const getSubjectXpValue = getActivityXpValue;
-
-/**
  * Extracts XP-eligible activities from a participation's activity list.
- * Filters out organisational activities (roll call) which don't contribute XP.
+ * Filters out organisational activities (roll call) and activities the student
+ * was not present for (parallel tracks they didn't attend).
  */
 export function getXpEligibleActivities<
-  T extends { activity: { activityType: string; difficulte: string | null } },
+  T extends {
+    isPresent: boolean;
+    activity: { activityType: string; difficulte: string | null };
+  },
 >(participationActivities: T[]): { difficulte: string | null }[] {
   return participationActivities
-    .filter((pa) => pa.activity.activityType !== 'orga')
+    .filter((pa) => pa.isPresent && pa.activity.activityType !== 'orga')
     .map((pa) => ({ difficulte: pa.activity.difficulte }));
 }
 

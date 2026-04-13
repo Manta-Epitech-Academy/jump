@@ -42,7 +42,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     where: { eventId: event.id },
     include: {
       studentProfile: true,
-      subjects: { include: { subject: true } },
     },
   });
 
@@ -83,6 +82,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const progressData = await prisma.stepsProgress.findMany({
     where: { eventId: event.id },
+    include: { activity: true },
   });
 
   return {
@@ -108,41 +108,51 @@ async function syncEventPresence(
     },
   });
   const presentInAny = allPAs.some((pa) => pa.isPresent);
+  const maxDelay = allPAs.reduce(
+    (max, pa) => (pa.isPresent && pa.delay > max ? pa.delay : max),
+    0,
+  );
 
   const participation = await db.participation.findUniqueOrThrow({
     where: { id: participationId },
     include: { activities: { include: { activity: true } } },
   });
 
-  if (participation.isPresent === presentInAny) return;
-
-  const xpValue = getTotalXp(getXpEligibleActivities(participation.activities));
+  const presenceChanged = participation.isPresent !== presentInAny;
+  const delayChanged = (participation.delay ?? 0) !== maxDelay;
+  if (!presenceChanged && !delayChanged) return;
 
   await db.participation.update({
     where: { id: participationId },
-    data: { isPresent: presentInAny },
+    data: { isPresent: presentInAny, delay: maxDelay },
   });
 
-  if (presentInAny) {
-    await db.studentProfile.update({
-      where: { id: participation.studentProfileId },
-      data: {
-        xp: { increment: xpValue },
-        eventsCount: { increment: 1 },
-      },
-    });
-  } else {
-    const profile = await db.studentProfile.findUniqueOrThrow({
-      where: { id: participation.studentProfileId },
-      select: { xp: true, eventsCount: true },
-    });
-    await db.studentProfile.update({
-      where: { id: participation.studentProfileId },
-      data: {
-        xp: Math.max(0, profile.xp - xpValue),
-        eventsCount: Math.max(0, profile.eventsCount - 1),
-      },
-    });
+  if (presenceChanged) {
+    const xpValue = getTotalXp(
+      getXpEligibleActivities(participation.activities),
+    );
+
+    if (presentInAny) {
+      await db.studentProfile.update({
+        where: { id: participation.studentProfileId },
+        data: {
+          xp: { increment: xpValue },
+          eventsCount: { increment: 1 },
+        },
+      });
+    } else {
+      const profile = await db.studentProfile.findUniqueOrThrow({
+        where: { id: participation.studentProfileId },
+        select: { xp: true, eventsCount: true },
+      });
+      await db.studentProfile.update({
+        where: { id: participation.studentProfileId },
+        data: {
+          xp: Math.max(0, profile.xp - xpValue),
+          eventsCount: Math.max(0, profile.eventsCount - 1),
+        },
+      });
+    }
   }
 }
 
@@ -236,11 +246,11 @@ export const actions: Actions = {
         where: { id: progressId },
       });
       await assertEventCampus(progress.eventId, getCampusId(locals));
-      if (!progress.subjectId) return fail(400);
-      const subject = await prisma.subject.findUniqueOrThrow({
-        where: { id: progress.subjectId },
+      if (!progress.activityId) return fail(400);
+      const activity = await prisma.activity.findUniqueOrThrow({
+        where: { id: progress.activityId },
       });
-      const content = subject.contentStructure as { steps?: { id: string }[] };
+      const content = activity.contentStructure as { steps?: { id: string }[] };
       const steps = content?.steps || [];
 
       const currentIndex = steps.findIndex(

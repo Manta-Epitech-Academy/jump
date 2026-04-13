@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { difficultes } from './subjects';
+import { difficultes } from '$lib/domain/xp';
 import { activityTypes } from './templates';
 
 const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;

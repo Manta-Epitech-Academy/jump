@@ -12,20 +12,10 @@ import {
   createStaticActivitySchema,
 } from '$lib/validation/planning';
 import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
-import {
-  suggestBestSubject,
-  preloadCompletedSubjects,
-} from '$lib/domain/recommender';
 import { EventService } from '$lib/server/services/events';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
-
-const difficultyWeights: Record<string, number> = {
-  Débutant: 0,
-  Intermédiaire: 1,
-  Avancé: 2,
-};
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -42,65 +32,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(404, 'Événement introuvable');
   }
 
-  const participationsRaw = await db.participation.findMany({
+  const participations = await db.participation.findMany({
     where: { eventId: event.id },
-    include: {
-      studentProfile: true,
-      subjects: { include: { subject: true } },
-    },
-  });
-
-  participationsRaw.sort((a, b) => {
-    const nomA = a.studentProfile.nom.toUpperCase();
-    const nomB = b.studentProfile.nom.toUpperCase();
-    if (nomA < nomB) return -1;
-    if (nomA > nomB) return 1;
-    return a.studentProfile.prenom
-      .toLowerCase()
-      .localeCompare(b.studentProfile.prenom.toLowerCase());
-  });
-
-  const studentProfileIds = participationsRaw.map((p) => p.studentProfileId);
-  const completedMap =
-    studentProfileIds.length > 0
-      ? await preloadCompletedSubjects(studentProfileIds, event.id)
-      : new Map<string, Set<string>>();
-
-  const participations = participationsRaw.map((p) => {
-    const student = p.studentProfile;
-    const currentSubjects = p.subjects.map((ps) => ps.subject);
-    const alerts: { type: 'danger' | 'warning'; message: string }[] = [];
-
-    if (currentSubjects.length > 0) {
-      const completed = completedMap.get(student.id) ?? new Set();
-
-      for (const subject of currentSubjects) {
-        if (completed.has(subject.id)) {
-          alerts.push({
-            type: 'danger',
-            message: `DÉJÀ FAIT : L'élève a déjà validé "${subject.nom}".`,
-          });
-        }
-
-        const studentLevel =
-          difficultyWeights[student.niveauDifficulte || 'Débutant'] ?? 0;
-        const subjectLevel = difficultyWeights[subject.difficulte] ?? 0;
-
-        if (subjectLevel > studentLevel) {
-          alerts.push({
-            type: 'warning',
-            message: `DIFFICILE : Le sujet "${subject.nom}" est de niveau "${subject.difficulte}", ce qui est supérieur au niveau de l'élève (${student.niveauDifficulte || 'Débutant'}).`,
-          });
-        }
-      }
-    }
-
-    return { ...p, alerts };
-  });
-
-  const subjects = await db.subject.findMany({
-    include: { subjectThemes: { include: { theme: true } }, campus: true },
-    orderBy: { nom: 'asc' },
+    include: { studentProfile: true },
+    orderBy: [
+      { studentProfile: { nom: 'asc' } },
+      { studentProfile: { prenom: 'asc' } },
+    ],
   });
 
   const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
@@ -164,7 +102,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   return {
     event,
     participations,
-    subjects,
     themes,
     staff,
     addForm,
@@ -199,19 +136,6 @@ export const actions: Actions = {
         });
       }
 
-      const db = scopedPrisma(getCampusId(locals));
-      const event = await db.event.findUniqueOrThrow({
-        where: { id: params.id },
-      });
-      const subjects = await db.subject.findMany({
-        include: { subjectThemes: true },
-      });
-      const suggestedSubjectId = await suggestBestSubject(
-        form.data.studentId,
-        subjects,
-        event.themeId,
-      );
-
       const campusId = getCampusId(locals);
       await prisma.participation.create({
         data: {
@@ -219,107 +143,15 @@ export const actions: Actions = {
           eventId: params.id,
           campusId,
           isPresent: false,
-          subjects: suggestedSubjectId
-            ? { create: [{ subjectId: suggestedSubjectId }] }
-            : undefined,
         },
       });
 
-      return message(form, 'Élève ajouté avec une suggestion intelligente !');
+      return message(form, 'Élève ajouté !');
     } catch (err) {
       console.error(err);
       return message(form, "Erreur technique lors de l'ajout.", {
         status: 500,
       });
-    }
-  },
-
-  updateSubjects: async ({ request, locals }) => {
-    const data = await request.formData();
-    const participationId = data.get('participationId') as string;
-    const subjectsRaw = data.get('subjectIds') as string;
-    const subjectIds = subjectsRaw
-      ? subjectsRaw.split(',').filter(Boolean)
-      : [];
-    const db = scopedPrisma(getCampusId(locals));
-
-    try {
-      await db.participation.findUniqueOrThrow({
-        where: { id: participationId },
-      });
-      await prisma.participationSubject.deleteMany({
-        where: { participationId },
-      });
-      if (subjectIds.length > 0) {
-        await prisma.participationSubject.createMany({
-          data: subjectIds.map((subjectId) => ({ participationId, subjectId })),
-        });
-      }
-      return { success: true };
-    } catch (err) {
-      console.error('Update subjects error:', err);
-      return fail(500);
-    }
-  },
-
-  bulkAssign: async ({ request, params, locals }) => {
-    const data = await request.formData();
-    const subjectsRaw = data.get('subjectIds') as string;
-
-    if (!subjectsRaw) return fail(400, { message: 'Aucun sujet sélectionné.' });
-    const newSubjectIds = subjectsRaw.split(',').filter(Boolean);
-
-    try {
-      const db = scopedPrisma(getCampusId(locals));
-      await db.event.findUniqueOrThrow({ where: { id: params.id } });
-      const participations = await db.participation.findMany({
-        where: { eventId: params.id },
-        include: { subjects: true },
-      });
-
-      let updateCount = 0;
-
-      await Promise.all(
-        participations.map(async (p) => {
-          const currentSubjectIds = p.subjects.map((s) => s.subjectId);
-          const toAdd = newSubjectIds.filter(
-            (id) => !currentSubjectIds.includes(id),
-          );
-
-          if (toAdd.length > 0) {
-            await prisma.participationSubject.createMany({
-              data: toAdd.map((subjectId) => ({
-                participationId: p.id,
-                subjectId,
-              })),
-            });
-            updateCount++;
-          }
-        }),
-      );
-
-      return { success: true, message: `${updateCount} élèves mis à jour !` };
-    } catch (err) {
-      console.error('Bulk assign error:', err);
-      return fail(500, { message: "Erreur lors de l'assignation de masse." });
-    }
-  },
-
-  autoAssignAll: async ({ params, locals }) => {
-    try {
-      const count = await EventService.autoAssignAll(
-        params.id,
-        getCampusId(locals),
-      );
-      if (count === 0)
-        return { success: true, message: 'Aucun élève à assigner.' };
-      return {
-        success: true,
-        message: `${count} élèves assignés automatiquement !`,
-      };
-    } catch (err) {
-      console.error('Auto-assign error:', err);
-      return fail(500, { message: "Erreur lors de l'auto-assignation" });
     }
   },
 
@@ -354,19 +186,6 @@ export const actions: Actions = {
       });
 
       const studentProfileId = user.studentProfile!.id;
-      const db = scopedPrisma(campusId);
-
-      const event = await db.event.findUniqueOrThrow({
-        where: { id: params.id },
-      });
-      const subjects = await db.subject.findMany({
-        include: { subjectThemes: true },
-      });
-      const suggestedSubjectId = await suggestBestSubject(
-        studentProfileId,
-        subjects,
-        event.themeId,
-      );
 
       await prisma.participation.create({
         data: {
@@ -374,13 +193,10 @@ export const actions: Actions = {
           eventId: params.id,
           campusId,
           isPresent: false,
-          subjects: suggestedSubjectId
-            ? { create: [{ subjectId: suggestedSubjectId }] }
-            : undefined,
         },
       });
 
-      return message(form, 'Élève créé et assigné automatiquement !');
+      return message(form, 'Élève créé et inscrit !');
     } catch (err: any) {
       if (err.code === 'P2002') {
         return message(
@@ -426,14 +242,11 @@ export const actions: Actions = {
       }
 
       const campusId = getCampusId(locals);
-      const themeChanged = await EventService.updateEvent(params.id, campusId, {
+      await EventService.updateEvent(params.id, campusId, {
         ...form.data,
         date: jsDate.toISOString(),
       });
 
-      if (themeChanged) {
-        return message(form, 'Événement mis à jour et sujets recalculés !');
-      }
       return message(form, 'Événement mis à jour !');
     } catch (err) {
       console.error('Update Event Error:', err);
@@ -475,9 +288,6 @@ export const actions: Actions = {
         });
       }
 
-      await prisma.participationSubject.deleteMany({
-        where: { participationId: id },
-      });
       await prisma.participation.delete({ where: { id } });
       return { success: true };
     } catch (err) {
