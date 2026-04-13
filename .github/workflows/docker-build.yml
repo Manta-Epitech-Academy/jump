@@ -89,4 +89,3 @@ jobs:
           NAMESPACE="${{ needs.build-sveltekit.outputs.namespace }}"
           echo "Restarting deployment in namespace: $NAMESPACE"
           kubectl rollout restart deployment/jump-sk -n "$NAMESPACE"
-          kubectl rollout status deployment/jump-sk -n "$NAMESPACE" --timeout=120s
