@@ -152,7 +152,7 @@ model Talent {
 model Campus {
   id            String   @id @default(cuid())
   name          String   @unique
-  external_name String?  @unique
+  externalName  String?  @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -278,7 +278,7 @@ model Event {
   themeId              String?
   pin                  String?
   notes                String?
-  external_id          String?  @unique
+  externalId           String?  @unique
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

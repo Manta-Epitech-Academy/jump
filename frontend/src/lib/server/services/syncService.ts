@@ -12,7 +12,7 @@ export async function syncEvents(
   events: { external_id: string; title: string }[],
 ) {
   const campus = await prisma.campus.findUnique({
-    where: { external_name: campusExternalName },
+    where: { externalName: campusExternalName },
   });
   if (!campus) return { error: 'Campus not found' as const };
 
@@ -24,13 +24,13 @@ export async function syncEvents(
       return { error: 'Each event must have external_id and title' as const };
 
     const existing = await prisma.event.findUnique({
-      where: { external_id: e.external_id },
+      where: { externalId: e.external_id },
     });
 
     if (!existing) {
       await prisma.event.create({
         data: {
-          external_id: e.external_id,
+          externalId: e.external_id,
           date: new Date(),
           titre: e.title,
           campusId: campus.id,
@@ -39,7 +39,7 @@ export async function syncEvents(
       created++;
     } else if (existing.titre !== e.title || existing.campusId !== campus.id) {
       await prisma.event.update({
-        where: { external_id: e.external_id },
+        where: { externalId: e.external_id },
         data: { titre: e.title, campusId: campus.id },
       });
       updated++;
@@ -60,7 +60,7 @@ export async function syncTalents(
   }[],
 ) {
   const event = await prisma.event.findUnique({
-    where: { external_id: eventExternalId },
+    where: { externalId: eventExternalId },
   });
   if (!event) return { error: 'Event not found' as const };
 

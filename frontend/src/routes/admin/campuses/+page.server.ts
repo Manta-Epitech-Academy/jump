@@ -7,7 +7,7 @@ import { prisma } from '$lib/server/db';
 
 const campusSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
-  external_name: z.string().trim().nullable().default(null),
+  externalName: z.string().trim().nullable().default(null),
 });
 
 export const load: PageServerLoad = async () => {
@@ -31,7 +31,7 @@ export const actions: Actions = {
       await prisma.campus.create({
         data: {
           ...form.data,
-          external_name: form.data.external_name || null,
+          externalName: form.data.externalName || null,
         },
       });
       return message(form, 'Campus créé avec succès.');
@@ -56,7 +56,7 @@ export const actions: Actions = {
         where: { id },
         data: {
           ...form.data,
-          external_name: form.data.external_name || null,
+          externalName: form.data.externalName || null,
         },
       });
       return message(form, 'Campus mis à jour.');
