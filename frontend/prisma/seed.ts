@@ -1385,6 +1385,12 @@ async function main() {
     mantaIds: [parisStaff1.id],
   });
 
+  // ── 7. ParticipationActivity records (link participations to activities) ──
+  let paCount = 0;
+  for (const evtDef of eventDefs) {
+    const eventId = evtDef.id;
+    const activities = eventActivities[eventId];
+
     const participations = await prisma.participation.findMany({
       where: { eventId },
     });
