@@ -85,14 +85,19 @@
             <span style:view-transition-name="event-title-{data.event.id}"
               >{data.event.titre}</span
             >
-            <span
-              >• {new Date(data.event.date).toLocaleDateString('fr-FR', {
+            <span>
+              • {new Date(data.event.date).toLocaleDateString('fr-FR', {
                 day: 'numeric',
                 month: 'long',
                 hour: '2-digit',
                 minute: '2-digit',
-              })}</span
-            >
+              })}{#if data.event.endDate}
+                → {new Date(data.event.endDate).toLocaleDateString('fr-FR', {
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              {/if}
+            </span>
           </div>
           {#if data.event.theme}
             <div class="flex items-center gap-1">
@@ -146,6 +151,8 @@
         staticActivityForm={data.staticActivityForm}
         templateActivityForm={data.templateActivityForm}
         eventId={data.event.id}
+        planningTemplates={data.planningTemplates}
+        applyTemplateForm={data.applyTemplateForm}
       />
     </Tabs.Content>
 

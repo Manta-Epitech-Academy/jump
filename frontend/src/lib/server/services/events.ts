@@ -115,6 +115,7 @@ export const EventService = {
     data: {
       titre: string;
       date: string;
+      endDate?: string;
       theme?: string;
       notes?: string;
       mantas?: string[];
@@ -166,6 +167,7 @@ export const EventService = {
         data: {
           titre: data.titre,
           date: new Date(data.date),
+          endDate: data.endDate ? new Date(data.endDate) : null,
           themeId: newThemeId ?? undefined,
           notes: data.notes,
         },

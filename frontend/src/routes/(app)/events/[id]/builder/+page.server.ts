@@ -11,8 +11,10 @@ import {
   createActivityFromTemplateSchema,
   createStaticActivitySchema,
 } from '$lib/validation/planning';
+import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
 import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { EventService } from '$lib/server/services/events';
+import { applyPlanningTemplate } from '$lib/server/services/planningTemplates';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
@@ -77,11 +79,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     orderBy: { nom: 'asc' },
   });
 
+  let endDateString = '';
+  if (event.endDate) {
+    const ed = new Date(event.endDate);
+    endDateString = ed.toISOString().split('T')[0];
+  }
+
   const editForm = await superValidate(
     {
       titre: event.titre,
       theme: event.theme?.nom || '',
       date: dateString,
+      endDate: endDateString,
       time: timeString,
       notes: event.notes || '',
       mantas: event.mantas.map((m) => m.staffProfileId),
@@ -99,6 +108,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     zod4(createActivityFromTemplateSchema),
   );
 
+  const planningTemplates = await prisma.planningTemplate.findMany({
+    orderBy: { nom: 'asc' },
+    include: { _count: { select: { days: true } } },
+  });
+  const applyTemplateForm = await superValidate(
+    zod4(applyPlanningTemplateSchema),
+  );
+
   return {
     event,
     participations,
@@ -112,6 +129,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     tsForm,
     staticActivityForm,
     templateActivityForm,
+    planningTemplates,
+    applyTemplateForm,
   };
 };
 
@@ -217,9 +236,12 @@ export const actions: Actions = {
     const dateStr = formData.get('date') as string;
     const timeStr = formData.get('time') as string;
 
+    const endDateStr = formData.get('endDate') as string;
+
     const transformedData = {
       titre: (formData.get('titre') as string) || '',
       date: dateStr,
+      endDate: endDateStr || '',
       time: timeStr,
       theme: formData.get('theme') as string,
       notes: formData.get('notes') as string,
@@ -241,10 +263,21 @@ export const actions: Actions = {
         return message(form, 'Format de date invalide', { status: 400 });
       }
 
+      let endDateIso: string | undefined;
+      if (endDateStr && endDateStr.trim() !== '') {
+        const [ey, em, ed] = endDateStr.split('T')[0].split('-').map(Number);
+        const endCdt = new CalendarDateTime(ey, em, ed, 23, 59);
+        const endJsDate = endCdt.toDate('Europe/Paris');
+        if (!isNaN(endJsDate.getTime())) {
+          endDateIso = endJsDate.toISOString();
+        }
+      }
+
       const campusId = getCampusId(locals);
       await EventService.updateEvent(params.id, campusId, {
         ...form.data,
         date: jsDate.toISOString(),
+        endDate: endDateIso,
       });
 
       return message(form, 'Événement mis à jour !');
@@ -517,6 +550,26 @@ export const actions: Actions = {
     } catch (err) {
       console.error('Delete activity error:', err);
       return fail(500);
+    }
+  },
+
+  applyTemplate: async ({ request, locals, params }) => {
+    const form = await superValidate(
+      request,
+      zod4(applyPlanningTemplateSchema),
+    );
+    if (!form.valid) return fail(400, { form });
+
+    try {
+      const campusId = getCampusId(locals);
+      await applyPlanningTemplate(form.data.planningTemplateId, params.id, campusId);
+
+      return message(form, 'Modèle de planning appliqué avec succès !');
+    } catch (err) {
+      console.error('Apply planning template error:', err);
+      return message(form, "Erreur lors de l'application du modèle.", {
+        status: 500,
+      });
     }
   },
 };

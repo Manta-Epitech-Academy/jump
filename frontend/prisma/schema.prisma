@@ -188,8 +188,9 @@ model ActivityTemplate {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  campus                 Campus?                 @relation(fields: [campusId], references: [id])
-  activityTemplateThemes ActivityTemplateTheme[]
+  campus                    Campus?                    @relation(fields: [campusId], references: [id])
+  activityTemplateThemes    ActivityTemplateTheme[]
+  planningTemplateSlotItems PlanningTemplateSlotItem[]
 }
 
 model ActivityTemplateTheme {
@@ -263,9 +264,10 @@ model ActivityTheme {
 }
 
 model Event {
-  id                   String   @id @default(cuid())
+  id                   String    @id @default(cuid())
   titre                String
   date                 DateTime
+  endDate              DateTime?
   campusId             String
   themeId              String?
   pin                  String?
@@ -367,4 +369,65 @@ model PortfolioItem {
   activity       Activity?      @relation(fields: [activityId], references: [id])
 
   @@index([studentProfileId])
+}
+
+// ── Planning Templates (national reusable planning grids) ──
+
+model PlanningTemplate {
+  id          String   @id @default(cuid())
+  nom         String   @unique
+  description String?
+  nbDays      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  days PlanningTemplateDay[]
+}
+
+model PlanningTemplateDay {
+  id                 String   @id @default(cuid())
+  planningTemplateId String
+  dayIndex           Int
+  label              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  planningTemplate PlanningTemplate     @relation(fields: [planningTemplateId], references: [id], onDelete: Cascade)
+  slots            PlanningTemplateSlot[]
+
+  @@unique([planningTemplateId, dayIndex])
+  @@index([planningTemplateId])
+}
+
+model PlanningTemplateSlot {
+  id                    String   @id @default(cuid())
+  planningTemplateDayId String
+  startTime             String
+  endTime               String
+  label                 String?
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  day   PlanningTemplateDay       @relation(fields: [planningTemplateDayId], references: [id], onDelete: Cascade)
+  items PlanningTemplateSlotItem[]
+
+  @@index([planningTemplateDayId])
+}
+
+model PlanningTemplateSlotItem {
+  id                     String       @id @default(cuid())
+  planningTemplateSlotId String
+  activityTemplateId     String?
+  nom                    String?
+  description            String?
+  activityType           ActivityType @default(orga)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  slot             PlanningTemplateSlot @relation(fields: [planningTemplateSlotId], references: [id], onDelete: Cascade)
+  activityTemplate ActivityTemplate?    @relation(fields: [activityTemplateId], references: [id], onDelete: SetNull)
+
+  @@index([planningTemplateSlotId])
+  @@index([activityTemplateId])
 }

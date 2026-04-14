@@ -12,6 +12,7 @@
     LayoutDashboard,
     FingerprintPattern,
     FileText,
+    CalendarDays,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -105,6 +106,13 @@
     >
       <Tags class="h-4 w-4" />
       <span>Thèmes Officiels</span>
+    </a>
+    <a
+      href={resolve('/admin/planning-templates')}
+      class={navLinkClass(isActive('/admin/planning-templates'))}
+    >
+      <CalendarDays class="h-4 w-4" />
+      <span>Modèles de Planning</span>
     </a>
   </nav>
 {/snippet}
