@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 /** Participation with its student profile. */
 export type ParticipationWithDetails = Prisma.ParticipationGetPayload<{
   include: {
-    studentProfile: true;
+    talent: true;
   };
 }>;
 

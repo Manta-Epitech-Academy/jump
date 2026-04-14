@@ -10,7 +10,7 @@ import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   // If already authenticated as a Student, route directly to the dashboard
-  if (locals.studentProfile) {
+  if (locals.talent) {
     throw redirect(303, resolve('/camper'));
   }
 
@@ -56,12 +56,12 @@ export const actions: Actions = {
       // Check for a student profile — either linked via bauth_user or unlinked (created by worker)
       const user = await prisma.bauth_user.findUnique({
         where: { email: normalizedEmail },
-        include: { studentProfile: true },
+        include: { talent: true },
       });
 
-      const hasLinkedProfile = !!user?.studentProfile;
+      const hasLinkedProfile = !!user?.talent;
       const unlinkedProfile = !hasLinkedProfile
-        ? await prisma.studentProfile.findUnique({
+        ? await prisma.talent.findUnique({
             where: { email: normalizedEmail },
           })
         : null;
@@ -86,13 +86,13 @@ export const actions: Actions = {
             name: `${unlinkedProfile.prenom} ${unlinkedProfile.nom}`,
           },
         });
-        await prisma.studentProfile.update({
+        await prisma.talent.update({
           where: { id: unlinkedProfile.id },
           data: { userId: newUser.id },
         });
-      } else if (unlinkedProfile && user && !user.studentProfile) {
+      } else if (unlinkedProfile && user && !user.talent) {
         // bauth_user exists but profile is unlinked — link them
-        await prisma.studentProfile.update({
+        await prisma.talent.update({
           where: { id: unlinkedProfile.id },
           data: { userId: user.id },
         });

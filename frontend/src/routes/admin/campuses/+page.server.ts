@@ -61,7 +61,7 @@ export const actions: Actions = {
     try {
       // SECURITY : Check if the campus is used before deleting
       const [studentsUsed, eventsUsed, staffUsed] = await Promise.all([
-        prisma.studentProfile.count({ where: { campusId: id } }),
+        prisma.talent.count({ where: { campusId: id } }),
         prisma.event.count({ where: { campusId: id } }),
         prisma.staffProfile.count({ where: { campusId: id } }),
       ]);

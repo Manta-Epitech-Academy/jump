@@ -38,12 +38,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
         'Each talent must have external_id, first_name and last_name',
       );
 
-    const existing = await prisma.studentProfile.findUnique({
+    const existing = await prisma.talent.findUnique({
       where: { externalId: talentData.external_id },
     });
 
     if (!existing) {
-      await prisma.studentProfile.create({
+      await prisma.talent.create({
         data: {
           externalId: talentData.external_id,
           campusId: event.campusId,
@@ -64,7 +64,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
         existing.phone !== talentData.phone ||
         existing.campusId !== event.campusId
       ) {
-        await prisma.studentProfile.update({
+        await prisma.talent.update({
           where: { externalId: talentData.external_id },
           data: {
             prenom: talentData.first_name,

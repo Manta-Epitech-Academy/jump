@@ -13,7 +13,7 @@ export const AnonymizationService = {
 
     // Find all students who haven't been active for 18 months
     // We also check for students who were never active but created 18+ months ago
-    const inactiveStudents = await prisma.studentProfile.findMany({
+    const inactiveStudents = await prisma.talent.findMany({
       where: {
         OR: [
           { lastActiveAt: { lt: eighteenMonthsAgo } },
@@ -44,8 +44,8 @@ export const AnonymizationService = {
     for (const student of inactiveStudents) {
       try {
         await prisma.$transaction(async (tx) => {
-          // 1. Update StudentProfile — clear all PII fields
-          await tx.studentProfile.update({
+          // 1. Update Talent — clear all PII fields
+          await tx.talent.update({
             where: { id: student.id },
             data: {
               nom: 'Anonymisé',
@@ -85,7 +85,7 @@ export const AnonymizationService = {
 
           // 4. Delete portfolio items (student-created content with potential PII)
           await tx.portfolioItem.deleteMany({
-            where: { studentProfileId: student.id },
+            where: { talentId: student.id },
           });
         });
         count++;

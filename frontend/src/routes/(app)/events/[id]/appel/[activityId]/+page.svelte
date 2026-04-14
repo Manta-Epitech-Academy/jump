@@ -36,7 +36,7 @@
   let studentProgressMap = $derived.by(() => {
     const map = new Map<string, any[]>();
     progressRecords.forEach((p) => {
-      const key = p.studentProfileId;
+      const key = p.talentId;
       if (!map.has(key)) map.set(key, []);
       map.get(key)?.push(p);
     });
@@ -93,7 +93,7 @@
     const typedParticipations =
       data.participations as ParticipationWithDetails[];
     typedParticipations.forEach((p) => {
-      if (p.studentProfile?.niveau) niveaux.add(p.studentProfile.niveau);
+      if (p.talent?.niveau) niveaux.add(p.talent.niveau);
     });
     const order = [
       '6eme',
@@ -118,10 +118,10 @@
   let filteredParticipations = $derived(
     participations.filter((p) => {
       const matchesSearch =
-        p.studentProfile?.nom
+        p.talent?.nom
           ?.toLowerCase()
           .includes(searchQuery.toLowerCase()) ||
-        p.studentProfile?.prenom
+        p.talent?.prenom
           ?.toLowerCase()
           .includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
@@ -130,12 +130,12 @@
       if (filterStatus === 'present') matchesStatus = p.isPresent === true;
       if (filterStatus === 'late') matchesStatus = (p.delay || 0) > 0;
       if (filterStatus === 'help') {
-        const prgs = studentProgressMap.get(p.studentProfileId) || [];
+        const prgs = studentProgressMap.get(p.talentId) || [];
         matchesStatus = prgs.some((prog) => prog.status === 'needs_help');
       }
 
       const matchesNiveau =
-        filterNiveau === 'all' || p.studentProfile?.niveau === filterNiveau;
+        filterNiveau === 'all' || p.talent?.niveau === filterNiveau;
 
       return matchesStatus && matchesNiveau;
     }),
@@ -216,7 +216,7 @@
           <ParticipationCard
             participation={p}
             event={data.event}
-            progress={studentProgressMap.get(p.studentProfileId) || []}
+            progress={studentProgressMap.get(p.talentId) || []}
             {optimisticToggle}
             onDownload={() => handleDiplomaDownload(p)}
             index={i}
@@ -226,10 +226,10 @@
     {:else}
       <div class="rounded-sm border bg-card">
         {#each filteredParticipations as p (p.id)}
-          {@const count = p.studentProfile?.eventsCount || 0}
+          {@const count = p.talent?.eventsCount || 0}
           {@const isPresent = p.isPresent ? 1 : 0}
           {@const isNew = count - isPresent === 0}
-          {@const pProgress = studentProgressMap.get(p.studentProfileId) || []}
+          {@const pProgress = studentProgressMap.get(p.talentId) || []}
           {@const needsHelp = pProgress.some(
             (prog) => prog.status === 'needs_help',
           )}
@@ -271,12 +271,12 @@
 
               <div class="flex flex-col">
                 <span class="flex items-center gap-2 text-sm font-bold">
-                  {#if p.studentProfile?.id}
+                  {#if p.talent?.id}
                     <a
-                      href={resolve(`/students/${p.studentProfile.id}`)}
+                      href={resolve(`/students/${p.talent.id}`)}
                       class="transition-colors hover:text-epi-blue"
-                      ><span class="uppercase">{p.studentProfile.nom}</span>
-                      {p.studentProfile.prenom}</a
+                      ><span class="uppercase">{p.talent.nom}</span>
+                      {p.talent.prenom}</a
                     >
                   {:else}
                     <span>Étudiant inconnu</span>
@@ -290,7 +290,7 @@
                 <div
                   class="flex items-center gap-2 text-[10px] text-muted-foreground uppercase"
                 >
-                  <span>{p.studentProfile?.niveau}</span>
+                  <span>{p.talent?.niveau}</span>
                   {#if (p.delay || 0) > 0}<span
                       class="flex items-center gap-1 font-bold text-orange-500"
                       ><Clock class="h-2.5 w-2.5" />{p.delay}m</span

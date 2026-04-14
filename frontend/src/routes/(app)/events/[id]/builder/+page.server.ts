@@ -36,10 +36,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const participations = await db.participation.findMany({
     where: { eventId: event.id },
-    include: { studentProfile: true },
+    include: { talent: true },
     orderBy: [
-      { studentProfile: { nom: 'asc' } },
-      { studentProfile: { prenom: 'asc' } },
+      { talent: { nom: 'asc' } },
+      { talent: { prenom: 'asc' } },
     ],
   });
 
@@ -142,8 +142,8 @@ export const actions: Actions = {
     try {
       const existing = await prisma.participation.findUnique({
         where: {
-          studentProfileId_eventId: {
-            studentProfileId: form.data.studentId,
+          talentId_eventId: {
+            talentId: form.data.studentId,
             eventId: params.id,
           },
         },
@@ -158,7 +158,7 @@ export const actions: Actions = {
       const campusId = getCampusId(locals);
       await prisma.participation.create({
         data: {
-          studentProfileId: form.data.studentId,
+          talentId: form.data.studentId,
           eventId: params.id,
           campusId,
           isPresent: false,
@@ -189,7 +189,7 @@ export const actions: Actions = {
           email,
           role: 'student',
           name: `${form.data.prenom} ${form.data.nom}`,
-          studentProfile: {
+          talent: {
             create: {
               nom: form.data.nom,
               prenom: form.data.prenom,
@@ -205,14 +205,14 @@ export const actions: Actions = {
             },
           },
         },
-        include: { studentProfile: true },
+        include: { talent: true },
       });
 
-      const studentProfileId = user.studentProfile!.id;
+      const talentId = user.talent!.id;
 
       await prisma.participation.create({
         data: {
-          studentProfileId,
+          talentId,
           eventId: params.id,
           campusId,
           isPresent: false,
@@ -312,12 +312,12 @@ export const actions: Actions = {
       if (p.isPresent) {
         const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
 
-        const profile = await prisma.studentProfile.findUniqueOrThrow({
-          where: { id: p.studentProfileId },
+        const profile = await prisma.talent.findUniqueOrThrow({
+          where: { id: p.talentId },
           select: { xp: true, eventsCount: true },
         });
-        await prisma.studentProfile.update({
-          where: { id: p.studentProfileId },
+        await prisma.talent.update({
+          where: { id: p.talentId },
           data: {
             xp: Math.max(0, profile.xp - xpValue),
             eventsCount: Math.max(0, profile.eventsCount - 1),

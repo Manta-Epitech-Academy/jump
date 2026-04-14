@@ -1007,7 +1007,7 @@ async function main() {
     },
   ];
 
-  const studentProfiles: {
+  const talents: {
     id: string;
     nom: string;
     prenom: string;
@@ -1024,7 +1024,7 @@ async function main() {
         emailVerified: true,
       },
     });
-    const profile = await prisma.studentProfile.upsert({
+    const profile = await prisma.talent.upsert({
       where: { userId: user.id },
       update: {},
       create: {
@@ -1037,7 +1037,7 @@ async function main() {
         charterAcceptedAt: new Date(),
       },
     });
-    studentProfiles.push({
+    talents.push({
       id: profile.id,
       nom: s.nom,
       prenom: s.prenom,
@@ -1342,20 +1342,20 @@ async function main() {
     const pDef = evtDef.participations;
     for (let idx = 0; idx < pDef.studentIndices.length; idx++) {
       const globalIdx = pDef.studentIndices[idx];
-      const sp = studentProfiles[globalIdx];
+      const sp = talents[globalIdx];
       const isPresent = idx < pDef.presentCount;
       const delay = pDef.delays?.[globalIdx] ?? 0;
 
       await prisma.participation.upsert({
         where: {
-          studentProfileId_eventId: {
-            studentProfileId: sp.id,
+          talentId_eventId: {
+            talentId: sp.id,
             eventId: event.id,
           },
         },
         update: {},
         create: {
-          studentProfileId: sp.id,
+          talentId: sp.id,
           eventId: event.id,
           campusId,
           isPresent,
@@ -1416,14 +1416,14 @@ async function main() {
 
   const xpByStudent: Record<string, { events: number; xp: number }> = {};
   for (const p of allParticipations) {
-    if (!xpByStudent[p.studentProfileId]) {
-      xpByStudent[p.studentProfileId] = { events: 0, xp: 0 };
+    if (!xpByStudent[p.talentId]) {
+      xpByStudent[p.talentId] = { events: 0, xp: 0 };
     }
-    xpByStudent[p.studentProfileId].events++;
+    xpByStudent[p.talentId].events++;
 
     for (const pa of p.activities) {
       if (!pa.isPresent || pa.activity.activityType === 'orga') continue;
-      xpByStudent[p.studentProfileId].xp +=
+      xpByStudent[p.talentId].xp +=
         XP_MAP[pa.activity.difficulte ?? ''] ?? 10;
     }
   }
@@ -1432,7 +1432,7 @@ async function main() {
     Object.entries(xpByStudent).map(([profileId, data]) => {
       const level =
         data.xp >= 200 ? 'Expert' : data.xp >= 80 ? 'Apprentice' : 'Novice';
-      return prisma.studentProfile.update({
+      return prisma.talent.update({
         where: { id: profileId },
         data: { xp: data.xp, eventsCount: data.events, level },
       });
@@ -1461,7 +1461,7 @@ async function main() {
       const lastStepId = cs.steps[cs.steps.length - 1].id;
 
       const progressData = participations.map((p) => ({
-        studentProfileId: p.studentProfileId,
+        talentId: p.talentId,
         activityId: activity.id,
         eventId,
         currentStepId: lastStepId,
@@ -1514,10 +1514,10 @@ async function main() {
   ];
 
   for (const p of portfolioData) {
-    const sp = studentProfiles[p.studentIndex];
+    const sp = talents[p.studentIndex];
     const exists = await prisma.portfolioItem.findFirst({
       where: {
-        studentProfileId: sp.id,
+        talentId: sp.id,
         eventId: p.eventId,
         caption: p.caption,
       },
@@ -1525,7 +1525,7 @@ async function main() {
     if (!exists) {
       await prisma.portfolioItem.create({
         data: {
-          studentProfileId: sp.id,
+          talentId: sp.id,
           eventId: p.eventId,
           url: p.url,
           caption: p.caption,
@@ -1537,10 +1537,10 @@ async function main() {
 
   // ── Summary ──
   const origin = process.env.ORIGIN || 'http://localhost:3030';
-  const parisStudentCount = studentProfiles.filter(
+  const parisStudentCount = talents.filter(
     (s) => s.campusId === paris.id,
   ).length;
-  const lyonStudentCount = studentProfiles.filter(
+  const lyonStudentCount = talents.filter(
     (s) => s.campusId === lyon.id,
   ).length;
 
@@ -1566,7 +1566,7 @@ async function main() {
   console.log(`${origin}/tekcamp/         — Staff app`);
   console.log(`${origin}/tekcamp/camper   — Camper app`);
   console.log(
-    `${origin}/tekcamp/p/${studentProfiles[0].id} — Public profile (Alice)`,
+    `${origin}/tekcamp/p/${talents[0].id} — Public profile (Alice)`,
   );
   console.log('══════════════════════════════════\n');
 }

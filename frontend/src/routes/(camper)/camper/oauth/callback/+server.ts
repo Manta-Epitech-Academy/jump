@@ -6,7 +6,7 @@ import { prisma } from '$lib/server/db';
 // BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft.
 // This route serves as the post-auth redirect to:
 // 1. Verify @epitech.eu domain
-// 2. Create StudentProfile if needed
+// 2. Create Talent if needed
 
 export const GET: RequestHandler = async ({ locals }) => {
   const loginPath = resolve('/camper/login');
@@ -29,24 +29,24 @@ export const GET: RequestHandler = async ({ locals }) => {
     });
   }
 
-  // Link or create StudentProfile
-  const linkedProfile = await prisma.studentProfile.findUnique({
+  // Link or create Talent
+  const linkedProfile = await prisma.talent.findUnique({
     where: { userId: locals.user.id },
   });
 
   if (!linkedProfile) {
     // Check for an unlinked profile matching this email (e.g. created by worker API)
-    const unlinkedProfile = await prisma.studentProfile.findUnique({
+    const unlinkedProfile = await prisma.talent.findUnique({
       where: { email: locals.user.email },
     });
 
     if (unlinkedProfile) {
-      await prisma.studentProfile.update({
+      await prisma.talent.update({
         where: { id: unlinkedProfile.id },
         data: { userId: locals.user.id },
       });
     } else {
-      await prisma.studentProfile.create({
+      await prisma.talent.create({
         data: {
           userId: locals.user.id,
           email: locals.user.email,

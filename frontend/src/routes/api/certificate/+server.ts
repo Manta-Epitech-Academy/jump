@@ -5,15 +5,15 @@ import { prisma } from '$lib/server/db';
 import { formatDateFr, tallyTopThemesFromActivities } from '$lib/utils';
 
 export const GET: RequestHandler = async ({ locals }) => {
-  if (!locals.studentProfile) throw error(401, 'Non autorise');
+  if (!locals.talent) throw error(401, 'Non autorise');
 
-  const studentProfileId = locals.studentProfile.id;
+  const talentId = locals.talent.id;
 
   try {
     // 1. Fetch completed participations with event + activity + theme details
     const participations = await prisma.participation.findMany({
       where: {
-        studentProfileId,
+        talentId,
         isPresent: true,
       },
       include: {
@@ -37,7 +37,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     // 2. Gather Portfolio Images (Max 4 for the A4 PDF)
     const portfolioItems = await prisma.portfolioItem.findMany({
       where: {
-        studentProfileId,
+        talentId,
         file: { not: null },
       },
       orderBy: { createdAt: 'desc' },
@@ -45,8 +45,8 @@ export const GET: RequestHandler = async ({ locals }) => {
     });
 
     // 3. Fetch campus name
-    const student = await prisma.studentProfile.findUniqueOrThrow({
-      where: { id: studentProfileId },
+    const student = await prisma.talent.findUniqueOrThrow({
+      where: { id: talentId },
       include: { campus: true },
     });
 
@@ -87,17 +87,17 @@ export const GET: RequestHandler = async ({ locals }) => {
 
     // 7. Assemble Data
     const data = {
-      studentName: `${locals.studentProfile.prenom} ${locals.studentProfile.nom}`,
+      studentName: `${locals.talent.prenom} ${locals.talent.nom}`,
       campus: student.campus?.name || '',
-      schoolLevel: locals.studentProfile.niveau
-        ? niveauLabels[locals.studentProfile.niveau] ||
-          locals.studentProfile.niveau
+      schoolLevel: locals.talent.niveau
+        ? niveauLabels[locals.talent.niveau] ||
+          locals.talent.niveau
         : '',
-      xp: locals.studentProfile.xp || 0,
+      xp: locals.talent.xp || 0,
       hours: participations.length * 3,
       eventsAttended: participations.length,
       activitiesCompleted: activityMap.size,
-      level: locals.studentProfile.level || 'Novice',
+      level: locals.talent.level || 'Novice',
       topThemes,
       activities,
       todayDate: formatDateFr(new Date()),
@@ -109,11 +109,11 @@ export const GET: RequestHandler = async ({ locals }) => {
     const pdfBytes = await generateCertificatePDF(data);
 
     // 9. Sanitize filename
-    const safeFirstName = locals.studentProfile.prenom.replace(
+    const safeFirstName = locals.talent.prenom.replace(
       /[^a-zA-Z0-9]/g,
       '',
     );
-    const safeLastName = locals.studentProfile.nom.replace(/[^a-zA-Z0-9]/g, '');
+    const safeLastName = locals.talent.nom.replace(/[^a-zA-Z0-9]/g, '');
 
     return new Response(new Blob([pdfBytes], { type: 'application/pdf' }), {
       status: 200,

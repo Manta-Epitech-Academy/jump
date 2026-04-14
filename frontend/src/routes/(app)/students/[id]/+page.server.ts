@@ -10,13 +10,13 @@ import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 export const load: PageServerLoad = async ({ params, locals }) => {
   const db = scopedPrisma(getCampusId(locals));
   try {
-    const student = await db.studentProfile.findUniqueOrThrow({
+    const student = await db.talent.findUniqueOrThrow({
       where: { id: params.id },
       include: { user: true, campus: true },
     });
 
     const participations = await prisma.participation.findMany({
-      where: { studentProfileId: student.id },
+      where: { talentId: student.id },
       include: {
         event: {
           include: {
@@ -83,7 +83,7 @@ export const actions: Actions = {
     const db = scopedPrisma(getCampusId(locals));
 
     try {
-      await db.studentProfile.update({
+      await db.talent.update({
         where: { id: params.id },
         data: {
           nom: form.data.nom,
@@ -109,13 +109,13 @@ export const actions: Actions = {
   delete: async ({ params, locals }) => {
     const db = scopedPrisma(getCampusId(locals));
     try {
-      const profile = await db.studentProfile.findUniqueOrThrow({
+      const profile = await db.talent.findUniqueOrThrow({
         where: { id: params.id },
       });
       if (profile.userId) {
         await prisma.bauth_user.delete({ where: { id: profile.userId } });
       } else {
-        await db.studentProfile.delete({ where: { id: params.id } });
+        await db.talent.delete({ where: { id: params.id } });
       }
     } catch (err) {
       console.error('Error deleting student:', err);

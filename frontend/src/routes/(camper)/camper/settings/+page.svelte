@@ -18,7 +18,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  let student = $derived(data.studentProfile);
+  let student = $derived(data.talent);
   let deleteDialogOpen = $state(false);
   let deleting = $state(false);
   let unlinkingDiscord = $state(false);

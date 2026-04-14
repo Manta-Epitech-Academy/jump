@@ -4,7 +4,7 @@ import { prisma } from '$lib/server/db';
 import { getParisStartOfDay } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.studentProfile) {
+  if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const pastParticipations = await prisma.participation.findMany({
     where: {
-      studentProfileId: locals.studentProfile.id,
+      talentId: locals.talent.id,
       event: { date: { lt: filterDateStart } },
       isPresent: true,
     },
@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   });
 
   return {
-    student: locals.studentProfile,
+    student: locals.talent,
     pastParticipations,
   };
 };

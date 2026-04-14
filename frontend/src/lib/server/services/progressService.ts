@@ -33,7 +33,7 @@ export class ValidationError extends Error {
 
 export const ProgressService = {
   async validateStep(
-    studentProfileId: string,
+    talentId: string,
     activityId: string,
     stepId: string,
     progressId: string,
@@ -75,7 +75,7 @@ export const ProgressService = {
     const progress = await prisma.stepsProgress.findUniqueOrThrow({
       where: { id: progressId },
     });
-    if (progress.studentProfileId !== studentProfileId) {
+    if (progress.talentId !== talentId) {
       throw new ValidationError('Accès refusé.');
     }
 

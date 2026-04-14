@@ -85,7 +85,7 @@
   );
 
   function isAlreadyInEvent(studentId: string) {
-    return participations.some((p) => p.studentProfile?.id === studentId);
+    return participations.some((p) => p.talent?.id === studentId);
   }
 </script>
 

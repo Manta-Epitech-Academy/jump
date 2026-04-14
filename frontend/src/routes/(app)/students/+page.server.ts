@@ -31,14 +31,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   }
 
   const [students, totalItems] = await Promise.all([
-    db.studentProfile.findMany({
+    db.talent.findMany({
       where,
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
       include: { user: true, campus: true },
     }),
-    db.studentProfile.count({ where }),
+    db.talent.count({ where }),
   ]);
 
   const form = await superValidate(zod4(studentSchema));
@@ -68,7 +68,7 @@ export const actions: Actions = {
           email,
           role: 'student',
           name: `${form.data.prenom} ${form.data.nom}`,
-          studentProfile: {
+          talent: {
             create: {
               nom: form.data.nom,
               prenom: form.data.prenom,
@@ -108,7 +108,7 @@ export const actions: Actions = {
     const db = scopedPrisma(getCampusId(locals));
 
     try {
-      await db.studentProfile.update({
+      await db.talent.update({
         where: { id },
         data: {
           nom: form.data.nom,
@@ -122,7 +122,7 @@ export const actions: Actions = {
       });
 
       if (form.data.email) {
-        const profile = await db.studentProfile.findUniqueOrThrow({
+        const profile = await db.talent.findUniqueOrThrow({
           where: { id },
         });
         if (profile.userId) {
@@ -150,13 +150,13 @@ export const actions: Actions = {
     const db = scopedPrisma(getCampusId(locals));
 
     try {
-      const profile = await db.studentProfile.findUniqueOrThrow({
+      const profile = await db.talent.findUniqueOrThrow({
         where: { id },
       });
       if (profile.userId) {
         await prisma.bauth_user.delete({ where: { id: profile.userId } });
       } else {
-        await db.studentProfile.delete({ where: { id } });
+        await db.talent.delete({ where: { id } });
       }
       return { success: true };
     } catch {
