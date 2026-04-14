@@ -138,7 +138,9 @@
         </Card.Header>
         <Card.Content class="space-y-3 p-4 pt-2">
           {#if p.activities && p.activities.length > 0}
-            {@const displayActivities = p.activities.filter((pa: any) => pa.activity.activityType !== 'orga')}
+            {@const displayActivities = p.activities.filter(
+              (pa: any) => pa.activity.activityType !== 'orga',
+            )}
             {#if displayActivities.length > 0}
               <div class="flex flex-col gap-2">
                 {#each displayActivities as pa}
@@ -189,7 +191,8 @@
                               >
                             {/snippet}
                           </Tooltip.Trigger>
-                          <Tooltip.Content><p>Voir le support</p></Tooltip.Content
+                          <Tooltip.Content
+                            ><p>Voir le support</p></Tooltip.Content
                           >
                         </Tooltip.Root>
                       </Tooltip.Provider>

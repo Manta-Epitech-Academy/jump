@@ -39,7 +39,10 @@ export async function applyPlanningTemplate(
   });
 
   if (event.campusId !== campusId) {
-    throw error(403, 'Accès refusé : cet événement appartient à un autre campus.');
+    throw error(
+      403,
+      'Accès refusé : cet événement appartient à un autre campus.',
+    );
   }
 
   const eventDate = new Date(event.date);

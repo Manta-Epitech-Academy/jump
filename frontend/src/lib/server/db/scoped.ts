@@ -315,7 +315,6 @@ export function scopedPrisma(campusId: string) {
           return query(args);
         },
       },
-
     },
   });
 }

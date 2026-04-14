@@ -647,10 +647,8 @@ async function main() {
 
   // subjectsData is used as source data for Activity creation in createPlanningForEvent below.
   // A lookup from subject name → data for the planning builder:
-  const subjectDataByName: Record<
-    string,
-    (typeof subjectsData)[0]
-  > = Object.fromEntries(subjectsData.map((s) => [s.nom, s]));
+  const subjectDataByName: Record<string, (typeof subjectsData)[0]> =
+    Object.fromEntries(subjectsData.map((s) => [s.nom, s]));
 
   console.log(`✓ Activity definitions ready (${subjectsData.length} entries)`);
 
@@ -947,7 +945,6 @@ async function main() {
       isPresent: false, // not checked in yet
       delay: 0,
       bringPc: i % 2 === 0,
-
     });
   }
 

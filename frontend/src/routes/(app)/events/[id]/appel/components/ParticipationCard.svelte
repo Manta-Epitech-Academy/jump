@@ -414,7 +414,6 @@
         </div>
       </div>
 
-
       {#if participation.isPresent}
         <div class="flex flex-col gap-2 border-t border-border pt-2">
           <!-- Camper Feedback Area -->

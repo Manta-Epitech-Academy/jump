@@ -573,9 +573,12 @@ export const actions: Actions = {
 
       const activity = await prisma.activity.findUniqueOrThrow({
         where: { id: activityId },
-        select: { timeSlot: { select: { planning: { select: { eventId: true } } } } },
+        select: {
+          timeSlot: { select: { planning: { select: { eventId: true } } } },
+        },
       });
-      if (activity.timeSlot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
+      if (activity.timeSlot.planning.eventId !== params.id)
+        throw error(403, 'Accès refusé');
 
       await prisma.activity.delete({ where: { id: activityId } });
       return { success: true };
@@ -594,7 +597,11 @@ export const actions: Actions = {
 
     try {
       const campusId = getCampusId(locals);
-      await applyPlanningTemplate(form.data.planningTemplateId, params.id, campusId);
+      await applyPlanningTemplate(
+        form.data.planningTemplateId,
+        params.id,
+        campusId,
+      );
 
       return message(form, 'Modèle de planning appliqué avec succès !');
     } catch (err) {
