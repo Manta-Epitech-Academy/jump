@@ -3,36 +3,44 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type ActivityType } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
+
+// ─── Constants ───
 
 const ADMIN_EMAIL = 'admin@tekcamp.fr';
 const ADMIN_PASSWORD = 'admin1234';
 const STAFF_PASSWORD = 'staff1234';
 const STUDENT_PASSWORD = 'student1234';
 
-// ─── Content Structure helpers ───
+const XP_MAP: Record<string, number> = {
+  Débutant: 20,
+  Intermédiaire: 45,
+  Avancé: 75,
+};
 
-function makeSteps(
-  steps: {
-    id: string;
-    title: string;
-    content_markdown: string;
-    type: 'theory' | 'exercise' | 'checkpoint';
-    validation?: {
-      type: 'auto_qcm' | 'manual_manta';
-      qcm_data?: {
-        question: string;
-        options: string[];
-        correct_index: number;
-      };
-      unlock_code?: string;
+// ─── Content Structures (activity step definitions) ───
+
+type StepDef = {
+  id: string;
+  title: string;
+  content_markdown: string;
+  type: 'theory' | 'exercise' | 'checkpoint';
+  validation?: {
+    type: 'auto_qcm' | 'manual_manta';
+    qcm_data?: {
+      question: string;
+      options: string[];
+      correct_index: number;
     };
-  }[],
-) {
+    unlock_code?: string;
+  };
+};
+
+function makeSteps(steps: StepDef[]) {
   return { steps };
 }
 
@@ -450,29 +458,407 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
   ]),
 };
 
+// ─── Activity definitions (blueprint for templates + concrete activities) ───
+
+type ActivityDef = {
+  nom: string;
+  description: string;
+  difficulte: string;
+  activityType: ActivityType;
+  isDynamic: boolean;
+  themes: string[];
+  link?: string;
+  content?: string;
+};
+
+const activityDefs: ActivityDef[] = [
+  {
+    nom: 'Ma première page HTML',
+    description:
+      'Découvre les bases du HTML et crée ta toute première page web avec des titres, images et liens.',
+    difficulte: 'Débutant',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Développement Web'],
+  },
+  {
+    nom: 'CSS : Styliser sa page',
+    description:
+      'Apprends à utiliser CSS pour ajouter des couleurs, des polices et mettre en forme ta page web.',
+    difficulte: 'Débutant',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Développement Web', 'Design & Création'],
+  },
+  {
+    nom: 'JavaScript : Premiers pas',
+    description:
+      'Introduction au JavaScript : variables, conditions et interactions avec la page.',
+    difficulte: 'Intermédiaire',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Développement Web'],
+  },
+  {
+    nom: 'Construis ton robot',
+    description:
+      'Assemble et programme un petit robot à partir de composants de base.',
+    difficulte: 'Débutant',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Robotique'],
+  },
+  {
+    nom: 'Capteurs et actionneurs',
+    description:
+      'Apprends à utiliser des capteurs (lumière, distance) et moteurs pour rendre ton robot intelligent.',
+    difficulte: 'Intermédiaire',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Robotique'],
+  },
+  {
+    nom: 'Crée ton jeu Scratch',
+    description:
+      'Utilise Scratch pour concevoir un petit jeu interactif avec des personnages et des niveaux.',
+    difficulte: 'Débutant',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Jeux Vidéo'],
+  },
+  {
+    nom: 'Game Design avancé',
+    description:
+      'Conçois les mécaniques, niveaux et la boucle de gameplay de ton propre jeu vidéo.',
+    difficulte: 'Avancé',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Jeux Vidéo', 'Design & Création'],
+  },
+  {
+    nom: 'Initiation à la cybersécurité',
+    description:
+      'Découvre les bases de la sécurité informatique : mots de passe, phishing et bonnes pratiques.',
+    difficulte: 'Débutant',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Cybersécurité'],
+  },
+  {
+    nom: 'Cryptographie : les secrets du code',
+    description:
+      'Explore le chiffrement César, Vigenère et les bases de la cryptographie moderne.',
+    difficulte: 'Intermédiaire',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Cybersécurité'],
+  },
+  {
+    nom: "L'IA et moi",
+    description:
+      "Découvre comment fonctionne l'intelligence artificielle à travers des exemples concrets et interactifs.",
+    difficulte: 'Débutant',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Intelligence Artificielle'],
+  },
+  {
+    nom: 'Entraîne ton modèle',
+    description:
+      "Utilise Teachable Machine pour créer et entraîner un modèle d'IA qui reconnaît des images.",
+    difficulte: 'Intermédiaire',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Intelligence Artificielle'],
+  },
+  {
+    nom: 'Poster numérique',
+    description:
+      'Crée une affiche numérique percutante en utilisant les principes du design graphique.',
+    difficulte: 'Débutant',
+    activityType: 'atelier',
+    isDynamic: true,
+    themes: ['Design & Création'],
+  },
+];
+
+const activityDefsByName = new Map(activityDefs.map((d) => [d.nom, d]));
+
+// ─── Event planning definitions ───
+
+type SlotDef = {
+  startHour: number;
+  startMinute?: number;
+  endHour: number;
+  endMinute?: number;
+  label?: string;
+  activities: {
+    nom: string;
+    activityType?: ActivityType;
+    isDynamic?: boolean;
+    content?: string;
+    link?: string;
+  }[];
+};
+
+type EventDef = {
+  id: string;
+  titre: string;
+  daysOffset: number; // from now
+  campusKey: string;
+  themeKey: string;
+  pin: string;
+  notes: string | null;
+  mantaKeys: string[];
+  slots: SlotDef[];
+  participations: {
+    studentIndices: number[];
+    presentCount: number;
+    delays?: Record<number, number>; // studentIndex → delay minutes
+    notes?: Record<number, { text: string; authorKey: string }>;
+    ratings?: Record<number, number>;
+    feedback?: Record<number, string>;
+    bringPcFn?: (i: number) => boolean;
+  };
+};
+
+const eventDefs: EventDef[] = [
+  {
+    id: 'seed-past-event-1',
+    titre: 'Atelier Découverte Web',
+    daysOffset: -21,
+    campusKey: 'Paris',
+    themeKey: 'Développement Web',
+    pin: '1234',
+    notes: 'Premier atelier de la saison. Très bon accueil des campers.',
+    mantaKeys: ['manta@epitech.eu'],
+    slots: [
+      {
+        startHour: 13,
+        endHour: 13,
+        endMinute: 30,
+        label: 'Accueil',
+        activities: [{ nom: 'Appel & accueil', activityType: 'orga' }],
+      },
+      {
+        startHour: 14,
+        endHour: 16,
+        label: 'Après-midi',
+        activities: [
+          { nom: 'Ma première page HTML' },
+          { nom: 'CSS : Styliser sa page' },
+        ],
+      },
+    ],
+    participations: {
+      studentIndices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      presentCount: 8,
+      delays: { 3: 15, 5: 5 },
+      notes: {
+        0: {
+          text: 'Très motivée, a aidé ses camarades.',
+          authorKey: 'manta@epitech.eu',
+        },
+      },
+      ratings: { 0: 3, 1: 2, 2: 3, 3: 3, 4: 2, 5: 3, 6: 3, 7: 2 },
+      feedback: { 0: "J'ai adoré créer ma page web !" },
+      bringPcFn: (i) => i % 3 !== 0,
+    },
+  },
+  {
+    id: 'seed-past-event-2',
+    titre: 'Atelier Robotique Découverte',
+    daysOffset: -14,
+    campusKey: 'Paris',
+    themeKey: 'Robotique',
+    pin: '4321',
+    notes: null,
+    mantaKeys: ['manta@epitech.eu', 'jdupont@epitech.eu'],
+    slots: [
+      {
+        startHour: 13,
+        endHour: 13,
+        endMinute: 30,
+        label: 'Accueil',
+        activities: [{ nom: 'Appel & accueil', activityType: 'orga' }],
+      },
+      {
+        startHour: 14,
+        endHour: 17,
+        label: 'Après-midi',
+        activities: [{ nom: 'Construis ton robot' }],
+      },
+    ],
+    participations: {
+      studentIndices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      presentCount: 6,
+      delays: { 1: 10 },
+      ratings: { 0: 3, 1: 3, 2: 2, 3: 3, 4: 2, 5: 3 },
+      feedback: { 1: 'Le robot était trop cool !' },
+      bringPcFn: () => false,
+    },
+  },
+  {
+    id: 'seed-past-event-3',
+    titre: 'Atelier Cyber & Sécurité',
+    daysOffset: -7,
+    campusKey: 'Paris',
+    themeKey: 'Cybersécurité',
+    pin: '9999',
+    notes: 'Sujet phishing très apprécié.',
+    mantaKeys: ['jdupont@epitech.eu'],
+    slots: [
+      {
+        startHour: 13,
+        endHour: 13,
+        endMinute: 30,
+        label: 'Accueil',
+        activities: [{ nom: 'Appel & accueil', activityType: 'orga' }],
+      },
+      {
+        startHour: 14,
+        endHour: 16,
+        label: 'Après-midi',
+        activities: [
+          { nom: 'Initiation à la cybersécurité' },
+          { nom: 'Cryptographie : les secrets du code' },
+        ],
+      },
+    ],
+    participations: {
+      studentIndices: [0, 1, 2, 3, 4, 5, 6],
+      presentCount: 5,
+      ratings: { 0: 3, 1: 3, 2: 3, 3: 3, 4: 3 },
+      bringPcFn: () => true,
+    },
+  },
+  {
+    id: 'seed-today-event',
+    titre: "Atelier IA : L'intelligence artificielle",
+    daysOffset: 0,
+    campusKey: 'Paris',
+    themeKey: 'Intelligence Artificielle',
+    pin: '7777',
+    notes: null,
+    mantaKeys: ['manta@epitech.eu', 'jdupont@epitech.eu'],
+    slots: [
+      {
+        startHour: 13,
+        endHour: 14,
+        label: 'Conférence',
+        activities: [
+          {
+            nom: "Bienvenue à l'atelier IA",
+            activityType: 'conference',
+            isDynamic: false,
+            content:
+              "## Bienvenue !\n\nAujourd'hui nous allons explorer **l'intelligence artificielle**.\n\n### Programme\n1. Conférence d'introduction (13h-14h)\n2. Ateliers pratiques (14h-16h)\n\n### Liens utiles\n- [Teachable Machine](https://teachablemachine.withgoogle.com/)\n- [Scratch](https://scratch.mit.edu/)",
+            link: 'https://teachablemachine.withgoogle.com/',
+          },
+        ],
+      },
+      {
+        startHour: 14,
+        endHour: 14,
+        endMinute: 15,
+        label: 'Appel',
+        activities: [{ nom: 'Appel après-midi', activityType: 'orga' }],
+      },
+      {
+        startHour: 14,
+        endHour: 16,
+        label: 'Ateliers',
+        activities: [{ nom: "L'IA et moi" }, { nom: 'Entraîne ton modèle' }],
+      },
+    ],
+    participations: {
+      studentIndices: [0, 1, 2, 3, 4, 5, 6, 7],
+      presentCount: 0, // not checked in yet
+      bringPcFn: (i) => i % 2 === 0,
+    },
+  },
+  {
+    id: 'seed-upcoming-event',
+    titre: 'Atelier Jeux Vidéo',
+    daysOffset: 7,
+    campusKey: 'Paris',
+    themeKey: 'Jeux Vidéo',
+    pin: '5678',
+    notes: null,
+    mantaKeys: ['manta@epitech.eu'],
+    slots: [
+      {
+        startHour: 13,
+        endHour: 13,
+        endMinute: 30,
+        label: 'Accueil',
+        activities: [{ nom: 'Appel & accueil', activityType: 'orga' }],
+      },
+      {
+        startHour: 14,
+        endHour: 17,
+        label: 'Après-midi',
+        activities: [{ nom: 'Crée ton jeu Scratch' }],
+      },
+    ],
+    participations: {
+      studentIndices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      presentCount: 0,
+      bringPcFn: () => true,
+    },
+  },
+  {
+    id: 'seed-lyon-event',
+    titre: 'Atelier Web Lyon',
+    daysOffset: -10,
+    campusKey: 'Lyon',
+    themeKey: 'Développement Web',
+    pin: '3333',
+    notes: null,
+    mantaKeys: ['lgarcia@epitech.eu'],
+    slots: [
+      {
+        startHour: 13,
+        endHour: 13,
+        endMinute: 30,
+        label: 'Accueil',
+        activities: [{ nom: 'Appel & accueil', activityType: 'orga' }],
+      },
+      {
+        startHour: 14,
+        endHour: 16,
+        label: 'Après-midi',
+        activities: [{ nom: 'Ma première page HTML' }],
+      },
+    ],
+    participations: {
+      studentIndices: [10, 11, 12], // Lyon student indices
+      presentCount: 3,
+      ratings: { 10: 3, 11: 3, 12: 3 },
+      bringPcFn: () => true,
+    },
+  },
+];
+
+// ─── Main ───
+
 async function main() {
-  // ─── Campuses ───
-  const paris = await prisma.campus.upsert({
-    where: { name: 'Paris' },
-    update: {},
-    create: { name: 'Paris' },
-  });
+  const now = new Date();
 
-  const lyon = await prisma.campus.upsert({
-    where: { name: 'Lyon' },
-    update: {},
-    create: { name: 'Lyon' },
-  });
+  // ── 1. Campuses ──
+  const [paris, lyon, marseille] = await Promise.all(
+    ['Paris', 'Lyon', 'Marseille'].map((name) =>
+      prisma.campus.upsert({ where: { name }, update: {}, create: { name } }),
+    ),
+  );
+  const campusByName: Record<string, { id: string }> = {
+    Paris: paris,
+    Lyon: lyon,
+    Marseille: marseille,
+  };
+  console.log('✓ Campuses');
 
-  const marseille = await prisma.campus.upsert({
-    where: { name: 'Marseille' },
-    update: {},
-    create: { name: 'Marseille' },
-  });
-
-  console.log('✓ Campuses seeded');
-
-  // ─── Admin user ───
+  // ── 2. Users & profiles (admin, staff, students) ──
   const adminUser = await prisma.bauth_user.upsert({
     where: { email: ADMIN_EMAIL },
     update: { role: 'admin' },
@@ -483,19 +869,15 @@ async function main() {
       emailVerified: true,
     },
   });
-
   await upsertCredential(adminUser.id, ADMIN_PASSWORD);
-  console.log(`✓ Admin seeded: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
 
-  // ─── Staff users ───
   const staffData = [
-    { email: 'manta@epitech.eu', name: 'Marie Manta', campus: paris },
-    { email: 'jdupont@epitech.eu', name: 'Jules Dupont', campus: paris },
-    { email: 'lgarcia@epitech.eu', name: 'Laura Garcia', campus: lyon },
+    { email: 'manta@epitech.eu', name: 'Marie Manta', campusKey: 'Paris' },
+    { email: 'jdupont@epitech.eu', name: 'Jules Dupont', campusKey: 'Paris' },
+    { email: 'lgarcia@epitech.eu', name: 'Laura Garcia', campusKey: 'Lyon' },
   ];
 
   const staffProfiles: Record<string, { id: string; campusId: string }> = {};
-
   for (const s of staffData) {
     const user = await prisma.bauth_user.upsert({
       where: { email: s.email },
@@ -507,161 +889,24 @@ async function main() {
         emailVerified: true,
       },
     });
-
     const profile = await prisma.staffProfile.upsert({
       where: { userId: user.id },
       update: {},
-      create: { userId: user.id, campusId: s.campus.id },
+      create: { userId: user.id, campusId: campusByName[s.campusKey].id },
     });
-
-    staffProfiles[s.email] = { id: profile.id, campusId: s.campus.id };
+    staffProfiles[s.email] = { id: profile.id, campusId: profile.campusId! };
     await upsertCredential(user.id, STAFF_PASSWORD);
   }
 
-  console.log(
-    `✓ Staff seeded: ${staffData.map((s) => s.email).join(', ')} / ${STAFF_PASSWORD}`,
-  );
-
-  // ─── Themes ───
-  const themeNames = [
-    'Développement Web',
-    'Robotique',
-    'Jeux Vidéo',
-    'Cybersécurité',
-    'Intelligence Artificielle',
-    'Design & Création',
-  ];
-
-  const themes: Record<string, { id: string }> = {};
-  for (const nom of themeNames) {
-    themes[nom] = await prisma.theme.upsert({
-      where: { nom_campusId: { nom, campusId: paris.id } },
-      update: {},
-      create: { nom, campusId: paris.id },
-    });
-  }
-
-  // Lyon themes (subset)
-  const lyonThemes: Record<string, { id: string }> = {};
-  for (const nom of [
-    'Développement Web',
-    'Robotique',
-    'Intelligence Artificielle',
-  ]) {
-    lyonThemes[nom] = await prisma.theme.upsert({
-      where: { nom_campusId: { nom, campusId: lyon.id } },
-      update: {},
-      create: { nom, campusId: lyon.id },
-    });
-  }
-
-  console.log('✓ Themes seeded');
-
-  // ─── Subjects ───
-  const subjectsData = [
-    {
-      nom: 'Ma première page HTML',
-      description:
-        'Découvre les bases du HTML et crée ta toute première page web avec des titres, images et liens.',
-      difficulte: 'Débutant',
-      themes: ['Développement Web'],
-    },
-    {
-      nom: 'CSS : Styliser sa page',
-      description:
-        'Apprends à utiliser CSS pour ajouter des couleurs, des polices et mettre en forme ta page web.',
-      difficulte: 'Débutant',
-      themes: ['Développement Web', 'Design & Création'],
-    },
-    {
-      nom: 'JavaScript : Premiers pas',
-      description:
-        'Introduction au JavaScript : variables, conditions et interactions avec la page.',
-      difficulte: 'Intermédiaire',
-      themes: ['Développement Web'],
-    },
-    {
-      nom: 'Construis ton robot',
-      description:
-        'Assemble et programme un petit robot à partir de composants de base.',
-      difficulte: 'Débutant',
-      themes: ['Robotique'],
-    },
-    {
-      nom: 'Capteurs et actionneurs',
-      description:
-        'Apprends à utiliser des capteurs (lumière, distance) et moteurs pour rendre ton robot intelligent.',
-      difficulte: 'Intermédiaire',
-      themes: ['Robotique'],
-    },
-    {
-      nom: 'Crée ton jeu Scratch',
-      description:
-        'Utilise Scratch pour concevoir un petit jeu interactif avec des personnages et des niveaux.',
-      difficulte: 'Débutant',
-      themes: ['Jeux Vidéo'],
-    },
-    {
-      nom: 'Game Design avancé',
-      description:
-        'Conçois les mécaniques, niveaux et la boucle de gameplay de ton propre jeu vidéo.',
-      difficulte: 'Avancé',
-      themes: ['Jeux Vidéo', 'Design & Création'],
-    },
-    {
-      nom: 'Initiation à la cybersécurité',
-      description:
-        'Découvre les bases de la sécurité informatique : mots de passe, phishing et bonnes pratiques.',
-      difficulte: 'Débutant',
-      themes: ['Cybersécurité'],
-    },
-    {
-      nom: 'Cryptographie : les secrets du code',
-      description:
-        'Explore le chiffrement César, Vigenère et les bases de la cryptographie moderne.',
-      difficulte: 'Intermédiaire',
-      themes: ['Cybersécurité'],
-    },
-    {
-      nom: "L'IA et moi",
-      description:
-        "Découvre comment fonctionne l'intelligence artificielle à travers des exemples concrets et interactifs.",
-      difficulte: 'Débutant',
-      themes: ['Intelligence Artificielle'],
-    },
-    {
-      nom: 'Entraîne ton modèle',
-      description:
-        "Utilise Teachable Machine pour créer et entraîner un modèle d'IA qui reconnaît des images.",
-      difficulte: 'Intermédiaire',
-      themes: ['Intelligence Artificielle'],
-    },
-    {
-      nom: 'Poster numérique',
-      description:
-        'Crée une affiche numérique percutante en utilisant les principes du design graphique.',
-      difficulte: 'Débutant',
-      themes: ['Design & Création'],
-    },
-  ];
-
-  // subjectsData is used as source data for Activity creation in createPlanningForEvent below.
-  // A lookup from subject name → data for the planning builder:
-  const subjectDataByName: Record<string, (typeof subjectsData)[0]> =
-    Object.fromEntries(subjectsData.map((s) => [s.nom, s]));
-
-  console.log(`✓ Activity definitions ready (${subjectsData.length} entries)`);
-
-  // ─── Students ───
   const studentsData = [
-    // Paris students
+    // Paris (indices 0-9)
     {
       email: 'alice.martin@mail.com',
       prenom: 'Alice',
       nom: 'Martin',
       niveau: '4eme',
       niveauDifficulte: 'Débutant',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'lucas.dupont@mail.com',
@@ -669,7 +914,7 @@ async function main() {
       nom: 'Dupont',
       niveau: '3eme',
       niveauDifficulte: 'Intermédiaire',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'emma.bernard@mail.com',
@@ -677,7 +922,7 @@ async function main() {
       nom: 'Bernard',
       niveau: '5eme',
       niveauDifficulte: 'Débutant',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'hugo.petit@mail.com',
@@ -685,7 +930,7 @@ async function main() {
       nom: 'Petit',
       niveau: '6eme',
       niveauDifficulte: 'Débutant',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'lea.moreau@mail.com',
@@ -693,7 +938,7 @@ async function main() {
       nom: 'Moreau',
       niveau: '2nde',
       niveauDifficulte: 'Avancé',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'nathan.garcia@mail.com',
@@ -701,7 +946,7 @@ async function main() {
       nom: 'Garcia',
       niveau: '4eme',
       niveauDifficulte: 'Intermédiaire',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'chloe.roux@mail.com',
@@ -709,7 +954,7 @@ async function main() {
       nom: 'Roux',
       niveau: '3eme',
       niveauDifficulte: 'Intermédiaire',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'theo.fournier@mail.com',
@@ -717,7 +962,7 @@ async function main() {
       nom: 'Fournier',
       niveau: '5eme',
       niveauDifficulte: 'Débutant',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'jade.morel@mail.com',
@@ -725,7 +970,7 @@ async function main() {
       nom: 'Morel',
       niveau: '6eme',
       niveauDifficulte: 'Débutant',
-      campus: paris,
+      campusKey: 'Paris',
     },
     {
       email: 'louis.simon@mail.com',
@@ -733,16 +978,16 @@ async function main() {
       nom: 'Simon',
       niveau: '1ere',
       niveauDifficulte: 'Avancé',
-      campus: paris,
+      campusKey: 'Paris',
     },
-    // Lyon students
+    // Lyon (indices 10-12)
     {
       email: 'ines.durand@mail.com',
       prenom: 'Inès',
       nom: 'Durand',
       niveau: '4eme',
       niveauDifficulte: 'Débutant',
-      campus: lyon,
+      campusKey: 'Lyon',
     },
     {
       email: 'adam.leroy@mail.com',
@@ -750,7 +995,7 @@ async function main() {
       nom: 'Leroy',
       niveau: '3eme',
       niveauDifficulte: 'Intermédiaire',
-      campus: lyon,
+      campusKey: 'Lyon',
     },
     {
       email: 'manon.david@mail.com',
@@ -758,7 +1003,7 @@ async function main() {
       nom: 'David',
       niveau: '5eme',
       niveauDifficulte: 'Débutant',
-      campus: lyon,
+      campusKey: 'Lyon',
     },
   ];
 
@@ -768,7 +1013,6 @@ async function main() {
     prenom: string;
     campusId: string;
   }[] = [];
-
   for (const s of studentsData) {
     const user = await prisma.bauth_user.upsert({
       where: { email: s.email },
@@ -780,7 +1024,6 @@ async function main() {
         emailVerified: true,
       },
     });
-
     const profile = await prisma.studentProfile.upsert({
       where: { userId: user.id },
       update: {},
@@ -788,504 +1031,385 @@ async function main() {
         userId: user.id,
         nom: s.nom,
         prenom: s.prenom,
-        campusId: s.campus.id,
+        campusId: campusByName[s.campusKey].id,
         niveau: s.niveau,
         niveauDifficulte: s.niveauDifficulte,
         charterAcceptedAt: new Date(),
       },
     });
-
     studentProfiles.push({
       id: profile.id,
       nom: s.nom,
       prenom: s.prenom,
-      campusId: s.campus.id,
+      campusId: profile.campusId!,
     });
     await upsertCredential(user.id, STUDENT_PASSWORD);
   }
 
-  console.log(`✓ Students seeded (${studentProfiles.length})`);
+  console.log(
+    `✓ Users (1 admin, ${staffData.length} staff, ${studentsData.length} students)`,
+  );
 
-  // ─── Events ───
-  const parisStaff1 = staffProfiles['manta@epitech.eu'];
-  const parisStaff2 = staffProfiles['jdupont@epitech.eu'];
-  const lyonStaff = staffProfiles['lgarcia@epitech.eu'];
-  const parisStudents = studentProfiles.filter((s) => s.campusId === paris.id);
-  const lyonStudents = studentProfiles.filter((s) => s.campusId === lyon.id);
+  // ── 3. Themes ──
+  const themeNames = [
+    'Développement Web',
+    'Robotique',
+    'Jeux Vidéo',
+    'Cybersécurité',
+    'Intelligence Artificielle',
+    'Design & Création',
+  ];
 
-  const now = new Date();
-
-  // --- Past event 1: 3 weeks ago (Web) ---
-  const pastDate1 = new Date(now);
-  pastDate1.setDate(pastDate1.getDate() - 21);
-
-  const pastEvent1 = await upsertEvent({
-    id: 'seed-past-event-1',
-    titre: 'Atelier Découverte Web',
-    date: pastDate1,
-    campusId: paris.id,
-    themeId: themes['Développement Web'].id,
-    pin: '1234',
-    notes: 'Premier atelier de la saison. Très bon accueil des campers.',
-    mantaIds: [parisStaff1.id],
-  });
-
-  // Past event 1 participations: all Paris students, most present
-  for (let i = 0; i < parisStudents.length; i++) {
-    const sp = parisStudents[i];
-    const isPresent = i < 8; // 8 out of 10 present
-    const subjectName =
-      i % 2 === 0 ? 'Ma première page HTML' : 'CSS : Styliser sa page';
-
-    await upsertParticipation({
-      studentProfileId: sp.id,
-      eventId: pastEvent1.id,
-      campusId: paris.id,
-      isPresent,
-      delay: i === 3 ? 15 : i === 5 ? 5 : 0,
-      bringPc: i % 3 !== 0,
-
-      note:
-        isPresent && i === 0
-          ? 'Très motivée, a aidé ses camarades.'
-          : undefined,
-      noteAuthorId: isPresent && i === 0 ? parisStaff1.id : undefined,
-      camperRating: isPresent ? [3, 2, 3, 3, 2, 3, 3, 2][i] : undefined,
-      camperFeedback:
-        isPresent && i === 0 ? "J'ai adoré créer ma page web !" : undefined,
+  const themes: Record<string, { id: string }> = {};
+  for (const nom of themeNames) {
+    themes[`Paris:${nom}`] = await prisma.theme.upsert({
+      where: { nom_campusId: { nom, campusId: paris.id } },
+      update: {},
+      create: { nom, campusId: paris.id },
+    });
+  }
+  for (const nom of [
+    'Développement Web',
+    'Robotique',
+    'Intelligence Artificielle',
+  ]) {
+    themes[`Lyon:${nom}`] = await prisma.theme.upsert({
+      where: { nom_campusId: { nom, campusId: lyon.id } },
+      update: {},
+      create: { nom, campusId: lyon.id },
     });
   }
 
-  // --- Past event 2: 2 weeks ago (Robotique) ---
-  const pastDate2 = new Date(now);
-  pastDate2.setDate(pastDate2.getDate() - 14);
-
-  const pastEvent2 = await upsertEvent({
-    id: 'seed-past-event-2',
-    titre: 'Atelier Robotique Découverte',
-    date: pastDate2,
-    campusId: paris.id,
-    themeId: themes['Robotique'].id,
-    pin: '4321',
-    notes: null,
-    mantaIds: [parisStaff1.id, parisStaff2.id],
-  });
-
-  for (let i = 0; i < parisStudents.length; i++) {
-    const sp = parisStudents[i];
-    const isPresent = i < 6;
-
-    await upsertParticipation({
-      studentProfileId: sp.id,
-      eventId: pastEvent2.id,
-      campusId: paris.id,
-      isPresent,
-      delay: i === 1 ? 10 : 0,
-      bringPc: false,
-      camperRating: isPresent ? [3, 3, 2, 3, 2, 3][i] : undefined,
-      camperFeedback:
-        isPresent && i === 1 ? 'Le robot était trop cool !' : undefined,
+  // Official (global) themes for activity templates (campusId = null)
+  const officialThemes: Record<string, { id: string }> = {};
+  for (const nom of themeNames) {
+    const existing = await prisma.theme.findFirst({
+      where: { nom, campusId: null },
     });
+    officialThemes[nom] = existing
+      ? existing
+      : await prisma.theme.create({ data: { nom, campusId: null } });
   }
 
-  // --- Past event 3: 1 week ago (Cybersécurité) ---
-  const pastDate3 = new Date(now);
-  pastDate3.setDate(pastDate3.getDate() - 7);
+  console.log('✓ Themes');
 
-  const pastEvent3 = await upsertEvent({
-    id: 'seed-past-event-3',
-    titre: 'Atelier Cyber & Sécurité',
-    date: pastDate3,
-    campusId: paris.id,
-    themeId: themes['Cybersécurité'].id,
-    pin: '9999',
-    notes: 'Sujet phishing très apprécié.',
-    mantaIds: [parisStaff2.id],
-  });
-
-  for (let i = 0; i < 7; i++) {
-    const sp = parisStudents[i];
-    const isPresent = i < 5;
-
-    await upsertParticipation({
-      studentProfileId: sp.id,
-      eventId: pastEvent3.id,
-      campusId: paris.id,
-      isPresent,
-      delay: 0,
-      bringPc: true,
-      camperRating: isPresent ? 3 : undefined,
-    });
+  function resolveThemeId(campusKey: string, themeName: string): string {
+    return (themes[`${campusKey}:${themeName}`] ?? themes[`Paris:${themeName}`])
+      .id;
   }
 
-  // --- Today's event (so the camper dashboard shows something) ---
-  const todayDate = new Date(now);
-  todayDate.setHours(14, 0, 0, 0);
-
-  const todayEvent = await upsertEvent({
-    id: 'seed-today-event',
-    titre: "Atelier IA : L'intelligence artificielle",
-    date: todayDate,
-    campusId: paris.id,
-    themeId: themes['Intelligence Artificielle'].id,
-    pin: '7777',
-    notes: null,
-    mantaIds: [parisStaff1.id, parisStaff2.id],
-  });
-
-  // Register 8 students for today's event
-  for (let i = 0; i < 8; i++) {
-    const sp = parisStudents[i];
-    const subjectName = i % 2 === 0 ? "L'IA et moi" : 'Entraîne ton modèle';
-
-    await upsertParticipation({
-      studentProfileId: sp.id,
-      eventId: todayEvent.id,
-      campusId: paris.id,
-      isPresent: false, // not checked in yet
-      delay: 0,
-      bringPc: i % 2 === 0,
+  // ── 4. Activity Templates (global reusable blueprints) ──
+  const templatesByName: Record<string, { id: string }> = {};
+  for (const def of activityDefs) {
+    const template = await prisma.activityTemplate.upsert({
+      where: {
+        id: `seed-tpl-${def.nom.substring(0, 30).replace(/\s/g, '-').toLowerCase()}`,
+      },
+      update: {},
+      create: {
+        id: `seed-tpl-${def.nom.substring(0, 30).replace(/\s/g, '-').toLowerCase()}`,
+        nom: def.nom,
+        description: def.description,
+        difficulte: def.difficulte,
+        activityType: def.activityType,
+        isDynamic: def.isDynamic,
+        contentStructure: contentStructures[def.nom] ?? undefined,
+        defaultDuration: 120,
+        campusId: null,
+      },
     });
-  }
 
-  // --- Upcoming event: next week ---
-  const upcomingDate = new Date(now);
-  upcomingDate.setDate(upcomingDate.getDate() + 7);
-  upcomingDate.setHours(14, 0, 0, 0);
-
-  const upcomingEvent = await upsertEvent({
-    id: 'seed-upcoming-event',
-    titre: 'Atelier Jeux Vidéo',
-    date: upcomingDate,
-    campusId: paris.id,
-    themeId: themes['Jeux Vidéo'].id,
-    pin: '5678',
-    notes: null,
-    mantaIds: [parisStaff1.id],
-  });
-
-  for (const sp of parisStudents) {
-    await upsertParticipation({
-      studentProfileId: sp.id,
-      eventId: upcomingEvent.id,
-      campusId: paris.id,
-      isPresent: false,
-      delay: 0,
-      bringPc: true,
-    });
-  }
-
-  // --- Lyon past event ---
-  const lyonPastDate = new Date(now);
-  lyonPastDate.setDate(lyonPastDate.getDate() - 10);
-
-  const lyonEvent = await upsertEvent({
-    id: 'seed-lyon-event',
-    titre: 'Atelier Web Lyon',
-    date: lyonPastDate,
-    campusId: lyon.id,
-    themeId: lyonThemes['Développement Web'].id,
-    pin: '3333',
-    notes: null,
-    mantaIds: [lyonStaff.id],
-  });
-
-  for (let i = 0; i < lyonStudents.length; i++) {
-    const sp = lyonStudents[i];
-    await upsertParticipation({
-      studentProfileId: sp.id,
-      eventId: lyonEvent.id,
-      campusId: lyon.id,
-      isPresent: true,
-      delay: 0,
-      bringPc: true,
-      camperRating: 3,
-    });
-  }
-
-  console.log('✓ Events seeded (4 Paris + 1 Lyon)');
-
-  // ─── Planning → TimeSlots → Activities for each event ───
-  const eventActivityMap: Record<string, string[]> = {};
-
-  async function createPlanningForEvent(
-    eventId: string,
-    eventDate: Date,
-    activityDefs: {
-      subjectName: string;
-      slotStart: number; // hour
-      slotEnd: number;
-      slotLabel?: string;
-    }[],
-  ) {
-    let planning = await prisma.planning.findUnique({
-      where: { eventId },
-    });
-    if (!planning) {
-      planning = await prisma.planning.create({
-        data: { eventId },
+    // Link official themes
+    for (const themeName of def.themes) {
+      const themeId = officialThemes[themeName]?.id;
+      if (!themeId) continue;
+      await prisma.activityTemplateTheme.upsert({
+        where: {
+          activityTemplateId_themeId: {
+            activityTemplateId: template.id,
+            themeId,
+          },
+        },
+        update: {},
+        create: { activityTemplateId: template.id, themeId },
       });
     }
 
-    const activityIds: Record<string, string> = {};
+    templatesByName[def.nom] = template;
+  }
+  console.log(`✓ Activity templates (${activityDefs.length})`);
 
-    for (const def of activityDefs) {
-      const srcData = subjectDataByName[def.subjectName];
-      if (!srcData) continue;
+  // ── 5. Planning Template (multi-day "Stage de seconde" example) ──
+  const stageTemplate = await prisma.planningTemplate.upsert({
+    where: { nom: 'Stage de seconde — 5 jours' },
+    update: {},
+    create: {
+      nom: 'Stage de seconde — 5 jours',
+      description:
+        'Modèle de planning sur 5 jours pour le stage de seconde. Chaque journée contient un créneau accueil/appel (orga) + un créneau atelier.',
+      nbDays: 5,
+    },
+  });
 
+  // Create 5 days with morning orga + afternoon atelier slots
+  const stageActivitiesByDay: [string, string][] = [
+    ['Ma première page HTML', 'CSS : Styliser sa page'],
+    ['Construis ton robot', 'Capteurs et actionneurs'],
+    ["L'IA et moi", 'Entraîne ton modèle'],
+    ['Initiation à la cybersécurité', 'Cryptographie : les secrets du code'],
+    ['Crée ton jeu Scratch', 'Game Design avancé'],
+  ];
+
+  // Clear existing template days on re-run (cascades to slots + items)
+  await prisma.planningTemplateDay.deleteMany({
+    where: { planningTemplateId: stageTemplate.id },
+  });
+
+  for (let dayIdx = 0; dayIdx < 5; dayIdx++) {
+    const day = await prisma.planningTemplateDay.upsert({
+      where: {
+        planningTemplateId_dayIndex: {
+          planningTemplateId: stageTemplate.id,
+          dayIndex: dayIdx,
+        },
+      },
+      update: {},
+      create: {
+        planningTemplateId: stageTemplate.id,
+        dayIndex: dayIdx,
+        label: `Jour ${dayIdx + 1}`,
+      },
+    });
+
+    // Orga slot
+    const orgaSlot = await prisma.planningTemplateSlot.create({
+      data: {
+        planningTemplateDayId: day.id,
+        startTime: '13:30',
+        endTime: '14:00',
+        label: 'Accueil & appel',
+        sortOrder: 0,
+      },
+    });
+    await prisma.planningTemplateSlotItem.create({
+      data: {
+        planningTemplateSlotId: orgaSlot.id,
+        nom: 'Appel',
+        activityType: 'orga',
+      },
+    });
+
+    // Atelier slot with 2 parallel tracks
+    const atelierSlot = await prisma.planningTemplateSlot.create({
+      data: {
+        planningTemplateDayId: day.id,
+        startTime: '14:00',
+        endTime: '16:30',
+        label: 'Ateliers',
+        sortOrder: 1,
+      },
+    });
+    for (const actName of stageActivitiesByDay[dayIdx]) {
+      const tpl = templatesByName[actName];
+      await prisma.planningTemplateSlotItem.create({
+        data: {
+          planningTemplateSlotId: atelierSlot.id,
+          activityTemplateId: tpl?.id ?? null,
+          nom: tpl ? null : actName,
+          activityType: 'atelier',
+        },
+      });
+    }
+  }
+  console.log('✓ Planning template (Stage de seconde — 5 jours)');
+
+  // ── 6. Events + Planning + TimeSlots + Activities ──
+  // Track created activity IDs per event for linking participations later
+  const eventActivities: Record<
+    string,
+    {
+      id: string;
+      nom: string;
+      activityType: ActivityType;
+      difficulte: string | null;
+    }[]
+  > = {};
+
+  for (const evtDef of eventDefs) {
+    const campusId = campusByName[evtDef.campusKey].id;
+    const eventDate = new Date(now);
+    eventDate.setDate(eventDate.getDate() + evtDef.daysOffset);
+    if (evtDef.daysOffset === 0) eventDate.setHours(14, 0, 0, 0);
+
+    const event = await prisma.event.upsert({
+      where: { id: evtDef.id },
+      update: {},
+      create: {
+        id: evtDef.id,
+        titre: evtDef.titre,
+        date: eventDate,
+        campusId,
+        themeId: resolveThemeId(evtDef.campusKey, evtDef.themeKey),
+        pin: evtDef.pin,
+        notes: evtDef.notes,
+        mantas: {
+          create: evtDef.mantaKeys.map((key) => ({
+            staffProfileId: staffProfiles[key].id,
+          })),
+        },
+      },
+    });
+
+    // Planning (clear existing slots on re-run — cascades to activities)
+    const existingPlanning = await prisma.planning.findUnique({
+      where: { eventId: event.id },
+    });
+    if (existingPlanning) {
+      await prisma.timeSlot.deleteMany({
+        where: { planningId: existingPlanning.id },
+      });
+    }
+    const planning = await prisma.planning.upsert({
+      where: { eventId: event.id },
+      update: {},
+      create: { eventId: event.id },
+    });
+
+    const activities: (typeof eventActivities)[string] = [];
+
+    for (const slotDef of evtDef.slots) {
       const startTime = new Date(eventDate);
-      startTime.setHours(def.slotStart, 0, 0, 0);
+      startTime.setHours(slotDef.startHour, slotDef.startMinute ?? 0, 0, 0);
       const endTime = new Date(eventDate);
-      endTime.setHours(def.slotEnd, 0, 0, 0);
+      endTime.setHours(slotDef.endHour, slotDef.endMinute ?? 0, 0, 0);
 
-      let timeSlot = await prisma.timeSlot.findFirst({
-        where: { planningId: planning.id, startTime, endTime },
+      const timeSlot = await prisma.timeSlot.create({
+        data: {
+          planningId: planning.id,
+          startTime,
+          endTime,
+          label: slotDef.label,
+        },
       });
-      if (!timeSlot) {
-        timeSlot = await prisma.timeSlot.create({
-          data: {
-            planningId: planning.id,
-            startTime,
-            endTime,
-            label: def.slotLabel,
-          },
-        });
-      }
 
-      let activity = await prisma.activity.findFirst({
-        where: { timeSlotId: timeSlot.id, nom: srcData.nom },
-      });
-      if (!activity) {
-        activity = await prisma.activity.create({
+      for (const actDef of slotDef.activities) {
+        const blueprintDef = activityDefsByName.get(actDef.nom);
+        const activityType: ActivityType =
+          actDef.activityType ?? blueprintDef?.activityType ?? 'atelier';
+        const isDynamic = actDef.isDynamic ?? blueprintDef?.isDynamic ?? false;
+        const difficulte = blueprintDef?.difficulte ?? null;
+
+        const activity = await prisma.activity.create({
           data: {
-            nom: srcData.nom,
-            description: srcData.description,
-            difficulte: srcData.difficulte,
-            activityType: 'atelier',
-            isDynamic: true,
-            contentStructure: contentStructures[srcData.nom] ?? undefined,
+            nom: actDef.nom,
+            description: blueprintDef?.description ?? null,
+            difficulte,
+            activityType,
+            isDynamic,
+            content: actDef.content ?? null,
+            link: actDef.link ?? blueprintDef?.link ?? null,
+            contentStructure: isDynamic
+              ? (contentStructures[actDef.nom] ?? undefined)
+              : undefined,
+            templateId: templatesByName[actDef.nom]?.id ?? null,
             timeSlotId: timeSlot.id,
           },
         });
 
-        // Link activity themes
-        for (const themeName of srcData.themes) {
-          const theme = themes[themeName];
-          if (!theme) continue;
+        // Link themes
+        const themeNames = blueprintDef?.themes ?? [];
+        for (const themeName of themeNames) {
+          const themeId = resolveThemeId(evtDef.campusKey, themeName);
           await prisma.activityTheme
             .create({
-              data: { activityId: activity.id, themeId: theme.id },
+              data: { activityId: activity.id, themeId },
             })
-            .catch(() => {}); // ignore duplicates
+            .catch(() => {}); // skip if theme doesn't exist for this campus
         }
-      }
 
-      activityIds[def.subjectName] = activity.id;
-    }
-
-    if (!eventActivityMap[eventId]) eventActivityMap[eventId] = [];
-    for (const [, id] of Object.entries(activityIds)) {
-      eventActivityMap[eventId].push(id);
-    }
-
-    return activityIds;
-  }
-
-  // Past event 1: Web (2 parallel tracks)
-  const pe1Activities = await createPlanningForEvent(pastEvent1.id, pastDate1, [
-    {
-      subjectName: 'Ma première page HTML',
-      slotStart: 14,
-      slotEnd: 16,
-      slotLabel: 'Après-midi',
-    },
-    {
-      subjectName: 'CSS : Styliser sa page',
-      slotStart: 14,
-      slotEnd: 16,
-      slotLabel: 'Après-midi',
-    },
-  ]);
-
-  // Past event 2: Robotique (single track)
-  const pe2Activities = await createPlanningForEvent(pastEvent2.id, pastDate2, [
-    {
-      subjectName: 'Construis ton robot',
-      slotStart: 14,
-      slotEnd: 17,
-      slotLabel: 'Après-midi',
-    },
-  ]);
-
-  // Past event 3: Cyber (2 parallel tracks)
-  const pe3Activities = await createPlanningForEvent(pastEvent3.id, pastDate3, [
-    {
-      subjectName: 'Initiation à la cybersécurité',
-      slotStart: 14,
-      slotEnd: 16,
-      slotLabel: 'Après-midi',
-    },
-    {
-      subjectName: 'Cryptographie : les secrets du code',
-      slotStart: 14,
-      slotEnd: 16,
-      slotLabel: 'Après-midi',
-    },
-  ]);
-
-  // Today's event: IA (2 parallel tracks + a static conference slot)
-  const todayActivities = await createPlanningForEvent(
-    todayEvent.id,
-    todayDate,
-    [
-      {
-        subjectName: "L'IA et moi",
-        slotStart: 14,
-        slotEnd: 16,
-        slotLabel: 'Ateliers',
-      },
-      {
-        subjectName: 'Entraîne ton modèle',
-        slotStart: 14,
-        slotEnd: 16,
-        slotLabel: 'Ateliers',
-      },
-    ],
-  );
-
-  // Add a static conference to today's event
-  {
-    const planning = await prisma.planning.findUnique({
-      where: { eventId: todayEvent.id },
-    });
-    if (planning) {
-      const confStart = new Date(todayDate);
-      confStart.setHours(13, 0, 0, 0);
-      const confEnd = new Date(todayDate);
-      confEnd.setHours(14, 0, 0, 0);
-
-      let confSlot = await prisma.timeSlot.findFirst({
-        where: { planningId: planning.id, startTime: confStart },
-      });
-      if (!confSlot) {
-        confSlot = await prisma.timeSlot.create({
-          data: {
-            planningId: planning.id,
-            startTime: confStart,
-            endTime: confEnd,
-            label: 'Conférence',
-          },
-        });
-      }
-
-      let confActivity = await prisma.activity.findFirst({
-        where: { timeSlotId: confSlot.id, nom: "Bienvenue à l'atelier IA" },
-      });
-      if (!confActivity) {
-        confActivity = await prisma.activity.create({
-          data: {
-            nom: "Bienvenue à l'atelier IA",
-            description:
-              "Présentation de l'intelligence artificielle et du déroulé de l'après-midi.",
-            activityType: 'conference',
-            isDynamic: false,
-            content:
-              "## Bienvenue !\n\nAujourd'hui nous allons explorer **l'intelligence artificielle**.\n\n### Programme\n1. Conférence d'introduction (13h-14h)\n2. Ateliers pratiques (14h-16h)\n\n### Liens utiles\n- [Teachable Machine](https://teachablemachine.withgoogle.com/)\n- [Scratch](https://scratch.mit.edu/)",
-            link: 'https://teachablemachine.withgoogle.com/',
-            timeSlotId: confSlot.id,
-          },
+        activities.push({
+          id: activity.id,
+          nom: activity.nom,
+          activityType,
+          difficulte,
         });
       }
     }
+
+    eventActivities[event.id] = activities;
+
+    // Participations
+    const pDef = evtDef.participations;
+    for (let idx = 0; idx < pDef.studentIndices.length; idx++) {
+      const globalIdx = pDef.studentIndices[idx];
+      const sp = studentProfiles[globalIdx];
+      const isPresent = idx < pDef.presentCount;
+      const delay = pDef.delays?.[globalIdx] ?? 0;
+
+      await prisma.participation.upsert({
+        where: {
+          studentProfileId_eventId: {
+            studentProfileId: sp.id,
+            eventId: event.id,
+          },
+        },
+        update: {},
+        create: {
+          studentProfileId: sp.id,
+          eventId: event.id,
+          campusId,
+          isPresent,
+          delay,
+          bringPc: pDef.bringPcFn?.(globalIdx) ?? false,
+          note: pDef.notes?.[globalIdx]?.text,
+          noteAuthorId: pDef.notes?.[globalIdx]
+            ? staffProfiles[pDef.notes[globalIdx].authorKey].id
+            : undefined,
+          camperRating: isPresent ? pDef.ratings?.[globalIdx] : undefined,
+          camperFeedback: isPresent ? pDef.feedback?.[globalIdx] : undefined,
+        },
+      });
+    }
   }
 
-  // Upcoming event: Jeux Vidéo
-  const upcomingActivities = await createPlanningForEvent(
-    upcomingEvent.id,
-    upcomingDate,
-    [
-      {
-        subjectName: 'Crée ton jeu Scratch',
-        slotStart: 14,
-        slotEnd: 17,
-        slotLabel: 'Après-midi',
-      },
-    ],
-  );
+  console.log(`✓ Events (${eventDefs.length}) with planning + activities`);
 
-  // Lyon event
-  const lyonActivities = await createPlanningForEvent(
-    lyonEvent.id,
-    lyonPastDate,
-    [
-      {
-        subjectName: 'Ma première page HTML',
-        slotStart: 14,
-        slotEnd: 16,
-        slotLabel: 'Après-midi',
-      },
-    ],
-  );
+  // ── 7. ParticipationActivity records (link participations to activities) ──
+  let paCount = 0;
+  for (const evtDef of eventDefs) {
+    const eventId = evtDef.id;
+    const activities = eventActivities[eventId];
 
-  console.log('✓ Planning + TimeSlots + Activities seeded');
-
-  // ─── ParticipationActivity records ───
-  // Link each participation to activities from the event's planning
-  async function linkParticipationActivities(
-    eventId: string,
-    activityMap: Record<string, string>,
-  ) {
     const participations = await prisma.participation.findMany({
       where: { eventId },
     });
 
-    const activityIds = Object.values(activityMap);
-    for (const p of participations) {
-      for (const activityId of activityIds) {
-        await prisma.participationActivity.upsert({
-          where: {
-            participationId_activityId: {
-              participationId: p.id,
-              activityId,
-            },
-          },
-          update: {},
-          create: {
-            participationId: p.id,
-            activityId,
-            isPresent: p.isPresent,
-            delay: p.delay ?? 0,
-          },
-        });
-      }
+    const paData = participations.flatMap((p) =>
+      activities.map((a) => ({
+        participationId: p.id,
+        activityId: a.id,
+        isPresent: p.isPresent,
+        delay: p.delay ?? 0,
+      })),
+    );
+
+    if (paData.length > 0) {
+      await prisma.participationActivity.createMany({
+        data: paData,
+        skipDuplicates: true,
+      });
+      paCount += paData.length;
     }
   }
+  console.log(`✓ ParticipationActivity (${paCount} records)`);
 
-  await linkParticipationActivities(pastEvent1.id, pe1Activities);
-  await linkParticipationActivities(pastEvent2.id, pe2Activities);
-  await linkParticipationActivities(pastEvent3.id, pe3Activities);
-  await linkParticipationActivities(todayEvent.id, todayActivities);
-  await linkParticipationActivities(upcomingEvent.id, upcomingActivities);
-  await linkParticipationActivities(lyonEvent.id, lyonActivities);
-
-  console.log('✓ ParticipationActivity records seeded');
-
-  // ─── XP & eventsCount for present students ───
+  // ── 8. XP & levels ──
   const allParticipations = await prisma.participation.findMany({
     where: { isPresent: true },
-    include: {
-      activities: { include: { activity: true } },
-    },
+    include: { activities: { include: { activity: true } } },
   });
 
-  // Group by student
   const xpByStudent: Record<string, { events: number; xp: number }> = {};
-  const XP_MAP: Record<string, number> = {
-    Débutant: 20,
-    Intermédiaire: 45,
-    Avancé: 75,
-  };
-
   for (const p of allParticipations) {
     if (!xpByStudent[p.studentProfileId]) {
       xpByStudent[p.studentProfileId] = { events: 0, xp: 0 };
@@ -1299,117 +1423,101 @@ async function main() {
     }
   }
 
-  for (const [profileId, data] of Object.entries(xpByStudent)) {
-    const level =
-      data.xp >= 200 ? 'Expert' : data.xp >= 80 ? 'Apprentice' : 'Novice';
-    await prisma.studentProfile.update({
-      where: { id: profileId },
-      data: { xp: data.xp, eventsCount: data.events, level },
-    });
-  }
+  await Promise.all(
+    Object.entries(xpByStudent).map(([profileId, data]) => {
+      const level =
+        data.xp >= 200 ? 'Expert' : data.xp >= 80 ? 'Apprentice' : 'Novice';
+      return prisma.studentProfile.update({
+        where: { id: profileId },
+        data: { xp: data.xp, eventsCount: data.events, level },
+      });
+    }),
+  );
+  console.log('✓ XP & levels');
 
-  console.log('✓ XP & levels computed');
+  // ── 9. StepsProgress (completed dynamic activities for past events) ──
+  const pastEventIds = eventDefs
+    .filter((e) => e.daysOffset < 0)
+    .map((e) => e.id);
 
-  // ─── StepsProgress (completed activities for past events) ───
-  const pastEventsWithActivities: {
-    event: { id: string };
-    activityMap: Record<string, string>;
-  }[] = [
-    { event: pastEvent1, activityMap: pe1Activities },
-    { event: pastEvent2, activityMap: pe2Activities },
-    { event: pastEvent3, activityMap: pe3Activities },
-    { event: lyonEvent, activityMap: lyonActivities },
-  ];
-
-  for (const { event, activityMap } of pastEventsWithActivities) {
+  let progressCount = 0;
+  for (const eventId of pastEventIds) {
     const participations = await prisma.participation.findMany({
-      where: { eventId: event.id, isPresent: true },
+      where: { eventId, isPresent: true },
     });
 
-    const activityIds = Object.values(activityMap);
+    const dynamicActivities = (eventActivities[eventId] ?? []).filter(
+      (a) => a.activityType !== 'orga',
+    );
 
-    for (const p of participations) {
-      for (const activityId of activityIds) {
-        const activity = await prisma.activity.findUnique({
-          where: { id: activityId },
-        });
-        const cs = activity?.contentStructure as {
-          steps: { id: string }[];
-        } | null;
-        if (!cs?.steps?.length) continue;
+    for (const activity of dynamicActivities) {
+      const cs = contentStructures[activity.nom];
+      if (!cs?.steps?.length) continue;
+      const lastStepId = cs.steps[cs.steps.length - 1].id;
 
-        const lastStepId = cs.steps[cs.steps.length - 1].id;
+      const progressData = participations.map((p) => ({
+        studentProfileId: p.studentProfileId,
+        activityId: activity.id,
+        eventId,
+        currentStepId: lastStepId,
+        unlockedStepId: lastStepId,
+        status: 'completed' as const,
+        lastUnlockSource: 'staff' as const,
+      }));
 
-        // Create progress with activityId
-        const existing = await prisma.stepsProgress.findFirst({
-          where: {
-            studentProfileId: p.studentProfileId,
-            activityId,
-          },
-        });
-        if (!existing) {
-          await prisma.stepsProgress.create({
-            data: {
-              studentProfileId: p.studentProfileId,
-              activityId,
-              eventId: event.id,
-              currentStepId: lastStepId,
-              unlockedStepId: lastStepId,
-              status: 'completed',
-              lastUnlockSource: 'staff',
-            },
-          });
-        }
-      }
+      await prisma.stepsProgress.createMany({
+        data: progressData,
+        skipDuplicates: true,
+      });
+      progressCount += progressData.length;
     }
   }
+  console.log(`✓ StepsProgress (${progressCount} records)`);
 
-  console.log('✓ StepsProgress seeded');
-
-  // ─── Portfolio items for some students ───
+  // ── 10. Portfolio items ──
   const portfolioData = [
     {
-      studentIndex: 0, // Alice
-      eventId: pastEvent1.id,
+      studentIndex: 0,
+      eventId: 'seed-past-event-1',
       url: 'https://codepen.io/example/pen/demo-html',
       caption: 'Ma toute première page web !',
     },
     {
-      studentIndex: 1, // Lucas
-      eventId: pastEvent2.id,
+      studentIndex: 1,
+      eventId: 'seed-past-event-2',
       url: null,
       caption: 'Mon robot qui évite les obstacles',
     },
     {
-      studentIndex: 4, // Léa
-      eventId: pastEvent3.id,
+      studentIndex: 4,
+      eventId: 'seed-past-event-3',
       url: 'https://example.com/crypto-challenge',
       caption: "J'ai résolu le défi de cryptographie César",
     },
     {
-      studentIndex: 0, // Alice
-      eventId: pastEvent2.id,
+      studentIndex: 0,
+      eventId: 'seed-past-event-2',
       url: null,
       caption: 'Robot assemblé avec Emma',
     },
     {
-      studentIndex: 2, // Emma
-      eventId: pastEvent1.id,
+      studentIndex: 2,
+      eventId: 'seed-past-event-1',
       url: 'https://codepen.io/example/pen/demo-css',
       caption: 'Ma page CSS colorée',
     },
   ];
 
   for (const p of portfolioData) {
-    const sp = parisStudents[p.studentIndex];
-    const existing = await prisma.portfolioItem.findFirst({
+    const sp = studentProfiles[p.studentIndex];
+    const exists = await prisma.portfolioItem.findFirst({
       where: {
         studentProfileId: sp.id,
         eventId: p.eventId,
         caption: p.caption,
       },
     });
-    if (!existing) {
+    if (!exists) {
       await prisma.portfolioItem.create({
         data: {
           studentProfileId: sp.id,
@@ -1420,11 +1528,16 @@ async function main() {
       });
     }
   }
+  console.log(`✓ Portfolio (${portfolioData.length} items)`);
 
-  console.log('✓ Portfolio items seeded');
-
-  // ─── Summary ───
+  // ── Summary ──
   const origin = process.env.ORIGIN || 'http://localhost:3030';
+  const parisStudentCount = studentProfiles.filter(
+    (s) => s.campusId === paris.id,
+  ).length;
+  const lyonStudentCount = studentProfiles.filter(
+    (s) => s.campusId === lyon.id,
+  ).length;
 
   console.log('\n══════════════════════════════════');
   console.log('        SEED COMPLETE');
@@ -1435,20 +1548,20 @@ async function main() {
   );
   console.log(`Students: any student email / ${STUDENT_PASSWORD}`);
   console.log(
-    `\nCampuses: Paris (${parisStudents.length} students), Lyon (${lyonStudents.length} students), Marseille (empty)`,
+    `\nCampuses: Paris (${parisStudentCount} students), Lyon (${lyonStudentCount} students), Marseille (empty)`,
+  );
+  console.log(`Templates: ${activityDefs.length} activity + 1 planning`);
+  console.log(
+    `Themes:   ${themeNames.length} (Paris) + 3 (Lyon) + ${themeNames.length} (official)`,
   );
   console.log(
-    `Activities: ${subjectsData.length} definitions (seeded via planning)`,
-  );
-  console.log(`Themes:   ${themeNames.length} (Paris) + 3 (Lyon)`);
-  console.log(
-    `Events:   4 Paris (1 past-3w, 1 past-2w, 1 past-1w, 1 today, 1 upcoming) + 1 Lyon`,
+    `Events:   ${eventDefs.length} (${eventDefs.filter((e) => e.campusKey === 'Paris').length} Paris + ${eventDefs.filter((e) => e.campusKey === 'Lyon').length} Lyon)`,
   );
   console.log(`\n${origin}/tekcamp/admin    — Admin panel`);
   console.log(`${origin}/tekcamp/         — Staff app`);
   console.log(`${origin}/tekcamp/camper   — Camper app`);
   console.log(
-    `${origin}/tekcamp/p/${parisStudents[0].id} — Public profile (Alice)`,
+    `${origin}/tekcamp/p/${studentProfiles[0].id} — Public profile (Alice)`,
   );
   console.log('══════════════════════════════════\n');
 }
@@ -1474,70 +1587,6 @@ async function upsertCredential(userId: string, password: string) {
       },
     });
   }
-}
-
-async function upsertEvent(data: {
-  id: string;
-  titre: string;
-  date: Date;
-  campusId: string;
-  themeId: string;
-  pin: string;
-  notes: string | null;
-  mantaIds: string[];
-}) {
-  const event = await prisma.event.upsert({
-    where: { id: data.id },
-    update: {},
-    create: {
-      id: data.id,
-      titre: data.titre,
-      date: data.date,
-      campusId: data.campusId,
-      themeId: data.themeId,
-      pin: data.pin,
-      notes: data.notes,
-      mantas: {
-        create: data.mantaIds.map((id) => ({ staffProfileId: id })),
-      },
-    },
-  });
-  return event;
-}
-
-async function upsertParticipation(data: {
-  studentProfileId: string;
-  eventId: string;
-  campusId: string;
-  isPresent: boolean;
-  delay: number;
-  bringPc: boolean;
-  note?: string;
-  noteAuthorId?: string;
-  camperRating?: number;
-  camperFeedback?: string;
-}) {
-  await prisma.participation.upsert({
-    where: {
-      studentProfileId_eventId: {
-        studentProfileId: data.studentProfileId,
-        eventId: data.eventId,
-      },
-    },
-    update: {},
-    create: {
-      studentProfileId: data.studentProfileId,
-      eventId: data.eventId,
-      campusId: data.campusId,
-      isPresent: data.isPresent,
-      delay: data.delay,
-      bringPc: data.bringPc,
-      note: data.note,
-      noteAuthorId: data.noteAuthorId,
-      camperRating: data.camperRating,
-      camperFeedback: data.camperFeedback,
-    },
-  });
 }
 
 main()
