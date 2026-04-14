@@ -62,7 +62,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
   const timeString = `${hours}:${minutes}`;
 
-  const planning = await prisma.planning.findUnique({
+  const planning = await db.planning.findUnique({
     where: { eventId: params.id },
     include: {
       timeSlots: {
@@ -344,8 +344,7 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     try {
-      const campusId = getCampusId(locals);
-      const db = scopedPrisma(campusId);
+      const db = scopedPrisma(getCampusId(locals));
       const event = await db.event.findUniqueOrThrow({
         where: { id: params.id },
       });
@@ -375,7 +374,7 @@ export const actions: Actions = {
         update: {},
       });
 
-      await prisma.timeSlot.create({
+      await db.timeSlot.create({
         data: {
           planningId: planning.id,
           startTime: startCdt.toDate('Europe/Paris'),
@@ -402,17 +401,10 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     try {
-      const campusId = getCampusId(locals);
-      const db = scopedPrisma(campusId);
+      const db = scopedPrisma(getCampusId(locals));
       const event = await db.event.findUniqueOrThrow({
         where: { id: params.id },
       });
-
-      const slot = await prisma.timeSlot.findUniqueOrThrow({
-        where: { id: timeSlotId },
-        select: { planning: { select: { eventId: true } } },
-      });
-      if (slot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
 
       const eventDate = new Date(event.date);
       const [startH, startM] = form.data.startTime.split(':').map(Number);
@@ -433,7 +425,7 @@ export const actions: Actions = {
         endM,
       );
 
-      await prisma.timeSlot.update({
+      await db.timeSlot.update({
         where: { id: timeSlotId },
         data: {
           startTime: startCdt.toDate('Europe/Paris'),
@@ -457,15 +449,8 @@ export const actions: Actions = {
 
     try {
       const db = scopedPrisma(getCampusId(locals));
-      await db.event.findUniqueOrThrow({ where: { id: params.id } });
 
-      const slot = await prisma.timeSlot.findUniqueOrThrow({
-        where: { id: timeSlotId },
-        select: { planning: { select: { eventId: true } } },
-      });
-      if (slot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
-
-      await prisma.timeSlot.delete({ where: { id: timeSlotId } });
+      await db.timeSlot.delete({ where: { id: timeSlotId } });
       return { success: true };
     } catch (err) {
       console.error('Delete time slot error:', err);
@@ -482,20 +467,13 @@ export const actions: Actions = {
 
     try {
       const db = scopedPrisma(getCampusId(locals));
-      await db.event.findUniqueOrThrow({ where: { id: params.id } });
-
-      const slot = await prisma.timeSlot.findUniqueOrThrow({
-        where: { id: form.data.timeSlotId },
-        select: { planning: { select: { eventId: true } } },
-      });
-      if (slot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
 
       const template = await prisma.activityTemplate.findUniqueOrThrow({
         where: { id: form.data.templateId },
         include: { activityTemplateThemes: true },
       });
 
-      await prisma.activity.create({
+      await db.activity.create({
         data: {
           nom: template.nom,
           description: template.description,
@@ -533,15 +511,8 @@ export const actions: Actions = {
 
     try {
       const db = scopedPrisma(getCampusId(locals));
-      await db.event.findUniqueOrThrow({ where: { id: params.id } });
 
-      const slot = await prisma.timeSlot.findUniqueOrThrow({
-        where: { id: form.data.timeSlotId },
-        select: { planning: { select: { eventId: true } } },
-      });
-      if (slot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
-
-      await prisma.activity.create({
+      await db.activity.create({
         data: {
           nom: form.data.nom,
           description: form.data.description || null,
@@ -569,18 +540,8 @@ export const actions: Actions = {
 
     try {
       const db = scopedPrisma(getCampusId(locals));
-      await db.event.findUniqueOrThrow({ where: { id: params.id } });
 
-      const activity = await prisma.activity.findUniqueOrThrow({
-        where: { id: activityId },
-        select: {
-          timeSlot: { select: { planning: { select: { eventId: true } } } },
-        },
-      });
-      if (activity.timeSlot.planning.eventId !== params.id)
-        throw error(403, 'Accès refusé');
-
-      await prisma.activity.delete({ where: { id: activityId } });
+      await db.activity.delete({ where: { id: activityId } });
       return { success: true };
     } catch (err) {
       console.error('Delete activity error:', err);

@@ -101,22 +101,20 @@ async function syncEventPresence(
   participationId: string,
   db: ReturnType<typeof scopedPrisma>,
 ) {
-  const allPAs = await db.participationActivity.findMany({
-    where: {
-      participationId,
-      activity: { activityType: 'orga' },
-    },
-  });
-  const presentInAny = allPAs.some((pa) => pa.isPresent);
-  const maxDelay = allPAs.reduce(
-    (max, pa) => (pa.isPresent && pa.delay > max ? pa.delay : max),
-    0,
-  );
-
+  // Single query: fetch participation with all activities (orga for presence, all for XP)
   const participation = await db.participation.findUniqueOrThrow({
     where: { id: participationId },
     include: { activities: { include: { activity: true } } },
   });
+
+  const orgaPAs = participation.activities.filter(
+    (pa) => pa.activity.activityType === 'orga',
+  );
+  const presentInAny = orgaPAs.some((pa) => pa.isPresent);
+  const maxDelay = orgaPAs.reduce(
+    (max, pa) => (pa.isPresent && pa.delay > max ? pa.delay : max),
+    0,
+  );
 
   const presenceChanged = participation.isPresent !== presentInAny;
   const delayChanged = (participation.delay ?? 0) !== maxDelay;

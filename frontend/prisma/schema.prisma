@@ -110,6 +110,8 @@ model StaffProfile {
   campus        Campus?         @relation(fields: [campusId], references: [id])
   eventMantas   EventManta[]
   notesAuthored Participation[] @relation("NoteAuthor")
+
+  @@index([campusId])
 }
 
 model StudentProfile {
@@ -140,6 +142,8 @@ model StudentProfile {
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
+
+  @@index([campusId])
 }
 
 // ─── Domain Tables ───
@@ -283,6 +287,8 @@ model Event {
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
   planning       Planning?
+
+  @@index([campusId])
 }
 
 model EventManta {
@@ -319,6 +325,7 @@ model Participation {
   @@unique([studentProfileId, eventId])
   @@index([eventId])
   @@index([campusId])
+  @@index([studentProfileId])
 }
 
 model ParticipationActivity {
@@ -351,6 +358,8 @@ model StepsProgress {
 
   @@unique([studentProfileId, activityId])
   @@index([eventId])
+  @@index([studentProfileId])
+  @@index([activityId])
 }
 
 model PortfolioItem {
@@ -369,6 +378,7 @@ model PortfolioItem {
   activity       Activity?      @relation(fields: [activityId], references: [id])
 
   @@index([studentProfileId])
+  @@index([eventId])
 }
 
 // ── Planning Templates (national reusable planning grids) ──

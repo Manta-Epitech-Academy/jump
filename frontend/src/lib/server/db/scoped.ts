@@ -18,8 +18,17 @@ export function getCampusId(locals: App.Locals): string {
 /**
  * Returns a Prisma client extension that auto-injects campusId filters.
  *
- * - Event, Participation, StudentProfile, StaffProfile: strict campusId match
- * - Theme, ActivityTemplate: OR pattern (campus-specific + global where campusId is null)
+ * Strict campusId match:
+ *   Event, Participation, StudentProfile, StaffProfile
+ *
+ * Scoped through ownership chain (→ Event.campusId):
+ *   Planning (event → campusId)
+ *   TimeSlot (planning → event → campusId)
+ *   Activity (timeSlot → planning → event → campusId)
+ *   ParticipationActivity (participation → campusId)
+ *
+ * OR pattern (campus-specific + global where campusId is null):
+ *   Theme, ActivityTemplate
  *
  * For findUnique/findUniqueOrThrow/update/delete (which only accept unique
  * fields in `where`), we use a post-query check pattern.
@@ -30,6 +39,38 @@ export function scopedPrisma(campusId: string) {
       403,
       `Accès refusé : cette ressource (${model}) appartient à un autre campus.`,
     );
+  }
+
+  async function getPlanningCampusId(planningId: string): Promise<string> {
+    const p = await prisma.planning.findUniqueOrThrow({
+      where: { id: planningId },
+      select: { event: { select: { campusId: true } } },
+    });
+    return p.event.campusId;
+  }
+
+  async function getTimeSlotCampusId(timeSlotId: string): Promise<string> {
+    const s = await prisma.timeSlot.findUniqueOrThrow({
+      where: { id: timeSlotId },
+      select: {
+        planning: { select: { event: { select: { campusId: true } } } },
+      },
+    });
+    return s.planning.event.campusId;
+  }
+
+  async function getActivityCampusId(activityId: string): Promise<string> {
+    const a = await prisma.activity.findUniqueOrThrow({
+      where: { id: activityId },
+      select: {
+        timeSlot: {
+          select: {
+            planning: { select: { event: { select: { campusId: true } } } },
+          },
+        },
+      },
+    });
+    return a.timeSlot.planning.event.campusId;
   }
 
   return prisma.$extends({
@@ -286,6 +327,260 @@ export function scopedPrisma(campusId: string) {
             if (participation.campusId !== campusId)
               accessDenied('ParticipationActivity');
           }
+          return query(args);
+        },
+      },
+
+      // ── Planning (scoped through event.campusId) ──
+      planning: {
+        async findMany({ args, query }) {
+          args.where = {
+            ...args.where,
+            event: { ...((args.where as any)?.event ?? {}), campusId },
+          };
+          return query(args);
+        },
+        async findFirst({ args, query }) {
+          args.where = {
+            ...args.where,
+            event: { ...((args.where as any)?.event ?? {}), campusId },
+          };
+          return query(args);
+        },
+        async findUnique({ args, query }) {
+          const existing = await prisma.planning.findUnique({
+            where: args.where,
+            select: { event: { select: { campusId: true } } },
+          });
+          if (existing && existing.event.campusId !== campusId)
+            accessDenied('Planning');
+          return query(args);
+        },
+        async findUniqueOrThrow({ args, query }) {
+          const existing = await prisma.planning.findUniqueOrThrow({
+            where: args.where,
+            select: { event: { select: { campusId: true } } },
+          });
+          if (existing.event.campusId !== campusId) accessDenied('Planning');
+          return query(args);
+        },
+        async create({ args, query }) {
+          const event = await prisma.event.findUniqueOrThrow({
+            where: { id: args.data.eventId as string },
+            select: { campusId: true },
+          });
+          if (event.campusId !== campusId) accessDenied('Planning');
+          return query(args);
+        },
+        async update({ args, query }) {
+          const existing = await prisma.planning.findUniqueOrThrow({
+            where: args.where,
+            select: { event: { select: { campusId: true } } },
+          });
+          if (existing.event.campusId !== campusId) accessDenied('Planning');
+          return query(args);
+        },
+        async delete({ args, query }) {
+          const existing = await prisma.planning.findUniqueOrThrow({
+            where: args.where,
+            select: { event: { select: { campusId: true } } },
+          });
+          if (existing.event.campusId !== campusId) accessDenied('Planning');
+          return query(args);
+        },
+      },
+
+      // ── TimeSlot (scoped through planning → event.campusId) ──
+      timeSlot: {
+        async findMany({ args, query }) {
+          args.where = {
+            ...args.where,
+            planning: {
+              ...((args.where as any)?.planning ?? {}),
+              event: {
+                ...((args.where as any)?.planning?.event ?? {}),
+                campusId,
+              },
+            },
+          };
+          return query(args);
+        },
+        async findFirst({ args, query }) {
+          args.where = {
+            ...args.where,
+            planning: {
+              ...((args.where as any)?.planning ?? {}),
+              event: {
+                ...((args.where as any)?.planning?.event ?? {}),
+                campusId,
+              },
+            },
+          };
+          return query(args);
+        },
+        async findUnique({ args, query }) {
+          const existing = await prisma.timeSlot.findUnique({
+            where: args.where,
+            select: {
+              planning: { select: { event: { select: { campusId: true } } } },
+            },
+          });
+          if (existing && existing.planning.event.campusId !== campusId)
+            accessDenied('TimeSlot');
+          return query(args);
+        },
+        async findUniqueOrThrow({ args, query }) {
+          const existing = await prisma.timeSlot.findUniqueOrThrow({
+            where: args.where,
+            select: {
+              planning: { select: { event: { select: { campusId: true } } } },
+            },
+          });
+          if (existing.planning.event.campusId !== campusId)
+            accessDenied('TimeSlot');
+          return query(args);
+        },
+        async create({ args, query }) {
+          const ownerCampusId = await getPlanningCampusId(
+            args.data.planningId as string,
+          );
+          if (ownerCampusId !== campusId) accessDenied('TimeSlot');
+          return query(args);
+        },
+        async update({ args, query }) {
+          const existing = await prisma.timeSlot.findUniqueOrThrow({
+            where: args.where,
+            select: {
+              planning: { select: { event: { select: { campusId: true } } } },
+            },
+          });
+          if (existing.planning.event.campusId !== campusId)
+            accessDenied('TimeSlot');
+          return query(args);
+        },
+        async delete({ args, query }) {
+          const existing = await prisma.timeSlot.findUniqueOrThrow({
+            where: args.where,
+            select: {
+              planning: { select: { event: { select: { campusId: true } } } },
+            },
+          });
+          if (existing.planning.event.campusId !== campusId)
+            accessDenied('TimeSlot');
+          return query(args);
+        },
+      },
+
+      // ── Activity (scoped through timeSlot → planning → event.campusId) ──
+      activity: {
+        async findMany({ args, query }) {
+          args.where = {
+            ...args.where,
+            timeSlot: {
+              ...((args.where as any)?.timeSlot ?? {}),
+              planning: {
+                ...((args.where as any)?.timeSlot?.planning ?? {}),
+                event: {
+                  ...((args.where as any)?.timeSlot?.planning?.event ?? {}),
+                  campusId,
+                },
+              },
+            },
+          };
+          return query(args);
+        },
+        async findFirst({ args, query }) {
+          args.where = {
+            ...args.where,
+            timeSlot: {
+              ...((args.where as any)?.timeSlot ?? {}),
+              planning: {
+                ...((args.where as any)?.timeSlot?.planning ?? {}),
+                event: {
+                  ...((args.where as any)?.timeSlot?.planning?.event ?? {}),
+                  campusId,
+                },
+              },
+            },
+          };
+          return query(args);
+        },
+        async findUnique({ args, query }) {
+          const existing = await prisma.activity.findUnique({
+            where: args.where,
+            select: {
+              timeSlot: {
+                select: {
+                  planning: {
+                    select: { event: { select: { campusId: true } } },
+                  },
+                },
+              },
+            },
+          });
+          if (
+            existing &&
+            existing.timeSlot.planning.event.campusId !== campusId
+          )
+            accessDenied('Activity');
+          return query(args);
+        },
+        async findUniqueOrThrow({ args, query }) {
+          const existing = await prisma.activity.findUniqueOrThrow({
+            where: args.where,
+            select: {
+              timeSlot: {
+                select: {
+                  planning: {
+                    select: { event: { select: { campusId: true } } },
+                  },
+                },
+              },
+            },
+          });
+          if (existing.timeSlot.planning.event.campusId !== campusId)
+            accessDenied('Activity');
+          return query(args);
+        },
+        async create({ args, query }) {
+          const ownerCampusId = await getTimeSlotCampusId(
+            args.data.timeSlotId as string,
+          );
+          if (ownerCampusId !== campusId) accessDenied('Activity');
+          return query(args);
+        },
+        async update({ args, query }) {
+          const existing = await prisma.activity.findUniqueOrThrow({
+            where: args.where,
+            select: {
+              timeSlot: {
+                select: {
+                  planning: {
+                    select: { event: { select: { campusId: true } } },
+                  },
+                },
+              },
+            },
+          });
+          if (existing.timeSlot.planning.event.campusId !== campusId)
+            accessDenied('Activity');
+          return query(args);
+        },
+        async delete({ args, query }) {
+          const existing = await prisma.activity.findUniqueOrThrow({
+            where: args.where,
+            select: {
+              timeSlot: {
+                select: {
+                  planning: {
+                    select: { event: { select: { campusId: true } } },
+                  },
+                },
+              },
+            },
+          });
+          if (existing.timeSlot.planning.event.campusId !== campusId)
+            accessDenied('Activity');
           return query(args);
         },
       },
