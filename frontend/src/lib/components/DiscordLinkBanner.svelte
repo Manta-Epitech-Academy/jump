@@ -25,7 +25,7 @@
 {#if !dismissed}
   <div
     data-discord-banner
-    class="relative flex items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50/80 px-5 py-3.5 dark:border-indigo-900/40 dark:bg-indigo-950/30"
+    class="relative flex items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3.5 shadow-lg shadow-indigo-500/10 dark:border-indigo-900/40 dark:bg-indigo-950 dark:shadow-indigo-900/20"
   >
     <div
       class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/40"

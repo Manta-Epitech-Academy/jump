@@ -191,7 +191,10 @@
   </header>
 
   {#if !student?.discordId}
-    <div class="mb-6" in:fly={{ y: -10, duration: 300, delay: 150 }}>
+    <div
+      class="fixed right-4 bottom-4 left-4 z-50 mx-auto max-w-lg"
+      in:fly={{ y: 20, duration: 300, delay: 150 }}
+    >
       <DiscordLinkBanner />
     </div>
   {/if}
