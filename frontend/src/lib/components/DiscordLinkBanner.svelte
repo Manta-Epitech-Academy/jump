@@ -1,12 +1,30 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { X } from '@lucide/svelte';
+  import { onMount } from 'svelte';
 
+  const STORAGE_KEY = 'discord-banner-dismissed';
   let dismissed = $state(false);
+
+  onMount(() => {
+    if (sessionStorage.getItem(STORAGE_KEY) === 'true') {
+      dismissed = true;
+    }
+  });
+
+  function dismiss() {
+    dismissed = true;
+    sessionStorage.setItem(STORAGE_KEY, 'true');
+  }
 </script>
+
+<svelte:head>
+  {@html `<script>if(sessionStorage.getItem("${STORAGE_KEY}")==="true"){document.documentElement.dataset.discordBannerDismissed="true"}</script>`}
+</svelte:head>
 
 {#if !dismissed}
   <div
+    data-discord-banner
     class="relative flex items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50/80 px-5 py-3.5 dark:border-indigo-900/40 dark:bg-indigo-950/30"
   >
     <div
@@ -38,7 +56,7 @@
     </a>
     <button
       type="button"
-      onclick={() => (dismissed = true)}
+      onclick={dismiss}
       class="absolute top-2 right-2 rounded-lg p-1 text-indigo-400 transition-colors hover:bg-indigo-100 hover:text-indigo-600 dark:hover:bg-indigo-900/40"
     >
       <X class="h-3.5 w-3.5" />
@@ -46,3 +64,9 @@
     </button>
   </div>
 {/if}
+
+<style>
+  :global(html[data-discord-banner-dismissed] [data-discord-banner]) {
+    display: none;
+  }
+</style>
