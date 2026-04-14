@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
+import { base } from '$app/paths';
 
 let resend: Resend;
 
@@ -15,7 +16,7 @@ export async function sendParentSignatureEmail(
   code: string,
   studentName: string,
 ) {
-  const signUrl = `${env.ORIGIN}/parent/sign`;
+  const signUrl = `${env.ORIGIN}${base}/parent/sign`;
 
   await getResend().emails.send({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',

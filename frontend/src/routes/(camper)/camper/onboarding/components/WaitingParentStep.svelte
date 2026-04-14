@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { invalidateAll } from '$app/navigation';
+  import { base } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import { Clock, Send } from '@lucide/svelte';
 
@@ -13,7 +14,7 @@
     sending = true;
     errorMsg = '';
     try {
-      const res = await fetch('/api/onboarding/send-parent-code', {
+      const res = await fetch(`${base}/api/onboarding/send-parent-code`, {
         method: 'POST',
       });
       if (!res.ok) {
@@ -31,7 +32,7 @@
 
   async function checkStatus() {
     try {
-      const res = await fetch('/api/onboarding/signature-status');
+      const res = await fetch(`${base}/api/onboarding/signature-status`);
       const data = await res.json();
       if (data.signed) {
         await invalidateAll();

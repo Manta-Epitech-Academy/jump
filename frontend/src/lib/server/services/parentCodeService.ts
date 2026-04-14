@@ -15,10 +15,16 @@ function generateCode(): string {
 }
 
 export async function createParentCode(studentProfileId: string): Promise<string> {
-  await prisma.parentAccessCode.updateMany({
-    where: { studentProfileId, usedAt: null },
-    data: { usedAt: new Date() },
+  const existing = await prisma.parentAccessCode.findFirst({
+    where: {
+      studentProfileId,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
   });
+
+  if (existing) return existing.code;
 
   const code = generateCode();
   const expiresAt = new Date();
