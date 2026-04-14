@@ -63,15 +63,15 @@ export const actions: Actions = {
     if (!id) return fail(400);
 
     try {
-      // SECURITY : Check if the theme is used in a subject or an event
-      const [usedInSubjects, usedInEvents] = await Promise.all([
-        prisma.subjectTheme.count({ where: { themeId: id } }),
+      // Check if the theme is used in an activity or an event
+      const [usedInActivities, usedInEvents] = await Promise.all([
+        prisma.activityTheme.count({ where: { themeId: id } }),
         prisma.event.count({ where: { themeId: id } }),
       ]);
 
-      if (usedInSubjects > 0 || usedInEvents > 0) {
+      if (usedInActivities > 0 || usedInEvents > 0) {
         return fail(400, {
-          message: `Suppression bloquée : Ce thème est utilisé par ${usedInSubjects} sujet(s) et ${usedInEvents} événement(s).`,
+          message: `Suppression bloquée : Ce thème est utilisé par ${usedInActivities} activité(s) et ${usedInEvents} événement(s).`,
         });
       }
 

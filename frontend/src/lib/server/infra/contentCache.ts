@@ -1,10 +1,10 @@
 /**
- * Simple LRU cache for subject records.
- * Subjects are static content — caching them avoids redundant DB reads
- * when 2000 students load the same ~10 subjects.
- *
- * Subject content is identical for all authenticated users, so a shared
+ * Simple LRU cache for static content records (activities, templates, etc.).
+ * These are identical for all authenticated users, so a shared
  * process-global cache is safe regardless of which client fetches the data.
+ *
+ * With ~2000 concurrent students loading the same ~10 activities,
+ * this avoids redundant DB reads on every page load.
  */
 
 const MAX_ENTRIES = 50;
@@ -17,7 +17,7 @@ type CacheEntry = {
 
 const cache = new Map<string, CacheEntry>();
 
-export function getCachedSubject<T>(id: string): T | null {
+export function getCached<T>(id: string): T | null {
   const entry = cache.get(id);
   if (!entry) return null;
   if (Date.now() > entry.expires) {
@@ -30,7 +30,7 @@ export function getCachedSubject<T>(id: string): T | null {
   return entry.value as T;
 }
 
-export function setCachedSubject(id: string, value: unknown): void {
+export function setCached(id: string, value: unknown): void {
   // Evict oldest if at capacity
   if (cache.size >= MAX_ENTRIES) {
     const oldest = cache.keys().next().value;
@@ -39,6 +39,6 @@ export function setCachedSubject(id: string, value: unknown): void {
   cache.set(id, { value, expires: Date.now() + TTL_MS });
 }
 
-export function clearSubjectCache(): void {
+export function clearCache(): void {
   cache.clear();
 }

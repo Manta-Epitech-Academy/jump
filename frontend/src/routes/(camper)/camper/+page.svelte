@@ -9,13 +9,13 @@
   import { triggerConfetti } from '$lib/actions/confetti';
   import {
     formatDateFr,
-    flattenMissions,
+    flattenActivityMissions,
     THEME_TIER_CEILING,
   } from '$lib/utils';
+  import { activityTypeLabels } from '$lib/validation/templates';
   import {
     Rocket,
     Trophy,
-    Sparkles,
     BookOpen,
     ArrowRight,
     Clock,
@@ -54,23 +54,14 @@
         : 'Novice',
   );
 
-  // Assuming 1000 XP is the max for the progress bar visual (can be adjusted)
   let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
   let eventTitle = $derived(participation?.event?.titre || 'Atelier Epitech');
-  let subjects = $derived(
-    participation?.subjects?.map((ps: any) => ps.subject) || [],
-  );
-  let completedSubjectIds = $derived(new Set(data.completedSubjectIds));
-  let currentSubject = $derived(
-    subjects.find((s: any) => !completedSubjectIds.has(s.id)) ?? subjects[0],
-  );
-  let otherSubjects = $derived(
-    subjects.filter((s: any) => s.id !== currentSubject?.id),
-  );
+  let timeSlots = $derived(participation?.event?.planning?.timeSlots ?? []);
+  let completedActivityIds = $derived(new Set(data.completedActivityIds));
 
   let previewMissions = $derived(
-    flattenMissions(data.pastParticipations).slice(0, 2),
+    flattenActivityMissions(data.pastParticipations).slice(0, 2),
   );
   let totalPastMissions = $derived(data.totalPastMissions);
 
@@ -85,9 +76,17 @@
     });
   }
 
+  const difficultyColors: Record<string, string> = {
+    Débutant:
+      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    Intermédiaire:
+      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    Avancé:
+      'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  };
+
   // Sharing Logic
   let copied = $state(false);
-  // Construct the absolute URL using the current origin
   let shareUrl = $derived(`${page.url.origin}${resolve(`/p/${student?.id}`)}`);
 
   async function copyLink() {
@@ -365,7 +364,7 @@
 
       {#if participation}
         <div
-          class="flex min-h-62.5 flex-col overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+          class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
         >
           <div
             class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
@@ -381,59 +380,77 @@
             </div>
           </div>
 
-          <div class="flex flex-1 flex-col p-6">
-            {#if subjects.length > 0 && currentSubject}
-              <div class="mb-6 flex items-start gap-4">
-                <div class="rounded-xl bg-teal-50 p-3 dark:bg-teal-950/30">
-                  <BookOpen class="h-6 w-6 text-teal-600 dark:text-epi-teal" />
-                </div>
-                <div>
-                  <h3 class="text-xl font-bold text-slate-900 dark:text-white">
-                    {currentSubject.nom}
-                  </h3>
-                  <p class="mt-1 line-clamp-2 text-sm text-slate-500">
-                    {currentSubject.description ||
-                      'Prépare-toi à coder et à relever de nouveaux défis !'}
-                  </p>
-                </div>
-              </div>
-
-              <div class="mt-auto pt-4">
-                <Button
-                  href={resolve(`/camper/${currentSubject.id}`)}
-                  class="h-14 w-full rounded-2xl bg-epi-blue text-lg font-bold text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-epi-blue/90 active:scale-[0.98]"
-                >
-                  <Sparkles class="mr-2 h-5 w-5" />
-                  {completedSubjectIds.has(currentSubject.id)
-                    ? 'Revoir la mission'
-                    : 'Démarrer la mission'}
-                  <ArrowRight class="ml-2 h-5 w-5" />
-                </Button>
-                {#if otherSubjects.length > 0}
-                  <div class="mt-4 space-y-2">
-                    {#each otherSubjects as subject}
-                      <Button
-                        variant="outline"
-                        href={resolve(`/camper/${subject.id}`)}
-                        class="h-11 w-full justify-between rounded-xl border-slate-200 dark:border-slate-800"
+          <div class="p-6">
+            {#if timeSlots.length > 0}
+              <!-- Compact Timeline -->
+              <div class="space-y-4">
+                {#each timeSlots as slot (slot.id)}
+                  <div>
+                    <div class="mb-2 flex items-center gap-2">
+                      <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
+                      <span
+                        class="text-[11px] font-bold text-slate-400 uppercase"
                       >
-                        <span class="truncate text-sm">{subject.nom}</span>
-                        {#if completedSubjectIds.has(subject.id)}
-                          <Check
-                            class="ml-2 h-4 w-4 shrink-0 text-teal-600 dark:text-epi-teal"
-                          />
-                        {:else}
-                          <ArrowRight class="ml-2 h-4 w-4 shrink-0" />
+                        {formatTime(slot.startTime)} — {formatTime(
+                          slot.endTime,
+                        )}
+                        {#if slot.label}
+                          · {slot.label}
                         {/if}
-                      </Button>
-                    {/each}
+                      </span>
+                    </div>
+
+                    <div
+                      class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
+                    >
+                      {#each slot.activities as activity (activity.id)}
+                        {@const isDone = completedActivityIds.has(activity.id)}
+                        <a
+                          href={resolve(`/camper/${activity.id}`)}
+                          class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
+                            ? 'bg-teal-50/50 dark:bg-teal-950/20'
+                            : ''}"
+                        >
+                          <Badge
+                            variant="outline"
+                            class="shrink-0 text-[9px] font-bold uppercase"
+                          >
+                            {activityTypeLabels[activity.activityType] ??
+                              activity.activityType}
+                          </Badge>
+                          <span
+                            class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                          >
+                            {activity.nom}
+                          </span>
+                          {#if activity.difficulte}
+                            <span
+                              class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
+                                activity.difficulte
+                              ] ?? ''}"
+                            >
+                              {activity.difficulte}
+                            </span>
+                          {/if}
+                          {#if isDone}
+                            <Check
+                              class="h-4 w-4 shrink-0 text-teal-600 dark:text-epi-teal"
+                            />
+                          {:else}
+                            <ArrowRight
+                              class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
+                            />
+                          {/if}
+                        </a>
+                      {/each}
+                    </div>
                   </div>
-                {/if}
+                {/each}
               </div>
             {:else}
-              <!-- Event exists but no subject assigned yet -->
+              <!-- Event exists but no planning/activities yet -->
               <div
-                class="flex flex-1 flex-col items-center justify-center text-center"
+                class="flex flex-col items-center justify-center py-12 text-center"
               >
                 <div
                   class="mb-4 rounded-full bg-slate-100 p-4 dark:bg-slate-800"
@@ -441,7 +458,7 @@
                   <Hourglass class="h-8 w-8 animate-pulse text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  Ton sujet arrive...
+                  Le planning arrive...
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-slate-500">
                   Le Manta est en train de préparer ta mission. Patiente
@@ -561,16 +578,18 @@
                 <h3
                   class="line-clamp-2 font-normal text-slate-900 dark:text-white"
                 >
-                  {mission.subject.nom}
+                  {mission.activity.nom}
                 </h3>
               </div>
-              <Button
-                variant="outline"
-                href={resolve(`/camper/${mission.subject.id}`)}
-                class="w-full gap-2 rounded-xl border-slate-200 transition-colors group-hover:border-epi-blue group-hover:bg-epi-blue group-hover:text-white dark:border-slate-800 dark:group-hover:border-epi-blue dark:group-hover:bg-epi-blue dark:group-hover:text-white"
-              >
-                <BookOpen class="h-4 w-4" /> Revoir la mission
-              </Button>
+              {#if mission.activity.isDynamic}
+                <Button
+                  variant="outline"
+                  href={resolve(`/camper/${mission.activity.id}`)}
+                  class="w-full gap-2 rounded-xl border-slate-200 transition-colors group-hover:border-epi-blue group-hover:bg-epi-blue group-hover:text-white dark:border-slate-800 dark:group-hover:border-epi-blue dark:group-hover:bg-epi-blue dark:group-hover:text-white"
+                >
+                  <BookOpen class="h-4 w-4" /> Revoir la mission
+                </Button>
+              {/if}
             </div>
           {/each}
         </div>

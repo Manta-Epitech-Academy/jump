@@ -137,64 +137,70 @@
           </div>
         </Card.Header>
         <Card.Content class="space-y-3 p-4 pt-2">
-          {#if p.subjects && p.subjects.length > 0}
-            <div class="flex flex-col gap-2">
-              {#each p.subjects as ps}
-                {@const subject = ps.subject}
-                <div
-                  class="flex items-start justify-between gap-2 rounded-sm bg-muted/50 p-2"
-                >
-                  <div class="flex items-start gap-2">
-                    <BookOpen
-                      class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
-                    />
-                    <div>
-                      <p class="text-sm font-bold">
-                        {#if subject.link}<a
-                            href={subject.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="transition-colors hover:text-epi-blue hover:underline"
-                            >{subject.nom}</a
-                          >{:else}{subject.nom}{/if}
-                      </p>
-                      {#if subject.subjectThemes}
-                        <div class="mt-1 flex flex-wrap gap-1">
-                          {#each subject.subjectThemes as st}
-                            <span
-                              class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
-                              >#{st.theme.nom}</span
-                            >
-                          {/each}
-                        </div>
-                      {/if}
-                    </div>
-                  </div>
-                  {#if subject.link}
-                    <Tooltip.Provider delayDuration={300}>
-                      <Tooltip.Root>
-                        <Tooltip.Trigger>
-                          {#snippet child({ props })}
-                            <Button
-                              {...props}
-                              variant="ghost"
-                              size="icon"
-                              href={subject.link}
+          {#if p.activities && p.activities.length > 0}
+            {@const displayActivities = p.activities.filter(
+              (pa: any) => pa.activity.activityType !== 'orga',
+            )}
+            {#if displayActivities.length > 0}
+              <div class="flex flex-col gap-2">
+                {#each displayActivities as pa}
+                  {@const activity = pa.activity}
+                  <div
+                    class="flex items-start justify-between gap-2 rounded-sm bg-muted/50 p-2"
+                  >
+                    <div class="flex items-start gap-2">
+                      <BookOpen
+                        class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                      />
+                      <div>
+                        <p class="text-sm font-bold">
+                          {#if activity.link}<a
+                              href={activity.link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
-                              ><ExternalLink class="h-3.5 w-3.5" /></Button
-                            >
-                          {/snippet}
-                        </Tooltip.Trigger>
-                        <Tooltip.Content><p>Voir le support</p></Tooltip.Content
-                        >
-                      </Tooltip.Root>
-                    </Tooltip.Provider>
-                  {/if}
-                </div>
-              {/each}
-            </div>
+                              class="transition-colors hover:text-epi-blue hover:underline"
+                              >{activity.nom}</a
+                            >{:else}{activity.nom}{/if}
+                        </p>
+                        {#if activity.activityThemes}
+                          <div class="mt-1 flex flex-wrap gap-1">
+                            {#each activity.activityThemes as at}
+                              <span
+                                class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
+                                >#{at.theme.nom}</span
+                              >
+                            {/each}
+                          </div>
+                        {/if}
+                      </div>
+                    </div>
+                    {#if activity.link}
+                      <Tooltip.Provider delayDuration={300}>
+                        <Tooltip.Root>
+                          <Tooltip.Trigger>
+                            {#snippet child({ props })}
+                              <Button
+                                {...props}
+                                variant="ghost"
+                                size="icon"
+                                href={activity.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="h-6 w-6 shrink-0 text-epi-blue hover:text-epi-blue/80"
+                                ><ExternalLink class="h-3.5 w-3.5" /></Button
+                              >
+                            {/snippet}
+                          </Tooltip.Trigger>
+                          <Tooltip.Content
+                            ><p>Voir le support</p></Tooltip.Content
+                          >
+                        </Tooltip.Root>
+                      </Tooltip.Provider>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
           {/if}
 
           <!-- CAMPER FEEDBACK (COMMENT BUBBLE STYLE) -->

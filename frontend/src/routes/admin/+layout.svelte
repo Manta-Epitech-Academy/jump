@@ -5,13 +5,14 @@
     ShieldAlert,
     Map,
     Users,
-    BookOpen,
     Tags,
     LogOut,
     Menu,
     X,
     LayoutDashboard,
     FingerprintPattern,
+    FileText,
+    CalendarDays,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -93,11 +94,11 @@
   </div>
   <nav class="space-y-1">
     <a
-      href={resolve('/admin/subjects')}
-      class={navLinkClass(isActive('/admin/subjects'))}
+      href={resolve('/admin/templates')}
+      class={navLinkClass(isActive('/admin/templates'))}
     >
-      <BookOpen class="h-4 w-4" />
-      <span>Sujets Officiels</span>
+      <FileText class="h-4 w-4" />
+      <span>Templates Officiels</span>
     </a>
     <a
       href={resolve('/admin/themes')}
@@ -105,6 +106,13 @@
     >
       <Tags class="h-4 w-4" />
       <span>Thèmes Officiels</span>
+    </a>
+    <a
+      href={resolve('/admin/planning-templates')}
+      class={navLinkClass(isActive('/admin/planning-templates'))}
+    >
+      <CalendarDays class="h-4 w-4" />
+      <span>Modèles de Planning</span>
     </a>
   </nav>
 {/snippet}

@@ -25,6 +25,14 @@ enum UnlockSource {
   staff
 }
 
+enum ActivityType {
+  atelier
+  conference
+  quiz
+  orga
+  special
+}
+
 // ─── Auth (BetterAuth managed) ───
 
 model bauth_user {
@@ -102,6 +110,8 @@ model StaffProfile {
   campus        Campus?         @relation(fields: [campusId], references: [id])
   eventMantas   EventManta[]
   notesAuthored Participation[] @relation("NoteAuthor")
+
+  @@index([campusId])
 }
 
 model StudentProfile {
@@ -133,6 +143,8 @@ model StudentProfile {
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
+
+  @@index([campusId])
 }
 
 // ─── Domain Tables ───
@@ -144,12 +156,12 @@ model Campus {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  staffProfiles   StaffProfile[]
-  studentProfiles StudentProfile[]
-  events          Event[]
-  themes          Theme[]
-  subjects        Subject[]
-  participations  Participation[]
+  staffProfiles      StaffProfile[]
+  studentProfiles    StudentProfile[]
+  events             Event[]
+  themes             Theme[]
+  participations     Participation[]
+  activityTemplates  ActivityTemplate[]
 }
 
 model Theme {
@@ -159,50 +171,116 @@ model Theme {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  campus        Campus?        @relation(fields: [campusId], references: [id])
-  events        Event[]
-  subjectThemes SubjectTheme[]
+  campus                 Campus?                 @relation(fields: [campusId], references: [id])
+  events                 Event[]
+  activityTemplateThemes ActivityTemplateTheme[]
+  activityThemes         ActivityTheme[]
 
   @@unique([nom, campusId])
 }
 
-model Subject {
-  id               String   @id @default(cuid())
+model ActivityTemplate {
+  id               String       @id @default(cuid())
   nom              String
   description      String?
-  difficulte       String
+  difficulte       String?
+  activityType     ActivityType
+  isDynamic        Boolean      @default(false)
   campusId         String?
   link             String?
+  content          String?
   contentStructure Json?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  defaultDuration  Int?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  campus                Campus?                @relation(fields: [campusId], references: [id])
-  subjectThemes         SubjectTheme[]
-  participationSubjects ParticipationSubject[]
-  stepsProgress         StepsProgress[]
+  campus                    Campus?                    @relation(fields: [campusId], references: [id])
+  activityTemplateThemes    ActivityTemplateTheme[]
+  planningTemplateSlotItems PlanningTemplateSlotItem[]
 }
 
-model SubjectTheme {
-  subjectId String
-  themeId   String
+model ActivityTemplateTheme {
+  activityTemplateId String
+  themeId            String
 
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  theme   Theme   @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  activityTemplate ActivityTemplate @relation(fields: [activityTemplateId], references: [id], onDelete: Cascade)
+  theme            Theme            @relation(fields: [themeId], references: [id], onDelete: Cascade)
 
-  @@id([subjectId, themeId])
+  @@id([activityTemplateId, themeId])
+}
+
+model Planning {
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  timeSlots TimeSlot[]
+}
+
+model TimeSlot {
+  id         String   @id @default(cuid())
+  planningId String
+  startTime  DateTime
+  endTime    DateTime
+  label      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  planning   Planning   @relation(fields: [planningId], references: [id], onDelete: Cascade)
+  activities Activity[]
+
+  @@index([planningId])
+}
+
+model Activity {
+  id               String       @id @default(cuid())
+  nom              String
+  description      String?
+  difficulte       String?
+  activityType     ActivityType
+  isDynamic        Boolean      @default(false)
+  link             String?
+  content          String?
+  contentStructure Json?
+  timeSlotId       String
+  templateId       String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  timeSlot               TimeSlot                @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+  activityThemes         ActivityTheme[]
+  participationActivities ParticipationActivity[]
+  stepsProgress          StepsProgress[]
+  portfolioItems         PortfolioItem[]
+
+  @@index([timeSlotId])
+  @@index([templateId])
+}
+
+model ActivityTheme {
+  activityId String
+  themeId    String
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  theme    Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, themeId])
 }
 
 model Event {
-  id        String   @id @default(cuid())
-  titre     String
-  date      DateTime
-  campusId  String
-  themeId   String?
-  pin       String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  titre                String
+  date                 DateTime
+  endDate              DateTime?
+  campusId             String
+  themeId              String?
+  pin                  String?
+  notes                String?
+  salesforceCampaignId String?  @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   campus         Campus          @relation(fields: [campusId], references: [id])
   theme          Theme?          @relation(fields: [themeId], references: [id])
@@ -210,6 +288,9 @@ model Event {
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
+  planning       Planning?
+
+  @@index([campusId])
 }
 
 model EventManta {
@@ -241,28 +322,31 @@ model Participation {
   event          Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   campus         Campus                 @relation(fields: [campusId], references: [id])
   noteAuthor     StaffProfile?          @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
-  subjects       ParticipationSubject[]
+  activities     ParticipationActivity[]
 
   @@unique([studentProfileId, eventId])
   @@index([eventId])
   @@index([campusId])
+  @@index([studentProfileId])
 }
 
-model ParticipationSubject {
+model ParticipationActivity {
   participationId String
-  subjectId       String
+  activityId      String
+  isPresent       Boolean @default(false)
+  delay           Int     @default(0)
 
   participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  subject       Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  activity      Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
-  @@id([participationId, subjectId])
+  @@id([participationId, activityId])
 }
 
 model StepsProgress {
   id               String        @id @default(cuid())
   studentProfileId String
-  subjectId        String
   eventId          String
+  activityId       String?
   currentStepId    String?
   unlockedStepId   String?
   status           StepStatus    @default(active)
@@ -271,17 +355,20 @@ model StepsProgress {
   updatedAt        DateTime      @updatedAt
 
   studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  subject        Subject        @relation(fields: [subjectId], references: [id])
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  activity       Activity?      @relation(fields: [activityId], references: [id])
 
-  @@unique([studentProfileId, subjectId, eventId])
+  @@unique([studentProfileId, activityId])
   @@index([eventId])
+  @@index([studentProfileId])
+  @@index([activityId])
 }
 
 model PortfolioItem {
   id               String   @id @default(cuid())
   studentProfileId String
   eventId          String
+  activityId       String?
   file             String?
   url              String?
   caption          String?
@@ -290,6 +377,69 @@ model PortfolioItem {
 
   studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  activity       Activity?      @relation(fields: [activityId], references: [id])
 
   @@index([studentProfileId])
+  @@index([eventId])
+}
+
+// ── Planning Templates (national reusable planning grids) ──
+
+model PlanningTemplate {
+  id          String   @id @default(cuid())
+  nom         String   @unique
+  description String?
+  nbDays      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  days PlanningTemplateDay[]
+}
+
+model PlanningTemplateDay {
+  id                 String   @id @default(cuid())
+  planningTemplateId String
+  dayIndex           Int
+  label              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  planningTemplate PlanningTemplate     @relation(fields: [planningTemplateId], references: [id], onDelete: Cascade)
+  slots            PlanningTemplateSlot[]
+
+  @@unique([planningTemplateId, dayIndex])
+  @@index([planningTemplateId])
+}
+
+model PlanningTemplateSlot {
+  id                    String   @id @default(cuid())
+  planningTemplateDayId String
+  startTime             String
+  endTime               String
+  label                 String?
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  day   PlanningTemplateDay       @relation(fields: [planningTemplateDayId], references: [id], onDelete: Cascade)
+  items PlanningTemplateSlotItem[]
+
+  @@index([planningTemplateDayId])
+}
+
+model PlanningTemplateSlotItem {
+  id                     String       @id @default(cuid())
+  planningTemplateSlotId String
+  activityTemplateId     String?
+  nom                    String?
+  description            String?
+  activityType           ActivityType @default(orga)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  slot             PlanningTemplateSlot @relation(fields: [planningTemplateSlotId], references: [id], onDelete: Cascade)
+  activityTemplate ActivityTemplate?    @relation(fields: [activityTemplateId], references: [id], onDelete: SetNull)
+
+  @@index([planningTemplateSlotId])
+  @@index([activityTemplateId])
 }

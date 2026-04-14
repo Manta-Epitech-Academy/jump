@@ -1,5 +1,4 @@
 import { parseEventImportCsv, type CsvStudent } from '$lib/domain/csv';
-import { suggestBestSubject } from '$lib/domain/recommender';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
@@ -122,10 +121,6 @@ export async function importCampaignData(
     },
   });
 
-  const subjects = await prisma.subject.findMany({
-    include: { subjectThemes: true },
-  });
-
   // 2. Process Students
   await Promise.all(
     importList.map(async (item) => {
@@ -177,12 +172,6 @@ export async function importCampaignData(
           });
 
           if (!existing) {
-            const subjectId = await suggestBestSubject(
-              studentProfileId,
-              subjects,
-              null,
-            );
-
             await prisma.participation.create({
               data: {
                 studentProfileId,
@@ -190,7 +179,6 @@ export async function importCampaignData(
                 campusId,
                 bringPc: item.bringPc,
                 isPresent: false,
-                subjects: subjectId ? { create: [{ subjectId }] } : undefined,
               },
             });
           }

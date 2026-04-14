@@ -3,6 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import * as Select from '$lib/components/ui/select';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';
   import { enhance } from '$app/forms';
@@ -114,14 +115,24 @@
               </form>
             </Table.Cell>
             <Table.Cell class="text-right">
-              <Button
-                variant="ghost"
-                size="icon"
-                class="text-destructive hover:bg-destructive/10"
-                onclick={() => confirmDelete(user.id)}
-              >
-                <Trash2 class="h-4 w-4" />
-              </Button>
+              <Tooltip.Provider delayDuration={300}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        class="text-destructive hover:bg-destructive/10"
+                        onclick={() => confirmDelete(user.id)}
+                      >
+                        <Trash2 class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content><p>Révoquer l'accès</p></Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             </Table.Cell>
           </Table.Row>
         {/each}

@@ -45,13 +45,6 @@ export const actions: Actions = {
         prisma.stepsProgress.deleteMany({
           where: { studentProfileId: locals.studentProfile.id },
         }),
-        prisma.participationSubject.deleteMany({
-          where: {
-            participation: {
-              studentProfileId: locals.studentProfile.id,
-            },
-          },
-        }),
         prisma.participation.deleteMany({
           where: { studentProfileId: locals.studentProfile.id },
         }),

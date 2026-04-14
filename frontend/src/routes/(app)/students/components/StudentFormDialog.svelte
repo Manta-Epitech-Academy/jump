@@ -4,7 +4,8 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
-  import { difficultes, type StudentForm } from '$lib/validation/students';
+  import { difficultes } from '$lib/domain/xp';
+  import type { StudentForm } from '$lib/validation/students';
   import type { Snippet } from 'svelte';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { studentSchema } from '$lib/validation/students';
