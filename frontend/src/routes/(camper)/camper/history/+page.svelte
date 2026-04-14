@@ -3,12 +3,12 @@
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
-  import { formatDateFr, flattenMissions } from '$lib/utils';
+  import { formatDateFr, flattenActivityMissions } from '$lib/utils';
   import { History, Calendar, BookOpen, ArrowLeft } from '@lucide/svelte';
 
   let { data }: { data: PageData } = $props();
 
-  let missions = $derived(flattenMissions(data.pastParticipations));
+  let missions = $derived(flattenActivityMissions(data.pastParticipations));
 </script>
 
 <svelte:head>
@@ -51,16 +51,18 @@
               {formatDateFr(mission.eventDate)}
             </div>
             <h3 class="line-clamp-2 font-normal text-slate-900 dark:text-white">
-              {mission.subject.nom}
+              {mission.activity.nom}
             </h3>
           </div>
-          <Button
-            variant="outline"
-            href={resolve(`/camper/${mission.subject.id}`)}
-            class="w-full gap-2 rounded-xl border-slate-200 transition-colors group-hover:border-epi-blue group-hover:bg-epi-blue group-hover:text-white dark:border-slate-800 dark:group-hover:border-epi-blue dark:group-hover:bg-epi-blue dark:group-hover:text-white"
-          >
-            <BookOpen class="h-4 w-4" /> Revoir la mission
-          </Button>
+          {#if mission.activity.isDynamic}
+            <Button
+              variant="outline"
+              href={resolve(`/camper/${mission.activity.id}`)}
+              class="w-full gap-2 rounded-xl border-slate-200 transition-colors group-hover:border-epi-blue group-hover:bg-epi-blue group-hover:text-white dark:border-slate-800 dark:group-hover:border-epi-blue dark:group-hover:bg-epi-blue dark:group-hover:text-white"
+            >
+              <BookOpen class="h-4 w-4" /> Revoir la mission
+            </Button>
+          {/if}
         </div>
       {/each}
     </div>

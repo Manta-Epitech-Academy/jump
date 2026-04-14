@@ -23,10 +23,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             mantas: { include: { staffProfile: { include: { user: true } } } },
           },
         },
-        subjects: {
+        activities: {
           include: {
-            subject: {
-              include: { subjectThemes: { include: { theme: true } } },
+            activity: {
+              include: { activityThemes: { include: { theme: true } } },
             },
           },
         },
@@ -46,9 +46,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const themeCounts: Record<string, number> = {};
     participations.forEach((p) => {
       if (p.isPresent) {
-        p.subjects.forEach((ps) => {
-          ps.subject.subjectThemes.forEach((st) => {
-            themeCounts[st.theme.nom] = (themeCounts[st.theme.nom] || 0) + 1;
+        p.activities.forEach((pa) => {
+          if (pa.activity.activityType === 'orga') return;
+          pa.activity.activityThemes.forEach((at) => {
+            themeCounts[at.theme.nom] = (themeCounts[at.theme.nom] || 0) + 1;
           });
         });
       }

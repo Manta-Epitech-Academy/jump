@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
-import { getParisStartOfDay, tallyTopThemes } from '$lib/utils';
+import { getParisStartOfDay, tallyTopThemesFromActivities } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.studentProfile) {
@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     const filterDateEnd = endOfDay.toDate();
     const filterDateStartDate = new Date(filterDateStart);
 
-    // Fetch participations for today
+    // Fetch participations for today with full planning chain
     const participations = await prisma.participation.findMany({
       where: {
         studentProfileId: studentId,
@@ -36,8 +36,22 @@ export const load: PageServerLoad = async ({ locals }) => {
         },
       },
       include: {
-        event: true,
-        subjects: { include: { subject: true } },
+        event: {
+          include: {
+            planning: {
+              include: {
+                timeSlots: {
+                  include: {
+                    activities: {
+                      where: { activityType: { not: 'orga' } },
+                    },
+                  },
+                  orderBy: { startTime: 'asc' },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: { event: { date: 'asc' } },
     });
@@ -50,7 +64,6 @@ export const load: PageServerLoad = async ({ locals }) => {
       },
       include: {
         event: true,
-        subjects: { include: { subject: true } },
       },
       orderBy: { event: { date: 'asc' } },
     });
@@ -63,11 +76,11 @@ export const load: PageServerLoad = async ({ locals }) => {
       },
       include: {
         event: true,
-        subjects: {
+        activities: {
           include: {
-            subject: {
+            activity: {
               include: {
-                subjectThemes: { include: { theme: true } },
+                activityThemes: { include: { theme: true } },
               },
             },
           },
@@ -76,7 +89,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     });
 
     // Tally top themes from completed participations
-    const topThemes = tallyTopThemes(allCompleted, 3);
+    const topThemes = tallyTopThemesFromActivities(allCompleted, 3);
 
     // Derive past participations from the set we already have
     const allPast = allCompleted
@@ -85,9 +98,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     const pastPreview = allPast;
 
-    // Count missions (subjects), not participations, for the "Voir tout" badge
+    // Count missions (activities excluding orga), not participations
     const totalPastMissions = allPast.reduce(
-      (sum, p) => sum + p.subjects.length,
+      (sum, p) =>
+        sum +
+        p.activities.filter((pa) => pa.activity.activityType !== 'orga').length,
       0,
     );
 
@@ -95,27 +110,27 @@ export const load: PageServerLoad = async ({ locals }) => {
     const todayParticipation =
       participations.length > 0 ? participations[0] : null;
 
-    // Fetch completion status for today's subjects
-    const completedSubjectIds: Set<string> = new Set();
-    const todaySubjects = todayParticipation?.subjects ?? [];
-    if (todaySubjects.length > 0 && todayParticipation?.event) {
+    // Fetch completion status for today's activities
+    const completedActivityIds: Set<string> = new Set();
+    if (todayParticipation?.event) {
       const progressRecords = await prisma.stepsProgress.findMany({
         where: {
           studentProfileId: studentId,
           eventId: todayParticipation.event.id,
+          activityId: { not: null },
           status: 'completed',
         },
-        select: { subjectId: true },
+        select: { activityId: true },
       });
       for (const p of progressRecords) {
-        completedSubjectIds.add(p.subjectId);
+        if (p.activityId) completedActivityIds.add(p.activityId);
       }
     }
 
     return {
       student: locals.studentProfile,
       participation: todayParticipation,
-      completedSubjectIds: [...completedSubjectIds],
+      completedActivityIds: [...completedActivityIds],
       upcomingParticipation,
       pastParticipations: pastPreview,
       totalPastMissions,

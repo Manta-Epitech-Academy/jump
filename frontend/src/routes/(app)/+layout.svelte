@@ -3,7 +3,6 @@
     LogOut,
     LayoutDashboard,
     Users,
-    Cuboid,
     Plus,
     ChevronDown,
     Menu,
@@ -123,10 +122,6 @@
     <a href={resolve('/students')} class={navLinkClass(isActive('/students'))}>
       <Users class="h-5 w-5" />
       <span>Élèves</span>
-    </a>
-    <a href={resolve('/subjects')} class={navLinkClass(isActive('/subjects'))}>
-      <Cuboid class="h-5 w-5" />
-      <span>Sujets</span>
     </a>
   </nav>
 {/snippet}

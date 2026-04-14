@@ -51,6 +51,9 @@
   let dateValue = $state<CalendarDateTime | undefined>(
     parseInitialDate($editForm.date),
   );
+  let endDateValue = $state<CalendarDateTime | undefined>(
+    parseInitialDate($editForm.endDate),
+  );
   const hours = Array.from({ length: 24 }, (_, i) =>
     String(i).padStart(2, '0'),
   );
@@ -70,6 +73,19 @@
     }
     const newTime = `${hour}:${minute}`;
     if ($editForm.time !== newTime) $editForm.time = newTime;
+  });
+
+  $effect(() => {
+    if (endDateValue) {
+      const y = endDateValue.year;
+      const m = String(endDateValue.month).padStart(2, '0');
+      const d = String(endDateValue.day).padStart(2, '0');
+      const newEndDateStr = `${y}-${m}-${d}`;
+      if ($editForm.endDate !== newEndDateStr)
+        $editForm.endDate = newEndDateStr;
+    } else {
+      if ($editForm.endDate !== '') $editForm.endDate = '';
+    }
   });
 </script>
 
@@ -145,7 +161,7 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
-            <Label>Date</Label>
+            <Label>Date de début</Label>
             <DatePicker bind:value={dateValue} name="date" />
             {#if $editErrors.date}<p class="text-xs text-destructive">
                 {$editErrors.date}
@@ -172,6 +188,19 @@
             <input type="hidden" name="time" value={$editForm.time} />
             {#if $editErrors.time}<p class="text-xs text-destructive">
                 {$editErrors.time}
+              </p>{/if}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <Label
+              >Date de fin <span class="text-muted-foreground">(optionnel)</span
+              ></Label
+            >
+            <DatePicker bind:value={endDateValue} name="endDate" />
+            {#if $editErrors.endDate}<p class="text-xs text-destructive">
+                {$editErrors.endDate}
               </p>{/if}
           </div>
         </div>
