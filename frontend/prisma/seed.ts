@@ -1374,17 +1374,6 @@ async function main() {
 
   console.log(`✓ Events (${eventDefs.length}) with planning + activities`);
 
-  const upcomingEvent = await upsertEvent({
-    id: 'seed-upcoming-event',
-    titre: 'Atelier Jeux Vidéo',
-    date: upcomingDate,
-    campusId: paris.id,
-    themeId: themes['Jeux Vidéo'].id,
-    pin: '5678',
-    notes: null,
-    mantaIds: [parisStaff1.id],
-  });
-
   // ── 7. ParticipationActivity records (link participations to activities) ──
   let paCount = 0;
   for (const evtDef of eventDefs) {
