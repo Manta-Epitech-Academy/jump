@@ -66,6 +66,7 @@ export async function syncTalents(
 
   let created = 0;
   let updated = 0;
+  const syncedTalentIds: string[] = [];
 
   for (const t of talents) {
     const email = t.email?.toLowerCase().trim() || null;
@@ -80,8 +81,10 @@ export async function syncTalents(
       where: { externalId: t.external_id },
     });
 
+    let talentId: string;
+
     if (!existing) {
-      await prisma.talent.create({
+      const talent = await prisma.talent.create({
         data: {
           externalId: t.external_id,
           campusId: event.campusId,
@@ -93,27 +96,43 @@ export async function syncTalents(
           eventsCount: 0,
         },
       });
+      talentId = talent.id;
       created++;
-    } else if (
-      existing.prenom !== t.first_name ||
-      existing.nom !== t.last_name ||
-      existing.email !== email ||
-      existing.phone !== phone
-    ) {
-      await prisma.talent.update({
-        where: { externalId: t.external_id },
-        data: {
-          prenom: t.first_name,
-          nom: t.last_name,
-          email,
-          phone,
-        },
-      });
-      updated++;
+    } else {
+      talentId = existing.id;
+      if (
+        existing.prenom !== t.first_name ||
+        existing.nom !== t.last_name ||
+        existing.email !== email ||
+        existing.phone !== phone
+      ) {
+        await prisma.talent.update({
+          where: { externalId: t.external_id },
+          data: {
+            prenom: t.first_name,
+            nom: t.last_name,
+            email,
+            phone,
+          },
+        });
+        updated++;
+      }
     }
+
+    await prisma.participation.upsert({
+      where: { talentId_eventId: { talentId, eventId: event.id } },
+      create: { talentId, eventId: event.id, campusId: event.campusId! },
+      update: {},
+    });
+    syncedTalentIds.push(talentId);
   }
 
-  // TODO: Adding talents to the event.
+  const { count: removed } = await prisma.participation.deleteMany({
+    where: {
+      eventId: event.id,
+      talentId: { notIn: syncedTalentIds },
+    },
+  });
 
-  return { created, updated };
+  return { created, updated, removed };
 }
