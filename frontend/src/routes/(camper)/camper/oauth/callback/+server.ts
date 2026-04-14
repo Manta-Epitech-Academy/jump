@@ -29,24 +29,32 @@ export const GET: RequestHandler = async ({ locals }) => {
     });
   }
 
-  // Create StudentProfile if it doesn't exist
-  const existingProfile = await prisma.studentProfile.findUnique({
+  // Link or create StudentProfile
+  const linkedProfile = await prisma.studentProfile.findUnique({
     where: { userId: locals.user.id },
   });
 
-  if (!existingProfile) {
-    // Try to extract name from Microsoft Graph data
-    const account = await prisma.bauth_account.findFirst({
-      where: { userId: locals.user.id, providerId: 'microsoft' },
+  if (!linkedProfile) {
+    // Check for an unlinked profile matching this email (e.g. created by worker API)
+    const unlinkedProfile = await prisma.studentProfile.findUnique({
+      where: { email: locals.user.email },
     });
 
-    await prisma.studentProfile.create({
-      data: {
-        userId: locals.user.id,
-        nom: locals.user.name?.split(' ').slice(-1)[0] || '_pending',
-        prenom: locals.user.name?.split(' ')[0] || '_pending',
-      },
-    });
+    if (unlinkedProfile) {
+      await prisma.studentProfile.update({
+        where: { id: unlinkedProfile.id },
+        data: { userId: locals.user.id },
+      });
+    } else {
+      await prisma.studentProfile.create({
+        data: {
+          userId: locals.user.id,
+          email: locals.user.email,
+          nom: locals.user.name?.split(' ').slice(-1)[0] || '_pending',
+          prenom: locals.user.name?.split(' ')[0] || '_pending',
+        },
+      });
+    }
   }
 
   throw redirect(303, resolve('/camper'));

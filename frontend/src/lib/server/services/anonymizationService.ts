@@ -50,7 +50,7 @@ export const AnonymizationService = {
             data: {
               nom: 'Anonymisé',
               prenom: 'Anonymisé',
-              salesforceId: null,
+              externalId: null,
               phone: null,
               parentPhone: null,
               parentEmail: null,
@@ -63,23 +63,25 @@ export const AnonymizationService = {
             },
           });
 
-          // 2. Update User (BetterAuth table)
-          await tx.bauth_user.update({
-            where: { id: student.userId },
-            data: {
-              name: 'Utilisateur Anonymisé',
-              image: null,
-              email: `anonymized-${student.id}@tekcamp.internal`,
-            },
-          });
+          // 2. Update User (BetterAuth table) — only if linked
+          if (student.userId) {
+            await tx.bauth_user.update({
+              where: { id: student.userId },
+              data: {
+                name: 'Utilisateur Anonymisé',
+                image: null,
+                email: `anonymized-${student.id}@tekcamp.internal`,
+              },
+            });
 
-          // 3. Clear sessions and auth accounts
-          await tx.bauth_session.deleteMany({
-            where: { userId: student.userId },
-          });
-          await tx.bauth_account.deleteMany({
-            where: { userId: student.userId },
-          });
+            // 3. Clear sessions and auth accounts
+            await tx.bauth_session.deleteMany({
+              where: { userId: student.userId },
+            });
+            await tx.bauth_account.deleteMany({
+              where: { userId: student.userId },
+            });
+          }
 
           // 4. Delete portfolio items (student-created content with potential PII)
           await tx.portfolioItem.deleteMany({

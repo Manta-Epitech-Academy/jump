@@ -819,10 +819,11 @@ async function main() {
     });
 
     const profile = await prisma.studentProfile.upsert({
-      where: { userId: user.id },
+      where: { email: s.email },
       update: {},
       create: {
         userId: user.id,
+        email: s.email,
         nom: s.nom,
         prenom: s.prenom,
         campusId: s.campus.id,
@@ -842,6 +843,71 @@ async function main() {
   }
 
   console.log(`✓ Students seeded (${studentProfiles.length})`);
+
+  // ─── Unlinked Students (simulates worker API import — no bauth_user) ───
+  const unlinkedStudentsData = [
+    {
+      externalId: 'SF-001',
+      email: 'yanis.bouchard@mail.com',
+      prenom: 'Yanis',
+      nom: 'Bouchard',
+      campus: paris,
+      niveau: '4eme',
+      niveauDifficulte: 'Débutant',
+    },
+    {
+      externalId: 'SF-002',
+      email: 'sara.khelifi@mail.com',
+      prenom: 'Sara',
+      nom: 'Khelifi',
+      campus: paris,
+      niveau: '3eme',
+      niveauDifficulte: 'Intermédiaire',
+    },
+    {
+      externalId: 'SF-003',
+      email: null,
+      prenom: 'Rayan',
+      nom: 'Diallo',
+      campus: lyon,
+      niveau: '5eme',
+      niveauDifficulte: 'Débutant',
+    },
+  ];
+
+  const unlinkedProfiles: {
+    id: string;
+    nom: string;
+    prenom: string;
+    campusId: string;
+  }[] = [];
+
+  for (const s of unlinkedStudentsData) {
+    const profile = await prisma.studentProfile.upsert({
+      where: { externalId: s.externalId },
+      update: {},
+      create: {
+        externalId: s.externalId,
+        email: s.email,
+        nom: s.nom,
+        prenom: s.prenom,
+        campusId: s.campus.id,
+        niveau: s.niveau,
+        niveauDifficulte: s.niveauDifficulte,
+      },
+    });
+
+    unlinkedProfiles.push({
+      id: profile.id,
+      nom: s.nom,
+      prenom: s.prenom,
+      campusId: s.campus.id,
+    });
+  }
+
+  console.log(
+    `✓ Unlinked students seeded (${unlinkedProfiles.length} — no bauth_user, simulates worker import)`,
+  );
 
   // ─── Events ───
   const parisStaff1 = staffProfiles['manta@epitech.eu'];
@@ -1091,7 +1157,7 @@ async function main() {
 
   console.log('✓ XP & levels computed');
 
-  // ─── StepsProgress (completed subjects for past events) ───
+  // ─── StepsProgress (completed subjects for past event) ───
   const pastEvents = [pastEvent1, pastEvent2, pastEvent3, lyonEvent];
 
   for (const event of pastEvents) {

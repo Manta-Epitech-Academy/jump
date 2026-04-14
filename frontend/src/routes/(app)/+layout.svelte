@@ -299,7 +299,7 @@
         <Button
           variant="outline"
           class="w-full justify-start border-dashed"
-          href={resolve('/events/new')}
+          href={resolve('/event/new')}
         >
           <Plus class="mr-2 h-4 w-4" />
           Nouvel Événement
@@ -331,7 +331,7 @@
           <Button
             variant="outline"
             class="w-full justify-center border-dashed"
-            href={resolve('/events/new')}
+            href={resolve('/event/new')}
           >
             <Plus class="mr-2 h-4 w-4" />
             Nouvel Événement

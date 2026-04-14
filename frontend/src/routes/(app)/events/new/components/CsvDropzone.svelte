@@ -100,7 +100,7 @@
       {isDragActive ? 'Déposez le fichier !' : 'Glissez le CSV ici'}
     </h3>
     <p class="mb-4 text-sm text-muted-foreground">
-      Formats acceptés : CSV SalesForce
+      Formats acceptés : CSV
     </p>
     <Button variant="secondary" size="sm" class="pointer-events-none">
       Ou cliquer pour parcourir

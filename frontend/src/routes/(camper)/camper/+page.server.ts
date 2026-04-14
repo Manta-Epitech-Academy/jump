@@ -91,7 +91,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       0,
     );
 
-    // If there are multiple events today, grab the first one
+    // If there are multiple event today, grab the first one
     const todayParticipation =
       participations.length > 0 ? participations[0] : null;
 

@@ -145,6 +145,7 @@ export async function importCampaignData(
                 create: {
                   prenom: item.csvData.prenom,
                   nom: item.csvData.nom,
+                  email: item.csvData.email,
                   campusId,
                   niveau: item.csvData.niveau || null,
                   xp: 0,

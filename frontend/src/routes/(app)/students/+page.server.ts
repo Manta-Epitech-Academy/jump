@@ -60,15 +60,19 @@ export const actions: Actions = {
     try {
       const campusId = getCampusId(locals);
 
+      const email =
+        form.data.email || `${crypto.randomUUID()}@placeholder.local`;
+
       await prisma.bauth_user.create({
         data: {
-          email: form.data.email || `${crypto.randomUUID()}@placeholder.local`,
+          email,
           role: 'student',
           name: `${form.data.prenom} ${form.data.nom}`,
           studentProfile: {
             create: {
               nom: form.data.nom,
               prenom: form.data.prenom,
+              email,
               campusId,
               niveau: form.data.niveau || null,
               niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
@@ -121,10 +125,12 @@ export const actions: Actions = {
         const profile = await db.studentProfile.findUniqueOrThrow({
           where: { id },
         });
-        await prisma.bauth_user.update({
-          where: { id: profile.userId },
-          data: { email: form.data.email },
-        });
+        if (profile.userId) {
+          await prisma.bauth_user.update({
+            where: { id: profile.userId },
+            data: { email: form.data.email },
+          });
+        }
       }
 
       return message(form, 'Élève modifié avec succès !');
@@ -147,7 +153,11 @@ export const actions: Actions = {
       const profile = await db.studentProfile.findUniqueOrThrow({
         where: { id },
       });
-      await prisma.bauth_user.delete({ where: { id: profile.userId } });
+      if (profile.userId) {
+        await prisma.bauth_user.delete({ where: { id: profile.userId } });
+      } else {
+        await db.studentProfile.delete({ where: { id } });
+      }
       return { success: true };
     } catch {
       return fail(500);

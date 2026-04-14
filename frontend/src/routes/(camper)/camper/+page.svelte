@@ -506,7 +506,7 @@
           </div>
         </div>
       {:else}
-        <!-- No event today AND no upcoming events -->
+        <!-- No event today AND no upcoming event -->
         <div
           class="flex min-h-62.5 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
         >

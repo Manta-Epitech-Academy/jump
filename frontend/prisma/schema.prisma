@@ -106,7 +106,8 @@ model StaffProfile {
 
 model StudentProfile {
   id                String    @id @default(cuid())
-  userId            String    @unique
+  userId            String?   @unique
+  email             String?   @unique
   nom               String
   prenom            String
   campusId          String?
@@ -121,13 +122,13 @@ model StudentProfile {
   parentPhone       String?
   phone             String?
   discordId         String?   @unique
-  salesforceId      String?   @unique
+  externalId        String?   @unique
   lastSyncedAt      DateTime?
   lastActiveAt      DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  user           bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           bauth_user?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   campus         Campus?         @relation(fields: [campusId], references: [id])
   participations Participation[]
   stepsProgress  StepsProgress[]

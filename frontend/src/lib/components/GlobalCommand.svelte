@@ -53,7 +53,7 @@
         <Cuboid class="mr-2 h-4 w-4" />
         Sujets
       </Command.Item>
-      <Command.Item onSelect={() => runCommand(resolve('/events/history'))}>
+      <Command.Item onSelect={() => runCommand(resolve('/event/history'))}>
         <History class="mr-2 h-4 w-4" />
         Historique
       </Command.Item>
@@ -62,7 +62,7 @@
     <Command.Separator />
 
     <Command.Group heading="Actions Rapides">
-      <Command.Item onSelect={() => runCommand(resolve('/events/new'))}>
+      <Command.Item onSelect={() => runCommand(resolve('/event/new'))}>
         <Calendar class="mr-2 h-4 w-4" />
         Nouvel Événement
       </Command.Item>

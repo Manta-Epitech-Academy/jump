@@ -18,7 +18,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
   const body = await request.json();
   if (!Array.isArray(body.events))
-    throw error(400, 'Missing or invalid "events" array');
+    throw error(400, 'Missing or invalid "event" array');
 
   let created = 0;
   let updated = 0;
@@ -30,10 +30,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
     };
     if (!eventData.external_id || !eventData.title)
       throw error(400, 'Each event must have id and title');
-
     const existing = await prisma.event.findUnique({
       where: { id: eventData.external_id },
     });
+
+    const campus = await prisma.campus.findUnique({
+      where: { external_name: params.campus_ext_name },
+    });
+    if (!campus) throw error(404, 'Campus not found');
 
     if (!existing) {
       await prisma.event.create({
@@ -41,14 +45,14 @@ export const POST: RequestHandler = async ({ request, params }) => {
           id: eventData.external_id,
           date: new Date(),
           titre: eventData.title,
-          campusId: params.campus_ext_name,
+          campusId: campus.id,
         },
       });
       created++;
-    } else if (existing.titre !== eventData.title) {
+    } else if (existing.titre !== eventData.title || existing.campusId !== campus.id) {
       await prisma.event.update({
         where: { id: eventData.external_id },
-        data: { titre: eventData.title },
+        data: { titre: eventData.title, campusId: campus.id}
       });
       updated++;
     }

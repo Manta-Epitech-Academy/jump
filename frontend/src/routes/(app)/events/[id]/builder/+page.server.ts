@@ -296,15 +296,19 @@ export const actions: Actions = {
     try {
       const campusId = getCampusId(locals);
 
+      const email =
+        form.data.email || `${crypto.randomUUID()}@placeholder.local`;
+
       const user = await prisma.bauth_user.create({
         data: {
-          email: form.data.email || `${crypto.randomUUID()}@placeholder.local`,
+          email,
           role: 'student',
           name: `${form.data.prenom} ${form.data.nom}`,
           studentProfile: {
             create: {
               nom: form.data.nom,
               prenom: form.data.prenom,
+              email,
               campusId,
               niveau: form.data.niveau || null,
               niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
