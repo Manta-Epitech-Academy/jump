@@ -59,32 +59,34 @@ export const actions: Actions = {
 
     try {
       const campusId = getCampusId(locals);
+      const email = form.data.email || null;
 
-      const email =
-        form.data.email || `${crypto.randomUUID()}@placeholder.local`;
+      const talentData = {
+        nom: form.data.nom,
+        prenom: form.data.prenom,
+        email,
+        campusId,
+        niveau: form.data.niveau || null,
+        niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
+        xp: 0,
+        eventsCount: 0,
+        parentEmail: form.data.parent_email || null,
+        parentPhone: form.data.parent_phone || null,
+        phone: form.data.phone || null,
+      };
 
-      await prisma.bauth_user.create({
-        data: {
-          email,
-          role: 'student',
-          name: `${form.data.prenom} ${form.data.nom}`,
-          talent: {
-            create: {
-              nom: form.data.nom,
-              prenom: form.data.prenom,
-              email,
-              campusId,
-              niveau: form.data.niveau || null,
-              niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
-              xp: 0,
-              eventsCount: 0,
-              parentEmail: form.data.parent_email || null,
-              parentPhone: form.data.parent_phone || null,
-              phone: form.data.phone || null,
-            },
+      if (email) {
+        await prisma.bauth_user.create({
+          data: {
+            email,
+            role: 'student',
+            name: `${form.data.prenom} ${form.data.nom}`,
+            talent: { create: talentData },
           },
-        },
-      });
+        });
+      } else {
+        await prisma.talent.create({ data: talentData });
+      }
 
       return message(form, 'Élève ajouté avec succès !');
     } catch (err: any) {
