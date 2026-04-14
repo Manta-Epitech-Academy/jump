@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      margin: 40px;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .header h1 {
+      font-size: 24px;
+      color: #0f172a;
+      margin: 0 0 8px 0;
+    }
+    .header p {
+      font-size: 14px;
+      color: #64748b;
+      margin: 0;
+    }
+    .content {
+      margin-bottom: 40px;
+      font-size: 14px;
+    }
+    .signature-block {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .signature-block p {
+      font-size: 13px;
+      color: #475569;
+      margin: 4px 0;
+    }
+    .signature-block .signer-name {
+      font-size: 16px;
+      font-weight: bold;
+      color: #0f172a;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <%- data.logoSvg %>
+    <h1><%= data.title %></h1>
+    <p>Epitech Academy</p>
+  </div>
+
+  <div class="content">
+    <p><%= data.documentContent %></p>
+  </div>
+
+  <div class="signature-block">
+    <p>Signé le : <strong><%= data.signedAt %></strong></p>
+    <% if (data.signerName) { %>
+      <p class="signer-name">Signataire : <%= data.signerName %></p>
+    <% } %>
+    <% if (data.studentName) { %>
+      <p>Étudiant : <%= data.studentName %></p>
+    <% } %>
+  </div>
+</body>
+</html>
