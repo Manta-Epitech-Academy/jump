@@ -6,7 +6,7 @@ import { prisma } from '../db';
  * Throws 403 if ownership doesn't match.
  */
 export async function assertStudentOwns(
-  studentProfileId: string,
+  talentId: string,
   resourceId: string,
   model: 'stepsProgress' | 'portfolioItem' | 'participation',
 ) {
@@ -16,30 +16,30 @@ export async function assertStudentOwns(
     case 'stepsProgress': {
       const r = await prisma.stepsProgress.findUniqueOrThrow({
         where: { id: resourceId },
-        select: { studentProfileId: true },
+        select: { talentId: true },
       });
-      ownerId = r.studentProfileId;
+      ownerId = r.talentId;
       break;
     }
     case 'portfolioItem': {
       const r = await prisma.portfolioItem.findUniqueOrThrow({
         where: { id: resourceId },
-        select: { studentProfileId: true },
+        select: { talentId: true },
       });
-      ownerId = r.studentProfileId;
+      ownerId = r.talentId;
       break;
     }
     case 'participation': {
       const r = await prisma.participation.findUniqueOrThrow({
         where: { id: resourceId },
-        select: { studentProfileId: true },
+        select: { talentId: true },
       });
-      ownerId = r.studentProfileId;
+      ownerId = r.talentId;
       break;
     }
   }
 
-  if (ownerId !== studentProfileId) {
+  if (ownerId !== talentId) {
     throw error(403, 'Accès refusé : cette ressource ne vous appartient pas.');
   }
 }

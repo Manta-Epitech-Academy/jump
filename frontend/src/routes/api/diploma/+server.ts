@@ -23,7 +23,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const participation = await prisma.participation.findUnique({
       where: { id: participationId },
       include: {
-        studentProfile: true,
+        talent: true,
         event: true,
         activities: {
           include: { activity: true },
@@ -35,7 +35,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       throw error(404, 'Participation introuvable.');
     }
 
-    const student = participation.studentProfile;
+    const student = participation.talent;
     const event = participation.event;
     const activity = participation.activities?.find(
       (pa) => pa.activity.activityType !== 'orga',

@@ -10,7 +10,7 @@ import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   // If already authenticated as a Student, route directly to the dashboard
-  if (locals.studentProfile) {
+  if (locals.talent) {
     throw redirect(303, resolve('/camper'));
   }
 
@@ -53,13 +53,20 @@ export const actions: Actions = {
     try {
       const normalizedEmail = emailForm.data.email.toLowerCase().trim();
 
-      // Verify a student profile exists for this email
+      // Check for a student profile — either linked via bauth_user or unlinked (created by worker)
       const user = await prisma.bauth_user.findUnique({
         where: { email: normalizedEmail },
-        include: { studentProfile: true },
+        include: { talent: true },
       });
 
-      if (!user || !user.studentProfile) {
+      const hasLinkedProfile = !!user?.talent;
+      const unlinkedProfile = !hasLinkedProfile
+        ? await prisma.talent.findUnique({
+            where: { email: normalizedEmail },
+          })
+        : null;
+
+      if (!hasLinkedProfile && !unlinkedProfile) {
         return message(
           emailForm,
           {
@@ -68,6 +75,27 @@ export const actions: Actions = {
           },
           { status: 404 },
         );
+      }
+
+      // If an unlinked profile exists but no bauth_user, create one and link them
+      if (unlinkedProfile && !user) {
+        const newUser = await prisma.bauth_user.create({
+          data: {
+            email: normalizedEmail,
+            role: 'student',
+            name: `${unlinkedProfile.prenom} ${unlinkedProfile.nom}`,
+          },
+        });
+        await prisma.talent.update({
+          where: { id: unlinkedProfile.id },
+          data: { userId: newUser.id },
+        });
+      } else if (unlinkedProfile && user && !user.talent) {
+        // bauth_user exists but profile is unlinked — link them
+        await prisma.talent.update({
+          where: { id: unlinkedProfile.id },
+          data: { userId: user.id },
+        });
       }
 
       // Send OTP via BetterAuth emailOTP plugin

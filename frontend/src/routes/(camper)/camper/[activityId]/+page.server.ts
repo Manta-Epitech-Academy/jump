@@ -10,7 +10,7 @@ import {
 } from '$lib/server/services/progressService';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-  if (!locals.studentProfile) throw error(401, 'Non autorisé');
+  if (!locals.talent) throw error(401, 'Non autorisé');
 
   try {
     // Cache with prefix to avoid collision with progressService cache
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     // Check student has a participation for this event
     const participation = await prisma.participation.findFirst({
       where: {
-        studentProfileId: locals.studentProfile.id,
+        talentId: locals.talent.id,
         eventId,
       },
       include: { event: true },
@@ -71,7 +71,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
     let progress = await prisma.stepsProgress.findFirst({
       where: {
-        studentProfileId: locals.studentProfile.id,
+        talentId: locals.talent.id,
         activityId: activity.id,
         eventId,
       },
@@ -81,7 +81,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       const firstStepId = content.steps[0].id;
       progress = await prisma.stepsProgress.create({
         data: {
-          studentProfileId: locals.studentProfile.id,
+          talentId: locals.talent.id,
           activityId: activity.id,
           eventId,
           currentStepId: firstStepId,
@@ -93,7 +93,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
     const portfolioItems = await prisma.portfolioItem.findMany({
       where: {
-        studentProfileId: locals.studentProfile.id,
+        talentId: locals.talent.id,
         eventId,
       },
       orderBy: { createdAt: 'desc' },
@@ -126,7 +126,7 @@ export const actions: Actions = {
 
     try {
       await ProgressService.validateStep(
-        locals.studentProfile!.id,
+        locals.talent!.id,
         params.activityId,
         stepId,
         progressId,
@@ -147,11 +147,7 @@ export const actions: Actions = {
     const data = await request.formData();
     try {
       const progressId = data.get('progressId') as string;
-      await assertStudentOwns(
-        locals.studentProfile!.id,
-        progressId,
-        'stepsProgress',
-      );
+      await assertStudentOwns(locals.talent!.id, progressId, 'stepsProgress');
       await prisma.stepsProgress.update({
         where: { id: progressId },
         data: { currentStepId: data.get('stepId') as string },
@@ -168,11 +164,7 @@ export const actions: Actions = {
 
     try {
       const progressId = data.get('progressId') as string;
-      await assertStudentOwns(
-        locals.studentProfile!.id,
-        progressId,
-        'stepsProgress',
-      );
+      await assertStudentOwns(locals.talent!.id, progressId, 'stepsProgress');
       const newStatus =
         currentStatus === 'needs_help' ? 'active' : 'needs_help';
       await prisma.stepsProgress.update({
@@ -186,7 +178,7 @@ export const actions: Actions = {
   },
 
   addPortfolioItem: async ({ request, locals }) => {
-    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
+    if (!locals.talent) return fail(401, { message: 'Non autorisé' });
 
     const data = await request.formData();
     const file = data.get('file') as File;
@@ -199,7 +191,7 @@ export const actions: Actions = {
     try {
       await prisma.portfolioItem.create({
         data: {
-          studentProfileId: locals.studentProfile.id,
+          talentId: locals.talent.id,
           eventId: data.get('eventId') as string,
           caption: (data.get('caption') as string) || undefined,
           url: url || undefined,
@@ -213,17 +205,13 @@ export const actions: Actions = {
   },
 
   deletePortfolioItem: async ({ request, locals }) => {
-    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
+    if (!locals.talent) return fail(401, { message: 'Non autorisé' });
 
     const data = await request.formData();
     const itemId = data.get('itemId') as string;
 
     try {
-      await assertStudentOwns(
-        locals.studentProfile!.id,
-        itemId,
-        'portfolioItem',
-      );
+      await assertStudentOwns(locals.talent!.id, itemId, 'portfolioItem');
       await prisma.portfolioItem.delete({ where: { id: itemId } });
       return { success: true };
     } catch (err) {
@@ -233,7 +221,7 @@ export const actions: Actions = {
   },
 
   submitFeedback: async ({ request, locals }) => {
-    if (!locals.studentProfile) return fail(401, { message: 'Non autorisé' });
+    if (!locals.talent) return fail(401, { message: 'Non autorisé' });
 
     const data = await request.formData();
     const participationId = data.get('participationId') as string;
@@ -246,7 +234,7 @@ export const actions: Actions = {
 
     try {
       await assertStudentOwns(
-        locals.studentProfile!.id,
+        locals.talent!.id,
         participationId,
         'participation',
       );

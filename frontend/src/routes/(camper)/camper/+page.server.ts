@@ -5,12 +5,12 @@ import { prisma } from '$lib/server/db';
 import { getParisStartOfDay, tallyTopThemesFromActivities } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.studentProfile) {
+  if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
   try {
-    const studentId = locals.studentProfile.id;
+    const studentId = locals.talent.id;
 
     // Calculate boundaries for "Today" in the user's timezone (Europe/Paris)
     const filterDateStart = getParisStartOfDay();
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Fetch participations for today with full planning chain
     const participations = await prisma.participation.findMany({
       where: {
-        studentProfileId: studentId,
+        talentId: studentId,
         event: {
           date: {
             gte: filterDateStartDate,
@@ -59,7 +59,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Fetch the NEXT upcoming participation (if any)
     const upcomingParticipation = await prisma.participation.findFirst({
       where: {
-        studentProfileId: studentId,
+        talentId: studentId,
         event: { date: { gt: filterDateEnd } },
       },
       include: {
@@ -71,7 +71,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Fetch all completed participations to build themes + past preview
     const allCompleted = await prisma.participation.findMany({
       where: {
-        studentProfileId: studentId,
+        talentId: studentId,
         isPresent: true,
       },
       include: {
@@ -106,7 +106,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       0,
     );
 
-    // If there are multiple events today, grab the first one
+    // If there are multiple event today, grab the first one
     const todayParticipation =
       participations.length > 0 ? participations[0] : null;
 
@@ -115,7 +115,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     if (todayParticipation?.event) {
       const progressRecords = await prisma.stepsProgress.findMany({
         where: {
-          studentProfileId: studentId,
+          talentId: studentId,
           eventId: todayParticipation.event.id,
           activityId: { not: null },
           status: 'completed',
@@ -128,7 +128,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
 
     return {
-      student: locals.studentProfile,
+      student: locals.talent,
       participation: todayParticipation,
       completedActivityIds: [...completedActivityIds],
       upcomingParticipation,

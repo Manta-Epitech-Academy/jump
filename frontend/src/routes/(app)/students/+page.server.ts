@@ -31,14 +31,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   }
 
   const [students, totalItems] = await Promise.all([
-    db.studentProfile.findMany({
+    db.talent.findMany({
       where,
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
       include: { user: true, campus: true },
     }),
-    db.studentProfile.count({ where }),
+    db.talent.count({ where }),
   ]);
 
   const form = await superValidate(zod4(studentSchema));
@@ -59,28 +59,34 @@ export const actions: Actions = {
 
     try {
       const campusId = getCampusId(locals);
+      const email = form.data.email || null;
 
-      await prisma.bauth_user.create({
-        data: {
-          email: form.data.email || `${crypto.randomUUID()}@placeholder.local`,
-          role: 'student',
-          name: `${form.data.prenom} ${form.data.nom}`,
-          studentProfile: {
-            create: {
-              nom: form.data.nom,
-              prenom: form.data.prenom,
-              campusId,
-              niveau: form.data.niveau || null,
-              niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
-              xp: 0,
-              eventsCount: 0,
-              parentEmail: form.data.parent_email || null,
-              parentPhone: form.data.parent_phone || null,
-              phone: form.data.phone || null,
-            },
+      const talentData = {
+        nom: form.data.nom,
+        prenom: form.data.prenom,
+        email,
+        campusId,
+        niveau: form.data.niveau || null,
+        niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
+        xp: 0,
+        eventsCount: 0,
+        parentEmail: form.data.parent_email || null,
+        parentPhone: form.data.parent_phone || null,
+        phone: form.data.phone || null,
+      };
+
+      if (email) {
+        await prisma.bauth_user.create({
+          data: {
+            email,
+            role: 'student',
+            name: `${form.data.prenom} ${form.data.nom}`,
+            talent: { create: talentData },
           },
-        },
-      });
+        });
+      } else {
+        await prisma.talent.create({ data: talentData });
+      }
 
       return message(form, 'Élève ajouté avec succès !');
     } catch (err: any) {
@@ -104,7 +110,7 @@ export const actions: Actions = {
     const db = scopedPrisma(getCampusId(locals));
 
     try {
-      await db.studentProfile.update({
+      await db.talent.update({
         where: { id },
         data: {
           nom: form.data.nom,
@@ -118,13 +124,15 @@ export const actions: Actions = {
       });
 
       if (form.data.email) {
-        const profile = await db.studentProfile.findUniqueOrThrow({
+        const profile = await db.talent.findUniqueOrThrow({
           where: { id },
         });
-        await prisma.bauth_user.update({
-          where: { id: profile.userId },
-          data: { email: form.data.email },
-        });
+        if (profile.userId) {
+          await prisma.bauth_user.update({
+            where: { id: profile.userId },
+            data: { email: form.data.email },
+          });
+        }
       }
 
       return message(form, 'Élève modifié avec succès !');
@@ -144,10 +152,14 @@ export const actions: Actions = {
     const db = scopedPrisma(getCampusId(locals));
 
     try {
-      const profile = await db.studentProfile.findUniqueOrThrow({
+      const profile = await db.talent.findUniqueOrThrow({
         where: { id },
       });
-      await prisma.bauth_user.delete({ where: { id: profile.userId } });
+      if (profile.userId) {
+        await prisma.bauth_user.delete({ where: { id: profile.userId } });
+      } else {
+        await db.talent.delete({ where: { id } });
+      }
       return { success: true };
     } catch {
       return fail(500);

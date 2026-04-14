@@ -6,7 +6,7 @@ import { prisma } from '$lib/server/db';
 // BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft.
 // This route serves as the post-auth redirect to:
 // 1. Verify @epitech.eu domain
-// 2. Create StudentProfile if needed
+// 2. Create Talent if needed
 
 export const GET: RequestHandler = async ({ locals }) => {
   const loginPath = resolve('/camper/login');
@@ -29,24 +29,32 @@ export const GET: RequestHandler = async ({ locals }) => {
     });
   }
 
-  // Create StudentProfile if it doesn't exist
-  const existingProfile = await prisma.studentProfile.findUnique({
+  // Link or create Talent
+  const linkedProfile = await prisma.talent.findUnique({
     where: { userId: locals.user.id },
   });
 
-  if (!existingProfile) {
-    // Try to extract name from Microsoft Graph data
-    const account = await prisma.bauth_account.findFirst({
-      where: { userId: locals.user.id, providerId: 'microsoft' },
+  if (!linkedProfile) {
+    // Check for an unlinked profile matching this email (e.g. created by worker API)
+    const unlinkedProfile = await prisma.talent.findUnique({
+      where: { email: locals.user.email },
     });
 
-    await prisma.studentProfile.create({
-      data: {
-        userId: locals.user.id,
-        nom: locals.user.name?.split(' ').slice(-1)[0] || '_pending',
-        prenom: locals.user.name?.split(' ')[0] || '_pending',
-      },
-    });
+    if (unlinkedProfile) {
+      await prisma.talent.update({
+        where: { id: unlinkedProfile.id },
+        data: { userId: locals.user.id },
+      });
+    } else {
+      await prisma.talent.create({
+        data: {
+          userId: locals.user.id,
+          email: locals.user.email,
+          nom: locals.user.name?.split(' ').slice(-1)[0] || '_pending',
+          prenom: locals.user.name?.split(' ')[0] || '_pending',
+        },
+      });
+    }
   }
 
   throw redirect(303, resolve('/camper'));

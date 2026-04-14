@@ -41,8 +41,10 @@ export const auth = betterAuth({
     }),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {
-        const student = await prisma.studentProfile.findFirst({
-          where: { user: { email } },
+        const student = await prisma.talent.findFirst({
+          where: {
+            OR: [{ user: { email } }, { email }],
+          },
           select: { prenom: true },
         });
         await sendOtpEmail(email, otp, student?.prenom);
@@ -79,8 +81,8 @@ export const auth = betterAuth({
 
   // Role and profile creation are handled by the OAuth callback routes:
   // - Staff:   /oauth/callback   → sets role to 'staff', creates StaffProfile
-  // - Student: /camper/oauth/callback → sets role to 'student', creates StudentProfile
-  // - OTP:     /camper/login      → sets role to 'student', creates StudentProfile
+  // - Student: /camper/oauth/callback → sets role to 'student', creates Talent
+  // - OTP:     /camper/login      → sets role to 'student', creates Talent
   // This avoids the databaseHook guessing the flow based on email domain.
 
   trustedOrigins: dev

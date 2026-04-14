@@ -46,20 +46,20 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
 
   if (isCamperRoute) {
     if (
-      !event.locals.studentProfile &&
+      !event.locals.talent &&
       currentPath !== pathCamperLogin &&
       !currentPath.startsWith(pathCamperOAuth)
     ) {
       return Response.redirect(new URL(pathCamperLogin, event.url).href, 303);
     }
-    if (event.locals.studentProfile && currentPath === pathCamperLogin) {
+    if (event.locals.talent && currentPath === pathCamperLogin) {
       return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
     }
 
     // Charter guard: redirect to charter page if not accepted yet
     if (
-      event.locals.studentProfile &&
-      !event.locals.studentProfile.charterAcceptedAt &&
+      event.locals.talent &&
+      !event.locals.talent.charterAcceptedAt &&
       currentPath !== pathCamperCharter &&
       currentPath !== pathCamperLogin
     ) {
@@ -68,7 +68,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
 
     // Already accepted: prevent going back to charter page
     if (
-      event.locals.studentProfile?.charterAcceptedAt &&
+      event.locals.talent?.charterAcceptedAt &&
       currentPath === pathCamperCharter
     ) {
       return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);

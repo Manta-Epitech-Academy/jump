@@ -45,6 +45,7 @@
   function openEdit(campus: any) {
     reset();
     $form.name = campus.name;
+    $form.externalName = campus.externalName ?? '';
     isEditing = true;
     editId = campus.id;
     open = true;
@@ -80,6 +81,7 @@
         <Table.Row>
           <Table.Head class="w-12"></Table.Head>
           <Table.Head>Nom du Campus</Table.Head>
+          <Table.Head>Nom externe</Table.Head>
           <Table.Head class="text-right">Actions</Table.Head>
         </Table.Row>
       </Table.Header>
@@ -90,6 +92,9 @@
               ><Map class="h-4 w-4 text-muted-foreground" /></Table.Cell
             >
             <Table.Cell class="font-bold">{campus.name}</Table.Cell>
+            <Table.Cell class="text-muted-foreground"
+              >{campus.externalName ?? '—'}</Table.Cell
+            >
             <Table.Cell class="text-right">
               <Tooltip.Provider delayDuration={300}>
                 <Tooltip.Root>
@@ -148,6 +153,17 @@
           <Input name="name" bind:value={$form.name} placeholder="Ex: Paris" />
           {#if $errors.name}<span class="text-xs text-destructive"
               >{$errors.name}</span
+            >{/if}
+        </div>
+        <div class="space-y-2">
+          <Label>Nom externe (synchronisation)</Label>
+          <Input
+            name="externalName"
+            bind:value={$form.externalName}
+            placeholder="Ex: paris"
+          />
+          {#if $errors.externalName}<span class="text-xs text-destructive"
+              >{$errors.externalName}</span
             >{/if}
         </div>
         <Dialog.Footer>

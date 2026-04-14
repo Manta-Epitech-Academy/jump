@@ -5,22 +5,22 @@ import { prisma } from '$lib/server/db';
 import { auth } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.studentProfile) {
+  if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
-  return { studentProfile: locals.studentProfile };
+  return { talent: locals.talent };
 };
 
 export const actions: Actions = {
   unlinkDiscord: async ({ locals }) => {
-    if (!locals.studentProfile || !locals.user) {
+    if (!locals.talent || !locals.user) {
       return fail(401, { message: 'Non autorisé' });
     }
 
     try {
-      await prisma.studentProfile.update({
-        where: { id: locals.studentProfile.id },
+      await prisma.talent.update({
+        where: { id: locals.talent.id },
         data: { discordId: null },
       });
     } catch (err) {
@@ -32,7 +32,7 @@ export const actions: Actions = {
   },
 
   deleteAccount: async ({ request, locals }) => {
-    if (!locals.studentProfile || !locals.user) {
+    if (!locals.talent || !locals.user) {
       return fail(401, { message: 'Non autorisé' });
     }
 
@@ -40,16 +40,16 @@ export const actions: Actions = {
       // Delete related records in a transaction
       await prisma.$transaction([
         prisma.portfolioItem.deleteMany({
-          where: { studentProfileId: locals.studentProfile.id },
+          where: { talentId: locals.talent.id },
         }),
         prisma.stepsProgress.deleteMany({
-          where: { studentProfileId: locals.studentProfile.id },
+          where: { talentId: locals.talent.id },
         }),
         prisma.participation.deleteMany({
-          where: { studentProfileId: locals.studentProfile.id },
+          where: { talentId: locals.talent.id },
         }),
-        prisma.studentProfile.delete({
-          where: { id: locals.studentProfile.id },
+        prisma.talent.delete({
+          where: { id: locals.talent.id },
         }),
         // Deleting the user cascades to sessions and accounts
         prisma.bauth_user.delete({
