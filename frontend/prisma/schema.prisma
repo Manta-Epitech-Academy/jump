@@ -278,7 +278,7 @@ model Event {
   themeId              String?
   pin                  String?
   notes                String?
-  salesforceCampaignId String?  @unique
+  external_id          String?  @unique
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
