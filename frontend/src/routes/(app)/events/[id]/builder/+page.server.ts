@@ -408,6 +408,12 @@ export const actions: Actions = {
         where: { id: params.id },
       });
 
+      const slot = await prisma.timeSlot.findUniqueOrThrow({
+        where: { id: timeSlotId },
+        select: { planning: { select: { eventId: true } } },
+      });
+      if (slot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
+
       const eventDate = new Date(event.date);
       const [startH, startM] = form.data.startTime.split(':').map(Number);
       const [endH, endM] = form.data.endTime.split(':').map(Number);
@@ -452,6 +458,13 @@ export const actions: Actions = {
     try {
       const db = scopedPrisma(getCampusId(locals));
       await db.event.findUniqueOrThrow({ where: { id: params.id } });
+
+      const slot = await prisma.timeSlot.findUniqueOrThrow({
+        where: { id: timeSlotId },
+        select: { planning: { select: { eventId: true } } },
+      });
+      if (slot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
+
       await prisma.timeSlot.delete({ where: { id: timeSlotId } });
       return { success: true };
     } catch (err) {
@@ -470,6 +483,12 @@ export const actions: Actions = {
     try {
       const db = scopedPrisma(getCampusId(locals));
       await db.event.findUniqueOrThrow({ where: { id: params.id } });
+
+      const slot = await prisma.timeSlot.findUniqueOrThrow({
+        where: { id: form.data.timeSlotId },
+        select: { planning: { select: { eventId: true } } },
+      });
+      if (slot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
 
       const template = await prisma.activityTemplate.findUniqueOrThrow({
         where: { id: form.data.templateId },
@@ -516,6 +535,12 @@ export const actions: Actions = {
       const db = scopedPrisma(getCampusId(locals));
       await db.event.findUniqueOrThrow({ where: { id: params.id } });
 
+      const slot = await prisma.timeSlot.findUniqueOrThrow({
+        where: { id: form.data.timeSlotId },
+        select: { planning: { select: { eventId: true } } },
+      });
+      if (slot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
+
       await prisma.activity.create({
         data: {
           nom: form.data.nom,
@@ -545,6 +570,13 @@ export const actions: Actions = {
     try {
       const db = scopedPrisma(getCampusId(locals));
       await db.event.findUniqueOrThrow({ where: { id: params.id } });
+
+      const activity = await prisma.activity.findUniqueOrThrow({
+        where: { id: activityId },
+        select: { timeSlot: { select: { planning: { select: { eventId: true } } } } },
+      });
+      if (activity.timeSlot.planning.eventId !== params.id) throw error(403, 'Accès refusé');
+
       await prisma.activity.delete({ where: { id: activityId } });
       return { success: true };
     } catch (err) {
