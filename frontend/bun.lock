@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "tekcamp",
+      "name": "jump",
       "dependencies": {
         "@fontsource-variable/ibm-plex-sans": "^5.2.8",
         "@fontsource/anton": "^5.2.7",

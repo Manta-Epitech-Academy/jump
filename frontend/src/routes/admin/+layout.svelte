@@ -151,7 +151,7 @@
         <span
           class="hidden text-lg font-black tracking-widest text-slate-100 uppercase md:block"
         >
-          TekCamp <span class="text-epi-pink">Admin</span>
+          Jump <span class="text-epi-pink">Admin</span>
         </span>
       </a>
     </div>

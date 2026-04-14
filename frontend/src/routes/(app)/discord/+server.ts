@@ -1,13 +1,13 @@
 import { redirect, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { startDiscordOAuth } from '$lib/server/discord';
 
 // GET /discord — redirects to Discord OAuth consent screen
 export const GET: RequestHandler = async ({ locals, cookies }) => {
   if (!locals.user || !locals.staffProfile) {
-    throw redirect(303, `${base}/login`);
+    throw redirect(303, resolve('/login'));
   }
 
   throw startDiscordOAuth(cookies, '/discord/callback');
@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
 // POST /discord — unlinks Discord from staff profile
 export const POST: RequestHandler = async ({ locals }) => {
   if (!locals.user || !locals.staffProfile) {
-    throw redirect(303, `${base}/login`);
+    throw redirect(303, resolve('/login'));
   }
 
   await prisma.staffProfile.update({
@@ -24,5 +24,5 @@ export const POST: RequestHandler = async ({ locals }) => {
     data: { discordId: null },
   });
 
-  throw redirect(303, base || '/');
+  throw redirect(303, resolve('/'));
 };

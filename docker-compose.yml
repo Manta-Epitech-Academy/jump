@@ -2,18 +2,18 @@ services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_DB: tekcamp
-      POSTGRES_USER: tekcamp
+      POSTGRES_DB: jump
+      POSTGRES_USER: jump
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     networks:
-      - tekcamp-network
+      - jump-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tekcamp"]
+      test: ["CMD-SHELL", "pg_isready -U jump"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -30,11 +30,11 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - tekcamp-network
+      - jump-network
     environment:
       - PORT=${PORT}
       - ORIGIN=${ORIGIN}
-      - DATABASE_URL=postgresql://tekcamp:${POSTGRES_PASSWORD}@postgres:5432/tekcamp
+      - DATABASE_URL=postgresql://jump:${POSTGRES_PASSWORD}@postgres:5432/jump
       - HOST_HEADER=x-forwarded-host
     restart: unless-stopped
 
@@ -42,5 +42,5 @@ volumes:
   pg_data:
 
 networks:
-  tekcamp-network:
+  jump-network:
     driver: bridge

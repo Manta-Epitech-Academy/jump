@@ -11,7 +11,7 @@ const prisma = new PrismaClient({ adapter });
 
 // ─── Constants ───
 
-const ADMIN_EMAIL = 'admin@tekcamp.fr';
+const ADMIN_EMAIL = 'admin@jump.fr';
 const ADMIN_PASSWORD = 'admin1234';
 const STAFF_PASSWORD = 'staff1234';
 const STUDENT_PASSWORD = 'student1234';
@@ -433,7 +433,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       id: 'crypto-2',
       title: 'Le chiffre de César',
       content_markdown:
-        'Chiffre le message suivant avec un décalage de 3 :\n\n> TEKCAMP EST GENIAL\n\nRésultat attendu : `WHNFDPS HVW JHQLDO`\n\nDéchiffre maintenant : `EUDYR` (décalage 3)',
+        'Chiffre le message suivant avec un décalage de 3 :\n\n> JUMP EST GENIAL\n\nRésultat attendu : `MXPS HVW JHQLDO`\n\nDéchiffre maintenant : `EUDYR` (décalage 3)',
       type: 'exercise',
     },
     {
@@ -864,7 +864,7 @@ async function main() {
     update: { role: 'admin' },
     create: {
       email: ADMIN_EMAIL,
-      name: 'Admin TekCamp',
+      name: 'Admin Jump',
       role: 'admin',
       emailVerified: true,
     },
@@ -1554,10 +1554,10 @@ async function main() {
   console.log(
     `Events:   ${eventDefs.length} (${eventDefs.filter((e) => e.campusKey === 'Paris').length} Paris + ${eventDefs.filter((e) => e.campusKey === 'Lyon').length} Lyon)`,
   );
-  console.log(`\n${origin}/tekcamp/admin    — Admin panel`);
-  console.log(`${origin}/tekcamp/         — Staff app`);
-  console.log(`${origin}/tekcamp/camper   — Camper app`);
-  console.log(`${origin}/tekcamp/p/${talents[0].id} — Public profile (Alice)`);
+  console.log(`\n${origin}/admin    — Admin panel`);
+  console.log(`${origin}/         — Staff app`);
+  console.log(`${origin}/camper   — Camper app`);
+  console.log(`${origin}/p/${talents[0].id} — Public profile (Alice)`);
   console.log('══════════════════════════════════\n');
 }
 

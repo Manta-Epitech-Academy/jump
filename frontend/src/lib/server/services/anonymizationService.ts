@@ -70,7 +70,7 @@ export const AnonymizationService = {
               data: {
                 name: 'Utilisateur Anonymisé',
                 image: null,
-                email: `anonymized-${student.id}@tekcamp.internal`,
+                email: `anonymized-${student.id}@jump.internal`,
               },
             });
 

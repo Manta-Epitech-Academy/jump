@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import { env } from '$env/dynamic/private';
 import { dev } from '$app/environment';
 import { prisma } from '$lib/server/db';
@@ -13,9 +13,8 @@ import type { Cookies } from '@sveltejs/kit';
 export function startDiscordOAuth(cookies: Cookies, callbackPath: string) {
   const state = crypto.randomBytes(16).toString('hex');
   cookies.set('discord_oauth_state', state, {
-    path: `${base}/${callbackPath.split('/').slice(0, -1).join('/')}`.replace(
-      /\/+/g,
-      '/',
+    path: resolve(
+      (callbackPath.split('/').slice(0, -1).join('/') || '/') as any,
     ),
     httpOnly: true,
     secure: !dev,
@@ -23,7 +22,7 @@ export function startDiscordOAuth(cookies: Cookies, callbackPath: string) {
     maxAge: 300,
   });
 
-  const redirectUri = `${env.ORIGIN}${base}${callbackPath}`;
+  const redirectUri = `${env.ORIGIN}${resolve(callbackPath as any)}`;
 
   const params = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID!,
@@ -49,9 +48,8 @@ export async function handleDiscordCallback(
   const state = url.searchParams.get('state');
   const storedState = cookies.get('discord_oauth_state');
   cookies.delete('discord_oauth_state', {
-    path: `${base}/${callbackPath.split('/').slice(0, -1).join('/')}`.replace(
-      /\/+/g,
-      '/',
+    path: resolve(
+      (callbackPath.split('/').slice(0, -1).join('/') || '/') as any,
     ),
   });
 
@@ -72,7 +70,7 @@ export async function handleDiscordCallback(
       client_secret: env.DISCORD_CLIENT_SECRET!,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: `${env.ORIGIN}${base}${callbackPath}`,
+      redirect_uri: `${env.ORIGIN}${resolve(callbackPath as any)}`,
     }),
   });
 

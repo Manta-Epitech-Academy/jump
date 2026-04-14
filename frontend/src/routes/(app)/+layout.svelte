@@ -59,7 +59,7 @@
     }
   });
 
-  // resolve('/') gives the base-prefixed root (e.g. '/tekcamp/')
+  // resolve('/') gives the base-prefixed root
   // Strip trailing slash to avoid double-slashes when concatenating with path
   function isActive(path: string) {
     const basePath = resolve('/').replace(/\/$/, '');
@@ -152,7 +152,7 @@
           <span class="sr-only">Toggle menu</span>
         </Button>
         <a href={resolve('/')} class="flex items-center gap-2">
-          <span class="text-lg font-bold uppercase">TekCamp</span>
+          <span class="text-lg font-bold uppercase">Jump</span>
           {#if data.staffProfile?.campus?.name}
             <span
               class="hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-header-foreground/90 uppercase md:inline-block"

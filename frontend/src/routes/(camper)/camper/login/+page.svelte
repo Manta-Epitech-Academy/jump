@@ -100,7 +100,7 @@
           <Card.Title
             class="font-heading text-3xl tracking-tight text-epi-blue uppercase"
           >
-            TekCamp
+            Jump
           </Card.Title>
           <Card.Description
             class="text-sm font-bold tracking-tight text-slate-500 uppercase"

@@ -1,15 +1,15 @@
 services:
   postgres-test:
     image: postgres:18-alpine
-    container_name: tekcamp-postgres-test
+    container_name: jump-postgres-test
     ports:
       - '5434:5432'
     environment:
-      POSTGRES_USER: tekcamp
+      POSTGRES_USER: jump
       POSTGRES_PASSWORD: testpassword
-      POSTGRES_DB: tekcamp_test
+      POSTGRES_DB: jump_test
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U tekcamp']
+      test: ['CMD-SHELL', 'pg_isready -U jump']
       interval: 5s
       timeout: 3s
       retries: 5

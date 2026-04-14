@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Jump (formerly TekCamp) — an internal Epitech Academy platform for managing training events, student progress, and certifications. French-language UI. Built with SvelteKit + Prisma + PostgreSQL.
+Jump — an internal Epitech Academy platform for managing training events, student progress, and certifications. French-language UI. Built with SvelteKit + Prisma + PostgreSQL.
 
 ## Commands
 
@@ -28,7 +28,7 @@ No test framework is configured — there are no automated tests.
 
 ## Tech Stack
 
-- **SvelteKit 2** (Svelte 5) with `adapter-node`, base path `/tekcamp`
+- **SvelteKit 2** (Svelte 5) with `adapter-node`
 - **Bun** runtime
 - **Prisma 7** ORM with **PostgreSQL**
 - **BetterAuth** for authentication (sessions, OAuth, OTP)

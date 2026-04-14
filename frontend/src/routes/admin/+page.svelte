@@ -21,7 +21,7 @@
       Système <span class="text-epi-pink">Global</span>
     </h1>
     <p class="text-sm font-bold text-muted-foreground uppercase">
-      Vue d'ensemble du réseau TekCamp
+      Vue d'ensemble du réseau Jump
     </p>
   </div>
 
