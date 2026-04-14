@@ -1,12 +1,19 @@
 <script lang="ts">
+  import InfoValidationStep from './components/InfoValidationStep.svelte';
   import CharterStep from './components/CharterStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
-  import ImageRightsStep from './components/ImageRightsStep.svelte';
+  import WaitingParentStep from './components/WaitingParentStep.svelte';
 
   let { data, form } = $props();
 
   const stepNumber = $derived(
-    data.step === 'charter' ? 1 : data.step === 'rules' ? 2 : 3,
+    data.step === 'info-validation'
+      ? 1
+      : data.step === 'charter'
+        ? 2
+        : data.step === 'rules'
+          ? 3
+          : 4,
   );
 </script>
 
@@ -30,16 +37,21 @@
       <span
         class="inline-block rounded-full bg-epi-blue/10 px-3 py-1 text-xs font-medium text-epi-blue dark:bg-epi-blue/20"
       >
-        &Eacute;tape {stepNumber} / 3
+        &Eacute;tape {stepNumber} / 4
       </span>
     </div>
 
-    {#if data.step === 'charter'}
+    {#if data.step === 'info-validation'}
+      <InfoValidationStep
+        profile={data.profile}
+        errors={form?.errors}
+      />
+    {:else if data.step === 'charter'}
       <CharterStep />
     {:else if data.step === 'rules'}
       <RulesStep />
     {:else if data.step === 'image-rights'}
-      <ImageRightsStep error={form?.error} />
+      <WaitingParentStep />
     {/if}
 
     <p
