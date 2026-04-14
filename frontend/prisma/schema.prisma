@@ -119,8 +119,14 @@ model StudentProfile {
   rulesSignedAt         DateTime?
   imageRightsSignedAt   DateTime?
   imageRightsSignerName String?
+  infoValidatedAt       DateTime?
+  charterFilePath       String?
+  rulesFilePath         String?
+  imageRightsFilePath   String?
   badges                Json?
   parentEmail       String?
+  parentNom         String?
+  parentPrenom      String?
   parentPhone       String?
   phone             String?
   discordId         String?   @unique
@@ -130,11 +136,12 @@ model StudentProfile {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  user           bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campus         Campus?         @relation(fields: [campusId], references: [id])
-  participations Participation[]
-  stepsProgress  StepsProgress[]
-  portfolioItems PortfolioItem[]
+  user              bauth_user         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus            Campus?            @relation(fields: [campusId], references: [id])
+  participations    Participation[]
+  stepsProgress     StepsProgress[]
+  portfolioItems    PortfolioItem[]
+  parentAccessCodes ParentAccessCode[]
 }
 
 // ─── Domain Tables ───
@@ -293,4 +300,15 @@ model PortfolioItem {
   event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([studentProfileId])
+}
+
+model ParentAccessCode {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  studentProfileId String
+  expiresAt        DateTime
+  usedAt           DateTime?
+  createdAt        DateTime  @default(now())
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
 }
