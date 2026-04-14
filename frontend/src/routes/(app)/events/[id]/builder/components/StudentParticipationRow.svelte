@@ -23,7 +23,7 @@
   }
 
   let isNewStudent = $derived.by(() => {
-    const count = participation.studentProfile?.eventsCount || 0;
+    const count = participation.talent?.eventsCount || 0;
     const isPresent = participation.isPresent ? 1 : 0;
     return count - isPresent === 0;
   });
@@ -34,26 +34,25 @@
 >
   <div class="flex items-center gap-4">
     <a
-      href={resolve(`/students/${participation.studentProfile?.id}`)}
+      href={resolve(`/students/${participation.talent?.id}`)}
       class="relative block transition-opacity hover:opacity-80"
       tabindex="-1"
       aria-hidden="true"
     >
       <Avatar.Root class="rounded-sm border-2 border-transparent">
         <Avatar.Fallback class="bg-primary/5 font-bold text-primary">
-          {participation.studentProfile?.nom?.[0]}{participation.studentProfile
-            ?.prenom?.[0]}
+          {participation.talent?.nom?.[0]}{participation.talent?.prenom?.[0]}
         </Avatar.Fallback>
       </Avatar.Root>
     </a>
     <div>
       <div class="flex items-center gap-2">
         <a
-          href={resolve(`/students/${participation.studentProfile?.id}`)}
+          href={resolve(`/students/${participation.talent?.id}`)}
           class="text-sm font-bold transition-colors hover:text-epi-blue"
         >
-          <span class="uppercase">{participation.studentProfile?.nom}</span>
-          {formatFirstName(participation.studentProfile?.prenom)}
+          <span class="uppercase">{participation.talent?.nom}</span>
+          {formatFirstName(participation.talent?.prenom)}
         </a>
         {#if isNewStudent}
           <Badge
@@ -68,7 +67,7 @@
 
       <div class="mt-0.5 flex items-center gap-2">
         <span class="text-xs font-black text-muted-foreground uppercase">
-          {participation.studentProfile?.niveau}
+          {participation.talent?.niveau}
         </span>
         <form
           method="POST"

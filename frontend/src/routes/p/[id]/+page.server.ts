@@ -6,7 +6,7 @@ import { tallyTopThemesFromActivities } from '$lib/utils';
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   try {
     // Select only safe fields to ensure NO PII is leaked.
-    const student = await prisma.studentProfile.findUnique({
+    const student = await prisma.talent.findUnique({
       where: { id: params.id },
       select: {
         id: true,
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     setHeaders({ 'Cache-Control': 'public, s-maxage=300, max-age=60' });
 
     const portfolioItems = await prisma.portfolioItem.findMany({
-      where: { studentProfileId: student.id },
+      where: { talentId: student.id },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     // Fetch completed participations to build the RPG Skill Radar
     const allCompleted = await prisma.participation.findMany({
       where: {
-        studentProfileId: student.id,
+        talentId: student.id,
         isPresent: true,
       },
       include: {

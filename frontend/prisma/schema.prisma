@@ -51,7 +51,7 @@ model bauth_user {
   sessions       bauth_session[]
   accounts       bauth_account[]
   staffProfile   StaffProfile?
-  studentProfile StudentProfile?
+  talent Talent?
 }
 
 model bauth_session {
@@ -114,9 +114,10 @@ model StaffProfile {
   @@index([campusId])
 }
 
-model StudentProfile {
+model Talent {
   id                String    @id @default(cuid())
-  userId            String    @unique
+  userId            String?   @unique
+  email             String?   @unique
   nom               String
   prenom            String
   campusId          String?
@@ -131,13 +132,13 @@ model StudentProfile {
   parentPhone       String?
   phone             String?
   discordId         String?   @unique
-  salesforceId      String?   @unique
+  externalId        String?   @unique
   lastSyncedAt      DateTime?
   lastActiveAt      DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  user           bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           bauth_user?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   campus         Campus?         @relation(fields: [campusId], references: [id])
   participations Participation[]
   stepsProgress  StepsProgress[]
@@ -149,13 +150,14 @@ model StudentProfile {
 // ─── Domain Tables ───
 
 model Campus {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String   @unique
+  externalName  String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   staffProfiles      StaffProfile[]
-  studentProfiles    StudentProfile[]
+  talents            Talent[]
   events             Event[]
   themes             Theme[]
   participations     Participation[]
@@ -276,7 +278,7 @@ model Event {
   themeId              String?
   pin                  String?
   notes                String?
-  salesforceCampaignId String?  @unique
+  externalId           String?  @unique
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -302,30 +304,30 @@ model EventManta {
 }
 
 model Participation {
-  id               String   @id @default(cuid())
-  studentProfileId String
-  eventId          String
-  campusId         String
-  isPresent        Boolean  @default(false)
-  delay            Int?     @default(0)
-  bringPc          Boolean  @default(false)
-  note             String?
-  noteAuthorId     String?
-  camperRating     Int?
-  camperFeedback   String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id             String   @id @default(cuid())
+  talentId       String
+  eventId        String
+  campusId       String
+  isPresent      Boolean  @default(false)
+  delay          Int?     @default(0)
+  bringPc        Boolean  @default(false)
+  note           String?
+  noteAuthorId   String?
+  camperRating   Int?
+  camperFeedback String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  studentProfile StudentProfile         @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  event          Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  campus         Campus                 @relation(fields: [campusId], references: [id])
-  noteAuthor     StaffProfile?          @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
-  activities     ParticipationActivity[]
+  talent     Talent                 @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event      Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  campus     Campus                 @relation(fields: [campusId], references: [id])
+  noteAuthor StaffProfile?          @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
+  activities ParticipationActivity[]
 
-  @@unique([studentProfileId, eventId])
+  @@unique([talentId, eventId])
   @@index([eventId])
   @@index([campusId])
-  @@index([studentProfileId])
+  @@index([talentId])
 }
 
 model ParticipationActivity {
@@ -342,7 +344,7 @@ model ParticipationActivity {
 
 model StepsProgress {
   id               String        @id @default(cuid())
-  studentProfileId String
+  talentId         String
   eventId          String
   activityId       String?
   currentStepId    String?
@@ -352,32 +354,32 @@ model StepsProgress {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  activity       Activity?      @relation(fields: [activityId], references: [id])
+  talent   Talent    @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id])
 
-  @@unique([studentProfileId, activityId])
+  @@unique([talentId, activityId])
   @@index([eventId])
-  @@index([studentProfileId])
+  @@index([talentId])
   @@index([activityId])
 }
 
 model PortfolioItem {
-  id               String   @id @default(cuid())
-  studentProfileId String
-  eventId          String
-  activityId       String?
-  file             String?
-  url              String?
-  caption          String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id         String   @id @default(cuid())
+  talentId   String
+  eventId    String
+  activityId String?
+  file       String?
+  url        String?
+  caption    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  activity       Activity?      @relation(fields: [activityId], references: [id])
+  talent   Talent    @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  activity Activity? @relation(fields: [activityId], references: [id])
 
-  @@index([studentProfileId])
+  @@index([talentId])
   @@index([eventId])
 }
 

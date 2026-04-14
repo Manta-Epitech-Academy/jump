@@ -31,12 +31,12 @@ export const EventService = {
       for (const p of participations) {
         const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
 
-        const profile = await tx.studentProfile.findUniqueOrThrow({
-          where: { id: p.studentProfileId },
+        const profile = await tx.talent.findUniqueOrThrow({
+          where: { id: p.talentId },
           select: { xp: true, eventsCount: true },
         });
-        await tx.studentProfile.update({
-          where: { id: p.studentProfileId },
+        await tx.talent.update({
+          where: { id: p.talentId },
           data: {
             xp: Math.max(0, profile.xp - xpValue),
             eventsCount: Math.max(0, profile.eventsCount - 1),
@@ -92,7 +92,7 @@ export const EventService = {
     for (const p of original.participations) {
       await prisma.participation.create({
         data: {
-          studentProfileId: p.studentProfileId,
+          talentId: p.talentId,
           eventId: newEvent.id,
           campusId,
           bringPc: p.bringPc,

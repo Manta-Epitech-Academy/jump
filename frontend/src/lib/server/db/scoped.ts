@@ -5,8 +5,7 @@ import { prisma } from '../db';
  * Extracts the campus ID from the authenticated user's profile.
  */
 export function getCampusId(locals: App.Locals): string {
-  const campusId =
-    locals.staffProfile?.campusId ?? locals.studentProfile?.campusId;
+  const campusId = locals.staffProfile?.campusId ?? locals.talent?.campusId;
   if (!campusId) {
     throw new Error(
       "Impossible de créer des données : Aucun campus associé à l'utilisateur connecté.",
@@ -19,7 +18,7 @@ export function getCampusId(locals: App.Locals): string {
  * Returns a Prisma client extension that auto-injects campusId filters.
  *
  * Strict campusId match:
- *   Event, Participation, StudentProfile, StaffProfile
+ *   Event, Participation, Talent, StaffProfile
  *
  * Scoped through ownership chain (→ Event.campusId):
  *   Planning (event → campusId)
@@ -172,8 +171,8 @@ export function scopedPrisma(campusId: string) {
         },
       },
 
-      // ── StudentProfile (campusId optional) ──
-      studentProfile: {
+      // ── Talent (campusId optional) ──
+      talent: {
         async findMany({ args, query }) {
           args.where = { ...args.where, campusId };
           return query(args);
@@ -187,36 +186,36 @@ export function scopedPrisma(campusId: string) {
           return query(args);
         },
         async findUnique({ args, query }) {
-          const existing = await prisma.studentProfile.findUnique({
+          const existing = await prisma.talent.findUnique({
             where: args.where,
             select: { campusId: true },
           });
           if (existing && existing.campusId !== campusId)
-            accessDenied('StudentProfile');
+            accessDenied('Talent');
           return query(args);
         },
         async findUniqueOrThrow({ args, query }) {
-          const existing = await prisma.studentProfile.findUniqueOrThrow({
+          const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
             select: { campusId: true },
           });
-          if (existing.campusId !== campusId) accessDenied('StudentProfile');
+          if (existing.campusId !== campusId) accessDenied('Talent');
           return query(args);
         },
         async update({ args, query }) {
-          const existing = await prisma.studentProfile.findUniqueOrThrow({
+          const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
             select: { campusId: true },
           });
-          if (existing.campusId !== campusId) accessDenied('StudentProfile');
+          if (existing.campusId !== campusId) accessDenied('Talent');
           return query(args);
         },
         async delete({ args, query }) {
-          const existing = await prisma.studentProfile.findUniqueOrThrow({
+          const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
             select: { campusId: true },
           });
-          if (existing.campusId !== campusId) accessDenied('StudentProfile');
+          if (existing.campusId !== campusId) accessDenied('Talent');
           return query(args);
         },
       },

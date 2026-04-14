@@ -108,7 +108,7 @@ export async function linkDiscordToStaff(
       where: { discordId, id: { not: staffProfileId } },
       data: { discordId: null },
     }),
-    prisma.studentProfile.updateMany({
+    prisma.talent.updateMany({
       where: { discordId },
       data: { discordId: null },
     }),
@@ -123,20 +123,20 @@ export async function linkDiscordToStaff(
  * Links a Discord ID to a student profile, clearing any previous owner.
  */
 export async function linkDiscordToStudent(
-  studentProfileId: string,
+  talentId: string,
   discordId: string,
 ) {
   await prisma.$transaction([
-    prisma.studentProfile.updateMany({
-      where: { discordId, id: { not: studentProfileId } },
+    prisma.talent.updateMany({
+      where: { discordId, id: { not: talentId } },
       data: { discordId: null },
     }),
     prisma.staffProfile.updateMany({
       where: { discordId },
       data: { discordId: null },
     }),
-    prisma.studentProfile.update({
-      where: { id: studentProfileId },
+    prisma.talent.update({
+      where: { id: talentId },
       data: { discordId },
     }),
   ]);

@@ -11,7 +11,7 @@
   import { enhance as kitEnhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import StudentFormDialog from '../components/StudentFormDialog.svelte';
-  import StudentProfileCard from './components/StudentProfileCard.svelte';
+  import TalentCard from './components/TalentCard.svelte';
   import StudentTimeline from './components/StudentTimeline.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -60,7 +60,7 @@
 
   <div class="grid gap-6 md:grid-cols-12">
     <div class="space-y-6 md:col-span-4 lg:col-span-3">
-      <StudentProfileCard
+      <TalentCard
         student={data.student}
         stats={data.stats}
         {xpProgress}

@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const rawParticipations = await db.participation.findMany({
     where: { eventId: event.id },
     include: {
-      studentProfile: true,
+      talent: true,
     },
   });
 
@@ -71,13 +71,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       };
     })
     .sort((a, b) => {
-      const nomA = a.studentProfile.nom.toUpperCase();
-      const nomB = b.studentProfile.nom.toUpperCase();
+      const nomA = a.talent.nom.toUpperCase();
+      const nomB = b.talent.nom.toUpperCase();
       if (nomA < nomB) return -1;
       if (nomA > nomB) return 1;
-      return a.studentProfile.prenom
+      return a.talent.prenom
         .toLowerCase()
-        .localeCompare(b.studentProfile.prenom.toLowerCase());
+        .localeCompare(b.talent.prenom.toLowerCase());
     });
 
   const progressData = await prisma.stepsProgress.findMany({
@@ -131,20 +131,20 @@ async function syncEventPresence(
     );
 
     if (presentInAny) {
-      await db.studentProfile.update({
-        where: { id: participation.studentProfileId },
+      await db.talent.update({
+        where: { id: participation.talentId },
         data: {
           xp: { increment: xpValue },
           eventsCount: { increment: 1 },
         },
       });
     } else {
-      const profile = await db.studentProfile.findUniqueOrThrow({
-        where: { id: participation.studentProfileId },
+      const profile = await db.talent.findUniqueOrThrow({
+        where: { id: participation.talentId },
         select: { xp: true, eventsCount: true },
       });
-      await db.studentProfile.update({
-        where: { id: participation.studentProfileId },
+      await db.talent.update({
+        where: { id: participation.talentId },
         data: {
           xp: Math.max(0, profile.xp - xpValue),
           eventsCount: Math.max(0, profile.eventsCount - 1),

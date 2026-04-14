@@ -36,11 +36,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const participations = await db.participation.findMany({
     where: { eventId: event.id },
-    include: { studentProfile: true },
-    orderBy: [
-      { studentProfile: { nom: 'asc' } },
-      { studentProfile: { prenom: 'asc' } },
-    ],
+    include: { talent: true },
+    orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
 
   const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
@@ -142,8 +139,8 @@ export const actions: Actions = {
     try {
       const existing = await prisma.participation.findUnique({
         where: {
-          studentProfileId_eventId: {
-            studentProfileId: form.data.studentId,
+          talentId_eventId: {
+            talentId: form.data.studentId,
             eventId: params.id,
           },
         },
@@ -158,7 +155,7 @@ export const actions: Actions = {
       const campusId = getCampusId(locals);
       await prisma.participation.create({
         data: {
-          studentProfileId: form.data.studentId,
+          talentId: form.data.studentId,
           eventId: params.id,
           campusId,
           isPresent: false,
@@ -180,35 +177,43 @@ export const actions: Actions = {
 
     try {
       const campusId = getCampusId(locals);
+      const email = form.data.email || null;
 
-      const user = await prisma.bauth_user.create({
-        data: {
-          email: form.data.email || `${crypto.randomUUID()}@placeholder.local`,
-          role: 'student',
-          name: `${form.data.prenom} ${form.data.nom}`,
-          studentProfile: {
-            create: {
-              nom: form.data.nom,
-              prenom: form.data.prenom,
-              campusId,
-              niveau: form.data.niveau || null,
-              niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
-              xp: 0,
-              eventsCount: 0,
-              parentEmail: form.data.parent_email || null,
-              parentPhone: form.data.parent_phone || null,
-              phone: form.data.phone || null,
-            },
+      const talentData = {
+        nom: form.data.nom,
+        prenom: form.data.prenom,
+        email,
+        campusId,
+        niveau: form.data.niveau || null,
+        niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
+        xp: 0,
+        eventsCount: 0,
+        parentEmail: form.data.parent_email || null,
+        parentPhone: form.data.parent_phone || null,
+        phone: form.data.phone || null,
+      };
+
+      let talentId: string;
+
+      if (email) {
+        const user = await prisma.bauth_user.create({
+          data: {
+            email,
+            role: 'student',
+            name: `${form.data.prenom} ${form.data.nom}`,
+            talent: { create: talentData },
           },
-        },
-        include: { studentProfile: true },
-      });
-
-      const studentProfileId = user.studentProfile!.id;
+          include: { talent: true },
+        });
+        talentId = user.talent!.id;
+      } else {
+        const talent = await prisma.talent.create({ data: talentData });
+        talentId = talent.id;
+      }
 
       await prisma.participation.create({
         data: {
-          studentProfileId,
+          talentId,
           eventId: params.id,
           campusId,
           isPresent: false,
@@ -308,12 +313,12 @@ export const actions: Actions = {
       if (p.isPresent) {
         const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
 
-        const profile = await prisma.studentProfile.findUniqueOrThrow({
-          where: { id: p.studentProfileId },
+        const profile = await prisma.talent.findUniqueOrThrow({
+          where: { id: p.talentId },
           select: { xp: true, eventsCount: true },
         });
-        await prisma.studentProfile.update({
-          where: { id: p.studentProfileId },
+        await prisma.talent.update({
+          where: { id: p.talentId },
           data: {
             xp: Math.max(0, profile.xp - xpValue),
             eventsCount: Math.max(0, profile.eventsCount - 1),

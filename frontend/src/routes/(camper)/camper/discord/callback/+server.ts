@@ -7,7 +7,7 @@ import {
 } from '$lib/server/discord';
 
 export const GET: RequestHandler = async ({ locals, url, cookies }) => {
-  if (!locals.user || !locals.studentProfile) {
+  if (!locals.user || !locals.talent) {
     throw redirect(303, `${base}/camper/login`);
   }
 
@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ locals, url, cookies }) => {
     `${base}/camper/settings`,
   );
 
-  await linkDiscordToStudent(locals.studentProfile.id, discordId);
+  await linkDiscordToStudent(locals.talent.id, discordId);
 
   throw redirect(303, `${base}/camper/settings`);
 };

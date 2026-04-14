@@ -12,7 +12,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.user = sessionData?.user ?? null;
   event.locals.session = sessionData?.session ?? null;
   event.locals.staffProfile = null;
-  event.locals.studentProfile = null;
+  event.locals.talent = null;
 
   // 2. Load domain profiles — check both since the cached role may be stale
   if (event.locals.user) {
@@ -21,26 +21,26 @@ export const handle: Handle = async ({ event, resolve }) => {
       include: { campus: true },
     });
 
-    event.locals.studentProfile = await prisma.studentProfile.findUnique({
+    event.locals.talent = await prisma.talent.findUnique({
       where: { userId: event.locals.user.id },
       include: { campus: true },
     });
 
     // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget)
-    if (event.locals.studentProfile) {
+    if (event.locals.talent) {
       const now = new Date();
-      const lastActive = event.locals.studentProfile.lastActiveAt;
+      const lastActive = event.locals.talent.lastActiveAt;
       if (
         !lastActive ||
         now.getTime() - lastActive.getTime() > 1000 * 60 * 60 * 24
       ) {
-        prisma.studentProfile
+        prisma.talent
           .update({
-            where: { id: event.locals.studentProfile.id },
+            where: { id: event.locals.talent.id },
             data: { lastActiveAt: now },
           })
           .catch(() => {});
-        event.locals.studentProfile.lastActiveAt = now;
+        event.locals.talent.lastActiveAt = now;
       }
     }
   }
