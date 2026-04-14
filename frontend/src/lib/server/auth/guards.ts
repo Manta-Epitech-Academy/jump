@@ -21,6 +21,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const pathPublicShowcase = new URL(resolvePath('/p/' as any), event.url)
     .pathname;
   const pathApi = new URL(resolvePath('/api/' as any), event.url).pathname;
+  const pathParent = new URL(resolvePath('/parent' as any), event.url).pathname;
 
   const pathLogin = new URL(resolvePath('/login'), event.url).pathname;
 
@@ -31,7 +32,8 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     currentPath.startsWith(pathAdminLogin) ||
     currentPath === pathLogin ||
     currentPath.startsWith(pathPublicShowcase) ||
-    currentPath.startsWith(pathApi);
+    currentPath.startsWith(pathApi) ||
+    currentPath.startsWith(pathParent);
 
   // --- Camper Guards ---
   const pathCamperLogin = new URL(resolvePath('/camper/login'), event.url)
@@ -62,7 +64,10 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     if (event.locals.studentProfile) {
       const p = event.locals.studentProfile;
       const needsOnboarding =
-        !p.charterAcceptedAt || !p.rulesSignedAt || !p.imageRightsSignedAt;
+        !p.infoValidatedAt ||
+        !p.charterAcceptedAt ||
+        !p.rulesSignedAt ||
+        !p.imageRightsSignedAt;
 
       if (
         needsOnboarding &&
