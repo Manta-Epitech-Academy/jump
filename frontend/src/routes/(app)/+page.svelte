@@ -57,7 +57,7 @@
   >
     <Button
       size="sm"
-      href={resolve('/event/new')}
+      href={resolve('/events/new')}
       class="bg-epi-blue shadow-lg"
     >
       <Plus class="mr-2 h-4 w-4" />
@@ -218,7 +218,7 @@
       title="Allo l'équipe Dev ?"
       description="C'est louche... Le calendrier est vide.<br />Vous êtes partis en vacances ou vous avez fini le game ?"
       actionLabel="Créer un événement"
-      actionLink={resolve('/event/new')}
+      actionLink={resolve('/events/new')}
     />
   {/if}
 
