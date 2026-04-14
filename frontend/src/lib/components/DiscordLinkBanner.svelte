@@ -25,7 +25,7 @@
 {#if !dismissed}
   <div
     data-discord-banner
-    class="relative flex items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3.5 shadow-lg shadow-indigo-500/10 dark:border-indigo-900/40 dark:bg-indigo-950 dark:shadow-indigo-900/20"
+    class="flex items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3.5 shadow-lg shadow-indigo-500/10 dark:border-indigo-900/40 dark:bg-indigo-950 dark:shadow-indigo-900/20"
   >
     <div
       class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/40"
@@ -57,9 +57,9 @@
     <button
       type="button"
       onclick={dismiss}
-      class="absolute top-2 right-2 rounded-lg p-1 text-indigo-400 transition-colors hover:bg-indigo-100 hover:text-indigo-600 dark:hover:bg-indigo-900/40"
+      class="shrink-0 cursor-pointer rounded-lg p-1.5 text-indigo-400 transition-colors hover:bg-indigo-200/60 hover:text-indigo-700 dark:hover:bg-indigo-800/40 dark:hover:text-indigo-300"
     >
-      <X class="h-3.5 w-3.5" />
+      <X class="h-4 w-4" />
       <span class="sr-only">Fermer</span>
     </button>
   </div>
