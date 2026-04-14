@@ -4,7 +4,7 @@
   import { ArrowLeft, CircleCheck, Lock } from '@lucide/svelte';
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
-  import type { SubjectStep } from '$lib/server/services/progressService';
+  import type { ActivityStep } from '$lib/server/services/progressService';
   import type { StepsProgress } from '@prisma/client';
 
   let {
@@ -14,7 +14,7 @@
     unlockedIndex,
     showRoadmapMobile = $bindable(),
   }: {
-    steps: SubjectStep[];
+    steps: ActivityStep[];
     progress: StepsProgress;
     currentIndex: number;
     unlockedIndex: number;

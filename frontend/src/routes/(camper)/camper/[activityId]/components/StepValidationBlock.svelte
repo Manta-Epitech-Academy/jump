@@ -13,7 +13,7 @@
   } from '@lucide/svelte';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import type { SubjectStep } from '$lib/server/services/progressService';
+  import type { ActivityStep } from '$lib/server/services/progressService';
   import type { StepsProgress } from '@prisma/client';
 
   let {
@@ -26,10 +26,10 @@
     qcmFails = $bindable(0),
     isValidating = $bindable(false),
   }: {
-    currentStep: SubjectStep;
+    currentStep: ActivityStep;
     currentIndex: number;
     unlockedIndex: number;
-    steps: SubjectStep[];
+    steps: ActivityStep[];
     progress: StepsProgress;
     selectedAnswer: number | null;
     qcmFails: number;

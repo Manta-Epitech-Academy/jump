@@ -6,7 +6,7 @@ import certificateTemplate from '../templates/certificate.html?raw';
 
 export async function generateDiplomaPDF(data: {
   studentName: string;
-  subjectName: string;
+  activityName: string;
   eventTitle: string;
   eventDate: string;
   todayDate: string;
@@ -25,10 +25,10 @@ export async function generateCertificatePDF(data: {
   xp: number;
   hours: number;
   eventsAttended: number;
-  subjectsCompleted: number;
+  activitiesCompleted: number;
   level: string;
   topThemes: { name: string; count: number; label: string }[];
-  subjects: { name: string; eventDate: string; difficulty: string }[];
+  activities: { name: string; eventDate: string; difficulty: string }[];
   todayDate: string;
   images: string[];
 }): Promise<Uint8Array<ArrayBuffer>> {

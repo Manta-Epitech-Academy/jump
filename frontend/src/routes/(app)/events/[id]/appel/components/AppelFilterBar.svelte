@@ -1,7 +1,6 @@
 <script lang="ts">
   import {
     Search,
-    Funnel,
     GraduationCap,
     LayoutGrid,
     List as ListIcon,
@@ -14,20 +13,16 @@
 
   let {
     searchQuery = $bindable(''),
-    filterSubject = $bindable('all'),
     filterNiveau = $bindable('all'),
     filterStatus = $bindable('all'),
     viewMode = $bindable('grid' as 'grid' | 'list'),
-    uniqueSubjects,
     uniqueNiveaux,
     helpCount,
   }: {
     searchQuery: string;
-    filterSubject: string;
     filterNiveau: string;
     filterStatus: string;
     viewMode: 'grid' | 'list';
-    uniqueSubjects: [string, string][];
     uniqueNiveaux: string[];
     helpCount: number;
   } = $props();
@@ -48,21 +43,6 @@
           bind:value={searchQuery}
         />
       </div>
-
-      <Select.Root type="single" bind:value={filterSubject}>
-        <Select.Trigger class="h-9 w-full text-xs sm:w-45">
-          <Funnel class="mr-2 h-3 w-3" />
-          {filterSubject === 'all'
-            ? 'Tous les sujets'
-            : uniqueSubjects.find((s) => s[0] === filterSubject)?.[1]}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value="all">Tous les sujets</Select.Item>
-          {#each uniqueSubjects as [id, nom]}
-            <Select.Item value={id}>{nom}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
 
       <Select.Root type="single" bind:value={filterNiveau}>
         <Select.Trigger class="h-9 w-full text-xs sm:w-45">

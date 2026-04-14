@@ -25,8 +25,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       include: {
         studentProfile: true,
         event: true,
-        subjects: {
-          include: { subject: true },
+        activities: {
+          include: { activity: true },
         },
       },
     });
@@ -37,7 +37,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
     const student = participation.studentProfile;
     const event = participation.event;
-    const subject = participation.subjects[0]?.subject;
+    const activity = participation.activities?.find(
+      (pa) => pa.activity.activityType !== 'orga',
+    )?.activity;
 
     if (!student || !event) {
       throw error(400, 'Donnees incompletes pour generer le diplome.');
@@ -46,7 +48,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     // 2. Prepare data for EJS template
     const data = {
       studentName: `${student.prenom} ${student.nom}`,
-      subjectName: subject?.nom || 'Atelier Programmation',
+      activityName: activity?.nom || 'Atelier Programmation',
       eventTitle: event.titre,
       eventDate: formatDateFr(event.date),
       todayDate: formatDateFr(new Date()),

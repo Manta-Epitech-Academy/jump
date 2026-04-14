@@ -1,14 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { superForm } from 'sveltekit-superforms';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import * as Tabs from '$lib/components/ui/tabs';
-  import { ChevronLeft, FileSpreadsheet, PenTool, Save } from '@lucide/svelte';
-  import { untrack } from 'svelte';
+  import { ChevronLeft, FileSpreadsheet } from '@lucide/svelte';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
@@ -17,13 +14,8 @@
   import FakeProgressLoader from './components/FakeProgressLoader.svelte';
   import CsvDropzone from './components/CsvDropzone.svelte';
   import CampaignReviewTable from './components/CampaignReviewTable.svelte';
-  import ManualEventForm from './components/ManualEventForm.svelte';
 
   let { data }: { data: PageData } = $props();
-
-  const { form, errors, delayed, enhance } = superForm(
-    untrack(() => data.form),
-  );
 
   let isAnalyzing = $state(false);
   let isConfirming = $state(false);
@@ -90,207 +82,163 @@
     </h1>
   </div>
 
-  <Tabs.Root value="import" class="w-full">
-    <Tabs.List class="grid w-full grid-cols-2">
-      <Tabs.Trigger value="import"
-        ><FileSpreadsheet class="mr-2 h-4 w-4" /> Import Campagne CSV</Tabs.Trigger
-      >
-      <Tabs.Trigger value="manual"
-        ><PenTool class="mr-2 h-4 w-4" /> Création Manuelle</Tabs.Trigger
-      >
-    </Tabs.List>
-
-    <!-- IMPORT TAB -->
-    <Tabs.Content value="import">
-      <Card.Root class="mt-4 border-t-4 border-t-epi-teal shadow-md">
-        <Card.Header>
-          <Card.Title>Import Automatique (Campagne)</Card.Title>
-          <Card.Description>
-            Importez un fichier CSV. Vous pourrez ensuite spécifier si les
-            élèves apportent leur PC.
-          </Card.Description>
-        </Card.Header>
-        <Card.Content>
-          <!-- STEP 1: UPLOAD & ANALYZE -->
-          {#if !analysisResult}
-            <form
-              action="?/analyzeCampaign"
-              method="POST"
-              enctype="multipart/form-data"
-              use:kitEnhance={() => {
-                isAnalyzing = true;
-                startFakeProgress();
-                return async ({ result }) => {
-                  completeProgress(() => {
-                    isAnalyzing = false;
-                    if (result.type === 'success' && result.data) {
-                      if (result.data.analysisSuccess) {
-                        analysisResult = result.data;
-                      } else {
-                        toast.error(
-                          (result.data as Record<string, any>).error ||
-                            "Erreur d'analyse",
-                        );
-                      }
-                    } else if (result.type === 'failure') {
-                      toast.error(
-                        (result.data as Record<string, any> | undefined)
-                          ?.error || "Erreur d'analyse",
-                      );
-                    } else {
-                      toast.error("Erreur d'analyse");
-                    }
-                  });
-                };
-              }}
-              class="space-y-6 py-6"
-            >
-              <CsvDropzone bind:selectedFileName />
-
-              <div class="flex justify-end">
-                <Button
-                  type="submit"
-                  class="bg-epi-blue hover:bg-epi-blue/90"
-                  disabled={isAnalyzing || !selectedFileName}
-                >
-                  {isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}
-                </Button>
-              </div>
-            </form>
-            <!-- STEP 2: REVIEW & DECIDE -->
-          {:else}
-            <div class="space-y-6">
-              <div class="grid gap-4 sm:grid-cols-2">
-                <div class="space-y-2">
-                  <Label>Événement</Label><Input
-                    value={analysisResult.eventName}
-                    readonly
-                    class="bg-muted font-bold"
-                  />
-                </div>
-                <div class="space-y-2">
-                  <Label>Date</Label><Input
-                    value={new Date(
-                      analysisResult.eventDate,
-                    ).toLocaleDateString()}
-                    readonly
-                    class="bg-muted font-bold"
-                  />
-                </div>
-              </div>
-
-              <CampaignReviewTable bind:analysisResult />
-
-              <form
-                action="?/confirmCampaignImport"
-                method="POST"
-                use:kitEnhance={() => {
-                  isConfirming = true;
-                  startFakeProgress();
-                  return async ({ update }) => {
-                    completeProgress(async () => {
-                      await update();
-                      isConfirming = false;
-                    });
-                  };
-                }}
-                class="space-y-6 pt-4"
-              >
-                <input
-                  type="hidden"
-                  name="importData"
-                  value={JSON.stringify(analysisResult.analysisData)}
-                />
-                <input
-                  type="hidden"
-                  name="eventName"
-                  value={analysisResult.eventName}
-                />
-                <input
-                  type="hidden"
-                  name="eventDate"
-                  value={analysisResult.eventDate}
-                />
-
-                <div class="grid gap-4 md:grid-cols-2">
-                  <div class="space-y-2 rounded-md border bg-muted/20 p-4">
-                    <Label>Mantas pour cet événement</Label>
-                    <MultiStaffSelect
-                      staff={data.staff}
-                      bind:value={importMantas}
-                      name="mantas"
-                    />
-                    <p
-                      class="text-[10px] font-bold text-muted-foreground uppercase"
-                    >
-                      Assignez l'équipe qui encadrera cet événement.
-                    </p>
-                  </div>
-                  <div class="space-y-2 rounded-md border bg-muted/20 p-4">
-                    <Label for="notes">Notes / Planning</Label>
-                    <Textarea
-                      id="notes"
-                      name="notes"
-                      bind:value={importNotes}
-                      placeholder="Notes pour l'événement (planning, instructions...)"
-                      class="min-h-20"
-                    />
-                  </div>
-                </div>
-
-                <div class="flex justify-between border-t pt-4">
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    onclick={() => (analysisResult = null)}>Annuler</Button
-                  >
-                  <Button
-                    type="submit"
-                    disabled={isConfirming}
-                    class="bg-green-600 hover:bg-green-700"
-                    >{isConfirming
-                      ? 'Création en cours...'
-                      : "Valider l'import"}</Button
-                  >
-                </div>
-              </form>
-            </div>
-          {/if}
-        </Card.Content>
-      </Card.Root>
-    </Tabs.Content>
-
-    <!-- MANUAL TAB -->
-    <Tabs.Content value="manual">
-      <Card.Root class="mt-4">
-        <Card.Header
-          ><Card.Title>Configuration Manuelle</Card.Title></Card.Header
+  <Card.Root class="border-t-4 border-t-epi-teal shadow-md">
+    <Card.Header>
+      <Card.Title class="flex items-center gap-2">
+        <FileSpreadsheet class="h-5 w-5" />
+        Import Campagne CSV
+      </Card.Title>
+      <Card.Description>
+        Importez un fichier CSV de campagne Salesforce. Vous pourrez ensuite
+        spécifier si les élèves apportent leur PC.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content>
+      <!-- STEP 1: UPLOAD & ANALYZE -->
+      {#if !analysisResult}
+        <form
+          action="?/analyzeCampaign"
+          method="POST"
+          enctype="multipart/form-data"
+          use:kitEnhance={() => {
+            isAnalyzing = true;
+            startFakeProgress();
+            return async ({ result }) => {
+              completeProgress(() => {
+                isAnalyzing = false;
+                if (result.type === 'success' && result.data) {
+                  if (result.data.analysisSuccess) {
+                    analysisResult = result.data;
+                  } else {
+                    toast.error(
+                      (result.data as Record<string, any>).error ||
+                        "Erreur d'analyse",
+                    );
+                  }
+                } else if (result.type === 'failure') {
+                  toast.error(
+                    (result.data as Record<string, any> | undefined)?.error ||
+                      "Erreur d'analyse",
+                  );
+                } else {
+                  toast.error("Erreur d'analyse");
+                }
+              });
+            };
+          }}
+          class="space-y-6 py-6"
         >
-        <Card.Content>
+          <CsvDropzone bind:selectedFileName />
+
+          <div class="flex justify-end">
+            <Button
+              type="submit"
+              class="bg-epi-blue hover:bg-epi-blue/90"
+              disabled={isAnalyzing || !selectedFileName}
+            >
+              {isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}
+            </Button>
+          </div>
+        </form>
+        <!-- STEP 2: REVIEW & DECIDE -->
+      {:else}
+        <div class="space-y-6">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="space-y-2">
+              <Label>Événement</Label><Input
+                value={analysisResult.eventName}
+                readonly
+                class="bg-muted font-bold"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label>Date</Label><Input
+                value={new Date(analysisResult.eventDate).toLocaleDateString()}
+                readonly
+                class="bg-muted font-bold"
+              />
+            </div>
+          </div>
+
+          <CampaignReviewTable bind:analysisResult />
+
           <form
+            action="?/confirmCampaignImport"
             method="POST"
-            action="?/createManual"
-            use:enhance
-            id="event-form"
+            use:kitEnhance={() => {
+              isConfirming = true;
+              startFakeProgress();
+              return async ({ update }) => {
+                completeProgress(async () => {
+                  await update();
+                  isConfirming = false;
+                });
+              };
+            }}
+            class="space-y-6 pt-4"
           >
-            <ManualEventForm
-              {form}
-              {errors}
-              themes={data.themes}
-              staff={data.staff}
+            <input
+              type="hidden"
+              name="importData"
+              value={JSON.stringify(analysisResult.analysisData)}
             />
+            <input
+              type="hidden"
+              name="eventName"
+              value={analysisResult.eventName}
+            />
+            <input
+              type="hidden"
+              name="eventDate"
+              value={analysisResult.eventDate}
+            />
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="space-y-2 rounded-md border bg-muted/20 p-4">
+                <Label>Mantas pour cet événement</Label>
+                <MultiStaffSelect
+                  staff={data.staff}
+                  bind:value={importMantas}
+                  name="mantas"
+                />
+                <p
+                  class="text-[10px] font-bold text-muted-foreground uppercase"
+                >
+                  Assignez l'équipe qui encadrera cet événement.
+                </p>
+              </div>
+              <div class="space-y-2 rounded-md border bg-muted/20 p-4">
+                <Label for="notes">Notes / Planning</Label>
+                <Textarea
+                  id="notes"
+                  name="notes"
+                  bind:value={importNotes}
+                  placeholder="Notes pour l'événement (planning, instructions...)"
+                  class="min-h-20"
+                />
+              </div>
+            </div>
+
+            <div class="flex justify-between border-t pt-4">
+              <Button
+                variant="ghost"
+                type="button"
+                onclick={() => (analysisResult = null)}>Annuler</Button
+              >
+              <Button
+                type="submit"
+                disabled={isConfirming}
+                class="bg-green-600 hover:bg-green-700"
+                >{isConfirming
+                  ? 'Création en cours...'
+                  : "Valider l'import"}</Button
+              >
+            </div>
           </form>
-        </Card.Content>
-        <Card.Footer class="justify-end border-t bg-muted/50 px-6 py-4">
-          <Button type="submit" form="event-form" disabled={$delayed}
-            ><Save class="mr-2 h-4 w-4" />{$delayed
-              ? 'Création...'
-              : "Créer l'événement"}</Button
-          >
-        </Card.Footer>
-      </Card.Root>
-    </Tabs.Content>
-  </Tabs.Root>
+        </div>
+      {/if}
+    </Card.Content>
+  </Card.Root>
 </div>
 
 <FakeProgressLoader {isAnalyzing} {isConfirming} {currentMessage} {progress} />

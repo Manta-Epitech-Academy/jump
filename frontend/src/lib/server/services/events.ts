@@ -1,10 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { getTotalXp } from '$lib/domain/xp';
+import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { generatePin } from '$lib/utils';
-import {
-  suggestBestSubject,
-  preloadCompletedSubjects,
-} from '$lib/domain/recommender';
 import { prisma } from '$lib/server/db';
 
 export const EventService = {
@@ -28,15 +24,12 @@ export const EventService = {
       const participations = await tx.participation.findMany({
         where: { eventId, isPresent: true },
         include: {
-          subjects: { include: { subject: true } },
+          activities: { include: { activity: true } },
         },
       });
 
       for (const p of participations) {
-        const subjects = p.subjects.map((ps) => ({
-          difficulte: ps.subject.difficulte,
-        }));
-        const xpValue = getTotalXp(subjects);
+        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
 
         const profile = await tx.studentProfile.findUniqueOrThrow({
           where: { id: p.studentProfileId },
@@ -51,7 +44,7 @@ export const EventService = {
         });
       }
 
-      // All related records (participations, subjects, mantas, progress, portfolio)
+      // All related records (participations, activities, mantas, progress, portfolio)
       // are cascade-deleted by PostgreSQL foreign keys.
       await tx.event.delete({ where: { id: eventId } });
     });
@@ -69,9 +62,7 @@ export const EventService = {
       where: { id: originalId },
       include: {
         mantas: true,
-        participations: {
-          include: { subjects: true },
-        },
+        participations: true,
       },
     });
     if (original.campusId !== campusId) {
@@ -106,9 +97,6 @@ export const EventService = {
           campusId,
           bringPc: p.bringPc,
           isPresent: false,
-          subjects: {
-            create: p.subjects.map((s) => ({ subjectId: s.subjectId })),
-          },
         },
       });
     }
@@ -116,69 +104,10 @@ export const EventService = {
     return newEvent.id;
   },
 
-  /**
-   * Auto-assigns the best subject to all unassigned students in an event.
-   * Verifies the event belongs to the given campus.
-   */
-  async autoAssignAll(eventId: string, campusId: string) {
-    const unassigned = await prisma.participation.findMany({
-      where: {
-        eventId,
-        subjects: { none: {} },
-      },
-      include: { studentProfile: true },
-    });
-
-    if (unassigned.length === 0) return 0;
-
-    const subjects = await prisma.subject.findMany({
-      where: { OR: [{ campusId }, { campusId: null }] },
-      include: { subjectThemes: true },
-    });
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-
-    const studentProfileIds = unassigned.map((p) => p.studentProfileId);
-    const completedMap = await preloadCompletedSubjects(
-      studentProfileIds,
-      eventId,
-    );
-
-    let count = 0;
-
-    for (const p of unassigned) {
-      const suggestedId = await suggestBestSubject(
-        p.studentProfileId,
-        subjects,
-        event.themeId,
-        [],
-        completedMap.get(p.studentProfileId),
-      );
-
-      if (suggestedId) {
-        await prisma.participationSubject.create({
-          data: {
-            participationId: p.id,
-            subjectId: suggestedId,
-          },
-        });
-        count++;
-      }
-    }
-
-    return count;
-  },
+  // TODO: activity recommender for parallel tracks in coding clubs
 
   /**
-   * Updates an event. If the theme is changed, it automatically recalculates
-   * subjects for eligible unassigned/absent students.
+   * Updates an event.
    */
   async updateEvent(
     eventId: string,
@@ -186,6 +115,7 @@ export const EventService = {
     data: {
       titre: string;
       date: string;
+      endDate?: string;
       theme?: string;
       notes?: string;
       mantas?: string[];
@@ -237,54 +167,13 @@ export const EventService = {
         data: {
           titre: data.titre,
           date: new Date(data.date),
+          endDate: data.endDate ? new Date(data.endDate) : null,
           themeId: newThemeId ?? undefined,
           notes: data.notes,
         },
       });
     });
 
-    if (oldThemeId !== newThemeId) {
-      const participations = await prisma.participation.findMany({
-        where: { eventId },
-        include: { subjects: true },
-      });
-
-      const subjects = await prisma.subject.findMany({
-        where: { OR: [{ campusId }, { campusId: null }] },
-        include: { subjectThemes: true },
-      });
-
-      const eligibleStudentProfileIds = participations
-        .filter((p) => !p.isPresent && p.subjects.length === 0)
-        .map((p) => p.studentProfileId);
-
-      const completedMap = await preloadCompletedSubjects(
-        eligibleStudentProfileIds,
-        eventId,
-      );
-
-      for (const p of participations) {
-        if (!p.isPresent && p.subjects.length === 0) {
-          const newSubjectId = await suggestBestSubject(
-            p.studentProfileId,
-            subjects,
-            newThemeId,
-            [],
-            completedMap.get(p.studentProfileId),
-          );
-
-          if (newSubjectId) {
-            await prisma.participationSubject.create({
-              data: {
-                participationId: p.id,
-                subjectId: newSubjectId,
-              },
-            });
-          }
-        }
-      }
-      return true;
-    }
-    return false;
+    return oldThemeId !== newThemeId;
   },
 };

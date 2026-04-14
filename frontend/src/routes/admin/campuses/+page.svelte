@@ -7,6 +7,7 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Table from '$lib/components/ui/table';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
 
@@ -90,21 +91,39 @@
             >
             <Table.Cell class="font-bold">{campus.name}</Table.Cell>
             <Table.Cell class="text-right">
-              <Button
-                variant="ghost"
-                size="icon"
-                onclick={() => openEdit(campus)}
-              >
-                <Pencil class="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="text-destructive hover:text-destructive"
-                onclick={() => confirmDelete(campus.id)}
-              >
-                <Trash2 class="h-4 w-4" />
-              </Button>
+              <Tooltip.Provider delayDuration={300}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        onclick={() => openEdit(campus)}
+                      >
+                        <Pencil class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content><p>Modifier</p></Tooltip.Content>
+                </Tooltip.Root>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        class="text-destructive hover:text-destructive"
+                        onclick={() => confirmDelete(campus.id)}
+                      >
+                        <Trash2 class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content><p>Supprimer</p></Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
             </Table.Cell>
           </Table.Row>
         {/each}
