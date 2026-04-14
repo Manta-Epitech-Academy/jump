@@ -177,35 +177,39 @@ export const actions: Actions = {
 
     try {
       const campusId = getCampusId(locals);
+      const email = form.data.email || null;
 
-      const email =
-        form.data.email || `${crypto.randomUUID()}@placeholder.local`;
+      const talentData = {
+        nom: form.data.nom,
+        prenom: form.data.prenom,
+        email,
+        campusId,
+        niveau: form.data.niveau || null,
+        niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
+        xp: 0,
+        eventsCount: 0,
+        parentEmail: form.data.parent_email || null,
+        parentPhone: form.data.parent_phone || null,
+        phone: form.data.phone || null,
+      };
 
-      const user = await prisma.bauth_user.create({
-        data: {
-          email,
-          role: 'student',
-          name: `${form.data.prenom} ${form.data.nom}`,
-          talent: {
-            create: {
-              nom: form.data.nom,
-              prenom: form.data.prenom,
-              email,
-              campusId,
-              niveau: form.data.niveau || null,
-              niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
-              xp: 0,
-              eventsCount: 0,
-              parentEmail: form.data.parent_email || null,
-              parentPhone: form.data.parent_phone || null,
-              phone: form.data.phone || null,
-            },
+      let talentId: string;
+
+      if (email) {
+        const user = await prisma.bauth_user.create({
+          data: {
+            email,
+            role: 'student',
+            name: `${form.data.prenom} ${form.data.nom}`,
+            talent: { create: talentData },
           },
-        },
-        include: { talent: true },
-      });
-
-      const talentId = user.talent!.id;
+          include: { talent: true },
+        });
+        talentId = user.talent!.id;
+      } else {
+        const talent = await prisma.talent.create({ data: talentData });
+        talentId = talent.id;
+      }
 
       await prisma.participation.create({
         data: {
