@@ -92,7 +92,9 @@
               ><Map class="h-4 w-4 text-muted-foreground" /></Table.Cell
             >
             <Table.Cell class="font-bold">{campus.name}</Table.Cell>
-            <Table.Cell class="text-muted-foreground">{campus.external_name ?? '—'}</Table.Cell>
+            <Table.Cell class="text-muted-foreground"
+              >{campus.external_name ?? '—'}</Table.Cell
+            >
             <Table.Cell class="text-right">
               <Tooltip.Provider delayDuration={300}>
                 <Tooltip.Root>
@@ -155,7 +157,11 @@
         </div>
         <div class="space-y-2">
           <Label>Nom externe (synchronisation)</Label>
-          <Input name="external_name" bind:value={$form.external_name} placeholder="Ex: paris" />
+          <Input
+            name="external_name"
+            bind:value={$form.external_name}
+            placeholder="Ex: paris"
+          />
           {#if $errors.external_name}<span class="text-xs text-destructive"
               >{$errors.external_name}</span
             >{/if}
