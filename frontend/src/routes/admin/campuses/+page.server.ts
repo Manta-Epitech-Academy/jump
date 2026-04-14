@@ -7,6 +7,7 @@ import { prisma } from '$lib/server/db';
 
 const campusSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
+  external_name: z.string().trim().nullable().default(null),
 });
 
 export const load: PageServerLoad = async () => {
@@ -27,7 +28,12 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     try {
-      await prisma.campus.create({ data: form.data });
+      await prisma.campus.create({
+        data: {
+          ...form.data,
+          external_name: form.data.external_name || null,
+        },
+      });
       return message(form, 'Campus créé avec succès.');
     } catch (err) {
       console.error(err);
@@ -46,7 +52,13 @@ export const actions: Actions = {
     if (!form.valid || !id) return fail(400, { form });
 
     try {
-      await prisma.campus.update({ where: { id }, data: form.data });
+      await prisma.campus.update({
+        where: { id },
+        data: {
+          ...form.data,
+          external_name: form.data.external_name || null,
+        },
+      });
       return message(form, 'Campus mis à jour.');
     } catch (err) {
       return message(form, 'Erreur lors de la mise à jour.', { status: 500 });
