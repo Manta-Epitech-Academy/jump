@@ -1418,8 +1418,7 @@ async function main() {
 
     for (const pa of p.activities) {
       if (!pa.isPresent || pa.activity.activityType === 'orga') continue;
-      xpByStudent[p.talentId].xp +=
-        XP_MAP[pa.activity.difficulte ?? ''] ?? 10;
+      xpByStudent[p.talentId].xp += XP_MAP[pa.activity.difficulte ?? ''] ?? 10;
     }
   }
 
@@ -1535,9 +1534,7 @@ async function main() {
   const parisStudentCount = talents.filter(
     (s) => s.campusId === paris.id,
   ).length;
-  const lyonStudentCount = talents.filter(
-    (s) => s.campusId === lyon.id,
-  ).length;
+  const lyonStudentCount = talents.filter((s) => s.campusId === lyon.id).length;
 
   console.log('\n══════════════════════════════════');
   console.log('        SEED COMPLETE');
@@ -1560,9 +1557,7 @@ async function main() {
   console.log(`\n${origin}/tekcamp/admin    — Admin panel`);
   console.log(`${origin}/tekcamp/         — Staff app`);
   console.log(`${origin}/tekcamp/camper   — Camper app`);
-  console.log(
-    `${origin}/tekcamp/p/${talents[0].id} — Public profile (Alice)`,
-  );
+  console.log(`${origin}/tekcamp/p/${talents[0].id} — Public profile (Alice)`);
   console.log('══════════════════════════════════\n');
 }
 

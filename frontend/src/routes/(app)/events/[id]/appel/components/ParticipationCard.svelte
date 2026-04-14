@@ -176,9 +176,7 @@
             >
               <Avatar.Fallback class="bg-muted font-bold">
                 {(participation.talent?.nom?.[0] ?? '').toUpperCase()}
-                {(
-                  participation.talent?.prenom?.[0] ?? ''
-                ).toUpperCase()}
+                {(participation.talent?.prenom?.[0] ?? '').toUpperCase()}
               </Avatar.Fallback>
             </Avatar.Root>
             {#if participation.isPresent}
@@ -208,9 +206,7 @@
                 href={resolve(`/students/${participation.talent?.id}`)}
                 class="text-base leading-none font-bold transition-colors hover:text-epi-blue"
               >
-                <span class="uppercase"
-                  >{participation.talent?.nom}</span
-                >
+                <span class="uppercase">{participation.talent?.nom}</span>
                 {formatFirstName(participation.talent?.prenom)}
               </a>
               {#if isNewStudent}

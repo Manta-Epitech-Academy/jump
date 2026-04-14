@@ -147,11 +147,7 @@ export const actions: Actions = {
     const data = await request.formData();
     try {
       const progressId = data.get('progressId') as string;
-      await assertStudentOwns(
-        locals.talent!.id,
-        progressId,
-        'stepsProgress',
-      );
+      await assertStudentOwns(locals.talent!.id, progressId, 'stepsProgress');
       await prisma.stepsProgress.update({
         where: { id: progressId },
         data: { currentStepId: data.get('stepId') as string },
@@ -168,11 +164,7 @@ export const actions: Actions = {
 
     try {
       const progressId = data.get('progressId') as string;
-      await assertStudentOwns(
-        locals.talent!.id,
-        progressId,
-        'stepsProgress',
-      );
+      await assertStudentOwns(locals.talent!.id, progressId, 'stepsProgress');
       const newStatus =
         currentStatus === 'needs_help' ? 'active' : 'needs_help';
       await prisma.stepsProgress.update({
@@ -219,11 +211,7 @@ export const actions: Actions = {
     const itemId = data.get('itemId') as string;
 
     try {
-      await assertStudentOwns(
-        locals.talent!.id,
-        itemId,
-        'portfolioItem',
-      );
+      await assertStudentOwns(locals.talent!.id, itemId, 'portfolioItem');
       await prisma.portfolioItem.delete({ where: { id: itemId } });
       return { success: true };
     } catch (err) {

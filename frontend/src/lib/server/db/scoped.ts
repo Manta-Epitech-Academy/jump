@@ -5,8 +5,7 @@ import { prisma } from '../db';
  * Extracts the campus ID from the authenticated user's profile.
  */
 export function getCampusId(locals: App.Locals): string {
-  const campusId =
-    locals.staffProfile?.campusId ?? locals.talent?.campusId;
+  const campusId = locals.staffProfile?.campusId ?? locals.talent?.campusId;
   if (!campusId) {
     throw new Error(
       "Impossible de créer des données : Aucun campus associé à l'utilisateur connecté.",

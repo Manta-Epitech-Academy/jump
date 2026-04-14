@@ -37,10 +37,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const participations = await db.participation.findMany({
     where: { eventId: event.id },
     include: { talent: true },
-    orderBy: [
-      { talent: { nom: 'asc' } },
-      { talent: { prenom: 'asc' } },
-    ],
+    orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
 
   const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });

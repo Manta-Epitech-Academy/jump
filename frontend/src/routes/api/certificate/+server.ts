@@ -90,8 +90,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       studentName: `${locals.talent.prenom} ${locals.talent.nom}`,
       campus: student.campus?.name || '',
       schoolLevel: locals.talent.niveau
-        ? niveauLabels[locals.talent.niveau] ||
-          locals.talent.niveau
+        ? niveauLabels[locals.talent.niveau] || locals.talent.niveau
         : '',
       xp: locals.talent.xp || 0,
       hours: participations.length * 3,
@@ -109,10 +108,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     const pdfBytes = await generateCertificatePDF(data);
 
     // 9. Sanitize filename
-    const safeFirstName = locals.talent.prenom.replace(
-      /[^a-zA-Z0-9]/g,
-      '',
-    );
+    const safeFirstName = locals.talent.prenom.replace(/[^a-zA-Z0-9]/g, '');
     const safeLastName = locals.talent.nom.replace(/[^a-zA-Z0-9]/g, '');
 
     return new Response(new Blob([pdfBytes], { type: 'application/pdf' }), {

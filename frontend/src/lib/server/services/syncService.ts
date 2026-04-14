@@ -74,7 +74,8 @@ export async function syncTalents(
 
     if (!t.external_id || !t.first_name || !t.last_name)
       return {
-        error: 'Each talent must have external_id, first_name and last_name' as const,
+        error:
+          'Each talent must have external_id, first_name and last_name' as const,
       };
 
     const existing = await prisma.talent.findUnique({

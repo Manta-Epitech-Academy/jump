@@ -41,8 +41,7 @@
     >
       <Avatar.Root class="rounded-sm border-2 border-transparent">
         <Avatar.Fallback class="bg-primary/5 font-bold text-primary">
-          {participation.talent?.nom?.[0]}{participation.talent
-            ?.prenom?.[0]}
+          {participation.talent?.nom?.[0]}{participation.talent?.prenom?.[0]}
         </Avatar.Fallback>
       </Avatar.Root>
     </a>

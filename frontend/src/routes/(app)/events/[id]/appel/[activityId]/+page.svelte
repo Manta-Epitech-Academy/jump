@@ -118,12 +118,8 @@
   let filteredParticipations = $derived(
     participations.filter((p) => {
       const matchesSearch =
-        p.talent?.nom
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        p.talent?.prenom
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase());
+        p.talent?.nom?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.talent?.prenom?.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
 
       let matchesStatus = filterStatus === 'all';
