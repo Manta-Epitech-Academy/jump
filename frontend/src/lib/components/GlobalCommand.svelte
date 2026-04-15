@@ -39,11 +39,11 @@
         <LayoutDashboard class="mr-2 h-4 w-4" />
         Dashboard
       </Command.Item>
-      <Command.Item onSelect={() => runCommand(resolve('/students'))}>
+      <Command.Item onSelect={() => runCommand(resolve('/staff/dev/students'))}>
         <Users class="mr-2 h-4 w-4" />
         Élèves
       </Command.Item>
-      <Command.Item onSelect={() => runCommand(resolve('/events/history'))}>
+      <Command.Item onSelect={() => runCommand(resolve('/staff/dev/events/history'))}>
         <History class="mr-2 h-4 w-4" />
         Historique
       </Command.Item>
@@ -52,7 +52,7 @@
     <Command.Separator />
 
     <Command.Group heading="Actions Rapides">
-      <Command.Item onSelect={() => runCommand(resolve('/events/new'))}>
+      <Command.Item onSelect={() => runCommand(resolve('/staff/dev/events/new'))}>
         <Calendar class="mr-2 h-4 w-4" />
         Nouvel Événement
       </Command.Item>

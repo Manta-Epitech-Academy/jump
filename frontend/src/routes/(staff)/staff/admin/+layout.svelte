@@ -67,8 +67,8 @@
       <span>Vue d'ensemble</span>
     </a>
     <a
-      href={resolve('/admin/sync-errors')}
-      class={navLinkClass(isActive('/admin/sync-errors'))}
+      href={resolve('/staff/admin/sync-errors')}
+      class={navLinkClass(isActive('/staff/admin/sync-errors'))}
     >
       <TriangleAlert class="h-4 w-4" />
       <span>Erreurs de Sync</span>

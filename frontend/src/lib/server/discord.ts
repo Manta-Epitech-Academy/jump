@@ -8,7 +8,7 @@ import type { Cookies } from '@sveltejs/kit';
 
 /**
  * Initiates Discord OAuth by redirecting to Discord's consent screen.
- * `callbackPath` is the absolute path (without origin) for the OAuth callback, e.g. '/camper/discord/callback'.
+ * `callbackPath` is the absolute path (without origin) for the OAuth callback, e.g. '/discord/callback'.
  */
 export function startDiscordOAuth(cookies: Cookies, callbackPath: string) {
   const state = crypto.randomBytes(16).toString('hex');
