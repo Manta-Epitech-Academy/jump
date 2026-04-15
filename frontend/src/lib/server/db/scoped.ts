@@ -19,8 +19,7 @@ export function getCampusId(locals: App.Locals): string {
  * Extracts the IANA timezone from the user's campus.
  */
 export function getCampusTimezone(locals: App.Locals): string {
-  const campus = locals.staffProfile?.campus ?? null;
-  return campus?.timezone ?? 'Europe/Paris';
+  return locals.staffProfile?.campus?.timezone ?? 'Europe/Paris';
 }
 
 /**
