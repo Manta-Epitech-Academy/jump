@@ -1,5 +1,13 @@
 import type { StaffRole } from '@prisma/client';
 
+export const staffRoles = [
+  'admin',
+  'superdev',
+  'dev',
+  'peda',
+  'manta',
+] as const;
+
 export const STAFF_ROLES: readonly { value: StaffRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'superdev', label: 'SuperDev' },

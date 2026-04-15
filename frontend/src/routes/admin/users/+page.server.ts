@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import type { StaffRole } from '@prisma/client';
+import { staffRoles } from '$lib/domain/staff';
 
 export const load: PageServerLoad = async () => {
   // Load all users with their staff profiles (which hold campus info) and all campuses
@@ -45,11 +46,19 @@ export const actions: Actions = {
 
     if (!userId) return fail(400);
 
+    const validRole: StaffRole | null = staffRole
+      ? staffRoles.includes(staffRole as StaffRole)
+        ? (staffRole as StaffRole)
+        : null
+      : null;
+
+    if (staffRole && !validRole) return fail(400, { message: 'Rôle invalide' });
+
     try {
       await prisma.staffProfile.upsert({
         where: { userId },
-        update: { staffRole: (staffRole || null) as StaffRole | null },
-        create: { userId, staffRole: (staffRole || null) as StaffRole | null },
+        update: { staffRole: validRole },
+        create: { userId, staffRole: validRole },
       });
       return { success: true };
     } catch (err) {
