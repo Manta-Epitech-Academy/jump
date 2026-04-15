@@ -10,7 +10,7 @@ export async function listCampuses() {
 
 export async function syncEvents(
   campusExternalName: string,
-  events: { external_id: string; title: string }[],
+  events: { external_id: string; title: string; date?: string }[],
 ) {
   const campus = await prisma.campus.findUnique({
     where: { externalName: campusExternalName },
@@ -32,16 +32,24 @@ export async function syncEvents(
       await prisma.event.create({
         data: {
           externalId: e.external_id,
-          date: new Date(),
+          date: e.date ? new Date(e.date) : new Date(),
           titre: e.title,
           campusId: campus.id,
         },
       });
       created++;
-    } else if (existing.titre !== e.title || existing.campusId !== campus.id) {
+    } else if (
+      existing.titre !== e.title ||
+      existing.campusId !== campus.id ||
+      (e.date && existing.date.getTime() !== new Date(e.date).getTime())
+    ) {
       await prisma.event.update({
         where: { externalId: e.external_id },
-        data: { titre: e.title, campusId: campus.id },
+        data: {
+          titre: e.title,
+          campusId: campus.id,
+          date: e.date ? new Date(e.date) : existing.date,
+        },
       });
       updated++;
     }
