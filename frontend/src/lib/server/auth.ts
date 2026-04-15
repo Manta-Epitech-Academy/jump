@@ -8,6 +8,9 @@ import { sendOtpEmail } from '$lib/server/otp';
 import { base } from '$app/paths';
 import { dev } from '$app/environment';
 
+/** Temporary store for parent OTPs — consumed by sendParentSignatureEmail */
+export const pendingParentOtps = new Map<string, string>();
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
 
@@ -41,11 +44,16 @@ export const auth = betterAuth({
     }),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {
-        const student = await prisma.studentProfile.findFirst({
-          where: { user: { email } },
-          select: { prenom: true },
+        const user = await prisma.bauth_user.findUnique({
+          where: { email },
+          select: { role: true, name: true },
         });
-        await sendOtpEmail(email, otp, student?.prenom);
+        // For parents, store the OTP so the caller can include it in a single combined email
+        if (user?.role === 'parent') {
+          pendingParentOtps.set(email, otp);
+          return;
+        }
+        await sendOtpEmail(email, otp, user?.name ?? undefined);
       },
       otpLength: 6,
       expiresIn: 600,

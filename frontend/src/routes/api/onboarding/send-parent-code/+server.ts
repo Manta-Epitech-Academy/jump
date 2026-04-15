@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createParentCode } from '$lib/server/services/parentCodeService';
+import { auth } from '$lib/server/auth';
 import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
 
 export const POST: RequestHandler = async ({ locals }) => {
@@ -14,11 +14,15 @@ export const POST: RequestHandler = async ({ locals }) => {
     throw error(400, 'Aucun email parent renseigné');
   }
 
-  const code = await createParentCode(profile.id);
+  // Send OTP via BetterAuth
+  await auth.api.sendVerificationOTP({
+    body: { email: profile.parentEmail, type: 'sign-in' },
+  });
 
+  // Send parent email with link
   await sendParentSignatureEmail(
     profile.parentEmail,
-    code,
+    profile.id,
     `${profile.prenom} ${profile.nom}`,
   );
 

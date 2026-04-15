@@ -5,7 +5,7 @@ import { prisma } from '$lib/server/db';
 import { infoValidationSchema } from '$lib/validation/onboarding';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
-import { createParentCode } from '$lib/server/services/parentCodeService';
+import { auth } from '$lib/server/auth';
 import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
 
 export type OnboardingStep = 'info-validation' | 'rules';
@@ -79,19 +79,56 @@ export const actions: Actions = {
     });
 
     if (result.data.parentEmail) {
-      const profileId = locals.studentProfile.id;
+      const parentEmail = result.data.parentEmail.toLowerCase().trim();
       const studentName = `${result.data.prenom} ${result.data.nom}`;
-      createParentCode(profileId)
-        .then((code) => sendParentSignatureEmail(result.data.parentEmail, code, studentName))
-        .catch((err) => console.error('Failed to send parent email:', err));
+      const profileId = locals.studentProfile.id;
+
+      (async () => {
+        // Upsert parent bauth_user
+        let parentUser = await prisma.bauth_user.findUnique({
+          where: { email: parentEmail },
+        });
+
+        if (!parentUser) {
+          parentUser = await prisma.bauth_user.create({
+            data: {
+              email: parentEmail,
+              name: `${result.data.parentPrenom} ${result.data.parentNom}`,
+              role: 'parent',
+              emailVerified: true,
+            },
+          });
+        } else {
+          await prisma.bauth_user.update({
+            where: { id: parentUser.id },
+            data: {
+              name: `${result.data.parentPrenom} ${result.data.parentNom}`,
+            },
+          });
+        }
+
+        // Send OTP via BetterAuth
+        await auth.api.sendVerificationOTP({
+          body: { email: parentEmail, type: 'sign-in' },
+        });
+
+        // Send parent email with link
+        await sendParentSignatureEmail(parentEmail, profileId, studentName);
+      })().catch((err) => console.error('Failed to send parent email:', err));
     }
 
     throw redirect(303, resolve('/camper/onboarding'));
   },
 
-  signRules: async ({ locals }) => {
+  signRules: async ({ request, locals }) => {
     if (!locals.studentProfile) {
       throw error(401, 'Non autorisé');
+    }
+
+    const formData = await request.formData();
+    const city = (formData.get('city') as string)?.trim();
+    if (!city) {
+      return { step: 'rules' as const, error: 'Veuillez indiquer la ville.' };
     }
 
     const now = new Date();
@@ -100,6 +137,7 @@ export const actions: Actions = {
       type: 'rules',
       studentName: `${locals.studentProfile.prenom} ${locals.studentProfile.nom}`,
       signedAt: now,
+      city,
     });
 
     const key = `documents/${locals.studentProfile.id}/rules-${now.getTime()}.pdf`;

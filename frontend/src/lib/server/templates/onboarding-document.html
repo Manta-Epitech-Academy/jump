@@ -29,6 +29,37 @@
       margin-bottom: 40px;
       font-size: 14px;
     }
+    .content h1 {
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 24px;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+    .content h2 {
+      font-size: 15px;
+      font-weight: bold;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+    .content h3 {
+      font-size: 14px;
+      font-weight: bold;
+      margin-top: 18px;
+      margin-bottom: 6px;
+      color: #0f172a;
+    }
+    .content ul {
+      margin: 4px 0;
+      padding-left: 20px;
+    }
+    .content li {
+      margin: 2px 0;
+    }
+    .content p {
+      margin: 8px 0;
+    }
     .signature-block {
       margin-top: 60px;
       padding-top: 20px;
@@ -55,23 +86,17 @@
   </div>
 
   <div class="content">
-    <% data.documentContent.split('\n').forEach(function(line) { %>
-      <% if (line.trim()) { %>
-        <% if (line.trim().match(/^[A-ZÀ-Ü\s]+$/) && line.trim().length > 3) { %>
-          <h3 style="font-size: 14px; font-weight: bold; margin-top: 20px; margin-bottom: 8px; color: #0f172a;"><%= line.trim() %></h3>
-        <% } else if (line.trim().startsWith('•')) { %>
-          <p style="margin: 2px 0; padding-left: 10px;"><%= line.trim() %></p>
-        <% } else { %>
-          <p style="margin: 8px 0;"><%= line.trim() %></p>
-        <% } %>
-      <% } %>
-    <% }); %>
+    <%- data.documentContent %>
   </div>
 
   <div class="signature-block">
-    <p>Signé le : <strong><%= data.signedAt %></strong></p>
+    <% if (data.city) { %>
+      <p>Fait à <strong><%= data.city %></strong>, le <strong><%= data.signedAt %></strong></p>
+    <% } else { %>
+      <p>Signé le : <strong><%= data.signedAt %></strong></p>
+    <% } %>
     <% if (data.signerName) { %>
-      <p class="signer-name">Signataire : <%= data.signerName %></p>
+      <p class="signer-name">Signataire : <%= data.signerName %><% if (data.relationship) { %> (<%= data.relationship %>)<% } %></p>
     <% } %>
     <% if (data.studentName) { %>
       <p>Étudiant : <%= data.studentName %></p>
