@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import type { StaffRole } from '@prisma/client';
 
 export const load: PageServerLoad = async () => {
   // Load all users with their staff profiles (which hold campus info) and all campuses
@@ -25,14 +26,35 @@ export const actions: Actions = {
     if (!userId) return fail(400);
 
     try {
-      await prisma.staffProfile.update({
+      await prisma.staffProfile.upsert({
         where: { userId },
-        data: { campusId: campusId || null },
+        update: { campusId: campusId || null },
+        create: { userId, campusId: campusId || null },
       });
       return { success: true };
     } catch (err) {
       console.error(err);
       return fail(500, { message: 'Erreur lors de la mise à jour' });
+    }
+  },
+
+  updateRole: async ({ request }) => {
+    const data = await request.formData();
+    const userId = data.get('userId') as string;
+    const staffRole = data.get('staffRole') as string;
+
+    if (!userId) return fail(400);
+
+    try {
+      await prisma.staffProfile.upsert({
+        where: { userId },
+        update: { staffRole: (staffRole || null) as StaffRole | null },
+        create: { userId, staffRole: (staffRole || null) as StaffRole | null },
+      });
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      return fail(500, { message: 'Erreur lors de la mise à jour du rôle' });
     }
   },
 

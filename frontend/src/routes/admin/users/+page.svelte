@@ -9,6 +9,7 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
   let { data } = $props();
 
   // Handle component deletion confirmations
@@ -43,6 +44,7 @@
           <Table.Head>Utilisateur</Table.Head>
           <Table.Head>Email</Table.Head>
           <Table.Head>Campus</Table.Head>
+          <Table.Head>Rôle</Table.Head>
           <Table.Head class="text-right">Actions</Table.Head>
         </Table.Row>
       </Table.Header>
@@ -92,8 +94,8 @@
                   type="single"
                   name="campusId"
                   value={user.staffProfile?.campusId ?? ''}
-                  onValueChange={() => {
-                    // Wait for the hidden input to update, then submit
+                  onValueChange={(v) => {
+                    if (v === (user.staffProfile?.campusId ?? '')) return;
                     requestAnimationFrame(() => {
                       const form = document.querySelector<HTMLFormElement>(
                         `#campus-form-${user.id}`,
@@ -109,6 +111,46 @@
                     <Select.Item value="">Aucun campus</Select.Item>
                     {#each data.campuses as c}
                       <Select.Item value={c.id}>{c.name}</Select.Item>
+                    {/each}
+                  </Select.Content>
+                </Select.Root>
+              </form>
+            </Table.Cell>
+            <Table.Cell>
+              <form
+                id="role-form-{user.id}"
+                method="POST"
+                action="?/updateRole"
+                use:enhance={() => {
+                  return async ({ update, result }) => {
+                    if (result.type === 'success')
+                      toast.success('Rôle mis à jour');
+                    await update();
+                  };
+                }}
+              >
+                <input type="hidden" name="userId" value={user.id} />
+                <Select.Root
+                  type="single"
+                  name="staffRole"
+                  value={user.staffProfile?.staffRole ?? ''}
+                  onValueChange={(v) => {
+                    if (v === (user.staffProfile?.staffRole ?? '')) return;
+                    requestAnimationFrame(() => {
+                      const form = document.querySelector<HTMLFormElement>(
+                        `#role-form-${user.id}`,
+                      );
+                      form?.requestSubmit();
+                    });
+                  }}
+                >
+                  <Select.Trigger class="h-8 w-36 text-xs">
+                    {getStaffRoleLabel(user.staffProfile?.staffRole)}
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="">Aucun rôle</Select.Item>
+                    {#each STAFF_ROLES as role}
+                      <Select.Item value={role.value}>{role.label}</Select.Item>
                     {/each}
                   </Select.Content>
                 </Select.Root>
