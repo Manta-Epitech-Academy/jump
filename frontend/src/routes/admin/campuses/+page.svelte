@@ -6,6 +6,7 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
+  import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
@@ -42,10 +43,77 @@
     open = true;
   }
 
+  function formatUtcOffset(iana: string): string {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: iana,
+      timeZoneName: 'shortOffset',
+    });
+    const offset =
+      fmt.formatToParts(new Date()).find((p) => p.type === 'timeZoneName')
+        ?.value ?? '';
+    // "GMT" → "UTC", "GMT+2" → "UTC+2", "GMT-4" → "UTC-4"
+    return offset.replace('GMT', 'UTC').replace(/^UTC$/, 'UTC+0');
+  }
+
+  const timezoneGroups = [
+    {
+      label: 'Europe & Afrique',
+      zones: [
+        { value: 'Europe/London', cities: 'Londres, Dublin, Dakar' },
+        { value: 'Europe/Paris', cities: 'Paris, Bruxelles, Berlin' },
+        { value: 'Europe/Athens', cities: 'Athènes, Helsinki, Bucarest' },
+        { value: 'Europe/Istanbul', cities: 'Istanbul, Mayotte' },
+      ],
+    },
+    {
+      label: 'Outre-mer & Océan Indien',
+      zones: [
+        { value: 'Pacific/Tahiti', cities: 'Polynésie française' },
+        { value: 'America/Martinique', cities: 'Martinique, Guadeloupe' },
+        { value: 'America/Cayenne', cities: 'Guyane française' },
+        { value: 'Indian/Reunion', cities: 'La Réunion, Maurice' },
+        { value: 'Pacific/Noumea', cities: 'Nouvelle-Calédonie' },
+      ],
+    },
+    {
+      label: 'Amériques',
+      zones: [
+        { value: 'America/Los_Angeles', cities: 'Los Angeles, Vancouver' },
+        { value: 'America/Denver', cities: 'Denver, Phoenix' },
+        { value: 'America/Chicago', cities: 'Chicago, Mexico' },
+        { value: 'America/New_York', cities: 'New York, Montréal, Lima' },
+        { value: 'America/Sao_Paulo', cities: 'São Paulo, Buenos Aires' },
+      ],
+    },
+    {
+      label: 'Asie & Pacifique',
+      zones: [
+        { value: 'Asia/Dubai', cities: 'Dubaï, Abu Dhabi' },
+        { value: 'Asia/Kolkata', cities: 'Mumbai, Delhi' },
+        { value: 'Asia/Singapore', cities: 'Singapour, Shanghai, Pékin' },
+        { value: 'Asia/Tokyo', cities: 'Tokyo, Séoul' },
+        { value: 'Australia/Sydney', cities: 'Sydney, Melbourne' },
+        { value: 'Pacific/Auckland', cities: 'Auckland' },
+      ],
+    },
+  ];
+
+  const allTimezones = timezoneGroups.flatMap((g) =>
+    g.zones.map((z) => ({
+      ...z,
+      label: `${formatUtcOffset(z.value)} — ${z.cities}`,
+    })),
+  );
+
+  function getTimezoneLabel(value: string): string {
+    return allTimezones.find((tz) => tz.value === value)?.label ?? value;
+  }
+
   function openEdit(campus: any) {
     reset();
     $form.name = campus.name;
     $form.externalName = campus.externalName ?? '';
+    $form.timezone = campus.timezone ?? 'Europe/Paris';
     isEditing = true;
     editId = campus.id;
     open = true;
@@ -82,6 +150,7 @@
           <Table.Head class="w-12"></Table.Head>
           <Table.Head>Nom du Campus</Table.Head>
           <Table.Head>Nom externe</Table.Head>
+          <Table.Head>Fuseau horaire</Table.Head>
           <Table.Head class="text-right">Actions</Table.Head>
         </Table.Row>
       </Table.Header>
@@ -94,6 +163,9 @@
             <Table.Cell class="font-bold">{campus.name}</Table.Cell>
             <Table.Cell class="text-muted-foreground"
               >{campus.externalName ?? '—'}</Table.Cell
+            >
+            <Table.Cell class="text-xs text-muted-foreground"
+              >{getTimezoneLabel(campus.timezone ?? 'Europe/Paris')}</Table.Cell
             >
             <Table.Cell class="text-right">
               <Tooltip.Provider delayDuration={300}>
@@ -164,6 +236,36 @@
           />
           {#if $errors.externalName}<span class="text-xs text-destructive"
               >{$errors.externalName}</span
+            >{/if}
+        </div>
+        <div class="space-y-2">
+          <Label>Fuseau horaire</Label>
+          <input type="hidden" name="timezone" value={$form.timezone} />
+          <Select.Root
+            type="single"
+            value={$form.timezone}
+            onValueChange={(v) => ($form.timezone = v)}
+          >
+            <Select.Trigger class="w-full">
+              {getTimezoneLabel($form.timezone)}
+            </Select.Trigger>
+            <Select.Content class="max-h-72">
+              {#each timezoneGroups as group}
+                <Select.Group>
+                  <Select.GroupHeading>{group.label}</Select.GroupHeading>
+                  {#each group.zones as tz}
+                    <Select.Item
+                      value={tz.value}
+                      label="{formatUtcOffset(tz.value)} — {tz.cities}"
+                    />
+                  {/each}
+                </Select.Group>
+                <Select.Separator />
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          {#if $errors.timezone}<span class="text-xs text-destructive"
+              >{$errors.timezone}</span
             >{/if}
         </div>
         <Dialog.Footer>

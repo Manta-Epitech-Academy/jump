@@ -1,3 +1,4 @@
+import type { Cookies } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { prisma } from '../db';
 
@@ -12,6 +13,29 @@ export function getCampusId(locals: App.Locals): string {
     );
   }
   return campusId;
+}
+
+/**
+ * Extracts the IANA timezone from the user's campus.
+ */
+export function getCampusTimezone(locals: App.Locals): string {
+  const campus = locals.staffProfile?.campus ?? locals.talent?.campus;
+  return campus?.timezone ?? 'Europe/Paris';
+}
+
+/**
+ * Reads the browser timezone from the `tz` cookie (set client-side).
+ * Validates against the IANA database to prevent RangeError from invalid values.
+ */
+export function getBrowserTimezone(cookies: Cookies): string {
+  const tz = cookies.get('tz');
+  if (!tz) return 'Europe/Paris';
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return tz;
+  } catch {
+    return 'Europe/Paris';
+  }
 }
 
 /**

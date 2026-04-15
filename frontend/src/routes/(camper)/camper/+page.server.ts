@@ -2,9 +2,10 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
-import { getParisStartOfDay, tallyTopThemesFromActivities } from '$lib/utils';
+import { getBrowserTimezone } from '$lib/server/db/scoped';
+import { getStartOfDay, tallyTopThemesFromActivities } from '$lib/utils';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
@@ -12,10 +13,11 @@ export const load: PageServerLoad = async ({ locals }) => {
   try {
     const studentId = locals.talent.id;
 
-    // Calculate boundaries for "Today" in the user's timezone (Europe/Paris)
-    const filterDateStart = getParisStartOfDay();
-    const parisNow = now('Europe/Paris');
-    const endOfDay = parisNow.set({
+    // Calculate boundaries for "Today" in the user's browser timezone
+    const tz = getBrowserTimezone(cookies);
+    const filterDateStart = getStartOfDay(tz);
+    const tzNow = now(tz);
+    const endOfDay = tzNow.set({
       hour: 23,
       minute: 59,
       second: 59,

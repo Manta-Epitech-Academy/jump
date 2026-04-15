@@ -153,7 +153,10 @@
             </div>
             <div class="space-y-2">
               <Label>Date</Label><Input
-                value={new Date(analysisResult.eventDate).toLocaleDateString()}
+                value={new Date(analysisResult.eventDate).toLocaleDateString(
+                  'fr-FR',
+                  { timeZone: data.timezone },
+                )}
                 readonly
                 class="bg-muted font-bold"
               />
