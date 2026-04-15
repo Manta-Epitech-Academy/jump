@@ -167,7 +167,6 @@
           participations={data.participations}
           {addEnhance}
           {addDelayed}
-          createStudentForm={data.createStudentForm}
         />
       </div>
     </Tabs.Content>

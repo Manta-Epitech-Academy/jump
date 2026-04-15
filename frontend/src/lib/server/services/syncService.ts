@@ -88,7 +88,6 @@ export async function syncTalents(
       const talent = await prisma.talent.create({
         data: {
           externalId: t.external_id,
-          campusId: event.campusId,
           prenom: t.first_name,
           nom: t.last_name,
           email,

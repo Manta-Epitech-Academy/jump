@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
-      include: { user: true, campus: true },
+      include: { user: true },
     }),
     db.talent.count({ where }),
   ]);
@@ -53,55 +53,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-  create: async ({ request, locals }) => {
-    const form = await superValidate(request, zod4(studentSchema));
-    if (!form.valid) return fail(400, { form });
-
-    try {
-      const campusId = getCampusId(locals);
-      const email = form.data.email || null;
-
-      const talentData = {
-        nom: form.data.nom,
-        prenom: form.data.prenom,
-        email,
-        campusId,
-        niveau: form.data.niveau || null,
-        niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
-        xp: 0,
-        eventsCount: 0,
-        parentEmail: form.data.parent_email || null,
-        parentPhone: form.data.parent_phone || null,
-        phone: form.data.phone || null,
-      };
-
-      if (email) {
-        await prisma.bauth_user.create({
-          data: {
-            email,
-            role: 'student',
-            name: `${form.data.prenom} ${form.data.nom}`,
-            talent: { create: talentData },
-          },
-        });
-      } else {
-        await prisma.talent.create({ data: talentData });
-      }
-
-      return message(form, 'Élève ajouté avec succès !');
-    } catch (err: any) {
-      if (err.code === 'P2002') {
-        return message(
-          form,
-          'Un élève identique (Même nom, prénom et email) existe déjà.',
-          { status: 400 },
-        );
-      }
-      console.error(err);
-      return message(form, "Erreur lors de l'ajout", { status: 500 });
-    }
-  },
-
   update: async ({ request, locals }) => {
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(studentSchema));

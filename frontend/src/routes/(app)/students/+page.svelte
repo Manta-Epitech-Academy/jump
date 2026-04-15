@@ -2,7 +2,6 @@
   import type { PageData } from './$types';
   import { superForm } from 'sveltekit-superforms';
   import {
-    Plus,
     Funnel,
     Ellipsis,
     Pencil,
@@ -81,14 +80,6 @@
     searchTimeout = setTimeout(() => navigateWithParams({ q: value }), 300);
   }
 
-  function openCreate() {
-    reset();
-    $form.niveau_difficulte = 'Débutant';
-    isEditing = false;
-    editId = '';
-    open = true;
-  }
-
   function openEdit(student: any) {
     reset();
     $form.nom = student.nom;
@@ -145,11 +136,7 @@
   <PageHeader
     title="Élèves"
     subtitle="Annuaire et progression des étudiants du camp."
-  >
-    <Button onclick={openCreate}
-      ><Plus class="mr-2 h-4 w-4" /> Nouvel Élève</Button
-    >
-  </PageHeader>
+  />
 
   <div class="flex items-center gap-2">
     <!-- Search Input -->
@@ -190,7 +177,7 @@
       {errors}
       {delayed}
       {enhance}
-      action={isEditing ? '?/update' : '?/create'}
+      action="?/update"
     />
 
     <ConfirmDeleteDialog
@@ -335,8 +322,6 @@
       icon={Users}
       title="Salle de classe vide"
       description="Aucun élève ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
-      actionLabel="Ajouter un élève"
-      actionCallback={openCreate}
     />
   {/if}
 </div>

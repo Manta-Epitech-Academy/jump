@@ -5,7 +5,6 @@ import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
-import { studentSchema } from '$lib/validation/students';
 import {
   timeSlotSchema,
   createActivityFromTemplateSchema,
@@ -96,7 +95,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   );
 
   const addForm = await superValidate(zod4(addParticipantSchema));
-  const createStudentForm = await superValidate(zod4(studentSchema));
   const tsForm = await superValidate(zod4(timeSlotSchema));
   const staticActivityForm = await superValidate(
     zod4(createStaticActivitySchema),
@@ -119,7 +117,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     themes,
     staff,
     addForm,
-    createStudentForm,
     editForm,
     planning,
     templates,
@@ -166,71 +163,6 @@ export const actions: Actions = {
     } catch (err) {
       console.error(err);
       return message(form, "Erreur technique lors de l'ajout.", {
-        status: 500,
-      });
-    }
-  },
-
-  quickCreateStudent: async ({ request, locals, params }) => {
-    const form = await superValidate(request, zod4(studentSchema));
-    if (!form.valid) return fail(400, { form });
-
-    try {
-      const campusId = getCampusId(locals);
-      const email = form.data.email || null;
-
-      const talentData = {
-        nom: form.data.nom,
-        prenom: form.data.prenom,
-        email,
-        campusId,
-        niveau: form.data.niveau || null,
-        niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
-        xp: 0,
-        eventsCount: 0,
-        parentEmail: form.data.parent_email || null,
-        parentPhone: form.data.parent_phone || null,
-        phone: form.data.phone || null,
-      };
-
-      let talentId: string;
-
-      if (email) {
-        const user = await prisma.bauth_user.create({
-          data: {
-            email,
-            role: 'student',
-            name: `${form.data.prenom} ${form.data.nom}`,
-            talent: { create: talentData },
-          },
-          include: { talent: true },
-        });
-        talentId = user.talent!.id;
-      } else {
-        const talent = await prisma.talent.create({ data: talentData });
-        talentId = talent.id;
-      }
-
-      await prisma.participation.create({
-        data: {
-          talentId,
-          eventId: params.id,
-          campusId,
-          isPresent: false,
-        },
-      });
-
-      return message(form, 'Élève créé et inscrit !');
-    } catch (err: any) {
-      if (err.code === 'P2002') {
-        return message(
-          form,
-          'Un élève identique (même nom, prénom et email) existe déjà.',
-          { status: 400 },
-        );
-      }
-      console.error('Quick create student error:', err);
-      return message(form, 'Erreur lors de la création rapide.', {
         status: 500,
       });
     }

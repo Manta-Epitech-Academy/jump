@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   try {
     const student = await db.talent.findUniqueOrThrow({
       where: { id: params.id },
-      include: { user: true, campus: true },
+      include: { user: true },
     });
 
     const participations = await prisma.participation.findMany({

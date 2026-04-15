@@ -16,8 +16,9 @@ export const GET: RequestHandler = async ({ locals }) => {
         talentId,
         isPresent: true,
       },
+      orderBy: { event: { date: 'desc' } },
       include: {
-        event: true,
+        event: { include: { campus: true } },
         activities: {
           include: {
             activity: {
@@ -44,11 +45,8 @@ export const GET: RequestHandler = async ({ locals }) => {
       take: 4,
     });
 
-    // 3. Fetch campus name
-    const student = await prisma.talent.findUniqueOrThrow({
-      where: { id: talentId },
-      include: { campus: true },
-    });
+    // 3. Derive campus name from most recent participation
+    const campusName = participations[0]?.event?.campus?.name || '';
 
     // 4. Tally up themes (show up to 6 for the progress-bar view)
     const topThemes = tallyTopThemesFromActivities(participations, 6);
@@ -88,7 +86,7 @@ export const GET: RequestHandler = async ({ locals }) => {
     // 7. Assemble Data
     const data = {
       studentName: `${locals.talent.prenom} ${locals.talent.nom}`,
-      campus: student.campus?.name || '',
+      campus: campusName,
       schoolLevel: locals.talent.niveau
         ? niveauLabels[locals.talent.niveau] || locals.talent.niveau
         : '',

@@ -120,7 +120,6 @@ model Talent {
   email             String?   @unique
   nom               String
   prenom            String
-  campusId          String?
   niveau            String?
   niveauDifficulte  String?
   level             String    @default("Novice")
@@ -139,12 +138,9 @@ model Talent {
   updatedAt         DateTime  @updatedAt
 
   user           bauth_user?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  campus         Campus?         @relation(fields: [campusId], references: [id])
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
-
-  @@index([campusId])
 }
 
 // ─── Domain Tables ───
@@ -157,7 +153,6 @@ model Campus {
   updatedAt     DateTime @updatedAt
 
   staffProfiles      StaffProfile[]
-  talents            Talent[]
   events             Event[]
   themes             Theme[]
   participations     Participation[]
@@ -328,6 +323,7 @@ model Participation {
   @@index([eventId])
   @@index([campusId])
   @@index([talentId])
+  @@index([talentId, campusId])
 }
 
 model ParticipationActivity {

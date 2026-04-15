@@ -8,7 +8,7 @@ declare global {
       user: User | null;
       session: Session | null;
       staffProfile: (StaffProfile & { campus: Campus | null }) | null;
-      talent: (Talent & { campus: Campus | null }) | null;
+      talent: Talent | null;
     }
     // interface PageData {}
     // interface PageState {}

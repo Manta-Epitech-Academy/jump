@@ -5,7 +5,7 @@ import { prisma } from '../db';
  * Extracts the campus ID from the authenticated user's profile.
  */
 export function getCampusId(locals: App.Locals): string {
-  const campusId = locals.staffProfile?.campusId ?? locals.talent?.campusId;
+  const campusId = locals.staffProfile?.campusId;
   if (!campusId) {
     throw new Error(
       "Impossible de créer des données : Aucun campus associé à l'utilisateur connecté.",
@@ -171,51 +171,84 @@ export function scopedPrisma(campusId: string) {
         },
       },
 
-      // ── Talent (campusId optional) ──
+      // ── Talent (scoped through participations → campusId) ──
       talent: {
         async findMany({ args, query }) {
-          args.where = { ...args.where, campusId };
+          args.where = {
+            ...args.where,
+            participations: { some: { campusId } },
+          };
           return query(args);
         },
         async count({ args, query }) {
-          args.where = { ...args.where, campusId };
+          args.where = {
+            ...args.where,
+            participations: { some: { campusId } },
+          };
           return query(args);
         },
         async findFirst({ args, query }) {
-          args.where = { ...args.where, campusId };
+          args.where = {
+            ...args.where,
+            participations: { some: { campusId } },
+          };
           return query(args);
         },
         async findUnique({ args, query }) {
           const existing = await prisma.talent.findUnique({
             where: args.where,
-            select: { campusId: true },
+            select: {
+              participations: {
+                where: { campusId },
+                select: { id: true },
+                take: 1,
+              },
+            },
           });
-          if (existing && existing.campusId !== campusId)
+          if (existing && existing.participations.length === 0)
             accessDenied('Talent');
           return query(args);
         },
         async findUniqueOrThrow({ args, query }) {
           const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
-            select: { campusId: true },
+            select: {
+              participations: {
+                where: { campusId },
+                select: { id: true },
+                take: 1,
+              },
+            },
           });
-          if (existing.campusId !== campusId) accessDenied('Talent');
+          if (existing.participations.length === 0) accessDenied('Talent');
           return query(args);
         },
         async update({ args, query }) {
           const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
-            select: { campusId: true },
+            select: {
+              participations: {
+                where: { campusId },
+                select: { id: true },
+                take: 1,
+              },
+            },
           });
-          if (existing.campusId !== campusId) accessDenied('Talent');
+          if (existing.participations.length === 0) accessDenied('Talent');
           return query(args);
         },
         async delete({ args, query }) {
           const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
-            select: { campusId: true },
+            select: {
+              participations: {
+                where: { campusId },
+                select: { id: true },
+                take: 1,
+              },
+            },
           });
-          if (existing.campusId !== campusId) accessDenied('Talent');
+          if (existing.participations.length === 0) accessDenied('Talent');
           return query(args);
         },
       },
