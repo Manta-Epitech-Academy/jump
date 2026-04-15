@@ -38,6 +38,7 @@
   } from '@lucide/svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
+  import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -194,6 +195,12 @@
   {#if !student?.discordId}
     <div class="mb-6" in:fly={{ y: -10, duration: 300, delay: 150 }}>
       <DiscordLinkBanner />
+    </div>
+  {/if}
+
+  {#if !student?.phone}
+    <div class="mb-6" in:fly={{ y: -10, duration: 300, delay: 175 }}>
+      <ProfileCompletionBanner />
     </div>
   {/if}
 
