@@ -15,6 +15,7 @@
     templateActivityForm,
     onEdit,
     eventId,
+    timezone,
   }: {
     slot: TimeSlotWithActivities;
     templates: (ActivityTemplate & {
@@ -24,6 +25,7 @@
     templateActivityForm: any;
     onEdit: (slot: TimeSlotWithActivities) => void;
     eventId: string;
+    timezone: string;
   } = $props();
 
   let addActivityOpen = $state(false);
@@ -34,7 +36,7 @@
     return d.toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Europe/Paris',
+      timeZone: timezone,
     });
   }
 </script>

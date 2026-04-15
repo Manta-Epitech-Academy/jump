@@ -91,10 +91,12 @@
                 month: 'long',
                 hour: '2-digit',
                 minute: '2-digit',
+                timeZone: data.timezone,
               })}{#if data.event.endDate}
                 → {new Date(data.event.endDate).toLocaleDateString('fr-FR', {
                   day: 'numeric',
                   month: 'long',
+                  timeZone: data.timezone,
                 })}
               {/if}
             </span>
@@ -153,6 +155,7 @@
         eventId={data.event.id}
         planningTemplates={data.planningTemplates}
         applyTemplateForm={data.applyTemplateForm}
+        timezone={data.timezone}
       />
     </Tabs.Content>
 

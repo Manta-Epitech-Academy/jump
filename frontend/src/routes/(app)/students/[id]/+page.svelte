@@ -76,7 +76,10 @@
         <Badge variant="secondary">{data.participations.length} sessions</Badge>
       </div>
 
-      <StudentTimeline participations={data.participations} />
+      <StudentTimeline
+        participations={data.participations}
+        timezone={data.timezone}
+      />
     </div>
   </div>
 

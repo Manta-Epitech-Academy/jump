@@ -25,6 +25,7 @@
     eventId,
     planningTemplates = [],
     applyTemplateForm,
+    timezone,
   }: {
     planning: PlanningWithSlots | null;
     templates: (ActivityTemplate & {
@@ -42,6 +43,7 @@
       _count: { days: number };
     }[];
     applyTemplateForm: any;
+    timezone: string;
   } = $props();
 
   let addSlotOpen = $state(false);
@@ -58,7 +60,7 @@
   // Group slots by date for multi-day display
   function getDateKey(date: Date | string): string {
     return new Date(date).toLocaleDateString('fr-FR', {
-      timeZone: 'Europe/Paris',
+      timeZone: timezone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -67,7 +69,7 @@
 
   function formatDateHeader(date: Date | string): string {
     return new Date(date).toLocaleDateString('fr-FR', {
-      timeZone: 'Europe/Paris',
+      timeZone: timezone,
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -76,7 +78,7 @@
 
   function formatShortDate(date: Date | string): string {
     return new Date(date).toLocaleDateString('fr-FR', {
-      timeZone: 'Europe/Paris',
+      timeZone: timezone,
       weekday: 'short',
       day: 'numeric',
       month: 'short',
@@ -224,6 +226,7 @@
               {templateActivityForm}
               onEdit={openEditSlot}
               {eventId}
+              {timezone}
             />
           {/each}
         </Tabs.Content>
@@ -239,6 +242,7 @@
           {templateActivityForm}
           onEdit={openEditSlot}
           {eventId}
+          {timezone}
         />
       {/each}
     </div>

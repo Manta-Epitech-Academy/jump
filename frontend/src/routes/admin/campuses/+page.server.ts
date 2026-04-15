@@ -8,6 +8,7 @@ import { prisma } from '$lib/server/db';
 const campusSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
   externalName: z.string().trim().nullable().default(null),
+  timezone: z.string().min(1).default('Europe/Paris'),
 });
 
 export const load: PageServerLoad = async () => {
