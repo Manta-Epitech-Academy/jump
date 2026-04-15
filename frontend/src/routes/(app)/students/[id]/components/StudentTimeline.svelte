@@ -18,7 +18,7 @@
   import { formatDateFr, cn } from '$lib/utils';
   import { resolve } from '$app/paths';
 
-  let { participations }: { participations: any[] } = $props();
+  let { participations, timezone }: { participations: any[]; timezone: string } = $props();
 </script>
 
 <div
@@ -63,7 +63,7 @@
                 <Badge
                   variant="outline"
                   class="h-5 px-1.5 text-[10px] font-normal"
-                  >{formatDateFr(p.event?.date)}</Badge
+                  >{formatDateFr(p.event?.date, timezone)}</Badge
                 >
                 {#if isPresent}
                   <Badge

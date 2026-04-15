@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       where: { id: participationId },
       include: {
         talent: true,
-        event: true,
+        event: { include: { campus: true } },
         activities: {
           include: { activity: true },
         },
@@ -50,8 +50,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       studentName: `${student.prenom} ${student.nom}`,
       activityName: activity?.nom || 'Atelier Programmation',
       eventTitle: event.titre,
-      eventDate: formatDateFr(event.date),
-      todayDate: formatDateFr(new Date()),
+      eventDate: formatDateFr(event.date, event.campus?.timezone),
+      todayDate: formatDateFr(new Date(), event.campus?.timezone),
     };
 
     // 3. Generate PDF Buffer via Puppeteer

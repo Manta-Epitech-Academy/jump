@@ -65,7 +65,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         if (!activityMap.has(activity.id)) {
           activityMap.set(activity.id, {
             name: activity.nom,
-            eventDate: p.event ? formatDateFr(new Date(p.event.date)) : '',
+            eventDate: p.event ? formatDateFr(new Date(p.event.date), student.campus?.timezone ?? 'Europe/Paris') : '',
             difficulty: activity.difficulte || '',
           });
         }
@@ -99,7 +99,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       level: locals.talent.level || 'Novice',
       topThemes,
       activities,
-      todayDate: formatDateFr(new Date()),
+      todayDate: formatDateFr(new Date(), student.campus?.timezone ?? 'Europe/Paris'),
       // TODO: implement S3 file storage
       images: [] as string[],
     };

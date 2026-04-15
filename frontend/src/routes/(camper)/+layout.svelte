@@ -1,6 +1,15 @@
 <script lang="ts">
   import '../../routes/layout.css';
+  import { onMount } from 'svelte';
+
   let { children } = $props();
+
+  onMount(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!document.cookie.includes(`tz=${tz}`)) {
+      document.cookie = `tz=${tz};path=/;max-age=31536000;SameSite=Lax`;
+    }
+  });
 </script>
 
 <!-- The "Friendly Tech" Camper Wrapper -->

@@ -16,6 +16,7 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatDateFr(
   date: CalendarDateTime | Date | string | undefined,
+  timezone?: string,
 ): string {
   if (!date) return 'Sélectionner une date';
 
@@ -34,6 +35,7 @@ export function formatDateFr(
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: timezone,
   });
 }
 
@@ -105,9 +107,9 @@ export function tallyTopThemesFromActivities(
     .slice(0, limit);
 }
 
-export function getParisStartOfDay(): string {
-  const parisNow = now('Europe/Paris');
-  const startOfDay = parisNow.set({
+export function getStartOfDay(timezone: string): string {
+  const tzNow = now(timezone);
+  const startOfDay = tzNow.set({
     hour: 0,
     minute: 0,
     second: 0,

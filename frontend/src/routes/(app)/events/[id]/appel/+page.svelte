@@ -10,7 +10,7 @@
     return d.toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Europe/Paris',
+      timeZone: data.timezone,
     });
   }
 </script>

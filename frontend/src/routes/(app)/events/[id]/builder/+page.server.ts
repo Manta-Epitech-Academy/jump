@@ -16,7 +16,7 @@ import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { EventService } from '$lib/server/services/events';
 import { applyPlanningTemplate } from '$lib/server/services/planningTemplates';
 import { prisma } from '$lib/server/db';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { getCampusId, getCampusTimezone, scopedPrisma } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -47,13 +47,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     orderBy: { user: { name: 'asc' } },
   });
 
+  const tz = getCampusTimezone(locals);
+
   const eventDate = new Date(event.date);
   const dateString = eventDate.toISOString().split('T')[0];
   const timeParts = new Intl.DateTimeFormat('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-    timeZone: 'Europe/Paris',
+    timeZone: tz,
   }).formatToParts(eventDate);
   const hours = timeParts.find((p) => p.type === 'hour')?.value || '00';
   const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
@@ -128,6 +130,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     templateActivityForm,
     planningTemplates,
     applyTemplateForm,
+    timezone: tz,
   };
 };
 
@@ -259,10 +262,11 @@ export const actions: Actions = {
     try {
       if (!dateStr || !timeStr) throw new Error('Date ou heure manquante');
 
+      const tz = getCampusTimezone(locals);
       const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
       const [hour, minute] = timeStr.split(':').map(Number);
       const cdt = new CalendarDateTime(year, month, day, hour, minute);
-      const jsDate = cdt.toDate('Europe/Paris');
+      const jsDate = cdt.toDate(tz);
 
       if (isNaN(jsDate.getTime())) {
         return message(form, 'Format de date invalide', { status: 400 });
@@ -272,7 +276,7 @@ export const actions: Actions = {
       if (endDateStr && endDateStr.trim() !== '') {
         const [ey, em, ed] = endDateStr.split('T')[0].split('-').map(Number);
         const endCdt = new CalendarDateTime(ey, em, ed, 23, 59);
-        const endJsDate = endCdt.toDate('Europe/Paris');
+        const endJsDate = endCdt.toDate(tz);
         if (!isNaN(endJsDate.getTime())) {
           endDateIso = endJsDate.toISOString();
         }
@@ -350,6 +354,7 @@ export const actions: Actions = {
 
     try {
       const db = scopedPrisma(getCampusId(locals));
+      const tz = getCampusTimezone(locals);
       const event = await db.event.findUniqueOrThrow({
         where: { id: params.id },
       });
@@ -382,8 +387,8 @@ export const actions: Actions = {
       await db.timeSlot.create({
         data: {
           planningId: planning.id,
-          startTime: startCdt.toDate('Europe/Paris'),
-          endTime: endCdt.toDate('Europe/Paris'),
+          startTime: startCdt.toDate(tz),
+          endTime: endCdt.toDate(tz),
           label: form.data.label || null,
         },
       });
@@ -407,6 +412,7 @@ export const actions: Actions = {
 
     try {
       const db = scopedPrisma(getCampusId(locals));
+      const tz = getCampusTimezone(locals);
       const event = await db.event.findUniqueOrThrow({
         where: { id: params.id },
       });
@@ -433,8 +439,8 @@ export const actions: Actions = {
       await db.timeSlot.update({
         where: { id: timeSlotId },
         data: {
-          startTime: startCdt.toDate('Europe/Paris'),
-          endTime: endCdt.toDate('Europe/Paris'),
+          startTime: startCdt.toDate(tz),
+          endTime: endCdt.toDate(tz),
           label: form.data.label || null,
         },
       });
@@ -567,6 +573,7 @@ export const actions: Actions = {
         form.data.planningTemplateId,
         params.id,
         campusId,
+        getCampusTimezone(locals),
       );
 
       return message(form, 'Modèle de planning appliqué avec succès !');

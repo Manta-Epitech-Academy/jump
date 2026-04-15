@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { getCampusId, getCampusTimezone, scopedPrisma } from '$lib/server/db/scoped';
 import { resolve } from '$app/paths';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -51,5 +51,5 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
   }
 
-  return { event, orgaActivities };
+  return { event, orgaActivities, timezone: getCampusTimezone(locals) };
 };

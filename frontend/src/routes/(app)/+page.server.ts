@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { EventService } from '$lib/server/services/events';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { getCampusId, getCampusTimezone, scopedPrisma } from '$lib/server/db/scoped';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) {
@@ -11,14 +11,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   try {
     const db = scopedPrisma(getCampusId(locals));
-    const parisNow = now('Europe/Paris');
-    const startOfDayParis = parisNow.set({
+    const tz = getCampusTimezone(locals);
+    const tzNow = now(tz);
+    const startOfDay = tzNow.set({
       hour: 0,
       minute: 0,
       second: 0,
       millisecond: 0,
     });
-    const filterDate = startOfDayParis.toDate();
+    const filterDate = startOfDay.toDate();
 
     const events = await db.event.findMany({
       where: {

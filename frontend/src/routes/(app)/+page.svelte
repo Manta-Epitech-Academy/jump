@@ -25,6 +25,7 @@
       weekday: 'short',
       day: 'numeric',
       month: 'short',
+      timeZone: data.timezone,
     });
   }
 
@@ -32,6 +33,7 @@
     return date.toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: data.timezone,
     });
   }
 

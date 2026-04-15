@@ -1,14 +1,15 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { getParisStartOfDay } from '$lib/utils';
+import { getBrowserTimezone } from '$lib/server/db/scoped';
+import { getStartOfDay } from '$lib/utils';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
-  const filterDateStart = new Date(getParisStartOfDay());
+  const filterDateStart = new Date(getStartOfDay(getBrowserTimezone(cookies)));
 
   const pastParticipations = await prisma.participation.findMany({
     where: {
