@@ -27,9 +27,13 @@
         method="POST"
         action="?/resolveAll"
         use:enhance={() =>
-          ({ update }) => {
-            update();
-            toast.success('Toutes les erreurs ont été résolues');
+          async ({ result, update }) => {
+            if (result.type === 'success') {
+              toast.success('Toutes les erreurs ont été résolues');
+              await update();
+            } else {
+              toast.error('Une erreur est survenue');
+            }
           }}
       >
         <Button type="submit" variant="outline" class="gap-2">
@@ -96,9 +100,13 @@
                     method="POST"
                     action="?/resolve"
                     use:enhance={() =>
-                      ({ update }) => {
-                        update();
-                        toast.success('Erreur résolue');
+                      async ({ result, update }) => {
+                        if (result.type === 'success') {
+                          toast.success('Erreur résolue');
+                          await update();
+                        } else {
+                          toast.error('Une erreur est survenue');
+                        }
                       }}
                   >
                     <input type="hidden" name="id" value={error.id} />
