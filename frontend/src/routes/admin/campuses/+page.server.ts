@@ -72,15 +72,15 @@ export const actions: Actions = {
 
     try {
       // SECURITY : Check if the campus is used before deleting
-      const [studentsUsed, eventsUsed, staffUsed] = await Promise.all([
-        prisma.talent.count({ where: { campusId: id } }),
+      const [participationsUsed, eventsUsed, staffUsed] = await Promise.all([
+        prisma.participation.count({ where: { campusId: id } }),
         prisma.event.count({ where: { campusId: id } }),
         prisma.staffProfile.count({ where: { campusId: id } }),
       ]);
 
-      if (studentsUsed > 0 || eventsUsed > 0 || staffUsed > 0) {
+      if (participationsUsed > 0 || eventsUsed > 0 || staffUsed > 0) {
         return fail(400, {
-          message: `Suppression impossible : Ce campus contient ${studentsUsed} élèves, ${eventsUsed} événements et ${staffUsed} membres du staff.`,
+          message: `Suppression impossible : Ce campus contient ${participationsUsed} participations, ${eventsUsed} événements et ${staffUsed} membres du staff.`,
         });
       }
 

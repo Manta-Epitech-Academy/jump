@@ -30,8 +30,7 @@ export const actions: Actions = {
       });
 
     try {
-      const campusId = getCampusId(locals);
-      const result = await analyzeCampaignFile(file, campusId);
+      const result = await analyzeCampaignFile(file);
       return result;
     } catch (err) {
       console.error('CSV Analysis Error:', err);
