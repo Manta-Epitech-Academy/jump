@@ -12,6 +12,9 @@
   import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
   let { data } = $props();
 
+  // Guard against Select re-firing onValueChange during enhance update
+  let submitting = $state<string | null>(null);
+
   // Handle component deletion confirmations
   let deleteDialogOpen = $state(false);
   let userToDelete = $state<string | null>(null);
@@ -49,7 +52,7 @@
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#each data.users as user}
+        {#each data.users ?? [] as user}
           <Table.Row>
             <Table.Cell>
               <div class="flex items-center gap-3">
@@ -82,10 +85,12 @@
                 method="POST"
                 action="?/updateCampus"
                 use:enhance={() => {
+                  submitting = `campus-${user.id}`;
                   return async ({ update, result }) => {
                     if (result.type === 'success')
                       toast.success('Campus mis à jour');
                     await update();
+                    submitting = null;
                   };
                 }}
               >
@@ -95,6 +100,7 @@
                   name="campusId"
                   value={user.staffProfile?.campusId ?? ''}
                   onValueChange={(v) => {
+                    if (submitting) return;
                     if (v === (user.staffProfile?.campusId ?? '')) return;
                     requestAnimationFrame(() => {
                       const form = document.querySelector<HTMLFormElement>(
@@ -109,7 +115,7 @@
                   </Select.Trigger>
                   <Select.Content>
                     <Select.Item value="">Aucun campus</Select.Item>
-                    {#each data.campuses as c}
+                    {#each data.campuses ?? [] as c}
                       <Select.Item value={c.id}>{c.name}</Select.Item>
                     {/each}
                   </Select.Content>
@@ -122,10 +128,12 @@
                 method="POST"
                 action="?/updateRole"
                 use:enhance={() => {
+                  submitting = `role-${user.id}`;
                   return async ({ update, result }) => {
                     if (result.type === 'success')
                       toast.success('Rôle mis à jour');
                     await update();
+                    submitting = null;
                   };
                 }}
               >
@@ -135,6 +143,7 @@
                   name="staffRole"
                   value={user.staffProfile?.staffRole ?? ''}
                   onValueChange={(v) => {
+                    if (submitting) return;
                     if (v === (user.staffProfile?.staffRole ?? '')) return;
                     requestAnimationFrame(() => {
                       const form = document.querySelector<HTMLFormElement>(
