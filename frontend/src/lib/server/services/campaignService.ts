@@ -12,7 +12,7 @@ export type ImportAction = {
   bringPc: boolean;
 };
 
-export async function analyzeCampaignFile(file: File, campusId: string) {
+export async function analyzeCampaignFile(file: File) {
   let text = await file.text();
   if (text.includes('\ufffd')) {
     const buffer = await file.arrayBuffer();
