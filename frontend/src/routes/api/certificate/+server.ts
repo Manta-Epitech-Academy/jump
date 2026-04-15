@@ -45,8 +45,10 @@ export const GET: RequestHandler = async ({ locals }) => {
       take: 4,
     });
 
-    // 3. Derive campus name from most recent participation
-    const campusName = participations[0]?.event?.campus?.name || '';
+    // 3. Derive campus name and timezone from most recent participation
+    const eventCampus = participations[0]?.event?.campus;
+    const campusName = eventCampus?.name || '';
+    const campusTimezone = eventCampus?.timezone ?? 'Europe/Paris';
 
     // 4. Tally up themes (show up to 6 for the progress-bar view)
     const topThemes = tallyTopThemesFromActivities(participations, 6);
@@ -66,7 +68,7 @@ export const GET: RequestHandler = async ({ locals }) => {
             eventDate: p.event
               ? formatDateFr(
                   new Date(p.event.date),
-                  student.campus?.timezone ?? 'Europe/Paris',
+                  campusTimezone,
                 )
               : '',
             difficulty: activity.difficulte || '',
@@ -104,7 +106,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       activities,
       todayDate: formatDateFr(
         new Date(),
-        student.campus?.timezone ?? 'Europe/Paris',
+        campusTimezone,
       ),
       // TODO: implement S3 file storage
       images: [] as string[],
