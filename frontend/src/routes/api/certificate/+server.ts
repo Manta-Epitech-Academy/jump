@@ -66,7 +66,7 @@ export const GET: RequestHandler = async ({ locals }) => {
             eventDate: p.event
               ? formatDateFr(
                   new Date(p.event.date),
-                  student.campus?.timezone ?? 'Europe/Paris',
+                  p.event.campus?.timezone ?? 'Europe/Paris',
                 )
               : '',
             difficulty: activity.difficulte || '',
@@ -104,7 +104,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       activities,
       todayDate: formatDateFr(
         new Date(),
-        student.campus?.timezone ?? 'Europe/Paris',
+        participations[0]?.event?.campus?.timezone ?? 'Europe/Paris',
       ),
       // TODO: implement S3 file storage
       images: [] as string[],
