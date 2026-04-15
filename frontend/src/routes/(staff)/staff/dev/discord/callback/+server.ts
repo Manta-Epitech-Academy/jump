@@ -11,7 +11,7 @@ export const GET: RequestHandler = async ({ locals, url, cookies }) => {
   const { discordId } = await handleDiscordCallback(
     url,
     cookies,
-    '/discord/callback',
+    '/staff/dev/discord/callback',
     resolve('/staff/dev'),
   );
 

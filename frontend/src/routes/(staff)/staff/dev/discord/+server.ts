@@ -10,7 +10,7 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
     throw redirect(303, resolve('/staff/login'));
   }
 
-  throw startDiscordOAuth(cookies, '/discord/callback');
+  throw startDiscordOAuth(cookies, '/staff/dev/discord/callback');
 };
 
 // POST /discord — unlinks Discord from staff profile
