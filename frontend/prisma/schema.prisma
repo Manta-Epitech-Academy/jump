@@ -379,6 +379,29 @@ model PortfolioItem {
   @@index([eventId])
 }
 
+// ── Sync Error Logging ──
+
+model SyncError {
+  id              String    @id @default(cuid())
+  errorType       String // e.g. "DUPLICATE_EMAIL"
+  email           String
+  attemptedExtId  String
+  existingExtId   String?
+  talentName      String
+  eventExtId      String?
+  message         String
+  resolved        Boolean   @default(false)
+  resolvedAt      DateTime?
+  occurrenceCount Int       @default(1)
+  lastOccurredAt  DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([email, attemptedExtId])
+  @@index([resolved])
+  @@index([lastOccurredAt])
+}
+
 // ── Planning Templates (national reusable planning grids) ──
 
 model PlanningTemplate {

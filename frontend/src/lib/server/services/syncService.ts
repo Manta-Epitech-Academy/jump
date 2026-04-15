@@ -1,4 +1,5 @@
 import { prisma } from '$lib/server/db';
+import { Prisma } from '@prisma/client';
 
 export async function listCampuses() {
   return prisma.campus.findMany({
@@ -49,6 +50,41 @@ export async function syncEvents(
   return { created, updated };
 }
 
+async function logSyncError(params: {
+  email: string;
+  attemptedExtId: string;
+  existingExtId: string | null;
+  talentName: string;
+  eventExtId: string | null;
+  message: string;
+}) {
+  await prisma.syncError.upsert({
+    where: {
+      email_attemptedExtId: {
+        email: params.email,
+        attemptedExtId: params.attemptedExtId,
+      },
+    },
+    update: {
+      occurrenceCount: { increment: 1 },
+      lastOccurredAt: new Date(),
+      existingExtId: params.existingExtId,
+      message: params.message,
+      resolved: false,
+      resolvedAt: null,
+    },
+    create: {
+      errorType: 'DUPLICATE_EMAIL',
+      email: params.email,
+      attemptedExtId: params.attemptedExtId,
+      existingExtId: params.existingExtId,
+      talentName: params.talentName,
+      eventExtId: params.eventExtId,
+      message: params.message,
+    },
+  });
+}
+
 export async function syncTalents(
   eventExternalId: string,
   talents: {
@@ -66,6 +102,7 @@ export async function syncTalents(
 
   let created = 0;
   let updated = 0;
+  let skipped = 0;
   const syncedTalentIds: string[] = [];
 
   for (const t of talents) {
@@ -85,20 +122,40 @@ export async function syncTalents(
     let talentId: string;
 
     if (!existing) {
-      console.log(`Creating new talent: Name: ${t.first_name} ${t.last_name}, Email: ${email}, Phone: ${phone} ExId: ${t.external_id}`);
-      const talent = await prisma.talent.create({
-        data: {
-          externalId: t.external_id,
-          prenom: t.first_name,
-          nom: t.last_name,
-          email,
-          phone,
-          xp: 0,
-          eventsCount: 0,
-        },
-      });
-      talentId = talent.id;
-      created++;
+      try {
+        console.log(`Creating new talent: Name: ${t.first_name} ${t.last_name}, Email: ${email}, Phone: ${phone} ExId: ${t.external_id}`);
+        const talent = await prisma.talent.create({
+          data: {
+            externalId: t.external_id,
+            prenom: t.first_name,
+            nom: t.last_name,
+            email,
+            phone,
+            xp: 0,
+            eventsCount: 0,
+          },
+        });
+        talentId = talent.id;
+        created++;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          const conflicting = email
+            ? await prisma.talent.findUnique({ where: { email }, select: { id: true, externalId: true } })
+            : null;
+          await logSyncError({
+            email: email ?? 'unknown',
+            attemptedExtId: t.external_id,
+            existingExtId: conflicting?.externalId ?? null,
+            talentName: `${t.first_name} ${t.last_name}`,
+            eventExtId: eventExternalId,
+            message: `Création impossible : l'email "${email}" est déjà utilisé par le talent externalId="${conflicting?.externalId ?? '?'}"`,
+          });
+          if (conflicting) syncedTalentIds.push(conflicting.id);
+          skipped++;
+          continue;
+        }
+        throw err;
+      }
     } else {
       talentId = existing.id;
       if (
@@ -107,16 +164,35 @@ export async function syncTalents(
         existing.email !== email ||
         existing.phone !== phone
       ) {
-        await prisma.talent.update({
-          where: { externalId: t.external_id },
-          data: {
-            prenom: t.first_name,
-            nom: t.last_name,
-            email,
-            phone,
-          },
-        });
-        updated++;
+        try {
+          await prisma.talent.update({
+            where: { externalId: t.external_id },
+            data: {
+              prenom: t.first_name,
+              nom: t.last_name,
+              email,
+              phone,
+            },
+          });
+          updated++;
+        } catch (err) {
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+            const conflicting = email
+              ? await prisma.talent.findUnique({ where: { email }, select: { externalId: true } })
+              : null;
+            await logSyncError({
+              email: email ?? 'unknown',
+              attemptedExtId: t.external_id,
+              existingExtId: conflicting?.externalId ?? null,
+              talentName: `${t.first_name} ${t.last_name}`,
+              eventExtId: eventExternalId,
+              message: `Mise à jour impossible : l'email "${email}" est déjà utilisé par le talent externalId="${conflicting?.externalId ?? '?'}"`,
+            });
+            skipped++;
+            continue;
+          }
+          throw err;
+        }
       }
     }
 
@@ -135,5 +211,5 @@ export async function syncTalents(
     },
   });
 
-  return { created, updated, removed };
+  return { created, updated, removed, skipped };
 }
