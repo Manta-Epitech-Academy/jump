@@ -65,9 +65,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
       const p = event.locals.studentProfile;
       const needsOnboarding =
         !p.infoValidatedAt ||
-        !p.charterAcceptedAt ||
-        !p.rulesSignedAt ||
-        !p.imageRightsSignedAt;
+        !p.rulesSignedAt;
 
       if (
         needsOnboarding &&
