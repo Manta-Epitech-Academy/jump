@@ -259,9 +259,9 @@
                 name="relationship"
                 bind:value={relationship}
                 required
-                class="inline-block w-auto border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm font-semibold text-slate-900 focus:border-epi-blue focus:ring-0 dark:text-white"
+                class="inline-block w-auto border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm font-semibold text-slate-900 focus:border-epi-blue focus:ring-0 dark:text-white [&>option]:bg-white [&>option]:text-slate-900 dark:[&>option]:bg-slate-800 dark:[&>option]:text-white"
               >
-                <option value="" disabled>(choisir)</option>
+                <option value="" disabled class="text-slate-400">(choisir)</option>
                 <option value="mère">mère</option>
                 <option value="père">père</option>
                 <option value="tuteur légal">tuteur légal</option>
