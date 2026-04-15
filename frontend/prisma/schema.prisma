@@ -322,6 +322,7 @@ model Participation {
   @@unique([talentId, eventId])
   @@index([eventId])
   @@index([campusId])
+  @@index([talentId])
   @@index([talentId, campusId])
 }
 

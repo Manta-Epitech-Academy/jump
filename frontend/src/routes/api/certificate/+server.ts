@@ -16,6 +16,7 @@ export const GET: RequestHandler = async ({ locals }) => {
         talentId,
         isPresent: true,
       },
+      orderBy: { event: { date: 'desc' } },
       include: {
         event: { include: { campus: true } },
         activities: {
