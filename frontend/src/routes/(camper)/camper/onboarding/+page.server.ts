@@ -5,23 +5,17 @@ import { prisma } from '$lib/server/db';
 import { infoValidationSchema } from '$lib/validation/onboarding';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
+import { createParentCode } from '$lib/server/services/parentCodeService';
+import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
 
-export type OnboardingStep =
-  | 'info-validation'
-  | 'charter'
-  | 'rules'
-  | 'image-rights';
+export type OnboardingStep = 'info-validation' | 'rules';
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
-  charterAcceptedAt: Date | null;
   rulesSignedAt: Date | null;
-  imageRightsSignedAt: Date | null;
 }): OnboardingStep | null {
   if (!profile.infoValidatedAt) return 'info-validation';
-  if (!profile.charterAcceptedAt) return 'charter';
   if (!profile.rulesSignedAt) return 'rules';
-  if (!profile.imageRightsSignedAt) return 'image-rights';
   return null;
 }
 
@@ -84,29 +78,13 @@ export const actions: Actions = {
       },
     });
 
-    throw redirect(303, resolve('/camper/onboarding'));
-  },
-
-  signCharter: async ({ locals }) => {
-    if (!locals.studentProfile) {
-      throw error(401, 'Non autorisé');
+    if (result.data.parentEmail) {
+      const profileId = locals.studentProfile.id;
+      const studentName = `${result.data.prenom} ${result.data.nom}`;
+      createParentCode(profileId)
+        .then((code) => sendParentSignatureEmail(result.data.parentEmail, code, studentName))
+        .catch((err) => console.error('Failed to send parent email:', err));
     }
-
-    const now = new Date();
-    const storage = getStorage();
-    const pdf = await generateOnboardingPDF({
-      type: 'charter',
-      studentName: `${locals.studentProfile.prenom} ${locals.studentProfile.nom}`,
-      signedAt: now,
-    });
-
-    const key = `documents/${locals.studentProfile.id}/charter-${now.getTime()}.pdf`;
-    await storage.save(key, pdf);
-
-    await prisma.studentProfile.update({
-      where: { id: locals.studentProfile.id },
-      data: { charterAcceptedAt: now, charterFilePath: key },
-    });
 
     throw redirect(303, resolve('/camper/onboarding'));
   },
