@@ -5,7 +5,9 @@
 
   let is404 = $derived(page.status === 404);
   let isStudent = $derived(page.data.talent && !page.data.user);
-  let dashboardHref = $derived(isStudent ? resolve('/camper') : resolve('/'));
+  let dashboardHref = $derived(
+    isStudent ? resolve('/') : resolve('/staff/dev'),
+  );
 </script>
 
 <div class="error-container">
