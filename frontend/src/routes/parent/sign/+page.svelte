@@ -100,12 +100,17 @@
       <div
         class="max-h-[50vh] overflow-y-auto rounded-2xl border-none bg-white/70 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
       >
-        <p
-          class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-        >
-          Le contenu de l'autorisation de droit à l'image sera bientôt
-          disponible.
-        </p>
+        <div class="prose prose-sm prose-slate dark:prose-invert max-w-none">
+          <p>
+            Je soussign&eacute;(e), agissant en qualit&eacute; de repr&eacute;sentant l&eacute;gal, autorise <strong>Epitech</strong> &agrave; utiliser l'image de mon enfant <strong>{form?.studentName}</strong> dans le cadre du stage de seconde.
+          </p>
+          <p>
+            Je certifie avoir pris connaissance des dispositions du droit &agrave; l'image, telles que pr&eacute;vues par la loi, et &ecirc;tre inform&eacute;(e) que je peux &agrave; tout moment r&eacute;voquer mon consentement et demander la cessation de l'utilisation de l'image de mon enfant, en adressant une demande &eacute;crite &agrave; <strong>Epitech</strong>.
+          </p>
+          <p>
+            Je m'engage &agrave; ne pas porter atteinte aux droits d'<strong>Epitech</strong> et &agrave; ne pas utiliser l'image de mon enfant &agrave; des fins contraires &agrave; la loi ou aux bonnes m&oelig;urs.
+          </p>
+        </div>
       </div>
 
       <form method="POST" action="?/sign" use:enhance class="mt-6">
@@ -174,8 +179,7 @@
           Merci !
         </h1>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          L'autorisation de droit à l'image a été signée avec succès. Votre
-          enfant peut maintenant continuer son inscription.
+          L'autorisation de droit &agrave; l'image a &eacute;t&eacute; sign&eacute;e avec succ&egrave;s. Merci pour votre confiance.
         </p>
       </div>
     {/if}
