@@ -81,8 +81,8 @@ export const auth = betterAuth({
 
   // Role and profile creation are handled by the OAuth callback routes:
   // - Staff:   /oauth/callback   → sets role to 'staff', creates StaffProfile
-  // - Student: /camper/oauth/callback → sets role to 'student', creates Talent
-  // - OTP:     /camper/login      → sets role to 'student', creates Talent
+  // - Student: /oauth/callback → sets role to 'student', creates Talent
+  // - OTP:     /login           → sets role to 'student', creates Talent
   // This avoids the databaseHook guessing the flow based on email domain.
 
   trustedOrigins: dev

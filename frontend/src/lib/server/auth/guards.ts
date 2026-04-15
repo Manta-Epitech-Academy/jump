@@ -5,95 +5,105 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const currentPath = event.url.pathname;
   const routeId = event.route.id || '';
 
-  const pathAdmin = new URL(resolvePath('/admin'), event.url).pathname;
-  const pathAdminLogin = new URL(resolvePath('/admin/login'), event.url)
-    .pathname;
+  // --- Path definitions ---
+  const p = (path: string) =>
+    new URL(resolvePath(path as any), event.url).pathname;
 
+  const pathStaffLogin = p('/staff/login');
+  const pathStaffOnboarding = p('/staff/onboarding');
+  const pathStaffOAuth = p('/staff/oauth');
+  const pathStaffAdmin = p('/staff/admin');
+  const pathStaffAdminLogin = p('/staff/admin/login');
+  const pathTalentLogin = p('/login');
+  const pathTalentRoot = p('/');
+  const pathTalentCharter = p('/charter');
+  const pathTalentOAuth = p('/oauth');
+  const pathLogout = p('/logout');
+  const pathPublicShowcase = p('/p/');
+  const pathApi = p('/api/');
+
+  const isTalentRoute = routeId.startsWith('/(talent)');
+  const isStaffRoute = routeId.startsWith('/(staff)');
   const isAdminPath =
-    currentPath === pathAdmin || currentPath.startsWith(`${pathAdmin}/`);
-  const isCamperRoute = routeId.startsWith('/(camper)');
-
-  // Define Public Paths used for exclusions
-  const pathOnboarding = new URL(resolvePath('/onboarding'), event.url)
-    .pathname;
-  const pathLogout = new URL(resolvePath('/logout'), event.url).pathname;
-  const pathOAuth = new URL(resolvePath('/oauth' as any), event.url).pathname;
-  const pathPublicShowcase = new URL(resolvePath('/p/' as any), event.url)
-    .pathname;
-  const pathApi = new URL(resolvePath('/api/' as any), event.url).pathname;
-
-  const pathLogin = new URL(resolvePath('/login'), event.url).pathname;
+    currentPath === pathStaffAdmin ||
+    currentPath.startsWith(`${pathStaffAdmin}/`);
 
   const isPublicPath =
-    currentPath.startsWith(pathOnboarding) ||
     currentPath.startsWith(pathLogout) ||
-    currentPath.startsWith(pathOAuth) ||
-    currentPath.startsWith(pathAdminLogin) ||
-    currentPath === pathLogin ||
     currentPath.startsWith(pathPublicShowcase) ||
     currentPath.startsWith(pathApi);
 
-  // --- Camper Guards ---
-  const pathCamperLogin = new URL(resolvePath('/camper/login'), event.url)
-    .pathname;
-  const pathCamperRoot = new URL(resolvePath('/camper'), event.url).pathname;
+  // --- Talent Guards ---
+  if (isTalentRoute) {
+    const isTalentPublic =
+      currentPath === pathTalentLogin ||
+      currentPath.startsWith(pathTalentOAuth);
 
-  const pathCamperCharter = new URL(resolvePath('/camper/charter'), event.url)
-    .pathname;
-
-  const pathCamperOAuth = new URL(resolvePath('/camper/oauth'), event.url)
-    .pathname;
-
-  if (isCamperRoute) {
-    if (
-      !event.locals.talent &&
-      currentPath !== pathCamperLogin &&
-      !currentPath.startsWith(pathCamperOAuth)
-    ) {
-      return Response.redirect(new URL(pathCamperLogin, event.url).href, 303);
+    if (!event.locals.talent && !isTalentPublic) {
+      return Response.redirect(new URL(pathTalentLogin, event.url).href, 303);
     }
-    if (event.locals.talent && currentPath === pathCamperLogin) {
-      return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
+    if (event.locals.talent && currentPath === pathTalentLogin) {
+      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Charter guard: redirect to charter page if not accepted yet
+    // Charter guard
     if (
       event.locals.talent &&
       !event.locals.talent.charterAcceptedAt &&
-      currentPath !== pathCamperCharter &&
-      currentPath !== pathCamperLogin
+      currentPath !== pathTalentCharter &&
+      currentPath !== pathTalentLogin
     ) {
-      return Response.redirect(new URL(pathCamperCharter, event.url).href, 303);
+      return Response.redirect(new URL(pathTalentCharter, event.url).href, 303);
     }
-
-    // Already accepted: prevent going back to charter page
     if (
       event.locals.talent?.charterAcceptedAt &&
-      currentPath === pathCamperCharter
+      currentPath === pathTalentCharter
     ) {
-      return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
-    }
-  } else if (!isPublicPath && !isAdminPath) {
-    // --- Auth + Role Isolation for Staff App ---
-    if (!event.locals.user) {
-      return Response.redirect(new URL(pathLogin, event.url).href, 303);
-    }
-    if (event.locals.user.role === 'student') {
-      return Response.redirect(new URL(pathCamperRoot, event.url).href, 303);
+      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
   }
 
-  // --- Staff/Admin Guards ---
-  if (isAdminPath) {
-    if (
-      !currentPath.startsWith(pathAdminLogin) &&
-      event.locals.user?.role !== 'admin'
-    ) {
-      return Response.redirect(new URL(pathAdminLogin, event.url).href, 303);
+  // --- Staff Guards ---
+  if (isStaffRoute) {
+    const isStaffPublic =
+      currentPath === pathStaffLogin ||
+      currentPath.startsWith(pathStaffOAuth) ||
+      currentPath.startsWith(pathStaffAdminLogin) ||
+      currentPath.startsWith(pathStaffOnboarding);
+
+    if (!isStaffPublic && !event.locals.user) {
+      return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
     }
-  } else if (!isCamperRoute && !isPublicPath) {
-    if (event.locals.user && !event.locals.staffProfile?.campusId) {
-      return Response.redirect(new URL(pathOnboarding, event.url).href, 303);
+
+    // Students shouldn't access staff area
+    if (!isStaffPublic && event.locals.user?.role === 'student') {
+      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+    }
+
+    // Admin sub-guard
+    if (isAdminPath) {
+      if (
+        !currentPath.startsWith(pathStaffAdminLogin) &&
+        event.locals.user?.role !== 'admin'
+      ) {
+        return Response.redirect(
+          new URL(pathStaffAdminLogin, event.url).href,
+          303,
+        );
+      }
+    }
+
+    // Onboarding guard: staff must have a campus
+    if (
+      !isStaffPublic &&
+      !isAdminPath &&
+      event.locals.user &&
+      !event.locals.staffProfile?.campusId
+    ) {
+      return Response.redirect(
+        new URL(pathStaffOnboarding, event.url).href,
+        303,
+      );
     }
   }
 

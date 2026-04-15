@@ -49,7 +49,7 @@
       </p>
     </div>
     <a
-      href={resolve('/camper/discord')}
+      href={resolve('/discord')}
       class="shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:bg-indigo-700 active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-600"
     >
       Connecter

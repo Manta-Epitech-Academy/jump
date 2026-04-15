@@ -1542,9 +1542,9 @@ async function main() {
   console.log(
     `Events:   ${eventDefs.length} (${eventDefs.filter((e) => e.campusKey === 'Paris').length} Paris + ${eventDefs.filter((e) => e.campusKey === 'Lyon').length} Lyon)`,
   );
-  console.log(`\n${origin}/admin    — Admin panel`);
-  console.log(`${origin}/         — Staff app`);
-  console.log(`${origin}/camper   — Camper app`);
+  console.log(`\n${origin}/staff/admin — Admin panel`);
+  console.log(`${origin}/staff/dev   — Staff app`);
+  console.log(`${origin}/            — Talent app`);
   console.log(`${origin}/p/${talents[0].id} — Public profile (Alice)`);
   console.log('══════════════════════════════════\n');
 }
