@@ -44,8 +44,13 @@
   }
 
   function formatUtcOffset(iana: string): string {
-    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: iana, timeZoneName: 'shortOffset' });
-    const offset = fmt.formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: iana,
+      timeZoneName: 'shortOffset',
+    });
+    const offset =
+      fmt.formatToParts(new Date()).find((p) => p.type === 'timeZoneName')
+        ?.value ?? '';
     // "GMT" → "UTC", "GMT+2" → "UTC+2", "GMT-4" → "UTC-4"
     return offset.replace('GMT', 'UTC').replace(/^UTC$/, 'UTC+0');
   }
@@ -94,7 +99,10 @@
   ];
 
   const allTimezones = timezoneGroups.flatMap((g) =>
-    g.zones.map((z) => ({ ...z, label: `${formatUtcOffset(z.value)} — ${z.cities}` })),
+    g.zones.map((z) => ({
+      ...z,
+      label: `${formatUtcOffset(z.value)} — ${z.cities}`,
+    })),
   );
 
   function getTimezoneLabel(value: string): string {
@@ -246,7 +254,10 @@
                 <Select.Group>
                   <Select.GroupHeading>{group.label}</Select.GroupHeading>
                   {#each group.zones as tz}
-                    <Select.Item value={tz.value} label="{formatUtcOffset(tz.value)} — {tz.cities}" />
+                    <Select.Item
+                      value={tz.value}
+                      label="{formatUtcOffset(tz.value)} — {tz.cities}"
+                    />
                   {/each}
                 </Select.Group>
                 <Select.Separator />

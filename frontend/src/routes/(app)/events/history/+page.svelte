@@ -68,7 +68,9 @@
               <TableCell>
                 <div class="flex items-center gap-2">
                   <Calendar class="h-4 w-4 text-muted-foreground" />
-                  <span class="font-medium">{formatDateFr(event.date, data.timezone)}</span>
+                  <span class="font-medium"
+                    >{formatDateFr(event.date, data.timezone)}</span
+                  >
                   <span class="text-xs text-muted-foreground"
                     >{formatTime(event.date)}</span
                   >

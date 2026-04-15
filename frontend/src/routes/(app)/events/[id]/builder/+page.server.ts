@@ -16,7 +16,11 @@ import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { EventService } from '$lib/server/services/events';
 import { applyPlanningTemplate } from '$lib/server/services/planningTemplates';
 import { prisma } from '$lib/server/db';
-import { getCampusId, getCampusTimezone, scopedPrisma } from '$lib/server/db/scoped';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
 
 export const load: PageServerLoad = async ({ locals, params }) => {

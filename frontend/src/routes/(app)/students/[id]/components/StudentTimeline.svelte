@@ -18,7 +18,10 @@
   import { formatDateFr, cn } from '$lib/utils';
   import { resolve } from '$app/paths';
 
-  let { participations, timezone }: { participations: any[]; timezone: string } = $props();
+  let {
+    participations,
+    timezone,
+  }: { participations: any[]; timezone: string } = $props();
 </script>
 
 <div

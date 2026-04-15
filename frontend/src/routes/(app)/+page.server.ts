@@ -2,7 +2,11 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { EventService } from '$lib/server/services/events';
-import { getCampusId, getCampusTimezone, scopedPrisma } from '$lib/server/db/scoped';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) {
