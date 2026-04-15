@@ -89,18 +89,5 @@
     <%- data.documentContent %>
   </div>
 
-  <div class="signature-block">
-    <% if (data.city) { %>
-      <p>Fait à <strong><%= data.city %></strong>, le <strong><%= data.signedAt %></strong></p>
-    <% } else { %>
-      <p>Signé le : <strong><%= data.signedAt %></strong></p>
-    <% } %>
-    <% if (data.signerName) { %>
-      <p class="signer-name">Signataire : <%= data.signerName %><% if (data.relationship) { %> (<%= data.relationship %>)<% } %></p>
-    <% } %>
-    <% if (data.studentName) { %>
-      <p>Étudiant : <%= data.studentName %></p>
-    <% } %>
-  </div>
 </body>
 </html>

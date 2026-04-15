@@ -43,3 +43,5 @@ Tout manquement aux règles établies par le règlement intérieur entrainerait 
 - Les stagiaires s'engagent à profiter activement des activités proposées par **Epitech** (conférence, ateliers, soutenance, jury etc.).
 - Les stagiaires doivent remplir à l'issue de leur stage un questionnaire d'évaluation de leur stage, car **Epitech** est engagée dans un processus d'amélioration continue pour ses stagiaires et étudiants.
 - Les stagiaires veilleront à utiliser le bon logo et le bon nom de l'école en entier (**Epitech**) pour remplir leur convention de stage, compléter leur CV, présenter leur stage dans leur lycée etc.
+
+**Fait à {{city}}, le {{date}}**

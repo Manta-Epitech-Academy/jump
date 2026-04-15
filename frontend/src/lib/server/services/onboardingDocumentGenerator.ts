@@ -14,11 +14,21 @@ const TITLES: Record<DocumentType, string> = {
   'image-rights': "Autorisation de Droit à l'Image",
 };
 
-const DOCUMENT_CONTENT: Record<DocumentType, string> = {
-  charter: '',
-  rules: marked.parse(reglementMd) as string,
-  'image-rights': marked.parse(droitImageMd) as string,
-};
+function buildImageRightsHtml(
+  signerName: string,
+  relationship: string,
+  studentName: string,
+  city: string,
+  formattedDate: string,
+): string {
+  const filled = droitImageMd
+    .replace('{{signerName}}', `**${signerName}**`)
+    .replace('{{relationship}}', `**${relationship}**`)
+    .replace('{{studentName}}', `**${studentName}**`)
+    .replace('{{city}}', city)
+    .replace('{{date}}', formattedDate);
+  return marked.parse(filled) as string;
+}
 
 export async function generateOnboardingPDF(data: {
   type: DocumentType;
@@ -34,12 +44,28 @@ export async function generateOnboardingPDF(data: {
     year: 'numeric',
   });
 
+  let documentContent = '';
+  if (data.type === 'rules') {
+    const filled = reglementMd
+      .replace('{{city}}', data.city ?? '')
+      .replace('{{date}}', formattedDate);
+    documentContent = marked.parse(filled) as string;
+  } else if (data.type === 'image-rights') {
+    documentContent = buildImageRightsHtml(
+      data.signerName ?? '',
+      data.relationship ?? 'représentant légal',
+      data.studentName,
+      data.city ?? '',
+      formattedDate,
+    );
+  }
+
   const htmlContent = await ejs.render(
     onboardingTemplate,
     {
       data: {
         title: TITLES[data.type],
-        documentContent: DOCUMENT_CONTENT[data.type],
+        documentContent,
         studentName: data.studentName,
         signerName: data.signerName ?? null,
         relationship: data.relationship ?? null,

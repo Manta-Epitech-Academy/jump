@@ -9,7 +9,9 @@
   let submitting = $state(false);
   let city = $state('');
 
-  const renderedContent = marked.parse(reglementMd) as string;
+  // Remove the "Fait à" placeholder line — it's rendered as inline inputs below
+  const contentWithoutSignature = reglementMd.replace(/\n\*\*Fait à \{\{city\}\}.*$/, '');
+  const renderedContent = marked.parse(contentWithoutSignature) as string;
 </script>
 
 <!-- Header -->
