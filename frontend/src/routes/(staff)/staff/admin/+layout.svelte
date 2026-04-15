@@ -13,6 +13,7 @@
     FingerprintPattern,
     FileText,
     CalendarDays,
+    TriangleAlert,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -64,6 +65,13 @@
     >
       <LayoutDashboard class="h-4 w-4" />
       <span>Vue d'ensemble</span>
+    </a>
+    <a
+      href={resolve('/admin/sync-errors')}
+      class={navLinkClass(isActive('/admin/sync-errors'))}
+    >
+      <TriangleAlert class="h-4 w-4" />
+      <span>Erreurs de Sync</span>
     </a>
   </nav>
 
