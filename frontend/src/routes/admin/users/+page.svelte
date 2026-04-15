@@ -9,7 +9,11 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
   let { data } = $props();
+
+  // Guard against Select re-firing onValueChange during enhance update
+  let submitting = $state<string | null>(null);
 
   // Handle component deletion confirmations
   let deleteDialogOpen = $state(false);
@@ -43,11 +47,12 @@
           <Table.Head>Utilisateur</Table.Head>
           <Table.Head>Email</Table.Head>
           <Table.Head>Campus</Table.Head>
+          <Table.Head>Rôle</Table.Head>
           <Table.Head class="text-right">Actions</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#each data.users as user}
+        {#each data.users ?? [] as user}
           <Table.Row>
             <Table.Cell>
               <div class="flex items-center gap-3">
@@ -80,10 +85,12 @@
                 method="POST"
                 action="?/updateCampus"
                 use:enhance={() => {
+                  submitting = `campus-${user.id}`;
                   return async ({ update, result }) => {
                     if (result.type === 'success')
                       toast.success('Campus mis à jour');
                     await update();
+                    submitting = null;
                   };
                 }}
               >
@@ -92,8 +99,9 @@
                   type="single"
                   name="campusId"
                   value={user.staffProfile?.campusId ?? ''}
-                  onValueChange={() => {
-                    // Wait for the hidden input to update, then submit
+                  onValueChange={(v) => {
+                    if (submitting) return;
+                    if (v === (user.staffProfile?.campusId ?? '')) return;
                     requestAnimationFrame(() => {
                       const form = document.querySelector<HTMLFormElement>(
                         `#campus-form-${user.id}`,
@@ -107,8 +115,51 @@
                   </Select.Trigger>
                   <Select.Content>
                     <Select.Item value="">Aucun campus</Select.Item>
-                    {#each data.campuses as c}
+                    {#each data.campuses ?? [] as c}
                       <Select.Item value={c.id}>{c.name}</Select.Item>
+                    {/each}
+                  </Select.Content>
+                </Select.Root>
+              </form>
+            </Table.Cell>
+            <Table.Cell>
+              <form
+                id="role-form-{user.id}"
+                method="POST"
+                action="?/updateRole"
+                use:enhance={() => {
+                  submitting = `role-${user.id}`;
+                  return async ({ update, result }) => {
+                    if (result.type === 'success')
+                      toast.success('Rôle mis à jour');
+                    await update();
+                    submitting = null;
+                  };
+                }}
+              >
+                <input type="hidden" name="userId" value={user.id} />
+                <Select.Root
+                  type="single"
+                  name="staffRole"
+                  value={user.staffProfile?.staffRole ?? ''}
+                  onValueChange={(v) => {
+                    if (submitting) return;
+                    if (v === (user.staffProfile?.staffRole ?? '')) return;
+                    requestAnimationFrame(() => {
+                      const form = document.querySelector<HTMLFormElement>(
+                        `#role-form-${user.id}`,
+                      );
+                      form?.requestSubmit();
+                    });
+                  }}
+                >
+                  <Select.Trigger class="h-8 w-36 text-xs">
+                    {getStaffRoleLabel(user.staffProfile?.staffRole)}
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="">Aucun rôle</Select.Item>
+                    {#each STAFF_ROLES as role}
+                      <Select.Item value={role.value}>{role.label}</Select.Item>
                     {/each}
                   </Select.Content>
                 </Select.Root>
