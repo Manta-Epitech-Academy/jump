@@ -66,10 +66,7 @@ export const GET: RequestHandler = async ({ locals }) => {
           activityMap.set(activity.id, {
             name: activity.nom,
             eventDate: p.event
-              ? formatDateFr(
-                  new Date(p.event.date),
-                  campusTimezone,
-                )
+              ? formatDateFr(new Date(p.event.date), campusTimezone)
               : '',
             difficulty: activity.difficulte || '',
           });
@@ -104,10 +101,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       level: locals.talent.level || 'Novice',
       topThemes,
       activities,
-      todayDate: formatDateFr(
-        new Date(),
-        campusTimezone,
-      ),
+      todayDate: formatDateFr(new Date(), campusTimezone),
       // TODO: implement S3 file storage
       images: [] as string[],
     };
