@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const infoValidationSchema = z.object({
+const infoBaseSchema = z.object({
   nom: z.string().min(2, 'Le nom doit faire au moins 2 caractères').trim(),
   prenom: z
     .string()
@@ -20,4 +20,23 @@ export const infoValidationSchema = z.object({
   phone: z.string().optional().or(z.literal('')),
 });
 
-export type InfoValidationForm = z.infer<typeof infoValidationSchema>;
+export const infoValidationSchema = infoBaseSchema
+  .refine((data) => data.email !== data.parentEmail, {
+    message: "L'email du parent doit être différent de celui de l'enfant",
+    path: ['parentEmail'],
+  })
+  .refine(
+    (data) => {
+      if (data.phone && data.parentPhone) {
+        return data.phone !== data.parentPhone;
+      }
+      return true;
+    },
+    {
+      message:
+        "Le téléphone du parent doit être différent de celui de l'enfant",
+      path: ['parentPhone'],
+    },
+  );
+
+export type InfoValidationForm = z.infer<typeof infoBaseSchema>;
