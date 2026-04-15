@@ -1,16 +1,12 @@
 <script lang="ts">
   import { Search, Plus, CircleCheck } from '@lucide/svelte';
   import { resolve } from '$app/paths';
-  import { untrack } from 'svelte';
-  import { superForm } from 'sveltekit-superforms';
-  import { toast } from 'svelte-sonner';
   import type { Readable } from 'svelte/store';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import * as Card from '$lib/components/ui/card';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
-  import QuickCreateStudentModal from './QuickCreateStudentModal.svelte';
   import type { SuperForm } from 'sveltekit-superforms/client';
   import type { AddParticipantForm } from '$lib/validation/events';
 
@@ -20,32 +16,11 @@
     participations,
     addEnhance,
     addDelayed,
-    createStudentForm,
   }: {
     participations: ParticipationWithDetails[];
     addEnhance: SuperForm<AddParticipantForm>['enhance'];
     addDelayed: Readable<boolean>;
-    createStudentForm: any;
   } = $props();
-
-  let openQuickCreate = $state(false);
-
-  const { form: createForm, enhance: createEnhance } = superForm(
-    untrack(() => createStudentForm),
-    {
-      id: 'quick-create',
-      onResult: ({ result }) => {
-        if (result.type === 'success') {
-          openQuickCreate = false;
-          toast.success(result.data?.form.message);
-        } else if (result.type === 'failure') {
-          toast.error(
-            result.data?.form.message || 'Erreur lors de la création',
-          );
-        }
-      },
-    },
-  );
 
   let searchQuery = $state('');
   let searchResults: any[] = $state([]);
@@ -94,14 +69,7 @@
     class="flex h-100 flex-col rounded-sm md:h-full md:max-h-full md:flex-1"
   >
     <Card.Header class="space-y-4 pb-3">
-      <div class="flex items-center justify-between">
-        <Card.Title class="uppercase">Inscrire des élèves</Card.Title>
-        <QuickCreateStudentModal
-          bind:open={openQuickCreate}
-          {createForm}
-          {createEnhance}
-        />
-      </div>
+      <Card.Title class="uppercase">Inscrire des élèves</Card.Title>
       <div class="relative">
         <Search class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
         <Input

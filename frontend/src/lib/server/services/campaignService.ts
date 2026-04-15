@@ -1,7 +1,6 @@
 import { parseEventImportCsv, type CsvStudent } from '$lib/domain/csv';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
-import { scopedPrisma } from '$lib/server/db/scoped';
 
 export type ImportAction = {
   id: string;
@@ -22,7 +21,6 @@ export async function analyzeCampaignFile(file: File, campusId: string) {
   }
 
   const { eventName, eventDate, students } = await parseEventImportCsv(text);
-  const db = scopedPrisma(campusId);
 
   const analysis = await Promise.all(
     students.map(async (csvS, i) => {
@@ -32,8 +30,8 @@ export async function analyzeCampaignFile(file: File, campusId: string) {
       let decision: ImportAction['decision'] = 'CREATE_NEW';
       let reason = '';
 
-      // Try exact match (nom + prenom + email)
-      const exactMatch = await db.talent.findFirst({
+      // Try exact match (nom + prenom + email) — global search to avoid duplicates
+      const exactMatch = await prisma.talent.findFirst({
         where: {
           nom: csvS.nom,
           prenom: csvS.prenom,
@@ -50,7 +48,7 @@ export async function analyzeCampaignFile(file: File, campusId: string) {
       } else {
         // Check for sibling (same email)
         if (csvS.email) {
-          const siblingMatch = await db.talent.findFirst({
+          const siblingMatch = await prisma.talent.findFirst({
             where: { user: { email: csvS.email } },
             include: { user: true },
           });
@@ -65,7 +63,7 @@ export async function analyzeCampaignFile(file: File, campusId: string) {
 
         // Check for homonym (same name, different email)
         if (status === 'NEW') {
-          const nameMatch = await db.talent.findFirst({
+          const nameMatch = await prisma.talent.findFirst({
             where: { nom: csvS.nom, prenom: csvS.prenom },
             include: { user: true },
           });
@@ -141,7 +139,6 @@ export async function importCampaignData(
                   prenom: item.csvData.prenom,
                   nom: item.csvData.nom,
                   email: item.csvData.email,
-                  campusId,
                   niveau: item.csvData.niveau || null,
                   xp: 0,
                   eventsCount: 0,
