@@ -123,7 +123,9 @@ export async function syncTalents(
 
     if (!existing) {
       try {
-        console.log(`Creating new talent: Name: ${t.first_name} ${t.last_name}, Email: ${email}, Phone: ${phone} ExId: ${t.external_id}`);
+        console.log(
+          `Creating new talent: Name: ${t.first_name} ${t.last_name}, Email: ${email}, Phone: ${phone} ExId: ${t.external_id}`,
+        );
         const talent = await prisma.talent.create({
           data: {
             externalId: t.external_id,
@@ -138,9 +140,15 @@ export async function syncTalents(
         talentId = talent.id;
         created++;
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
           const conflicting = email
-            ? await prisma.talent.findUnique({ where: { email }, select: { id: true, externalId: true } })
+            ? await prisma.talent.findUnique({
+                where: { email },
+                select: { id: true, externalId: true },
+              })
             : null;
           await logSyncError({
             email: email ?? 'unknown',
@@ -176,9 +184,15 @@ export async function syncTalents(
           });
           updated++;
         } catch (err) {
-          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          if (
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === 'P2002'
+          ) {
             const conflicting = email
-              ? await prisma.talent.findUnique({ where: { email }, select: { externalId: true } })
+              ? await prisma.talent.findUnique({
+                  where: { email },
+                  select: { externalId: true },
+                })
               : null;
             await logSyncError({
               email: email ?? 'unknown',

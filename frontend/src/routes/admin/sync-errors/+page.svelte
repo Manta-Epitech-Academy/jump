@@ -77,9 +77,13 @@
               <Table.Cell>
                 {#if error.eventName}
                   <div class="font-bold">{error.eventName}</div>
-                  <div class="text-xs text-muted-foreground">{error.campusName ?? '—'}</div>
+                  <div class="text-xs text-muted-foreground">
+                    {error.campusName ?? '—'}
+                  </div>
                 {:else}
-                  <span class="font-mono text-xs">{error.eventExtId ?? '—'}</span>
+                  <span class="font-mono text-xs"
+                    >{error.eventExtId ?? '—'}</span
+                  >
                 {/if}
               </Table.Cell>
               <Table.Cell class="text-center font-bold"
@@ -98,7 +102,12 @@
                       }}
                   >
                     <input type="hidden" name="id" value={error.id} />
-                    <Button type="submit" variant="ghost" size="sm" class="gap-1">
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      class="gap-1"
+                    >
                       <Check class="h-3 w-3" />
                       Résoudre
                     </Button>
@@ -113,7 +122,9 @@
           {:else}
             <Table.Row>
               <Table.Cell colspan={9} class="py-12 text-center">
-                <div class="flex flex-col items-center gap-2 text-muted-foreground">
+                <div
+                  class="flex flex-col items-center gap-2 text-muted-foreground"
+                >
                   <TriangleAlert class="h-8 w-8 opacity-30" />
                   <p class="text-sm font-bold">
                     Aucune erreur de synchronisation.

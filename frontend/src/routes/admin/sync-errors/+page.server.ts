@@ -12,11 +12,17 @@ export const load: PageServerLoad = async () => {
   ]);
 
   // Resolve event names + campus from eventExtId
-  const eventExtIds = [...new Set(errors.map((e) => e.eventExtId).filter(Boolean))] as string[];
+  const eventExtIds = [
+    ...new Set(errors.map((e) => e.eventExtId).filter(Boolean)),
+  ] as string[];
   const events = eventExtIds.length
     ? await prisma.event.findMany({
         where: { externalId: { in: eventExtIds } },
-        select: { externalId: true, titre: true, campus: { select: { name: true } } },
+        select: {
+          externalId: true,
+          titre: true,
+          campus: { select: { name: true } },
+        },
       })
     : [];
   const eventMap = new Map(events.map((ev) => [ev.externalId, ev]));
