@@ -44,3 +44,57 @@ EOT
 echo "garage/garage.toml created"
 echo "  rpc_secret:  $RPC_SECRET"
 echo "  admin_token: $ADMIN_TOKEN"
+
+# --- Provision S3 API key ---
+# Garage must be running for this step. Start it, then wait for the admin API.
+echo ""
+echo "Starting Garage to provision S3 credentials..."
+docker compose up -d garage
+GARAGE_ADMIN="http://localhost:3903"
+
+echo "Waiting for Garage admin API..."
+for i in $(seq 1 30); do
+    if curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$GARAGE_ADMIN/v2/GetClusterStatus" > /dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+# Apply cluster layout (single-node: assign all capacity to the only node)
+NODE_ID=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$GARAGE_ADMIN/v2/GetClusterStatus" | python3 -c "import sys,json; print(json.load(sys.stdin)['nodes'][0]['id'])")
+curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "[{\"id\": \"$NODE_ID\", \"zone\": \"dc1\", \"capacity\": 1000000000, \"tags\": [\"dev\"]}]" \
+    "$GARAGE_ADMIN/v2/UpdateClusterLayout" > /dev/null
+
+curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"version": 1}' \
+    "$GARAGE_ADMIN/v2/ApplyClusterLayout" > /dev/null
+
+echo "Cluster layout applied."
+
+# Create an API key for the SvelteKit app
+KEY_RESPONSE=$(curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"name": "jump-app"}' \
+    "$GARAGE_ADMIN/v2/CreateKey")
+
+S3_ACCESS_KEY_ID=$(echo "$KEY_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessKeyId'])")
+S3_SECRET_ACCESS_KEY=$(echo "$KEY_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['secretAccessKey'])")
+
+# Write S3 credentials to .env
+if [ -f .env ]; then
+    sed -i '' '/^S3_ENDPOINT=/d;/^S3_REGION=/d;/^S3_ACCESS_KEY_ID=/d;/^S3_SECRET_ACCESS_KEY=/d' .env
+fi
+cat >> .env <<EOF
+S3_ENDPOINT=http://localhost:3900
+S3_REGION=garage
+S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID
+S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY
+EOF
+
+echo ""
+echo "S3 credentials added to .env"
+echo "  access_key_id:     $S3_ACCESS_KEY_ID"
+echo "  secret_access_key: $S3_SECRET_ACCESS_KEY"
