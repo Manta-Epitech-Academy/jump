@@ -5,6 +5,8 @@
   import { marked } from 'marked';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
 
+  let { error: formError }: { error?: string } = $props();
+
   let accepted = $state(false);
   let submitting = $state(false);
   let city = $state('');
@@ -33,6 +35,14 @@
     Prends connaissance du règlement avant de continuer.
   </p>
 </div>
+
+{#if formError}
+  <p
+    class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+  >
+    {formError}
+  </p>
+{/if}
 
 <form
   method="POST"
