@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
+import { getLastSync } from '$lib/server/infra/syncStatus';
 
 export const load: PageServerLoad = async () => {
   // Retrieve global statistics
@@ -29,5 +30,6 @@ export const load: PageServerLoad = async () => {
       date: e.date,
       campus: e.campus?.name || 'Inconnu',
     })),
+    lastSync: getLastSync(),
   };
 };

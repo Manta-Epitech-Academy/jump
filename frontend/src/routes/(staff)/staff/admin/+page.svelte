@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { Map, Users, GraduationCap, CalendarDays } from '@lucide/svelte';
+  import {
+    Map,
+    Users,
+    GraduationCap,
+    CalendarDays,
+    RefreshCw,
+  } from '@lucide/svelte';
   import * as Card from '$lib/components/ui/card';
   import {
     Table,
@@ -13,6 +19,23 @@
   import { resolve } from '$app/paths';
 
   let { data } = $props();
+
+  const syncTypeLabels = {
+    campus_list: 'Liste des campus',
+    events: 'Événements',
+    talents: 'Talents',
+  } as const;
+
+  function formatSyncDateTime(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
 </script>
 
 <div class="space-y-6">
@@ -112,6 +135,45 @@
       </Card.Content>
     </Card.Root>
   </div>
+
+  <!-- Worker Sync Status -->
+  <Card.Root>
+    <Card.Header
+      class="flex flex-row items-center justify-between space-y-0 pb-2"
+    >
+      <Card.Title class="text-sm font-bold uppercase"
+        >Dernière synchro worker</Card.Title
+      >
+      <RefreshCw class="h-4 w-4 text-muted-foreground" />
+    </Card.Header>
+    <Card.Content>
+      {#if data.lastSync}
+        <div class="text-2xl font-black">
+          {formatSyncDateTime(data.lastSync.at)}
+        </div>
+        <p class="text-xs text-muted-foreground">
+          {syncTypeLabels[data.lastSync.type]}
+          {#if data.lastSync.campusExtName}
+            · {data.lastSync.campusExtName}
+          {/if}
+          {#if data.lastSync.eventExtId}
+            · event {data.lastSync.eventExtId}
+          {/if}
+          {#if data.lastSync.created != null || data.lastSync.updated != null}
+            · {data.lastSync.created ?? 0} créé(s),
+            {data.lastSync.updated ?? 0} mis à jour
+            {#if data.lastSync.removed != null}, {data.lastSync.removed} retiré(s){/if}
+            {#if data.lastSync.skipped != null}, {data.lastSync.skipped} ignoré(s){/if}
+          {/if}
+        </p>
+      {:else}
+        <div class="text-2xl font-black text-muted-foreground">—</div>
+        <p class="text-xs text-muted-foreground">
+          Aucune synchro depuis le dernier redémarrage
+        </p>
+      {/if}
+    </Card.Content>
+  </Card.Root>
 
   <!-- Latest Events -->
   <Card.Root>
