@@ -11,7 +11,7 @@
     "build": "bun --bun --env-file=../.env vite build",
     "preview": "bun --bun --env-file=../.env vite preview",
     "start": "bun --env-file=../.env ./build/index.js",
-    "prepare": "svelte-kit sync || echo ''",
+    "prepare": "cd .. && git config core.hooksPath .githooks || true && cd frontend && svelte-kit sync || echo ''",
     "postinstall": "prisma generate",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
