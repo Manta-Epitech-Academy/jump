@@ -12,7 +12,7 @@ if ! command -v htpasswd &> /dev/null; then
 fi
 
 RPC_SECRET=$(openssl rand -hex 32)
-ADMIN_TOKEN=$(openssl rand -hex 32)
+ADMIN_TOKEN=$(openssl rand -base64 32)
 
 mkdir -p garage/
 
@@ -46,42 +46,85 @@ echo "  rpc_secret:  $RPC_SECRET"
 echo "  admin_token: $ADMIN_TOKEN"
 
 # --- Provision S3 API key ---
-# Garage must be running for this step. Start it, then wait for the admin API.
+# Restart Garage so it picks up the new garage.toml
 echo ""
-echo "Starting Garage to provision S3 credentials..."
-docker compose up -d garage
+echo "Starting Garage with new config..."
+docker compose up -d --force-recreate garage
 GARAGE_ADMIN="http://localhost:3903"
+AUTH="Authorization: Bearer $ADMIN_TOKEN"
 
+API_READY=false
 echo "Waiting for Garage admin API..."
-for i in $(seq 1 30); do
-    if curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$GARAGE_ADMIN/v2/GetClusterStatus" > /dev/null 2>&1; then
+for i in $(seq 1 60); do
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "$AUTH" "$GARAGE_ADMIN/v2/GetClusterStatus" 2>/dev/null || echo "000")
+    if [ "$HTTP_CODE" = "200" ]; then
+        API_READY=true
         break
     fi
-    sleep 1
+    sleep 2
 done
 
+if [ "$API_READY" != "true" ]; then
+    echo "ERROR: Garage admin API did not become ready after 120s."
+    echo "Check 'docker compose logs garage' for details."
+    exit 1
+fi
+echo "Garage admin API is ready."
+
 # Apply cluster layout (single-node: assign all capacity to the only node)
-NODE_ID=$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" "$GARAGE_ADMIN/v2/GetClusterStatus" | python3 -c "import sys,json; print(json.load(sys.stdin)['nodes'][0]['id'])")
-curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "[{\"id\": \"$NODE_ID\", \"zone\": \"dc1\", \"capacity\": 1000000000, \"tags\": [\"dev\"]}]" \
+STATUS=$(curl -s -H "$AUTH" "$GARAGE_ADMIN/v2/GetClusterStatus")
+NODE_ID=$(echo "$STATUS" | python3 -c "import sys,json; print(json.load(sys.stdin)['nodes'][0]['id'])")
+
+if [ -z "$NODE_ID" ]; then
+    echo "ERROR: Could not determine node ID."
+    echo "Raw response: $STATUS"
+    exit 1
+fi
+echo "Node ID: $NODE_ID"
+
+curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+    -d "{\"roles\": [{\"id\": \"$NODE_ID\", \"zone\": \"dc1\", \"capacity\": 1000000000, \"tags\": [\"dev\"]}]}" \
     "$GARAGE_ADMIN/v2/UpdateClusterLayout" > /dev/null
 
-curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
-    -H "Content-Type: application/json" \
+curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
     -d '{"version": 1}' \
     "$GARAGE_ADMIN/v2/ApplyClusterLayout" > /dev/null
 
 echo "Cluster layout applied."
 
 # Create an API key for the SvelteKit app
-KEY_RESPONSE=$(curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
-    -H "Content-Type: application/json" \
+KEY_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
     -d '{"name": "jump-app"}' \
     "$GARAGE_ADMIN/v2/CreateKey")
 
 S3_ACCESS_KEY_ID=$(echo "$KEY_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['accessKeyId'])")
 S3_SECRET_ACCESS_KEY=$(echo "$KEY_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['secretAccessKey'])")
+
+if [ -z "$S3_ACCESS_KEY_ID" ]; then
+    echo "ERROR: Failed to create API key."
+    echo "Raw response: $KEY_RESPONSE"
+    exit 1
+fi
+
+# Create the "jump-files" bucket
+BUCKET_RESPONSE=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+    -d '{"globalAlias": "jump-files"}' \
+    "$GARAGE_ADMIN/v2/CreateBucket")
+
+BUCKET_ID=$(echo "$BUCKET_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+if [ -z "$BUCKET_ID" ]; then
+    echo "ERROR: Failed to create bucket."
+    echo "Raw response: $BUCKET_RESPONSE"
+    exit 1
+fi
+
+# Grant the jump-app key read+write on the bucket
+curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+    -d "{\"bucketId\": \"$BUCKET_ID\", \"accessKeyId\": \"$S3_ACCESS_KEY_ID\", \"permissions\": {\"read\": true, \"write\": true, \"owner\": true}}" \
+    "$GARAGE_ADMIN/v2/AllowBucketKey" > /dev/null
+
+echo "Bucket 'jump-files' created and linked to jump-app key."
 
 # Write S3 credentials to .env
 if [ -f .env ]; then
