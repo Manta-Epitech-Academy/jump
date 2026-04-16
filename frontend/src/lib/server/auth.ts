@@ -7,15 +7,7 @@ import { env } from '$env/dynamic/private';
 import { sendOtpEmail } from '$lib/server/otp';
 import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
-
-/** Temporary store for parent OTPs — consumed by sendParentSignatureEmail */
-export const pendingParentOtps = new Map<string, string>();
-
-/** Verified parent tokens — proves OTP was validated, consumed by sign action */
-export const verifiedParentTokens = new Map<
-  string,
-  { talentId: string; email: string; expiresAt: Date }
->();
+import { storeParentOtp } from '$lib/server/services/parentTokens';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
@@ -56,7 +48,7 @@ export const auth = betterAuth({
         });
         // For parents, store the OTP so the caller can include it in a single combined email
         if (user?.role === 'parent') {
-          pendingParentOtps.set(email, otp);
+          await storeParentOtp(email, otp);
           return;
         }
         await sendOtpEmail(email, otp, user?.name ?? undefined);

@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { auth, verifiedParentTokens } from '$lib/server/auth';
+import { auth } from '$lib/server/auth';
+import { createSignToken, verifySignToken } from '$lib/server/services/parentTokens';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
@@ -120,12 +121,7 @@ export const actions: Actions = {
     }
 
     // Generate a verification token to prove OTP was validated
-    const signToken = crypto.randomUUID();
-    verifiedParentTokens.set(signToken, {
-      talentId: talentId!,
-      email,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
-    });
+    const signToken = await createSignToken(talentId, email);
 
     return {
       step: 'sign' as const,
@@ -151,26 +147,13 @@ export const actions: Actions = {
     }
 
     // Verify the parent completed OTP verification
-    if (!signToken) {
+    if (!signToken || !(await verifySignToken(signToken, talentId))) {
       return {
         step: 'otp' as const,
         error: 'Session expirée. Veuillez recommencer la vérification.',
         talentId,
       };
     }
-
-    const tokenData = verifiedParentTokens.get(signToken);
-    if (!tokenData || tokenData.talentId !== talentId || tokenData.expiresAt < new Date()) {
-      verifiedParentTokens.delete(signToken);
-      return {
-        step: 'otp' as const,
-        error: 'Session expirée. Veuillez recommencer la vérification.',
-        talentId,
-      };
-    }
-
-    // Consume the token (single use)
-    verifiedParentTokens.delete(signToken);
 
     if (!accepted) {
       return {
@@ -261,7 +244,7 @@ export const actions: Actions = {
         select: { prenom: true, nom: true },
       });
 
-      // sendVerificationOTP stores the OTP in pendingParentOtps (parent role skips email)
+      // sendVerificationOTP stores the OTP in DB (parent role skips email)
       await auth.api.sendVerificationOTP({
         body: { email, type: 'sign-in' },
       });

@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
-import { pendingParentOtps } from '$lib/server/auth';
+import { consumeParentOtp } from '$lib/server/services/parentTokens';
 
 let resend: Resend;
 
@@ -18,7 +18,7 @@ export async function sendParentSignatureEmail(
   studentName: string,
 ) {
   const signUrl = `${env.ORIGIN}${base}/parent/sign?student=${talentId}`;
-  const otp = pendingParentOtps.get(parentEmail);
+  const otp = await consumeParentOtp(parentEmail);
 
   await getResend().emails.send({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
@@ -56,7 +56,4 @@ export async function sendParentSignatureEmail(
       </div>
     `,
   });
-
-  // Delete OTP only after successful send
-  pendingParentOtps.delete(parentEmail);
 }
