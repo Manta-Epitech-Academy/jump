@@ -631,7 +631,7 @@ const eventDefs: EventDef[] = [
     themeKey: 'Développement Web',
     pin: '1234',
     notes: 'Premier atelier de la saison. Très bon accueil des campers.',
-    mantaKeys: ['mateo.cabrera@epitech.eu'],
+    mantaKeys: ['manta@epitech.eu'],
     slots: [
       {
         startHour: 13,
@@ -657,7 +657,7 @@ const eventDefs: EventDef[] = [
       notes: {
         0: {
           text: 'Très motivée, a aidé ses camarades.',
-          authorKey: 'mateo.cabrera@epitech.eu',
+          authorKey: 'manta@epitech.eu',
         },
       },
       ratings: { 0: 3, 1: 2, 2: 3, 3: 3, 4: 2, 5: 3, 6: 3, 7: 2 },
@@ -673,7 +673,7 @@ const eventDefs: EventDef[] = [
     themeKey: 'Robotique',
     pin: '4321',
     notes: null,
-    mantaKeys: ['mateo.cabrera@epitech.eu', 'jdupont@epitech.eu'],
+    mantaKeys: ['manta@epitech.eu', 'jdupont@epitech.eu'],
     slots: [
       {
         startHour: 13,
@@ -740,7 +740,7 @@ const eventDefs: EventDef[] = [
     themeKey: 'Intelligence Artificielle',
     pin: '7777',
     notes: null,
-    mantaKeys: ['mateo.cabrera@epitech.eu', 'jdupont@epitech.eu'],
+    mantaKeys: ['manta@epitech.eu', 'jdupont@epitech.eu'],
     slots: [
       {
         startHour: 13,
@@ -785,7 +785,7 @@ const eventDefs: EventDef[] = [
     themeKey: 'Jeux Vidéo',
     pin: '5678',
     notes: null,
-    mantaKeys: ['mateo.cabrera@epitech.eu'],
+    mantaKeys: ['manta@epitech.eu'],
     slots: [
       {
         startHour: 13,
@@ -872,11 +872,7 @@ async function main() {
   await upsertCredential(adminUser.id, ADMIN_PASSWORD);
 
   const staffData = [
-    {
-      email: 'mateo.cabrera@epitech.eu',
-      name: 'Mateo Cabrera',
-      campusKey: 'Paris',
-    },
+    { email: 'manta@epitech.eu', name: 'Marie Manta', campusKey: 'Paris' },
     { email: 'jdupont@epitech.eu', name: 'Jules Dupont', campusKey: 'Paris' },
     { email: 'lgarcia@epitech.eu', name: 'Laura Garcia', campusKey: 'Lyon' },
   ];
