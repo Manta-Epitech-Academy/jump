@@ -10,7 +10,7 @@ ALTER TABLE "PortfolioItem" RENAME COLUMN "studentProfileId" TO "talentId";
 ALTER INDEX "StudentProfile_pkey" RENAME TO "Talent_pkey";
 ALTER INDEX "StudentProfile_userId_key" RENAME TO "Talent_userId_key";
 ALTER INDEX "StudentProfile_email_key" RENAME TO "Talent_email_key";
-ALTER INDEX "StudentProfile_salesforceId_key" RENAME TO "Talent_externalId_key";
+ALTER INDEX "StudentProfile_externalId_key" RENAME TO "Talent_externalId_key";
 ALTER INDEX "StudentProfile_discordId_key" RENAME TO "Talent_discordId_key";
 ALTER INDEX "StudentProfile_campusId_idx" RENAME TO "Talent_campusId_idx";
 
