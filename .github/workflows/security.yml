@@ -39,7 +39,10 @@ jobs:
 
       - name: Install osv-scanner
         run: |
-          curl -sSfL -o osv-scanner https://github.com/google/osv-scanner/releases/download/v2.3.5/osv-scanner_linux_amd64
+          OSV_SCANNER_VERSION=v2.3.5
+          curl -sSfL -o osv-scanner "https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          curl -sSfL -o osv-scanner.sha256 "https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64.sha256"
+          sha256sum -c osv-scanner.sha256
           chmod +x osv-scanner
           sudo mv osv-scanner /usr/local/bin/
 
@@ -72,7 +75,7 @@ jobs:
         run: docker build -t jump-sveltekit:scan ./frontend
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: "jump-sveltekit:scan"
           format: "table"
