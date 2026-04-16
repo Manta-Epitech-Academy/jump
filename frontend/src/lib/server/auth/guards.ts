@@ -32,8 +32,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     currentPath === pathStaffAdmin ||
     currentPath.startsWith(`${pathStaffAdmin}/`);
   const isDevPath =
-    currentPath === pathStaffDev ||
-    currentPath.startsWith(`${pathStaffDev}/`);
+    currentPath === pathStaffDev || currentPath.startsWith(`${pathStaffDev}/`);
   const isPedagoPath =
     currentPath === pathStaffPedago ||
     currentPath.startsWith(`${pathStaffPedago}/`);

@@ -872,7 +872,11 @@ async function main() {
   await upsertCredential(adminUser.id, ADMIN_PASSWORD);
 
   const staffData = [
-    { email: 'mateo.cabrera@epitech.eu', name: 'Mateo Cabrera', campusKey: 'Paris' },
+    {
+      email: 'mateo.cabrera@epitech.eu',
+      name: 'Mateo Cabrera',
+      campusKey: 'Paris',
+    },
     { email: 'jdupont@epitech.eu', name: 'Jules Dupont', campusKey: 'Paris' },
     { email: 'lgarcia@epitech.eu', name: 'Laura Garcia', campusKey: 'Lyon' },
   ];

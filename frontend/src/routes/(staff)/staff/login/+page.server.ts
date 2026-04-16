@@ -8,9 +8,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     locals.user &&
     (locals.user.role === 'staff' || locals.user.role === 'admin')
   ) {
-    const targetPath = getStaffRoleRedirectPath(
-      locals.staffProfile?.staffRole,
-    );
+    const targetPath = getStaffRoleRedirectPath(locals.staffProfile?.staffRole);
     if (targetPath) {
       throw redirect(302, resolve(targetPath));
     }
