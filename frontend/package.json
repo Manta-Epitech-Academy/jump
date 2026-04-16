@@ -7,7 +7,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:garage": "bun run scripts/configure-garage.ts",
+    "garage:generate": "bun run scripts/configure-garage.ts",
     "dev": "bun --bun --env-file=../.env vite dev",
     "build": "bun --bun --env-file=../.env vite build",
     "preview": "bun --bun --env-file=../.env vite preview",
