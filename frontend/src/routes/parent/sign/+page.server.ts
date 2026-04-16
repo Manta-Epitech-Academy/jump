@@ -53,6 +53,10 @@ export const actions: Actions = {
     const talentId =
       url.searchParams.get('student') || (formData.get('talentId') as string);
 
+    if (!talentId) {
+      return { step: 'otp' as const, error: 'Paramètre student manquant.' };
+    }
+
     if (!otp || otp.length !== 6) {
       return {
         step: 'otp' as const,
@@ -90,7 +94,7 @@ export const actions: Actions = {
 
     // Verify this email matches the student's parent email
     const profile = await prisma.talent.findUnique({
-      where: { id: talentId! },
+      where: { id: talentId },
       select: {
         parentEmail: true,
         prenom: true,
@@ -141,6 +145,10 @@ export const actions: Actions = {
     const signToken = (formData.get('signToken') as string)?.trim();
     const talentId =
       url.searchParams.get('student') || (formData.get('talentId') as string);
+
+    if (!talentId) {
+      return { step: 'otp' as const, error: 'Paramètre student manquant.' };
+    }
 
     // Verify the parent completed OTP verification
     if (!signToken) {
@@ -197,7 +205,7 @@ export const actions: Actions = {
     }
 
     const profile = await prisma.talent.findUnique({
-      where: { id: talentId! },
+      where: { id: talentId },
       select: { id: true, prenom: true, nom: true },
     });
 
