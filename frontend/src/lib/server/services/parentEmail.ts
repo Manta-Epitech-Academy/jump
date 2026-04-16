@@ -19,7 +19,6 @@ export async function sendParentSignatureEmail(
 ) {
   const signUrl = `${env.ORIGIN}${base}/parent/sign?student=${talentId}`;
   const otp = pendingParentOtps.get(parentEmail);
-  pendingParentOtps.delete(parentEmail);
 
   await getResend().emails.send({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
@@ -57,4 +56,7 @@ export async function sendParentSignatureEmail(
       </div>
     `,
   });
+
+  // Delete OTP only after successful send
+  pendingParentOtps.delete(parentEmail);
 }
