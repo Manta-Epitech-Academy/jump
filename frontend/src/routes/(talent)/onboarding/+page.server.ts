@@ -149,7 +149,7 @@ export const actions: Actions = {
 
     await prisma.talent.update({
       where: { id: locals.talent.id },
-      data: { rulesSignedAt: now, rulesFilePath: key },
+      data: { rulesSignedAt: now, rulesFilePath: key, charterAcceptedAt: now },
     });
 
     throw redirect(303, resolve('/onboarding'));

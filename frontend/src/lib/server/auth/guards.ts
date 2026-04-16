@@ -81,11 +81,12 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
       }
     }
 
-    // Charter guard
+    // Charter guard (onboarding sets charterAcceptedAt on completion)
     if (
       event.locals.talent &&
       !event.locals.talent.charterAcceptedAt &&
       currentPath !== pathTalentCharter &&
+      !currentPath.startsWith(pathTalentOnboarding) &&
       currentPath !== pathTalentLogin
     ) {
       return Response.redirect(new URL(pathTalentCharter, event.url).href, 303);
