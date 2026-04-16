@@ -274,6 +274,11 @@ export const actions: Actions = {
       );
     } catch (err) {
       console.error('Failed to resend OTP:', err);
+      return {
+        step: 'otp' as const,
+        error: "Échec de l'envoi du code. Veuillez réessayer.",
+        talentId,
+      };
     }
 
     return {
