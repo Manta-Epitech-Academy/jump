@@ -30,21 +30,6 @@ services:
       - ./garage/meta:/var/lib/garage/meta
       - ./garage/data:/var/lib/garage/data
 
-  garage-webui:
-    image: khairul169/garage-webui:latest
-    container_name: garage-webui
-    restart: unless-stopped
-    ports:
-      - "3909:3909"
-    environment:
-      API_BASE_URL: "http://garage:3903"
-      S3_ENDPOINT_URL: "http://garage:3900"
-    volumes:
-      - ./garage/garage.toml:/etc/garage.toml:ro
-    depends_on:
-      - garage
-
-
   sveltekit:
     build:
       context: frontend
