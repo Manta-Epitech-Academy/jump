@@ -1,29 +1,22 @@
 import type { Prisma } from '@prisma/client';
 
-/** Participation with its student profile and assigned subjects. */
+/** Participation with its student profile. */
 export type ParticipationWithDetails = Prisma.ParticipationGetPayload<{
   include: {
-    studentProfile: true;
-    subjects: { include: { subject: true } };
+    talent: true;
   };
 }>;
 
-/** Participation with event and assigned subjects (for mission history). */
-export type ParticipationWithEvent = Prisma.ParticipationGetPayload<{
+/** Participation with event→planning→timeSlots→activities (for today's timeline). */
+export type ParticipationWithPlanning = Prisma.ParticipationGetPayload<{
   include: {
-    event: true;
-    subjects: { include: { subject: true } };
-  };
-}>;
-
-/** Participation with deep subject→theme chain (for theme tallying). */
-export type ParticipationWithThemes = Prisma.ParticipationGetPayload<{
-  include: {
-    subjects: {
+    event: {
       include: {
-        subject: {
+        planning: {
           include: {
-            subjectThemes: { include: { theme: true } };
+            timeSlots: {
+              include: { activities: true };
+            };
           };
         };
       };
@@ -31,15 +24,15 @@ export type ParticipationWithThemes = Prisma.ParticipationGetPayload<{
   };
 }>;
 
-/** Participation with event + deep subject→theme chain (for certificates). */
-export type ParticipationWithEventAndThemes = Prisma.ParticipationGetPayload<{
+/** Participation with activities→activityThemes→theme (for theme tallying). */
+export type ParticipationWithActivityThemes = Prisma.ParticipationGetPayload<{
   include: {
     event: true;
-    subjects: {
+    activities: {
       include: {
-        subject: {
+        activity: {
           include: {
-            subjectThemes: { include: { theme: true } };
+            activityThemes: { include: { theme: true } };
           };
         };
       };
@@ -47,10 +40,16 @@ export type ParticipationWithEventAndThemes = Prisma.ParticipationGetPayload<{
   };
 }>;
 
-/** Subject with its theme associations and optional campus. */
-export type SubjectWithThemes = Prisma.SubjectGetPayload<{
+/** Planning with nested time slots and their activities. */
+export type PlanningWithSlots = Prisma.PlanningGetPayload<{
   include: {
-    subjectThemes: { include: { theme: true } };
-    campus: true;
+    timeSlots: {
+      include: { activities: true };
+    };
   };
+}>;
+
+/** TimeSlot with its activities. */
+export type TimeSlotWithActivities = Prisma.TimeSlotGetPayload<{
+  include: { activities: true };
 }>;

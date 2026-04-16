@@ -1,9 +1,6 @@
-import {
-  getCachedSubject,
-  setCachedSubject,
-} from '$lib/server/infra/subjectCache';
+import { getCached, setCached } from '$lib/server/infra/contentCache';
 import { prisma } from '$lib/server/db';
-import type { Subject } from '@prisma/client';
+import type { Activity } from '@prisma/client';
 
 export type StepValidation = {
   type: 'auto_qcm' | 'manual_manta';
@@ -15,7 +12,7 @@ export type StepValidation = {
   unlock_code?: string;
 };
 
-export type SubjectStep = {
+export type ActivityStep = {
   id: string;
   title: string;
   content_markdown: string;
@@ -23,8 +20,8 @@ export type SubjectStep = {
   validation?: StepValidation;
 };
 
-export type SubjectStructure = {
-  steps: SubjectStep[];
+export type ActivityStructure = {
+  steps: ActivityStep[];
 };
 
 export class ValidationError extends Error {
@@ -36,26 +33,26 @@ export class ValidationError extends Error {
 
 export const ProgressService = {
   async validateStep(
-    studentProfileId: string,
-    subjectId: string,
+    talentId: string,
+    activityId: string,
     stepId: string,
     progressId: string,
     answerIndexStr: string | null,
     pinInput: string | null,
   ) {
-    let subject = getCachedSubject<
-      Subject & { contentStructure: SubjectStructure }
-    >(subjectId);
-    if (!subject) {
-      subject = (await prisma.subject.findUniqueOrThrow({
-        where: { id: subjectId },
-      })) as Subject & { contentStructure: SubjectStructure };
-      setCachedSubject(subjectId, subject);
+    let activity = getCached<
+      Activity & { contentStructure: ActivityStructure }
+    >(activityId);
+    if (!activity) {
+      activity = (await prisma.activity.findUniqueOrThrow({
+        where: { id: activityId },
+      })) as Activity & { contentStructure: ActivityStructure };
+      setCached(activityId, activity);
     }
 
-    const content = (subject.contentStructure ?? {
+    const content = (activity.contentStructure ?? {
       steps: [],
-    }) as SubjectStructure;
+    }) as ActivityStructure;
     const steps = content.steps || [];
 
     const stepIndex = steps.findIndex((s) => s.id === stepId);
@@ -74,26 +71,21 @@ export const ProgressService = {
       }
     }
 
-    // 2. PIN Validation (Manual Manta)
+    // 2. Fetch progress (needed for both PIN validation and step advancement)
+    const progress = await prisma.stepsProgress.findUniqueOrThrow({
+      where: { id: progressId },
+    });
+    if (progress.talentId !== talentId) {
+      throw new ValidationError('Accès refusé.');
+    }
+
+    // 3. PIN Validation (Manual Manta)
     if (step.validation?.type === 'manual_manta') {
       if (!pinInput) throw new ValidationError('Code PIN requis.');
 
-      // Find the event via participation
-      const participation = await prisma.participation.findFirst({
-        where: {
-          studentProfileId,
-          subjects: { some: { subjectId } },
-        },
-        select: { eventId: true },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (!participation) {
-        throw new ValidationError("Tu n'es pas assigné à ce sujet.");
-      }
-
       const event = await prisma.event.findUniqueOrThrow({
-        where: { id: participation.eventId },
+        where: { id: progress.eventId },
+        select: { pin: true },
       });
 
       if (!event.pin || pinInput !== event.pin) {
@@ -101,13 +93,7 @@ export const ProgressService = {
       }
     }
 
-    // 3. Advance Progress Boundary
-    const progress = await prisma.stepsProgress.findUniqueOrThrow({
-      where: { id: progressId },
-    });
-    if (progress.studentProfileId !== studentProfileId) {
-      throw new ValidationError('Accès refusé.');
-    }
+    // 4. Advance Progress Boundary
     const isLastStep = stepIndex === steps.length - 1;
     const nextStepId = !isLastStep ? steps[stepIndex + 1].id : 'COMPLETED';
 

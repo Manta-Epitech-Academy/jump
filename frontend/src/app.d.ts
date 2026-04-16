@@ -1,5 +1,5 @@
 import type { User, Session } from '$lib/server/auth';
-import type { StaffProfile, StudentProfile, Campus } from '@prisma/client';
+import type { StaffProfile, Talent, Campus } from '@prisma/client';
 
 declare global {
   namespace App {
@@ -8,7 +8,7 @@ declare global {
       user: User | null;
       session: Session | null;
       staffProfile: (StaffProfile & { campus: Campus | null }) | null;
-      studentProfile: (StudentProfile & { campus: Campus | null }) | null;
+      talent: Talent | null;
     }
     // interface PageData {}
     // interface PageState {}

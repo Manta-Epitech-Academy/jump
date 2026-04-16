@@ -4,11 +4,11 @@ import { auth } from '$lib/server/auth';
 import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
 
 export const POST: RequestHandler = async ({ locals }) => {
-  if (!locals.studentProfile) {
+  if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
-  const profile = locals.studentProfile;
+  const profile = locals.talent;
 
   if (!profile.parentEmail) {
     throw error(400, 'Aucun email parent renseigné');

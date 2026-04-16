@@ -8,9 +8,6 @@ const config = {
   preprocess: vitePreprocess(),
 
   kit: {
-    paths: {
-      base: '/tekcamp',
-    },
     alias: {
       $lib: 'src/lib',
     },

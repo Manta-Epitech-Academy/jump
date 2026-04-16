@@ -9,10 +9,12 @@
     themes = [],
     value = $bindable([]),
     name = 'themes',
+    officialOnly = false,
   }: {
     themes: any[];
     value: string[];
     name?: string;
+    officialOnly?: boolean;
   } = $props();
 
   let open = $state(false);
@@ -39,7 +41,8 @@
 
   function isGlobal(themeName: string) {
     const t = themes.find((th) => th.nom === themeName);
-    return t && !t.campus;
+    if (!t) return officialOnly;
+    return !t.campus;
   }
 </script>
 

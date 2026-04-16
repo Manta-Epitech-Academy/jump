@@ -14,10 +14,10 @@ function getResend() {
 
 export async function sendParentSignatureEmail(
   parentEmail: string,
-  studentProfileId: string,
+  talentId: string,
   studentName: string,
 ) {
-  const signUrl = `${env.ORIGIN}${base}/parent/sign?student=${studentProfileId}`;
+  const signUrl = `${env.ORIGIN}${base}/parent/sign?student=${talentId}`;
   const otp = pendingParentOtps.get(parentEmail);
   pendingParentOtps.delete(parentEmail);
 

@@ -7,13 +7,13 @@ import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
 import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ url }) => {
-  const studentProfileId = url.searchParams.get('student');
-  if (!studentProfileId) {
+  const talentId = url.searchParams.get('student');
+  if (!talentId) {
     throw error(400, 'Paramètre student manquant.');
   }
 
-  const profile = await prisma.studentProfile.findUnique({
-    where: { id: studentProfileId },
+  const profile = await prisma.talent.findUnique({
+    where: { id: talentId },
     select: {
       id: true,
       prenom: true,
@@ -33,14 +33,14 @@ export const load: PageServerLoad = async ({ url }) => {
     return {
       step: 'done' as const,
       studentName: `${profile.prenom} ${profile.nom}`,
-      studentProfileId,
+      talentId,
     };
   }
 
   return {
     step: 'otp' as const,
     studentName: `${profile.prenom} ${profile.nom}`,
-    studentProfileId,
+    talentId,
     parentEmail: profile.parentEmail,
   };
 };
@@ -50,14 +50,14 @@ export const actions: Actions = {
     const formData = await request.formData();
     const otp = (formData.get('otp') as string)?.trim();
     const email = (formData.get('email') as string)?.trim().toLowerCase();
-    const studentProfileId = url.searchParams.get('student') || (formData.get('studentProfileId') as string);
+    const talentId = url.searchParams.get('student') || (formData.get('talentId') as string);
 
     if (!otp || otp.length !== 6) {
-      return { step: 'otp' as const, error: 'Veuillez entrer un code à 6 chiffres.', studentProfileId };
+      return { step: 'otp' as const, error: 'Veuillez entrer un code à 6 chiffres.', talentId };
     }
 
     if (!email) {
-      return { step: 'otp' as const, error: 'Email manquant.', studentProfileId };
+      return { step: 'otp' as const, error: 'Email manquant.', talentId };
     }
 
     // Verify OTP via BetterAuth (without creating a persistent session)
@@ -69,34 +69,34 @@ export const actions: Actions = {
       });
 
       if (!response.ok) {
-        return { step: 'otp' as const, error: 'Code incorrect ou expiré.', studentProfileId };
+        return { step: 'otp' as const, error: 'Code incorrect ou expiré.', talentId };
       }
     } catch {
-      return { step: 'otp' as const, error: 'Code incorrect ou expiré.', studentProfileId };
+      return { step: 'otp' as const, error: 'Code incorrect ou expiré.', talentId };
     }
 
     // Verify this email matches the student's parent email
-    const profile = await prisma.studentProfile.findUnique({
-      where: { id: studentProfileId! },
+    const profile = await prisma.talent.findUnique({
+      where: { id: talentId! },
       select: { parentEmail: true, prenom: true, nom: true, imageRightsSignedAt: true },
     });
 
     if (!profile || profile.parentEmail?.toLowerCase() !== email) {
-      return { step: 'otp' as const, error: 'Ce code ne correspond pas au parent de cet élève.', studentProfileId };
+      return { step: 'otp' as const, error: 'Ce code ne correspond pas au parent de cet élève.', talentId };
     }
 
     if (profile.imageRightsSignedAt) {
       return {
         step: 'done' as const,
         studentName: `${profile.prenom} ${profile.nom}`,
-        studentProfileId,
+        talentId,
       };
     }
 
     return {
       step: 'sign' as const,
       studentName: `${profile.prenom} ${profile.nom}`,
-      studentProfileId,
+      talentId,
       email,
     };
   },
@@ -106,13 +106,13 @@ export const actions: Actions = {
     const signerName = (formData.get('signerName') as string)?.trim();
     const relationship = (formData.get('relationship') as string)?.trim();
     const city = (formData.get('city') as string)?.trim();
-    const studentProfileId = url.searchParams.get('student') || (formData.get('studentProfileId') as string);
+    const talentId = url.searchParams.get('student') || (formData.get('talentId') as string);
 
     if (!signerName || signerName.length < 2) {
       return {
         step: 'sign' as const,
         error: 'Veuillez entrer votre nom complet.',
-        studentProfileId,
+        talentId,
       };
     }
 
@@ -120,7 +120,7 @@ export const actions: Actions = {
       return {
         step: 'sign' as const,
         error: 'Veuillez indiquer votre qualité (mère, père, tuteur).',
-        studentProfileId,
+        talentId,
       };
     }
 
@@ -128,12 +128,12 @@ export const actions: Actions = {
       return {
         step: 'sign' as const,
         error: 'Veuillez indiquer la ville.',
-        studentProfileId,
+        talentId,
       };
     }
 
-    const profile = await prisma.studentProfile.findUnique({
-      where: { id: studentProfileId! },
+    const profile = await prisma.talent.findUnique({
+      where: { id: talentId! },
       select: { id: true, prenom: true, nom: true },
     });
 
@@ -157,7 +157,7 @@ export const actions: Actions = {
     const key = `documents/${profile.id}/image-rights-${now.getTime()}.pdf`;
     await storage.save(key, pdf);
 
-    await prisma.studentProfile.update({
+    await prisma.talent.update({
       where: { id: profile.id },
       data: {
         imageRightsSignedAt: now,
@@ -169,22 +169,22 @@ export const actions: Actions = {
     return {
       step: 'done' as const,
       studentName,
-      studentProfileId,
+      talentId,
     };
   },
 
   resendOtp: async ({ request, url }) => {
     const formData = await request.formData();
     const email = (formData.get('email') as string)?.trim().toLowerCase();
-    const studentProfileId = url.searchParams.get('student') || (formData.get('studentProfileId') as string);
+    const talentId = url.searchParams.get('student') || (formData.get('talentId') as string);
 
-    if (!email || !studentProfileId) {
-      return { step: 'otp' as const, error: 'Email manquant.', studentProfileId };
+    if (!email || !talentId) {
+      return { step: 'otp' as const, error: 'Email manquant.', talentId };
     }
 
     try {
-      const profile = await prisma.studentProfile.findUnique({
-        where: { id: studentProfileId },
+      const profile = await prisma.talent.findUnique({
+        where: { id: talentId },
         select: { prenom: true, nom: true },
       });
 
@@ -196,7 +196,7 @@ export const actions: Actions = {
       // Send single combined email with link + OTP
       await sendParentSignatureEmail(
         email,
-        studentProfileId,
+        talentId,
         profile ? `${profile.prenom} ${profile.nom}` : '',
       );
     } catch (err) {
@@ -206,7 +206,7 @@ export const actions: Actions = {
     return {
       step: 'otp' as const,
       resent: true,
-      studentProfileId,
+      talentId,
     };
   },
 };

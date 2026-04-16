@@ -23,7 +23,7 @@
       </p>
     </div>
     <a
-      href={resolve('/camper/settings')}
+      href={resolve('/settings')}
       class="shrink-0 rounded-xl bg-teal-600 px-4 py-2 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:bg-teal-700 active:scale-[0.98] dark:bg-teal-500 dark:hover:bg-teal-600"
     >
       Compléter

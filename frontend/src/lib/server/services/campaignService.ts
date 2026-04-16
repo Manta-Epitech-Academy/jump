@@ -1,8 +1,6 @@
 import { parseEventImportCsv, type CsvStudent } from '$lib/domain/csv';
-import { suggestBestSubject } from '$lib/domain/recommender';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
-import { scopedPrisma } from '$lib/server/db/scoped';
 
 export type ImportAction = {
   id: string;
@@ -14,7 +12,7 @@ export type ImportAction = {
   bringPc: boolean;
 };
 
-export async function analyzeCampaignFile(file: File, campusId: string) {
+export async function analyzeCampaignFile(file: File) {
   let text = await file.text();
   if (text.includes('\ufffd')) {
     const buffer = await file.arrayBuffer();
@@ -23,7 +21,6 @@ export async function analyzeCampaignFile(file: File, campusId: string) {
   }
 
   const { eventName, eventDate, students } = await parseEventImportCsv(text);
-  const db = scopedPrisma(campusId);
 
   const analysis = await Promise.all(
     students.map(async (csvS, i) => {
@@ -33,8 +30,8 @@ export async function analyzeCampaignFile(file: File, campusId: string) {
       let decision: ImportAction['decision'] = 'CREATE_NEW';
       let reason = '';
 
-      // Try exact match (nom + prenom + email)
-      const exactMatch = await db.studentProfile.findFirst({
+      // Try exact match (nom + prenom + email) — global search to avoid duplicates
+      const exactMatch = await prisma.talent.findFirst({
         where: {
           nom: csvS.nom,
           prenom: csvS.prenom,
@@ -51,7 +48,7 @@ export async function analyzeCampaignFile(file: File, campusId: string) {
       } else {
         // Check for sibling (same email)
         if (csvS.email) {
-          const siblingMatch = await db.studentProfile.findFirst({
+          const siblingMatch = await prisma.talent.findFirst({
             where: { user: { email: csvS.email } },
             include: { user: true },
           });
@@ -66,7 +63,7 @@ export async function analyzeCampaignFile(file: File, campusId: string) {
 
         // Check for homonym (same name, different email)
         if (status === 'NEW') {
-          const nameMatch = await db.studentProfile.findFirst({
+          const nameMatch = await prisma.talent.findFirst({
             where: { nom: csvS.nom, prenom: csvS.prenom },
             include: { user: true },
           });
@@ -122,17 +119,13 @@ export async function importCampaignData(
     },
   });
 
-  const subjects = await prisma.subject.findMany({
-    include: { subjectThemes: true },
-  });
-
   // 2. Process Students
   await Promise.all(
     importList.map(async (item) => {
-      let studentProfileId: string | undefined;
+      let talentId: string | undefined;
 
       if (item.decision === 'LINK_EXISTING' && item.existingStudent) {
-        studentProfileId = item.existingStudent.id as string;
+        talentId = item.existingStudent.id as string;
       } else {
         // CREATE NEW USER + STUDENT PROFILE
         try {
@@ -141,11 +134,11 @@ export async function importCampaignData(
               email: item.csvData.email,
               role: 'student',
               name: `${item.csvData.prenom} ${item.csvData.nom}`,
-              studentProfile: {
+              talent: {
                 create: {
                   prenom: item.csvData.prenom,
                   nom: item.csvData.nom,
-                  campusId,
+                  email: item.csvData.email,
                   niveau: item.csvData.niveau || null,
                   xp: 0,
                   eventsCount: 0,
@@ -155,46 +148,39 @@ export async function importCampaignData(
                 },
               },
             },
-            include: { studentProfile: true },
+            include: { talent: true },
           });
-          studentProfileId = user.studentProfile!.id;
+          talentId = user.talent!.id;
         } catch (err) {
           console.error(`Creation failed for ${item.csvData.nom}`, err);
         }
       }
 
-      if (studentProfileId) {
+      if (talentId) {
         try {
           // Check if participation already exists
           const existing = await prisma.participation.findUnique({
             where: {
-              studentProfileId_eventId: {
-                studentProfileId,
+              talentId_eventId: {
+                talentId,
                 eventId: newEvent.id,
               },
             },
           });
 
           if (!existing) {
-            const subjectId = await suggestBestSubject(
-              studentProfileId,
-              subjects,
-              null,
-            );
-
             await prisma.participation.create({
               data: {
-                studentProfileId,
+                talentId,
                 eventId: newEvent.id,
                 campusId,
                 bringPc: item.bringPc,
                 isPresent: false,
-                subjects: subjectId ? { create: [{ subjectId }] } : undefined,
               },
             });
           }
         } catch (err) {
-          console.error(`Failed to assign student ${studentProfileId}`, err);
+          console.error(`Failed to assign student ${talentId}`, err);
         }
       }
     }),

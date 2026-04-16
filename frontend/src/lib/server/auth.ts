@@ -5,7 +5,7 @@ import { emailOTP } from 'better-auth/plugins/email-otp';
 import { prisma } from '$lib/server/db';
 import { env } from '$env/dynamic/private';
 import { sendOtpEmail } from '$lib/server/otp';
-import { base } from '$app/paths';
+import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
 
 /** Temporary store for parent OTPs — consumed by sendParentSignatureEmail */
@@ -15,7 +15,7 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
 
   baseURL: env.ORIGIN!,
-  basePath: `${base}/api/auth`,
+  basePath: resolve('/api/auth'),
 
   emailAndPassword: {
     enabled: true,
@@ -87,8 +87,8 @@ export const auth = betterAuth({
 
   // Role and profile creation are handled by the OAuth callback routes:
   // - Staff:   /oauth/callback   → sets role to 'staff', creates StaffProfile
-  // - Student: /camper/oauth/callback → sets role to 'student', creates StudentProfile
-  // - OTP:     /camper/login      → sets role to 'student', creates StudentProfile
+  // - Student: /oauth/callback → sets role to 'student', creates Talent
+  // - OTP:     /login           → sets role to 'student', creates Talent
   // This avoids the databaseHook guessing the flow based on email domain.
 
   trustedOrigins: dev

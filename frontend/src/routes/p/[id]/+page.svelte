@@ -226,7 +226,7 @@
         href={resolve('/')}
         class="inline-flex items-center gap-2 text-xs font-bold tracking-widest text-slate-400 uppercase transition-colors hover:text-epi-blue"
       >
-        Propulsé par Epitech TekCamp
+        Propulsé par Epitech Jump
       </a>
     </div>
   </div>

@@ -25,7 +25,7 @@
 
   const currentStep = $derived(form?.step ?? data.step);
   const studentName = $derived(form?.studentName ?? data.studentName);
-  const studentProfileId = $derived(form?.studentProfileId ?? data.studentProfileId);
+  const talentId = $derived(form?.talentId ?? data.talentId);
   const canSign = $derived(accepted && signerName.trim().length >= 2 && relationship !== '' && city.trim().length >= 1 && !submitting);
 
   function handleDigitInput(index: number, e: Event) {
@@ -135,7 +135,7 @@
           };
         }}
       >
-        <input type="hidden" name="studentProfileId" value={studentProfileId} />
+        <input type="hidden" name="talentId" value={talentId} />
         <input type="hidden" name="email" value={data.parentEmail ?? ''} />
         <input type="hidden" name="otp" bind:value={otpValue} />
 
@@ -195,7 +195,7 @@
 
       <form method="POST" action="?/resendOtp" use:enhance class="mt-3">
         <input type="hidden" name="email" value={data.parentEmail ?? ''} />
-        <input type="hidden" name="studentProfileId" value={studentProfileId} />
+        <input type="hidden" name="talentId" value={talentId} />
         <Button
           type="submit"
           variant="ghost"
@@ -230,7 +230,7 @@
           submitting = false;
         };
       }}>
-        <input type="hidden" name="studentProfileId" value={studentProfileId} />
+        <input type="hidden" name="talentId" value={talentId} />
 
         {#if form?.error && currentStep === 'sign'}
           <p
