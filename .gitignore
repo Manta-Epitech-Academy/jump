@@ -85,3 +85,4 @@ Thumbs.db
 
 # Prisma
 frontend/prisma/generated/
+/garage/
