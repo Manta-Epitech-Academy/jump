@@ -131,6 +131,11 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const city = (formData.get('city') as string)?.trim();
+    const accepted = formData.get('accepted');
+
+    if (!accepted) {
+      return { step: 'rules' as const, error: 'Vous devez accepter le règlement pour continuer.' };
+    }
     if (!city) {
       return { step: 'rules' as const, error: 'Veuillez indiquer la ville.' };
     }

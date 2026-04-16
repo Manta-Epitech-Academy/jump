@@ -137,6 +137,7 @@ export const actions: Actions = {
     const signerName = (formData.get('signerName') as string)?.trim();
     const relationship = (formData.get('relationship') as string)?.trim();
     const city = (formData.get('city') as string)?.trim();
+    const accepted = formData.get('accepted');
     const signToken = (formData.get('signToken') as string)?.trim();
     const talentId =
       url.searchParams.get('student') || (formData.get('talentId') as string);
@@ -162,6 +163,14 @@ export const actions: Actions = {
 
     // Consume the token (single use)
     verifiedParentTokens.delete(signToken);
+
+    if (!accepted) {
+      return {
+        step: 'sign' as const,
+        error: "Vous devez cocher l'autorisation pour signer.",
+        talentId,
+      };
+    }
 
     if (!signerName || signerName.length < 2) {
       return {

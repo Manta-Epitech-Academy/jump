@@ -78,6 +78,7 @@
     >
       <input
         type="checkbox"
+        name="accepted"
         bind:checked={accepted}
         class="h-5 w-5 shrink-0 rounded border-slate-300 text-epi-teal accent-epi-teal focus:ring-epi-teal"
       />
