@@ -19,3 +19,22 @@ export const STAFF_ROLES: readonly { value: StaffRole; label: string }[] = [
 export function getStaffRoleLabel(role: string | null | undefined): string {
   return STAFF_ROLES.find((r) => r.value === role)?.label ?? 'Aucun rôle';
 }
+
+export type StaffSpacePath = '/staff/admin' | '/staff/dev' | '/staff/pedago';
+
+export function getStaffRoleRedirectPath(
+  staffRole: StaffRole | null | undefined,
+): StaffSpacePath | null {
+  switch (staffRole) {
+    case 'admin':
+      return '/staff/admin';
+    case 'superdev':
+    case 'dev':
+      return '/staff/dev';
+    case 'peda':
+    case 'manta':
+      return '/staff/pedago';
+    default:
+      return null;
+  }
+}

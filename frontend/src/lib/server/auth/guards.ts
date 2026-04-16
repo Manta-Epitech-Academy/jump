@@ -1,5 +1,6 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
+import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 
 export function applyRouteGuards(event: RequestEvent): Response | null {
   const currentPath = event.url.pathname;
@@ -22,11 +23,19 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const pathPublicShowcase = p('/p/');
   const pathApi = p('/api/');
 
+  const pathStaffDev = p('/staff/dev');
+  const pathStaffPedago = p('/staff/pedago');
+
   const isTalentRoute = routeId.startsWith('/(talent)');
   const isStaffRoute = routeId.startsWith('/(staff)');
   const isAdminPath =
     currentPath === pathStaffAdmin ||
     currentPath.startsWith(`${pathStaffAdmin}/`);
+  const isDevPath =
+    currentPath === pathStaffDev || currentPath.startsWith(`${pathStaffDev}/`);
+  const isPedagoPath =
+    currentPath === pathStaffPedago ||
+    currentPath.startsWith(`${pathStaffPedago}/`);
 
   const isPublicPath =
     currentPath.startsWith(pathLogout) ||
@@ -84,10 +93,47 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     if (isAdminPath) {
       if (
         !currentPath.startsWith(pathStaffAdminLogin) &&
-        event.locals.user?.role !== 'admin'
+        event.locals.user?.role !== 'admin' &&
+        event.locals.staffProfile?.staffRole !== 'admin'
       ) {
         return Response.redirect(
           new URL(pathStaffAdminLogin, event.url).href,
+          303,
+        );
+      }
+    }
+
+    // Dev sub-guard: only superdev or dev
+    if (isDevPath) {
+      const role = event.locals.staffProfile?.staffRole;
+      if (role !== 'superdev' && role !== 'dev') {
+        const correctPath = getStaffRoleRedirectPath(role);
+        if (correctPath) {
+          return Response.redirect(
+            new URL(p(correctPath), event.url).href,
+            303,
+          );
+        }
+        return Response.redirect(
+          new URL(`${pathStaffLogin}?error=NoRole`, event.url).href,
+          303,
+        );
+      }
+    }
+
+    // Pedago sub-guard: only peda or manta
+    if (isPedagoPath) {
+      const role = event.locals.staffProfile?.staffRole;
+      if (role !== 'peda' && role !== 'manta') {
+        const correctPath = getStaffRoleRedirectPath(role);
+        if (correctPath) {
+          return Response.redirect(
+            new URL(p(correctPath), event.url).href,
+            303,
+          );
+        }
+        return Response.redirect(
+          new URL(`${pathStaffLogin}?error=NoRole`, event.url).href,
           303,
         );
       }
