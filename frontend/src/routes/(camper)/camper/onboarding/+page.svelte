@@ -32,10 +32,7 @@
     </div>
 
     {#if data.step === 'info-validation'}
-      <InfoValidationStep
-        profile={data.profile}
-        errors={form?.errors}
-      />
+      <InfoValidationStep profile={data.profile} errors={form?.errors} />
     {:else if data.step === 'rules'}
       <RulesStep />
     {/if}

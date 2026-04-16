@@ -50,10 +50,15 @@ export const actions: Actions = {
     const formData = await request.formData();
     const otp = (formData.get('otp') as string)?.trim();
     const email = (formData.get('email') as string)?.trim().toLowerCase();
-    const talentId = url.searchParams.get('student') || (formData.get('talentId') as string);
+    const talentId =
+      url.searchParams.get('student') || (formData.get('talentId') as string);
 
     if (!otp || otp.length !== 6) {
-      return { step: 'otp' as const, error: 'Veuillez entrer un code à 6 chiffres.', talentId };
+      return {
+        step: 'otp' as const,
+        error: 'Veuillez entrer un code à 6 chiffres.',
+        talentId,
+      };
     }
 
     if (!email) {
@@ -69,20 +74,37 @@ export const actions: Actions = {
       });
 
       if (!response.ok) {
-        return { step: 'otp' as const, error: 'Code incorrect ou expiré.', talentId };
+        return {
+          step: 'otp' as const,
+          error: 'Code incorrect ou expiré.',
+          talentId,
+        };
       }
     } catch {
-      return { step: 'otp' as const, error: 'Code incorrect ou expiré.', talentId };
+      return {
+        step: 'otp' as const,
+        error: 'Code incorrect ou expiré.',
+        talentId,
+      };
     }
 
     // Verify this email matches the student's parent email
     const profile = await prisma.talent.findUnique({
       where: { id: talentId! },
-      select: { parentEmail: true, prenom: true, nom: true, imageRightsSignedAt: true },
+      select: {
+        parentEmail: true,
+        prenom: true,
+        nom: true,
+        imageRightsSignedAt: true,
+      },
     });
 
     if (!profile || profile.parentEmail?.toLowerCase() !== email) {
-      return { step: 'otp' as const, error: 'Ce code ne correspond pas au parent de cet élève.', talentId };
+      return {
+        step: 'otp' as const,
+        error: 'Ce code ne correspond pas au parent de cet élève.',
+        talentId,
+      };
     }
 
     if (profile.imageRightsSignedAt) {
@@ -106,7 +128,8 @@ export const actions: Actions = {
     const signerName = (formData.get('signerName') as string)?.trim();
     const relationship = (formData.get('relationship') as string)?.trim();
     const city = (formData.get('city') as string)?.trim();
-    const talentId = url.searchParams.get('student') || (formData.get('talentId') as string);
+    const talentId =
+      url.searchParams.get('student') || (formData.get('talentId') as string);
 
     if (!signerName || signerName.length < 2) {
       return {
@@ -176,7 +199,8 @@ export const actions: Actions = {
   resendOtp: async ({ request, url }) => {
     const formData = await request.formData();
     const email = (formData.get('email') as string)?.trim().toLowerCase();
-    const talentId = url.searchParams.get('student') || (formData.get('talentId') as string);
+    const talentId =
+      url.searchParams.get('student') || (formData.get('talentId') as string);
 
     if (!email || !talentId) {
       return { step: 'otp' as const, error: 'Email manquant.', talentId };

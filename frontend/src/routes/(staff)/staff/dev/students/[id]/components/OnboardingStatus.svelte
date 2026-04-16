@@ -40,9 +40,7 @@
     });
   }
 
-  const completedCount = $derived(
-    documents.filter((d) => d.signedAt).length,
-  );
+  const completedCount = $derived(documents.filter((d) => d.signedAt).length);
 </script>
 
 <Card.Root class="shadow-md">

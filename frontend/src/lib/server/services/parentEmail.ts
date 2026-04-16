@@ -39,13 +39,17 @@ export async function sendParentSignatureEmail(
             <a href="${signUrl}" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: bold; text-decoration: none;">Signer l'autorisation</a>
           </p>
 
-          ${otp ? `
+          ${
+            otp
+              ? `
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 10px;">Puis entrez ce code de connexion :</p>
           <div style="background-color: #fff7ed; border: 2px dashed #ff5f3a; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 30px;">
             <strong style="font-size: 32px; font-family: monospace; letter-spacing: 8px; color: #ff5f3a;">${otp}</strong>
           </div>
           <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;"><i>Ce code est valable 10 minutes.</i></p>
-          ` : ''}
+          `
+              : ''
+          }
 
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
           <p style="font-size: 14px; color: #64748b; margin: 0;">Merci,<br/>L'équipe Epitech Academy</p>

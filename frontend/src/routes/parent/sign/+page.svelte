@@ -26,7 +26,13 @@
   const currentStep = $derived(form?.step ?? data.step);
   const studentName = $derived(form?.studentName ?? data.studentName);
   const talentId = $derived(form?.talentId ?? data.talentId);
-  const canSign = $derived(accepted && signerName.trim().length >= 2 && relationship !== '' && city.trim().length >= 1 && !submitting);
+  const canSign = $derived(
+    accepted &&
+      signerName.trim().length >= 2 &&
+      relationship !== '' &&
+      city.trim().length >= 1 &&
+      !submitting,
+  );
 
   function handleDigitInput(index: number, e: Event) {
     const input = e.target as HTMLInputElement;
@@ -117,8 +123,12 @@
       </div>
 
       {#if data.parentEmail}
-        <div class="mb-6 rounded-xl bg-slate-50 p-4 text-center dark:bg-slate-950">
-          <p class="text-xs font-bold text-slate-500 uppercase">Code envoyé à</p>
+        <div
+          class="mb-6 rounded-xl bg-slate-50 p-4 text-center dark:bg-slate-950"
+        >
+          <p class="text-xs font-bold text-slate-500 uppercase">
+            Code envoyé à
+          </p>
           <p class="font-bold text-epi-blue">{data.parentEmail}</p>
         </div>
       {/if}
@@ -204,7 +214,6 @@
           Renvoyer le code
         </Button>
       </form>
-
     {:else if currentStep === 'sign'}
       <!-- Step: Sign document -->
       <div class="mb-6 text-center">
@@ -223,13 +232,17 @@
         </p>
       </div>
 
-      <form method="POST" action="?/sign" use:enhance={() => {
-        submitting = true;
-        return async ({ update }) => {
-          await update();
-          submitting = false;
-        };
-      }}>
+      <form
+        method="POST"
+        action="?/sign"
+        use:enhance={() => {
+          submitting = true;
+          return async ({ update }) => {
+            await update();
+            submitting = false;
+          };
+        }}
+      >
         <input type="hidden" name="talentId" value={talentId} />
 
         {#if form?.error && currentStep === 'sign'}
@@ -261,12 +274,16 @@
                 required
                 class="inline-block w-auto border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm font-semibold text-slate-900 focus:border-epi-blue focus:ring-0 dark:text-white [&>option]:bg-white [&>option]:text-slate-900 dark:[&>option]:bg-slate-800 dark:[&>option]:text-white"
               >
-                <option value="" disabled class="text-slate-400">(choisir)</option>
+                <option value="" disabled class="text-slate-400"
+                  >(choisir)</option
+                >
                 <option value="mère">mère</option>
                 <option value="père">père</option>
                 <option value="tuteur légal">tuteur légal</option>
                 <option value="tutrice légale">tutrice légale</option>
-              </select>, autorise <strong>Epitech</strong> à utiliser l'image de mon enfant <strong>{studentName}</strong> dans le cadre du stage de seconde.
+              </select>, autorise <strong>Epitech</strong> à utiliser l'image de
+              mon enfant <strong>{studentName}</strong> dans le cadre du stage de
+              seconde.
             </p>
             {@html droitImageBody}
 
@@ -279,37 +296,43 @@
                 placeholder="__________________"
                 required
                 class="inline-block w-40 border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
-              /><strong>, le {new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</strong>
+              /><strong
+                >, le {new Date().toLocaleDateString('fr-FR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })}</strong
+              >
             </p>
           </div>
         </div>
 
         <div class="mt-6">
-        <label
-          class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
-        >
-          <input
-            type="checkbox"
-            bind:checked={accepted}
-            class="h-5 w-5 shrink-0 rounded border-slate-300 text-epi-teal accent-epi-teal focus:ring-epi-teal"
-          />
-          <span class="text-sm text-slate-700 dark:text-slate-300">
-            En tant que représentant légal, j'autorise l'utilisation de l'image
-            de mon enfant
-          </span>
-        </label>
+          <label
+            class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+          >
+            <input
+              type="checkbox"
+              bind:checked={accepted}
+              class="h-5 w-5 shrink-0 rounded border-slate-300 text-epi-teal accent-epi-teal focus:ring-epi-teal"
+            />
+            <span class="text-sm text-slate-700 dark:text-slate-300">
+              En tant que représentant légal, j'autorise l'utilisation de
+              l'image de mon enfant
+            </span>
+          </label>
 
-        <Button
-          type="submit"
-          disabled={!canSign}
-          class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
-        >
-          {#if submitting}
-            Signature en cours...
-          {:else}
-            Signer
-          {/if}
-        </Button>
+          <Button
+            type="submit"
+            disabled={!canSign}
+            class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+          >
+            {#if submitting}
+              Signature en cours...
+            {:else}
+              Signer
+            {/if}
+          </Button>
         </div>
       </form>
     {:else if currentStep === 'done'}
@@ -326,7 +349,10 @@
           Merci !
         </h1>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          L'autorisation de droit &agrave; l'image pour <strong>{studentName}</strong> a &eacute;t&eacute; sign&eacute;e avec succ&egrave;s. Merci pour votre confiance.
+          L'autorisation de droit &agrave; l'image pour <strong
+            >{studentName}</strong
+          > a &eacute;t&eacute; sign&eacute;e avec succ&egrave;s. Merci pour votre
+          confiance.
         </p>
       </div>
     {/if}

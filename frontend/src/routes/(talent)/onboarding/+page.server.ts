@@ -61,7 +61,11 @@ export const actions: Actions = {
     const result = infoValidationSchema.safeParse(raw);
 
     if (!result.success) {
-      return { step: 'info-validation' as const, errors: result.error.flatten().fieldErrors, values: raw };
+      return {
+        step: 'info-validation' as const,
+        errors: result.error.flatten().fieldErrors,
+        values: raw,
+      };
     }
 
     await prisma.talent.update({
