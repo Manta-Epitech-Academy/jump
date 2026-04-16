@@ -13,7 +13,7 @@
 
   // Remove the "Fait à" placeholder line — it's rendered as inline inputs below
   const contentWithoutSignature = reglementMd.replace(
-    /\n\*\*Fait à \{\{city\}\}.*$/,
+    /\n\*\*Fait à \{\{city\}\}.*$/m,
     '',
   );
   const renderedContent = marked.parse(contentWithoutSignature) as string;
