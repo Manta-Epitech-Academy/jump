@@ -11,6 +11,12 @@ import { dev } from '$app/environment';
 /** Temporary store for parent OTPs — consumed by sendParentSignatureEmail */
 export const pendingParentOtps = new Map<string, string>();
 
+/** Verified parent tokens — proves OTP was validated, consumed by sign action */
+export const verifiedParentTokens = new Map<
+  string,
+  { talentId: string; email: string; expiresAt: Date }
+>();
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
 

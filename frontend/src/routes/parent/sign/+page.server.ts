@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { auth } from '$lib/server/auth';
+import { auth, verifiedParentTokens } from '$lib/server/auth';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
@@ -115,11 +115,20 @@ export const actions: Actions = {
       };
     }
 
+    // Generate a verification token to prove OTP was validated
+    const signToken = crypto.randomUUID();
+    verifiedParentTokens.set(signToken, {
+      talentId: talentId!,
+      email,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+    });
+
     return {
       step: 'sign' as const,
       studentName: `${profile.prenom} ${profile.nom}`,
       talentId,
       email,
+      signToken,
     };
   },
 
@@ -128,8 +137,31 @@ export const actions: Actions = {
     const signerName = (formData.get('signerName') as string)?.trim();
     const relationship = (formData.get('relationship') as string)?.trim();
     const city = (formData.get('city') as string)?.trim();
+    const signToken = (formData.get('signToken') as string)?.trim();
     const talentId =
       url.searchParams.get('student') || (formData.get('talentId') as string);
+
+    // Verify the parent completed OTP verification
+    if (!signToken) {
+      return {
+        step: 'otp' as const,
+        error: 'Session expirée. Veuillez recommencer la vérification.',
+        talentId,
+      };
+    }
+
+    const tokenData = verifiedParentTokens.get(signToken);
+    if (!tokenData || tokenData.talentId !== talentId || tokenData.expiresAt < new Date()) {
+      verifiedParentTokens.delete(signToken);
+      return {
+        step: 'otp' as const,
+        error: 'Session expirée. Veuillez recommencer la vérification.',
+        talentId,
+      };
+    }
+
+    // Consume the token (single use)
+    verifiedParentTokens.delete(signToken);
 
     if (!signerName || signerName.length < 2) {
       return {

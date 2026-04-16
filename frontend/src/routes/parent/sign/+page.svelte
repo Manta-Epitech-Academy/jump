@@ -26,6 +26,7 @@
   const currentStep = $derived(form?.step ?? data.step);
   const studentName = $derived(form?.studentName ?? data.studentName);
   const talentId = $derived(form?.talentId ?? data.talentId);
+  const signToken = $derived(form?.signToken ?? '');
   const canSign = $derived(
     accepted &&
       signerName.trim().length >= 2 &&
@@ -244,6 +245,7 @@
         }}
       >
         <input type="hidden" name="talentId" value={talentId} />
+        <input type="hidden" name="signToken" value={signToken} />
 
         {#if form?.error && currentStep === 'sign'}
           <p
