@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 
 // BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft.
 // This route serves as the post-auth redirect to:
@@ -34,6 +35,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     where: { userId: locals.user.id },
   });
 
+  let profile = existingProfile;
+
   if (!existingProfile) {
     // Fetch avatar from Microsoft Graph API if we have an account with access token
     let avatarUrl: string | null = null;
@@ -55,7 +58,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
       }
     }
 
-    await prisma.staffProfile.create({
+    // New staff have no role — admin must assign one via /staff/admin/users (FOR NOW)
+    profile = await prisma.staffProfile.create({
       data: {
         userId: locals.user.id,
         avatar: avatarUrl,
@@ -63,15 +67,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     });
   }
 
-  // Update user name from Microsoft if not set
-  if (!locals.user.name) {
-    const account = await prisma.bauth_account.findFirst({
-      where: { userId: locals.user.id, providerId: 'microsoft' },
-    });
-    if (account) {
-      // Name should have been set by BetterAuth from the OAuth profile
-    }
+  const targetPath = getStaffRoleRedirectPath(profile?.staffRole);
+
+  if (!targetPath) {
+    throw redirect(303, `${resolve('/staff/login')}?error=NoRole`);
   }
 
-  throw redirect(303, resolve('/staff/dev'));
+  throw redirect(303, resolve(targetPath));
 };

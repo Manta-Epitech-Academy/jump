@@ -50,16 +50,25 @@ Uses **BetterAuth** (`src/lib/server/auth.ts`) with three methods:
 
 Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
 
+Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`, `peda`, `manta`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
+
+| StaffRole | Space |
+|-----------|-------|
+| `admin` | `/staff/admin/` |
+| `superdev`, `dev` | `/staff/dev/` |
+| `peda`, `manta` | `/staff/pedago/` |
+| `null` | blocked, shown "contact admin" error |
+
 Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
 
 ### Route Groups
 
-- `(auth)/` — login, register, OAuth callback, onboarding (public)
-- `(app)/` — staff/admin dashboard (events, students, discord)
-- `(camper)/` — student portal (dashboard, charter)
-- `admin/` — superuser-only routes (users, subjects, themes, campuses)
+- `(staff)/` — all staff routes: login, OAuth, onboarding, and role-gated spaces (`staff/admin/`, `staff/dev/`, `staff/pedago/`)
+- `(talent)/` — student portal (login, OTP, charter, dashboard)
 - `api/` — API endpoints (auth, students, certificates, diplomas, jobs, worker)
 - `p/` — public portfolio view
+- `logout/` — universal logout
+- `register/` — student registration
 
 ### Data Layer
 

@@ -3,12 +3,14 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 
 export const load: LayoutServerLoad = async ({ parent }) => {
-  const { user } = await parent();
+  const { user, staffProfile } = await parent();
 
-  // Final server-side security check for this area
-  if (!user || user.role !== 'admin') {
+  if (
+    !user ||
+    (user.role !== 'admin' && staffProfile?.staffRole !== 'admin')
+  ) {
     throw redirect(302, resolve('/staff/admin/login'));
   }
 
-  return { user };
+  return { user, staffProfile };
 };
