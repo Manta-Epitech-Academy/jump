@@ -79,7 +79,12 @@
   // Auto-submit when OTP complete (only on fresh completion, not after error)
   let lastSubmittedOtp = $state('');
   $effect(() => {
-    if (otpComplete && otpFormRef && otpValue !== lastSubmittedOtp && !submitting) {
+    if (
+      otpComplete &&
+      otpFormRef &&
+      otpValue !== lastSubmittedOtp &&
+      !submitting
+    ) {
       lastSubmittedOtp = otpValue;
       otpFormRef.requestSubmit();
     }

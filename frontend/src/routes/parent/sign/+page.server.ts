@@ -1,7 +1,10 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { auth } from '$lib/server/auth';
-import { createSignToken, verifySignToken } from '$lib/server/services/parentTokens';
+import {
+  createSignToken,
+  verifySignToken,
+} from '$lib/server/services/parentTokens';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
