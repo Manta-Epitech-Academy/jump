@@ -10,9 +10,9 @@ import { env } from '$env/dynamic/private';
 
 const SIGNED_URL_EXPIRES_IN = 3600; // 1 hour
 
-function getClient(): S3Client {
+function getClient(endpoint: string): S3Client {
   return new S3Client({
-    endpoint: env.S3_ENDPOINT!,
+    endpoint,
     region: env.S3_REGION ?? 'garage',
     credentials: {
       accessKeyId: env.S3_ACCESS_KEY_ID!,
@@ -23,10 +23,21 @@ function getClient(): S3Client {
 }
 
 let client: S3Client | null = null;
+let publicClient: S3Client | null = null;
 
 function s3(): S3Client {
-  if (!client) client = getClient();
+  if (!client) client = getClient(env.S3_ENDPOINT!);
   return client;
+}
+
+// Separate client that signs URLs with a hostname resolvable from the browser.
+// In Docker, S3_ENDPOINT points to the internal hostname (e.g. http://garage:3900),
+// which would produce signed URLs the browser cannot reach.
+function s3Public(): S3Client {
+  if (!publicClient) {
+    publicClient = getClient(env.S3_PUBLIC_ENDPOINT ?? env.S3_ENDPOINT!);
+  }
+  return publicClient;
 }
 
 export async function uploadFile(
@@ -50,7 +61,7 @@ export async function getSignedDownloadUrl(
   expiresIn: number = SIGNED_URL_EXPIRES_IN,
 ): Promise<string> {
   return getSignedUrl(
-    s3(),
+    s3Public(),
     new GetObjectCommand({ Bucket: bucket, Key: key }),
     { expiresIn },
   );
@@ -63,7 +74,7 @@ export async function getSignedUploadUrl(
   expiresIn: number = SIGNED_URL_EXPIRES_IN,
 ): Promise<string> {
   return getSignedUrl(
-    s3(),
+    s3Public(),
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,

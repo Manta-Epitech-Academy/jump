@@ -51,6 +51,7 @@ services:
       - DATABASE_URL=postgresql://jump:${POSTGRES_PASSWORD}@postgres:5432/jump
       - HOST_HEADER=x-forwarded-host
       - S3_ENDPOINT=http://garage:3900
+      - S3_PUBLIC_ENDPOINT=${S3_PUBLIC_ENDPOINT}
       - S3_REGION=${S3_REGION}
       - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
       - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
