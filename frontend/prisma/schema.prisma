@@ -472,3 +472,9 @@ model PlanningTemplateSlotItem {
   @@index([planningTemplateSlotId])
   @@index([activityTemplateId])
 }
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
