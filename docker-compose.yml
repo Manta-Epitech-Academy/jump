@@ -25,6 +25,8 @@ services:
     ports:
       - "3900:3900"   # API S3
       - "3903:3903"   # Admin API
+    networks:
+      - jump-network
     volumes:
       - ./garage/garage.toml:/etc/garage.toml
       - ./garage/meta:/var/lib/garage/meta
