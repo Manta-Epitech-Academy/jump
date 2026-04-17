@@ -29,7 +29,7 @@
     "@lucide/svelte": "^0.561.0",
     "@playwright/test": "^1.59.1",
     "@sveltejs/adapter-node": "^5.5.4",
-    "@sveltejs/kit": "^2.56.1",
+    "@sveltejs/kit": "^2.57.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@tailwindcss/vite": "^4.2.2",
     "@types/ejs": "^3.1.5",
@@ -64,6 +64,7 @@
     "@types/node": "^25.5.2",
     "@types/papaparse": "^5.5.2",
     "better-auth": "^1.6.0",
+    "brace-expansion": "^5.0.5",
     "canvas-confetti": "^1.9.4",
     "ejs": "^4.0.1",
     "marked": "^17.0.6",
@@ -76,5 +77,13 @@
   },
   "prisma": {
     "seed": "bun run prisma/seed.ts"
+  },
+  "overrides": {
+    "basic-ftp": "^5.2.1",
+    "picomatch": "^4.0.4",
+    "cookie": "^0.7.0",
+    "@hono/node-server": "^1.19.13",
+    "hono": "^4.12.14",
+    "brace-expansion": "^5.0.5"
   }
 }
