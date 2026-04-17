@@ -10,6 +10,7 @@ export async function applyPlanningTemplate(
   planningTemplateId: string,
   eventId: string,
   campusId: string,
+  timezone: string,
 ) {
   const template = await prisma.planningTemplate.findUniqueOrThrow({
     where: { id: planningTemplateId },
@@ -84,8 +85,8 @@ export async function applyPlanningTemplate(
         const timeSlot = await tx.timeSlot.create({
           data: {
             planningId: planning.id,
-            startTime: startCdt.toDate('Europe/Paris'),
-            endTime: endCdt.toDate('Europe/Paris'),
+            startTime: startCdt.toDate(timezone),
+            endTime: endCdt.toDate(timezone),
             label: slot.label,
           },
         });

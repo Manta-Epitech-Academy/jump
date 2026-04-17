@@ -81,7 +81,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
         file: item.file,
         url: item.url,
         caption: item.caption,
-        eventName: item.event?.titre || 'TekCamp',
+        eventName: item.event?.titre || 'Jump',
       })),
       topThemes,
     };

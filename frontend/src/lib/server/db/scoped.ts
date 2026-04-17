@@ -1,3 +1,4 @@
+import type { Cookies } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { prisma } from '../db';
 
@@ -5,13 +6,35 @@ import { prisma } from '../db';
  * Extracts the campus ID from the authenticated user's profile.
  */
 export function getCampusId(locals: App.Locals): string {
-  const campusId = locals.staffProfile?.campusId ?? locals.talent?.campusId;
+  const campusId = locals.staffProfile?.campusId;
   if (!campusId) {
     throw new Error(
       "Impossible de créer des données : Aucun campus associé à l'utilisateur connecté.",
     );
   }
   return campusId;
+}
+
+/**
+ * Extracts the IANA timezone from the user's campus.
+ */
+export function getCampusTimezone(locals: App.Locals): string {
+  return locals.staffProfile?.campus?.timezone ?? 'Europe/Paris';
+}
+
+/**
+ * Reads the browser timezone from the `tz` cookie (set client-side).
+ * Validates against the IANA database to prevent RangeError from invalid values.
+ */
+export function getBrowserTimezone(cookies: Cookies): string {
+  const tz = cookies.get('tz');
+  if (!tz) return 'Europe/Paris';
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return tz;
+  } catch {
+    return 'Europe/Paris';
+  }
 }
 
 /**
@@ -171,51 +194,84 @@ export function scopedPrisma(campusId: string) {
         },
       },
 
-      // ── Talent (campusId optional) ──
+      // ── Talent (scoped through participations → campusId) ──
       talent: {
         async findMany({ args, query }) {
-          args.where = { ...args.where, campusId };
+          args.where = {
+            ...args.where,
+            participations: { some: { campusId } },
+          };
           return query(args);
         },
         async count({ args, query }) {
-          args.where = { ...args.where, campusId };
+          args.where = {
+            ...args.where,
+            participations: { some: { campusId } },
+          };
           return query(args);
         },
         async findFirst({ args, query }) {
-          args.where = { ...args.where, campusId };
+          args.where = {
+            ...args.where,
+            participations: { some: { campusId } },
+          };
           return query(args);
         },
         async findUnique({ args, query }) {
           const existing = await prisma.talent.findUnique({
             where: args.where,
-            select: { campusId: true },
+            select: {
+              participations: {
+                where: { campusId },
+                select: { id: true },
+                take: 1,
+              },
+            },
           });
-          if (existing && existing.campusId !== campusId)
+          if (existing && existing.participations.length === 0)
             accessDenied('Talent');
           return query(args);
         },
         async findUniqueOrThrow({ args, query }) {
           const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
-            select: { campusId: true },
+            select: {
+              participations: {
+                where: { campusId },
+                select: { id: true },
+                take: 1,
+              },
+            },
           });
-          if (existing.campusId !== campusId) accessDenied('Talent');
+          if (existing.participations.length === 0) accessDenied('Talent');
           return query(args);
         },
         async update({ args, query }) {
           const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
-            select: { campusId: true },
+            select: {
+              participations: {
+                where: { campusId },
+                select: { id: true },
+                take: 1,
+              },
+            },
           });
-          if (existing.campusId !== campusId) accessDenied('Talent');
+          if (existing.participations.length === 0) accessDenied('Talent');
           return query(args);
         },
         async delete({ args, query }) {
           const existing = await prisma.talent.findUniqueOrThrow({
             where: args.where,
-            select: { campusId: true },
+            select: {
+              participations: {
+                where: { campusId },
+                select: { id: true },
+                take: 1,
+              },
+            },
           });
-          if (existing.campusId !== campusId) accessDenied('Talent');
+          if (existing.participations.length === 0) accessDenied('Talent');
           return query(args);
         },
       },

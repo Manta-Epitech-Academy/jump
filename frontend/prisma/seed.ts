@@ -11,7 +11,7 @@ const prisma = new PrismaClient({ adapter });
 
 // ─── Constants ───
 
-const ADMIN_EMAIL = 'admin@tekcamp.fr';
+const ADMIN_EMAIL = 'admin@jump.fr';
 const ADMIN_PASSWORD = 'admin1234';
 const STAFF_PASSWORD = 'staff1234';
 const STUDENT_PASSWORD = 'student1234';
@@ -433,7 +433,7 @@ const contentStructures: Record<string, ReturnType<typeof makeSteps>> = {
       id: 'crypto-2',
       title: 'Le chiffre de César',
       content_markdown:
-        'Chiffre le message suivant avec un décalage de 3 :\n\n> TEKCAMP EST GENIAL\n\nRésultat attendu : `WHNFDPS HVW JHQLDO`\n\nDéchiffre maintenant : `EUDYR` (décalage 3)',
+        'Chiffre le message suivant avec un décalage de 3 :\n\n> JUMP EST GENIAL\n\nRésultat attendu : `MXPS HVW JHQLDO`\n\nDéchiffre maintenant : `EUDYR` (décalage 3)',
       type: 'exercise',
     },
     {
@@ -864,7 +864,7 @@ async function main() {
     update: { role: 'admin' },
     create: {
       email: ADMIN_EMAIL,
-      name: 'Admin TekCamp',
+      name: 'Admin Jump',
       role: 'admin',
       emailVerified: true,
     },
@@ -906,7 +906,6 @@ async function main() {
       nom: 'Martin',
       niveau: '4eme',
       niveauDifficulte: 'Débutant',
-      campusKey: 'Paris',
     },
     {
       email: 'lucas.dupont@mail.com',
@@ -914,7 +913,6 @@ async function main() {
       nom: 'Dupont',
       niveau: '3eme',
       niveauDifficulte: 'Intermédiaire',
-      campusKey: 'Paris',
     },
     {
       email: 'emma.bernard@mail.com',
@@ -922,7 +920,6 @@ async function main() {
       nom: 'Bernard',
       niveau: '5eme',
       niveauDifficulte: 'Débutant',
-      campusKey: 'Paris',
     },
     {
       email: 'hugo.petit@mail.com',
@@ -930,7 +927,6 @@ async function main() {
       nom: 'Petit',
       niveau: '6eme',
       niveauDifficulte: 'Débutant',
-      campusKey: 'Paris',
     },
     {
       email: 'lea.moreau@mail.com',
@@ -938,7 +934,6 @@ async function main() {
       nom: 'Moreau',
       niveau: '2nde',
       niveauDifficulte: 'Avancé',
-      campusKey: 'Paris',
     },
     {
       email: 'nathan.garcia@mail.com',
@@ -946,7 +941,6 @@ async function main() {
       nom: 'Garcia',
       niveau: '4eme',
       niveauDifficulte: 'Intermédiaire',
-      campusKey: 'Paris',
     },
     {
       email: 'chloe.roux@mail.com',
@@ -954,7 +948,6 @@ async function main() {
       nom: 'Roux',
       niveau: '3eme',
       niveauDifficulte: 'Intermédiaire',
-      campusKey: 'Paris',
     },
     {
       email: 'theo.fournier@mail.com',
@@ -962,7 +955,6 @@ async function main() {
       nom: 'Fournier',
       niveau: '5eme',
       niveauDifficulte: 'Débutant',
-      campusKey: 'Paris',
     },
     {
       email: 'jade.morel@mail.com',
@@ -970,7 +962,6 @@ async function main() {
       nom: 'Morel',
       niveau: '6eme',
       niveauDifficulte: 'Débutant',
-      campusKey: 'Paris',
     },
     {
       email: 'louis.simon@mail.com',
@@ -978,7 +969,6 @@ async function main() {
       nom: 'Simon',
       niveau: '1ere',
       niveauDifficulte: 'Avancé',
-      campusKey: 'Paris',
     },
     // Lyon (indices 10-12)
     {
@@ -987,7 +977,6 @@ async function main() {
       nom: 'Durand',
       niveau: '4eme',
       niveauDifficulte: 'Débutant',
-      campusKey: 'Lyon',
     },
     {
       email: 'adam.leroy@mail.com',
@@ -995,7 +984,6 @@ async function main() {
       nom: 'Leroy',
       niveau: '3eme',
       niveauDifficulte: 'Intermédiaire',
-      campusKey: 'Lyon',
     },
     {
       email: 'manon.david@mail.com',
@@ -1003,7 +991,6 @@ async function main() {
       nom: 'David',
       niveau: '5eme',
       niveauDifficulte: 'Débutant',
-      campusKey: 'Lyon',
     },
   ];
 
@@ -1011,7 +998,6 @@ async function main() {
     id: string;
     nom: string;
     prenom: string;
-    campusId: string;
   }[] = [];
   for (const s of studentsData) {
     const user = await prisma.bauth_user.upsert({
@@ -1031,7 +1017,6 @@ async function main() {
         userId: user.id,
         nom: s.nom,
         prenom: s.prenom,
-        campusId: campusByName[s.campusKey].id,
         niveau: s.niveau,
         niveauDifficulte: s.niveauDifficulte,
         charterAcceptedAt: new Date(),
@@ -1041,7 +1026,6 @@ async function main() {
       id: profile.id,
       nom: s.nom,
       prenom: s.prenom,
-      campusId: profile.campusId!,
     });
     await upsertCredential(user.id, STUDENT_PASSWORD);
   }
@@ -1531,10 +1515,14 @@ async function main() {
 
   // ── Summary ──
   const origin = process.env.ORIGIN || 'http://localhost:3030';
-  const parisStudentCount = talents.filter(
-    (s) => s.campusId === paris.id,
-  ).length;
-  const lyonStudentCount = talents.filter((s) => s.campusId === lyon.id).length;
+  const [parisStudentCount, lyonStudentCount] = await Promise.all([
+    prisma.participation
+      .groupBy({ by: ['talentId'], where: { campusId: paris.id } })
+      .then((r) => r.length),
+    prisma.participation
+      .groupBy({ by: ['talentId'], where: { campusId: lyon.id } })
+      .then((r) => r.length),
+  ]);
 
   console.log('\n══════════════════════════════════');
   console.log('        SEED COMPLETE');
@@ -1545,7 +1533,7 @@ async function main() {
   );
   console.log(`Students: any student email / ${STUDENT_PASSWORD}`);
   console.log(
-    `\nCampuses: Paris (${parisStudentCount} students), Lyon (${lyonStudentCount} students), Marseille (empty)`,
+    `\nCampuses: Paris (${parisStudentCount} talents), Lyon (${lyonStudentCount} talents), Marseille (empty)`,
   );
   console.log(`Templates: ${activityDefs.length} activity + 1 planning`);
   console.log(
@@ -1554,10 +1542,10 @@ async function main() {
   console.log(
     `Events:   ${eventDefs.length} (${eventDefs.filter((e) => e.campusKey === 'Paris').length} Paris + ${eventDefs.filter((e) => e.campusKey === 'Lyon').length} Lyon)`,
   );
-  console.log(`\n${origin}/tekcamp/admin    — Admin panel`);
-  console.log(`${origin}/tekcamp/         — Staff app`);
-  console.log(`${origin}/tekcamp/camper   — Camper app`);
-  console.log(`${origin}/tekcamp/p/${talents[0].id} — Public profile (Alice)`);
+  console.log(`\n${origin}/staff/admin — Admin panel`);
+  console.log(`${origin}/staff/dev   — Staff app`);
+  console.log(`${origin}/            — Talent app`);
+  console.log(`${origin}/p/${talents[0].id} — Public profile (Alice)`);
   console.log('══════════════════════════════════\n');
 }
 

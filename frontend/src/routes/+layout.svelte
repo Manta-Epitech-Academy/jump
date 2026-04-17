@@ -30,7 +30,7 @@
 </script>
 
 <svelte:head>
-  <title>TekCamp {userCampusName ? `| ${userCampusName}` : ''}</title>
+  <title>Jump {userCampusName ? `| ${userCampusName}` : ''}</title>
   <link rel="icon" href={dev ? faviconDev : faviconProd} />
 </svelte:head>
 

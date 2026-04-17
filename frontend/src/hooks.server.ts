@@ -37,7 +37,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     event.locals.talent = await prisma.talent.findUnique({
       where: { userId: event.locals.user.id },
-      include: { campus: true },
     });
 
     // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget)

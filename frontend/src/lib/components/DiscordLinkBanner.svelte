@@ -1,13 +1,31 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { X } from '@lucide/svelte';
+  import { onMount } from 'svelte';
 
+  const STORAGE_KEY = 'discord-banner-dismissed';
   let dismissed = $state(false);
+
+  onMount(() => {
+    if (sessionStorage.getItem(STORAGE_KEY) === 'true') {
+      dismissed = true;
+    }
+  });
+
+  function dismiss() {
+    dismissed = true;
+    sessionStorage.setItem(STORAGE_KEY, 'true');
+  }
 </script>
+
+<svelte:head>
+  {@html `<script>if(sessionStorage.getItem("${STORAGE_KEY}")==="true"){document.documentElement.dataset.discordBannerDismissed="true"}</script>`}
+</svelte:head>
 
 {#if !dismissed}
   <div
-    class="relative flex items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50/80 px-5 py-3.5 dark:border-indigo-900/40 dark:bg-indigo-950/30"
+    data-discord-banner
+    class="flex items-center gap-4 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3.5 shadow-lg shadow-indigo-500/10 dark:border-indigo-900/40 dark:bg-indigo-950 dark:shadow-indigo-900/20"
   >
     <div
       class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/40"
@@ -31,18 +49,24 @@
       </p>
     </div>
     <a
-      href={resolve('/camper/discord')}
+      href={resolve('/discord')}
       class="shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:bg-indigo-700 active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-600"
     >
       Connecter
     </a>
     <button
       type="button"
-      onclick={() => (dismissed = true)}
-      class="absolute top-2 right-2 rounded-lg p-1 text-indigo-400 transition-colors hover:bg-indigo-100 hover:text-indigo-600 dark:hover:bg-indigo-900/40"
+      onclick={dismiss}
+      class="shrink-0 cursor-pointer rounded-lg p-1.5 text-indigo-400 transition-colors hover:bg-indigo-200/60 hover:text-indigo-700 dark:hover:bg-indigo-800/40 dark:hover:text-indigo-300"
     >
-      <X class="h-3.5 w-3.5" />
+      <X class="h-4 w-4" />
       <span class="sr-only">Fermer</span>
     </button>
   </div>
 {/if}
+
+<style>
+  :global(html[data-discord-banner-dismissed] [data-discord-banner]) {
+    display: none;
+  }
+</style>

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Jump (formerly TekCamp) — an internal Epitech Academy platform for managing training events, student progress, and certifications. French-language UI. Built with SvelteKit + Prisma + PostgreSQL.
+Jump — an internal Epitech Academy platform for managing training events, student progress, and certifications. French-language UI. Built with SvelteKit + Prisma + PostgreSQL.
 
 ## Commands
 
@@ -28,7 +28,7 @@ No test framework is configured — there are no automated tests.
 
 ## Tech Stack
 
-- **SvelteKit 2** (Svelte 5) with `adapter-node`, base path `/tekcamp`
+- **SvelteKit 2** (Svelte 5) with `adapter-node`
 - **Bun** runtime
 - **Prisma 7** ORM with **PostgreSQL**
 - **BetterAuth** for authentication (sessions, OAuth, OTP)
@@ -50,24 +50,33 @@ Uses **BetterAuth** (`src/lib/server/auth.ts`) with three methods:
 
 Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
 
+Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, `superdev`, `dev`, `peda`, `manta`). After login, staff redirect to their role-specific space. Guards block cross-space access and redirect to correct space. Role-to-path mapping lives in `src/lib/domain/staff.ts` (`getStaffRoleRedirectPath`).
+
+| StaffRole         | Space                                |
+| ----------------- | ------------------------------------ |
+| `admin`           | `/staff/admin/`                      |
+| `superdev`, `dev` | `/staff/dev/`                        |
+| `peda`, `manta`   | `/staff/pedago/`                     |
+| `null`            | blocked, shown "contact admin" error |
+
 Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
 
 ### Route Groups
 
-- `(auth)/` — login, register, OAuth callback, onboarding (public)
-- `(app)/` — staff/admin dashboard (events, students, discord)
-- `(camper)/` — student portal (dashboard, charter)
-- `admin/` — superuser-only routes (users, subjects, themes, campuses)
+- `(staff)/` — all staff routes: login, OAuth, onboarding, and role-gated spaces (`staff/admin/`, `staff/dev/`, `staff/pedago/`)
+- `(talent)/` — student portal (login, OTP, charter, dashboard)
 - `api/` — API endpoints (auth, students, certificates, diplomas, jobs, worker)
 - `p/` — public portfolio view
+- `logout/` — universal logout
+- `register/` — student registration
 
 ### Data Layer
 
 Prisma schema at `frontend/prisma/schema.prisma`. Key models:
 
-- **Auth:** `bauth_user`, `bauth_session`, `bauth_account`, `bauth_verification` (managed by BettesalesforceCampaignIdrAuth)
+- **Auth:** `bauth_user`, `bauth_session`, `bauth_account`, `bauth_verification` (managed by BetterAuth)
 - **Profiles:** `StaffProfile` (userId, campusId, avatar, discordId), `Talent` (student identity, XP, level, badges)
-- **Event structure:** `Event` → `Planning` → `TimeSlot` → `Activity`. Events can optionally link to Salesforce via `salesforceCampaignId`.
+- **Event structure:** `Event` → `Planning` → `TimeSlot` → `Activity`. Events can optionally link to Salesforce via `externalId`.
 - **Templates:** `ActivityTemplate` (clonable activity definitions), `PlanningTemplate` → `PlanningTemplateDay` → `PlanningTemplateSlot` → `PlanningTemplateSlotItem`
 - **Domain:** `Campus`, `Theme` (transversal tags across activities), `Participation`, `ParticipationActivity`, `StepsProgress`, `PortfolioItem`, `EventManta`
 
@@ -108,7 +117,7 @@ Activity difficulty determines XP: Débutant=20, Intermédiaire=45, Avancé=75. 
 ## Constraints
 
 - **RGPD:** Some users are minors. The charter must be signed before accessing the app. Anonymization job available via `POST /api/jobs/anonymize` with `Authorization: Bearer <CRON_SECRET>`. Never store personal data unnecessarily.
-- **Salesforce:** `Event.salesforceCampaignId` optionally links events to Salesforce campaigns.
+- **Salesforce:** `Event.externalId` optionally links events to Salesforce campaigns.
 
 ## Environment Variables
 
