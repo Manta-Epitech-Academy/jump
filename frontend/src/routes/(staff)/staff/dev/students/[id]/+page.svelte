@@ -13,6 +13,7 @@
   import StudentFormDialog from '../components/StudentFormDialog.svelte';
   import TalentCard from './components/TalentCard.svelte';
   import StudentTimeline from './components/StudentTimeline.svelte';
+  import OnboardingStatus from './components/OnboardingStatus.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -66,6 +67,7 @@
         {xpProgress}
         onOpenEdit={openEdit}
       />
+      <OnboardingStatus student={data.student} />
     </div>
 
     <div class="space-y-6 md:col-span-8 lg:col-span-9">
