@@ -22,8 +22,10 @@
   import TalentCard from './components/TalentCard.svelte';
   import StudentTimeline from '$lib/components/students/StudentTimeline.svelte';
   import ScheduleInterviewPopover from '$lib/components/interviews/ScheduleInterviewPopover.svelte';
+  import { can } from '$lib/domain/permissions';
 
   let { data }: { data: PageData } = $props();
+  const canDelete = $derived(can('devLead', data.staffProfile?.staffRole));
 
   const { form, errors, delayed, enhance, reset } = superForm(
     untrack(() => data.form),
@@ -268,7 +270,10 @@
         type="button"
         variant="destructive"
         class="w-full"
+        disabled={!canDelete}
+        title={canDelete ? undefined : "Réservé aux responsables de l'espace"}
         onclick={() => {
+          if (!canDelete) return;
           editOpen = false;
           deleteDialogOpen = true;
         }}><Trash2 class="mr-2 h-4 w-4" /> Supprimer le dossier</Button

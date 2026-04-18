@@ -12,6 +12,7 @@
   import { superForm } from 'sveltekit-superforms';
   import { untrack } from 'svelte';
   import { toast } from 'svelte-sonner';
+  import { onErrorToast } from '$lib/utils/formErrors';
   import { enhance as kitEnhance } from '$app/forms';
   import { activityTypeLabels } from '$lib/validation/templates';
   import { difficultes } from '$lib/domain/xp';
@@ -49,6 +50,7 @@
           toast.success(result.data?.form?.message || 'Activité créée !');
         }
       },
+      onError: onErrorToast(),
     },
   );
 
@@ -207,6 +209,13 @@
                             `Activité « ${template.nom} » ajoutée !`,
                           );
                           await update();
+                        } else if (
+                          result.type === 'error' &&
+                          result.status === 403
+                        ) {
+                          toast.error(
+                            "Action réservée aux responsables de l'espace.",
+                          );
                         } else {
                           toast.error("Erreur lors de l'ajout.");
                           await update();

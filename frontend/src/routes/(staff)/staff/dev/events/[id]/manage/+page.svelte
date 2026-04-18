@@ -17,6 +17,8 @@
   import * as Tabs from '$lib/components/ui/tabs';
   import { resolve } from '$app/paths';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { onErrorToast } from '$lib/utils/formErrors';
+  import { can } from '$lib/domain/permissions';
 
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
   import ParticipantManager from './components/ParticipantManager.svelte';
@@ -58,6 +60,7 @@
           toast.success(result.data?.form.message);
         }
       },
+      onError: onErrorToast(),
     },
   );
 
@@ -228,6 +231,7 @@
         applyTemplateForm={data.applyTemplateForm}
         timezone={data.timezone}
         containerClass="h-[calc(100vh-18rem)] min-h-[600px]"
+        canEdit={can('devLead', data.staffProfile?.staffRole)}
       />
     </Tabs.Content>
   </Tabs.Root>

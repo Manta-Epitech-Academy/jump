@@ -8,6 +8,22 @@ import {
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const db = scopedPrisma(getCampusId(locals));
+
+  if (locals.staffProfile?.staffRole === 'manta') {
+    const hasSharedEvent = await db.participation.findFirst({
+      where: {
+        talentId: params.id,
+        event: {
+          mantas: { some: { staffProfileId: locals.staffProfile.id } },
+        },
+      },
+      select: { id: true },
+    });
+    if (!hasSharedEvent) {
+      throw error(404, 'Talent introuvable');
+    }
+  }
+
   try {
     const student = await db.talent.findUniqueOrThrow({
       where: { id: params.id },

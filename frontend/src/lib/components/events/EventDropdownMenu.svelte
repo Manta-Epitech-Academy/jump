@@ -1,14 +1,20 @@
 <script lang="ts">
   import { buttonVariants } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { Ellipsis, Pencil, Copy, Trash2, Users } from '@lucide/svelte';
+  import { Ellipsis, Copy, Trash2, Users } from '@lucide/svelte';
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
+  import { can } from '$lib/domain/permissions';
 
   let { event, onDuplicate, onDelete } = $props<{
     event: { id: string; titre: string; date: Date };
     onDuplicate: (event: { id: string; titre: string; date: Date }) => void;
     onDelete: (id: string) => void;
   }>();
+
+  const role = $derived(page.data.staffProfile?.staffRole);
+  const canDuplicate = $derived(can('devLead', role));
+  const canDelete = $derived(can('devLead', role));
 </script>
 
 <DropdownMenu.Root>
@@ -35,7 +41,8 @@
 
     <DropdownMenu.Item
       class="cursor-pointer"
-      onclick={() => onDuplicate(event)}
+      disabled={!canDuplicate}
+      onclick={() => canDuplicate && onDuplicate(event)}
     >
       <Copy class="mr-2 h-4 w-4 text-muted-foreground" />
       Dupliquer
@@ -45,7 +52,8 @@
 
     <DropdownMenu.Item
       class="cursor-pointer text-destructive"
-      onclick={() => onDelete(event.id)}
+      disabled={!canDelete}
+      onclick={() => canDelete && onDelete(event.id)}
     >
       <Trash2 class="mr-2 h-4 w-4" />
       Supprimer

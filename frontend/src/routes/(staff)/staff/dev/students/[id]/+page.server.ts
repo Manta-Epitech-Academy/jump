@@ -12,6 +12,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 const scheduleInterviewFromStudentSchema = scheduleInterviewSchema.omit({
   talentId: true,
@@ -102,6 +103,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
   update: async ({ request, params, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(studentSchema));
     if (!form.valid) return fail(400, { form });
     const db = scopedPrisma(getCampusId(locals));
@@ -135,6 +137,7 @@ export const actions: Actions = {
   },
 
   delete: async ({ params, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     const db = scopedPrisma(getCampusId(locals));
     try {
       const profile = await db.talent.findUniqueOrThrow({
@@ -153,6 +156,7 @@ export const actions: Actions = {
   },
 
   scheduleInterview: async ({ request, params, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const form = await superValidate(
       request,
       zod4(scheduleInterviewFromStudentSchema),

@@ -7,6 +7,7 @@
   import { superForm } from 'sveltekit-superforms';
   import { untrack } from 'svelte';
   import { toast } from 'svelte-sonner';
+  import { onErrorToast } from '$lib/utils/formErrors';
   import type { TimeSlotWithActivities } from '$lib/types';
 
   let {
@@ -40,6 +41,7 @@
           toast.success(result.data?.form?.message || 'Créneau sauvegardé !');
         }
       },
+      onError: onErrorToast(),
     },
   );
 

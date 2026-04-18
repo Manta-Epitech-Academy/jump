@@ -7,6 +7,7 @@ import {
   importCampaignData,
   type ImportAction,
 } from '$lib/server/services/campaignService';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -21,6 +22,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   analyzeCampaign: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
     const file = formData.get('csvFile') as File;
 
@@ -41,6 +43,7 @@ export const actions: Actions = {
   },
 
   confirmCampaignImport: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
     const rawData = formData.get('importData') as string;
     const eventName = formData.get('eventName') as string;

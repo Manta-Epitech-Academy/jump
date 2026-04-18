@@ -24,6 +24,7 @@
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
+  import Gated from '$lib/components/auth/Gated.svelte';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -297,16 +298,18 @@
       <div class="flex-1 overflow-y-auto p-4">
         {@render navMenu()}
       </div>
-      <div class="border-t border-border p-4">
-        <Button
-          variant="outline"
-          class="w-full justify-start border-dashed"
-          href={resolve('/staff/dev/events/import')}
-        >
-          <Plus class="mr-2 h-4 w-4" />
-          Importer une campagne
-        </Button>
-      </div>
+      <Gated group="devLead" mode="hide">
+        <div class="border-t border-border p-4">
+          <Button
+            variant="outline"
+            class="w-full justify-start border-dashed"
+            href={resolve('/staff/dev/events/import')}
+          >
+            <Plus class="mr-2 h-4 w-4" />
+            Importer une campagne
+          </Button>
+        </div>
+      </Gated>
     </aside>
 
     {#if mobileMenuOpen}
@@ -325,15 +328,17 @@
         <div class="flex-1 overflow-y-auto p-4">
           {@render navMenu()}
         </div>
-        <div class="border-t border-border p-4">
-          <Button
-            variant="outline"
-            class="w-full justify-center border-dashed"
-            href={resolve('/staff/dev/events/import')}
-          >
-            <Plus class="mr-2 h-4 w-4" /> Importer une campagne
-          </Button>
-        </div>
+        <Gated group="devLead" mode="hide">
+          <div class="border-t border-border p-4">
+            <Button
+              variant="outline"
+              class="w-full justify-center border-dashed"
+              href={resolve('/staff/dev/events/import')}
+            >
+              <Plus class="mr-2 h-4 w-4" /> Importer une campagne
+            </Button>
+          </div>
+        </Gated>
       </aside>
     {/if}
 

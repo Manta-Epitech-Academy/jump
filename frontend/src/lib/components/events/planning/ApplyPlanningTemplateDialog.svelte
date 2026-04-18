@@ -8,6 +8,7 @@
   import * as Select from '$lib/components/ui/select';
   import * as Alert from '$lib/components/ui/alert';
   import { toast } from 'svelte-sonner';
+  import { onErrorToast } from '$lib/utils/formErrors';
   import type { PlanningWithSlots } from '$lib/types';
 
   let {
@@ -39,6 +40,7 @@
           toast.success(result.data?.form?.message || 'Modèle appliqué !');
         }
       },
+      onError: onErrorToast(),
     },
   );
 

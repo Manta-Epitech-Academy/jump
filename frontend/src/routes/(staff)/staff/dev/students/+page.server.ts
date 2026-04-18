@@ -5,6 +5,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 const PER_PAGE = 50;
 
@@ -54,6 +55,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
   update: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(studentSchema));
     const id = formData.get('id') as string;
@@ -102,6 +104,7 @@ export const actions: Actions = {
   },
 
   delete: async ({ url, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
     const db = scopedPrisma(getCampusId(locals));

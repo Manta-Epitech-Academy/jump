@@ -32,8 +32,10 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentFormDialog from './components/StudentFormDialog.svelte';
+  import { can } from '$lib/domain/permissions';
 
   let { data }: { data: PageData } = $props();
+  const canDelete = $derived(can('devLead', data.staffProfile?.staffRole));
 
   const { form, errors, delayed, enhance, reset } = superForm(
     untrack(() => data.form),
@@ -274,9 +276,11 @@
                     <DropdownMenu.Separator />
                     <DropdownMenu.Item
                       class="cursor-pointer text-destructive"
-                      onclick={() => confirmDelete(student.id)}
-                      ><Trash2 class="mr-2 h-4 w-4" /> Supprimer</DropdownMenu.Item
+                      disabled={!canDelete}
+                      onclick={() => canDelete && confirmDelete(student.id)}
                     >
+                      <Trash2 class="mr-2 h-4 w-4" /> Supprimer
+                    </DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </Table.Cell>

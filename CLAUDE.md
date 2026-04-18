@@ -61,6 +61,33 @@ Staff are routed by `StaffProfile.staffRole` (Prisma `StaffRole` enum: `admin`, 
 
 Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
 
+### Role gating
+
+Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
+
+| Group        | Roles                | Use for                                                    |
+| ------------ | -------------------- | ---------------------------------------------------------- |
+| `devLead`    | `superdev`           | Dev workspace lead-only mutations (delete, import, update) |
+| `devMember`  | `superdev`, `dev`    | Dev workspace daily ops (participants, interviews, update) |
+| `pedaLead`   | `peda`               | Pedago workspace lead-only (planning page, factions)       |
+| `pedaMember` | `peda`, `manta`      | Pedago workspace field ops (cockpit mutations)             |
+| `leads`      | `superdev`, `peda`   | Actions shared across both workspace leads                 |
+
+- **Client:** `<Gated group="devLead">...</Gated>` — reads role from page state, hides or disables with tooltip. Import: `$lib/components/auth/Gated.svelte`.
+- **Server:** `requireStaffGroup(locals, 'devLead')` in every mutating action. Import: `$lib/server/auth/guards`.
+- **Routes:** `STAFF_ROLE_GATES` in `guards.ts` gates whole URLs by group; use `readOnlyForRest` to degrade instead of redirect (e.g. manta on planning sees `locals.viewMode === 'readonly'`).
+
+**UI pattern rule — pick one per site, do not mix:**
+
+| Pattern              | When                                                      |
+| -------------------- | --------------------------------------------------------- |
+| Hide                 | Nav entries to lead-only destinations (sidebar, menus)    |
+| Disable + tooltip    | Mutating controls visible on shared screens               |
+| Readonly banner      | Whole-page readonly context (e.g. manta on planning)      |
+| Redirect / 403       | Direct URL access to lead-only routes (via STAFF_ROLE_GATES) |
+
+Never inline a `['superdev']` array at a call site. If the group you need doesn't exist, add it to `STAFF_GROUPS`.
+
 ### Route Groups
 
 - `(staff)/` — all staff routes: login, OAuth, onboarding, and role-gated spaces (`staff/admin/`, `staff/dev/`, `staff/pedago/`)

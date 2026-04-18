@@ -21,6 +21,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -136,6 +137,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 export const actions: Actions = {
   // === EVENT & CRM ACTIONS ===
   addExisting: async ({ request, locals, params }) => {
+    requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(addParticipantSchema));
     if (!form.valid) return fail(400, { form });
     try {
@@ -169,6 +171,7 @@ export const actions: Actions = {
   },
 
   updateEvent: async ({ request, locals, params }) => {
+    requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
     const dateStr = formData.get('date') as string;
     const timeStr = formData.get('time') as string;
@@ -216,6 +219,7 @@ export const actions: Actions = {
   },
 
   toggleAdminDoc: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const data = await request.formData();
     const id = data.get('id') as string;
     const docType = data.get('docType') as string;
@@ -246,11 +250,13 @@ export const actions: Actions = {
   },
 
   toggleBringPc: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const data = await request.formData();
     return toggleBringPc(data, getCampusId(locals));
   },
 
   remove: async ({ url, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
     const db = scopedPrisma(getCampusId(locals));
@@ -284,6 +290,7 @@ export const actions: Actions = {
   },
 
   deleteEvent: async ({ params, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     try {
       await EventService.deleteEvent(params.id, getCampusId(locals));
     } catch (err) {

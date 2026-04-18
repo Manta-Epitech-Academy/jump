@@ -5,6 +5,7 @@ import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { assertEventCampus } from '$lib/server/db/assert';
 import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -152,6 +153,7 @@ async function syncEventPresence(
 
 export const actions: Actions = {
   togglePresent: async ({ request, params, locals }) => {
+    requireStaffGroup(locals, 'pedaMember');
     const data = await request.formData();
     const id = data.get('id') as string;
     const currentState = data.get('state') === 'true';
@@ -180,6 +182,7 @@ export const actions: Actions = {
   },
 
   updateDelay: async ({ request, params, locals }) => {
+    requireStaffGroup(locals, 'pedaMember');
     const data = await request.formData();
     const id = data.get('id') as string;
     const delay = parseInt(data.get('delay') as string, 10);
@@ -206,6 +209,7 @@ export const actions: Actions = {
   },
 
   updateNote: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'pedaMember');
     const data = await request.formData();
     const id = data.get('id') as string;
     const note = data.get('note') as string;
@@ -223,6 +227,7 @@ export const actions: Actions = {
   },
 
   unlockStep: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'pedaMember');
     const data = await request.formData();
     const progressId = data.get('progressId') as string;
 
@@ -264,6 +269,7 @@ export const actions: Actions = {
   },
 
   dismissAlert: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'pedaMember');
     const data = await request.formData();
     const progressId = data.get('progressId') as string;
     try {
@@ -283,6 +289,7 @@ export const actions: Actions = {
   },
 
   toggleBringPc: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'pedaMember');
     const data = await request.formData();
     return toggleBringPc(data, getCampusId(locals));
   },

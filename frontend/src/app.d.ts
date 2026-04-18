@@ -9,6 +9,7 @@ declare global {
       session: Session | null;
       staffProfile: (StaffProfile & { campus: Campus | null }) | null;
       talent: Talent | null;
+      viewMode: 'readonly' | 'edit';
     }
     // interface PageData {}
     // interface PageState {}

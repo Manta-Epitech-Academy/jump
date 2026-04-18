@@ -4,6 +4,7 @@
   import { buttonVariants } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import CalendarPlanner from '$lib/components/events/planning/CalendarPlanner.svelte';
+  import { can } from '$lib/domain/permissions';
 
   let { data }: { data: PageData } = $props();
 </script>
@@ -49,6 +50,7 @@
       timezone={data.timezone}
       appelRouteBase={`/staff/pedago/events/${data.event.id}/cockpit`}
       containerClass="h-full"
+      canEdit={can('pedaLead', data.staffProfile?.staffRole)}
     />
   </div>
 </div>

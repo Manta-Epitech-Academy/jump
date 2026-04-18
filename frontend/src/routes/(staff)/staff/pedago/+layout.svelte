@@ -258,6 +258,13 @@
     {/if}
 
     <main class="flex-1 overflow-y-auto bg-background p-4 md:p-8">
+      {#if data.viewMode === 'readonly'}
+        <div
+          class="mb-4 rounded-sm border border-epi-blue/30 bg-epi-blue/10 px-4 py-3 text-sm font-medium text-epi-blue"
+        >
+          Lecture seule — édition réservée à la péda.
+        </div>
+      {/if}
       {@render children()}
     </main>
   </div>

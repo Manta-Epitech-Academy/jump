@@ -16,6 +16,7 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -81,6 +82,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   assignMantas: async ({ request, locals, params }) => {
+    requireStaffGroup(locals, 'leads');
     const formData = await request.formData();
     const mantas = formData.getAll('mantas') as string[];
     try {

@@ -13,6 +13,7 @@ import {
   scheduleInterviewSchema,
   updateInterviewStatusSchema,
 } from '$lib/validation/interviews';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const campusId = getCampusId(locals);
@@ -40,6 +41,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   schedule: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(scheduleInterviewSchema));
     if (!form.valid) return fail(400, { form });
 
@@ -66,6 +68,7 @@ export const actions: Actions = {
   },
 
   updateStatus: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const form = await superValidate(
       request,
       zod4(updateInterviewStatusSchema),
@@ -86,6 +89,7 @@ export const actions: Actions = {
   },
 
   saveGrid: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(interviewGridSchema));
     if (!form.valid) return fail(400, { form });
 

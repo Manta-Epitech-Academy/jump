@@ -12,6 +12,7 @@
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
   import DatePicker from '$lib/components/DatePicker.svelte';
+  import Gated from '$lib/components/auth/Gated.svelte';
   import { CalendarDateTime } from '@internationalized/date';
   import type { Readable } from 'svelte/store';
   import type { SuperForm } from 'sveltekit-superforms/client';
@@ -90,21 +91,23 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Tooltip.Provider delayDuration={300}>
-    <Tooltip.Root>
-      <Tooltip.Trigger>
-        {#snippet child({ props: tooltipProps })}
-          <Dialog.Trigger
-            {...tooltipProps}
-            class={buttonVariants({ variant: 'outline', size: 'icon' })}
-          >
-            <Settings class="h-4 w-4" />
-          </Dialog.Trigger>
-        {/snippet}
-      </Tooltip.Trigger>
-      <Tooltip.Content><p>Paramètres de l'événement</p></Tooltip.Content>
-    </Tooltip.Root>
-  </Tooltip.Provider>
+  <Gated group="devLead">
+    <Tooltip.Provider delayDuration={300}>
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props: tooltipProps })}
+            <Dialog.Trigger
+              {...tooltipProps}
+              class={buttonVariants({ variant: 'outline', size: 'icon' })}
+            >
+              <Settings class="h-4 w-4" />
+            </Dialog.Trigger>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content><p>Paramètres de l'événement</p></Tooltip.Content>
+      </Tooltip.Root>
+    </Tooltip.Provider>
+  </Gated>
 
   <Dialog.Content class="sm:max-w-125">
     <Dialog.Header>

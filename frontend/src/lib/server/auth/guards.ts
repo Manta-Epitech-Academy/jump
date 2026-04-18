@@ -1,12 +1,37 @@
-import type { RequestEvent } from '@sveltejs/kit';
+import { error, redirect, type RequestEvent } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
+import type { StaffRole } from '@prisma/client';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
+import { rolesIn, type StaffGroup } from '$lib/domain/permissions';
+
+type StaffRoleGate = {
+  pattern: RegExp;
+  group: StaffGroup;
+  readOnlyForRest?: readonly StaffRole[];
+};
+
+const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
+  {
+    pattern: /^\/staff\/dev\/events\/import(?:\/|$)/,
+    group: 'devLead',
+  },
+  {
+    pattern: /^\/staff\/pedago\/events\/[^/]+\/planning(?:\/|$)/,
+    group: 'pedaLead',
+    readOnlyForRest: ['manta'],
+  },
+  {
+    pattern: /^\/staff\/pedago\/events\/[^/]+\/factions(?:\/|$)/,
+    group: 'pedaLead',
+  },
+];
 
 export function applyRouteGuards(event: RequestEvent): Response | null {
   const currentPath = event.url.pathname;
   const routeId = event.route.id || '';
 
-  // --- Path definitions ---
+  event.locals.viewMode = 'edit';
+
   const p = (path: string) =>
     new URL(resolvePath(path as any), event.url).pathname;
 
@@ -151,7 +176,61 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
         303,
       );
     }
+
+    // Per-feature sub-role gates (lead-only features inside each workspace)
+    if ((isDevPath || isPedagoPath) && event.locals.staffProfile?.staffRole) {
+      const role = event.locals.staffProfile.staffRole;
+      for (const gate of STAFF_ROLE_GATES) {
+        if (!gate.pattern.test(currentPath)) continue;
+        const allowed = rolesIn(gate.group);
+        if (allowed.includes(role)) {
+          event.locals.viewMode = 'edit';
+          break;
+        }
+        if (gate.readOnlyForRest?.includes(role)) {
+          event.locals.viewMode = 'readonly';
+          break;
+        }
+        throw error(403, 'Forbidden');
+      }
+    }
   }
 
   return null;
+}
+
+type RequireStaffRoleOptions = {
+  throwAs?: 'error' | 'redirect';
+  redirectTo?: string;
+};
+
+export function requireStaffRole(
+  locals: App.Locals,
+  allowed: readonly StaffRole[],
+  options: RequireStaffRoleOptions = {},
+): asserts locals is App.Locals & {
+  staffProfile: NonNullable<App.Locals['staffProfile']> & {
+    staffRole: StaffRole;
+  };
+} {
+  const role = locals.staffProfile?.staffRole;
+  if (role && allowed.includes(role)) return;
+
+  const { throwAs = 'error', redirectTo } = options;
+  if (throwAs === 'redirect') {
+    throw redirect(303, redirectTo ?? '/staff/login?error=forbidden');
+  }
+  throw error(403, 'Forbidden');
+}
+
+export function requireStaffGroup(
+  locals: App.Locals,
+  group: StaffGroup,
+  options: RequireStaffRoleOptions = {},
+): asserts locals is App.Locals & {
+  staffProfile: NonNullable<App.Locals['staffProfile']> & {
+    staffRole: StaffRole;
+  };
+} {
+  requireStaffRole(locals, rolesIn(group), options);
 }

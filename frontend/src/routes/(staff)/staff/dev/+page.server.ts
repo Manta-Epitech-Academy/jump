@@ -9,6 +9,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { EVENT_TYPES } from '$lib/domain/event';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) {
@@ -161,6 +162,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   deleteEvent: async ({ url, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 
@@ -174,6 +176,7 @@ export const actions: Actions = {
   },
 
   duplicateEvent: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     const data = await request.formData();
     const originalId = data.get('originalId') as string;
     const titre = data.get('titre') as string;

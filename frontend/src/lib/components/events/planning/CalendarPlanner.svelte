@@ -6,7 +6,6 @@
   import {
     Plus,
     LayoutTemplate,
-    Clock,
     Pencil,
     Trash2,
     Zap,
@@ -40,6 +39,7 @@
     timezone,
     appelRouteBase = null,
     containerClass = 'h-full min-h-[600px]',
+    canEdit = true,
   }: {
     planning: PlanningWithSlots | null;
     templates: (ActivityTemplate & {
@@ -62,6 +62,7 @@
     timezone: string;
     appelRouteBase?: string | null;
     containerClass?: string;
+    canEdit?: boolean;
   } = $props();
 
   let currentTime = $state(new Date());
@@ -257,6 +258,7 @@
 
   // Pointer interactions
   function startCreate(e: PointerEvent, dateKey: string) {
+    if (!canEdit) return;
     if (e.button !== 0) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const y = e.clientY - rect.top;
@@ -279,6 +281,7 @@
   }
 
   function startMove(e: PointerEvent, slot: any, dateKey: string) {
+    if (!canEdit) return;
     if (e.button !== 0) return;
     e.stopPropagation();
     dragState = {
@@ -297,6 +300,7 @@
   }
 
   function startResize(e: PointerEvent, slot: any, dateKey: string) {
+    if (!canEdit) return;
     if (e.button !== 0) return;
     e.stopPropagation();
     dragState = {
@@ -315,6 +319,7 @@
   }
 
   function startResizeTop(e: PointerEvent, slot: any, dateKey: string) {
+    if (!canEdit) return;
     if (e.button !== 0) return;
     e.stopPropagation();
     dragState = {
@@ -420,6 +425,7 @@
     dragOverSlotId = null;
   }
   function handleDragOver(e: DragEvent, slotId: string) {
+    if (!canEdit) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     dragOverSlotId = slotId;
@@ -428,6 +434,7 @@
     if (dragOverSlotId === slotId) dragOverSlotId = null;
   }
   function handleDrop(e: DragEvent, slotId: string) {
+    if (!canEdit) return;
     e.preventDefault();
     const templateId = e.dataTransfer?.getData('text/plain');
     dragOverSlotId = null;
@@ -448,30 +455,32 @@
       Tracez sur la grille pour créer des créneaux, puis glissez-y vos activités
       depuis le catalogue !
     </div>
-    <div class="flex w-full gap-2 sm:w-auto">
-      <Button
-        size="sm"
-        class="flex-1 bg-epi-teal text-black hover:bg-epi-teal/80 sm:flex-none"
-        onclick={() => {
-          dialogDateKey = calendarDays[0]?.dateKey || getDateKey(new Date());
-          dialogDefaultStartTime = '09:00';
-          dialogDefaultEndTime = '10:30';
-          addSlotOpen = true;
-        }}
-      >
-        <Plus class="mr-1 h-4 w-4" /> Créneau manuel
-      </Button>
-      {#if planningTemplates && planningTemplates.length > 0}
+    {#if canEdit}
+      <div class="flex w-full gap-2 sm:w-auto">
         <Button
           size="sm"
-          variant="outline"
-          class="flex-1 sm:flex-none"
-          onclick={() => (applyTemplateOpen = true)}
+          class="flex-1 bg-epi-teal text-black hover:bg-epi-teal/80 sm:flex-none"
+          onclick={() => {
+            dialogDateKey = calendarDays[0]?.dateKey || getDateKey(new Date());
+            dialogDefaultStartTime = '09:00';
+            dialogDefaultEndTime = '10:30';
+            addSlotOpen = true;
+          }}
         >
-          <LayoutTemplate class="mr-1 h-4 w-4" /> Appliquer Modèle
+          <Plus class="mr-1 h-4 w-4" /> Créneau manuel
         </Button>
-      {/if}
-    </div>
+        {#if planningTemplates && planningTemplates.length > 0}
+          <Button
+            size="sm"
+            variant="outline"
+            class="flex-1 sm:flex-none"
+            onclick={() => (applyTemplateOpen = true)}
+          >
+            <LayoutTemplate class="mr-1 h-4 w-4" /> Appliquer Modèle
+          </Button>
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <!-- Main Split Area -->
@@ -622,37 +631,39 @@
                           </span>
                         {/if}
                       </div>
-                      <div
-                        class="flex shrink-0 items-center gap-0.5 rounded-sm bg-background/50 opacity-0 backdrop-blur-sm transition-opacity group-hover/slot:opacity-100"
-                        onpointerdown={(e) => e.stopPropagation()}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          class="h-5 w-5"
-                          onclick={() => {
-                            editingSlot = slot;
-                            editSlotOpen = true;
-                          }}
-                        >
-                          <Pencil class="h-2.5 w-2.5" />
-                        </Button>
-                        <form
-                          action="?/deleteTimeSlot&id={slot.id}"
-                          method="POST"
-                          use:kitEnhance
-                          class="shrink-0"
+                      {#if canEdit}
+                        <div
+                          class="flex shrink-0 items-center gap-0.5 rounded-sm bg-background/50 opacity-0 backdrop-blur-sm transition-opacity group-hover/slot:opacity-100"
+                          onpointerdown={(e) => e.stopPropagation()}
                         >
                           <Button
                             variant="ghost"
                             size="icon"
-                            type="submit"
-                            class="h-5 w-5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            class="h-5 w-5"
+                            onclick={() => {
+                              editingSlot = slot;
+                              editSlotOpen = true;
+                            }}
                           >
-                            <Trash2 class="h-2.5 w-2.5" />
+                            <Pencil class="h-2.5 w-2.5" />
                           </Button>
-                        </form>
-                      </div>
+                          <form
+                            action="?/deleteTimeSlot&id={slot.id}"
+                            method="POST"
+                            use:kitEnhance
+                            class="shrink-0"
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              type="submit"
+                              class="h-5 w-5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 class="h-2.5 w-2.5" />
+                            </Button>
+                          </form>
+                        </div>
+                      {/if}
                     </div>
 
                     <!-- Activities Container -->
@@ -660,18 +671,20 @@
                       class="flex flex-1 flex-col gap-1 overflow-y-auto p-1.5"
                     >
                       {#if slot.activities.length === 0}
-                        <button
-                          type="button"
-                          class="flex min-h-6 w-full flex-1 items-center justify-center rounded border-2 border-dashed border-epi-blue/30 px-1 text-center text-[9px] font-bold tracking-widest text-epi-blue/50 uppercase transition-colors hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue sm:px-2 sm:text-[10px]"
-                          onpointerdown={(e) => e.stopPropagation()}
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            dialogSlotId = slot.id;
-                            addActivityOpen = true;
-                          }}
-                        >
-                          <Plus class="mr-1 h-3 w-3" /> Manuel
-                        </button>
+                        {#if canEdit}
+                          <button
+                            type="button"
+                            class="flex min-h-6 w-full flex-1 items-center justify-center rounded border-2 border-dashed border-epi-blue/30 px-1 text-center text-[9px] font-bold tracking-widest text-epi-blue/50 uppercase transition-colors hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue sm:px-2 sm:text-[10px]"
+                            onpointerdown={(e) => e.stopPropagation()}
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              dialogSlotId = slot.id;
+                              addActivityOpen = true;
+                            }}
+                          >
+                            <Plus class="mr-1 h-3 w-3" /> Manuel
+                          </button>
+                        {/if}
                       {:else}
                         {#each slot.activities as activity (activity.id)}
                           <div
@@ -692,21 +705,23 @@
                                   >{activity.nom}</span
                                 >
                               </div>
-                              <form
-                                action="?/deleteActivity&id={activity.id}"
-                                method="POST"
-                                use:kitEnhance
-                                class="shrink-0"
-                              >
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  type="submit"
-                                  class="h-4 w-4 text-destructive opacity-0 transition-opacity group-hover/act:opacity-100"
+                              {#if canEdit}
+                                <form
+                                  action="?/deleteActivity&id={activity.id}"
+                                  method="POST"
+                                  use:kitEnhance
+                                  class="shrink-0"
                                 >
-                                  <Trash2 class="h-2.5 w-2.5" />
-                                </Button>
-                              </form>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    type="submit"
+                                    class="h-4 w-4 text-destructive opacity-0 transition-opacity group-hover/act:opacity-100"
+                                  >
+                                    <Trash2 class="h-2.5 w-2.5" />
+                                  </Button>
+                                </form>
+                              {/if}
                             </div>
 
                             <div class="mt-0.5 flex flex-wrap gap-1">
@@ -741,29 +756,33 @@
                             {/if}
                           </div>
                         {/each}
-                        <button
-                          type="button"
-                          class="flex items-center justify-center gap-1.5 rounded border-2 border-dashed border-epi-blue/30 p-0.5 text-epi-blue/60 transition-colors hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue"
-                          onpointerdown={(e) => e.stopPropagation()}
-                          onclick={(e) => {
-                            e.stopPropagation();
-                            dialogSlotId = slot.id;
-                            addActivityOpen = true;
-                          }}
-                        >
-                          <Plus class="h-3 w-3" />
-                        </button>
+                        {#if canEdit}
+                          <button
+                            type="button"
+                            class="flex items-center justify-center gap-1.5 rounded border-2 border-dashed border-epi-blue/30 p-0.5 text-epi-blue/60 transition-colors hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue"
+                            onpointerdown={(e) => e.stopPropagation()}
+                            onclick={(e) => {
+                              e.stopPropagation();
+                              dialogSlotId = slot.id;
+                              addActivityOpen = true;
+                            }}
+                          >
+                            <Plus class="h-3 w-3" />
+                          </button>
+                        {/if}
                       {/if}
                     </div>
 
-                    <!-- Bottom Handle: pointer-drag to resize -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <div
-                      class="absolute bottom-0 flex h-2 w-full cursor-ns-resize items-center justify-center opacity-0 transition-opacity group-hover/slot:opacity-100 hover:bg-epi-blue/30"
-                      onpointerdown={(e) => startResize(e, slot, day.dateKey)}
-                    >
-                      <div class="h-1 w-6 rounded-full bg-epi-blue/50"></div>
-                    </div>
+                    {#if canEdit}
+                      <!-- Bottom Handle: pointer-drag to resize -->
+                      <!-- svelte-ignore a11y_no_static_element_interactions -->
+                      <div
+                        class="absolute bottom-0 flex h-2 w-full cursor-ns-resize items-center justify-center opacity-0 transition-opacity group-hover/slot:opacity-100 hover:bg-epi-blue/30"
+                        onpointerdown={(e) => startResize(e, slot, day.dateKey)}
+                      >
+                        <div class="h-1 w-6 rounded-full bg-epi-blue/50"></div>
+                      </div>
+                    {/if}
                   </div>
                 {/if}
               {/each}
@@ -790,66 +809,68 @@
       </div>
     </div>
 
-    <!-- Right: Catalog Sidebar -->
-    <div
-      class="z-20 hidden w-80 shrink-0 flex-col border-l bg-card shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] lg:flex"
-    >
-      <div class="shrink-0 space-y-3 border-b p-4">
-        <h3 class="font-heading text-lg tracking-wide uppercase">
-          Catalogue Officiel
-        </h3>
-        <div class="relative">
-          <Search
-            class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
-          />
-          <Input
-            placeholder="Rechercher un atelier..."
-            class="bg-muted/50 pl-9"
-            bind:value={searchQuery}
-          />
+    <!-- Right: Catalog Sidebar (drag-to-add templates) -->
+    {#if canEdit}
+      <div
+        class="z-20 hidden w-80 shrink-0 flex-col border-l bg-card shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] lg:flex"
+      >
+        <div class="shrink-0 space-y-3 border-b p-4">
+          <h3 class="font-heading text-lg tracking-wide uppercase">
+            Catalogue Officiel
+          </h3>
+          <div class="relative">
+            <Search
+              class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
+            />
+            <Input
+              placeholder="Rechercher un atelier..."
+              class="bg-muted/50 pl-9"
+              bind:value={searchQuery}
+            />
+          </div>
         </div>
-      </div>
-      <div class="min-h-0 flex-1 overflow-y-auto p-3">
-        <div class="space-y-2 pr-1">
-          {#each filteredTemplates as template (template.id)}
-            <div
-              class="relative cursor-grab rounded-lg border bg-background p-2.5 shadow-sm transition-colors hover:border-epi-teal active:cursor-grabbing"
-              draggable="true"
-              role="listitem"
-              ondragstart={(e) => handleDragStart(e, template.id)}
-              ondragend={handleDragEnd}
-            >
-              <div class="pointer-events-none flex items-start gap-2.5">
-                <GripVertical
-                  class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50"
-                />
-                <div class="flex flex-1 flex-col gap-1">
-                  <span class="text-xs leading-tight font-bold"
-                    >{template.nom}</span
-                  >
-                  <div class="mt-0.5 flex flex-wrap gap-1">
-                    <Badge
-                      variant="secondary"
-                      class="h-auto bg-muted px-1 py-0 text-[8px] text-muted-foreground uppercase"
-                      >{template.activityType}</Badge
+        <div class="min-h-0 flex-1 overflow-y-auto p-3">
+          <div class="space-y-2 pr-1">
+            {#each filteredTemplates as template (template.id)}
+              <div
+                class="relative cursor-grab rounded-lg border bg-background p-2.5 shadow-sm transition-colors hover:border-epi-teal active:cursor-grabbing"
+                draggable="true"
+                role="listitem"
+                ondragstart={(e) => handleDragStart(e, template.id)}
+                ondragend={handleDragEnd}
+              >
+                <div class="pointer-events-none flex items-start gap-2.5">
+                  <GripVertical
+                    class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50"
+                  />
+                  <div class="flex flex-1 flex-col gap-1">
+                    <span class="text-xs leading-tight font-bold"
+                      >{template.nom}</span
                     >
-                    {#if template.isDynamic}<Badge
-                        variant="outline"
-                        class="h-auto border-epi-orange px-1 py-0 text-[8px] text-epi-orange uppercase"
-                        >Dynamique</Badge
-                      >{/if}
+                    <div class="mt-0.5 flex flex-wrap gap-1">
+                      <Badge
+                        variant="secondary"
+                        class="h-auto bg-muted px-1 py-0 text-[8px] text-muted-foreground uppercase"
+                        >{template.activityType}</Badge
+                      >
+                      {#if template.isDynamic}<Badge
+                          variant="outline"
+                          class="h-auto border-epi-orange px-1 py-0 text-[8px] text-epi-orange uppercase"
+                          >Dynamique</Badge
+                        >{/if}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          {:else}
-            <p class="text-center text-xs text-muted-foreground italic py-8">
-              Aucun résultat trouvé.
-            </p>
-          {/each}
+            {:else}
+              <p class="text-center text-xs text-muted-foreground italic py-8">
+                Aucun résultat trouvé.
+              </p>
+            {/each}
+          </div>
         </div>
       </div>
-    </div>
+    {/if}
   </div>
 </div>
 

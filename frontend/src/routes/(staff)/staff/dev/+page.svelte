@@ -111,7 +111,7 @@
 <div class="space-y-8">
   <!-- HERO BANNER -->
   <div
-    class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-epi-blue via-blue-800 to-slate-900 px-8 py-10 text-white shadow-xl"
+    class="relative overflow-hidden rounded-2xl bg-linear-to-r from-epi-blue via-blue-800 to-slate-900 px-8 py-10 text-white shadow-xl"
   >
     <div class="absolute -top-20 -right-20 opacity-20 mix-blend-overlay">
       <TrendingUp class="h-96 w-96" />
@@ -387,7 +387,7 @@
             </div>
             <div class="h-3 overflow-hidden rounded-full bg-muted shadow-inner">
               <div
-                class="h-full bg-gradient-to-r from-epi-blue to-blue-400 transition-all duration-1000 ease-out"
+                class="h-full bg-linear-to-r from-epi-blue to-blue-400 transition-all duration-1000 ease-out"
                 style="width: {(data.objectives.interviews /
                   data.objectives.interviewsTarget) *
                   100}%"
@@ -406,7 +406,7 @@
             </div>
             <div class="h-3 overflow-hidden rounded-full bg-muted shadow-inner">
               <div
-                class="h-full bg-gradient-to-r from-epi-teal to-teal-400 transition-all duration-1000 ease-out"
+                class="h-full bg-linear-to-r from-epi-teal to-teal-400 transition-all duration-1000 ease-out"
                 style="width: {data.objectives.totalParticipations
                   ? (data.objectives.chartes /
                       data.objectives.totalParticipations) *

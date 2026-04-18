@@ -15,6 +15,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 
 type PlanningEvent = RequestEvent<{ id: string }>;
 
@@ -47,6 +48,7 @@ function parseSlotDateTimes(
 
 export const planningActions = {
   createTimeSlot: async ({ request, locals, params }: PlanningEvent) => {
+    requireStaffGroup(locals, 'leads');
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(timeSlotSchema));
     if (!form.valid) return fail(400, { form });
@@ -87,6 +89,7 @@ export const planningActions = {
   },
 
   updateTimeSlot: async ({ request, locals, params }: PlanningEvent) => {
+    requireStaffGroup(locals, 'leads');
     const formData = await request.formData();
     const timeSlotId = formData.get('timeSlotId') as string;
     if (!timeSlotId) return fail(400);
@@ -126,6 +129,7 @@ export const planningActions = {
   },
 
   deleteTimeSlot: async ({ url, locals }: PlanningEvent) => {
+    requireStaffGroup(locals, 'leads');
     const timeSlotId = url.searchParams.get('id');
     if (!timeSlotId) return fail(400);
     try {
@@ -139,6 +143,7 @@ export const planningActions = {
   },
 
   addActivityFromTemplate: async ({ request, locals }: PlanningEvent) => {
+    requireStaffGroup(locals, 'leads');
     const form = await superValidate(
       request,
       zod4(createActivityFromTemplateSchema),
@@ -184,6 +189,7 @@ export const planningActions = {
   },
 
   createStaticActivity: async ({ request, locals }: PlanningEvent) => {
+    requireStaffGroup(locals, 'leads');
     const form = await superValidate(request, zod4(createStaticActivitySchema));
     if (!form.valid) return fail(400, { form });
 
@@ -211,6 +217,7 @@ export const planningActions = {
   },
 
   deleteActivity: async ({ url, locals }: PlanningEvent) => {
+    requireStaffGroup(locals, 'leads');
     const activityId = url.searchParams.get('id');
     if (!activityId) return fail(400);
     try {
@@ -224,6 +231,7 @@ export const planningActions = {
   },
 
   applyTemplate: async ({ request, locals, params }: PlanningEvent) => {
+    requireStaffGroup(locals, 'leads');
     const form = await superValidate(
       request,
       zod4(applyPlanningTemplateSchema),
