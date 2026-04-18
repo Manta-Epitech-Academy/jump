@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';
-  import { Sprout, Flame, Snowflake } from '@lucide/svelte';
+  import { Sprout } from '@lucide/svelte';
   import { cn } from '$lib/utils';
 
   let {
@@ -24,20 +24,6 @@
     (student.eventsCount || student.events_count || 0) === 0,
   );
 
-  // --- Talent warmth (temperature) ---
-  let now = new Date().getTime();
-  let lastActive = $derived(
-    student.lastActiveAt ? new Date(student.lastActiveAt).getTime() : 0,
-  );
-  let daysSinceActive = $derived(
-    lastActive ? (now - lastActive) / (1000 * 3600 * 24) : Infinity,
-  );
-
-  // Hot = high XP and active recently (last 30 days)
-  let isHot = $derived(student.xp >= 100 && daysSinceActive <= 30);
-  // Cold = high XP but dormant (more than 180 days)
-  let isCold = $derived(student.xp >= 100 && daysSinceActive >= 180);
-
   function formatFirstName(name: string | undefined) {
     if (!name) return '';
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
@@ -50,30 +36,12 @@
       class={cn(
         size === 'sm' ? 'h-8 w-8' : 'h-9 w-9',
         'transition-all duration-300 group-hover:opacity-80',
-        isHot
-          ? 'shadow-[0_0_12px_rgba(255,95,58,0.5)] ring-2 ring-epi-orange'
-          : '',
-        isCold ? 'opacity-70 ring-2 ring-blue-300 grayscale-[0.3]' : '',
       )}
     >
       <Avatar.Fallback class="bg-muted font-bold text-foreground">
         {initials}
       </Avatar.Fallback>
     </Avatar.Root>
-
-    {#if isHot}
-      <div
-        class="absolute -right-1 -bottom-1 flex h-4 w-4 items-center justify-center rounded-full bg-background shadow-sm"
-      >
-        <Flame class="h-3 w-3 animate-pulse text-epi-orange" />
-      </div>
-    {:else if isCold}
-      <div
-        class="absolute -right-1 -bottom-1 flex h-4 w-4 items-center justify-center rounded-full bg-background shadow-sm"
-      >
-        <Snowflake class="h-3 w-3 text-blue-400" />
-      </div>
-    {/if}
   </div>
 
   <div class="flex min-w-0 flex-col">

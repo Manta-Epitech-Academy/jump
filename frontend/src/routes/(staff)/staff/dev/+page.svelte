@@ -13,8 +13,6 @@
     TrendingUp,
     Trophy,
     Medal,
-    Flame,
-    Snowflake,
     UserPlus,
     CalendarClock,
     PhoneCall,
@@ -276,11 +274,6 @@
                     >{talent.nom}
                     <span class="capitalize">{talent.prenom}</span></span
                   >
-                  {#if talent.xp >= 100 && talent.lastActiveAt && (new Date().getTime() - new Date(talent.lastActiveAt).getTime()) / 86400000 <= 30}
-                    <Flame class="h-3.5 w-3.5 text-epi-orange" />
-                  {:else if talent.xp >= 100 && (!talent.lastActiveAt || (new Date().getTime() - new Date(talent.lastActiveAt).getTime()) / 86400000 >= 180)}
-                    <Snowflake class="h-3.5 w-3.5 text-blue-400" />
-                  {/if}
                 </p>
                 <p class="truncate text-xs text-muted-foreground">
                   {talent.niveau || 'Niveau inconnu'}
