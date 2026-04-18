@@ -44,7 +44,7 @@
             description:
               data.tasks.eventsMissingMantas.length === 1
                 ? `${data.tasks.eventsMissingMantas[0].titre} dans ≤ 7 jours`
-                : `${data.tasks.eventsMissingMantas.length} campagnes dans ≤ 7 jours attendent un staffing`,
+                : `${data.tasks.eventsMissingMantas.length} événements dans ≤ 7 jours attendent un staffing`,
             count: data.tasks.eventsMissingMantas.length,
             href:
               data.tasks.eventsMissingMantas.length === 1
@@ -63,7 +63,7 @@
             description:
               data.tasks.eventsMissingPlanning.length === 1
                 ? `${data.tasks.eventsMissingPlanning[0].titre} — aucun créneau pour l'instant`
-                : `${data.tasks.eventsMissingPlanning.length} campagnes dans ≤ 7 jours sans planning`,
+                : `${data.tasks.eventsMissingPlanning.length} événements dans ≤ 7 jours sans planning`,
             count: data.tasks.eventsMissingPlanning.length,
             href:
               data.tasks.eventsMissingPlanning.length === 1
@@ -316,13 +316,13 @@
       </Card.Footer>
     </Card.Root>
 
-    <!-- CAMPAGNES A VENIR + OBJECTIFS -->
+    <!-- ÉVÉNEMENTS A VENIR + OBJECTIFS -->
     <div class="space-y-6">
       <Card.Root class="shadow-sm">
         <Card.Header>
           <Card.Title class="flex items-center gap-2 text-lg">
             <CalendarDays class="h-5 w-5 text-epi-teal" />
-            Campagnes à venir
+            Événements à venir
           </Card.Title>
         </Card.Header>
         <Card.Content class="space-y-4">
@@ -361,7 +361,7 @@
             </div>
           {:else}
             <p class="text-sm text-muted-foreground text-center py-4">
-              Aucune campagne prévue.
+              Aucun événement prévu.
             </p>
           {/each}
         </Card.Content>

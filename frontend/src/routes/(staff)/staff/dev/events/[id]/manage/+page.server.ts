@@ -210,9 +210,9 @@ export const actions: Actions = {
         endDate: endDateIso,
       });
 
-      return message(form, 'Campagne mise à jour !');
+      return message(form, 'Événement mis à jour !');
     } catch (err) {
-      return message(form, 'Impossible de mettre à jour la campagne', {
+      return message(form, "Impossible de mettre à jour l'événement", {
         status: 500,
       });
     }

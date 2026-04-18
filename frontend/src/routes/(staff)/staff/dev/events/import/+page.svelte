@@ -86,10 +86,10 @@
     <Card.Header>
       <Card.Title class="flex items-center gap-2">
         <FileSpreadsheet class="h-5 w-5" />
-        Import Campagne CSV
+        Import Événement CSV
       </Card.Title>
       <Card.Description>
-        Importez un fichier CSV de campagne Salesforce. Vous pourrez ensuite
+        Importez un fichier CSV d'événement Salesforce. Vous pourrez ensuite
         spécifier si les Talents apportent leur PC.
       </Card.Description>
     </Card.Header>

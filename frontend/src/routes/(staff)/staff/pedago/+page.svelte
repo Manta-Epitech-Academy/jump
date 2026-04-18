@@ -80,7 +80,7 @@
                 description:
                   data.tasks.eventsMissingMantas.length === 1
                     ? `${data.tasks.eventsMissingMantas[0].titre} dans ≤ 7 jours`
-                    : `${data.tasks.eventsMissingMantas.length} campagnes dans ≤ 7 jours attendent un staffing`,
+                    : `${data.tasks.eventsMissingMantas.length} événements dans ≤ 7 jours attendent un staffing`,
                 count: data.tasks.eventsMissingMantas.length,
                 href: '#upcoming',
                 severity: 'warning' as const,
@@ -94,7 +94,7 @@
                 description:
                   data.tasks.eventsMissingPlanning.length === 1
                     ? `${data.tasks.eventsMissingPlanning[0].titre} — aucun créneau`
-                    : `${data.tasks.eventsMissingPlanning.length} campagnes dans ≤ 7 jours sans planning`,
+                    : `${data.tasks.eventsMissingPlanning.length} événements dans ≤ 7 jours sans planning`,
                 count: data.tasks.eventsMissingPlanning.length,
                 href:
                   data.tasks.eventsMissingPlanning.length === 1

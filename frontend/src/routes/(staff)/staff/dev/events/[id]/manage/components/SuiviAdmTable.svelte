@@ -186,7 +186,7 @@
               colspan={5}
               class="py-12 text-center text-muted-foreground"
             >
-              Aucun inscrit pour cette campagne.
+              Aucun inscrit pour cet événement.
             </Table.Cell>
           </Table.Row>
         {/each}

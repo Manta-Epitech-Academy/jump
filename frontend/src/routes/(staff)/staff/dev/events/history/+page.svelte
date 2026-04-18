@@ -32,14 +32,14 @@
 </script>
 
 <div class="space-y-6">
-  <PageHeader title="Historique" subtitle="Archives des campagnes passées" />
+  <PageHeader title="Historique" subtitle="Archives des événements passés" />
 
   {#if data.events.length > 0}
     <div class="rounded-sm border bg-card shadow-sm">
       <Table>
         <TableHeader class="bg-muted/50">
           <TableRow>
-            <TableHead class="text-xs font-bold uppercase">Campagne</TableHead>
+            <TableHead class="text-xs font-bold uppercase">Événement</TableHead>
             <TableHead class="text-xs font-bold uppercase">Date</TableHead>
             <TableHead class="hidden text-xs font-bold uppercase md:table-cell"
               >Thème</TableHead
@@ -168,7 +168,7 @@
       <Archive class="mx-auto h-12 w-12 text-muted" />
       <h3 class="mt-4 text-lg font-bold uppercase">Historique vide</h3>
       <p class="mt-1 text-sm font-bold text-muted-foreground uppercase">
-        Aucune campagne passée n'a été trouvée.
+        Aucun événement passé n'a été trouvé.
       </p>
     </div>
   {/if}

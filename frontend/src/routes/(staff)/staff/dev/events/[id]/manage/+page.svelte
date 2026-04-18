@@ -124,7 +124,7 @@
       </a>
       <div>
         <h1 class="text-3xl font-bold text-epi-blue uppercase">
-          Gestion Campagne<span class="text-epi-teal">_</span>
+          Gestion Événement<span class="text-epi-teal">_</span>
         </h1>
         <div
           class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-muted-foreground uppercase"
@@ -241,7 +241,7 @@
   bind:open={deleteEventDialogOpen}
   action="?/deleteEvent"
   title="Supprimer définitivement ?"
-  description="Cette action est irréversible. Toutes les données associées à cette campagne seront perdues."
+  description="Cette action est irréversible. Toutes les données associées à cet événement seront perdues."
   buttonText="Confirmer la suppression"
   onSuccess={() => goto(resolve('/staff/dev'))}
 />
@@ -250,6 +250,6 @@
   bind:open={deleteParticipationDialogOpen}
   action="?/remove&id={participationToDelete}"
   title="Retirer le Talent ?"
-  description="Voulez-vous retirer ce Talent de la campagne ?"
+  description="Voulez-vous retirer ce Talent de l'événement ?"
   buttonText="Retirer"
 />

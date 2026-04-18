@@ -104,7 +104,7 @@
       class={navLinkClass(isActive('/staff/dev/events/history'))}
     >
       <History class="h-5 w-5" />
-      <span>Campagnes passées</span>
+      <span>Événements passés</span>
     </a>
   </nav>
 
@@ -306,7 +306,7 @@
             href={resolve('/staff/dev/events/import')}
           >
             <Plus class="mr-2 h-4 w-4" />
-            Importer une campagne
+            Importer un événement
           </Button>
         </div>
       </Gated>
@@ -335,7 +335,7 @@
               class="w-full justify-center border-dashed"
               href={resolve('/staff/dev/events/import')}
             >
-              <Plus class="mr-2 h-4 w-4" /> Importer une campagne
+              <Plus class="mr-2 h-4 w-4" /> Importer un événement
             </Button>
           </div>
         </Gated>
