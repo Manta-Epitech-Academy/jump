@@ -134,8 +134,8 @@
 
 <div class="space-y-6">
   <PageHeader
-    title="Élèves"
-    subtitle="Annuaire et progression des étudiants du camp."
+    title="Talents"
+    subtitle="Annuaire et progression des Talents du campus."
   />
 
   <div class="flex items-center gap-2">
@@ -183,7 +183,7 @@
     <ConfirmDeleteDialog
       bind:open={deleteDialogOpen}
       action="?/delete&id={studentToDelete}"
-      title="Supprimer l'élève"
+      title="Supprimer le Talent"
       description="Êtes-vous sûr ? Cette action est définitive."
       buttonText="Supprimer"
     />
@@ -195,7 +195,7 @@
         <Table.Header class="bg-muted/50">
           <Table.Row>
             <Table.Head class="w-60 text-xs font-bold uppercase"
-              >Étudiant</Table.Head
+              >Talent</Table.Head
             >
             <Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
             <Table.Head class="hidden text-xs font-bold uppercase sm:table-cell"
@@ -290,7 +290,7 @@
     {#if data.totalPages > 1}
       <div class="flex items-center justify-between">
         <p class="text-sm text-muted-foreground">
-          {data.totalItems} élève{data.totalItems > 1 ? 's' : ''} au total
+          {data.totalItems} Talent{data.totalItems > 1 ? 's' : ''} au total
         </p>
         <div class="flex items-center gap-1">
           <Button
@@ -321,7 +321,7 @@
     <EmptyState
       icon={Users}
       title="Salle de classe vide"
-      description="Aucun élève ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
+      description="Aucun Talent ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
     />
   {/if}
 </div>

@@ -49,11 +49,12 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="sm:max-w-125">
     <Dialog.Header>
-      <Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un élève</Dialog.Title>
+      <Dialog.Title>{isEditing ? 'Modifier' : 'Ajouter'} un Talent</Dialog.Title
+      >
       <Dialog.Description>
         {isEditing
           ? 'Mettez à jour les informations du profil.'
-          : "Créez le profil d'un nouvel étudiant."}
+          : "Créez le profil d'un nouveau Talent."}
       </Dialog.Description>
     </Dialog.Header>
 
@@ -193,7 +194,7 @@
         <Button type="submit" disabled={$delayed} class="w-full">
           {#if $delayed}Enregistrement...{:else}{isEditing
               ? 'Mettre à jour'
-              : "Créer l'élève"}{/if}
+              : 'Créer le Talent'}{/if}
         </Button>
       </Dialog.Footer>
     </form>

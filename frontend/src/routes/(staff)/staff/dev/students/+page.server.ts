@@ -86,12 +86,16 @@ export const actions: Actions = {
         }
       }
 
-      return message(form, 'Élève modifié avec succès !');
+      return message(form, 'Talent modifié avec succès !');
     } catch (err: any) {
       if (err.code === 'P2002') {
-        return message(form, 'Un élève avec ce nom et cet email existe déjà.', {
-          status: 400,
-        });
+        return message(
+          form,
+          'Un Talent avec ce nom et cet email existe déjà.',
+          {
+            status: 400,
+          },
+        );
       }
       return message(form, 'Erreur lors de la modification', { status: 500 });
     }

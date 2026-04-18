@@ -640,6 +640,59 @@ export function scopedPrisma(campusId: string) {
         },
       },
 
+      // ── Interview (campusId required) ──
+      interview: {
+        async findMany({ args, query }) {
+          args.where = { ...args.where, campusId };
+          return query(args);
+        },
+        async findFirst({ args, query }) {
+          args.where = { ...args.where, campusId };
+          return query(args);
+        },
+        async count({ args, query }) {
+          args.where = { ...args.where, campusId };
+          return query(args);
+        },
+        async findUnique({ args, query }) {
+          const existing = await prisma.interview.findUnique({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing && existing.campusId !== campusId)
+            accessDenied('Interview');
+          return query(args);
+        },
+        async findUniqueOrThrow({ args, query }) {
+          const existing = await prisma.interview.findUniqueOrThrow({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing.campusId !== campusId) accessDenied('Interview');
+          return query(args);
+        },
+        async create({ args, query }) {
+          args.data = { ...args.data, campusId } as any;
+          return query(args);
+        },
+        async update({ args, query }) {
+          const existing = await prisma.interview.findUniqueOrThrow({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing.campusId !== campusId) accessDenied('Interview');
+          return query(args);
+        },
+        async delete({ args, query }) {
+          const existing = await prisma.interview.findUniqueOrThrow({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing.campusId !== campusId) accessDenied('Interview');
+          return query(args);
+        },
+      },
+
       // ── Theme (campusId nullable — null means global/official) ──
       theme: {
         async findMany({ args, query }) {

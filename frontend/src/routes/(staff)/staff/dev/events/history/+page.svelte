@@ -10,7 +10,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as Avatar from '$lib/components/ui/avatar';
-  import { Calendar, Tag, Archive, Users, UserCheck } from '@lucide/svelte';
+  import { Calendar, Tag, Archive, Users, FileCheck } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { formatDateFr } from '$lib/utils';
   import { resolve } from '$app/paths';
@@ -32,14 +32,14 @@
 </script>
 
 <div class="space-y-6">
-  <PageHeader title="Historique" subtitle="Archives des événements passés" />
+  <PageHeader title="Historique" subtitle="Archives des campagnes passées" />
 
   {#if data.events.length > 0}
     <div class="rounded-sm border bg-card shadow-sm">
       <Table>
         <TableHeader class="bg-muted/50">
           <TableRow>
-            <TableHead class="text-xs font-bold uppercase">Événement</TableHead>
+            <TableHead class="text-xs font-bold uppercase">Campagne</TableHead>
             <TableHead class="text-xs font-bold uppercase">Date</TableHead>
             <TableHead class="hidden text-xs font-bold uppercase md:table-cell"
               >Thème</TableHead
@@ -49,7 +49,7 @@
               >Mantas</TableHead
             >
             <TableHead class="text-center text-xs font-bold uppercase"
-              >Participation</TableHead
+              >Présents</TableHead
             >
             <TableHead class="text-right"></TableHead>
           </TableRow>
@@ -59,8 +59,8 @@
             <TableRow class="hover:bg-muted/30">
               <TableCell class="font-bold">
                 <a
-                  href={resolve(`/staff/dev/events/${event.id}/builder`)}
-                  class="text-muted-foreground transition-colors hover:text-epi-blue hover:underline"
+                  href={resolve(`/staff/dev/events/${event.id}/manage`)}
+                  class="text-muted-foreground uppercase transition-colors hover:text-epi-blue hover:underline"
                 >
                   {event.titre}
                 </a>
@@ -138,16 +138,15 @@
                             variant="outline"
                             size="icon"
                             href={resolve(
-                              `/staff/dev/events/${event.id}/appel`,
+                              `/staff/dev/events/${event.id}/manage`,
                             )}
-                            class="h-9 w-9 border-epi-teal/30 bg-epi-teal/10 text-teal-700 hover:bg-epi-teal hover:text-black dark:text-epi-teal dark:hover:text-black"
+                            class="h-9 w-9 border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
                           >
-                            <UserCheck class="h-5 w-5" />
+                            <FileCheck class="h-5 w-5" />
                           </Button>
                         {/snippet}
                       </Tooltip.Trigger>
-                      <Tooltip.Content><p>Consulter l'appel</p></Tooltip.Content
-                      >
+                      <Tooltip.Content><p>Voir les Talents</p></Tooltip.Content>
                     </Tooltip.Root>
                   </Tooltip.Provider>
                   <EventDropdownMenu
@@ -169,7 +168,7 @@
       <Archive class="mx-auto h-12 w-12 text-muted" />
       <h3 class="mt-4 text-lg font-bold uppercase">Historique vide</h3>
       <p class="mt-1 text-sm font-bold text-muted-foreground uppercase">
-        Aucun événement passé n'a été trouvé.
+        Aucune campagne passée n'a été trouvée.
       </p>
     </div>
   {/if}

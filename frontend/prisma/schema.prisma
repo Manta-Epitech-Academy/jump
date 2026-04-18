@@ -41,6 +41,12 @@ enum StaffRole {
   manta
 }
 
+enum InterviewStatus {
+  planned
+  completed
+  cancelled
+}
+
 // ─── Auth (BetterAuth managed) ───
 
 model bauth_user {
@@ -115,10 +121,11 @@ model StaffProfile {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  user          bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campus        Campus?         @relation(fields: [campusId], references: [id])
-  eventMantas   EventManta[]
-  notesAuthored Participation[] @relation("NoteAuthor")
+  user                bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus              Campus?         @relation(fields: [campusId], references: [id])
+  eventMantas         EventManta[]
+  notesAuthored       Participation[] @relation("NoteAuthor")
+  interviewsConducted Interview[]
 
   @@index([campusId])
 }
@@ -150,6 +157,7 @@ model Talent {
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
+  interviews     Interview[]
 }
 
 // ─── Domain Tables ───
@@ -167,6 +175,7 @@ model Campus {
   themes            Theme[]
   participations    Participation[]
   activityTemplates ActivityTemplate[]
+  interviews        Interview[]
 }
 
 model Theme {
@@ -279,6 +288,7 @@ model Event {
   titre      String
   date       DateTime
   endDate    DateTime?
+  eventType  String    @default("coding_club")
   campusId   String
   themeId    String?
   pin        String?
@@ -309,13 +319,14 @@ model EventManta {
 }
 
 model Participation {
-  id             String   @id @default(cuid())
-  talentId       String
-  eventId        String
-  campusId       String
-  isPresent      Boolean  @default(false)
-  delay          Int?     @default(0)
-  bringPc        Boolean  @default(false)
+  id        String  @id @default(cuid())
+  talentId  String
+  eventId   String
+  campusId  String
+  isPresent Boolean @default(false)
+  delay     Int?    @default(0)
+  bringPc   Boolean @default(false)
+
   note           String?
   noteAuthorId   String?
   camperRating   Int?
@@ -323,17 +334,29 @@ model Participation {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  talent     Talent                  @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  event      Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  campus     Campus                  @relation(fields: [campusId], references: [id])
-  noteAuthor StaffProfile?           @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
-  activities ParticipationActivity[]
+  talent          Talent                  @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event           Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  campus          Campus                  @relation(fields: [campusId], references: [id])
+  noteAuthor      StaffProfile?           @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
+  activities      ParticipationActivity[]
+  stageCompliance StageCompliance?
 
   @@unique([talentId, eventId])
   @@index([eventId])
   @@index([campusId])
   @@index([talentId])
   @@index([talentId, campusId])
+}
+
+model StageCompliance {
+  participationId   String   @id
+  charteSigned      Boolean  @default(false)
+  conventionSigned  Boolean  @default(false)
+  imageRightsSigned Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
 }
 
 model ParticipationActivity {
@@ -346,6 +369,37 @@ model ParticipationActivity {
   activity      Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   @@id([participationId, activityId])
+}
+
+model Interview {
+  id       String          @id @default(cuid())
+  talentId String
+  staffId  String
+  campusId String
+  date     DateTime
+  status   InterviewStatus @default(planned)
+
+  discoveryReason   String?
+  motivation        String?
+  nextEventInterest String?
+  influencers       String?
+  platforms         String?
+  specialties       String?
+  interests         String?
+  otherJobs         String?
+  satisfaction      String?
+  globalNote        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  talent Talent       @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  campus Campus       @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@index([talentId])
+  @@index([staffId])
+  @@index([campusId])
 }
 
 model StepsProgress {
@@ -393,7 +447,7 @@ model PortfolioItem {
 
 model SyncError {
   id              String    @id @default(cuid())
-  errorType       String // e.g. "DUPLICATE_EMAIL"
+  errorType       String
   email           String
   attemptedExtId  String
   existingExtId   String?
@@ -412,7 +466,7 @@ model SyncError {
   @@index([lastOccurredAt])
 }
 
-// ── Planning Templates (national reusable planning grids) ──
+// ── Planning Templates ──
 
 model PlanningTemplate {
   id          String   @id @default(cuid())
