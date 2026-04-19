@@ -9,10 +9,10 @@
     History,
     Search,
     X,
-    MapPin,
     Unlink,
     MessageSquare,
     BookOpen,
+    UserCog,
   } from '@lucide/svelte';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
@@ -140,6 +140,21 @@
       <span>Catalogue Epitech</span>
     </a>
   </nav>
+
+  <Gated group="devLead" mode="hide">
+    <div class="sidebar-section-title">
+      Gestion<span class="text-epi-orange">_</span>
+    </div>
+    <nav class="space-y-1">
+      <a
+        href={resolve('/staff/dev/team')}
+        class={navLinkClass(isActive('/staff/dev/team'))}
+      >
+        <UserCog class="h-5 w-5" />
+        <span>Équipe</span>
+      </a>
+    </nav>
+  </Gated>
 {/snippet}
 
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
@@ -245,11 +260,6 @@
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
             <DropdownMenu.Label>Mon Profil ADM</DropdownMenu.Label>
             <DropdownMenu.Separator />
-            <a href={`${resolve('/staff/onboarding')}?change=true`}>
-              <DropdownMenu.Item class="cursor-pointer"
-                ><MapPin class="mr-2 h-4 w-4" /> Changer de campus</DropdownMenu.Item
-              >
-            </a>
             {#if data.staffProfile?.discordId}
               <form
                 action={resolve('/staff/dev/discord')}

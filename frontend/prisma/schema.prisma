@@ -62,10 +62,11 @@ model bauth_user {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions     bauth_session[]
-  accounts     bauth_account[]
-  staffProfile StaffProfile?
-  talent       Talent?
+  sessions          bauth_session[]
+  accounts          bauth_account[]
+  staffProfile      StaffProfile?
+  talent            Talent?
+  invitationsIssued StaffInvitation[] @relation("StaffInvitationInvitedBy")
 }
 
 model bauth_session {
@@ -130,6 +131,20 @@ model StaffProfile {
   @@index([campusId])
 }
 
+model StaffInvitation {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  campusId        String
+  staffRole       StaffRole
+  invitedByUserId String
+  createdAt       DateTime  @default(now())
+
+  campus    Campus     @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  invitedBy bauth_user @relation("StaffInvitationInvitedBy", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([campusId])
+}
+
 model Talent {
   id                String    @id @default(cuid())
   userId            String?   @unique
@@ -176,6 +191,7 @@ model Campus {
   participations    Participation[]
   activityTemplates ActivityTemplate[]
   interviews        Interview[]
+  invitations       StaffInvitation[]
 }
 
 model Theme {

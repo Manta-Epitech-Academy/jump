@@ -6,7 +6,6 @@
     ChevronDown,
     Menu,
     X,
-    MapPin,
     BookOpenText,
     MonitorPlay,
   } from '@lucide/svelte';
@@ -209,12 +208,6 @@
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
             <DropdownMenu.Label>Mon Profil Pédago</DropdownMenu.Label>
-            <DropdownMenu.Separator />
-            <a href={`${resolve('/staff/onboarding')}?change=true`}>
-              <DropdownMenu.Item class="cursor-pointer"
-                ><MapPin class="mr-2 h-4 w-4" /> Changer de campus</DropdownMenu.Item
-              >
-            </a>
             <DropdownMenu.Separator />
             <form action={resolve('/logout')} method="POST">
               <button type="submit" class="w-full cursor-pointer">

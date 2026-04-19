@@ -1,25 +1,111 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
-import type { StaffRole } from '@prisma/client';
+import { Prisma, type StaffRole } from '@prisma/client';
 import { staffRoles } from '$lib/domain/staff';
+import { createInvitationSchema } from '$lib/validation/staff';
 
-export const load: PageServerLoad = async () => {
-  // Load all users with their staff profiles (which hold campus info) and all campuses
-  const [users, campuses] = await Promise.all([
+export const load: PageServerLoad = async ({ locals }) => {
+  const [members, invitations, campuses] = await Promise.all([
     prisma.bauth_user.findMany({
       where: { staffProfile: { isNot: null } },
       orderBy: [{ name: 'asc' }, { email: 'asc' }],
       include: { staffProfile: { include: { campus: true } } },
     }),
+    prisma.staffInvitation.findMany({
+      include: {
+        campus: true,
+        invitedBy: { select: { name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
     prisma.campus.findMany({ orderBy: { name: 'asc' } }),
   ]);
 
-  return { users, campuses };
+  const inviteForm = await superValidate(zod4(createInvitationSchema));
+
+  return {
+    members,
+    invitations,
+    campuses,
+    inviteForm,
+    currentUserId: locals.user?.id ?? null,
+  };
 };
 
 export const actions: Actions = {
-  // Reassign a user to a different campus
+  invite: async ({ request, locals }) => {
+    if (!locals.user) return fail(401);
+
+    const form = await superValidate(request, zod4(createInvitationSchema));
+    if (!form.valid) return fail(400, { form });
+
+    const email = form.data.email.toLowerCase();
+
+    const [existingUser, existingInvite] = await Promise.all([
+      prisma.bauth_user.findUnique({ where: { email } }),
+      prisma.staffInvitation.findUnique({ where: { email } }),
+    ]);
+
+    if (existingUser) {
+      return message(
+        form,
+        'Un compte existe déjà avec cet email. Modifiez son rôle depuis la liste des membres.',
+        { status: 400 },
+      );
+    }
+    if (existingInvite) {
+      return message(
+        form,
+        'Une invitation est déjà en attente pour cet email.',
+        {
+          status: 400,
+        },
+      );
+    }
+
+    try {
+      await prisma.staffInvitation.create({
+        data: {
+          email,
+          campusId: form.data.campusId,
+          staffRole: form.data.staffRole,
+          invitedByUserId: locals.user.id,
+        },
+      });
+      return message(form, 'Invitation créée.');
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        return message(
+          form,
+          'Une invitation est déjà en attente pour cet email.',
+          { status: 400 },
+        );
+      }
+      console.error(err);
+      return message(form, "Erreur lors de la création de l'invitation.", {
+        status: 500,
+      });
+    }
+  },
+
+  cancelInvitation: async ({ url }) => {
+    const id = url.searchParams.get('id');
+    if (!id) return fail(400);
+
+    try {
+      await prisma.staffInvitation.delete({ where: { id } });
+      return { success: true };
+    } catch (err) {
+      return fail(500, { message: "Erreur lors de l'annulation." });
+    }
+  },
+
   updateCampus: async ({ request }) => {
     const data = await request.formData();
     const userId = data.get('userId') as string;
@@ -68,7 +154,6 @@ export const actions: Actions = {
     }
   },
 
-  // Revoke a user's access entirely
   deleteUser: async ({ url }) => {
     const id = url.searchParams.get('id');
     if (!id) return fail(400);

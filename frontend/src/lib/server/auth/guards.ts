@@ -16,6 +16,10 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
     group: 'devLead',
   },
   {
+    pattern: /^\/staff\/dev\/team(?:\/|$)/,
+    group: 'devLead',
+  },
+  {
     pattern: /^\/staff\/pedago\/events\/[^/]+\/planning(?:\/|$)/,
     group: 'pedaLead',
     readOnlyForRest: ['manta'],
@@ -36,7 +40,6 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     new URL(resolvePath(path as any), event.url).pathname;
 
   const pathStaffLogin = p('/staff/login');
-  const pathStaffOnboarding = p('/staff/onboarding');
   const pathStaffOAuth = p('/staff/oauth');
   const pathStaffAdmin = p('/staff/admin');
   const pathStaffAdminLogin = p('/staff/admin/login');
@@ -102,8 +105,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     const isStaffPublic =
       currentPath === pathStaffLogin ||
       currentPath.startsWith(pathStaffOAuth) ||
-      currentPath.startsWith(pathStaffAdminLogin) ||
-      currentPath.startsWith(pathStaffOnboarding);
+      currentPath.startsWith(pathStaffAdminLogin);
 
     if (!isStaffPublic && !event.locals.user) {
       return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
@@ -162,19 +164,6 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
           303,
         );
       }
-    }
-
-    // Onboarding guard: staff must have a campus
-    if (
-      !isStaffPublic &&
-      !isAdminPath &&
-      event.locals.user &&
-      !event.locals.staffProfile?.campusId
-    ) {
-      return Response.redirect(
-        new URL(pathStaffOnboarding, event.url).href,
-        303,
-      );
     }
 
     // Per-feature sub-role gates (lead-only features inside each workspace)
