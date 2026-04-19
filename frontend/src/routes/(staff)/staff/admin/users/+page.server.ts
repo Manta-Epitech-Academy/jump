@@ -8,6 +8,7 @@ export const load: PageServerLoad = async () => {
   // Load all users with their staff profiles (which hold campus info) and all campuses
   const [users, campuses] = await Promise.all([
     prisma.bauth_user.findMany({
+      where: { staffProfile: { isNot: null } },
       orderBy: [{ name: 'asc' }, { email: 'asc' }],
       include: { staffProfile: { include: { campus: true } } },
     }),
