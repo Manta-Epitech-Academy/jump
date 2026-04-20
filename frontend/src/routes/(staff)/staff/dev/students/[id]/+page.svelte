@@ -149,7 +149,7 @@
       <Card.Root>
         <Card.Header>
           <Card.Title class="flex items-center gap-2 text-lg uppercase"
-            ><Calendar class="h-5 w-5 text-epi-teal" /> Historique pédagogique</Card.Title
+            ><Calendar class="h-5 w-5 text-epi-teal-solid" /> Historique pédagogique</Card.Title
           >
         </Card.Header>
         <Card.Content>
