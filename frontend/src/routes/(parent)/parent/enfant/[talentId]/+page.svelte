@@ -13,6 +13,8 @@
     History,
     Rocket,
     LogOut,
+    Clock,
+    MapPin,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
@@ -26,6 +28,23 @@
     quiz: 'Quiz',
     special: 'Spécial',
   };
+
+  const difficultyColors: Record<string, string> = {
+    Débutant:
+      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    Intermédiaire:
+      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    Avancé:
+      'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  };
+
+  function formatTime(dateString: string | Date | undefined) {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
 </script>
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
@@ -108,6 +127,95 @@
           <FileCheck class="h-3.5 w-3.5" />
           Droit à l'image signé
         </Badge>
+      </div>
+    {/if}
+
+    <!-- Today's planning -->
+    {#if data.todayPlanning}
+      <div
+        class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        in:fly={{ y: 20, duration: 400, delay: 250 }}
+      >
+        <div
+          class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+        >
+          <div
+            class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase"
+          >
+            <MapPin class="h-4 w-4 text-epi-blue" />
+            <span>{data.todayPlanning.eventName}</span>
+            <span class="text-slate-300 dark:text-slate-700">•</span>
+            <Clock class="h-4 w-4" />
+            <span>{formatTime(data.todayPlanning.eventDate)}</span>
+          </div>
+        </div>
+
+        <div class="p-6">
+          <h2
+            class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+          >
+            Programme du jour<span class="text-epi-teal">_</span>
+          </h2>
+
+          {#if data.todayPlanning.timeSlots.length > 0}
+            <div class="space-y-4">
+              {#each data.todayPlanning.timeSlots as slot (slot.id)}
+                <div>
+                  <div class="mb-2 flex items-center gap-2">
+                    <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
+                    <span
+                      class="text-[11px] font-bold text-slate-400 uppercase"
+                    >
+                      {formatTime(slot.startTime)} — {formatTime(slot.endTime)}
+                      {#if slot.label}
+                        · {slot.label}
+                      {/if}
+                    </span>
+                  </div>
+
+                  <div
+                    class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
+                  >
+                    {#each slot.activities as activity (activity.id)}
+                      <div
+                        class="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                      >
+                        <Badge
+                          variant="outline"
+                          class="shrink-0 text-[9px] font-bold uppercase"
+                        >
+                          {activityTypeLabels[activity.type] ?? activity.type}
+                        </Badge>
+                        <span
+                          class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                        >
+                          {activity.name}
+                        </span>
+                        {#if activity.difficulty}
+                          <span
+                            class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
+                              activity.difficulty
+                            ] ?? ''}"
+                          >
+                            {activity.difficulty}
+                          </span>
+                        {/if}
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <div
+              class="flex flex-col items-center justify-center py-8 text-center"
+            >
+              <p class="text-sm text-slate-400">
+                Le planning de la journée n'est pas encore disponible.
+              </p>
+            </div>
+          {/if}
+        </div>
       </div>
     {/if}
 
