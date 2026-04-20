@@ -93,7 +93,7 @@
                 {#each template.activityTemplateThemes as att}
                   <Badge
                     variant="outline"
-                    class="border-teal-200 bg-teal-50 text-[10px] text-teal-800 dark:border-teal-900/50 dark:bg-teal-900/20 dark:text-teal-300"
+                    class="border-epi-teal-solid/30 bg-epi-teal-solid/10 text-[10px] text-epi-teal-solid"
                   >
                     {att.theme.nom}
                   </Badge>

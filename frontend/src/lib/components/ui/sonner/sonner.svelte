@@ -27,7 +27,7 @@
       description: 'font-sans text-xs font-medium text-foreground/70 mt-1.5',
 
       success:
-        'group-[.toaster]:border-epi-teal group-[.toaster]:bg-teal-50 dark:group-[.toaster]:bg-teal-950/30',
+        'group-[.toaster]:border-epi-teal-solid group-[.toaster]:bg-epi-teal-solid/10',
       error:
         'group-[.toaster]:border-destructive group-[.toaster]:bg-red-50 dark:group-[.toaster]:bg-red-950/30',
       info: 'group-[.toaster]:border-epi-blue group-[.toaster]:bg-blue-50 dark:group-[.toaster]:bg-blue-950/30',

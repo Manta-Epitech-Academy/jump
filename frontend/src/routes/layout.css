@@ -10,6 +10,7 @@
   /* --- Epitech Brand Colors --- */
   --epi-blue: #013afb;
   --epi-teal: #00ff97;
+  --epi-teal-solid: #14b8a6;
   --epi-orange: #ff5f3a;
   --epi-pink: #ff1ef7;
 
@@ -75,6 +76,7 @@
   --color-dark-9: #141414;
 
   --epi-blue: #809dfd;
+  --epi-teal-solid: #2dd4bf;
 
   --background: var(--color-dark-7);
   --foreground: var(--color-dark-0);
@@ -132,6 +134,7 @@
 
   --color-epi-blue: var(--epi-blue);
   --color-epi-teal: var(--epi-teal);
+  --color-epi-teal-solid: var(--epi-teal-solid);
   --color-epi-orange: var(--epi-orange);
   --color-epi-pink: var(--epi-pink);
 

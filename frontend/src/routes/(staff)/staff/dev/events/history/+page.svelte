@@ -81,8 +81,9 @@
               <TableCell class="hidden md:table-cell">
                 {#if event.theme}
                   <div class="flex items-center gap-2">
-                    <Tag class="h-4 w-4 text-teal-700/70" />
-                    <span class="font-bold text-teal-800/70">{event.theme}</span
+                    <Tag class="h-4 w-4 text-epi-teal-solid" />
+                    <span class="font-bold text-epi-teal-solid"
+                      >{event.theme}</span
                     >
                   </div>
                 {:else}

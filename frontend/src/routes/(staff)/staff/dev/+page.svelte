@@ -20,8 +20,18 @@
     Inbox,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
 
   let { data } = $props();
+
+  const activeStage = $derived(
+    page.data.activeStage as { id: string; titre: string } | null,
+  );
+  const interviewsHref = $derived(
+    activeStage
+      ? resolve(`/staff/dev/events/${activeStage.id}/interviews`)
+      : null,
+  );
 
   const todayStr = $derived(
     new Date().toLocaleDateString('fr-FR', {
@@ -72,26 +82,26 @@
             severity: 'warning' as const,
           }
         : null,
-      data.tasks.interviewsToday > 0
+      data.tasks.interviewsToday > 0 && interviewsHref
         ? {
             key: 'interviews-today',
             icon: PhoneCall,
             title: 'Entretiens à mener aujourd\u2019hui',
             description:
-              'Préparer la grille et les questions avant chaque appel',
+              'Préparer la grille avant chaque entretien de mi-parcours',
             count: data.tasks.interviewsToday,
-            href: resolve('/staff/dev/interviews'),
+            href: interviewsHref,
             severity: 'info' as const,
           }
         : null,
-      data.tasks.overdueInterviews > 0
+      data.tasks.overdueInterviews > 0 && interviewsHref
         ? {
             key: 'interviews-overdue',
             icon: AlarmClock,
             title: 'Entretiens en retard',
             description: 'Reprogrammer ou marquer comme terminé',
             count: data.tasks.overdueInterviews,
-            href: resolve('/staff/dev/interviews'),
+            href: interviewsHref,
             severity: 'danger' as const,
           }
         : null,
@@ -119,7 +129,7 @@
     </div>
     <div class="relative z-10">
       <h1 class="mb-2 font-heading text-4xl tracking-wide uppercase">
-        Prêt à recruter, <span class="text-epi-teal">{data.userName}</span> ?
+        Bienvenue, <span class="text-epi-teal">{data.userName}</span>.
       </h1>
       <p class="max-w-xl text-sm leading-relaxed font-medium text-blue-100">
         Nous sommes le {todayStr} sur le campus de {data.campusName}.
@@ -131,9 +141,12 @@
           <strong
             >{data.ongoingEvents[0]._count.participations} participants</strong
           >. Allez les rencontrer !
+        {:else if activeStage}
+          C'est le moment idéal pour faire le point sur les entretiens du stage
+          en cours.
         {:else}
-          Aucun événement n'est en cours. C'est le moment idéal pour faire vos
-          appels d'admission et traiter vos Talents.
+          Aucun événement n'est en cours. Utilisez ce temps calme pour préparer
+          la suite.
         {/if}
       </p>
     </div>
@@ -219,14 +232,14 @@
           <p class="text-3xl font-black">{data.kpis.completedInterviews}</p>
           <!-- TODO: replace hardcoded "+12 ce mois" with real month-over-month delta from data.kpis -->
           <div
-            class="mt-2 flex w-fit items-center gap-1 rounded-sm bg-teal-100 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400"
+            class="mt-2 flex w-fit items-center gap-1 rounded-sm bg-epi-teal-solid px-1.5 py-0.5 text-[10px] font-bold text-white"
           >
             <TrendingUp class="h-3 w-3" />
             +12 ce mois
           </div>
         </div>
         <div
-          class="flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-epi-teal dark:bg-teal-900/20"
+          class="flex h-12 w-12 items-center justify-center rounded-full bg-epi-teal-solid/10 text-epi-teal-solid"
         >
           <MessageSquare class="h-6 w-6" />
         </div>
@@ -445,7 +458,7 @@
               class="h-2.5 overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
             >
               <div
-                class="h-full bg-linear-to-r from-epi-teal to-teal-400 transition-all duration-1000 ease-out"
+                class="h-full bg-epi-teal-solid transition-all duration-1000 ease-out"
                 style="width: {data.objectives.totalParticipations
                   ? (data.objectives.chartes /
                       data.objectives.totalParticipations) *

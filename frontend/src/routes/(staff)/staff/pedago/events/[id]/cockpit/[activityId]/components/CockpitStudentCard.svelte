@@ -570,7 +570,7 @@
               {:else if participation.camperRating === 2}
                 <span class="text-blue-600 dark:text-blue-400">💪 Moyen</span>
               {:else if participation.camperRating === 3}
-                <span class="text-teal-600 dark:text-teal-400">🚀 Facile</span>
+                <span class="text-epi-teal-solid">🚀 Facile</span>
               {/if}
             </div>
             {#if participation.camperFeedback}

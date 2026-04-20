@@ -259,7 +259,7 @@
               <h3
                 class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
               >
-                <Target class="h-4 w-4 text-teal-600 dark:text-epi-teal" /> Spécialités
+                <Target class="h-4 w-4 text-epi-teal-solid" /> Spécialités
               </h3>
               <div class="flex flex-col gap-3">
                 {#each topThemes as theme}
@@ -268,7 +268,7 @@
                       class="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300"
                     >
                       <span class="truncate pr-2">{theme.name}</span>
-                      <span class="shrink-0 text-teal-700 dark:text-epi-teal"
+                      <span class="shrink-0 text-epi-teal-solid"
                         >{theme.label}</span
                       >
                     </div>
@@ -281,7 +281,7 @@
                       aria-label="{theme.name} : {theme.label}"
                     >
                       <div
-                        class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"
+                        class="h-full rounded-full bg-epi-teal-solid transition-all duration-1000 ease-out"
                         style="width: {Math.min(
                           (theme.count / THEME_TIER_CEILING) * 100,
                           100,
@@ -309,9 +309,7 @@
               >
                 <span class="truncate text-xs">{shareUrl}</span>
                 {#if copied}
-                  <Check
-                    class="ml-2 h-4 w-4 shrink-0 text-teal-600 dark:text-epi-teal"
-                  />
+                  <Check class="ml-2 h-4 w-4 shrink-0 text-epi-teal-solid" />
                 {:else}
                   <Share2 class="ml-2 h-4 w-4 shrink-0" />
                 {/if}
@@ -411,7 +409,7 @@
                         <a
                           href={resolve(`/${activity.id}`)}
                           class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
-                            ? 'bg-teal-50/50 dark:bg-teal-950/20'
+                            ? 'bg-epi-teal-solid/10'
                             : ''}"
                         >
                           <Badge
@@ -437,7 +435,7 @@
                           {/if}
                           {#if isDone}
                             <Check
-                              class="h-4 w-4 shrink-0 text-teal-600 dark:text-epi-teal"
+                              class="h-4 w-4 shrink-0 text-epi-teal-solid"
                             />
                           {:else}
                             <ArrowRight
@@ -516,7 +514,7 @@
                 </div>
               {:else}
                 <div
-                  class="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700 dark:border-teal-900/30 dark:bg-teal-900/20 dark:text-teal-400"
+                  class="flex items-center gap-2 rounded-xl border border-epi-teal-solid/30 bg-epi-teal-solid/10 px-4 py-2 text-sm font-bold text-epi-teal-solid"
                 >
                   <Monitor class="h-4 w-4 shrink-0" />
                   <span>Le matériel sera fourni sur place.</span>

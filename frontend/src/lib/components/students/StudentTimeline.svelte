@@ -205,7 +205,7 @@
                           <div class="mt-1 flex flex-wrap gap-1">
                             {#each activity.activityThemes as at}
                               <span
-                                class="text-[9px] font-bold tracking-wider text-teal-700 uppercase"
+                                class="text-[9px] font-bold tracking-wider text-epi-teal-solid uppercase"
                                 >#{at.theme.nom}</span
                               >
                             {/each}
@@ -270,8 +270,7 @@
                       >
                     {:else if p.camperRating === 3}
                       <span class="text-sm leading-none">🚀</span>
-                      <span
-                        class="text-xs font-bold text-teal-600 dark:text-teal-400"
+                      <span class="text-xs font-bold text-epi-teal-solid"
                         >Facile</span
                       >
                     {/if}

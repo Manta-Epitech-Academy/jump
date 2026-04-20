@@ -750,7 +750,7 @@
                             {#if activity.activityType === 'orga' && appelRouteBase}
                               <a
                                 href={`${appelRouteBase}/${activity.id}`}
-                                class="mt-0.5 flex items-center justify-center gap-1 rounded bg-epi-teal/10 px-1.5 py-0.5 text-[9px] font-black text-teal-700 uppercase transition-colors hover:bg-epi-teal hover:text-black dark:text-epi-teal dark:hover:text-black"
+                                class="mt-0.5 flex items-center justify-center gap-1 rounded bg-epi-teal-solid/10 px-1.5 py-0.5 text-[9px] font-black text-epi-teal-solid uppercase transition-colors hover:bg-epi-teal-solid hover:text-white"
                               >
                                 <ClipboardCheck class="h-3 w-3" />
                                 Appel / Ops

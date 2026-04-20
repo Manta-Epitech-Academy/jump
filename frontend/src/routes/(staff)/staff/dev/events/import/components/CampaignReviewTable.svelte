@@ -183,7 +183,7 @@
                   type="button"
                   class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all {row.decision ===
                   'LINK_EXISTING'
-                    ? 'border-teal-500 bg-teal-50 text-teal-700 ring-1 ring-teal-500'
+                    ? 'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid ring-1 ring-epi-teal-solid'
                     : 'text-muted-foreground hover:bg-muted'}"
                   onclick={() => toggleDecision(row.id, 'LINK_EXISTING')}
                 >
@@ -193,7 +193,7 @@
                     >
                   </div>
                   {#if row.decision === 'LINK_EXISTING'}<div
-                      class="h-2 w-2 rounded-full bg-teal-500"
+                      class="h-2 w-2 rounded-full bg-epi-teal-solid"
                     ></div>{/if}
                 </button>
               {/if}

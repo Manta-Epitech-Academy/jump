@@ -70,7 +70,7 @@
                   variant="secondary"
                   class="rounded-sm border {global
                     ? 'border-purple-200 bg-purple-50 text-purple-900 dark:border-purple-900 dark:bg-purple-900/30 dark:text-purple-100'
-                    : 'border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 dark:border-teal-900 dark:bg-teal-900/30 dark:text-teal-100'}"
+                    : 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid hover:bg-epi-teal-solid/20'}"
                 >
                   {#if global}
                     <Globe class="mr-1 h-3 w-3" />
