@@ -66,7 +66,7 @@
                       <p
                         class="text-sm font-medium text-slate-700 dark:text-slate-300"
                       >
-                        {child.upcomingEvent.name}
+                        {child.upcomingEvent.titre}
                       </p>
                       <p class="text-xs text-slate-500">
                         {new Date(child.upcomingEvent.date).toLocaleDateString(

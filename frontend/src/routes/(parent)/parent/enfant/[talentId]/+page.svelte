@@ -87,7 +87,7 @@
           Prochain événement
         </p>
         <p class="mt-1 text-lg font-bold text-slate-900 dark:text-white">
-          {data.upcomingEvent.name}
+          {data.upcomingEvent.titre}
         </p>
         <div class="mt-2 flex items-center gap-2 text-sm text-slate-500">
           <CalendarDays class="h-4 w-4" />

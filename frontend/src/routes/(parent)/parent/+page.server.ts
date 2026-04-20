@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ locals }) => {
           event: { date: { gt: new Date() } },
         },
         include: {
-          event: { select: { id: true, name: true, date: true } },
+          event: { select: { id: true, titre: true, date: true } },
         },
         orderBy: { event: { date: 'asc' } },
       });

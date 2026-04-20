@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       event: { date: { gt: new Date() } },
     },
     include: {
-      event: { select: { id: true, name: true, date: true } },
+      event: { select: { id: true, titre: true, date: true } },
     },
     orderBy: { event: { date: 'asc' } },
   });
@@ -43,11 +43,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const participations = await prisma.participation.findMany({
     where: { talentId },
     include: {
-      event: { select: { id: true, name: true, date: true } },
+      event: { select: { id: true, titre: true, date: true } },
       activities: {
         include: {
           activity: {
-            select: { id: true, name: true, activityType: true },
+            select: { id: true, nom: true, activityType: true },
           },
         },
       },
@@ -65,14 +65,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     upcomingEvent: upcomingParticipation?.event ?? null,
     participations: participations.map((p) => ({
       id: p.id,
-      eventName: p.event.name,
+      eventName: p.event.titre,
       eventDate: p.event.date,
       isPresent: p.isPresent,
       activities: p.activities
         .filter((a) => a.activity.activityType !== 'orga')
         .map((a) => ({
           id: a.activity.id,
-          name: a.activity.name,
+          name: a.activity.nom,
           type: a.activity.activityType,
         })),
     })),

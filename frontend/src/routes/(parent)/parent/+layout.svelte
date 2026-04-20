@@ -1,5 +1,4 @@
 <script lang="ts">
-  import '../../app.css';
   import { Button } from '$lib/components/ui/button';
   import { LogOut } from '@lucide/svelte';
   import { resolve } from '$app/paths';
