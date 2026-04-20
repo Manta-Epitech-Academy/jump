@@ -2,8 +2,11 @@ import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { now } from '@internationalized/date';
+import { getBrowserTimezone } from '$lib/server/db/scoped';
+import { getStartOfDay } from '$lib/utils';
 
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   if (!locals.user || locals.user.role !== 'parent') {
     throw error(401, 'Non autorisé');
   }
@@ -32,11 +35,59 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     where: { parentEmail },
   });
 
+  // Calculate today boundaries
+  const tz = getBrowserTimezone(cookies);
+  const filterDateStart = getStartOfDay(tz);
+  const tzNow = now(tz);
+  const endOfDay = tzNow.set({
+    hour: 23,
+    minute: 59,
+    second: 59,
+    millisecond: 999,
+  });
+  const filterDateEnd = endOfDay.toDate();
+  const filterDateStartDate = new Date(filterDateStart);
+
+  // Fetch today's participation with full planning chain (timeSlots → activities)
+  const todayParticipation = await prisma.participation.findFirst({
+    where: {
+      talentId,
+      event: {
+        date: { gte: filterDateStartDate, lte: filterDateEnd },
+      },
+    },
+    include: {
+      event: {
+        include: {
+          planning: {
+            include: {
+              timeSlots: {
+                include: {
+                  activities: {
+                    where: { activityType: { not: 'orga' } },
+                    select: {
+                      id: true,
+                      nom: true,
+                      activityType: true,
+                      difficulte: true,
+                    },
+                  },
+                },
+                orderBy: { startTime: 'asc' },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { event: { date: 'asc' } },
+  });
+
   // Fetch upcoming event
   const upcomingParticipation = await prisma.participation.findFirst({
     where: {
       talentId,
-      event: { date: { gt: new Date() } },
+      event: { date: { gt: filterDateEnd } },
     },
     include: {
       event: { select: { id: true, titre: true, date: true } },
@@ -63,6 +114,26 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   return {
     parentName: locals.user.name,
     hasMultipleChildren: siblingCount > 1,
+    todayPlanning: todayParticipation
+      ? {
+          eventName: todayParticipation.event.titre,
+          eventDate: todayParticipation.event.date,
+          timeSlots: (todayParticipation.event.planning?.timeSlots ?? []).map(
+            (slot) => ({
+              id: slot.id,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              label: slot.label,
+              activities: slot.activities.map((a) => ({
+                id: a.id,
+                name: a.nom,
+                type: a.activityType,
+                difficulty: a.difficulte,
+              })),
+            }),
+          ),
+        }
+      : null,
     child: {
       id: child.id,
       prenom: child.prenom,
