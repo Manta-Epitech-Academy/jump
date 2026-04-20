@@ -121,6 +121,19 @@ export const actions: Actions = {
           phone: form.data.phone || null,
         },
       });
+
+      if (form.data.email) {
+        const profile = await db.talent.findUniqueOrThrow({
+          where: { id: params.id },
+        });
+        if (profile.userId) {
+          await prisma.bauth_user.update({
+            where: { id: profile.userId },
+            data: { email: form.data.email },
+          });
+        }
+      }
+
       return message(form, 'Profil mis à jour avec succès !');
     } catch (err: any) {
       if (err.code === 'P2002') {
