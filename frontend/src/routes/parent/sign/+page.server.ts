@@ -4,6 +4,7 @@ import { auth } from '$lib/server/auth';
 import {
   createSignToken,
   verifySignToken,
+  consumeParentOtp,
 } from '$lib/server/services/parentTokens';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
@@ -282,11 +283,13 @@ export const actions: Actions = {
         body: { email, type: 'sign-up' },
       });
 
-      // Send single combined email with link + OTP
+      // Consume OTP from DB and send combined email with link + code
+      const otp = await consumeParentOtp(email);
       await sendParentSignatureEmail(
         email,
         talentId,
         profile ? `${profile.prenom} ${profile.nom}` : '',
+        otp ?? undefined,
       );
     } catch (err) {
       console.error('Failed to resend OTP:', err);

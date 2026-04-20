@@ -7,6 +7,7 @@ import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGe
 import { getStorage } from '$lib/server/infra/storage';
 import { auth } from '$lib/server/auth';
 import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
+import { consumeParentOtp } from '$lib/server/services/parentTokens';
 
 export type OnboardingStep = 'info-validation' | 'rules';
 
@@ -111,13 +112,19 @@ export const actions: Actions = {
           });
         }
 
-        // Send OTP via BetterAuth
+        // Send OTP via BetterAuth (stores in parentToken table for parent role)
         await auth.api.sendVerificationOTP({
           body: { email: parentEmail, type: 'sign-up' },
         });
 
-        // Send parent email with link
-        await sendParentSignatureEmail(parentEmail, talentId, studentName);
+        // Consume OTP from DB and send combined email with link + code
+        const otp = await consumeParentOtp(parentEmail);
+        await sendParentSignatureEmail(
+          parentEmail,
+          talentId,
+          studentName,
+          otp ?? undefined,
+        );
       })().catch((err) => console.error('Failed to send parent email:', err));
     }
 
