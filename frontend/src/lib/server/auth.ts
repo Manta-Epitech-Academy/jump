@@ -41,14 +41,13 @@ export const auth = betterAuth({
       impersonationSessionDuration: 60 * 60,
     }),
     emailOTP({
-      async sendVerificationOTP({ email, otp, type }) {
+      async sendVerificationOTP({ email, otp }) {
         const user = await prisma.bauth_user.findUnique({
           where: { email },
           select: { role: true, name: true },
         });
-        // For parent sign-in, send OTP directly like students
-        // For parent signature flow (sign-up type), store OTP for combined email
-        if (user?.role === 'parent' && type !== 'sign-in') {
+        // For parents: store OTP in parentToken, caller handles email delivery
+        if (user?.role === 'parent') {
           await storeParentOtp(email, otp);
           return;
         }
