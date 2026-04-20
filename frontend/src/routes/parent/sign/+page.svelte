@@ -1,7 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { KeyRound, Camera, CheckCircle } from '@lucide/svelte';
+  import { KeyRound, Camera, CheckCircle, ArrowLeft } from '@lucide/svelte';
+  import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
   import { marked } from 'marked';
   import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
@@ -365,6 +366,14 @@
           > a &eacute;t&eacute; sign&eacute;e avec succ&egrave;s. Merci pour votre
           confiance.
         </p>
+
+        <Button
+          href={resolve(`/parent/enfant/${talentId}`)}
+          class="mt-6 h-auto rounded-2xl bg-epi-blue px-6 py-3 text-white shadow-lg shadow-epi-blue/20 transition-all hover:bg-epi-blue/90 active:scale-[0.98]"
+        >
+          <ArrowLeft class="mr-2 h-4 w-4" />
+          Retour à l'espace parent
+        </Button>
       </div>
     {/if}
 
