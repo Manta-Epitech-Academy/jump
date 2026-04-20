@@ -27,6 +27,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw redirect(303, resolve('/parent'));
   }
 
+  // Check how many children the parent has (for UI: hide back button if single child)
+  const siblingCount = await prisma.talent.count({
+    where: { parentEmail },
+  });
+
   // Fetch upcoming event
   const upcomingParticipation = await prisma.participation.findFirst({
     where: {
@@ -56,6 +61,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   });
 
   return {
+    parentName: locals.user.name,
+    hasMultipleChildren: siblingCount > 1,
     child: {
       id: child.id,
       prenom: child.prenom,

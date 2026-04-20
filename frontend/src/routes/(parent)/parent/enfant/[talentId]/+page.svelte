@@ -32,20 +32,26 @@
   <!-- Header -->
   <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
     <div class="flex items-center gap-2">
-      <a
-        href={resolve('/parent')}
-        class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg shadow-slate-200/50 transition-colors hover:bg-slate-50 dark:bg-slate-900 dark:shadow-none dark:hover:bg-slate-800"
-      >
-        <ArrowLeft class="h-5 w-5 text-epi-blue" />
-      </a>
+      {#if data.hasMultipleChildren}
+        <a
+          href={resolve('/parent')}
+          class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-lg shadow-slate-200/50 transition-colors hover:bg-slate-50 dark:bg-slate-900 dark:shadow-none dark:hover:bg-slate-800"
+        >
+          <ArrowLeft class="h-5 w-5 text-epi-blue" />
+        </a>
+      {/if}
       <div class="flex-1">
         <h1
           class="font-heading text-4xl tracking-tight text-slate-900 uppercase dark:text-white"
         >
-          {data.child.prenom}
-          <span class="text-epi-blue">{data.child.nom}</span>
+          Bonjour, <span class="text-epi-blue"
+            >{data.parentName ? data.parentName.split(' ')[0] : ''}</span
+          > !
         </h1>
-        <p class="font-bold text-slate-500 uppercase">Suivi de progression</p>
+        <p class="font-bold text-slate-500 uppercase">
+          Suivi de {data.child.prenom}
+          {data.child.nom}
+        </p>
       </div>
       <form action="{resolve('/logout')}?type=parent" method="POST">
         <Button
