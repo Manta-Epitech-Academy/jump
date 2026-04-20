@@ -39,9 +39,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  // Fetch all participations with activities for history
+  // Fetch past participations with activities for history
   const participations = await prisma.participation.findMany({
-    where: { talentId },
+    where: { talentId, event: { date: { lte: new Date() } } },
     include: {
       event: { select: { id: true, titre: true, date: true } },
       activities: {

@@ -23,8 +23,6 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const pathLogout = p('/logout');
   const pathPublicShowcase = p('/p/');
   const pathApi = p('/api/');
-  const pathParent = p('/parent');
-
   const pathStaffDev = p('/staff/dev');
   const pathStaffPedago = p('/staff/pedago');
 
