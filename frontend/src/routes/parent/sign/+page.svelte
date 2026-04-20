@@ -27,6 +27,7 @@
   const studentName = $derived(form?.studentName ?? data.studentName);
   const talentId = $derived(form?.talentId ?? data.talentId);
   const signToken = $derived(form?.signToken ?? '');
+  const email = $derived(form?.email ?? data.email ?? '');
   const canSign = $derived(
     accepted &&
       signerName.trim().length >= 2 &&
@@ -130,14 +131,14 @@
         </p>
       </div>
 
-      {#if data.parentEmail}
+      {#if data.maskedEmail}
         <div
           class="mb-6 rounded-xl bg-slate-50 p-4 text-center dark:bg-slate-950"
         >
           <p class="text-xs font-bold text-slate-500 uppercase">
             Code envoyé à
           </p>
-          <p class="font-bold text-epi-blue">{data.parentEmail}</p>
+          <p class="font-bold text-epi-blue">{data.maskedEmail}</p>
         </div>
       {/if}
 
