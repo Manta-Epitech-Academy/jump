@@ -114,7 +114,7 @@ export const actions: Actions = {
 
         // Send OTP via BetterAuth (stores in parentToken table for parent role)
         await auth.api.sendVerificationOTP({
-          body: { email: parentEmail, type: 'sign-up' },
+          body: { email: parentEmail, type: 'email-verification' },
         });
 
         // Consume OTP from DB and send combined email with link + code

@@ -280,7 +280,7 @@ export const actions: Actions = {
 
       // sendVerificationOTP stores the OTP in DB (parent role + non-sign-in type)
       await auth.api.sendVerificationOTP({
-        body: { email, type: 'sign-up' },
+        body: { email, type: 'email-verification' },
       });
 
       // Consume OTP from DB and send combined email with link + code
