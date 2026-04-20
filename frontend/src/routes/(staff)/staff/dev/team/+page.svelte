@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Plus, Mail, X } from '@lucide/svelte';
+  import { Plus, Mail, X, LoaderCircle } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -31,6 +31,7 @@
     form: inviteForm,
     errors: inviteErrors,
     enhance: inviteEnhance,
+    delayed: inviteDelayed,
     reset: inviteReset,
   } = superForm(
     untrack(() => data.inviteForm),
@@ -58,26 +59,30 @@
       <h1 class="font-heading text-3xl tracking-wide uppercase">
         Équipe <span class="text-epi-pink">du campus</span>
       </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
+      <p
+        class="mt-1 text-sm font-bold tracking-widest text-muted-foreground uppercase"
+      >
         Inviter de nouveaux membres et ajuster leurs rôles
       </p>
     </div>
-    <Button onclick={openInvite} class="gap-2">
+    <Button onclick={openInvite} class="gap-2 shadow-sm dark:shadow-none">
       <Plus class="h-4 w-4" />
       Inviter
     </Button>
   </div>
 
-  <section class="space-y-2">
-    <h2 class="font-heading text-lg tracking-wide uppercase">
+  <section class="space-y-3">
+    <h2 class="font-heading text-lg tracking-wider uppercase">
       Invitations en attente
       <span class="ml-2 text-sm text-muted-foreground"
         >({data.invitations?.length ?? 0})</span
       >
     </h2>
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div
+      class="rounded-sm border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+    >
       <Table.Root>
-        <Table.Header>
+        <Table.Header class="bg-muted/30">
           <Table.Row>
             <Table.Head>Email</Table.Head>
             <Table.Head>Rôle</Table.Head>
@@ -88,13 +93,16 @@
         <Table.Body>
           {#if (data.invitations?.length ?? 0) === 0}
             <Table.Row>
-              <Table.Cell colspan={4} class="text-center text-muted-foreground">
+              <Table.Cell
+                colspan={4}
+                class="py-8 text-center text-muted-foreground"
+              >
                 Aucune invitation en attente.
               </Table.Cell>
             </Table.Row>
           {:else}
             {#each data.invitations as inv}
-              <Table.Row>
+              <Table.Row class="hover:bg-muted/20">
                 <Table.Cell>
                   <div
                     class="flex items-center gap-2 text-sm text-muted-foreground"
@@ -104,11 +112,13 @@
                   </div>
                 </Table.Cell>
                 <Table.Cell>
-                  <Badge variant="secondary"
+                  <Badge
+                    variant="secondary"
+                    class="text-[10px] tracking-wider uppercase"
                     >{getStaffRoleLabel(inv.staffRole)}</Badge
                   >
                 </Table.Cell>
-                <Table.Cell class="text-sm text-muted-foreground">
+                <Table.Cell class="text-sm font-medium text-muted-foreground">
                   {inv.invitedBy?.name ?? inv.invitedBy?.email ?? '—'}
                 </Table.Cell>
                 <Table.Cell class="text-right">
@@ -153,16 +163,18 @@
     </div>
   </section>
 
-  <section class="space-y-2">
-    <h2 class="font-heading text-lg tracking-wide uppercase">
+  <section class="mt-8 space-y-3">
+    <h2 class="font-heading text-lg tracking-wider uppercase">
       Membres actifs
       <span class="ml-2 text-sm text-muted-foreground"
         >({data.members?.length ?? 0})</span
       >
     </h2>
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div
+      class="rounded-sm border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+    >
       <Table.Root>
-        <Table.Header>
+        <Table.Header class="bg-muted/30">
           <Table.Row>
             <Table.Head>Utilisateur</Table.Head>
             <Table.Head>Email</Table.Head>
@@ -172,7 +184,10 @@
         <Table.Body>
           {#if (data.members?.length ?? 0) === 0}
             <Table.Row>
-              <Table.Cell colspan={3} class="text-center text-muted-foreground">
+              <Table.Cell
+                colspan={3}
+                class="py-8 text-center text-muted-foreground"
+              >
                 Aucun membre pour ce campus.
               </Table.Cell>
             </Table.Row>
@@ -180,21 +195,23 @@
             {#each data.members as user}
               {@const currentRole = user.staffProfile?.staffRole ?? null}
               {@const isAdmin = currentRole === 'admin'}
-              <Table.Row>
+              <Table.Row class="hover:bg-muted/20">
                 <Table.Cell>
                   <div class="flex items-center gap-3">
                     <Avatar.Root class="h-8 w-8">
-                      <Avatar.Fallback class="text-xs font-bold"
+                      <Avatar.Fallback class="text-[10px] font-bold"
                         >{user.name?.substring(0, 2).toUpperCase() ||
                           'ST'}</Avatar.Fallback
                       >
                     </Avatar.Root>
-                    <span class="font-bold">{user.name || 'Sans nom'}</span>
+                    <span class="text-sm font-bold tracking-tight uppercase"
+                      >{user.name || 'Sans nom'}</span
+                    >
                   </div>
                 </Table.Cell>
                 <Table.Cell>
                   <div
-                    class="flex items-center gap-2 text-sm text-muted-foreground"
+                    class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
                   >
                     <Mail class="h-3 w-3" />
                     <a
@@ -207,12 +224,16 @@
                 </Table.Cell>
                 <Table.Cell>
                   {#if isAdmin}
-                    <Badge variant="secondary">Admin</Badge>
+                    <Badge
+                      variant="secondary"
+                      class="text-[10px] tracking-wider uppercase">Admin</Badge
+                    >
                   {:else}
                     <form
                       id="role-form-{user.id}"
                       method="POST"
                       action="?/updateMemberRole"
+                      class="flex items-center gap-2"
                       use:enhance={() => {
                         submitting = `role-${user.id}`;
                         return async ({ update, result }) => {
@@ -240,17 +261,26 @@
                           });
                         }}
                       >
-                        <Select.Trigger class="h-8 w-36 text-xs">
+                        <Select.Trigger
+                          class="h-8 w-36 bg-background text-xs font-bold tracking-widest uppercase"
+                        >
                           {getStaffRoleLabel(currentRole)}
                         </Select.Trigger>
                         <Select.Content>
                           {#each INVITABLE_ROLES as role}
-                            <Select.Item value={role.value}
+                            <Select.Item
+                              value={role.value}
+                              class="text-[10px] font-bold tracking-widest uppercase"
                               >{role.label}</Select.Item
                             >
                           {/each}
                         </Select.Content>
                       </Select.Root>
+                      {#if submitting === `role-${user.id}`}
+                        <LoaderCircle
+                          class="h-4 w-4 animate-spin text-epi-blue"
+                        />
+                      {/if}
                     </form>
                   {/if}
                 </Table.Cell>
@@ -265,47 +295,67 @@
   <Dialog.Root bind:open={inviteOpen}>
     <Dialog.Content class="sm:max-w-md">
       <Dialog.Header>
-        <Dialog.Title>Inviter un membre</Dialog.Title>
+        <Dialog.Title class="font-heading text-xl tracking-tight uppercase"
+          >Inviter un membre</Dialog.Title
+        >
         <Dialog.Description>
           Le membre rejoindra votre campus avec le rôle choisi dès sa première
           connexion.
         </Dialog.Description>
       </Dialog.Header>
-      <form method="POST" action="?/invite" use:inviteEnhance class="space-y-4">
-        <div class="space-y-2">
-          <Label for="invite-email">Email Epitech</Label>
-          <Input
-            id="invite-email"
-            name="email"
-            type="email"
-            bind:value={$inviteForm.email}
-            placeholder="prenom.nom@epitech.eu"
-            autocomplete="off"
-          />
-          {#if $inviteErrors.email}
-            <p class="text-xs text-destructive">{$inviteErrors.email}</p>
-          {/if}
-        </div>
 
-        <div class="space-y-2">
-          <Label for="invite-role">Rôle</Label>
-          <Select.Root
-            type="single"
-            name="staffRole"
-            bind:value={$inviteForm.staffRole}
-          >
-            <Select.Trigger id="invite-role" class="w-full">
-              {getStaffRoleLabel($inviteForm.staffRole)}
-            </Select.Trigger>
-            <Select.Content>
-              {#each INVITABLE_ROLES as role}
-                <Select.Item value={role.value}>{role.label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          {#if $inviteErrors.staffRole}
-            <p class="text-xs text-destructive">{$inviteErrors.staffRole}</p>
-          {/if}
+      <form
+        method="POST"
+        action="?/invite"
+        use:inviteEnhance
+        class="space-y-6 py-2"
+      >
+        <div
+          class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10"
+        >
+          <div class="space-y-2">
+            <Label for="invite-email">Email Epitech</Label>
+            <Input
+              id="invite-email"
+              name="email"
+              type="email"
+              bind:value={$inviteForm.email}
+              placeholder="prenom.nom@epitech.eu"
+              autocomplete="off"
+              class="bg-background"
+            />
+            {#if $inviteErrors.email}
+              <p class="text-xs text-destructive">{$inviteErrors.email}</p>
+            {/if}
+          </div>
+
+          <div class="space-y-2">
+            <Label for="invite-role">Rôle</Label>
+            <Select.Root
+              type="single"
+              name="staffRole"
+              bind:value={$inviteForm.staffRole}
+            >
+              <Select.Trigger
+                id="invite-role"
+                class="w-full bg-background text-xs font-bold tracking-widest uppercase"
+              >
+                {getStaffRoleLabel($inviteForm.staffRole)}
+              </Select.Trigger>
+              <Select.Content>
+                {#each INVITABLE_ROLES as role}
+                  <Select.Item
+                    value={role.value}
+                    class="text-[10px] font-bold tracking-widest uppercase"
+                    >{role.label}</Select.Item
+                  >
+                {/each}
+              </Select.Content>
+            </Select.Root>
+            {#if $inviteErrors.staffRole}
+              <p class="text-xs text-destructive">{$inviteErrors.staffRole}</p>
+            {/if}
+          </div>
         </div>
 
         <Dialog.Footer>
@@ -314,7 +364,17 @@
             variant="ghost"
             onclick={() => (inviteOpen = false)}>Annuler</Button
           >
-          <Button type="submit">Inviter</Button>
+          <Button
+            type="submit"
+            disabled={$inviteDelayed}
+            class="bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none"
+          >
+            {#if $inviteDelayed}
+              <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Envoi...
+            {:else}
+              Inviter
+            {/if}
+          </Button>
         </Dialog.Footer>
       </form>
     </Dialog.Content>

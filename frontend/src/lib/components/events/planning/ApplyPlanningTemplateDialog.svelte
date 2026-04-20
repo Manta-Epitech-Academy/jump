@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { LayoutTemplate, TriangleAlert } from '@lucide/svelte';
+  import { LayoutTemplate, TriangleAlert, LoaderCircle } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Dialog from '$lib/components/ui/dialog';
@@ -56,7 +56,9 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
-      <Dialog.Title class="flex items-center gap-2">
+      <Dialog.Title
+        class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
+      >
         <LayoutTemplate class="h-5 w-5 text-epi-teal" />
         Appliquer un modèle de planning
       </Dialog.Title>
@@ -70,7 +72,7 @@
       method="POST"
       action="?/applyTemplate"
       use:enhance
-      class="grid gap-4 py-4"
+      class="grid gap-6 py-4"
     >
       <div class="grid gap-2">
         <Select.Root
@@ -80,15 +82,20 @@
             if (v) $form.planningTemplateId = v;
           }}
         >
-          <Select.Trigger>
+          <Select.Trigger class="font-bold">
             {selectedTemplate ? selectedTemplate.nom : 'Sélectionner un modèle'}
           </Select.Trigger>
           <Select.Content>
             {#each planningTemplates as pt}
               <Select.Item value={pt.id}>
                 <div class="flex items-center gap-2">
-                  <span>{pt.nom}</span>
-                  <Badge variant="secondary" class="text-[10px]">
+                  <span class="text-sm font-bold tracking-tight uppercase"
+                    >{pt.nom}</span
+                  >
+                  <Badge
+                    variant="secondary"
+                    class="px-1.5 py-0 text-[10px] tracking-widest uppercase"
+                  >
                     {pt.nbDays} jour{pt.nbDays > 1 ? 's' : ''}
                   </Badge>
                 </div>
@@ -109,16 +116,23 @@
       </div>
 
       {#if selectedTemplate?.description}
-        <p class="text-sm text-muted-foreground">
+        <p
+          class="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground"
+        >
           {selectedTemplate.description}
         </p>
       {/if}
 
       {#if hasExistingPlanning}
-        <Alert.Root variant="destructive">
+        <Alert.Root
+          variant="destructive"
+          class="border-destructive/50 bg-destructive/5"
+        >
           <TriangleAlert class="h-4 w-4" />
-          <Alert.Title>Planning existant</Alert.Title>
-          <Alert.Description>
+          <Alert.Title class="text-[11px] font-bold tracking-widest uppercase"
+            >Planning existant</Alert.Title
+          >
+          <Alert.Description class="text-xs">
             Cette action remplacera tous les créneaux et activités actuels. Les
             données de présence associées seront perdues.
           </Alert.Description>
@@ -126,15 +140,18 @@
       {/if}
 
       <Dialog.Footer>
-        <Button variant="outline" onclick={() => (open = false)}>
-          Annuler
-        </Button>
+        <Button variant="ghost" onclick={() => (open = false)}>Annuler</Button>
         <Button
           type="submit"
           disabled={$delayed || !$form.planningTemplateId}
-          class="bg-epi-teal text-white hover:bg-epi-teal/90"
+          class="bg-epi-teal font-bold text-black shadow-md hover:bg-epi-teal/90 dark:shadow-none"
         >
-          {$delayed ? 'Application...' : 'Appliquer'}
+          {#if $delayed}
+            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+            Application...
+          {:else}
+            Appliquer
+          {/if}
         </Button>
       </Dialog.Footer>
     </form>

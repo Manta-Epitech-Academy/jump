@@ -35,7 +35,9 @@
   <PageHeader title="Historique" subtitle="Archives des événements passés" />
 
   {#if data.events.length > 0}
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div
+      class="rounded-sm border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+    >
       <Table>
         <TableHeader class="bg-muted/50">
           <TableRow>
@@ -60,7 +62,7 @@
               <TableCell class="font-bold">
                 <a
                   href={resolve(`/staff/dev/events/${event.id}/manage`)}
-                  class="text-muted-foreground uppercase transition-colors hover:text-epi-blue hover:underline"
+                  class="tracking-tight text-muted-foreground uppercase transition-colors hover:text-epi-blue hover:underline"
                 >
                   {event.titre}
                 </a>
@@ -163,11 +165,15 @@
     </div>
   {:else}
     <div
-      class="flex flex-col items-center justify-center rounded-sm border bg-card p-20 text-center shadow-sm"
+      class="flex flex-col items-center justify-center rounded-sm border bg-card p-20 text-center shadow-sm dark:shadow-none"
     >
       <Archive class="mx-auto h-12 w-12 text-muted" />
-      <h3 class="mt-4 text-lg font-bold uppercase">Historique vide</h3>
-      <p class="mt-1 text-sm font-bold text-muted-foreground uppercase">
+      <h3 class="mt-4 font-heading text-xl tracking-tight uppercase">
+        Historique vide
+      </h3>
+      <p
+        class="mt-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+      >
         Aucun événement passé n'a été trouvé.
       </p>
     </div>

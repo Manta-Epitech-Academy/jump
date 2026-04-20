@@ -8,7 +8,7 @@
   import * as Tabs from '$lib/components/ui/tabs';
   import * as Select from '$lib/components/ui/select';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
-  import { Search, Zap, FileText, Plus } from '@lucide/svelte';
+  import { Search, Zap, FileText, Plus, LoaderCircle } from '@lucide/svelte';
   import { superForm } from 'sveltekit-superforms';
   import { untrack } from 'svelte';
   import { toast } from 'svelte-sonner';
@@ -94,7 +94,9 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="sm:max-w-2xl">
     <Dialog.Header>
-      <Dialog.Title>Ajouter une activité</Dialog.Title>
+      <Dialog.Title class="font-heading text-xl tracking-tight uppercase"
+        >Ajouter une activité</Dialog.Title
+      >
       <Dialog.Description>
         Choisissez un template existant ou créez une activité statique.
       </Dialog.Description>
@@ -135,7 +137,7 @@
           </Select.Root>
         </div>
 
-        <ScrollArea class="h-72">
+        <ScrollArea class="h-72 rounded-md border bg-muted/10">
           {#if filteredTemplates.length === 0}
             <div
               class="flex h-full items-center justify-center py-12 text-center text-sm text-muted-foreground"
@@ -143,10 +145,10 @@
               Aucun template trouvé.
             </div>
           {:else}
-            <div class="space-y-2 pr-3">
+            <div class="space-y-1 p-2">
               {#each filteredTemplates as template}
                 <div
-                  class="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                  class="flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm transition-colors hover:border-epi-blue hover:bg-muted/50 dark:shadow-none"
                 >
                   <div class="flex flex-1 flex-col gap-1">
                     <div class="flex items-center gap-2">
@@ -155,43 +157,59 @@
                       {:else}
                         <FileText class="h-3.5 w-3.5 text-muted-foreground" />
                       {/if}
-                      <span class="text-sm font-medium">{template.nom}</span>
+                      <span class="text-sm font-bold tracking-tight uppercase"
+                        >{template.nom}</span
+                      >
                     </div>
                     <div class="flex flex-wrap gap-1">
-                      <Badge variant="outline" class="text-[10px]">
+                      <Badge
+                        variant="secondary"
+                        class="px-1.5 py-0 text-[9px] tracking-widest uppercase"
+                      >
                         {activityTypeLabels[
                           template.activityType as keyof typeof activityTypeLabels
                         ] || template.activityType}
                       </Badge>
                       {#if template.difficulte}
                         <span
-                          class={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${difficultyColors[template.difficulte] || ''}`}
+                          class={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase ${difficultyColors[template.difficulte] || ''}`}
                         >
                           {template.difficulte}
                         </span>
                       {/if}
                       {#if template.isDynamic}
-                        <Badge variant="secondary" class="text-[10px]"
+                        <Badge
+                          variant="secondary"
+                          class="px-1.5 py-0 text-[9px] tracking-widest uppercase"
                           >Dynamique</Badge
                         >
                       {/if}
                       {#if template.campusId}
-                        <Badge variant="secondary" class="text-[10px]"
+                        <Badge
+                          variant="secondary"
+                          class="px-1.5 py-0 text-[9px] tracking-widest uppercase"
                           >Mon campus</Badge
                         >
                       {:else}
-                        <Badge variant="outline" class="text-[10px]"
+                        <Badge
+                          variant="outline"
+                          class="border-purple-200 bg-purple-50 px-1.5 py-0 text-[9px] tracking-widest text-purple-800 uppercase dark:border-purple-900/50 dark:bg-purple-900/20 dark:text-purple-300"
                           >National</Badge
                         >
                       {/if}
                       {#each template.activityTemplateThemes as att}
-                        <Badge variant="secondary" class="text-[10px]"
-                          >#{att.theme.nom}</Badge
+                        <Badge
+                          variant="secondary"
+                          class="px-1.5 py-0 text-[9px] text-muted-foreground lowercase"
                         >
+                          #{att.theme.nom}
+                        </Badge>
                       {/each}
                     </div>
                     {#if template.description}
-                      <p class="line-clamp-1 text-xs text-muted-foreground">
+                      <p
+                        class="mt-1 line-clamp-1 text-xs text-muted-foreground"
+                      >
                         {template.description}
                       </p>
                     {/if}
@@ -234,10 +252,14 @@
                       size="sm"
                       variant="outline"
                       disabled={isAddingTemplate === template.id}
-                      class="ml-3 shrink-0"
+                      class="ml-3 shrink-0 gap-1"
                     >
-                      <Plus class="mr-1 h-3.5 w-3.5" />
-                      {isAddingTemplate === template.id ? '...' : 'Ajouter'}
+                      {#if isAddingTemplate === template.id}
+                        <LoaderCircle class="h-3.5 w-3.5 animate-spin" />
+                      {:else}
+                        <Plus class="h-3.5 w-3.5" />
+                        Ajouter
+                      {/if}
                     </Button>
                   </form>
                 </div>
@@ -252,7 +274,7 @@
           method="POST"
           action="?/createStaticActivity"
           use:staticEnhance
-          class="grid gap-4"
+          class="grid gap-4 py-2"
         >
           <input type="hidden" name="timeSlotId" value={timeSlotId} />
 
@@ -342,7 +364,7 @@
               name="content"
               bind:value={$staticForm.content}
               placeholder="Contenu de l'activité en Markdown..."
-              rows={5}
+              rows={4}
             />
             {#if $staticErrors.content}
               <span class="text-xs text-destructive"
@@ -367,13 +389,18 @@
             {/if}
           </div>
 
-          <Dialog.Footer>
+          <Dialog.Footer class="pt-2">
             <Button
               type="submit"
               disabled={$staticDelayed}
-              class="bg-epi-blue text-white hover:bg-epi-blue/90"
+              class="w-full bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none"
             >
-              {$staticDelayed ? 'Création...' : "Créer l'activité"}
+              {#if $staticDelayed}
+                <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+                Création...
+              {:else}
+                Créer l'activité
+              {/if}
             </Button>
           </Dialog.Footer>
         </form>

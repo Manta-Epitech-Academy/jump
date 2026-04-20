@@ -5,7 +5,7 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import { ChevronLeft, FileSpreadsheet } from '@lucide/svelte';
+  import { ChevronLeft, FileSpreadsheet, LoaderCircle } from '@lucide/svelte';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
@@ -70,22 +70,26 @@
 </script>
 
 <div class="mx-auto max-w-5xl space-y-6">
-  <div class="flex items-center gap-4">
+  <div class="flex items-center gap-4 border-b pb-4">
     <a
       href={resolve('/staff/dev')}
       class={buttonVariants({ variant: 'ghost', size: 'icon' })}
     >
       <ChevronLeft class="h-4 w-4" />
     </a>
-    <h1 class="text-3xl font-bold text-epi-blue uppercase">
+    <h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
       Nouvel Événement<span class="text-epi-teal">_</span>
     </h1>
   </div>
 
-  <Card.Root class="border-t-4 border-t-epi-teal shadow-md">
+  <Card.Root
+    class="border-t-4 border-t-epi-teal shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50"
+  >
     <Card.Header>
-      <Card.Title class="flex items-center gap-2">
-        <FileSpreadsheet class="h-5 w-5" />
+      <Card.Title
+        class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
+      >
+        <FileSpreadsheet class="h-5 w-5 text-epi-teal" />
         Import Événement CSV
       </Card.Title>
       <Card.Description>
@@ -133,10 +137,15 @@
           <div class="flex justify-end">
             <Button
               type="submit"
-              class="bg-epi-blue hover:bg-epi-blue/90"
+              class="bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none"
               disabled={isAnalyzing || !selectedFileName}
             >
-              {isAnalyzing ? 'Analyse en cours...' : 'Analyser le fichier'}
+              {#if isAnalyzing}
+                <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+                Analyse en cours...
+              {:else}
+                Analyser le fichier
+              {/if}
             </Button>
           </div>
         </form>
@@ -148,7 +157,7 @@
               <Label>Événement</Label><Input
                 value={analysisResult.eventName}
                 readonly
-                class="bg-muted font-bold"
+                class="bg-muted text-sm font-bold tracking-tight uppercase"
               />
             </div>
             <div class="space-y-2">
@@ -217,7 +226,7 @@
                   name="notes"
                   bind:value={importNotes}
                   placeholder="Notes pour l'événement (planning, instructions...)"
-                  class="min-h-20"
+                  class="min-h-20 bg-background"
                 />
               </div>
             </div>
@@ -231,11 +240,15 @@
               <Button
                 type="submit"
                 disabled={isConfirming}
-                class="bg-green-600 hover:bg-green-700"
-                >{isConfirming
-                  ? 'Création en cours...'
-                  : "Valider l'import"}</Button
+                class="bg-epi-teal font-bold text-black shadow-md hover:bg-epi-teal/80 dark:shadow-none"
               >
+                {#if isConfirming}
+                  <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+                  Création en cours...
+                {:else}
+                  Valider l'import
+                {/if}
+              </Button>
             </div>
           </form>
         </div>
