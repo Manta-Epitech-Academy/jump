@@ -35,7 +35,7 @@
   const hour = new Date().getHours();
   let baseGreeting = 'Bonjour';
   if (hour >= 18) baseGreeting = 'Bonsoir';
-  if (hour < 5) baseGreeting = 'Bonne nuit, recruteur';
+  if (hour < 5) baseGreeting = 'Bonne nuit';
 
   let displayedGreeting = $state('');
 
@@ -109,7 +109,7 @@
   </nav>
 
   <div class="sidebar-section-title">
-    Admissions<span class="text-epi-teal">_</span>
+    Suivi<span class="text-epi-teal">_</span>
   </div>
   <nav class="space-y-1">
     <a
@@ -119,13 +119,17 @@
       <Users class="h-5 w-5" />
       <span>Talents</span>
     </a>
-    <a
-      href={resolve('/staff/dev/interviews')}
-      class={navLinkClass(isActive('/staff/dev/interviews'))}
-    >
-      <MessageSquare class="h-5 w-5" />
-      <span>Entretiens</span>
-    </a>
+    {#if data.activeStage}
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/interviews`),
+        )}
+      >
+        <MessageSquare class="h-5 w-5" />
+        <span>Entretiens</span>
+      </a>
+    {/if}
   </nav>
 
   <div class="sidebar-section-title">

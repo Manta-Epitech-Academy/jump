@@ -356,6 +356,7 @@ model Participation {
   noteAuthor      StaffProfile?           @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
   activities      ParticipationActivity[]
   stageCompliance StageCompliance?
+  interview       Interview?
 
   @@unique([talentId, eventId])
   @@index([eventId])
@@ -388,12 +389,13 @@ model ParticipationActivity {
 }
 
 model Interview {
-  id       String          @id @default(cuid())
-  talentId String
-  staffId  String
-  campusId String
-  date     DateTime
-  status   InterviewStatus @default(planned)
+  id              String          @id @default(cuid())
+  talentId        String
+  staffId         String
+  campusId        String
+  participationId String?         @unique
+  date            DateTime
+  status          InterviewStatus @default(planned)
 
   discoveryReason   String?
   motivation        String?
@@ -409,9 +411,10 @@ model Interview {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  talent Talent       @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  campus Campus       @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  talent        Talent         @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  staff         StaffProfile   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  campus        Campus         @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  participation Participation? @relation(fields: [participationId], references: [id], onDelete: SetNull)
 
   @@index([talentId])
   @@index([staffId])

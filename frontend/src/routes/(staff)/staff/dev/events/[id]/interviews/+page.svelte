@@ -7,13 +7,16 @@
     CalendarClock,
     GripVertical,
     Plus,
+    Sparkles,
+    ArrowLeft,
   } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
-  import { Button } from '$lib/components/ui/button';
+  import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { enhance } from '$app/forms';
-  import InterviewGridModal from './components/InterviewGridModal.svelte';
+  import InterviewGridModal from '$lib/components/interviews/InterviewGridModal.svelte';
   import ScheduleInterviewPopover from '$lib/components/interviews/ScheduleInterviewPopover.svelte';
+  import AutoScheduleDialog from '$lib/components/interviews/AutoScheduleDialog.svelte';
   import { resolve } from '$app/paths';
   import * as Avatar from '$lib/components/ui/avatar';
 
@@ -26,6 +29,7 @@
 
   let activeInterview = $state<any>(null);
   let gridOpen = $state(false);
+  let autoOpen = $state(false);
 
   function openGrid(interview: any) {
     activeInterview = interview;
@@ -34,12 +38,27 @@
 </script>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
-  <PageHeader
-    title="Entretiens"
-    subtitle="Pipeline des rendez-vous d'orientation et d'admission."
-  />
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <a
+        href={resolve(`/staff/dev/events/${data.event.id}/manage`)}
+        class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+      >
+        <ArrowLeft class="h-4 w-4" />
+      </a>
+      <PageHeader
+        title="Entretiens"
+        subtitle={`Entretiens de mi-parcours — ${data.event.titre}.`}
+      />
+    </div>
+    {#if data.participationsToCall.length > 0 && data.devs.length > 0}
+      <Button onclick={() => (autoOpen = true)} class="gap-2">
+        <Sparkles class="h-4 w-4" />
+        Planifier tous les entretiens
+      </Button>
+    {/if}
+  </div>
 
-  <!-- KANBAN BOARD -->
   <div class="grid flex-1 grid-cols-1 items-start gap-6 lg:grid-cols-3">
     <div
       class="flex h-[70vh] flex-col rounded-xl border bg-slate-50 p-4 dark:bg-slate-900/50"
@@ -51,15 +70,16 @@
           class="flex items-center gap-2 font-heading tracking-wider text-muted-foreground uppercase"
         >
           <Phone class="h-4 w-4" />
-          Talents à contacter
+          Stagiaires à contacter
         </h3>
         <Badge variant="secondary" class="font-mono"
-          >{data.talentsToCall.length}</Badge
+          >{data.participationsToCall.length}</Badge
         >
       </div>
 
       <div class="flex-1 space-y-3 overflow-y-auto pr-2 pb-10">
-        {#each data.talentsToCall as talent}
+        {#each data.participationsToCall as participation}
+          {@const talent = participation.talent}
           <div
             class="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-blue hover:shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50 dark:hover:shadow-none"
           >
@@ -92,7 +112,7 @@
             <div class="mt-2 border-t border-border/50 pt-2">
               <ScheduleInterviewPopover
                 action="?/schedule"
-                talentId={talent.id}
+                participationId={participation.id}
                 timezone={data.timezone}
               >
                 {#snippet trigger({ props })}
@@ -100,8 +120,7 @@
                     size="sm"
                     variant="ghost"
                     class="h-7 w-full text-xs text-epi-blue hover:bg-epi-blue hover:text-white"
-                    {...props}
-                    ><Plus class="mr-1 h-3 w-3" /> Planifier rapide</Button
+                    {...props}><Plus class="mr-1 h-3 w-3" /> Planifier</Button
                   >
                 {/snippet}
               </ScheduleInterviewPopover>
@@ -109,7 +128,7 @@
           </div>
         {:else}
           <p class="text-center text-xs text-muted-foreground italic py-12">
-            La liste de talents est vide.
+            Tous les stagiaires ont un entretien planifié.
           </p>
         {/each}
       </div>
@@ -158,6 +177,11 @@
                     hour: '2-digit',
                     minute: '2-digit',
                   })}
+                </div>
+                <div
+                  class="mt-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                >
+                  Avec {interview.staff?.user?.name || 'Inconnu'}
                 </div>
               </div>
             </button>
@@ -265,3 +289,9 @@
 </div>
 
 <InterviewGridModal bind:open={gridOpen} interview={activeInterview} />
+<AutoScheduleDialog
+  bind:open={autoOpen}
+  devs={data.devs}
+  candidates={data.participationsToCall}
+  timezone={data.timezone}
+/>

@@ -23,7 +23,7 @@ export const interviewGridSchema = z.object({
 });
 
 export const scheduleInterviewSchema = z.object({
-  talentId: z.string().min(1, 'Talent requis'),
+  participationId: z.string().min(1, 'Participation requise'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (AAAA-MM-JJ)'),
   time: z
     .string()
@@ -38,8 +38,23 @@ export const updateInterviewStatusSchema = z.object({
   status: z.enum(['planned', 'completed', 'cancelled']),
 });
 
+export const autoScheduleInterviewsSchema = z.object({
+  devIds: z.array(z.string().min(1)).min(1, 'Au moins un dev requis'),
+  interviewsPerDevPerDay: z.coerce.number().int().min(1).max(10).default(3),
+  slotDurationMinutes: z.coerce.number().int().min(15).max(120).default(30),
+  dayStartHour: z.coerce.number().int().min(0).max(23).default(9),
+  dayEndHour: z.coerce.number().int().min(1).max(23).default(17),
+  lunchStartHour: z.coerce.number().int().min(0).max(23).default(12),
+  lunchEndHour: z.coerce.number().int().min(1).max(24).default(13),
+  participationOrder: z.enum(['name', 'random']).default('name'),
+  mode: z.enum(['preview', 'apply']),
+});
+
 export type InterviewGridForm = z.infer<typeof interviewGridSchema>;
 export type ScheduleInterviewForm = z.infer<typeof scheduleInterviewSchema>;
 export type UpdateInterviewStatusForm = z.infer<
   typeof updateInterviewStatusSchema
+>;
+export type AutoScheduleInterviewsForm = z.infer<
+  typeof autoScheduleInterviewsSchema
 >;

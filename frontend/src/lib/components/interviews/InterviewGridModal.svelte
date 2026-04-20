@@ -59,7 +59,7 @@
 
         <div class="space-y-2 rounded-md border bg-muted/20 p-3">
           <Label class="text-xs font-bold text-epi-blue uppercase"
-            >2. Qu'est-ce qui vous motive pour venir vous former dans la tech ?</Label
+            >2. Qu'est-ce qui vous a motivé à participer à ce stage ?</Label
           >
           <Textarea
             name="motivation"
@@ -71,7 +71,8 @@
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2 rounded-md border bg-muted/20 p-3">
             <Label class="text-xs font-bold text-epi-blue uppercase"
-              >Prochains événements cibles ?</Label
+              >Souhaitez-vous revenir à Epitech (Coding Club, autre stage,
+              cursus) ?</Label
             >
             <Textarea
               name="nextEventInterest"
@@ -139,7 +140,7 @@
 
         <div class="space-y-2 rounded-md border bg-muted/20 p-3">
           <Label class="text-xs font-bold text-epi-blue uppercase"
-            >Satisfaction globale et avis sur le contenu ?</Label
+            >Comment se passe le stage jusqu'à présent ?</Label
           >
           <Textarea
             name="satisfaction"
@@ -153,12 +154,12 @@
         >
           <Label
             class="flex items-center gap-2 text-sm font-black text-epi-blue uppercase"
-            >Note globale & Recommandation Admission</Label
+            >Bilan & Recommandation de réorientation</Label
           >
           <Textarea
             name="globalNote"
             value={interview.globalNote}
-            placeholder="Ex: Excellent profil, très motivé par la cybersécurité. À inviter au prochain Hackathon."
+            placeholder="Ex: Élève très motivé, à orienter vers le Coding Club. Ou : intéressé par le design, à réorienter hors Epitech."
             class="h-24 bg-background font-medium"
           />
         </div>

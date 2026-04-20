@@ -92,11 +92,14 @@
               <Card.Title class="flex items-center gap-2 text-lg uppercase"
                 ><MessageSquare class="h-5 w-5 text-epi-blue" /> Entretiens</Card.Title
               >
-              <ScheduleInterviewPopover
-                action="?/scheduleInterview"
-                timezone={data.timezone}
-                label="Planifier un appel"
-              />
+              {#if data.activeStageParticipation}
+                <ScheduleInterviewPopover
+                  action="?/scheduleInterview"
+                  participationId={data.activeStageParticipation.id}
+                  timezone={data.timezone}
+                  label="Planifier un entretien"
+                />
+              {/if}
             </Card.Header>
             <Card.Content>
               <div class="space-y-3">

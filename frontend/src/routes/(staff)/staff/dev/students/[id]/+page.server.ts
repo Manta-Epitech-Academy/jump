@@ -13,10 +13,9 @@ import {
 } from '$lib/server/db/scoped';
 import { CalendarDateTime } from '@internationalized/date';
 import { requireStaffGroup } from '$lib/server/auth/guards';
+import { EVENT_TYPES } from '$lib/domain/event';
 
-const scheduleInterviewFromStudentSchema = scheduleInterviewSchema.omit({
-  talentId: true,
-});
+const STAGE_DEFAULT_DURATION_DAYS = 14;
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
@@ -38,6 +37,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       where: { talentId: student.id },
       include: {
         stageCompliance: true,
+        interview: true,
         event: {
           include: {
             mantas: { include: { staffProfile: { include: { user: true } } } },
@@ -53,6 +53,21 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         noteAuthor: { include: { user: true } },
       },
       orderBy: { event: { date: 'desc' } },
+    });
+
+    const now = new Date();
+    const activeStageParticipation = participations.find((p) => {
+      if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
+      if (p.interview) return false;
+      const end =
+        p.event.endDate ??
+        new Date(
+          p.event.date.getTime() + STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
+        );
+      return (
+        p.event.date.getTime() <= now.getTime() &&
+        now.getTime() <= end.getTime()
+      );
     });
 
     const stats = {
@@ -84,7 +99,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     const form = await superValidate(zod4(studentSchema));
     const scheduleInterviewForm = await superValidate(
-      zod4(scheduleInterviewFromStudentSchema),
+      zod4(scheduleInterviewSchema),
     );
 
     return {
@@ -93,6 +108,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       stats,
       form,
       scheduleInterviewForm,
+      activeStageParticipation: activeStageParticipation
+        ? {
+            id: activeStageParticipation.id,
+            eventTitre: activeStageParticipation.event.titre,
+          }
+        : null,
       timezone: getCampusTimezone(locals),
     };
   } catch (e) {
@@ -170,25 +191,41 @@ export const actions: Actions = {
 
   scheduleInterview: async ({ request, params, locals }) => {
     requireStaffGroup(locals, 'devMember');
-    const form = await superValidate(
-      request,
-      zod4(scheduleInterviewFromStudentSchema),
-    );
+    const form = await superValidate(request, zod4(scheduleInterviewSchema));
     if (!form.valid) return fail(400, { form });
 
     const staffId = locals.staffProfile?.id;
     if (!staffId) return fail(403, { form });
+
+    const campusId = getCampusId(locals);
+    const participation = await prisma.participation.findUnique({
+      where: { id: form.data.participationId },
+      select: {
+        id: true,
+        talentId: true,
+        campusId: true,
+        event: { select: { eventType: true } },
+      },
+    });
+    if (
+      !participation ||
+      participation.campusId !== campusId ||
+      participation.talentId !== params.id ||
+      participation.event.eventType !== EVENT_TYPES.STAGE_SECONDE
+    ) {
+      return fail(400, { form });
+    }
 
     const [year, month, day] = form.data.date.split('-').map(Number);
     const [hour, minute] = form.data.time.split(':').map(Number);
     const cdt = new CalendarDateTime(year, month, day, hour, minute);
 
     try {
-      const campusId = getCampusId(locals);
       const db = scopedPrisma(campusId);
       await db.interview.create({
         data: {
           talentId: params.id,
+          participationId: participation.id,
           campusId,
           staffId,
           date: cdt.toDate(getCampusTimezone(locals)),

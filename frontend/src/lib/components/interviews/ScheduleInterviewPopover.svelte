@@ -12,7 +12,7 @@
 
   let {
     action,
-    talentId = null,
+    participationId = null,
     timezone,
     defaultTime = '14:00',
     trigger,
@@ -20,7 +20,7 @@
     size = 'sm',
   }: {
     action: string;
-    talentId?: string | null;
+    participationId?: string | null;
     timezone: string;
     defaultTime?: string;
     trigger?: Snippet<[{ props: Record<string, unknown> }]>;
@@ -75,8 +75,8 @@
       }}
       class="space-y-3"
     >
-      {#if talentId}
-        <input type="hidden" name="talentId" value={talentId} />
+      {#if participationId}
+        <input type="hidden" name="participationId" value={participationId} />
       {/if}
       <div class="space-y-1.5">
         <Label for="interview-date" class="text-xs uppercase">Date</Label>
