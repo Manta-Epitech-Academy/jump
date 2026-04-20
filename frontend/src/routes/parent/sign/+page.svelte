@@ -26,7 +26,7 @@
   const currentStep = $derived(form?.step ?? data.step);
   const studentName = $derived(form?.studentName ?? data.studentName);
   const talentId = $derived(form?.talentId ?? data.talentId);
-  const signToken = $derived(form?.signToken ?? '');
+  const signToken = $derived(form?.signToken ?? data.signToken ?? '');
   const email = $derived(form?.email ?? data.email ?? '');
   const canSign = $derived(
     accepted &&
