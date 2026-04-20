@@ -154,6 +154,7 @@
   body {
     @apply bg-background font-sans text-foreground antialiased selection:bg-epi-blue selection:text-white;
   }
+  /* Typography rules applied here: Tight leading for large headers */
   h1,
   h2,
   h3,
@@ -161,7 +162,7 @@
   h5,
   h6,
   .font-heading {
-    @apply font-heading font-normal tracking-wide uppercase;
+    @apply font-heading leading-[1.1] font-normal tracking-wide uppercase;
   }
 
   .sidebar-section-title {

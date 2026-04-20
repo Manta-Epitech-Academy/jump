@@ -10,6 +10,7 @@
   } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { enhance } from '$app/forms';
   import InterviewGridModal from './components/InterviewGridModal.svelte';
   import ScheduleInterviewPopover from '$lib/components/interviews/ScheduleInterviewPopover.svelte';
@@ -60,7 +61,7 @@
       <div class="flex-1 space-y-3 overflow-y-auto pr-2 pb-10">
         {#each data.talentsToCall as talent}
           <div
-            class="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-blue hover:shadow-md"
+            class="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-blue hover:shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50 dark:hover:shadow-none"
           >
             <div class="flex items-start gap-3">
               <Avatar.Root class="h-8 w-8">
@@ -134,7 +135,7 @@
       <div class="flex-1 space-y-3 overflow-y-auto pr-2 pb-10">
         {#each planned as interview}
           <div
-            class="group flex flex-col gap-3 rounded-lg border border-blue-100 bg-card p-3 shadow-sm transition-all hover:border-epi-blue dark:border-blue-900"
+            class="group flex flex-col gap-3 rounded-lg border border-blue-100 bg-card p-3 shadow-sm transition-all hover:border-epi-blue dark:border-blue-900/50 dark:shadow-none"
           >
             <button
               type="button"
@@ -160,22 +161,10 @@
                 </div>
               </div>
             </button>
-            <div class="flex justify-between gap-2" role="group">
-              <form
-                action="?/updateStatus"
-                method="POST"
-                use:enhance
-                class="flex-1"
-              >
-                <input type="hidden" name="id" value={interview.id} />
-                <input type="hidden" name="status" value="cancelled" />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="h-8 w-full text-xs text-muted-foreground hover:bg-destructive hover:text-white"
-                  ><XCircle class="mr-1 h-3.5 w-3.5" /> Annuler</Button
-                >
-              </form>
+            <div
+              class="mt-2 flex items-center justify-between gap-2 border-t border-blue-100 pt-2 dark:border-blue-900/50"
+              role="group"
+            >
               <form
                 action="?/updateStatus"
                 method="POST"
@@ -187,9 +176,35 @@
                 <Button
                   variant="default"
                   size="sm"
-                  class="h-8 w-full bg-epi-teal text-xs text-black shadow-md hover:bg-epi-teal/80"
-                  ><CheckCircle2 class="mr-1 h-3.5 w-3.5" /> Fait</Button
+                  class="h-8 w-full bg-epi-teal text-xs text-black shadow-sm hover:bg-epi-teal/80 dark:shadow-none"
+                  ><CheckCircle2 class="mr-1.5 h-3.5 w-3.5" /> Fait</Button
                 >
+              </form>
+              <form
+                action="?/updateStatus"
+                method="POST"
+                use:enhance
+                class="shrink-0"
+              >
+                <input type="hidden" name="id" value={interview.id} />
+                <input type="hidden" name="status" value="cancelled" />
+                <Tooltip.Provider delayDuration={300}>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          variant="ghost"
+                          size="sm"
+                          class="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          ><XCircle class="h-4 w-4" /></Button
+                        >
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content><p>Annuler l'entretien</p></Tooltip.Content
+                    >
+                  </Tooltip.Root>
+                </Tooltip.Provider>
               </form>
             </div>
           </div>
@@ -218,7 +233,7 @@
         {#each completed as interview}
           <button
             type="button"
-            class="w-full cursor-pointer rounded-lg border border-green-100 bg-card p-3 text-left opacity-80 shadow-sm transition-all hover:opacity-100 dark:border-green-900"
+            class="w-full cursor-pointer rounded-lg border border-green-100 bg-card p-3 text-left opacity-80 shadow-sm transition-all hover:opacity-100 dark:border-green-900/50 dark:shadow-none"
             onclick={() => openGrid(interview)}
           >
             <div class="mb-2 flex items-start justify-between">
@@ -228,7 +243,8 @@
               </div>
               <Badge
                 variant="secondary"
-                class="bg-green-50 text-[9px] text-green-700">Noté</Badge
+                class="bg-green-50 text-[9px] text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                >Noté</Badge
               >
             </div>
             <div

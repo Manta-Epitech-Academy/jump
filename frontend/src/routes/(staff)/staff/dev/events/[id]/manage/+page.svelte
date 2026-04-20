@@ -58,6 +58,8 @@
         if (result.type === 'success') {
           openEditEvent = false;
           toast.success(result.data?.form.message);
+        } else if (result.type === 'failure') {
+          toast.error(result.data?.form?.message ?? 'Action impossible.');
         }
       },
       onError: onErrorToast(),

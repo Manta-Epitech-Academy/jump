@@ -45,7 +45,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   });
 
   const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
+  const assignedMantaIds = event.mantas.map((m) => m.staffProfileId);
   const staff = await db.staffProfile.findMany({
+    where: {
+      OR: [
+        { staffRole: { in: ['manta', 'peda'] } },
+        { id: { in: assignedMantaIds } },
+      ],
+    },
     include: { user: true },
     orderBy: { user: { name: 'asc' } },
   });
@@ -91,6 +98,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   });
 
   // FORMS
+  const staffIds = new Set(staff.map((s) => s.id));
   const editForm = await superValidate(
     {
       titre: event.titre,
@@ -99,7 +107,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       endDate: endDateString,
       time: timeString,
       notes: event.notes || '',
-      mantas: event.mantas.map((m) => m.staffProfileId),
+      mantas: event.mantas
+        .map((m) => m.staffProfileId)
+        .filter((id) => staffIds.has(id)),
     },
     zod4(eventSchema),
   );
@@ -190,32 +200,26 @@ export const actions: Actions = {
     const form = await superValidate(transformedData, zod4(eventSchema));
     if (!form.valid) return fail(400, { form });
 
-    try {
-      const tz = getCampusTimezone(locals);
-      const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
-      const [hour, minute] = timeStr.split(':').map(Number);
-      const cdt = new CalendarDateTime(year, month, day, hour, minute);
-      const jsDate = cdt.toDate(tz);
+    const tz = getCampusTimezone(locals);
+    const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+    const [hour, minute] = timeStr.split(':').map(Number);
+    const cdt = new CalendarDateTime(year, month, day, hour, minute);
+    const jsDate = cdt.toDate(tz);
 
-      let endDateIso: string | undefined;
-      if (endDateStr && endDateStr.trim() !== '') {
-        const [ey, em, ed] = endDateStr.split('T')[0].split('-').map(Number);
-        const endCdt = new CalendarDateTime(ey, em, ed, 23, 59);
-        endDateIso = endCdt.toDate(tz).toISOString();
-      }
-
-      await EventService.updateEvent(params.id, getCampusId(locals), {
-        ...form.data,
-        date: jsDate.toISOString(),
-        endDate: endDateIso,
-      });
-
-      return message(form, 'Événement mis à jour !');
-    } catch (err) {
-      return message(form, "Impossible de mettre à jour l'événement", {
-        status: 500,
-      });
+    let endDateIso: string | undefined;
+    if (endDateStr && endDateStr.trim() !== '') {
+      const [ey, em, ed] = endDateStr.split('T')[0].split('-').map(Number);
+      const endCdt = new CalendarDateTime(ey, em, ed, 23, 59);
+      endDateIso = endCdt.toDate(tz).toISOString();
     }
+
+    await EventService.updateEvent(params.id, getCampusId(locals), {
+      ...form.data,
+      date: jsDate.toISOString(),
+      endDate: endDateIso,
+    });
+
+    return message(form, 'Événement mis à jour !');
   },
 
   toggleAdminDoc: async ({ request, locals }) => {

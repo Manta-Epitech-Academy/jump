@@ -99,9 +99,12 @@
   );
 
   function getMedalColor(index: number) {
-    if (index === 0) return 'text-yellow-500 fill-yellow-100';
-    if (index === 1) return 'text-slate-400 fill-slate-100';
-    if (index === 2) return 'text-amber-700 fill-amber-100';
+    if (index === 0)
+      return 'text-yellow-500 fill-yellow-100 dark:fill-yellow-900/30';
+    if (index === 1)
+      return 'text-slate-400 fill-slate-100 dark:fill-slate-800/50';
+    if (index === 2)
+      return 'text-amber-700 fill-amber-100 dark:text-amber-500 dark:fill-amber-900/30';
     return 'text-transparent';
   }
 </script>
@@ -109,7 +112,7 @@
 <div class="space-y-8">
   <!-- HERO BANNER -->
   <div
-    class="relative overflow-hidden rounded-2xl bg-linear-to-r from-epi-blue via-blue-800 to-slate-900 px-8 py-10 text-white shadow-xl"
+    class="relative overflow-hidden rounded-2xl bg-linear-to-r from-epi-blue via-blue-800 to-slate-900 px-8 py-10 text-white shadow-xl dark:shadow-none dark:ring-1 dark:ring-border/50"
   >
     <div class="absolute -top-20 -right-20 opacity-20 mix-blend-overlay">
       <TrendingUp class="h-96 w-96" />
@@ -176,7 +179,9 @@
 
   <!-- KPI STRIP -->
   <div class="grid gap-4 md:grid-cols-3">
-    <Card.Root class="border-l-4 border-l-epi-blue shadow-sm">
+    <Card.Root
+      class="border-l-4 border-l-epi-blue shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+    >
       <Card.Content class="flex items-center justify-between p-6">
         <div>
           <p
@@ -185,6 +190,13 @@
             Total Talents
           </p>
           <p class="text-3xl font-black">{data.kpis.totalTalents}</p>
+          <!-- TODO: replace hardcoded "+8% ce mois" with real month-over-month delta from data.kpis -->
+          <div
+            class="mt-2 flex w-fit items-center gap-1 rounded-sm bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/30 dark:text-green-400"
+          >
+            <TrendingUp class="h-3 w-3" />
+            +8% ce mois
+          </div>
         </div>
         <div
           class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-epi-blue dark:bg-blue-900/20"
@@ -194,7 +206,9 @@
       </Card.Content>
     </Card.Root>
 
-    <Card.Root class="border-l-4 border-l-epi-teal shadow-sm">
+    <Card.Root
+      class="border-l-4 border-l-epi-teal shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+    >
       <Card.Content class="flex items-center justify-between p-6">
         <div>
           <p
@@ -203,6 +217,13 @@
             Entretiens Réalisés
           </p>
           <p class="text-3xl font-black">{data.kpis.completedInterviews}</p>
+          <!-- TODO: replace hardcoded "+12 ce mois" with real month-over-month delta from data.kpis -->
+          <div
+            class="mt-2 flex w-fit items-center gap-1 rounded-sm bg-teal-100 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400"
+          >
+            <TrendingUp class="h-3 w-3" />
+            +12 ce mois
+          </div>
         </div>
         <div
           class="flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-epi-teal dark:bg-teal-900/20"
@@ -212,7 +233,9 @@
       </Card.Content>
     </Card.Root>
 
-    <Card.Root class="border-l-4 border-l-epi-orange shadow-sm">
+    <Card.Root
+      class="border-l-4 border-l-epi-orange shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+    >
       <Card.Content class="flex items-center justify-between p-6">
         <div>
           <p
@@ -221,6 +244,13 @@
             Appels Planifiés
           </p>
           <p class="text-3xl font-black">{data.kpis.plannedInterviews}</p>
+          <!-- TODO: replace hardcoded "+3 cette semaine" with real week-over-week delta from data.kpis -->
+          <div
+            class="mt-2 flex w-fit items-center gap-1 rounded-sm bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+          >
+            <TrendingUp class="h-3 w-3" />
+            +3 cette semaine
+          </div>
         </div>
         <div
           class="flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-epi-orange dark:bg-orange-900/20"
@@ -233,7 +263,9 @@
 
   <div class="grid gap-6 md:grid-cols-2">
     <!-- LEADERBOARD -->
-    <Card.Root class="overflow-hidden border-0 shadow-sm ring-1 ring-border">
+    <Card.Root
+      class="flex h-full flex-col overflow-hidden border-0 shadow-sm ring-1 ring-border dark:shadow-none"
+    >
       <Card.Header class="border-b bg-muted/30 pb-4">
         <Card.Title class="flex items-center gap-2 text-lg">
           <Trophy class="h-5 w-5 text-yellow-500" />
@@ -243,12 +275,12 @@
           Les prospects les plus engagés (XP) à contacter en priorité.
         </Card.Description>
       </Card.Header>
-      <Card.Content class="p-0">
+      <Card.Content class="flex-1 p-0">
         <div class="divide-y">
           {#each data.topTalents as talent, index}
             <a
               href={resolve(`/staff/dev/students/${talent.id}`)}
-              class="group flex items-center gap-4 p-4 transition-colors hover:bg-muted/30"
+              class="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30"
             >
               <div
                 class="flex w-6 items-center justify-center font-heading text-xl text-muted-foreground group-hover:text-epi-blue"
@@ -256,10 +288,14 @@
                 {#if index < 3}
                   <Medal class={`h-6 w-6 ${getMedalColor(index)}`} />
                 {:else}
-                  {index + 1}
+                  <div
+                    class="flex h-6 w-6 items-center justify-center rounded-full bg-muted/50 text-sm font-bold text-muted-foreground"
+                  >
+                    {index + 1}
+                  </div>
                 {/if}
               </div>
-              <Avatar.Root class="h-10 w-10 border shadow-sm">
+              <Avatar.Root class="h-9 w-9 border shadow-sm dark:shadow-none">
                 <Avatar.Fallback
                   class="bg-primary/10 text-xs font-bold text-primary"
                 >
@@ -268,26 +304,25 @@
               </Avatar.Root>
               <div class="min-w-0 flex-1">
                 <p
-                  class="flex items-center gap-2 truncate text-sm font-bold uppercase transition-colors group-hover:text-epi-blue"
+                  class="truncate text-sm font-bold uppercase transition-colors group-hover:text-epi-blue"
                 >
-                  <span
-                    >{talent.nom}
-                    <span class="capitalize">{talent.prenom}</span></span
-                  >
+                  {talent.nom} <span class="capitalize">{talent.prenom}</span>
                 </p>
                 <p class="truncate text-xs text-muted-foreground">
                   {talent.niveau || 'Niveau inconnu'}
                 </p>
               </div>
-              <div class="text-right">
-                <p class="text-lg font-black text-epi-orange italic">
+              <div class="flex items-baseline gap-1 text-right">
+                <span
+                  class="text-xl font-black text-epi-orange italic drop-shadow-sm dark:drop-shadow-none"
+                >
                   {talent.xp}
-                </p>
-                <p
-                  class="text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
+                </span>
+                <span
+                  class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase not-italic"
                 >
                   XP
-                </p>
+                </span>
               </div>
             </a>
           {:else}
@@ -297,78 +332,85 @@
           {/each}
         </div>
       </Card.Content>
-      <Card.Footer class="border-t bg-muted/10 p-3">
+      <Card.Footer class="mt-auto border-t bg-muted/10 p-3">
         <Button
           variant="ghost"
           size="sm"
-          class="w-full text-xs"
+          class="w-full text-xs font-bold tracking-widest uppercase"
           href={resolve('/staff/dev/students')}
         >
-          Ouvrir le CRM <ArrowRight class="ml-2 h-3 w-3" />
+          Ouvrir le CRM <ArrowRight class="ml-2 h-3.5 w-3.5" />
         </Button>
       </Card.Footer>
     </Card.Root>
 
     <!-- ÉVÉNEMENTS A VENIR + OBJECTIFS -->
-    <div class="space-y-6">
-      <Card.Root class="shadow-sm">
-        <Card.Header>
-          <Card.Title class="flex items-center gap-2 text-lg">
-            <CalendarDays class="h-5 w-5 text-epi-teal" />
-            Événements à venir
-          </Card.Title>
-        </Card.Header>
-        <Card.Content class="space-y-4">
+    <div class="flex flex-col space-y-6">
+      <div class="space-y-3">
+        <h3
+          class="flex items-center gap-2 font-heading text-lg tracking-wider text-foreground uppercase"
+        >
+          <CalendarDays class="h-5 w-5 text-epi-teal" />
+          Événements à venir
+        </h3>
+        <div class="grid gap-3">
           {#each data.upcomingEvents as event}
             <div
-              class="flex items-center justify-between rounded-lg border p-3"
+              class="group flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-teal dark:border-border/50 dark:shadow-none"
             >
-              <div>
-                <p class="text-sm font-bold uppercase">{event.titre}</p>
-                <p
-                  class="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
+              <div class="flex items-center gap-3">
+                <div
+                  class="flex min-w-14 flex-col items-center justify-center rounded-md border border-border/50 bg-muted/50 px-2 py-1"
                 >
-                  <CalendarDays class="h-3 w-3" />
-                  {new Date(event.date).toLocaleDateString('fr-FR', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    timeZone: data.timezone,
-                  })}
-                </p>
-              </div>
-              <div class="text-right">
-                <Badge variant="secondary" class="font-mono"
-                  >{event._count.participations} inscrits</Badge
-                >
-                <div class="mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="h-7 text-xs"
-                    href={resolve(`/staff/dev/events/${event.id}/manage`)}
-                    >Gérer</Button
+                  <span
+                    class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                    >{new Date(event.date).toLocaleDateString('fr-FR', {
+                      month: 'short',
+                    })}</span
+                  >
+                  <span class="font-heading text-lg text-foreground"
+                    >{new Date(event.date).getDate()}</span
                   >
                 </div>
+                <div>
+                  <p class="text-sm font-bold uppercase">{event.titre}</p>
+                  <div class="mt-1 flex items-center gap-2">
+                    <Badge variant="secondary" class="px-1.5 py-0 text-[10px]"
+                      >{event._count.participations} inscrits</Badge
+                    >
+                  </div>
+                </div>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                href={resolve(`/staff/dev/events/${event.id}/manage`)}
+                class="shrink-0 bg-background text-xs transition-colors group-hover:border-epi-teal group-hover:bg-epi-teal group-hover:text-black"
+              >
+                Gérer
+              </Button>
             </div>
           {:else}
-            <p class="text-sm text-muted-foreground text-center py-4">
-              Aucun événement prévu.
-            </p>
+            <div
+              class="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground"
+            >
+              Aucun événement prévu prochainement.
+            </div>
           {/each}
-        </Card.Content>
-      </Card.Root>
+        </div>
+      </div>
 
-      <Card.Root class="shadow-sm">
-        <Card.Header>
+      <Card.Root
+        class="mt-auto shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+      >
+        <Card.Header class="pb-4">
           <Card.Title class="flex items-center gap-2 text-lg">
             <Target class="h-5 w-5 text-epi-teal" />
             Objectifs du mois
           </Card.Title>
         </Card.Header>
-        <Card.Content class="space-y-6">
-          <div class="space-y-2">
+        <Card.Content class="space-y-5">
+          <div class="space-y-1.5">
             <div class="flex justify-between text-sm font-bold">
               <span class="flex items-center gap-2">Entretiens menés</span>
               <span class="text-epi-blue"
@@ -378,7 +420,9 @@
                 ></span
               >
             </div>
-            <div class="h-3 overflow-hidden rounded-full bg-muted shadow-inner">
+            <div
+              class="h-2.5 overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
+            >
               <div
                 class="h-full bg-linear-to-r from-epi-blue to-blue-400 transition-all duration-1000 ease-out"
                 style="width: {(data.objectives.interviews /
@@ -387,7 +431,7 @@
               ></div>
             </div>
           </div>
-          <div class="space-y-2">
+          <div class="space-y-1.5">
             <div class="flex justify-between text-sm font-bold">
               <span>Chartes signées (Stage)</span>
               <span class="text-epi-teal"
@@ -397,7 +441,9 @@
                 ></span
               >
             </div>
-            <div class="h-3 overflow-hidden rounded-full bg-muted shadow-inner">
+            <div
+              class="h-2.5 overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
+            >
               <div
                 class="h-full bg-linear-to-r from-epi-teal to-teal-400 transition-all duration-1000 ease-out"
                 style="width: {data.objectives.totalParticipations

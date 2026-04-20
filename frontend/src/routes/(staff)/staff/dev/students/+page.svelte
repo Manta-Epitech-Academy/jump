@@ -192,7 +192,9 @@
   </div>
 
   {#if data.students.length > 0}
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div
+      class="rounded-sm border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+    >
       <Table.Root>
         <Table.Header class="bg-muted/50">
           <Table.Row>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
-  import { ShieldAlert, AlertTriangle } from '@lucide/svelte';
+  import { ShieldAlert, TriangleAlert } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 
@@ -24,7 +24,7 @@
     </p>
     <Button href={resolve(workspacePath)}>Retour à l'espace</Button>
   {:else}
-    <AlertTriangle class="h-12 w-12 text-destructive" />
+    <TriangleAlert class="h-12 w-12 text-destructive" />
     <h1 class="text-2xl font-bold uppercase">Erreur {status}</h1>
     <p class="max-w-md text-sm text-muted-foreground">
       {page.error?.message ?? 'Une erreur inattendue est survenue.'}

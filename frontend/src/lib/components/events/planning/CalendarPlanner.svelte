@@ -484,7 +484,9 @@
   </div>
 
   <!-- Main Split Area -->
-  <div class="flex flex-1 overflow-hidden rounded-xl border bg-card shadow-sm">
+  <div
+    class="flex flex-1 overflow-hidden rounded-xl border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+  >
     <!-- Left: Timeline -->
     <div
       class="relative flex min-w-0 flex-1 flex-col bg-background/50 dark:bg-muted/10"
@@ -493,7 +495,7 @@
         <div class="w-14 shrink-0 border-r border-border/50 sm:w-16"></div>
         {#each calendarDays as day}
           <div
-            class="min-w-37.5 flex-1 border-r border-border/50 py-3 text-center last:border-0 sm:min-w-[200px]"
+            class="min-w-37.5 flex-1 border-r border-border/50 py-3 text-center last:border-0 sm:min-w-50"
           >
             <div
               class={cn(
@@ -543,7 +545,7 @@
           {#each calendarDays as day}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
-              class="group relative min-w-37.5 flex-1 cursor-crosshair border-r border-border/50 transition-colors last:border-0 hover:bg-muted/10 sm:min-w-[200px]"
+              class="group relative min-w-37.5 flex-1 cursor-crosshair border-r border-border/50 transition-colors last:border-0 hover:bg-muted/10 sm:min-w-50"
               onpointerdown={(e) => startCreate(e, day.dateKey)}
             >
               <!-- Grid lines -->
@@ -578,10 +580,10 @@
                 {#if !dragState.active || dragState.slotId !== slot.id}
                   <div
                     class={cn(
-                      'group/slot absolute z-10 flex cursor-default flex-col overflow-hidden rounded-md border-y border-r border-l-4 shadow-sm transition-all hover:z-20',
+                      'group/slot absolute z-10 flex cursor-default flex-col overflow-hidden rounded-md transition-all hover:z-20',
                       dragOverSlotId === slot.id
-                        ? 'scale-[1.01] border-y-border border-r-border border-l-epi-teal bg-epi-teal/10 ring-2 ring-epi-teal/20'
-                        : 'border-y-border border-r-border border-l-epi-blue bg-blue-50/95 text-foreground hover:border-l-blue-600 hover:bg-blue-50 dark:bg-blue-900/40',
+                        ? 'z-30 scale-[1.02] border-2 border-epi-teal bg-epi-teal/20 shadow-lg ring-4 ring-epi-teal/30 dark:shadow-none'
+                        : 'border-y border-r border-l-4 border-y-border border-r-border border-l-epi-blue bg-blue-50/95 text-foreground shadow-sm hover:border-l-blue-600 hover:bg-blue-50 dark:bg-blue-900/40 dark:shadow-none',
                     )}
                     style="top: {getPixels(
                       slot.startTime,
@@ -688,7 +690,7 @@
                       {:else}
                         {#each slot.activities as activity (activity.id)}
                           <div
-                            class="group/act relative flex flex-col gap-1 rounded border border-border/50 bg-background/80 p-1.5 shadow-xs transition-shadow hover:shadow-sm"
+                            class="group/act relative flex flex-col gap-1 rounded border border-border/50 bg-background/80 p-1.5 shadow-xs transition-shadow hover:shadow-sm dark:shadow-none"
                           >
                             <div
                               class="flex items-start justify-between gap-1 overflow-hidden"
@@ -790,7 +792,7 @@
               <!-- Draft slot during drag-create -->
               {#if dragState.active && dragState.dateKey === day.dateKey}
                 <div
-                  class="pointer-events-none absolute right-4 left-2 z-30 flex items-center justify-center rounded-md border-2 border-dashed border-epi-blue bg-blue-100/50 shadow-md dark:bg-blue-900/50"
+                  class="pointer-events-none absolute right-4 left-2 z-30 flex items-center justify-center rounded-md border-2 border-dashed border-epi-blue bg-blue-100/50 shadow-md dark:bg-blue-900/50 dark:shadow-none"
                   style="top: {dragState.currentTop}px; height: {dragState.currentBottom -
                     dragState.currentTop}px;"
                 >
@@ -812,7 +814,7 @@
     <!-- Right: Catalog Sidebar (drag-to-add templates) -->
     {#if canEdit}
       <div
-        class="z-20 hidden w-80 shrink-0 flex-col border-l bg-card shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] lg:flex"
+        class="z-20 hidden w-80 shrink-0 flex-col border-l bg-card shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] lg:flex dark:shadow-none"
       >
         <div class="shrink-0 space-y-3 border-b p-4">
           <h3 class="font-heading text-lg tracking-wide uppercase">
@@ -833,7 +835,7 @@
           <div class="space-y-2 pr-1">
             {#each filteredTemplates as template (template.id)}
               <div
-                class="relative cursor-grab rounded-lg border bg-background p-2.5 shadow-sm transition-colors hover:border-epi-teal active:cursor-grabbing"
+                class="relative cursor-grab rounded-lg border bg-background p-2.5 shadow-sm transition-colors hover:border-epi-teal active:cursor-grabbing dark:shadow-none"
                 draggable="true"
                 role="listitem"
                 ondragstart={(e) => handleDragStart(e, template.id)}

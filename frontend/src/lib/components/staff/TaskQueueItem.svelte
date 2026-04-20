@@ -41,7 +41,7 @@
 <a
   {href}
   class={cn(
-    'group flex items-center gap-4 rounded-lg border p-4 transition-colors',
+    'group flex items-center gap-4 rounded-lg border p-5 shadow-sm transition-colors md:p-6 dark:shadow-none dark:ring-1 dark:ring-border/50',
     toneClass,
   )}
 >

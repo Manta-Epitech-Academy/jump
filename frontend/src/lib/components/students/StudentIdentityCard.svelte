@@ -30,8 +30,8 @@
   );
   const levelBadgeClass = $derived(
     accent === 'teal'
-      ? 'border-epi-teal font-bold text-epi-teal uppercase'
-      : 'border-epi-blue font-bold text-epi-blue uppercase',
+      ? 'border-epi-teal font-bold text-epi-teal uppercase tracking-tight'
+      : 'border-epi-blue font-bold text-epi-blue uppercase tracking-tight',
   );
 
   function getInitials(prenom: string, nom: string) {
@@ -52,23 +52,34 @@
   }
 </script>
 
-<Card.Root class={cn('overflow-hidden border-t-4 shadow-md', borderClass)}>
-  <Card.Header class="flex flex-col items-center pb-2 text-center">
-    <Avatar.Root class="h-24 w-24 border-4 border-muted bg-white shadow-sm">
+<Card.Root
+  class={cn(
+    'overflow-hidden border-t-4 shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50',
+    borderClass,
+  )}
+>
+  <Card.Header class="flex flex-col items-center pt-8 pb-4 text-center">
+    <Avatar.Root
+      class="h-28 w-28 border-4 border-muted bg-white shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+    >
       <Avatar.Fallback
-        class="bg-secondary text-2xl font-bold text-secondary-foreground"
+        class="bg-secondary text-3xl font-bold text-secondary-foreground"
         >{getInitials(student.prenom, student.nom)}</Avatar.Fallback
       >
     </Avatar.Root>
-    <Card.Title class="mt-4 text-xl"
+    <!-- Tightened header typography -->
+    <Card.Title
+      class="mt-6 font-heading text-2xl leading-none tracking-[-0.03em]"
       ><span class="uppercase">{student.nom}</span> {student.prenom}</Card.Title
     >
-    <div class="mt-1 flex flex-col items-center gap-1">
-      <Badge variant="outline" class={levelBadgeClass}>{student.niveau}</Badge>
+    <div class="mt-3 flex flex-col items-center gap-1.5">
+      <Badge variant="outline" class={cn('px-3 py-0.5', levelBadgeClass)}
+        >{student.niveau}</Badge
+      >
       <Badge
         variant="outline"
         class={cn(
-          'text-[10px] font-bold uppercase',
+          'px-2 py-0.5 text-[10px] font-bold uppercase',
           getDifficultyColor(student.niveauDifficulte || 'Débutant'),
         )}
       >
@@ -77,42 +88,45 @@
       </Badge>
     </div>
   </Card.Header>
-  <Card.Content class="space-y-6">
+  <Card.Content class="space-y-8 px-6 pb-8">
     {#if afterIdentity}
-      {@render afterIdentity()}
+      <div class="p-1">
+        {@render afterIdentity()}
+      </div>
       <Separator />
     {/if}
 
-    <div class="space-y-3 text-center">
+    <div class="space-y-4 text-center">
       <div class="relative inline-flex items-center justify-center">
         <div
-          class="absolute inset-0 rounded-full bg-epi-orange/30 blur-lg"
+          class="absolute inset-0 rounded-full bg-epi-orange/30 blur-xl"
         ></div>
         <Trophy
-          class="duration-2000ms relative h-8 w-8 animate-bounce text-epi-orange"
+          class="duration-2000ms relative h-10 w-10 animate-bounce text-epi-orange drop-shadow-lg dark:drop-shadow-none"
         />
       </div>
       <div class="flex flex-col items-center">
         <Badge
           variant="outline"
           class={cn(
-            'mt-2 mb-2 px-3 py-1 text-sm font-black tracking-widest uppercase',
+            'mt-2 mb-2 px-4 py-1 text-xs font-black tracking-widest uppercase shadow-sm dark:shadow-none',
             student.xp >= 500
-              ? 'shiny-badge border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
+              ? 'shiny-badge border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
               : 'border-border text-muted-foreground',
           )}
         >
           {student.xp >= 500 ? 'Expert ✦' : 'Novice'}
         </Badge>
         <span
-          class="text-3xl font-black tracking-tighter text-foreground italic"
-          >{student.xp}<span class="ml-1 text-lg text-epi-orange not-italic"
+          class="text-4xl font-black tracking-tighter text-foreground italic"
+          >{student.xp}<span
+            class="ml-1 font-heading text-xl text-epi-orange not-italic"
             >XP</span
           ></span
         >
       </div>
       <div
-        class="relative h-4 w-full overflow-hidden rounded-full bg-muted shadow-inner"
+        class="relative h-4 w-full overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/20"
       >
         <div
           class="relative h-full overflow-hidden bg-epi-orange transition-all duration-1000 ease-out"
@@ -133,16 +147,26 @@
     <Separator />
 
     <div class="grid grid-cols-2 gap-4 text-center">
-      <div class="rounded-sm bg-muted/30 p-2">
-        <div class="text-lg font-bold">{stats.presentCount}</div>
-        <div class="text-[9px] font-bold text-muted-foreground uppercase">
+      <div
+        class="rounded-lg bg-muted/40 p-3 ring-1 ring-border/20 dark:bg-muted/10"
+      >
+        <div class="text-xl font-black">{stats.presentCount}</div>
+        <div
+          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        >
           Présences
         </div>
       </div>
       {#if stats.lateCount > 0}
-        <div class="rounded-sm bg-muted/30 p-2">
-          <div class="text-lg font-bold text-orange-500">{stats.lateCount}</div>
-          <div class="text-[9px] font-bold text-muted-foreground uppercase">
+        <div
+          class="rounded-lg bg-orange-50 p-3 ring-1 ring-orange-200/50 dark:bg-orange-950/20 dark:ring-orange-900/30"
+        >
+          <div class="text-xl font-black text-orange-500">
+            {stats.lateCount}
+          </div>
+          <div
+            class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+          >
             Retards
           </div>
         </div>
@@ -150,7 +174,9 @@
     </div>
 
     {#if footer}
-      {@render footer()}
+      <div class="pt-2">
+        {@render footer()}
+      </div>
     {/if}
   </Card.Content>
 </Card.Root>

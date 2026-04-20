@@ -96,24 +96,26 @@
   <Command.Input
     placeholder="Tapez une commande (ex: 'call Léo', 'help') ou cherchez..."
     bind:value={inputValue}
+    class="font-medium"
   />
-  <Command.List class="max-h-[300px] overflow-y-auto">
-    <Command.Empty>
+  <Command.List class="max-h-[350px] overflow-y-auto">
+    <Command.Empty class="py-12">
       {#if searching}
-        <!-- SKELETON LOADERS -->
-        <div class="space-y-3 p-4">
+        <div class="space-y-4 p-4">
           {#each Array(3) as _}
             <div class="flex items-center gap-3">
-              <Skeleton class="h-8 w-8 rounded-full" />
-              <div class="space-y-1.5">
-                <Skeleton class="h-4 w-32" />
-                <Skeleton class="h-3 w-20" />
+              <Skeleton class="h-10 w-10 rounded-full" />
+              <div class="space-y-2">
+                <Skeleton class="h-4 w-40" />
+                <Skeleton class="h-3 w-24" />
               </div>
             </div>
           {/each}
         </div>
       {:else if inputValue.length > 0}
-        Aucun résultat trouvé.
+        <p class="text-center text-sm text-muted-foreground italic">
+          Aucun Talent ne correspond à cette recherche.
+        </p>
       {/if}
     </Command.Empty>
 
@@ -121,10 +123,10 @@
       <Command.Group heading="Urgence & Live Ops">
         <Command.Item
           onSelect={() => runCommand(resolve('/staff/pedago'))}
-          class="text-epi-orange"
+          class="py-3 text-epi-orange"
         >
-          <LifeBuoy class="mr-2 h-4 w-4" />
-          Ouvrir le Dashboard Pédago (Cockpit)
+          <LifeBuoy class="mr-3 h-5 w-5" />
+          <span class="font-bold">Ouvrir le Dashboard Pédago (Cockpit)</span>
         </Command.Item>
       </Command.Group>
     {/if}
@@ -135,25 +137,35 @@
           <Command.Item
             onSelect={() =>
               runCommand(resolve(`${basePath}/students/${student.id}`))}
+            class="px-4 py-3"
           >
-            <Avatar.Root class="mr-2 h-6 w-6">
+            <Avatar.Root class="mr-3 h-8 w-8">
               <Avatar.Fallback
-                class="bg-primary/10 text-[10px] font-bold text-primary"
+                class="bg-primary/10 text-xs font-bold text-primary"
               >
                 {student.nom[0]}{student.prenom[0]}
               </Avatar.Fallback>
             </Avatar.Root>
-            <span class="font-bold uppercase">{student.nom}</span>&nbsp;<span
-              class="capitalize">{student.prenom}</span
-            >
-            <span class="ml-2 text-xs text-muted-foreground"
-              >- {student.niveau}</span
-            >
+            <div class="flex flex-col">
+              <div class="flex items-center">
+                <span class="text-sm font-black tracking-tight uppercase"
+                  >{student.nom}</span
+                >&nbsp;<span class="text-sm font-bold capitalize"
+                  >{student.prenom}</span
+                >
+              </div>
+              <span
+                class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                >{student.niveau}</span
+              >
+            </div>
 
             {#if isCallAction}
-              <div class="ml-auto flex items-center gap-2 text-epi-blue">
-                <Phone class="h-3 w-3" />
-                <span class="text-xs font-bold"
+              <div
+                class="ml-auto flex items-center gap-2 rounded-sm bg-blue-50 px-2 py-1 text-epi-blue dark:bg-blue-900/30"
+              >
+                <Phone class="h-3.5 w-3.5" />
+                <span class="text-xs font-black"
                   >{student.phone ||
                     student.parentPhone ||
                     'Aucun numéro'}</span
@@ -161,7 +173,7 @@
               </div>
             {:else}
               <ArrowRight
-                class="ml-auto h-4 w-4 text-muted-foreground opacity-50"
+                class="ml-auto h-4 w-4 text-muted-foreground opacity-30 transition-opacity group-hover:opacity-100"
               />
             {/if}
           </Command.Item>
@@ -171,22 +183,29 @@
 
     {#if !inputValue || (!showHelpShortcut && searchResults.length === 0 && !searching)}
       <Command.Group heading="Navigation">
-        <Command.Item onSelect={() => runCommand(resolve(basePath))}>
-          <LayoutDashboard class="mr-2 h-4 w-4" />
-          {isPedago ? 'Dashboard Pédago' : 'Dashboard ADM'}
+        <Command.Item
+          onSelect={() => runCommand(resolve(basePath))}
+          class="py-3"
+        >
+          <LayoutDashboard class="mr-3 h-5 w-5 text-epi-blue" />
+          <span class="font-bold"
+            >{isPedago ? 'Dashboard Pédago' : 'Dashboard ADM'}</span
+          >
         </Command.Item>
         {#if !isPedago}
           <Command.Item
             onSelect={() => runCommand(resolve(`${basePath}/students`))}
+            class="py-3"
           >
-            <Users class="mr-2 h-4 w-4" />
-            Talents
+            <Users class="mr-3 h-5 w-5 text-epi-teal" />
+            <span class="font-bold">Annuaire des Talents</span>
           </Command.Item>
           <Command.Item
             onSelect={() => runCommand(resolve(`${basePath}/events/history`))}
+            class="py-3"
           >
-            <History class="mr-2 h-4 w-4" />
-            Historique
+            <History class="mr-3 h-5 w-5 text-muted-foreground" />
+            <span class="font-bold">Historique & Archives</span>
           </Command.Item>
         {/if}
       </Command.Group>
@@ -197,9 +216,10 @@
         <Command.Group heading="Actions Rapides">
           <Command.Item
             onSelect={() => runCommand(resolve(`${basePath}/events/import`))}
+            class="py-3"
           >
-            <Calendar class="mr-2 h-4 w-4" />
-            Importer une campagne
+            <Calendar class="mr-3 h-5 w-5 text-epi-pink" />
+            <span class="font-bold">Importer un événement Salesforce</span>
           </Command.Item>
         </Command.Group>
       {/if}

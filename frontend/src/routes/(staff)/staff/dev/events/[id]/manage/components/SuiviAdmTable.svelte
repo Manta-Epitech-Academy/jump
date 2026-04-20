@@ -5,6 +5,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { resolve } from '$app/paths';
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
+  import { cn } from '$lib/utils';
 
   let { participations, optimisticAdminToggle, optimisticPcToggle } = $props();
 
@@ -14,7 +15,9 @@
   }
 </script>
 
-<div class="rounded-sm border bg-card shadow-sm">
+<div
+  class="rounded-sm border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+>
   <div class="flex items-center justify-between border-b bg-muted/50 px-4 py-3">
     <h3 class="text-sm font-bold uppercase">Suivi ADM</h3>
     <p class="text-xs text-muted-foreground">
@@ -37,7 +40,7 @@
         {#each participations as p (p.id)}
           <Table.Row class="hover:bg-muted/20">
             <!-- Profil -->
-            <Table.Cell>
+            <Table.Cell class="py-4">
               <div class="flex items-center gap-3">
                 <Avatar.Root class="h-8 w-8 rounded-sm">
                   <Avatar.Fallback
@@ -62,7 +65,7 @@
             </Table.Cell>
 
             <!-- Charte Info : On interroge stageCompliance -->
-            <Table.Cell class="text-center">
+            <Table.Cell class="py-4 text-center">
               <form
                 method="POST"
                 action="?/toggleAdminDoc"
@@ -77,24 +80,29 @@
                 />
                 <button
                   type="submit"
-                  class="cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                  class="cursor-pointer transition-transform active:scale-90"
                 >
-                  <Badge
-                    variant={p.stageCompliance?.charteSigned
-                      ? 'outline'
-                      : 'secondary'}
-                    class={p.stageCompliance?.charteSigned
-                      ? 'border-green-200 bg-green-50 text-green-700'
-                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}
-                  >
-                    {p.stageCompliance?.charteSigned ? 'OK' : 'En attente'}
-                  </Badge>
+                  {#key p.stageCompliance?.charteSigned}
+                    <Badge
+                      variant={p.stageCompliance?.charteSigned
+                        ? 'outline'
+                        : 'secondary'}
+                      class={cn(
+                        'animate-in duration-300 zoom-in',
+                        p.stageCompliance?.charteSigned
+                          ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400',
+                      )}
+                    >
+                      {p.stageCompliance?.charteSigned ? 'OK' : 'En attente'}
+                    </Badge>
+                  {/key}
                 </button>
               </form>
             </Table.Cell>
 
             <!-- Convention -->
-            <Table.Cell class="text-center">
+            <Table.Cell class="py-4 text-center">
               <form
                 method="POST"
                 action="?/toggleAdminDoc"
@@ -110,24 +118,31 @@
                 />
                 <button
                   type="submit"
-                  class="cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                  class="cursor-pointer transition-transform active:scale-90"
                 >
-                  <Badge
-                    variant={p.stageCompliance?.conventionSigned
-                      ? 'outline'
-                      : 'secondary'}
-                    class={p.stageCompliance?.conventionSigned
-                      ? 'border-green-200 bg-green-50 text-green-700'
-                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}
-                  >
-                    {p.stageCompliance?.conventionSigned ? 'OK' : 'En attente'}
-                  </Badge>
+                  {#key p.stageCompliance?.conventionSigned}
+                    <Badge
+                      variant={p.stageCompliance?.conventionSigned
+                        ? 'outline'
+                        : 'secondary'}
+                      class={cn(
+                        'animate-in duration-300 zoom-in',
+                        p.stageCompliance?.conventionSigned
+                          ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400',
+                      )}
+                    >
+                      {p.stageCompliance?.conventionSigned
+                        ? 'OK'
+                        : 'En attente'}
+                    </Badge>
+                  {/key}
                 </button>
               </form>
             </Table.Cell>
 
             <!-- Droit Image -->
-            <Table.Cell class="text-center">
+            <Table.Cell class="py-4 text-center">
               <form
                 method="POST"
                 action="?/toggleAdminDoc"
@@ -143,24 +158,29 @@
                 />
                 <button
                   type="submit"
-                  class="cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                  class="cursor-pointer transition-transform active:scale-90"
                 >
-                  <Badge
-                    variant={p.stageCompliance?.imageRightsSigned
-                      ? 'outline'
-                      : 'secondary'}
-                    class={p.stageCompliance?.imageRightsSigned
-                      ? 'border-green-200 bg-green-50 text-green-700'
-                      : 'bg-red-100 text-red-700 hover:bg-red-200'}
-                  >
-                    {p.stageCompliance?.imageRightsSigned ? 'OK' : 'Manquant'}
-                  </Badge>
+                  {#key p.stageCompliance?.imageRightsSigned}
+                    <Badge
+                      variant={p.stageCompliance?.imageRightsSigned
+                        ? 'outline'
+                        : 'secondary'}
+                      class={cn(
+                        'animate-in duration-300 zoom-in',
+                        p.stageCompliance?.imageRightsSigned
+                          ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400',
+                      )}
+                    >
+                      {p.stageCompliance?.imageRightsSigned ? 'OK' : 'Manquant'}
+                    </Badge>
+                  {/key}
                 </button>
               </form>
             </Table.Cell>
 
             <!-- Bring PC -->
-            <Table.Cell class="text-center">
+            <Table.Cell class="py-4 text-center">
               <form
                 method="POST"
                 action="?/toggleBringPc"
@@ -172,10 +192,12 @@
                   name="state"
                   value={p.bringPc.toString()}
                 />
-                <div
-                  class="inline-block transition-transform hover:scale-105 active:scale-95"
-                >
-                  <BringPcBadge bringPc={p.bringPc} />
+                <div class="inline-block transition-transform active:scale-90">
+                  {#key p.bringPc}
+                    <div class="animate-in duration-300 zoom-in">
+                      <BringPcBadge bringPc={p.bringPc} />
+                    </div>
+                  {/key}
                 </div>
               </form>
             </Table.Cell>

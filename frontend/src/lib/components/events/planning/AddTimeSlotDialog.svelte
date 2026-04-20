@@ -4,6 +4,7 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
+  import { LoaderCircle, Clock, Tag } from '@lucide/svelte';
   import { superForm } from 'sveltekit-superforms';
   import { untrack } from 'svelte';
   import { toast } from 'svelte-sonner';
@@ -89,7 +90,7 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
-      <Dialog.Title
+      <Dialog.Title class="font-heading text-xl tracking-tight uppercase"
         >{editingSlot
           ? 'Modifier le créneau'
           : 'Ajouter un créneau'}</Dialog.Title
@@ -105,7 +106,7 @@
       method="POST"
       action={editingSlot ? '?/updateTimeSlot' : '?/createTimeSlot'}
       use:enhance
-      class="grid gap-4"
+      class="grid gap-6"
     >
       {#if editingSlot}
         <input type="hidden" name="timeSlotId" value={editingSlot.id} />
@@ -114,91 +115,108 @@
       <input type="hidden" name="endTime" value={$form.endTime} />
       <input type="hidden" name="slotDate" value={slotDate} />
 
-      <div class="grid gap-2">
-        <Label>Heure de début</Label>
-        <div class="flex items-center gap-2">
-          <Select.Root type="single" bind:value={startHour}>
-            <Select.Trigger class="w-20">
-              {startHour}h
-            </Select.Trigger>
-            <Select.Content class="max-h-40">
-              {#each hours as h}
-                <Select.Item value={h}>{h}h</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          <span class="text-muted-foreground">:</span>
-          <Select.Root type="single" bind:value={startMinute}>
-            <Select.Trigger class="w-20">
-              {startMinute}
-            </Select.Trigger>
-            <Select.Content>
-              {#each minutes as m}
-                <Select.Item value={m}>{m}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-        {#if $errors.startTime}
-          <span class="text-xs text-destructive">{$errors.startTime}</span>
-        {/if}
-      </div>
-
-      <div class="grid gap-2">
-        <Label>Heure de fin</Label>
-        <div class="flex items-center gap-2">
-          <Select.Root type="single" bind:value={endHour}>
-            <Select.Trigger class="w-20">
-              {endHour}h
-            </Select.Trigger>
-            <Select.Content class="max-h-40">
-              {#each hours as h}
-                <Select.Item value={h}>{h}h</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          <span class="text-muted-foreground">:</span>
-          <Select.Root type="single" bind:value={endMinute}>
-            <Select.Trigger class="w-20">
-              {endMinute}
-            </Select.Trigger>
-            <Select.Content>
-              {#each minutes as m}
-                <Select.Item value={m}>{m}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-        </div>
-        {#if $errors.endTime}
-          <span class="text-xs text-destructive">{$errors.endTime}</span>
-        {/if}
-      </div>
-
-      <div class="grid gap-2">
-        <Label
-          >Label <span class="text-muted-foreground">(optionnel)</span></Label
+      <!-- GROUP 1: Time range -->
+      <div class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10">
+        <div
+          class="mb-1 flex items-center gap-2 text-xs font-bold tracking-widest text-epi-blue uppercase"
         >
-        <Input
-          name="label"
-          bind:value={$form.label}
-          placeholder="Ex: Pause déjeuner, Keynote..."
-        />
-        {#if $errors.label}
-          <span class="text-xs text-destructive">{$errors.label}</span>
-        {/if}
+          <Clock class="h-3 w-3" /> Horaires
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="grid gap-2">
+            <Label>Début</Label>
+            <div class="flex items-center gap-2">
+              <Select.Root type="single" bind:value={startHour}>
+                <Select.Trigger class="bg-background">
+                  {startHour}h
+                </Select.Trigger>
+                <Select.Content class="max-h-40">
+                  {#each hours as h}
+                    <Select.Item value={h}>{h}h</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              <Select.Root type="single" bind:value={startMinute}>
+                <Select.Trigger class="bg-background">
+                  {startMinute}
+                </Select.Trigger>
+                <Select.Content>
+                  {#each minutes as m}
+                    <Select.Item value={m}>{m}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+            {#if $errors.startTime}
+              <span class="text-xs text-destructive">{$errors.startTime}</span>
+            {/if}
+          </div>
+          <div class="grid gap-2">
+            <Label>Fin</Label>
+            <div class="flex items-center gap-2">
+              <Select.Root type="single" bind:value={endHour}>
+                <Select.Trigger class="bg-background">
+                  {endHour}h
+                </Select.Trigger>
+                <Select.Content class="max-h-40">
+                  {#each hours as h}
+                    <Select.Item value={h}>{h}h</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              <Select.Root type="single" bind:value={endMinute}>
+                <Select.Trigger class="bg-background">
+                  {endMinute}
+                </Select.Trigger>
+                <Select.Content>
+                  {#each minutes as m}
+                    <Select.Item value={m}>{m}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+            {#if $errors.endTime}
+              <span class="text-xs text-destructive">{$errors.endTime}</span>
+            {/if}
+          </div>
+        </div>
+      </div>
+
+      <!-- GROUP 2: Label -->
+      <div class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10">
+        <div
+          class="mb-1 flex items-center gap-2 text-xs font-bold tracking-widest text-epi-blue uppercase"
+        >
+          <Tag class="h-3 w-3" /> Informations
+        </div>
+        <div class="grid gap-2">
+          <Label
+            >Label <span class="text-muted-foreground">(optionnel)</span></Label
+          >
+          <Input
+            name="label"
+            bind:value={$form.label}
+            placeholder="Ex: Pause déjeuner, Keynote..."
+            class="bg-background"
+          />
+          {#if $errors.label}
+            <span class="text-xs text-destructive">{$errors.label}</span>
+          {/if}
+        </div>
       </div>
 
       <Dialog.Footer>
         <Button
           type="submit"
           disabled={$delayed}
-          class="bg-epi-blue text-white hover:bg-epi-blue/90"
+          class="w-full bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none"
         >
-          {$delayed
-            ? 'Enregistrement...'
-            : editingSlot
-              ? 'Mettre à jour'
-              : 'Ajouter'}
+          {#if $delayed}
+            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+            Enregistrement...
+          {:else}
+            {editingSlot ? 'Mettre à jour' : 'Ajouter le créneau'}
+          {/if}
         </Button>
       </Dialog.Footer>
     </form>

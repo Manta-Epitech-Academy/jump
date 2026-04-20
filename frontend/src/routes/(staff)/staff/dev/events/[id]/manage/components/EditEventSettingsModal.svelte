@@ -7,7 +7,7 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { Separator } from '$lib/components/ui/separator';
-  import { Settings, Trash2 } from '@lucide/svelte';
+  import { Settings, Trash2, LoaderCircle } from '@lucide/svelte';
   import { buttonVariants } from '$lib/components/ui/button';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
@@ -120,98 +120,136 @@
         use:editEnhance
         class="space-y-4 py-2"
       >
-        <div class="space-y-2">
-          <Label>Titre</Label>
-          <Input name="titre" bind:value={$editForm.titre} />
-          {#if $editErrors.titre}<p class="text-xs text-destructive">
-              {$editErrors.titre}
-            </p>{/if}
-        </div>
-
-        <div class="space-y-2">
-          <Label>Notes & Planning</Label>
-          <Textarea
-            name="notes"
-            bind:value={$editForm.notes}
-            placeholder="Ex: 14h00 Intro, 15h30 Pause... Attention aux Talents de 4ème sur les boucles."
-            class="min-h-25"
-          />
-          {#if $editErrors.notes}<p class="text-xs text-destructive">
-              {$editErrors.notes}
-            </p>{/if}
-        </div>
-
-        <div class="grid gap-4">
+        <!-- GROUP 1: General Info -->
+        <div
+          class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10"
+        >
           <div class="space-y-2">
-            <Label>Thème</Label>
-            <ThemeSelect {themes} bind:value={$editForm.theme} name="theme" />
-            {#if $editErrors.theme}<p class="text-xs text-destructive">
-                {$editErrors.theme}
-              </p>{/if}
-          </div>
-          <div class="space-y-2">
-            <Label>Mantas</Label>
-            <MultiStaffSelect
-              {staff}
-              bind:value={$editForm.mantas}
-              name="mantas"
+            <Label>Titre</Label>
+            <Input
+              name="titre"
+              bind:value={$editForm.titre}
+              class="bg-background"
             />
-            {#if $editErrors.mantas}<p class="text-xs text-destructive">
-                {$editErrors.mantas}
+            {#if $editErrors.titre}<p class="text-xs text-destructive">
+                {$editErrors.titre}
+              </p>{/if}
+          </div>
+
+          <div class="space-y-2">
+            <Label>Notes & Planning</Label>
+            <Textarea
+              name="notes"
+              bind:value={$editForm.notes}
+              placeholder="Ex: 14h00 Intro, 15h30 Pause... Attention aux Talents de 4ème sur les boucles."
+              class="min-h-25 bg-background"
+            />
+            {#if $editErrors.notes}<p class="text-xs text-destructive">
+                {$editErrors.notes}
               </p>{/if}
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <Label>Date de début</Label>
-            <DatePicker bind:value={dateValue} name="date" />
-            {#if $editErrors.date}<p class="text-xs text-destructive">
-                {$editErrors.date}
-              </p>{/if}
-          </div>
-          <div class="space-y-2">
-            <Label>Heure</Label>
-            <div class="flex gap-2">
-              <Select.Root type="single" bind:value={hour}>
-                <Select.Trigger>{hour}</Select.Trigger>
-                <Select.Content class="h-50">
-                  {#each hours as h}<Select.Item value={h}>{h}</Select.Item
-                    >{/each}
-                </Select.Content>
-              </Select.Root>
-              <Select.Root type="single" bind:value={minute}>
-                <Select.Trigger>{minute}</Select.Trigger>
-                <Select.Content>
-                  {#each minutes as m}<Select.Item value={m}>{m}</Select.Item
-                    >{/each}
-                </Select.Content>
-              </Select.Root>
+        <!-- GROUP 2: Classification & Staffing -->
+        <div
+          class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10"
+        >
+          <div class="grid gap-4">
+            <div class="space-y-2">
+              <Label>Thème</Label>
+              <div class="rounded-sm bg-background">
+                <ThemeSelect
+                  {themes}
+                  bind:value={$editForm.theme}
+                  name="theme"
+                />
+              </div>
+              {#if $editErrors.theme}<p class="text-xs text-destructive">
+                  {$editErrors.theme}
+                </p>{/if}
             </div>
-            <input type="hidden" name="time" value={$editForm.time} />
-            {#if $editErrors.time}<p class="text-xs text-destructive">
-                {$editErrors.time}
-              </p>{/if}
+            <div class="space-y-2">
+              <Label>Mantas</Label>
+              <div class="rounded-sm bg-background">
+                <MultiStaffSelect
+                  {staff}
+                  bind:value={$editForm.mantas}
+                  name="mantas"
+                />
+              </div>
+              {#if $editErrors.mantas}<p class="text-xs text-destructive">
+                  {$editErrors.mantas}
+                </p>{/if}
+            </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <Label
-              >Date de fin <span class="text-muted-foreground">(optionnel)</span
-              ></Label
-            >
-            <DatePicker bind:value={endDateValue} name="endDate" />
-            {#if $editErrors.endDate}<p class="text-xs text-destructive">
-                {$editErrors.endDate}
-              </p>{/if}
+        <!-- GROUP 3: Scheduling -->
+        <div
+          class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10"
+        >
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <Label>Date de début</Label>
+              <div class="rounded-sm bg-background">
+                <DatePicker bind:value={dateValue} name="date" />
+              </div>
+              {#if $editErrors.date}<p class="text-xs text-destructive">
+                  {$editErrors.date}
+                </p>{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Heure</Label>
+              <div class="flex gap-2">
+                <Select.Root type="single" bind:value={hour}>
+                  <Select.Trigger class="bg-background">{hour}</Select.Trigger>
+                  <Select.Content class="h-50">
+                    {#each hours as h}<Select.Item value={h}>{h}</Select.Item
+                      >{/each}
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root type="single" bind:value={minute}>
+                  <Select.Trigger class="bg-background">{minute}</Select.Trigger
+                  >
+                  <Select.Content>
+                    {#each minutes as m}<Select.Item value={m}>{m}</Select.Item
+                      >{/each}
+                  </Select.Content>
+                </Select.Root>
+              </div>
+              <input type="hidden" name="time" value={$editForm.time} />
+              {#if $editErrors.time}<p class="text-xs text-destructive">
+                  {$editErrors.time}
+                </p>{/if}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <Label
+                >Date de fin <span class="text-muted-foreground"
+                  >(optionnel)</span
+                ></Label
+              >
+              <div class="rounded-sm bg-background">
+                <DatePicker bind:value={endDateValue} name="endDate" />
+              </div>
+              {#if $editErrors.endDate}<p class="text-xs text-destructive">
+                  {$editErrors.endDate}
+                </p>{/if}
+            </div>
           </div>
         </div>
 
         <div class="flex justify-end pt-4">
-          <Button type="submit" disabled={$editDelayed}
-            >Sauvegarder les modifications</Button
-          >
+          <Button type="submit" disabled={$editDelayed}>
+            {#if $editDelayed}
+              <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+              Sauvegarde...
+            {:else}
+              Sauvegarder les modifications
+            {/if}
+          </Button>
         </div>
       </form>
 
