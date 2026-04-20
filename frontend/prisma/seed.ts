@@ -461,6 +461,9 @@ type ActivityDef = {
   isDynamic: boolean;
   themes: string[];
   defaultDuration: number;
+  campus?: 'Paris' | 'Lyon' | 'Marseille';
+  content?: string;
+  link?: string;
 };
 
 const activityDefs: ActivityDef[] = [
@@ -572,6 +575,299 @@ const activityDefs: ActivityDef[] = [
     isDynamic: true,
     themes: ['Design & Création'],
     defaultDuration: 120,
+  },
+  // ─── Static templates: official (campus-less) ───
+  {
+    nom: 'Conférence : Les métiers de la tech',
+    description:
+      'Panorama des métiers du numérique présenté par un·e intervenant·e externe.',
+    difficulte: 'Débutant',
+    activityType: 'conference',
+    isDynamic: false,
+    themes: ['Développement Web', 'Cybersécurité', 'Intelligence Artificielle'],
+    defaultDuration: 90,
+    content: `# Les métiers de la tech
+
+> « Il n'y a pas **un** métier de la tech, il y en a des dizaines. » — *Intervenant·e invité·e*
+
+## Objectifs de la session
+
+- Découvrir la **diversité** des rôles dans le numérique
+- Identifier les compétences clés de chaque métier
+- Poser des questions concrètes à un·e professionnel·le
+
+## Déroulé (90 min)
+
+| Temps  | Séquence                       | Format      |
+| ------ | ------------------------------ | ----------- |
+| 10 min | Accueil + brise-glace          | Plénière    |
+| 30 min | Présentation des 4 familles    | Talk        |
+| 20 min | Témoignages vidéo              | Projection  |
+| 25 min | Questions / Réponses           | Interactif  |
+| 5 min  | Synthèse et ressources         | Plénière    |
+
+## Les 4 grandes familles
+
+1. **Développement** — *front-end, back-end, mobile, systèmes embarqués*
+2. **Data & IA** — *data analyst, data scientist, ML engineer*
+3. **Cybersécurité** — *pentester, analyste SOC, RSSI*
+4. **Produit & Design** — *PM, PO, UX/UI, ops*
+
+### Exemple de stack côté web
+
+\`\`\`ts
+// Un même·e dev peut toucher plusieurs couches
+const stack = {
+  front: ['Svelte', 'React', 'Vue'],
+  back: ['Node', 'Go', 'Rust'],
+  data: ['Postgres', 'Redis', 'Kafka'],
+};
+\`\`\`
+
+## Ressources officielles
+
+- Fiches métiers : [Onisep — numérique](https://www.onisep.fr/metiers/des-metiers-par-secteur/les-metiers-de-l-informatique)
+- Rapport annuel *Numeum* sur l'emploi tech
+- Podcasts recommandés : **IfThisThenDev**, **Underscore_**
+
+---
+
+*Support à projeter en 16:9. Prévoir enceintes pour les vidéos témoignages.*`,
+  },
+  {
+    nom: 'Pause déjeuner',
+    description: 'Temps de repas commun.',
+    difficulte: 'Débutant',
+    activityType: 'orga',
+    isDynamic: false,
+    themes: [],
+    defaultDuration: 60,
+    content: `# Pause déjeuner
+
+## Points de vigilance
+
+- [ ] **Allergies** et régimes spéciaux signalés en amont
+- [ ] Repas **halal / végétarien** disponibles
+- [ ] Eau et snacks accessibles en libre-service
+- [ ] Rappel des **horaires de reprise** en fin de pause
+
+> ⚠️ *Aucun·e élève ne quitte l'établissement sans accompagnant·e.*
+
+## Astuce encadrant·e
+
+Profite de la pause pour **échanger de façon informelle** avec les élèves : c'est souvent là que remontent les retours les plus riches sur la matinée.`,
+  },
+  {
+    nom: 'Restitution finale',
+    description:
+      'Présentation des projets devant le groupe et remise des diplômes.',
+    difficulte: 'Intermédiaire',
+    activityType: 'conference',
+    isDynamic: false,
+    themes: ['Design & Création'],
+    defaultDuration: 120,
+    content: `# Restitution finale
+
+> « La restitution n'est pas une note — c'est une **célébration** du chemin parcouru. »
+
+## Format officiel
+
+| Séquence                       | Durée       | Responsable          |
+| ------------------------------ | ----------- | -------------------- |
+| Mot d'accueil                  | 5 min       | Responsable pédago   |
+| Pitchs par équipe (5 min × N)  | ~60 min     | Élèves               |
+| Questions / Réponses           | 15 min      | Jury + public        |
+| Délibération rapide            | 10 min      | Jury                 |
+| Remise des diplômes            | 20 min      | Directeur·rice       |
+| Photo de groupe + pot          | 10 min      | Tout le monde        |
+
+## Trame de pitch conseillée
+
+1. **Le problème** qu'on a voulu résoudre
+2. **La solution** et ses choix techniques
+3. **Une démo** (vidéo ou live)
+4. **Ce qu'on a appris** — techniquement *et* humainement
+5. **Ce qu'on ferait ensuite** avec plus de temps
+
+### Check-list technique avant restitution
+
+- [ ] HDMI + adaptateur USB-C testés
+- [ ] Micros sans fil chargés
+- [ ] Diplômes imprimés et signés
+- [ ] Photographe ou référent·e photo désigné·e
+
+## Critères de jury (à communiquer avant)
+
+- **Clarté** du pitch (30%)
+- **Qualité** de la réalisation (30%)
+- **Originalité** / prise de risque (20%)
+- **Esprit d'équipe** visible dans la présentation (20%)
+
+---
+
+*Prévoir un plan B audio en cas de panne : enceinte bluetooth + câble jack 3.5mm.*`,
+  },
+  // ─── Static templates: local (campus-scoped) ───
+  {
+    nom: 'Visite du campus Epitech Paris',
+    description: 'Découverte des locaux et rencontre des équipes pédagogiques.',
+    difficulte: 'Débutant',
+    activityType: 'conference',
+    isDynamic: false,
+    themes: ['Développement Web'],
+    defaultDuration: 60,
+    campus: 'Paris',
+    link: 'https://www.epitech.eu/campus/paris/',
+    content: `# Visite du campus — Paris Kremlin-Bicêtre
+
+## Itinéraire conseillé (60 min)
+
+1. **Accueil & hall principal** — présentation rapide de l'école
+2. **Salles de cours & amphi** — comment se déroulent les projets
+3. **Hub / espace communautaire** — vie associative, clubs techniques
+4. **Labs & salles serveur** — côté infra / réseau / hardware
+5. **Cafétéria + coin détente** — clôture informelle
+
+> 📍 **Adresse** : 14-16 rue Voltaire, 94270 Le Kremlin-Bicêtre
+> 🚇 Métro **7** — station *Le Kremlin-Bicêtre*
+
+## Points à mettre en avant
+
+- La **pédagogie par projet** : pas de cours magistraux classiques
+- La **communauté alumni** très présente
+- Les **partenariats entreprises** (stages, alternances, hackathons)
+
+### Clubs à présenter (au moins 2 parmi)
+
+| Club              | Thème                          |
+| ----------------- | ------------------------------ |
+| **EpiGames**      | Jeu vidéo, game design         |
+| **HackademINT**   | Cybersécurité, CTF             |
+| **Epitech.eu AI** | Intelligence artificielle      |
+| **WebAcademie**   | Développement web, open-source |
+
+## Consignes sécurité
+
+- [ ] Vérifier les **badges visiteurs** à l'entrée
+- [ ] Pas de photos dans les salles serveur
+- [ ] Respect des **issues de secours** balisées
+
+---
+
+Plus d'infos : [epitech.eu/campus/paris](https://www.epitech.eu/campus/paris/)`,
+  },
+  {
+    nom: 'Rencontre alumni Lyon',
+    description:
+      'Échange avec des ancien·ne·s du campus lyonnais autour de leur parcours.',
+    difficulte: 'Débutant',
+    activityType: 'conference',
+    isDynamic: false,
+    themes: ['Développement Web', 'Intelligence Artificielle'],
+    defaultDuration: 90,
+    campus: 'Lyon',
+    content: `# Rencontre alumni — Campus Lyon
+
+> *« J'ai commencé Epitech sans savoir coder une ligne. Aujourd'hui je bosse sur des modèles d'IA chez un éditeur lyonnais. »*
+> — **Sarah**, promo 2019
+
+## Format — table ronde
+
+- **3 alumni** aux parcours différents
+- **1 modérateur·rice** (pédago ou manta)
+- Public : élèves + quelques parents invités
+
+## Profils d'alumni invités
+
+| Profil                | Entreprise type              | Années d'XP |
+| --------------------- | ---------------------------- | ----------- |
+| Développeur·se full-stack | Scale-up lyonnaise         | 3–5 ans     |
+| Data / ML engineer    | Grand groupe bancaire        | 5+ ans      |
+| Entrepreneur·e tech   | Start-up SaaS autofinancée   | 2–4 ans     |
+
+## Trame de questions
+
+1. **Pourquoi Epitech** plutôt qu'une autre formation ?
+2. Votre **premier stage** : comment l'avez-vous trouvé ?
+3. Une **journée type** dans votre métier actuel ?
+4. Un conseil à votre **vous d'il y a 10 ans** ?
+5. Comment la **communauté alumni** vous aide aujourd'hui ?
+
+### Bonus — questions du public
+
+> 💡 *Prévoir 20–25 min de Q&A ouvert en fin de session.*
+
+## À distribuer aux élèves
+
+- Lien LinkedIn des **intervenant·e·s** (avec leur accord)
+- Flyer du réseau **Epitech Alumni Lyon**
+- QR code du **Discord** d'entraide local
+
+---
+
+*Tournage autorisé uniquement avec accord explicite des alumni présents.*`,
+  },
+  {
+    nom: 'Atelier partenaires Marseille',
+    description:
+      "Atelier animé par un partenaire local autour d'un cas concret.",
+    difficulte: 'Intermédiaire',
+    activityType: 'atelier',
+    isDynamic: false,
+    themes: ['Cybersécurité'],
+    defaultDuration: 150,
+    campus: 'Marseille',
+    content: `# Atelier partenaire — Analyse de logs & détection d'incidents
+
+> Atelier animé par un·e **analyste SOC** d'un partenaire local (éditeur cyber marseillais).
+
+## Contexte du cas pratique
+
+Un serveur web expose une API publique. Sur les **dernières 24 h**, on soupçonne une activité malveillante. Tâche des élèves : **identifier** les requêtes suspectes et **reconstruire** le scénario d'attaque.
+
+### Environnement fourni
+
+- Extrait de logs \`access.log\` (format *Apache Combined*)
+- Accès navigateur à une instance **Kibana** en lecture seule
+- Fiche *cheat-sheet* avec les regex usuelles
+
+## Étapes (150 min)
+
+1. **Briefing** du cas (15 min)
+2. **Exploration** des logs en binôme (45 min)
+3. **Point d'étape** collectif (15 min)
+4. **Construction** de la timeline d'attaque (45 min)
+5. **Restitution** + débrief partenaire (30 min)
+
+### Exemple de ligne à analyser
+
+\`\`\`
+203.0.113.42 - - [14/Mar/2026:03:12:44 +0100] "GET /admin/../etc/passwd HTTP/1.1" 404 162 "-" "sqlmap/1.7"
+\`\`\`
+
+**Indices à repérer** :
+
+- User-Agent suspect → \`sqlmap/1.7\`
+- Tentative de *path traversal* → \`../etc/passwd\`
+- Horaire atypique → **3 h du matin**
+
+## Pré-requis
+
+- [ ] Avoir fait l'activité *Initiation à la cybersécurité*
+- [ ] Laptop avec terminal (macOS / Linux / WSL)
+- [ ] Connaissance basique des **codes HTTP** (200, 301, 404, 500)
+
+## Livrables attendus
+
+| Livrable                      | Format        | Qui ?      |
+| ----------------------------- | ------------- | ---------- |
+| Liste des IP suspectes        | \`.txt\`      | Chaque binôme |
+| Timeline de l'attaque         | Slide / doc   | Chaque binôme |
+| 3 recommandations de mitigation | Oral        | Un binôme au hasard |
+
+---
+
+*Contact partenaire confidentiel — voir fiche coordonnées côté pédago.*`,
   },
 ];
 
@@ -1599,7 +1895,7 @@ async function main() {
   );
 
   // 5. Activity templates
-  const templatesByName = await seedActivityTemplates(themesByKey);
+  const templatesByName = await seedActivityTemplates(themesByKey, campuses);
   console.log(`✓  Activity templates (${Object.keys(templatesByName).length})`);
 
   // 6. Planning template (multi-day stage)
@@ -1807,9 +2103,11 @@ async function seedThemes(campuses: Record<string, { id: string }>) {
 
 async function seedActivityTemplates(
   themesByKey: Record<string, { id: string }>,
+  campuses: Record<string, { id: string }>,
 ) {
   const byName: Record<string, { id: string }> = {};
   for (const def of activityDefs) {
+    const campusId = def.campus ? (campuses[def.campus]?.id ?? null) : null;
     const tpl = await prisma.activityTemplate.create({
       data: {
         nom: def.nom,
@@ -1817,13 +2115,19 @@ async function seedActivityTemplates(
         difficulte: def.difficulte,
         activityType: def.activityType,
         isDynamic: def.isDynamic,
-        contentStructure: contentStructures[def.nom] ?? undefined,
+        contentStructure: def.isDynamic
+          ? (contentStructures[def.nom] ?? undefined)
+          : undefined,
+        content: def.content,
+        link: def.link,
         defaultDuration: def.defaultDuration,
-        campusId: null,
+        campusId,
         activityTemplateThemes: {
           create: def.themes
             .map((themeName) => {
-              const themeId = themesByKey[`official:${themeName}`]?.id;
+              const themeId =
+                (def.campus && themesByKey[`${def.campus}:${themeName}`]?.id) ||
+                themesByKey[`official:${themeName}`]?.id;
               return themeId ? { themeId } : null;
             })
             .filter((x): x is NonNullable<typeof x> => x !== null),
