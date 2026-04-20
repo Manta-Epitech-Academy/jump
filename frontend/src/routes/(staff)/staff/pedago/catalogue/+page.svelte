@@ -34,7 +34,7 @@
   <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
     {#each data.templates as template}
       <Card.Root
-        class="flex cursor-pointer flex-col shadow-sm transition-all hover:border-epi-blue hover:shadow-md"
+        class="flex cursor-pointer flex-col shadow-sm transition-all hover:border-epi-blue hover:shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50 dark:hover:shadow-none"
         onclick={() => openTemplate(template)}
       >
         <Card.Header class="pb-2">
@@ -51,9 +51,9 @@
             >
           </div>
         </Card.Header>
-        <Card.Content class="flex-1 py-2">
-          <div class="flex flex-wrap gap-1">
-            <Badge variant="secondary" class="text-[9px] uppercase">
+        <Card.Content class="flex-1 py-3">
+          <div class="flex flex-wrap gap-1.5">
+            <Badge variant="secondary" class="px-2 py-0.5 text-[9px] uppercase">
               {activityTypeLabels[
                 template.activityType as keyof typeof activityTypeLabels
               ] || template.activityType}
@@ -61,7 +61,7 @@
             {#if template.difficulte}
               <Badge
                 variant="outline"
-                class="border-epi-blue text-[9px] text-blue-700 uppercase dark:text-blue-300"
+                class="border-epi-blue px-2 py-0.5 text-[9px] text-blue-700 uppercase dark:text-blue-300"
               >
                 {template.difficulte}
               </Badge>
@@ -69,7 +69,7 @@
             {#each template.activityTemplateThemes as att}
               <Badge
                 variant="secondary"
-                class="text-[9px] text-muted-foreground lowercase"
+                class="px-2 py-0.5 text-[9px] text-muted-foreground lowercase"
               >
                 #{att.theme.nom}
               </Badge>
@@ -77,7 +77,7 @@
           </div>
           {#if template.defaultDuration}
             <div
-              class="mt-3 flex items-center gap-1.5 text-xs font-bold text-muted-foreground"
+              class="mt-4 flex items-center gap-1.5 text-xs font-bold text-muted-foreground"
             >
               <Clock class="h-3 w-3" />
               {template.defaultDuration} min
@@ -106,7 +106,9 @@
       >
         <div class="flex items-center gap-3">
           <BookOpenText class="h-5 w-5 text-epi-blue" />
-          <h2 class="text-xl font-bold uppercase">{selectedTemplate.nom}</h2>
+          <h2 class="text-xl font-bold tracking-tight uppercase">
+            {selectedTemplate.nom}
+          </h2>
         </div>
         {#if selectedTemplate.link}
           <Button
@@ -122,7 +124,7 @@
         {/if}
       </div>
 
-      <ScrollArea class="flex-1 p-6">
+      <ScrollArea class="flex-1 bg-background p-6">
         {#if selectedTemplate.isDynamic}
           <div class="space-y-4">
             <h3 class="flex items-center gap-2 font-bold text-epi-orange">

@@ -1,6 +1,12 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { ArrowLeft, Award, Download, CircleCheck } from '@lucide/svelte';
+  import {
+    ArrowLeft,
+    Award,
+    Download,
+    CircleCheck,
+    LoaderCircle,
+  } from '@lucide/svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
@@ -10,7 +16,10 @@
 
   let { data }: { data: PageData } = $props();
 
+  let downloadingId = $state<string | null>(null);
+
   async function handleDiplomaDownload(participationId: string) {
+    downloadingId = participationId;
     const toastId = toast.loading('Génération du diplôme en cours...');
     try {
       const res = await fetch(
@@ -43,6 +52,8 @@
     } catch (e: any) {
       console.error(e);
       toast.error(`Erreur : ${e.message}`, { id: toastId });
+    } finally {
+      downloadingId = null;
     }
   }
 </script>
@@ -57,22 +68,24 @@
     </a>
     <div>
       <h1
-        class="flex items-center gap-3 text-3xl font-bold text-epi-blue uppercase"
+        class="flex items-center gap-3 text-3xl font-bold tracking-tight text-epi-blue uppercase"
       >
         Clôture & Diplômes<span class="text-epi-blue">_</span>
       </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
+      <p
+        class="text-sm font-bold tracking-widest text-muted-foreground uppercase"
+      >
         {data.event.titre}
       </p>
     </div>
   </div>
 
   <div
-    class="flex flex-col items-center justify-between gap-4 rounded-xl border border-epi-blue/30 bg-epi-blue/5 p-6 md:flex-row"
+    class="flex flex-col items-center justify-between gap-4 rounded-xl border border-epi-blue/30 bg-epi-blue/5 p-6 md:flex-row dark:border-epi-blue/20 dark:bg-epi-blue/10"
   >
     <div>
       <h2
-        class="flex items-center gap-2 text-lg font-bold text-blue-800 dark:text-blue-400"
+        class="flex items-center gap-2 text-lg font-bold tracking-tight text-blue-800 uppercase dark:text-blue-400"
       >
         <CircleCheck class="h-5 w-5" /> Session Terminée
       </h2>
@@ -85,7 +98,9 @@
     </div>
   </div>
 
-  <div class="mt-6 rounded-sm border bg-card shadow-sm">
+  <div
+    class="mt-6 rounded-sm border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+  >
     <Table.Root>
       <Table.Header class="bg-muted/50">
         <Table.Row>
@@ -97,11 +112,13 @@
       <Table.Body>
         {#each data.participations as p}
           <Table.Row class="hover:bg-muted/30">
-            <Table.Cell class="font-bold uppercase">
+            <Table.Cell class="font-bold tracking-tight uppercase">
               {p.talent.nom} <span class="capitalize">{p.talent.prenom}</span>
             </Table.Cell>
             <Table.Cell>
-              <Badge variant="outline" class="text-[10px]"
+              <Badge
+                variant="outline"
+                class="text-[10px] tracking-widest uppercase"
                 >{p.talent.niveau}</Badge
               >
             </Table.Cell>
@@ -109,11 +126,16 @@
               <Button
                 variant="outline"
                 size="sm"
+                disabled={downloadingId === p.id}
                 class="gap-2 text-epi-blue transition-colors hover:bg-epi-blue hover:text-white"
                 onclick={() => handleDiplomaDownload(p.id)}
               >
-                <Award class="h-4 w-4" />
-                <Download class="h-3 w-3 opacity-70" />
+                {#if downloadingId === p.id}
+                  <LoaderCircle class="h-4 w-4 animate-spin" />
+                {:else}
+                  <Award class="h-4 w-4" />
+                  <Download class="h-3 w-3 opacity-70" />
+                {/if}
               </Button>
             </Table.Cell>
           </Table.Row>

@@ -116,7 +116,9 @@
 
     {#if data.liveEvent && data.isOnLiveEvent}
       <!-- Live event assigned to this manta: big CTA -->
-      <Card.Root class="overflow-hidden border-2 border-epi-blue shadow-xl">
+      <Card.Root
+        class="overflow-hidden border-2 border-epi-blue shadow-xl dark:shadow-none"
+      >
         <div
           class="flex items-center justify-between border-b border-epi-blue/20 bg-epi-blue/10 px-6 py-4"
         >
@@ -144,7 +146,7 @@
 
         <Card.Content class="space-y-4 p-6">
           <div>
-            <h3 class="text-3xl font-black uppercase">
+            <h3 class="text-3xl font-black tracking-tight uppercase">
               {data.liveEvent.titre}
             </h3>
             <p
@@ -173,7 +175,7 @@
         <Card.Footer class="border-t bg-muted/30 p-4">
           <Button
             size="lg"
-            class="w-full bg-epi-blue text-base text-white shadow-lg hover:bg-epi-blue/90"
+            class="w-full bg-epi-blue text-base text-white shadow-lg hover:bg-epi-blue/90 dark:shadow-none"
             href={cockpitRouteId
               ? resolve(
                   `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
@@ -186,7 +188,7 @@
       </Card.Root>
     {:else}
       <!-- No live event or not assigned -->
-      <Card.Root>
+      <Card.Root class="dark:shadow-none dark:ring-1 dark:ring-border/50">
         <Card.Content class="flex items-center gap-4 p-6">
           <Activity class="h-10 w-10 text-muted-foreground/40" />
           <div>
@@ -200,25 +202,43 @@
       </Card.Root>
     {/if}
 
-    <!-- Next assigned events -->
+    <!-- Next assigned events (Redesigned to sleek list) -->
     {#if data.nextAssignedEvents && data.nextAssignedEvents.length > 0}
       <section class="space-y-3">
         <h2 class="font-heading text-lg tracking-wider uppercase">
           Vos prochains événements<span class="text-epi-teal">_</span>
         </h2>
-        <div class="grid gap-3 md:grid-cols-3">
+        <div class="grid gap-3">
           {#each data.nextAssignedEvents as event}
-            <Card.Root class="shadow-sm">
-              <Card.Content class="p-4">
-                <p class="text-sm font-bold uppercase">{event.titre}</p>
-                <p
-                  class="mt-1 flex items-center gap-1 text-xs text-muted-foreground"
+            <div
+              class="group flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-blue dark:border-border/50 dark:shadow-none"
+            >
+              <div class="flex items-center gap-4">
+                <div
+                  class="flex min-w-[4rem] flex-col items-center justify-center rounded-md border border-border/50 bg-muted/50 px-3 py-1.5"
                 >
-                  <CalendarDays class="h-3 w-3" />
-                  <span class="capitalize">{formatDate(event.date)}</span>
-                </p>
-              </Card.Content>
-            </Card.Root>
+                  <span
+                    class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                    >{new Date(event.date).toLocaleDateString('fr-FR', {
+                      month: 'short',
+                    })}</span
+                  >
+                  <span class="font-heading text-xl text-foreground"
+                    >{new Date(event.date).getDate()}</span
+                  >
+                </div>
+                <div>
+                  <p class="text-sm font-bold tracking-tight uppercase">
+                    {event.titre}
+                  </p>
+                  <div class="mt-1 flex items-center gap-2">
+                    <Badge variant="secondary" class="px-1.5 py-0 text-[10px]"
+                      >{event._count.participations} inscrits</Badge
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
           {/each}
         </div>
       </section>
@@ -242,7 +262,9 @@
       {#if data.cataloguePreview && data.cataloguePreview.length > 0}
         <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {#each data.cataloguePreview as template}
-            <Card.Root class="shadow-sm transition-all hover:shadow-md">
+            <Card.Root
+              class="shadow-sm transition-all hover:shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50"
+            >
               <Card.Content class="flex items-start gap-3 p-4">
                 <div class="mt-1 shrink-0">
                   {#if template.isDynamic}
@@ -287,7 +309,7 @@
     <!-- LIVE HEALTH DASHBOARD -->
     {#if data.liveEvent}
       <Card.Root
-        class="mb-8 overflow-hidden border-2 border-epi-blue shadow-lg"
+        class="mb-8 overflow-hidden border-2 border-epi-blue shadow-lg dark:shadow-none"
       >
         <div
           class="flex items-center justify-between border-b border-epi-blue/20 bg-epi-blue/10 px-6 py-4"
@@ -317,7 +339,7 @@
         <Card.Content class="p-6">
           <div class="grid items-center gap-8 md:grid-cols-12">
             <div class="space-y-2 md:col-span-4">
-              <h3 class="text-2xl font-bold uppercase">
+              <h3 class="text-2xl font-bold tracking-tight uppercase">
                 {data.liveEvent.titre}
               </h3>
               <div
@@ -355,7 +377,7 @@
               </div>
 
               <div
-                class="relative h-4 w-full overflow-hidden rounded-full bg-muted shadow-inner"
+                class="relative h-4 w-full overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
               >
                 <div
                   class="relative h-full bg-epi-blue transition-all duration-1000"
@@ -370,7 +392,7 @@
 
             <div class="flex justify-end md:col-span-3">
               <div
-                class="w-full rounded-xl border bg-slate-900 p-4 text-center text-white shadow-inner"
+                class="w-full rounded-xl border bg-slate-900 p-4 text-center text-white shadow-inner dark:bg-slate-950"
               >
                 <div
                   class="text-3xl font-black {data.activeAlertsCount > 0
@@ -395,7 +417,7 @@
         <Card.Footer class="flex gap-4 border-t bg-muted/30 p-4">
           <Button
             size="lg"
-            class="flex-1 bg-epi-blue text-base text-white shadow-lg hover:bg-epi-blue/90"
+            class="flex-1 bg-epi-blue text-base text-white shadow-lg hover:bg-epi-blue/90 dark:shadow-none"
             href={cockpitRouteId
               ? resolve(
                   `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
@@ -478,108 +500,93 @@
         </Tabs.List>
 
         <Tabs.Content value="active">
-          <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <!-- Redesigned to sleek list layout -->
+          <div class="grid gap-4 md:grid-cols-2">
             {#each data.upcomingEvents as event}
-              <Card.Root
-                class="flex flex-col shadow-sm transition-all hover:border-epi-blue hover:shadow-md"
+              <div
+                class="group flex flex-col justify-between rounded-lg border bg-card p-4 shadow-sm transition-all hover:border-epi-blue hover:shadow-md dark:border-border/50 dark:shadow-none"
               >
-                <Card.Header class="border-b pb-3">
-                  <div class="flex items-start justify-between">
-                    <Card.Title class="text-lg leading-tight uppercase"
-                      >{event.titre}</Card.Title
-                    >
-                    {#if event.eventType === EVENT_TYPES.STAGE_SECONDE}
-                      <span
-                        class="rounded-sm border border-purple-200 bg-purple-100 px-1.5 py-0.5 text-[9px] font-bold text-purple-700"
-                        >STAGE</span
-                      >
-                    {/if}
-                  </div>
-                  <Card.Description
-                    class="mt-2 flex items-center gap-1.5 font-medium text-foreground"
-                  >
-                    <CalendarDays class="h-4 w-4 text-epi-blue" />
-                    <span class="capitalize">{formatDate(event.date)}</span>
-                  </Card.Description>
-                </Card.Header>
-
-                <Card.Content class="flex-1 py-4">
+                <div class="flex items-start gap-4">
                   <div
-                    class="flex items-center gap-4 text-sm text-muted-foreground"
+                    class="flex min-w-[4rem] flex-col items-center justify-center rounded-md border border-border/50 bg-muted/50 px-3 py-2"
                   >
-                    <div class="flex items-center gap-1.5">
-                      <Users class="h-4 w-4" />
-                      <span class="font-bold text-foreground"
-                        >{event._count.participations}</span
-                      > inscrits
+                    <span
+                      class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                      >{new Date(event.date).toLocaleDateString('fr-FR', {
+                        month: 'short',
+                      })}</span
+                    >
+                    <span class="font-heading text-xl text-foreground"
+                      >{new Date(event.date).getDate()}</span
+                    >
+                  </div>
+                  <div class="flex-1">
+                    <div class="flex items-start justify-between">
+                      <h3 class="text-sm font-bold tracking-tight uppercase">
+                        {event.titre}
+                      </h3>
+                      {#if event.eventType === EVENT_TYPES.STAGE_SECONDE}
+                        <span
+                          class="rounded-sm border border-purple-200 bg-purple-100 px-1.5 py-0.5 text-[9px] font-bold text-purple-700 dark:border-purple-900/50 dark:bg-purple-900/20 dark:text-purple-300"
+                          >STAGE</span
+                        >
+                      {/if}
                     </div>
-                    <div class="flex items-center gap-1.5">
-                      <ShieldHalf class="h-4 w-4" />
-                      <span class="font-bold text-foreground"
-                        >{event.mantas.length}</span
-                      > Mantas
+                    <div
+                      class="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground"
+                    >
+                      <span
+                        class="flex items-center gap-1.5 font-medium text-foreground"
+                        ><Users class="h-3.5 w-3.5 text-epi-blue" />
+                        {event._count.participations} inscrits</span
+                      >
+                      <span class="flex items-center gap-1.5"
+                        ><ShieldHalf class="h-3.5 w-3.5" />
+                        {event.mantas.length} Mantas</span
+                      >
                     </div>
-                    {#if event.planning?._count?.timeSlots !== undefined}
-                      <div class="flex items-center gap-1.5">
-                        <CalendarClock class="h-4 w-4" />
-                        <span class="font-bold text-foreground"
-                          >{event.planning._count.timeSlots}</span
-                        > créneaux
-                      </div>
-                    {/if}
                   </div>
-                </Card.Content>
+                </div>
 
-                <Card.Footer
-                  class="flex flex-col gap-2 border-t bg-muted/20 p-3"
-                >
-                  <div class="grid w-full grid-cols-2 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="w-full gap-1.5 text-xs"
-                      href={resolve(
-                        `/staff/pedago/events/${event.id}/planning`,
-                      )}
-                    >
-                      <CalendarDays class="h-3.5 w-3.5" />
-                      Planning
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="w-full gap-1.5 text-xs"
-                      onclick={() => openAssignDialog(event)}
-                    >
-                      <UserPlus class="h-3.5 w-3.5" />
-                      Mantas
-                    </Button>
-                  </div>
-
-                  <div class="grid w-full grid-cols-2 gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="w-full gap-1.5 text-xs"
-                      href={resolve(
-                        `/staff/pedago/events/${event.id}/factions`,
-                      )}
-                    >
-                      <ShieldHalf class="h-3.5 w-3.5" />
-                      Factions
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      class="w-full gap-1.5 bg-epi-blue text-xs text-white hover:bg-epi-blue/90"
-                      href={resolve(`/staff/pedago/events/${event.id}/cockpit`)}
-                    >
-                      <MonitorPlay class="h-3.5 w-3.5" />
-                      Cockpit
-                    </Button>
-                  </div>
-                </Card.Footer>
-              </Card.Root>
+                <div class="mt-4 grid w-full grid-cols-4 gap-2 border-t pt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="gap-1.5 bg-muted/20 text-xs"
+                    href={resolve(`/staff/pedago/events/${event.id}/planning`)}
+                  >
+                    <CalendarDays class="h-3.5 w-3.5" />
+                    <span class="hidden sm:inline">Planning</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="gap-1.5 bg-muted/20 text-xs"
+                    onclick={() => openAssignDialog(event)}
+                  >
+                    <UserPlus class="h-3.5 w-3.5" />
+                    <span class="hidden sm:inline">Mantas</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="gap-1.5 bg-muted/20 text-xs"
+                    href={resolve(`/staff/pedago/events/${event.id}/factions`)}
+                  >
+                    <ShieldHalf class="h-3.5 w-3.5" />
+                    <span class="hidden sm:inline">Factions</span>
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    class="gap-1.5 bg-epi-blue text-xs text-white shadow-sm hover:bg-epi-blue/90 dark:shadow-none"
+                    href={resolve(`/staff/pedago/events/${event.id}/cockpit`)}
+                  >
+                    <MonitorPlay class="h-3.5 w-3.5" />
+                    <span class="hidden sm:inline">Cockpit</span>
+                  </Button>
+                </div>
+              </div>
             {:else}
               <div
                 class="col-span-full py-12 text-center border-2 border-dashed rounded-lg bg-muted/10"
@@ -593,15 +600,15 @@
         </Tabs.Content>
 
         <Tabs.Content value="past">
-          <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {#each data.pastEvents as event}
               <Card.Root
-                class="flex flex-col opacity-80 shadow-sm transition-opacity hover:opacity-100"
+                class="flex flex-col opacity-80 shadow-sm transition-opacity hover:opacity-100 dark:border-border/50 dark:shadow-none"
               >
                 <Card.Header class="border-b pb-3">
                   <div class="flex items-start justify-between">
                     <Card.Title
-                      class="text-lg leading-tight text-muted-foreground uppercase"
+                      class="text-base leading-tight text-muted-foreground uppercase"
                       >{event.titre}</Card.Title
                     >
                   </div>
@@ -628,7 +635,7 @@
                   <Button
                     variant="secondary"
                     size="sm"
-                    class="w-full gap-1.5 text-xs"
+                    class="w-full gap-1.5 bg-background text-xs hover:bg-muted"
                     href={resolve(
                       `/staff/pedago/events/${event.id}/certificates`,
                     )}

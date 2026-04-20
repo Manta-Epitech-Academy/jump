@@ -17,6 +17,7 @@
     Check,
     CircleCheck,
     MessageCircleReply,
+    LoaderCircle,
   } from '@lucide/svelte';
   import { cn } from '$lib/utils';
   import { toast } from 'svelte-sonner';
@@ -80,6 +81,7 @@
   // --- 🦇 The Bat-Signal Timer ---
   let timerDisplay = $state('00:00');
   let isUrgent = $state(false);
+  let isUnlocking = $state(false);
 
   $effect(() => {
     if (needsHelpProgress?.updatedAt) {
@@ -188,14 +190,14 @@
   <!-- The Actual Card -->
   <div
     class={cn(
-      'relative z-10 h-full w-full border bg-card shadow-sm',
+      'relative z-10 h-full w-full border bg-card shadow-sm dark:shadow-none',
       focusMode ? 'p-6 text-[1.05rem]' : 'p-4',
       needsHelpProgress
         ? isUrgent
           ? 'border-red-500 ring-2 ring-red-500/30'
           : 'border-epi-orange ring-2 ring-epi-orange/20'
         : participation.isPresent
-          ? 'border-epi-blue'
+          ? 'border-epi-blue dark:border-epi-blue/70'
           : 'border-border opacity-75',
       isSwiping ? '' : 'transition-transform duration-200 ease-out',
     )}
@@ -219,7 +221,7 @@
     {#if needsHelpProgress && helpStep}
       <div
         class={cn(
-          'mb-4 flex animate-in flex-col items-center justify-between gap-3 rounded-lg px-4 py-3 text-white shadow-sm fade-in slide-in-from-top-2 sm:flex-row',
+          'mb-4 flex animate-in flex-col items-center justify-between gap-3 rounded-lg px-4 py-3 text-white shadow-sm fade-in slide-in-from-top-2 sm:flex-row dark:shadow-none',
           isUrgent
             ? 'bg-red-500 ring-4 shadow-red-500/20 ring-red-500/30'
             : 'bg-epi-orange',
@@ -267,7 +269,9 @@
               action="?/unlockStep"
               method="POST"
               use:enhance={() => {
+                isUnlocking = true;
                 return async ({ result, update }) => {
+                  isUnlocking = false;
                   if (result.type === 'success') {
                     triggerXp();
                   }
@@ -284,11 +288,19 @@
                 type="submit"
                 variant="secondary"
                 size="sm"
+                disabled={isUnlocking}
                 class={cn(
                   'font-bold hover:bg-white/90',
                   isUrgent ? 'text-red-600' : 'text-epi-orange',
-                )}><LockOpen class="mr-1.5 h-4 w-4" /> Débloquer</Button
+                )}
               >
+                {#if isUnlocking}
+                  <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+                {:else}
+                  <LockOpen class="mr-1.5 h-4 w-4" />
+                {/if}
+                Débloquer
+              </Button>
             </form>
           </div>
         </div>
@@ -310,7 +322,7 @@
                 : participation.isPresent
                   ? participation.delay > 0
                     ? 'border-orange-300'
-                    : 'border-epi-blue'
+                    : 'border-epi-blue dark:border-epi-blue/70'
                   : 'border-muted',
             )}
           >
@@ -355,16 +367,18 @@
               )}
             >
               <span
-                class="text-base leading-none font-bold transition-colors hover:text-epi-blue"
+                class="text-base leading-none font-bold tracking-tight uppercase transition-colors hover:text-epi-blue"
               >
-                <span class="uppercase">{participation.talent?.nom}</span>
-                {formatFirstName(participation.talent?.prenom)}
+                <span>{participation.talent?.nom}</span>
+                <span class="capitalize"
+                  >{formatFirstName(participation.talent?.prenom)}</span
+                >
               </span>
             </a>
             {#if isNewStudent}
               <Badge
                 variant="outline"
-                class="gap-1 border-green-200 bg-green-50 px-1 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
+                class="gap-1 border-green-200 bg-green-50 px-1.5 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
               >
                 <Sprout class="h-2.5 w-2.5" /> Nouveau
               </Badge>
@@ -437,7 +451,7 @@
                 class={cn(
                   focusMode ? 'h-14 w-14' : 'h-12 w-12',
                   participation.delay > 0
-                    ? 'border-orange-300 bg-orange-50 text-orange-600'
+                    ? 'border-orange-300 bg-orange-50 text-orange-600 dark:border-orange-900/50 dark:bg-orange-900/30 dark:text-orange-400'
                     : '',
                 )}
               >
@@ -465,7 +479,7 @@
                   <input type="hidden" name="delay" value={m} />
                   <button
                     class={cn(
-                      'h-9 w-full rounded-md border text-xs font-bold hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700',
+                      'h-9 w-full rounded-md border text-xs font-bold transition-transform hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700 active:scale-95',
                       participation.delay === m
                         ? 'border-orange-500 bg-orange-500 text-white'
                         : '',
@@ -494,7 +508,7 @@
                 class={cn(
                   'flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent text-xs font-bold transition-all hover:scale-102 active:scale-95',
                   participation.delay === 0
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                     : 'bg-muted text-muted-foreground hover:bg-green-50 hover:text-green-700',
                 )}
               >
@@ -522,10 +536,10 @@
             type="submit"
             variant={participation.isPresent ? 'default' : 'outline'}
             class={cn(
-              'gap-2 transition-all',
+              'gap-2 transition-all active:scale-95',
               focusMode ? 'h-14 px-5 text-base' : 'h-12 px-4',
               participation.isPresent
-                ? 'bg-epi-blue text-white hover:bg-epi-blue/90'
+                ? 'bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none'
                 : '',
             )}
           >
@@ -583,7 +597,7 @@
           <div class="flex flex-wrap gap-1.5">
             <button
               type="button"
-              class="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 hover:bg-green-100"
+              class="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 transition-colors hover:bg-green-100 dark:border-green-900/50 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
               onclick={() => {
                 const form = document.querySelector(
                   `#note-form-${participation.id}`,
@@ -601,7 +615,7 @@
             >
             <button
               type="button"
-              class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 hover:bg-blue-100"
+              class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
               onclick={() => {
                 const form = document.querySelector(
                   `#note-form-${participation.id}`,
@@ -619,7 +633,7 @@
             >
             <button
               type="button"
-              class="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700 hover:bg-orange-100"
+              class="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-900/50 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40"
               onclick={() => {
                 const form = document.querySelector(
                   `#note-form-${participation.id}`,
@@ -629,7 +643,7 @@
                 ) as HTMLInputElement;
                 if (input) {
                   input.value = input.value
-                    ? `${input.value} [💻 Pb Setup]`
+                    ? `${input.value}[💻 Pb Setup]`
                     : `[💻 Pb Setup]`;
                   input.dispatchEvent(new Event('input'));
                 }

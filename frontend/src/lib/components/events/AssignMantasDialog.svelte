@@ -4,7 +4,7 @@
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { UsersRound } from '@lucide/svelte';
+  import { UsersRound, LoaderCircle } from '@lucide/svelte';
 
   let {
     open = $bindable(false),
@@ -33,12 +33,16 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="sm:max-w-lg">
     <Dialog.Header>
-      <Dialog.Title class="flex items-center gap-2">
+      <Dialog.Title
+        class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
+      >
         <UsersRound class="h-5 w-5 text-epi-blue" />
         Assigner des Mantas
       </Dialog.Title>
       <Dialog.Description>
-        Campagne : <strong>{eventTitle}</strong>
+        Campagne : <strong class="text-foreground uppercase"
+          >{eventTitle}</strong
+        >
       </Dialog.Description>
     </Dialog.Header>
 
@@ -61,9 +65,11 @@
           }
         };
       }}
-      class="space-y-4"
+      class="space-y-6 pt-4"
     >
-      <MultiStaffSelect staff={mantas} bind:value={selected} name="mantas" />
+      <div class="rounded-sm bg-background">
+        <MultiStaffSelect staff={mantas} bind:value={selected} name="mantas" />
+      </div>
 
       <Dialog.Footer class="gap-2">
         <Button
@@ -74,8 +80,16 @@
         >
           Annuler
         </Button>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? 'Enregistrement…' : 'Enregistrer'}
+        <Button
+          type="submit"
+          disabled={submitting}
+          class="bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none"
+        >
+          {#if submitting}
+            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Enregistrement...
+          {:else}
+            Enregistrer
+          {/if}
         </Button>
       </Dialog.Footer>
     </form>
