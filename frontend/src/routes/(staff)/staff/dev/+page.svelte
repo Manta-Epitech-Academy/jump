@@ -191,7 +191,7 @@
   </section>
 
   <!-- KPI STRIP -->
-  <div class="grid gap-4 md:grid-cols-3">
+  <div class="grid gap-4 {activeStage ? 'md:grid-cols-3' : 'md:grid-cols-1'}">
     <Card.Root
       class="border-l-4 border-l-epi-blue shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
     >
@@ -203,13 +203,6 @@
             Total Talents
           </p>
           <p class="text-3xl font-black">{data.kpis.totalTalents}</p>
-          <!-- TODO: replace hardcoded "+8% ce mois" with real month-over-month delta from data.kpis -->
-          <div
-            class="mt-2 flex w-fit items-center gap-1 rounded-sm bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700 dark:bg-green-900/30 dark:text-green-400"
-          >
-            <TrendingUp class="h-3 w-3" />
-            +8% ce mois
-          </div>
         </div>
         <div
           class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-epi-blue dark:bg-blue-900/20"
@@ -219,59 +212,47 @@
       </Card.Content>
     </Card.Root>
 
-    <Card.Root
-      class="border-l-4 border-l-epi-teal shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
-    >
-      <Card.Content class="flex items-center justify-between p-6">
-        <div>
-          <p
-            class="mb-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Entretiens Réalisés
-          </p>
-          <p class="text-3xl font-black">{data.kpis.completedInterviews}</p>
-          <!-- TODO: replace hardcoded "+12 ce mois" with real month-over-month delta from data.kpis -->
-          <div
-            class="mt-2 flex w-fit items-center gap-1 rounded-sm bg-epi-teal-solid px-1.5 py-0.5 text-[10px] font-bold text-white"
-          >
-            <TrendingUp class="h-3 w-3" />
-            +12 ce mois
+    {#if activeStage && data.kpis.completedInterviews !== null}
+      <Card.Root
+        class="border-l-4 border-l-epi-teal shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+      >
+        <Card.Content class="flex items-center justify-between p-6">
+          <div>
+            <p
+              class="mb-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+            >
+              Entretiens du stage
+            </p>
+            <p class="text-3xl font-black">{data.kpis.completedInterviews}</p>
           </div>
-        </div>
-        <div
-          class="flex h-12 w-12 items-center justify-center rounded-full bg-epi-teal-solid/10 text-epi-teal-solid"
-        >
-          <MessageSquare class="h-6 w-6" />
-        </div>
-      </Card.Content>
-    </Card.Root>
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-full bg-epi-teal-solid/10 text-epi-teal-solid"
+          >
+            <MessageSquare class="h-6 w-6" />
+          </div>
+        </Card.Content>
+      </Card.Root>
 
-    <Card.Root
-      class="border-l-4 border-l-epi-orange shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
-    >
-      <Card.Content class="flex items-center justify-between p-6">
-        <div>
-          <p
-            class="mb-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Appels Planifiés
-          </p>
-          <p class="text-3xl font-black">{data.kpis.plannedInterviews}</p>
-          <!-- TODO: replace hardcoded "+3 cette semaine" with real week-over-week delta from data.kpis -->
-          <div
-            class="mt-2 flex w-fit items-center gap-1 rounded-sm bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-          >
-            <TrendingUp class="h-3 w-3" />
-            +3 cette semaine
+      <Card.Root
+        class="border-l-4 border-l-epi-orange shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+      >
+        <Card.Content class="flex items-center justify-between p-6">
+          <div>
+            <p
+              class="mb-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+            >
+              Entretiens planifiés
+            </p>
+            <p class="text-3xl font-black">{data.kpis.plannedInterviews}</p>
           </div>
-        </div>
-        <div
-          class="flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-epi-orange dark:bg-orange-900/20"
-        >
-          <Target class="h-6 w-6" />
-        </div>
-      </Card.Content>
-    </Card.Root>
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-epi-orange dark:bg-orange-900/20"
+          >
+            <Target class="h-6 w-6" />
+          </div>
+        </Card.Content>
+      </Card.Root>
+    {/if}
   </div>
 
   <div class="grid gap-6 md:grid-cols-2">
@@ -285,7 +266,7 @@
           Top Talents (Leaderboard)
         </Card.Title>
         <Card.Description>
-          Les prospects les plus engagés (XP) à contacter en priorité.
+          Les talents les plus engagés par XP.
         </Card.Description>
       </Card.Header>
       <Card.Content class="flex-1 p-0">
@@ -413,62 +394,66 @@
         </div>
       </div>
 
-      <Card.Root
-        class="mt-auto shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
-      >
-        <Card.Header class="pb-4">
-          <Card.Title class="flex items-center gap-2 text-lg">
-            <Target class="h-5 w-5 text-epi-teal" />
-            Objectifs du mois
-          </Card.Title>
-        </Card.Header>
-        <Card.Content class="space-y-5">
-          <div class="space-y-1.5">
-            <div class="flex justify-between text-sm font-bold">
-              <span class="flex items-center gap-2">Entretiens menés</span>
-              <span class="text-epi-blue"
-                >{data.objectives.interviews}
-                <span class="text-muted-foreground"
-                  >/ {data.objectives.interviewsTarget}</span
-                ></span
-              >
-            </div>
-            <div
-              class="h-2.5 overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
-            >
+      {#if data.stageObjectives}
+        <Card.Root
+          class="mt-auto shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+        >
+          <Card.Header class="pb-4">
+            <Card.Title class="flex items-center gap-2 text-lg">
+              <Target class="h-5 w-5 text-epi-teal" />
+              Objectifs du stage en cours
+            </Card.Title>
+          </Card.Header>
+          <Card.Content class="space-y-5">
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-sm font-bold">
+                <span>Entretiens menés</span>
+                <span class="text-epi-blue"
+                  >{data.stageObjectives.interviews}
+                  <span class="text-muted-foreground"
+                    >/ {data.stageObjectives.interviewsTarget}</span
+                  ></span
+                >
+              </div>
               <div
-                class="h-full bg-linear-to-r from-epi-blue to-blue-400 transition-all duration-1000 ease-out"
-                style="width: {(data.objectives.interviews /
-                  data.objectives.interviewsTarget) *
-                  100}%"
-              ></div>
-            </div>
-          </div>
-          <div class="space-y-1.5">
-            <div class="flex justify-between text-sm font-bold">
-              <span>Chartes signées (Stage)</span>
-              <span class="text-epi-teal"
-                >{data.objectives.chartes}
-                <span class="text-muted-foreground"
-                  >/ {data.objectives.totalParticipations}</span
-                ></span
+                class="h-2.5 overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
               >
+                <div
+                  class="h-full bg-linear-to-r from-epi-blue to-blue-400 transition-all duration-1000 ease-out"
+                  style="width: {data.stageObjectives.interviewsTarget
+                    ? (data.stageObjectives.interviews /
+                        data.stageObjectives.interviewsTarget) *
+                      100
+                    : 0}%"
+                ></div>
+              </div>
             </div>
-            <div
-              class="h-2.5 overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
-            >
+            <div class="space-y-1.5">
+              <div class="flex justify-between text-sm font-bold">
+                <span>Chartes signées</span>
+                <span class="text-epi-teal"
+                  >{data.stageObjectives.chartes}
+                  <span class="text-muted-foreground"
+                    >/ {data.stageObjectives.totalParticipations}</span
+                  ></span
+                >
+              </div>
               <div
-                class="h-full bg-epi-teal-solid transition-all duration-1000 ease-out"
-                style="width: {data.objectives.totalParticipations
-                  ? (data.objectives.chartes /
-                      data.objectives.totalParticipations) *
-                    100
-                  : 0}%"
-              ></div>
+                class="h-2.5 overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
+              >
+                <div
+                  class="h-full bg-epi-teal-solid transition-all duration-1000 ease-out"
+                  style="width: {data.stageObjectives.totalParticipations
+                    ? (data.stageObjectives.chartes /
+                        data.stageObjectives.totalParticipations) *
+                      100
+                    : 0}%"
+                ></div>
+              </div>
             </div>
-          </div>
-        </Card.Content>
-      </Card.Root>
+          </Card.Content>
+        </Card.Root>
+      {/if}
     </div>
   </div>
 </div>

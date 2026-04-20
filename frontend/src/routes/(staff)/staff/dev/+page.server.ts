@@ -8,15 +8,15 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { EVENT_TYPES } from '$lib/domain/event';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
   if (!locals.user) {
     throw error(401, 'Authentification requise');
   }
 
   try {
+    const { activeStage } = await parent();
     const db = scopedPrisma(getCampusId(locals));
     const tz = getCampusTimezone(locals);
     const tzNow = now(tz);
@@ -30,14 +30,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     const endOfWeek = tzNow
       .add({ days: 7 })
       .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
-      .toDate();
-    const startOfMonth = tzNow
-      .set({ day: 1, hour: 0, minute: 0, second: 0, millisecond: 0 })
-      .toDate();
-    const endOfMonth = tzNow
-      .set({ day: 1, hour: 0, minute: 0, second: 0, millisecond: 0 })
-      .add({ months: 1 })
-      .subtract({ milliseconds: 1 })
       .toDate();
 
     const ongoingEvents = await db.event.findMany({
@@ -80,51 +72,71 @@ export const load: PageServerLoad = async ({ locals }) => {
       (ev) => !ev.planning || ev.planning._count.timeSlots === 0,
     );
 
-    const interviewsToday = await db.interview.count({
-      where: {
-        status: 'planned',
-        date: { gte: startOfDay, lte: endOfDay },
-      },
-    });
-    const overdueInterviews = await db.interview.count({
-      where: {
-        status: 'planned',
-        date: { lt: startOfDay },
-      },
-    });
+    const stageInterviewWhere = activeStage
+      ? { participation: { eventId: activeStage.id } }
+      : null;
+
+    const interviewsToday = stageInterviewWhere
+      ? await db.interview.count({
+          where: {
+            ...stageInterviewWhere,
+            status: 'planned',
+            date: { gte: startOfDay, lte: endOfDay },
+          },
+        })
+      : 0;
+    const overdueInterviews = stageInterviewWhere
+      ? await db.interview.count({
+          where: {
+            ...stageInterviewWhere,
+            status: 'planned',
+            date: { lt: startOfDay },
+          },
+        })
+      : 0;
 
     const totalTalents = await db.talent.count();
-    const completedInterviews = await db.interview.count({
-      where: { status: 'completed' },
-    });
-    const plannedInterviews = await db.interview.count({
-      where: { status: 'planned' },
-    });
 
-    const campusId = getCampusId(locals);
-    const stageParticipationWhere = {
-      campusId,
-      event: {
-        eventType: EVENT_TYPES.STAGE_SECONDE,
-        date: { gte: startOfMonth, lte: endOfMonth },
-      },
-    } as const;
-    const totalStageParticipations = await prisma.participation.count({
-      where: stageParticipationWhere,
-    });
-    const chartesSigned = await prisma.stageCompliance.count({
-      where: {
-        charteSigned: true,
-        participation: stageParticipationWhere,
-      },
-    });
-
-    const objectives = {
-      interviews: completedInterviews,
-      interviewsTarget: 20,
-      chartes: chartesSigned,
-      totalParticipations: totalStageParticipations,
-    };
+    let stageStats: {
+      completedInterviews: number;
+      plannedInterviews: number;
+      totalParticipations: number;
+      chartesSigned: number;
+    } | null = null;
+    if (activeStage) {
+      const [
+        completedInterviews,
+        plannedInterviews,
+        totalParticipations,
+        chartesSigned,
+      ] = await Promise.all([
+        db.interview.count({
+          where: {
+            status: 'completed',
+            participation: { eventId: activeStage.id },
+          },
+        }),
+        db.interview.count({
+          where: {
+            status: 'planned',
+            participation: { eventId: activeStage.id },
+          },
+        }),
+        db.participation.count({ where: { eventId: activeStage.id } }),
+        prisma.stageCompliance.count({
+          where: {
+            charteSigned: true,
+            participation: { eventId: activeStage.id },
+          },
+        }),
+      ]);
+      stageStats = {
+        completedInterviews,
+        plannedInterviews,
+        totalParticipations,
+        chartesSigned,
+      };
+    }
 
     return {
       userName: locals.user.name || 'Utilisateur',
@@ -133,12 +145,19 @@ export const load: PageServerLoad = async ({ locals }) => {
       ongoingEvents,
       upcomingEvents,
       topTalents,
-      objectives,
       kpis: {
         totalTalents,
-        completedInterviews,
-        plannedInterviews,
+        completedInterviews: stageStats?.completedInterviews ?? null,
+        plannedInterviews: stageStats?.plannedInterviews ?? null,
       },
+      stageObjectives: stageStats
+        ? {
+            interviews: stageStats.completedInterviews,
+            interviewsTarget: stageStats.totalParticipations,
+            chartes: stageStats.chartesSigned,
+            totalParticipations: stageStats.totalParticipations,
+          }
+        : null,
       tasks: {
         eventsMissingMantas: eventsMissingMantas.map((ev) => ({
           id: ev.id,

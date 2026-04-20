@@ -98,16 +98,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     }
 
     const form = await superValidate(zod4(studentSchema));
-    const scheduleInterviewForm = await superValidate(
-      zod4(scheduleInterviewSchema),
-    );
 
     return {
       student,
       participations,
       stats,
       form,
-      scheduleInterviewForm,
       activeStageParticipation: activeStageParticipation
         ? {
             id: activeStageParticipation.id,
