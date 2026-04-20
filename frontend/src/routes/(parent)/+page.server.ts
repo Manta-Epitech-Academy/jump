@@ -1,0 +1,54 @@
+import type { PageServerLoad } from './$types';
+import { error } from '@sveltejs/kit';
+import { prisma } from '$lib/server/db';
+
+export const load: PageServerLoad = async ({ locals }) => {
+  if (!locals.user || locals.user.role !== 'parent') {
+    throw error(401, 'Non autorisé');
+  }
+
+  const parentEmail = locals.user.email;
+
+  const children = await prisma.talent.findMany({
+    where: { parentEmail },
+    select: {
+      id: true,
+      prenom: true,
+      nom: true,
+      imageRightsSignedAt: true,
+      participations: {
+        select: { id: true },
+      },
+    },
+  });
+
+  // For each child, fetch the upcoming event
+  const childrenWithEvents = await Promise.all(
+    children.map(async (child) => {
+      const upcomingParticipation = await prisma.participation.findFirst({
+        where: {
+          talentId: child.id,
+          event: { date: { gt: new Date() } },
+        },
+        include: {
+          event: { select: { id: true, name: true, date: true } },
+        },
+        orderBy: { event: { date: 'asc' } },
+      });
+
+      return {
+        id: child.id,
+        prenom: child.prenom,
+        nom: child.nom,
+        imageRightsSigned: !!child.imageRightsSignedAt,
+        eventsCount: child.participations.length,
+        upcomingEvent: upcomingParticipation?.event ?? null,
+      };
+    }),
+  );
+
+  return {
+    parentName: locals.user.name,
+    children: childrenWithEvents,
+  };
+};
