@@ -43,7 +43,7 @@
           isPresent
             ? isLate
               ? 'bg-orange-200 text-orange-800'
-              : 'bg-epi-teal text-black'
+              : 'bg-epi-teal-solid text-white'
             : isUpcoming
               ? 'bg-blue-100 text-epi-blue dark:bg-blue-900/30 dark:text-blue-400'
               : 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600',
@@ -72,10 +72,10 @@
                   <Badge
                     variant="default"
                     class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold text-black uppercase',
+                      'h-5 px-1.5 text-[10px] font-bold uppercase',
                       isLate
                         ? 'bg-orange-200 text-orange-900 hover:bg-orange-300'
-                        : 'bg-epi-teal hover:bg-epi-teal/80',
+                        : 'bg-epi-teal-solid text-white hover:bg-epi-teal-solid/90',
                     )}>Présent</Badge
                   >
                   {#if isLate}<Badge

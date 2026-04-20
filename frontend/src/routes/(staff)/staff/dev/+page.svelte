@@ -214,7 +214,7 @@
 
     {#if activeStage && data.kpis.completedInterviews !== null}
       <Card.Root
-        class="border-l-4 border-l-epi-teal shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+        class="border-l-4 border-l-epi-teal-solid shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
       >
         <Card.Content class="flex items-center justify-between p-6">
           <div>
@@ -344,13 +344,13 @@
         <h3
           class="flex items-center gap-2 font-heading text-lg tracking-wider text-foreground uppercase"
         >
-          <CalendarDays class="h-5 w-5 text-epi-teal" />
+          <CalendarDays class="h-5 w-5 text-epi-teal-solid" />
           Événements à venir
         </h3>
         <div class="grid gap-3">
           {#each data.upcomingEvents as event}
             <div
-              class="group flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-teal dark:border-border/50 dark:shadow-none"
+              class="group flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-teal-solid dark:border-border/50 dark:shadow-none"
             >
               <div class="flex items-center gap-3">
                 <div
@@ -379,7 +379,7 @@
                 variant="outline"
                 size="sm"
                 href={resolve(`/staff/dev/events/${event.id}/manage`)}
-                class="shrink-0 bg-background text-xs transition-colors group-hover:border-epi-teal group-hover:bg-epi-teal group-hover:text-black"
+                class="shrink-0 bg-background text-xs transition-colors group-hover:border-epi-teal-solid group-hover:bg-epi-teal-solid group-hover:text-white"
               >
                 Gérer
               </Button>
@@ -400,7 +400,7 @@
         >
           <Card.Header class="pb-4">
             <Card.Title class="flex items-center gap-2 text-lg">
-              <Target class="h-5 w-5 text-epi-teal" />
+              <Target class="h-5 w-5 text-epi-teal-solid" />
               Objectifs du stage en cours
             </Card.Title>
           </Card.Header>
@@ -431,7 +431,7 @@
             <div class="space-y-1.5">
               <div class="flex justify-between text-sm font-bold">
                 <span>Chartes signées</span>
-                <span class="text-epi-teal"
+                <span class="text-epi-teal-solid"
                   >{data.stageObjectives.chartes}
                   <span class="text-muted-foreground"
                     >/ {data.stageObjectives.totalParticipations}</span

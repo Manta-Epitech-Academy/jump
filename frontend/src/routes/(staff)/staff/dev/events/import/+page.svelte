@@ -83,13 +83,13 @@
   </div>
 
   <Card.Root
-    class="border-t-4 border-t-epi-teal shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50"
+    class="border-t-4 border-t-epi-teal-solid shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50"
   >
     <Card.Header>
       <Card.Title
         class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
       >
-        <FileSpreadsheet class="h-5 w-5 text-epi-teal" />
+        <FileSpreadsheet class="h-5 w-5 text-epi-teal-solid" />
         Import Événement CSV
       </Card.Title>
       <Card.Description>
@@ -240,7 +240,7 @@
               <Button
                 type="submit"
                 disabled={isConfirming}
-                class="bg-epi-teal font-bold text-black shadow-md hover:bg-epi-teal/80 dark:shadow-none"
+                class="bg-epi-teal-solid font-bold text-white shadow-md hover:bg-epi-teal-solid/90 dark:shadow-none"
               >
                 {#if isConfirming}
                   <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />

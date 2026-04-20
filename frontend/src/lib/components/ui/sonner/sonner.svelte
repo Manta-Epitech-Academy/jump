@@ -49,7 +49,7 @@
     <Loader2Icon class="size-5 animate-spin text-epi-blue" />
   {/snippet}
   {#snippet successIcon()}
-    <CircleCheckIcon class="size-5 text-epi-teal" />
+    <CircleCheckIcon class="size-5 text-epi-teal-solid" />
   {/snippet}
   {#snippet errorIcon()}
     <OctagonXIcon class="size-5 text-destructive" />

@@ -197,7 +197,7 @@
             onSelect={() => runCommand(resolve(`${basePath}/students`))}
             class="py-3"
           >
-            <Users class="mr-3 h-5 w-5 text-epi-teal" />
+            <Users class="mr-3 h-5 w-5 text-epi-teal-solid" />
             <span class="font-bold">Annuaire des Talents</span>
           </Command.Item>
           <Command.Item

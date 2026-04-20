@@ -60,7 +60,7 @@
           <div class="flex flex-wrap gap-2">
             {#if value.length === 0}
               <span class="flex items-center gap-2 text-muted-foreground">
-                <Tag class="h-3.5 w-3.5 text-epi-teal" />
+                <Tag class="h-3.5 w-3.5 text-epi-teal-solid" />
                 Sélectionner des thèmes...
               </span>
             {:else}
@@ -134,7 +134,7 @@
                   {#if !theme.campus}
                     <Globe class="h-4 w-4 text-purple-500" />
                   {:else}
-                    <MapPin class="h-4 w-4 text-epi-teal" />
+                    <MapPin class="h-4 w-4 text-epi-teal-solid" />
                   {/if}
                 </div>
                 <div class="flex flex-col">

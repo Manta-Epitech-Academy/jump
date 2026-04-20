@@ -59,7 +59,7 @@
       <Dialog.Title
         class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
       >
-        <LayoutTemplate class="h-5 w-5 text-epi-teal" />
+        <LayoutTemplate class="h-5 w-5 text-epi-teal-solid" />
         Appliquer un modèle de planning
       </Dialog.Title>
       <Dialog.Description>
@@ -144,7 +144,7 @@
         <Button
           type="submit"
           disabled={$delayed || !$form.planningTemplateId}
-          class="bg-epi-teal font-bold text-black shadow-md hover:bg-epi-teal/90 dark:shadow-none"
+          class="bg-epi-teal-solid font-bold text-white shadow-md hover:bg-epi-teal-solid/90 dark:shadow-none"
         >
           {#if $delayed}
             <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />

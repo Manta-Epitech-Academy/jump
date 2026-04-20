@@ -26,11 +26,11 @@
   } = $props();
 
   const borderClass = $derived(
-    accent === 'teal' ? 'border-t-epi-teal' : 'border-t-epi-blue',
+    accent === 'teal' ? 'border-t-epi-teal-solid' : 'border-t-epi-blue',
   );
   const levelBadgeClass = $derived(
     accent === 'teal'
-      ? 'border-epi-teal font-bold text-epi-teal uppercase tracking-tight'
+      ? 'border-epi-teal-solid font-bold text-epi-teal-solid uppercase tracking-tight'
       : 'border-epi-blue font-bold text-epi-blue uppercase tracking-tight',
   );
 

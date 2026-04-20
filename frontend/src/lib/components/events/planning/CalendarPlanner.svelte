@@ -459,7 +459,7 @@
       <div class="flex w-full gap-2 sm:w-auto">
         <Button
           size="sm"
-          class="flex-1 bg-epi-teal text-black hover:bg-epi-teal/80 sm:flex-none"
+          class="flex-1 bg-epi-teal-solid text-white hover:bg-epi-teal-solid/90 sm:flex-none"
           onclick={() => {
             dialogDateKey = calendarDays[0]?.dateKey || getDateKey(new Date());
             dialogDefaultStartTime = '09:00';
@@ -582,7 +582,7 @@
                     class={cn(
                       'group/slot absolute z-10 flex cursor-default flex-col overflow-hidden rounded-md transition-all hover:z-20',
                       dragOverSlotId === slot.id
-                        ? 'z-30 scale-[1.02] border-2 border-epi-teal bg-epi-teal/20 shadow-lg ring-4 ring-epi-teal/30 dark:shadow-none'
+                        ? 'z-30 scale-[1.02] border-2 border-epi-teal-solid bg-epi-teal-solid/20 shadow-lg ring-4 ring-epi-teal-solid/30 dark:shadow-none'
                         : 'border-y border-r border-l-4 border-y-border border-r-border border-l-epi-blue bg-blue-50/95 text-foreground shadow-sm hover:border-l-blue-600 hover:bg-blue-50 dark:bg-blue-900/40 dark:shadow-none',
                     )}
                     style="top: {getPixels(
@@ -835,7 +835,7 @@
           <div class="space-y-2 pr-1">
             {#each filteredTemplates as template (template.id)}
               <div
-                class="relative cursor-grab rounded-lg border bg-background p-2.5 shadow-sm transition-colors hover:border-epi-teal active:cursor-grabbing dark:shadow-none"
+                class="relative cursor-grab rounded-lg border bg-background p-2.5 shadow-sm transition-colors hover:border-epi-teal-solid active:cursor-grabbing dark:shadow-none"
                 draggable="true"
                 role="listitem"
                 ondragstart={(e) => handleDragStart(e, template.id)}
