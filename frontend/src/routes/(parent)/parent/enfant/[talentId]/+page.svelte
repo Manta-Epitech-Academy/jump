@@ -219,37 +219,137 @@
       </div>
     {/if}
 
-    <!-- Upcoming event -->
-    {#if data.upcomingEvent}
-      <div
-        class="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
-        in:fly={{ y: 20, duration: 400, delay: 300 }}
-      >
-        <div
-          class="border-b border-blue-50 bg-blue-50/50 px-6 py-3 dark:border-blue-900/20 dark:bg-blue-950/20"
+    <!-- Upcoming events -->
+    {#if data.upcomingEvents.length > 0}
+      <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
+        <h2
+          class="mb-4 flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
         >
-          <div
-            class="flex items-center gap-2 text-xs font-bold text-epi-blue uppercase"
-          >
-            <Rocket class="h-4 w-4" />
-            <span>Prochain événement</span>
-          </div>
-        </div>
-        <div class="p-6">
-          <p class="text-xl font-bold text-slate-900 dark:text-white">
-            {data.upcomingEvent.titre}
-          </p>
-          <div
-            class="mt-2 flex items-center gap-2 text-sm font-bold text-slate-500"
-          >
-            <CalendarDays class="h-4 w-4 text-epi-blue" />
-            {new Date(data.upcomingEvent.date).toLocaleDateString('fr-FR', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </div>
+          <Rocket class="h-5 w-5 text-epi-blue" />
+          À venir<span class="text-epi-teal">_</span>
+        </h2>
+
+        <div class="space-y-3">
+          {#each data.upcomingEvents as event (event.id)}
+            <Collapsible.Root>
+              <div
+                class="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-md shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
+              >
+                <Collapsible.Trigger class="w-full">
+                  <div class="flex items-center justify-between p-4">
+                    <div class="flex items-center gap-3 text-left">
+                      <div
+                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
+                      >
+                        <CalendarDays class="h-5 w-5 text-epi-blue" />
+                      </div>
+                      <div>
+                        <p class="font-bold text-slate-900 dark:text-white">
+                          {event.name}
+                        </p>
+                        <p class="text-xs font-bold text-slate-400">
+                          {new Date(event.date).toLocaleDateString('fr-FR', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      {#if event.timeSlots.length > 0}
+                        <Badge variant="outline" class="text-[10px] font-bold">
+                          {event.timeSlots.reduce(
+                            (sum, s) => sum + s.activities.length,
+                            0,
+                          )} activité{event.timeSlots.reduce(
+                            (sum, s) => sum + s.activities.length,
+                            0,
+                          ) !== 1
+                            ? 's'
+                            : ''}
+                        </Badge>
+                      {/if}
+                      <ChevronDown
+                        class="h-4 w-4 text-slate-400 transition-transform [[data-state=open]_&]:rotate-180"
+                      />
+                    </div>
+                  </div>
+                </Collapsible.Trigger>
+
+                <Collapsible.Content>
+                  {#if event.timeSlots.length > 0}
+                    <div
+                      class="border-t border-slate-100 px-4 py-4 dark:border-slate-800"
+                    >
+                      <div class="space-y-4">
+                        {#each event.timeSlots as slot (slot.id)}
+                          <div>
+                            <div class="mb-2 flex items-center gap-2">
+                              <Clock
+                                class="h-3.5 w-3.5 shrink-0 text-epi-blue"
+                              />
+                              <span
+                                class="text-[11px] font-bold text-slate-400 uppercase"
+                              >
+                                {formatTime(slot.startTime)} — {formatTime(
+                                  slot.endTime,
+                                )}
+                                {#if slot.label}
+                                  · {slot.label}
+                                {/if}
+                              </span>
+                            </div>
+
+                            <div
+                              class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
+                            >
+                              {#each slot.activities as activity (activity.id)}
+                                <div
+                                  class="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                                >
+                                  <Badge
+                                    variant="outline"
+                                    class="shrink-0 text-[9px] font-bold uppercase"
+                                  >
+                                    {activityTypeLabels[activity.type] ??
+                                      activity.type}
+                                  </Badge>
+                                  <span
+                                    class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                                  >
+                                    {activity.name}
+                                  </span>
+                                  {#if activity.difficulty}
+                                    <span
+                                      class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
+                                        activity.difficulty
+                                      ] ?? ''}"
+                                    >
+                                      {activity.difficulty}
+                                    </span>
+                                  {/if}
+                                </div>
+                              {/each}
+                            </div>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {:else}
+                    <div
+                      class="border-t border-slate-100 px-4 py-3 dark:border-slate-800"
+                    >
+                      <p class="text-xs text-slate-400">
+                        Le planning n'est pas encore disponible.
+                      </p>
+                    </div>
+                  {/if}
+                </Collapsible.Content>
+              </div>
+            </Collapsible.Root>
+          {/each}
         </div>
       </div>
     {/if}

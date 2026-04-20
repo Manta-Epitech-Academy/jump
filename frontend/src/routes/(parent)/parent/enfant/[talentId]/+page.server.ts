@@ -83,14 +83,35 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  // Fetch upcoming event
-  const upcomingParticipation = await prisma.participation.findFirst({
+  // Fetch upcoming events with full planning chain
+  const upcomingParticipations = await prisma.participation.findMany({
     where: {
       talentId,
       event: { date: { gt: filterDateEnd } },
     },
     include: {
-      event: { select: { id: true, titre: true, date: true } },
+      event: {
+        include: {
+          planning: {
+            include: {
+              timeSlots: {
+                include: {
+                  activities: {
+                    where: { activityType: { not: 'orga' } },
+                    select: {
+                      id: true,
+                      nom: true,
+                      activityType: true,
+                      difficulte: true,
+                    },
+                  },
+                },
+                orderBy: { startTime: 'asc' },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: { event: { date: 'asc' } },
   });
@@ -140,7 +161,23 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       nom: child.nom,
       imageRightsSigned: !!child.imageRightsSignedAt,
     },
-    upcomingEvent: upcomingParticipation?.event ?? null,
+    upcomingEvents: upcomingParticipations.map((p) => ({
+      id: p.event.id,
+      name: p.event.titre,
+      date: p.event.date,
+      timeSlots: (p.event.planning?.timeSlots ?? []).map((slot) => ({
+        id: slot.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        label: slot.label,
+        activities: slot.activities.map((a) => ({
+          id: a.id,
+          name: a.nom,
+          type: a.activityType,
+          difficulty: a.difficulte,
+        })),
+      })),
+    })),
     participations: participations.map((p) => ({
       id: p.id,
       eventName: p.event.titre,
