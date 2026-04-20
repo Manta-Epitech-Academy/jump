@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 
   // Send OTP via BetterAuth
   await auth.api.sendVerificationOTP({
-    body: { email: profile.parentEmail, type: 'sign-in' },
+    body: { email: profile.parentEmail, type: 'sign-up' },
   });
 
   // Send parent email with link

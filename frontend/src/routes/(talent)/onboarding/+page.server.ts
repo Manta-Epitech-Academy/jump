@@ -113,7 +113,7 @@ export const actions: Actions = {
 
         // Send OTP via BetterAuth
         await auth.api.sendVerificationOTP({
-          body: { email: parentEmail, type: 'sign-in' },
+          body: { email: parentEmail, type: 'sign-up' },
         });
 
         // Send parent email with link

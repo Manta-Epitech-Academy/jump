@@ -247,9 +247,9 @@ export const actions: Actions = {
         select: { prenom: true, nom: true },
       });
 
-      // sendVerificationOTP stores the OTP in DB (parent role skips email)
+      // sendVerificationOTP stores the OTP in DB (parent role + non-sign-in type)
       await auth.api.sendVerificationOTP({
-        body: { email, type: 'sign-in' },
+        body: { email, type: 'sign-up' },
       });
 
       // Send single combined email with link + OTP
