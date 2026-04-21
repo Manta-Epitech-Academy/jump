@@ -62,12 +62,6 @@
             >
               <Clock class="h-4 w-4" />
               {formatTime(orga.startTime)} — {formatTime(orga.endTime)}
-              {#if orga.slotLabel}
-                <span
-                  class="ml-2 rounded-sm bg-muted px-2 py-0.5 text-xs font-bold tracking-widest uppercase"
-                  >{orga.slotLabel}</span
-                >
-              {/if}
             </div>
           </div>
           <ArrowRight class="h-5 w-5 text-muted-foreground" />

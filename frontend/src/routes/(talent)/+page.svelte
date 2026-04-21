@@ -395,16 +395,14 @@
                         {formatTime(slot.startTime)} — {formatTime(
                           slot.endTime,
                         )}
-                        {#if slot.label}
-                          · {slot.label}
-                        {/if}
                       </span>
                     </div>
 
                     <div
                       class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
                     >
-                      {#each slot.activities as activity (activity.id)}
+                      {#if slot.activity}
+                        {@const activity = slot.activity}
                         {@const isDone = completedActivityIds.has(activity.id)}
                         <a
                           href={resolve(`/${activity.id}`)}
@@ -443,7 +441,7 @@
                             />
                           {/if}
                         </a>
-                      {/each}
+                      {/if}
                     </div>
                   </div>
                 {/each}

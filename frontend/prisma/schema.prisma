@@ -31,6 +31,7 @@ enum ActivityType {
   quiz
   orga
   special
+  break
 }
 
 enum StaffRole {
@@ -225,9 +226,9 @@ model ActivityTemplate {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  campus                    Campus?                    @relation(fields: [campusId], references: [id])
-  activityTemplateThemes    ActivityTemplateTheme[]
-  planningTemplateSlotItems PlanningTemplateSlotItem[]
+  campus                 Campus?                @relation(fields: [campusId], references: [id])
+  activityTemplateThemes ActivityTemplateTheme[]
+  planningTemplateSlots  PlanningTemplateSlot[]
 }
 
 model ActivityTemplateTheme {
@@ -255,12 +256,11 @@ model TimeSlot {
   planningId String
   startTime  DateTime
   endTime    DateTime
-  label      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  planning   Planning   @relation(fields: [planningId], references: [id], onDelete: Cascade)
-  activities Activity[]
+  planning Planning  @relation(fields: [planningId], references: [id], onDelete: Cascade)
+  activity Activity?
 
   @@index([planningId])
 }
@@ -275,7 +275,7 @@ model Activity {
   link             String?
   content          String?
   contentStructure Json?
-  timeSlotId       String
+  timeSlotId       String       @unique
   templateId       String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
@@ -286,7 +286,6 @@ model Activity {
   stepsProgress           StepsProgress[]
   portfolioItems          PortfolioItem[]
 
-  @@index([timeSlotId])
   @@index([templateId])
 }
 
@@ -515,35 +514,22 @@ model PlanningTemplateDay {
 }
 
 model PlanningTemplateSlot {
-  id                    String   @id @default(cuid())
+  id                    String       @id @default(cuid())
   planningTemplateDayId String
   startTime             String
   endTime               String
-  label                 String?
-  sortOrder             Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  sortOrder             Int          @default(0)
+  activityTemplateId    String?
+  nom                   String?
+  description           String?
+  activityType          ActivityType @default(orga)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
-  day   PlanningTemplateDay        @relation(fields: [planningTemplateDayId], references: [id], onDelete: Cascade)
-  items PlanningTemplateSlotItem[]
+  day              PlanningTemplateDay @relation(fields: [planningTemplateDayId], references: [id], onDelete: Cascade)
+  activityTemplate ActivityTemplate?   @relation(fields: [activityTemplateId], references: [id], onDelete: SetNull)
 
   @@index([planningTemplateDayId])
-}
-
-model PlanningTemplateSlotItem {
-  id                     String       @id @default(cuid())
-  planningTemplateSlotId String
-  activityTemplateId     String?
-  nom                    String?
-  description            String?
-  activityType           ActivityType @default(orga)
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
-
-  slot             PlanningTemplateSlot @relation(fields: [planningTemplateSlotId], references: [id], onDelete: Cascade)
-  activityTemplate ActivityTemplate?    @relation(fields: [activityTemplateId], references: [id], onDelete: SetNull)
-
-  @@index([planningTemplateSlotId])
   @@index([activityTemplateId])
 }
 

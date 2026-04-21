@@ -7,8 +7,9 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema, eventSchema } from '$lib/validation/events';
 import {
   timeSlotSchema,
-  createActivityFromTemplateSchema,
-  createStaticActivitySchema,
+  createSlotWithActivitySchema,
+  renameActivitySchema,
+  changeActivityTypeSchema,
 } from '$lib/validation/planning';
 import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
 import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
@@ -81,7 +82,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     include: {
       timeSlots: {
         orderBy: { startTime: 'asc' },
-        include: { activities: true },
+        include: { activity: true },
       },
     },
   });
@@ -116,12 +117,11 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const addForm = await superValidate(zod4(addParticipantSchema));
   const tsForm = await superValidate(zod4(timeSlotSchema));
-  const staticActivityForm = await superValidate(
-    zod4(createStaticActivitySchema),
+  const createSlotForm = await superValidate(
+    zod4(createSlotWithActivitySchema),
   );
-  const templateActivityForm = await superValidate(
-    zod4(createActivityFromTemplateSchema),
-  );
+  const renameActivityForm = await superValidate(zod4(renameActivitySchema));
+  const changeTypeForm = await superValidate(zod4(changeActivityTypeSchema));
   const applyTemplateForm = await superValidate(
     zod4(applyPlanningTemplateSchema),
   );
@@ -137,8 +137,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     editForm,
     addForm,
     tsForm,
-    staticActivityForm,
-    templateActivityForm,
+    createSlotForm,
+    renameActivityForm,
+    changeTypeForm,
     applyTemplateForm,
     timezone: tz,
   };

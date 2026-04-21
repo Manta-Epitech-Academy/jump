@@ -23,25 +23,25 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     where: { eventId: params.id },
     include: {
       timeSlots: {
+        where: { activity: { activityType: 'orga' } },
         orderBy: { startTime: 'asc' },
-        include: {
-          activities: {
-            where: { activityType: 'orga' },
-          },
-        },
+        include: { activity: true },
       },
     },
   });
 
   const orgaActivities =
     planning?.timeSlots.flatMap((ts) =>
-      ts.activities.map((a) => ({
-        id: a.id,
-        nom: a.nom,
-        slotLabel: ts.label,
-        startTime: ts.startTime,
-        endTime: ts.endTime,
-      })),
+      ts.activity
+        ? [
+            {
+              id: ts.activity.id,
+              nom: ts.activity.nom,
+              startTime: ts.startTime,
+              endTime: ts.endTime,
+            },
+          ]
+        : [],
     ) ?? [];
 
   if (orgaActivities.length === 0) {

@@ -1953,7 +1953,6 @@ async function wipeAll() {
   await prisma.planning.deleteMany();
   await prisma.event.deleteMany();
   await prisma.activityTemplateTheme.deleteMany();
-  await prisma.planningTemplateSlotItem.deleteMany();
   await prisma.planningTemplateSlot.deleteMany();
   await prisma.planningTemplateDay.deleteMany();
   await prisma.planningTemplate.deleteMany();
@@ -2167,35 +2166,24 @@ async function seedPlanningTemplate(
         label: `Jour ${i + 1}`,
       },
     });
-    const orga = await prisma.planningTemplateSlot.create({
+    await prisma.planningTemplateSlot.create({
       data: {
         planningTemplateDayId: day.id,
         startTime: '13:00',
         endTime: '13:30',
-        label: 'Accueil & appel',
         sortOrder: 0,
-      },
-    });
-    await prisma.planningTemplateSlotItem.create({
-      data: {
-        planningTemplateSlotId: orga.id,
         nom: 'Appel',
         activityType: 'orga',
       },
     });
-    const atelier = await prisma.planningTemplateSlot.create({
-      data: {
-        planningTemplateDayId: day.id,
-        startTime: '13:45',
-        endTime: '16:30',
-        label: 'Ateliers',
-        sortOrder: 1,
-      },
-    });
-    for (const actName of byDay[i]) {
-      await prisma.planningTemplateSlotItem.create({
+    for (let j = 0; j < byDay[i].length; j++) {
+      const actName = byDay[i][j];
+      await prisma.planningTemplateSlot.create({
         data: {
-          planningTemplateSlotId: atelier.id,
+          planningTemplateDayId: day.id,
+          startTime: '13:45',
+          endTime: '16:30',
+          sortOrder: 1 + j,
           activityTemplateId: templatesByName[actName]?.id ?? null,
           nom: templatesByName[actName] ? null : actName,
           activityType: 'atelier',
@@ -2272,16 +2260,17 @@ async function seedEvents(
           slot.endHour,
           slot.endMinute ?? 0,
         );
-        const timeSlot = await prisma.timeSlot.create({
-          data: {
-            planningId: planning.id,
-            startTime: slotStart,
-            endTime: slotEnd,
-            label: slot.label ?? null,
-          },
-        });
 
+        // 1 activity = 1 slot. Multi-activity blueprints write as parallel slots at same time.
         for (const act of slot.activities) {
+          const timeSlot = await prisma.timeSlot.create({
+            data: {
+              planningId: planning.id,
+              startTime: slotStart,
+              endTime: slotEnd,
+            },
+          });
+
           const tpl = templatesByName[act.nom];
           const blueprintDef = activityDefs.find((d) => d.nom === act.nom);
           const activityType: ActivityType =
@@ -2304,7 +2293,6 @@ async function seedEvents(
             },
           });
 
-          // Link themes (campus-scoped, skip if not available on campus)
           for (const themeName of blueprintDef?.themes ?? []) {
             const themeId = themesByKey[`${blueprint.campus}:${themeName}`]?.id;
             if (themeId) {

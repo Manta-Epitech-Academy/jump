@@ -53,7 +53,7 @@
       : 0,
   );
   let cockpitRouteId = $derived(
-    data.liveEvent?.planning?.timeSlots?.[0]?.activities?.[0]?.id,
+    data.liveEvent?.planning?.timeSlots?.[0]?.activity?.id,
   );
 
   // --- Pedago-only state (AssignMantas dialog) ---

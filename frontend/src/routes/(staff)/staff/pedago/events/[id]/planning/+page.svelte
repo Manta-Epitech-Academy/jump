@@ -39,10 +39,6 @@
     <CalendarPlanner
       planning={data.planning}
       templates={data.templates}
-      tsForm={data.tsForm}
-      staticActivityForm={data.staticActivityForm}
-      templateActivityForm={data.templateActivityForm}
-      eventId={data.event.id}
       eventDate={data.event.date}
       eventEndDate={data.event.endDate}
       planningTemplates={data.planningTemplates}

@@ -5,7 +5,6 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import {
   planningTemplateDaySchema,
   planningTemplateSlotSchema,
-  planningTemplateSlotItemSchema,
 } from '$lib/validation/planningTemplates';
 import { prisma } from '$lib/server/db';
 
@@ -19,13 +18,9 @@ export const load: PageServerLoad = async ({ params }) => {
           slots: {
             orderBy: [{ startTime: 'asc' }, { sortOrder: 'asc' }],
             include: {
-              items: {
+              activityTemplate: {
                 include: {
-                  activityTemplate: {
-                    include: {
-                      activityTemplateThemes: { include: { theme: true } },
-                    },
-                  },
+                  activityTemplateThemes: { include: { theme: true } },
                 },
               },
             },
@@ -45,9 +40,8 @@ export const load: PageServerLoad = async ({ params }) => {
 
   const dayForm = await superValidate(zod4(planningTemplateDaySchema));
   const slotForm = await superValidate(zod4(planningTemplateSlotSchema));
-  const itemForm = await superValidate(zod4(planningTemplateSlotItemSchema));
 
-  return { planningTemplate, activityTemplates, dayForm, slotForm, itemForm };
+  return { planningTemplate, activityTemplates, dayForm, slotForm };
 };
 
 export const actions: Actions = {
@@ -73,7 +67,6 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     try {
-      // Get current max sortOrder for this day
       const lastSlot = await prisma.planningTemplateSlot.findFirst({
         where: { planningTemplateDayId: form.data.planningTemplateDayId },
         orderBy: { sortOrder: 'desc' },
@@ -84,8 +77,15 @@ export const actions: Actions = {
           planningTemplateDayId: form.data.planningTemplateDayId,
           startTime: form.data.startTime,
           endTime: form.data.endTime,
-          label: form.data.label || null,
           sortOrder: (lastSlot?.sortOrder ?? -1) + 1,
+          activityTemplateId: form.data.activityTemplateId || null,
+          nom: form.data.activityTemplateId
+            ? null
+            : form.data.nom?.trim() || null,
+          description: form.data.activityTemplateId
+            ? null
+            : form.data.description || null,
+          activityType: form.data.activityType,
         },
       });
 
@@ -115,7 +115,14 @@ export const actions: Actions = {
         data: {
           startTime: form.data.startTime,
           endTime: form.data.endTime,
-          label: form.data.label || null,
+          activityTemplateId: form.data.activityTemplateId || null,
+          nom: form.data.activityTemplateId
+            ? null
+            : form.data.nom?.trim() || null,
+          description: form.data.activityTemplateId
+            ? null
+            : form.data.description || null,
+          activityType: form.data.activityType,
         },
       });
 
@@ -139,54 +146,6 @@ export const actions: Actions = {
     }
   },
 
-  addItem: async ({ request }) => {
-    const form = await superValidate(
-      request,
-      zod4(planningTemplateSlotItemSchema),
-    );
-    if (!form.valid) return fail(400, { form });
-
-    try {
-      const data: {
-        planningTemplateSlotId: string;
-        activityTemplateId?: string;
-        nom?: string;
-        description?: string;
-        activityType?: 'atelier' | 'conference' | 'quiz' | 'orga' | 'special';
-      } = {
-        planningTemplateSlotId: form.data.planningTemplateSlotId,
-      };
-
-      if (form.data.activityTemplateId) {
-        data.activityTemplateId = form.data.activityTemplateId;
-      } else {
-        data.nom = form.data.nom || 'Activité sans nom';
-        data.description = form.data.description || undefined;
-        data.activityType = form.data.activityType || 'orga';
-      }
-
-      await prisma.planningTemplateSlotItem.create({ data });
-
-      return message(form, 'Activité ajoutée au créneau !');
-    } catch (err) {
-      console.error(err);
-      return message(form, "Erreur lors de l'ajout.", { status: 500 });
-    }
-  },
-
-  removeItem: async ({ url }) => {
-    const id = url.searchParams.get('id');
-    if (!id) return fail(400);
-
-    try {
-      await prisma.planningTemplateSlotItem.delete({ where: { id } });
-      return { success: true };
-    } catch (err) {
-      console.error(err);
-      return fail(500, { message: 'Erreur lors de la suppression.' });
-    }
-  },
-
   duplicateDay: async ({ request }) => {
     const formData = await request.formData();
     const sourceDayId = formData.get('sourceDayId') as string;
@@ -196,37 +155,25 @@ export const actions: Actions = {
     try {
       const sourceDay = await prisma.planningTemplateDay.findUniqueOrThrow({
         where: { id: sourceDayId },
-        include: {
-          slots: {
-            orderBy: { sortOrder: 'asc' },
-            include: { items: true },
-          },
-        },
+        include: { slots: { orderBy: { sortOrder: 'asc' } } },
       });
 
       await prisma.$transaction(async (tx) => {
-        // Clear target day slots
         await tx.planningTemplateSlot.deleteMany({
           where: { planningTemplateDayId: targetDayId },
         });
 
-        // Clone slots + items
         for (const slot of sourceDay.slots) {
           await tx.planningTemplateSlot.create({
             data: {
               planningTemplateDayId: targetDayId,
               startTime: slot.startTime,
               endTime: slot.endTime,
-              label: slot.label,
               sortOrder: slot.sortOrder,
-              items: {
-                create: slot.items.map((item) => ({
-                  activityTemplateId: item.activityTemplateId,
-                  nom: item.nom,
-                  description: item.description,
-                  activityType: item.activityType,
-                })),
-              },
+              activityTemplateId: slot.activityTemplateId,
+              nom: slot.nom,
+              description: slot.description,
+              activityType: slot.activityType,
             },
           });
         }

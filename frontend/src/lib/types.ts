@@ -7,7 +7,7 @@ export type ParticipationWithDetails = Prisma.ParticipationGetPayload<{
   };
 }>;
 
-/** Participation with event→planning→timeSlots→activities (for today's timeline). */
+/** Participation with event→planning→timeSlots→activity (for today's timeline). */
 export type ParticipationWithPlanning = Prisma.ParticipationGetPayload<{
   include: {
     event: {
@@ -15,7 +15,7 @@ export type ParticipationWithPlanning = Prisma.ParticipationGetPayload<{
         planning: {
           include: {
             timeSlots: {
-              include: { activities: true };
+              include: { activity: true };
             };
           };
         };
@@ -40,16 +40,16 @@ export type ParticipationWithActivityThemes = Prisma.ParticipationGetPayload<{
   };
 }>;
 
-/** Planning with nested time slots and their activities. */
+/** Planning with nested time slots and their single activity. */
 export type PlanningWithSlots = Prisma.PlanningGetPayload<{
   include: {
     timeSlots: {
-      include: { activities: true };
+      include: { activity: true };
     };
   };
 }>;
 
-/** TimeSlot with its activities. */
-export type TimeSlotWithActivities = Prisma.TimeSlotGetPayload<{
-  include: { activities: true };
+/** TimeSlot with its activity. */
+export type TimeSlotWithActivity = Prisma.TimeSlotGetPayload<{
+  include: { activity: true };
 }>;
