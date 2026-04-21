@@ -17,6 +17,7 @@
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { fly, fade } from 'svelte/transition';
   import { resolve } from '$app/paths';
+  import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { children, data } = $props();
@@ -161,16 +162,19 @@
           <span class="sr-only">Toggle menu</span>
         </Button>
         <a href={resolve('/staff/pedago')} class="flex items-center gap-2">
-          <span class="text-lg font-bold uppercase"
-            >Jump <span class="ml-1 text-xs text-epi-blue">PÉDAGO</span></span
-          >
+          <span class="text-lg font-bold uppercase">Jump</span>
           {#if data.staffProfile?.campus?.name}
             <span
-              class="hidden rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-header-foreground/90 uppercase md:inline-block"
+              class="hidden self-center rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-header-foreground/90 uppercase md:inline-block"
             >
               {data.staffProfile.campus.name}
             </span>
           {/if}
+          <span
+            class="text-xs font-bold tracking-wider text-epi-teal uppercase"
+          >
+            {getStaffRoleLabel(data.staffProfile?.staffRole)}
+          </span>
         </a>
       </div>
     </div>
@@ -184,13 +188,6 @@
             class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
           >
             <div class="hidden flex-col items-end md:flex">
-              <span
-                class="font-mono text-[10px] font-bold text-epi-blue uppercase"
-              >
-                {data.staffProfile?.staffRole === 'peda'
-                  ? 'Resp. Pédago'
-                  : 'Manta'}
-              </span>
               <span class="text-sm leading-none font-bold"
                 >{user?.name || user?.username}</span
               >

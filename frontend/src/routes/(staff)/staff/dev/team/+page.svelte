@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Plus, Mail, X, LoaderCircle } from '@lucide/svelte';
+  import { Plus, Mail, X, LoaderCircle, Info } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -13,16 +13,11 @@
   import { Badge } from '$lib/components/ui/badge';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { getStaffRoleLabel } from '$lib/domain/staff';
+  import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
 
   let { data } = $props();
 
-  const INVITABLE_ROLES = [
-    { value: 'superdev', label: 'SuperDev' },
-    { value: 'dev', label: 'Dev' },
-    { value: 'peda', label: 'Péda' },
-    { value: 'manta', label: 'Manta' },
-  ] as const;
+  const INVITABLE_ROLES = STAFF_ROLES.filter((r) => r.value !== 'admin');
 
   let submitting = $state<string | null>(null);
   let inviteOpen = $state(false);
@@ -262,17 +257,24 @@
                         }}
                       >
                         <Select.Trigger
-                          class="h-8 w-36 bg-background text-xs font-bold tracking-widest uppercase"
+                          class="h-8 w-42 bg-background text-xs font-bold tracking-widest uppercase"
                         >
                           {getStaffRoleLabel(currentRole)}
                         </Select.Trigger>
-                        <Select.Content>
+                        <Select.Content class="min-w-72">
                           {#each INVITABLE_ROLES as role}
-                            <Select.Item
-                              value={role.value}
-                              class="text-[10px] font-bold tracking-widest uppercase"
-                              >{role.label}</Select.Item
-                            >
+                            <Select.Item value={role.value} class="py-2">
+                              <div class="flex flex-col gap-0.5">
+                                <span
+                                  class="text-[11px] font-bold tracking-widest uppercase"
+                                  >{role.label}</span
+                                >
+                                <span
+                                  class="text-[11px] font-normal text-muted-foreground normal-case"
+                                  >{role.description}</span
+                                >
+                              </div>
+                            </Select.Item>
                           {/each}
                         </Select.Content>
                       </Select.Root>
@@ -330,7 +332,41 @@
           </div>
 
           <div class="space-y-2">
-            <Label for="invite-role">Rôle</Label>
+            <div class="flex items-center gap-1.5">
+              <Label for="invite-role">Rôle</Label>
+              <Tooltip.Provider delayDuration={200}>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <button
+                        {...props}
+                        type="button"
+                        class="text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label="Aide sur les rôles"
+                      >
+                        <Info class="h-3.5 w-3.5" />
+                      </button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content class="max-w-sm">
+                    <div class="space-y-2 p-1">
+                      {#each INVITABLE_ROLES as role}
+                        <div class="space-y-0.5">
+                          <p
+                            class="text-[11px] font-bold tracking-widest uppercase"
+                          >
+                            {role.label}
+                          </p>
+                          <p class="text-xs leading-snug text-muted-foreground">
+                            {role.description}
+                          </p>
+                        </div>
+                      {/each}
+                    </div>
+                  </Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            </div>
             <Select.Root
               type="single"
               name="staffRole"
@@ -342,13 +378,20 @@
               >
                 {getStaffRoleLabel($inviteForm.staffRole)}
               </Select.Trigger>
-              <Select.Content>
+              <Select.Content class="min-w-72">
                 {#each INVITABLE_ROLES as role}
-                  <Select.Item
-                    value={role.value}
-                    class="text-[10px] font-bold tracking-widest uppercase"
-                    >{role.label}</Select.Item
-                  >
+                  <Select.Item value={role.value} class="py-2">
+                    <div class="flex flex-col gap-0.5">
+                      <span
+                        class="text-[11px] font-bold tracking-widest uppercase"
+                        >{role.label}</span
+                      >
+                      <span
+                        class="text-[11px] font-normal text-muted-foreground normal-case"
+                        >{role.description}</span
+                      >
+                    </div>
+                  </Select.Item>
                 {/each}
               </Select.Content>
             </Select.Root>

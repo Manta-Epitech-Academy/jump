@@ -301,12 +301,20 @@
                     <Select.Trigger class="h-8 w-36 text-xs">
                       {getStaffRoleLabel(user.staffProfile?.staffRole)}
                     </Select.Trigger>
-                    <Select.Content>
+                    <Select.Content class="min-w-72">
                       <Select.Item value="">Aucun rôle</Select.Item>
                       {#each STAFF_ROLES as role}
-                        <Select.Item value={role.value}
-                          >{role.label}</Select.Item
-                        >
+                        <Select.Item value={role.value} class="py-2">
+                          <div class="flex flex-col gap-0.5">
+                            <span class="text-xs font-semibold"
+                              >{role.label}</span
+                            >
+                            <span
+                              class="text-[11px] leading-snug text-muted-foreground"
+                              >{role.description}</span
+                            >
+                          </div>
+                        </Select.Item>
                       {/each}
                     </Select.Content>
                   </Select.Root>
@@ -403,9 +411,16 @@
             <Select.Trigger id="invite-role" class="w-full">
               {getStaffRoleLabel($inviteForm.staffRole)}
             </Select.Trigger>
-            <Select.Content>
+            <Select.Content class="min-w-72">
               {#each STAFF_ROLES as role}
-                <Select.Item value={role.value}>{role.label}</Select.Item>
+                <Select.Item value={role.value} class="py-2">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-xs font-semibold">{role.label}</span>
+                    <span class="text-[11px] leading-snug text-muted-foreground"
+                      >{role.description}</span
+                    >
+                  </div>
+                </Select.Item>
               {/each}
             </Select.Content>
           </Select.Root>
