@@ -1043,21 +1043,17 @@ async function main() {
     },
   });
 
-  // Link Alice and Lucas to this parent (unsigned image rights)
-  for (const t of [talents[0], talents[1]]) {
-    await prisma.talent.update({
-      where: { id: t.id },
-      data: {
-        parentEmail,
-        parentNom: 'Martin',
-        parentPrenom: 'Sophie',
-      },
-    });
-  }
+  // Link Alice to this parent (unsigned image rights)
+  await prisma.talent.update({
+    where: { id: talents[0].id },
+    data: {
+      parentEmail,
+      parentNom: 'Martin',
+      parentPrenom: 'Sophie',
+    },
+  });
 
-  console.log(
-    `✓ Parent account: ${parentEmail} (children: ${talents[0].prenom}, ${talents[1].prenom})`,
-  );
+  console.log(`✓ Parent account: ${parentEmail} (child: ${talents[0].prenom})`);
 
   console.log(
     `✓ Users (1 admin, ${staffData.length} staff, ${studentsData.length} students, 1 parent)`,
