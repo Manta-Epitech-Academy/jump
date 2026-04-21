@@ -118,7 +118,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
 
   // Fetch past participations with activities for history
   const participations = await prisma.participation.findMany({
-    where: { talentId, event: { date: { lte: new Date() } } },
+    where: { talentId, event: { date: { lt: filterDateStartDate } } },
     include: {
       event: { select: { id: true, titre: true, date: true } },
       activities: {

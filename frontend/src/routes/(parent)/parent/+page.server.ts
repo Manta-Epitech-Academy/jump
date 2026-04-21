@@ -17,8 +17,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       prenom: true,
       nom: true,
       imageRightsSignedAt: true,
-      participations: {
-        select: { id: true },
+      _count: {
+        select: { participations: true },
       },
     },
   });
@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         prenom: child.prenom,
         nom: child.nom,
         imageRightsSigned: !!child.imageRightsSignedAt,
-        eventsCount: child.participations.length,
+        eventsCount: child._count.participations,
         upcomingEvent: upcomingParticipation?.event ?? null,
       };
     }),
