@@ -6,8 +6,6 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { camperEmailSchema, camperOtpSchema } from '$lib/validation/auth';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
-import { sendOtpEmail } from '$lib/server/otp';
-import { consumeParentOtp } from '$lib/server/services/parentTokens';
 import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -47,16 +45,10 @@ export const actions: Actions = {
         );
       }
 
-      // Generate OTP via BetterAuth (hook stores it in parentToken for all parents)
+      // BetterAuth generates OTP and sends email directly via hook
       await auth.api.sendVerificationOTP({
         body: { email: normalizedEmail, type: 'sign-in' },
       });
-
-      // Consume OTP from parentToken and send email directly
-      const otp = await consumeParentOtp(normalizedEmail);
-      if (otp) {
-        await sendOtpEmail(normalizedEmail, otp, user.name ?? undefined);
-      }
 
       return message(emailForm, {
         type: 'success',
