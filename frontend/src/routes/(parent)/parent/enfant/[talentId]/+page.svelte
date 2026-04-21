@@ -9,7 +9,6 @@
     ChevronDown,
     FileCheck,
     FilePen,
-    ExternalLink,
     History,
     Rocket,
     LogOut,
@@ -110,11 +109,10 @@
             </div>
           </div>
           <a
-            href="{resolve('/parent/sign')}?student={data.child.id}"
+            href={resolve('/parent/signature')}
             class="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-amber-600/20 transition-all hover:bg-amber-700 active:scale-[0.98]"
           >
             Signer maintenant
-            <ExternalLink class="h-4 w-4" />
           </a>
         </div>
       </div>
