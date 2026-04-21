@@ -4,18 +4,25 @@ import { getLastSync } from '$lib/server/infra/syncStatus';
 
 export const load: PageServerLoad = async () => {
   // Retrieve global statistics
-  const [campusCount, userCount, studentCount, eventCount, recentEvents] =
-    await Promise.all([
-      prisma.campus.count(),
-      prisma.bauth_user.count(),
-      prisma.talent.count(),
-      prisma.event.count(),
-      prisma.event.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: { campus: true },
-      }),
-    ]);
+  const [
+    campusCount,
+    userCount,
+    studentCount,
+    eventCount,
+    recentEvents,
+    lastSync,
+  ] = await Promise.all([
+    prisma.campus.count(),
+    prisma.bauth_user.count(),
+    prisma.talent.count(),
+    prisma.event.count(),
+    prisma.event.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: { campus: true },
+    }),
+    getLastSync(),
+  ]);
 
   return {
     stats: {
@@ -30,6 +37,6 @@ export const load: PageServerLoad = async () => {
       date: e.date,
       campus: e.campus?.name || 'Inconnu',
     })),
-    lastSync: getLastSync(),
+    lastSync,
   };
 };

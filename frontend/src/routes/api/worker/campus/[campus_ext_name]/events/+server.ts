@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
   const result = await syncEvents(params.campus_ext_name, body.events);
   if ('error' in result) throw error(400, result.error);
 
-  recordSync({
+  await recordSync({
     type: 'events',
     campusExtName: params.campus_ext_name,
     created: result.created,

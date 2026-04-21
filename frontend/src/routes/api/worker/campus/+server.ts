@@ -10,6 +10,6 @@ export const GET: RequestHandler = async ({ request }) => {
     throw error(401, 'Unauthorized: Invalid or missing token');
 
   const campuses = await listCampuses();
-  recordSync({ type: 'campus_list' });
+  await recordSync({ type: 'campus_list' });
   return json(campuses);
 };

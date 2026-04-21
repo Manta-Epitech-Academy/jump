@@ -1,7 +1,9 @@
 /**
- * Tracks the last successful worker sync as in-memory module state.
- * Resets on process restart — acceptable for a debugging/observability signal.
+ * Tracks the last successful worker sync in AppSetting so the value is shared
+ * across PM2 cluster workers (module-level state would diverge per worker).
  */
+
+import { prisma } from '$lib/server/db';
 
 export type SyncType = 'campus_list' | 'events' | 'talents';
 
@@ -16,12 +18,22 @@ export type SyncRecord = {
   skipped?: number;
 };
 
-let lastSync: SyncRecord | null = null;
+const KEY = 'sync.last';
 
-export function recordSync(record: Omit<SyncRecord, 'at'>): void {
-  lastSync = { ...record, at: new Date() };
+export async function recordSync(
+  record: Omit<SyncRecord, 'at'>,
+): Promise<void> {
+  const value = JSON.stringify({ ...record, at: new Date() });
+  await prisma.appSetting.upsert({
+    where: { key: KEY },
+    create: { key: KEY, value },
+    update: { value },
+  });
 }
 
-export function getLastSync(): SyncRecord | null {
-  return lastSync;
+export async function getLastSync(): Promise<SyncRecord | null> {
+  const row = await prisma.appSetting.findUnique({ where: { key: KEY } });
+  if (!row) return null;
+  const parsed = JSON.parse(row.value) as SyncRecord;
+  return { ...parsed, at: new Date(parsed.at) };
 }
