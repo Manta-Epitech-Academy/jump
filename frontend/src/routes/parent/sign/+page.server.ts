@@ -4,13 +4,21 @@ import { auth } from '$lib/server/auth';
 import {
   createSignToken,
   verifySignToken,
+  consumeParentOtp,
 } from '$lib/server/services/parentTokens';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
 import { prisma } from '$lib/server/db';
 
-export const load: PageServerLoad = async ({ url }) => {
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  const visible = local.slice(0, 2);
+  return `${visible}***@${domain}`;
+}
+
+export const load: PageServerLoad = async ({ url, locals }) => {
   const talentId = url.searchParams.get('student');
   if (!talentId) {
     throw error(400, 'Paramètre student manquant.');
@@ -32,20 +40,43 @@ export const load: PageServerLoad = async ({ url }) => {
     throw error(404, 'Profil étudiant introuvable.');
   }
 
+  const studentName = `${profile.prenom} ${profile.nom}`;
+
   // Already signed — show thank you page directly
   if (profile.imageRightsSignedAt) {
     return {
       step: 'done' as const,
-      studentName: `${profile.prenom} ${profile.nom}`,
+      studentName,
       talentId,
     };
   }
 
+  // If parent is authenticated and email matches, skip OTP → go to sign step
+  if (
+    locals.user?.role === 'parent' &&
+    locals.user.email.toLowerCase() === profile.parentEmail?.toLowerCase()
+  ) {
+    const signToken = await createSignToken(talentId, locals.user.email);
+    return {
+      step: 'sign' as const,
+      studentName,
+      talentId,
+      email: locals.user.email,
+      signToken,
+    };
+  }
+
+  // Unauthenticated: show OTP step — mask email for privacy
+  const maskedEmail = profile.parentEmail
+    ? maskEmail(profile.parentEmail)
+    : null;
+
   return {
     step: 'otp' as const,
-    studentName: `${profile.prenom} ${profile.nom}`,
+    studentName,
     talentId,
     parentEmail: profile.parentEmail,
+    maskedEmail,
   };
 };
 
@@ -247,16 +278,18 @@ export const actions: Actions = {
         select: { prenom: true, nom: true },
       });
 
-      // sendVerificationOTP stores the OTP in DB (parent role skips email)
+      // sendVerificationOTP stores the OTP in DB (parent role + non-sign-in type)
       await auth.api.sendVerificationOTP({
         body: { email, type: 'sign-in' },
       });
 
-      // Send single combined email with link + OTP
+      // Consume OTP from DB and send combined email with link + code
+      const otp = await consumeParentOtp(email);
       await sendParentSignatureEmail(
         email,
         talentId,
         profile ? `${profile.prenom} ${profile.nom}` : '',
+        otp ?? undefined,
       );
     } catch (err) {
       console.error('Failed to resend OTP:', err);
