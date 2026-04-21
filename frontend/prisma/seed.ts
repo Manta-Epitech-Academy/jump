@@ -1030,8 +1030,37 @@ async function main() {
     await upsertCredential(user.id, STUDENT_PASSWORD);
   }
 
+  // ── Parent accounts (for testing parent portal) ──
+  const parentEmail = 'sophie.martin@mail.com';
+  const parentUser = await prisma.bauth_user.upsert({
+    where: { email: parentEmail },
+    update: {},
+    create: {
+      email: parentEmail,
+      name: 'Sophie Martin',
+      role: 'parent',
+      emailVerified: true,
+    },
+  });
+
+  // Link Alice and Lucas to this parent (unsigned image rights)
+  for (const t of [talents[0], talents[1]]) {
+    await prisma.talent.update({
+      where: { id: t.id },
+      data: {
+        parentEmail,
+        parentNom: 'Martin',
+        parentPrenom: 'Sophie',
+      },
+    });
+  }
+
   console.log(
-    `✓ Users (1 admin, ${staffData.length} staff, ${studentsData.length} students)`,
+    `✓ Parent account: ${parentEmail} (children: ${talents[0].prenom}, ${talents[1].prenom})`,
+  );
+
+  console.log(
+    `✓ Users (1 admin, ${staffData.length} staff, ${studentsData.length} students, 1 parent)`,
   );
 
   // ── 3. Themes ──
@@ -1532,6 +1561,7 @@ async function main() {
     `Staff:    ${staffData.map((s) => s.email).join(', ')} / ${STAFF_PASSWORD}`,
   );
   console.log(`Students: any student email / ${STUDENT_PASSWORD}`);
+  console.log(`Parent:   ${parentEmail} (OTP via email)`);
   console.log(
     `\nCampuses: Paris (${parisStudentCount} talents), Lyon (${lyonStudentCount} talents), Marseille (empty)`,
   );
@@ -1545,6 +1575,7 @@ async function main() {
   console.log(`\n${origin}/staff/admin — Admin panel`);
   console.log(`${origin}/staff/dev   — Staff app`);
   console.log(`${origin}/            — Talent app`);
+  console.log(`${origin}/parent/login — Parent portal`);
   console.log(`${origin}/p/${talents[0].id} — Public profile (Alice)`);
   console.log('══════════════════════════════════\n');
 }
