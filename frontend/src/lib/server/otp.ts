@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
+import { base } from '$app/paths';
 
 let resend: Resend;
 
@@ -30,6 +31,41 @@ export async function sendOtpEmail(email: string, otp: string, name?: string) {
           <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;"><i>Si tu n'as pas essayé de te connecter, tu peux supprimer cet email sans t'inquiéter. Ce code expirera rapidement.</i></p>
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
           <p style="font-size: 14px; color: #64748b; margin: 0;">Bon atelier !<br/>L'équipe Epitech Academy</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+export async function sendParentOtpEmail(
+  email: string,
+  otp: string,
+  name?: string,
+) {
+  const displayName = name || 'Parent';
+  const loginUrl = `${env.ORIGIN}${base}/parent/login`;
+  await getResend().emails.send({
+    from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
+    to: email,
+    subject: "Votre code d'accès Jump — Espace Parent",
+    text: `Bonjour ${displayName},\n\nVoici votre code de connexion à l'Espace Parent Jump :\n\n${otp}\n\nCe code est valable 10 minutes.\n\nConnectez-vous ici : ${loginUrl}\n\nSi vous n'avez pas demandé ce code, vous pouvez ignorer cet email.\n\nCordialement,\nL'équipe Epitech Academy`,
+    html: `
+      <div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;">
+        <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; padding: 40px 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 5px solid #00ff97; text-align: left;">
+          <p style="font-size: 16px; line-height: 1.6; margin-top: 0; margin-bottom: 20px;">Bonjour <strong>${displayName}</strong>,</p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">Voici votre code de connexion à l'Espace Parent :</p>
+
+          <div style="background-color: #fff7ed; border: 2px dashed #ff5f3a; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 30px;">
+            <strong style="font-size: 32px; font-family: monospace; letter-spacing: 8px; color: #ff5f3a;">${otp}</strong>
+          </div>
+
+          <p style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">Ce code est valable <strong>10 minutes</strong>.</p>
+          <p style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+            <a href="${loginUrl}" style="color: #ff5f3a; text-decoration: underline;">Se connecter à l'Espace Parent</a>
+          </p>
+          <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;"><i>Si vous n'avez pas demandé ce code, vous pouvez ignorer cet email.</i></p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+          <p style="font-size: 14px; color: #64748b; margin: 0;">Cordialement,<br/>L'équipe Epitech Academy</p>
         </div>
       </div>
     `,
