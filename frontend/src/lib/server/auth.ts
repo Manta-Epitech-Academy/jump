@@ -46,7 +46,7 @@ export const auth = betterAuth({
           where: { email },
           select: { role: true, name: true },
         });
-        // For parents, store the OTP so the caller can include it in a single combined email
+        // For parents: store OTP in parentToken, caller handles email delivery
         if (user?.role === 'parent') {
           await storeParentOtp(email, otp);
           return;

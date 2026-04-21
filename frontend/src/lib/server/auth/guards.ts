@@ -23,13 +23,15 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const pathLogout = p('/logout');
   const pathPublicShowcase = p('/p/');
   const pathApi = p('/api/');
-  const pathParent = p('/parent');
-
   const pathStaffDev = p('/staff/dev');
   const pathStaffPedago = p('/staff/pedago');
 
+  const pathParentLogin = p('/parent/login');
+  const pathParentRoot = p('/parent');
+
   const isTalentRoute = routeId.startsWith('/(talent)');
   const isStaffRoute = routeId.startsWith('/(staff)');
+  const isParentRoute = routeId.startsWith('/(parent)');
   const isAdminPath =
     currentPath === pathStaffAdmin ||
     currentPath.startsWith(`${pathStaffAdmin}/`);
@@ -42,8 +44,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const isPublicPath =
     currentPath.startsWith(pathLogout) ||
     currentPath.startsWith(pathPublicShowcase) ||
-    currentPath.startsWith(pathApi) ||
-    currentPath.startsWith(pathParent);
+    currentPath.startsWith(pathApi);
 
   // --- Talent Guards ---
   if (isTalentRoute) {
@@ -177,6 +178,24 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
         new URL(pathStaffOnboarding, event.url).href,
         303,
       );
+    }
+  }
+
+  // --- Parent Guards ---
+  if (isParentRoute) {
+    const isParentPublic = currentPath === pathParentLogin;
+
+    if (
+      !isParentPublic &&
+      (!event.locals.user || event.locals.user.role !== 'parent')
+    ) {
+      return Response.redirect(new URL(pathParentLogin, event.url).href, 303);
+    }
+    if (
+      event.locals.user?.role === 'parent' &&
+      currentPath === pathParentLogin
+    ) {
+      return Response.redirect(new URL(pathParentRoot, event.url).href, 303);
     }
   }
 
