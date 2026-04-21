@@ -135,9 +135,18 @@ model Talent {
   level             String    @default("Novice")
   xp                Int       @default(0)
   eventsCount       Int       @default(0)
-  charterAcceptedAt DateTime?
-  badges            Json?
+  charterAcceptedAt     DateTime?
+  rulesSignedAt         DateTime?
+  imageRightsSignedAt   DateTime?
+  imageRightsSignerName String?
+  infoValidatedAt       DateTime?
+  charterFilePath       String?
+  rulesFilePath         String?
+  imageRightsFilePath   String?
+  badges                Json?
   parentEmail       String?
+  parentNom         String?
+  parentPrenom      String?
   parentPhone       String?
   phone             String?
   discordId         String?   @unique
@@ -151,6 +160,22 @@ model Talent {
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
+}
+
+// ─── Parent Signature Tokens ───
+
+model ParentToken {
+  id        String   @id @default(cuid())
+  email     String
+  talentId  String
+  type      String   // "otp" or "sign"
+  value     String   // OTP code or sign token UUID
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, type])
+  @@index([value, type])
+  @@index([expiresAt])
 }
 
 // ─── Domain Tables ───

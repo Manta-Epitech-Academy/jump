@@ -87,3 +87,6 @@ Thumbs.db
 frontend/prisma/generated/
 /garage/meta/
 /garage/data/
+
+# Local file storage
+storage/

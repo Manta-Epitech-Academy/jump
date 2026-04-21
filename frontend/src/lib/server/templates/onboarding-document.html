@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        margin: 40px;
+        color: #1e293b;
+        line-height: 1.6;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e2e8f0;
+      }
+      .header h1 {
+        font-size: 24px;
+        color: #0f172a;
+        margin: 0 0 8px 0;
+      }
+      .header p {
+        font-size: 14px;
+        color: #64748b;
+        margin: 0;
+      }
+      .content {
+        margin-bottom: 40px;
+        font-size: 14px;
+      }
+      .content h1 {
+        font-size: 16px;
+        font-weight: bold;
+        margin-top: 24px;
+        margin-bottom: 8px;
+        color: #0f172a;
+      }
+      .content h2 {
+        font-size: 15px;
+        font-weight: bold;
+        margin-top: 20px;
+        margin-bottom: 8px;
+        color: #0f172a;
+      }
+      .content h3 {
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 18px;
+        margin-bottom: 6px;
+        color: #0f172a;
+      }
+      .content ul {
+        margin: 4px 0;
+        padding-left: 20px;
+      }
+      .content li {
+        margin: 2px 0;
+      }
+      .content p {
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <%- data.logoSvg %>
+      <h1><%= data.title %></h1>
+      <p>Epitech Academy</p>
+    </div>
+
+    <div class="content"><%- data.documentContent %></div>
+  </body>
+</html>
