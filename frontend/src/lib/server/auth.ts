@@ -7,6 +7,7 @@ import { env } from '$env/dynamic/private';
 import { sendOtpEmail } from '$lib/server/otp';
 import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
+import { storeParentOtp } from '$lib/server/services/parentTokens';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
@@ -41,13 +42,16 @@ export const auth = betterAuth({
     }),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {
-        const student = await prisma.talent.findFirst({
-          where: {
-            OR: [{ user: { email } }, { email }],
-          },
-          select: { prenom: true },
+        const user = await prisma.bauth_user.findUnique({
+          where: { email },
+          select: { role: true, name: true },
         });
-        await sendOtpEmail(email, otp, student?.prenom);
+        // For parents, store the OTP so the caller can include it in a single combined email
+        if (user?.role === 'parent') {
+          await storeParentOtp(email, otp);
+          return;
+        }
+        await sendOtpEmail(email, otp, user?.name ?? undefined);
       },
       otpLength: 6,
       expiresIn: 600,

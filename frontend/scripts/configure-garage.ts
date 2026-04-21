@@ -8,7 +8,7 @@
  *   GARAGE_ADMIN_ENDPOINT  — Garage admin API (e.g. http://garage:3903)
  *   GARAGE_ADMIN_TOKEN     — Bearer token matching garage.toml admin_token
  *
- * Usage: bun run db:garage
+ * Usage: bun run garage:generate
  */
 
 import path from 'node:path';
@@ -120,7 +120,9 @@ async function main() {
     'CreateKey',
     { name: KEY_NAME },
   );
-  console.log('✓ API key created');
+  console.log(
+    '✓ API key created. PLEASE PUT THAT VARIABLES ON YOUR APP .env !',
+  );
   console.log(`  S3_ACCESS_KEY_ID=${key.accessKeyId}`);
   console.log(`  S3_SECRET_ACCESS_KEY=${key.secretAccessKey}`);
 

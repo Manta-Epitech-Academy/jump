@@ -21,8 +21,8 @@ FROM oven/bun:alpine
 
 WORKDIR /app
 
-# INSTALLATION OF CHROMIUM DEPENDENCIES FOR ALPINE
-RUN apk add --no-cache \
+# Patch OS-level vulnerabilities and install Chromium dependencies
+RUN apk upgrade --no-cache && apk add --no-cache \
     chromium \
     nss \
     freetype \

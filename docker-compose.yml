@@ -18,6 +18,20 @@ services:
       timeout: 5s
       retries: 5
 
+  garage:
+    image: dxflrs/garage:v2.0.0
+    container_name: garage
+    restart: unless-stopped
+    ports:
+      - "3900:3900"   # API S3
+      - "3903:3903"   # Admin API
+    networks:
+      - jump-network
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml
+      - ./garage/meta:/var/lib/garage/meta
+      - ./garage/data:/var/lib/garage/data
+
   sveltekit:
     build:
       context: frontend
@@ -36,6 +50,11 @@ services:
       - ORIGIN=${ORIGIN}
       - DATABASE_URL=postgresql://jump:${POSTGRES_PASSWORD}@postgres:5432/jump
       - HOST_HEADER=x-forwarded-host
+      - S3_ENDPOINT=http://garage:3900
+      - S3_PUBLIC_ENDPOINT=${S3_PUBLIC_ENDPOINT}
+      - S3_REGION=${S3_REGION}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY}
     restart: unless-stopped
 
 volumes:

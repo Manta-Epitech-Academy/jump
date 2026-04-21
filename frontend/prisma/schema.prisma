@@ -119,6 +119,7 @@ model StaffProfile {
   campus        Campus?         @relation(fields: [campusId], references: [id])
   eventMantas   EventManta[]
   notesAuthored Participation[] @relation("NoteAuthor")
+  adminFiles    AdminFile[]
 
   @@index([campusId])
 }
@@ -134,9 +135,18 @@ model Talent {
   level             String    @default("Novice")
   xp                Int       @default(0)
   eventsCount       Int       @default(0)
-  charterAcceptedAt DateTime?
-  badges            Json?
+  charterAcceptedAt     DateTime?
+  rulesSignedAt         DateTime?
+  imageRightsSignedAt   DateTime?
+  imageRightsSignerName String?
+  infoValidatedAt       DateTime?
+  charterFilePath       String?
+  rulesFilePath         String?
+  imageRightsFilePath   String?
+  badges                Json?
   parentEmail       String?
+  parentNom         String?
+  parentPrenom      String?
   parentPhone       String?
   phone             String?
   discordId         String?   @unique
@@ -150,6 +160,22 @@ model Talent {
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
+}
+
+// ─── Parent Signature Tokens ───
+
+model ParentToken {
+  id        String   @id @default(cuid())
+  email     String
+  talentId  String
+  type      String   // "otp" or "sign"
+  value     String   // OTP code or sign token UUID
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, type])
+  @@index([value, type])
+  @@index([expiresAt])
 }
 
 // ─── Domain Tables ───
@@ -477,4 +503,18 @@ model AppSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model AdminFile {
+  id           String   @id @default(cuid())
+  name         String
+  s3Key        String   @unique
+  contentType  String
+  size         Int
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  uploadedBy StaffProfile @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([uploadedById])
 }
