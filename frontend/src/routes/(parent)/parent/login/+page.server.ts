@@ -99,6 +99,18 @@ export const actions: Actions = {
       );
     }
 
+    // Check if image rights need signing before going to dashboard
+    const unsignedCount = await prisma.talent.count({
+      where: {
+        parentEmail: otpForm.data.email,
+        imageRightsSignedAt: null,
+      },
+    });
+
+    if (unsignedCount > 0) {
+      throw redirect(303, resolve('/parent/signature'));
+    }
+
     throw redirect(303, resolve('/parent'));
   },
 };

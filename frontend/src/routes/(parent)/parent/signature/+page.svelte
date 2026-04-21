@@ -11,43 +11,20 @@
 
   let { data, form } = $props();
 
-  // Per-child form state
-  let formState = $state<
-    Record<
-      string,
-      {
-        signerName: string;
-        relationship: string;
-        city: string;
-        accepted: boolean;
-        submitting: boolean;
-      }
-    >
-  >({});
+  // Single-child state (reactive like the old working version)
+  let signerName = $state('');
+  let relationship = $state('');
+  let city = $state('');
+  let accepted = $state(false);
+  let submitting = $state(false);
 
-  function getState(childId: string) {
-    if (!formState[childId]) {
-      formState[childId] = {
-        signerName: '',
-        relationship: '',
-        city: '',
-        accepted: false,
-        submitting: false,
-      };
-    }
-    return formState[childId];
-  }
-
-  function canSign(childId: string) {
-    const s = getState(childId);
-    return (
-      s.accepted &&
-      s.signerName.trim().length >= 2 &&
-      s.relationship !== '' &&
-      s.city.trim().length >= 1 &&
-      !s.submitting
-    );
-  }
+  const canSign = $derived(
+    accepted &&
+      signerName.trim().length >= 2 &&
+      relationship !== '' &&
+      city.trim().length >= 1 &&
+      !submitting,
+  );
 </script>
 
 <div
@@ -111,7 +88,6 @@
 
     <!-- Per-child forms -->
     {#each data.children as child (child.id)}
-      {@const state = getState(child.id)}
       <div
         class="mb-6 overflow-hidden rounded-3xl bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
       >
@@ -126,10 +102,10 @@
           method="POST"
           action="?/sign"
           use:enhance={() => {
-            state.submitting = true;
+            submitting = true;
             return async ({ update }) => {
               await update();
-              state.submitting = false;
+              submitting = false;
             };
           }}
         >
@@ -152,7 +128,7 @@
                 <input
                   name="signerName"
                   type="text"
-                  bind:value={state.signerName}
+                  bind:value={signerName}
                   placeholder="___________________"
                   required
                   class="inline-block w-44 border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-300 focus:border-epi-blue focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
@@ -160,9 +136,9 @@
                 agissant en qualit&eacute; de
                 <select
                   name="relationship"
-                  bind:value={state.relationship}
+                  bind:value={relationship}
                   required
-                  class="inline-block w-auto border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm font-semibold text-slate-900 focus:border-epi-blue focus:ring-0 dark:text-white [&>option]:bg-white [&>option]:text-slate-900 dark:[&>option]:bg-slate-800 dark:[&>option]:text-white"
+                  class="inline-block w-auto rounded-md border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 focus:border-epi-blue focus:ring-0 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                 >
                   <option value="" disabled class="text-slate-400"
                     >(choisir)</option
@@ -183,7 +159,7 @@
                 <input
                   name="city"
                   type="text"
-                  bind:value={state.city}
+                  bind:value={city}
                   placeholder="__________________"
                   required
                   class="inline-block w-40 border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
@@ -206,7 +182,7 @@
               <input
                 type="checkbox"
                 name="accepted"
-                bind:checked={state.accepted}
+                bind:checked={accepted}
                 class="h-5 w-5 shrink-0 rounded border-slate-300 text-epi-teal accent-epi-teal focus:ring-epi-teal"
               />
               <span class="text-sm text-slate-700 dark:text-slate-300">
@@ -217,10 +193,10 @@
 
             <Button
               type="submit"
-              disabled={!canSign(child.id)}
+              disabled={!canSign}
               class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110 disabled:opacity-50"
             >
-              {#if state.submitting}
+              {#if submitting}
                 Signature en cours...
               {:else}
                 Signer pour {child.prenom}
