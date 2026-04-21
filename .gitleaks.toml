@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist for local-development dummy secrets"
+paths = [
+  '''garage/garage\.toml''',
+]

@@ -119,6 +119,7 @@ model StaffProfile {
   campus        Campus?         @relation(fields: [campusId], references: [id])
   eventMantas   EventManta[]
   notesAuthored Participation[] @relation("NoteAuthor")
+  adminFiles    AdminFile[]
 
   @@index([campusId])
 }
@@ -498,3 +499,16 @@ model PlanningTemplateSlotItem {
   @@index([activityTemplateId])
 }
 
+model AdminFile {
+  id            String   @id @default(cuid())
+  name          String
+  s3Key         String   @unique
+  contentType   String
+  size          Int
+  uploadedById  String
+  createdAt     DateTime @default(now())
+
+  uploadedBy StaffProfile @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([uploadedById])
+}
