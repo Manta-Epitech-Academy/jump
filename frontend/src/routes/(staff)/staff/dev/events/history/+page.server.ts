@@ -2,9 +2,10 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { EventService } from '$lib/server/services/events';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals }) => {
+  requireFlag(locals, 'coding_club');
   try {
     const db = scopedPrisma(getCampusId(locals));
     const events = await db.event.findMany({
@@ -59,6 +60,7 @@ export const actions: Actions = {
 
   duplicateEvent: async ({ request, locals }) => {
     requireStaffGroup(locals, 'devLead');
+    requireFlag(locals, 'coding_club');
     const data = await request.formData();
     const originalId = data.get('originalId') as string;
     const titre = data.get('titre') as string;

@@ -26,6 +26,7 @@
   import SuiviAdmTable from './components/SuiviAdmTable.svelte';
   import CalendarPlanner from '$lib/components/events/planning/CalendarPlanner.svelte';
   import { EVENT_TYPES } from '$lib/domain/event';
+  import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
 
@@ -34,9 +35,14 @@
     participations = data.participations;
   });
 
+  let featureFlags = $derived(
+    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
+  );
+
   let isStageDeSeconde = $derived(
-    data.event.eventType === EVENT_TYPES.STAGE_SECONDE ||
-      data.event.titre.toLowerCase().includes('stage'),
+    (data.event.eventType === EVENT_TYPES.STAGE_SECONDE ||
+      data.event.titre.toLowerCase().includes('stage')) &&
+      featureFlags.has('stage_seconde'),
   );
 
   const { enhance: addEnhance, delayed: addDelayed } = superForm(

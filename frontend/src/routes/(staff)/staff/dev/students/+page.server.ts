@@ -5,11 +5,12 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 
 const PER_PAGE = 50;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
+  requireFlag(locals, 'coding_club');
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
   const search = url.searchParams.get('q') || '';
   const niveau = url.searchParams.get('niveau') || '';

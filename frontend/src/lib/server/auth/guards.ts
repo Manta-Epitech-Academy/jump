@@ -3,6 +3,17 @@ import { resolve as resolvePath } from '$app/paths';
 import type { StaffRole } from '@prisma/client';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { rolesIn, type StaffGroup } from '$lib/domain/permissions';
+import type { FlagKey } from '$lib/domain/featureFlags';
+
+export function hasFlag(locals: App.Locals, key: FlagKey): boolean {
+  return locals.featureFlags.has(key);
+}
+
+export function requireFlag(locals: App.Locals, key: FlagKey): void {
+  if (!hasFlag(locals, key)) {
+    throw error(404, 'Fonctionnalité non disponible sur ce campus.');
+  }
+}
 
 type StaffRoleGate = {
   pattern: RegExp;

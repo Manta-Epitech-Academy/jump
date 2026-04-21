@@ -7,9 +7,10 @@ import {
   importCampaignData,
   type ImportAction,
 } from '$lib/server/services/campaignService';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals }) => {
+  requireFlag(locals, 'coding_club');
   const db = scopedPrisma(getCampusId(locals));
 
   const staff = await db.staffProfile.findMany({
@@ -44,6 +45,7 @@ export const actions: Actions = {
 
   confirmCampaignImport: async ({ request, locals }) => {
     requireStaffGroup(locals, 'devLead');
+    requireFlag(locals, 'coding_club');
     const formData = await request.formData();
     const rawData = formData.get('importData') as string;
     const eventName = formData.get('eventName') as string;

@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
+import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 
 export const handle: Handle = async ({ event, resolve }) => {
   // 1. Get session from BetterAuth
@@ -13,6 +14,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.session = sessionData?.session ?? null;
   event.locals.staffProfile = null;
   event.locals.talent = null;
+  event.locals.featureFlags = new Set();
 
   // 2. Load domain profiles — check both since the cached role may be stale
   if (event.locals.user) {
@@ -20,6 +22,15 @@ export const handle: Handle = async ({ event, resolve }) => {
       where: { userId: event.locals.user.id },
       include: { campus: true },
     });
+
+    const campusId = event.locals.staffProfile?.campusId;
+    if (campusId) {
+      const overrides = await prisma.campusFeatureFlag.findMany({
+        where: { campusId },
+        select: { flagKey: true, enabled: true },
+      });
+      event.locals.featureFlags = resolveEffectiveFlags(overrides);
+    }
 
     event.locals.talent = await prisma.talent.findUnique({
       where: { userId: event.locals.user.id },

@@ -4,6 +4,7 @@
   import * as Tabs from '$lib/components/ui/tabs';
   import { Button } from '$lib/components/ui/button';
   import { EVENT_TYPES } from '$lib/domain/event';
+  import type { FlagKey } from '$lib/domain/featureFlags';
   import {
     CalendarDays,
     MonitorPlay,
@@ -27,6 +28,10 @@
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';
 
   let { data } = $props();
+
+  let featureFlags = $derived(
+    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
+  );
 
   function formatDate(date: Date): string {
     return date.toLocaleDateString('fr-FR', {
@@ -525,7 +530,7 @@
                       <h3 class="text-sm font-bold tracking-tight uppercase">
                         {event.titre}
                       </h3>
-                      {#if event.eventType === EVENT_TYPES.STAGE_SECONDE}
+                      {#if event.eventType === EVENT_TYPES.STAGE_SECONDE && featureFlags.has('stage_seconde')}
                         <span
                           class="rounded-sm border border-purple-200 bg-purple-100 px-1.5 py-0.5 text-[9px] font-bold text-purple-700 dark:border-purple-900/50 dark:bg-purple-900/20 dark:text-purple-300"
                           >STAGE</span

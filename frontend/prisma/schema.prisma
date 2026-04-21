@@ -192,6 +192,7 @@ model Campus {
   activityTemplates ActivityTemplate[]
   interviews        Interview[]
   invitations       StaffInvitation[]
+  featureFlags      CampusFeatureFlag[]
 }
 
 model Theme {
@@ -544,4 +545,17 @@ model PlanningTemplateSlotItem {
 
   @@index([planningTemplateSlotId])
   @@index([activityTemplateId])
+}
+
+model CampusFeatureFlag {
+  campusId  String
+  flagKey   String
+  enabled   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  @@id([campusId, flagKey])
+  @@index([flagKey])
 }

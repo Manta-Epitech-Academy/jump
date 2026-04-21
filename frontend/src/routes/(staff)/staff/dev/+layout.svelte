@@ -25,9 +25,14 @@
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
   import Gated from '$lib/components/auth/Gated.svelte';
+  import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
+  let featureFlags = $derived(
+    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
+  );
+  let hasCodingClub = $derived(featureFlags.has('coding_club'));
 
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
@@ -88,37 +93,41 @@
 </script>
 
 {#snippet navMenu()}
-  <div class="sidebar-section-title">
-    Overview<span class="text-epi-orange">_</span>
-  </div>
-  <nav class="space-y-1">
-    <a
-      href={resolve('/staff/dev')}
-      class={navLinkClass(isActive('/staff/dev'))}
-    >
-      <LayoutDashboard class="h-5 w-5" />
-      <span>Dashboard</span>
-    </a>
-    <a
-      href={resolve('/staff/dev/events/history')}
-      class={navLinkClass(isActive('/staff/dev/events/history'))}
-    >
-      <History class="h-5 w-5" />
-      <span>Événements passés</span>
-    </a>
-  </nav>
+  {#if hasCodingClub}
+    <div class="sidebar-section-title">
+      Overview<span class="text-epi-orange">_</span>
+    </div>
+    <nav class="space-y-1">
+      <a
+        href={resolve('/staff/dev')}
+        class={navLinkClass(isActive('/staff/dev'))}
+      >
+        <LayoutDashboard class="h-5 w-5" />
+        <span>Dashboard</span>
+      </a>
+      <a
+        href={resolve('/staff/dev/events/history')}
+        class={navLinkClass(isActive('/staff/dev/events/history'))}
+      >
+        <History class="h-5 w-5" />
+        <span>Événements passés</span>
+      </a>
+    </nav>
+  {/if}
 
   <div class="sidebar-section-title">
     Suivi<span class="text-epi-teal">_</span>
   </div>
   <nav class="space-y-1">
-    <a
-      href={resolve('/staff/dev/students')}
-      class={navLinkClass(isActive('/staff/dev/students'))}
-    >
-      <Users class="h-5 w-5" />
-      <span>Talents</span>
-    </a>
+    {#if hasCodingClub}
+      <a
+        href={resolve('/staff/dev/students')}
+        class={navLinkClass(isActive('/staff/dev/students'))}
+      >
+        <Users class="h-5 w-5" />
+        <span>Talents</span>
+      </a>
+    {/if}
     {#if data.activeStage}
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
@@ -129,21 +138,32 @@
         <MessageSquare class="h-5 w-5" />
         <span>Entretiens</span>
       </a>
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/manage`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/manage`),
+        )}
+      >
+        <LayoutDashboard class="h-5 w-5" />
+        <span>Stage en cours</span>
+      </a>
     {/if}
   </nav>
 
-  <div class="sidebar-section-title">
-    Ressources<span class="text-epi-pink">_</span>
-  </div>
-  <nav class="space-y-1">
-    <a
-      href={resolve('/staff/dev/catalogue')}
-      class={navLinkClass(isActive('/staff/dev/catalogue'))}
-    >
-      <BookOpen class="h-5 w-5" />
-      <span>Catalogue Epitech</span>
-    </a>
-  </nav>
+  {#if hasCodingClub}
+    <div class="sidebar-section-title">
+      Ressources<span class="text-epi-pink">_</span>
+    </div>
+    <nav class="space-y-1">
+      <a
+        href={resolve('/staff/dev/catalogue')}
+        class={navLinkClass(isActive('/staff/dev/catalogue'))}
+      >
+        <BookOpen class="h-5 w-5" />
+        <span>Catalogue Epitech</span>
+      </a>
+    </nav>
+  {/if}
 
   <Gated group="devLead" mode="hide">
     <div class="sidebar-section-title">
@@ -199,31 +219,35 @@
         </a>
       </div>
 
-      <button
-        class="hidden h-9 w-64 items-center justify-between rounded-sm border border-header-foreground/20 bg-header-foreground/10 px-3 text-sm text-header-foreground/70 transition-colors hover:bg-header-foreground/20 md:flex"
-        onclick={() => (commandOpen = true)}
-      >
-        <span class="flex items-center gap-2">
-          <Search class="h-4 w-4" />
-          <span class="text-xs font-medium">Rechercher un talent...</span>
-        </span>
-        <kbd
-          class="pointer-events-none flex h-5 items-center gap-1 rounded border border-header-foreground/20 bg-header-foreground/10 px-1.5 font-mono text-[10px] font-medium opacity-100 select-none"
+      {#if hasCodingClub}
+        <button
+          class="hidden h-9 w-64 items-center justify-between rounded-sm border border-header-foreground/20 bg-header-foreground/10 px-3 text-sm text-header-foreground/70 transition-colors hover:bg-header-foreground/20 md:flex"
+          onclick={() => (commandOpen = true)}
         >
-          <span class="text-xs">⌘</span>K
-        </kbd>
-      </button>
+          <span class="flex items-center gap-2">
+            <Search class="h-4 w-4" />
+            <span class="text-xs font-medium">Rechercher un talent...</span>
+          </span>
+          <kbd
+            class="pointer-events-none flex h-5 items-center gap-1 rounded border border-header-foreground/20 bg-header-foreground/10 px-1.5 font-mono text-[10px] font-medium opacity-100 select-none"
+          >
+            <span class="text-xs">⌘</span>K
+          </kbd>
+        </button>
+      {/if}
     </div>
 
     <div class="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="icon"
-        class="text-inherit hover:bg-white/20 hover:text-inherit md:hidden"
-        onclick={() => (commandOpen = true)}
-      >
-        <Search class="h-5 w-5" />
-      </Button>
+      {#if hasCodingClub}
+        <Button
+          variant="ghost"
+          size="icon"
+          class="text-inherit hover:bg-white/20 hover:text-inherit md:hidden"
+          onclick={() => (commandOpen = true)}
+        >
+          <Search class="h-5 w-5" />
+        </Button>
+      {/if}
       <ModeToggle />
 
       <div class="ml-2 flex items-center gap-4">
@@ -312,18 +336,18 @@
       <div class="flex-1 overflow-y-auto p-4">
         {@render navMenu()}
       </div>
-      <Gated group="devLead" mode="hide">
-        <div class="border-t border-border p-4">
-          <Button
-            variant="outline"
-            class="w-full justify-start border-dashed"
-            href={resolve('/staff/dev/events/import')}
-          >
-            <Plus class="mr-2 h-4 w-4" />
-            Importer un événement
-          </Button>
-        </div>
-      </Gated>
+      {#if hasCodingClub}<Gated group="devLead" mode="hide">
+          <div class="border-t border-border p-4">
+            <Button
+              variant="outline"
+              class="w-full justify-start border-dashed"
+              href={resolve('/staff/dev/events/import')}
+            >
+              <Plus class="mr-2 h-4 w-4" />
+              Importer un événement
+            </Button>
+          </div>
+        </Gated>{/if}
     </aside>
 
     {#if mobileMenuOpen}
@@ -342,17 +366,19 @@
         <div class="flex-1 overflow-y-auto p-4">
           {@render navMenu()}
         </div>
-        <Gated group="devLead" mode="hide">
-          <div class="border-t border-border p-4">
-            <Button
-              variant="outline"
-              class="w-full justify-center border-dashed"
-              href={resolve('/staff/dev/events/import')}
-            >
-              <Plus class="mr-2 h-4 w-4" /> Importer un événement
-            </Button>
-          </div>
-        </Gated>
+        {#if hasCodingClub}
+          <Gated group="devLead" mode="hide">
+            <div class="border-t border-border p-4">
+              <Button
+                variant="outline"
+                class="w-full justify-center border-dashed"
+                href={resolve('/staff/dev/events/import')}
+              >
+                <Plus class="mr-2 h-4 w-4" /> Importer un événement
+              </Button>
+            </div>
+          </Gated>
+        {/if}
       </aside>
     {/if}
 
@@ -362,4 +388,6 @@
   </div>
 </div>
 
-<GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
+{#if hasCodingClub}
+  <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
+{/if}

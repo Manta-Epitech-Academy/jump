@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { resolve as resolvePath } from '$app/paths';
 import { now, CalendarDateTime } from '@internationalized/date';
 import { EventService } from '$lib/server/services/events';
 import { prisma } from '$lib/server/db';
@@ -8,15 +9,50 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import {
+  hasFlag,
+  requireFlag,
+  requireStaffGroup,
+} from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
   if (!locals.user) {
     throw error(401, 'Authentification requise');
   }
 
+  const { activeStage } = await parent();
+
+  if (!hasFlag(locals, 'coding_club')) {
+    if (activeStage) {
+      throw redirect(
+        303,
+        resolvePath(`/staff/dev/events/${activeStage.id}/manage`),
+      );
+    }
+    return {
+      userName: locals.user.name || 'Utilisateur',
+      campusName: locals.staffProfile?.campus?.name || 'votre campus',
+      timezone: getCampusTimezone(locals),
+      ongoingEvents: [],
+      upcomingEvents: [],
+      topTalents: [],
+      kpis: {
+        totalTalents: 0,
+        completedInterviews: null,
+        plannedInterviews: null,
+      },
+      stageObjectives: null,
+      tasks: {
+        eventsMissingMantas: [],
+        eventsMissingPlanning: [],
+        interviewsToday: 0,
+        overdueInterviews: 0,
+      },
+      minimalist: true,
+    };
+  }
+
   try {
-    const { activeStage } = await parent();
     const db = scopedPrisma(getCampusId(locals));
     const tz = getCampusTimezone(locals);
     const tzNow = now(tz);
@@ -196,6 +232,7 @@ export const actions: Actions = {
 
   duplicateEvent: async ({ request, locals }) => {
     requireStaffGroup(locals, 'devLead');
+    requireFlag(locals, 'coding_club');
     const data = await request.formData();
     const originalId = data.get('originalId') as string;
     const titre = data.get('titre') as string;

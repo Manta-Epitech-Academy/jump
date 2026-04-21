@@ -17,9 +17,14 @@
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { fly, fade } from 'svelte/transition';
   import { resolve } from '$app/paths';
+  import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
+  let featureFlags = $derived(
+    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
+  );
+  let hasCodingClub = $derived(featureFlags.has('coding_club'));
 
   let mobileMenuOpen = $state(false);
   let commandOpen = $state(false);
@@ -74,18 +79,20 @@
       </a>
     </nav>
 
-    <div class="sidebar-section-title">
-      Ressources<span class="text-foreground">_</span>
-    </div>
-    <nav class="space-y-1">
-      <a
-        href={resolve('/staff/pedago/catalogue')}
-        class={navLinkClass(isActive('/staff/pedago/catalogue'))}
-      >
-        <BookOpenText class="h-5 w-5" />
-        <span>Sujets & Corrections</span>
-      </a>
-    </nav>
+    {#if hasCodingClub}
+      <div class="sidebar-section-title">
+        Ressources<span class="text-foreground">_</span>
+      </div>
+      <nav class="space-y-1">
+        <a
+          href={resolve('/staff/pedago/catalogue')}
+          class={navLinkClass(isActive('/staff/pedago/catalogue'))}
+        >
+          <BookOpenText class="h-5 w-5" />
+          <span>Sujets & Corrections</span>
+        </a>
+      </nav>
+    {/if}
   {:else}
     <div class="sidebar-section-title">
       Opérations<span class="text-foreground">_</span>
@@ -112,18 +119,20 @@
       </div>
     </nav>
 
-    <div class="sidebar-section-title">
-      Ressources<span class="text-foreground">_</span>
-    </div>
-    <nav class="space-y-1">
-      <a
-        href={resolve('/staff/pedago/catalogue')}
-        class={navLinkClass(isActive('/staff/pedago/catalogue'))}
-      >
-        <BookOpenText class="h-5 w-5" />
-        <span>Sujets & Corrections</span>
-      </a>
-    </nav>
+    {#if hasCodingClub}
+      <div class="sidebar-section-title">
+        Ressources<span class="text-foreground">_</span>
+      </div>
+      <nav class="space-y-1">
+        <a
+          href={resolve('/staff/pedago/catalogue')}
+          class={navLinkClass(isActive('/staff/pedago/catalogue'))}
+        >
+          <BookOpenText class="h-5 w-5" />
+          <span>Sujets & Corrections</span>
+        </a>
+      </nav>
+    {/if}
   {/if}
 {/snippet}
 
@@ -263,4 +272,6 @@
   </div>
 </div>
 
-<GlobalCommand bind:open={commandOpen} basePath="/staff/pedago" />
+{#if hasCodingClub}
+  <GlobalCommand bind:open={commandOpen} basePath="/staff/pedago" />
+{/if}
