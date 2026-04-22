@@ -132,8 +132,12 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'desc' } },
   });
 
+  const parentName = locals.user.name ?? '';
+  const parentLastName = parentName.split(' ').slice(1).join(' ') || parentName;
+
   return {
-    parentName: locals.user.name,
+    parentName,
+    parentLastName,
     hasMultipleChildren: siblingCount > 1,
     todayPlanning: todayParticipation
       ? {
@@ -183,6 +187,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       eventName: p.event.titre,
       eventDate: p.event.date,
       isPresent: p.isPresent,
+      delay: p.delay ?? 0,
       activities: p.activities
         .filter((a) => a.activity.activityType !== 'orga')
         .map((a) => ({
