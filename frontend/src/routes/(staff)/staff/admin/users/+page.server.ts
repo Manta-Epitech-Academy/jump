@@ -126,12 +126,17 @@ export const actions: Actions = {
     }
   },
 
-  updateRole: async ({ request }) => {
+  updateRole: async ({ request, locals }) => {
     const data = await request.formData();
     const userId = data.get('userId') as string;
     const staffRole = data.get('staffRole') as string;
 
     if (!userId) return fail(400);
+    if (userId === locals.user?.id) {
+      return fail(400, {
+        message: 'Impossible de modifier votre propre rôle.',
+      });
+    }
 
     const validRole: StaffRole | null = staffRole
       ? staffRoles.includes(staffRole as StaffRole)
@@ -154,9 +159,14 @@ export const actions: Actions = {
     }
   },
 
-  deleteUser: async ({ url }) => {
+  deleteUser: async ({ url, locals }) => {
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
+    if (id === locals.user?.id) {
+      return fail(400, {
+        message: 'Impossible de supprimer votre propre compte.',
+      });
+    }
 
     try {
       await prisma.bauth_user.delete({ where: { id } });
