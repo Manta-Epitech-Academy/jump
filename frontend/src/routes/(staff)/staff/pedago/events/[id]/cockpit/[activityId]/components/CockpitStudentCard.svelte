@@ -1,10 +1,9 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import * as Avatar from '$lib/components/ui/avatar';
-  import { Button } from '$lib/components/ui/button';
+  import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import * as Popover from '$lib/components/ui/popover';
-  import * as Tooltip from '$lib/components/ui/tooltip';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import {
     UserCheck,
     Clock,
@@ -13,13 +12,17 @@
     LockOpen,
     MessageSquareQuote,
     Award,
-    Sprout,
     Check,
     CircleCheck,
     MessageCircleReply,
     LoaderCircle,
+    BrainCircuit,
+    Gauge,
+    Zap,
+    Ellipsis,
   } from '@lucide/svelte';
   import { cn } from '$lib/utils';
+  import { tick } from 'svelte';
   import { toast } from 'svelte-sonner';
   import NoteInput from '$lib/components/NoteInput.svelte';
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
@@ -44,11 +47,11 @@
     index?: number;
   } = $props();
 
-  let isNewStudent = $derived.by(() => {
-    const count = participation.talent?.eventsCount || 0;
-    const isPresent = participation.isPresent ? 1 : 0;
-    return count - isPresent === 0;
-  });
+  let isNewStudent = $derived(
+    (participation.talent?.eventsCount || 0) -
+      (participation.isPresent ? 1 : 0) ===
+      0,
+  );
 
   function handleDownloadClick() {
     if (!participation.isPresent) {
@@ -63,13 +66,22 @@
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   }
 
-  let delayOpen = $state(false);
   const delays = [5, 10, 15, 30, 45, 60];
+
+  let menuOpen = $state(false);
+  let delayForm = $state<HTMLFormElement | undefined>();
+  let pendingDelay = $state('');
+
+  async function pickDelay(m: number) {
+    pendingDelay = m.toString();
+    menuOpen = false;
+    await tick();
+    delayForm?.requestSubmit();
+  }
 
   let needsHelpProgress = $derived(
     progress.find((p: any) => p.status === 'needs_help'),
   );
-
   let helpStep = $derived(
     needsHelpProgress
       ? needsHelpProgress.activity?.contentStructure?.steps?.find(
@@ -78,7 +90,6 @@
       : null,
   );
 
-  // --- 🦇 The Bat-Signal Timer ---
   let timerDisplay = $state('00:00');
   let isUrgent = $state(false);
   let isUnlocking = $state(false);
@@ -93,7 +104,6 @@
           .padStart(2, '0');
         const s = (diff % 60).toString().padStart(2, '0');
         timerDisplay = `${m}:${s}`;
-        // Alert escalates to urgent after 5 minutes.
         isUrgent = diff > 300;
       }, 1000);
       return () => clearInterval(interval);
@@ -103,7 +113,6 @@
     }
   });
 
-  // --- ✨ The XP Popover Animation ---
   let showXpAnimation = $state(false);
   function triggerXp() {
     showXpAnimation = true;
@@ -112,7 +121,6 @@
     }, 1500);
   }
 
-  // --- 📱 Touch Swipe-to-Action ---
   let touchStartX = 0;
   let touchStartY = 0;
   let isSwiping = $state(false);
@@ -130,22 +138,16 @@
 
   function handleTouchMove(e: TouchEvent) {
     if (!isSwiping) return;
-    const currentX = e.touches[0].clientX;
-    const currentY = e.touches[0].clientY;
-    const dx = currentX - touchStartX;
-    const dy = currentY - touchStartY;
-
-    // Detect if the user is trying to scroll vertically instead of swiping
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
     if (!isScrolling && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
       isSwiping = false;
       isScrolling = true;
       swipeOffset = 0;
       return;
     }
-
     if (isSwiping && !isScrolling) {
       swipeOffset = dx;
-      // Add rubber band resistance
       if (swipeOffset > 100) swipeOffset = 100 + (swipeOffset - 100) * 0.2;
       if (swipeOffset < -100) swipeOffset = -100 + (swipeOffset + 100) * 0.2;
     }
@@ -154,24 +156,23 @@
   function handleTouchEnd() {
     if (!isSwiping) return;
     isSwiping = false;
-
-    // Trigger action if swiped far enough
-    if (swipeOffset > 75 && !participation.isPresent) {
+    if (swipeOffset > 75 && !participation.isPresent)
       presenceForm?.requestSubmit();
-    } else if (swipeOffset < -75 && participation.isPresent) {
+    else if (swipeOffset < -75 && participation.isPresent)
       presenceForm?.requestSubmit();
-    }
     swipeOffset = 0;
   }
 </script>
 
 <div
-  class="card-entry relative touch-pan-y overflow-hidden rounded-xl"
-  style="animation-delay: {Math.min(index * 50, 500)}ms"
+  class="relative touch-pan-y overflow-hidden rounded-sm bg-muted shadow-sm"
+  style="animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: {Math.min(
+    index * 50,
+    500,
+  )}ms"
 >
-  <!-- Swipe Action Backgrounds -->
   <div
-    class="absolute inset-0 z-0 flex items-center justify-between rounded-xl bg-slate-100 px-6 text-lg font-bold dark:bg-slate-900"
+    class="absolute inset-0 z-0 flex items-center justify-between px-6 text-lg font-bold"
   >
     <div
       class="flex items-center gap-2 text-epi-blue transition-opacity duration-200"
@@ -187,32 +188,27 @@
     </div>
   </div>
 
-  <!-- The Actual Card -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class={cn(
-      'relative z-10 h-full w-full border bg-card shadow-sm dark:shadow-none',
-      focusMode ? 'p-6 text-[1.05rem]' : 'p-4',
+      'relative z-10 flex h-full w-full flex-col border-y border-r border-y-border border-r-border bg-card transition-transform',
       needsHelpProgress
         ? isUrgent
-          ? 'border-red-500 ring-2 ring-red-500/30'
-          : 'border-epi-orange ring-2 ring-epi-orange/20'
+          ? 'border-l-4 border-l-red-500'
+          : 'border-l-4 border-l-epi-orange'
         : participation.isPresent
-          ? 'border-epi-blue dark:border-epi-blue/70'
-          : 'border-border opacity-75',
-      isSwiping ? '' : 'transition-transform duration-200 ease-out',
+          ? 'border-l-4 border-l-epi-blue'
+          : 'border-l-4 border-l-transparent opacity-75',
+      !isSwiping && 'duration-200 ease-out',
     )}
     style="transform: translateX({swipeOffset}px);"
-    role="button"
-    tabindex="-1"
-    aria-label="Balayer pour basculer la présence"
     ontouchstart={handleTouchStart}
     ontouchmove={handleTouchMove}
     ontouchend={handleTouchEnd}
   >
-    <!-- XP Popover Animation -->
     {#if showXpAnimation}
       <div
-        class="animate-xp-float pointer-events-none absolute top-1/2 right-12 z-50 flex items-center justify-center font-heading text-2xl font-black text-epi-orange drop-shadow-md"
+        class="pointer-events-none absolute top-1/2 right-12 z-50 flex animate-[xp-float_1.5s_ease-out] items-center justify-center font-heading text-2xl font-black text-epi-orange drop-shadow-md"
       >
         +10 XP
       </div>
@@ -221,48 +217,32 @@
     {#if needsHelpProgress && helpStep}
       <div
         class={cn(
-          'mb-4 flex animate-in flex-col items-center justify-between gap-3 rounded-lg px-4 py-3 text-white shadow-sm fade-in slide-in-from-top-2 sm:flex-row dark:shadow-none',
-          isUrgent
-            ? 'bg-red-500 ring-4 shadow-red-500/20 ring-red-500/30'
-            : 'bg-epi-orange',
+          'flex items-center justify-between px-5 py-2 text-white',
+          isUrgent ? 'bg-red-500' : 'bg-epi-orange',
         )}
       >
         <div class="flex items-center gap-3">
           <LifeBuoy
-            class={cn('h-6 w-6', isUrgent ? 'animate-ping' : 'animate-bounce')}
+            class={cn('h-4 w-4', isUrgent ? 'animate-ping' : 'animate-bounce')}
           />
-          <div class="flex flex-col">
-            <span class="text-sm font-black tracking-wider uppercase"
-              >Bloqué !</span
-            >
-            <span class="text-xs opacity-90"
-              >Étape : <strong>{helpStep.title}</strong></span
-            >
-          </div>
-        </div>
-        <div
-          class="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end"
-        >
-          <!-- Bat-Signal Timer -->
-          <span
-            class="rounded-sm bg-black/20 px-2 py-1 font-mono text-xs font-bold tracking-widest"
+          <span class="text-xs font-bold tracking-widest uppercase"
+            >Alerte : {helpStep.title}</span
           >
-            {timerDisplay}
-          </span>
-
-          <div class="flex gap-2">
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="font-mono text-xs font-bold">{timerDisplay}</span>
+          <div class="flex gap-1">
             <form action="?/dismissAlert" method="POST" use:enhance>
               <input
                 type="hidden"
                 name="progressId"
                 value={needsHelpProgress.id}
-              />
-              <Button
+              /><Button
                 type="submit"
                 variant="ghost"
                 size="icon"
-                class="h-8 w-8 text-white hover:bg-white/20"
-                ><X class="h-4 w-4" /></Button
+                class="h-6 w-6 text-white hover:bg-white/20"
+                ><X class="h-3 w-3" /></Button
               >
             </form>
             <form
@@ -272,9 +252,7 @@
                 isUnlocking = true;
                 return async ({ result, update }) => {
                   isUnlocking = false;
-                  if (result.type === 'success') {
-                    triggerXp();
-                  }
+                  if (result.type === 'success') triggerXp();
                   await update();
                 };
               }}
@@ -283,32 +261,29 @@
                 type="hidden"
                 name="progressId"
                 value={needsHelpProgress.id}
-              />
-              <Button
+              /><Button
                 type="submit"
                 variant="secondary"
                 size="sm"
                 disabled={isUnlocking}
-                class={cn(
-                  'font-bold hover:bg-white/90',
-                  isUrgent ? 'text-red-600' : 'text-epi-orange',
-                )}
+                class="h-6 rounded-sm px-2 text-[10px] font-bold text-epi-orange hover:bg-white/90"
+                >{#if isUnlocking}<LoaderCircle
+                    class="mr-1 h-3 w-3 animate-spin"
+                  />{:else}<LockOpen class="mr-1 h-3 w-3" />{/if} Débloquer</Button
               >
-                {#if isUnlocking}
-                  <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-                {:else}
-                  <LockOpen class="mr-1.5 h-4 w-4" />
-                {/if}
-                Débloquer
-              </Button>
             </form>
           </div>
         </div>
       </div>
     {/if}
 
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex flex-1 items-center gap-4">
+    <div
+      class={cn(
+        'flex items-center justify-between gap-4',
+        focusMode ? 'p-6' : 'p-5',
+      )}
+    >
+      <div class="flex flex-1 items-center gap-5">
         <a
           href={resolve(`/staff/pedago/students/${participation.talent?.id}`)}
           class="relative block transition-transform hover:scale-105"
@@ -321,16 +296,16 @@
                 ? 'border-epi-orange'
                 : participation.isPresent
                   ? participation.delay > 0
-                    ? 'border-orange-300'
-                    : 'border-epi-blue dark:border-epi-blue/70'
+                    ? 'border-orange-400'
+                    : 'border-epi-blue'
                   : 'border-muted',
             )}
           >
-            <Avatar.Fallback class="bg-muted font-bold text-muted-foreground">
-              {(participation.talent?.nom?.[0] ?? '').toUpperCase()}{(
+            <Avatar.Fallback class="bg-muted font-bold text-muted-foreground"
+              >{(participation.talent?.nom?.[0] ?? '').toUpperCase()}{(
                 participation.talent?.prenom?.[0] ?? ''
-              ).toUpperCase()}
-            </Avatar.Fallback>
+              ).toUpperCase()}</Avatar.Fallback
+            >
           </Avatar.Root>
           {#if participation.isPresent}
             <div
@@ -339,22 +314,15 @@
                 needsHelpProgress
                   ? 'bg-epi-orange text-white'
                   : participation.delay > 0
-                    ? 'bg-orange-200 text-orange-800'
+                    ? 'bg-orange-400 text-white'
                     : 'bg-epi-blue text-white',
               )}
             >
-              {#if needsHelpProgress}
-                <LifeBuoy
-                  class={cn(
-                    'animate-spin-slow',
-                    focusMode ? 'h-4 w-4' : 'h-3 w-3',
-                  )}
-                />
-              {:else if participation.delay > 0}
-                <Clock class={focusMode ? 'h-4 w-4' : 'h-3 w-3'} />
-              {:else}
-                <CircleCheck class={focusMode ? 'h-4 w-4' : 'h-3 w-3'} />
-              {/if}
+              {#if needsHelpProgress}<LifeBuoy
+                  class="h-3 w-3 animate-[spin-slow_3s_linear_infinite]"
+                />{:else if participation.delay > 0}<Clock
+                  class="h-3 w-3"
+                />{:else}<CircleCheck class="h-3 w-3" />{/if}
             </div>
           {/if}
         </a>
@@ -365,28 +333,22 @@
               href={resolve(
                 `/staff/pedago/students/${participation.talent?.id}`,
               )}
+              class="text-base leading-none font-bold tracking-tight uppercase hover:text-epi-blue"
             >
-              <span
-                class="text-base leading-none font-bold tracking-tight uppercase transition-colors hover:text-epi-blue"
+              <span>{participation.talent?.nom}</span>
+              <span class="capitalize"
+                >{formatFirstName(participation.talent?.prenom)}</span
               >
-                <span>{participation.talent?.nom}</span>
-                <span class="capitalize"
-                  >{formatFirstName(participation.talent?.prenom)}</span
-                >
-              </span>
             </a>
-            {#if isNewStudent}
-              <Badge
-                variant="outline"
-                class="gap-1 border-green-200 bg-green-50 px-1.5 py-0 text-[9px] text-green-700 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400"
-              >
-                <Sprout class="h-2.5 w-2.5" /> Nouveau
-              </Badge>
-            {/if}
+            {#if isNewStudent}<Badge
+                variant="secondary"
+                class="px-1.5 py-0 text-[9px] tracking-widest text-muted-foreground uppercase"
+                >Nouveau</Badge
+              >{/if}
           </div>
-          <div class="mt-1 flex items-center gap-2">
+          <div class="mt-1.5 flex items-center gap-3">
             <span
-              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
               >{participation.talent?.niveau}</span
             >
             <form
@@ -395,133 +357,36 @@
               use:enhance={optimisticToggle(participation.id, 'bringPc')}
               class="inline"
             >
-              <input type="hidden" name="id" value={participation.id} />
-              <input
+              <input type="hidden" name="id" value={participation.id} /><input
                 type="hidden"
                 name="state"
                 value={participation.bringPc.toString()}
-              />
-              <BringPcBadge bringPc={participation.bringPc} />
+              /><BringPcBadge bringPc={participation.bringPc} />
             </form>
-            {#if participation.delay > 0}
-              <span
-                class="flex items-center gap-1 text-xs font-bold text-orange-500"
-                ><Clock class="h-3 w-3" />
-                +{participation.delay >= 60 ? '60' : participation.delay}m</span
-              >
-            {/if}
+            {#if participation.delay > 0}<span
+                class="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase"
+                ><Clock class="h-3 w-3" /> +{participation.delay >= 60
+                  ? '60'
+                  : participation.delay}m</span
+              >{/if}
           </div>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        {#if participation.isPresent}
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props })}
-                  <Button
-                    {...props}
-                    variant="outline"
-                    size="icon"
-                    class={cn(
-                      'border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white',
-                      focusMode ? 'h-14 w-14' : 'h-12 w-12',
-                    )}
-                    onclick={handleDownloadClick}
-                  >
-                    <Award class={focusMode ? 'h-6 w-6' : 'h-5 w-5'} />
-                  </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content>
-                <p>Télécharger le diplôme</p>
-              </Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
-        {/if}
+      <form
+        bind:this={delayForm}
+        action="?/updateDelay"
+        method="POST"
+        use:enhance
+        class="hidden"
+      >
+        <input type="hidden" name="id" value={participation.id} />
+        <input type="hidden" name="delay" value={pendingDelay} />
+      </form>
 
-        <Popover.Root bind:open={delayOpen}>
-          <Popover.Trigger>
-            {#snippet child({ props })}
-              <Button
-                {...props}
-                variant="outline"
-                size="icon"
-                class={cn(
-                  focusMode ? 'h-14 w-14' : 'h-12 w-12',
-                  participation.delay > 0
-                    ? 'border-orange-300 bg-orange-50 text-orange-600 dark:border-orange-900/50 dark:bg-orange-900/30 dark:text-orange-400'
-                    : '',
-                )}
-              >
-                <Clock class={focusMode ? 'h-6 w-6' : 'h-5 w-5'} />
-              </Button>
-            {/snippet}
-          </Popover.Trigger>
-          <Popover.Content class="w-56 p-3">
-            <p class="mb-3 text-xs font-black text-muted-foreground uppercase">
-              Signaler un retard
-            </p>
-            <div class="grid grid-cols-3 gap-2">
-              {#each delays as m}
-                <form
-                  action="?/updateDelay"
-                  method="POST"
-                  use:enhance={() => {
-                    return async ({ update }) => {
-                      delayOpen = false;
-                      await update();
-                    };
-                  }}
-                >
-                  <input type="hidden" name="id" value={participation.id} />
-                  <input type="hidden" name="delay" value={m} />
-                  <button
-                    class={cn(
-                      'h-9 w-full rounded-md border text-xs font-bold transition-transform hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700 active:scale-95',
-                      participation.delay === m
-                        ? 'border-orange-500 bg-orange-500 text-white'
-                        : '',
-                    )}
-                  >
-                    {m === 60 ? '+' : ''}{m}m
-                  </button>
-                </form>
-              {/each}
-            </div>
-            <form
-              action="?/updateDelay"
-              method="POST"
-              class="mt-2"
-              use:enhance={() => {
-                return async ({ update }) => {
-                  delayOpen = false;
-                  await update();
-                };
-              }}
-            >
-              <input type="hidden" name="id" value={participation.id} />
-              <input type="hidden" name="delay" value="0" />
-              <button
-                type="submit"
-                class={cn(
-                  'flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent text-xs font-bold transition-all hover:scale-102 active:scale-95',
-                  participation.delay === 0
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-muted text-muted-foreground hover:bg-green-50 hover:text-green-700',
-                )}
-              >
-                <Check class="h-3.5 w-3.5" />
-                Pas de retard
-              </button>
-            </form>
-          </Popover.Content>
-        </Popover.Root>
-
+      <div class="flex items-center gap-3">
         <form
           bind:this={presenceForm}
-          id="presence-form-{participation.id}"
           method="POST"
           action="?/togglePresent"
           use:enhance={optimisticToggle(participation.id, 'isPresent')}
@@ -536,119 +401,170 @@
             type="submit"
             variant={participation.isPresent ? 'default' : 'outline'}
             class={cn(
-              'gap-2 transition-all active:scale-95',
-              focusMode ? 'h-14 px-5 text-base' : 'h-12 px-4',
-              participation.isPresent
-                ? 'bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none'
-                : '',
+              'w-32 gap-2 transition-all active:scale-95',
+              focusMode ? 'h-12' : 'h-10',
+              participation.isPresent &&
+                'bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90',
             )}
           >
-            <UserCheck class={focusMode ? 'h-6 w-6' : 'h-5 w-5'} />
-            <span class="hidden font-bold sm:inline"
+            <UserCheck class={focusMode ? 'h-5 w-5' : 'h-4 w-4'} />
+            <span class="font-bold"
               >{participation.isPresent ? 'Présent' : 'Absent'}</span
             >
           </Button>
         </form>
+
+        <DropdownMenu.Root bind:open={menuOpen}>
+          <DropdownMenu.Trigger
+            class={cn(
+              buttonVariants({ variant: 'ghost', size: 'icon' }),
+              'border border-border/50 text-muted-foreground hover:bg-muted/50',
+              focusMode ? 'h-12 w-12' : 'h-10 w-10',
+            )}
+          >
+            <Ellipsis class="h-5 w-5" />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="w-48 rounded-sm">
+            {#if participation.isPresent}
+              <DropdownMenu.Item
+                onclick={handleDownloadClick}
+                class="cursor-pointer rounded-sm font-medium"
+              >
+                <Award class="mr-2 h-4 w-4 text-epi-blue" /> Générer Diplôme
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Label
+                class="text-[10px] tracking-widest text-muted-foreground uppercase"
+                >Signaler un retard</DropdownMenu.Label
+              >
+              <div class="grid grid-cols-3 gap-1 p-1">
+                {#each delays as m}
+                  <DropdownMenu.Item
+                    onclick={() => pickDelay(m)}
+                    class={cn(
+                      'flex cursor-pointer justify-center rounded-sm px-0 text-xs font-bold',
+                      participation.delay === m &&
+                        'bg-orange-500 text-white focus:bg-orange-500 focus:text-white',
+                    )}
+                  >
+                    {m}m
+                  </DropdownMenu.Item>
+                {/each}
+              </div>
+              <DropdownMenu.Item
+                onclick={() => pickDelay(0)}
+                class={cn(
+                  'flex cursor-pointer justify-center gap-2 rounded-sm text-xs font-bold',
+                  participation.delay === 0
+                    ? 'bg-green-100 text-green-700 focus:bg-green-100 focus:text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'text-green-600 focus:bg-green-50 dark:focus:bg-green-950',
+                )}
+              >
+                <Check class="h-3 w-3" /> Ponctuel
+              </DropdownMenu.Item>
+            {:else}
+              <DropdownMenu.Item disabled class="text-xs text-muted-foreground"
+                >Talent absent.</DropdownMenu.Item
+              >
+            {/if}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       </div>
     </div>
 
     {#if participation.isPresent}
-      {#if participation.camperRating}
-        <div
-          class="mt-4 flex items-start gap-2 rounded-sm bg-slate-50 p-2 dark:bg-slate-900/50"
-        >
-          <MessageCircleReply
-            class="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400"
-          />
-          <div class="flex flex-col gap-0.5">
-            <div class="flex items-center gap-1.5 text-xs font-bold">
-              <span class="text-[9px] text-slate-500 uppercase"
-                >Retour campeur :</span
-              >
-              {#if participation.camperRating === 1}
-                <span class="text-red-600 dark:text-red-400">🤯 Difficile</span>
-              {:else if participation.camperRating === 2}
-                <span class="text-blue-600 dark:text-blue-400">💪 Moyen</span>
-              {:else if participation.camperRating === 3}
-                <span class="text-epi-teal-solid">🚀 Facile</span>
-              {/if}
+      <div class="border-t border-border bg-muted/10 px-5 py-4">
+        {#if participation.camperRating}
+          <div
+            class="mb-4 flex items-start gap-3 rounded-sm border border-border/50 bg-card p-3 shadow-sm"
+          >
+            <MessageCircleReply
+              class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50"
+            />
+            <div>
+              <div class="flex items-center gap-2 text-xs font-bold">
+                <span class="text-muted-foreground">Retour Camper :</span>
+                {#if participation.camperRating === 1}<span
+                    class="flex items-center gap-1 text-red-500"
+                    ><BrainCircuit class="h-3.5 w-3.5" /> Difficile</span
+                  >
+                {:else if participation.camperRating === 2}<span
+                    class="flex items-center gap-1 text-blue-500"
+                    ><Gauge class="h-3.5 w-3.5" /> Moyen</span
+                  >
+                {:else if participation.camperRating === 3}<span
+                    class="flex items-center gap-1 text-epi-teal-solid"
+                    ><Zap class="h-3.5 w-3.5" /> Facile</span
+                  >{/if}
+              </div>
+              {#if participation.camperFeedback}<p
+                  class="mt-1 text-xs text-muted-foreground italic"
+                >
+                  "{participation.camperFeedback}"
+                </p>{/if}
             </div>
-            {#if participation.camperFeedback}
-              <p class="text-xs text-slate-600 italic dark:text-slate-400">
-                "{participation.camperFeedback}"
-              </p>
-            {/if}
           </div>
-        </div>
-      {/if}
-      <div class="mt-4 flex items-start gap-3 border-t border-border/50 pt-3">
-        <MessageSquareQuote
-          class="mt-2 h-5 w-5 shrink-0 text-muted-foreground opacity-50"
-        />
-        <div class="flex-1 space-y-2">
-          <NoteInput
-            id={participation.id}
-            value={participation.note}
-            onSave={triggerXp}
-            placeholder="Rédiger une observation pédagogique (ex: Très à l'aise sur les boucles...)"
-            class="h-9 border-transparent bg-muted/30 text-sm transition-colors hover:border-border focus:border-epi-blue"
+        {/if}
+
+        <div class="flex items-start gap-3">
+          <MessageSquareQuote
+            class="mt-2 h-5 w-5 shrink-0 text-muted-foreground/40"
           />
-          <!-- Quick Tags for Pedago notes -->
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              class="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 transition-colors hover:bg-green-100 dark:border-green-900/50 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
-              onclick={() => {
-                const form = document.querySelector(
-                  `#note-form-${participation.id}`,
-                ) as HTMLFormElement;
-                const input = form?.querySelector(
-                  'input[name="note"]',
-                ) as HTMLInputElement;
-                if (input) {
-                  input.value = input.value
-                    ? `${input.value} [🚀 Très à l'aise]`
-                    : `[🚀 Très à l'aise]`;
-                  input.dispatchEvent(new Event('input'));
-                }
-              }}>🚀 Très à l'aise</button
-            >
-            <button
-              type="button"
-              class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
-              onclick={() => {
-                const form = document.querySelector(
-                  `#note-form-${participation.id}`,
-                ) as HTMLFormElement;
-                const input = form?.querySelector(
-                  'input[name="note"]',
-                ) as HTMLInputElement;
-                if (input) {
-                  input.value = input.value
-                    ? `${input.value} [🐢 Besoin de temps]`
-                    : `[🐢 Besoin de temps]`;
-                  input.dispatchEvent(new Event('input'));
-                }
-              }}>🐢 Besoin de temps</button
-            >
-            <button
-              type="button"
-              class="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-900/50 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40"
-              onclick={() => {
-                const form = document.querySelector(
-                  `#note-form-${participation.id}`,
-                ) as HTMLFormElement;
-                const input = form?.querySelector(
-                  'input[name="note"]',
-                ) as HTMLInputElement;
-                if (input) {
-                  input.value = input.value
-                    ? `${input.value}[💻 Pb Setup]`
-                    : `[💻 Pb Setup]`;
-                  input.dispatchEvent(new Event('input'));
-                }
-              }}>💻 Pb Setup</button
-            >
+          <div class="flex-1 space-y-2">
+            <NoteInput
+              id={participation.id}
+              value={participation.note}
+              onSave={triggerXp}
+              placeholder="Observation pédagogique..."
+              class="h-10 rounded-sm border-transparent bg-card text-sm focus:border-epi-blue"
+            />
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                class="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 transition-colors hover:bg-green-100 dark:border-green-900/50 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
+                onclick={() => {
+                  const i = document.querySelector(
+                    `#note-form-${participation.id} input[name="note"]`,
+                  ) as HTMLInputElement;
+                  if (i) {
+                    i.value = i.value
+                      ? `${i.value} [✨ Très à l'aise]`
+                      : `[✨ Très à l'aise]`;
+                    i.dispatchEvent(new Event('input'));
+                  }
+                }}>✨ Très à l'aise</button
+              >
+              <button
+                type="button"
+                class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                onclick={() => {
+                  const i = document.querySelector(
+                    `#note-form-${participation.id} input[name="note"]`,
+                  ) as HTMLInputElement;
+                  if (i) {
+                    i.value = i.value
+                      ? `${i.value}[⏳ Besoin de temps]`
+                      : `[⏳ Besoin de temps]`;
+                    i.dispatchEvent(new Event('input'));
+                  }
+                }}>⏳ Besoin de temps</button
+              >
+              <button
+                type="button"
+                class="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-900/50 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40"
+                onclick={() => {
+                  const i = document.querySelector(
+                    `#note-form-${participation.id} input[name="note"]`,
+                  ) as HTMLInputElement;
+                  if (i) {
+                    i.value = i.value
+                      ? `${i.value} [🔧 Pb Setup]`
+                      : `[🔧 Pb Setup]`;
+                    i.dispatchEvent(new Event('input'));
+                  }
+                }}>🔧 Pb Setup</button
+              >
+            </div>
           </div>
         </div>
       </div>
@@ -657,7 +573,7 @@
 </div>
 
 <style>
-  @keyframes slideUpFade {
+  @keyframes -global-slideUpFade {
     from {
       opacity: 0;
       transform: translateY(15px);
@@ -667,18 +583,30 @@
       transform: translateY(0);
     }
   }
-  .card-entry {
-    animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  @keyframes -global-xp-float {
+    0% {
+      opacity: 0;
+      transform: translateY(0) scale(0.9);
+    }
+    20% {
+      opacity: 1;
+      transform: translateY(-10px) scale(1.1);
+    }
+    80% {
+      opacity: 1;
+      transform: translateY(-30px) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-40px) scale(0.9);
+    }
   }
-  @keyframes spin-slow {
+  @keyframes -global-spin-slow {
     from {
       transform: rotate(0deg);
     }
     to {
       transform: rotate(360deg);
     }
-  }
-  :global(.animate-spin-slow) {
-    animation: spin-slow 3s linear infinite;
   }
 </style>

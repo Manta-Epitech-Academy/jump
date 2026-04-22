@@ -19,15 +19,15 @@
     severity?: 'info' | 'warning' | 'danger';
   } = $props();
 
-  const toneClass = $derived(
+  const accentColor = $derived(
     severity === 'danger'
-      ? 'border-red-200 bg-red-50/50 hover:bg-red-50 dark:border-red-900/30 dark:bg-red-950/20 dark:hover:bg-red-950/40'
+      ? 'border-l-red-500'
       : severity === 'warning'
-        ? 'border-yellow-200 bg-yellow-50/50 hover:bg-yellow-50 dark:border-yellow-900/30 dark:bg-yellow-950/20 dark:hover:bg-yellow-950/40'
-        : 'border-blue-200 bg-blue-50/50 hover:bg-blue-50 dark:border-blue-900/30 dark:bg-blue-950/20 dark:hover:bg-blue-950/40',
+        ? 'border-l-yellow-500'
+        : 'border-l-epi-blue',
   );
 
-  const iconClass = $derived(
+  const iconColor = $derived(
     severity === 'danger'
       ? 'text-red-500'
       : severity === 'warning'
@@ -41,29 +41,34 @@
 <a
   {href}
   class={cn(
-    'group flex items-center gap-4 rounded-lg border p-5 shadow-sm transition-colors md:p-6 dark:shadow-none dark:ring-1 dark:ring-border/50',
-    toneClass,
+    'group flex items-center gap-4 rounded-sm border-y border-r border-l-4 border-y-border border-r-border bg-card p-5 shadow-sm transition-all hover:bg-muted/20 hover:shadow-md',
+    accentColor,
   )}
 >
-  <div class="shrink-0">
-    <Icon class={cn('h-6 w-6', iconClass)} />
+  <div class="shrink-0 rounded-full bg-muted/50 p-2.5">
+    <Icon class={cn('h-5 w-5', iconColor)} />
   </div>
   <div class="min-w-0 flex-1">
-    <div class="flex items-baseline gap-2">
-      <p class="truncate text-sm font-bold">{title}</p>
+    <div class="flex items-center gap-2">
+      <div class="truncate text-sm font-bold text-foreground">{title}</div>
       {#if count !== undefined}
-        <span class={cn('font-mono text-lg font-black', iconClass)}>
+        <span
+          class={cn(
+            'rounded-sm bg-muted px-2 py-0.5 text-xs font-black',
+            iconColor,
+          )}
+        >
           {count}
         </span>
       {/if}
     </div>
     {#if description}
-      <p class="mt-0.5 truncate text-xs text-muted-foreground">
+      <p class="mt-0.5 truncate text-xs font-medium text-muted-foreground">
         {description}
       </p>
     {/if}
   </div>
   <ArrowRight
-    class="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+    class="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100"
   />
 </a>

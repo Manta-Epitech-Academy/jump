@@ -2,6 +2,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import * as Card from '$lib/components/ui/card';
   import * as Tabs from '$lib/components/ui/tabs';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { Button } from '$lib/components/ui/button';
   import { EVENT_TYPES } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
@@ -21,9 +22,9 @@
     FileText,
     Zap,
     ArrowRight,
+    Ellipsis,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
-  import Badge from '$lib/components/ui/badge/badge.svelte';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';
 
@@ -56,7 +57,6 @@
     data.liveEvent?.planning?.timeSlots?.[0]?.activity?.id,
   );
 
-  // --- Pedago-only state (AssignMantas dialog) ---
   let assignDialogOpen = $state(false);
   let assignDialogEvent = $state<{
     id: string;
@@ -115,132 +115,133 @@
 </script>
 
 {#if data.role === 'manta'}
-  <!-- ═══════════════════════════════════════════════════ MANTA VIEW -->
   <div class="space-y-8">
     <PageHeader title="Espace Manta" subtitle="Votre tableau de bord terrain" />
 
     {#if data.liveEvent && data.isOnLiveEvent}
-      <!-- Live event assigned to this manta: big CTA -->
-      <Card.Root
-        class="overflow-hidden border-2 border-epi-blue shadow-xl dark:shadow-none"
-      >
+      <Card.Root class="overflow-hidden border-t-4 border-t-epi-blue shadow-md">
         <div
-          class="flex items-center justify-between border-b border-epi-blue/20 bg-epi-blue/10 px-6 py-4"
+          class="flex items-center justify-between border-b border-border/50 bg-muted/20 px-5 py-3"
         >
-          <div class="flex items-center gap-3">
-            <span class="relative flex h-3 w-3">
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-2 w-2">
               <span
                 class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
               ></span>
               <span
-                class="relative inline-flex h-3 w-3 rounded-full bg-epi-blue"
+                class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
               ></span>
             </span>
-            <h2
-              class="font-heading text-lg tracking-wider text-epi-blue uppercase"
+            <div
+              class="text-xs font-bold tracking-widest text-epi-blue uppercase"
             >
               Événement en cours
-            </h2>
+            </div>
           </div>
-          <Badge
-            variant="outline"
-            class="border-epi-blue bg-epi-blue/20 text-epi-blue"
-            >Aujourd'hui</Badge
+          <span
+            class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+            >Aujourd'hui</span
           >
         </div>
 
-        <Card.Content class="space-y-4 p-6">
-          <div>
-            <h3 class="text-3xl font-black tracking-tight uppercase">
+        <Card.Content
+          class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
+        >
+          <div class="space-y-1">
+            <h2 class="font-heading text-2xl text-foreground">
               {data.liveEvent.titre}
-            </h3>
+            </h2>
             <p
-              class="mt-2 flex items-center gap-2 text-sm font-medium text-muted-foreground"
+              class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
             >
               <Users class="h-4 w-4" />
               {data.liveEvent._count.participations} inscrits
-              <span class="px-2 opacity-30">|</span>
-              <span class="flex items-center gap-1 font-bold text-foreground">
+              <span class="px-1.5 opacity-30">|</span>
+              <span class="font-bold text-foreground">
                 {livePresentCount} présents ({liveProgressPercent}%)
               </span>
             </p>
           </div>
 
-          {#if data.activeAlertsCount > 0}
-            <div
-              class="flex items-center gap-2 rounded-md border border-epi-orange/30 bg-epi-orange/10 px-4 py-2 text-sm font-bold text-epi-orange"
+          <div class="flex items-center gap-4">
+            {#if data.activeAlertsCount > 0}
+              <div
+                class="inline-flex items-center gap-1.5 rounded-sm border border-epi-orange/20 bg-epi-orange/10 px-3 py-1 text-sm font-bold text-epi-orange"
+              >
+                <LifeBuoy class="h-4 w-4 animate-pulse" />
+                {data.activeAlertsCount} Alerte{data.activeAlertsCount > 1
+                  ? 's'
+                  : ''}
+              </div>
+            {/if}
+
+            <Button
+              class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
+              href={cockpitRouteId
+                ? resolve(
+                    `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
+                  )
+                : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
             >
-              <LifeBuoy class="h-4 w-4 animate-pulse" />
-              {data.activeAlertsCount} Talent{data.activeAlertsCount > 1
-                ? 's'
-                : ''} demande{data.activeAlertsCount > 1 ? 'nt' : ''} de l'aide
-            </div>
-          {/if}
-        </Card.Content>
-        <Card.Footer class="border-t bg-muted/30 p-4">
-          <Button
-            size="lg"
-            class="w-full bg-epi-blue text-base text-white shadow-lg hover:bg-epi-blue/90 dark:shadow-none"
-            href={cockpitRouteId
-              ? resolve(
-                  `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
-                )
-              : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
-          >
-            <RadioTower class="mr-2 h-5 w-5" /> Rejoindre le Cockpit
-          </Button>
-        </Card.Footer>
-      </Card.Root>
-    {:else}
-      <!-- No live event or not assigned -->
-      <Card.Root class="dark:shadow-none dark:ring-1 dark:ring-border/50">
-        <Card.Content class="flex items-center gap-4 p-6">
-          <Activity class="h-10 w-10 text-muted-foreground/40" />
-          <div>
-            <p class="font-bold">Aucun événement en cours aujourd'hui.</p>
-            <p class="text-sm text-muted-foreground">
-              C'est le moment idéal pour s'entraîner sur les sujets du
-              catalogue.
-            </p>
+              <RadioTower class="mr-2 h-4 w-4" /> Rejoindre
+            </Button>
           </div>
         </Card.Content>
       </Card.Root>
+    {:else}
+      <div
+        class="flex items-center gap-4 rounded-sm border border-dashed border-border bg-muted/20 p-6 text-muted-foreground"
+      >
+        <Activity class="h-6 w-6 opacity-50" />
+        <div>
+          <p class="font-bold text-foreground">
+            Aucun événement en cours aujourd'hui.
+          </p>
+          <p class="text-sm">
+            C'est le moment idéal pour s'entraîner sur les sujets du catalogue.
+          </p>
+        </div>
+      </div>
     {/if}
 
-    <!-- Next assigned events (Redesigned to sleek list) -->
     {#if data.nextAssignedEvents && data.nextAssignedEvents.length > 0}
       <section class="space-y-3">
-        <h2 class="font-heading text-lg tracking-wider uppercase">
-          Vos prochains événements<span class="text-epi-teal">_</span>
-        </h2>
-        <div class="grid gap-3">
+        <div
+          class="text-sm font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          Vos prochains événements
+        </div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {#each data.nextAssignedEvents as event}
             <div
-              class="group flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-blue dark:border-border/50 dark:shadow-none"
+              class="flex items-center justify-between rounded-sm border bg-card p-4 shadow-sm transition-all hover:border-epi-blue/50 hover:shadow-md"
             >
               <div class="flex items-center gap-4">
                 <div
-                  class="flex min-w-[4rem] flex-col items-center justify-center rounded-md border border-border/50 bg-muted/50 px-3 py-1.5"
+                  class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
                 >
                   <span
                     class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-                    >{new Date(event.date).toLocaleDateString('fr-FR', {
+                  >
+                    {new Date(event.date).toLocaleDateString('fr-FR', {
                       month: 'short',
-                    })}</span
+                    })}
+                  </span>
+                  <span
+                    class="mt-0.5 font-heading text-xl leading-none text-foreground"
                   >
-                  <span class="font-heading text-xl text-foreground"
-                    >{new Date(event.date).getDate()}</span
-                  >
+                    {new Date(event.date).getDate()}
+                  </span>
                 </div>
-                <div>
-                  <p class="text-sm font-bold tracking-tight uppercase">
+                <div class="min-w-0">
+                  <div
+                    class="truncate text-sm font-bold tracking-tight text-foreground uppercase"
+                  >
                     {event.titre}
-                  </p>
-                  <div class="mt-1 flex items-center gap-2">
-                    <Badge variant="secondary" class="px-1.5 py-0 text-[10px]"
-                      >{event._count.participations} inscrits</Badge
-                    >
                   </div>
+                  <p class="mt-1 text-xs font-medium text-muted-foreground">
+                    {event._count.participations} inscrits
+                  </p>
                 </div>
               </div>
             </div>
@@ -249,230 +250,203 @@
       </section>
     {/if}
 
-    <!-- Catalogue preview -->
     <section class="space-y-3">
       <div class="flex items-baseline justify-between">
-        <h2 class="font-heading text-lg tracking-wider uppercase">
-          Former sur les sujets<span class="text-epi-teal">_</span>
-        </h2>
+        <div
+          class="text-sm font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          Former sur les sujets
+        </div>
         <Button
-          variant="ghost"
+          variant="link"
           size="sm"
           href={resolve('/staff/pedago/catalogue')}
-          class="gap-1 text-xs"
+          class="text-xs"
         >
-          Ouvrir la bibliothèque <ArrowRight class="h-3 w-3" />
+          Bibliothèque <ArrowRight class="ml-1 h-3 w-3" />
         </Button>
       </div>
       {#if data.cataloguePreview && data.cataloguePreview.length > 0}
-        <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {#each data.cataloguePreview as template}
-            <Card.Root
-              class="shadow-sm transition-all hover:shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50"
+            <a
+              href={resolve(`/staff/pedago/catalogue/${template.id}`)}
+              class="block rounded-sm border bg-card p-4 shadow-sm transition-all hover:border-epi-blue/50 hover:shadow-md"
             >
-              <Card.Content class="flex items-start gap-3 p-4">
-                <div class="mt-1 shrink-0">
-                  {#if template.isDynamic}
-                    <Zap class="h-4 w-4 text-epi-orange" />
-                  {:else}
-                    <FileText class="h-4 w-4 text-muted-foreground" />
-                  {/if}
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-bold">{template.nom}</p>
+              <div class="flex min-w-0 items-start gap-3">
+                {#if template.isDynamic}
+                  <Zap class="mt-0.5 h-4 w-4 shrink-0 text-epi-orange" />
+                {:else}
+                  <FileText
+                    class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                  />
+                {/if}
+                <div class="min-w-0">
+                  <div class="truncate text-sm font-bold text-foreground">
+                    {template.nom}
+                  </div>
                   {#if template.difficulte}
-                    <Badge
-                      variant="outline"
-                      class="mt-1 border-epi-blue text-[9px] text-blue-700 uppercase dark:text-blue-300"
+                    <div
+                      class="mt-0.5 text-[10px] tracking-wider text-muted-foreground uppercase"
                     >
                       {template.difficulte}
-                    </Badge>
+                    </div>
                   {/if}
                 </div>
-              </Card.Content>
-            </Card.Root>
+              </div>
+            </a>
           {/each}
         </div>
       {:else}
         <div
-          class="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground"
+          class="rounded-sm border border-dashed border-border bg-muted/10 py-8 text-center text-sm text-muted-foreground"
         >
-          <BookOpenText class="mx-auto mb-2 h-6 w-6 opacity-50" />
+          <BookOpenText class="mx-auto mb-2 h-5 w-5 opacity-50" />
           Aucun sujet disponible pour l'instant.
         </div>
       {/if}
     </section>
   </div>
 {:else}
-  <!-- ═══════════════════════════════════════════════════ PEDAGO VIEW -->
-  <div class="space-y-6">
+  <div class="space-y-8">
     <PageHeader
       title="Dashboard Pédago"
       subtitle="Centre des opérations académiques"
     />
 
-    <!-- LIVE HEALTH DASHBOARD -->
     {#if data.liveEvent}
-      <Card.Root
-        class="mb-8 overflow-hidden border-2 border-epi-blue shadow-lg dark:shadow-none"
-      >
+      <Card.Root class="overflow-hidden border-t-4 border-t-epi-blue shadow-md">
         <div
-          class="flex items-center justify-between border-b border-epi-blue/20 bg-epi-blue/10 px-6 py-4"
+          class="flex items-center justify-between border-b border-border/50 bg-muted/20 px-5 py-3"
         >
-          <div class="flex items-center gap-3">
-            <span class="relative flex h-3 w-3">
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-2 w-2">
               <span
                 class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
               ></span>
               <span
-                class="relative inline-flex h-3 w-3 rounded-full bg-epi-blue"
+                class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
               ></span>
             </span>
-            <h2
-              class="font-heading text-lg tracking-wider text-epi-blue uppercase"
+            <div
+              class="text-xs font-bold tracking-widest text-epi-blue uppercase"
             >
               Mission Control Live
-            </h2>
+            </div>
           </div>
-          <Badge
-            variant="outline"
-            class="border-epi-blue bg-epi-blue/20 text-epi-blue"
-            >Aujourd'hui</Badge
+          <span
+            class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+            >Aujourd'hui</span
           >
         </div>
 
-        <Card.Content class="p-6">
-          <div class="grid items-center gap-8 md:grid-cols-12">
-            <div class="space-y-2 md:col-span-4">
-              <h3 class="text-2xl font-bold tracking-tight uppercase">
-                {data.liveEvent.titre}
-              </h3>
-              <div
-                class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+        <Card.Content
+          class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
+        >
+          <div class="space-y-1">
+            <h2 class="font-heading text-2xl text-foreground">
+              {data.liveEvent.titre}
+            </h2>
+            <div
+              class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+            >
+              <span class="flex items-center gap-1.5"
+                ><Users class="h-4 w-4" />
+                {data.liveEvent._count.participations} inscrits</span
               >
-                <Users class="h-4 w-4" />
-                {data.liveEvent._count.participations} inscrits
-                <span class="px-2 opacity-30">|</span>
-                <ShieldHalf class="h-4 w-4" />
-                {data.liveEvent.mantas.length} Mantas
+              <span class="opacity-30">|</span>
+              <span class="flex items-center gap-1.5"
+                ><ShieldHalf class="h-4 w-4" />
+                {data.liveEvent.mantas.length} Mantas</span
+              >
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-6">
+            <div
+              class="flex items-center gap-3 rounded-sm bg-muted/30 px-4 py-2"
+            >
+              <div class="font-heading text-2xl leading-none text-epi-blue">
+                {liveProgressPercent}%
+              </div>
+              <div
+                class="text-[10px] leading-tight font-bold tracking-widest text-muted-foreground uppercase"
+              >
+                Présents<br />Réels
               </div>
             </div>
 
-            <div class="space-y-4 md:col-span-5">
-              <div class="flex items-end justify-between">
-                <div class="space-y-1">
-                  <span
-                    class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-                    >Taux de Présence</span
+            {#if data.activeAlertsCount > 0}
+              <div
+                class="flex items-center gap-3 rounded-sm border border-epi-orange/20 bg-epi-orange/10 px-4 py-2"
+              >
+                <LifeBuoy class="h-5 w-5 animate-pulse text-epi-orange" />
+                <div>
+                  <div class="text-lg leading-none font-black text-epi-orange">
+                    {data.activeAlertsCount}
+                  </div>
+                  <div
+                    class="text-[10px] font-bold tracking-widest text-epi-orange/70 uppercase"
                   >
-                  <div class="text-3xl font-black">{liveProgressPercent}%</div>
-                </div>
-                <div class="space-y-1 text-right">
-                  <span
-                    class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-                    >Présents réels</span
-                  >
-                  <div class="text-2xl font-bold">
-                    {livePresentCount}
-                    <span class="text-sm font-normal text-muted-foreground"
-                      >/ {data.liveEvent._count.participations}</span
-                    >
+                    Alertes
                   </div>
                 </div>
               </div>
-
+            {:else}
               <div
-                class="relative h-4 w-full overflow-hidden rounded-full bg-muted shadow-inner dark:bg-muted/30"
+                class="flex items-center gap-3 rounded-sm bg-muted/30 px-4 py-2"
               >
-                <div
-                  class="relative h-full bg-epi-blue transition-all duration-1000"
-                  style="width: {liveProgressPercent}%"
-                >
+                <Activity class="h-5 w-5 text-muted-foreground" />
+                <div>
                   <div
-                    class="animate-stripes absolute inset-0 h-full w-full bg-[linear-gradient(45deg,rgba(255,255,255,.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.2)_50%,rgba(255,255,255,.2)_75%,transparent_75%,transparent)] bg-size-[1rem_1rem]"
-                  ></div>
+                    class="text-lg leading-none font-black text-muted-foreground"
+                  >
+                    0
+                  </div>
+                  <div
+                    class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                  >
+                    C.A.S. Normal
+                  </div>
                 </div>
               </div>
-            </div>
+            {/if}
 
-            <div class="flex justify-end md:col-span-3">
-              <div
-                class="w-full rounded-xl border bg-slate-900 p-4 text-center text-white shadow-inner dark:bg-slate-950"
-              >
-                <div
-                  class="text-3xl font-black {data.activeAlertsCount > 0
-                    ? 'animate-pulse text-epi-orange'
-                    : 'text-slate-400'}"
-                >
-                  {data.activeAlertsCount}
-                </div>
-                <div
-                  class="mt-1 flex items-center justify-center gap-1 text-[10px] font-bold tracking-widest uppercase"
-                >
-                  {#if data.activeAlertsCount > 0}
-                    <LifeBuoy class="h-3 w-3 text-epi-orange" /> Alertes Actives
-                  {:else}
-                    <Activity class="h-3 w-3 text-slate-400" /> C.A.S. Normal
-                  {/if}
-                </div>
-              </div>
-            </div>
+            <Button
+              class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
+              href={cockpitRouteId
+                ? resolve(
+                    `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
+                  )
+                : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
+            >
+              <RadioTower class="mr-2 h-4 w-4" /> Cockpit
+            </Button>
           </div>
         </Card.Content>
-        <Card.Footer class="flex gap-4 border-t bg-muted/30 p-4">
-          <Button
-            size="lg"
-            class="flex-1 bg-epi-blue text-base text-white shadow-lg hover:bg-epi-blue/90 dark:shadow-none"
-            href={cockpitRouteId
-              ? resolve(
-                  `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
-                )
-              : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
-          >
-            <RadioTower class="mr-2 h-5 w-5" /> Entrer dans le Cockpit
-          </Button>
-        </Card.Footer>
       </Card.Root>
     {/if}
 
-    <!-- TASK QUEUE -->
     {#if taskRows.length > 0}
       <section class="space-y-3">
-        <div class="flex items-baseline justify-between">
-          <h2 class="font-heading text-lg tracking-wider uppercase">
-            À préparer<span class="text-epi-teal">_</span>
-          </h2>
-          <span
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            {taskRows.length} élément{taskRows.length > 1 ? 's' : ''}
-          </span>
+        <div
+          class="text-sm font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          À préparer
         </div>
         <div class="grid gap-3 md:grid-cols-2">
           {#each taskRows as row (row.key)}
-            {#if row.key === 'missing-mantas'}
-              <!-- Special handling: open dialog instead of navigating when single event -->
-              {#if data.tasks.eventsMissingMantas.length === 1}
-                <button
-                  type="button"
-                  class="w-full text-left"
-                  onclick={() => {
-                    const ev = data.upcomingEvents.find(
-                      (e) => e.id === data.tasks.eventsMissingMantas[0].id,
-                    );
-                    if (ev) openAssignDialog(ev);
-                  }}
-                >
-                  <TaskQueueItem
-                    icon={row.icon}
-                    title={row.title}
-                    description={row.description}
-                    count={row.count}
-                    href="#upcoming"
-                    severity={row.severity}
-                  />
-                </button>
-              {:else}
+            {#if row.key === 'missing-mantas' && data.tasks.eventsMissingMantas.length === 1}
+              <button
+                type="button"
+                class="w-full text-left"
+                onclick={() => {
+                  const ev = data.upcomingEvents.find(
+                    (e) => e.id === data.tasks.eventsMissingMantas[0].id,
+                  );
+                  if (ev) openAssignDialog(ev);
+                }}
+              >
                 <TaskQueueItem
                   icon={row.icon}
                   title={row.title}
@@ -481,7 +455,7 @@
                   href="#upcoming"
                   severity={row.severity}
                 />
-              {/if}
+              </button>
             {:else}
               <TaskQueueItem
                 icon={row.icon}
@@ -499,104 +473,132 @@
 
     <div id="upcoming">
       <Tabs.Root value="active" class="w-full">
-        <Tabs.List class="mb-6 grid w-full max-w-md grid-cols-2">
-          <Tabs.Trigger value="active">À venir</Tabs.Trigger>
-          <Tabs.Trigger value="past">Archives & Clôture</Tabs.Trigger>
+        <Tabs.List
+          class="mb-6 w-full justify-start rounded-none border-b bg-transparent p-0"
+        >
+          <Tabs.Trigger
+            value="active"
+            class="relative h-10 rounded-none border-b-2 border-b-transparent bg-transparent px-4 pt-2 pb-3 text-xs font-bold tracking-wider text-muted-foreground uppercase data-[state=active]:border-b-epi-blue data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            À venir
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="past"
+            class="relative h-10 rounded-none border-b-2 border-b-transparent bg-transparent px-4 pt-2 pb-3 text-xs font-bold tracking-wider text-muted-foreground uppercase data-[state=active]:border-b-epi-blue data-[state=active]:text-foreground data-[state=active]:shadow-none"
+          >
+            Archives & Clôture
+          </Tabs.Trigger>
         </Tabs.List>
 
         <Tabs.Content value="active">
-          <!-- Redesigned to sleek list layout -->
-          <div class="grid gap-4 md:grid-cols-2">
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {#each data.upcomingEvents as event}
               <div
-                class="group flex flex-col justify-between rounded-lg border bg-card p-4 shadow-sm transition-all hover:border-epi-blue hover:shadow-md dark:border-border/50 dark:shadow-none"
+                class="group flex flex-col justify-between rounded-sm border bg-card p-5 shadow-sm transition-all hover:border-epi-blue/50 hover:shadow-md"
               >
-                <div class="flex items-start gap-4">
-                  <div
-                    class="flex min-w-[4rem] flex-col items-center justify-center rounded-md border border-border/50 bg-muted/50 px-3 py-2"
-                  >
-                    <span
-                      class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-                      >{new Date(event.date).toLocaleDateString('fr-FR', {
-                        month: 'short',
-                      })}</span
-                    >
-                    <span class="font-heading text-xl text-foreground"
-                      >{new Date(event.date).getDate()}</span
-                    >
-                  </div>
-                  <div class="flex-1">
-                    <div class="flex items-start justify-between">
-                      <h3 class="text-sm font-bold tracking-tight uppercase">
-                        {event.titre}
-                      </h3>
-                      {#if event.eventType === EVENT_TYPES.STAGE_SECONDE && featureFlags.has('stage_seconde')}
-                        <span
-                          class="rounded-sm border border-purple-200 bg-purple-100 px-1.5 py-0.5 text-[9px] font-bold text-purple-700 dark:border-purple-900/50 dark:bg-purple-900/20 dark:text-purple-300"
-                          >STAGE</span
-                        >
-                      {/if}
-                    </div>
+                <div class="flex items-start justify-between gap-4">
+                  <div class="flex min-w-0 items-start gap-4">
                     <div
-                      class="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground"
+                      class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
                     >
                       <span
-                        class="flex items-center gap-1.5 font-medium text-foreground"
-                        ><Users class="h-3.5 w-3.5 text-epi-blue" />
-                        {event._count.participations} inscrits</span
+                        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
                       >
-                      <span class="flex items-center gap-1.5"
-                        ><ShieldHalf class="h-3.5 w-3.5" />
-                        {event.mantas.length} Mantas</span
+                        {new Date(event.date).toLocaleDateString('fr-FR', {
+                          month: 'short',
+                        })}
+                      </span>
+                      <span
+                        class="mt-0.5 font-heading text-2xl leading-none text-foreground"
                       >
+                        {new Date(event.date).getDate()}
+                      </span>
+                    </div>
+                    <div class="min-w-0">
+                      <div
+                        class="truncate text-sm font-bold tracking-tight text-foreground uppercase"
+                      >
+                        {event.titre}
+                      </div>
+                      <div
+                        class="mt-1 flex items-center gap-2 text-xs font-medium text-muted-foreground"
+                      >
+                        <span class="flex items-center gap-1.5"
+                          ><Users class="h-3 w-3" />
+                          {event._count.participations}</span
+                        >
+                        <span>•</span>
+                        <span class="flex items-center gap-1.5"
+                          ><ShieldHalf class="h-3 w-3" />
+                          {event.mantas.length}</span
+                        >
+                      </div>
                     </div>
                   </div>
+
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger
+                      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors hover:bg-muted"
+                    >
+                      <Ellipsis class="h-4 w-4 text-muted-foreground" />
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content align="end" class="w-48 rounded-sm">
+                      <DropdownMenu.Item class="p-0">
+                        {#snippet child({ props })}
+                          <a
+                            {...props}
+                            href={resolve(
+                              `/staff/pedago/events/${event.id}/planning`,
+                            )}
+                            class="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                          >
+                            <CalendarDays class="mr-2 h-4 w-4" /> Builder Planning
+                          </a>
+                        {/snippet}
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item
+                        onclick={() => openAssignDialog(event)}
+                      >
+                        <UserPlus class="mr-2 h-4 w-4" /> Assigner Mantas
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Separator />
+                      <DropdownMenu.Item class="p-0">
+                        {#snippet child({ props })}
+                          <a
+                            {...props}
+                            href={resolve(
+                              `/staff/pedago/events/${event.id}/factions`,
+                            )}
+                            class="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                          >
+                            <ShieldHalf class="mr-2 h-4 w-4" /> Gérer les Factions
+                          </a>
+                        {/snippet}
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
                 </div>
 
-                <div class="mt-4 grid w-full grid-cols-4 gap-2 border-t pt-4">
+                <div
+                  class="mt-5 flex justify-end border-t border-border/50 pt-4"
+                >
                   <Button
-                    variant="outline"
                     size="sm"
-                    class="gap-1.5 bg-muted/20 text-xs"
-                    href={resolve(`/staff/pedago/events/${event.id}/planning`)}
-                  >
-                    <CalendarDays class="h-3.5 w-3.5" />
-                    <span class="hidden sm:inline">Planning</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="gap-1.5 bg-muted/20 text-xs"
-                    onclick={() => openAssignDialog(event)}
-                  >
-                    <UserPlus class="h-3.5 w-3.5" />
-                    <span class="hidden sm:inline">Mantas</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="gap-1.5 bg-muted/20 text-xs"
-                    href={resolve(`/staff/pedago/events/${event.id}/factions`)}
-                  >
-                    <ShieldHalf class="h-3.5 w-3.5" />
-                    <span class="hidden sm:inline">Factions</span>
-                  </Button>
-                  <Button
                     variant="default"
-                    size="sm"
-                    class="gap-1.5 bg-epi-blue text-xs text-white shadow-sm hover:bg-epi-blue/90 dark:shadow-none"
+                    class="gap-1.5 bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
                     href={resolve(`/staff/pedago/events/${event.id}/cockpit`)}
                   >
                     <MonitorPlay class="h-3.5 w-3.5" />
-                    <span class="hidden sm:inline">Cockpit</span>
+                    Cockpit
                   </Button>
                 </div>
               </div>
             {:else}
               <div
-                class="col-span-full py-12 text-center border-2 border-dashed rounded-lg bg-muted/10"
+                class="col-span-full py-12 text-center border border-dashed border-border rounded-sm bg-muted/10 text-muted-foreground"
               >
-                <p class="text-muted-foreground">
+                <CalendarDays class="mx-auto mb-3 h-6 w-6 opacity-30" />
+                <p class="text-sm font-medium">
                   Aucun événement à venir sur ce campus.
                 </p>
               </div>
@@ -605,58 +607,48 @@
         </Tabs.Content>
 
         <Tabs.Content value="past">
-          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {#each data.pastEvents as event}
-              <Card.Root
-                class="flex flex-col opacity-80 shadow-sm transition-opacity hover:opacity-100 dark:border-border/50 dark:shadow-none"
+              <div
+                class="flex flex-col justify-between rounded-sm border bg-card p-4 shadow-sm transition-all hover:border-epi-blue/30 hover:shadow-md"
               >
-                <Card.Header class="border-b pb-3">
-                  <div class="flex items-start justify-between">
-                    <Card.Title
-                      class="text-base leading-tight text-muted-foreground uppercase"
-                      >{event.titre}</Card.Title
+                <div class="min-w-0">
+                  <div
+                    class="truncate text-xs font-bold tracking-tight text-foreground uppercase"
+                  >
+                    {event.titre}
+                  </div>
+                  <div
+                    class="mt-1 flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground"
+                  >
+                    <ArchiveRestore class="h-3 w-3" />
+                    <span class="truncate capitalize"
+                      >{formatDate(event.date)}</span
                     >
                   </div>
-                  <Card.Description
-                    class="mt-2 flex items-center gap-1.5 font-medium"
-                  >
-                    <ArchiveRestore class="h-4 w-4" />
-                    <span class="capitalize">{formatDate(event.date)}</span>
-                  </Card.Description>
-                </Card.Header>
-
-                <Card.Content class="flex-1 py-4">
-                  <div
-                    class="flex items-center gap-4 text-sm text-muted-foreground"
-                  >
-                    <div class="flex items-center gap-1.5">
-                      <Users class="h-4 w-4" />
-                      <span>{event._count.participations} inscrits</span>
-                    </div>
-                  </div>
-                </Card.Content>
-
-                <Card.Footer class="border-t bg-muted/20 p-3">
+                </div>
+                <div
+                  class="mt-4 flex justify-end border-t border-border/50 pt-3"
+                >
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    class="w-full gap-1.5 bg-background text-xs hover:bg-muted"
+                    class="h-7 gap-1.5 px-2 text-[11px] text-epi-blue hover:bg-epi-blue/10 hover:text-epi-blue"
                     href={resolve(
                       `/staff/pedago/events/${event.id}/certificates`,
                     )}
                   >
-                    <Award class="h-3.5 w-3.5 text-epi-blue" />
-                    Générer les Diplômes
+                    <Award class="h-3 w-3" />
+                    Diplômes
                   </Button>
-                </Card.Footer>
-              </Card.Root>
+                </div>
+              </div>
             {:else}
               <div
-                class="col-span-full py-12 text-center border-2 border-dashed rounded-lg bg-muted/10"
+                class="col-span-full py-12 text-center border border-dashed border-border rounded-sm bg-muted/10 text-muted-foreground"
               >
-                <p class="text-muted-foreground">
-                  Aucun historique d'événement.
-                </p>
+                <ArchiveRestore class="mx-auto mb-3 h-6 w-6 opacity-30" />
+                <p class="text-sm font-medium">Aucun historique d'événement.</p>
               </div>
             {/each}
           </div>
