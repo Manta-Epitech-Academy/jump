@@ -172,7 +172,7 @@
         <Input name="link" bind:value={link} placeholder="https://..." />
       </div>
 
-      {#if mode === 'edit' && activity && !activity.isDynamic}
+      {#if mode === 'assign' || (mode === 'edit' && activity && !activity.isDynamic)}
         <div class="grid gap-2">
           <Label>Contenu (Markdown)</Label>
           <Textarea name="content" bind:value={content} rows={4} />
