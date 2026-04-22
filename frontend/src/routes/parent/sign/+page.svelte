@@ -4,10 +4,10 @@
   import { KeyRound, Camera, CheckCircle, ArrowLeft } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
-  import { marked } from 'marked';
+  import { renderMarkdown } from '$lib/markdown';
   import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
 
-  const droitImageBody = marked.parse(droitImageBodyMd) as string;
+  const droitImageBody = renderMarkdown(droitImageBodyMd);
 
   let { data, form } = $props();
 
@@ -267,7 +267,7 @@
         <div
           class="max-h-[50vh] overflow-y-auto rounded-2xl border-none bg-white/70 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
         >
-          <div class="markdown-content max-w-none text-sm">
+          <div class="prose prose-slate prose-sm dark:prose-invert max-w-none">
             <p>
               Je soussign&eacute;(e), Mme/Mr
               <input
