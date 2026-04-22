@@ -30,6 +30,9 @@ export const STAFF_GROUPS = {
   pedaLead: ['peda'],
   pedaMember: ['peda', 'manta'],
   leads: ['superdev', 'peda'],
+  // Roles a superdev may invite / assign on their campus. Excludes `admin`
+  // (admin role is provisioned manually, not self-replicating).
+  campusManageable: ['superdev', 'dev', 'peda', 'manta'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type StaffGroup = keyof typeof STAFF_GROUPS;

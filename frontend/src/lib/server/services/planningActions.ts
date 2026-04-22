@@ -11,7 +11,6 @@ import {
 } from '$lib/validation/planning';
 import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
 import { applyPlanningTemplate } from './planningTemplates';
-import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
@@ -111,7 +110,7 @@ export const planningActions = {
 
       const templateId = form.data.templateId || null;
       if (templateId) {
-        const template = await prisma.activityTemplate.findUniqueOrThrow({
+        const template = await db.activityTemplate.findUniqueOrThrow({
           where: { id: templateId },
           include: { activityTemplateThemes: true },
         });
@@ -195,13 +194,13 @@ export const planningActions = {
 
       const templateId = form.data.templateId || null;
       const template = templateId
-        ? await prisma.activityTemplate.findUnique({
+        ? await db.activityTemplate.findUnique({
             where: { id: templateId },
             include: { activityTemplateThemes: true },
           })
         : null;
 
-      const created = await prisma.$transaction(async (tx) => {
+      const created = await db.$transaction(async (tx) => {
         const slot = await tx.timeSlot.create({
           data: {
             planningId: planning.id,

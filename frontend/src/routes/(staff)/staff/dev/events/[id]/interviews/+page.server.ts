@@ -14,7 +14,8 @@ import {
   scheduleInterviewSchema,
   updateInterviewStatusSchema,
 } from '$lib/validation/interviews';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { rolesIn } from '$lib/domain/permissions';
 import { EVENT_TYPES } from '$lib/domain/event';
 import { prisma } from '$lib/server/db';
 import { generateSchedule } from '$lib/server/services/interviewScheduler';
@@ -50,6 +51,7 @@ function stageEndOrDefault(event: { date: Date; endDate: Date | null }): Date {
 }
 
 export const load: PageServerLoad = async ({ params, locals }) => {
+  requireFlag(locals, 'stage_seconde');
   const campusId = getCampusId(locals);
   const event = await loadStageOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
@@ -70,7 +72,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   });
 
   const devs = await db.staffProfile.findMany({
-    where: { staffRole: { in: ['superdev', 'dev'] } },
+    where: { staffRole: { in: [...rolesIn('devMember')] } },
     include: { user: true },
     orderBy: [{ user: { name: 'asc' } }],
   });
@@ -187,7 +189,7 @@ export const actions: Actions = {
     const devs = await db.staffProfile.findMany({
       where: {
         id: { in: form.data.devIds },
-        staffRole: { in: ['superdev', 'dev'] },
+        staffRole: { in: [...rolesIn('devMember')] },
       },
       select: { id: true },
     });

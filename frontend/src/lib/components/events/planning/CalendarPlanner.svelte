@@ -343,6 +343,9 @@
   let deleteForm: HTMLFormElement;
   let deleteSlotId = $state('');
   let pendingRollback = $state<Slot[] | null>(null);
+  // Serializes optimistic mutations that share pendingRollback so a second
+  // in-flight request can't overwrite the first's snapshot.
+  let isSubmitting = $state(false);
 
   // Click-vs-drag: pointerdown on a slot starts a "maybe click, maybe move"
   // interaction. If the pointer moves past the threshold, we upgrade to a
@@ -684,8 +687,10 @@
     startTime: string,
     endTime: string,
   ) {
+    if (isSubmitting) return;
     const target = localSlots.find((s) => s.id === slotId);
     if (!target) return;
+    isSubmitting = true;
     const snap = snapshot();
     const [sH, sM] = startTime.split(':').map(Number);
     const [eH, eM] = endTime.split(':').map(Number);
@@ -710,6 +715,8 @@
   // ── Delete ──
 
   async function deleteSlot(slot: Slot) {
+    if (isSubmitting) return;
+    isSubmitting = true;
     const snap = snapshot();
     localSlots = localSlots.filter((s) => s.id !== slot.id);
     pendingRollback = snap;
@@ -721,8 +728,10 @@
   // ── Change type ──
 
   async function changeType(slot: Slot, newType: ActivityType) {
+    if (isSubmitting) return;
     if (!slot.activity) return;
     if (slot.activity.activityType === newType) return;
+    isSubmitting = true;
     const snap = snapshot();
     localSlots = localSlots.map((s) =>
       s.id === slot.id && s.activity
@@ -1472,6 +1481,7 @@
         toast.error("Erreur lors de l'enregistrement du créneau.");
       }
       pendingRollback = null;
+      isSubmitting = false;
       await update({ reset: false });
     };
   }}
@@ -1494,6 +1504,7 @@
         toast.error('Erreur lors du renommage.');
       }
       pendingRollback = null;
+      isSubmitting = false;
       await update({ reset: false });
     };
   }}
@@ -1514,6 +1525,7 @@
         toast.error('Erreur lors du changement de type.');
       }
       pendingRollback = null;
+      isSubmitting = false;
       await update({ reset: false });
     };
   }}
@@ -1534,6 +1546,7 @@
         toast.error('Erreur lors de la suppression.');
       }
       pendingRollback = null;
+      isSubmitting = false;
       await update({ reset: false });
     };
   }}

@@ -693,6 +693,50 @@ export function scopedPrisma(campusId: string) {
         },
       },
 
+      // ── ActivityTemplate (campusId nullable — null means global/official) ──
+      activityTemplate: {
+        async findMany({ args, query }) {
+          if (!args.where?.campusId) {
+            args.where = {
+              ...args.where,
+              OR: [{ campusId }, { campusId: null }],
+            };
+          }
+          return query(args);
+        },
+        async findFirst({ args, query }) {
+          if (!args.where?.campusId) {
+            args.where = {
+              ...args.where,
+              OR: [{ campusId }, { campusId: null }],
+            };
+          }
+          return query(args);
+        },
+        async findUnique({ args, query }) {
+          const existing = await prisma.activityTemplate.findUnique({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (
+            existing &&
+            existing.campusId !== null &&
+            existing.campusId !== campusId
+          )
+            accessDenied('ActivityTemplate');
+          return query(args);
+        },
+        async findUniqueOrThrow({ args, query }) {
+          const existing = await prisma.activityTemplate.findUniqueOrThrow({
+            where: args.where,
+            select: { campusId: true },
+          });
+          if (existing.campusId !== null && existing.campusId !== campusId)
+            accessDenied('ActivityTemplate');
+          return query(args);
+        },
+      },
+
       // ── Theme (campusId nullable — null means global/official) ──
       theme: {
         async findMany({ args, query }) {
