@@ -2,7 +2,7 @@
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import { BookOpen } from '@lucide/svelte';
-  import { marked } from 'marked';
+  import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
 
   let { error: formError }: { error?: string } = $props();
@@ -16,7 +16,7 @@
     /\n\*\*Fait à \{\{city\}\}.*$/m,
     '',
   );
-  const renderedContent = marked.parse(contentWithoutSignature) as string;
+  const renderedContent = renderMarkdown(contentWithoutSignature);
 </script>
 
 <!-- Header -->
@@ -59,7 +59,7 @@
   <div
     class="max-h-[50vh] overflow-y-auto rounded-2xl border-none bg-white/70 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
   >
-    <div class="markdown-content max-w-none text-sm">
+    <div class="prose prose-slate prose-sm dark:prose-invert max-w-none">
       {@html renderedContent}
 
       <p class="mt-6 text-sm">
