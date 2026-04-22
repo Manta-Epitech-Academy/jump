@@ -785,11 +785,12 @@
     const snappedY =
       Math.round(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
     const tpl = templates.find((t) => t.id === draggedTemplateId) ?? null;
+    const duration = tpl?.defaultDuration ?? 60;
     dragGhost = {
       dateKey,
       top: snappedY,
       startTime: getTimeFromPixels(snappedY),
-      endTime: getTimeFromPixels(snappedY + 60 * PIXELS_PER_MINUTE),
+      endTime: getTimeFromPixels(snappedY + duration * PIXELS_PER_MINUTE),
       template: tpl,
     };
   }
@@ -821,10 +822,11 @@
     const y = e.clientY - rect.top;
     const snappedY =
       Math.round(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
-    const startTime = getTimeFromPixels(snappedY);
-    const endTime = getTimeFromPixels(snappedY + 60 * PIXELS_PER_MINUTE);
     const tpl = templates.find((t) => t.id === templateId);
     if (!tpl) return;
+    const duration = tpl.defaultDuration ?? 60;
+    const startTime = getTimeFromPixels(snappedY);
+    const endTime = getTimeFromPixels(snappedY + duration * PIXELS_PER_MINUTE);
     await insertOptimisticStub(dateKey, startTime, endTime, tpl);
   }
 </script>
@@ -1265,7 +1267,9 @@
                     gs.border,
                     'border-y-border border-r-border',
                   )}
-                  style="top: {dragGhost.top}px; height: 120px; left: 2px; width: calc(95% - 4px);"
+                  style="top: {dragGhost.top}px; height: {(dragGhost.template
+                    .defaultDuration ?? 60) *
+                    PIXELS_PER_MINUTE}px; left: 2px; width: calc(95% - 4px);"
                 >
                   <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                     <span class={cn('text-[10px] font-bold', gs.accent)}>
