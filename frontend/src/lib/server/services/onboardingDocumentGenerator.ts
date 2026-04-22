@@ -1,5 +1,5 @@
 import ejs from 'ejs';
-import { marked } from 'marked';
+import { renderMarkdown } from '$lib/markdown';
 import { withBrowser } from '../infra/browserPool';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import onboardingTemplate from '../templates/onboarding-document.html?raw';
@@ -27,7 +27,7 @@ function buildImageRightsHtml(
     .replace('{{studentName}}', `**${studentName}**`)
     .replace('{{city}}', city)
     .replace('{{date}}', formattedDate);
-  return marked.parse(filled) as string;
+  return renderMarkdown(filled);
 }
 
 export async function generateOnboardingPDF(data: {
@@ -49,7 +49,7 @@ export async function generateOnboardingPDF(data: {
     const filled = reglementMd
       .replace('{{city}}', data.city ?? '')
       .replace('{{date}}', formattedDate);
-    documentContent = marked.parse(filled) as string;
+    documentContent = renderMarkdown(filled);
   } else if (data.type === 'image-rights') {
     documentContent = buildImageRightsHtml(
       data.signerName ?? '',
