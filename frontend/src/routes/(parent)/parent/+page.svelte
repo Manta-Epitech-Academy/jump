@@ -8,7 +8,6 @@
     FileCheck,
     FilePen,
     LogOut,
-    ShieldCheck,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
@@ -19,20 +18,17 @@
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
   <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
     <div class="flex items-center gap-4">
-      <div
-        class="flex h-16 w-16 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
-      >
-        <ShieldCheck class="h-8 w-8" />
-      </div>
       <div class="flex-1">
         <h1
           class="font-heading text-3xl tracking-tight text-slate-900 uppercase sm:text-4xl dark:text-white"
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span
-          >
+          ><span class="text-epi-teal">_</span>
         </h1>
-        <p class="text-sm font-bold text-slate-500 uppercase">
+        <p
+          class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"
+        >
           Espace de suivi parental
         </p>
       </div>

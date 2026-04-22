@@ -13,12 +13,20 @@
     LogOut,
     Clock,
     MapPin,
-    ShieldCheck,
     History,
+    Settings,
+    Sun,
+    Moon,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
+
+  function toggleTheme() {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }
 
   let { data } = $props();
 
@@ -86,20 +94,17 @@
           <ArrowLeft class="h-5 w-5 text-epi-blue" />
         </a>
       {/if}
-      <div
-        class="flex h-16 w-16 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
-      >
-        <ShieldCheck class="h-8 w-8" />
-      </div>
       <div class="flex-1">
         <h1
           class="font-heading text-3xl tracking-tight text-slate-900 uppercase sm:text-4xl dark:text-white"
         >
           Bonjour, <span class="text-epi-blue"
             >M./Mme {data.parentLastName}</span
-          >
+          ><span class="text-epi-teal">_</span>
         </h1>
-        <p class="text-sm font-bold text-slate-500 uppercase">
+        <p
+          class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"
+        >
           Suivi de votre enfant {data.child.prenom}
           {data.child.nom}
         </p>
@@ -170,7 +175,7 @@
         <div
           class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
         >
-          <p class="text-sm text-slate-600 dark:text-slate-400">
+          <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">
             Votre enfant participe aujourd'hui à
           </p>
           <div
@@ -326,7 +331,9 @@
                     <div
                       class="border-t border-slate-100 px-4 py-4 dark:border-slate-800"
                     >
-                      <p class="mb-3 text-xs text-slate-500">
+                      <p
+                        class="mb-3 text-sm font-semibold text-slate-600 dark:text-slate-300"
+                      >
                         Votre enfant participera aux activités suivantes :
                       </p>
                       <div class="space-y-4">
@@ -432,9 +439,9 @@
                   <div class="flex items-center justify-between p-4">
                     <div class="flex items-center gap-3 text-left">
                       <div
-                        class="flex h-10 w-10 items-center justify-center rounded-xl {status.color}"
+                        class="flex h-10 min-w-20 items-center justify-center rounded-xl px-3 {status.color}"
                       >
-                        <status.icon class="h-5 w-5" />
+                        <span class="text-xs font-bold">{status.text}</span>
                       </div>
                       <div>
                         <p class="font-bold text-slate-900 dark:text-white">
@@ -454,12 +461,6 @@
                     </div>
 
                     <div class="flex items-center gap-2">
-                      <Badge
-                        variant="secondary"
-                        class="text-[10px] font-bold {status.color}"
-                      >
-                        {status.text}
-                      </Badge>
                       {#if participation.activities.length > 0}
                         <Badge variant="outline" class="text-[10px] font-bold">
                           {participation.activities.length} activité{participation
@@ -516,6 +517,46 @@
           {/each}
         </div>
       {/if}
+    </div>
+
+    <!-- Settings -->
+    <div in:fly={{ y: 20, duration: 400, delay: 450 }}>
+      <h2
+        class="mb-4 flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+      >
+        <Settings class="h-5 w-5 text-epi-blue" />
+        Paramètres<span class="text-epi-teal">_</span>
+      </h2>
+
+      <div
+        class="overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+      >
+        <div class="flex items-center justify-between p-4">
+          <div class="flex items-center gap-3">
+            <Sun class="h-5 w-5 text-amber-500 dark:hidden" />
+            <Moon class="hidden h-5 w-5 text-indigo-400 dark:block" />
+            <div>
+              <p class="font-bold text-slate-900 dark:text-white">
+                Thème d'affichage
+              </p>
+              <p class="text-xs text-slate-400">
+                Basculer entre le mode clair et sombre
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            class="rounded-xl"
+            onclick={toggleTheme}
+          >
+            <Sun class="h-4 w-4 dark:hidden" />
+            <Moon class="hidden h-4 w-4 dark:block" />
+            <span class="ml-1.5 dark:hidden">Mode sombre</span>
+            <span class="ml-1.5 hidden dark:inline">Mode clair</span>
+          </Button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
