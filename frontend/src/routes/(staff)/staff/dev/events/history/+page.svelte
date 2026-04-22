@@ -62,18 +62,18 @@
               <TableCell class="font-bold">
                 <a
                   href={resolve(`/staff/dev/events/${event.id}/manage`)}
-                  class="tracking-tight text-muted-foreground uppercase transition-colors hover:text-epi-blue hover:underline"
+                  class="tracking-tight text-foreground transition-colors hover:text-epi-blue"
                 >
                   {event.titre}
                 </a>
               </TableCell>
               <TableCell>
                 <div class="flex items-center gap-2">
-                  <Calendar class="h-4 w-4 text-muted-foreground" />
-                  <span class="font-medium"
+                  <Calendar class="h-3.5 w-3.5 text-muted-foreground" />
+                  <span class="text-sm font-medium"
                     >{formatDateFr(event.date, data.timezone)}</span
                   >
-                  <span class="text-xs text-muted-foreground"
+                  <span class="text-xs font-medium text-muted-foreground"
                     >{formatTime(event.date)}</span
                   >
                 </div>
@@ -81,26 +81,28 @@
               <TableCell class="hidden md:table-cell">
                 {#if event.theme}
                   <div class="flex items-center gap-2">
-                    <Tag class="h-4 w-4 text-epi-teal-solid" />
-                    <span class="font-bold text-epi-teal-solid"
+                    <Tag class="h-3.5 w-3.5 text-epi-teal-solid" />
+                    <span
+                      class="text-xs font-bold tracking-widest text-epi-teal-solid uppercase"
                       >{event.theme}</span
                     >
                   </div>
                 {:else}
-                  <span class="text-sm text-muted-foreground italic"
+                  <span
+                    class="text-[10px] tracking-widest text-muted-foreground uppercase"
                     >Aucun thème</span
                   >
                 {/if}
               </TableCell>
               <TableCell class="hidden text-center md:table-cell">
                 {#if event.mantas && event.mantas.length > 0}
-                  <div class="flex justify-center -space-x-2">
+                  <div class="flex justify-center -space-x-1.5">
                     {#each event.mantas as manta}
                       <Tooltip.Provider delayDuration={0}>
                         <Tooltip.Root>
                           <Tooltip.Trigger>
                             <Avatar.Root
-                              class="relative h-7 w-7 border-2 border-background hover:z-10"
+                              class="relative h-6 w-6 rounded-sm border-2 border-background hover:z-10"
                             >
                               {#if manta.avatarUrl}
                                 <Avatar.Image
@@ -109,23 +111,28 @@
                                 />
                               {/if}
                               <Avatar.Fallback
-                                class="bg-muted text-[9px] font-bold text-foreground opacity-70"
+                                class="bg-muted text-[8px] font-bold text-foreground opacity-70"
                               >
                                 {manta.name.substring(0, 2).toUpperCase()}
                               </Avatar.Fallback>
                             </Avatar.Root>
                           </Tooltip.Trigger>
-                          <Tooltip.Content><p>{manta.name}</p></Tooltip.Content>
+                          <Tooltip.Content class="rounded-sm"
+                            ><p>{manta.name}</p></Tooltip.Content
+                          >
                         </Tooltip.Root>
                       </Tooltip.Provider>
                     {/each}
                   </div>
                 {:else}
-                  <span class="text-xs text-muted-foreground italic">-</span>
+                  <span class="text-xs text-muted-foreground">—</span>
                 {/if}
               </TableCell>
               <TableCell class="text-center">
-                <Badge variant="secondary" class="gap-1 font-mono opacity-70">
+                <Badge
+                  variant="secondary"
+                  class="gap-1 rounded-sm font-mono text-[10px]"
+                >
                   <Users class="h-3 w-3" />
                   {event.presentCount}
                 </Badge>
@@ -143,13 +150,15 @@
                             href={resolve(
                               `/staff/dev/events/${event.id}/manage`,
                             )}
-                            class="h-9 w-9 border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
+                            class="h-8 w-8 rounded-sm border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
                           >
-                            <FileCheck class="h-5 w-5" />
+                            <FileCheck class="h-4 w-4" />
                           </Button>
                         {/snippet}
                       </Tooltip.Trigger>
-                      <Tooltip.Content><p>Voir les Talents</p></Tooltip.Content>
+                      <Tooltip.Content class="rounded-sm"
+                        ><p>Voir le Dashboard</p></Tooltip.Content
+                      >
                     </Tooltip.Root>
                   </Tooltip.Provider>
                   <EventDropdownMenu
@@ -166,15 +175,15 @@
     </div>
   {:else}
     <div
-      class="flex flex-col items-center justify-center rounded-sm border bg-card p-20 text-center shadow-sm dark:shadow-none"
+      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-20 text-center text-muted-foreground"
     >
-      <Archive class="mx-auto h-12 w-12 text-muted" />
-      <h3 class="mt-4 font-heading text-xl tracking-tight uppercase">
+      <Archive class="mx-auto h-12 w-12 opacity-30" />
+      <h3
+        class="mt-4 font-sans text-lg font-bold tracking-wide text-foreground uppercase"
+      >
         Historique vide
       </h3>
-      <p
-        class="mt-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-      >
+      <p class="mt-1 text-xs font-medium">
         Aucun événement passé n'a été trouvé.
       </p>
     </div>

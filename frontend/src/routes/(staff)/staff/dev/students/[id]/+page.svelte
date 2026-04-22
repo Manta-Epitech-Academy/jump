@@ -52,8 +52,8 @@
   }
 </script>
 
-<div class="space-y-6 pb-10">
-  <div class="flex items-center gap-4">
+<div class="space-y-6 pb-12">
+  <div class="flex items-center gap-4 border-b pb-4">
     <Button variant="ghost" size="icon" href={resolve('/staff/dev/students')}>
       <ArrowLeft class="h-4 w-4" />
     </Button>
@@ -73,35 +73,40 @@
     </div>
 
     <div class="space-y-6 md:col-span-8 lg:col-span-9">
-      <Card.Root>
-        <Card.Header class="flex flex-row items-center justify-between">
-          <Card.Title class="flex items-center gap-2 text-lg uppercase"
-            ><MessageSquare class="h-5 w-5 text-epi-blue" /> Entretiens</Card.Title
+      <Card.Root class="rounded-sm border shadow-sm">
+        <Card.Header
+          class="flex flex-row items-center justify-between border-b bg-muted/30 pt-4 pb-4"
+        >
+          <Card.Title
+            class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+            ><MessageSquare class="h-4 w-4 text-epi-blue" /> Entretiens</Card.Title
           >
           {#if data.activeStageParticipation}
             <ScheduleInterviewPopover
               action="?/scheduleInterview"
               participationId={data.activeStageParticipation.id}
               timezone={data.timezone}
-              label="Planifier un entretien"
+              label="Planifier"
             />
           {/if}
         </Card.Header>
-        <Card.Content>
+        <Card.Content class="pt-5">
           <div class="space-y-3">
             {#each data.student.interviews as interview}
               <div
-                class="flex items-center justify-between rounded-md border p-3 {interview.status ===
+                class="flex items-center justify-between rounded-sm border p-4 shadow-sm {interview.status ===
                 'completed'
-                  ? 'bg-green-50/30'
-                  : 'bg-muted/10'}"
+                  ? 'border-green-100/50 bg-green-50/30 dark:border-green-900/30 dark:bg-green-950/10'
+                  : 'bg-card'}"
               >
                 <div class="flex flex-col">
-                  <div class="flex items-center gap-2 font-bold">
+                  <div
+                    class="flex items-center gap-2 text-sm font-bold text-foreground"
+                  >
                     {new Date(interview.date).toLocaleDateString('fr-FR', {
-                      weekday: 'long',
+                      weekday: 'short',
                       day: 'numeric',
-                      month: 'long',
+                      month: 'short',
                     })} à {new Date(interview.date).toLocaleTimeString(
                       'fr-FR',
                       {
@@ -112,47 +117,56 @@
                     {#if interview.status === 'completed'}
                       <Badge
                         variant="outline"
-                        class="border-green-200 bg-green-100 text-green-700"
+                        class="rounded-sm border-green-200 bg-green-50 text-[9px] tracking-widest text-green-700 uppercase"
                         >Terminé</Badge
                       >
                     {:else if interview.status === 'planned'}
                       <Badge
                         variant="outline"
-                        class="border-blue-200 bg-blue-100 text-blue-700"
+                        class="rounded-sm border-blue-200 bg-blue-50 text-[9px] tracking-widest text-blue-700 uppercase"
                         >Planifié</Badge
                       >
                     {:else}
-                      <Badge variant="secondary">Annulé</Badge>
+                      <Badge
+                        variant="secondary"
+                        class="rounded-sm text-[9px] tracking-widest uppercase"
+                        >Annulé</Badge
+                      >
                     {/if}
                   </div>
-                  <div class="mt-1 text-xs text-muted-foreground">
-                    Géré par {interview.staff?.user?.name || 'Inconnu'}
+                  <div
+                    class="mt-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                  >
+                    Avec {interview.staff?.user?.name || 'Inconnu'}
                   </div>
                 </div>
                 {#if interview.status === 'completed' && interview.globalNote}
                   <div
-                    class="max-w-sm border-l-2 border-epi-blue pl-2 text-xs text-muted-foreground italic"
+                    class="max-w-sm border-l-2 border-epi-blue pl-3 text-xs font-medium text-muted-foreground italic"
                   >
                     "{interview.globalNote}"
                   </div>
                 {/if}
               </div>
             {:else}
-              <p class="text-sm text-muted-foreground text-center py-4">
-                Aucun entretien enregistré.
-              </p>
+              <div
+                class="text-sm font-medium text-muted-foreground text-center py-8 rounded-sm border border-dashed bg-muted/10"
+              >
+                Aucun entretien CRM enregistré.
+              </div>
             {/each}
           </div>
         </Card.Content>
       </Card.Root>
 
-      <Card.Root>
-        <Card.Header>
-          <Card.Title class="flex items-center gap-2 text-lg uppercase"
-            ><Calendar class="h-5 w-5 text-epi-teal-solid" /> Historique pédagogique</Card.Title
+      <Card.Root class="rounded-sm border shadow-sm">
+        <Card.Header class="border-b bg-muted/30 pt-4 pb-4">
+          <Card.Title
+            class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+            ><Calendar class="h-4 w-4 text-epi-teal-solid" /> Parcours Pédagogique</Card.Title
           >
         </Card.Header>
-        <Card.Content>
+        <Card.Content class="pt-8">
           <StudentTimeline
             participations={data.participations}
             timezone={data.timezone}
@@ -172,15 +186,16 @@
     {enhance}
     action="?/update"
   >
-    <Separator class="my-2" />
     <div
-      class="space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-4"
+      class="mt-4 space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-5"
     >
       <div class="space-y-1">
-        <h4 class="text-sm font-bold text-destructive uppercase">
+        <h4
+          class="font-sans text-sm font-bold tracking-wide text-destructive uppercase"
+        >
           Zone de danger
         </h4>
-        <p class="text-xs text-muted-foreground">
+        <p class="text-xs font-medium text-muted-foreground">
           La suppression est définitive et entraînera la suppression de tout son
           historique.
         </p>
@@ -188,7 +203,7 @@
       <Button
         type="button"
         variant="destructive"
-        class="w-full"
+        class="w-full rounded-sm"
         disabled={!canDelete}
         title={canDelete ? undefined : "Réservé aux responsables de l'espace"}
         onclick={() => {
@@ -201,20 +216,26 @@
   </StudentFormDialog>
 
   <AlertDialog.Root bind:open={deleteDialogOpen}>
-    <AlertDialog.Content>
+    <AlertDialog.Content class="rounded-sm">
       <AlertDialog.Header>
-        <AlertDialog.Title>Confirmer la suppression</AlertDialog.Title>
-        <AlertDialog.Description
-          >Êtes-vous sûr de vouloir supprimer définitivement ce Talent ?</AlertDialog.Description
+        <AlertDialog.Title
+          class="text-lg font-bold tracking-tight text-destructive uppercase"
+          >Confirmer la suppression</AlertDialog.Title
+        >
+        <AlertDialog.Description class="text-sm font-medium"
+          >Êtes-vous sûr de vouloir supprimer définitivement ce Talent du CRM
+          Epitech ?</AlertDialog.Description
         >
       </AlertDialog.Header>
       <AlertDialog.Footer>
-        <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+        <AlertDialog.Cancel class="rounded-sm">Annuler</AlertDialog.Cancel>
         <form action="?/delete" method="POST" use:kitEnhance>
           <AlertDialog.Action
             type="submit"
-            class={buttonVariants({ variant: 'destructive' })}
-            >Supprimer définitivement</AlertDialog.Action
+            class={buttonVariants({
+              variant: 'destructive',
+              class: 'rounded-sm',
+            })}>Supprimer définitivement</AlertDialog.Action
           >
         </form>
       </AlertDialog.Footer>

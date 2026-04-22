@@ -98,20 +98,28 @@
           {#snippet child({ props: tooltipProps })}
             <Dialog.Trigger
               {...tooltipProps}
-              class={buttonVariants({ variant: 'outline', size: 'icon' })}
+              class={buttonVariants({
+                variant: 'outline',
+                size: 'icon',
+                class: 'rounded-sm shadow-sm',
+              })}
             >
               <Settings class="h-4 w-4" />
             </Dialog.Trigger>
           {/snippet}
         </Tooltip.Trigger>
-        <Tooltip.Content><p>Paramètres de l'événement</p></Tooltip.Content>
+        <Tooltip.Content class="rounded-sm"
+          ><p>Paramètres de l'événement</p></Tooltip.Content
+        >
       </Tooltip.Root>
     </Tooltip.Provider>
   </Gated>
 
-  <Dialog.Content class="sm:max-w-125">
+  <Dialog.Content class="rounded-sm sm:max-w-125">
     <Dialog.Header>
-      <Dialog.Title>Paramètres de l'événement</Dialog.Title>
+      <Dialog.Title class="text-lg font-bold tracking-tight uppercase"
+        >Paramètres de l'événement</Dialog.Title
+      >
     </Dialog.Header>
     <div class="space-y-6">
       <form
@@ -121,15 +129,15 @@
         class="space-y-4 py-2"
       >
         <!-- GROUP 1: General Info -->
-        <div
-          class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10"
-        >
+        <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
           <div class="space-y-2">
-            <Label>Titre</Label>
+            <Label class="text-[10px] font-bold tracking-widest uppercase"
+              >Titre</Label
+            >
             <Input
               name="titre"
               bind:value={$editForm.titre}
-              class="bg-background"
+              class="rounded-sm bg-background"
             />
             {#if $editErrors.titre}<p class="text-xs text-destructive">
                 {$editErrors.titre}
@@ -137,12 +145,14 @@
           </div>
 
           <div class="space-y-2">
-            <Label>Notes & Planning</Label>
+            <Label class="text-[10px] font-bold tracking-widest uppercase"
+              >Notes & Planning</Label
+            >
             <Textarea
               name="notes"
               bind:value={$editForm.notes}
-              placeholder="Ex: 14h00 Intro, 15h30 Pause... Attention aux Talents de 4ème sur les boucles."
-              class="min-h-25 bg-background"
+              placeholder="Ex: 14h00 Intro, 15h30 Pause..."
+              class="min-h-25 rounded-sm bg-background"
             />
             {#if $editErrors.notes}<p class="text-xs text-destructive">
                 {$editErrors.notes}
@@ -151,12 +161,12 @@
         </div>
 
         <!-- GROUP 2: Classification & Staffing -->
-        <div
-          class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10"
-        >
+        <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
           <div class="grid gap-4">
             <div class="space-y-2">
-              <Label>Thème</Label>
+              <Label class="text-[10px] font-bold tracking-widest uppercase"
+                >Thème</Label
+              >
               <div class="rounded-sm bg-background">
                 <ThemeSelect
                   {themes}
@@ -169,7 +179,9 @@
                 </p>{/if}
             </div>
             <div class="space-y-2">
-              <Label>Mantas</Label>
+              <Label class="text-[10px] font-bold tracking-widest uppercase"
+                >Mantas</Label
+              >
               <div class="rounded-sm bg-background">
                 <MultiStaffSelect
                   {staff}
@@ -185,33 +197,42 @@
         </div>
 
         <!-- GROUP 3: Scheduling -->
-        <div
-          class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10"
-        >
+        <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <Label>Date de début</Label>
+              <Label class="text-[10px] font-bold tracking-widest uppercase"
+                >Date de début</Label
+              >
               <div class="rounded-sm bg-background">
-                <DatePicker bind:value={dateValue} name="date" />
+                <DatePicker
+                  bind:value={dateValue}
+                  name="date"
+                  class="rounded-sm"
+                />
               </div>
               {#if $editErrors.date}<p class="text-xs text-destructive">
                   {$editErrors.date}
                 </p>{/if}
             </div>
             <div class="space-y-2">
-              <Label>Heure</Label>
+              <Label class="text-[10px] font-bold tracking-widest uppercase"
+                >Heure</Label
+              >
               <div class="flex gap-2">
                 <Select.Root type="single" bind:value={hour}>
-                  <Select.Trigger class="bg-background">{hour}</Select.Trigger>
-                  <Select.Content class="h-50">
+                  <Select.Trigger class="rounded-sm bg-background"
+                    >{hour}</Select.Trigger
+                  >
+                  <Select.Content class="h-50 rounded-sm">
                     {#each hours as h}<Select.Item value={h}>{h}</Select.Item
                       >{/each}
                   </Select.Content>
                 </Select.Root>
                 <Select.Root type="single" bind:value={minute}>
-                  <Select.Trigger class="bg-background">{minute}</Select.Trigger
+                  <Select.Trigger class="rounded-sm bg-background"
+                    >{minute}</Select.Trigger
                   >
-                  <Select.Content>
+                  <Select.Content class="rounded-sm">
                     {#each minutes as m}<Select.Item value={m}>{m}</Select.Item
                       >{/each}
                   </Select.Content>
@@ -226,13 +247,17 @@
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">
-              <Label
-                >Date de fin <span class="text-muted-foreground"
+              <Label class="text-[10px] font-bold tracking-widest uppercase"
+                >Date de fin <span class="text-muted-foreground normal-case"
                   >(optionnel)</span
                 ></Label
               >
               <div class="rounded-sm bg-background">
-                <DatePicker bind:value={endDateValue} name="endDate" />
+                <DatePicker
+                  bind:value={endDateValue}
+                  name="endDate"
+                  class="rounded-sm"
+                />
               </div>
               {#if $editErrors.endDate}<p class="text-xs text-destructive">
                   {$editErrors.endDate}
@@ -242,12 +267,16 @@
         </div>
 
         <div class="flex justify-end pt-4">
-          <Button type="submit" disabled={$editDelayed}>
+          <Button
+            type="submit"
+            disabled={$editDelayed}
+            class="rounded-sm bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
+          >
             {#if $editDelayed}
               <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
               Sauvegarde...
             {:else}
-              Sauvegarder les modifications
+              Sauvegarder
             {/if}
           </Button>
         </div>
@@ -256,13 +285,15 @@
       <Separator />
 
       <div
-        class="space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-4"
+        class="space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-5"
       >
         <div class="space-y-1">
-          <h4 class="text-sm font-bold text-destructive uppercase">
+          <h4
+            class="font-sans text-sm font-bold tracking-wide text-destructive uppercase"
+          >
             Zone de danger
           </h4>
-          <p class="text-xs text-muted-foreground">
+          <p class="text-xs font-medium text-muted-foreground">
             La suppression d'un événement est irréversible. Les XP des Talents
             validés seront automatiquement retirés.
           </p>
@@ -270,7 +301,7 @@
         <Button
           type="button"
           variant="destructive"
-          class="w-full"
+          class="w-full rounded-sm"
           onclick={() => (deleteEventDialogOpen = true)}
         >
           <Trash2 class="mr-2 h-4 w-4" />

@@ -25,7 +25,6 @@
   let importMantas = $state<string[]>([]);
   let importNotes = $state('');
 
-  // Loading messaging state
   let loadingMessages = [
     'Lecture du fichier CSV...',
     'Comparaison avec la base de données...',
@@ -69,7 +68,7 @@
   });
 </script>
 
-<div class="mx-auto max-w-5xl space-y-6">
+<div class="mx-auto max-w-5xl space-y-6 pb-12">
   <div class="flex items-center gap-4 border-b pb-4">
     <a
       href={resolve('/staff/dev')}
@@ -83,16 +82,16 @@
   </div>
 
   <Card.Root
-    class="border-t-4 border-t-epi-teal-solid shadow-md dark:shadow-none dark:ring-1 dark:ring-border/50"
+    class="rounded-sm border-t-4 border-t-epi-teal-solid shadow-md dark:shadow-none"
   >
-    <Card.Header>
+    <Card.Header class="pb-4">
       <Card.Title
-        class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
+        class="flex items-center gap-2 text-lg font-bold tracking-tight uppercase"
       >
         <FileSpreadsheet class="h-5 w-5 text-epi-teal-solid" />
         Import Événement CSV
       </Card.Title>
-      <Card.Description>
+      <Card.Description class="text-sm font-medium">
         Importez un fichier CSV d'événement Salesforce. Vous pourrez ensuite
         spécifier si les Talents apportent leur PC.
       </Card.Description>
@@ -130,14 +129,14 @@
               });
             };
           }}
-          class="space-y-6 py-6"
+          class="space-y-6 pt-2"
         >
           <CsvDropzone bind:selectedFileName />
 
-          <div class="flex justify-end">
+          <div class="flex justify-end border-t pt-4">
             <Button
               type="submit"
-              class="bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none"
+              class="rounded-sm bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90 dark:shadow-none"
               disabled={isAnalyzing || !selectedFileName}
             >
               {#if isAnalyzing}
@@ -151,23 +150,29 @@
         </form>
         <!-- STEP 2: REVIEW & DECIDE -->
       {:else}
-        <div class="space-y-6">
+        <div class="space-y-6 pt-2">
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="space-y-2">
-              <Label>Événement</Label><Input
+              <Label
+                class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                >Événement</Label
+              ><Input
                 value={analysisResult.eventName}
                 readonly
-                class="bg-muted text-sm font-bold tracking-tight uppercase"
+                class="rounded-sm border-transparent bg-muted/50 text-sm font-bold tracking-tight"
               />
             </div>
             <div class="space-y-2">
-              <Label>Date</Label><Input
+              <Label
+                class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                >Date</Label
+              ><Input
                 value={new Date(analysisResult.eventDate).toLocaleDateString(
                   'fr-FR',
                   { timeZone: data.timezone },
                 )}
                 readonly
-                class="bg-muted font-bold"
+                class="rounded-sm border-transparent bg-muted/50 font-bold"
               />
             </div>
           </div>
@@ -206,8 +211,11 @@
             />
 
             <div class="grid gap-4 md:grid-cols-2">
-              <div class="space-y-2 rounded-md border bg-muted/20 p-4">
-                <Label>Mantas pour cet événement</Label>
+              <div class="space-y-3 rounded-sm border bg-muted/10 p-5">
+                <Label
+                  class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                  >Mantas pour cet événement</Label
+                >
                 <MultiStaffSelect
                   staff={data.staff}
                   bind:value={importMantas}
@@ -219,28 +227,33 @@
                   Assignez l'équipe qui encadrera cet événement.
                 </p>
               </div>
-              <div class="space-y-2 rounded-md border bg-muted/20 p-4">
-                <Label for="notes">Notes / Planning</Label>
+              <div class="space-y-3 rounded-sm border bg-muted/10 p-5">
+                <Label
+                  for="notes"
+                  class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                  >Notes / Planning</Label
+                >
                 <Textarea
                   id="notes"
                   name="notes"
                   bind:value={importNotes}
                   placeholder="Notes pour l'événement (planning, instructions...)"
-                  class="min-h-20 bg-background"
+                  class="min-h-20 rounded-sm bg-background"
                 />
               </div>
             </div>
 
-            <div class="flex justify-between border-t pt-4">
+            <div class="flex justify-between border-t pt-5">
               <Button
                 variant="ghost"
+                class="rounded-sm"
                 type="button"
                 onclick={() => (analysisResult = null)}>Annuler</Button
               >
               <Button
                 type="submit"
                 disabled={isConfirming}
-                class="bg-epi-teal-solid font-bold text-white shadow-md hover:bg-epi-teal-solid/90 dark:shadow-none"
+                class="rounded-sm bg-epi-teal-solid font-bold text-white shadow-sm hover:bg-epi-teal-solid/90 dark:shadow-none"
               >
                 {#if isConfirming}
                   <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />

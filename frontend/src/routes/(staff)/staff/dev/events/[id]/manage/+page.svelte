@@ -119,9 +119,7 @@
   };
 </script>
 
-<div
-  class="flex h-auto min-h-[calc(100vh-8rem)] flex-col space-y-4 md:h-[calc(100vh-10rem)]"
->
+<div class="flex flex-col space-y-6 pb-12">
   <div class="flex items-center justify-between border-b pb-4">
     <div class="flex items-center gap-4">
       <a
@@ -135,30 +133,30 @@
           Gestion Événement<span class="text-epi-teal">_</span>
         </h1>
         <div
-          class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-muted-foreground uppercase"
+          class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-muted-foreground"
         >
           <div class="flex items-center gap-2">
-            <CalendarIcon class="h-3 w-3" />
+            <CalendarIcon class="h-3.5 w-3.5" />
             <span style:view-transition-name="event-title-{data.event.id}"
               >{data.event.titre}</span
             >
             <span>
               • {new Date(data.event.date).toLocaleDateString('fr-FR', {
                 day: 'numeric',
-                month: 'long',
+                month: 'short',
                 timeZone: data.timezone,
               })}
             </span>
           </div>
           {#if data.event.theme}
-            <div class="flex items-center gap-1">
-              <Tag class="h-3 w-3 text-epi-teal-solid" />
+            <div class="flex items-center gap-1.5 uppercase">
+              <Tag class="h-3.5 w-3.5 text-epi-teal-solid" />
               <span class="text-epi-teal-solid">{data.event.theme?.nom}</span>
             </div>
           {/if}
           {#if isStageDeSeconde}
             <div
-              class="rounded-sm border border-purple-200 bg-purple-100 px-2 py-0.5 text-[10px] text-purple-700"
+              class="rounded-sm border border-purple-200 bg-purple-100 px-2 py-0.5 text-[10px] tracking-widest text-purple-700 uppercase"
             >
               STAGE DE SECONDE
             </div>
@@ -182,22 +180,22 @@
 
   <Tabs.Root
     value={isStageDeSeconde ? 'suivi' : 'inscriptions'}
-    class="flex min-h-0 flex-1 flex-col"
+    class="flex flex-col"
   >
     <Tabs.List
-      class="grid w-full max-w-2xl {isStageDeSeconde
+      class="grid w-full max-w-2xl rounded-sm bg-muted/30 {isStageDeSeconde
         ? 'grid-cols-3'
         : 'grid-cols-2'}"
     >
       {#if isStageDeSeconde}
         <Tabs.Trigger value="suivi" class="gap-2">
           <FileCheck class="h-4 w-4" />
-          Suivi Administratif
+          Suivi ADM
         </Tabs.Trigger>
       {/if}
       <Tabs.Trigger value="inscriptions" class="gap-2">
         <Users class="h-4 w-4" />
-        Inscriptions ({participations.length})
+        Inscrits ({participations.length})
       </Tabs.Trigger>
       <Tabs.Trigger value="planning" class="gap-2">
         <CalendarDays class="h-4 w-4" />
@@ -206,7 +204,7 @@
     </Tabs.List>
 
     {#if isStageDeSeconde}
-      <Tabs.Content value="suivi" class="flex-1 pt-4 pb-12">
+      <Tabs.Content value="suivi" class="pt-6">
         <SuiviAdmTable
           {participations}
           {optimisticAdminToggle}
@@ -215,8 +213,8 @@
       </Tabs.Content>
     {/if}
 
-    <Tabs.Content value="inscriptions" class="flex-1 pt-4 pb-12">
-      <div class="min-0 grid h-auto flex-1 gap-6 md:h-full md:grid-cols-12">
+    <Tabs.Content value="inscriptions" class="pt-6">
+      <div class="grid gap-6 md:grid-cols-12">
         <ParticipantManager
           {participations}
           onDelete={confirmDeleteParticipation}
@@ -225,7 +223,7 @@
       </div>
     </Tabs.Content>
 
-    <Tabs.Content value="planning" class="flex-1 pt-4 pb-12">
+    <Tabs.Content value="planning" class="pt-6">
       <CalendarPlanner
         planning={data.planning}
         templates={data.templates}

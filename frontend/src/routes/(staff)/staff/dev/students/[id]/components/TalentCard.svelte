@@ -29,14 +29,18 @@
 />
 
 {#snippet contact()}
-  <div class="flex flex-col gap-2 text-sm text-muted-foreground">
+  <div class="flex flex-col gap-2.5 text-sm font-medium text-foreground">
     {#if email}
       <a
         href={`mailto:${email}`}
         class="group flex items-center gap-2 transition-colors hover:text-epi-blue"
       >
-        <Mail class="h-3.5 w-3.5" /><span class="truncate">{email}</span>
-        <ExternalLink class="h-3 w-3 opacity-0 group-hover:opacity-100" />
+        <Mail class="h-4 w-4 text-muted-foreground" /><span class="truncate"
+          >{email}</span
+        >
+        <ExternalLink
+          class="h-3 w-3 text-epi-blue opacity-0 transition-opacity group-hover:opacity-100"
+        />
       </a>
     {/if}
     {#if student.phone}
@@ -44,27 +48,29 @@
         href={`tel:${student.phone.replace(/\s+/g, '')}`}
         class="group flex items-center gap-2 transition-colors hover:text-epi-blue"
       >
-        <Phone class="h-3.5 w-3.5" /><span>{student.phone}</span>
-        <ExternalLink class="h-3 w-3 opacity-0 group-hover:opacity-100" />
+        <Phone class="h-4 w-4 text-muted-foreground" /><span
+          >{student.phone}</span
+        >
+        <ExternalLink
+          class="h-3 w-3 text-epi-blue opacity-0 transition-opacity group-hover:opacity-100"
+        />
       </a>
     {/if}
 
     {#if student.parentEmail || student.parentPhone}
-      <Separator class="my-1" />
-      <div
-        class="flex flex-col gap-1.5 rounded-md border border-muted/50 bg-muted/20 p-2"
-      >
+      <Separator class="my-2" />
+      <div class="flex flex-col gap-2 rounded-sm border bg-muted/10 p-3">
         <span
-          class="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase"
-          ><Users class="h-3 w-3" /> Contact Parent</span
+          class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+          ><Users class="h-3.5 w-3.5" /> Responsable Légal</span
         >
         {#if student.parentEmail}
           <a
             href={`mailto:${student.parentEmail}`}
             class="flex items-center gap-2 text-xs transition-colors hover:text-epi-blue"
           >
-            <Mail class="h-3 w-3" /><span class="truncate"
-              >{student.parentEmail}</span
+            <Mail class="h-3.5 w-3.5 text-muted-foreground" /><span
+              class="truncate">{student.parentEmail}</span
             >
           </a>
         {/if}
@@ -73,7 +79,9 @@
             href={`tel:${student.parentPhone.replace(/\s+/g, '')}`}
             class="flex items-center gap-2 text-xs transition-colors hover:text-epi-blue"
           >
-            <Phone class="h-3 w-3" /><span>{student.parentPhone}</span>
+            <Phone class="h-3.5 w-3.5 text-muted-foreground" /><span
+              >{student.parentPhone}</span
+            >
           </a>
         {/if}
       </div>
@@ -82,7 +90,7 @@
 {/snippet}
 
 {#snippet editButton()}
-  <Button variant="outline" class="w-full" onclick={onOpenEdit}
-    ><Pencil class="mr-2 h-3.5 w-3.5" /> Modifier les infos CRM</Button
+  <Button variant="outline" class="mt-2 w-full rounded-sm" onclick={onOpenEdit}
+    ><Pencil class="mr-2 h-4 w-4" /> Modifier le profil CRM</Button
   >
 {/snippet}

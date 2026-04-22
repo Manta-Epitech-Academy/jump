@@ -2,7 +2,6 @@
   import { Users } from '@lucide/svelte';
   import * as Card from '$lib/components/ui/card';
   import { Separator } from '$lib/components/ui/separator';
-  import { ScrollArea } from '$lib/components/ui/scroll-area';
   import StudentParticipationRow from './StudentParticipationRow.svelte';
   import type { ParticipationWithDetails } from '$lib/types';
 
@@ -15,31 +14,33 @@
   } = $props();
 </script>
 
-<Card.Root
-  class="flex h-125 flex-col rounded-sm md:col-span-8 md:h-full md:max-h-full"
->
-  <Card.Header class="pb-3">
-    <Card.Title class="flex items-center gap-2 uppercase">
-      <Users class="h-5 w-5 text-epi-blue" /> Participants ({participations.length})
+<Card.Root class="flex flex-col rounded-sm shadow-sm md:col-span-8">
+  <Card.Header class="pb-4">
+    <Card.Title
+      class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+    >
+      <Users class="h-4 w-4 text-epi-blue" /> Participants ({participations.length})
     </Card.Title>
   </Card.Header>
   <Separator />
 
-  <ScrollArea class="min-h-0 flex-1">
-    <div class="space-y-2 p-6">
+  <div class="p-5">
+    <div class="space-y-2">
       {#each participations as p (p.id)}
         <StudentParticipationRow participation={p} {onDelete} />
       {:else}
         <div
-          class="flex flex-col items-center justify-center py-20 text-center"
+          class="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border rounded-sm bg-muted/10"
         >
-          <Users class="mb-4 h-12 w-12 text-muted" />
-          <h3 class="text-lg font-bold uppercase">Aucun participant</h3>
-          <p class="text-sm font-bold text-muted-foreground uppercase">
-            Ajoutez des Talents via le panneau latéral.
+          <Users class="mb-3 h-8 w-8 text-muted-foreground opacity-30" />
+          <h3 class="text-sm font-bold uppercase tracking-widest">
+            Aucun participant
+          </h3>
+          <p class="text-xs font-medium text-muted-foreground mt-1">
+            Ajoutez des Talents via le panneau de recherche.
           </p>
         </div>
       {/each}
     </div>
-  </ScrollArea>
+  </div>
 </Card.Root>

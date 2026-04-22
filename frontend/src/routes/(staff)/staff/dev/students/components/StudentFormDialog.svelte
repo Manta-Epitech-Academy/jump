@@ -48,50 +48,52 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Content class="sm:max-w-125">
+  <Dialog.Content class="rounded-sm sm:max-w-125">
     <Dialog.Header>
-      <Dialog.Title class="font-heading text-xl tracking-tight uppercase"
+      <Dialog.Title class="text-lg font-bold tracking-tight uppercase"
         >{isEditing ? 'Modifier' : 'Ajouter'} un Talent</Dialog.Title
       >
-      <Dialog.Description>
+      <Dialog.Description class="text-xs font-medium">
         {isEditing
-          ? 'Mettez à jour les informations du profil.'
+          ? 'Mettez à jour les informations du profil CRM.'
           : "Créez le profil d'un nouveau Talent."}
       </Dialog.Description>
     </Dialog.Header>
 
-    <form method="POST" {action} use:enhance class="grid gap-6 py-4">
+    <form method="POST" {action} use:enhance class="grid gap-5 py-2">
       {#if isEditing}
         <input type="hidden" name="id" value={editId} />
       {/if}
 
       <!-- GROUP 1: Identity -->
-      <div class="space-y-4">
-        <h4 class="border-b pb-2 text-sm font-bold text-foreground">
+      <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
+        <h4
+          class="border-b border-border/50 pb-2 font-sans text-sm font-bold tracking-wide text-foreground uppercase"
+        >
           Identité
         </h4>
         <div class="grid grid-cols-2 gap-4">
           <div class="grid gap-2">
-            <Label for="nom">Nom</Label>
+            <Label for="nom" class="text-xs">Nom</Label>
             <Input
               id="nom"
               name="nom"
               bind:value={$form.nom}
               placeholder="Dupont"
-              class="bg-background"
+              class="rounded-sm bg-background"
             />
             {#if $errors.nom}<span class="text-xs text-destructive"
                 >{$errors.nom}</span
               >{/if}
           </div>
           <div class="grid gap-2">
-            <Label for="prenom">Prénom</Label>
+            <Label for="prenom" class="text-xs">Prénom</Label>
             <Input
               id="prenom"
               name="prenom"
               bind:value={$form.prenom}
               placeholder="Jean"
-              class="bg-background"
+              class="rounded-sm bg-background"
             />
             {#if $errors.prenom}<span class="text-xs text-destructive"
                 >{$errors.prenom}</span
@@ -101,14 +103,17 @@
       </div>
 
       <!-- GROUP 2: Contact -->
-      <div class="space-y-4">
-        <h4 class="border-b pb-2 text-sm font-bold text-foreground">
+      <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
+        <h4
+          class="border-b border-border/50 pb-2 font-sans text-sm font-bold tracking-wide text-foreground uppercase"
+        >
           Contact Direct & Parents
         </h4>
         <div class="grid grid-cols-2 gap-4">
           <div class="grid gap-2">
-            <Label for="email"
-              >Email <span class="text-muted-foreground">(optionnel)</span
+            <Label for="email" class="text-xs"
+              >Email <span class="font-normal text-muted-foreground"
+                >(optionnel)</span
               ></Label
             >
             <Input
@@ -117,15 +122,16 @@
               type="email"
               bind:value={$form.email}
               placeholder="email@example.com"
-              class="bg-background"
+              class="rounded-sm bg-background"
             />
             {#if $errors.email}<span class="text-xs text-destructive"
                 >{$errors.email}</span
               >{/if}
           </div>
           <div class="grid gap-2">
-            <Label for="phone"
-              >Téléphone <span class="text-muted-foreground">(optionnel)</span
+            <Label for="phone" class="text-xs"
+              >Téléphone <span class="font-normal text-muted-foreground"
+                >(optionnel)</span
               ></Label
             >
             <Input
@@ -134,7 +140,7 @@
               type="tel"
               bind:value={$form.phone}
               placeholder="06..."
-              class="bg-background"
+              class="rounded-sm bg-background"
             />
             {#if $errors.phone}<span class="text-xs text-destructive"
                 >{$errors.phone}</span
@@ -143,8 +149,8 @@
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div class="grid gap-2">
-            <Label for="parent_email"
-              >Email Parent <span class="text-muted-foreground"
+            <Label for="parent_email" class="text-xs"
+              >Email Parent <span class="font-normal text-muted-foreground"
                 >(optionnel)</span
               ></Label
             >
@@ -154,15 +160,16 @@
               type="email"
               bind:value={$form.parent_email}
               placeholder="parent@example.com"
-              class="bg-background"
+              class="rounded-sm bg-background"
             />
             {#if $errors.parent_email}<span class="text-xs text-destructive"
                 >{$errors.parent_email}</span
               >{/if}
           </div>
           <div class="grid gap-2">
-            <Label for="parent_phone"
-              >Tél. Parent <span class="text-muted-foreground">(optionnel)</span
+            <Label for="parent_phone" class="text-xs"
+              >Tél. Parent <span class="font-normal text-muted-foreground"
+                >(optionnel)</span
               ></Label
             >
             <Input
@@ -171,7 +178,7 @@
               type="tel"
               bind:value={$form.parent_phone}
               placeholder="06..."
-              class="bg-background"
+              class="rounded-sm bg-background"
             />
             {#if $errors.parent_phone}<span class="text-xs text-destructive"
                 >{$errors.parent_phone}</span
@@ -181,18 +188,20 @@
       </div>
 
       <!-- GROUP 3: Academic -->
-      <div class="space-y-4">
-        <h4 class="border-b pb-2 text-sm font-bold text-foreground">
-          Niveau Pédagogique
+      <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
+        <h4
+          class="border-b border-border/50 pb-2 font-sans text-sm font-bold tracking-wide text-foreground uppercase"
+        >
+          Profil Pédagogique
         </h4>
         <div class="grid grid-cols-2 gap-4">
           <div class="grid gap-2">
-            <Label for="niveau">Niveau Scolaire</Label>
+            <Label for="niveau" class="text-xs">Niveau Scolaire</Label>
             <Select.Root type="single" bind:value={$form.niveau}>
-              <Select.Trigger class="bg-background">
+              <Select.Trigger class="rounded-sm bg-background">
                 {$form.niveau ? $form.niveau : 'Sélectionner...'}
               </Select.Trigger>
-              <Select.Content>
+              <Select.Content class="rounded-sm">
                 {#each niveaux as niveau}
                   <Select.Item value={niveau}>{niveau}</Select.Item>
                 {/each}
@@ -205,12 +214,14 @@
           </div>
 
           <div class="grid gap-2">
-            <Label for="niveau_difficulte">Difficulté</Label>
+            <Label for="niveau_difficulte" class="text-xs"
+              >Niveau Informatique</Label
+            >
             <Select.Root type="single" bind:value={$form.niveau_difficulte}>
-              <Select.Trigger class="bg-background">
+              <Select.Trigger class="rounded-sm bg-background">
                 {$form.niveau_difficulte ? $form.niveau_difficulte : 'Débutant'}
               </Select.Trigger>
-              <Select.Content>
+              <Select.Content class="rounded-sm">
                 {#each difficultes as diff}
                   <Select.Item value={diff}>{diff}</Select.Item>
                 {/each}
@@ -229,11 +240,11 @@
         </div>
       </div>
 
-      <Dialog.Footer class="pt-2">
+      <Dialog.Footer class="border-t pt-4">
         <Button
           type="submit"
           disabled={$delayed}
-          class="w-full bg-epi-blue shadow-md hover:bg-epi-blue/90 dark:shadow-none"
+          class="w-full rounded-sm bg-epi-blue font-bold text-white shadow-sm hover:bg-epi-blue/90 dark:shadow-none"
         >
           {#if $delayed}
             <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />

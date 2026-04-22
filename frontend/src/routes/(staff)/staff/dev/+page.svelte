@@ -123,7 +123,7 @@
 
 {#if minimalist}
   <div
-    class="mx-auto mt-12 max-w-xl rounded-2xl border border-dashed bg-card px-8 py-12 text-center shadow-sm dark:shadow-none"
+    class="mx-auto mt-12 max-w-xl rounded-sm border border-dashed bg-card px-8 py-12 text-center shadow-sm dark:shadow-none"
   >
     <Inbox class="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
     <h1 class="mb-2 font-heading text-2xl tracking-wide uppercase">
@@ -139,7 +139,7 @@
   <div class="space-y-8">
     <!-- HERO BANNER -->
     <div
-      class="relative overflow-hidden rounded-2xl bg-linear-to-r from-epi-blue via-blue-800 to-slate-900 px-8 py-10 text-white shadow-xl dark:shadow-none dark:ring-1 dark:ring-border/50"
+      class="relative overflow-hidden rounded-sm bg-linear-to-r from-epi-blue via-blue-800 to-slate-900 px-8 py-10 text-white shadow-md dark:shadow-none"
     >
       <div class="absolute -top-20 -right-20 opacity-20 mix-blend-overlay">
         <TrendingUp class="h-96 w-96" />
@@ -172,21 +172,16 @@
     <!-- TASK QUEUE -->
     <section class="space-y-3">
       <div class="flex items-baseline justify-between">
-        <h2 class="font-heading text-lg tracking-wider uppercase">
-          À traiter<span class="text-epi-teal">_</span>
+        <h2
+          class="font-sans text-base font-bold tracking-wide text-foreground uppercase"
+        >
+          À traiter
         </h2>
-        {#if taskRows.length > 0}
-          <span
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            {taskRows.length} élément{taskRows.length > 1 ? 's' : ''}
-          </span>
-        {/if}
       </div>
 
       {#if taskRows.length === 0}
         <div
-          class="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-muted-foreground"
+          class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 py-10 text-muted-foreground"
         >
           <Inbox class="mb-2 h-8 w-8 opacity-50" />
           <p class="text-sm font-medium">Inbox Zero. Rien ne presse.</p>
@@ -210,19 +205,21 @@
     <!-- KPI STRIP -->
     <div class="grid gap-4 {activeStage ? 'md:grid-cols-3' : 'md:grid-cols-1'}">
       <Card.Root
-        class="border-l-4 border-l-epi-blue shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+        class="rounded-sm border-l-4 border-l-epi-blue shadow-sm dark:shadow-none"
       >
-        <Card.Content class="flex items-center justify-between p-6">
+        <Card.Content class="flex items-center justify-between p-5">
           <div>
             <p
-              class="mb-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+              class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
             >
               Total Talents
             </p>
-            <p class="text-3xl font-black">{data.kpis.totalTalents}</p>
+            <p class="text-3xl font-black text-foreground">
+              {data.kpis.totalTalents}
+            </p>
           </div>
           <div
-            class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-epi-blue dark:bg-blue-900/20"
+            class="flex h-12 w-12 items-center justify-center rounded-sm bg-blue-50 text-epi-blue dark:bg-blue-900/20"
           >
             <Users class="h-6 w-6" />
           </div>
@@ -231,19 +228,21 @@
 
       {#if activeStage && data.kpis.completedInterviews !== null}
         <Card.Root
-          class="border-l-4 border-l-epi-teal-solid shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+          class="rounded-sm border-l-4 border-l-epi-teal-solid shadow-sm dark:shadow-none"
         >
-          <Card.Content class="flex items-center justify-between p-6">
+          <Card.Content class="flex items-center justify-between p-5">
             <div>
               <p
-                class="mb-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+                class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
               >
                 Entretiens du stage
               </p>
-              <p class="text-3xl font-black">{data.kpis.completedInterviews}</p>
+              <p class="text-3xl font-black text-foreground">
+                {data.kpis.completedInterviews}
+              </p>
             </div>
             <div
-              class="flex h-12 w-12 items-center justify-center rounded-full bg-epi-teal-solid/10 text-epi-teal-solid"
+              class="flex h-12 w-12 items-center justify-center rounded-sm bg-epi-teal-solid/10 text-epi-teal-solid"
             >
               <MessageSquare class="h-6 w-6" />
             </div>
@@ -251,19 +250,21 @@
         </Card.Root>
 
         <Card.Root
-          class="border-l-4 border-l-epi-orange shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+          class="rounded-sm border-l-4 border-l-epi-orange shadow-sm dark:shadow-none"
         >
-          <Card.Content class="flex items-center justify-between p-6">
+          <Card.Content class="flex items-center justify-between p-5">
             <div>
               <p
-                class="mb-1 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+                class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
               >
                 Entretiens planifiés
               </p>
-              <p class="text-3xl font-black">{data.kpis.plannedInterviews}</p>
+              <p class="text-3xl font-black text-foreground">
+                {data.kpis.plannedInterviews}
+              </p>
             </div>
             <div
-              class="flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-epi-orange dark:bg-orange-900/20"
+              class="flex h-12 w-12 items-center justify-center rounded-sm bg-orange-50 text-epi-orange dark:bg-orange-900/20"
             >
               <Target class="h-6 w-6" />
             </div>
@@ -274,24 +275,21 @@
 
     <div class="grid gap-6 md:grid-cols-2">
       <!-- LEADERBOARD -->
-      <Card.Root
-        class="flex h-full flex-col overflow-hidden border-0 shadow-sm ring-1 ring-border dark:shadow-none"
-      >
-        <Card.Header class="border-b bg-muted/30 pb-4">
-          <Card.Title class="flex items-center gap-2 text-lg">
-            <Trophy class="h-5 w-5 text-yellow-500" />
+      <Card.Root class="flex flex-col rounded-sm shadow-sm dark:shadow-none">
+        <Card.Header class="border-b bg-muted/30 pt-4 pb-3">
+          <Card.Title
+            class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+          >
+            <Trophy class="h-4 w-4 text-yellow-500" />
             Top Talents (Leaderboard)
           </Card.Title>
-          <Card.Description>
-            Les talents les plus engagés par XP.
-          </Card.Description>
         </Card.Header>
-        <Card.Content class="flex-1 p-0">
-          <div class="divide-y">
+        <Card.Content class="p-0">
+          <div class="divide-y divide-border/50">
             {#each data.topTalents as talent, index}
               <a
                 href={resolve(`/staff/dev/students/${talent.id}`)}
-                class="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30"
+                class="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-muted/30"
               >
                 <div
                   class="flex w-6 items-center justify-center font-heading text-xl text-muted-foreground group-hover:text-epi-blue"
@@ -300,15 +298,17 @@
                     <Medal class={`h-6 w-6 ${getMedalColor(index)}`} />
                   {:else}
                     <div
-                      class="flex h-6 w-6 items-center justify-center rounded-full bg-muted/50 text-sm font-bold text-muted-foreground"
+                      class="flex h-6 w-6 items-center justify-center rounded-sm bg-muted/50 text-sm font-bold text-muted-foreground"
                     >
                       {index + 1}
                     </div>
                   {/if}
                 </div>
-                <Avatar.Root class="h-9 w-9 border shadow-sm dark:shadow-none">
+                <Avatar.Root
+                  class="h-8 w-8 rounded-sm border shadow-sm dark:shadow-none"
+                >
                   <Avatar.Fallback
-                    class="bg-primary/10 text-xs font-bold text-primary"
+                    class="bg-primary/10 text-[10px] font-bold text-primary"
                   >
                     {talent.nom[0]}{talent.prenom[0]}
                   </Avatar.Fallback>
@@ -319,7 +319,9 @@
                   >
                     {talent.nom} <span class="capitalize">{talent.prenom}</span>
                   </p>
-                  <p class="truncate text-xs text-muted-foreground">
+                  <p
+                    class="truncate text-[10px] tracking-widest text-muted-foreground uppercase"
+                  >
                     {talent.niveau || 'Niveau inconnu'}
                   </p>
                 </div>
@@ -337,20 +339,22 @@
                 </div>
               </a>
             {:else}
-              <div class="p-8 text-center text-sm text-muted-foreground">
+              <div
+                class="p-8 text-center text-sm font-medium text-muted-foreground"
+              >
                 Le leaderboard est vide.
               </div>
             {/each}
           </div>
         </Card.Content>
-        <Card.Footer class="mt-auto border-t bg-muted/10 p-3">
+        <Card.Footer class="border-t bg-muted/10 p-3">
           <Button
             variant="ghost"
             size="sm"
-            class="w-full text-xs font-bold tracking-widest uppercase"
+            class="w-full text-[10px] font-bold tracking-widest uppercase"
             href={resolve('/staff/dev/students')}
           >
-            Ouvrir le CRM <ArrowRight class="ml-2 h-3.5 w-3.5" />
+            Ouvrir le CRM <ArrowRight class="ml-2 h-3 w-3" />
           </Button>
         </Card.Footer>
       </Card.Root>
@@ -359,19 +363,19 @@
       <div class="flex flex-col space-y-6">
         <div class="space-y-3">
           <h3
-            class="flex items-center gap-2 font-heading text-lg tracking-wider text-foreground uppercase"
+            class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"
           >
-            <CalendarDays class="h-5 w-5 text-epi-teal-solid" />
+            <CalendarDays class="h-4 w-4 text-epi-teal-solid" />
             Événements à venir
           </h3>
-          <div class="grid gap-3">
+          <div class="flex flex-col gap-3">
             {#each data.upcomingEvents as event}
               <div
-                class="group flex items-center justify-between rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-epi-teal-solid dark:border-border/50 dark:shadow-none"
+                class="group flex items-center justify-between rounded-sm border bg-card p-4 shadow-sm transition-all hover:border-epi-teal-solid hover:shadow-md dark:border-border/50 dark:shadow-none"
               >
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-4">
                   <div
-                    class="flex min-w-14 flex-col items-center justify-center rounded-md border border-border/50 bg-muted/50 px-2 py-1"
+                    class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
                   >
                     <span
                       class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
@@ -379,16 +383,17 @@
                         month: 'short',
                       })}</span
                     >
-                    <span class="font-heading text-lg text-foreground"
+                    <span
+                      class="mt-0.5 font-heading text-xl leading-none text-foreground"
                       >{new Date(event.date).getDate()}</span
                     >
                   </div>
-                  <div>
-                    <p class="text-sm font-bold uppercase">{event.titre}</p>
-                    <div class="mt-1 flex items-center gap-2">
-                      <Badge variant="secondary" class="px-1.5 py-0 text-[10px]"
-                        >{event._count.participations} inscrits</Badge
-                      >
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-bold uppercase">
+                      {event.titre}
+                    </p>
+                    <div class="mt-1 text-xs font-medium text-muted-foreground">
+                      {event._count.participations} inscrits
                     </div>
                   </div>
                 </div>
@@ -396,14 +401,14 @@
                   variant="outline"
                   size="sm"
                   href={resolve(`/staff/dev/events/${event.id}/manage`)}
-                  class="shrink-0 bg-background text-xs transition-colors group-hover:border-epi-teal-solid group-hover:bg-epi-teal-solid group-hover:text-white"
+                  class="shrink-0 rounded-sm bg-background text-xs transition-colors group-hover:border-epi-teal-solid group-hover:bg-epi-teal-solid group-hover:text-white"
                 >
                   Gérer
                 </Button>
               </div>
             {:else}
               <div
-                class="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground"
+                class="rounded-sm border border-dashed bg-muted/10 py-8 text-center text-sm font-medium text-muted-foreground"
               >
                 Aucun événement prévu prochainement.
               </div>
@@ -412,16 +417,16 @@
         </div>
 
         {#if data.stageObjectives}
-          <Card.Root
-            class="mt-auto shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
-          >
-            <Card.Header class="pb-4">
-              <Card.Title class="flex items-center gap-2 text-lg">
-                <Target class="h-5 w-5 text-epi-teal-solid" />
+          <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+            <Card.Header class="border-b bg-muted/30 pt-4 pb-3">
+              <Card.Title
+                class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+              >
+                <Target class="h-4 w-4 text-epi-teal-solid" />
                 Objectifs du stage en cours
               </Card.Title>
             </Card.Header>
-            <Card.Content class="space-y-5">
+            <Card.Content class="space-y-5 pt-5">
               <div class="space-y-1.5">
                 <div class="flex justify-between text-sm font-bold">
                   <span>Entretiens menés</span>

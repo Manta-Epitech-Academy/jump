@@ -35,16 +35,16 @@
   }
 </script>
 
-<div class="rounded-sm border">
+<div class="rounded-sm border shadow-sm">
   <div
-    class="flex items-center justify-between border-b bg-muted/50 px-4 py-2 text-xs font-bold uppercase"
+    class="flex items-center justify-between border-b bg-muted/30 px-5 py-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
   >
     <span>Revue des Talents ({analysisResult.analysisData.length})</span>
-    <span class="text-muted-foreground">Cochez ceux qui apportent leur PC</span>
+    <span class="text-[9px]">Cochez ceux qui apportent leur PC</span>
   </div>
 
-  <ScrollArea class="h-125">
-    <div class="divide-y">
+  <ScrollArea class="h-96">
+    <div class="divide-y divide-border/50">
       {#each analysisResult.analysisData as row (row.id)}
         {@const isNew = row.suggestedStatus === 'NEW'}
         {@const isConflict =
@@ -53,7 +53,7 @@
 
         <div
           class="flex flex-col gap-4 p-4 lg:flex-row lg:items-center {isConflict
-            ? 'bg-yellow-50/50'
+            ? 'bg-yellow-50/50 dark:bg-yellow-950/20'
             : ''}"
         >
           <div class="flex w-full items-start gap-3 lg:w-auto">
@@ -68,20 +68,22 @@
                         {...props}
                         variant={row.bringPc ? 'secondary' : 'outline'}
                         size="icon"
-                        class="h-10 w-10 transition-colors {row.bringPc
-                          ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                        class="h-9 w-9 rounded-sm transition-colors {row.bringPc
+                          ? 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/40 dark:text-purple-300'
                           : 'text-gray-400'}"
                         onclick={() => toggleBringPc(row.id)}
                       >
-                        <Laptop class="h-5 w-5" />
+                        <Laptop class="h-4 w-4" />
                       </Button>
                     {/snippet}
                   </Tooltip.Trigger>
-                  <Tooltip.Content><p>Apporte son PC ?</p></Tooltip.Content>
+                  <Tooltip.Content class="rounded-sm"
+                    ><p>Apporte son PC ?</p></Tooltip.Content
+                  >
                 </Tooltip.Root>
               </Tooltip.Provider>
               <span
-                class="mt-1 text-[9px] font-bold text-muted-foreground uppercase"
+                class="mt-1 text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
               >
                 {row.bringPc ? 'Avec PC' : 'Sans PC'}
               </span>
@@ -89,30 +91,36 @@
 
             <div class="flex-1 space-y-1 pl-2">
               <div class="flex items-center gap-2">
-                <span class="text-sm font-bold"
-                  >{row.csvData.nom} {row.csvData.prenom}</span
+                <span class="truncate text-sm font-bold uppercase"
+                  >{row.csvData.nom}
+                  <span class="capitalize">{row.csvData.prenom}</span></span
                 >
-                <Badge variant="outline" class="text-[10px]"
+                <Badge
+                  variant="outline"
+                  class="rounded-sm text-[9px] tracking-widest uppercase"
                   >{row.csvData.niveau}</Badge
                 >
               </div>
-              <div class="text-xs text-muted-foreground">
+              <div class="text-xs font-medium text-muted-foreground">
                 {row.csvData.email}
               </div>
-              {#if isNew}<Badge
-                  variant="default"
-                  class="bg-blue-500 text-[10px]">Nouveau</Badge
-                >{/if}
-              {#if isConflict}
-                <Badge
-                  variant="outline"
-                  class="border-yellow-500 bg-yellow-100 text-[10px] text-yellow-700"
-                >
-                  {row.suggestedStatus === 'SIBLING'
-                    ? 'Fratrie ?'
-                    : 'Homonyme ?'}
-                </Badge>
-              {/if}
+              <div class="mt-1 flex gap-2">
+                {#if isNew}<Badge
+                    variant="default"
+                    class="rounded-sm bg-blue-500 text-[9px] tracking-widest text-white uppercase hover:bg-blue-600"
+                    >Nouveau</Badge
+                  >{/if}
+                {#if isConflict}
+                  <Badge
+                    variant="outline"
+                    class="rounded-sm border-yellow-400 bg-yellow-50 text-[9px] tracking-widest text-yellow-700 uppercase dark:border-yellow-900/50 dark:bg-yellow-900/20 dark:text-yellow-500"
+                  >
+                    {row.suggestedStatus === 'SIBLING'
+                      ? 'Fratrie ?'
+                      : 'Homonyme ?'}
+                  </Badge>
+                {/if}
+              </div>
             </div>
           </div>
 
@@ -120,32 +128,33 @@
             class="hidden flex-col items-center justify-center px-2 text-center lg:flex"
           >
             {#if row.existingStudent}<ArrowRight
-                class="h-4 w-4 text-muted-foreground"
+                class="h-4 w-4 text-muted-foreground opacity-50"
               />{/if}
             {#if row.matchReason}<span
-                class="mt-1 max-w-30 text-[9px] text-muted-foreground"
+                class="mt-1 max-w-24 text-[9px] leading-tight font-bold tracking-widest text-muted-foreground uppercase"
                 >{row.matchReason}</span
               >{/if}
           </div>
 
           <div class="w-full lg:flex-1">
             {#if row.existingStudent}
-              <div class="rounded border bg-white p-2 text-sm shadow-sm">
-                <div class="font-bold text-muted-foreground">En Base :</div>
-                <div class="font-medium">
+              <div class="rounded-sm border bg-muted/10 p-3 text-sm shadow-sm">
+                <div
+                  class="mb-1 text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
+                >
+                  Dossier en base :
+                </div>
+                <div class="font-bold text-foreground uppercase">
                   {row.existingStudent.nom}
-                  {row.existingStudent.prenom}
+                  <span class="capitalize">{row.existingStudent.prenom}</span>
                 </div>
-                <div class="text-xs text-muted-foreground">
-                  {row.existingStudent.email}
-                </div>
-                <div class="text-xs text-muted-foreground">
-                  {row.existingStudent.niveau}
+                <div class="mt-0.5 text-xs font-medium text-muted-foreground">
+                  {row.existingStudent.email} • {row.existingStudent.niveau}
                 </div>
               </div>
             {:else}
               <div
-                class="flex h-full items-center justify-center text-xs text-muted-foreground italic"
+                class="flex h-full items-center justify-center text-xs font-bold tracking-widest text-muted-foreground uppercase"
               >
                 Aucune correspondance
               </div>
@@ -153,25 +162,26 @@
           </div>
 
           <div
-            class="w-full border-t pt-4 lg:min-w-55 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-4"
+            class="w-full border-t border-border/50 pt-4 lg:min-w-[14rem] lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5"
           >
-            <span class="text-[10px] font-bold text-muted-foreground uppercase"
-              >Action à effectuer :</span
+            <span
+              class="text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
+              >Action à effectuer</span
             >
-            <div class="mt-1 flex flex-col gap-1">
+            <div class="mt-2 flex flex-col gap-2">
               <button
                 type="button"
                 class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all {row.decision ===
                 'CREATE_NEW'
-                  ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
-                  : 'text-muted-foreground hover:bg-muted'}"
+                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/20 dark:text-blue-400'
+                  : 'bg-card text-muted-foreground hover:bg-muted'}"
                 onclick={() => toggleDecision(row.id, 'CREATE_NEW')}
               >
                 <div class="flex items-center gap-2">
                   {#if row.suggestedStatus === 'SIBLING'}<Split
                       class="h-3.5 w-3.5"
                     />{:else}<UserPlus class="h-3.5 w-3.5" />{/if}
-                  <span>Créer un nouveau</span>
+                  <span>Créer dossier</span>
                 </div>
                 {#if row.decision === 'CREATE_NEW'}<div
                     class="h-2 w-2 rounded-full bg-blue-500"
@@ -183,14 +193,12 @@
                   type="button"
                   class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all {row.decision ===
                   'LINK_EXISTING'
-                    ? 'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid ring-1 ring-epi-teal-solid'
-                    : 'text-muted-foreground hover:bg-muted'}"
+                    ? 'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid shadow-sm'
+                    : 'bg-card text-muted-foreground hover:bg-muted'}"
                   onclick={() => toggleDecision(row.id, 'LINK_EXISTING')}
                 >
                   <div class="flex items-center gap-2">
-                    <LinkIcon class="h-3.5 w-3.5" /><span
-                      >Lier à l'existant</span
-                    >
+                    <LinkIcon class="h-3.5 w-3.5" /><span>Lier existant</span>
                   </div>
                   {#if row.decision === 'LINK_EXISTING'}<div
                       class="h-2 w-2 rounded-full bg-epi-teal-solid"

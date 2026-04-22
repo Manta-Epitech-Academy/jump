@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Plus, Mail, X, LoaderCircle, Info } from '@lucide/svelte';
+  import { Plus, Mail, X, LoaderCircle } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -51,8 +51,8 @@
 <div class="space-y-6 p-6">
   <div class="flex items-end justify-between gap-4">
     <div>
-      <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Équipe <span class="text-epi-pink">du campus</span>
+      <h1 class="font-heading text-3xl tracking-wide text-epi-blue uppercase">
+        Équipe du campus<span class="text-epi-teal">_</span>
       </h1>
       <p
         class="mt-1 text-sm font-bold tracking-widest text-muted-foreground uppercase"
@@ -60,16 +60,21 @@
         Inviter de nouveaux membres et ajuster leurs rôles
       </p>
     </div>
-    <Button onclick={openInvite} class="gap-2 shadow-sm dark:shadow-none">
+    <Button
+      onclick={openInvite}
+      class="gap-2 rounded-sm bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
+    >
       <Plus class="h-4 w-4" />
       Inviter
     </Button>
   </div>
 
   <section class="space-y-3">
-    <h2 class="font-heading text-lg tracking-wider uppercase">
+    <h2
+      class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"
+    >
       Invitations en attente
-      <span class="ml-2 text-sm text-muted-foreground"
+      <span class="text-sm text-muted-foreground"
         >({data.invitations?.length ?? 0})</span
       >
     </h2>
@@ -100,16 +105,16 @@
               <Table.Row class="hover:bg-muted/20">
                 <Table.Cell>
                   <div
-                    class="flex items-center gap-2 text-sm text-muted-foreground"
+                    class="flex items-center gap-2 text-sm font-bold text-foreground"
                   >
-                    <Mail class="h-3 w-3" />
+                    <Mail class="h-4 w-4 text-muted-foreground" />
                     {inv.email}
                   </div>
                 </Table.Cell>
                 <Table.Cell>
                   <Badge
                     variant="secondary"
-                    class="text-[10px] tracking-wider uppercase"
+                    class="rounded-sm text-[9px] tracking-widest uppercase"
                     >{getStaffRoleLabel(inv.staffRole)}</Badge
                   >
                 </Table.Cell>
@@ -137,7 +142,7 @@
                               type="submit"
                               variant="ghost"
                               size="icon"
-                              class="text-destructive hover:bg-destructive/10"
+                              class="rounded-sm text-destructive hover:bg-destructive/10"
                             >
                               <X class="h-4 w-4" />
                             </Button>
@@ -159,9 +164,11 @@
   </section>
 
   <section class="mt-8 space-y-3">
-    <h2 class="font-heading text-lg tracking-wider uppercase">
+    <h2
+      class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"
+    >
       Membres actifs
-      <span class="ml-2 text-sm text-muted-foreground"
+      <span class="text-sm text-muted-foreground"
         >({data.members?.length ?? 0})</span
       >
     </h2>
@@ -190,18 +197,30 @@
             {#each data.members as user}
               {@const currentRole = user.staffProfile?.staffRole ?? null}
               {@const isAdmin = currentRole === 'admin'}
+              {@const nameParts = (user.name || 'Sans nom').trim().split(' ')}
+              {@const lastName = nameParts[0]}
+              {@const firstName = nameParts.slice(1).join(' ')}
+              {@const initials =
+                (
+                  (lastName?.[0] ?? '') + (firstName?.[0] ?? '')
+                ).toUpperCase() || 'ST'}
               <Table.Row class="hover:bg-muted/20">
                 <Table.Cell>
                   <div class="flex items-center gap-3">
-                    <Avatar.Root class="h-8 w-8">
-                      <Avatar.Fallback class="text-[10px] font-bold"
-                        >{user.name?.substring(0, 2).toUpperCase() ||
-                          'ST'}</Avatar.Fallback
+                    <Avatar.Root class="h-8 w-8 rounded-sm">
+                      <Avatar.Fallback
+                        class="bg-primary/10 text-[10px] font-bold text-primary"
+                        >{initials}</Avatar.Fallback
                       >
                     </Avatar.Root>
-                    <span class="text-sm font-bold tracking-tight uppercase"
-                      >{user.name || 'Sans nom'}</span
+                    <span
+                      class="text-sm font-bold tracking-tight text-foreground"
                     >
+                      <span class="uppercase">{lastName}</span
+                      >{#if firstName}&nbsp;<span class="capitalize"
+                          >{firstName}</span
+                        >{/if}
+                    </span>
                   </div>
                 </Table.Cell>
                 <Table.Cell>
@@ -221,7 +240,8 @@
                   {#if isAdmin}
                     <Badge
                       variant="secondary"
-                      class="text-[10px] tracking-wider uppercase">Admin</Badge
+                      class="rounded-sm text-[10px] tracking-wider uppercase"
+                      >Admin</Badge
                     >
                   {:else}
                     <form
@@ -257,11 +277,11 @@
                         }}
                       >
                         <Select.Trigger
-                          class="h-8 w-42 bg-background text-xs font-bold tracking-widest uppercase"
+                          class="h-8 w-42 rounded-sm bg-background text-[10px] font-bold tracking-widest uppercase"
                         >
                           {getStaffRoleLabel(currentRole)}
                         </Select.Trigger>
-                        <Select.Content class="min-w-72">
+                        <Select.Content class="min-w-72 rounded-sm">
                           {#each INVITABLE_ROLES as role}
                             <Select.Item value={role.value} class="py-2">
                               <div class="flex flex-col gap-0.5">
@@ -270,7 +290,7 @@
                                   >{role.label}</span
                                 >
                                 <span
-                                  class="text-[11px] font-normal text-muted-foreground normal-case"
+                                  class="text-[10px] font-medium text-muted-foreground normal-case"
                                   >{role.description}</span
                                 >
                               </div>
@@ -295,12 +315,12 @@
   </section>
 
   <Dialog.Root bind:open={inviteOpen}>
-    <Dialog.Content class="sm:max-w-md">
+    <Dialog.Content class="rounded-sm sm:max-w-md">
       <Dialog.Header>
-        <Dialog.Title class="font-heading text-xl tracking-tight uppercase"
+        <Dialog.Title class="text-lg font-bold tracking-tight uppercase"
           >Inviter un membre</Dialog.Title
         >
-        <Dialog.Description>
+        <Dialog.Description class="text-sm">
           Le membre rejoindra votre campus avec le rôle choisi dès sa première
           connexion.
         </Dialog.Description>
@@ -312,11 +332,11 @@
         use:inviteEnhance
         class="space-y-6 py-2"
       >
-        <div
-          class="space-y-4 rounded-lg border bg-muted/30 p-4 dark:bg-muted/10"
-        >
+        <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
           <div class="space-y-2">
-            <Label for="invite-email">Email Epitech</Label>
+            <Label for="invite-email" class="text-xs font-bold uppercase"
+              >Email Epitech</Label
+            >
             <Input
               id="invite-email"
               name="email"
@@ -324,7 +344,7 @@
               bind:value={$inviteForm.email}
               placeholder="prenom.nom@epitech.eu"
               autocomplete="off"
-              class="bg-background"
+              class="rounded-sm bg-background"
             />
             {#if $inviteErrors.email}
               <p class="text-xs text-destructive">{$inviteErrors.email}</p>
@@ -333,39 +353,9 @@
 
           <div class="space-y-2">
             <div class="flex items-center gap-1.5">
-              <Label for="invite-role">Rôle</Label>
-              <Tooltip.Provider delayDuration={200}>
-                <Tooltip.Root>
-                  <Tooltip.Trigger>
-                    {#snippet child({ props })}
-                      <button
-                        {...props}
-                        type="button"
-                        class="text-muted-foreground transition-colors hover:text-foreground"
-                        aria-label="Aide sur les rôles"
-                      >
-                        <Info class="h-3.5 w-3.5" />
-                      </button>
-                    {/snippet}
-                  </Tooltip.Trigger>
-                  <Tooltip.Content class="max-w-sm">
-                    <div class="space-y-2 p-1">
-                      {#each INVITABLE_ROLES as role}
-                        <div class="space-y-0.5">
-                          <p
-                            class="text-[11px] font-bold tracking-widest uppercase"
-                          >
-                            {role.label}
-                          </p>
-                          <p class="text-xs leading-snug text-muted-foreground">
-                            {role.description}
-                          </p>
-                        </div>
-                      {/each}
-                    </div>
-                  </Tooltip.Content>
-                </Tooltip.Root>
-              </Tooltip.Provider>
+              <Label for="invite-role" class="text-xs font-bold uppercase"
+                >Rôle</Label
+              >
             </div>
             <Select.Root
               type="single"
@@ -374,20 +364,20 @@
             >
               <Select.Trigger
                 id="invite-role"
-                class="w-full bg-background text-xs font-bold tracking-widest uppercase"
+                class="w-full rounded-sm bg-background text-xs font-bold tracking-widest uppercase"
               >
                 {getStaffRoleLabel($inviteForm.staffRole)}
               </Select.Trigger>
-              <Select.Content class="min-w-72">
+              <Select.Content class="min-w-72 rounded-sm">
                 {#each INVITABLE_ROLES as role}
                   <Select.Item value={role.value} class="py-2">
                     <div class="flex flex-col gap-0.5">
                       <span
-                        class="text-[11px] font-bold tracking-widest uppercase"
+                        class="text-[10px] font-bold tracking-widest uppercase"
                         >{role.label}</span
                       >
                       <span
-                        class="text-[11px] font-normal text-muted-foreground normal-case"
+                        class="text-xs font-medium text-muted-foreground normal-case"
                         >{role.description}</span
                       >
                     </div>
@@ -405,12 +395,13 @@
           <Button
             type="button"
             variant="ghost"
+            class="rounded-sm"
             onclick={() => (inviteOpen = false)}>Annuler</Button
           >
           <Button
             type="submit"
             disabled={$inviteDelayed}
-            class="bg-epi-blue text-white shadow-md hover:bg-epi-blue/90 dark:shadow-none"
+            class="rounded-sm bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90 dark:shadow-none"
           >
             {#if $inviteDelayed}
               <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Envoi...

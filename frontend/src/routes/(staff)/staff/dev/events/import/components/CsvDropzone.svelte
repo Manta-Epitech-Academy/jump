@@ -4,13 +4,11 @@
   import { toast } from 'svelte-sonner';
   import { cn } from '$lib/utils';
 
-  /** This component renders a hidden file input — it must be placed inside a <form> for submission to work. */
   let {
     selectedFileName = $bindable(),
     name = 'csvFile',
   }: {
     selectedFileName: string;
-    /** The form field name for the file input. Must match the server action's expected field. */
     name?: string;
   } = $props();
 
@@ -62,11 +60,13 @@
   role="button"
   tabindex="0"
   class={cn(
-    'flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-10 text-center transition-all duration-200 outline-none',
+    'flex cursor-pointer flex-col items-center justify-center rounded-sm border-2 border-dashed bg-muted/5 p-12 text-center transition-all duration-200 outline-none',
     isDragActive
-      ? 'border-epi-blue bg-blue-50'
-      : 'border-muted-foreground/25 hover:bg-muted/50',
-    selectedFileName ? 'border-green-200 bg-green-50' : '',
+      ? 'border-epi-blue bg-blue-50/50 dark:bg-blue-950/20'
+      : 'border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/30',
+    selectedFileName
+      ? 'border-green-200 bg-green-50/50 dark:border-green-900/30 dark:bg-green-950/20'
+      : '',
   )}
   ondragover={onDragOver}
   ondragleave={onDragLeave}
@@ -76,19 +76,25 @@
 >
   {#if selectedFileName}
     <div
-      class="animate-in rounded-full bg-green-100 p-4 text-green-600 duration-300 zoom-in"
+      class="animate-in rounded-sm bg-green-100 p-4 text-green-600 duration-300 zoom-in dark:bg-green-900/30 dark:text-green-400"
     >
       <FileCheck class="h-8 w-8" />
     </div>
-    <h3 class="mt-4 text-lg font-bold text-green-800">
+    <h3 class="mt-4 text-lg font-bold text-green-800 dark:text-green-500">
       {selectedFileName}
     </h3>
-    <p class="mb-4 text-sm text-green-600">Fichier prêt à l'analyse</p>
-    <Button variant="outline" size="sm" class="pointer-events-none mt-2">
+    <p class="mb-5 text-sm font-medium text-green-600 dark:text-green-400">
+      Fichier prêt à l'analyse
+    </p>
+    <Button
+      variant="outline"
+      size="sm"
+      class="pointer-events-none rounded-sm bg-background/50 backdrop-blur-sm"
+    >
       Changer de fichier
     </Button>
   {:else}
-    <div class="rounded-full bg-muted p-4">
+    <div class="rounded-sm bg-muted/50 p-4">
       <Upload
         class={cn(
           'h-8 w-8',
@@ -96,12 +102,20 @@
         )}
       />
     </div>
-    <h3 class="mt-4 text-lg font-bold">
+    <h3
+      class="mt-4 text-base font-bold tracking-tight text-foreground uppercase"
+    >
       {isDragActive ? 'Déposez le fichier !' : 'Glissez le CSV ici'}
     </h3>
-    <p class="mb-4 text-sm text-muted-foreground">Formats acceptés : CSV</p>
-    <Button variant="secondary" size="sm" class="pointer-events-none">
-      Ou cliquer pour parcourir
+    <p class="mb-5 text-sm font-medium text-muted-foreground">
+      Format accepté : CSV uniquement
+    </p>
+    <Button
+      variant="secondary"
+      size="sm"
+      class="pointer-events-none rounded-sm"
+    >
+      Ou parcourir vos fichiers
     </Button>
   {/if}
 
