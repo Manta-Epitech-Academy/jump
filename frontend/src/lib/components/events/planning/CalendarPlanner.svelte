@@ -3,6 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import * as Popover from '$lib/components/ui/popover';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import {
     Plus,
     LayoutTemplate,
@@ -1109,45 +1110,71 @@
                         sideOffset={8}
                       >
                         <!-- Icon bar -->
-                        <div class="flex items-center justify-end gap-0.5">
-                          {#if activity}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              class="h-7 w-7"
-                              title="Modifier"
-                              onclick={() => {
-                                editingActivityId = activity.id;
-                                editDialogMode = 'edit';
-                                editDialogOpen = true;
-                                popoverForSlotId = null;
-                              }}
-                            >
-                              <Pencil class="h-3.5 w-3.5" />
-                            </Button>
-                          {/if}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            class="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            title="Supprimer"
-                            onclick={() => {
-                              popoverForSlotId = null;
-                              deleteSlot(slot);
-                            }}
-                          >
-                            <Trash2 class="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            class="h-7 w-7"
-                            title="Fermer"
-                            onclick={() => (popoverForSlotId = null)}
-                          >
-                            <X class="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                        <Tooltip.Provider delayDuration={200}>
+                          <div class="flex items-center justify-end gap-0.5">
+                            {#if activity}
+                              <Tooltip.Root>
+                                <Tooltip.Trigger>
+                                  {#snippet child({ props })}
+                                    <Button
+                                      {...props}
+                                      variant="ghost"
+                                      size="icon"
+                                      class="h-7 w-7"
+                                      aria-label="Modifier"
+                                      onclick={() => {
+                                        editingActivityId = activity.id;
+                                        editDialogMode = 'edit';
+                                        editDialogOpen = true;
+                                        popoverForSlotId = null;
+                                      }}
+                                    >
+                                      <Pencil class="h-3.5 w-3.5" />
+                                    </Button>
+                                  {/snippet}
+                                </Tooltip.Trigger>
+                                <Tooltip.Content>Modifier</Tooltip.Content>
+                              </Tooltip.Root>
+                            {/if}
+                            <Tooltip.Root>
+                              <Tooltip.Trigger>
+                                {#snippet child({ props })}
+                                  <Button
+                                    {...props}
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    aria-label="Supprimer"
+                                    onclick={() => {
+                                      popoverForSlotId = null;
+                                      deleteSlot(slot);
+                                    }}
+                                  >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                  </Button>
+                                {/snippet}
+                              </Tooltip.Trigger>
+                              <Tooltip.Content>Supprimer</Tooltip.Content>
+                            </Tooltip.Root>
+                            <Tooltip.Root>
+                              <Tooltip.Trigger>
+                                {#snippet child({ props })}
+                                  <Button
+                                    {...props}
+                                    variant="ghost"
+                                    size="icon"
+                                    class="h-7 w-7"
+                                    aria-label="Fermer"
+                                    onclick={() => (popoverForSlotId = null)}
+                                  >
+                                    <X class="h-3.5 w-3.5" />
+                                  </Button>
+                                {/snippet}
+                              </Tooltip.Trigger>
+                              <Tooltip.Content>Fermer</Tooltip.Content>
+                            </Tooltip.Root>
+                          </div>
+                        </Tooltip.Provider>
 
                         <!-- Title + meta -->
                         <div class="flex items-start gap-2.5 px-1">

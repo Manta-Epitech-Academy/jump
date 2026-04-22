@@ -33,7 +33,7 @@ export const STAFF_ROLES: readonly {
   },
   {
     value: 'peda',
-    label: 'Référent Manta',
+    label: 'Référent Pédago',
     description:
       'Lead de l’espace pédago. Gère le planning, les factions, et supervise les mantas.',
   },

@@ -1,8 +1,10 @@
 <script lang="ts">
   import * as Dialog from '$lib/components/ui/dialog';
+  import * as Select from '$lib/components/ui/select';
   import { Button } from '$lib/components/ui/button';
   import { Label } from '$lib/components/ui/label';
   import { Input } from '$lib/components/ui/input';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { Sparkles, Loader2, AlertTriangle } from '@lucide/svelte';
@@ -153,15 +155,9 @@
         <div class="grid grid-cols-2 gap-2">
           {#each devs as dev}
             <label class="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                class="h-4 w-4 rounded border-input accent-epi-blue"
+              <Checkbox
                 checked={selectedDevIds.includes(dev.id)}
-                onchange={(e) =>
-                  toggleDev(
-                    dev.id,
-                    (e.currentTarget as HTMLInputElement).checked,
-                  )}
+                onCheckedChange={(v) => toggleDev(dev.id, v === true)}
               />
               <span>{dev.name}</span>
             </label>
@@ -193,14 +189,20 @@
         </div>
         <div class="space-y-1">
           <Label class="text-xs uppercase">Ordre</Label>
-          <select
+          <Select.Root
+            type="single"
             name="participationOrder"
-            bind:value={participationOrder}
-            class="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            value={participationOrder}
+            onValueChange={(v) => (participationOrder = v as 'name' | 'random')}
           >
-            <option value="name">Par nom</option>
-            <option value="random">Aléatoire</option>
-          </select>
+            <Select.Trigger class="w-full">
+              {participationOrder === 'random' ? 'Aléatoire' : 'Par nom'}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="name">Par nom</Select.Item>
+              <Select.Item value="random">Aléatoire</Select.Item>
+            </Select.Content>
+          </Select.Root>
         </div>
         <div class="space-y-1">
           <Label class="text-xs uppercase">Début journée</Label>

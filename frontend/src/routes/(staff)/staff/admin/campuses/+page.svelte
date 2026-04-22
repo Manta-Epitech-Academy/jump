@@ -9,6 +9,7 @@
   import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import { Badge } from '$lib/components/ui/badge';
@@ -294,16 +295,13 @@
               <label
                 class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="flags"
                   value={flag.key}
                   checked={$form.flags.includes(flag.key as FlagKey)}
-                  onchange={(e) => {
-                    const checked = (e.currentTarget as HTMLInputElement)
-                      .checked;
+                  onCheckedChange={(v) => {
                     const key = flag.key as FlagKey;
-                    if (checked) {
+                    if (v === true) {
                       if (!$form.flags.includes(key))
                         $form.flags = [...$form.flags, key];
                     } else {

@@ -17,6 +17,7 @@
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { TimePicker } from '$lib/components/ui/time-picker';
   import { Badge } from '$lib/components/ui/badge';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Tabs from '$lib/components/ui/tabs';
@@ -355,11 +356,11 @@
       <div class="grid grid-cols-2 gap-4">
         <div class="grid gap-2">
           <Label>Début</Label>
-          <Input type="time" name="startTime" bind:value={slotStartTime} />
+          <TimePicker name="startTime" bind:value={slotStartTime} />
         </div>
         <div class="grid gap-2">
           <Label>Fin</Label>
-          <Input type="time" name="endTime" bind:value={slotEndTime} />
+          <TimePicker name="endTime" bind:value={slotEndTime} />
         </div>
       </div>
 

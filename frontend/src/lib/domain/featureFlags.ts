@@ -28,7 +28,7 @@ export const FEATURE_FLAGS = {
     kind: 'capability',
     defaultEnabled: false,
     label: 'Coding Club',
-    description: 'Ateliers hebdomadaires (jusqu’à 50 semaines par an).',
+    description: "Ateliers hebdomadaires tout le reste de l'année.",
   }),
 };
 

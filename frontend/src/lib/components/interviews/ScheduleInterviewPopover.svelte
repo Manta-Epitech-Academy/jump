@@ -6,7 +6,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Popover from '$lib/components/ui/popover';
   import { Label } from '$lib/components/ui/label';
-  import { Input } from '$lib/components/ui/input';
+  import { TimePicker } from '$lib/components/ui/time-picker';
   import DatePicker from '$lib/components/DatePicker.svelte';
   import { toast } from 'svelte-sonner';
 
@@ -84,9 +84,8 @@
       </div>
       <div class="space-y-1.5">
         <Label for="interview-time" class="text-xs uppercase">Heure</Label>
-        <Input
+        <TimePicker
           id="interview-time"
-          type="time"
           name="time"
           bind:value={time}
           required
