@@ -8,11 +8,20 @@
     FileCheck,
     FilePen,
     LogOut,
+    Settings,
+    Sun,
+    Moon,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
 
   let { data } = $props();
+
+  function toggleTheme() {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  }
 </script>
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
@@ -32,17 +41,26 @@
           Espace de suivi parental
         </p>
       </div>
-      <form action="{resolve('/logout')}?type=parent" method="POST">
-        <Button
-          type="submit"
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8 text-slate-400 hover:text-destructive"
+      <div class="flex items-center gap-1">
+        <a
+          href="#parametres"
+          class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
         >
-          <LogOut class="h-4 w-4" />
-          <span class="sr-only">Déconnexion</span>
-        </Button>
-      </form>
+          <Settings class="h-4 w-4" />
+          <span class="sr-only">Paramètres</span>
+        </a>
+        <form action="{resolve('/logout')}?type=parent" method="POST">
+          <Button
+            type="submit"
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8 text-slate-400 hover:text-destructive"
+          >
+            <LogOut class="h-4 w-4" />
+            <span class="sr-only">Déconnexion</span>
+          </Button>
+        </form>
+      </div>
     </div>
   </header>
 
@@ -160,4 +178,72 @@
       {/each}
     </div>
   {/if}
+
+  <!-- Settings -->
+  <div
+    id="parametres"
+    class="mt-8"
+    in:fly={{ y: 20, duration: 400, delay: 400 }}
+  >
+    <h2
+      class="mb-4 flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+    >
+      <Settings class="h-5 w-5 text-epi-blue" />
+      Paramètres<span class="text-epi-teal">_</span>
+    </h2>
+
+    <div
+      class="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/50 dark:divide-slate-800 dark:bg-slate-900 dark:shadow-none"
+    >
+      <!-- Theme toggle -->
+      <div class="flex items-center justify-between p-4">
+        <div class="flex items-center gap-3">
+          <Sun class="h-5 w-5 text-amber-500 dark:hidden" />
+          <Moon class="hidden h-5 w-5 text-indigo-400 dark:block" />
+          <div>
+            <p class="font-bold text-slate-900 dark:text-white">
+              Thème d'affichage
+            </p>
+            <p class="text-xs text-slate-400">
+              Basculer entre le mode clair et sombre
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          class="rounded-xl"
+          onclick={toggleTheme}
+        >
+          <Sun class="h-4 w-4 dark:hidden" />
+          <Moon class="hidden h-4 w-4 dark:block" />
+          <span class="ml-1.5 dark:hidden">Mode sombre</span>
+          <span class="ml-1.5 hidden dark:inline">Mode clair</span>
+        </Button>
+      </div>
+
+      <!-- Account info -->
+      <div class="flex items-center justify-between p-4">
+        <div class="flex items-center gap-3">
+          <LogOut class="h-5 w-5 text-slate-400" />
+          <div>
+            <p class="font-bold text-slate-900 dark:text-white">Compte</p>
+            <p class="text-xs text-slate-400">
+              Connecté en tant que {data.parentName}
+            </p>
+          </div>
+        </div>
+        <form action="{resolve('/logout')}?type=parent" method="POST">
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            class="rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+          >
+            Se déconnecter
+          </Button>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>

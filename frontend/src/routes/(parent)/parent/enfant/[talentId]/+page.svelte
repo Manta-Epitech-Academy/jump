@@ -109,17 +109,26 @@
           {data.child.nom}
         </p>
       </div>
-      <form action="{resolve('/logout')}?type=parent" method="POST">
-        <Button
-          type="submit"
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8 text-slate-400 hover:text-destructive"
+      <div class="flex items-center gap-1">
+        <a
+          href="#parametres"
+          class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
         >
-          <LogOut class="h-4 w-4" />
-          <span class="sr-only">Déconnexion</span>
-        </Button>
-      </form>
+          <Settings class="h-4 w-4" />
+          <span class="sr-only">Paramètres</span>
+        </a>
+        <form action="{resolve('/logout')}?type=parent" method="POST">
+          <Button
+            type="submit"
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8 text-slate-400 hover:text-destructive"
+          >
+            <LogOut class="h-4 w-4" />
+            <span class="sr-only">Déconnexion</span>
+          </Button>
+        </form>
+      </div>
     </div>
   </header>
 
@@ -520,7 +529,7 @@
     </div>
 
     <!-- Settings -->
-    <div in:fly={{ y: 20, duration: 400, delay: 450 }}>
+    <div id="parametres" in:fly={{ y: 20, duration: 400, delay: 450 }}>
       <h2
         class="mb-4 flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
       >
@@ -529,8 +538,9 @@
       </h2>
 
       <div
-        class="overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        class="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/50 dark:divide-slate-800 dark:bg-slate-900 dark:shadow-none"
       >
+        <!-- Theme toggle -->
         <div class="flex items-center justify-between p-4">
           <div class="flex items-center gap-3">
             <Sun class="h-5 w-5 text-amber-500 dark:hidden" />
@@ -555,6 +565,29 @@
             <span class="ml-1.5 dark:hidden">Mode sombre</span>
             <span class="ml-1.5 hidden dark:inline">Mode clair</span>
           </Button>
+        </div>
+
+        <!-- Account info -->
+        <div class="flex items-center justify-between p-4">
+          <div class="flex items-center gap-3">
+            <LogOut class="h-5 w-5 text-slate-400" />
+            <div>
+              <p class="font-bold text-slate-900 dark:text-white">Compte</p>
+              <p class="text-xs text-slate-400">
+                Connecté en tant que {data.parentName}
+              </p>
+            </div>
+          </div>
+          <form action="{resolve('/logout')}?type=parent" method="POST">
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              class="rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+            >
+              Se déconnecter
+            </Button>
+          </form>
         </div>
       </div>
     </div>
