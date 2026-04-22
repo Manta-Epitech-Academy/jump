@@ -57,16 +57,20 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   const pathTalentLogin = p('/login');
   const pathTalentRoot = p('/');
   const pathTalentCharter = p('/charter');
+  const pathTalentOnboarding = p('/onboarding');
   const pathTalentOAuth = p('/oauth');
   const pathLogout = p('/logout');
   const pathPublicShowcase = p('/p/');
   const pathApi = p('/api/');
-
   const pathStaffDev = p('/staff/dev');
   const pathStaffPedago = p('/staff/pedago');
 
+  const pathParentLogin = p('/parent/login');
+  const pathParentRoot = p('/parent');
+
   const isTalentRoute = routeId.startsWith('/(talent)');
   const isStaffRoute = routeId.startsWith('/(staff)');
+  const isParentRoute = routeId.startsWith('/(parent)');
   const isAdminPath =
     currentPath === pathStaffAdmin ||
     currentPath.startsWith(`${pathStaffAdmin}/`);
@@ -94,11 +98,35 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Charter guard
+    // Onboarding guard: redirect if info or rules not signed yet
+    if (event.locals.talent) {
+      const needsOnboarding =
+        !event.locals.talent.infoValidatedAt ||
+        !event.locals.talent.rulesSignedAt;
+
+      if (
+        needsOnboarding &&
+        !currentPath.startsWith(pathTalentOnboarding) &&
+        currentPath !== pathTalentLogin
+      ) {
+        return Response.redirect(
+          new URL(pathTalentOnboarding, event.url).href,
+          303,
+        );
+      }
+
+      // Already completed: prevent going back to onboarding
+      if (!needsOnboarding && currentPath.startsWith(pathTalentOnboarding)) {
+        return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      }
+    }
+
+    // Charter guard (onboarding sets charterAcceptedAt on completion)
     if (
       event.locals.talent &&
       !event.locals.talent.charterAcceptedAt &&
       currentPath !== pathTalentCharter &&
+      !currentPath.startsWith(pathTalentOnboarding) &&
       currentPath !== pathTalentLogin
     ) {
       return Response.redirect(new URL(pathTalentCharter, event.url).href, 303);
@@ -193,6 +221,24 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
         }
         throw error(403, 'Forbidden');
       }
+    }
+  }
+
+  // --- Parent Guards ---
+  if (isParentRoute) {
+    const isParentPublic = currentPath === pathParentLogin;
+
+    if (
+      !isParentPublic &&
+      (!event.locals.user || event.locals.user.role !== 'parent')
+    ) {
+      return Response.redirect(new URL(pathParentLogin, event.url).href, 303);
+    }
+    if (
+      event.locals.user?.role === 'parent' &&
+      currentPath === pathParentLogin
+    ) {
+      return Response.redirect(new URL(pathParentRoot, event.url).href, 303);
     }
   }
 

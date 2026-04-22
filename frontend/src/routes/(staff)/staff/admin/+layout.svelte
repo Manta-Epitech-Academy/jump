@@ -14,6 +14,7 @@
     FileText,
     CalendarDays,
     TriangleAlert,
+    FolderOpen,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -72,6 +73,13 @@
     >
       <TriangleAlert class="h-4 w-4" />
       <span>Erreurs de Sync</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/files')}
+      class={navLinkClass(isActive('/staff/admin/files'))}
+    >
+      <FolderOpen class="h-4 w-4" />
+      <span>[DEV] S3 Test</span>
     </a>
   </nav>
 

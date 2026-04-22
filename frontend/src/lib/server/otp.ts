@@ -10,12 +10,8 @@ function getResend() {
   return resend;
 }
 
-export async function sendOtpEmail(
-  email: string,
-  otp: string,
-  prenom?: string,
-) {
-  const displayName = prenom || 'futur·e codeur·se';
+export async function sendOtpEmail(email: string, otp: string, name?: string) {
+  const displayName = name || 'futur·e codeur·se';
   await getResend().emails.send({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
     to: email,

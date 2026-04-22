@@ -15,6 +15,7 @@
   import TalentCard from './components/TalentCard.svelte';
   import StudentTimeline from '$lib/components/students/StudentTimeline.svelte';
   import ScheduleInterviewPopover from '$lib/components/interviews/ScheduleInterviewPopover.svelte';
+  import OnboardingStatus from './components/OnboardingStatus.svelte';
   import { can } from '$lib/domain/permissions';
 
   let { data }: { data: PageData } = $props();
@@ -70,6 +71,7 @@
         {xpProgress}
         onOpenEdit={openEdit}
       />
+      <OnboardingStatus student={data.student} />
     </div>
 
     <div class="space-y-6 md:col-span-8 lg:col-span-9">
