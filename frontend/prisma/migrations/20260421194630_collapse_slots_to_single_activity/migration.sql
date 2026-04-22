@@ -49,30 +49,44 @@ WHERE NOT EXISTS (
 );
 
 -- 4c. Extra items (>1 per slot) → clone slot per extra.
+-- Clones get sortOrder = original + rn (by item createdAt) so they sort stably
+-- after the original slot at the same startTime.
 INSERT INTO "PlanningTemplateSlot" (
   "id", "planningTemplateDayId", "startTime", "endTime", "sortOrder",
   "activityTemplateId", "activityType", "nom", "description",
   "createdAt", "updatedAt"
 )
 SELECT
-  'c' || substr(md5(random()::text || clock_timestamp()::text || i."id"), 1, 24),
-  s."planningTemplateDayId",
-  s."startTime",
-  s."endTime",
-  s."sortOrder",
-  i."activityTemplateId",
-  i."activityType",
-  i."nom",
-  i."description",
+  'c' || substr(md5(random()::text || clock_timestamp()::text || ranked."id"), 1, 24),
+  ranked."planningTemplateDayId",
+  ranked."startTime",
+  ranked."endTime",
+  ranked."sortOrder" + ranked."rn",
+  ranked."activityTemplateId",
+  ranked."activityType",
+  ranked."nom",
+  ranked."description",
   NOW(),
   NOW()
-FROM "PlanningTemplateSlotItem" i
-JOIN "PlanningTemplateSlot" s ON s."id" = i."planningTemplateSlotId"
-WHERE i."id" NOT IN (
-  SELECT DISTINCT ON ("planningTemplateSlotId") "id"
-  FROM "PlanningTemplateSlotItem"
-  ORDER BY "planningTemplateSlotId", "createdAt" ASC
-);
+FROM (
+  SELECT
+    i."id",
+    s."planningTemplateDayId",
+    s."startTime",
+    s."endTime",
+    s."sortOrder",
+    i."activityTemplateId",
+    i."activityType",
+    i."nom",
+    i."description",
+    ROW_NUMBER() OVER (
+      PARTITION BY i."planningTemplateSlotId"
+      ORDER BY i."createdAt" ASC, i."id" ASC
+    ) - 1 AS "rn"
+  FROM "PlanningTemplateSlotItem" i
+  JOIN "PlanningTemplateSlot" s ON s."id" = i."planningTemplateSlotId"
+) AS ranked
+WHERE ranked."rn" >= 1;
 
 -- ─── Step 5: Data migration — TimeSlot / Activity ───
 

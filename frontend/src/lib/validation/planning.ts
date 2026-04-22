@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { difficultes } from '$lib/domain/xp';
 import { activityTypes } from './templates';
 
 const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
@@ -42,7 +43,12 @@ export const updateActivitySchema = z.object({
   nom: z.string().trim().min(1, 'Le nom est requis').max(100),
   activityType: z.enum(activityTypes),
   description: z.string().optional().or(z.literal('')),
-  difficulte: z.string().optional().or(z.literal('')),
+  difficulte: z
+    .enum(difficultes, {
+      message: 'Veuillez sélectionner une difficulté valide',
+    })
+    .optional()
+    .or(z.literal('')),
   link: z
     .url("Le format du lien n'est pas valide (https://...)")
     .optional()
@@ -55,7 +61,12 @@ export const assignActivitySchema = z.object({
   nom: z.string().trim().min(1, 'Le nom est requis').max(100),
   activityType: z.enum(activityTypes),
   description: z.string().optional().or(z.literal('')),
-  difficulte: z.string().optional().or(z.literal('')),
+  difficulte: z
+    .enum(difficultes, {
+      message: 'Veuillez sélectionner une difficulté valide',
+    })
+    .optional()
+    .or(z.literal('')),
   link: z
     .url("Le format du lien n'est pas valide (https://...)")
     .optional()
