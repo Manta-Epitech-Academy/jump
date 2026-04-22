@@ -1,0 +1,58 @@
+name: Migrations Order
+
+on:
+  pull_request:
+    branches: [dev, staging]
+    paths:
+      - 'frontend/prisma/migrations/**'
+
+jobs:
+  check-order:
+    name: Block out-of-order migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify new migrations are newer than target branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          latest_on_base=$(git ls-tree -r --name-only "origin/$BASE_REF" \
+            -- frontend/prisma/migrations/ \
+            | awk -F/ 'NF>=5 {print $4}' \
+            | cut -d_ -f1 \
+            | sort -u \
+            | tail -1 || true)
+
+          if [ -z "$latest_on_base" ]; then
+            echo "No existing migrations on origin/$BASE_REF — nothing to compare."
+            exit 0
+          fi
+          echo "Latest migration on origin/$BASE_REF: $latest_on_base"
+
+          new_migrations=$(git diff --name-only --diff-filter=A \
+            "origin/$BASE_REF...HEAD" -- frontend/prisma/migrations/ \
+            | awk -F/ 'NF>=5 {print $4}' \
+            | sort -u || true)
+
+          if [ -z "$new_migrations" ]; then
+            echo "No new migrations in this PR."
+            exit 0
+          fi
+
+          fail=0
+          while IFS= read -r dir; do
+            ts=$(echo "$dir" | cut -d_ -f1)
+            if [ "$ts" -le "$latest_on_base" ]; then
+              echo "::error file=frontend/prisma/migrations/$dir::Migration $dir (ts=$ts) is not newer than latest on $BASE_REF (ts=$latest_on_base). Regenerate with a fresh timestamp."
+              fail=1
+            else
+              echo "OK: $dir ($ts) > $latest_on_base"
+            fi
+          done <<< "$new_migrations"
+
+          exit "$fail"
