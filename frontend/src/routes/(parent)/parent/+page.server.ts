@@ -53,8 +53,12 @@ export const load: PageServerLoad = async ({ locals }) => {
     }),
   );
 
+  const parentName = locals.user.name ?? '';
+  const parentLastName = parentName.split(' ').slice(1).join(' ') || parentName;
+
   return {
-    parentName: locals.user.name,
+    parentName,
+    parentLastName,
     children: childrenWithEvents,
   };
 };
