@@ -9,11 +9,12 @@
     ChevronDown,
     FileCheck,
     FilePen,
-    History,
     Rocket,
     LogOut,
     Clock,
     MapPin,
+    ShieldCheck,
+    History,
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
@@ -44,12 +45,39 @@
       minute: '2-digit',
     });
   }
+
+  function statusLabel(
+    isPresent: boolean,
+    delay: number,
+  ): { icon: typeof Check; color: string; text: string } {
+    if (!isPresent) {
+      return {
+        icon: X,
+        color: 'text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400',
+        text: 'Absent(e)',
+      };
+    }
+    if (delay > 0) {
+      return {
+        icon: Clock,
+        color:
+          'text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400',
+        text: `En retard — ${delay} min`,
+      };
+    }
+    return {
+      icon: Check,
+      color:
+        'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400',
+      text: 'Présent(e)',
+    };
+  }
 </script>
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
   <!-- Header -->
   <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-4">
       {#if data.hasMultipleChildren}
         <a
           href={resolve('/parent')}
@@ -58,16 +86,21 @@
           <ArrowLeft class="h-5 w-5 text-epi-blue" />
         </a>
       {/if}
+      <div
+        class="flex h-16 w-16 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
+      >
+        <ShieldCheck class="h-8 w-8" />
+      </div>
       <div class="flex-1">
         <h1
-          class="font-heading text-4xl tracking-tight text-slate-900 uppercase dark:text-white"
+          class="font-heading text-3xl tracking-tight text-slate-900 uppercase sm:text-4xl dark:text-white"
         >
           Bonjour, <span class="text-epi-blue"
-            >{data.parentName ? data.parentName.split(' ')[0] : ''}</span
-          > !
+            >M./Mme {data.parentLastName}</span
+          >
         </h1>
-        <p class="font-bold text-slate-500 uppercase">
-          Suivi de {data.child.prenom}
+        <p class="text-sm font-bold text-slate-500 uppercase">
+          Suivi de votre enfant {data.child.prenom}
           {data.child.nom}
         </p>
       </div>
@@ -137,8 +170,11 @@
         <div
           class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
         >
+          <p class="text-sm text-slate-600 dark:text-slate-400">
+            Votre enfant participe aujourd'hui à
+          </p>
           <div
-            class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase"
+            class="mt-1 flex items-center gap-2 text-xs font-bold text-slate-500 uppercase"
           >
             <MapPin class="h-4 w-4 text-epi-blue" />
             <span>{data.todayPlanning.eventName}</span>
@@ -152,7 +188,9 @@
           <h2
             class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
           >
-            Programme du jour<span class="text-epi-teal">_</span>
+            Programme du jour pour {data.child.prenom}<span
+              class="text-epi-teal">_</span
+            >
           </h2>
 
           {#if data.todayPlanning.timeSlots.length > 0}
@@ -220,12 +258,19 @@
     <!-- Upcoming events -->
     {#if data.upcomingEvents.length > 0}
       <div in:fly={{ y: 20, duration: 400, delay: 300 }}>
-        <h2
-          class="mb-4 flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
-        >
-          <Rocket class="h-5 w-5 text-epi-blue" />
-          À venir<span class="text-epi-teal">_</span>
-        </h2>
+        <div class="mb-4 flex items-center gap-3">
+          <h2
+            class="flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+          >
+            <Rocket class="h-5 w-5 text-epi-blue" />
+            Prochains événements d'{data.child.prenom}<span
+              class="text-epi-teal">_</span
+            >
+          </h2>
+          <Badge variant="outline" class="text-[10px] font-bold">
+            {data.upcomingEvents.length} à venir
+          </Badge>
+        </div>
 
         <div class="space-y-3">
           {#each data.upcomingEvents as event (event.id)}
@@ -246,7 +291,7 @@
                           {event.name}
                         </p>
                         <p class="text-xs font-bold text-slate-400">
-                          {new Date(event.date).toLocaleDateString('fr-FR', {
+                          Le {new Date(event.date).toLocaleDateString('fr-FR', {
                             weekday: 'long',
                             day: 'numeric',
                             month: 'long',
@@ -281,6 +326,9 @@
                     <div
                       class="border-t border-slate-100 px-4 py-4 dark:border-slate-800"
                     >
+                      <p class="mb-3 text-xs text-slate-500">
+                        Votre enfant participera aux activités suivantes :
+                      </p>
                       <div class="space-y-4">
                         {#each event.timeSlots as slot (slot.id)}
                           <div>
@@ -358,7 +406,7 @@
         class="mb-4 flex items-center gap-2 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
       >
         <History class="h-5 w-5 text-epi-blue" />
-        Historique<span class="text-epi-teal">_</span>
+        Événements passés<span class="text-epi-teal">_</span>
       </h2>
 
       {#if data.participations.length === 0}
@@ -366,12 +414,16 @@
           class="flex min-h-40 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
         >
           <p class="text-sm font-bold text-slate-400 uppercase">
-            Aucun événement pour le moment
+            Aucun événement passé pour le moment
           </p>
         </div>
       {:else}
         <div class="space-y-3">
           {#each data.participations as participation}
+            {@const status = statusLabel(
+              participation.isPresent,
+              participation.delay,
+            )}
             <Collapsible.Root>
               <div
                 class="overflow-hidden rounded-2xl bg-white shadow-md shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
@@ -379,19 +431,11 @@
                 <Collapsible.Trigger class="w-full">
                   <div class="flex items-center justify-between p-4">
                     <div class="flex items-center gap-3 text-left">
-                      {#if participation.isPresent}
-                        <div
-                          class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/30"
-                        >
-                          <Check class="h-5 w-5 text-emerald-600" />
-                        </div>
-                      {:else}
-                        <div
-                          class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30"
-                        >
-                          <X class="h-5 w-5 text-red-500" />
-                        </div>
-                      {/if}
+                      <div
+                        class="flex h-10 w-10 items-center justify-center rounded-xl {status.color}"
+                      >
+                        <status.icon class="h-5 w-5" />
+                      </div>
                       <div>
                         <p class="font-bold text-slate-900 dark:text-white">
                           {participation.eventName}
@@ -410,6 +454,12 @@
                     </div>
 
                     <div class="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        class="text-[10px] font-bold {status.color}"
+                      >
+                        {status.text}
+                      </Badge>
                       {#if participation.activities.length > 0}
                         <Badge variant="outline" class="text-[10px] font-bold">
                           {participation.activities.length} activité{participation
