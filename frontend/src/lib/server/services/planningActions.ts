@@ -200,48 +200,46 @@ export const planningActions = {
           })
         : null;
 
-      const created = await db.$transaction(async (tx) => {
-        const slot = await tx.timeSlot.create({
-          data: {
-            planningId: planning.id,
-            startTime: startCdt.toDate(tz),
-            endTime: endCdt.toDate(tz),
+      const slot = await db.timeSlot.create({
+        data: {
+          planningId: planning.id,
+          startTime: startCdt.toDate(tz),
+          endTime: endCdt.toDate(tz),
+          activity: {
+            create: template
+              ? {
+                  nom: template.nom,
+                  description: template.description,
+                  difficulte: template.difficulte,
+                  activityType: template.activityType,
+                  isDynamic: template.isDynamic,
+                  link: template.link,
+                  content: template.content,
+                  contentStructure: template.contentStructure ?? undefined,
+                  templateId: template.id,
+                  activityThemes:
+                    template.activityTemplateThemes.length > 0
+                      ? {
+                          create: template.activityTemplateThemes.map(
+                            (att) => ({ themeId: att.themeId }),
+                          ),
+                        }
+                      : undefined,
+                }
+              : {
+                  nom: form.data.nom?.trim() || '',
+                  activityType: form.data.activityType,
+                  isDynamic: false,
+                },
           },
-        });
-
-        const activity = await tx.activity.create({
-          data: template
-            ? {
-                nom: template.nom,
-                description: template.description,
-                difficulte: template.difficulte,
-                activityType: template.activityType,
-                isDynamic: template.isDynamic,
-                link: template.link,
-                content: template.content,
-                contentStructure: template.contentStructure ?? undefined,
-                templateId: template.id,
-                timeSlotId: slot.id,
-                activityThemes:
-                  template.activityTemplateThemes.length > 0
-                    ? {
-                        create: template.activityTemplateThemes.map((att) => ({
-                          themeId: att.themeId,
-                        })),
-                      }
-                    : undefined,
-              }
-            : {
-                nom: form.data.nom?.trim() || '',
-                activityType: form.data.activityType,
-                isDynamic: false,
-                timeSlotId: slot.id,
-              },
-          include: { activityThemes: { include: { theme: true } } },
-        });
-
-        return { slot, activity };
+        },
+        include: {
+          activity: {
+            include: { activityThemes: { include: { theme: true } } },
+          },
+        },
       });
+      const created = { slot, activity: slot.activity! };
 
       return message(form, {
         text: 'Créneau ajouté !',

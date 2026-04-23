@@ -559,7 +559,7 @@
                       <DropdownMenu.Item
                         onclick={() => openAssignDialog(event)}
                       >
-                        <UserPlus class="mr-2 h-4 w-4" /> Assigner Mantas
+                        <UserPlus class="h-4 w-4" /> Assigner Mantas
                       </DropdownMenu.Item>
                       <DropdownMenu.Separator />
                       <DropdownMenu.Item class="p-0">
