@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { page } from '$app/state';
-  import { can, type StaffGroup } from '$lib/domain/permissions';
+  import { can, describeGroup, type StaffGroup } from '$lib/domain/permissions';
   import * as Tooltip from '$lib/components/ui/tooltip';
 
   type Props = {
@@ -16,7 +16,7 @@
   const role = $derived(page.data.staffProfile?.staffRole);
   const allowed = $derived(can(group, role));
   const message = $derived(
-    tooltipMessage ?? "Réservé aux responsables de l'espace",
+    tooltipMessage ?? `Réservé · ${describeGroup(group).label}`,
   );
 </script>
 

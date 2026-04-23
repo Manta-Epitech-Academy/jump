@@ -37,6 +37,38 @@ export const STAFF_GROUPS = {
 
 export type StaffGroup = keyof typeof STAFF_GROUPS;
 
+export type StaffGroupDescription = {
+  label: string;
+  contact: string;
+};
+
+const STAFF_GROUP_DESCRIPTIONS: Record<StaffGroup, StaffGroupDescription> = {
+  devLead: {
+    label: 'Responsable dev',
+    contact: 'un superdev de votre campus',
+  },
+  devMember: {
+    label: 'Équipe dev',
+    contact: 'un dev ou un superdev de votre campus',
+  },
+  pedaLead: {
+    label: 'Responsable péda',
+    contact: 'un référent péda de votre campus',
+  },
+  pedaMember: {
+    label: 'Équipe péda',
+    contact: 'un référent péda ou une manta de votre campus',
+  },
+  leads: {
+    label: "Responsable d'espace",
+    contact: 'un superdev ou un référent péda',
+  },
+  campusManageable: {
+    label: 'Membre staff',
+    contact: 'un responsable de votre campus',
+  },
+};
+
 export function can(
   group: StaffGroup,
   role: StaffRole | null | undefined,
@@ -47,4 +79,8 @@ export function can(
 
 export function rolesIn(group: StaffGroup): readonly StaffRole[] {
   return STAFF_GROUPS[group];
+}
+
+export function describeGroup(group: StaffGroup): StaffGroupDescription {
+  return STAFF_GROUP_DESCRIPTIONS[group];
 }

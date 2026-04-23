@@ -3,10 +3,10 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { hasFlag } from '$lib/server/auth/guards';
+import { applyStaffRoleGate, hasFlag } from '$lib/server/auth/guards';
 import { resolveStageContext } from '$lib/server/services/stageContext';
 
-export const load: LayoutServerLoad = async ({ parent, locals }) => {
+export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   const { user, staffProfile } = await parent();
 
   if (!user) {
@@ -18,6 +18,8 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     const target = getStaffRoleRedirectPath(role);
     throw redirect(302, resolve(target ?? '/staff/login'));
   }
+
+  applyStaffRoleGate(locals, url.pathname);
 
   const db = scopedPrisma(getCampusId(locals));
   const activeStage = hasFlag(locals, 'stage_seconde')
