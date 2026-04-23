@@ -40,6 +40,19 @@ No test framework is configured — there are no automated tests.
 
 ## Architecture
 
+### Workspaces
+
+The app splits into four workspaces, each serving a distinct audience and business goal:
+
+| Workspace  | Path             | Audience                         | Objective                                                    |
+| ---------- | ---------------- | -------------------------------- | ------------------------------------------------------------ |
+| **Dev**    | `/staff/dev/`    | `superdev`, `dev`                | Talent Acquisition & Recruitment (admissions pipeline)       |
+| **Pedago** | `/staff/pedago/` | `peda`, `manta`                  | Knowledge transmission & academic management                 |
+| **Admin**  | `/staff/admin/`  | `admin`                          | Global system overview; account impersonation                |
+| **Talent** | `(talent)/`      | students                         | Student experience — gamification, progression, portfolio    |
+
+**Terminology:** "Dev" is short for **Business Development / Admissions / Talent Acquisition** — not software engineers. Keep this in mind when reading code: a `dev` role or `/dev/` route refers to the recruitment team.
+
 ### Auth System
 
 Uses **BetterAuth** (`src/lib/server/auth.ts`) with three methods:
