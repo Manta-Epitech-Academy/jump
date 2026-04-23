@@ -2,6 +2,9 @@ import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { hasFlag } from '$lib/server/auth/guards';
+import { resolveStageContext } from '$lib/server/services/stageContext';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
@@ -16,5 +19,15 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     throw redirect(302, resolve(target ?? '/staff/login'));
   }
 
-  return { user, staffProfile, viewMode: locals.viewMode };
+  const db = scopedPrisma(getCampusId(locals));
+  const activeStage = hasFlag(locals, 'stage_seconde')
+    ? await resolveStageContext(db)
+    : null;
+
+  return {
+    user,
+    staffProfile,
+    viewMode: locals.viewMode,
+    activeStage,
+  };
 };

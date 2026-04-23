@@ -7,10 +7,8 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
-import { EVENT_TYPES } from '$lib/domain/event';
 import { hasFlag } from '$lib/server/auth/guards';
-
-const STAGE_DEFAULT_DURATION_DAYS = 14;
+import { resolveStageContext } from '$lib/server/services/stageContext';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
@@ -26,31 +24,9 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
   }
 
   const db = scopedPrisma(getCampusId(locals));
-  const now = new Date();
-
-  let activeStage: { id: string; titre: string } | null = null;
-  if (hasFlag(locals, 'stage_seconde')) {
-    const fallbackStart = new Date(now);
-    fallbackStart.setDate(
-      fallbackStart.getDate() - STAGE_DEFAULT_DURATION_DAYS,
-    );
-    const stageCandidates = await db.event.findMany({
-      where: {
-        eventType: EVENT_TYPES.STAGE_SECONDE,
-        date: { lte: now, gte: fallbackStart },
-      },
-      select: { id: true, titre: true, date: true, endDate: true },
-      orderBy: { date: 'desc' },
-    });
-    const match =
-      stageCandidates.find((e) => {
-        const end =
-          e.endDate ??
-          new Date(e.date.getTime() + STAGE_DEFAULT_DURATION_DAYS * 86_400_000);
-        return end.getTime() >= now.getTime();
-      }) ?? null;
-    if (match) activeStage = { id: match.id, titre: match.titre };
-  }
+  const activeStage = hasFlag(locals, 'stage_seconde')
+    ? await resolveStageContext(db)
+    : null;
 
   return {
     user,

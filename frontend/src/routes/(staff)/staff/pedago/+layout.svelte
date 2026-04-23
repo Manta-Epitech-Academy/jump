@@ -78,6 +78,21 @@
         <LayoutDashboard class="h-5 w-5" />
         <span>Aujourd'hui</span>
       </a>
+      {#if data.activeStage}
+        <a
+          href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/pedago/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span
+            >{data.activeStage.status === 'upcoming'
+              ? 'Prochain stage'
+              : 'Stage en cours'}</span
+          >
+        </a>
+      {/if}
     </nav>
 
     {#if hasCodingClub}
@@ -106,6 +121,21 @@
         <LayoutDashboard class="h-5 w-5" />
         <span>Dashboard Live</span>
       </a>
+      {#if data.activeStage}
+        <a
+          href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/pedago/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span
+            >{data.activeStage.status === 'upcoming'
+              ? 'Prochain stage'
+              : 'Stage en cours'}</span
+          >
+        </a>
+      {/if}
     </nav>
 
     <div class="sidebar-section-title">

@@ -146,7 +146,11 @@
         )}
       >
         <LayoutDashboard class="h-5 w-5" />
-        <span>Stage en cours</span>
+        <span
+          >{data.activeStage.status === 'upcoming'
+            ? 'Prochain stage'
+            : 'Stage en cours'}</span
+        >
       </a>
     {/if}
   </nav>

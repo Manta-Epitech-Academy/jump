@@ -26,9 +26,7 @@
 
   const minimalist = $derived(Boolean(data.minimalist));
 
-  const activeStage = $derived(
-    page.data.activeStage as { id: string; titre: string } | null,
-  );
+  const activeStage = $derived(page.data.activeStage);
   const interviewsHref = $derived(
     activeStage
       ? resolve(`/staff/dev/events/${activeStage.id}/interviews`)
@@ -158,9 +156,15 @@
             <strong
               >{data.ongoingEvents[0]._count.participations} participants</strong
             >. Allez les rencontrer !
-          {:else if activeStage}
+          {:else if activeStage?.status === 'ongoing'}
             C'est le moment idéal pour faire le point sur les entretiens du
             stage en cours.
+          {:else if activeStage?.status === 'upcoming'}
+            Le stage <strong>{activeStage.titre}</strong> démarre dans
+            <strong
+              >{activeStage.startsInDays}
+              {activeStage.startsInDays > 1 ? 'jours' : 'jour'}</strong
+            >. Préparez les entretiens dès maintenant.
           {:else}
             Aucun événement n'est en cours. Utilisez ce temps calme pour
             préparer la suite.

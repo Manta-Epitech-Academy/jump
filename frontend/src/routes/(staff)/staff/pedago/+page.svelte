@@ -43,6 +43,12 @@
     });
   }
 
+  let stageCountdownLabel = $derived(
+    data.activeStage?.status === 'upcoming'
+      ? `Démarre dans ${data.activeStage.startsInDays} ${data.activeStage.startsInDays > 1 ? 'jours' : 'jour'}`
+      : 'En cours',
+  );
+
   let livePresentCount = $derived(
     data.liveEvent?.participations.filter((p: any) => p.isPresent).length || 0,
   );
@@ -114,9 +120,63 @@
   );
 </script>
 
+{#snippet stageCard(ctaLabel: string)}
+  {#if data.activeStage}
+    <Card.Root
+      class="overflow-hidden border-t-4 border-t-epi-teal-solid shadow-md"
+    >
+      <div
+        class="flex items-center justify-between border-b border-border/50 bg-muted/20 px-5 py-3"
+      >
+        <div class="flex items-center gap-2">
+          <CalendarClock class="h-4 w-4 text-epi-teal-solid" />
+          <div
+            class="text-xs font-bold tracking-widest text-epi-teal-solid uppercase"
+          >
+            {data.activeStage.status === 'upcoming'
+              ? 'Prochain stage'
+              : 'Stage en cours'}
+          </div>
+        </div>
+        <span
+          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          {stageCountdownLabel}
+        </span>
+      </div>
+
+      <Card.Content
+        class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
+      >
+        <div class="space-y-1">
+          <h2 class="font-heading text-2xl text-foreground">
+            {data.activeStage.titre}
+          </h2>
+          <p
+            class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+          >
+            <CalendarDays class="h-4 w-4" />
+            Démarre le {formatDate(new Date(data.activeStage.startDate))}
+          </p>
+        </div>
+
+        <Button
+          class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
+          href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
+        >
+          <CalendarDays class="mr-2 h-4 w-4" />
+          {ctaLabel}
+        </Button>
+      </Card.Content>
+    </Card.Root>
+  {/if}
+{/snippet}
+
 {#if data.role === 'manta'}
   <div class="space-y-8">
     <PageHeader title="Espace Manta" subtitle="Votre tableau de bord terrain" />
+
+    {@render stageCard('Voir planning & sujets')}
 
     {#if data.liveEvent && data.isOnLiveEvent}
       <Card.Root class="overflow-hidden border-t-4 border-t-epi-blue shadow-md">
@@ -313,6 +373,8 @@
       title="Dashboard Pédago"
       subtitle="Centre des opérations académiques"
     />
+
+    {@render stageCard('Préparer le planning')}
 
     {#if data.liveEvent}
       <Card.Root class="overflow-hidden border-t-4 border-t-epi-blue shadow-md">
