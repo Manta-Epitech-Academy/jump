@@ -1112,12 +1112,13 @@
                   )}
                   {@const compact = slotHeight < 55}
                   {@const isClickable = !isStub && (!!activity || canEdit)}
-                  <!-- svelte-ignore a11y_click_events_have_key_events -->
-                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
                   <div
                     data-slot-block
+                    role={isClickable ? 'button' : undefined}
+                    tabindex={isClickable ? 0 : undefined}
                     class={cn(
-                      'group/slot absolute z-10 flex flex-col overflow-hidden rounded-md shadow-sm transition-all hover:z-20 dark:shadow-none',
+                      'group/slot absolute z-10 flex flex-col overflow-hidden rounded-md shadow-sm transition-all hover:z-20 focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none dark:shadow-none',
                       activity
                         ? [
                             'border-y border-r border-l-4',
@@ -1140,6 +1141,19 @@
                     aria-label={activity?.nom ?? 'Créneau vide'}
                     onpointerdown={(e) =>
                       startSlotInteraction(e, slot, day.dateKey, isStub)}
+                    onkeydown={(e) => {
+                      if (!isClickable) return;
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      if (activity) {
+                        previewSlotId = slot.id;
+                        previewOpen = true;
+                      } else if (canEdit) {
+                        editingSlotId = slot.id;
+                        editDialogMode = 'assign';
+                        editDialogOpen = true;
+                      }
+                    }}
                   >
                     <!-- Top resize handle -->
                     {#if canEdit && !isStub}

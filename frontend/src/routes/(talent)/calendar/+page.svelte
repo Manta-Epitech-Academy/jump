@@ -16,7 +16,6 @@
   type Slot = (typeof timeSlots)[number];
 
   const PIXELS_PER_MINUTE = 1.2;
-  const DAY_MS = 86_400_000;
   const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
   function startOfDay(d: Date): Date {
@@ -89,15 +88,18 @@
   let canGoNext = $derived(weekDays[0] < eventEnd);
 
   let previewSlot = $state<Slot | null>(null);
-  let previewHasStarted = $state(false);
   let previewOpen = $state(false);
+  let previewHasStarted = $derived(
+    previewSlot
+      ? new Date(previewSlot.startTime).getTime() <= nowTime.getTime()
+      : false,
+  );
   $effect(() => {
     if (!previewOpen) previewSlot = null;
   });
 
   function openPreview(slot: Slot) {
     previewSlot = slot;
-    previewHasStarted = new Date(slot.startTime).getTime() <= nowTime.getTime();
     previewOpen = true;
   }
 
@@ -158,9 +160,15 @@
 
     const out: PackedSlot[] = [];
     for (const group of groups) {
-      const groupSorted = [...group].sort((a, b) =>
-        a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
-      );
+      const groupSorted = [...group].sort((a, b) => {
+        const sa = new Date(a.startTime).getTime();
+        const sb = new Date(b.startTime).getTime();
+        if (sa !== sb) return sa - sb;
+        const ea = new Date(a.endTime).getTime();
+        const eb = new Date(b.endTime).getTime();
+        if (ea !== eb) return ea - eb;
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
       const columns: Slot[][] = [];
       for (const slot of groupSorted) {
         let placed = false;
@@ -183,15 +191,21 @@
     return out;
   }
 
+  function dayKey(d: Date): string {
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }
+
   let slotsByDay = $derived.by(() => {
     const map = new Map<number, PackedSlot[]>();
-    const weekStartMs = weekStart.getTime();
-    const weekEndMs = weekStartMs + 7 * DAY_MS;
+    const dayIndexByKey = new Map<string, number>();
+    for (let i = 0; i < 7; i++) {
+      dayIndexByKey.set(dayKey(weekDays[i]), i);
+    }
     const byDay = new Map<number, Slot[]>();
     for (const s of timeSlots) {
-      const t = new Date(s.startTime).getTime();
-      if (t < weekStartMs || t >= weekEndMs) continue;
-      const dayIdx = Math.floor((t - weekStartMs) / DAY_MS);
+      const slotDay = startOfDay(new Date(s.startTime));
+      const dayIdx = dayIndexByKey.get(dayKey(slotDay));
+      if (dayIdx === undefined) continue;
       const arr = byDay.get(dayIdx) ?? [];
       arr.push(s);
       byDay.set(dayIdx, arr);
