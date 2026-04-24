@@ -70,12 +70,16 @@
   let gridScrollContainer: HTMLDivElement | undefined = $state();
 
   // Local, optimistically mutable copy of the planning's slots. Re-seeded from
-  // props whenever the server responds with fresh data.
+  // props whenever the server responds with fresh data. Read-only viewers
+  // (e.g. manta on planning) see only assigned slots — unassigned placeholders
+  // are staff-only drafting state.
   let localSlots = $state<Slot[]>([]);
   $effect(() => {
     const incoming = planning?.timeSlots ?? [];
     untrack(() => {
-      localSlots = [...incoming];
+      localSlots = canEdit
+        ? [...incoming]
+        : incoming.filter((s) => !!s.activity);
     });
   });
 
