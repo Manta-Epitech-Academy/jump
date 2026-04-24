@@ -197,7 +197,7 @@
             class="h-2 w-24 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
           >
             <div
-              class="h-full bg-epi-teal transition-all duration-500"
+              class="h-full bg-epi-teal-solid transition-all duration-500"
               style="width: {(Math.min(unlockedIndex, steps.length) /
                 steps.length) *
                 100}%"
@@ -235,8 +235,8 @@
             class="flex h-full flex-col items-center justify-center p-8 text-center"
             in:fly={{ y: 20, duration: 500 }}
           >
-            <div class="mb-6 rounded-full bg-teal-50 p-6 dark:bg-teal-950/30">
-              <Trophy class="h-16 w-16 text-epi-teal" />
+            <div class="mb-6 rounded-full bg-epi-teal-solid/10 p-6">
+              <Trophy class="h-16 w-16 text-epi-teal-solid" />
             </div>
             <h2
               class="mb-2 font-heading text-4xl text-slate-900 uppercase dark:text-white"
@@ -332,7 +332,7 @@
                     class={cn(
                       'flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all',
                       feedbackRating === 3
-                        ? 'border-teal-400 bg-teal-50 text-teal-700 dark:bg-teal-900/20'
+                        ? 'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid'
                         : 'border-slate-100 bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-950',
                     )}
                   >

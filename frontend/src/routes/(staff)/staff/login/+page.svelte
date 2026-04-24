@@ -6,7 +6,7 @@
     AlertDescription,
     AlertTitle,
   } from '$lib/components/ui/alert';
-  import { CircleAlert, Terminal, Lock } from '@lucide/svelte';
+  import { CircleAlert, Terminal, Lock, LoaderCircle } from '@lucide/svelte';
   import { authClient } from '$lib/auth-client';
   import { resolve } from '$app/paths';
 
@@ -40,7 +40,7 @@
   <!-- Login Card -->
   <div class="z-10 w-full max-w-md">
     <Card.Root
-      class="relative w-full overflow-hidden border-t-4 border-t-epi-blue bg-card/95 shadow-2xl backdrop-blur-sm"
+      class="relative w-full overflow-hidden border-t-4 border-t-epi-blue bg-card/95 shadow-2xl backdrop-blur-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
     >
       <div
         class="absolute -top-3 -right-3 h-6 w-6 rotate-45 bg-epi-teal opacity-50 dark:opacity-80"
@@ -90,19 +90,24 @@
           size="lg"
           class="relative h-12 w-full gap-3 border-input bg-background font-bold transition-all hover:border-epi-blue hover:bg-epi-blue/5 hover:text-epi-blue"
         >
-          <!-- Microsoft Icon (Small) -->
-          <svg
-            viewBox="0 0 23 23"
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5"
-          >
-            <path fill="#f3f3f3" d="M0 0h23v23H0z" />
-            <path fill="#f35325" d="M1 1h10v10H1z" />
-            <path fill="#81bc06" d="M12 1h10v10H12z" />
-            <path fill="#05a6f0" d="M1 12h10v10H1z" />
-            <path fill="#ffba08" d="M12 12h10v10H12z" />
-          </svg>
-          {isLoading ? 'Redirection...' : 'Se connecter avec Office 365'}
+          {#if isLoading}
+            <LoaderCircle class="h-5 w-5 animate-spin text-epi-blue" />
+            Redirection...
+          {:else}
+            <!-- Microsoft Icon (Small) -->
+            <svg
+              viewBox="0 0 23 23"
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5"
+            >
+              <path fill="#f3f3f3" d="M0 0h23v23H0z" />
+              <path fill="#f35325" d="M1 1h10v10H1z" />
+              <path fill="#81bc06" d="M12 1h10v10H12z" />
+              <path fill="#05a6f0" d="M1 12h10v10H1z" />
+              <path fill="#ffba08" d="M12 12h10v10H12z" />
+            </svg>
+            Se connecter avec Office 365
+          {/if}
         </Button>
 
         <div class="relative">

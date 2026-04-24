@@ -5,6 +5,8 @@ import { CalendarDateTime } from '@internationalized/date';
 /**
  * Apply a PlanningTemplate to an event, creating all TimeSlots and Activities.
  * Replaces any existing planning content for the event.
+ *
+ * Each PlanningTemplateSlot maps 1:1 to a TimeSlot+Activity pair.
  */
 export async function applyPlanningTemplate(
   planningTemplateId: string,
@@ -19,14 +21,10 @@ export async function applyPlanningTemplate(
         orderBy: { dayIndex: 'asc' },
         include: {
           slots: {
-            orderBy: { sortOrder: 'asc' },
+            orderBy: [{ startTime: 'asc' }, { sortOrder: 'asc' }],
             include: {
-              items: {
-                include: {
-                  activityTemplate: {
-                    include: { activityTemplateThemes: true },
-                  },
-                },
+              activityTemplate: {
+                include: { activityTemplateThemes: true },
               },
             },
           },
@@ -55,11 +53,9 @@ export async function applyPlanningTemplate(
       update: {},
     });
 
-    // Clear existing slots (cascades to activities)
     await tx.timeSlot.deleteMany({ where: { planningId: planning.id } });
 
     for (const day of template.days) {
-      // Compute absolute date: event date + dayIndex days
       const dayDate = new Date(eventDate);
       dayDate.setDate(dayDate.getDate() + day.dayIndex);
 
@@ -87,51 +83,47 @@ export async function applyPlanningTemplate(
             planningId: planning.id,
             startTime: startCdt.toDate(timezone),
             endTime: endCdt.toDate(timezone),
-            label: slot.label,
           },
         });
 
-        for (const item of slot.items) {
-          if (item.activityTemplateId && item.activityTemplate) {
-            const at = item.activityTemplate;
-            await tx.activity.create({
-              data: {
-                nom: at.nom,
-                description: at.description,
-                difficulte: at.difficulte,
-                activityType: at.activityType,
-                isDynamic: at.isDynamic,
-                link: at.link,
-                content: at.content,
-                contentStructure: at.contentStructure ?? undefined,
-                templateId: at.id,
-                timeSlotId: timeSlot.id,
-                activityThemes:
-                  at.activityTemplateThemes.length > 0
-                    ? {
-                        create: at.activityTemplateThemes.map((att) => ({
-                          themeId: att.themeId,
-                        })),
-                      }
-                    : undefined,
-              },
-            });
-          } else if (item.nom) {
-            await tx.activity.create({
-              data: {
-                nom: item.nom,
-                description: item.description,
-                activityType: item.activityType,
-                isDynamic: false,
-                timeSlotId: timeSlot.id,
-              },
-            });
-          }
+        if (slot.activityTemplate) {
+          const at = slot.activityTemplate;
+          await tx.activity.create({
+            data: {
+              nom: at.nom,
+              description: at.description,
+              difficulte: at.difficulte,
+              activityType: at.activityType,
+              isDynamic: at.isDynamic,
+              link: at.link,
+              content: at.content,
+              contentStructure: at.contentStructure ?? undefined,
+              templateId: at.id,
+              timeSlotId: timeSlot.id,
+              activityThemes:
+                at.activityTemplateThemes.length > 0
+                  ? {
+                      create: at.activityTemplateThemes.map((att) => ({
+                        themeId: att.themeId,
+                      })),
+                    }
+                  : undefined,
+            },
+          });
+        } else {
+          await tx.activity.create({
+            data: {
+              nom: slot.nom || 'Pause',
+              description: slot.description,
+              activityType: slot.activityType,
+              isDynamic: false,
+              timeSlotId: timeSlot.id,
+            },
+          });
         }
       }
     }
 
-    // Auto-set endDate for multi-day templates
     if (template.nbDays > 1) {
       const endDate = new Date(eventDate);
       endDate.setDate(endDate.getDate() + template.nbDays - 1);

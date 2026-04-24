@@ -9,10 +9,14 @@
   import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { Badge } from '$lib/components/ui/badge';
+  import { FEATURE_FLAGS, type FlagKey } from '$lib/domain/featureFlags';
 
   let { data } = $props();
+  const flagDefs = Object.values(FEATURE_FLAGS);
 
   // Form handling logic
   const { form, errors, enhance, delayed, reset } = superForm(
@@ -38,6 +42,7 @@
 
   function openCreate() {
     reset();
+    $form.flags = [];
     isEditing = false;
     editId = '';
     open = true;
@@ -114,6 +119,7 @@
     $form.name = campus.name;
     $form.externalName = campus.externalName ?? '';
     $form.timezone = campus.timezone ?? 'Europe/Paris';
+    $form.flags = (campus.flags ?? []) as FlagKey[];
     isEditing = true;
     editId = campus.id;
     open = true;
@@ -151,6 +157,7 @@
           <Table.Head>Nom du Campus</Table.Head>
           <Table.Head>Nom externe</Table.Head>
           <Table.Head>Fuseau horaire</Table.Head>
+          <Table.Head>Fonctionnalités</Table.Head>
           <Table.Head class="text-right">Actions</Table.Head>
         </Table.Row>
       </Table.Header>
@@ -167,6 +174,17 @@
             <Table.Cell class="text-xs text-muted-foreground"
               >{getTimezoneLabel(campus.timezone ?? 'Europe/Paris')}</Table.Cell
             >
+            <Table.Cell>
+              <div class="flex flex-wrap gap-1">
+                {#each campus.flags as key}
+                  <Badge variant="secondary" class="text-[10px]"
+                    >{FEATURE_FLAGS[key as FlagKey]?.label ?? key}</Badge
+                  >
+                {:else}
+                  <span class="text-xs text-muted-foreground">—</span>
+                {/each}
+              </div>
+            </Table.Cell>
             <Table.Cell class="text-right">
               <Tooltip.Provider delayDuration={300}>
                 <Tooltip.Root>
@@ -268,6 +286,55 @@
               >{$errors.timezone}</span
             >{/if}
         </div>
+        <fieldset class="space-y-2">
+          <legend class="text-sm font-bold uppercase">
+            Fonctionnalités activées
+          </legend>
+          <div class="space-y-2">
+            {#each flagDefs as flag}
+              <label
+                class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
+              >
+                <Checkbox
+                  name="flags"
+                  value={flag.key}
+                  checked={$form.flags.includes(flag.key as FlagKey)}
+                  onCheckedChange={(v) => {
+                    const key = flag.key as FlagKey;
+                    if (v === true) {
+                      if (!$form.flags.includes(key))
+                        $form.flags = [...$form.flags, key];
+                    } else {
+                      $form.flags = $form.flags.filter((k) => k !== key);
+                    }
+                  }}
+                  class="mt-1"
+                />
+                <div class="flex-1 space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold">{flag.label}</span>
+                    <Badge
+                      variant={flag.kind === 'rollout'
+                        ? 'outline'
+                        : 'secondary'}
+                      class="text-[10px] uppercase"
+                    >
+                      {flag.kind}
+                    </Badge>
+                  </div>
+                  <p class="text-xs text-muted-foreground">
+                    {flag.description}
+                  </p>
+                  {#if flag.removeBy && flag.removeBy < new Date()}
+                    <p class="text-xs text-destructive">
+                      Flag à supprimer du code (expiré le {flag.removeBy.toLocaleDateString()}).
+                    </p>
+                  {/if}
+                </div>
+              </label>
+            {/each}
+          </div>
+        </fieldset>
         <Dialog.Footer>
           <Button
             type="submit"

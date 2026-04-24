@@ -92,7 +92,7 @@
                 action: {
                   label: 'Ouvrir le Builder',
                   onClick: () =>
-                    goto(resolve(`/staff/dev/events/${newId}/builder`)),
+                    goto(resolve(`/staff/dev/events/${newId}/manage`)),
                 },
               });
 

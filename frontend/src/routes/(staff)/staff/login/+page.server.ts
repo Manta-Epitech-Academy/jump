@@ -29,6 +29,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   } else if (errorType === 'NoRole') {
     errorMessage =
       "Aucun rôle n'a été attribué à votre compte. Contactez un administrateur.";
+  } else if (errorType === 'NotInvited') {
+    errorMessage =
+      "Votre adresse n'est pas autorisée. Contactez un responsable pour obtenir un accès.";
   }
 
   return {

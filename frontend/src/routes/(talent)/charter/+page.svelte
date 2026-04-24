@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import { ShieldCheck } from '@lucide/svelte';
 
   let accepted = $state(false);
@@ -117,11 +118,7 @@
       <label
         class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >
-        <input
-          type="checkbox"
-          bind:checked={accepted}
-          class="h-5 w-5 shrink-0 rounded border-slate-300 text-epi-teal accent-epi-teal focus:ring-epi-teal"
-        />
+        <Checkbox bind:checked={accepted} class="size-5" />
         <span class="text-sm text-slate-700 dark:text-slate-300">
           J'ai lu et j'accepte les conditions ci-dessus
         </span>

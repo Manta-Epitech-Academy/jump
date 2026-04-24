@@ -72,7 +72,7 @@
             class={cn(
               'flex h-auto w-full items-center gap-3 rounded-xl border p-3 text-left tracking-normal normal-case transition-all',
               isCurrent
-                ? 'border-epi-teal bg-teal-50 shadow-sm dark:bg-teal-950/20'
+                ? 'border-epi-teal-solid bg-epi-teal-solid/10 shadow-sm'
                 : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800',
               status === 'locked' &&
                 'cursor-not-allowed opacity-50 hover:bg-transparent',
@@ -82,9 +82,9 @@
               class={cn(
                 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold',
                 status === 'done'
-                  ? 'bg-epi-teal text-black'
+                  ? 'bg-epi-teal-solid text-white'
                   : isCurrent
-                    ? 'bg-white text-epi-teal shadow-sm dark:bg-slate-900'
+                    ? 'bg-white text-epi-teal-solid shadow-sm dark:bg-slate-900'
                     : 'bg-slate-200 text-slate-500 dark:bg-slate-800',
               )}
             >
