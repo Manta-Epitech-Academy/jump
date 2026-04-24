@@ -7,7 +7,6 @@ const epitechEmail = z
     message: 'Doit être une adresse @epitech.eu',
   });
 
-// `admin` excluded — admin role is provisioned manually, not self-replicating.
 const invitableRoles = STAFF_GROUPS.campusManageable;
 
 export const createInvitationSchema = z.object({
