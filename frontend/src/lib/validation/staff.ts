@@ -7,13 +7,18 @@ const epitechEmail = z
     message: 'Doit être une adresse @epitech.eu',
   });
 
-// `admin` excluded — admin role is provisioned manually, not self-replicating.
 const invitableRoles = STAFF_GROUPS.campusManageable;
 
 export const createInvitationSchema = z.object({
   email: epitechEmail,
   campusId: z.string().min(1, 'Campus requis'),
   staffRole: z.enum(invitableRoles).default('superdev'),
+});
+
+export const createAdminInvitationSchema = z.object({
+  email: epitechEmail,
+  campusId: z.string().min(1, 'Campus requis'),
+  staffRole: z.enum(['admin', ...invitableRoles] as const).default('superdev'),
 });
 
 export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;

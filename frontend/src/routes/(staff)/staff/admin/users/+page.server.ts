@@ -5,7 +5,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { Prisma, type StaffRole } from '@prisma/client';
 import { staffRoles } from '$lib/domain/staff';
-import { createInvitationSchema } from '$lib/validation/staff';
+import { createAdminInvitationSchema } from '$lib/validation/staff';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const [members, invitations, campuses] = await Promise.all([
@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     prisma.campus.findMany({ orderBy: { name: 'asc' } }),
   ]);
 
-  const inviteForm = await superValidate(zod4(createInvitationSchema));
+  const inviteForm = await superValidate(zod4(createAdminInvitationSchema));
 
   return {
     members,
@@ -39,7 +39,10 @@ export const actions: Actions = {
   invite: async ({ request, locals }) => {
     if (!locals.user) return fail(401);
 
-    const form = await superValidate(request, zod4(createInvitationSchema));
+    const form = await superValidate(
+      request,
+      zod4(createAdminInvitationSchema),
+    );
     if (!form.valid) return fail(400, { form });
 
     const email = form.data.email.toLowerCase();
