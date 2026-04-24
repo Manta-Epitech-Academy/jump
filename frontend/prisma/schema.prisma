@@ -572,6 +572,12 @@ model CampusFeatureFlag {
   @@index([flagKey])
 }
 
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model AdminFile {
   id           String   @id @default(cuid())
   name         String
