@@ -311,6 +311,11 @@
     initialBottom: 0,
     currentTop: 0,
     currentBottom: 0,
+    // Raw (unsnapped) pointer Y at create-drag start. Kept so the top edge
+    // can be re-snapped at 15-min precision once the user upgrades a click
+    // into a drag.
+    rawInitialY: 0,
+    createUpgradedToDrag: false,
   });
 
   // Hidden form references + payloads
@@ -465,6 +470,8 @@
           initialBottom: getPixels(slot.endTime),
           currentTop: getPixels(slot.startTime),
           currentBottom: getPixels(slot.endTime),
+          rawInitialY: 0,
+          createUpgradedToDrag: false,
         };
       }
     }
@@ -502,8 +509,11 @@
     if ((e.target as HTMLElement).closest('[data-slot-block]')) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const snappedY =
-      Math.round(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
+    // Mirrors Google Calendar: a bare click lands on a 30-min anchor with a
+    // 60-min default slot. Once the user drags past CLICK_DRAG_THRESHOLD the
+    // top edge is re-snapped to 15-min precision (see handlePointerMove).
+    const CLICK_SNAP_PX = 30 * PIXELS_PER_MINUTE;
+    const snappedY = Math.floor(y / CLICK_SNAP_PX) * CLICK_SNAP_PX;
     dragState = {
       active: true,
       mode: 'create',
@@ -514,6 +524,8 @@
       initialBottom: snappedY + 60 * PIXELS_PER_MINUTE,
       currentTop: snappedY,
       currentBottom: snappedY + 60 * PIXELS_PER_MINUTE,
+      rawInitialY: y,
+      createUpgradedToDrag: false,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -533,6 +545,8 @@
       initialBottom: getPixels(slot.endTime),
       currentTop: getPixels(slot.startTime),
       currentBottom: getPixels(slot.endTime),
+      rawInitialY: 0,
+      createUpgradedToDrag: false,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -552,6 +566,8 @@
       initialBottom: getPixels(slot.endTime),
       currentTop: getPixels(slot.startTime),
       currentBottom: getPixels(slot.endTime),
+      rawInitialY: 0,
+      createUpgradedToDrag: false,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -571,6 +587,8 @@
       initialBottom: getPixels(slot.endTime),
       currentTop: getPixels(slot.startTime),
       currentBottom: getPixels(slot.endTime),
+      rawInitialY: 0,
+      createUpgradedToDrag: false,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -583,6 +601,17 @@
       Math.round(deltaY / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
 
     if (dragState.mode === 'create') {
+      // Click held in place keeps the 30-min-snapped anchor + 60-min default.
+      // Once movement crosses CLICK_DRAG_THRESHOLD the intent becomes "drag
+      // to set a precise duration", so re-snap the top edge to 15-min using
+      // the raw initial Y and let delta drive the bottom.
+      if (!dragState.createUpgradedToDrag) {
+        if (Math.abs(deltaY) < CLICK_DRAG_THRESHOLD) return;
+        const DRAG_SNAP_PX = 15 * PIXELS_PER_MINUTE;
+        dragState.initialTop =
+          Math.floor(dragState.rawInitialY / DRAG_SNAP_PX) * DRAG_SNAP_PX;
+        dragState.createUpgradedToDrag = true;
+      }
       const y1 = dragState.initialTop;
       const y2 = dragState.initialTop + snappedDelta;
       dragState.currentTop = Math.max(0, Math.min(y1, y2));
@@ -901,8 +930,10 @@
     }
 
     dragTargetSlotId = null;
+    // Floor so the ghost (and resulting slot) anchors at or above the cursor,
+    // matching the click-create behaviour.
     const snappedY =
-      Math.round(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
+      Math.floor(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
     const tpl = templates.find((t) => t.id === draggedTemplateId) ?? null;
     const duration = tpl?.defaultDuration ?? 60;
     dragGhost = {
@@ -935,7 +966,7 @@
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const y = e.clientY - rect.top;
     const snappedY =
-      Math.round(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
+      Math.floor(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
     const duration = tpl.defaultDuration ?? 60;
     const startTime = getTimeFromPixels(snappedY);
     const endTime = getTimeFromPixels(snappedY + duration * PIXELS_PER_MINUTE);
