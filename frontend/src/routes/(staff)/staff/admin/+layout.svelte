@@ -101,7 +101,7 @@
       class={navLinkClass(isActive('/staff/admin/users'))}
     >
       <Users class="h-4 w-4" />
-      <span>Équipe Staff</span>
+      <span>Membres & invitations</span>
     </a>
   </nav>
 

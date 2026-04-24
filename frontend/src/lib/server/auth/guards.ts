@@ -1,17 +1,64 @@
-import type { RequestEvent } from '@sveltejs/kit';
+import { error, type RequestEvent } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
+import type { StaffRole } from '@prisma/client';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
+import { can, type StaffGroup } from '$lib/domain/permissions';
+import type { FlagKey } from '$lib/domain/featureFlags';
+
+function forbidGroup(group: StaffGroup): never {
+  throw error(403, {
+    message: 'Action réservée.',
+    code: 'staff_group_required',
+    group,
+  });
+}
+
+export function hasFlag(locals: App.Locals, key: FlagKey): boolean {
+  return locals.featureFlags.has(key);
+}
+
+export function requireFlag(locals: App.Locals, key: FlagKey): void {
+  if (!hasFlag(locals, key)) {
+    throw error(404, 'Fonctionnalité non disponible sur ce campus.');
+  }
+}
+
+type StaffRoleGate = {
+  pattern: RegExp;
+  group: StaffGroup;
+  readOnlyForRest?: readonly StaffRole[];
+};
+
+const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
+  {
+    pattern: /^\/staff\/dev\/events\/import(?:\/|$)/,
+    group: 'devLead',
+  },
+  {
+    pattern: /^\/staff\/dev\/team(?:\/|$)/,
+    group: 'devLead',
+  },
+  {
+    pattern: /^\/staff\/pedago\/events\/[^/]+\/planning(?:\/|$)/,
+    group: 'pedaLead',
+    readOnlyForRest: ['manta'],
+  },
+  {
+    pattern: /^\/staff\/pedago\/events\/[^/]+\/factions(?:\/|$)/,
+    group: 'pedaLead',
+  },
+];
 
 export function applyRouteGuards(event: RequestEvent): Response | null {
   const currentPath = event.url.pathname;
   const routeId = event.route.id || '';
 
-  // --- Path definitions ---
+  event.locals.viewMode = 'edit';
+
   const p = (path: string) =>
     new URL(resolvePath(path as any), event.url).pathname;
 
   const pathStaffLogin = p('/staff/login');
-  const pathStaffOnboarding = p('/staff/onboarding');
   const pathStaffOAuth = p('/staff/oauth');
   const pathStaffAdmin = p('/staff/admin');
   const pathStaffAdminLogin = p('/staff/admin/login');
@@ -105,8 +152,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     const isStaffPublic =
       currentPath === pathStaffLogin ||
       currentPath.startsWith(pathStaffOAuth) ||
-      currentPath.startsWith(pathStaffAdminLogin) ||
-      currentPath.startsWith(pathStaffOnboarding);
+      currentPath.startsWith(pathStaffAdminLogin);
 
     if (!isStaffPublic && !event.locals.user) {
       return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
@@ -167,18 +213,8 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
       }
     }
 
-    // Onboarding guard: staff must have a campus
-    if (
-      !isStaffPublic &&
-      !isAdminPath &&
-      event.locals.user &&
-      !event.locals.staffProfile?.campusId
-    ) {
-      return Response.redirect(
-        new URL(pathStaffOnboarding, event.url).href,
-        303,
-      );
-    }
+    // Per-feature sub-role gates run from (staff)/+layout.server.ts via
+    // applyStaffRoleGate — errors thrown in handle bypass +error.svelte.
   }
 
   // --- Parent Guards ---
@@ -200,4 +236,34 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
   }
 
   return null;
+}
+
+export function applyStaffRoleGate(locals: App.Locals, pathname: string): void {
+  const role = locals.staffProfile?.staffRole;
+  if (!role) return;
+
+  for (const gate of STAFF_ROLE_GATES) {
+    if (!gate.pattern.test(pathname)) continue;
+    if (can(gate.group, role)) {
+      locals.viewMode = 'edit';
+      return;
+    }
+    if (gate.readOnlyForRest?.includes(role)) {
+      locals.viewMode = 'readonly';
+      return;
+    }
+    forbidGroup(gate.group);
+  }
+}
+
+export function requireStaffGroup(
+  locals: App.Locals,
+  group: StaffGroup,
+): asserts locals is App.Locals & {
+  staffProfile: NonNullable<App.Locals['staffProfile']> & {
+    staffRole: StaffRole;
+  };
+} {
+  if (can(group, locals.staffProfile?.staffRole)) return;
+  forbidGroup(group);
 }

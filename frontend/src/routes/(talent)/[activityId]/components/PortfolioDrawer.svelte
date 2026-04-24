@@ -104,7 +104,7 @@
                   class="flex flex-col items-center justify-center pt-5 pb-6"
                 >
                   {#if portfolioFile}
-                    <CircleCheck class="mb-2 h-6 w-6 text-epi-teal" />
+                    <CircleCheck class="mb-2 h-6 w-6 text-epi-teal-solid" />
                     <p
                       class="text-sm font-bold text-slate-700 dark:text-slate-300"
                     >

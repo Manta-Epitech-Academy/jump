@@ -48,7 +48,31 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   const filterDateEnd = endOfDay.toDate();
   const filterDateStartDate = new Date(filterDateStart);
 
-  // Fetch today's participation with full planning chain (timeSlots → activities)
+  const planningInclude = {
+    event: {
+      include: {
+        planning: {
+          include: {
+            timeSlots: {
+              include: {
+                activity: {
+                  select: {
+                    id: true,
+                    nom: true,
+                    activityType: true,
+                    difficulte: true,
+                  },
+                },
+              },
+              orderBy: { startTime: 'asc' as const },
+            },
+          },
+        },
+      },
+    },
+  };
+
+  // Fetch today's participation with full planning chain (timeSlots → activity)
   const todayParticipation = await prisma.participation.findFirst({
     where: {
       talentId,
@@ -56,30 +80,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
         date: { gte: filterDateStartDate, lte: filterDateEnd },
       },
     },
-    include: {
-      event: {
-        include: {
-          planning: {
-            include: {
-              timeSlots: {
-                include: {
-                  activities: {
-                    where: { activityType: { not: 'orga' } },
-                    select: {
-                      id: true,
-                      nom: true,
-                      activityType: true,
-                      difficulte: true,
-                    },
-                  },
-                },
-                orderBy: { startTime: 'asc' },
-              },
-            },
-          },
-        },
-      },
-    },
+    include: planningInclude,
     orderBy: { event: { date: 'asc' } },
   });
 
@@ -89,30 +90,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       talentId,
       event: { date: { gt: filterDateEnd } },
     },
-    include: {
-      event: {
-        include: {
-          planning: {
-            include: {
-              timeSlots: {
-                include: {
-                  activities: {
-                    where: { activityType: { not: 'orga' } },
-                    select: {
-                      id: true,
-                      nom: true,
-                      activityType: true,
-                      difficulte: true,
-                    },
-                  },
-                },
-                orderBy: { startTime: 'asc' },
-              },
-            },
-          },
-        },
-      },
-    },
+    include: planningInclude,
     orderBy: { event: { date: 'asc' } },
   });
 
@@ -139,20 +117,23 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       ? {
           eventName: todayParticipation.event.titre,
           eventDate: todayParticipation.event.date,
-          timeSlots: (todayParticipation.event.planning?.timeSlots ?? []).map(
-            (slot) => ({
+          timeSlots: (todayParticipation.event.planning?.timeSlots ?? [])
+            .filter(
+              (slot) => slot.activity && slot.activity.activityType !== 'orga',
+            )
+            .map((slot) => ({
               id: slot.id,
               startTime: slot.startTime,
               endTime: slot.endTime,
-              label: slot.label,
-              activities: slot.activities.map((a) => ({
-                id: a.id,
-                name: a.nom,
-                type: a.activityType,
-                difficulty: a.difficulte,
-              })),
-            }),
-          ),
+              activities: [
+                {
+                  id: slot.activity!.id,
+                  name: slot.activity!.nom,
+                  type: slot.activity!.activityType,
+                  difficulty: slot.activity!.difficulte,
+                },
+              ],
+            })),
         }
       : null,
     child: {
@@ -165,18 +146,23 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       id: p.event.id,
       name: p.event.titre,
       date: p.event.date,
-      timeSlots: (p.event.planning?.timeSlots ?? []).map((slot) => ({
-        id: slot.id,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        label: slot.label,
-        activities: slot.activities.map((a) => ({
-          id: a.id,
-          name: a.nom,
-          type: a.activityType,
-          difficulty: a.difficulte,
+      timeSlots: (p.event.planning?.timeSlots ?? [])
+        .filter(
+          (slot) => slot.activity && slot.activity.activityType !== 'orga',
+        )
+        .map((slot) => ({
+          id: slot.id,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          activities: [
+            {
+              id: slot.activity!.id,
+              name: slot.activity!.nom,
+              type: slot.activity!.activityType,
+              difficulty: slot.activity!.difficulte,
+            },
+          ],
         })),
-      })),
     })),
     participations: participations.map((p) => ({
       id: p.id,

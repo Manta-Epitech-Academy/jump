@@ -5,10 +5,12 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 
 const PER_PAGE = 50;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
+  requireFlag(locals, 'coding_club');
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
   const search = url.searchParams.get('q') || '';
   const niveau = url.searchParams.get('niveau') || '';
@@ -54,6 +56,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
   update: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devMember');
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(studentSchema));
     const id = formData.get('id') as string;
@@ -86,18 +89,23 @@ export const actions: Actions = {
         }
       }
 
-      return message(form, 'Élève modifié avec succès !');
+      return message(form, 'Talent modifié avec succès !');
     } catch (err: any) {
       if (err.code === 'P2002') {
-        return message(form, 'Un élève avec ce nom et cet email existe déjà.', {
-          status: 400,
-        });
+        return message(
+          form,
+          'Un Talent avec ce nom et cet email existe déjà.',
+          {
+            status: 400,
+          },
+        );
       }
       return message(form, 'Erreur lors de la modification', { status: 500 });
     }
   },
 
   delete: async ({ url, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
     const db = scopedPrisma(getCampusId(locals));

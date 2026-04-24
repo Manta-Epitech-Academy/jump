@@ -3,6 +3,7 @@
   import { buttonVariants } from '$lib/components/ui/button';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
+  import { LoaderCircle } from '@lucide/svelte';
 
   let {
     open = $bindable(false),
@@ -19,21 +20,27 @@
     buttonText?: string;
     onSuccess?: () => void;
   } = $props();
+
+  let deleting = $state(false);
 </script>
 
 <AlertDialog.Root bind:open>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>{title}</AlertDialog.Title>
+      <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase"
+        >{title}</AlertDialog.Title
+      >
       <AlertDialog.Description>{description}</AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+      <AlertDialog.Cancel disabled={deleting}>Annuler</AlertDialog.Cancel>
       <form
         {action}
         method="POST"
         use:enhance={() => {
+          deleting = true;
           return async ({ result, update }) => {
+            deleting = false;
             if (result.type === 'success' || result.type === 'redirect') {
               if (result.type === 'success') {
                 toast.success('Action effectuée');
@@ -49,9 +56,14 @@
       >
         <AlertDialog.Action
           type="submit"
+          disabled={deleting}
           class={buttonVariants({ variant: 'destructive' })}
         >
-          {buttonText}
+          {#if deleting}
+            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Suppression...
+          {:else}
+            {buttonText}
+          {/if}
         </AlertDialog.Action>
       </form>
     </AlertDialog.Footer>

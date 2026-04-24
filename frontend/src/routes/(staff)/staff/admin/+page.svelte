@@ -113,7 +113,7 @@
       <Card.Header
         class="flex flex-row items-center justify-between space-y-0 pb-2"
       >
-        <Card.Title class="text-sm font-bold uppercase">Étudiants</Card.Title>
+        <Card.Title class="text-sm font-bold uppercase">Talents</Card.Title>
         <GraduationCap class="h-4 w-4 text-muted-foreground" />
       </Card.Header>
       <Card.Content>

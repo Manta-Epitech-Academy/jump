@@ -1,10 +1,16 @@
 import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { getCampusTimezone } from '$lib/server/db/scoped';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
+import { applyStaffRoleGate, hasFlag } from '$lib/server/auth/guards';
+import { resolveStageContext } from '$lib/server/services/stageContext';
 
-export const load: LayoutServerLoad = async ({ parent, locals }) => {
+export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   const { user, staffProfile } = await parent();
 
   if (!user) {
@@ -17,5 +23,17 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     throw redirect(302, resolve(target ?? '/staff/login'));
   }
 
-  return { user, staffProfile, timezone: getCampusTimezone(locals) };
+  applyStaffRoleGate(locals, url.pathname);
+
+  const db = scopedPrisma(getCampusId(locals));
+  const activeStage = hasFlag(locals, 'stage_seconde')
+    ? await resolveStageContext(db)
+    : null;
+
+  return {
+    user,
+    staffProfile,
+    timezone: getCampusTimezone(locals),
+    activeStage,
+  };
 };

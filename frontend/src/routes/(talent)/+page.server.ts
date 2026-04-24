@@ -43,11 +43,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
             planning: {
               include: {
                 timeSlots: {
-                  include: {
-                    activities: {
-                      where: { activityType: { not: 'orga' } },
-                    },
-                  },
+                  where: { activity: { activityType: { not: 'orga' } } },
+                  include: { activity: true },
                   orderBy: { startTime: 'asc' },
                 },
               },
