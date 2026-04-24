@@ -117,7 +117,11 @@
   }
 
   // Build a map day→slots only for slots falling in the visible week.
-  type PackedSlot = Slot & { colIndex: number; numCols: number };
+  type PackedSlot = Slot & {
+    colIndex: number;
+    colSpan: number;
+    numCols: number;
+  };
 
   function packOverlaps(daySlots: Slot[]): PackedSlot[] {
     function overlaps(a: Slot, b: Slot) {
@@ -184,7 +188,14 @@
       const numCols = columns.length || 1;
       for (let c = 0; c < columns.length; c++) {
         for (const slot of columns[c]) {
-          out.push({ ...slot, colIndex: c, numCols });
+          // Expand to the right: widen into adjacent columns that have no
+          // slot overlapping this one's lifespan, so tail-end gaps close up.
+          let colSpan = 1;
+          for (let next = c + 1; next < columns.length; next++) {
+            if (columns[next].some((other) => overlaps(slot, other))) break;
+            colSpan++;
+          }
+          out.push({ ...slot, colIndex: c, colSpan, numCols });
         }
       }
     }
@@ -436,7 +447,7 @@
                   )}
                   {@const hasStarted =
                     new Date(slot.startTime).getTime() <= nowTime.getTime()}
-                  {@const widthPct = 98 / slot.numCols}
+                  {@const widthPct = (98 * slot.colSpan) / slot.numCols}
                   {@const leftPct = (slot.colIndex * 98) / slot.numCols + 1}
                   <button
                     type="button"

@@ -219,14 +219,23 @@
         groups.push(group);
       }
 
-      const enrichedSlots: (Slot & { colIndex: number; numCols: number })[] =
-        [];
+      const enrichedSlots: (Slot & {
+        colIndex: number;
+        colSpan: number;
+        numCols: number;
+      })[] = [];
       for (const group of groups) {
-        // First-fit bin-packing within the group (sorted by id for stable
-        // column assignment across time edits).
-        const groupSorted = [...group].sort((a, b) =>
-          a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
-        );
+        // First-fit bin-packing within the group. Process chronologically so
+        // greedy column reuse is optimal; id is only a deterministic tiebreak.
+        const groupSorted = [...group].sort((a, b) => {
+          const sa = new Date(a.startTime).getTime();
+          const sb = new Date(b.startTime).getTime();
+          if (sa !== sb) return sa - sb;
+          const ea = new Date(a.endTime).getTime();
+          const eb = new Date(b.endTime).getTime();
+          if (ea !== eb) return ea - eb;
+          return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+        });
         const columns: Slot[][] = [];
         for (const slot of groupSorted) {
           let placed = false;
@@ -242,7 +251,14 @@
         const numCols = columns.length || 1;
         for (let c = 0; c < columns.length; c++) {
           for (const slot of columns[c]) {
-            enrichedSlots.push({ ...slot, colIndex: c, numCols });
+            // Expand to the right: widen into adjacent columns that have no
+            // slot overlapping this one's lifespan, so tail-end gaps close up.
+            let colSpan = 1;
+            for (let next = c + 1; next < columns.length; next++) {
+              if (columns[next].some((other) => overlaps(slot, other))) break;
+              colSpan++;
+            }
+            enrichedSlots.push({ ...slot, colIndex: c, colSpan, numCols });
           }
         }
       }
@@ -1137,7 +1153,8 @@
                       slot.startTime,
                     )}px; height: {slotHeight}px; left: calc({(slot.colIndex /
                       slot.numCols) *
-                      95}% + 2px); width: calc({95 / slot.numCols}% - 4px);"
+                      95}% + 2px); width: calc({(95 * slot.colSpan) /
+                      slot.numCols}% - 4px);"
                     aria-label={activity?.nom ?? 'Créneau vide'}
                     onpointerdown={(e) =>
                       startSlotInteraction(e, slot, day.dateKey, isStub)}
