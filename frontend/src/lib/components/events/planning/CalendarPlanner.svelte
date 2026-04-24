@@ -1293,7 +1293,12 @@
               {/if}
 
               <!-- Draft preview during create / move / resize -->
-              {#if dragState.active && dragState.dateKey === day.dateKey}
+              <!-- For 'create', the preview only appears once the user has
+                   actually started dragging. A bare click (press-hold without
+                   movement) shows nothing and simply commits the default
+                   30-min-anchored 60-min slot on release — mirrors Google
+                   Calendar. -->
+              {#if dragState.active && dragState.dateKey === day.dateKey && (dragState.mode !== 'create' || dragState.createUpgradedToDrag)}
                 <div
                   class="pointer-events-none absolute z-30 flex items-center justify-center rounded-md border-2 border-dashed border-epi-blue bg-blue-100/50 shadow-md dark:bg-blue-900/50 dark:shadow-none"
                   style="top: {dragState.currentTop}px; height: {dragState.currentBottom -
