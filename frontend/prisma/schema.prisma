@@ -136,12 +136,12 @@ model StaffProfile {
 model StaffInvitation {
   id              String    @id @default(cuid())
   email           String    @unique
-  campusId        String
+  campusId        String?
   staffRole       StaffRole
   invitedByUserId String
   createdAt       DateTime  @default(now())
 
-  campus    Campus     @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  campus    Campus?    @relation(fields: [campusId], references: [id], onDelete: Cascade)
   invitedBy bauth_user @relation("StaffInvitationInvitedBy", fields: [invitedByUserId], references: [id], onDelete: Cascade)
 
   @@index([campusId])
