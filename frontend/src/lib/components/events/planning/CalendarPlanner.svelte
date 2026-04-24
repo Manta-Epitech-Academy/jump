@@ -6,7 +6,6 @@
     Plus,
     LayoutTemplate,
     Zap,
-    FileText,
     ExternalLink,
     ClipboardCheck,
     Search,
@@ -1208,56 +1207,52 @@
               {/each}
 
               <!-- Ghost preview for catalog drag-over -->
+              <!-- Visual copy of a real slot at 80% opacity so the user sees
+                   exactly what will land. Kept in sync with the slot block
+                   above: same borders, font sizes, layout order. -->
               {#if dragGhost.template && dragGhost.dateKey === day.dateKey}
                 {@const gs =
                   activityTypeStyles[
                     dragGhost.template
                       .activityType as keyof typeof activityTypeStyles
                   ]}
+                {@const ghostHeight =
+                  (dragGhost.template.defaultDuration ?? 60) *
+                  PIXELS_PER_MINUTE}
+                {@const ghostCompact = ghostHeight < 55}
                 <div
                   class={cn(
-                    'pointer-events-none absolute z-30 flex flex-col gap-0.5 rounded-md border-y border-r border-l-4 p-1.5 opacity-80 shadow-md dark:shadow-none',
+                    'pointer-events-none absolute z-30 flex flex-col overflow-hidden rounded-md border-y border-r border-l-4 opacity-80 shadow-md dark:shadow-none',
                     gs.bg,
                     gs.border,
                     'border-y-border border-r-border',
                   )}
-                  style="top: {dragGhost.top}px; height: {(dragGhost.template
-                    .defaultDuration ?? 60) *
-                    PIXELS_PER_MINUTE}px; left: 2px; width: calc(95% - 4px);"
+                  style="top: {dragGhost.top}px; height: {ghostHeight}px; left: 2px; width: calc(95% - 4px);"
                 >
-                  <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                    <span class={cn('text-[10px] font-bold', gs.accent)}>
-                      {dragGhost.startTime} – {dragGhost.endTime}
-                    </span>
+                  <div
+                    class={cn(
+                      'flex flex-1 flex-col select-none',
+                      ghostCompact ? 'gap-0 px-1.5 py-0.5' : 'gap-0.5 p-1.5',
+                    )}
+                  >
                     <span
                       class={cn(
-                        'rounded border px-1 py-0 text-[8px] font-bold uppercase',
-                        gs.bg,
-                        gs.accent,
-                      )}
-                    >
-                      {activityTypeLabels[
-                        dragGhost.template
-                          .activityType as keyof typeof activityTypeLabels
-                      ]}
-                    </span>
-                  </div>
-                  <div class="flex items-start gap-1">
-                    {#if dragGhost.template.isDynamic}
-                      <Zap class="mt-0.5 h-3 w-3 shrink-0 text-epi-orange" />
-                    {:else}
-                      <FileText
-                        class="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground"
-                      />
-                    {/if}
-                    <span
-                      class={cn(
-                        'text-[10px] leading-tight font-bold break-words',
+                        'text-[11px] leading-tight font-bold break-words',
                         gs.text,
                       )}
                     >
-                      {dragGhost.template.nom}
+                      {dragGhost.template.nom || 'Sans nom'}
                     </span>
+                    <div class="flex items-center gap-1">
+                      {#if dragGhost.template.isDynamic}
+                        <Zap class="h-2.5 w-2.5 shrink-0 text-epi-orange" />
+                      {/if}
+                      <span
+                        class="text-[9px] font-medium whitespace-nowrap text-muted-foreground"
+                      >
+                        {dragGhost.startTime} – {dragGhost.endTime}
+                      </span>
+                    </div>
                   </div>
                 </div>
               {/if}
