@@ -1,6 +1,8 @@
 # SvelteKit
 .svelte-kit/
 .svelte-kit/**/*
+.svelte-kit-check/
+.svelte-kit-check/**/*
 build/
 dist/
 .output/

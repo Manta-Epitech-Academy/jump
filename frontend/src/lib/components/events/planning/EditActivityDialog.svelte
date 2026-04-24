@@ -19,15 +19,11 @@
 
   let {
     open = $bindable(false),
-    mode,
-    activity = null,
-    timeSlotId = null,
+    activity,
     onClose,
   }: {
     open: boolean;
-    mode: 'edit' | 'assign';
-    activity?: Activity | null;
-    timeSlotId?: string | null;
+    activity: Activity;
     onClose?: () => void;
   } = $props();
 
@@ -46,21 +42,12 @@
 
   $effect(() => {
     if (!open) return;
-    if (mode === 'edit' && activity) {
-      nom = activity.nom;
-      description = activity.description ?? '';
-      difficulte = activity.difficulte ?? '';
-      link = activity.link ?? '';
-      content = activity.content ?? '';
-      activityType = activity.activityType;
-    } else if (mode === 'assign') {
-      nom = '';
-      description = '';
-      difficulte = '';
-      link = '';
-      content = '';
-      activityType = 'atelier';
-    }
+    nom = activity.nom;
+    description = activity.description ?? '';
+    difficulte = activity.difficulte ?? '';
+    link = activity.link ?? '';
+    content = activity.content ?? '';
+    activityType = activity.activityType;
   });
 
   $effect(() => {
@@ -77,18 +64,16 @@
   <Dialog.Content class="sm:max-w-lg">
     <Dialog.Header>
       <Dialog.Title class="font-heading text-xl tracking-tight uppercase">
-        {mode === 'assign' ? 'Assigner une activité' : "Modifier l'activité"}
+        Modifier l'activité
       </Dialog.Title>
       <Dialog.Description>
-        {mode === 'assign'
-          ? 'Définissez le nom, le type et les détails de cette activité.'
-          : 'Modifiez le nom, le type et les détails de cette activité.'}
+        Modifiez le nom, le type et les détails de cette activité.
       </Dialog.Description>
     </Dialog.Header>
 
     <form
       method="POST"
-      action={mode === 'assign' ? '?/assignActivity' : '?/updateActivity'}
+      action="?/updateActivity"
       use:kitEnhance={() => {
         submitting = true;
         return async ({ result, update }) => {
@@ -96,29 +81,16 @@
           if (result.type === 'success') {
             open = false;
             onClose?.();
-            toast.success(
-              mode === 'assign'
-                ? 'Activité assignée !'
-                : 'Activité mise à jour !',
-            );
+            toast.success('Activité mise à jour !');
           } else {
-            toast.error(
-              mode === 'assign'
-                ? "Erreur lors de l'assignation."
-                : 'Erreur lors de la mise à jour.',
-            );
+            toast.error('Erreur lors de la mise à jour.');
           }
           await update({ reset: false });
         };
       }}
       class="grid gap-4 py-2"
     >
-      {#if mode === 'edit' && activity}
-        <input type="hidden" name="activityId" value={activity.id} />
-      {/if}
-      {#if mode === 'assign' && timeSlotId}
-        <input type="hidden" name="timeSlotId" value={timeSlotId} />
-      {/if}
+      <input type="hidden" name="activityId" value={activity.id} />
 
       <div class="grid gap-2">
         <Label>Nom</Label>
@@ -172,7 +144,7 @@
         <Input name="link" bind:value={link} placeholder="https://..." />
       </div>
 
-      {#if mode === 'assign' || (mode === 'edit' && activity && !activity.isDynamic)}
+      {#if !activity.isDynamic}
         <div class="grid gap-2">
           <Label>Contenu (Markdown)</Label>
           <Textarea name="content" bind:value={content} rows={4} />
@@ -189,7 +161,7 @@
             <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
             Enregistrement...
           {:else}
-            {mode === 'assign' ? 'Assigner' : 'Enregistrer'}
+            Enregistrer
           {/if}
         </Button>
       </Dialog.Footer>

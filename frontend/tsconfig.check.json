@@ -1,0 +1,19 @@
+{
+  // Mirrors tsconfig.json but extends the check-mode SvelteKit tsconfig so
+  // `bun run check` can regenerate types in `.svelte-kit-check/` without
+  // disturbing a live dev server writing to `.svelte-kit/`.
+  "extends": "./.svelte-kit-check/tsconfig.json",
+  "compilerOptions": {
+    "rewriteRelativeImportExtensions": true,
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "types": ["bun"]
+  }
+}

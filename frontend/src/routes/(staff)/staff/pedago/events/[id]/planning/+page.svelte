@@ -47,6 +47,8 @@
       appelRouteBase={`/staff/pedago/events/${data.event.id}/cockpit`}
       containerClass="h-full"
       canEdit={can('pedaLead', data.staffProfile?.staffRole)}
+      canTrain={can('pedaMember', data.staffProfile?.staffRole)}
+      eventId={data.event.id}
     />
   </div>
 </div>
