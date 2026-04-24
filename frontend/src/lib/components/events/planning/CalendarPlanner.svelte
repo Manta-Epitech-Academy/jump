@@ -322,6 +322,7 @@
     mode: '' as DragMode,
     slotId: '',
     dateKey: '',
+    startX: 0,
     startY: 0,
     initialTop: 0,
     initialBottom: 0,
@@ -332,7 +333,15 @@
     // into a drag.
     rawInitialY: 0,
     createUpgradedToDrag: false,
+    // Move-mode only: cross-day reassignment is gated behind a large
+    // horizontal threshold so a vertical time-tweak can't accidentally
+    // move a slot to the next day.
+    crossDayUnlocked: false,
   });
+
+  // Pixels of horizontal travel required in move mode before the slot
+  // becomes eligible to jump to another day column.
+  const CROSS_DAY_DRAG_THRESHOLD = 40;
 
   // Hidden form references + payloads
   let createForm: HTMLFormElement;
@@ -481,6 +490,7 @@
           mode: 'move',
           slotId: slot.id,
           dateKey: pendingInteraction.dateKey,
+          startX: pendingInteraction.startX,
           startY: pendingInteraction.startY,
           initialTop: getPixels(slot.startTime),
           initialBottom: getPixels(slot.endTime),
@@ -488,6 +498,7 @@
           currentBottom: getPixels(slot.endTime),
           rawInitialY: 0,
           createUpgradedToDrag: false,
+          crossDayUnlocked: false,
         };
       }
     }
@@ -535,6 +546,7 @@
       mode: 'create',
       slotId: '',
       dateKey,
+      startX: e.clientX,
       startY: e.clientY,
       initialTop: snappedY,
       initialBottom: snappedY + 60 * PIXELS_PER_MINUTE,
@@ -542,6 +554,7 @@
       currentBottom: snappedY + 60 * PIXELS_PER_MINUTE,
       rawInitialY: y,
       createUpgradedToDrag: false,
+      crossDayUnlocked: false,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -556,6 +569,7 @@
       mode: 'move',
       slotId: slot.id,
       dateKey,
+      startX: e.clientX,
       startY: e.clientY,
       initialTop: getPixels(slot.startTime),
       initialBottom: getPixels(slot.endTime),
@@ -563,6 +577,7 @@
       currentBottom: getPixels(slot.endTime),
       rawInitialY: 0,
       createUpgradedToDrag: false,
+      crossDayUnlocked: false,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -577,6 +592,7 @@
       mode: 'resize',
       slotId: slot.id,
       dateKey,
+      startX: e.clientX,
       startY: e.clientY,
       initialTop: getPixels(slot.startTime),
       initialBottom: getPixels(slot.endTime),
@@ -584,6 +600,7 @@
       currentBottom: getPixels(slot.endTime),
       rawInitialY: 0,
       createUpgradedToDrag: false,
+      crossDayUnlocked: false,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -598,6 +615,7 @@
       mode: 'resize-top',
       slotId: slot.id,
       dateKey,
+      startX: e.clientX,
       startY: e.clientY,
       initialTop: getPixels(slot.startTime),
       initialBottom: getPixels(slot.endTime),
@@ -605,6 +623,7 @@
       currentBottom: getPixels(slot.endTime),
       rawInitialY: 0,
       createUpgradedToDrag: false,
+      crossDayUnlocked: false,
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
@@ -639,6 +658,24 @@
       dragState.currentTop = Math.max(0, dragState.initialTop + snappedDelta);
       const height = dragState.initialBottom - dragState.initialTop;
       dragState.currentBottom = dragState.currentTop + height;
+      // Cross-day: once the pointer has travelled enough horizontally to
+      // signal intent, re-home the slot on whichever day column the pointer
+      // is currently over. Stays below the threshold → vertical-only drag.
+      if (
+        !dragState.crossDayUnlocked &&
+        Math.abs(e.clientX - dragState.startX) >= CROSS_DAY_DRAG_THRESHOLD
+      ) {
+        dragState.crossDayUnlocked = true;
+      }
+      if (dragState.crossDayUnlocked) {
+        const hit = document
+          .elementFromPoint(e.clientX, e.clientY)
+          ?.closest('[data-date-key]') as HTMLElement | null;
+        const targetKey = hit?.dataset.dateKey;
+        if (targetKey && targetKey !== dragState.dateKey) {
+          dragState.dateKey = targetKey;
+        }
+      }
     } else if (dragState.mode === 'resize') {
       dragState.currentBottom = Math.max(
         dragState.currentTop + 15 * PIXELS_PER_MINUTE,
@@ -990,7 +1027,16 @@
   }
 </script>
 
-<div class={cn('flex flex-col overflow-hidden', containerClass)}>
+<div
+  class={cn(
+    'flex flex-col overflow-hidden',
+    dragState.active && dragState.mode === 'move' && 'cursor-all-scroll',
+    dragState.active &&
+      (dragState.mode === 'resize' || dragState.mode === 'resize-top') &&
+      'cursor-ns-resize',
+    containerClass,
+  )}
+>
   <!-- Top Bar -->
   <div class="mb-4 flex shrink-0 items-center justify-between px-1">
     <div class="hidden text-sm font-medium text-muted-foreground sm:block">
@@ -1071,8 +1117,9 @@
           {#each calendarDays as day}
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div
+              data-date-key={day.dateKey}
               class={cn(
-                'group relative min-w-37.5 flex-1 cursor-crosshair border-r border-border/50 transition-colors last:border-0 sm:min-w-50',
+                'group relative min-w-37.5 flex-1 border-r border-border/50 transition-colors last:border-0 sm:min-w-50',
                 dragOverDayKey === day.dateKey
                   ? 'bg-epi-teal-solid/10'
                   : 'hover:bg-muted/10',
@@ -1147,7 +1194,8 @@
                       isPreviewOpen && 'z-30 ring-2 ring-epi-blue/50',
                       isAssignTarget &&
                         'z-30 border-solid border-epi-teal-solid bg-epi-teal-solid/15 ring-2 ring-epi-teal-solid',
-                      isClickable && 'cursor-pointer',
+                      isClickable && !dragState.active && 'cursor-pointer',
+                      dragState.active && 'pointer-events-none',
                     )}
                     style="top: {getPixels(
                       slot.startTime,
