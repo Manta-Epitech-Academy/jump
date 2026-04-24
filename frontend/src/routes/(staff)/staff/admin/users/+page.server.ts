@@ -5,10 +5,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { Prisma, type StaffRole } from '@prisma/client';
 import { staffRoles } from '$lib/domain/staff';
-import {
-  createAdminInvitationSchema,
-  createInvitationSchema,
-} from '$lib/validation/staff';
+import { createAdminInvitationSchema } from '$lib/validation/staff';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const [members, invitations, campuses] = await Promise.all([
