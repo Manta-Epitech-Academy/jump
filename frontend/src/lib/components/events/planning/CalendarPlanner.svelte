@@ -2,24 +2,21 @@
   import { onMount, tick, untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import * as Popover from '$lib/components/ui/popover';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import {
     Plus,
     LayoutTemplate,
-    Trash2,
     Zap,
     FileText,
     ExternalLink,
     ClipboardCheck,
     Search,
     GripVertical,
-    Pencil,
-    X,
     Clock,
   } from '@lucide/svelte';
   import ApplyPlanningTemplateDialog from './ApplyPlanningTemplateDialog.svelte';
   import EditActivityDialog from './EditActivityDialog.svelte';
+  import AssignActivityDialog from './AssignActivityDialog.svelte';
+  import ActivityPreviewDialog from './ActivityPreviewDialog.svelte';
   import type { PlanningWithSlots } from '$lib/types';
   import type { ActivityTemplate, ActivityType } from '@prisma/client';
   import { toast } from 'svelte-sonner';
@@ -44,6 +41,8 @@
     appelRouteBase = null,
     containerClass = 'h-full min-h-[600px]',
     canEdit = true,
+    canTrain = false,
+    eventId = null,
   }: {
     planning: PlanningWithSlots | null;
     templates: (ActivityTemplate & {
@@ -63,6 +62,8 @@
     appelRouteBase?: string | null;
     containerClass?: string;
     canEdit?: boolean;
+    canTrain?: boolean;
+    eventId?: string | null;
   } = $props();
 
   // Reactive clock for current-time indicator.
@@ -340,6 +341,8 @@
     activityId: '',
     activityType: 'break' as ActivityType,
   });
+  let assignTemplateForm: HTMLFormElement;
+  let assignTemplatePayload = $state({ timeSlotId: '', templateId: '' });
   let deleteForm: HTMLFormElement;
   let deleteSlotId = $state('');
   let pendingRollback = $state<Slot[] | null>(null);
@@ -359,8 +362,17 @@
     armed: boolean;
   } | null>(null);
 
-  // Slot whose action popover is currently open.
-  let popoverForSlotId = $state<string | null>(null);
+  // Slot whose preview dialog is currently open.
+  let previewSlotId = $state<string | null>(null);
+  let previewOpen = $state(false);
+  let previewSlot = $derived(
+    previewSlotId
+      ? (localSlots.find((s) => s.id === previewSlotId) ?? null)
+      : null,
+  );
+  $effect(() => {
+    if (!previewOpen) previewSlotId = null;
+  });
 
   // Ghost preview while dragging a template card from the sidebar.
   let dragGhost = $state<{
@@ -406,14 +418,14 @@
 
   // ── Pointer interactions ──
 
-  // Whole-slot pointerdown. Decides between click → popover and drag → move.
+  // Whole-slot pointerdown. Decides between click → preview and drag → move.
+  // Clicks always open the preview; drag-upgrade is gated on canEdit.
   function startSlotInteraction(
     e: PointerEvent,
     slot: Slot,
     dateKey: string,
     isStub: boolean,
   ) {
-    if (!canEdit) return;
     if (e.button !== 0) return;
     if (isStub) return;
     e.stopPropagation();
@@ -422,7 +434,7 @@
       startX: e.clientX,
       startY: e.clientY,
       dateKey,
-      armed: true,
+      armed: canEdit,
     };
     window.addEventListener('pointermove', onSlotInteractionMove);
     window.addEventListener('pointerup', onSlotInteractionUp);
@@ -464,9 +476,20 @@
     const was = pendingInteraction;
     pendingInteraction = null;
     if (!was) return;
-    // If we committed to a drag, finalize it. Otherwise the native click
-    // fires on the Popover.Trigger and opens the popover for us.
-    if (!was.armed) handlePointerUp();
+    if (dragState.active) {
+      handlePointerUp();
+      return;
+    }
+    const slot = localSlots.find((s) => s.id === was.slotId);
+    if (!slot) return;
+    if (slot.activity) {
+      previewSlotId = was.slotId;
+      previewOpen = true;
+    } else if (canEdit) {
+      editingSlotId = slot.id;
+      editDialogMode = 'assign';
+      editDialogOpen = true;
+    }
   }
 
   function startCreate(e: PointerEvent, dateKey: string) {
@@ -751,6 +774,50 @@
     typeForm.requestSubmit();
   }
 
+  // ── Assign template to existing empty slot ──
+  //
+  // Shared by the assign-dialog catalogue tab and drop-on-empty-slot. Slot
+  // size is preserved — the template's defaultDuration is ignored. Users who
+  // want the template's natural duration can drop on empty grid instead.
+
+  async function assignTemplateToSlot(
+    slotId: string,
+    template: (typeof templates)[number],
+  ) {
+    if (isSubmitting) return;
+    const target = localSlots.find((s) => s.id === slotId);
+    if (!target || target.activity) return;
+    isSubmitting = true;
+    const snap = snapshot();
+    localSlots = localSlots.map((s) =>
+      s.id === slotId
+        ? ({
+            ...s,
+            activity: {
+              id: stubId(),
+              nom: template.nom,
+              description: template.description,
+              difficulte: template.difficulte,
+              activityType: template.activityType,
+              isDynamic: template.isDynamic,
+              link: template.link,
+              content: template.content,
+              contentStructure: null,
+              timeSlotId: slotId,
+              templateId: template.id,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              activityThemes: [],
+            } as any,
+          } as Slot)
+        : s,
+    );
+    assignTemplatePayload = { timeSlotId: slotId, templateId: template.id };
+    pendingRollback = snap;
+    await tick();
+    assignTemplateForm.requestSubmit();
+  }
+
   // ── Catalog search (sidebar) ──
 
   let searchQuery = $state('');
@@ -764,6 +831,9 @@
 
   let draggedTemplateId = $state<string | null>(null);
   let dragOverDayKey = $state<string | null>(null);
+  // Empty slot currently hovered during a catalogue drag — drop there assigns
+  // the template to that slot instead of creating a new one.
+  let dragTargetSlotId = $state<string | null>(null);
 
   function handleDragStart(e: DragEvent, templateId: string) {
     if (e.dataTransfer) {
@@ -772,9 +842,9 @@
       draggedTemplateId = templateId;
     }
   }
-  function handleDragEnd() {
-    draggedTemplateId = null;
+  function clearDragPreview() {
     dragOverDayKey = null;
+    dragTargetSlotId = null;
     dragGhost = {
       dateKey: null,
       top: 0,
@@ -783,6 +853,26 @@
       template: null,
     };
   }
+
+  function handleDragEnd() {
+    draggedTemplateId = null;
+    clearDragPreview();
+  }
+
+  // Finds an empty slot on `dateKey` whose vertical extent covers pixel `y`.
+  // Used to switch drop semantics from "create new slot" to "assign template
+  // to existing empty slot".
+  function findEmptySlotAt(dateKey: string, y: number): string | null {
+    for (const s of localSlots) {
+      if (s.activity) continue;
+      if (getDateKey(s.startTime) !== dateKey) continue;
+      const top = getPixels(s.startTime);
+      const bottom = getPixels(s.endTime);
+      if (y >= top && y <= bottom) return s.id;
+    }
+    return null;
+  }
+
   function handleDayDragOver(e: DragEvent, dateKey: string) {
     if (!canEdit) return;
     if (!draggedTemplateId) return;
@@ -791,6 +881,23 @@
     dragOverDayKey = dateKey;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const y = e.clientY - rect.top;
+
+    const targetSlotId = findEmptySlotAt(dateKey, y);
+    if (targetSlotId) {
+      // Hovering an existing empty slot — the slot itself becomes the
+      // drop target; suppress the create-ghost.
+      dragTargetSlotId = targetSlotId;
+      dragGhost = {
+        dateKey: null,
+        top: 0,
+        startTime: '',
+        endTime: '',
+        template: null,
+      };
+      return;
+    }
+
+    dragTargetSlotId = null;
     const snappedY =
       Math.round(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
     const tpl = templates.find((t) => t.id === draggedTemplateId) ?? null;
@@ -804,35 +911,28 @@
     };
   }
   function handleDayDragLeave() {
-    dragOverDayKey = null;
-    dragGhost = {
-      dateKey: null,
-      top: 0,
-      startTime: '',
-      endTime: '',
-      template: null,
-    };
+    clearDragPreview();
   }
   async function handleDayDrop(e: DragEvent, dateKey: string) {
     if (!canEdit) return;
     e.preventDefault();
     const templateId = e.dataTransfer?.getData('text/plain');
-    dragOverDayKey = null;
+    const targetSlotId = dragTargetSlotId;
     draggedTemplateId = null;
-    dragGhost = {
-      dateKey: null,
-      top: 0,
-      startTime: '',
-      endTime: '',
-      template: null,
-    };
+    clearDragPreview();
     if (!templateId) return;
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+
+    if (targetSlotId) {
+      await assignTemplateToSlot(targetSlotId, tpl);
+      return;
+    }
+
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const y = e.clientY - rect.top;
     const snappedY =
       Math.round(y / (15 * PIXELS_PER_MINUTE)) * (15 * PIXELS_PER_MINUTE);
-    const tpl = templates.find((t) => t.id === templateId);
-    if (!tpl) return;
     const duration = tpl.defaultDuration ?? 60;
     const startTime = getTimeFromPixels(snappedY);
     const endTime = getTimeFromPixels(snappedY + duration * PIXELS_PER_MINUTE);
@@ -969,296 +1069,141 @@
                         'orga') as keyof typeof activityTypeStyles
                     ]}
                   {@const isStub = slot.id.startsWith('stub_')}
-                  {@const isPopoverOpen = popoverForSlotId === slot.id}
+                  {@const isPreviewOpen =
+                    previewOpen && previewSlotId === slot.id}
+                  {@const isAssignTarget = dragTargetSlotId === slot.id}
                   {@const slotHeight = Math.max(
                     20 * PIXELS_PER_MINUTE,
                     getPixels(slot.endTime) - getPixels(slot.startTime),
                   )}
                   {@const compact = slotHeight < 55}
-                  <Popover.Root
-                    open={isPopoverOpen}
-                    onOpenChange={(v) => {
-                      if (v) popoverForSlotId = slot.id;
-                      else if (popoverForSlotId === slot.id)
-                        popoverForSlotId = null;
-                    }}
+                  {@const isClickable = !isStub && (!!activity || canEdit)}
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+                  <div
+                    data-slot-block
+                    class={cn(
+                      'group/slot absolute z-10 flex flex-col overflow-hidden rounded-md shadow-sm transition-all hover:z-20 dark:shadow-none',
+                      activity
+                        ? [
+                            'border-y border-r border-l-4',
+                            styles.bg,
+                            styles.border,
+                          ]
+                        : 'border-2 border-dashed border-muted-foreground/40 bg-muted/30',
+                      activity && 'border-y-border border-r-border',
+                      isStub && 'ring-2 ring-epi-blue/40',
+                      isPreviewOpen && 'z-30 ring-2 ring-epi-blue/50',
+                      isAssignTarget &&
+                        'z-30 border-solid border-epi-teal-solid bg-epi-teal-solid/15 ring-2 ring-epi-teal-solid',
+                      isClickable && 'cursor-pointer',
+                    )}
+                    style="top: {getPixels(
+                      slot.startTime,
+                    )}px; height: {slotHeight}px; left: calc({(slot.colIndex /
+                      slot.numCols) *
+                      95}% + 2px); width: calc({95 / slot.numCols}% - 4px);"
+                    aria-label={activity?.nom ?? 'Créneau vide'}
+                    onpointerdown={(e) =>
+                      startSlotInteraction(e, slot, day.dateKey, isStub)}
                   >
-                    <Popover.Trigger>
-                      {#snippet child({ props })}
-                        <!-- svelte-ignore a11y_click_events_have_key_events -->
-                        <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div
-                          {...props}
-                          data-slot-block
-                          class={cn(
-                            'group/slot absolute z-10 flex flex-col overflow-hidden rounded-md shadow-sm transition-all hover:z-20 dark:shadow-none',
-                            activity
-                              ? [
-                                  'border-y border-r border-l-4',
-                                  styles.bg,
-                                  styles.border,
-                                ]
-                              : 'border-2 border-dashed border-muted-foreground/40 bg-muted/30',
-                            activity && 'border-y-border border-r-border',
-                            isStub && 'ring-2 ring-epi-blue/40',
-                            isPopoverOpen && 'z-30 ring-2 ring-epi-blue/50',
-                            canEdit && !isStub && 'cursor-pointer',
-                          )}
-                          style="top: {getPixels(
-                            slot.startTime,
-                          )}px; height: {slotHeight}px; left: calc({(slot.colIndex /
-                            slot.numCols) *
-                            95}% + 2px); width: calc({95 /
-                            slot.numCols}% - 4px);"
-                          aria-label={activity?.nom ?? 'Créneau vide'}
-                          onpointerdown={(e) =>
-                            startSlotInteraction(e, slot, day.dateKey, isStub)}
-                        >
-                          <!-- Top resize handle -->
-                          {#if canEdit && !isStub}
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div
-                              class="absolute top-0 z-10 flex h-2 w-full cursor-ns-resize items-center justify-center opacity-0 transition-opacity group-hover/slot:opacity-100 hover:bg-epi-blue/30"
-                              onpointerdown={(e) =>
-                                startResizeTop(e, slot, day.dateKey)}
-                            >
-                              <div
-                                class="h-1 w-6 rounded-full bg-epi-blue/50"
-                              ></div>
-                            </div>
-                          {/if}
-
-                          <!-- Name (prominent) then time (muted). No type badge — color already shows it. -->
-                          <div
-                            class={cn(
-                              'flex flex-1 flex-col select-none',
-                              compact ? 'gap-0 px-1.5 py-0.5' : 'gap-0.5 p-1.5',
-                            )}
-                          >
-                            {#if activity}
-                              <span
-                                class={cn(
-                                  'text-[11px] leading-tight font-bold break-words',
-                                  styles.text,
-                                )}
-                              >
-                                {activity.nom || 'Sans nom'}
-                              </span>
-                            {:else}
-                              <span
-                                class="text-[11px] leading-tight font-medium text-muted-foreground italic"
-                              >
-                                À assigner
-                              </span>
-                            {/if}
-
-                            <div class="flex items-center gap-1">
-                              {#if activity?.isDynamic}
-                                <Zap
-                                  class="h-2.5 w-2.5 shrink-0 text-epi-orange"
-                                />
-                              {/if}
-                              <span
-                                class={cn(
-                                  'text-[9px] font-medium whitespace-nowrap',
-                                  activity
-                                    ? 'text-muted-foreground'
-                                    : 'text-muted-foreground/70',
-                                )}
-                              >
-                                {formatTime(slot.startTime)} – {formatTime(
-                                  slot.endTime,
-                                )}
-                              </span>
-                              {#if activity?.link}
-                                <a
-                                  href={activity.link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  class="ml-auto shrink-0 text-muted-foreground hover:text-epi-blue"
-                                  onpointerdown={(e) => e.stopPropagation()}
-                                  onclick={(e) => e.stopPropagation()}
-                                >
-                                  <ExternalLink class="h-3 w-3" />
-                                </a>
-                              {/if}
-                            </div>
-
-                            {#if activity?.activityType === 'orga' && appelRouteBase && !isStub}
-                              <a
-                                href={`${appelRouteBase}/${activity.id}`}
-                                class="mt-0.5 flex items-center justify-center gap-1 rounded bg-epi-teal-solid/10 px-1.5 py-0.5 text-[9px] font-black text-epi-teal-solid uppercase transition-colors hover:bg-epi-teal-solid hover:text-white"
-                                onpointerdown={(e) => e.stopPropagation()}
-                                onclick={(e) => e.stopPropagation()}
-                              >
-                                <ClipboardCheck class="h-3 w-3" />
-                                Appel / Ops
-                              </a>
-                            {/if}
-                          </div>
-
-                          <!-- Bottom resize handle -->
-                          {#if canEdit && !isStub}
-                            <!-- svelte-ignore a11y_no_static_element_interactions -->
-                            <div
-                              class="absolute bottom-0 flex h-2 w-full cursor-ns-resize items-center justify-center opacity-0 transition-opacity group-hover/slot:opacity-100 hover:bg-epi-blue/30"
-                              onpointerdown={(e) =>
-                                startResize(e, slot, day.dateKey)}
-                            >
-                              <div
-                                class="h-1 w-6 rounded-full bg-epi-blue/50"
-                              ></div>
-                            </div>
-                          {/if}
-                        </div>
-                      {/snippet}
-                    </Popover.Trigger>
-                    {#if canEdit}
-                      <Popover.Content
-                        class="flex w-72 flex-col gap-3 p-3"
-                        side="right"
-                        align="start"
-                        sideOffset={8}
+                    <!-- Top resize handle -->
+                    {#if canEdit && !isStub}
+                      <div
+                        class="absolute top-0 z-10 flex h-2 w-full cursor-ns-resize items-center justify-center opacity-0 transition-opacity group-hover/slot:opacity-100 hover:bg-epi-blue/30"
+                        onpointerdown={(e) =>
+                          startResizeTop(e, slot, day.dateKey)}
                       >
-                        <!-- Icon bar -->
-                        <Tooltip.Provider delayDuration={200}>
-                          <div class="flex items-center justify-end gap-0.5">
-                            {#if activity}
-                              <Tooltip.Root>
-                                <Tooltip.Trigger>
-                                  {#snippet child({ props })}
-                                    <Button
-                                      {...props}
-                                      variant="ghost"
-                                      size="icon"
-                                      class="h-7 w-7"
-                                      aria-label="Modifier"
-                                      onclick={() => {
-                                        editingActivityId = activity.id;
-                                        editDialogMode = 'edit';
-                                        editDialogOpen = true;
-                                        popoverForSlotId = null;
-                                      }}
-                                    >
-                                      <Pencil class="h-3.5 w-3.5" />
-                                    </Button>
-                                  {/snippet}
-                                </Tooltip.Trigger>
-                                <Tooltip.Content>Modifier</Tooltip.Content>
-                              </Tooltip.Root>
-                            {/if}
-                            <Tooltip.Root>
-                              <Tooltip.Trigger>
-                                {#snippet child({ props })}
-                                  <Button
-                                    {...props}
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                    aria-label="Supprimer"
-                                    onclick={() => {
-                                      popoverForSlotId = null;
-                                      deleteSlot(slot);
-                                    }}
-                                  >
-                                    <Trash2 class="h-3.5 w-3.5" />
-                                  </Button>
-                                {/snippet}
-                              </Tooltip.Trigger>
-                              <Tooltip.Content>Supprimer</Tooltip.Content>
-                            </Tooltip.Root>
-                            <Tooltip.Root>
-                              <Tooltip.Trigger>
-                                {#snippet child({ props })}
-                                  <Button
-                                    {...props}
-                                    variant="ghost"
-                                    size="icon"
-                                    class="h-7 w-7"
-                                    aria-label="Fermer"
-                                    onclick={() => (popoverForSlotId = null)}
-                                  >
-                                    <X class="h-3.5 w-3.5" />
-                                  </Button>
-                                {/snippet}
-                              </Tooltip.Trigger>
-                              <Tooltip.Content>Fermer</Tooltip.Content>
-                            </Tooltip.Root>
-                          </div>
-                        </Tooltip.Provider>
-
-                        <!-- Title + meta -->
-                        <div class="flex items-start gap-2.5 px-1">
-                          <span
-                            class={cn(
-                              'mt-1.5 h-3 w-3 shrink-0 rounded',
-                              activity
-                                ? styles.bg
-                                : 'bg-muted ring-1 ring-border ring-inset',
-                            )}
-                            style={activity
-                              ? undefined
-                              : 'background-image: repeating-linear-gradient(45deg, transparent 0 3px, rgba(0,0,0,0.08) 3px 6px);'}
-                          ></span>
-                          <div class="flex flex-col">
-                            <span
-                              class={cn(
-                                'text-base leading-tight font-bold break-words',
-                                activity
-                                  ? 'text-foreground'
-                                  : 'text-muted-foreground italic',
-                              )}
-                            >
-                              {activity?.nom || 'Nouveau créneau'}
-                            </span>
-                            <span class="mt-0.5 text-xs text-muted-foreground">
-                              {new Date(slot.startTime).toLocaleDateString(
-                                'fr-FR',
-                                {
-                                  weekday: 'long',
-                                  day: 'numeric',
-                                  month: 'long',
-                                  timeZone: timezone,
-                                },
-                              )}
-                              · {formatTime(slot.startTime)} – {formatTime(
-                                slot.endTime,
-                              )}
-                            </span>
-                            {#if activity}
-                              <span
-                                class={cn(
-                                  'mt-1.5 w-fit rounded border px-1.5 py-0.5 text-[9px] font-bold tracking-wide uppercase',
-                                  styles.bg,
-                                  styles.accent,
-                                )}
-                              >
-                                {activityTypeLabels[
-                                  activity.activityType as keyof typeof activityTypeLabels
-                                ] || activity.activityType}
-                              </span>
-                            {/if}
-                          </div>
-                        </div>
-
-                        {#if !activity}
-                          <Button
-                            size="sm"
-                            class="w-full bg-epi-blue text-white hover:bg-epi-blue/90"
-                            onclick={() => {
-                              editingSlotId = slot.id;
-                              editDialogMode = 'assign';
-                              editDialogOpen = true;
-                              popoverForSlotId = null;
-                            }}
-                          >
-                            <Plus class="mr-1 h-3.5 w-3.5" />
-                            Assigner une activité
-                          </Button>
-                        {/if}
-                      </Popover.Content>
+                        <div class="h-1 w-6 rounded-full bg-epi-blue/50"></div>
+                      </div>
                     {/if}
-                  </Popover.Root>
+
+                    <!-- Name (prominent) then time (muted). No type badge — color already shows it. -->
+                    <div
+                      class={cn(
+                        'flex flex-1 flex-col select-none',
+                        compact ? 'gap-0 px-1.5 py-0.5' : 'gap-0.5 p-1.5',
+                      )}
+                    >
+                      {#if activity}
+                        <span
+                          class={cn(
+                            'text-[11px] leading-tight font-bold break-words',
+                            styles.text,
+                          )}
+                        >
+                          {activity.nom || 'Sans nom'}
+                        </span>
+                      {:else if isAssignTarget && dragGhost.template === null && draggedTemplateId}
+                        {@const incoming = templates.find(
+                          (t) => t.id === draggedTemplateId,
+                        )}
+                        <span
+                          class="text-[11px] leading-tight font-bold break-words text-epi-teal-solid"
+                        >
+                          {incoming?.nom ?? 'Assigner ici'}
+                        </span>
+                      {:else}
+                        <span
+                          class="text-[11px] leading-tight font-medium text-muted-foreground italic"
+                        >
+                          À assigner
+                        </span>
+                      {/if}
+
+                      <div class="flex items-center gap-1">
+                        {#if activity?.isDynamic}
+                          <Zap class="h-2.5 w-2.5 shrink-0 text-epi-orange" />
+                        {/if}
+                        <span
+                          class={cn(
+                            'text-[9px] font-medium whitespace-nowrap',
+                            activity
+                              ? 'text-muted-foreground'
+                              : 'text-muted-foreground/70',
+                          )}
+                        >
+                          {formatTime(slot.startTime)} – {formatTime(
+                            slot.endTime,
+                          )}
+                        </span>
+                        {#if activity?.link}
+                          <a
+                            href={activity.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="ml-auto shrink-0 text-muted-foreground hover:text-epi-blue"
+                            onpointerdown={(e) => e.stopPropagation()}
+                            onclick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink class="h-3 w-3" />
+                          </a>
+                        {/if}
+                      </div>
+
+                      {#if activity?.activityType === 'orga' && appelRouteBase && !isStub}
+                        <a
+                          href={`${appelRouteBase}/${activity.id}`}
+                          class="mt-0.5 flex items-center justify-center gap-1 rounded bg-epi-teal-solid/10 px-1.5 py-0.5 text-[9px] font-black text-epi-teal-solid uppercase transition-colors hover:bg-epi-teal-solid hover:text-white"
+                          onpointerdown={(e) => e.stopPropagation()}
+                          onclick={(e) => e.stopPropagation()}
+                        >
+                          <ClipboardCheck class="h-3 w-3" />
+                          Appel / Ops
+                        </a>
+                      {/if}
+                    </div>
+
+                    <!-- Bottom resize handle -->
+                    {#if canEdit && !isStub}
+                      <div
+                        class="absolute bottom-0 flex h-2 w-full cursor-ns-resize items-center justify-center opacity-0 transition-opacity group-hover/slot:opacity-100 hover:bg-epi-blue/30"
+                        onpointerdown={(e) => startResize(e, slot, day.dateKey)}
+                      >
+                        <div class="h-1 w-6 rounded-full bg-epi-blue/50"></div>
+                      </div>
+                    {/if}
+                  </div>
                 {/if}
               {/each}
 
@@ -1552,6 +1497,35 @@
   }}
 ></form>
 
+<form
+  bind:this={assignTemplateForm}
+  action="?/assignActivity"
+  method="POST"
+  class="hidden"
+  use:kitEnhance={() => {
+    return async ({ result, update }) => {
+      if (result.type !== 'success' && pendingRollback) {
+        rollback(pendingRollback);
+        toast.error("Erreur lors de l'assignation.");
+      }
+      pendingRollback = null;
+      isSubmitting = false;
+      await update({ reset: false });
+    };
+  }}
+>
+  <input
+    type="hidden"
+    name="timeSlotId"
+    value={assignTemplatePayload.timeSlotId}
+  />
+  <input
+    type="hidden"
+    name="templateId"
+    value={assignTemplatePayload.templateId}
+  />
+</form>
+
 {#if planningTemplates && planningTemplates.length > 0}
   <ApplyPlanningTemplateDialog
     bind:open={applyTemplateOpen}
@@ -1569,7 +1543,6 @@
     {#if editedSlot && editedSlot.activity}
       <EditActivityDialog
         bind:open={editDialogOpen}
-        mode="edit"
         activity={editedSlot.activity}
         onClose={() => {
           editDialogOpen = false;
@@ -1578,14 +1551,45 @@
       />
     {/if}
   {:else if editDialogMode === 'assign' && editingSlotId}
-    <EditActivityDialog
+    <AssignActivityDialog
       bind:open={editDialogOpen}
-      mode="assign"
       timeSlotId={editingSlotId}
+      {templates}
       onClose={() => {
         editDialogOpen = false;
         editingSlotId = null;
       }}
+      onDelete={() => {
+        const target = localSlots.find((s) => s.id === editingSlotId);
+        editDialogOpen = false;
+        editingSlotId = null;
+        if (target) deleteSlot(target);
+      }}
+      onAssignTemplate={(template) => {
+        const slotId = editingSlotId;
+        editDialogOpen = false;
+        editingSlotId = null;
+        if (slotId) assignTemplateToSlot(slotId, template);
+      }}
     />
   {/if}
 {/if}
+
+<ActivityPreviewDialog
+  bind:open={previewOpen}
+  slot={previewSlot}
+  {timezone}
+  {canEdit}
+  {canTrain}
+  {eventId}
+  onEdit={() => {
+    if (!previewSlot?.activity) return;
+    editingActivityId = previewSlot.activity.id;
+    editDialogMode = 'edit';
+    editDialogOpen = true;
+  }}
+  onDelete={() => {
+    if (!previewSlot) return;
+    deleteSlot(previewSlot);
+  }}
+/>

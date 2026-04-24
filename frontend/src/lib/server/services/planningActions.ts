@@ -137,6 +137,11 @@ export const planningActions = {
           },
         });
       } else {
+        // superRefine guarantees these are set when templateId is absent, but
+        // narrow here for Prisma's required types.
+        if (!form.data.nom || !form.data.activityType) {
+          return fail(400, { form });
+        }
         await db.activity.create({
           data: {
             nom: form.data.nom,
