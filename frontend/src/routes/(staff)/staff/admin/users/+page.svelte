@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { Trash2, Mail, Plus, X } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
@@ -19,6 +19,10 @@
   let { data } = $props();
 
   let submitting = $state<string | null>(null);
+  let mounted = $state(false);
+  onMount(() => {
+    mounted = true;
+  });
 
   let deleteDialogOpen = $state(false);
   let userToDelete = $state<string | null>(null);
@@ -245,6 +249,7 @@
                     name="campusId"
                     value={user.staffProfile?.campusId ?? ''}
                     onValueChange={(v) => {
+                      if (!mounted) return;
                       if (submitting) return;
                       if (v === (user.staffProfile?.campusId ?? '')) return;
                       requestAnimationFrame(() => {
@@ -288,6 +293,7 @@
                     name="staffRole"
                     value={user.staffProfile?.staffRole ?? ''}
                     onValueChange={(v) => {
+                      if (!mounted) return;
                       if (submitting) return;
                       if (v === (user.staffProfile?.staffRole ?? '')) return;
                       requestAnimationFrame(() => {
