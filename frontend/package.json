@@ -73,6 +73,7 @@
     "marked": "^17.0.6",
     "papaparse": "^5.5.3",
     "pg": "^8.20.0",
+    "postcss": "^8.5.10",
     "puppeteer": "^24.42.0",
     "resend": "^6.12.2",
     "sveltekit-superforms": "^2.30.1",
