@@ -153,9 +153,7 @@
                 <p class="text-[10px] font-bold text-slate-400 uppercase">
                   Compte lié
                 </p>
-                <p class="text-sm font-bold text-teal-600 dark:text-epi-teal">
-                  Connecté
-                </p>
+                <p class="text-sm font-bold text-epi-teal-solid">Connecté</p>
               </div>
             {:else}
               <span class="text-sm font-bold text-slate-700 dark:text-slate-300"

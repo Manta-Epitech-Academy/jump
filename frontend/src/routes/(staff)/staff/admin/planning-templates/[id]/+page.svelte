@@ -17,6 +17,7 @@
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { TimePicker } from '$lib/components/ui/time-picker';
   import { Badge } from '$lib/components/ui/badge';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Tabs from '$lib/components/ui/tabs';
@@ -25,25 +26,35 @@
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { toast } from 'svelte-sonner';
-  import { activityTypeLabels } from '$lib/validation/templates';
+  import {
+    activityTypeLabels,
+    activityTypeStyles,
+    activityTypes,
+  } from '$lib/validation/templates';
+  import { cn } from '$lib/utils';
 
   let { data } = $props();
 
   const pt = $derived(data.planningTemplate);
   const days = $derived(pt.days);
 
-  // Day tab state
   let activeDay = $state('0');
 
-  // Slot dialog
-  let addSlotOpen = $state(false);
-  let addSlotDayId = $state('');
-  let editSlotOpen = $state(false);
-  let editSlotId = $state('');
+  // Slot dialog (create or edit)
+  let slotDialogOpen = $state(false);
+  let editingSlotId = $state<string | null>(null);
+  let slotDialogDayId = $state('');
 
-  // Item dialog
-  let addItemOpen = $state(false);
-  let addItemSlotId = $state('');
+  // Slot dialog fields
+  let slotStartTime = $state('09:00');
+  let slotEndTime = $state('10:00');
+  let slotActivityTemplateId = $state('');
+  let slotNom = $state('');
+  let slotActivityType = $state<(typeof activityTypes)[number]>('orga');
+
+  // Template search inside slot dialog
+  let searchQuery = $state('');
+  let typeFilter = $state('all');
 
   // Duplicate dialog
   let duplicateOpen = $state(false);
@@ -53,32 +64,21 @@
   // Delete dialog
   let deleteSlotOpen = $state(false);
   let slotToDelete = $state<string | null>(null);
-  let deleteItemOpen = $state(false);
-  let itemToDelete = $state<string | null>(null);
 
-  // Slot form
-  const {
-    form: slotForm,
-    errors: slotErrors,
-    enhance: slotEnhance,
-    delayed: slotDelayed,
-    reset: slotReset,
-  } = superForm(
+  const { form: slotForm, enhance: slotEnhance } = superForm(
     untrack(() => data.slotForm),
     {
       id: 'slot-form',
       invalidateAll: true,
       onResult: ({ result }) => {
         if (result.type === 'success') {
-          addSlotOpen = false;
-          editSlotOpen = false;
+          slotDialogOpen = false;
           toast.success(result.data?.form?.message);
         }
       },
     },
   );
 
-  // Day label form
   const { form: dayForm, enhance: dayEnhance } = superForm(
     untrack(() => data.dayForm),
     {
@@ -91,17 +91,6 @@
       },
     },
   );
-
-  // Item template search
-  let searchQuery = $state('');
-  let typeFilter = $state('all');
-  let isAddingItem = $state<string | null>(null);
-
-  // Inline item state
-  let inlineNom = $state('');
-  let inlineDescription = $state('');
-  let inlineType = $state('orga');
-  let isAddingInline = $state(false);
 
   let filteredTemplates = $derived(
     data.activityTemplates.filter((t) => {
@@ -116,32 +105,44 @@
   );
 
   function openAddSlot(dayId: string) {
-    slotReset();
-    addSlotDayId = dayId;
-    addSlotOpen = true;
-  }
-
-  function openEditSlot(
-    slot: (typeof days)[number]['slots'][number],
-    dayId: string,
-  ) {
-    slotReset();
-    $slotForm.startTime = slot.startTime;
-    $slotForm.endTime = slot.endTime;
-    $slotForm.label = slot.label || '';
-    $slotForm.planningTemplateDayId = dayId;
-    editSlotId = slot.id;
-    editSlotOpen = true;
-  }
-
-  function openAddItem(slotId: string) {
+    editingSlotId = null;
+    slotDialogDayId = dayId;
+    slotStartTime = '09:00';
+    slotEndTime = '10:00';
+    slotActivityTemplateId = '';
+    slotNom = '';
+    slotActivityType = 'orga';
     searchQuery = '';
     typeFilter = 'all';
-    inlineNom = '';
-    inlineDescription = '';
-    inlineType = 'orga';
-    addItemSlotId = slotId;
-    addItemOpen = true;
+    slotDialogOpen = true;
+  }
+
+  function openEditSlot(slot: any, dayId: string) {
+    editingSlotId = slot.id;
+    slotDialogDayId = dayId;
+    slotStartTime = slot.startTime;
+    slotEndTime = slot.endTime;
+    slotActivityTemplateId = slot.activityTemplateId ?? '';
+    slotNom = slot.nom ?? '';
+    slotActivityType = slot.activityType;
+    searchQuery = '';
+    typeFilter = 'all';
+    slotDialogOpen = true;
+  }
+
+  function selectTemplate(id: string, nom: string) {
+    slotActivityTemplateId = id;
+    slotNom = nom;
+  }
+
+  function clearTemplate() {
+    slotActivityTemplateId = '';
+    slotNom = '';
+  }
+
+  function confirmDeleteSlot(id: string) {
+    slotToDelete = id;
+    deleteSlotOpen = true;
   }
 
   function openDuplicate(sourceDayId: string) {
@@ -150,19 +151,14 @@
     duplicateOpen = true;
   }
 
-  function confirmDeleteSlot(id: string) {
-    slotToDelete = id;
-    deleteSlotOpen = true;
-  }
-
-  function confirmDeleteItem(id: string) {
-    itemToDelete = id;
-    deleteItemOpen = true;
-  }
-
-  const currentDay = $derived(
-    days.find((d) => String(d.dayIndex) === activeDay),
-  );
+  $effect(() => {
+    $slotForm.startTime = slotStartTime;
+    $slotForm.endTime = slotEndTime;
+    $slotForm.activityTemplateId = slotActivityTemplateId;
+    $slotForm.nom = slotNom;
+    $slotForm.activityType = slotActivityType;
+    $slotForm.planningTemplateDayId = slotDialogDayId;
+  });
 </script>
 
 <div class="space-y-6">
@@ -189,27 +185,24 @@
 
   <!-- Day Tabs -->
   <Tabs.Root bind:value={activeDay}>
-    <div class="flex items-center justify-between">
-      <Tabs.List>
-        {#each days as day}
-          <Tabs.Trigger value={String(day.dayIndex)} class="gap-1.5">
-            <span class="font-bold">J{day.dayIndex + 1}</span>
-            {#if day.label}
-              <span class="hidden text-xs text-muted-foreground sm:inline">
-                {day.label}
-              </span>
-            {/if}
-            <Badge variant="secondary" class="ml-1 text-[10px]">
-              {day.slots.length}
-            </Badge>
-          </Tabs.Trigger>
-        {/each}
-      </Tabs.List>
-    </div>
+    <Tabs.List>
+      {#each days as day}
+        <Tabs.Trigger value={String(day.dayIndex)} class="gap-1.5">
+          <span class="font-bold">J{day.dayIndex + 1}</span>
+          {#if day.label}
+            <span class="hidden text-xs text-muted-foreground sm:inline">
+              {day.label}
+            </span>
+          {/if}
+          <Badge variant="secondary" class="ml-1 text-[10px]">
+            {day.slots.length}
+          </Badge>
+        </Tabs.Trigger>
+      {/each}
+    </Tabs.List>
 
     {#each days as day}
       <Tabs.Content value={String(day.dayIndex)} class="mt-4 space-y-4">
-        <!-- Day label edit -->
         <div class="flex items-center gap-3">
           <form
             method="POST"
@@ -251,7 +244,6 @@
           </div>
         </div>
 
-        <!-- Slots -->
         {#if day.slots.length === 0}
           <EmptyState
             icon={Clock}
@@ -261,99 +253,60 @@
             actionCallback={() => openAddSlot(day.id)}
           />
         {:else}
-          <div class="space-y-3">
+          <div class="space-y-2">
             {#each day.slots as slot}
-              <div class="rounded-lg border bg-card p-4">
-                <div class="mb-2 flex items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <Badge variant="outline" class="font-mono text-sm">
-                      {slot.startTime} — {slot.endTime}
-                    </Badge>
-                    {#if slot.label}
-                      <span class="text-sm font-medium text-muted-foreground">
-                        {slot.label}
-                      </span>
+              {@const styles = activityTypeStyles[slot.activityType]}
+              {@const name =
+                slot.activityTemplate?.nom ?? slot.nom ?? 'Sans nom'}
+              <div
+                class={cn(
+                  'flex items-center gap-3 rounded-lg border border-l-4 p-3',
+                  styles.bg,
+                  styles.border,
+                )}
+              >
+                <Badge variant="outline" class="shrink-0 font-mono text-xs">
+                  {slot.startTime} — {slot.endTime}
+                </Badge>
+                <div class="flex min-w-0 flex-1 items-center gap-2">
+                  {#if slot.activityTemplate}
+                    {#if slot.activityTemplate.isDynamic}
+                      <Zap class="h-3.5 w-3.5 shrink-0 text-epi-orange" />
+                    {:else}
+                      <FileText
+                        class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                      />
                     {/if}
-                  </div>
-                  <div class="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-7 w-7"
-                      onclick={() => openEditSlot(slot, day.id)}
-                    >
-                      <Pencil class="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-7 w-7 text-destructive hover:text-destructive"
-                      onclick={() => confirmDeleteSlot(slot.id)}
-                    >
-                      <Trash2 class="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  {/if}
+                  <span class="truncate text-sm font-bold">{name}</span>
+                  <Badge
+                    variant="outline"
+                    class={cn('text-[10px]', styles.accent)}
+                  >
+                    {activityTypeLabels[slot.activityType]}
+                  </Badge>
+                  {#if slot.activityTemplate?.difficulte}
+                    <Badge variant="secondary" class="text-[10px]">
+                      {slot.activityTemplate.difficulte}
+                    </Badge>
+                  {/if}
                 </div>
-
-                <!-- Items -->
-                <div class="space-y-1.5">
-                  {#each slot.items as item}
-                    <div
-                      class="flex items-center justify-between rounded-md border border-dashed px-3 py-2"
-                    >
-                      <div class="flex items-center gap-2">
-                        {#if item.activityTemplate}
-                          {#if item.activityTemplate.isDynamic}
-                            <Zap class="h-3.5 w-3.5 text-epi-orange" />
-                          {:else}
-                            <FileText
-                              class="h-3.5 w-3.5 text-muted-foreground"
-                            />
-                          {/if}
-                          <span class="text-sm font-medium">
-                            {item.activityTemplate.nom}
-                          </span>
-                          <Badge variant="outline" class="text-[10px]">
-                            {activityTypeLabels[
-                              item.activityTemplate
-                                .activityType as keyof typeof activityTypeLabels
-                            ]}
-                          </Badge>
-                          {#if item.activityTemplate.difficulte}
-                            <Badge variant="secondary" class="text-[10px]">
-                              {item.activityTemplate.difficulte}
-                            </Badge>
-                          {/if}
-                        {:else}
-                          <span class="text-sm font-medium">
-                            {item.nom || 'Activité statique'}
-                          </span>
-                          <Badge variant="outline" class="text-[10px]">
-                            {activityTypeLabels[
-                              item.activityType as keyof typeof activityTypeLabels
-                            ]}
-                          </Badge>
-                        {/if}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-6 w-6 text-destructive hover:text-destructive"
-                        onclick={() => confirmDeleteItem(item.id)}
-                      >
-                        <Trash2 class="h-3 w-3" />
-                      </Button>
-                    </div>
-                  {/each}
-
+                <div class="flex shrink-0 gap-1">
                   <Button
                     variant="ghost"
-                    size="sm"
-                    class="w-full border border-dashed text-muted-foreground"
-                    onclick={() => openAddItem(slot.id)}
+                    size="icon"
+                    class="h-7 w-7"
+                    onclick={() => openEditSlot(slot, day.id)}
                   >
-                    <Plus class="mr-1 h-3.5 w-3.5" />
-                    Ajouter une activité
+                    <Pencil class="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 text-destructive hover:text-destructive"
+                    onclick={() => confirmDeleteSlot(slot.id)}
+                  >
+                    <Trash2 class="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
@@ -365,333 +318,180 @@
   </Tabs.Root>
 </div>
 
-<!-- Add Slot Dialog -->
-<Dialog.Root bind:open={addSlotOpen}>
-  <Dialog.Content class="sm:max-w-md">
-    <Dialog.Header>
-      <Dialog.Title>Ajouter un créneau</Dialog.Title>
-    </Dialog.Header>
-    <form
-      method="POST"
-      action="?/addSlot"
-      use:slotEnhance
-      class="grid gap-4 py-4"
-    >
-      <input type="hidden" name="planningTemplateDayId" value={addSlotDayId} />
-      <div class="grid grid-cols-2 gap-4">
-        <div class="grid gap-2">
-          <Label>Début</Label>
-          <Input
-            type="time"
-            name="startTime"
-            bind:value={$slotForm.startTime}
-          />
-          {#if $slotErrors.startTime}
-            <span class="text-xs text-destructive">{$slotErrors.startTime}</span
-            >
-          {/if}
-        </div>
-        <div class="grid gap-2">
-          <Label>Fin</Label>
-          <Input type="time" name="endTime" bind:value={$slotForm.endTime} />
-          {#if $slotErrors.endTime}
-            <span class="text-xs text-destructive">{$slotErrors.endTime}</span>
-          {/if}
-        </div>
-      </div>
-      <div class="grid gap-2">
-        <Label
-          >Label <span class="text-muted-foreground">(optionnel)</span></Label
-        >
-        <Input
-          name="label"
-          bind:value={$slotForm.label}
-          placeholder="Ex: Pause déjeuner"
-        />
-      </div>
-      <Dialog.Footer>
-        <Button
-          type="submit"
-          disabled={$slotDelayed}
-          class="bg-epi-pink text-white"
-        >
-          {$slotDelayed ? 'Ajout...' : 'Ajouter'}
-        </Button>
-      </Dialog.Footer>
-    </form>
-  </Dialog.Content>
-</Dialog.Root>
-
-<!-- Edit Slot Dialog -->
-<Dialog.Root bind:open={editSlotOpen}>
-  <Dialog.Content class="sm:max-w-md">
-    <Dialog.Header>
-      <Dialog.Title>Modifier le créneau</Dialog.Title>
-    </Dialog.Header>
-    <form
-      method="POST"
-      action="?/updateSlot"
-      use:slotEnhance
-      class="grid gap-4 py-4"
-    >
-      <input type="hidden" name="slotId" value={editSlotId} />
-      <input
-        type="hidden"
-        name="planningTemplateDayId"
-        value={currentDay?.id || ''}
-      />
-      <div class="grid grid-cols-2 gap-4">
-        <div class="grid gap-2">
-          <Label>Début</Label>
-          <Input
-            type="time"
-            name="startTime"
-            bind:value={$slotForm.startTime}
-          />
-          {#if $slotErrors.startTime}
-            <span class="text-xs text-destructive">{$slotErrors.startTime}</span
-            >
-          {/if}
-        </div>
-        <div class="grid gap-2">
-          <Label>Fin</Label>
-          <Input type="time" name="endTime" bind:value={$slotForm.endTime} />
-          {#if $slotErrors.endTime}
-            <span class="text-xs text-destructive">{$slotErrors.endTime}</span>
-          {/if}
-        </div>
-      </div>
-      <div class="grid gap-2">
-        <Label
-          >Label <span class="text-muted-foreground">(optionnel)</span></Label
-        >
-        <Input name="label" bind:value={$slotForm.label} />
-      </div>
-      <Dialog.Footer>
-        <Button
-          type="submit"
-          disabled={$slotDelayed}
-          class="bg-epi-pink text-white"
-        >
-          {$slotDelayed ? 'Mise à jour...' : 'Mettre à jour'}
-        </Button>
-      </Dialog.Footer>
-    </form>
-  </Dialog.Content>
-</Dialog.Root>
-
-<!-- Add Item Dialog -->
-<Dialog.Root bind:open={addItemOpen}>
+<!-- Slot Dialog (create + edit) -->
+<Dialog.Root bind:open={slotDialogOpen}>
   <Dialog.Content class="sm:max-w-2xl">
     <Dialog.Header>
-      <Dialog.Title>Ajouter une activité au créneau</Dialog.Title>
+      <Dialog.Title>
+        {editingSlotId ? 'Modifier le créneau' : 'Ajouter un créneau'}
+      </Dialog.Title>
       <Dialog.Description>
-        Choisissez un template officiel ou définissez une activité statique.
+        Un créneau = une activité. Choisissez un template ou définissez une
+        activité inline.
       </Dialog.Description>
     </Dialog.Header>
 
-    <Tabs.Root value="template" class="w-full">
-      <Tabs.List class="grid w-full grid-cols-2">
-        <Tabs.Trigger value="template">Depuis un template</Tabs.Trigger>
-        <Tabs.Trigger value="inline">Activité statique</Tabs.Trigger>
-      </Tabs.List>
+    <form
+      method="POST"
+      action={editingSlotId ? '?/updateSlot' : '?/addSlot'}
+      use:slotEnhance
+      class="grid gap-4 py-4"
+    >
+      {#if editingSlotId}
+        <input type="hidden" name="slotId" value={editingSlotId} />
+      {/if}
+      <input
+        type="hidden"
+        name="planningTemplateDayId"
+        value={slotDialogDayId}
+      />
+      <input
+        type="hidden"
+        name="activityTemplateId"
+        value={slotActivityTemplateId}
+      />
+      <input type="hidden" name="nom" value={slotNom} />
+      <input type="hidden" name="activityType" value={slotActivityType} />
 
-      <Tabs.Content value="template" class="mt-4">
-        <div class="mb-3 flex gap-2">
-          <div class="relative flex-1">
-            <Search
-              class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
-            />
-            <Input
-              placeholder="Rechercher un template..."
-              class="pl-9"
-              bind:value={searchQuery}
-            />
-          </div>
-          <Select.Root type="single" bind:value={typeFilter}>
-            <Select.Trigger class="w-40">
-              {typeFilter === 'all'
-                ? 'Tous les types'
-                : activityTypeLabels[
-                    typeFilter as keyof typeof activityTypeLabels
-                  ] || typeFilter}
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value="all">Tous les types</Select.Item>
-              {#each Object.entries(activityTypeLabels) as [value, label]}
-                <Select.Item {value}>{label}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="grid gap-2">
+          <Label>Début</Label>
+          <TimePicker name="startTime" bind:value={slotStartTime} />
         </div>
+        <div class="grid gap-2">
+          <Label>Fin</Label>
+          <TimePicker name="endTime" bind:value={slotEndTime} />
+        </div>
+      </div>
 
-        <ScrollArea class="h-72">
-          {#if filteredTemplates.length === 0}
-            <div
-              class="flex items-center justify-center py-12 text-center text-sm text-muted-foreground"
-            >
-              Aucun template trouvé.
-            </div>
-          {:else}
-            <div class="space-y-2 pr-3">
-              {#each filteredTemplates as template}
-                <div
-                  class="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
-                >
-                  <div class="flex flex-1 flex-col gap-1">
-                    <div class="flex items-center gap-2">
-                      {#if template.isDynamic}
-                        <Zap class="h-3.5 w-3.5 text-epi-orange" />
-                      {:else}
-                        <FileText class="h-3.5 w-3.5 text-muted-foreground" />
-                      {/if}
-                      <span class="text-sm font-medium">{template.nom}</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1">
-                      <Badge variant="outline" class="text-[10px]">
-                        {activityTypeLabels[
-                          template.activityType as keyof typeof activityTypeLabels
-                        ]}
-                      </Badge>
-                      {#if template.difficulte}
-                        <Badge variant="secondary" class="text-[10px]">
-                          {template.difficulte}
-                        </Badge>
-                      {/if}
-                      {#each template.activityTemplateThemes as att}
-                        <Badge variant="secondary" class="text-[10px]">
-                          #{att.theme.nom}
-                        </Badge>
-                      {/each}
-                    </div>
-                    {#if template.description}
-                      <p class="line-clamp-1 text-xs text-muted-foreground">
-                        {template.description}
-                      </p>
-                    {/if}
-                  </div>
-                  <form
-                    method="POST"
-                    action="?/addItem"
-                    use:kitEnhance={() => {
-                      isAddingItem = template.id;
-                      return async ({ result, update }) => {
-                        isAddingItem = null;
-                        if (result.type === 'success') {
-                          addItemOpen = false;
-                          toast.success(`« ${template.nom} » ajouté !`);
-                          await update();
-                        } else {
-                          toast.error("Erreur lors de l'ajout.");
-                          await update();
-                        }
-                      };
-                    }}
-                  >
-                    <input
-                      type="hidden"
-                      name="planningTemplateSlotId"
-                      value={addItemSlotId}
-                    />
-                    <input
-                      type="hidden"
-                      name="activityTemplateId"
-                      value={template.id}
-                    />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant="outline"
-                      disabled={isAddingItem === template.id}
-                      class="ml-3 shrink-0"
-                    >
-                      <Plus class="mr-1 h-3.5 w-3.5" />
-                      {isAddingItem === template.id ? '...' : 'Ajouter'}
-                    </Button>
-                  </form>
+      <Tabs.Root value={slotActivityTemplateId ? 'template' : 'inline'}>
+        <Tabs.List class="grid w-full grid-cols-2">
+          <Tabs.Trigger value="template">Depuis un template</Tabs.Trigger>
+          <Tabs.Trigger value="inline">Activité inline</Tabs.Trigger>
+        </Tabs.List>
+
+        <Tabs.Content value="template" class="mt-4">
+          {#if slotActivityTemplateId}
+            {@const tpl = data.activityTemplates.find(
+              (t) => t.id === slotActivityTemplateId,
+            )}
+            {#if tpl}
+              <div
+                class="mb-3 flex items-center justify-between rounded-md border bg-muted/30 p-3"
+              >
+                <div class="flex items-center gap-2">
+                  {#if tpl.isDynamic}
+                    <Zap class="h-4 w-4 text-epi-orange" />
+                  {:else}
+                    <FileText class="h-4 w-4 text-muted-foreground" />
+                  {/if}
+                  <span class="text-sm font-bold">{tpl.nom}</span>
+                  <Badge variant="outline" class="text-[10px]">
+                    {activityTypeLabels[tpl.activityType]}
+                  </Badge>
                 </div>
-              {/each}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onclick={clearTemplate}
+                >
+                  Changer
+                </Button>
+              </div>
+            {/if}
+          {:else}
+            <div class="mb-3 flex gap-2">
+              <div class="relative flex-1">
+                <Search
+                  class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground"
+                />
+                <Input
+                  placeholder="Rechercher..."
+                  class="pl-9"
+                  bind:value={searchQuery}
+                />
+              </div>
+              <Select.Root type="single" bind:value={typeFilter}>
+                <Select.Trigger class="w-40">
+                  {typeFilter === 'all'
+                    ? 'Tous les types'
+                    : activityTypeLabels[
+                        typeFilter as keyof typeof activityTypeLabels
+                      ] || typeFilter}
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value="all">Tous les types</Select.Item>
+                  {#each Object.entries(activityTypeLabels) as [value, label]}
+                    <Select.Item {value}>{label}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
             </div>
+
+            <ScrollArea class="h-60 rounded-md border bg-muted/10">
+              {#if filteredTemplates.length === 0}
+                <div
+                  class="flex h-full items-center justify-center py-12 text-center text-sm text-muted-foreground"
+                >
+                  Aucun template trouvé.
+                </div>
+              {:else}
+                <div class="space-y-1 p-2">
+                  {#each filteredTemplates as template}
+                    <button
+                      type="button"
+                      class="flex w-full items-center gap-2 rounded-md border bg-card p-2 text-left shadow-sm transition-colors hover:border-epi-blue hover:bg-muted/50 dark:shadow-none"
+                      onclick={() => selectTemplate(template.id, template.nom)}
+                    >
+                      {#if template.isDynamic}
+                        <Zap class="h-3.5 w-3.5 shrink-0 text-epi-orange" />
+                      {:else}
+                        <FileText
+                          class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                        />
+                      {/if}
+                      <span class="flex-1 truncate text-sm font-medium"
+                        >{template.nom}</span
+                      >
+                      <Badge variant="outline" class="text-[10px]">
+                        {activityTypeLabels[template.activityType]}
+                      </Badge>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </ScrollArea>
           {/if}
-        </ScrollArea>
-      </Tabs.Content>
+        </Tabs.Content>
 
-      <Tabs.Content value="inline" class="mt-4">
-        <form
-          method="POST"
-          action="?/addItem"
-          use:kitEnhance={() => {
-            isAddingInline = true;
-            return async ({ result, update }) => {
-              isAddingInline = false;
-              if (result.type === 'success') {
-                addItemOpen = false;
-                toast.success('Activité statique ajoutée !');
-                await update();
-              } else {
-                toast.error("Erreur lors de l'ajout.");
-                await update();
-              }
-            };
-          }}
-          class="grid gap-4"
-        >
-          <input
-            type="hidden"
-            name="planningTemplateSlotId"
-            value={addItemSlotId}
-          />
-
+        <Tabs.Content value="inline" class="mt-4 grid gap-3">
           <div class="grid gap-2">
             <Label>Nom</Label>
-            <Input
-              name="nom"
-              bind:value={inlineNom}
-              placeholder="Ex: Pause déjeuner"
-            />
+            <Input bind:value={slotNom} placeholder="Ex: Pause déjeuner" />
           </div>
-
           <div class="grid gap-2">
             <Label>Type</Label>
-            <Select.Root type="single" bind:value={inlineType}>
+            <Select.Root type="single" bind:value={slotActivityType}>
               <Select.Trigger>
-                {activityTypeLabels[
-                  inlineType as keyof typeof activityTypeLabels
-                ] || inlineType}
+                {activityTypeLabels[slotActivityType]}
               </Select.Trigger>
               <Select.Content>
-                {#each Object.entries(activityTypeLabels) as [value, label]}
-                  <Select.Item {value}>{label}</Select.Item>
+                {#each activityTypes as t}
+                  <Select.Item value={t}>{activityTypeLabels[t]}</Select.Item>
                 {/each}
               </Select.Content>
             </Select.Root>
-            <input type="hidden" name="activityType" value={inlineType} />
           </div>
+        </Tabs.Content>
+      </Tabs.Root>
 
-          <div class="grid gap-2">
-            <Label
-              >Description <span class="text-muted-foreground">(optionnel)</span
-              ></Label
-            >
-            <Input
-              name="description"
-              bind:value={inlineDescription}
-              placeholder="Brève description"
-            />
-          </div>
-
-          <Dialog.Footer>
-            <Button
-              type="submit"
-              disabled={isAddingInline}
-              class="bg-epi-pink text-white"
-            >
-              {isAddingInline ? 'Ajout...' : 'Ajouter'}
-            </Button>
-          </Dialog.Footer>
-        </form>
-      </Tabs.Content>
-    </Tabs.Root>
+      <Dialog.Footer>
+        <Button type="submit" class="bg-epi-pink text-white">
+          {editingSlotId ? 'Mettre à jour' : 'Ajouter'}
+        </Button>
+      </Dialog.Footer>
+    </form>
   </Dialog.Content>
 </Dialog.Root>
 
@@ -701,8 +501,7 @@
     <Dialog.Header>
       <Dialog.Title>Dupliquer les créneaux</Dialog.Title>
       <Dialog.Description>
-        Copier tous les créneaux et activités vers un autre jour. Le contenu
-        existant du jour cible sera remplacé.
+        Le contenu existant du jour cible sera remplacé.
       </Dialog.Description>
     </Dialog.Header>
     <form
@@ -763,17 +562,9 @@
   </Dialog.Content>
 </Dialog.Root>
 
-<!-- Delete confirmations -->
 <ConfirmDeleteDialog
   bind:open={deleteSlotOpen}
   action="?/deleteSlot&id={slotToDelete}"
   title="Supprimer ce créneau ?"
-  description="Les activités associées seront également supprimées."
-/>
-
-<ConfirmDeleteDialog
-  bind:open={deleteItemOpen}
-  action="?/removeItem&id={itemToDelete}"
-  title="Retirer cette activité ?"
-  description="L'activité sera retirée du créneau."
+  description="L'activité associée sera également supprimée."
 />

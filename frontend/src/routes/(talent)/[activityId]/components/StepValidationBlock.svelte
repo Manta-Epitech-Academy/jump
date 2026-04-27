@@ -42,7 +42,7 @@
 >
   {#if currentIndex < unlockedIndex}
     <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3 text-epi-teal">
+      <div class="flex items-center gap-3 text-epi-teal-solid">
         <CircleCheck class="h-6 w-6" />
         <span class="font-bold uppercase">Étape validée</span>
       </div>
@@ -228,7 +228,7 @@
         <input type="hidden" name="progressId" value={progress.id} />
         <Button
           type="submit"
-          class="rounded-xl bg-epi-teal font-bold text-black shadow-md transition-transform hover:bg-epi-teal/80 active:scale-95"
+          class="rounded-xl bg-epi-teal-solid font-bold text-white shadow-md transition-transform hover:bg-epi-teal-solid/90 active:scale-95"
         >
           Continuer <ArrowRight class="ml-2 h-4 w-4" />
         </Button>

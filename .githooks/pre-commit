@@ -1,21 +1,37 @@
 #!/usr/bin/env bash
 
 # Auto-format staged files with Prettier before committing.
-# Only formats files that are actually staged (not the whole project).
+#
+# Formats the staged blob (what git will commit), not the worktree file, so
+# partial staging (git add -p) is preserved: only the staged hunks get
+# formatted, unstaged hunks stay untouched. The worktree is then synced as
+# a best-effort second step to avoid "status dirty" after commit.
 
-cd "$(git rev-parse --show-toplevel)/frontend" || exit 1
+set -e
+cd "$(git rev-parse --show-toplevel)"
 
-# Get staged files relative to repo root, keep only frontend/ files
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=d | grep '^frontend/' | sed 's|^frontend/||')
-
-if [ -z "$STAGED_FILES" ]; then
+STAGED=$(git diff --cached --name-only --diff-filter=d | grep '^frontend/') || true
+if [ -z "$STAGED" ]; then
   exit 0
 fi
 
-# Run Prettier on staged files only
-echo "$STAGED_FILES" | xargs bun x prettier --write --ignore-unknown 2>/dev/null
+# 1. Format the staged blobs in the index (leaves worktree untouched).
+while IFS= read -r file; do
+  mode=$(git ls-files --stage -- "$file" | awk '{print $1}')
+  rel="${file#frontend/}"
+  tmp=$(mktemp)
+  git show ":$file" | (cd frontend && bun x prettier --stdin-filepath "$rel" --ignore-unknown) > "$tmp" || true
+  # Skip if Prettier couldn't parse it (--ignore-unknown emits empty stdout for
+  # unsupported extensions like .prisma/.sql, which would otherwise overwrite
+  # the index with an empty blob).
+  if [ -s "$tmp" ]; then
+    hash=$(git hash-object -w -- "$tmp")
+    git update-index --cacheinfo "$mode,$hash,$file"
+  fi
+  rm -f "$tmp"
+done <<< "$STAGED"
 
-# Re-stage formatted files (paths are relative to frontend/, which is cwd)
-echo "$STAGED_FILES" | xargs git add
+# 2. Sync the worktree to match. Best-effort: don't block commit on failure.
+echo "$STAGED" | sed 's|^frontend/||' | (cd frontend && xargs bun x prettier --write --ignore-unknown) 2>/dev/null || true
 
 exit 0

@@ -261,7 +261,7 @@
             <Table.Row>
               <Table.Cell class="text-center">
                 {#if template.isDynamic}
-                  <Zap class="mx-auto h-4 w-4 text-epi-teal" />
+                  <Zap class="mx-auto h-4 w-4 text-epi-teal-solid" />
                 {:else}
                   <FileText class="mx-auto h-4 w-4 text-muted-foreground" />
                 {/if}

@@ -196,9 +196,6 @@
                       class="text-[11px] font-bold text-slate-400 uppercase"
                     >
                       {formatTime(slot.startTime)} — {formatTime(slot.endTime)}
-                      {#if slot.label}
-                        · {slot.label}
-                      {/if}
                     </span>
                   </div>
 
@@ -337,9 +334,6 @@
                                 {formatTime(slot.startTime)} — {formatTime(
                                   slot.endTime,
                                 )}
-                                {#if slot.label}
-                                  · {slot.label}
-                                {/if}
                               </span>
                             </div>
 

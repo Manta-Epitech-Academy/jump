@@ -10,7 +10,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as Avatar from '$lib/components/ui/avatar';
-  import { Calendar, Tag, Archive, Users, UserCheck } from '@lucide/svelte';
+  import { Calendar, Tag, Archive, Users, FileCheck } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { formatDateFr } from '$lib/utils';
   import { resolve } from '$app/paths';
@@ -35,7 +35,9 @@
   <PageHeader title="Historique" subtitle="Archives des événements passés" />
 
   {#if data.events.length > 0}
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div
+      class="rounded-sm border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+    >
       <Table>
         <TableHeader class="bg-muted/50">
           <TableRow>
@@ -49,7 +51,7 @@
               >Mantas</TableHead
             >
             <TableHead class="text-center text-xs font-bold uppercase"
-              >Participation</TableHead
+              >Présents</TableHead
             >
             <TableHead class="text-right"></TableHead>
           </TableRow>
@@ -59,19 +61,19 @@
             <TableRow class="hover:bg-muted/30">
               <TableCell class="font-bold">
                 <a
-                  href={resolve(`/staff/dev/events/${event.id}/builder`)}
-                  class="text-muted-foreground transition-colors hover:text-epi-blue hover:underline"
+                  href={resolve(`/staff/dev/events/${event.id}/manage`)}
+                  class="tracking-tight text-foreground transition-colors hover:text-epi-blue"
                 >
                   {event.titre}
                 </a>
               </TableCell>
               <TableCell>
                 <div class="flex items-center gap-2">
-                  <Calendar class="h-4 w-4 text-muted-foreground" />
-                  <span class="font-medium"
+                  <Calendar class="h-3.5 w-3.5 text-muted-foreground" />
+                  <span class="text-sm font-medium"
                     >{formatDateFr(event.date, data.timezone)}</span
                   >
-                  <span class="text-xs text-muted-foreground"
+                  <span class="text-xs font-medium text-muted-foreground"
                     >{formatTime(event.date)}</span
                   >
                 </div>
@@ -79,25 +81,28 @@
               <TableCell class="hidden md:table-cell">
                 {#if event.theme}
                   <div class="flex items-center gap-2">
-                    <Tag class="h-4 w-4 text-teal-700/70" />
-                    <span class="font-bold text-teal-800/70">{event.theme}</span
+                    <Tag class="h-3.5 w-3.5 text-epi-teal-solid" />
+                    <span
+                      class="text-xs font-bold tracking-widest text-epi-teal-solid uppercase"
+                      >{event.theme}</span
                     >
                   </div>
                 {:else}
-                  <span class="text-sm text-muted-foreground italic"
+                  <span
+                    class="text-[10px] tracking-widest text-muted-foreground uppercase"
                     >Aucun thème</span
                   >
                 {/if}
               </TableCell>
               <TableCell class="hidden text-center md:table-cell">
                 {#if event.mantas && event.mantas.length > 0}
-                  <div class="flex justify-center -space-x-2">
+                  <div class="flex justify-center -space-x-1.5">
                     {#each event.mantas as manta}
                       <Tooltip.Provider delayDuration={0}>
                         <Tooltip.Root>
                           <Tooltip.Trigger>
                             <Avatar.Root
-                              class="relative h-7 w-7 border-2 border-background hover:z-10"
+                              class="relative h-6 w-6 rounded-sm border-2 border-background hover:z-10"
                             >
                               {#if manta.avatarUrl}
                                 <Avatar.Image
@@ -106,23 +111,28 @@
                                 />
                               {/if}
                               <Avatar.Fallback
-                                class="bg-muted text-[9px] font-bold text-foreground opacity-70"
+                                class="bg-muted text-[8px] font-bold text-foreground opacity-70"
                               >
                                 {manta.name.substring(0, 2).toUpperCase()}
                               </Avatar.Fallback>
                             </Avatar.Root>
                           </Tooltip.Trigger>
-                          <Tooltip.Content><p>{manta.name}</p></Tooltip.Content>
+                          <Tooltip.Content class="rounded-sm"
+                            ><p>{manta.name}</p></Tooltip.Content
+                          >
                         </Tooltip.Root>
                       </Tooltip.Provider>
                     {/each}
                   </div>
                 {:else}
-                  <span class="text-xs text-muted-foreground italic">-</span>
+                  <span class="text-xs text-muted-foreground">—</span>
                 {/if}
               </TableCell>
               <TableCell class="text-center">
-                <Badge variant="secondary" class="gap-1 font-mono opacity-70">
+                <Badge
+                  variant="secondary"
+                  class="gap-1 rounded-sm font-mono text-[10px]"
+                >
                   <Users class="h-3 w-3" />
                   {event.presentCount}
                 </Badge>
@@ -138,15 +148,16 @@
                             variant="outline"
                             size="icon"
                             href={resolve(
-                              `/staff/dev/events/${event.id}/appel`,
+                              `/staff/dev/events/${event.id}/manage`,
                             )}
-                            class="h-9 w-9 border-epi-teal/30 bg-epi-teal/10 text-teal-700 hover:bg-epi-teal hover:text-black dark:text-epi-teal dark:hover:text-black"
+                            class="h-8 w-8 rounded-sm border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
                           >
-                            <UserCheck class="h-5 w-5" />
+                            <FileCheck class="h-4 w-4" />
                           </Button>
                         {/snippet}
                       </Tooltip.Trigger>
-                      <Tooltip.Content><p>Consulter l'appel</p></Tooltip.Content
+                      <Tooltip.Content class="rounded-sm"
+                        ><p>Voir le Dashboard</p></Tooltip.Content
                       >
                     </Tooltip.Root>
                   </Tooltip.Provider>
@@ -164,11 +175,15 @@
     </div>
   {:else}
     <div
-      class="flex flex-col items-center justify-center rounded-sm border bg-card p-20 text-center shadow-sm"
+      class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-20 text-center text-muted-foreground"
     >
-      <Archive class="mx-auto h-12 w-12 text-muted" />
-      <h3 class="mt-4 text-lg font-bold uppercase">Historique vide</h3>
-      <p class="mt-1 text-sm font-bold text-muted-foreground uppercase">
+      <Archive class="mx-auto h-12 w-12 opacity-30" />
+      <h3
+        class="mt-4 font-sans text-lg font-bold tracking-wide text-foreground uppercase"
+      >
+        Historique vide
+      </h3>
+      <p class="mt-1 text-xs font-medium">
         Aucun événement passé n'a été trouvé.
       </p>
     </div>

@@ -10,6 +10,7 @@
   /* --- Epitech Brand Colors --- */
   --epi-blue: #013afb;
   --epi-teal: #00ff97;
+  --epi-teal-solid: #14b8a6;
   --epi-orange: #ff5f3a;
   --epi-pink: #ff1ef7;
 
@@ -57,31 +58,30 @@
   --ring: var(--epi-blue);
 
   --header-bg: var(--epi-blue);
-  --header-foreground: #ffffff; /* NEW: Force white text on blue header in light mode */
+  --header-foreground: #ffffff;
   --sidebar-bg: var(--color-gray-0);
 }
 
 .dark {
   /* --- Dark Scale --- */
-  --color-dark-0: #c9c9c9; /* Text */
+  --color-dark-0: #c9c9c9;
   --color-dark-1: #b8b8b8;
-  --color-dark-2: #828282; /* Dimmed */
+  --color-dark-2: #828282;
   --color-dark-3: #696969;
-  --color-dark-4: #424242; /* Borders */
-  --color-dark-5: #3b3b3b; /* Hover */
-  --color-dark-6: #2e2e2e; /* Cards / Surface */
-  --color-dark-7: #242424; /* Body Background */
-  --color-dark-8: #1f1f1f; /* Pre/Code blocks */
+  --color-dark-4: #424242;
+  --color-dark-5: #3b3b3b;
+  --color-dark-6: #2e2e2e;
+  --color-dark-7: #242424;
+  --color-dark-8: #1f1f1f;
   --color-dark-9: #141414;
 
-  /* Brand Adjustments for Dark Mode */
   --epi-blue: #809dfd;
+  --epi-teal-solid: #2dd4bf;
 
-  /* Functional Variables (Mapped to Epitech Dark Scale) */
-  --background: var(--color-dark-7); /* #242424 */
-  --foreground: var(--color-dark-0); /* #c9c9c9 */
+  --background: var(--color-dark-7);
+  --foreground: var(--color-dark-0);
 
-  --card: var(--color-dark-6); /* #2e2e2e */
+  --card: var(--color-dark-6);
   --card-foreground: var(--color-dark-0);
 
   --popover: var(--color-dark-6);
@@ -94,7 +94,7 @@
   --secondary-foreground: var(--color-dark-0);
 
   --muted: var(--color-dark-6);
-  --muted-foreground: var(--color-dark-2); /* #828282 */
+  --muted-foreground: var(--color-dark-2);
 
   --accent: rgba(128, 157, 253, 0.15);
   --accent-foreground: #809dfd;
@@ -102,12 +102,12 @@
   --destructive: #ff6b6b;
   --destructive-foreground: #ffffff;
 
-  --border: var(--color-dark-4); /* #424242 */
+  --border: var(--color-dark-4);
   --input: var(--color-dark-4);
   --ring: #809dfd;
 
   --header-bg: var(--color-dark-7);
-  --header-foreground: var(--foreground); /* Standard text color in dark mode */
+  --header-foreground: var(--foreground);
   --sidebar-bg: var(--color-dark-7);
 }
 
@@ -132,14 +132,14 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Epitech Specifics */
   --color-epi-blue: var(--epi-blue);
   --color-epi-teal: var(--epi-teal);
+  --color-epi-teal-solid: var(--epi-teal-solid);
   --color-epi-orange: var(--epi-orange);
   --color-epi-pink: var(--epi-pink);
 
   --color-header: var(--header-bg);
-  --color-header-foreground: var(--header-foreground); /* Added to theme */
+  --color-header-foreground: var(--header-foreground);
   --color-sidebar: var(--sidebar-bg);
 
   --font-sans: var(--font-sans);
@@ -157,6 +157,7 @@
   body {
     @apply bg-background font-sans text-foreground antialiased selection:bg-epi-blue selection:text-white;
   }
+  /* Typography rules applied here: Tight leading for large headers */
   h1,
   h2,
   h3,
@@ -164,7 +165,7 @@
   h5,
   h6,
   .font-heading {
-    @apply font-heading font-normal tracking-wide uppercase;
+    @apply font-heading leading-[1.1] font-normal tracking-wide uppercase;
   }
 
   .sidebar-section-title {
@@ -184,7 +185,7 @@
   }
 }
 
-/* --- Markdown Content (Camper Subject Viewer) --- */
+/* --- Markdown Content --- */
 .markdown-content {
   @apply font-sans;
 }
@@ -240,4 +241,40 @@
   75% {
     transform: translateX(4px);
   }
+}
+
+/* --- Manta +10 XP Animation --- */
+@keyframes xp-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.2);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-40px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(1);
+  }
+}
+
+.animate-xp-float {
+  animation: xp-float 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --- Focus Mode Kiosk Overrides --- */
+html.focus-mode header,
+html.focus-mode aside {
+  display: none !important;
+}
+html.focus-mode main {
+  padding: 0 !important;
+}
+html.focus-mode .focus-hide {
+  display: none !important;
 }
