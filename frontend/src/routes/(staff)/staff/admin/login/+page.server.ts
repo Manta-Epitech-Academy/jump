@@ -10,7 +10,7 @@ import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
   // If already authenticated as an Admin
-  if (locals.user?.role === 'admin') {
+  if (locals.staffProfile?.staffRole === 'admin') {
     throw redirect(303, resolve('/staff/admin'));
   }
 
