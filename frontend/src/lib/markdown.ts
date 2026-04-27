@@ -13,7 +13,7 @@ const marked = new Marked(
   }),
   {
     gfm: true,
-    breaks: false,
+    breaks: true,
   },
 );
 
