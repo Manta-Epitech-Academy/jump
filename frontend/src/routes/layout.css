@@ -159,12 +159,12 @@
   body {
     @apply bg-background font-sans text-foreground antialiased selection:bg-epi-blue selection:text-white;
   }
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
+  h1:not(.prose *),
+  h2:not(.prose *),
+  h3:not(.prose *),
+  h4:not(.prose *),
+  h5:not(.prose *),
+  h6:not(.prose *),
   .font-heading {
     @apply font-heading font-normal tracking-wide uppercase;
   }
@@ -188,18 +188,30 @@
 
 /* --- Markdown Prose Overrides (Notion-like with Epitech branding) --- */
 
-/* Headings — clean, no uppercase, weighted sizing like Notion */
+/* Base text — crisp rendering for body text */
+.prose {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* Headings — clean, no uppercase, sans-serif, weighted sizing like Notion */
 .prose h1 {
-  @apply text-2xl font-bold text-slate-900 dark:text-white;
+  @apply font-sans text-2xl font-bold tracking-normal text-slate-900 normal-case dark:text-white;
 }
 .prose h2 {
-  @apply text-xl font-semibold text-slate-900 dark:text-white;
+  @apply font-sans text-xl font-semibold tracking-normal text-slate-900 normal-case dark:text-white;
 }
 .prose h3 {
-  @apply text-lg font-semibold text-slate-800 dark:text-slate-100;
+  @apply font-sans text-lg font-semibold tracking-normal text-slate-800 normal-case dark:text-slate-100;
 }
 .prose h4 {
-  @apply text-base font-semibold text-slate-700 dark:text-slate-200;
+  @apply font-sans text-base font-semibold tracking-normal text-slate-700 normal-case dark:text-slate-200;
+}
+.prose h5 {
+  @apply font-sans text-sm font-semibold tracking-normal text-slate-700 normal-case dark:text-slate-300;
+}
+.prose h6 {
+  @apply font-sans text-xs font-semibold tracking-normal text-slate-500 normal-case uppercase dark:text-slate-400;
 }
 
 /* Links — Epitech blue, underline on hover like Notion */
@@ -207,23 +219,23 @@
   @apply font-medium text-epi-blue underline decoration-epi-blue/30 underline-offset-2 transition-colors hover:decoration-epi-blue;
 }
 
-/* Blockquotes — Notion-style left border with subtle bg */
+/* Blockquotes — Notion-style left border, tight to text */
 .prose blockquote {
-  @apply rounded-r-lg border-l-4 border-epi-teal bg-slate-50 px-4 py-1 dark:bg-slate-900/50;
+  @apply border-l-3 border-slate-300 py-0 pl-4 dark:border-slate-600;
+}
+.prose blockquote p {
+  @apply my-0;
 }
 
-/* Tables — Notion-style with header bg and clean borders */
+/* Tables — Notion-style with full borders and column separators */
 .prose table {
-  @apply w-full border-collapse overflow-hidden rounded-lg text-sm;
+  @apply w-full border-collapse text-sm;
 }
 .prose thead th {
-  @apply bg-slate-100 px-3 py-2 text-left text-xs font-semibold tracking-wider text-slate-600 uppercase dark:bg-slate-800 dark:text-slate-300;
+  @apply border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300;
 }
 .prose tbody td {
-  @apply border-t border-slate-200 px-3 py-2 dark:border-slate-700;
-}
-.prose tbody tr:hover {
-  @apply bg-slate-50/50 dark:bg-slate-800/30;
+  @apply border border-slate-200 px-3 py-2 dark:border-slate-700;
 }
 
 /* Task lists — styled checkboxes, no bullet */
@@ -247,14 +259,20 @@
   @apply my-8 border-t border-slate-200 dark:border-slate-700;
 }
 
-/* Code blocks — keep existing dark theme */
+/* Code blocks — language label, softer background */
+.prose .code-block-wrapper {
+  @apply relative my-5;
+}
+.prose .code-block-lang {
+  @apply absolute top-2 right-3 z-10 text-xs text-slate-500;
+}
 .prose pre {
-  @apply rounded-xl shadow-inner;
+  @apply !mt-0 rounded-lg bg-slate-900;
 }
 
 /* Inline code — subtle highlight */
 .prose code:not(pre code) {
-  @apply rounded-md bg-slate-100 px-1.5 py-0.5 text-epi-blue dark:bg-slate-800 dark:text-blue-300;
+  @apply rounded-md bg-slate-100 px-1.5 py-0.5 text-sm text-rose-500 dark:bg-slate-800 dark:text-rose-400;
 }
 .prose code::before,
 .prose code::after {
