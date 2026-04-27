@@ -234,6 +234,7 @@
         timezone={data.timezone}
         containerClass="h-[calc(100vh-18rem)] min-h-[600px]"
         canEdit={can('devLead', data.staffProfile?.staffRole)}
+        eventId={data.event.id}
       />
     </Tabs.Content>
   </Tabs.Root>

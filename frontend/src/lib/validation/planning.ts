@@ -56,24 +56,45 @@ export const updateActivitySchema = z.object({
   content: z.string().optional().or(z.literal('')),
 });
 
-export const assignActivitySchema = z.object({
-  timeSlotId: z.string().min(1),
-  nom: z.string().trim().min(1, 'Le nom est requis').max(100),
-  activityType: z.enum(activityTypes),
-  description: z.string().optional().or(z.literal('')),
-  difficulte: z
-    .enum(difficultes, {
-      message: 'Veuillez sélectionner une difficulté valide',
-    })
-    .optional()
-    .or(z.literal('')),
-  link: z
-    .url("Le format du lien n'est pas valide (https://...)")
-    .optional()
-    .or(z.literal('')),
-  content: z.string().optional().or(z.literal('')),
-  templateId: z.string().optional().or(z.literal('')),
-});
+export const assignActivitySchema = z
+  .object({
+    timeSlotId: z.string().min(1),
+    nom: z.string().trim().max(100).optional().or(z.literal('')),
+    activityType: z.enum(activityTypes).optional(),
+    description: z.string().optional().or(z.literal('')),
+    difficulte: z
+      .enum(difficultes, {
+        message: 'Veuillez sélectionner une difficulté valide',
+      })
+      .optional()
+      .or(z.literal('')),
+    link: z
+      .url("Le format du lien n'est pas valide (https://...)")
+      .optional()
+      .or(z.literal('')),
+    content: z.string().optional().or(z.literal('')),
+    templateId: z.string().optional().or(z.literal('')),
+  })
+  .superRefine((data, ctx) => {
+    // Template-based assign pulls nom/activityType from the template. Manual
+    // assign must provide both.
+    if (!data.templateId) {
+      if (!data.nom || data.nom.trim().length === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['nom'],
+          message: 'Le nom est requis',
+        });
+      }
+      if (!data.activityType) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['activityType'],
+          message: 'Le type est requis',
+        });
+      }
+    }
+  });
 
 export type TimeSlotForm = z.infer<typeof timeSlotSchema>;
 export type CreateSlotWithActivityForm = z.infer<

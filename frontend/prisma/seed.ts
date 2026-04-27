@@ -5,7 +5,12 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { PrismaClient, type ActivityType } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { EVENT_TYPES, type EventType } from '../src/lib/domain/event';
+
+const EVENT_TYPES = {
+  CODING_CLUB: 'coding_club',
+  STAGE_SECONDE: 'stage_seconde',
+} as const;
+type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });

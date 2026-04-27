@@ -50,6 +50,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       throw error(403, 'Tu ne participes pas à cet événement.');
     }
 
+    // Block access before the slot has actually started.
+    if (
+      activityWithSlot.timeSlot?.startTime &&
+      new Date(activityWithSlot.timeSlot.startTime).getTime() > Date.now()
+    ) {
+      throw error(403, "Cette activité n'a pas encore commencé.");
+    }
+
     // Static activities: return early with markdown content, no steps/progress
     if (!activity.isDynamic) {
       return {
