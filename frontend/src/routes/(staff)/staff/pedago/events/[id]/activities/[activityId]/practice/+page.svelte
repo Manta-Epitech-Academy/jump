@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { marked } from 'marked';
+  import { renderMarkdown } from '$lib/markdown';
   import { fade, fly } from 'svelte/transition';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
@@ -37,7 +37,7 @@
   let isCompleted = $derived(unlockedIndex >= steps.length);
 
   let parsedHtml = $derived(
-    currentStep ? (marked.parse(currentStep.content_markdown) as string) : '',
+    currentStep ? renderMarkdown(currentStep.content_markdown) : '',
   );
 
   $effect(() => {
@@ -222,7 +222,7 @@
             </h2>
 
             <div
-              class="markdown-content prose max-w-none text-base leading-relaxed prose-slate dark:prose-invert"
+              class="prose max-w-none text-base leading-relaxed prose-slate dark:prose-invert"
             >
               {@html parsedHtml}
             </div>
