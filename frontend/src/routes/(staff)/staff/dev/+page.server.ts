@@ -1,62 +1,223 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
-import { now } from '@internationalized/date';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { resolve as resolvePath } from '$app/paths';
+import { now, CalendarDateTime } from '@internationalized/date';
 import { EventService } from '$lib/server/services/events';
+import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
+import {
+  hasFlag,
+  requireFlag,
+  requireStaffGroup,
+} from '$lib/server/auth/guards';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
   if (!locals.user) {
     throw error(401, 'Authentification requise');
+  }
+
+  const { activeStage } = await parent();
+
+  if (!hasFlag(locals, 'coding_club')) {
+    if (activeStage) {
+      throw redirect(
+        303,
+        resolvePath(`/staff/dev/events/${activeStage.id}/manage`),
+      );
+    }
+    return {
+      userName: locals.user.name || 'Utilisateur',
+      campusName: locals.staffProfile?.campus?.name || 'votre campus',
+      timezone: getCampusTimezone(locals),
+      ongoingEvents: [],
+      upcomingEvents: [],
+      topTalents: [],
+      kpis: {
+        totalTalents: 0,
+        completedInterviews: null,
+        plannedInterviews: null,
+      },
+      stageObjectives: null,
+      tasks: {
+        eventsMissingMantas: [],
+        eventsMissingPlanning: [],
+        interviewsToday: 0,
+        overdueInterviews: 0,
+      },
+      minimalist: true,
+    };
   }
 
   try {
     const db = scopedPrisma(getCampusId(locals));
     const tz = getCampusTimezone(locals);
     const tzNow = now(tz);
-    const startOfDay = tzNow.set({
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-    });
-    const filterDate = startOfDay.toDate();
 
-    const events = await db.event.findMany({
+    const startOfDay = tzNow
+      .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
+      .toDate();
+    const endOfDay = tzNow
+      .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
+      .toDate();
+    const endOfWeek = tzNow
+      .add({ days: 7 })
+      .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
+      .toDate();
+
+    const ongoingEvents = await db.event.findMany({
       where: {
-        date: { gte: filterDate },
+        date: { gte: startOfDay, lte: endOfDay },
       },
       include: {
-        theme: true,
-        mantas: { include: { staffProfile: { include: { user: true } } } },
+        _count: { select: { participations: true } },
       },
+    });
+
+    const topTalents = await db.talent.findMany({
+      orderBy: [{ xp: 'desc' }, { eventsCount: 'desc' }],
+      take: 5,
+      include: { user: true },
+    });
+
+    const upcomingEvents = await db.event.findMany({
+      where: { date: { gt: endOfDay } },
+      include: {
+        mantas: true,
+        _count: { select: { participations: true } },
+      },
+      take: 4,
       orderBy: { date: 'asc' },
     });
 
+    const eventsInWeek = await db.event.findMany({
+      where: { date: { gte: startOfDay, lte: endOfWeek } },
+      include: {
+        mantas: { select: { staffProfileId: true } },
+        planning: { include: { _count: { select: { timeSlots: true } } } },
+      },
+    });
+
+    const eventsMissingMantas = eventsInWeek.filter(
+      (ev) => ev.mantas.length === 0,
+    );
+    const eventsMissingPlanning = eventsInWeek.filter(
+      (ev) => !ev.planning || ev.planning._count.timeSlots === 0,
+    );
+
+    const stageInterviewWhere = activeStage
+      ? { participation: { eventId: activeStage.id } }
+      : null;
+
+    const interviewsToday = stageInterviewWhere
+      ? await db.interview.count({
+          where: {
+            ...stageInterviewWhere,
+            status: 'planned',
+            date: { gte: startOfDay, lte: endOfDay },
+          },
+        })
+      : 0;
+    const overdueInterviews = stageInterviewWhere
+      ? await db.interview.count({
+          where: {
+            ...stageInterviewWhere,
+            status: 'planned',
+            date: { lt: startOfDay },
+          },
+        })
+      : 0;
+
+    const totalTalents = await db.talent.count();
+
+    let stageStats: {
+      completedInterviews: number;
+      plannedInterviews: number;
+      totalParticipations: number;
+      chartesSigned: number;
+    } | null = null;
+    if (activeStage) {
+      const [
+        completedInterviews,
+        plannedInterviews,
+        totalParticipations,
+        chartesSigned,
+      ] = await Promise.all([
+        db.interview.count({
+          where: {
+            status: 'completed',
+            participation: { eventId: activeStage.id },
+          },
+        }),
+        db.interview.count({
+          where: {
+            status: 'planned',
+            participation: { eventId: activeStage.id },
+          },
+        }),
+        db.participation.count({ where: { eventId: activeStage.id } }),
+        prisma.stageCompliance.count({
+          where: {
+            charteSigned: true,
+            participation: { eventId: activeStage.id },
+          },
+        }),
+      ]);
+      stageStats = {
+        completedInterviews,
+        plannedInterviews,
+        totalParticipations,
+        chartesSigned,
+      };
+    }
+
     return {
-      events: events.map((event) => ({
-        id: event.id,
-        titre: event.titre,
-        date: event.date,
-        theme: event.theme?.nom,
-        mantas: event.mantas.map((m) => ({
-          name: m.staffProfile.user?.name || '',
-          // TODO: implement S3 file storage for avatars
-          avatarUrl: m.staffProfile.avatar,
+      userName: locals.user.name || 'Utilisateur',
+      campusName: locals.staffProfile?.campus?.name || 'votre campus',
+      timezone: tz,
+      ongoingEvents,
+      upcomingEvents,
+      topTalents,
+      kpis: {
+        totalTalents,
+        completedInterviews: stageStats?.completedInterviews ?? null,
+        plannedInterviews: stageStats?.plannedInterviews ?? null,
+      },
+      stageObjectives: stageStats
+        ? {
+            interviews: stageStats.completedInterviews,
+            interviewsTarget: stageStats.totalParticipations,
+            chartes: stageStats.chartesSigned,
+            totalParticipations: stageStats.totalParticipations,
+          }
+        : null,
+      tasks: {
+        eventsMissingMantas: eventsMissingMantas.map((ev) => ({
+          id: ev.id,
+          titre: ev.titre,
+          date: ev.date,
         })),
-      })),
+        eventsMissingPlanning: eventsMissingPlanning.map((ev) => ({
+          id: ev.id,
+          titre: ev.titre,
+          date: ev.date,
+        })),
+        interviewsToday,
+        overdueInterviews,
+      },
     };
   } catch (err) {
     console.error('Erreur load dashboard:', err);
-    throw error(500, 'Erreur chargement événements');
+    throw error(500, 'Erreur chargement dashboard');
   }
 };
 
 export const actions: Actions = {
   deleteEvent: async ({ url, locals }) => {
+    requireStaffGroup(locals, 'devLead');
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 
@@ -70,6 +231,8 @@ export const actions: Actions = {
   },
 
   duplicateEvent: async ({ request, locals }) => {
+    requireStaffGroup(locals, 'devLead');
+    requireFlag(locals, 'coding_club');
     const data = await request.formData();
     const originalId = data.get('originalId') as string;
     const titre = data.get('titre') as string;
@@ -83,7 +246,8 @@ export const actions: Actions = {
     try {
       const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
       const [hour, minute] = timeStr.split(':').map(Number);
-      const newDate = new Date(year, month - 1, day, hour, minute);
+      const cdt = new CalendarDateTime(year, month, day, hour, minute);
+      const newDate = cdt.toDate(getCampusTimezone(locals));
 
       if (isNaN(newDate.getTime())) {
         return fail(400, { message: 'Valeur de temps invalide' });

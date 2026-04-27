@@ -1,12 +1,14 @@
 /**
  * Configures a Garage S3 instance: cluster layout, API key, bucket.
- * Safe to run on every startup — skips anything already configured.
+ * Stores the last config timestamp in AppSetting to avoid re-running
+ * on every startup. Deletes and recreates the API key each time it runs.
  *
  * Required env vars:
+ *   DATABASE_URL           — PostgreSQL connection string
  *   GARAGE_ADMIN_ENDPOINT  — Garage admin API (e.g. http://garage:3903)
  *   GARAGE_ADMIN_TOKEN     — Bearer token matching garage.toml admin_token
  *
- * Usage: bun run db:garage
+ * Usage: bun run garage:generate
  */
 
 import path from 'node:path';
@@ -14,10 +16,17 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
+
 const GARAGE_ADMIN = process.env.GARAGE_ADMIN_ENDPOINT;
 const ADMIN_TOKEN = process.env.GARAGE_ADMIN_TOKEN;
 const BUCKET_NAME = 'jump-files';
 const KEY_NAME = 'jump-app';
+const SETTING_KEY = 'garage.lastConfiguredAt';
 
 if (!GARAGE_ADMIN || !ADMIN_TOKEN) {
   console.error('Missing GARAGE_ADMIN_ENDPOINT or GARAGE_ADMIN_TOKEN in env.');
@@ -47,6 +56,22 @@ async function api<T = unknown>(
 }
 
 async function main() {
+  // Check if already configured today
+  const existing = await prisma.appSetting.findUnique({
+    where: { key: SETTING_KEY },
+  });
+  if (existing) {
+    const lastRun = new Date(existing.value);
+    const now = new Date();
+    const hoursSince = (now.getTime() - lastRun.getTime()) / (1000 * 60 * 60);
+    if (hoursSince < 24) {
+      console.log(
+        `✓ Garage already configured ${Math.floor(hoursSince)}h ago, skipping.`,
+      );
+      return;
+    }
+  }
+
   // 1. Wait for Garage admin API
   let ready = false;
   for (let i = 0; i < 30; i++) {
@@ -84,7 +109,7 @@ async function main() {
     console.log('✓ Cluster layout applied');
   }
 
-  // 3. API key — delete old one if exists, then create fresh
+  // 3. API key — delete old, create fresh
   const keys = await api<{ id: string; name: string }[]>('GET', 'ListKeys');
   const existingKey = keys.find((k) => k.name === KEY_NAME);
   if (existingKey) {
@@ -95,7 +120,6 @@ async function main() {
     'CreateKey',
     { name: KEY_NAME },
   );
-  const keyId = key.accessKeyId;
   console.log(
     '✓ API key created. PLEASE PUT THAT VARIABLES ON YOUR APP .env !',
   );
@@ -122,14 +146,23 @@ async function main() {
   // 5. Grant key → bucket permissions
   await api('POST', 'AllowBucketKey', {
     bucketId,
-    accessKeyId: keyId,
+    accessKeyId: key.accessKeyId,
     permissions: { read: true, write: true, owner: true },
+  });
+
+  // 6. Store timestamp in DB
+  await prisma.appSetting.upsert({
+    where: { key: SETTING_KEY },
+    update: { value: new Date().toISOString() },
+    create: { key: SETTING_KEY, value: new Date().toISOString() },
   });
 
   console.log('✓ Garage configured');
 }
 
-main().catch((e) => {
-  console.error('Configure garage failed:', e);
-  process.exit(1);
-});
+main()
+  .catch((e) => {
+    console.error('Configure garage failed:', e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());

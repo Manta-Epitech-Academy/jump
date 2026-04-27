@@ -116,6 +116,7 @@ export async function importCampaignData(
       mantas: {
         create: mantas.map((staffProfileId) => ({ staffProfileId })),
       },
+      planning: { create: {} },
     },
   });
 

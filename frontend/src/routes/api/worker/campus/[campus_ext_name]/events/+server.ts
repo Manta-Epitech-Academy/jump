@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { syncEvents } from '$lib/server/services/syncService';
+import { recordSync } from '$lib/server/infra/syncStatus';
 
 export const POST: RequestHandler = async ({ request, params }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
@@ -15,5 +16,11 @@ export const POST: RequestHandler = async ({ request, params }) => {
   const result = await syncEvents(params.campus_ext_name, body.events);
   if ('error' in result) throw error(400, result.error);
 
+  await recordSync({
+    type: 'events',
+    campusExtName: params.campus_ext_name,
+    created: result.created,
+    updated: result.updated,
+  });
   return json(result);
 };

@@ -3,6 +3,24 @@ import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
 
+async function validateMantaIds(campusId: string, mantaIds: string[]) {
+  if (mantaIds.length === 0) return;
+  const uniqueIds = [...new Set(mantaIds)];
+  const validCount = await prisma.staffProfile.count({
+    where: {
+      id: { in: uniqueIds },
+      campusId,
+      staffRole: { in: ['manta', 'peda'] },
+    },
+  });
+  if (validCount !== uniqueIds.length) {
+    throw error(
+      400,
+      'Rôle ou campus invalide : tous les mantas doivent appartenir à ce campus et avoir le rôle manta ou peda.',
+    );
+  }
+}
+
 export const EventService = {
   /**
    * Deletes an event and automatically rolls back XP for all present students.
@@ -86,6 +104,7 @@ export const EventService = {
             staffProfileId: m.staffProfileId,
           })),
         },
+        planning: { create: {} },
       },
     });
 
@@ -132,6 +151,10 @@ export const EventService = {
     }
     const oldThemeId = currentEvent.themeId;
 
+    if (data.mantas) {
+      await validateMantaIds(campusId, data.mantas);
+    }
+
     let newThemeId: string | null = null;
     if (data.theme && data.theme.trim() !== '') {
       const existing = await prisma.theme.findFirst({
@@ -148,7 +171,6 @@ export const EventService = {
       }
     }
 
-    // Update mantas and event atomically
     await prisma.$transaction(async (tx) => {
       if (data.mantas) {
         await tx.eventManta.deleteMany({ where: { eventId } });
@@ -175,5 +197,35 @@ export const EventService = {
     });
 
     return oldThemeId !== newThemeId;
+  },
+
+  /**
+   * Replaces an event's assigned mantas.
+   */
+  async assignMantas(eventId: string, campusId: string, mantaIds: string[]) {
+    const currentEvent = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { campusId: true },
+    });
+    if (currentEvent.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
+
+    await validateMantaIds(campusId, mantaIds);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.eventManta.deleteMany({ where: { eventId } });
+      if (mantaIds.length > 0) {
+        await tx.eventManta.createMany({
+          data: mantaIds.map((staffProfileId) => ({
+            eventId,
+            staffProfileId,
+          })),
+        });
+      }
+    });
   },
 };

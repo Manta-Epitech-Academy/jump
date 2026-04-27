@@ -11,6 +11,10 @@ const config = {
     alias: {
       $lib: 'src/lib',
     },
+    // Let `bun run check` write its generated artefacts to a separate
+    // directory so it doesn't race with the dev server over `.svelte-kit/`.
+    // See `tsconfig.check.json` and the `check` script in package.json.
+    outDir: process.env.KIT_OUTDIR || '.svelte-kit',
     csp: {
       directives: {
         'default-src': ['self'],

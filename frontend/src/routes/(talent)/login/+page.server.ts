@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       "Le fournisseur d'authentification Microsoft n'est pas configuré.";
   } else if (errorType === 'StudentNotFound') {
     errorMessage =
-      "Aucun profil étudiant trouvé pour cette adresse email. Contactez l'administration.";
+      "Aucun profil Talent trouvé pour cette adresse email. Contactez l'administration.";
   }
 
   const emailForm = await superValidate(zod4(camperEmailSchema));

@@ -56,7 +56,7 @@
               {#if !selectedThemeObj.campus}
                 <Globe class="h-3.5 w-3.5 text-purple-500" />
               {:else}
-                <MapPin class="h-3.5 w-3.5 text-epi-teal" />
+                <MapPin class="h-3.5 w-3.5 text-epi-teal-solid" />
               {/if}
             {:else}
               <Tag class="h-3.5 w-3.5 text-muted-foreground" />
@@ -124,7 +124,9 @@
                       {#if !theme.campus}
                         <Globe class="h-3.5 w-3.5 text-purple-500 opacity-50" />
                       {:else}
-                        <MapPin class="h-3.5 w-3.5 text-epi-teal opacity-50" />
+                        <MapPin
+                          class="h-3.5 w-3.5 text-epi-teal-solid opacity-50"
+                        />
                         /
                       {/if}
                     {/if}

@@ -26,15 +26,18 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const filterDateEnd = endOfDay.toDate();
     const filterDateStartDate = new Date(filterDateStart);
 
-    // Fetch participations for today with full planning chain
+    // Fetch participations for today with full planning chain.
+    // Match single-day events happening today AND multi-day events whose span
+    // covers today (event.date <= today <= event.endDate).
     const participations = await prisma.participation.findMany({
       where: {
         talentId: studentId,
         event: {
-          date: {
-            gte: filterDateStartDate,
-            lte: filterDateEnd,
-          },
+          date: { lte: filterDateEnd },
+          OR: [
+            { endDate: { gte: filterDateStartDate } },
+            { endDate: null, date: { gte: filterDateStartDate } },
+          ],
         },
       },
       include: {
@@ -43,11 +46,14 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
             planning: {
               include: {
                 timeSlots: {
-                  include: {
-                    activities: {
-                      where: { activityType: { not: 'orga' } },
+                  where: {
+                    activity: { activityType: { not: 'orga' } },
+                    startTime: {
+                      gte: filterDateStartDate,
+                      lte: filterDateEnd,
                     },
                   },
+                  include: { activity: true },
                   orderBy: { startTime: 'asc' },
                 },
               },
@@ -129,6 +135,27 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       }
     }
 
+    const isMultiDay = (
+      event:
+        | {
+            date: Date;
+            endDate: Date | null;
+          }
+        | null
+        | undefined,
+    ): boolean => {
+      if (!event?.endDate) return false;
+      const a = new Date(event.date);
+      const b = new Date(event.endDate);
+      return (
+        a.getFullYear() !== b.getFullYear() ||
+        a.getMonth() !== b.getMonth() ||
+        a.getDate() !== b.getDate()
+      );
+    };
+    const todayIsMultiDay = isMultiDay(todayParticipation?.event);
+    const upcomingIsMultiDay = isMultiDay(upcomingParticipation?.event);
+
     return {
       student: locals.talent,
       participation: todayParticipation,
@@ -138,6 +165,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       totalPastMissions,
       hasCompletedEvents: allCompleted.length > 0,
       topThemes,
+      todayIsMultiDay,
+      upcomingIsMultiDay,
+      serverNow: Date.now(),
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);

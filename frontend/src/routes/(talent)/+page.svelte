@@ -39,13 +39,44 @@
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
   import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';
+  import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
+  import { onMount, untrack } from 'svelte';
 
   let { data }: { data: PageData } = $props();
+
+  type PreviewActivity = {
+    id: string;
+    nom: string;
+    description?: string | null;
+    activityType: string;
+    difficulte?: string | null;
+    isDynamic: boolean;
+  };
+  let previewSlot = $state<{
+    startTime: Date | string;
+    endTime: Date | string;
+    activity: PreviewActivity | null;
+  } | null>(null);
+  let previewOpen = $state(false);
+  $effect(() => {
+    if (!previewOpen) previewSlot = null;
+  });
+
+  // Init from server timestamp so SSR + client hydration match.
+  // onMount refreshes to real browser time.
+  let nowTime = $state(untrack(() => new Date(data.serverNow)));
+  onMount(() => {
+    nowTime = new Date();
+    const i = setInterval(() => (nowTime = new Date()), 60_000);
+    return () => clearInterval(i);
+  });
 
   let student = $derived(data.student);
   let participation = $derived(data.participation);
   let upcomingParticipation = $derived(data.upcomingParticipation);
   let hasCompletedEvents = $derived(data.hasCompletedEvents);
+  let todayIsMultiDay = $derived(data.todayIsMultiDay);
+  let upcomingIsMultiDay = $derived(data.upcomingIsMultiDay);
 
   let levelLabel = $derived(
     student?.level === 'Expert'
@@ -266,7 +297,7 @@
               <h3
                 class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
               >
-                <Target class="h-4 w-4 text-teal-600 dark:text-epi-teal" /> Spécialités
+                <Target class="h-4 w-4 text-epi-teal-solid" /> Spécialités
               </h3>
               <div class="flex flex-col gap-3">
                 {#each topThemes as theme}
@@ -275,7 +306,7 @@
                       class="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300"
                     >
                       <span class="truncate pr-2">{theme.name}</span>
-                      <span class="shrink-0 text-teal-700 dark:text-epi-teal"
+                      <span class="shrink-0 text-epi-teal-solid"
                         >{theme.label}</span
                       >
                     </div>
@@ -288,7 +319,7 @@
                       aria-label="{theme.name} : {theme.label}"
                     >
                       <div
-                        class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"
+                        class="h-full rounded-full bg-epi-teal-solid transition-all duration-1000 ease-out"
                         style="width: {Math.min(
                           (theme.count / THEME_TIER_CEILING) * 100,
                           100,
@@ -316,9 +347,7 @@
               >
                 <span class="truncate text-xs">{shareUrl}</span>
                 {#if copied}
-                  <Check
-                    class="ml-2 h-4 w-4 shrink-0 text-teal-600 dark:text-epi-teal"
-                  />
+                  <Check class="ml-2 h-4 w-4 shrink-0 text-epi-teal-solid" />
                 {:else}
                   <Share2 class="ml-2 h-4 w-4 shrink-0" />
                 {/if}
@@ -380,13 +409,21 @@
             class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
           >
             <div
-              class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase"
+              class="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500 uppercase"
             >
               <MapPin class="h-4 w-4 text-epi-blue" />
               <span>{eventTitle}</span>
               <span class="text-slate-300 dark:text-slate-700">•</span>
               <Clock class="h-4 w-4" />
               <span>{formatTime(participation?.event?.date)}</span>
+              {#if todayIsMultiDay}
+                <a
+                  href={resolve('/calendar')}
+                  class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
+                >
+                  Voir le calendrier <ArrowRight class="h-3 w-3" />
+                </a>
+              {/if}
             </div>
           </div>
 
@@ -404,55 +441,99 @@
                         {formatTime(slot.startTime)} — {formatTime(
                           slot.endTime,
                         )}
-                        {#if slot.label}
-                          · {slot.label}
-                        {/if}
                       </span>
                     </div>
 
                     <div
                       class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
                     >
-                      {#each slot.activities as activity (activity.id)}
+                      {#if slot.activity}
+                        {@const activity = slot.activity}
                         {@const isDone = completedActivityIds.has(activity.id)}
-                        <a
-                          href={resolve(`/${activity.id}`)}
-                          class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
-                            ? 'bg-teal-50/50 dark:bg-teal-950/20'
-                            : ''}"
-                        >
-                          <Badge
-                            variant="outline"
-                            class="shrink-0 text-[9px] font-bold uppercase"
+                        {@const hasStarted =
+                          new Date(slot.startTime).getTime() <=
+                          nowTime.getTime()}
+                        {#if hasStarted}
+                          <a
+                            href={resolve(`/${activity.id}`)}
+                            class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
+                              ? 'bg-epi-teal-solid/10'
+                              : ''}"
                           >
-                            {activityTypeLabels[activity.activityType] ??
-                              activity.activityType}
-                          </Badge>
-                          <span
-                            class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
-                          >
-                            {activity.nom}
-                          </span>
-                          {#if activity.difficulte}
-                            <span
-                              class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                                activity.difficulte
-                              ] ?? ''}"
+                            <Badge
+                              variant="outline"
+                              class="shrink-0 text-[9px] font-bold uppercase"
                             >
-                              {activity.difficulte}
+                              {activityTypeLabels[activity.activityType] ??
+                                activity.activityType}
+                            </Badge>
+                            <span
+                              class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                            >
+                              {activity.nom}
                             </span>
-                          {/if}
-                          {#if isDone}
-                            <Check
-                              class="h-4 w-4 shrink-0 text-teal-600 dark:text-epi-teal"
-                            />
-                          {:else}
-                            <ArrowRight
-                              class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
-                            />
-                          {/if}
-                        </a>
-                      {/each}
+                            {#if activity.difficulte}
+                              <span
+                                class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
+                                  activity.difficulte
+                                ] ?? ''}"
+                              >
+                                {activity.difficulte}
+                              </span>
+                            {/if}
+                            {#if isDone}
+                              <Check
+                                class="h-4 w-4 shrink-0 text-epi-teal-solid"
+                              />
+                            {:else}
+                              <ArrowRight
+                                class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
+                              />
+                            {/if}
+                          </a>
+                        {:else}
+                          <button
+                            type="button"
+                            class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left opacity-70 transition-all hover:bg-slate-50 hover:opacity-100 dark:hover:bg-slate-800/50"
+                            aria-label="{activity.nom} — aperçu"
+                            onclick={() => {
+                              previewSlot = {
+                                startTime: slot.startTime,
+                                endTime: slot.endTime,
+                                activity,
+                              };
+                              previewOpen = true;
+                            }}
+                          >
+                            <Badge
+                              variant="outline"
+                              class="shrink-0 text-[9px] font-bold uppercase"
+                            >
+                              {activityTypeLabels[activity.activityType] ??
+                                activity.activityType}
+                            </Badge>
+                            <span
+                              class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                            >
+                              {activity.nom}
+                            </span>
+                            {#if activity.difficulte}
+                              <span
+                                class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
+                                  activity.difficulte
+                                ] ?? ''}"
+                              >
+                                {activity.difficulte}
+                              </span>
+                            {/if}
+                            <span
+                              class="shrink-0 text-[9px] font-bold text-slate-400 uppercase"
+                            >
+                              À venir
+                            </span>
+                          </button>
+                        {/if}
+                      {/if}
                     </div>
                   </div>
                 {/each}
@@ -487,10 +568,18 @@
             class="border-b border-blue-50 bg-blue-50/50 px-6 py-4 dark:border-blue-900/20 dark:bg-blue-950/20"
           >
             <div
-              class="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
+              class="flex flex-wrap items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
             >
               <CalendarClock class="h-4 w-4" />
               <span>Mission à venir</span>
+              {#if upcomingIsMultiDay}
+                <a
+                  href={resolve('/calendar')}
+                  class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
+                >
+                  Voir le calendrier <ArrowRight class="h-3 w-3" />
+                </a>
+              {/if}
             </div>
           </div>
           <div
@@ -523,7 +612,7 @@
                 </div>
               {:else}
                 <div
-                  class="flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-700 dark:border-teal-900/30 dark:bg-teal-900/20 dark:text-teal-400"
+                  class="flex items-center gap-2 rounded-xl border border-epi-teal-solid/30 bg-epi-teal-solid/10 px-4 py-2 text-sm font-bold text-epi-teal-solid"
                 >
                   <Monitor class="h-4 w-4 shrink-0" />
                   <span>Le matériel sera fourni sur place.</span>
@@ -607,3 +696,5 @@
     </div>
   </div>
 </div>
+
+<ActivitySummaryDialog bind:open={previewOpen} slot={previewSlot} />

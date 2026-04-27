@@ -32,8 +32,10 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentFormDialog from './components/StudentFormDialog.svelte';
+  import { can } from '$lib/domain/permissions';
 
   let { data }: { data: PageData } = $props();
+  const canDelete = $derived(can('devLead', data.staffProfile?.staffRole));
 
   const { form, errors, delayed, enhance, reset } = superForm(
     untrack(() => data.form),
@@ -134,8 +136,8 @@
 
 <div class="space-y-6">
   <PageHeader
-    title="Élèves"
-    subtitle="Annuaire et progression des étudiants du camp."
+    title="Talents"
+    subtitle="Annuaire et progression des Talents du campus."
   />
 
   <div class="flex items-center gap-2">
@@ -183,19 +185,21 @@
     <ConfirmDeleteDialog
       bind:open={deleteDialogOpen}
       action="?/delete&id={studentToDelete}"
-      title="Supprimer l'élève"
+      title="Supprimer le Talent"
       description="Êtes-vous sûr ? Cette action est définitive."
       buttonText="Supprimer"
     />
   </div>
 
   {#if data.students.length > 0}
-    <div class="rounded-sm border bg-card shadow-sm">
+    <div
+      class="rounded-sm border bg-card shadow-sm dark:border-border/50 dark:shadow-none"
+    >
       <Table.Root>
         <Table.Header class="bg-muted/50">
           <Table.Row>
             <Table.Head class="w-60 text-xs font-bold uppercase"
-              >Étudiant</Table.Head
+              >Talent</Table.Head
             >
             <Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
             <Table.Head class="hidden text-xs font-bold uppercase sm:table-cell"
@@ -274,9 +278,11 @@
                     <DropdownMenu.Separator />
                     <DropdownMenu.Item
                       class="cursor-pointer text-destructive"
-                      onclick={() => confirmDelete(student.id)}
-                      ><Trash2 class="mr-2 h-4 w-4" /> Supprimer</DropdownMenu.Item
+                      disabled={!canDelete}
+                      onclick={() => canDelete && confirmDelete(student.id)}
                     >
+                      <Trash2 class="mr-2 h-4 w-4" /> Supprimer
+                    </DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </Table.Cell>
@@ -290,7 +296,7 @@
     {#if data.totalPages > 1}
       <div class="flex items-center justify-between">
         <p class="text-sm text-muted-foreground">
-          {data.totalItems} élève{data.totalItems > 1 ? 's' : ''} au total
+          {data.totalItems} Talent{data.totalItems > 1 ? 's' : ''} au total
         </p>
         <div class="flex items-center gap-1">
           <Button
@@ -321,7 +327,7 @@
     <EmptyState
       icon={Users}
       title="Salle de classe vide"
-      description="Aucun élève ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
+      description="Aucun Talent ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
     />
   {/if}
 </div>
