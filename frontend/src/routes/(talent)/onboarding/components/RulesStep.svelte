@@ -59,7 +59,7 @@
   <div
     class="max-h-[50vh] overflow-y-auto rounded-2xl border-none bg-white/70 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
   >
-    <div class="prose prose-slate prose-sm dark:prose-invert max-w-none">
+    <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
       {@html renderedContent}
 
       <p class="mt-6 text-sm">
