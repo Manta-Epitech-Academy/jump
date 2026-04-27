@@ -5,9 +5,7 @@ import { prisma } from '$lib/server/db';
 import { infoValidationSchema } from '$lib/validation/onboarding';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
-import { auth } from '$lib/server/auth';
-import { sendParentSignatureEmail } from '$lib/server/services/parentEmail';
-import { consumeParentOtp } from '$lib/server/services/parentTokens';
+import { sendParentWelcomeEmail } from '$lib/server/otp';
 
 export type OnboardingStep = 'info-validation' | 'rules';
 
@@ -76,7 +74,7 @@ export const actions: Actions = {
         prenom: result.data.prenom,
         parentNom: result.data.parentNom,
         parentPrenom: result.data.parentPrenom,
-        parentEmail: result.data.parentEmail,
+        parentEmail: result.data.parentEmail.toLowerCase().trim(),
         parentPhone: result.data.parentPhone || null,
         phone: result.data.phone || null,
         infoValidatedAt: new Date(),
@@ -85,8 +83,6 @@ export const actions: Actions = {
 
     if (result.data.parentEmail) {
       const parentEmail = result.data.parentEmail.toLowerCase().trim();
-      const studentName = `${result.data.prenom} ${result.data.nom}`;
-      const talentId = locals.talent.id;
 
       (async () => {
         // Upsert parent bauth_user
@@ -112,20 +108,15 @@ export const actions: Actions = {
           });
         }
 
-        // Send OTP via BetterAuth (stores in parentToken table for parent role)
-        await auth.api.sendVerificationOTP({
-          body: { email: parentEmail, type: 'sign-in' },
-        });
-
-        // Consume OTP from DB and send combined email with link + code
-        const otp = await consumeParentOtp(parentEmail);
-        await sendParentSignatureEmail(
+        // Send welcome email (no OTP — parent will request OTP when they log in)
+        await sendParentWelcomeEmail(
           parentEmail,
-          talentId,
-          studentName,
-          otp ?? undefined,
+          result.data.parentNom,
+          locals.talent!.prenom,
         );
-      })().catch((err) => console.error('Failed to send parent email:', err));
+      })().catch((err) =>
+        console.error('Failed to send parent welcome email:', err),
+      );
     }
 
     throw redirect(303, resolve('/onboarding'));

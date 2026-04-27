@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { getParentLastName } from '$lib/domain/parent';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -53,8 +54,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     }),
   );
 
+  const parentName = locals.user.name ?? '';
+
   return {
-    parentName: locals.user.name,
+    parentName,
+    parentLastName: getParentLastName(parentName),
     children: childrenWithEvents,
   };
 };

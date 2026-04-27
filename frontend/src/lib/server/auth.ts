@@ -4,10 +4,9 @@ import { admin } from 'better-auth/plugins/admin';
 import { emailOTP } from 'better-auth/plugins/email-otp';
 import { prisma } from '$lib/server/db';
 import { env } from '$env/dynamic/private';
-import { sendOtpEmail } from '$lib/server/otp';
+import { sendOtpEmail, sendParentOtpEmail } from '$lib/server/otp';
 import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
-import { storeParentOtp } from '$lib/server/services/parentTokens';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
@@ -46,9 +45,8 @@ export const auth = betterAuth({
           where: { email },
           select: { role: true, name: true },
         });
-        // For parents: store OTP in parentToken, caller handles email delivery
         if (user?.role === 'parent') {
-          await storeParentOtp(email, otp);
+          await sendParentOtpEmail(email, otp, user.name ?? undefined);
           return;
         }
         await sendOtpEmail(email, otp, user?.name ?? undefined);
