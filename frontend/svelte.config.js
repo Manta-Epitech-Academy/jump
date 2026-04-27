@@ -8,15 +8,24 @@ const config = {
   preprocess: vitePreprocess(),
 
   kit: {
-    paths: {
-      base: '/tekcamp',
-    },
     alias: {
       $lib: 'src/lib',
     },
-    // adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
-    // If your environment is not supported, or you settled on a specific environment, switch out the adapter.
-    // See https://svelte.dev/docs/kit/adapters for more information about adapters.
+    // Let `bun run check` write its generated artefacts to a separate
+    // directory so it doesn't race with the dev server over `.svelte-kit/`.
+    // See `tsconfig.check.json` and the `check` script in package.json.
+    outDir: process.env.KIT_OUTDIR || '.svelte-kit',
+    csp: {
+      directives: {
+        'default-src': ['self'],
+        'script-src': ['self'],
+        'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
+        'img-src': ['self', 'data:', 'https:'],
+        'font-src': ['self', 'https://fonts.gstatic.com'],
+        'connect-src': ['self', 'https://discord.com'],
+        'frame-ancestors': ['none'],
+      },
+    },
     adapter: adapter(),
   },
 };

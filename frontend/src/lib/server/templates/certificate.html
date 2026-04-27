@@ -305,13 +305,13 @@
         background: linear-gradient(90deg, #013afb, #3b82f6);
       }
 
-      /* ── Subjects list ── */
-      .subjects-list {
+      /* ── Activities list ── */
+      .activities-list {
         display: flex;
         flex-direction: column;
         gap: 6px;
       }
-      .subject-row {
+      .activity-row {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -320,7 +320,7 @@
         border-radius: 8px;
         border: 1px solid #f1f5f9;
       }
-      .subject-check {
+      .activity-check {
         width: 18px;
         height: 18px;
         border-radius: 50%;
@@ -330,15 +330,15 @@
         justify-content: center;
         flex-shrink: 0;
       }
-      .subject-check svg {
+      .activity-check svg {
         width: 10px;
         height: 10px;
       }
-      .subject-details {
+      .activity-details {
         flex: 1;
         min-width: 0;
       }
-      .subject-name {
+      .activity-name {
         font-size: 12px;
         font-weight: 700;
         color: #1e293b;
@@ -346,12 +346,12 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .subject-event-date {
+      .activity-event-date {
         font-size: 10px;
         color: #94a3b8;
         font-weight: 500;
       }
-      .subject-difficulty {
+      .activity-difficulty {
         font-size: 9px;
         font-weight: 700;
         text-transform: uppercase;
@@ -360,15 +360,15 @@
         border-radius: 8px;
         flex-shrink: 0;
       }
-      .subject-difficulty.beginner {
+      .activity-difficulty.beginner {
         background: #dcfce7;
         color: #15803d;
       }
-      .subject-difficulty.intermediate {
+      .activity-difficulty.intermediate {
         background: #fef3c7;
         color: #b45309;
       }
-      .subject-difficulty.advanced {
+      .activity-difficulty.advanced {
         background: #fce7f3;
         color: #be185d;
       }
@@ -470,7 +470,7 @@
         <div class="header">
           <div class="header-left">
             <span class="header-label"
-              >Programme TekCamp · <%= data.campus %></span
+              >Programme Jump · <%= data.campus %></span
             >
             <h1>Attestation<br />de Compétences</h1>
             <div class="header-line"></div>
@@ -504,8 +504,8 @@
             <div class="label">Pratique</div>
           </div>
           <div class="stat-card">
-            <div class="value"><%= data.subjectsCompleted %></div>
-            <div class="label">Sujets</div>
+            <div class="value"><%= data.activitiesCompleted %></div>
+            <div class="label">Activités</div>
           </div>
           <div class="stat-card">
             <div class="value accent"><%= data.xp %></div>
@@ -539,13 +539,13 @@
             </div>
           </div>
 
-          <!-- Right: Completed Subjects -->
+          <!-- Right: Completed Activities -->
           <div class="col-right">
             <div class="section-title">Parcours validé</div>
-            <div class="subjects-list">
-              <% data.subjects.forEach(function(s) { %>
-              <div class="subject-row">
-                <div class="subject-check">
+            <div class="activities-list">
+              <% data.activities.forEach(function(s) { %>
+              <div class="activity-row">
+                <div class="activity-check">
                   <svg viewBox="0 0 10 10" fill="none">
                     <path
                       d="M2 5.5L4 7.5L8 3"
@@ -556,13 +556,13 @@
                     />
                   </svg>
                 </div>
-                <div class="subject-details">
-                  <div class="subject-name"><%= s.name %></div>
-                  <div class="subject-event-date"><%= s.eventDate %></div>
+                <div class="activity-details">
+                  <div class="activity-name"><%= s.name %></div>
+                  <div class="activity-event-date"><%= s.eventDate %></div>
                 </div>
                 <% if (s.difficulty) { %>
                 <span
-                  class="subject-difficulty<%= s.difficulty === 'Débutant' ? ' beginner' : s.difficulty === 'Intermédiaire' ? ' intermediate' : ' advanced' %>"
+                  class="activity-difficulty<%= s.difficulty === 'Débutant' ? ' beginner' : s.difficulty === 'Intermédiaire' ? ' intermediate' : ' advanced' %>"
                   ><%= s.difficulty %></span
                 >
                 <% } %>
@@ -594,7 +594,7 @@
             </div>
             <div class="footer-legal">
               Attestation générée automatiquement par la plateforme Epitech
-              TekCamp.<br />
+              Jump.<br />
               Document destiné à enrichir les dossiers académiques (ex :
               Parcoursup).
             </div>

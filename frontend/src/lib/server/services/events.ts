@@ -1,11 +1,25 @@
 import { error } from '@sveltejs/kit';
-import { getTotalXp } from '$lib/domain/xp';
+import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { generatePin } from '$lib/utils';
-import {
-  suggestBestSubject,
-  preloadCompletedSubjects,
-} from '$lib/domain/recommender';
 import { prisma } from '$lib/server/db';
+
+async function validateMantaIds(campusId: string, mantaIds: string[]) {
+  if (mantaIds.length === 0) return;
+  const uniqueIds = [...new Set(mantaIds)];
+  const validCount = await prisma.staffProfile.count({
+    where: {
+      id: { in: uniqueIds },
+      campusId,
+      staffRole: { in: ['manta', 'peda'] },
+    },
+  });
+  if (validCount !== uniqueIds.length) {
+    throw error(
+      400,
+      'Rôle ou campus invalide : tous les mantas doivent appartenir à ce campus et avoir le rôle manta ou peda.',
+    );
+  }
+}
 
 export const EventService = {
   /**
@@ -28,22 +42,19 @@ export const EventService = {
       const participations = await tx.participation.findMany({
         where: { eventId, isPresent: true },
         include: {
-          subjects: { include: { subject: true } },
+          activities: { include: { activity: true } },
         },
       });
 
       for (const p of participations) {
-        const subjects = p.subjects.map((ps) => ({
-          difficulte: ps.subject.difficulte,
-        }));
-        const xpValue = getTotalXp(subjects);
+        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
 
-        const profile = await tx.studentProfile.findUniqueOrThrow({
-          where: { id: p.studentProfileId },
+        const profile = await tx.talent.findUniqueOrThrow({
+          where: { id: p.talentId },
           select: { xp: true, eventsCount: true },
         });
-        await tx.studentProfile.update({
-          where: { id: p.studentProfileId },
+        await tx.talent.update({
+          where: { id: p.talentId },
           data: {
             xp: Math.max(0, profile.xp - xpValue),
             eventsCount: Math.max(0, profile.eventsCount - 1),
@@ -51,7 +62,7 @@ export const EventService = {
         });
       }
 
-      // All related records (participations, subjects, mantas, progress, portfolio)
+      // All related records (participations, activities, mantas, progress, portfolio)
       // are cascade-deleted by PostgreSQL foreign keys.
       await tx.event.delete({ where: { id: eventId } });
     });
@@ -69,9 +80,7 @@ export const EventService = {
       where: { id: originalId },
       include: {
         mantas: true,
-        participations: {
-          include: { subjects: true },
-        },
+        participations: true,
       },
     });
     if (original.campusId !== campusId) {
@@ -95,20 +104,18 @@ export const EventService = {
             staffProfileId: m.staffProfileId,
           })),
         },
+        planning: { create: {} },
       },
     });
 
     for (const p of original.participations) {
       await prisma.participation.create({
         data: {
-          studentProfileId: p.studentProfileId,
+          talentId: p.talentId,
           eventId: newEvent.id,
           campusId,
           bringPc: p.bringPc,
           isPresent: false,
-          subjects: {
-            create: p.subjects.map((s) => ({ subjectId: s.subjectId })),
-          },
         },
       });
     }
@@ -116,69 +123,10 @@ export const EventService = {
     return newEvent.id;
   },
 
-  /**
-   * Auto-assigns the best subject to all unassigned students in an event.
-   * Verifies the event belongs to the given campus.
-   */
-  async autoAssignAll(eventId: string, campusId: string) {
-    const unassigned = await prisma.participation.findMany({
-      where: {
-        eventId,
-        subjects: { none: {} },
-      },
-      include: { studentProfile: true },
-    });
-
-    if (unassigned.length === 0) return 0;
-
-    const subjects = await prisma.subject.findMany({
-      where: { OR: [{ campusId }, { campusId: null }] },
-      include: { subjectThemes: true },
-    });
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-
-    const studentProfileIds = unassigned.map((p) => p.studentProfileId);
-    const completedMap = await preloadCompletedSubjects(
-      studentProfileIds,
-      eventId,
-    );
-
-    let count = 0;
-
-    for (const p of unassigned) {
-      const suggestedId = await suggestBestSubject(
-        p.studentProfileId,
-        subjects,
-        event.themeId,
-        [],
-        completedMap.get(p.studentProfileId),
-      );
-
-      if (suggestedId) {
-        await prisma.participationSubject.create({
-          data: {
-            participationId: p.id,
-            subjectId: suggestedId,
-          },
-        });
-        count++;
-      }
-    }
-
-    return count;
-  },
+  // TODO: activity recommender for parallel tracks in coding clubs
 
   /**
-   * Updates an event. If the theme is changed, it automatically recalculates
-   * subjects for eligible unassigned/absent students.
+   * Updates an event.
    */
   async updateEvent(
     eventId: string,
@@ -186,6 +134,7 @@ export const EventService = {
     data: {
       titre: string;
       date: string;
+      endDate?: string;
       theme?: string;
       notes?: string;
       mantas?: string[];
@@ -201,6 +150,10 @@ export const EventService = {
       );
     }
     const oldThemeId = currentEvent.themeId;
+
+    if (data.mantas) {
+      await validateMantaIds(campusId, data.mantas);
+    }
 
     let newThemeId: string | null = null;
     if (data.theme && data.theme.trim() !== '') {
@@ -218,7 +171,6 @@ export const EventService = {
       }
     }
 
-    // Update mantas and event atomically
     await prisma.$transaction(async (tx) => {
       if (data.mantas) {
         await tx.eventManta.deleteMany({ where: { eventId } });
@@ -237,54 +189,43 @@ export const EventService = {
         data: {
           titre: data.titre,
           date: new Date(data.date),
+          endDate: data.endDate ? new Date(data.endDate) : null,
           themeId: newThemeId ?? undefined,
           notes: data.notes,
         },
       });
     });
 
-    if (oldThemeId !== newThemeId) {
-      const participations = await prisma.participation.findMany({
-        where: { eventId },
-        include: { subjects: true },
-      });
+    return oldThemeId !== newThemeId;
+  },
 
-      const subjects = await prisma.subject.findMany({
-        where: { OR: [{ campusId }, { campusId: null }] },
-        include: { subjectThemes: true },
-      });
-
-      const eligibleStudentProfileIds = participations
-        .filter((p) => !p.isPresent && p.subjects.length === 0)
-        .map((p) => p.studentProfileId);
-
-      const completedMap = await preloadCompletedSubjects(
-        eligibleStudentProfileIds,
-        eventId,
+  /**
+   * Replaces an event's assigned mantas.
+   */
+  async assignMantas(eventId: string, campusId: string, mantaIds: string[]) {
+    const currentEvent = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { campusId: true },
+    });
+    if (currentEvent.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
       );
-
-      for (const p of participations) {
-        if (!p.isPresent && p.subjects.length === 0) {
-          const newSubjectId = await suggestBestSubject(
-            p.studentProfileId,
-            subjects,
-            newThemeId,
-            [],
-            completedMap.get(p.studentProfileId),
-          );
-
-          if (newSubjectId) {
-            await prisma.participationSubject.create({
-              data: {
-                participationId: p.id,
-                subjectId: newSubjectId,
-              },
-            });
-          }
-        }
-      }
-      return true;
     }
-    return false;
+
+    await validateMantaIds(campusId, mantaIds);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.eventManta.deleteMany({ where: { eventId } });
+      if (mantaIds.length > 0) {
+        await tx.eventManta.createMany({
+          data: mantaIds.map((staffProfileId) => ({
+            eventId,
+            staffProfileId,
+          })),
+        });
+      }
+    });
   },
 };

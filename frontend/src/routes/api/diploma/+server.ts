@@ -5,10 +5,7 @@ import { formatDateFr } from '$lib/utils';
 import { prisma } from '$lib/server/db';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (
-    !locals.user ||
-    (locals.user.role !== 'staff' && locals.user.role !== 'admin')
-  ) {
+  if (!locals.user || !locals.staffProfile?.staffRole) {
     throw error(401, 'Non autorise');
   }
 
@@ -23,10 +20,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const participation = await prisma.participation.findUnique({
       where: { id: participationId },
       include: {
-        studentProfile: true,
-        event: true,
-        subjects: {
-          include: { subject: true },
+        talent: true,
+        event: { include: { campus: true } },
+        activities: {
+          include: { activity: true },
         },
       },
     });
@@ -35,9 +32,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       throw error(404, 'Participation introuvable.');
     }
 
-    const student = participation.studentProfile;
+    const student = participation.talent;
     const event = participation.event;
-    const subject = participation.subjects[0]?.subject;
+    const activity = participation.activities?.find(
+      (pa) => pa.activity.activityType !== 'orga',
+    )?.activity;
 
     if (!student || !event) {
       throw error(400, 'Donnees incompletes pour generer le diplome.');
@@ -46,10 +45,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     // 2. Prepare data for EJS template
     const data = {
       studentName: `${student.prenom} ${student.nom}`,
-      subjectName: subject?.nom || 'Atelier Programmation',
+      activityName: activity?.nom || 'Atelier Programmation',
       eventTitle: event.titre,
-      eventDate: formatDateFr(event.date),
-      todayDate: formatDateFr(new Date()),
+      eventDate: formatDateFr(event.date, event.campus?.timezone),
+      todayDate: formatDateFr(new Date(), event.campus?.timezone),
     };
 
     // 3. Generate PDF Buffer via Puppeteer

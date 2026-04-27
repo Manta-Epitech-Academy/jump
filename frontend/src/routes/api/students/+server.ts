@@ -15,10 +15,7 @@ const STUDENT_SELECT = {
 } as const;
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (
-    !locals.user ||
-    (locals.user.role !== 'staff' && locals.user.role !== 'admin')
-  ) {
+  if (!locals.user || !locals.staffProfile?.staffRole) {
     return new Response('Unauthorized', { status: 401 });
   }
   const db = scopedPrisma(getCampusId(locals));
@@ -28,7 +25,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   // Default view: most active students (highest participation count)
   if (top) {
-    const results = await db.studentProfile.findMany({
+    const results = await db.talent.findMany({
       take: 20,
       orderBy: [{ eventsCount: 'desc' }, { nom: 'asc' }, { prenom: 'asc' }],
       select: STUDENT_SELECT,
@@ -43,7 +40,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const sanitized = query.replace(/[^a-zA-ZÀ-ÿ0-9\s'-]/g, '').trim();
   if (!sanitized) return json([]);
 
-  const results = await db.studentProfile.findMany({
+  const results = await db.talent.findMany({
     take: 20,
     orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
     where: {

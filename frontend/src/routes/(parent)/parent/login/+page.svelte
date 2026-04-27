@@ -1,0 +1,321 @@
+<script lang="ts">
+  import { superForm } from 'sveltekit-superforms';
+  import { Button } from '$lib/components/ui/button';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import * as Card from '$lib/components/ui/card';
+  import { Alert, AlertDescription } from '$lib/components/ui/alert';
+  import {
+    CircleAlert,
+    Sparkles,
+    Lock,
+    ArrowLeft,
+    Users,
+  } from '@lucide/svelte';
+  import { cn } from '$lib/utils';
+  import { fly } from 'svelte/transition';
+  import { untrack } from 'svelte';
+
+  let { data } = $props();
+  let step = $state<'email' | 'otp'>('email');
+
+  const {
+    form: emailForm,
+    errors: emailErrors,
+    enhance: emailEnhance,
+    delayed: emailDelayed,
+    message: emailMessage,
+  } = superForm(
+    untrack(() => data.emailForm),
+    {
+      resetForm: false,
+      onUpdated: ({ form }) => {
+        if (form.valid && form.message?.type === 'success') {
+          $otpForm.email = $emailForm.email.toLowerCase().trim();
+          step = 'otp';
+        }
+      },
+    },
+  );
+
+  const {
+    form: otpForm,
+    errors: otpErrors,
+    enhance: otpEnhance,
+    delayed: otpDelayed,
+    message: otpMessage,
+  } = superForm(
+    untrack(() => data.otpForm),
+    { resetForm: false },
+  );
+
+  let digitRefs = $state<HTMLInputElement[]>([]);
+  let digits = $derived($otpForm.password.padEnd(6, ' ').slice(0, 6).split(''));
+  let otpComplete = $derived($otpForm.password.length === 6);
+  let otpFormRef = $state<HTMLFormElement>(undefined!);
+
+  function handleDigitInput(index: number, e: Event) {
+    const input = e.target as HTMLInputElement;
+    const raw = input.value.replace(/\D/g, '');
+    if (raw.length > 1) {
+      const pasted = raw.slice(0, 6);
+      $otpForm.password = pasted;
+      const focusIndex = Math.min(pasted.length, 5);
+      digitRefs[focusIndex]?.focus();
+      return;
+    }
+    const val = raw.slice(-1);
+    const chars = $otpForm.password.padEnd(6, ' ').slice(0, 6).split('');
+    chars[index] = val || ' ';
+    $otpForm.password = chars.join('').replace(/\s/g, '');
+    if (val && index < 5) {
+      digitRefs[index + 1]?.focus();
+    }
+  }
+
+  function handleDigitKeydown(index: number, e: KeyboardEvent) {
+    if (e.key === 'Backspace' && !digits[index]?.trim() && index > 0) {
+      e.preventDefault();
+      const chars = $otpForm.password.split('');
+      chars[index - 1] = '';
+      $otpForm.password = chars.join('').replace(/\s/g, '');
+      digitRefs[index - 1]?.focus();
+    }
+  }
+
+  function handleDigitPaste(e: ClipboardEvent) {
+    e.preventDefault();
+    const pasted = (e.clipboardData?.getData('text') || '')
+      .replace(/\D/g, '')
+      .slice(0, 6);
+    $otpForm.password = pasted;
+    const focusIndex = Math.min(pasted.length, 5);
+    digitRefs[focusIndex]?.focus();
+  }
+
+  $effect(() => {
+    if (otpComplete && otpFormRef && !$otpDelayed) {
+      otpFormRef.requestSubmit();
+    }
+  });
+
+  $effect(() => {
+    if (step === 'otp') {
+      setTimeout(() => digitRefs[0]?.focus(), 100);
+    }
+  });
+
+  function goBackToEmail() {
+    step = 'email';
+    $otpForm.password = '';
+    $otpMessage = undefined;
+  }
+</script>
+
+<div
+  class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"
+>
+  <div
+    class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
+  ></div>
+  <div
+    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-teal/10 blur-[100px] dark:bg-epi-teal/20"
+  ></div>
+  <div
+    class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
+  ></div>
+
+  <div class="z-10 w-full max-w-md">
+    <Card.Root
+      class="relative w-full overflow-hidden rounded-2xl border-none bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <div class="h-1.5 w-full bg-linear-to-r from-epi-blue to-epi-teal"></div>
+
+      <Card.Header class="space-y-4 pt-8 pb-4 text-center">
+        <div
+          class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+        >
+          <Users class="h-7 w-7" />
+        </div>
+
+        <div class="space-y-1">
+          <Card.Title
+            class="font-heading text-3xl tracking-tight text-epi-blue uppercase"
+          >
+            Jump
+          </Card.Title>
+          <Card.Description
+            class="text-sm font-bold tracking-tight text-slate-500 uppercase"
+          >
+            {#if step === 'email'}
+              Espace Parent
+            {:else}
+              Vérification
+            {/if}
+          </Card.Description>
+        </div>
+      </Card.Header>
+
+      <Card.Content class="pb-10">
+        {#if step === 'email'}
+          <div class="animate-slide-in-left">
+            {#if $emailMessage && $emailMessage.type === 'error'}
+              <Alert
+                variant="destructive"
+                class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
+              >
+                <CircleAlert class="h-4 w-4" />
+                <AlertDescription class="text-xs font-medium"
+                  >{$emailMessage.text}</AlertDescription
+                >
+              </Alert>
+            {/if}
+
+            <form
+              method="POST"
+              action="?/requestOtp"
+              use:emailEnhance
+              class="space-y-5"
+            >
+              <div class="space-y-2">
+                <Label
+                  for="email"
+                  class="pl-1 text-xs font-black text-slate-500 uppercase"
+                  >Votre adresse email</Label
+                >
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="votre@email.com"
+                  bind:value={$emailForm.email}
+                  class="h-12 rounded-xl border-slate-200 bg-slate-50/50 px-4 text-base focus-visible:ring-epi-blue dark:border-slate-800 dark:bg-slate-950/50"
+                />
+                {#if $emailErrors.email}<span
+                    class="pl-1 text-xs font-bold text-red-500"
+                    >{$emailErrors.email}</span
+                  >{/if}
+              </div>
+
+              <Button
+                type="submit"
+                disabled={$emailDelayed}
+                class="h-12 w-full rounded-xl bg-epi-blue text-base font-bold text-white shadow-md transition-all hover:bg-epi-blue/90 active:scale-[0.98]"
+              >
+                {#if $emailDelayed}
+                  <Sparkles class="mr-2 h-4 w-4 animate-spin" /> Envoi en cours...
+                {:else}
+                  Recevoir mon code
+                {/if}
+              </Button>
+            </form>
+          </div>
+        {:else}
+          <div in:fly={{ x: 20, duration: 300 }}>
+            {#if $otpMessage}
+              <Alert
+                variant="destructive"
+                class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
+              >
+                <CircleAlert class="h-4 w-4" />
+                <AlertDescription class="text-xs font-medium"
+                  >{$otpMessage.text}</AlertDescription
+                >
+              </Alert>
+            {/if}
+
+            <div
+              class="mb-6 rounded-xl bg-slate-50 p-4 text-center dark:bg-slate-950"
+            >
+              <p class="text-xs font-bold text-slate-500 uppercase">
+                Code envoyé à
+              </p>
+              <p class="font-bold text-epi-blue">{$otpForm.email}</p>
+            </div>
+
+            <form
+              bind:this={otpFormRef}
+              method="POST"
+              action="?/verifyOtp"
+              use:otpEnhance
+              class="space-y-6"
+            >
+              <input type="hidden" name="email" bind:value={$otpForm.email} />
+
+              <div class="space-y-3">
+                <Label for="otp-digit-0" class="sr-only"
+                  >Code à 6 chiffres</Label
+                >
+                <input
+                  type="hidden"
+                  name="password"
+                  bind:value={$otpForm.password}
+                />
+
+                <div class="flex justify-center gap-2.5">
+                  {#each { length: 6 } as _, i}
+                    <input
+                      bind:this={digitRefs[i]}
+                      id="otp-digit-{i}"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete={i === 0 ? 'one-time-code' : 'off'}
+                      maxlength={1}
+                      placeholder=" "
+                      value={digits[i]?.trim() || ''}
+                      oninput={(e) => handleDigitInput(i, e)}
+                      onkeydown={(e) => handleDigitKeydown(i, e)}
+                      onpaste={handleDigitPaste}
+                      class={cn(
+                        'h-14 w-12 rounded-xl border-2 bg-white text-center font-mono text-2xl font-black text-slate-900 shadow-sm transition-all duration-200 outline-none dark:bg-slate-950 dark:text-white',
+                        digits[i]?.trim()
+                          ? 'border-epi-teal shadow-epi-teal/10'
+                          : 'border-slate-200 dark:border-slate-800',
+                        'focus:border-epi-blue focus:ring-2 focus:ring-epi-blue/20',
+                      )}
+                    />
+                  {/each}
+                </div>
+
+                {#if $otpErrors.password}<span
+                    class="block text-center text-xs font-bold text-red-500"
+                    >{$otpErrors.password}</span
+                  >{/if}
+              </div>
+
+              <div class="space-y-3">
+                <Button
+                  type="submit"
+                  disabled={$otpDelayed || !otpComplete}
+                  class="h-12 w-full rounded-xl bg-epi-teal text-base font-bold text-slate-950 shadow-md transition-all hover:bg-epi-teal/90 active:scale-[0.98] disabled:opacity-50"
+                >
+                  {#if $otpDelayed}
+                    Connexion...
+                  {:else}
+                    <Lock class="mr-2 h-4 w-4" /> Se connecter
+                  {/if}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  class="h-10 w-full rounded-xl text-xs font-bold text-slate-400 uppercase hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                  onclick={goBackToEmail}
+                  disabled={$otpDelayed}
+                >
+                  <ArrowLeft class="mr-1.5 h-3.5 w-3.5" /> Changer d'email
+                </Button>
+              </div>
+            </form>
+          </div>
+        {/if}
+      </Card.Content>
+    </Card.Root>
+
+    <p
+      class="mt-8 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
+    >
+      Espace Parents — Epitech Academy
+    </p>
+  </div>
+</div>

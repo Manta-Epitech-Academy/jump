@@ -104,7 +104,7 @@
         <h2
           class="mb-6 flex items-center gap-2 font-heading text-2xl tracking-wide uppercase"
         >
-          <Target class="h-6 w-6 text-teal-600 dark:text-epi-teal" />
+          <Target class="h-6 w-6 text-epi-teal-solid" />
           Arbre de Compétences<span class="text-epi-teal">_</span>
         </h2>
 
@@ -118,8 +118,7 @@
                   class="flex justify-between text-sm font-bold text-slate-700 dark:text-slate-300"
                 >
                   <span class="truncate pr-2">{theme.name}</span>
-                  <span class="shrink-0 text-teal-700 dark:text-epi-teal"
-                    >{theme.label}</span
+                  <span class="shrink-0 text-epi-teal-solid">{theme.label}</span
                   >
                 </div>
                 <div
@@ -131,7 +130,7 @@
                   aria-label="{theme.name} : {theme.label}"
                 >
                   <div
-                    class="h-full rounded-full bg-teal-500 transition-all duration-1000 ease-out dark:bg-epi-teal"
+                    class="h-full rounded-full bg-epi-teal-solid transition-all duration-1000 ease-out"
                     style="width: {Math.min(
                       (theme.count / THEME_TIER_CEILING) * 100,
                       100,
@@ -226,7 +225,7 @@
         href={resolve('/')}
         class="inline-flex items-center gap-2 text-xs font-bold tracking-widest text-slate-400 uppercase transition-colors hover:text-epi-blue"
       >
-        Propulsé par Epitech TekCamp
+        Propulsé par Epitech Jump
       </a>
     </div>
   </div>

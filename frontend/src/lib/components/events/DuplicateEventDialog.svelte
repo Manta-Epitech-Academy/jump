@@ -91,7 +91,8 @@
                 duration: 5000,
                 action: {
                   label: 'Ouvrir le Builder',
-                  onClick: () => goto(resolve(`/events/${newId}/builder`)),
+                  onClick: () =>
+                    goto(resolve(`/staff/dev/events/${newId}/manage`)),
                 },
               });
 

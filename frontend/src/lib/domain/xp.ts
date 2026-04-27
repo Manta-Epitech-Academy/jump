@@ -1,3 +1,5 @@
+export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
+
 export const DIFFICULTY_XP: Record<string, number> = {
   Débutant: 20,
   Intermédiaire: 45,
@@ -5,19 +7,37 @@ export const DIFFICULTY_XP: Record<string, number> = {
 };
 
 /**
- * Calculates how much XP a subject is worth based on its difficulty.
+ * Calculates how much XP an activity is worth based on its difficulty.
  */
-export function getSubjectXpValue(difficulte: string): number {
+export function getActivityXpValue(difficulte: string): number {
   return DIFFICULTY_XP[difficulte] || 20;
 }
 
 /**
- * Calculates total XP for a list of subjects.
+ * Extracts XP-eligible activities from a participation's activity list.
+ * Filters out organisational activities (roll call) and activities the student
+ * was not present for (parallel tracks they didn't attend).
  */
-export function getTotalXp(subjects: any[]): number {
-  if (!subjects || subjects.length === 0) return 20; // Default attendance XP if no subject
-  return subjects.reduce(
-    (total, sub) => total + getSubjectXpValue(sub.difficulte),
+export function getXpEligibleActivities<
+  T extends {
+    isPresent: boolean;
+    activity: { activityType: string; difficulte: string | null };
+  },
+>(participationActivities: T[]): { difficulte: string | null }[] {
+  return participationActivities
+    .filter((pa) => pa.isPresent && pa.activity.activityType !== 'orga')
+    .map((pa) => ({ difficulte: pa.activity.difficulte }));
+}
+
+/**
+ * Calculates total XP for a list of activities (or any items with a `difficulte` field).
+ * Returns 20 (base attendance XP) when the list is empty — this covers students
+ * who are marked present but have no non-orga activities assigned.
+ */
+export function getTotalXp(items: { difficulte: string | null }[]): number {
+  if (!items || items.length === 0) return 20;
+  return items.reduce(
+    (total, item) => total + getActivityXpValue(item.difficulte ?? ''),
     0,
   );
 }

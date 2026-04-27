@@ -1,0 +1,3 @@
+-- This migration was originally renaming auth constraints (account_pkey -> bauth_account_pkey, etc.)
+-- but those renames were already applied by 20260410120000_rename_auth_tables_bauth_prefix.
+-- Emptied to allow clean shadow-database replay.

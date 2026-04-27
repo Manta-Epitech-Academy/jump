@@ -2,29 +2,28 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
 import { prisma } from '$lib/server/db';
-import { formatDateFr, tallyTopThemes } from '$lib/utils';
+import { formatDateFr, tallyTopThemesFromActivities } from '$lib/utils';
 
 export const GET: RequestHandler = async ({ locals }) => {
-  if (!locals.studentProfile) throw error(401, 'Non autorise');
+  if (!locals.talent) throw error(401, 'Non autorise');
 
-  const studentProfileId = locals.studentProfile.id;
+  const talentId = locals.talent.id;
 
   try {
-    // 1. Fetch completed participations with event + subject + theme details
+    // 1. Fetch completed participations with event + activity + theme details
     const participations = await prisma.participation.findMany({
       where: {
-        studentProfileId,
+        talentId,
         isPresent: true,
       },
+      orderBy: { event: { date: 'desc' } },
       include: {
-        event: true,
-        subjects: {
+        event: { include: { campus: true } },
+        activities: {
           include: {
-            subject: {
+            activity: {
               include: {
-                subjectThemes: {
-                  include: { theme: true },
-                },
+                activityThemes: { include: { theme: true } },
               },
             },
           },
@@ -39,40 +38,42 @@ export const GET: RequestHandler = async ({ locals }) => {
     // 2. Gather Portfolio Images (Max 4 for the A4 PDF)
     const portfolioItems = await prisma.portfolioItem.findMany({
       where: {
-        studentProfileId,
+        talentId,
         file: { not: null },
       },
       orderBy: { createdAt: 'desc' },
       take: 4,
     });
 
-    // 3. Fetch campus name
-    const student = await prisma.studentProfile.findUniqueOrThrow({
-      where: { id: studentProfileId },
-      include: { campus: true },
-    });
+    // 3. Derive campus name and timezone from most recent participation
+    const eventCampus = participations[0]?.event?.campus;
+    const campusName = eventCampus?.name || '';
+    const campusTimezone = eventCampus?.timezone ?? 'Europe/Paris';
 
     // 4. Tally up themes (show up to 6 for the progress-bar view)
-    const topThemes = tallyTopThemes(participations, 6);
+    const topThemes = tallyTopThemesFromActivities(participations, 6);
 
-    // 5. Build deduplicated subjects list with event date and difficulty
-    const subjectMap = new Map<
+    // 5. Build deduplicated activity list with event date and difficulty
+    const activityMap = new Map<
       string,
       { name: string; eventDate: string; difficulty: string }
     >();
     for (const p of participations) {
-      for (const ps of p.subjects) {
-        const subject = ps.subject;
-        if (!subjectMap.has(subject.id)) {
-          subjectMap.set(subject.id, {
-            name: subject.nom,
-            eventDate: p.event ? formatDateFr(new Date(p.event.date)) : '',
-            difficulty: subject.difficulte || '',
+      for (const pa of p.activities) {
+        const activity = pa.activity;
+        if (activity.activityType === 'orga') continue;
+        if (!activityMap.has(activity.id)) {
+          activityMap.set(activity.id, {
+            name: activity.nom,
+            eventDate: p.event
+              ? formatDateFr(new Date(p.event.date), campusTimezone)
+              : '',
+            difficulty: activity.difficulte || '',
           });
         }
       }
     }
-    const subjects = [...subjectMap.values()].slice(0, 10);
+    const activities = [...activityMap.values()].slice(0, 10);
 
     // 6. Map school level to readable label
     const niveauLabels: Record<string, string> = {
@@ -88,20 +89,19 @@ export const GET: RequestHandler = async ({ locals }) => {
 
     // 7. Assemble Data
     const data = {
-      studentName: `${locals.studentProfile.prenom} ${locals.studentProfile.nom}`,
-      campus: student.campus?.name || '',
-      schoolLevel: locals.studentProfile.niveau
-        ? niveauLabels[locals.studentProfile.niveau] ||
-          locals.studentProfile.niveau
+      studentName: `${locals.talent.prenom} ${locals.talent.nom}`,
+      campus: campusName,
+      schoolLevel: locals.talent.niveau
+        ? niveauLabels[locals.talent.niveau] || locals.talent.niveau
         : '',
-      xp: locals.studentProfile.xp || 0,
+      xp: locals.talent.xp || 0,
       hours: participations.length * 3,
       eventsAttended: participations.length,
-      subjectsCompleted: subjectMap.size,
-      level: locals.studentProfile.level || 'Novice',
+      activitiesCompleted: activityMap.size,
+      level: locals.talent.level || 'Novice',
       topThemes,
-      subjects,
-      todayDate: formatDateFr(new Date()),
+      activities,
+      todayDate: formatDateFr(new Date(), campusTimezone),
       // TODO: implement S3 file storage
       images: [] as string[],
     };
@@ -110,11 +110,8 @@ export const GET: RequestHandler = async ({ locals }) => {
     const pdfBytes = await generateCertificatePDF(data);
 
     // 9. Sanitize filename
-    const safeFirstName = locals.studentProfile.prenom.replace(
-      /[^a-zA-Z0-9]/g,
-      '',
-    );
-    const safeLastName = locals.studentProfile.nom.replace(/[^a-zA-Z0-9]/g, '');
+    const safeFirstName = locals.talent.prenom.replace(/[^a-zA-Z0-9]/g, '');
+    const safeLastName = locals.talent.nom.replace(/[^a-zA-Z0-9]/g, '');
 
     return new Response(new Blob([pdfBytes], { type: 'application/pdf' }), {
       status: 200,

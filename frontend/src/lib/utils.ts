@@ -5,10 +5,7 @@ import {
   now,
   type CalendarDateTime,
 } from '@internationalized/date';
-import type {
-  ParticipationWithEvent,
-  ParticipationWithThemes,
-} from '$lib/types';
+import type { ParticipationWithActivityThemes } from '$lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -19,6 +16,7 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatDateFr(
   date: CalendarDateTime | Date | string | undefined,
+  timezone?: string,
 ): string {
   if (!date) return 'Sélectionner une date';
 
@@ -37,29 +35,23 @@ export function formatDateFr(
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: timezone,
   });
 }
 
-export type Mission = {
-  subject: { id: string; nom: string };
-  eventDate: string;
-  eventTitle: string;
-};
-
-export function flattenMissions(
-  participations: ParticipationWithEvent[],
-): Mission[] {
-  const missions: Mission[] = [];
-  for (const p of participations) {
-    for (const ps of p.subjects) {
-      missions.push({
-        subject: ps.subject,
-        eventDate: String(p.event?.date || ''),
-        eventTitle: p.event?.titre || 'Atelier',
-      });
-    }
-  }
-  return missions;
+/**
+ * Formats a Date or ISO string to a French datetime string (DD/MM/YYYY HH:mm)
+ */
+export function formatDateTimeFr(date: Date | string | undefined): string {
+  if (!date) return '—';
+  const jsDate = typeof date === 'string' ? new Date(date) : date;
+  return jsDate.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 const THEME_TIERS = [
@@ -75,18 +67,46 @@ export function themeTierLabel(count: number): string {
   return (THEME_TIERS.find((t) => count >= t.min) ?? THEME_TIERS.at(-1)!).label;
 }
 
+export type ActivityMission = {
+  activity: {
+    id: string;
+    nom: string;
+    isDynamic: boolean;
+    activityType: string;
+  };
+  eventDate: string;
+  eventTitle: string;
+};
+
+export function flattenActivityMissions(
+  participations: ParticipationWithActivityThemes[],
+): ActivityMission[] {
+  const missions: ActivityMission[] = [];
+  for (const p of participations) {
+    for (const pa of p.activities) {
+      if (pa.activity.activityType === 'orga') continue;
+      missions.push({
+        activity: pa.activity,
+        eventDate: String(p.event?.date || ''),
+        eventTitle: p.event?.titre || 'Atelier',
+      });
+    }
+  }
+  return missions;
+}
+
 /**
- * Tallies up theme occurrences from completed participations and returns the top N.
- * Subjects without themes are counted under "Général".
+ * Tallies up theme occurrences from activity-based participations and returns the top N.
  */
-export function tallyTopThemes(
-  participations: ParticipationWithThemes[],
+export function tallyTopThemesFromActivities(
+  participations: ParticipationWithActivityThemes[],
   limit: number,
 ): { name: string; count: number; label: string }[] {
   const tally: Record<string, number> = {};
   for (const p of participations) {
-    for (const ps of p.subjects) {
-      const themes = ps.subject.subjectThemes?.map((st) => st.theme) ?? [];
+    for (const pa of p.activities) {
+      if (pa.activity.activityType === 'orga') continue;
+      const themes = pa.activity.activityThemes?.map((at) => at.theme) ?? [];
       if (themes.length === 0) {
         tally['Général'] = (tally['Général'] || 0) + 1;
       } else {
@@ -102,9 +122,9 @@ export function tallyTopThemes(
     .slice(0, limit);
 }
 
-export function getParisStartOfDay(): string {
-  const parisNow = now('Europe/Paris');
-  const startOfDay = parisNow.set({
+export function getStartOfDay(timezone: string): string {
+  const tzNow = now(timezone);
+  const startOfDay = tzNow.set({
     hour: 0,
     minute: 0,
     second: 0,

@@ -1,4 +1,4 @@
-# Intra Epitech Academy (TekCamp)
+# Intra Epitech Academy (Jump)
 
 Internal platform for managing Epitech coding workshops — staff organize events, track attendance, and generate diplomas while students earn XP, level up, and build a portfolio.
 
@@ -47,7 +47,7 @@ bunx prisma generate
 bun run dev
 ```
 
-The app runs at `http://localhost:5173/tekcamp` in dev.
+The app runs at `http://localhost:5173` in dev.
 
 ### Docker (full stack)
 
@@ -83,7 +83,7 @@ bunx prisma migrate dev --name add_new_field
 
 ## Architecture
 
-The app is served under the `/tekcamp` base path.
+The app is served from the root path.
 
 ### Route Groups
 
@@ -129,15 +129,15 @@ CI builds and pushes Docker images to GHCR on pushes to `main`, `staging`, and `
 
 ## Environment Variables
 
-| Variable                  | Purpose                            |
-| ------------------------- | ---------------------------------- |
-| `DATABASE_URL`            | PostgreSQL connection string       |
-| `BETTER_AUTH_SECRET`      | Session signing secret             |
-| `MICROSOFT_CLIENT_ID`     | Azure OAuth app ID                 |
-| `MICROSOFT_CLIENT_SECRET` | Azure OAuth secret                 |
-| `MICROSOFT_TENANT_ID`     | Azure AD tenant                    |
-| `RESEND_API_KEY`          | Email delivery API key             |
-| `RESEND_FROM_EMAIL`       | Sender address for OTP emails      |
+| Variable                  | Purpose                       |
+| ------------------------- | ----------------------------- |
+| `DATABASE_URL`            | PostgreSQL connection string  |
+| `BETTER_AUTH_SECRET`      | Session signing secret        |
+| `MICROSOFT_CLIENT_ID`     | Azure OAuth app ID            |
+| `MICROSOFT_CLIENT_SECRET` | Azure OAuth secret            |
+| `MICROSOFT_TENANT_ID`     | Azure AD tenant               |
+| `RESEND_API_KEY`          | Email delivery API key        |
+| `RESEND_FROM_EMAIL`       | Sender address for OTP emails |
 
 See [`.env.example`](.env.example) for the full template.
 

@@ -9,10 +9,12 @@
     themes = [],
     value = $bindable([]),
     name = 'themes',
+    officialOnly = false,
   }: {
     themes: any[];
     value: string[];
     name?: string;
+    officialOnly?: boolean;
   } = $props();
 
   let open = $state(false);
@@ -39,7 +41,8 @@
 
   function isGlobal(themeName: string) {
     const t = themes.find((th) => th.nom === themeName);
-    return t && !t.campus;
+    if (!t) return officialOnly;
+    return !t.campus;
   }
 </script>
 
@@ -57,7 +60,7 @@
           <div class="flex flex-wrap gap-2">
             {#if value.length === 0}
               <span class="flex items-center gap-2 text-muted-foreground">
-                <Tag class="h-3.5 w-3.5 text-epi-teal" />
+                <Tag class="h-3.5 w-3.5 text-epi-teal-solid" />
                 Sélectionner des thèmes...
               </span>
             {:else}
@@ -67,7 +70,7 @@
                   variant="secondary"
                   class="rounded-sm border {global
                     ? 'border-purple-200 bg-purple-50 text-purple-900 dark:border-purple-900 dark:bg-purple-900/30 dark:text-purple-100'
-                    : 'border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 dark:border-teal-900 dark:bg-teal-900/30 dark:text-teal-100'}"
+                    : 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid hover:bg-epi-teal-solid/20'}"
                 >
                   {#if global}
                     <Globe class="mr-1 h-3 w-3" />
@@ -131,7 +134,7 @@
                   {#if !theme.campus}
                     <Globe class="h-4 w-4 text-purple-500" />
                   {:else}
-                    <MapPin class="h-4 w-4 text-epi-teal" />
+                    <MapPin class="h-4 w-4 text-epi-teal-solid" />
                   {/if}
                 </div>
                 <div class="flex flex-col">

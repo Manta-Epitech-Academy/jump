@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
-import { tallyTopThemes } from '$lib/utils';
+import { tallyTopThemesFromActivities } from '$lib/utils';
 
 export const load: PageServerLoad = async ({ params, setHeaders }) => {
   try {
     // Select only safe fields to ensure NO PII is leaked.
-    const student = await prisma.studentProfile.findUnique({
+    const student = await prisma.talent.findUnique({
       where: { id: params.id },
       select: {
         id: true,
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     setHeaders({ 'Cache-Control': 'public, s-maxage=300, max-age=60' });
 
     const portfolioItems = await prisma.portfolioItem.findMany({
-      where: { studentProfileId: student.id },
+      where: { talentId: student.id },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -43,17 +43,16 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
     // Fetch completed participations to build the RPG Skill Radar
     const allCompleted = await prisma.participation.findMany({
       where: {
-        studentProfileId: student.id,
+        talentId: student.id,
         isPresent: true,
       },
       include: {
-        subjects: {
+        event: true,
+        activities: {
           include: {
-            subject: {
+            activity: {
               include: {
-                subjectThemes: {
-                  include: { theme: true },
-                },
+                activityThemes: { include: { theme: true } },
               },
             },
           },
@@ -61,7 +60,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
       },
     });
 
-    const topThemes = tallyTopThemes(allCompleted, 5);
+    const topThemes = tallyTopThemesFromActivities(allCompleted, 5);
 
     return {
       student: {
@@ -82,7 +81,7 @@ export const load: PageServerLoad = async ({ params, setHeaders }) => {
         file: item.file,
         url: item.url,
         caption: item.caption,
-        eventName: item.event?.titre || 'TekCamp',
+        eventName: item.event?.titre || 'Jump',
       })),
       topThemes,
     };

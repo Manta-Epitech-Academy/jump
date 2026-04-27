@@ -10,16 +10,13 @@ function getResend() {
   return resend;
 }
 
-export async function sendOtpEmail(
-  email: string,
-  otp: string,
-  prenom?: string,
-) {
-  const displayName = prenom || 'futur·e codeur·se';
+export async function sendOtpEmail(email: string, otp: string, name?: string) {
+  const displayName = name || 'futur·e codeur·se';
   await getResend().emails.send({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
     to: email,
     subject: "Ton code d'accès secret pour Jump 🔑",
+    text: `Salut ${displayName} !\n\nVoici ton code secret temporaire pour te connecter à ton Cockpit :\n\n${otp}\n\nSi tu n'as pas essayé de te connecter, tu peux supprimer cet email sans t'inquiéter. Ce code expirera rapidement.\n\nBon atelier !\nL'équipe Epitech Academy`,
     html: `
       <div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;">
         <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; padding: 40px 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 5px solid #00ff97; text-align: left;">
