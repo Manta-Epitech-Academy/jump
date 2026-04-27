@@ -37,6 +37,39 @@ export async function sendOtpEmail(email: string, otp: string, name?: string) {
   });
 }
 
+export async function sendParentWelcomeEmail(
+  email: string,
+  parentName: string,
+  childName: string,
+) {
+  const displayName =
+    parentName.charAt(0).toUpperCase() + parentName.slice(1).toLowerCase();
+  const loginUrl = `${env.ORIGIN}${base}/parent/login`;
+  await getResend().emails.send({
+    from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
+    to: email,
+    subject: `${childName} participe à Epitech Academy — votre accès parent`,
+    text: `Bonjour Mr/Mme ${displayName},\n\nVotre enfant ${childName} a bien été inscrit à un stage Epitech Academy. Nous sommes ravis de l'accueillir !\n\nEn tant que responsable légal, nous avons besoin de votre autorisation pour le droit à l'image avant le début du stage. Cela ne prend qu'une minute.\n\nSignez le droit à l'image ici : ${loginUrl}\n\nCet espace vous permet également de suivre la progression de ${childName} et de consulter le programme des activités.\n\nÀ très vite,\nL'équipe Epitech Academy`,
+    html: `
+      <div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;">
+        <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; padding: 40px 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 5px solid #00ff97; text-align: left;">
+          <p style="font-size: 16px; line-height: 1.6; margin-top: 0; margin-bottom: 20px;">Bonjour <strong>Mr/Mme ${displayName}</strong>,</p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">Votre enfant <strong>${childName}</strong> vient de s'inscrire à un stage <strong>Epitech Academy</strong>. Nous sommes ravis de l'accueillir !</p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">En tant que responsable légal, nous avons besoin de votre <strong>autorisation pour le droit à l'image</strong> avant le début du stage. Cela ne prend qu'une minute.</p>
+
+          <div style="text-align: center; margin-bottom: 30px;">
+            <a href="${loginUrl}" style="display: inline-block; background-color: #013afb; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 12px;">Signer le droit à l'image &rarr;</a>
+          </div>
+
+          <p style="font-size: 16px; line-height: 1.6; color: #1e293b; margin-bottom: 20px;">Cet espace vous permet également de suivre la progression de ${childName} et de consulter le programme des activités.</p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+          <p style="font-size: 16px; line-height: 1.6; color: #1e293b; margin: 0;">À très vite,<br/>L'équipe Epitech Academy</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 export async function sendParentOtpEmail(
   email: string,
   otp: string,

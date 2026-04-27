@@ -5,7 +5,7 @@ import { prisma } from '$lib/server/db';
 import { infoValidationSchema } from '$lib/validation/onboarding';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
-import { auth } from '$lib/server/auth';
+import { sendParentWelcomeEmail } from '$lib/server/otp';
 
 export type OnboardingStep = 'info-validation' | 'rules';
 
@@ -108,11 +108,15 @@ export const actions: Actions = {
           });
         }
 
-        // Send OTP email directly via BetterAuth hook
-        await auth.api.sendVerificationOTP({
-          body: { email: parentEmail, type: 'sign-in' },
-        });
-      })().catch((err) => console.error('Failed to send parent email:', err));
+        // Send welcome email (no OTP — parent will request OTP when they log in)
+        await sendParentWelcomeEmail(
+          parentEmail,
+          result.data.parentNom,
+          locals.talent!.prenom,
+        );
+      })().catch((err) =>
+        console.error('Failed to send parent welcome email:', err),
+      );
     }
 
     throw redirect(303, resolve('/onboarding'));
