@@ -44,6 +44,7 @@ COPY --from=builder /app/build ./build
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./
+COPY --from=builder /app/scripts ./scripts
 
 # Use the pre-existing 'bun' user for security
 USER bun
