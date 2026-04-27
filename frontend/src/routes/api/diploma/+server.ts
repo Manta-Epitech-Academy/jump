@@ -5,10 +5,7 @@ import { formatDateFr } from '$lib/utils';
 import { prisma } from '$lib/server/db';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  if (
-    !locals.user ||
-    (locals.user.role !== 'staff' && locals.user.role !== 'admin')
-  ) {
+  if (!locals.user || !locals.staffProfile?.staffRole) {
     throw error(401, 'Non autorise');
   }
 

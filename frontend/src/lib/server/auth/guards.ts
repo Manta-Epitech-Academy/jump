@@ -173,7 +173,6 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     if (isAdminPath) {
       if (
         !currentPath.startsWith(pathStaffAdminLogin) &&
-        event.locals.user?.role !== 'admin' &&
         event.locals.staffProfile?.staffRole !== 'admin'
       ) {
         return Response.redirect(
