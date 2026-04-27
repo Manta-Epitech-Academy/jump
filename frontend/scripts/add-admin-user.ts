@@ -6,7 +6,7 @@
  * and the staff oauth callback finds the pre-provisioned StaffProfile.
  *
  * Required env: DATABASE_URL
- * Run: bun run prisma/add-admin-user.ts
+ * Run: bun run scripts/add-admin-user.ts
  */
 
 import path from 'node:path';
@@ -38,6 +38,13 @@ async function main() {
   const email = (await ask('Admin email: ')).toLowerCase().trim();
   if (!email.includes('@')) {
     console.error('Invalid email.');
+    process.exit(1);
+  }
+  // Staff OAuth callback (staff/oauth/callback/+server.ts) deletes any
+  // bauth_user whose email is not @epitech.eu on first login. Fail here
+  // instead of letting that happen later.
+  if (!email.endsWith('@epitech.eu')) {
+    console.error('Email must be @epitech.eu (staff OAuth restriction).');
     process.exit(1);
   }
 
