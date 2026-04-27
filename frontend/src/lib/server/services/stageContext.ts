@@ -1,5 +1,7 @@
+import { error } from '@sveltejs/kit';
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import { EVENT_TYPES } from '$lib/domain/event';
+import { prisma } from '$lib/server/db';
 
 export const STAGE_DEFAULT_DURATION_DAYS = 14;
 export const STAGE_UPCOMING_WINDOW_DAYS = 60;
@@ -92,4 +94,46 @@ function addDays(d: Date, days: number): Date {
   const out = new Date(d);
   out.setDate(out.getDate() + days);
   return out;
+}
+
+export type StageEventRecord = {
+  id: string;
+  titre: string;
+  date: Date;
+  endDate: Date | null;
+  eventType: string;
+  campusId: string;
+};
+
+export async function loadStageOr404(
+  eventId: string,
+  campusId: string,
+  notFoundMessage = 'Cette page est réservée aux stages de seconde.',
+): Promise<StageEventRecord> {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: {
+      id: true,
+      titre: true,
+      date: true,
+      endDate: true,
+      eventType: true,
+      campusId: true,
+    },
+  });
+  if (!event || event.campusId !== campusId) {
+    throw error(404, 'Événement introuvable.');
+  }
+  if (event.eventType !== EVENT_TYPES.STAGE_SECONDE) {
+    throw error(404, notFoundMessage);
+  }
+  return event;
+}
+
+export function stageEndOrDefault(event: {
+  date: Date;
+  endDate: Date | null;
+}): Date {
+  if (event.endDate) return event.endDate;
+  return addDays(event.date, STAGE_DEFAULT_DURATION_DAYS);
 }

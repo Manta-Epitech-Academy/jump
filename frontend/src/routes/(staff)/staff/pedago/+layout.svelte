@@ -7,7 +7,7 @@
     Menu,
     X,
     BookOpenText,
-    MonitorPlay,
+    UserCheck,
   } from '@lucide/svelte';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -78,37 +78,7 @@
         <LayoutDashboard class="h-5 w-5" />
         <span>Aujourd'hui</span>
       </a>
-      {#if data.activeStage}
-        <a
-          href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
-          class={navLinkClass(
-            isActive(`/staff/pedago/events/${data.activeStage.id}/planning`),
-          )}
-        >
-          <CalendarDays class="h-5 w-5" />
-          <span
-            >{data.activeStage.status === 'upcoming'
-              ? 'Prochain stage'
-              : 'Stage en cours'}</span
-          >
-        </a>
-      {/if}
     </nav>
-
-    {#if hasCodingClub}
-      <div class="sidebar-section-title">
-        Ressources<span class="text-foreground">_</span>
-      </div>
-      <nav class="space-y-1">
-        <a
-          href={resolve('/staff/pedago/catalogue')}
-          class={navLinkClass(isActive('/staff/pedago/catalogue'))}
-        >
-          <BookOpenText class="h-5 w-5" />
-          <span>Sujets & Corrections</span>
-        </a>
-      </nav>
-    {/if}
   {:else}
     <div class="sidebar-section-title">
       Opérations<span class="text-foreground">_</span>
@@ -121,49 +91,48 @@
         <LayoutDashboard class="h-5 w-5" />
         <span>Dashboard Live</span>
       </a>
-      {#if data.activeStage}
-        <a
-          href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
-          class={navLinkClass(
-            isActive(`/staff/pedago/events/${data.activeStage.id}/planning`),
-          )}
-        >
-          <CalendarDays class="h-5 w-5" />
-          <span
-            >{data.activeStage.status === 'upcoming'
-              ? 'Prochain stage'
-              : 'Stage en cours'}</span
-          >
-        </a>
-      {/if}
     </nav>
+  {/if}
 
+  {#if data.activeStage}
     <div class="sidebar-section-title">
-      Curriculum<span class="text-foreground">_</span>
+      Stage de Seconde<span class="text-epi-teal">_</span>
     </div>
     <nav class="space-y-1">
-      <div
-        class="flex items-center gap-2 px-3 py-2 text-xs font-bold text-muted-foreground italic"
+      <a
+        href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
+        class={navLinkClass(
+          isActive(`/staff/pedago/events/${data.activeStage.id}/planning`),
+        )}
       >
-        <MonitorPlay class="h-4 w-4" />
-        Cockpit & Planning accessibles depuis le Dashboard
-      </div>
+        <CalendarDays class="h-5 w-5" />
+        <span>Planning</span>
+      </a>
+      <a
+        href={resolve(`/staff/pedago/events/${data.activeStage.id}/presences`)}
+        class={navLinkClass(
+          isActive(`/staff/pedago/events/${data.activeStage.id}/presences`),
+        )}
+      >
+        <UserCheck class="h-5 w-5" />
+        <span>Présences</span>
+      </a>
     </nav>
+  {/if}
 
-    {#if hasCodingClub}
-      <div class="sidebar-section-title">
-        Ressources<span class="text-foreground">_</span>
-      </div>
-      <nav class="space-y-1">
-        <a
-          href={resolve('/staff/pedago/catalogue')}
-          class={navLinkClass(isActive('/staff/pedago/catalogue'))}
-        >
-          <BookOpenText class="h-5 w-5" />
-          <span>Sujets & Corrections</span>
-        </a>
-      </nav>
-    {/if}
+  {#if hasCodingClub}
+    <div class="sidebar-section-title">
+      Ressources<span class="text-foreground">_</span>
+    </div>
+    <nav class="space-y-1">
+      <a
+        href={resolve('/staff/pedago/catalogue')}
+        class={navLinkClass(isActive('/staff/pedago/catalogue'))}
+      >
+        <BookOpenText class="h-5 w-5" />
+        <span>Sujets & Corrections</span>
+      </a>
+    </nav>
   {/if}
 {/snippet}
 

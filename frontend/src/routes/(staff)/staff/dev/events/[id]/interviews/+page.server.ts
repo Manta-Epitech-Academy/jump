@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { CalendarDateTime } from '@internationalized/date';
@@ -16,39 +16,19 @@ import {
 } from '$lib/validation/interviews';
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { rolesIn } from '$lib/domain/permissions';
-import { EVENT_TYPES } from '$lib/domain/event';
 import { prisma } from '$lib/server/db';
 import { generateSchedule } from '$lib/server/services/interviewScheduler';
+import {
+  loadStageOr404 as loadStageEventOr404,
+  stageEndOrDefault,
+} from '$lib/server/services/stageContext';
 
-const STAGE_DEFAULT_DURATION_DAYS = 14;
-
-async function loadStageOr404(eventId: string, campusId: string) {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      titre: true,
-      date: true,
-      endDate: true,
-      eventType: true,
-      campusId: true,
-    },
-  });
-  if (!event || event.campusId !== campusId) {
-    throw error(404, 'Événement introuvable.');
-  }
-  if (event.eventType !== EVENT_TYPES.STAGE_SECONDE) {
-    throw error(404, 'Les entretiens sont réservés aux stages de seconde.');
-  }
-  return event;
-}
-
-function stageEndOrDefault(event: { date: Date; endDate: Date | null }): Date {
-  if (event.endDate) return event.endDate;
-  const fallback = new Date(event.date);
-  fallback.setDate(fallback.getDate() + STAGE_DEFAULT_DURATION_DAYS);
-  return fallback;
-}
+const loadStageOr404 = (eventId: string, campusId: string) =>
+  loadStageEventOr404(
+    eventId,
+    campusId,
+    'Les entretiens sont réservés aux stages de seconde.',
+  );
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   requireFlag(locals, 'stage_seconde');
