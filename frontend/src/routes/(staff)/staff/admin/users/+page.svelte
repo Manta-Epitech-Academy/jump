@@ -131,7 +131,13 @@
                     {inv.email}
                   </div>
                 </Table.Cell>
-                <Table.Cell>{inv.campus.name}</Table.Cell>
+                <Table.Cell>
+                  {#if inv.staffRole === 'admin'}
+                    <span class="text-muted-foreground">—</span>
+                  {:else}
+                    {inv.campus?.name ?? '—'}
+                  {/if}
+                </Table.Cell>
                 <Table.Cell>
                   <Badge variant="secondary"
                     >{getStaffRoleLabel(inv.staffRole)}</Badge
@@ -229,48 +235,52 @@
                 </div>
               </Table.Cell>
               <Table.Cell>
-                <form
-                  id="campus-form-{user.id}"
-                  method="POST"
-                  action="?/updateCampus"
-                  use:enhance={() => {
-                    submitting = `campus-${user.id}`;
-                    return async ({ update, result }) => {
-                      if (result.type === 'success')
-                        toast.success('Campus mis à jour');
-                      await update();
-                      submitting = null;
-                    };
-                  }}
-                >
-                  <input type="hidden" name="userId" value={user.id} />
-                  <Select.Root
-                    type="single"
-                    name="campusId"
-                    value={user.staffProfile?.campusId ?? ''}
-                    onValueChange={(v) => {
-                      if (!mounted) return;
-                      if (submitting) return;
-                      if (v === (user.staffProfile?.campusId ?? '')) return;
-                      requestAnimationFrame(() => {
-                        const form = document.querySelector<HTMLFormElement>(
-                          `#campus-form-${user.id}`,
-                        );
-                        form?.requestSubmit();
-                      });
+                {#if user.staffProfile?.staffRole === 'admin'}
+                  <span class="text-sm text-muted-foreground">—</span>
+                {:else}
+                  <form
+                    id="campus-form-{user.id}"
+                    method="POST"
+                    action="?/updateCampus"
+                    use:enhance={() => {
+                      submitting = `campus-${user.id}`;
+                      return async ({ update, result }) => {
+                        if (result.type === 'success')
+                          toast.success('Campus mis à jour');
+                        await update();
+                        submitting = null;
+                      };
                     }}
                   >
-                    <Select.Trigger class="h-8 w-40 text-xs">
-                      {user.staffProfile?.campus?.name || 'Aucun campus'}
-                    </Select.Trigger>
-                    <Select.Content>
-                      <Select.Item value="">Aucun campus</Select.Item>
-                      {#each data.campuses ?? [] as c}
-                        <Select.Item value={c.id}>{c.name}</Select.Item>
-                      {/each}
-                    </Select.Content>
-                  </Select.Root>
-                </form>
+                    <input type="hidden" name="userId" value={user.id} />
+                    <Select.Root
+                      type="single"
+                      name="campusId"
+                      value={user.staffProfile?.campusId ?? ''}
+                      onValueChange={(v) => {
+                        if (!mounted) return;
+                        if (submitting) return;
+                        if (v === (user.staffProfile?.campusId ?? '')) return;
+                        requestAnimationFrame(() => {
+                          const form = document.querySelector<HTMLFormElement>(
+                            `#campus-form-${user.id}`,
+                          );
+                          form?.requestSubmit();
+                        });
+                      }}
+                    >
+                      <Select.Trigger class="h-8 w-40 text-xs">
+                        {user.staffProfile?.campus?.name || 'Aucun campus'}
+                      </Select.Trigger>
+                      <Select.Content>
+                        <Select.Item value="">Aucun campus</Select.Item>
+                        {#each data.campuses ?? [] as c}
+                          <Select.Item value={c.id}>{c.name}</Select.Item>
+                        {/each}
+                      </Select.Content>
+                    </Select.Root>
+                  </form>
+                {/if}
               </Table.Cell>
               <Table.Cell>
                 <form
@@ -385,27 +395,29 @@
           {/if}
         </div>
 
-        <div class="space-y-2">
-          <Label for="invite-campus">Campus</Label>
-          <Select.Root
-            type="single"
-            name="campusId"
-            bind:value={$inviteForm.campusId}
-          >
-            <Select.Trigger id="invite-campus" class="w-full">
-              {data.campuses?.find((c) => c.id === $inviteForm.campusId)
-                ?.name ?? 'Sélectionner un campus'}
-            </Select.Trigger>
-            <Select.Content>
-              {#each data.campuses ?? [] as c}
-                <Select.Item value={c.id}>{c.name}</Select.Item>
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          {#if $inviteErrors.campusId}
-            <p class="text-xs text-destructive">{$inviteErrors.campusId}</p>
-          {/if}
-        </div>
+        {#if $inviteForm.staffRole !== 'admin'}
+          <div class="space-y-2">
+            <Label for="invite-campus">Campus</Label>
+            <Select.Root
+              type="single"
+              name="campusId"
+              bind:value={$inviteForm.campusId}
+            >
+              <Select.Trigger id="invite-campus" class="w-full">
+                {data.campuses?.find((c) => c.id === $inviteForm.campusId)
+                  ?.name ?? 'Sélectionner un campus'}
+              </Select.Trigger>
+              <Select.Content>
+                {#each data.campuses ?? [] as c}
+                  <Select.Item value={c.id}>{c.name}</Select.Item>
+                {/each}
+              </Select.Content>
+            </Select.Root>
+            {#if $inviteErrors.campusId}
+              <p class="text-xs text-destructive">{$inviteErrors.campusId}</p>
+            {/if}
+          </div>
+        {/if}
 
         <div class="space-y-2">
           <Label for="invite-role">Rôle</Label>

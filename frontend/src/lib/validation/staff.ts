@@ -15,11 +15,18 @@ export const createInvitationSchema = z.object({
   staffRole: z.enum(invitableRoles).default('superdev'),
 });
 
-export const createAdminInvitationSchema = z.object({
-  email: epitechEmail,
-  campusId: z.string().min(1, 'Campus requis'),
-  staffRole: z.enum(['admin', ...invitableRoles] as const).default('superdev'),
-});
+export const createAdminInvitationSchema = z
+  .object({
+    email: epitechEmail,
+    campusId: z.string().default(''),
+    staffRole: z
+      .enum(['admin', ...invitableRoles] as const)
+      .default('superdev'),
+  })
+  .refine((v) => v.staffRole === 'admin' || v.campusId.length > 0, {
+    message: 'Campus requis',
+    path: ['campusId'],
+  });
 
 export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
 
