@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
+import { getParentLastName } from '$lib/domain/parent';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -7,11 +8,10 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   const parentName = locals.user.name ?? '';
-  const parentLastName = parentName.split(' ').slice(1).join(' ') || parentName;
 
   return {
     parentName,
-    parentLastName,
+    parentLastName: getParentLastName(parentName),
     email: locals.user.email,
   };
 };

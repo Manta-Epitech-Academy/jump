@@ -74,7 +74,7 @@ export const actions: Actions = {
         prenom: result.data.prenom,
         parentNom: result.data.parentNom,
         parentPrenom: result.data.parentPrenom,
-        parentEmail: result.data.parentEmail,
+        parentEmail: result.data.parentEmail.toLowerCase().trim(),
         parentPhone: result.data.parentPhone || null,
         phone: result.data.phone || null,
         infoValidatedAt: new Date(),

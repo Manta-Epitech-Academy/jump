@@ -5,6 +5,7 @@ import { prisma } from '$lib/server/db';
 import { now } from '@internationalized/date';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { getStartOfDay } from '$lib/utils';
+import { getParentLastName } from '$lib/domain/parent';
 
 export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -111,11 +112,10 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   });
 
   const parentName = locals.user.name ?? '';
-  const parentLastName = parentName.split(' ').slice(1).join(' ') || parentName;
 
   return {
     parentName,
-    parentLastName,
+    parentLastName: getParentLastName(parentName),
     hasMultipleChildren: siblingCount > 1,
     todayPlanning: todayParticipation
       ? {

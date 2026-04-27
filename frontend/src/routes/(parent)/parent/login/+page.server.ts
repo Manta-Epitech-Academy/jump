@@ -75,10 +75,12 @@ export const actions: Actions = {
       return fail(400, { otpForm });
     }
 
+    const normalizedEmail = otpForm.data.email.toLowerCase().trim();
+
     try {
       const authResponse = await auth.api.signInEmailOTP({
         body: {
-          email: otpForm.data.email,
+          email: normalizedEmail,
           otp: otpForm.data.password,
         },
         asResponse: true,
@@ -102,7 +104,7 @@ export const actions: Actions = {
     // Check if image rights need signing before going to dashboard
     const unsignedCount = await prisma.talent.count({
       where: {
-        parentEmail: otpForm.data.email,
+        parentEmail: normalizedEmail,
         imageRightsSignedAt: null,
       },
     });
