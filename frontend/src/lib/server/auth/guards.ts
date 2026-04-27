@@ -158,8 +158,14 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
       return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
     }
 
-    // Students shouldn't access staff area
-    if (!isStaffPublic && !event.locals.staffProfile && event.locals.talent) {
+    // Students without a staff profile shouldn't access staff area.
+    // The staffProfile check covers dual-role users whose cached
+    // bauth_user.role is still 'student' from their Talent identity.
+    if (
+      !isStaffPublic &&
+      event.locals.user?.role === 'student' &&
+      !event.locals.staffProfile
+    ) {
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 

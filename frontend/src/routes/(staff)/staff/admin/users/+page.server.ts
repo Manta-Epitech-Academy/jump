@@ -47,15 +47,15 @@ export const actions: Actions = {
 
     const email = form.data.email.toLowerCase();
 
-    const [existingUser, existingInvite] = await Promise.all([
-      prisma.bauth_user.findUnique({ where: { email } }),
+    const [existingStaff, existingInvite] = await Promise.all([
+      prisma.staffProfile.findFirst({ where: { user: { email } } }),
       prisma.staffInvitation.findUnique({ where: { email } }),
     ]);
 
-    if (existingUser) {
+    if (existingStaff) {
       return message(
         form,
-        'Un compte existe déjà avec cet email. Modifiez son rôle depuis la liste des membres.',
+        'Un compte staff existe déjà avec cet email. Modifiez son rôle depuis la liste des membres.',
         { status: 400 },
       );
     }

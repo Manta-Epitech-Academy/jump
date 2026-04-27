@@ -6,8 +6,6 @@ import {
   type PutObjectCommandInput,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
 import { env } from '$env/dynamic/private';
 
 const SIGNED_URL_EXPIRES_IN = 3600; // 1 hour
@@ -96,28 +94,31 @@ export interface StorageService {
   delete(key: string): Promise<void>;
 }
 
-class LocalStorageService implements StorageService {
-  private basePath: string;
+class S3StorageService implements StorageService {
+  private bucket: string;
 
-  constructor(basePath: string) {
-    this.basePath = basePath;
+  constructor(bucket: string) {
+    this.bucket = bucket;
   }
 
   async save(key: string, data: Buffer | Uint8Array): Promise<string> {
-    const fullPath = join(this.basePath, key);
-    await mkdir(dirname(fullPath), { recursive: true });
-    await writeFile(fullPath, data);
+    await uploadFile(this.bucket, key, data);
     return key;
   }
 
   async get(key: string): Promise<Buffer> {
-    const fullPath = join(this.basePath, key);
-    return readFile(fullPath);
+    const result = await s3().send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
+    if (!result.Body) {
+      throw new Error(`Object not found: ${key}`);
+    }
+    const bytes = await result.Body.transformToByteArray();
+    return Buffer.from(bytes);
   }
 
   async delete(key: string): Promise<void> {
-    const fullPath = join(this.basePath, key);
-    await unlink(fullPath);
+    await deleteFile(this.bucket, key);
   }
 }
 
@@ -125,8 +126,7 @@ let instance: StorageService | null = null;
 
 export function getStorage(): StorageService {
   if (!instance) {
-    const basePath = env.STORAGE_PATH || './storage';
-    instance = new LocalStorageService(basePath);
+    instance = new S3StorageService(env.S3_BUCKET || 'jump-files');
   }
   return instance;
 }
