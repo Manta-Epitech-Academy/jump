@@ -30,8 +30,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 
   let profile = existingProfile;
 
-  // Provision from invitation on first login (or if profile is still un-provisioned)
-  if (!profile?.staffRole || !profile?.campusId) {
+  // Provision from invitation on first login (or if profile has no role yet).
+  // Admins legitimately have no campus, so do not treat null campusId as
+  // "not provisioned".
+  if (!profile?.staffRole) {
     const invitation = await prisma.staffInvitation.findUnique({
       where: { email },
     });

@@ -73,7 +73,7 @@ export const actions: Actions = {
       await prisma.staffInvitation.create({
         data: {
           email,
-          campusId: form.data.campusId,
+          campusId: form.data.staffRole === 'admin' ? null : form.data.campusId,
           staffRole: form.data.staffRole,
           invitedByUserId: locals.user.id,
         },
@@ -116,6 +116,14 @@ export const actions: Actions = {
 
     if (!userId) return fail(400);
 
+    const existing = await prisma.staffProfile.findUnique({
+      where: { userId },
+      select: { staffRole: true },
+    });
+    if (existing?.staffRole === 'admin') {
+      return fail(400, { message: "Un admin n'est lié à aucun campus." });
+    }
+
     try {
       await prisma.staffProfile.upsert({
         where: { userId },
@@ -152,8 +160,14 @@ export const actions: Actions = {
     try {
       await prisma.staffProfile.upsert({
         where: { userId },
-        update: { staffRole: validRole },
-        create: { userId, staffRole: validRole },
+        update: {
+          staffRole: validRole,
+          ...(validRole === 'admin' ? { campusId: null } : {}),
+        },
+        create: {
+          userId,
+          staffRole: validRole,
+        },
       });
       return { success: true };
     } catch (err) {
