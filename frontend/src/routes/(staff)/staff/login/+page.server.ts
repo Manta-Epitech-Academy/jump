@@ -4,11 +4,8 @@ import { resolve } from '$app/paths';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-  if (
-    locals.user &&
-    (locals.user.role === 'staff' || locals.user.role === 'admin')
-  ) {
-    const targetPath = getStaffRoleRedirectPath(locals.staffProfile?.staffRole);
+  if (locals.user && locals.staffProfile?.staffRole) {
+    const targetPath = getStaffRoleRedirectPath(locals.staffProfile.staffRole);
     if (targetPath) {
       throw redirect(302, resolve(targetPath));
     }

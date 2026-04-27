@@ -2186,6 +2186,12 @@ async function seedAdmin() {
       emailVerified: true,
     },
   });
+  await prisma.staffProfile.create({
+    data: {
+      userId: user.id,
+      staffRole: 'admin',
+    },
+  });
   await createCredential(user.id, PASSWORDS.admin);
   return user;
 }

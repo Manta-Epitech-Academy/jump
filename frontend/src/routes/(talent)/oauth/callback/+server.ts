@@ -21,8 +21,8 @@ export const GET: RequestHandler = async ({ locals }) => {
     throw redirect(303, `${loginPath}?error=UnauthorizedDomain`);
   }
 
-  // Set role to student. Preserve existing admin role to prevent privilege downgrade.
-  if (locals.user.role !== 'admin') {
+  // Set role to student. Preserve admin role to prevent privilege downgrade.
+  if (locals.staffProfile?.staffRole !== 'admin') {
     await prisma.bauth_user.update({
       where: { id: locals.user.id },
       data: { role: 'student' },
