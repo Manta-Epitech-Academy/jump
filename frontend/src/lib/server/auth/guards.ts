@@ -159,7 +159,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     }
 
     // Students shouldn't access staff area
-    if (!isStaffPublic && event.locals.user?.role === 'student') {
+    if (!isStaffPublic && !event.locals.staffProfile && event.locals.talent) {
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
@@ -167,7 +167,6 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
     if (isAdminPath) {
       if (
         !currentPath.startsWith(pathStaffAdminLogin) &&
-        event.locals.user?.role !== 'admin' &&
         event.locals.staffProfile?.staffRole !== 'admin'
       ) {
         return Response.redirect(

@@ -30,12 +30,26 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.talent = null;
   event.locals.featureFlags = new Set();
 
-  // 2. Load domain profiles — check both since the cached role may be stale
+  // 2. Load profiles + refresh role from DB in a single query.
+  // BetterAuth caches the session payload (including role) in a cookie for 5
+  // minutes, so locals.user.role can lag behind the DB after admin changes,
+  // OAuth provisioning, or first login. Hydrating from bauth_user every
+  // request gives every consumer a fresh role.
   if (event.locals.user) {
-    event.locals.staffProfile = await prisma.staffProfile.findUnique({
-      where: { userId: event.locals.user.id },
-      include: { campus: true },
+    const record = await prisma.bauth_user.findUnique({
+      where: { id: event.locals.user.id },
+      select: {
+        role: true,
+        staffProfile: { include: { campus: true } },
+        talent: true,
+      },
     });
+
+    if (record) {
+      event.locals.user.role = record.role;
+      event.locals.staffProfile = record.staffProfile;
+      event.locals.talent = record.talent;
+    }
 
     const campusId = event.locals.staffProfile?.campusId;
     if (campusId) {
@@ -45,10 +59,6 @@ export const handle: Handle = async ({ event, resolve }) => {
       });
       event.locals.featureFlags = resolveEffectiveFlags(overrides);
     }
-
-    event.locals.talent = await prisma.talent.findUnique({
-      where: { userId: event.locals.user.id },
-    });
 
     // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget)
     if (event.locals.talent) {
