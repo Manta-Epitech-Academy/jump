@@ -5,6 +5,7 @@ import { prisma } from '$lib/server/db';
 import { now } from '@internationalized/date';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { getStartOfDay } from '$lib/utils';
+import { getParentLastName } from '$lib/domain/parent';
 
 export const load: PageServerLoad = async ({ locals, params, cookies }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -110,8 +111,11 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
     orderBy: { event: { date: 'desc' } },
   });
 
+  const parentName = locals.user.name ?? '';
+
   return {
-    parentName: locals.user.name,
+    parentName,
+    parentLastName: getParentLastName(parentName),
     hasMultipleChildren: siblingCount > 1,
     todayPlanning: todayParticipation
       ? {
@@ -169,6 +173,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       eventName: p.event.titre,
       eventDate: p.event.date,
       isPresent: p.isPresent,
+      delay: p.delay ?? 0,
       activities: p.activities
         .filter((a) => a.activity.activityType !== 'orga')
         .map((a) => ({

@@ -1945,6 +1945,10 @@ async function main() {
   const talentByEmail = await seedStudents();
   console.log(`✓  Students (${Object.keys(talentByEmail).length})`);
 
+  // 3b. Parent account (links to first child for portal testing)
+  const parentEmail = await seedParents(talentByEmail);
+  console.log(`✓  Parent (${parentEmail})`);
+
   // 4. Themes
   const themesByKey = await seedThemes(campuses);
   console.log(
@@ -1990,7 +1994,7 @@ async function main() {
   console.log(`✓  Portfolio (${portfolioCount} items)`);
 
   // ── Final summary ──
-  await printSummary(adminUser.email);
+  await printSummary(adminUser.email, parentEmail);
 }
 
 // ─── Wipe ───
@@ -2124,6 +2128,34 @@ async function seedStudents(): Promise<
     await createCredential(user.id, PASSWORDS.student);
   }
   return byEmail;
+}
+
+async function seedParents(
+  talentByEmail: Record<string, { id: string; nom: string; prenom: string }>,
+): Promise<string> {
+  const parentEmail = 'sophie.martin@mail.com';
+  await prisma.bauth_user.create({
+    data: {
+      email: parentEmail,
+      name: 'Sophie Martin',
+      role: 'parent',
+      emailVerified: true,
+    },
+  });
+
+  const child = talentByEmail['alice.martin@mail.com'];
+  if (child) {
+    await prisma.talent.update({
+      where: { id: child.id },
+      data: {
+        parentEmail,
+        parentNom: 'Martin',
+        parentPrenom: 'Sophie',
+      },
+    });
+  }
+
+  return parentEmail;
 }
 
 async function seedThemes(campuses: Record<string, { id: string }>) {
@@ -2646,7 +2678,7 @@ async function createCredential(userId: string, password: string) {
   });
 }
 
-async function printSummary(adminEmail: string) {
+async function printSummary(adminEmail: string, parentEmail: string) {
   const origin = process.env.ORIGIN || 'http://localhost:3030';
   const [parisTalents, lyonTalents, eventCount, interviewCount] =
     await Promise.all([
@@ -2697,7 +2729,8 @@ async function printSummary(adminEmail: string) {
   console.log(`               sophie.bernard/nathan.blanc=peda,`);
   console.log(`               jules.dupont/laura.garcia/pierre.leblanc=manta,`);
   console.log(`               camille.reader=no role → "contact admin")`);
-  console.log(`   students   *@mail.com / ${PASSWORDS.student}\n`);
+  console.log(`   students   *@mail.com / ${PASSWORDS.student}`);
+  console.log(`   parent     ${parentEmail} (OTP via email)\n`);
 
   console.log('📊 Volume');
   console.log(
@@ -2733,6 +2766,7 @@ async function printSummary(adminEmail: string) {
   console.log(`   ${origin}/staff/admin                 Admin panel`);
   console.log(`   ${origin}/staff/dev                   Dev space`);
   console.log(`   ${origin}/staff/pedago                Pedago / Manta space`);
+  console.log(`   ${origin}/parent/login                Parent portal`);
   console.log('');
   console.log('════════════════════════════════════════════════════════\n');
 }
