@@ -7,6 +7,7 @@
   import { ModeWatcher } from 'mode-watcher';
   import { page } from '$app/state';
   import { dev } from '$app/environment';
+  import ImpersonationBanner from '$lib/components/ImpersonationBanner.svelte';
 
   // Import SVGs as URLs using Vite's ?url suffix
   import faviconProd from '$lib/assets/favicon.svg?url';
@@ -38,5 +39,6 @@
 
 <div style="display: contents">
   <Toaster richColors position="top-center" />
+  <ImpersonationBanner />
   {@render children()}
 </div>
