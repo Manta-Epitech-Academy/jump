@@ -4,7 +4,7 @@ import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { addParticipantSchema, eventSchema } from '$lib/validation/events';
+import { eventSchema } from '$lib/validation/events';
 import {
   timeSlotSchema,
   createSlotWithActivitySchema,
@@ -12,7 +12,6 @@ import {
   changeActivityTypeSchema,
 } from '$lib/validation/planning';
 import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
-import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { EventService } from '$lib/server/services/events';
 import { planningActions } from '$lib/server/services/planningActions';
 import { prisma } from '$lib/server/db';
@@ -115,7 +114,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     zod4(eventSchema),
   );
 
-  const addForm = await superValidate(zod4(addParticipantSchema));
   const tsForm = await superValidate(zod4(timeSlotSchema));
   const createSlotForm = await superValidate(
     zod4(createSlotWithActivitySchema),
@@ -135,7 +133,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     templates,
     planningTemplates,
     editForm,
-    addForm,
     tsForm,
     createSlotForm,
     renameActivityForm,
@@ -147,40 +144,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   // === EVENT & CRM ACTIONS ===
-  addExisting: async ({ request, locals, params }) => {
-    requireStaffGroup(locals, 'devMember');
-    const form = await superValidate(request, zod4(addParticipantSchema));
-    if (!form.valid) return fail(400, { form });
-    try {
-      const existing = await prisma.participation.findUnique({
-        where: {
-          talentId_eventId: {
-            talentId: form.data.studentId,
-            eventId: params.id,
-          },
-        },
-      });
-      if (existing)
-        return message(form, 'Ce Talent est déjà inscrit à cet événement.', {
-          status: 400,
-        });
-      const campusId = getCampusId(locals);
-      await prisma.participation.create({
-        data: {
-          talentId: form.data.studentId,
-          eventId: params.id,
-          campusId,
-          isPresent: false,
-        },
-      });
-      return message(form, 'Talent ajouté !');
-    } catch (err) {
-      return message(form, "Erreur technique lors de l'ajout.", {
-        status: 500,
-      });
-    }
-  },
-
   updateEvent: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
@@ -258,40 +221,6 @@ export const actions: Actions = {
     requireStaffGroup(locals, 'devMember');
     const data = await request.formData();
     return toggleBringPc(data, getCampusId(locals));
-  },
-
-  remove: async ({ url, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const id = url.searchParams.get('id');
-    if (!id) return fail(400);
-    const db = scopedPrisma(getCampusId(locals));
-
-    try {
-      const p = await db.participation.findUniqueOrThrow({
-        where: { id },
-        include: { activities: { include: { activity: true } } },
-      });
-
-      if (p.isPresent) {
-        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
-        const profile = await prisma.talent.findUniqueOrThrow({
-          where: { id: p.talentId },
-          select: { xp: true, eventsCount: true },
-        });
-        await prisma.talent.update({
-          where: { id: p.talentId },
-          data: {
-            xp: Math.max(0, profile.xp - xpValue),
-            eventsCount: Math.max(0, profile.eventsCount - 1),
-          },
-        });
-      }
-
-      await prisma.participation.delete({ where: { id } });
-      return { success: true };
-    } catch (err) {
-      return fail(500);
-    }
   },
 
   deleteEvent: async ({ params, locals }) => {

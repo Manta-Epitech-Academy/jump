@@ -3,18 +3,21 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
-  import { Trash2, Sprout } from '@lucide/svelte';
+  import { Trash2, Sprout, FileCheck, Trophy } from '@lucide/svelte';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
   import type { ParticipationWithDetails } from '$lib/types';
+  import { cn } from '$lib/utils';
 
   let {
     participation,
     onDelete,
+    showCompliance = false,
   }: {
     participation: ParticipationWithDetails;
     onDelete: (id: string) => void;
+    showCompliance?: boolean;
   } = $props();
 
   function formatFirstName(name: string | undefined) {
@@ -27,6 +30,12 @@
     const isPresent = participation.isPresent ? 1 : 0;
     return count - isPresent === 0;
   });
+
+  let signedCount = $derived(
+    (participation.stageCompliance?.charteSigned ? 1 : 0) +
+      (participation.stageCompliance?.conventionSigned ? 1 : 0) +
+      (participation.stageCompliance?.imageRightsSigned ? 1 : 0),
+  );
 </script>
 
 <div
@@ -95,7 +104,56 @@
     </div>
   </div>
 
-  <div>
+  <div class="flex items-center gap-3">
+    <div class="hidden items-center gap-3 sm:flex">
+      <div
+        class="flex items-center gap-1.5 text-xs font-bold text-muted-foreground"
+      >
+        <Trophy class="h-3.5 w-3.5 text-epi-orange" />
+        <span class="font-mono text-foreground"
+          >{participation.talent?.xp ?? 0}</span
+        >
+        <span class="text-[10px] tracking-widest uppercase">XP</span>
+      </div>
+      <div
+        class="flex items-center gap-1.5 text-xs font-bold text-muted-foreground"
+      >
+        <span class="font-mono text-foreground"
+          >{participation.talent?.eventsCount ?? 0}</span
+        >
+        <span class="text-[10px] tracking-widest uppercase">part.</span>
+      </div>
+      {#if showCompliance}
+        <Tooltip.Provider delayDuration={300}>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Badge
+                  {...props}
+                  variant="outline"
+                  class={cn(
+                    'gap-1 px-1.5 py-0 text-[10px] tracking-widest uppercase',
+                    signedCount === 3
+                      ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-900/20 dark:text-green-400'
+                      : signedCount > 0
+                        ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400'
+                        : 'border-border text-muted-foreground',
+                  )}
+                >
+                  <FileCheck class="h-3 w-3" />
+                  {signedCount}/3
+                </Badge>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>
+              <p class="text-xs font-bold uppercase">
+                Documents signés (charte, convention, droit à l'image)
+              </p>
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      {/if}
+    </div>
     <Tooltip.Provider delayDuration={300}>
       <Tooltip.Root>
         <Tooltip.Trigger>

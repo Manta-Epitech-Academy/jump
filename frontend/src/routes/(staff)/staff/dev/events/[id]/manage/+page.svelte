@@ -6,23 +6,18 @@
     ArrowLeft,
     Tag,
     Users,
-    FileCheck,
-    CalendarDays,
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { toast } from 'svelte-sonner';
 
   import type { PageData } from './$types';
   import { buttonVariants } from '$lib/components/ui/button';
-  import * as Tabs from '$lib/components/ui/tabs';
   import { resolve } from '$app/paths';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
   import { can } from '$lib/domain/permissions';
 
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
-  import ParticipantManager from './components/ParticipantManager.svelte';
-  import StudentSearchSidebar from './components/StudentSearchSidebar.svelte';
   import SuiviAdmTable from './components/SuiviAdmTable.svelte';
   import CalendarPlanner from '$lib/components/events/planning/CalendarPlanner.svelte';
   import { EVENT_TYPES } from '$lib/domain/event';
@@ -43,11 +38,6 @@
     (data.event.eventType === EVENT_TYPES.STAGE_SECONDE ||
       data.event.titre.toLowerCase().includes('stage')) &&
       featureFlags.has('stage_seconde'),
-  );
-
-  const { enhance: addEnhance, delayed: addDelayed } = superForm(
-    untrack(() => data.addForm),
-    { id: 'add-existing', invalidateAll: true },
   );
 
   const {
@@ -74,13 +64,6 @@
 
   let openEditEvent = $state(false);
   let deleteEventDialogOpen = $state(false);
-  let deleteParticipationDialogOpen = $state(false);
-  let participationToDelete = $state<string | null>(null);
-
-  function confirmDeleteParticipation(id: string) {
-    participationToDelete = id;
-    deleteParticipationDialogOpen = true;
-  }
 
   const optimisticAdminToggle = (id: string, docType: string) => {
     return () => {
@@ -164,7 +147,17 @@
         </div>
       </div>
     </div>
-    <div class="flex gap-2">
+    <div class="flex items-center gap-2">
+      <a
+        href={resolve(`/staff/dev/events/${data.event.id}/inscrits`)}
+        class={buttonVariants({
+          variant: 'outline',
+          class: 'gap-2 rounded-sm',
+        })}
+      >
+        <Users class="h-4 w-4" />
+        Inscrits ({participations.length})
+      </a>
       <EditEventSettingsModal
         bind:open={openEditEvent}
         bind:deleteEventDialogOpen
@@ -178,66 +171,26 @@
     </div>
   </div>
 
-  <Tabs.Root
-    value={isStageDeSeconde ? 'suivi' : 'inscriptions'}
-    class="flex flex-col"
-  >
-    <Tabs.List
-      class="grid w-full max-w-2xl rounded-sm bg-muted/30 {isStageDeSeconde
-        ? 'grid-cols-3'
-        : 'grid-cols-2'}"
-    >
-      {#if isStageDeSeconde}
-        <Tabs.Trigger value="suivi" class="gap-2">
-          <FileCheck class="h-4 w-4" />
-          Suivi ADM
-        </Tabs.Trigger>
-      {/if}
-      <Tabs.Trigger value="inscriptions" class="gap-2">
-        <Users class="h-4 w-4" />
-        Inscrits ({participations.length})
-      </Tabs.Trigger>
-      <Tabs.Trigger value="planning" class="gap-2">
-        <CalendarDays class="h-4 w-4" />
-        Planning
-      </Tabs.Trigger>
-    </Tabs.List>
+  {#if isStageDeSeconde}
+    <SuiviAdmTable
+      {participations}
+      {optimisticAdminToggle}
+      {optimisticPcToggle}
+    />
+  {/if}
 
-    {#if isStageDeSeconde}
-      <Tabs.Content value="suivi" class="pt-6">
-        <SuiviAdmTable
-          {participations}
-          {optimisticAdminToggle}
-          {optimisticPcToggle}
-        />
-      </Tabs.Content>
-    {/if}
-
-    <Tabs.Content value="inscriptions" class="pt-6">
-      <div class="grid gap-6 md:grid-cols-12">
-        <ParticipantManager
-          {participations}
-          onDelete={confirmDeleteParticipation}
-        />
-        <StudentSearchSidebar {participations} {addEnhance} {addDelayed} />
-      </div>
-    </Tabs.Content>
-
-    <Tabs.Content value="planning" class="pt-6">
-      <CalendarPlanner
-        planning={data.planning}
-        templates={data.templates}
-        eventDate={data.event.date}
-        eventEndDate={data.event.endDate}
-        planningTemplates={data.planningTemplates}
-        applyTemplateForm={data.applyTemplateForm}
-        timezone={data.timezone}
-        containerClass="h-[calc(100vh-18rem)] min-h-[600px]"
-        canEdit={can('devLead', data.staffProfile?.staffRole)}
-        eventId={data.event.id}
-      />
-    </Tabs.Content>
-  </Tabs.Root>
+  <CalendarPlanner
+    planning={data.planning}
+    templates={data.templates}
+    eventDate={data.event.date}
+    eventEndDate={data.event.endDate}
+    planningTemplates={data.planningTemplates}
+    applyTemplateForm={data.applyTemplateForm}
+    timezone={data.timezone}
+    containerClass="h-[calc(100vh-14rem)] min-h-[600px]"
+    canEdit={can('devLead', data.staffProfile?.staffRole)}
+    eventId={data.event.id}
+  />
 </div>
 
 <ConfirmDeleteDialog
@@ -247,12 +200,4 @@
   description="Cette action est irréversible. Toutes les données associées à cet événement seront perdues."
   buttonText="Confirmer la suppression"
   onSuccess={() => goto(resolve('/staff/dev'))}
-/>
-
-<ConfirmDeleteDialog
-  bind:open={deleteParticipationDialogOpen}
-  action="?/remove&id={participationToDelete}"
-  title="Retirer le Talent ?"
-  description="Voulez-vous retirer ce Talent de l'événement ?"
-  buttonText="Retirer"
 />
