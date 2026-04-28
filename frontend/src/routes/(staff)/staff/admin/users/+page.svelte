@@ -93,10 +93,9 @@
         toast.error(error.message ?? 'Impersonation refusée.');
         return;
       }
-      window.open(resolve(target as any), '_blank');
-      // Current admin tab now shares the impersonated session cookie. Reload
-      // so the banner appears and guards re-evaluate against the new role.
-      window.location.reload();
+      // Full-page navigation (not goto) so the new session cookie is read
+      // fresh on the next request and route guards re-evaluate.
+      window.location.href = resolve(target as any);
     } catch (err) {
       console.error(err);
       toast.error("Erreur lors de l'impersonation.");
