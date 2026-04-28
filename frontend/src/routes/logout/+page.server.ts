@@ -27,7 +27,7 @@ export const actions: Actions = {
     cookies.delete('better-auth.session_data', { path: '/' });
 
     if (type === 'admin') {
-      throw redirect(303, resolve('/staff/admin/login'));
+      throw redirect(303, resolve('/staff/login'));
     } else if (type === 'student') {
       throw redirect(303, resolve('/login'));
     } else if (type === 'parent') {

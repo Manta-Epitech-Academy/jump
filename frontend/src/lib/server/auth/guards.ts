@@ -64,7 +64,6 @@ export async function applyRouteGuards(
   const pathStaffLogin = p('/staff/login');
   const pathStaffOAuth = p('/staff/oauth');
   const pathStaffAdmin = p('/staff/admin');
-  const pathStaffAdminLogin = p('/staff/admin/login');
   const pathTalentLogin = p('/login');
   const pathTalentRoot = p('/');
   const pathTalentCharter = p('/charter');
@@ -154,9 +153,7 @@ export async function applyRouteGuards(
   // --- Staff Guards ---
   if (isStaffRoute) {
     const isStaffPublic =
-      currentPath === pathStaffLogin ||
-      currentPath.startsWith(pathStaffOAuth) ||
-      currentPath.startsWith(pathStaffAdminLogin);
+      currentPath === pathStaffLogin || currentPath.startsWith(pathStaffOAuth);
 
     if (!isStaffPublic && !event.locals.user) {
       return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
@@ -175,14 +172,8 @@ export async function applyRouteGuards(
 
     // Admin sub-guard
     if (isAdminPath) {
-      if (
-        !currentPath.startsWith(pathStaffAdminLogin) &&
-        event.locals.staffProfile?.staffRole !== 'admin'
-      ) {
-        return Response.redirect(
-          new URL(pathStaffAdminLogin, event.url).href,
-          303,
-        );
+      if (event.locals.staffProfile?.staffRole !== 'admin') {
+        return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
       }
     }
 

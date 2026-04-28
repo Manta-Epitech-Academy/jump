@@ -6,7 +6,7 @@ export const load: LayoutServerLoad = async ({ parent }) => {
   const { user, staffProfile } = await parent();
 
   if (!user || staffProfile?.staffRole !== 'admin') {
-    throw redirect(302, resolve('/staff/admin/login'));
+    throw redirect(302, resolve('/staff/login'));
   }
 
   return { user, staffProfile };
