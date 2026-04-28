@@ -3,21 +3,26 @@
   import type { Component } from 'svelte';
   import { cn } from '$lib/utils';
 
+  type BaseProps = {
+    icon: Component;
+    title: string;
+    description?: string;
+    count?: number;
+    severity?: 'info' | 'warning' | 'danger';
+  };
+
+  type Props = BaseProps &
+    ({ href: string; onclick?: never } | { href?: never; onclick: () => void });
+
   let {
     icon,
     title,
     description,
     count,
     href,
+    onclick,
     severity = 'info',
-  }: {
-    icon: Component;
-    title: string;
-    description?: string;
-    count?: number;
-    href: string;
-    severity?: 'info' | 'warning' | 'danger';
-  } = $props();
+  }: Props = $props();
 
   const accentColor = $derived(
     severity === 'danger'
@@ -36,15 +41,16 @@
   );
 
   const Icon = $derived(icon);
+
+  const containerClass = $derived(
+    cn(
+      'group flex w-full items-center gap-4 rounded-sm border-y border-r border-l-4 border-y-border border-r-border bg-card p-5 text-left shadow-sm transition-all hover:bg-muted/20 hover:shadow-md',
+      accentColor,
+    ),
+  );
 </script>
 
-<a
-  {href}
-  class={cn(
-    'group flex items-center gap-4 rounded-sm border-y border-r border-l-4 border-y-border border-r-border bg-card p-5 shadow-sm transition-all hover:bg-muted/20 hover:shadow-md',
-    accentColor,
-  )}
->
+{#snippet body()}
   <div class="shrink-0 rounded-full bg-muted/50 p-2.5">
     <Icon class={cn('h-5 w-5', iconColor)} />
   </div>
@@ -71,4 +77,14 @@
   <ArrowRight
     class="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100"
   />
-</a>
+{/snippet}
+
+{#if onclick}
+  <button type="button" {onclick} class={containerClass}>
+    {@render body()}
+  </button>
+{:else if href}
+  <a {href} class={containerClass}>
+    {@render body()}
+  </a>
+{/if}

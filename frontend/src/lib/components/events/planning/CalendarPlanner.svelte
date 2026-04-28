@@ -11,6 +11,7 @@
     Search,
     GripVertical,
     Clock,
+    AlertTriangle,
   } from '@lucide/svelte';
   import ApplyPlanningTemplateDialog from './ApplyPlanningTemplateDialog.svelte';
   import EditActivityDialog from './EditActivityDialog.svelte';
@@ -265,10 +266,13 @@
         }
       }
 
+      const unassignedCount = daySlots.filter((s) => !s.activity).length;
+
       return {
         date: d,
         dateKey: key,
         slots: enrichedSlots,
+        unassignedCount,
         isToday: getDateKey(currentTime) === key,
       };
     });
@@ -1090,6 +1094,14 @@
             >
               {day.date.getDate()}
             </div>
+            {#if canEdit && day.unassignedCount > 0}
+              <div
+                class="mx-auto mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-amber-700 uppercase dark:border-amber-400/40 dark:bg-amber-950/40 dark:text-amber-400"
+              >
+                <AlertTriangle class="h-2.5 w-2.5" />
+                {day.unassignedCount} à assigner
+              </div>
+            {/if}
           </div>
         {/each}
       </div>
@@ -1210,7 +1222,7 @@
                             styles.bg,
                             styles.border,
                           ]
-                        : 'border-2 border-dashed border-muted-foreground/40 bg-muted/30',
+                        : 'border-2 border-dashed border-amber-500 bg-amber-50/70 dark:border-amber-400/70 dark:bg-amber-950/30',
                       activity && 'border-y-border border-r-border',
                       isStub && 'ring-2 ring-epi-blue/40',
                       isPreviewOpen && 'z-30 ring-2 ring-epi-blue/50',
@@ -1279,10 +1291,16 @@
                           {incoming?.nom ?? 'Assigner ici'}
                         </span>
                       {:else}
+                        {@const slotMinutes = Math.round(
+                          (new Date(slot.endTime).getTime() -
+                            new Date(slot.startTime).getTime()) /
+                            60000,
+                        )}
                         <span
-                          class="text-[11px] leading-tight font-medium text-muted-foreground italic"
+                          class="flex items-center gap-1 text-[11px] leading-tight font-bold tracking-wide text-amber-700 uppercase dark:text-amber-400"
                         >
-                          À assigner
+                          <AlertTriangle class="h-3 w-3 shrink-0" />
+                          À assigner · {formatDuration(slotMinutes)}
                         </span>
                       {/if}
 

@@ -113,6 +113,25 @@ export const load: PageServerLoad = async ({ locals }) => {
     },
   });
 
+  // Task derivations need today's ongoing events too (active stage may have
+  // started). upcomingEvents excludes them by design (gt endOfDay) so it
+  // serves the "À venir" tab only.
+  const eventsInWeek = await db.event.findMany({
+    where: { date: { gte: startOfDay, lte: endOfWeek } },
+    include: {
+      mantas: { select: { staffProfileId: true } },
+      planning: {
+        include: {
+          _count: { select: { timeSlots: true } },
+          timeSlots: {
+            where: { activity: { is: null } },
+            select: { id: true },
+          },
+        },
+      },
+    },
+  });
+
   const pastEvents = await db.event.findMany({
     where: {
       date: { lt: startOfDay },
@@ -135,13 +154,29 @@ export const load: PageServerLoad = async ({ locals }) => {
     orderBy: { user: { name: 'asc' } },
   });
 
-  const eventsWithinWeek = upcomingEvents.filter((ev) => ev.date <= endOfWeek);
-  const eventsMissingMantas = eventsWithinWeek
+  const eventsMissingMantas = eventsInWeek
     .filter((ev) => ev.mantas.length === 0)
     .map((ev) => ({ id: ev.id, titre: ev.titre, date: ev.date }));
-  const eventsMissingPlanning = eventsWithinWeek
+  const eventsMissingPlanning = eventsInWeek
     .filter((ev) => !ev.planning || ev.planning._count.timeSlots === 0)
     .map((ev) => ({ id: ev.id, titre: ev.titre, date: ev.date }));
+  // Events that have a planning with at least one unassigned slot. Excluded
+  // from this list are events with zero slots (they fall under
+  // eventsMissingPlanning) — assigning slots is a different task than
+  // creating them.
+  const eventsWithUnassignedSlots = eventsInWeek
+    .filter(
+      (ev) =>
+        ev.planning &&
+        ev.planning._count.timeSlots > 0 &&
+        ev.planning.timeSlots.length > 0,
+    )
+    .map((ev) => ({
+      id: ev.id,
+      titre: ev.titre,
+      date: ev.date,
+      unassignedCount: ev.planning!.timeSlots.length,
+    }));
 
   return {
     role,
@@ -154,6 +189,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     tasks: {
       eventsMissingMantas,
       eventsMissingPlanning,
+      eventsWithUnassignedSlots,
     },
   };
 };
