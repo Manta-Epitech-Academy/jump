@@ -11,7 +11,7 @@
     onOpenEdit,
   }: {
     student: any;
-    stats: { presentCount: number; lateCount: number };
+    stats: { totalEvents: number; presentCount: number; lateCount: number };
     xpProgress: number;
     onOpenEdit: () => void;
   } = $props();
@@ -24,6 +24,7 @@
   {stats}
   {xpProgress}
   accent="blue"
+  hideName
   afterIdentity={contact}
   footer={editButton}
 />
