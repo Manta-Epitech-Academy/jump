@@ -84,6 +84,8 @@
   });
 
   const PIXELS_PER_MINUTE = 2;
+  const WORK_START_HOUR = 9;
+  const WORK_END_HOUR = 17;
 
   onMount(() => {
     const interval = setInterval(() => {
@@ -1129,6 +1131,26 @@
               ondragleave={handleDayDragLeave}
               ondrop={(e) => handleDayDrop(e, day.dateKey)}
             >
+              <!-- Non-working hours overlay (outside 9h–17h) -->
+              {#if range.start < WORK_START_HOUR}
+                <div
+                  class="pointer-events-none absolute right-0 left-0 bg-muted/40 dark:bg-muted/20"
+                  style="top: 0; height: {(WORK_START_HOUR - range.start) *
+                    60 *
+                    PIXELS_PER_MINUTE}px"
+                ></div>
+              {/if}
+              {#if range.end > WORK_END_HOUR}
+                <div
+                  class="pointer-events-none absolute right-0 left-0 bg-muted/40 dark:bg-muted/20"
+                  style="top: {(WORK_END_HOUR - range.start) *
+                    60 *
+                    PIXELS_PER_MINUTE}px; height: {(range.end - WORK_END_HOUR) *
+                    60 *
+                    PIXELS_PER_MINUTE}px"
+                ></div>
+              {/if}
+
               <!-- Hour gridlines -->
               {#each Array(totalHours + 1) as _, i}
                 <div
