@@ -2,6 +2,7 @@ import { error, type RequestEvent } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
 import type { StaffRole } from '@prisma/client';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
+import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
 import type { FlagKey } from '$lib/domain/featureFlags';
 
@@ -49,7 +50,9 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
   },
 ];
 
-export function applyRouteGuards(event: RequestEvent): Response | null {
+export async function applyRouteGuards(
+  event: RequestEvent,
+): Promise<Response | null> {
   const currentPath = event.url.pathname;
   const routeId = event.route.id || '';
 
@@ -75,6 +78,7 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
 
   const pathParentLogin = p('/parent/login');
   const pathParentRoot = p('/parent');
+  const pathParentSignature = p('/parent/signature');
 
   const isTalentRoute = routeId.startsWith('/(talent)');
   const isStaffRoute = routeId.startsWith('/(staff)');
@@ -237,6 +241,42 @@ export function applyRouteGuards(event: RequestEvent): Response | null {
       currentPath === pathParentLogin
     ) {
       return Response.redirect(new URL(pathParentRoot, event.url).href, 303);
+    }
+
+    // Image rights guard: block dashboard until all children have signed
+    if (
+      event.locals.user?.role === 'parent' &&
+      !isParentPublic &&
+      currentPath !== pathParentSignature
+    ) {
+      const unsignedCount = await prisma.talent.count({
+        where: {
+          parentEmail: event.locals.user.email,
+          imageRightsSignedAt: null,
+        },
+      });
+      if (unsignedCount > 0) {
+        return Response.redirect(
+          new URL(pathParentSignature, event.url).href,
+          303,
+        );
+      }
+    }
+
+    // Already signed all: prevent going back to signature page
+    if (
+      event.locals.user?.role === 'parent' &&
+      currentPath === pathParentSignature
+    ) {
+      const unsignedCount = await prisma.talent.count({
+        where: {
+          parentEmail: event.locals.user.email,
+          imageRightsSignedAt: null,
+        },
+      });
+      if (unsignedCount === 0) {
+        return Response.redirect(new URL(pathParentRoot, event.url).href, 303);
+      }
     }
   }
 

@@ -7,7 +7,7 @@
     ChevronRight,
     FileCheck,
     FilePen,
-    LogOut,
+    Settings,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
@@ -17,35 +17,28 @@
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
   <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
-    <div class="flex items-center gap-2">
-      <div
-        class="flex h-16 w-16 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
-      >
-        <Users class="h-8 w-8" />
-      </div>
+    <div class="flex items-center gap-4">
       <div class="flex-1">
         <h1
-          class="font-heading text-4xl tracking-tight text-slate-900 uppercase dark:text-white"
+          class="font-heading text-3xl tracking-tight text-slate-900 uppercase sm:text-4xl dark:text-white"
         >
           Bonjour, <span class="text-epi-blue"
-            >{data.parentName ? data.parentName.split(' ')[0] : ''}</span
-          > !
+            >M./Mme {data.parentLastName}</span
+          ><span class="text-epi-teal">_</span>
         </h1>
-        <p class="font-bold text-slate-500 uppercase">
-          Suivez la progression de vos enfants.
+        <p
+          class="mt-1 text-base font-semibold text-slate-600 dark:text-slate-300"
+        >
+          Espace de suivi parental
         </p>
       </div>
-      <form action="{resolve('/logout')}?type=parent" method="POST">
-        <Button
-          type="submit"
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8 text-slate-400 hover:text-destructive"
-        >
-          <LogOut class="h-4 w-4" />
-          <span class="sr-only">Déconnexion</span>
-        </Button>
-      </form>
+      <a
+        href={resolve('/parent/settings')}
+        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+      >
+        <Settings class="h-4 w-4" />
+        <span class="sr-only">Paramètres</span>
+      </a>
     </div>
   </header>
 
@@ -98,7 +91,7 @@
                     <span
                       >{child.eventsCount} événement{child.eventsCount !== 1
                         ? 's'
-                        : ''} suivi{child.eventsCount !== 1 ? 's' : ''}</span
+                        : ''} au programme</span
                     >
                   </div>
 
@@ -107,7 +100,7 @@
                       class="rounded-xl border border-blue-100 bg-blue-50/50 px-4 py-3 dark:border-blue-900/20 dark:bg-blue-950/20"
                     >
                       <p class="text-[10px] font-bold text-epi-blue uppercase">
-                        Prochain événement
+                        Prochain rendez-vous
                       </p>
                       <p
                         class="mt-0.5 text-sm font-bold text-slate-900 dark:text-white"
@@ -115,19 +108,18 @@
                         {child.upcomingEvent.titre}
                       </p>
                       <p class="text-xs text-slate-500">
-                        {new Date(child.upcomingEvent.date).toLocaleDateString(
-                          'fr-FR',
-                          {
-                            weekday: 'long',
-                            day: 'numeric',
-                            month: 'long',
-                          },
-                        )}
+                        Le {new Date(
+                          child.upcomingEvent.date,
+                        ).toLocaleDateString('fr-FR', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                        })}
                       </p>
                     </div>
                   {:else}
-                    <p class="text-xs font-bold text-slate-400 uppercase">
-                      Aucun événement prévu
+                    <p class="text-xs font-bold text-slate-400">
+                      Pas d'événement prévu pour le moment
                     </p>
                   {/if}
                 </div>

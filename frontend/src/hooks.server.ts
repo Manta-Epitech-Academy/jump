@@ -80,7 +80,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
 
   // 3. Route guards
-  const guardResponse = applyRouteGuards(event);
+  const guardResponse = await applyRouteGuards(event);
   if (guardResponse) {
     setSecurityHeaders(guardResponse);
     return guardResponse;

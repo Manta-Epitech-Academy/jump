@@ -30,6 +30,8 @@ export const actions: Actions = {
       throw redirect(303, resolve('/staff/admin/login'));
     } else if (type === 'student') {
       throw redirect(303, resolve('/login'));
+    } else if (type === 'parent') {
+      throw redirect(303, resolve('/parent/login'));
     } else {
       throw redirect(303, resolve('/staff/login'));
     }

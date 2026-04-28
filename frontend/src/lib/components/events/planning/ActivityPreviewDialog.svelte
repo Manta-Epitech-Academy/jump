@@ -2,7 +2,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { marked } from 'marked';
+  import { renderMarkdown } from '$lib/markdown';
   import {
     Pencil,
     Trash2,
@@ -65,7 +65,7 @@
 
   let staticHtml = $derived(
     activity && !activity.isDynamic && activity.content
-      ? (marked.parse(activity.content) as string)
+      ? renderMarkdown(activity.content)
       : '',
   );
 
@@ -187,7 +187,7 @@
           {/if}
         {:else if staticHtml}
           <div
-            class="markdown-content prose prose-slate dark:prose-invert max-w-none text-sm leading-relaxed"
+            class="prose max-w-none text-sm leading-relaxed prose-slate dark:prose-invert"
           >
             {@html staticHtml}
           </div>

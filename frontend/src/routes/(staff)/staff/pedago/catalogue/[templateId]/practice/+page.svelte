@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { marked } from 'marked';
+  import { renderMarkdown } from '$lib/markdown';
   import { fade, fly } from 'svelte/transition';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
@@ -47,12 +47,10 @@
   let isCompleted = $derived(isDynamic && unlockedIndex >= steps.length);
 
   let parsedHtml = $derived(
-    currentStep ? (marked.parse(currentStep.content_markdown) as string) : '',
+    currentStep ? renderMarkdown(currentStep.content_markdown) : '',
   );
   let staticHtml = $derived(
-    !isDynamic && template.content
-      ? (marked.parse(template.content) as string)
-      : '',
+    !isDynamic && template.content ? renderMarkdown(template.content) : '',
   );
 
   $effect(() => {
@@ -125,7 +123,7 @@
 
         {#if staticHtml}
           <div
-            class="markdown-content prose prose-slate dark:prose-invert max-w-none text-base leading-relaxed"
+            class="prose max-w-none text-base leading-relaxed prose-slate dark:prose-invert"
           >
             {@html staticHtml}
           </div>
@@ -303,7 +301,7 @@
               </h2>
 
               <div
-                class="markdown-content prose prose-slate dark:prose-invert max-w-none text-base leading-relaxed"
+                class="prose max-w-none text-base leading-relaxed prose-slate dark:prose-invert"
               >
                 {@html parsedHtml}
               </div>
