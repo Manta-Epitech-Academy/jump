@@ -18,6 +18,7 @@
     PhoneCall,
     AlarmClock,
     Inbox,
+    AlertTriangle,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -44,44 +45,24 @@
 
   const taskRows = $derived(
     [
-      data.tasks.eventsMissingMantas.length > 0
-        ? {
-            key: 'mantas',
-            icon: UserPlus,
-            title: 'Événements sans Mantas',
-            description:
-              data.tasks.eventsMissingMantas.length === 1
-                ? `${data.tasks.eventsMissingMantas[0].titre} dans ≤ 7 jours`
-                : `${data.tasks.eventsMissingMantas.length} événements dans ≤ 7 jours attendent un staffing`,
-            count: data.tasks.eventsMissingMantas.length,
-            href:
-              data.tasks.eventsMissingMantas.length === 1
-                ? resolve(
-                    `/staff/dev/events/${data.tasks.eventsMissingMantas[0].id}/manage`,
-                  )
-                : resolve('/staff/dev/events/history'),
-            severity: 'warning' as const,
-          }
-        : null,
-      data.tasks.eventsMissingPlanning.length > 0
-        ? {
-            key: 'planning',
-            icon: CalendarClock,
-            title: 'Planning à construire',
-            description:
-              data.tasks.eventsMissingPlanning.length === 1
-                ? `${data.tasks.eventsMissingPlanning[0].titre} — aucun créneau pour l'instant`
-                : `${data.tasks.eventsMissingPlanning.length} événements dans ≤ 7 jours sans planning`,
-            count: data.tasks.eventsMissingPlanning.length,
-            href:
-              data.tasks.eventsMissingPlanning.length === 1
-                ? resolve(
-                    `/staff/dev/events/${data.tasks.eventsMissingPlanning[0].id}/manage`,
-                  )
-                : resolve('/staff/dev/events/history'),
-            severity: 'warning' as const,
-          }
-        : null,
+      ...data.tasks.eventsMissingMantas.map((ev) => ({
+        key: `missing-mantas-${ev.id}`,
+        icon: UserPlus,
+        title: 'Événement sans Mantas',
+        description: `${ev.titre} — aucun manta assigné`,
+        count: undefined as number | undefined,
+        href: resolve(`/staff/dev/events/${ev.id}/manage`),
+        severity: 'warning' as const,
+      })),
+      ...data.tasks.eventsMissingPlanning.map((ev) => ({
+        key: `missing-planning-${ev.id}`,
+        icon: CalendarClock,
+        title: 'Planning à construire',
+        description: `${ev.titre} — aucun créneau`,
+        count: undefined as number | undefined,
+        href: resolve(`/staff/dev/events/${ev.id}/planning`),
+        severity: 'warning' as const,
+      })),
       data.tasks.interviewsToday > 0 && interviewsHref
         ? {
             key: 'interviews-today',
@@ -105,6 +86,15 @@
             severity: 'danger' as const,
           }
         : null,
+      ...data.tasks.eventsWithUnassignedSlots.map((ev) => ({
+        key: `unassigned-${ev.id}`,
+        icon: AlertTriangle,
+        title: 'Créneaux à assigner',
+        description: `${ev.titre} — créneaux sans activité`,
+        count: ev.unassignedCount as number | undefined,
+        href: resolve(`/staff/dev/events/${ev.id}/planning`),
+        severity: 'warning' as const,
+      })),
     ].filter((row): row is NonNullable<typeof row> => row !== null),
   );
 

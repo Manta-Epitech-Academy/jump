@@ -13,6 +13,8 @@
     MessageSquare,
     BookOpen,
     UserCog,
+    ClipboardCheck,
+    CalendarDays,
   } from '@lucide/svelte';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
@@ -107,6 +109,13 @@
         <span>Dashboard</span>
       </a>
       <a
+        href={resolve('/staff/dev/students')}
+        class={navLinkClass(isActive('/staff/dev/students'))}
+      >
+        <Users class="h-5 w-5" />
+        <span>Talents</span>
+      </a>
+      <a
         href={resolve('/staff/dev/events/history')}
         class={navLinkClass(isActive('/staff/dev/events/history'))}
       >
@@ -116,20 +125,38 @@
     </nav>
   {/if}
 
-  <div class="sidebar-section-title">
-    Suivi<span class="text-epi-teal">_</span>
-  </div>
-  <nav class="space-y-1">
-    {#if hasCodingClub}
+  {#if data.activeStage}
+    <div class="sidebar-section-title">
+      Stage de Seconde<span class="text-epi-teal">_</span>
+    </div>
+    <nav class="space-y-1">
       <a
-        href={resolve('/staff/dev/students')}
-        class={navLinkClass(isActive('/staff/dev/students'))}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/manage`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/manage`),
+        )}
+      >
+        <LayoutDashboard class="h-5 w-5" />
+        <span>Vue d'ensemble</span>
+      </a>
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
+        )}
       >
         <Users class="h-5 w-5" />
-        <span>Talents</span>
+        <span>Inscrits</span>
       </a>
-    {/if}
-    {#if data.activeStage}
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+        )}
+      >
+        <CalendarDays class="h-5 w-5" />
+        <span>Planning</span>
+      </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
         class={navLinkClass(
@@ -140,20 +167,16 @@
         <span>Entretiens</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/manage`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/suivi-adm`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/manage`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/suivi-adm`),
         )}
       >
-        <LayoutDashboard class="h-5 w-5" />
-        <span
-          >{data.activeStage.status === 'upcoming'
-            ? 'Prochain stage'
-            : 'Stage en cours'}</span
-        >
+        <ClipboardCheck class="h-5 w-5" />
+        <span>Suivi ADM</span>
       </a>
-    {/if}
-  </nav>
+    </nav>
+  {/if}
 
   {#if hasCodingClub}
     <div class="sidebar-section-title">

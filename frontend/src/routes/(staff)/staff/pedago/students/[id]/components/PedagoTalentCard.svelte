@@ -11,7 +11,7 @@
     sortedThemes,
   }: {
     student: any;
-    stats: { presentCount: number; lateCount: number };
+    stats: { totalEvents: number; presentCount: number; lateCount: number };
     xpProgress: number;
     sortedThemes: [string, number][];
   } = $props();

@@ -8,9 +8,11 @@
   let {
     participations,
     onDelete,
+    showCompliance = false,
   }: {
     participations: ParticipationWithDetails[];
     onDelete: (id: string) => void;
+    showCompliance?: boolean;
   } = $props();
 </script>
 
@@ -27,7 +29,11 @@
   <div class="p-5">
     <div class="space-y-2">
       {#each participations as p (p.id)}
-        <StudentParticipationRow participation={p} {onDelete} />
+        <StudentParticipationRow
+          participation={p}
+          {onDelete}
+          {showCompliance}
+        />
       {:else}
         <div
           class="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border rounded-sm bg-muted/10"

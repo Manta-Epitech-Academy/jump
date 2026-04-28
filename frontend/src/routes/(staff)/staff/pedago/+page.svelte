@@ -23,6 +23,7 @@
     Zap,
     ArrowRight,
     Ellipsis,
+    AlertTriangle,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
@@ -79,44 +80,62 @@
     assignDialogOpen = true;
   }
 
-  const taskRows = $derived(
+  type TaskRow = {
+    key: string;
+    icon: typeof UserPlus;
+    title: string;
+    description: string;
+    count: number | undefined;
+    severity: 'info' | 'warning' | 'danger';
+    href?: string;
+    onclick?: () => void;
+  };
+
+  const taskRows = $derived<TaskRow[]>(
     data.role === 'manta'
       ? []
       : [
-          data.tasks && data.tasks.eventsMissingMantas.length > 0
-            ? {
-                key: 'missing-mantas',
-                icon: UserPlus,
-                title: 'Événements sans Mantas',
-                description:
-                  data.tasks.eventsMissingMantas.length === 1
-                    ? `${data.tasks.eventsMissingMantas[0].titre} dans ≤ 7 jours`
-                    : `${data.tasks.eventsMissingMantas.length} événements dans ≤ 7 jours attendent un staffing`,
-                count: data.tasks.eventsMissingMantas.length,
-                href: '#upcoming',
-                severity: 'warning' as const,
-              }
-            : null,
-          data.tasks && data.tasks.eventsMissingPlanning.length > 0
-            ? {
-                key: 'missing-planning',
-                icon: CalendarClock,
-                title: 'Planning à construire',
-                description:
-                  data.tasks.eventsMissingPlanning.length === 1
-                    ? `${data.tasks.eventsMissingPlanning[0].titre} — aucun créneau`
-                    : `${data.tasks.eventsMissingPlanning.length} événements dans ≤ 7 jours sans planning`,
-                count: data.tasks.eventsMissingPlanning.length,
-                href:
-                  data.tasks.eventsMissingPlanning.length === 1
-                    ? resolve(
-                        `/staff/pedago/events/${data.tasks.eventsMissingPlanning[0].id}/planning`,
-                      )
-                    : '#upcoming',
-                severity: 'warning' as const,
-              }
-            : null,
-        ].filter((r): r is NonNullable<typeof r> => r !== null),
+          ...(data.tasks?.eventsMissingMantas ?? []).map(
+            (ev): TaskRow => ({
+              key: `missing-mantas-${ev.id}`,
+              icon: UserPlus,
+              title: 'Événement sans Mantas',
+              description: `${ev.titre} — aucun manta assigné`,
+              count: undefined,
+              severity: 'warning',
+              onclick: () => {
+                assignDialogEvent = {
+                  id: ev.id,
+                  titre: ev.titre,
+                  mantaIds: [],
+                };
+                assignDialogOpen = true;
+              },
+            }),
+          ),
+          ...(data.tasks?.eventsMissingPlanning ?? []).map(
+            (ev): TaskRow => ({
+              key: `missing-planning-${ev.id}`,
+              icon: CalendarClock,
+              title: 'Planning à construire',
+              description: `${ev.titre} — aucun créneau`,
+              count: undefined,
+              severity: 'warning',
+              href: resolve(`/staff/pedago/events/${ev.id}/planning`),
+            }),
+          ),
+          ...(data.tasks?.eventsWithUnassignedSlots ?? []).map(
+            (ev): TaskRow => ({
+              key: `unassigned-${ev.id}`,
+              icon: AlertTriangle,
+              title: 'Créneaux à assigner',
+              description: `${ev.titre} — créneaux sans activité`,
+              count: ev.unassignedCount,
+              severity: 'warning',
+              href: resolve(`/staff/pedago/events/${ev.id}/planning`),
+            }),
+          ),
+        ],
   );
 </script>
 
@@ -498,27 +517,16 @@
         </div>
         <div class="grid gap-3 md:grid-cols-2">
           {#each taskRows as row (row.key)}
-            {#if row.key === 'missing-mantas' && data.tasks.eventsMissingMantas.length === 1}
-              <button
-                type="button"
-                class="w-full text-left"
-                onclick={() => {
-                  const ev = data.upcomingEvents.find(
-                    (e) => e.id === data.tasks.eventsMissingMantas[0].id,
-                  );
-                  if (ev) openAssignDialog(ev);
-                }}
-              >
-                <TaskQueueItem
-                  icon={row.icon}
-                  title={row.title}
-                  description={row.description}
-                  count={row.count}
-                  href="#upcoming"
-                  severity={row.severity}
-                />
-              </button>
-            {:else}
+            {#if row.onclick}
+              <TaskQueueItem
+                icon={row.icon}
+                title={row.title}
+                description={row.description}
+                count={row.count}
+                onclick={row.onclick}
+                severity={row.severity}
+              />
+            {:else if row.href}
               <TaskQueueItem
                 icon={row.icon}
                 title={row.title}

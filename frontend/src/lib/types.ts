@@ -1,9 +1,10 @@
 import type { Prisma } from '@prisma/client';
 
-/** Participation with its student profile. */
+/** Participation with its student profile and stage compliance status. */
 export type ParticipationWithDetails = Prisma.ParticipationGetPayload<{
   include: {
     talent: true;
+    stageCompliance: true;
   };
 }>;
 

@@ -45,6 +45,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
       tasks: {
         eventsMissingMantas: [],
         eventsMissingPlanning: [],
+        eventsWithUnassignedSlots: [],
         interviewsToday: 0,
         overdueInterviews: 0,
       },
@@ -97,7 +98,15 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
       where: { date: { gte: startOfDay, lte: endOfWeek } },
       include: {
         mantas: { select: { staffProfileId: true } },
-        planning: { include: { _count: { select: { timeSlots: true } } } },
+        planning: {
+          include: {
+            _count: { select: { timeSlots: true } },
+            timeSlots: {
+              where: { activity: { is: null } },
+              select: { id: true },
+            },
+          },
+        },
       },
     });
 
@@ -106,6 +115,12 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     );
     const eventsMissingPlanning = eventsInWeek.filter(
       (ev) => !ev.planning || ev.planning._count.timeSlots === 0,
+    );
+    const eventsWithUnassignedSlots = eventsInWeek.filter(
+      (ev) =>
+        ev.planning &&
+        ev.planning._count.timeSlots > 0 &&
+        ev.planning.timeSlots.length > 0,
     );
 
     const stageInterviewWhere = activeStage
@@ -204,6 +219,12 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
           id: ev.id,
           titre: ev.titre,
           date: ev.date,
+        })),
+        eventsWithUnassignedSlots: eventsWithUnassignedSlots.map((ev) => ({
+          id: ev.id,
+          titre: ev.titre,
+          date: ev.date,
+          unassignedCount: ev.planning!.timeSlots.length,
         })),
         interviewsToday,
         overdueInterviews,

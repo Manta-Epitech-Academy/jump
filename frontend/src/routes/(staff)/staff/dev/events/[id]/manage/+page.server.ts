@@ -1,21 +1,10 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
-import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { addParticipantSchema, eventSchema } from '$lib/validation/events';
-import {
-  timeSlotSchema,
-  createSlotWithActivitySchema,
-  renameActivitySchema,
-  changeActivityTypeSchema,
-} from '$lib/validation/planning';
-import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
-import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
+import { eventSchema } from '$lib/validation/events';
 import { EventService } from '$lib/server/services/events';
-import { planningActions } from '$lib/server/services/planningActions';
-import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
@@ -41,8 +30,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const participations = await db.participation.findMany({
     where: { eventId: event.id },
-    include: { talent: true, stageCompliance: true },
-    orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    include: { stageCompliance: true },
+    orderBy: [{ talent: { nom: 'asc' } }],
+  });
+
+  const interviewsCompleted = await db.interview.count({
+    where: { participation: { eventId: event.id }, status: 'completed' },
   });
 
   const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
@@ -77,28 +70,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     endDateString = ed.toISOString().split('T')[0];
   }
 
-  const planning = await db.planning.findUniqueOrThrow({
-    where: { eventId: params.id },
-    include: {
-      timeSlots: {
-        orderBy: { startTime: 'asc' },
-        include: { activity: true },
-      },
-    },
-  });
+  const total = participations.length;
+  const stats = {
+    total,
+    bringPc: participations.filter((p) => p.bringPc).length,
+    chartes: participations.filter((p) => p.stageCompliance?.charteSigned)
+      .length,
+    conventions: participations.filter(
+      (p) => p.stageCompliance?.conventionSigned,
+    ).length,
+    droitsImage: participations.filter(
+      (p) => p.stageCompliance?.imageRightsSigned,
+    ).length,
+    interviewsCompleted,
+  };
 
-  const templates = await prisma.activityTemplate.findMany({
-    where: { OR: [{ campusId: null }, { campusId: getCampusId(locals) }] },
-    include: { activityTemplateThemes: { include: { theme: true } } },
-    orderBy: { nom: 'asc' },
-  });
-
-  const planningTemplates = await prisma.planningTemplate.findMany({
-    orderBy: { nom: 'asc' },
-    include: { _count: { select: { days: true } } },
-  });
-
-  // FORMS
   const staffIds = new Set(staff.map((s) => s.id));
   const editForm = await superValidate(
     {
@@ -115,72 +101,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     zod4(eventSchema),
   );
 
-  const addForm = await superValidate(zod4(addParticipantSchema));
-  const tsForm = await superValidate(zod4(timeSlotSchema));
-  const createSlotForm = await superValidate(
-    zod4(createSlotWithActivitySchema),
-  );
-  const renameActivityForm = await superValidate(zod4(renameActivitySchema));
-  const changeTypeForm = await superValidate(zod4(changeActivityTypeSchema));
-  const applyTemplateForm = await superValidate(
-    zod4(applyPlanningTemplateSchema),
-  );
-
   return {
     event,
-    participations,
+    stats,
     themes,
     staff,
-    planning,
-    templates,
-    planningTemplates,
     editForm,
-    addForm,
-    tsForm,
-    createSlotForm,
-    renameActivityForm,
-    changeTypeForm,
-    applyTemplateForm,
     timezone: tz,
   };
 };
 
 export const actions: Actions = {
-  // === EVENT & CRM ACTIONS ===
-  addExisting: async ({ request, locals, params }) => {
-    requireStaffGroup(locals, 'devMember');
-    const form = await superValidate(request, zod4(addParticipantSchema));
-    if (!form.valid) return fail(400, { form });
-    try {
-      const existing = await prisma.participation.findUnique({
-        where: {
-          talentId_eventId: {
-            talentId: form.data.studentId,
-            eventId: params.id,
-          },
-        },
-      });
-      if (existing)
-        return message(form, 'Ce Talent est déjà inscrit à cet événement.', {
-          status: 400,
-        });
-      const campusId = getCampusId(locals);
-      await prisma.participation.create({
-        data: {
-          talentId: form.data.studentId,
-          eventId: params.id,
-          campusId,
-          isPresent: false,
-        },
-      });
-      return message(form, 'Talent ajouté !');
-    } catch (err) {
-      return message(form, "Erreur technique lors de l'ajout.", {
-        status: 500,
-      });
-    }
-  },
-
   updateEvent: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
@@ -223,87 +154,13 @@ export const actions: Actions = {
     return message(form, 'Événement mis à jour !');
   },
 
-  toggleAdminDoc: async ({ request, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const data = await request.formData();
-    const id = data.get('id') as string;
-    const docType = data.get('docType') as string;
-    const currentState = data.get('state') === 'true';
-    const newState = !currentState;
-    const db = scopedPrisma(getCampusId(locals));
-
-    try {
-      await db.participation.findUniqueOrThrow({
-        where: { id },
-        select: { id: true },
-      });
-
-      const updateData: { [key: string]: boolean } = {};
-      if (docType === 'charte') updateData.charteSigned = newState;
-      if (docType === 'convention') updateData.conventionSigned = newState;
-      if (docType === 'image') updateData.imageRightsSigned = newState;
-
-      await prisma.stageCompliance.upsert({
-        where: { participationId: id },
-        create: { participationId: id, ...updateData },
-        update: updateData,
-      });
-      return { success: true };
-    } catch (err) {
-      return fail(500, { error: 'Erreur de mise à jour' });
-    }
-  },
-
-  toggleBringPc: async ({ request, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const data = await request.formData();
-    return toggleBringPc(data, getCampusId(locals));
-  },
-
-  remove: async ({ url, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const id = url.searchParams.get('id');
-    if (!id) return fail(400);
-    const db = scopedPrisma(getCampusId(locals));
-
-    try {
-      const p = await db.participation.findUniqueOrThrow({
-        where: { id },
-        include: { activities: { include: { activity: true } } },
-      });
-
-      if (p.isPresent) {
-        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
-        const profile = await prisma.talent.findUniqueOrThrow({
-          where: { id: p.talentId },
-          select: { xp: true, eventsCount: true },
-        });
-        await prisma.talent.update({
-          where: { id: p.talentId },
-          data: {
-            xp: Math.max(0, profile.xp - xpValue),
-            eventsCount: Math.max(0, profile.eventsCount - 1),
-          },
-        });
-      }
-
-      await prisma.participation.delete({ where: { id } });
-      return { success: true };
-    } catch (err) {
-      return fail(500);
-    }
-  },
-
   deleteEvent: async ({ params, locals }) => {
     requireStaffGroup(locals, 'devLead');
     try {
       await EventService.deleteEvent(params.id, getCampusId(locals));
-    } catch (err) {
+    } catch {
       return fail(500);
     }
     throw redirect(303, resolve('/staff/dev'));
   },
-
-  // === PLANNING ACTIONS ===
-  ...planningActions,
 };

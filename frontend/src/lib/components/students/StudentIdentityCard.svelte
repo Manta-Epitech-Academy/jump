@@ -12,14 +12,16 @@
     stats,
     xpProgress,
     accent,
+    hideName = false,
     afterIdentity,
     beforeStats,
     footer,
   }: {
     student: any;
-    stats: { presentCount: number; lateCount: number };
+    stats: { totalEvents: number; presentCount: number; lateCount: number };
     xpProgress: number;
     accent: 'blue' | 'teal';
+    hideName?: boolean;
     afterIdentity?: Snippet;
     beforeStats?: Snippet;
     footer?: Snippet;
@@ -67,12 +69,20 @@
         >{getInitials(student.prenom, student.nom)}</Avatar.Fallback
       >
     </Avatar.Root>
-    <!-- Tightened header typography -->
-    <Card.Title
-      class="mt-6 font-heading text-2xl leading-none tracking-[-0.03em]"
-      ><span class="uppercase">{student.nom}</span> {student.prenom}</Card.Title
+    {#if !hideName}
+      <!-- Tightened header typography -->
+      <Card.Title
+        class="mt-6 font-heading text-2xl leading-none tracking-[-0.03em]"
+        ><span class="uppercase">{student.nom}</span>
+        {student.prenom}</Card.Title
+      >
+    {/if}
+    <div
+      class={cn(
+        'flex flex-col items-center gap-1.5',
+        hideName ? 'mt-6' : 'mt-3',
+      )}
     >
-    <div class="mt-3 flex flex-col items-center gap-1.5">
       <Badge variant="outline" class={cn('px-3 py-0.5', levelBadgeClass)}
         >{student.niveau}</Badge
       >
@@ -146,7 +156,22 @@
 
     <Separator />
 
-    <div class="grid grid-cols-2 gap-4 text-center">
+    <div
+      class={cn(
+        'grid gap-4 text-center',
+        stats.lateCount > 0 ? 'grid-cols-3' : 'grid-cols-2',
+      )}
+    >
+      <div
+        class="rounded-lg bg-muted/40 p-3 ring-1 ring-border/20 dark:bg-muted/10"
+      >
+        <div class="text-xl font-black">{stats.totalEvents}</div>
+        <div
+          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          Particip.
+        </div>
+      </div>
       <div
         class="rounded-lg bg-muted/40 p-3 ring-1 ring-border/20 dark:bg-muted/10"
       >

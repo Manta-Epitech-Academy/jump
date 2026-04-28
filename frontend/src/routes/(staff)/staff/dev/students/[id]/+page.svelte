@@ -2,19 +2,16 @@
   import type { PageData } from './$types';
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { ArrowLeft, Trash2, MessageSquare, Calendar } from '@lucide/svelte';
+  import { ArrowLeft, Trash2, Calendar } from '@lucide/svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Card from '$lib/components/ui/card';
-  import { Badge } from '$lib/components/ui/badge';
-  import { Separator } from '$lib/components/ui/separator';
   import { toast } from 'svelte-sonner';
   import { enhance as kitEnhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import StudentFormDialog from '../components/StudentFormDialog.svelte';
   import TalentCard from './components/TalentCard.svelte';
   import StudentTimeline from '$lib/components/students/StudentTimeline.svelte';
-  import ScheduleInterviewPopover from '$lib/components/interviews/ScheduleInterviewPopover.svelte';
   import OnboardingStatus from './components/OnboardingStatus.svelte';
   import { can } from '$lib/domain/permissions';
 
@@ -55,11 +52,13 @@
 
 <div class="space-y-6 pb-12">
   <div class="flex items-center gap-4 border-b pb-4">
-    <Button variant="ghost" size="icon" href={resolve('/staff/dev/students')}>
+    <Button variant="ghost" size="icon" href={resolve('/staff/dev')}>
       <ArrowLeft class="h-4 w-4" />
     </Button>
-    <h1 class="text-3xl font-bold text-epi-blue uppercase">
-      Dossier Talent<span class="text-epi-teal">_</span>
+    <h1 class="text-3xl font-bold text-epi-blue">
+      <span class="uppercase">{data.student.nom}</span>
+      <span class="capitalize">{data.student.prenom}</span>
+      <span class="text-epi-teal">_</span>
     </h1>
   </div>
 
@@ -75,92 +74,6 @@
     </div>
 
     <div class="space-y-6 md:col-span-8 lg:col-span-9">
-      <Card.Root class="rounded-sm border shadow-sm">
-        <Card.Header
-          class="flex flex-row items-center justify-between border-b bg-muted/30 pt-4 pb-4"
-        >
-          <Card.Title
-            class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-            ><MessageSquare class="h-4 w-4 text-epi-blue" /> Entretiens</Card.Title
-          >
-          {#if data.activeStageParticipation}
-            <ScheduleInterviewPopover
-              action="?/scheduleInterview"
-              participationId={data.activeStageParticipation.id}
-              timezone={data.timezone}
-              label="Planifier"
-            />
-          {/if}
-        </Card.Header>
-        <Card.Content class="pt-5">
-          <div class="space-y-3">
-            {#each data.student.interviews as interview}
-              <div
-                class="flex items-center justify-between rounded-sm border p-4 shadow-sm {interview.status ===
-                'completed'
-                  ? 'border-green-100/50 bg-green-50/30 dark:border-green-900/30 dark:bg-green-950/10'
-                  : 'bg-card'}"
-              >
-                <div class="flex flex-col">
-                  <div
-                    class="flex items-center gap-2 text-sm font-bold text-foreground"
-                  >
-                    {new Date(interview.date).toLocaleDateString('fr-FR', {
-                      weekday: 'short',
-                      day: 'numeric',
-                      month: 'short',
-                    })} à {new Date(interview.date).toLocaleTimeString(
-                      'fr-FR',
-                      {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      },
-                    )}
-                    {#if interview.status === 'completed'}
-                      <Badge
-                        variant="outline"
-                        class="rounded-sm border-green-200 bg-green-50 text-[9px] tracking-widest text-green-700 uppercase"
-                        >Terminé</Badge
-                      >
-                    {:else if interview.status === 'planned'}
-                      <Badge
-                        variant="outline"
-                        class="rounded-sm border-blue-200 bg-blue-50 text-[9px] tracking-widest text-blue-700 uppercase"
-                        >Planifié</Badge
-                      >
-                    {:else}
-                      <Badge
-                        variant="secondary"
-                        class="rounded-sm text-[9px] tracking-widest uppercase"
-                        >Annulé</Badge
-                      >
-                    {/if}
-                  </div>
-                  <div
-                    class="mt-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-                  >
-                    Avec {interview.staff?.user?.name || 'Inconnu'}
-                  </div>
-                </div>
-                {#if interview.status === 'completed' && interview.globalNote}
-                  <div
-                    class="max-w-sm border-l-2 border-epi-blue pl-3 text-xs font-medium text-muted-foreground italic"
-                  >
-                    "{interview.globalNote}"
-                  </div>
-                {/if}
-              </div>
-            {:else}
-              <div
-                class="text-sm font-medium text-muted-foreground text-center py-8 rounded-sm border border-dashed bg-muted/10"
-              >
-                Aucun entretien CRM enregistré.
-              </div>
-            {/each}
-          </div>
-        </Card.Content>
-      </Card.Root>
-
       <Card.Root class="rounded-sm border shadow-sm">
         <Card.Header class="border-b bg-muted/30 pt-4 pb-4">
           <Card.Title

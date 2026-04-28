@@ -1,20 +1,24 @@
-import { error, fail } from '@sveltejs/kit';
-import { prisma } from '$lib/server/db';
+import { fail } from '@sveltejs/kit';
+import { scopedPrisma } from '$lib/server/db/scoped';
 
-export async function toggleBringPc(formData: FormData, campusId: string) {
-  const id = formData.get('id') as string;
+export async function toggleBringPc(
+  formData: FormData,
+  campusId: string,
+  eventId: string,
+) {
+  const id = formData.get('id');
   const currentState = formData.get('state') === 'true';
+  if (typeof id !== 'string' || !id) return fail(400);
 
+  const db = scopedPrisma(campusId);
   try {
-    const participation = await prisma.participation.findUniqueOrThrow({
-      where: { id },
-      select: { campusId: true },
+    // Asserts the participation belongs to this event AND campus.
+    await db.participation.findFirstOrThrow({
+      where: { id, eventId },
+      select: { id: true },
     });
-    if (participation.campusId !== campusId) {
-      throw error(403, 'Accès refusé.');
-    }
 
-    await prisma.participation.update({
+    await db.participation.update({
       where: { id },
       data: { bringPc: !currentState },
     });

@@ -4,18 +4,13 @@ import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
-import { scheduleInterviewSchema } from '$lib/validation/interviews';
 import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { CalendarDateTime } from '@internationalized/date';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_TYPES } from '$lib/domain/event';
-
-const STAGE_DEFAULT_DURATION_DAYS = 14;
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
@@ -55,21 +50,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       orderBy: { event: { date: 'desc' } },
     });
 
-    const now = new Date();
-    const activeStageParticipation = participations.find((p) => {
-      if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
-      if (p.interview) return false;
-      const end =
-        p.event.endDate ??
-        new Date(
-          p.event.date.getTime() + STAGE_DEFAULT_DURATION_DAYS * 86_400_000,
-        );
-      return (
-        p.event.date.getTime() <= now.getTime() &&
-        now.getTime() <= end.getTime()
-      );
-    });
-
     const stats = {
       totalEvents: participations.length,
       presentCount: participations.filter((p) => p.isPresent).length,
@@ -104,12 +84,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       participations,
       stats,
       form,
-      activeStageParticipation: activeStageParticipation
-        ? {
-            id: activeStageParticipation.id,
-            eventTitre: activeStageParticipation.event.titre,
-          }
-        : null,
       timezone: getCampusTimezone(locals),
     };
   } catch (e) {
@@ -185,57 +159,5 @@ export const actions: Actions = {
       return fail(500, { message: 'Impossible de supprimer ce Talent' });
     }
     throw redirect(303, resolve('/staff/dev/students'));
-  },
-
-  scheduleInterview: async ({ request, params, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const form = await superValidate(request, zod4(scheduleInterviewSchema));
-    if (!form.valid) return fail(400, { form });
-
-    const staffId = locals.staffProfile?.id;
-    if (!staffId) return fail(403, { form });
-
-    const campusId = getCampusId(locals);
-    const participation = await prisma.participation.findUnique({
-      where: { id: form.data.participationId },
-      select: {
-        id: true,
-        talentId: true,
-        campusId: true,
-        event: { select: { eventType: true } },
-      },
-    });
-    if (
-      !participation ||
-      participation.campusId !== campusId ||
-      participation.talentId !== params.id ||
-      participation.event.eventType !== EVENT_TYPES.STAGE_SECONDE
-    ) {
-      return fail(400, { form });
-    }
-
-    const [year, month, day] = form.data.date.split('-').map(Number);
-    const [hour, minute] = form.data.time.split(':').map(Number);
-    const cdt = new CalendarDateTime(year, month, day, hour, minute);
-
-    try {
-      const db = scopedPrisma(campusId);
-      await db.interview.create({
-        data: {
-          talentId: params.id,
-          participationId: participation.id,
-          campusId,
-          staffId,
-          date: cdt.toDate(getCampusTimezone(locals)),
-          status: 'planned',
-        },
-      });
-      return message(form, 'Entretien planifié !');
-    } catch (err) {
-      console.error('scheduleInterview failed', err);
-      return message(form, "Erreur lors de la planification de l'entretien.", {
-        status: 500,
-      });
-    }
   },
 };

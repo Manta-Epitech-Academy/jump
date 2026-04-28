@@ -288,9 +288,9 @@ export const actions: Actions = {
     }
   },
 
-  toggleBringPc: async ({ request, locals }) => {
+  toggleBringPc: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'pedaMember');
     const data = await request.formData();
-    return toggleBringPc(data, getCampusId(locals));
+    return toggleBringPc(data, getCampusId(locals), params.id);
   },
 };
