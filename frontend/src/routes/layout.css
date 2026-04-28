@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@plugin '@tailwindcss/typography';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -158,12 +159,12 @@
     @apply bg-background font-sans text-foreground antialiased selection:bg-epi-blue selection:text-white;
   }
   /* Typography rules applied here: Tight leading for large headers */
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
+  h1:not(.prose *),
+  h2:not(.prose *),
+  h3:not(.prose *),
+  h4:not(.prose *),
+  h5:not(.prose *),
+  h6:not(.prose *),
   .font-heading {
     @apply font-heading leading-[1.1] font-normal tracking-wide uppercase;
   }
@@ -185,35 +186,160 @@
   }
 }
 
-/* --- Markdown Content --- */
-.markdown-content {
-  @apply font-sans;
+/* --- Markdown Prose Overrides (Notion-like with Epitech branding) --- */
+
+/* Base text — crisp rendering for body text */
+.prose {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3 {
-  @apply mt-8 mb-4 font-heading tracking-wide text-slate-900 uppercase dark:text-white;
+
+/* Headings — clean, no uppercase, sans-serif, weighted sizing like Notion */
+.prose h1 {
+  @apply font-sans text-2xl font-bold tracking-normal text-slate-900 normal-case dark:text-white;
 }
-.markdown-content p {
-  @apply mb-4 text-slate-700 dark:text-slate-300;
+.prose h2 {
+  @apply font-sans text-xl font-semibold tracking-normal text-slate-900 normal-case dark:text-white;
 }
-.markdown-content pre {
-  @apply mb-6 overflow-x-auto rounded-xl bg-slate-900 p-4 text-slate-50 shadow-inner dark:bg-black;
+.prose h3 {
+  @apply font-sans text-lg font-semibold tracking-normal text-slate-800 normal-case dark:text-slate-100;
 }
-.markdown-content code {
-  @apply rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-epi-blue dark:bg-slate-800 dark:text-blue-300;
+.prose h4 {
+  @apply font-sans text-base font-semibold tracking-normal text-slate-700 normal-case dark:text-slate-200;
 }
-.markdown-content pre code {
-  @apply bg-transparent p-0 text-inherit;
+.prose h5 {
+  @apply font-sans text-sm font-semibold tracking-normal text-slate-700 normal-case dark:text-slate-300;
 }
-.markdown-content ul {
-  @apply mb-4 list-inside list-disc space-y-2 text-slate-700 dark:text-slate-300;
+.prose h6 {
+  @apply font-sans text-xs font-semibold tracking-normal text-slate-500 normal-case uppercase dark:text-slate-400;
 }
-.markdown-content a {
-  @apply font-bold text-epi-blue underline decoration-2 underline-offset-2 transition-colors hover:text-epi-blue/80;
+
+/* Links — Epitech blue, underline on hover like Notion */
+.prose a {
+  @apply font-medium text-epi-blue underline decoration-epi-blue/30 underline-offset-2 transition-colors hover:decoration-epi-blue;
 }
-.markdown-content blockquote {
-  @apply my-6 rounded-r-xl border-l-4 border-epi-teal bg-slate-50 py-2 pr-4 pl-4 text-slate-600 italic dark:bg-slate-900/50 dark:text-slate-400;
+
+/* Blockquotes — Notion-style left border, tight to text */
+.prose blockquote {
+  @apply border-l-3 border-slate-300 py-0 pl-4 dark:border-slate-600;
+}
+.prose blockquote p {
+  @apply my-0;
+}
+
+/* Tables — Notion-style with full borders and column separators */
+.prose table {
+  @apply w-full border-collapse text-sm;
+}
+.prose thead th {
+  @apply border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300;
+}
+.prose tbody td {
+  @apply border border-slate-200 px-3 py-2 dark:border-slate-700;
+}
+
+/* Task lists — styled checkboxes, no bullet */
+.prose ul:has(input[type='checkbox']) {
+  @apply list-none pl-0;
+}
+.prose li:has(> input[type='checkbox']) {
+  @apply flex items-start gap-2 pl-0;
+}
+.prose input[type='checkbox'] {
+  @apply mt-1 h-4 w-4 rounded border-slate-300 accent-epi-blue;
+}
+
+/* Images — rounded, constrained, centered */
+.prose img {
+  @apply mx-auto max-w-full rounded-lg;
+}
+
+/* HR — subtle Notion-style divider */
+.prose hr {
+  @apply my-8 border-t border-slate-200 dark:border-slate-700;
+}
+
+/* Code blocks — language label, softer background */
+.prose .code-block-wrapper {
+  @apply relative my-5;
+}
+.prose .code-block-lang {
+  @apply absolute top-2 right-3 z-10 font-mono text-xs tracking-wide text-epi-teal/80 uppercase;
+}
+.prose pre {
+  @apply !mt-0 rounded-lg pt-9;
+  background: #0b1020;
+}
+
+/* Brand-locked highlight.js theme — Epitech palette */
+.hljs {
+  color: #e6edf3;
+  background: transparent;
+}
+.hljs-comment,
+.hljs-quote {
+  color: #64748b;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-meta {
+  color: #00ff97;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-template-tag,
+.hljs-template-variable {
+  color: #7dd3fc;
+}
+.hljs-number,
+.hljs-literal,
+.hljs-symbol,
+.hljs-bullet {
+  color: #fbbf24;
+}
+.hljs-title,
+.hljs-section,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #93c5fd;
+}
+.hljs-tag {
+  color: #94a3b8;
+}
+.hljs-attribute {
+  color: #00ff97;
+}
+.hljs-variable,
+.hljs-params {
+  color: #e6edf3;
+}
+.hljs-regexp,
+.hljs-link {
+  color: #ff1ef7;
+}
+.hljs-deletion {
+  color: #fca5a5;
+}
+.hljs-addition {
+  color: #86efac;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}
+
+/* Inline code — subtle highlight */
+.prose code:not(pre code) {
+  @apply rounded-md bg-slate-100 px-1.5 py-0.5 text-sm text-rose-500 dark:bg-slate-800 dark:text-rose-400;
+}
+.prose code::before,
+.prose code::after {
+  content: none;
 }
 
 /* --- Animations for Emotional Design --- */

@@ -57,7 +57,7 @@
     {/if}
 
     <div class="max-h-[50vh] overflow-y-auto p-6">
-      <div class="markdown-content max-w-none text-sm">
+      <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
         <p>
           Je soussign&eacute;(e), Mme/Mr
           <input

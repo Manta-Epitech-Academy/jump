@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { marked } from 'marked';
+  import { renderMarkdown } from '$lib/markdown';
   import { resolve } from '$app/paths';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -38,14 +38,12 @@
 
   let staticHtml = $derived(
     !template.isDynamic && template.content
-      ? (marked.parse(template.content) as string)
+      ? renderMarkdown(template.content)
       : '',
   );
 
   function stepHtml(step: ActivityStep) {
-    return step.content_markdown
-      ? (marked.parse(step.content_markdown) as string)
-      : '';
+    return step.content_markdown ? renderMarkdown(step.content_markdown) : '';
   }
 
   const stepTypeLabel: Record<ActivityStep['type'], string> = {
@@ -165,7 +163,7 @@
       <Card.Root class="shadow-sm">
         <Card.Content class="p-6 md:p-8">
           <div
-            class="markdown-content prose prose-slate dark:prose-invert max-w-none text-base leading-relaxed"
+            class="prose max-w-none text-base leading-relaxed prose-slate dark:prose-invert"
           >
             {@html staticHtml}
           </div>
@@ -212,7 +210,7 @@
           <Card.Content class="space-y-6 pt-0">
             {#if step.content_markdown}
               <div
-                class="markdown-content prose prose-slate dark:prose-invert max-w-none text-sm leading-relaxed"
+                class="prose max-w-none text-sm leading-relaxed prose-slate dark:prose-invert"
               >
                 {@html stepHtml(step)}
               </div>

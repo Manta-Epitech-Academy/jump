@@ -75,8 +75,144 @@ const contentStructures: Record<string, ReturnType<typeof steps>> = {
     {
       id: 'html-1',
       title: "Qu'est-ce que le HTML ?",
-      content_markdown:
-        'Le **HTML** structure les pages web. Chaque élément visible vient d\u2019une balise comme `<h1>`, `<p>`, `<img>`.',
+      content_markdown: `# Titre de niveau 1
+
+## Titre de niveau 2
+
+### Titre de niveau 3
+
+#### Titre de niveau 4
+
+##### Titre de niveau 5
+
+###### Titre de niveau 6
+
+---
+
+## Texte et mise en forme
+
+Ceci est un paragraphe normal. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+Texte en **gras**, en *italique*, en ***gras et italique***, en ~~barré~~ et du \`code inline\` dans une phrase.
+
+Un deuxième paragraphe pour montrer l'espacement entre les blocs. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+---
+
+## Listes
+
+Liste à puces :
+- Premier élément
+- Deuxième élément
+  - Sous-élément A
+  - Sous-élément B
+    - Encore plus profond
+- Troisième élément
+
+Liste numérotée :
+1. Première étape
+2. Deuxième étape
+   1. Sous-étape 2.1
+   2. Sous-étape 2.2
+3. Troisième étape
+
+---
+
+## Checklist
+
+- [x] Tâche terminée
+- [x] Autre tâche terminée
+- [ ] Tâche en cours
+- [ ] Tâche à faire
+
+---
+
+## Citations
+
+> Ceci est une citation simple sur une ligne.
+
+> Ceci est une citation plus longue qui s'étend sur plusieurs lignes pour montrer comment le rendu gère les blocs de texte dans les blockquotes.
+>
+> Elle contient même un deuxième paragraphe.
+
+---
+
+## Tableau
+
+| Nom | Âge | Ville | Rôle |
+|-----|-----|-------|------|
+| Alice | 14 | Paris | Élève |
+| Bob | 15 | Lyon | Élève |
+| Charlie | 13 | Marseille | Élève |
+| Diana | 16 | Bordeaux | Mentore |
+
+---
+
+## Code
+
+Code inline : la fonction \`renderMarkdown()\` retourne une \`string\`.
+
+Bloc JavaScript :
+\`\`\`javascript
+function fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+console.log(fibonacci(10)); // 55
+\`\`\`
+
+Bloc HTML :
+\`\`\`html
+<section class="container">
+  <h1>Bienvenue</h1>
+  <p>Un paragraphe avec un <a href="#">lien</a>.</p>
+</section>
+\`\`\`
+
+Bloc CSS :
+\`\`\`css
+.container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, #013afb, #00ff97);
+}
+\`\`\`
+
+Bloc sans langage :
+\`\`\`
+Ceci est un bloc de code sans langage spécifié.
+Il est affiché tel quel.
+\`\`\`
+
+---
+
+## Liens
+
+Voici un [lien vers Google](https://www.google.com) et un autre vers [GitHub](https://github.com).
+
+---
+
+## Image
+
+![Paysage de montagne](https://picsum.photos/600/300)
+
+---
+
+## Ligne de séparation
+
+Les trois lignes ci-dessous sont des séparateurs horizontaux (hr) :
+
+---
+
+***
+
+___
+
+## Texte long
+
+Ce paragraphe sert à montrer le rendu d'un texte plus long. Dans un contexte pédagogique, les activités contiennent souvent des descriptions détaillées avec des explications sur plusieurs lignes. Il est important que la typographie soit agréable à lire, avec un bon espacement entre les lignes, un contraste suffisant et une largeur de colonne qui ne fatigue pas les yeux. Le but est d'avoir un rendu propre, aéré et moderne — comme sur Notion.`,
       type: 'theory',
     },
     {
@@ -948,6 +1084,7 @@ type StudentDef = {
   campus: 'Paris' | 'Lyon';
   charterSigned: boolean;
   lastActiveDaysAgo: number | null;
+  skipOnboarding?: boolean;
 };
 
 const STUDENTS: StudentDef[] = [
@@ -963,6 +1100,7 @@ const STUDENTS: StudentDef[] = [
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 1,
+    skipOnboarding: true,
   },
   {
     email: 'lucas.dupont@mail.com',
@@ -2117,6 +2255,11 @@ async function seedStudents(): Promise<
         niveau: s.niveau,
         niveauDifficulte: s.niveauDifficulte,
         charterAcceptedAt: s.charterSigned ? new Date() : null,
+        infoValidatedAt: s.skipOnboarding ? new Date() : null,
+        rulesSignedAt: s.skipOnboarding ? new Date() : null,
+        parentNom: s.skipOnboarding ? 'Martin' : null,
+        parentPrenom: s.skipOnboarding ? 'Sophie' : null,
+        parentEmail: s.skipOnboarding ? `parent.${s.email}` : null,
         lastActiveAt,
       },
     });
