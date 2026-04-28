@@ -17,6 +17,9 @@
 
   let { data } = $props();
   const flagDefs = Object.values(FEATURE_FLAGS);
+  const defaultEnabledFlags = flagDefs
+    .filter((f) => f.defaultEnabled)
+    .map((f) => f.key as FlagKey);
 
   // Form handling logic
   const { form, errors, enhance, delayed, reset } = superForm(
@@ -42,7 +45,7 @@
 
   function openCreate() {
     reset();
-    $form.flags = [];
+    $form.flags = [...defaultEnabledFlags];
     isEditing = false;
     editId = '';
     open = true;
