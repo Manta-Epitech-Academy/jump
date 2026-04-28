@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Trash2, Mail, Plus, X } from '@lucide/svelte';
+  import { Trash2, Mail, Plus, X, LogIn } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -13,9 +13,16 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Switch } from '$lib/components/ui/switch';
   import { enhance } from '$app/forms';
+  import { resolve } from '$app/paths';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
-  import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
+  import {
+    STAFF_ROLES,
+    getStaffRoleLabel,
+    getStaffRoleRedirectPath,
+  } from '$lib/domain/staff';
+  import { authClient } from '$lib/auth-client';
+  import type { StaffRole } from '@prisma/client';
   let { data } = $props();
 
   let submitting = $state<string | null>(null);
@@ -68,6 +75,33 @@
 
   function getAvatarUrl(_user: any) {
     return undefined;
+  }
+
+  let impersonating = $state<string | null>(null);
+
+  async function loginAs(userId: string, staffRole: StaffRole | null) {
+    if (impersonating) return;
+    const target = getStaffRoleRedirectPath(staffRole);
+    if (!target) {
+      toast.error("Cet utilisateur n'a pas de rôle staff actif.");
+      return;
+    }
+    impersonating = userId;
+    try {
+      const { error } = await authClient.admin.impersonateUser({ userId });
+      if (error) {
+        toast.error(error.message ?? 'Impersonation refusée.');
+        return;
+      }
+      // Full-page navigation (not goto) so the new session cookie is read
+      // fresh on the next request and route guards re-evaluate.
+      window.location.href = resolve(target as any);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors de l'impersonation.");
+    } finally {
+      impersonating = null;
+    }
   }
 </script>
 
@@ -337,24 +371,55 @@
                 </form>
               </Table.Cell>
               <Table.Cell class="text-right">
-                <Tooltip.Provider delayDuration={300}>
-                  <Tooltip.Root>
-                    <Tooltip.Trigger>
-                      {#snippet child({ props })}
-                        <Button
-                          {...props}
-                          variant="ghost"
-                          size="icon"
-                          class="text-destructive hover:bg-destructive/10"
-                          onclick={() => confirmDelete(user.id)}
+                <div class="flex items-center justify-end gap-1">
+                  {#if user.id !== data.currentUserId && user.staffProfile?.staffRole && user.staffProfile.staffRole !== 'admin'}
+                    <Tooltip.Provider delayDuration={300}>
+                      <Tooltip.Root>
+                        <Tooltip.Trigger>
+                          {#snippet child({ props })}
+                            <Button
+                              {...props}
+                              variant="ghost"
+                              size="icon"
+                              class="text-muted-foreground hover:text-epi-pink"
+                              disabled={impersonating === user.id}
+                              onclick={() =>
+                                loginAs(
+                                  user.id,
+                                  user.staffProfile?.staffRole ?? null,
+                                )}
+                            >
+                              <LogIn class="h-4 w-4" />
+                            </Button>
+                          {/snippet}
+                        </Tooltip.Trigger>
+                        <Tooltip.Content
+                          ><p>
+                            Se connecter en tant que ce membre
+                          </p></Tooltip.Content
                         >
-                          <Trash2 class="h-4 w-4" />
-                        </Button>
-                      {/snippet}
-                    </Tooltip.Trigger>
-                    <Tooltip.Content><p>Révoquer l'accès</p></Tooltip.Content>
-                  </Tooltip.Root>
-                </Tooltip.Provider>
+                      </Tooltip.Root>
+                    </Tooltip.Provider>
+                  {/if}
+                  <Tooltip.Provider delayDuration={300}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        {#snippet child({ props })}
+                          <Button
+                            {...props}
+                            variant="ghost"
+                            size="icon"
+                            class="text-destructive hover:bg-destructive/10"
+                            onclick={() => confirmDelete(user.id)}
+                          >
+                            <Trash2 class="h-4 w-4" />
+                          </Button>
+                        {/snippet}
+                      </Tooltip.Trigger>
+                      <Tooltip.Content><p>Révoquer l'accès</p></Tooltip.Content>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                </div>
               </Table.Cell>
             </Table.Row>
           {/each}
