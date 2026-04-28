@@ -1,5 +1,4 @@
 import { redirect } from '@sveltejs/kit';
-import { resolve } from '$app/paths';
 import { env } from '$env/dynamic/private';
 import { dev } from '$app/environment';
 import { prisma } from '$lib/server/db';
@@ -13,16 +12,17 @@ import type { Cookies } from '@sveltejs/kit';
 export function startDiscordOAuth(cookies: Cookies, callbackPath: string) {
   const state = crypto.randomBytes(16).toString('hex');
   cookies.set('discord_oauth_state', state, {
-    path: resolve(
-      (callbackPath.split('/').slice(0, -1).join('/') || '/') as any,
-    ),
+    path: callbackPath.split('/').slice(0, -1).join('/') || '/',
     httpOnly: true,
     secure: !dev,
     sameSite: 'lax',
     maxAge: 300,
   });
 
-  const redirectUri = `${env.ORIGIN}${resolve(callbackPath as any)}`;
+  // Build absolute URL without resolve() — `paths.relative` defaults to true,
+  // so resolve() would return './discord/callback' and concat to a malformed
+  // 'https://host./discord/callback' that Discord rejects.
+  const redirectUri = new URL(callbackPath, env.ORIGIN).toString();
 
   const params = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID!,
@@ -48,9 +48,7 @@ export async function handleDiscordCallback(
   const state = url.searchParams.get('state');
   const storedState = cookies.get('discord_oauth_state');
   cookies.delete('discord_oauth_state', {
-    path: resolve(
-      (callbackPath.split('/').slice(0, -1).join('/') || '/') as any,
-    ),
+    path: callbackPath.split('/').slice(0, -1).join('/') || '/',
   });
 
   if (!state || state !== storedState) {
@@ -70,7 +68,7 @@ export async function handleDiscordCallback(
       client_secret: env.DISCORD_CLIENT_SECRET!,
       grant_type: 'authorization_code',
       code,
-      redirect_uri: `${env.ORIGIN}${resolve(callbackPath as any)}`,
+      redirect_uri: new URL(callbackPath, env.ORIGIN).toString(),
     }),
   });
 
