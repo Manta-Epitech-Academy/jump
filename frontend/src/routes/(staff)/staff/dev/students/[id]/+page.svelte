@@ -55,7 +55,7 @@
 
 <div class="space-y-6 pb-12">
   <div class="flex items-center gap-4 border-b pb-4">
-    <Button variant="ghost" size="icon" href={resolve('/staff/dev/students')}>
+    <Button variant="ghost" size="icon" href={resolve('/staff/dev')}>
       <ArrowLeft class="h-4 w-4" />
     </Button>
     <h1 class="text-3xl font-bold text-epi-blue uppercase">
