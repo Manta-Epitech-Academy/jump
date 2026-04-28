@@ -14,6 +14,7 @@
     BookOpen,
     UserCog,
     ClipboardCheck,
+    CalendarDays,
   } from '@lucide/svelte';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
@@ -146,6 +147,15 @@
       >
         <Users class="h-5 w-5" />
         <span>Inscrits</span>
+      </a>
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+        )}
+      >
+        <CalendarDays class="h-5 w-5" />
+        <span>Planning</span>
       </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}

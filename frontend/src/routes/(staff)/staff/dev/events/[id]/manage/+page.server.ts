@@ -4,16 +4,7 @@ import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { eventSchema } from '$lib/validation/events';
-import {
-  timeSlotSchema,
-  createSlotWithActivitySchema,
-  renameActivitySchema,
-  changeActivityTypeSchema,
-} from '$lib/validation/planning';
-import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
 import { EventService } from '$lib/server/services/events';
-import { planningActions } from '$lib/server/services/planningActions';
-import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
@@ -37,8 +28,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(404, 'Événement introuvable');
   }
 
-  const participationsCount = await db.participation.count({
+  const participations = await db.participation.findMany({
     where: { eventId: event.id },
+    include: { stageCompliance: true },
+    orderBy: [{ talent: { nom: 'asc' } }],
+  });
+
+  const interviewsCompleted = await db.interview.count({
+    where: { participation: { eventId: event.id }, status: 'completed' },
   });
 
   const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
@@ -73,28 +70,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     endDateString = ed.toISOString().split('T')[0];
   }
 
-  const planning = await db.planning.findUniqueOrThrow({
-    where: { eventId: params.id },
-    include: {
-      timeSlots: {
-        orderBy: { startTime: 'asc' },
-        include: { activity: true },
-      },
-    },
-  });
+  const total = participations.length;
+  const stats = {
+    total,
+    bringPc: participations.filter((p) => p.bringPc).length,
+    chartes: participations.filter((p) => p.stageCompliance?.charteSigned)
+      .length,
+    conventions: participations.filter(
+      (p) => p.stageCompliance?.conventionSigned,
+    ).length,
+    droitsImage: participations.filter(
+      (p) => p.stageCompliance?.imageRightsSigned,
+    ).length,
+    interviewsCompleted,
+  };
 
-  const templates = await prisma.activityTemplate.findMany({
-    where: { OR: [{ campusId: null }, { campusId: getCampusId(locals) }] },
-    include: { activityTemplateThemes: { include: { theme: true } } },
-    orderBy: { nom: 'asc' },
-  });
-
-  const planningTemplates = await prisma.planningTemplate.findMany({
-    orderBy: { nom: 'asc' },
-    include: { _count: { select: { days: true } } },
-  });
-
-  // FORMS
   const staffIds = new Set(staff.map((s) => s.id));
   const editForm = await superValidate(
     {
@@ -111,36 +101,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     zod4(eventSchema),
   );
 
-  const tsForm = await superValidate(zod4(timeSlotSchema));
-  const createSlotForm = await superValidate(
-    zod4(createSlotWithActivitySchema),
-  );
-  const renameActivityForm = await superValidate(zod4(renameActivitySchema));
-  const changeTypeForm = await superValidate(zod4(changeActivityTypeSchema));
-  const applyTemplateForm = await superValidate(
-    zod4(applyPlanningTemplateSchema),
-  );
-
   return {
     event,
-    participationsCount,
+    stats,
     themes,
     staff,
-    planning,
-    templates,
-    planningTemplates,
     editForm,
-    tsForm,
-    createSlotForm,
-    renameActivityForm,
-    changeTypeForm,
-    applyTemplateForm,
     timezone: tz,
   };
 };
 
 export const actions: Actions = {
-  // === EVENT & CRM ACTIONS ===
   updateEvent: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
@@ -187,12 +158,9 @@ export const actions: Actions = {
     requireStaffGroup(locals, 'devLead');
     try {
       await EventService.deleteEvent(params.id, getCampusId(locals));
-    } catch (err) {
+    } catch {
       return fail(500);
     }
     throw redirect(303, resolve('/staff/dev'));
   },
-
-  // === PLANNING ACTIONS ===
-  ...planningActions,
 };
