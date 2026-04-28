@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addParticipantSchema } from '$lib/validation/events';
@@ -12,20 +12,12 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
+  const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
-
-  let event;
-  try {
-    event = await db.event.findUniqueOrThrow({
-      where: { id: params.id },
-      select: { id: true, titre: true, eventType: true, date: true },
-    });
-  } catch {
-    throw error(404, 'Événement introuvable');
-  }
 
   const participations = await db.participation.findMany({
     where: { eventId: event.id },
@@ -48,24 +40,39 @@ export const actions: Actions = {
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(addParticipantSchema));
     if (!form.valid) return fail(400, { form });
-    try {
-      const existing = await prisma.participation.findUnique({
-        where: {
-          talentId_eventId: {
-            talentId: form.data.studentId,
-            eventId: params.id,
-          },
+
+    const campusId = getCampusId(locals);
+    await loadEventOr404(params.id, campusId);
+
+    const talent = await prisma.talent.findUnique({
+      where: { id: form.data.studentId },
+      select: { id: true },
+    });
+    if (!talent) {
+      return message(form, 'Talent introuvable.', { status: 400 });
+    }
+
+    const db = scopedPrisma(campusId);
+    const existing = await db.participation.findUnique({
+      where: {
+        talentId_eventId: {
+          talentId: form.data.studentId,
+          eventId: params.id,
         },
+      },
+    });
+    if (existing) {
+      return message(form, 'Ce Talent est déjà inscrit à cet événement.', {
+        status: 400,
       });
-      if (existing)
-        return message(form, 'Ce Talent est déjà inscrit à cet événement.', {
-          status: 400,
-        });
-      await prisma.participation.create({
+    }
+
+    try {
+      await db.participation.create({
         data: {
           talentId: form.data.studentId,
           eventId: params.id,
-          campusId: getCampusId(locals),
+          campusId,
           isPresent: false,
         },
       });

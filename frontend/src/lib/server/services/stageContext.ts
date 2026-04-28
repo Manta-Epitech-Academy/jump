@@ -96,7 +96,7 @@ function addDays(d: Date, days: number): Date {
   return out;
 }
 
-export type StageEventRecord = {
+export type EventRecord = {
   id: string;
   titre: string;
   date: Date;
@@ -105,11 +105,10 @@ export type StageEventRecord = {
   campusId: string;
 };
 
-export async function loadStageOr404(
+export async function loadEventOr404(
   eventId: string,
   campusId: string,
-  notFoundMessage = 'Cette page est réservée aux stages de seconde.',
-): Promise<StageEventRecord> {
+): Promise<EventRecord> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     select: {
@@ -124,6 +123,15 @@ export async function loadStageOr404(
   if (!event || event.campusId !== campusId) {
     throw error(404, 'Événement introuvable.');
   }
+  return event;
+}
+
+export async function loadStageOr404(
+  eventId: string,
+  campusId: string,
+  notFoundMessage = 'Cette page est réservée aux stages de seconde.',
+): Promise<EventRecord> {
+  const event = await loadEventOr404(eventId, campusId);
   if (event.eventType !== EVENT_TYPES.STAGE_SECONDE) {
     throw error(404, notFoundMessage);
   }
