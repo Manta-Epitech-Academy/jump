@@ -84,21 +84,21 @@ export const actions: Actions = {
     }
   },
 
-  toggleBringPc: async ({ request, locals }) => {
+  toggleBringPc: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'devMember');
     const data = await request.formData();
-    return toggleBringPc(data, getCampusId(locals));
+    return toggleBringPc(data, getCampusId(locals), params.id);
   },
 
-  remove: async ({ url, locals }) => {
+  remove: async ({ url, locals, params }) => {
     requireStaffGroup(locals, 'devMember');
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
     const db = scopedPrisma(getCampusId(locals));
 
     try {
-      const p = await db.participation.findUniqueOrThrow({
-        where: { id },
+      const p = await db.participation.findFirstOrThrow({
+        where: { id, eventId: params.id },
         include: { activities: { include: { activity: true } } },
       });
 

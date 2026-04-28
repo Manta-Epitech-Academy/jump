@@ -71,6 +71,7 @@
     "canvas-confetti": "^1.9.4",
     "ejs": "^4.0.1",
     "highlight.js": "^11.11.1",
+    "isomorphic-dompurify": "^3.10.0",
     "marked": "^17.0.6",
     "marked-highlight": "^2.2.4",
     "papaparse": "^5.5.3",

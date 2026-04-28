@@ -21,33 +21,45 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   return { event, participations };
 };
 
+// Maps form-side doc type identifiers to their Prisma column.
+const DOC_TYPE_FIELDS = {
+  charte: 'charteSigned',
+  convention: 'conventionSigned',
+  image: 'imageRightsSigned',
+} as const;
+type DocType = keyof typeof DOC_TYPE_FIELDS;
+
 export const actions: Actions = {
   toggleAdminDoc: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'devMember');
     const campusId = getCampusId(locals);
     await loadStageOr404(params.id, campusId);
+
     const data = await request.formData();
-    const id = data.get('id') as string;
-    const docType = data.get('docType') as string;
-    const currentState = data.get('state') === 'true';
-    const newState = !currentState;
+    const id = data.get('id');
+    const docType = data.get('docType');
+    const newState = data.get('state') !== 'true';
+
+    if (typeof id !== 'string' || !id) {
+      return fail(400, { error: 'Identifiant manquant' });
+    }
+    if (typeof docType !== 'string' || !(docType in DOC_TYPE_FIELDS)) {
+      return fail(400, { error: 'Type de document invalide' });
+    }
+
+    const field = DOC_TYPE_FIELDS[docType as DocType];
     const db = scopedPrisma(campusId);
 
     try {
-      await db.participation.findUniqueOrThrow({
+      await db.participation.findFirstOrThrow({
         where: { id, eventId: params.id },
         select: { id: true },
       });
 
-      const updateData: { [key: string]: boolean } = {};
-      if (docType === 'charte') updateData.charteSigned = newState;
-      if (docType === 'convention') updateData.conventionSigned = newState;
-      if (docType === 'image') updateData.imageRightsSigned = newState;
-
       await prisma.stageCompliance.upsert({
         where: { participationId: id },
-        create: { participationId: id, ...updateData },
-        update: updateData,
+        create: { participationId: id, [field]: newState },
+        update: { [field]: newState },
       });
       return { success: true };
     } catch {
@@ -60,6 +72,6 @@ export const actions: Actions = {
     const campusId = getCampusId(locals);
     await loadStageOr404(params.id, campusId);
     const data = await request.formData();
-    return toggleBringPc(data, campusId);
+    return toggleBringPc(data, campusId, params.id);
   },
 };

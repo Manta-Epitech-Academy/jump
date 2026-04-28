@@ -1,6 +1,7 @@
 import { Marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js';
+import DOMPurify from 'isomorphic-dompurify';
 
 const renderer = {
   code({ text, lang }: { text: string; lang?: string }) {
@@ -27,5 +28,6 @@ const marked = new Marked(
 );
 
 export function renderMarkdown(markdown: string): string {
-  return marked.parse(markdown) as string;
+  const html = marked.parse(markdown) as string;
+  return DOMPurify.sanitize(html);
 }
