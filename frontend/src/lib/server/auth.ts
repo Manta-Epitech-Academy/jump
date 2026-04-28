@@ -58,6 +58,10 @@ export const auth = betterAuth({
 
   account: {
     modelName: 'bauth_account',
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ['microsoft'],
+    },
   },
 
   verification: {
