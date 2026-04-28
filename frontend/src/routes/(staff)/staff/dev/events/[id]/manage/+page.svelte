@@ -18,27 +18,9 @@
   import { can } from '$lib/domain/permissions';
 
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
-  import SuiviAdmTable from './components/SuiviAdmTable.svelte';
   import CalendarPlanner from '$lib/components/events/planning/CalendarPlanner.svelte';
-  import { EVENT_TYPES } from '$lib/domain/event';
-  import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
-
-  let participations = $state(untrack(() => data.participations));
-  $effect(() => {
-    participations = data.participations;
-  });
-
-  let featureFlags = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
-  );
-
-  let isStageDeSeconde = $derived(
-    (data.event.eventType === EVENT_TYPES.STAGE_SECONDE ||
-      data.event.titre.toLowerCase().includes('stage')) &&
-      featureFlags.has('stage_seconde'),
-  );
 
   const {
     form: editForm,
@@ -64,42 +46,6 @@
 
   let openEditEvent = $state(false);
   let deleteEventDialogOpen = $state(false);
-
-  const optimisticAdminToggle = (id: string, docType: string) => {
-    return () => {
-      const index = participations.findIndex((p) => p.id === id);
-      if (index !== -1) {
-        const compliance = (participations[index].stageCompliance ??= {
-          charteSigned: false,
-          conventionSigned: false,
-          imageRightsSigned: false,
-          participationId: id,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-        if (docType === 'charte')
-          compliance.charteSigned = !compliance.charteSigned;
-        if (docType === 'convention')
-          compliance.conventionSigned = !compliance.conventionSigned;
-        if (docType === 'image')
-          compliance.imageRightsSigned = !compliance.imageRightsSigned;
-      }
-      return async ({ update }: { update: () => Promise<void> }) => {
-        await update();
-      };
-    };
-  };
-
-  const optimisticPcToggle = (id: string) => {
-    return () => {
-      const index = participations.findIndex((p) => p.id === id);
-      if (index !== -1)
-        participations[index].bringPc = !participations[index].bringPc;
-      return async ({ update }: { update: () => Promise<void> }) => {
-        await update();
-      };
-    };
-  };
 </script>
 
 <div class="flex flex-col space-y-6 pb-12">
@@ -137,13 +83,6 @@
               <span class="text-epi-teal-solid">{data.event.theme?.nom}</span>
             </div>
           {/if}
-          {#if isStageDeSeconde}
-            <div
-              class="rounded-sm border border-purple-200 bg-purple-100 px-2 py-0.5 text-[10px] tracking-widest text-purple-700 uppercase"
-            >
-              STAGE DE SECONDE
-            </div>
-          {/if}
         </div>
       </div>
     </div>
@@ -156,7 +95,7 @@
         })}
       >
         <Users class="h-4 w-4" />
-        Inscrits ({participations.length})
+        Inscrits ({data.participationsCount})
       </a>
       <EditEventSettingsModal
         bind:open={openEditEvent}
@@ -170,14 +109,6 @@
       />
     </div>
   </div>
-
-  {#if isStageDeSeconde}
-    <SuiviAdmTable
-      {participations}
-      {optimisticAdminToggle}
-      {optimisticPcToggle}
-    />
-  {/if}
 
   <CalendarPlanner
     planning={data.planning}

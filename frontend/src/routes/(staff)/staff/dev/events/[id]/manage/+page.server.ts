@@ -1,6 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
-import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { resolve } from '$app/paths';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
@@ -38,10 +37,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(404, 'Événement introuvable');
   }
 
-  const participations = await db.participation.findMany({
+  const participationsCount = await db.participation.count({
     where: { eventId: event.id },
-    include: { talent: true, stageCompliance: true },
-    orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
 
   const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
@@ -126,7 +123,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   return {
     event,
-    participations,
+    participationsCount,
     themes,
     staff,
     planning,
@@ -184,43 +181,6 @@ export const actions: Actions = {
     });
 
     return message(form, 'Événement mis à jour !');
-  },
-
-  toggleAdminDoc: async ({ request, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const data = await request.formData();
-    const id = data.get('id') as string;
-    const docType = data.get('docType') as string;
-    const currentState = data.get('state') === 'true';
-    const newState = !currentState;
-    const db = scopedPrisma(getCampusId(locals));
-
-    try {
-      await db.participation.findUniqueOrThrow({
-        where: { id },
-        select: { id: true },
-      });
-
-      const updateData: { [key: string]: boolean } = {};
-      if (docType === 'charte') updateData.charteSigned = newState;
-      if (docType === 'convention') updateData.conventionSigned = newState;
-      if (docType === 'image') updateData.imageRightsSigned = newState;
-
-      await prisma.stageCompliance.upsert({
-        where: { participationId: id },
-        create: { participationId: id, ...updateData },
-        update: updateData,
-      });
-      return { success: true };
-    } catch (err) {
-      return fail(500, { error: 'Erreur de mise à jour' });
-    }
-  },
-
-  toggleBringPc: async ({ request, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const data = await request.formData();
-    return toggleBringPc(data, getCampusId(locals));
   },
 
   deleteEvent: async ({ params, locals }) => {
