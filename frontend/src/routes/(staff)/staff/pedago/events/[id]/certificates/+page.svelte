@@ -60,7 +60,7 @@
         { label: 'Dashboard', href: resolve('/staff/pedago') },
         {
           label: data.event.titre,
-          href: resolve(`/staff/pedago/events/${data.event.id}/planning`),
+          href: resolve(`/staff/pedago/events/${data.event.id}`),
         },
         { label: 'Diplômes' },
       ]}

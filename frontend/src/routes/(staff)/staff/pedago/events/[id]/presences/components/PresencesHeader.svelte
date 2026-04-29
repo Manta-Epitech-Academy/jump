@@ -63,7 +63,7 @@
       { label: 'Dashboard', href: resolve('/staff/pedago') },
       {
         label: event.titre,
-        href: resolve(`/staff/pedago/events/${event.id}/planning`),
+        href: resolve(`/staff/pedago/events/${event.id}`),
       },
       { label: 'Présences' },
     ]}
