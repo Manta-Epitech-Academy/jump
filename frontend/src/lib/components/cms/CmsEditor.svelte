@@ -192,8 +192,8 @@
   );
 </script>
 
-{#if editor}
-  <div class="rounded-lg border border-border bg-card">
+<div class="rounded-lg border border-border bg-card">
+  {#if editor}
     <!-- Toolbar -->
     <div class="flex flex-wrap items-center gap-1 border-b border-border p-2">
       {#each toolbarGroups as group, i}
@@ -214,8 +214,8 @@
         {/each}
       {/each}
     </div>
+  {/if}
 
-    <!-- Editor -->
-    <div bind:this={element}></div>
-  </div>
-{/if}
+  <!-- Editor -->
+  <div bind:this={element}></div>
+</div>
