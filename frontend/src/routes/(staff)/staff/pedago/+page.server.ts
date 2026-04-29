@@ -34,15 +34,6 @@ export const load: PageServerLoad = async ({ locals }) => {
       _count: { select: { participations: true } },
       participations: { select: { isPresent: true } },
       mantas: { include: { staffProfile: { include: { user: true } } } },
-      planning: {
-        include: {
-          timeSlots: {
-            where: { activity: { activityType: 'orga' } },
-            orderBy: { startTime: 'asc' },
-            include: { activity: true },
-          },
-        },
-      },
     },
   });
 

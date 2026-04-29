@@ -37,7 +37,7 @@
         class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
       >
         <UsersRound class="h-5 w-5 text-epi-blue" />
-        Assigner des Mantas
+        <span class="tracking-wider">Assigner des Mantas</span>
       </Dialog.Title>
       <Dialog.Description>
         Campagne : <strong class="text-foreground uppercase"

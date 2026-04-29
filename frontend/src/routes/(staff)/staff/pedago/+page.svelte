@@ -23,7 +23,7 @@
     Zap,
     ArrowRight,
     Ellipsis,
-    AlertTriangle,
+    TriangleAlert,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
@@ -60,10 +60,6 @@
         )
       : 0,
   );
-  let cockpitRouteId = $derived(
-    data.liveEvent?.planning?.timeSlots?.[0]?.activity?.id,
-  );
-
   let assignDialogOpen = $state(false);
   let assignDialogEvent = $state<{
     id: string;
@@ -127,7 +123,7 @@
           ...(data.tasks?.eventsWithUnassignedSlots ?? []).map(
             (ev): TaskRow => ({
               key: `unassigned-${ev.id}`,
-              icon: AlertTriangle,
+              icon: TriangleAlert,
               title: 'Créneaux à assigner',
               description: `${ev.titre} — créneaux sans activité`,
               count: ev.unassignedCount,
@@ -256,11 +252,9 @@
 
             <Button
               class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-              href={cockpitRouteId
-                ? resolve(
-                    `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
-                  )
-                : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
+              href={resolve(
+                `/staff/pedago/events/${data.liveEvent.id}/presences`,
+              )}
             >
               <RadioTower class="mr-2 h-4 w-4" /> Rejoindre
             </Button>
@@ -495,11 +489,9 @@
 
             <Button
               class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-              href={cockpitRouteId
-                ? resolve(
-                    `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
-                  )
-                : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
+              href={resolve(
+                `/staff/pedago/events/${data.liveEvent.id}/presences`,
+              )}
             >
               <RadioTower class="mr-2 h-4 w-4" /> Cockpit
             </Button>
@@ -656,10 +648,10 @@
                     size="sm"
                     variant="default"
                     class="gap-1.5 bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-                    href={resolve(`/staff/pedago/events/${event.id}/cockpit`)}
+                    href={resolve(`/staff/pedago/events/${event.id}/presences`)}
                   >
                     <MonitorPlay class="h-3.5 w-3.5" />
-                    Cockpit
+                    Présences
                   </Button>
                 </div>
               </div>

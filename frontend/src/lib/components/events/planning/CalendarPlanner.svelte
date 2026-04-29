@@ -7,11 +7,11 @@
     LayoutTemplate,
     Zap,
     ExternalLink,
-    ClipboardCheck,
     Search,
     GripVertical,
     Clock,
-    AlertTriangle,
+    TriangleAlert,
+    SquarePen,
   } from '@lucide/svelte';
   import ApplyPlanningTemplateDialog from './ApplyPlanningTemplateDialog.svelte';
   import EditActivityDialog from './EditActivityDialog.svelte';
@@ -27,6 +27,7 @@
     activityTypes,
   } from '$lib/validation/templates';
   import { enhance as kitEnhance } from '$app/forms';
+  import { goto } from '$app/navigation';
 
   type Slot = NonNullable<PlanningWithSlots>['timeSlots'][number];
 
@@ -513,6 +514,19 @@
     }
   }
 
+  function isOrgaNavigable(slot: Slot): boolean {
+    return (
+      !!appelRouteBase &&
+      canTrain &&
+      slot.activity?.activityType === 'orga' &&
+      !slot.id.startsWith('stub_')
+    );
+  }
+
+  function navigateToCockpit(slot: Slot) {
+    if (slot.activity) goto(`${appelRouteBase}/${slot.activity.id}`);
+  }
+
   function onSlotInteractionUp() {
     window.removeEventListener('pointermove', onSlotInteractionMove);
     window.removeEventListener('pointerup', onSlotInteractionUp);
@@ -525,6 +539,10 @@
     }
     const slot = localSlots.find((s) => s.id === was.slotId);
     if (!slot) return;
+    if (slot.activity && isOrgaNavigable(slot)) {
+      navigateToCockpit(slot);
+      return;
+    }
     if (slot.activity) {
       previewSlotId = was.slotId;
       previewOpen = true;
@@ -1098,7 +1116,7 @@
               <div
                 class="mx-auto mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-50 px-2 py-0.5 text-[10px] font-bold tracking-wide text-amber-700 uppercase dark:border-amber-400/40 dark:bg-amber-950/40 dark:text-amber-400"
               >
-                <AlertTriangle class="h-2.5 w-2.5" />
+                <TriangleAlert class="h-2.5 w-2.5" />
                 {day.unassignedCount} à assigner
               </div>
             {/if}
@@ -1244,7 +1262,9 @@
                       if (!isClickable) return;
                       if (e.key !== 'Enter' && e.key !== ' ') return;
                       e.preventDefault();
-                      if (activity) {
+                      if (activity && isOrgaNavigable(slot)) {
+                        navigateToCockpit(slot);
+                      } else if (activity) {
                         previewSlotId = slot.id;
                         previewOpen = true;
                       } else if (canEdit) {
@@ -1275,7 +1295,7 @@
                       {#if activity}
                         <span
                           class={cn(
-                            'text-[11px] leading-tight font-bold break-words',
+                            'text-[11px] leading-tight font-bold wrap-break-word',
                             styles.text,
                           )}
                         >
@@ -1286,7 +1306,7 @@
                           (t) => t.id === draggedTemplateId,
                         )}
                         <span
-                          class="text-[11px] leading-tight font-bold break-words text-epi-teal-solid"
+                          class="text-[11px] leading-tight font-bold wrap-break-word text-epi-teal-solid"
                         >
                           {incoming?.nom ?? 'Assigner ici'}
                         </span>
@@ -1299,7 +1319,7 @@
                         <span
                           class="flex items-center gap-1 text-[11px] leading-tight font-bold tracking-wide text-amber-700 uppercase dark:text-amber-400"
                         >
-                          <AlertTriangle class="h-3 w-3 shrink-0" />
+                          <TriangleAlert class="h-3 w-3 shrink-0" />
                           À assigner · {formatDuration(slotMinutes)}
                         </span>
                       {/if}
@@ -1333,19 +1353,24 @@
                           </a>
                         {/if}
                       </div>
-
-                      {#if activity?.activityType === 'orga' && appelRouteBase && !isStub}
-                        <a
-                          href={`${appelRouteBase}/${activity.id}`}
-                          class="mt-0.5 flex items-center justify-center gap-1 rounded bg-epi-teal-solid/10 px-1.5 py-0.5 text-[9px] font-black text-epi-teal-solid uppercase transition-colors hover:bg-epi-teal-solid hover:text-white"
-                          onpointerdown={(e) => e.stopPropagation()}
-                          onclick={(e) => e.stopPropagation()}
-                        >
-                          <ClipboardCheck class="h-3 w-3" />
-                          Appel / Ops
-                        </a>
-                      {/if}
                     </div>
+
+                    {#if activity && isOrgaNavigable(slot)}
+                      <button
+                        type="button"
+                        class="absolute top-1 right-1 z-10 flex h-6 w-6 items-center justify-center rounded text-muted-foreground opacity-0 transition-all group-focus-within/slot:opacity-100 group-hover/slot:opacity-100 hover:bg-epi-blue/10 hover:text-epi-blue [@media(hover:none)]:opacity-100"
+                        title="Aperçu de l'activité"
+                        aria-label="Aperçu de l'activité"
+                        onpointerdown={(e) => e.stopPropagation()}
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          previewSlotId = slot.id;
+                          previewOpen = true;
+                        }}
+                      >
+                        <SquarePen class="h-3.5 w-3.5" />
+                      </button>
+                    {/if}
 
                     <!-- Bottom resize handle -->
                     {#if canEdit && !isStub}
@@ -1391,7 +1416,7 @@
                   >
                     <span
                       class={cn(
-                        'text-[11px] leading-tight font-bold break-words',
+                        'text-[11px] leading-tight font-bold wrap-break-word',
                         gs.text,
                       )}
                     >
