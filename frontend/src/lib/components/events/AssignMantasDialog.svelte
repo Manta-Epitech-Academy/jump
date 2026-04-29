@@ -33,9 +33,7 @@
 <Dialog.Root bind:open>
   <Dialog.Content class="sm:max-w-lg">
     <Dialog.Header>
-      <Dialog.Title
-        class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
-      >
+      <Dialog.Title class="flex items-center gap-2 text-xl font-bold uppercase">
         <UsersRound class="h-5 w-5 text-epi-blue" />
         <span class="tracking-wider">Assigner des Mantas</span>
       </Dialog.Title>

@@ -164,7 +164,9 @@
         class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
       >
         <div class="space-y-1">
-          <h2 class="font-heading text-2xl text-foreground">
+          <h2
+            class="text-xl font-bold tracking-tight text-foreground uppercase"
+          >
             {data.activeStage.titre}
           </h2>
           <p
@@ -223,7 +225,9 @@
           class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
         >
           <div class="space-y-1">
-            <h2 class="font-heading text-2xl text-foreground">
+            <h2
+              class="text-xl font-bold tracking-tight text-foreground uppercase"
+            >
               {data.liveEvent.titre}
             </h2>
             <p
@@ -301,7 +305,7 @@
                     })}
                   </span>
                   <span
-                    class="mt-0.5 font-heading text-xl leading-none text-foreground"
+                    class="mt-0.5 text-xl leading-none font-black text-foreground"
                   >
                     {new Date(event.date).getDate()}
                   </span>
@@ -419,7 +423,9 @@
           class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
         >
           <div class="space-y-1">
-            <h2 class="font-heading text-2xl text-foreground">
+            <h2
+              class="text-xl font-bold tracking-tight text-foreground uppercase"
+            >
               {data.liveEvent.titre}
             </h2>
             <div
@@ -441,7 +447,7 @@
             <div
               class="flex items-center gap-3 rounded-sm bg-muted/30 px-4 py-2"
             >
-              <div class="font-heading text-2xl leading-none text-epi-blue">
+              <div class="text-2xl leading-none font-black text-epi-blue">
                 {liveProgressPercent}%
               </div>
               <div
@@ -571,7 +577,7 @@
                         })}
                       </span>
                       <span
-                        class="mt-0.5 font-heading text-2xl leading-none text-foreground"
+                        class="mt-0.5 text-2xl leading-none font-black text-foreground"
                       >
                         {new Date(event.date).getDate()}
                       </span>

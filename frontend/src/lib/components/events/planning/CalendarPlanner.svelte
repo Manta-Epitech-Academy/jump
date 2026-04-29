@@ -1469,7 +1469,7 @@
         class="z-20 hidden w-80 shrink-0 flex-col border-l bg-card shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.05)] lg:flex dark:shadow-none"
       >
         <div class="shrink-0 space-y-3 border-b p-4">
-          <h3 class="font-heading text-lg tracking-wide uppercase">
+          <h3 class="text-lg font-bold tracking-wide uppercase">
             Catalogue Officiel
           </h3>
           <div class="relative">

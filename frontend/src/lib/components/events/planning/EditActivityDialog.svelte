@@ -63,7 +63,7 @@
 >
   <Dialog.Content class="sm:max-w-lg">
     <Dialog.Header>
-      <Dialog.Title class="font-heading text-xl tracking-tight uppercase">
+      <Dialog.Title class="text-xl font-bold tracking-tight uppercase">
         Modifier l'activité
       </Dialog.Title>
       <Dialog.Description>
