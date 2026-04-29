@@ -68,6 +68,7 @@ model bauth_user {
   staffProfile      StaffProfile?
   talent            Talent?
   invitationsIssued StaffInvitation[] @relation("StaffInvitationInvitedBy")
+  cmsPages          CmsPage[]
 }
 
 model bauth_session {
@@ -204,6 +205,22 @@ model Campus {
   interviews        Interview[]
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
+  cmsPages          CmsPage[]
+}
+
+model CmsPage {
+  id        String   @id @default(cuid())
+  slug      String
+  campusId  String
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+  updatedBy String
+
+  campus Campus     @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  user   bauth_user @relation(fields: [updatedBy], references: [id])
+
+  @@unique([slug, campusId])
+  @@index([campusId])
 }
 
 model Theme {
