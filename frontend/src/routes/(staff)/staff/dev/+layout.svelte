@@ -15,6 +15,7 @@
     UserCog,
     ClipboardCheck,
     CalendarDays,
+    FileText,
   } from '@lucide/svelte';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
@@ -204,6 +205,13 @@
       >
         <UserCog class="h-5 w-5" />
         <span>Équipe</span>
+      </a>
+      <a
+        href={resolve('/staff/dev/cms/welcome')}
+        class={navLinkClass(isActive('/staff/dev/cms/welcome'))}
+      >
+        <FileText class="h-5 w-5" />
+        <span>Page d'accueil</span>
       </a>
     </nav>
   </Gated>
