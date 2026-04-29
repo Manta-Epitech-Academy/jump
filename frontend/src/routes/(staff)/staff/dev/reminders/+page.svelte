@@ -118,7 +118,6 @@
     {#if data.filter !== 'student'}
       <Button
         size="sm"
-        variant="outline"
         disabled={selectedIds.size === 0}
         onclick={() => prepareSend('parent')}
       >
