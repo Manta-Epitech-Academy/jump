@@ -40,6 +40,10 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
     group: 'devLead',
   },
   {
+    pattern: /^\/staff\/dev\/reminders(?:\/|$)/,
+    group: 'devLead',
+  },
+  {
     pattern: /^\/staff\/pedago\/events\/[^/]+\/planning(?:\/|$)/,
     group: 'pedaLead',
     readOnlyForRest: ['manta'],

@@ -16,6 +16,7 @@
     ClipboardCheck,
     CalendarDays,
   } from '@lucide/svelte';
+  import BellRing from '@lucide/svelte/icons/bell-ring';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -204,6 +205,13 @@
       >
         <UserCog class="h-5 w-5" />
         <span>Équipe</span>
+      </a>
+      <a
+        href={resolve('/staff/dev/reminders')}
+        class={navLinkClass(isActive('/staff/dev/reminders'))}
+      >
+        <BellRing class="h-5 w-5" />
+        <span>Relances</span>
       </a>
     </nav>
   </Gated>
