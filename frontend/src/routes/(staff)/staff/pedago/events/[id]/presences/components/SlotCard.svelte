@@ -62,7 +62,10 @@
   <div class="flex items-center gap-3 px-4 py-3">
     <div class="min-w-0 flex-1">
       <div class="flex items-center gap-2">
-        <span class="truncate text-sm font-bold tracking-tight uppercase">
+        <span
+          class="truncate text-sm font-bold tracking-tight uppercase"
+          style:view-transition-name={`slot-${slot.activityId}`}
+        >
           {slot.nom}
         </span>
         <SlotStatusBadge status={slot.status} />

@@ -73,7 +73,11 @@
       >
         <ArrowLeft class="h-4 w-4" />
       </a>
-      <PageHeader title="Présences" subtitle={event.titre} />
+      <PageHeader
+        title={event.titre}
+        subtitle="Présences"
+        titleViewTransitionName={`event-title-${event.id}`}
+      />
     </div>
   </div>
 

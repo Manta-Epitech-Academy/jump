@@ -273,7 +273,17 @@
               )}</span
             >
           </div>
-          <h1 class="text-2xl font-bold uppercase">{data.event.titre}</h1>
+          <h1
+            class="text-2xl font-bold uppercase"
+            style:view-transition-name={`slot-${data.activityId}`}
+          >
+            {data.currentSlot.nom}
+          </h1>
+          <p
+            class="mt-1 text-xs font-bold tracking-widest text-slate-400 uppercase"
+          >
+            {data.event.titre}
+          </p>
         </div>
 
         <div class="flex gap-4">

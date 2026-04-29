@@ -227,6 +227,7 @@
           <div class="space-y-1">
             <h2
               class="text-xl font-bold tracking-tight text-foreground uppercase"
+              style:view-transition-name={`event-title-${data.liveEvent.id}`}
             >
               {data.liveEvent.titre}
             </h2>
@@ -425,6 +426,7 @@
           <div class="space-y-1">
             <h2
               class="text-xl font-bold tracking-tight text-foreground uppercase"
+              style:view-transition-name={`event-title-${data.liveEvent.id}`}
             >
               {data.liveEvent.titre}
             </h2>
@@ -585,6 +587,7 @@
                     <div class="min-w-0">
                       <div
                         class="truncate text-sm font-bold tracking-tight text-foreground uppercase"
+                        style:view-transition-name={`event-title-${event.id}`}
                       >
                         {event.titre}
                       </div>

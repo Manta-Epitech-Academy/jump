@@ -175,10 +175,6 @@
   .app-sidebar {
     view-transition-name: main-sidebar;
   }
-
-  .app-main {
-    view-transition-name: main-content;
-  }
 }
 
 /* --- Markdown Prose Overrides (Notion-like with Epitech branding) --- */

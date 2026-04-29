@@ -70,7 +70,11 @@
     </span>
   </div>
 
-  <PageHeader title={template.nom} subtitle={template.description ?? undefined}>
+  <PageHeader
+    title={template.nom}
+    subtitle={template.description ?? undefined}
+    titleViewTransitionName={`tpl-title-${template.id}`}
+  >
     {#if template.link}
       <Button
         variant="outline"

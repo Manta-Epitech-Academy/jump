@@ -266,6 +266,7 @@
                 <div class="min-w-0">
                   <div
                     class="truncate text-sm leading-tight font-bold text-foreground"
+                    style:view-transition-name={`tpl-title-${template.id}`}
                   >
                     {template.nom}
                   </div>

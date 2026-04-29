@@ -49,14 +49,6 @@
   >
     <Calendar class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
     <span class="truncate text-xs font-bold tracking-wide text-white uppercase">
-      {currentSlot.nom}
-    </span>
-    <span class="hidden text-[10px] font-medium text-slate-400 sm:inline">
-      ·
-    </span>
-    <span
-      class="hidden truncate text-[10px] font-medium text-slate-400 sm:inline"
-    >
       {formatSlotLabel(currentSlot.startTime, currentSlot.endTime, timezone)}
     </span>
   </div>

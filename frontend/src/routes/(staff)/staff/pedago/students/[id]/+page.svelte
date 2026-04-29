@@ -30,6 +30,7 @@
         stats={data.stats}
         {xpProgress}
         sortedThemes={data.sortedThemes}
+        avatarViewTransitionName={`student-avatar-${data.student.id}`}
       />
     </div>
 
