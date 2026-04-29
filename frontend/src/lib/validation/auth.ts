@@ -1,12 +1,5 @@
 import { z } from 'zod';
 
-export const adminLoginSchema = z.object({
-  email: z.email('Adresse email invalide'),
-  password: z.string().min(1, 'Mot de passe requis'),
-});
-
-export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
-
 export const camperEmailSchema = z.object({
   email: z.email('Adresse email invalide'),
 });
