@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { superForm } from 'sveltekit-superforms';
   import * as Table from '$lib/components/ui/table';
@@ -12,17 +13,20 @@
 
   let { data } = $props();
 
-  const { enhance } = superForm(data.form, {
-    resetForm: false,
-    onResult: ({ result }) => {
-      if (result.type === 'success') {
-        toast.success(result.data?.form?.message || 'Relances envoyées');
-        selectedIds = new Set();
-      } else if (result.type === 'failure' && result.data?.form?.message) {
-        toast.error(result.data.form.message);
-      }
+  const { enhance } = superForm(
+    untrack(() => data.form),
+    {
+      resetForm: false,
+      onResult: ({ result }) => {
+        if (result.type === 'success') {
+          toast.success(result.data?.form?.message || 'Relances envoyées');
+          selectedIds = new Set();
+        } else if (result.type === 'failure' && result.data?.form?.message) {
+          toast.error(result.data.form.message);
+        }
+      },
     },
-  });
+  );
 
   let selectedIds = $state<Set<string>>(new Set());
   let sendType = $state<'student' | 'parent'>('student');
