@@ -168,15 +168,15 @@
     @apply mt-4 mb-2 font-heading text-sm tracking-wider text-epi-blue uppercase;
   }
 
-  header {
+  .app-header {
     view-transition-name: main-header;
   }
 
-  aside {
+  .app-sidebar {
     view-transition-name: main-sidebar;
   }
 
-  main {
+  .app-main {
     view-transition-name: main-content;
   }
 }
