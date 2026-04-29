@@ -4,11 +4,13 @@
     title,
     subtitle,
     class: className,
+    titleViewTransitionName,
     children,
   }: {
     title: string;
     subtitle?: string;
     class?: string;
+    titleViewTransitionName?: string;
     children?: any;
   } = $props();
 </script>
@@ -20,7 +22,10 @@
   )}
 >
   <div>
-    <h1 class="text-3xl font-bold text-epi-blue uppercase">
+    <h1
+      class="text-3xl font-bold text-epi-blue uppercase"
+      style:view-transition-name={titleViewTransitionName}
+    >
       {title}<span class="text-epi-teal">_</span>
     </h1>
     {#if subtitle}

@@ -57,7 +57,7 @@
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title
-        class="flex items-center gap-2 font-heading text-xl tracking-tight uppercase"
+        class="flex items-center gap-2 text-xl font-bold tracking-tight uppercase"
       >
         <LayoutTemplate class="h-5 w-5 text-epi-teal-solid" />
         Appliquer un modèle de planning

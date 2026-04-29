@@ -164,7 +164,7 @@
         <div class="grid gap-6 md:grid-cols-3">
           <div class="space-y-3">
             <div
-              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
             >
               Format
             </div>
@@ -185,7 +185,7 @@
           </div>
           <div class="space-y-3">
             <div
-              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
             >
               Difficulté
             </div>
@@ -202,7 +202,7 @@
           </div>
           <div class="space-y-3">
             <div
-              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
             >
               Type
             </div>
@@ -219,7 +219,7 @@
           {#if allThemes.length > 0}
             <div class="space-y-3 md:col-span-3">
               <div
-                class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
               >
                 Thèmes
               </div>
@@ -266,6 +266,7 @@
                 <div class="min-w-0">
                   <div
                     class="truncate text-sm leading-tight font-bold text-foreground"
+                    style:view-transition-name={`tpl-title-${template.id}`}
                   >
                     {template.nom}
                   </div>

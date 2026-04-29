@@ -18,6 +18,8 @@
   import { resolve } from '$app/paths';
   import { triggerConfetti } from '$lib/actions/confetti';
   import CockpitStudentCard from './components/CockpitStudentCard.svelte';
+  import CockpitSlotNav from './components/CockpitSlotNav.svelte';
+  import { formatSlotLabel } from '$lib/domain/presences';
 
   let { data }: { data: PageData } = $props();
 
@@ -223,13 +225,20 @@
     </div>
 
     <div class="relative z-10 container mx-auto max-w-4xl px-4">
-      <div class="mb-4 flex items-center justify-between">
+      <div class="mb-4 flex items-center justify-between gap-3">
         <a
-          href={resolve(`/staff/pedago/events/${data.event.id}/cockpit`)}
+          href={resolve(`/staff/pedago/events/${data.event.id}/presences`)}
           class="flex items-center gap-1 text-xs font-black tracking-widest text-slate-400 uppercase transition-colors hover:text-epi-blue"
         >
-          <ArrowLeft class="h-3 w-3" /> Retour
+          <ArrowLeft class="h-3 w-3" /> Présences
         </a>
+        <CockpitSlotNav
+          eventId={data.event.id}
+          currentSlot={data.currentSlot}
+          prevSlot={data.prevSlot}
+          nextSlot={data.nextSlot}
+          timezone={data.timezone}
+        />
         <Button
           variant="outline"
           size="sm"
@@ -257,10 +266,24 @@
             </span>
             <span
               class="text-xs font-bold tracking-widest text-epi-blue uppercase"
-              >Live Ops</span
+              >Live Ops · {formatSlotLabel(
+                data.currentSlot.startTime,
+                data.currentSlot.endTime,
+                data.timezone,
+              )}</span
             >
           </div>
-          <h1 class="text-2xl font-bold uppercase">{data.event.titre}</h1>
+          <h1
+            class="text-2xl font-bold uppercase"
+            style:view-transition-name={`slot-${data.activityId}`}
+          >
+            {data.currentSlot.nom}
+          </h1>
+          <p
+            class="mt-1 text-xs font-bold tracking-widest text-slate-400 uppercase"
+          >
+            {data.event.titre}
+          </p>
         </div>
 
         <div class="flex gap-4">

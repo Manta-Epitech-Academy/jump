@@ -138,7 +138,7 @@
 
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
   <header
-    class="z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-border bg-header px-4 text-header-foreground shadow-md md:px-6"
+    class="app-header z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-border bg-header px-4 text-header-foreground shadow-md md:px-6"
   >
     <div class="flex items-center gap-4 md:gap-8">
       <div class="flex items-center gap-2 md:gap-4">
@@ -229,7 +229,7 @@
 
   <div class="relative flex flex-1 overflow-hidden">
     <aside
-      class="hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
+      class="app-sidebar hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
     >
       <div class="flex-1 overflow-y-auto p-4">
         {@render navMenu()}
@@ -255,7 +255,7 @@
       </aside>
     {/if}
 
-    <main class="flex-1 overflow-y-auto bg-background p-4 md:p-8">
+    <main class="app-main flex-1 overflow-y-auto bg-background p-4 md:p-8">
       {#if data.viewMode === 'readonly'}
         <div
           class="mb-4 rounded-sm border border-epi-blue/30 bg-epi-blue/10 px-4 py-3 text-sm font-medium text-epi-blue"

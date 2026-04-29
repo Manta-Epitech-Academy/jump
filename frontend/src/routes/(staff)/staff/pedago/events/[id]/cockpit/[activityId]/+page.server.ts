@@ -2,41 +2,36 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { prisma } from '$lib/server/db';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
 import { assertEventCampus } from '$lib/server/db/assert';
 import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { requireStaffGroup } from '$lib/server/auth/guards';
+import { getAdjacentSlots, getEventOrgaSlots } from '$lib/domain/presences';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const db = scopedPrisma(getCampusId(locals));
 
-  const activity = await db.activity
+  const event = await db.event
     .findUniqueOrThrow({
-      where: { id: params.activityId },
-      include: {
-        timeSlot: {
-          include: {
-            planning: {
-              include: {
-                event: { include: { theme: true } },
-              },
-            },
-          },
-        },
-      },
+      where: { id: params.id },
+      include: { theme: true },
     })
     .catch(() => {
-      throw error(404, 'Activité introuvable');
+      throw error(404, 'Événement introuvable');
     });
 
-  if (activity.activityType !== 'orga') {
-    throw error(400, "Cette activité n'est pas un créneau d'appel/pilotage.");
-  }
+  const orgaSlots = await getEventOrgaSlots(event.id, db);
+  const { prev, next, current } = getAdjacentSlots(
+    orgaSlots,
+    params.activityId,
+  );
 
-  const event = activity.timeSlot.planning.event;
-
-  if (event.id !== params.id) {
-    throw error(400, "L'activité ne correspond pas à cet événement");
+  if (!current) {
+    throw error(404, "Créneau d'appel introuvable.");
   }
 
   const rawParticipations = await db.participation.findMany({
@@ -95,6 +90,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     activityId: params.activityId,
     participations,
     progressData: formattedProgressData,
+    currentSlot: current,
+    prevSlot: prev,
+    nextSlot: next,
+    timezone: getCampusTimezone(locals),
   };
 };
 

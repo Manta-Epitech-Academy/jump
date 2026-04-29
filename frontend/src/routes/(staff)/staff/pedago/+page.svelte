@@ -23,7 +23,7 @@
     Zap,
     ArrowRight,
     Ellipsis,
-    AlertTriangle,
+    TriangleAlert,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
@@ -60,10 +60,6 @@
         )
       : 0,
   );
-  let cockpitRouteId = $derived(
-    data.liveEvent?.planning?.timeSlots?.[0]?.activity?.id,
-  );
-
   let assignDialogOpen = $state(false);
   let assignDialogEvent = $state<{
     id: string;
@@ -127,7 +123,7 @@
           ...(data.tasks?.eventsWithUnassignedSlots ?? []).map(
             (ev): TaskRow => ({
               key: `unassigned-${ev.id}`,
-              icon: AlertTriangle,
+              icon: TriangleAlert,
               title: 'Créneaux à assigner',
               description: `${ev.titre} — créneaux sans activité`,
               count: ev.unassignedCount,
@@ -168,7 +164,9 @@
         class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
       >
         <div class="space-y-1">
-          <h2 class="font-heading text-2xl text-foreground">
+          <h2
+            class="text-xl font-bold tracking-tight text-foreground uppercase"
+          >
             {data.activeStage.titre}
           </h2>
           <p
@@ -227,7 +225,10 @@
           class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
         >
           <div class="space-y-1">
-            <h2 class="font-heading text-2xl text-foreground">
+            <h2
+              class="text-xl font-bold tracking-tight text-foreground uppercase"
+              style:view-transition-name={`event-title-${data.liveEvent.id}`}
+            >
               {data.liveEvent.titre}
             </h2>
             <p
@@ -256,11 +257,9 @@
 
             <Button
               class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-              href={cockpitRouteId
-                ? resolve(
-                    `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
-                  )
-                : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
+              href={resolve(
+                `/staff/pedago/events/${data.liveEvent.id}/presences`,
+              )}
             >
               <RadioTower class="mr-2 h-4 w-4" /> Rejoindre
             </Button>
@@ -307,7 +306,7 @@
                     })}
                   </span>
                   <span
-                    class="mt-0.5 font-heading text-xl leading-none text-foreground"
+                    class="mt-0.5 text-xl leading-none font-black text-foreground"
                   >
                     {new Date(event.date).getDate()}
                   </span>
@@ -425,7 +424,10 @@
           class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
         >
           <div class="space-y-1">
-            <h2 class="font-heading text-2xl text-foreground">
+            <h2
+              class="text-xl font-bold tracking-tight text-foreground uppercase"
+              style:view-transition-name={`event-title-${data.liveEvent.id}`}
+            >
               {data.liveEvent.titre}
             </h2>
             <div
@@ -447,7 +449,7 @@
             <div
               class="flex items-center gap-3 rounded-sm bg-muted/30 px-4 py-2"
             >
-              <div class="font-heading text-2xl leading-none text-epi-blue">
+              <div class="text-2xl leading-none font-black text-epi-blue">
                 {liveProgressPercent}%
               </div>
               <div
@@ -495,11 +497,9 @@
 
             <Button
               class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-              href={cockpitRouteId
-                ? resolve(
-                    `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
-                  )
-                : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
+              href={resolve(
+                `/staff/pedago/events/${data.liveEvent.id}/presences`,
+              )}
             >
               <RadioTower class="mr-2 h-4 w-4" /> Cockpit
             </Button>
@@ -579,7 +579,7 @@
                         })}
                       </span>
                       <span
-                        class="mt-0.5 font-heading text-2xl leading-none text-foreground"
+                        class="mt-0.5 text-2xl leading-none font-black text-foreground"
                       >
                         {new Date(event.date).getDate()}
                       </span>
@@ -587,6 +587,7 @@
                     <div class="min-w-0">
                       <div
                         class="truncate text-sm font-bold tracking-tight text-foreground uppercase"
+                        style:view-transition-name={`event-title-${event.id}`}
                       >
                         {event.titre}
                       </div>
@@ -656,10 +657,10 @@
                     size="sm"
                     variant="default"
                     class="gap-1.5 bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-                    href={resolve(`/staff/pedago/events/${event.id}/cockpit`)}
+                    href={resolve(`/staff/pedago/events/${event.id}/presences`)}
                   >
                     <MonitorPlay class="h-3.5 w-3.5" />
-                    Cockpit
+                    Présences
                   </Button>
                 </div>
               </div>
