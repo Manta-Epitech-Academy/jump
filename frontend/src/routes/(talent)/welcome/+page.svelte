@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { resolve } from '$app/paths';
+  import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import { ArrowRight, Rocket } from '@lucide/svelte';
 
@@ -26,9 +26,11 @@
   {/if}
 
   <div class="mt-8 flex justify-center">
-    <Button href={resolve('/')}>
-      Accéder au tableau de bord
-      <ArrowRight class="ml-2 h-4 w-4" />
-    </Button>
+    <form method="POST" action="?/markSeen" use:enhance>
+      <Button type="submit">
+        Accéder au tableau de bord
+        <ArrowRight class="ml-2 h-4 w-4" />
+      </Button>
+    </form>
   </div>
 </div>

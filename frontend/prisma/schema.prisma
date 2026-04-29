@@ -177,6 +177,7 @@ model Talent {
   externalId        String?   @unique
   lastSyncedAt      DateTime?
   lastActiveAt      DateTime?
+  welcomeSeenAt     DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

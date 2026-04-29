@@ -3,14 +3,13 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
-  import { Save, Eye } from '@lucide/svelte';
+  import { Save } from '@lucide/svelte';
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
 
   let { data, form: actionData }: { data: PageData; form: ActionData } =
     $props();
 
   let content = $state(data.cmsContent);
-  let showPreview = $state(false);
   let saving = $state(false);
 
   $effect(() => {
@@ -24,33 +23,17 @@
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold">Page d'accueil Talents</h1>
-      <p class="text-sm text-muted-foreground">
-        Ce contenu est affiché aux talents lorsqu'ils arrivent sur la
-        plateforme.
-      </p>
-    </div>
-    <div class="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onclick={() => (showPreview = !showPreview)}
-      >
-        <Eye class="mr-2 h-4 w-4" />
-        {showPreview ? 'Éditer' : 'Aperçu'}
-      </Button>
-    </div>
+  <div>
+    <h1 class="text-2xl font-bold">Page d'accueil Talents</h1>
+    <p class="mt-1 text-sm text-muted-foreground">
+      Ce contenu est la première chose que les talents voient en arrivant sur la
+      plateforme. Il s'affiche une seule fois, avant l'accès au tableau de bord.
+      Utilisez-le pour présenter le programme, donner des consignes ou souhaiter
+      la bienvenue.
+    </p>
   </div>
 
-  {#if showPreview}
-    <div class="rounded-lg border border-border bg-card p-8">
-      <div class="prose max-w-none prose-slate dark:prose-invert">
-        {@html content}
-      </div>
-    </div>
-  {:else}
+  {#if data.canEdit}
     <form
       method="POST"
       action="?/save"
@@ -74,5 +57,17 @@
         </Button>
       </div>
     </form>
+  {:else}
+    <div class="rounded-lg border border-border bg-card p-8">
+      {#if content}
+        <div class="prose max-w-none prose-slate dark:prose-invert">
+          {@html content}
+        </div>
+      {:else}
+        <p class="text-center text-muted-foreground">
+          Aucun contenu n'a encore été rédigé.
+        </p>
+      {/if}
+    </div>
   {/if}
 </div>

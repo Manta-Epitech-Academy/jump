@@ -49,12 +49,12 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
     group: 'pedaLead',
   },
   {
-    pattern: /^\/staff\/dev\/cms(?:\/|$)/,
-    group: 'devLead',
+    pattern: /^\/staff\/dev\/contenu(?:\/|$)/,
+    group: 'devMember',
   },
   {
-    pattern: /^\/staff\/pedago\/cms(?:\/|$)/,
-    group: 'pedaLead',
+    pattern: /^\/staff\/pedago\/contenu(?:\/|$)/,
+    group: 'pedaMember',
   },
 ];
 

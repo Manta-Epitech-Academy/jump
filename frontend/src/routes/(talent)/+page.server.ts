@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
@@ -8,6 +9,25 @@ import { getStartOfDay, tallyTopThemesFromActivities } from '$lib/utils';
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
+  }
+
+  // Redirect to welcome page if talent hasn't seen it yet
+  if (!locals.talent.welcomeSeenAt) {
+    const participation = await prisma.participation.findFirst({
+      where: { talentId: locals.talent.id },
+      orderBy: { event: { date: 'desc' } },
+      select: { campusId: true },
+    });
+    if (participation) {
+      const welcomePage = await prisma.cmsPage.findUnique({
+        where: {
+          slug_campusId: { slug: 'welcome', campusId: participation.campusId },
+        },
+      });
+      if (welcomePage?.content) {
+        throw redirect(303, resolve('/welcome'));
+      }
+    }
   }
 
   try {

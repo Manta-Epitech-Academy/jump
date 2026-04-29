@@ -3,24 +3,26 @@ import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { getCampusId } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
+import { can } from '$lib/domain/permissions';
 import DOMPurify from 'isomorphic-dompurify';
 
 const SLUG = 'welcome';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  requireStaffGroup(locals, 'leads');
+  requireStaffGroup(locals, 'pedaMember');
   const campusId = getCampusId(locals);
+  const canEdit = can('pedaLead', locals.staffProfile?.staffRole);
 
   const page = await prisma.cmsPage.findUnique({
     where: { slug_campusId: { slug: SLUG, campusId } },
   });
 
-  return { cmsContent: page?.content ?? '' };
+  return { cmsContent: page?.content ?? '', canEdit };
 };
 
 export const actions: Actions = {
   save: async ({ request, locals }) => {
-    requireStaffGroup(locals, 'leads');
+    requireStaffGroup(locals, 'pedaLead');
     const campusId = getCampusId(locals);
     const userId = locals.user!.id;
 
