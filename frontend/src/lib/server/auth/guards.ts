@@ -48,6 +48,14 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
     pattern: /^\/staff\/pedago\/events\/[^/]+\/factions(?:\/|$)/,
     group: 'pedaLead',
   },
+  {
+    pattern: /^\/staff\/dev\/cms(?:\/|$)/,
+    group: 'devLead',
+  },
+  {
+    pattern: /^\/staff\/pedago\/cms(?:\/|$)/,
+    group: 'pedaLead',
+  },
 ];
 
 export async function applyRouteGuards(
