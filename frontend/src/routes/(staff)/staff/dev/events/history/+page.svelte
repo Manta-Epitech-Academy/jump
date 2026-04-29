@@ -15,6 +15,7 @@
   import { formatDateFr } from '$lib/utils';
   import { resolve } from '$app/paths';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventDropdownMenu from '$lib/components/events/EventDropdownMenu.svelte';
   import EventActionManager from '$lib/components/events/EventActionManager.svelte';
 
@@ -32,6 +33,12 @@
 </script>
 
 <div class="space-y-6">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      { label: 'Historique' },
+    ]}
+  />
   <PageHeader title="Historique" subtitle="Archives des événements passés" />
 
   {#if data.events.length > 0}

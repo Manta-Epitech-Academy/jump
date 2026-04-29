@@ -1,31 +1,33 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { ArrowLeft, ShieldHalf, HardHat } from '@lucide/svelte';
-  import { buttonVariants } from '$lib/components/ui/button';
+  import { ShieldHalf, HardHat } from '@lucide/svelte';
   import { resolve } from '$app/paths';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
 
   let { data }: { data: PageData } = $props();
 </script>
 
 <div class="flex flex-col space-y-6">
-  <div class="flex items-center gap-4 border-b pb-4">
-    <a
-      href={resolve('/staff/pedago')}
-      class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+  <div class="border-b pb-4">
+    <PageBreadcrumb
+      items={[
+        { label: 'Dashboard', href: resolve('/staff/pedago') },
+        {
+          label: data.event.titre,
+          href: resolve(`/staff/pedago/events/${data.event.id}/planning`),
+        },
+        { label: 'Factions' },
+      ]}
+    />
+    <h1
+      class="flex items-center gap-3 text-3xl font-bold text-epi-blue uppercase"
     >
-      <ArrowLeft class="h-4 w-4" />
-    </a>
-    <div>
-      <h1
-        class="flex items-center gap-3 text-3xl font-bold text-epi-blue uppercase"
-      >
-        <ShieldHalf class="h-7 w-7" />
-        Factions<span class="text-foreground">_</span>
-      </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        {data.event.titre}
-      </p>
-    </div>
+      <ShieldHalf class="h-7 w-7" />
+      Factions<span class="text-foreground">_</span>
+    </h1>
+    <p class="text-sm font-bold text-muted-foreground uppercase">
+      {data.event.titre}
+    </p>
   </div>
 
   <div

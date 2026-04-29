@@ -2,7 +2,9 @@
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { Plus, Mail, X, LoaderCircle } from '@lucide/svelte';
+  import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
@@ -49,6 +51,12 @@
 </script>
 
 <div class="space-y-6 p-6">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      { label: 'Équipe' },
+    ]}
+  />
   <div class="flex items-end justify-between gap-4">
     <div>
       <h1 class="font-heading text-3xl tracking-wide text-epi-blue uppercase">

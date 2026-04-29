@@ -1,9 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { ArrowLeft } from '@lucide/svelte';
-  import { buttonVariants } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import CalendarPlanner from '$lib/components/events/planning/CalendarPlanner.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { can } from '$lib/domain/permissions';
 
   let { data }: { data: PageData } = $props();
@@ -11,27 +10,25 @@
 
 <div class="flex h-[calc(100vh-4rem)] flex-col bg-background">
   <!-- HEADER -->
-  <div class="flex shrink-0 items-center justify-between border-b px-6 py-4">
-    <div class="flex items-center gap-4">
-      <a
-        href={resolve('/staff/pedago')}
-        class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+  <div class="shrink-0 border-b px-6 py-4">
+    <PageBreadcrumb
+      items={[
+        { label: 'Dashboard', href: resolve('/staff/pedago') },
+        { label: data.event.titre },
+      ]}
+    />
+    <div>
+      <h1 class="text-2xl font-bold text-epi-blue uppercase">
+        Planning Builder<span class="text-foreground">_</span>
+      </h1>
+      <p
+        class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
       >
-        <ArrowLeft class="h-4 w-4" />
-      </a>
-      <div>
-        <h1 class="text-2xl font-bold text-epi-blue uppercase">
-          Planning Builder<span class="text-foreground">_</span>
-        </h1>
-        <p
-          class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
-        >
-          {data.event.titre} • {new Date(data.event.date).toLocaleDateString(
-            'fr-FR',
-            { timeZone: data.timezone },
-          )}
-        </p>
-      </div>
+        {data.event.titre} • {new Date(data.event.date).toLocaleDateString(
+          'fr-FR',
+          { timeZone: data.timezone },
+        )}
+      </p>
     </div>
   </div>
 
