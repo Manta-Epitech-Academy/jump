@@ -720,13 +720,17 @@ model Document {
 }
 
 model Section {
-  id               String @id @default(cuid())
+  id               String  @id @default(cuid())
   subjectVersionId String
   documentId       String
   level            Int
   anchor           String
   title            String
   sortOrder        Int
+  // For level=1 sections, the rendered HTML between this H1 and the next.
+  // Computed at import time so the talent reader does no DOM-string surgery.
+  // Null for H2/H3, which are tracked only for observable wiring.
+  htmlSlice        String?
 
   subjectVersion        SubjectVersion          @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
   document              Document                @relation(fields: [documentId], references: [id], onDelete: Cascade)

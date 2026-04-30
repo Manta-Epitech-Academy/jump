@@ -166,12 +166,25 @@ export type ImportSubjectParams = {
   importedByStaffProfileId: string;
 };
 
-export type ImportSubjectError =
-  | { kind: 'no_ref_comp'; message: string }
-  | { kind: 'fetch_failed'; message: string }
-  | { kind: 'invalid_metadata'; message: string }
-  | { kind: 'duplicate_slug'; message: string }
-  | { kind: 'unresolved_observable'; message: string };
+export type ImportSubjectErrorKind =
+  | 'no_ref_comp'
+  | 'fetch_failed'
+  | 'invalid_metadata'
+  | 'duplicate_slug'
+  | 'unresolved_observable';
+
+/**
+ * Thrown by {@link importSubject}. Callers branch on `kind` to decide HTTP
+ * status / UI message; see {@link importErrorToHttpStatus}.
+ */
+export class ImportSubjectError extends Error {
+  readonly kind: ImportSubjectErrorKind;
+  constructor(kind: ImportSubjectErrorKind, message: string) {
+    super(message);
+    this.name = 'ImportSubjectError';
+    this.kind = kind;
+  }
+}
 
 export type ImportWarning =
   | {
@@ -215,10 +228,10 @@ export async function importSubject(
     select: { id: true, commitSha: true },
   });
   if (!currentSnapshot) {
-    throw {
-      kind: 'no_ref_comp',
-      message: 'No current RefCompSnapshot. Run /api/jobs/sync-ref-comp first.',
-    } satisfies ImportSubjectError;
+    throw new ImportSubjectError(
+      'no_ref_comp',
+      'No current RefCompSnapshot. Run /api/jobs/sync-ref-comp first.',
+    );
   }
 
   const meta = await fetchAndValidateMetadata(coords, sha);
@@ -257,10 +270,10 @@ export async function importSubject(
     select: { repoUrl: true },
   });
   if (slugCollision && slugCollision.repoUrl !== repoUrl) {
-    throw {
-      kind: 'duplicate_slug',
-      message: `Le slug "${projectSlug}" est déjà utilisé par ${slugCollision.repoUrl}. Modifie metadata.yaml ou supprime l'autre sujet.`,
-    } satisfies ImportSubjectError;
+    throw new ImportSubjectError(
+      'duplicate_slug',
+      `Le slug "${projectSlug}" est déjà utilisé par ${slugCollision.repoUrl}. Modifie metadata.yaml ou supprime l'autre sujet.`,
+    );
   }
 
   const resolver = await loadSnapshotResolver(currentSnapshot.id);
@@ -309,6 +322,28 @@ export async function importSubject(
       };
     }),
   );
+
+  // Slice each rendered Document into per-H1 HTML chunks. The renderer
+  // emits H1s in source order, so positions are monotonic and adjacent
+  // H1s bound each chunk. Doing this at import means the talent reader
+  // does no string surgery — it just SELECTs `Section.htmlSlice`.
+  const htmlSliceByDocAndAnchor = new Map<string, string>();
+  for (const doc of rendered) {
+    const h1s = doc.headings.filter((h) => h.level === 1);
+    for (let i = 0; i < h1s.length; i++) {
+      const start = doc.renderedHtml.indexOf(`<h1 id="${h1s[i].anchor}"`);
+      if (start < 0) continue;
+      const nextStart =
+        i + 1 < h1s.length
+          ? doc.renderedHtml.indexOf(`<h1 id="${h1s[i + 1].anchor}"`)
+          : doc.renderedHtml.length;
+      const end = nextStart > start ? nextStart : doc.renderedHtml.length;
+      htmlSliceByDocAndAnchor.set(
+        `${doc.path}#${h1s[i].anchor}`,
+        doc.renderedHtml.slice(start, end),
+      );
+    }
+  }
 
   // Walk the toc against the rendered heading list to pick up the actual
   // anchor IDs. This is the only correct way to keep TOC anchors in sync
@@ -414,6 +449,12 @@ export async function importSubject(
       data: tocBindings.flatMap((entry) => {
         const documentId = documentIdByPath.get(entry.documentPath);
         if (!documentId) return [];
+        const htmlSlice =
+          entry.level === 1
+            ? (htmlSliceByDocAndAnchor.get(
+                `${entry.documentPath}#${entry.anchor}`,
+              ) ?? null)
+            : null;
         return [
           {
             subjectVersionId: subjectVersion.id,
@@ -422,6 +463,7 @@ export async function importSubject(
             anchor: entry.anchor,
             title: entry.title,
             sortOrder: entry.sortOrder,
+            htmlSlice,
           },
         ];
       }),
@@ -516,31 +558,30 @@ async function fetchAndValidateMetadata(
   try {
     meta = YAML.parse(text) as SubjectMetadata;
   } catch (err) {
-    throw {
-      kind: 'invalid_metadata',
-      message: `metadata.yaml YAML parse error: ${err instanceof Error ? err.message : err}`,
-    } satisfies ImportSubjectError;
+    throw new ImportSubjectError(
+      'invalid_metadata',
+      `metadata.yaml YAML parse error: ${err instanceof Error ? err.message : err}`,
+    );
   }
   if (!meta?.project?.slug || !meta?.toc || !meta?.documents) {
-    throw {
-      kind: 'invalid_metadata',
-      message:
-        'metadata.yaml missing required fields (project.slug, documents, toc).',
-    } satisfies ImportSubjectError;
+    throw new ImportSubjectError(
+      'invalid_metadata',
+      'metadata.yaml missing required fields (project.slug, documents, toc).',
+    );
   }
   if (!/^\d+\.\d+/.test(meta.schema_version ?? '')) {
-    throw {
-      kind: 'invalid_metadata',
-      message: `Unsupported schema_version "${meta.schema_version}" (need >= 1.5).`,
-    } satisfies ImportSubjectError;
+    throw new ImportSubjectError(
+      'invalid_metadata',
+      `Unsupported schema_version "${meta.schema_version}" (need >= 1.5).`,
+    );
   }
   const major = Number(meta.schema_version.split('.')[0] ?? '0');
   const minor = Number(meta.schema_version.split('.')[1] ?? '0');
   if (major < 1 || (major === 1 && minor < 5)) {
-    throw {
-      kind: 'invalid_metadata',
-      message: `schema_version ${meta.schema_version} too old; need >= 1.5.`,
-    } satisfies ImportSubjectError;
+    throw new ImportSubjectError(
+      'invalid_metadata',
+      `schema_version ${meta.schema_version} too old; need >= 1.5.`,
+    );
   }
   return meta;
 }

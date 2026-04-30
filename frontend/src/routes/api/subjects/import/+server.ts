@@ -4,7 +4,7 @@ import type { RequestHandler } from './$types';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import {
   importSubject,
-  type ImportSubjectError,
+  ImportSubjectError,
 } from '$lib/server/services/subjectImporter';
 import { importErrorToHttpStatus } from '$lib/server/services/subjectImportErrors';
 
@@ -28,9 +28,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     });
     return json(result);
   } catch (err) {
-    if (err && typeof err === 'object' && 'kind' in err && 'message' in err) {
-      const e = err as ImportSubjectError;
-      throw error(importErrorToHttpStatus(e.kind), e.message);
+    if (err instanceof ImportSubjectError) {
+      throw error(importErrorToHttpStatus(err.kind), err.message);
     }
     console.error('[Subject import] failed:', err);
     throw error(

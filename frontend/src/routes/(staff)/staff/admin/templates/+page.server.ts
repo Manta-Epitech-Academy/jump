@@ -7,7 +7,7 @@ import { prisma } from '$lib/server/db';
 import { processOfficialThemes } from '$lib/server/services/themes';
 import {
   importSubject,
-  type ImportSubjectError,
+  ImportSubjectError,
 } from '$lib/server/services/subjectImporter';
 import { importErrorToHttpStatus } from '$lib/server/services/subjectImportErrors';
 
@@ -71,12 +71,11 @@ async function resolveSubjectBinding(
       warnings: result.warnings.length,
     };
   } catch (err) {
-    if (err && typeof err === 'object' && 'kind' in err && 'message' in err) {
-      const e = err as ImportSubjectError;
+    if (err instanceof ImportSubjectError) {
       return {
         ok: false,
-        status: importErrorToHttpStatus(e.kind),
-        message: e.message,
+        status: importErrorToHttpStatus(err.kind),
+        message: err.message,
       };
     }
     console.error('[Subject import] failed:', err);

@@ -1,4 +1,4 @@
-import type { ImportSubjectError } from './subjectImporter';
+import type { ImportSubjectErrorKind } from './subjectImporter';
 
 /**
  * Single source of truth for mapping {@link ImportSubjectError} kinds to
@@ -6,7 +6,7 @@ import type { ImportSubjectError } from './subjectImporter';
  * admin templates form action.
  */
 export function importErrorToHttpStatus(
-  kind: ImportSubjectError['kind'],
+  kind: ImportSubjectErrorKind,
 ): 400 | 409 | 422 | 500 {
   switch (kind) {
     case 'no_ref_comp':

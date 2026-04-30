@@ -24,8 +24,8 @@ type GithubContent = {
 
 /**
  * Build the per-H1 paginated view of a GitHub-backed subject version.
- * Each level-1 Section becomes a step. Its `content_html` is the slice of
- * the source Document's rendered HTML between this H1 and the next.
+ * Each level-1 Section is one step; its `htmlSlice` is computed at import
+ * time so this loader is just an ordered SELECT.
  */
 async function loadGithubSubjectContent(
   subjectVersionId: string,
@@ -34,49 +34,21 @@ async function loadGithubSubjectContent(
   const cached = getCached<GithubContent>(cacheKey);
   if (cached) return cached;
 
-  const sv = await prisma.subjectVersion.findUniqueOrThrow({
-    where: { id: subjectVersionId },
-    include: {
-      documents: {
-        orderBy: { sortOrder: 'asc' },
-      },
-      sections: {
-        orderBy: { sortOrder: 'asc' },
-      },
-    },
+  const sections = await prisma.section.findMany({
+    where: { subjectVersionId, level: 1 },
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true, title: true, htmlSlice: true },
   });
 
-  const documentById = new Map(sv.documents.map((d) => [d.id, d]));
-  const h1Sections = sv.sections.filter((s) => s.level === 1);
-  const h1ByDocument = new Map<string, typeof h1Sections>();
-  for (const sec of h1Sections) {
-    const list = h1ByDocument.get(sec.documentId) ?? [];
-    list.push(sec);
-    h1ByDocument.set(sec.documentId, list);
-  }
-
-  const steps: GithubStep[] = [];
-  for (const sec of h1Sections) {
-    const doc = documentById.get(sec.documentId);
-    if (!doc) continue;
-    const siblings = h1ByDocument.get(sec.documentId) ?? [];
-    const idxInDoc = siblings.findIndex((s) => s.id === sec.id);
-    const next = siblings[idxInDoc + 1];
-    const start = doc.renderedHtml.indexOf(`<h1 id="${sec.anchor}"`);
-    const end = next
-      ? doc.renderedHtml.indexOf(`<h1 id="${next.anchor}"`)
-      : doc.renderedHtml.length;
-    const safeStart = start >= 0 ? start : 0;
-    const safeEnd = end > safeStart ? end : doc.renderedHtml.length;
-    steps.push({
-      id: sec.id,
-      title: sec.title,
-      content_html: doc.renderedHtml.slice(safeStart, safeEnd),
+  const content: GithubContent = {
+    source: 'github',
+    steps: sections.map((s) => ({
+      id: s.id,
+      title: s.title,
+      content_html: s.htmlSlice ?? '',
       type: 'theory',
-    });
-  }
-
-  const content: GithubContent = { source: 'github', steps };
+    })),
+  };
   setCached(cacheKey, content);
   return content;
 }
