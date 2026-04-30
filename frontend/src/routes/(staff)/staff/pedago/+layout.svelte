@@ -8,6 +8,7 @@
     X,
     BookOpenText,
     UserCheck,
+    FileText,
   } from '@lucide/svelte';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -18,6 +19,7 @@
   import { fly, fade } from 'svelte/transition';
   import { resolve } from '$app/paths';
   import { getStaffRoleLabel } from '$lib/domain/staff';
+  import Gated from '$lib/components/auth/Gated.svelte';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { children, data } = $props();
@@ -134,6 +136,19 @@
       </a>
     </nav>
   {/if}
+
+  <div class="sidebar-section-title">
+    Contenu<span class="text-foreground">_</span>
+  </div>
+  <nav class="space-y-1">
+    <a
+      href={resolve('/staff/pedago/contenu/welcome')}
+      class={navLinkClass(isActive('/staff/pedago/contenu/welcome'))}
+    >
+      <FileText class="h-5 w-5" />
+      <span>Page d'accueil</span>
+    </a>
+  </nav>
 {/snippet}
 
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
