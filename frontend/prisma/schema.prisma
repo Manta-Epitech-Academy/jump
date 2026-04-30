@@ -184,6 +184,7 @@ model Talent {
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
   interviews     Interview[]
+  reminders      OnboardingReminder[]
 }
 
 // ─── Domain Tables ───
@@ -574,4 +575,16 @@ model AdminFile {
   uploadedBy StaffProfile @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@index([uploadedById])
+}
+
+model OnboardingReminder {
+  id       String   @id @default(cuid())
+  talentId String
+  type     String   // "student" | "parent"
+  sentAt   DateTime @default(now())
+  sentBy   String   // staff userId
+
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([talentId])
 }
