@@ -39,7 +39,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
         orderBy: { startTime: 'asc' },
         include: {
           activity: {
-            include: { activityThemes: { include: { theme: true } } },
+            include: {
+              activityThemes: { include: { theme: true } },
+              subjectVersion: {
+                select: {
+                  id: true,
+                  _count: {
+                    select: { sections: { where: { level: 1 } } },
+                  },
+                },
+              },
+            },
           },
         },
       },

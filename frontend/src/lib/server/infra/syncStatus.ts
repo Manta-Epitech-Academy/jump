@@ -5,7 +5,12 @@
 
 import { prisma } from '$lib/server/db';
 
-export type SyncType = 'campus_list' | 'events' | 'talents';
+export type SyncType =
+  | 'campus_list'
+  | 'events'
+  | 'talents'
+  | 'ref_comp'
+  | 'subject_import';
 
 export type SyncRecord = {
   type: SyncType;
@@ -16,6 +21,8 @@ export type SyncRecord = {
   updated?: number;
   removed?: number;
   skipped?: number;
+  commitSha?: string;
+  subjectSlug?: string;
 };
 
 const KEY = 'sync.last';
