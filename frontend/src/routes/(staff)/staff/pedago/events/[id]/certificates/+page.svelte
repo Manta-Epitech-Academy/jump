@@ -1,18 +1,13 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import {
-    ArrowLeft,
-    Award,
-    Download,
-    CircleCheck,
-    LoaderCircle,
-  } from '@lucide/svelte';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import { Award, Download, CircleCheck, LoaderCircle } from '@lucide/svelte';
+  import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { resolve } from '$app/paths';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -59,25 +54,27 @@
 </script>
 
 <div class="space-y-6 pb-12">
-  <div class="flex items-center gap-4 border-b pb-4">
-    <a
-      href={resolve('/staff/pedago')}
-      class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+  <div class="border-b pb-4">
+    <PageBreadcrumb
+      items={[
+        { label: 'Dashboard', href: resolve('/staff/pedago') },
+        {
+          label: data.event.titre,
+          href: resolve(`/staff/pedago/events/${data.event.id}/planning`),
+        },
+        { label: 'Diplômes' },
+      ]}
+    />
+    <h1
+      class="flex items-center gap-3 text-3xl font-bold tracking-tight text-epi-blue uppercase"
     >
-      <ArrowLeft class="h-4 w-4" />
-    </a>
-    <div>
-      <h1
-        class="flex items-center gap-3 text-3xl font-bold tracking-tight text-epi-blue uppercase"
-      >
-        Clôture & Diplômes<span class="text-epi-blue">_</span>
-      </h1>
-      <p
-        class="text-sm font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        {data.event.titre}
-      </p>
-    </div>
+      Clôture & Diplômes<span class="text-epi-blue">_</span>
+    </h1>
+    <p
+      class="text-sm font-bold tracking-widest text-muted-foreground uppercase"
+    >
+      {data.event.titre}
+    </p>
   </div>
 
   <div

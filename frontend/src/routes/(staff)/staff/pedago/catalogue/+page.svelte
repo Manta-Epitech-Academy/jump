@@ -1,5 +1,6 @@
 <script lang="ts">
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import * as Card from '$lib/components/ui/card';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
@@ -116,6 +117,12 @@
 </script>
 
 <div class="space-y-8">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/pedago') },
+      { label: 'Bibliothèque' },
+    ]}
+  />
   <PageHeader
     title="Bibliothèque"
     subtitle="Sujets, corrections et exercices prêts à être rejoués par la péda et les mantas."

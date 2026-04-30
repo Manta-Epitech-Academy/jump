@@ -1,14 +1,15 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import { ChevronLeft, FileSpreadsheet, LoaderCircle } from '@lucide/svelte';
+  import { FileSpreadsheet, LoaderCircle } from '@lucide/svelte';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
 
   import FakeProgressLoader from './components/FakeProgressLoader.svelte';
@@ -69,13 +70,13 @@
 </script>
 
 <div class="mx-auto max-w-5xl space-y-6 pb-12">
-  <div class="flex items-center gap-4 border-b pb-4">
-    <a
-      href={resolve('/staff/dev')}
-      class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-    >
-      <ChevronLeft class="h-4 w-4" />
-    </a>
+  <div class="border-b pb-4">
+    <PageBreadcrumb
+      items={[
+        { label: 'Dashboard', href: resolve('/staff/dev') },
+        { label: 'Importer' },
+      ]}
+    />
     <h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
       Nouvel Événement<span class="text-epi-teal">_</span>
     </h1>

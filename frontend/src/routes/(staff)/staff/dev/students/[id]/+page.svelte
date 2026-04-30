@@ -2,13 +2,14 @@
   import type { PageData } from './$types';
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { ArrowLeft, Trash2, Calendar } from '@lucide/svelte';
+  import { Trash2, Calendar } from '@lucide/svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Card from '$lib/components/ui/card';
   import { toast } from 'svelte-sonner';
   import { enhance as kitEnhance } from '$app/forms';
   import { resolve } from '$app/paths';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import StudentFormDialog from '../components/StudentFormDialog.svelte';
   import TalentCard from './components/TalentCard.svelte';
   import StudentTimeline from '$lib/components/students/StudentTimeline.svelte';
@@ -51,10 +52,14 @@
 </script>
 
 <div class="space-y-6 pb-12">
-  <div class="flex items-center gap-4 border-b pb-4">
-    <Button variant="ghost" size="icon" href={resolve('/staff/dev')}>
-      <ArrowLeft class="h-4 w-4" />
-    </Button>
+  <div class="border-b pb-4">
+    <PageBreadcrumb
+      items={[
+        { label: 'Dashboard', href: resolve('/staff/dev') },
+        { label: 'Talents', href: resolve('/staff/dev/students') },
+        { label: `${data.student.nom} ${data.student.prenom}` },
+      ]}
+    />
     <h1 class="text-3xl font-bold text-epi-blue">
       <span class="uppercase">{data.student.nom}</span>
       <span class="capitalize">{data.student.prenom}</span>
