@@ -105,6 +105,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Utilisateurs</title>
+</svelte:head>
+
 <div class="space-y-6">
   <div class="flex items-end justify-between gap-4">
     <div>
