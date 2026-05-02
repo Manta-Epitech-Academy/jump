@@ -8,6 +8,10 @@
   let { data }: { data: PageData } = $props();
 </script>
 
+<svelte:head>
+  <title>{data.event.titre} — Planning</title>
+</svelte:head>
+
 <div class="flex h-[calc(100vh-4rem)] flex-col bg-background">
   <div class="shrink-0 border-b px-6 py-4">
     <PageBreadcrumb

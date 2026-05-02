@@ -135,6 +135,10 @@
   );
 </script>
 
+<svelte:head>
+  <title>Tableau de bord</title>
+</svelte:head>
+
 {#snippet stageCard(ctaLabel: string)}
   {#if data.activeStage}
     <Card.Root

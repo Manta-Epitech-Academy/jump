@@ -7,6 +7,10 @@
   let { data }: { data: PageData } = $props();
 </script>
 
+<svelte:head>
+  <title>{data.event.titre} — Factions</title>
+</svelte:head>
+
 <div class="flex flex-col space-y-6">
   <div class="border-b pb-4">
     <PageBreadcrumb

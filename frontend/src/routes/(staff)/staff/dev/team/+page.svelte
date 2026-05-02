@@ -50,6 +50,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Équipe du campus</title>
+</svelte:head>
+
 <div class="space-y-6 p-6">
   <PageBreadcrumb
     items={[

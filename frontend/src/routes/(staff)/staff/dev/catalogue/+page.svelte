@@ -19,6 +19,10 @@
   };
 </script>
 
+<svelte:head>
+  <title>Catalogue Epitech</title>
+</svelte:head>
+
 <div class="space-y-6">
   <PageBreadcrumb
     items={[

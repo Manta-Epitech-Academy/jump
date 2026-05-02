@@ -116,6 +116,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Bibliothèque de sujets</title>
+</svelte:head>
+
 <div class="space-y-8">
   <PageBreadcrumb
     items={[

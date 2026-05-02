@@ -73,6 +73,10 @@
   };
 </script>
 
+<svelte:head>
+  <title>{data.event.titre} — Suivi ADM</title>
+</svelte:head>
+
 <div class="flex h-full flex-col space-y-6 pb-10">
   <PageBreadcrumb
     items={[

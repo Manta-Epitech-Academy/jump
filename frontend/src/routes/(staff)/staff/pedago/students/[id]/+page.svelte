@@ -12,6 +12,10 @@
   let xpProgress = $derived(Math.min((data.student.xp / 1000) * 100, 100));
 </script>
 
+<svelte:head>
+  <title>{data.student.prenom} {data.student.nom}</title>
+</svelte:head>
+
 <div class="space-y-6 pb-10">
   <PageBreadcrumb
     items={[
