@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { resolve as resolvePath } from '$app/paths';
-import { now, CalendarDateTime } from '@internationalized/date';
+import { CalendarDateTime } from '@internationalized/date';
 import { EventService } from '$lib/server/services/events';
 import { prisma } from '$lib/server/db';
 import {
@@ -14,6 +14,12 @@ import {
   requireFlag,
   requireStaffGroup,
 } from '$lib/server/auth/guards';
+import {
+  eventOverlappingWhere,
+  getLifecycleBounds,
+  ongoingEventWhere,
+  upcomingEventWhere,
+} from '$lib/domain/eventLifecycle';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
   if (!locals.user) {
@@ -56,23 +62,13 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   try {
     const db = scopedPrisma(getCampusId(locals));
     const tz = getCampusTimezone(locals);
-    const tzNow = now(tz);
-
-    const startOfDay = tzNow
-      .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
-      .toDate();
-    const endOfDay = tzNow
-      .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
-      .toDate();
-    const endOfWeek = tzNow
-      .add({ days: 7 })
-      .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
-      .toDate();
+    const bounds = getLifecycleBounds(tz);
+    const endOfWeek = new Date(bounds.endOfDay);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
 
     const ongoingEvents = await db.event.findMany({
-      where: {
-        date: { gte: startOfDay, lte: endOfDay },
-      },
+      where: ongoingEventWhere(bounds),
+      orderBy: { date: 'asc' },
       include: {
         _count: { select: { participations: true } },
       },
@@ -85,7 +81,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     });
 
     const upcomingEvents = await db.event.findMany({
-      where: { date: { gt: endOfDay } },
+      where: upcomingEventWhere(bounds),
       include: {
         mantas: true,
         _count: { select: { participations: true } },
@@ -95,7 +91,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     });
 
     const eventsInWeek = await db.event.findMany({
-      where: { date: { gte: startOfDay, lte: endOfWeek } },
+      where: eventOverlappingWhere(bounds.startOfDay, endOfWeek),
       include: {
         mantas: { select: { staffProfileId: true } },
         planning: {
@@ -132,7 +128,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
           where: {
             ...stageInterviewWhere,
             status: 'planned',
-            date: { gte: startOfDay, lte: endOfDay },
+            date: { gte: bounds.startOfDay, lte: bounds.endOfDay },
           },
         })
       : 0;
@@ -141,7 +137,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
           where: {
             ...stageInterviewWhere,
             status: 'planned',
-            date: { lt: startOfDay },
+            date: { lt: bounds.startOfDay },
           },
         })
       : 0;

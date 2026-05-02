@@ -45,12 +45,34 @@ export type ParticipationWithActivityThemes = Prisma.ParticipationGetPayload<{
 export type PlanningWithSlots = Prisma.PlanningGetPayload<{
   include: {
     timeSlots: {
-      include: { activity: true };
+      include: {
+        activity: {
+          include: {
+            subjectVersion: {
+              select: {
+                id: true;
+                _count: { select: { sections: { where: { level: 1 } } } };
+              };
+            };
+          };
+        };
+      };
     };
   };
 }>;
 
-/** TimeSlot with its activity. */
+/** TimeSlot with its activity, including a count of GitHub-backed sections. */
 export type TimeSlotWithActivity = Prisma.TimeSlotGetPayload<{
-  include: { activity: true };
+  include: {
+    activity: {
+      include: {
+        subjectVersion: {
+          select: {
+            id: true;
+            _count: { select: { sections: { where: { level: 1 } } } };
+          };
+        };
+      };
+    };
+  };
 }>;

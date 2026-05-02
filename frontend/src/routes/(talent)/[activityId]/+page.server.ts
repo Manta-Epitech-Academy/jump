@@ -8,6 +8,100 @@ import {
   ValidationError,
   type ActivityStructure,
 } from '$lib/server/services/progressService';
+import { markSectionSeen } from '$lib/server/services/observableTracker';
+
+type GithubStep = {
+  id: string;
+  title: string;
+  content_html: string;
+  type: 'theory';
+};
+
+type GithubContent = {
+  source: 'github';
+  steps: GithubStep[];
+};
+
+/**
+ * Build the per-H1 paginated view of a GitHub-backed subject version.
+ * Each level-1 Section is one step; its `htmlSlice` is computed at import
+ * time so this loader is just an ordered SELECT.
+ */
+async function loadGithubSubjectContent(
+  subjectVersionId: string,
+): Promise<GithubContent> {
+  const cacheKey = `github-subject:${subjectVersionId}`;
+  const cached = getCached<GithubContent>(cacheKey);
+  if (cached) return cached;
+
+  const sections = await prisma.section.findMany({
+    where: { subjectVersionId, level: 1 },
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true, title: true, htmlSlice: true },
+  });
+
+  const content: GithubContent = {
+    source: 'github',
+    steps: sections.map((s) => ({
+      id: s.id,
+      title: s.title,
+      content_html: s.htmlSlice ?? '',
+      type: 'theory',
+    })),
+  };
+  setCached(cacheKey, content);
+  return content;
+}
+
+/**
+ * Advance the talent's progress on a GitHub-backed activity.
+ * Sets `unlockedStepId` to the next H1 section in document order, or
+ * `'COMPLETED'` if the current section is the last one. Also bumps
+ * `currentStepId` to the same target so the talent lands on the next page.
+ *
+ * Per-section observable tracking is wired up in step 7 (observableTracker).
+ */
+async function advanceGithubStep(params: {
+  talentId: string;
+  activityId: string;
+  subjectVersionId: string;
+  eventId: string;
+  progressId: string;
+  stepId: string;
+}): Promise<void> {
+  await assertStudentOwns(params.talentId, params.progressId, 'stepsProgress');
+
+  const sections = await prisma.section.findMany({
+    where: { subjectVersionId: params.subjectVersionId, level: 1 },
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true },
+  });
+  const idx = sections.findIndex((s) => s.id === params.stepId);
+  if (idx < 0) {
+    throw new ValidationError('Étape inconnue dans ce sujet.');
+  }
+  const nextStepId =
+    idx + 1 < sections.length ? sections[idx + 1].id : 'COMPLETED';
+
+  // Commit observables for the section being left BEFORE advancing the
+  // progress pointer. If marking fails, the talent stays on the same step
+  // instead of ending up advanced with no observable rows.
+  await markSectionSeen({
+    talentId: params.talentId,
+    eventId: params.eventId,
+    sectionId: params.stepId,
+  });
+
+  await prisma.stepsProgress.update({
+    where: { id: params.progressId },
+    data: {
+      unlockedStepId: nextStepId,
+      currentStepId: nextStepId === 'COMPLETED' ? params.stepId : nextStepId,
+      status: nextStepId === 'COMPLETED' ? 'completed' : 'active',
+      lastUnlockSource: 'student',
+    },
+  });
+}
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
@@ -70,8 +164,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       };
     }
 
-    // Dynamic activities: full steps flow
-    const content = activity.contentStructure as ActivityStructure | null;
+    // Dynamic activities: GitHub-backed binding takes precedence; otherwise
+    // fall through to the inline JSON `contentStructure` source. Both are
+    // first-class and keep working in parallel.
+    let content: ActivityStructure | GithubContent | null = null;
+    if (activity.subjectVersionId) {
+      content = await loadGithubSubjectContent(activity.subjectVersionId);
+    } else {
+      content = activity.contentStructure as ActivityStructure | null;
+    }
 
     if (!content || !content.steps || content.steps.length === 0) {
       throw new Error('Cette activité ne contient aucune étape configurée.');
@@ -133,14 +234,41 @@ export const actions: Actions = {
     const pinInput = data.get('pin') as string | null;
 
     try {
-      await ProgressService.validateStep(
-        locals.talent!.id,
-        params.activityId,
-        stepId,
-        progressId,
-        answerIndexStr,
-        pinInput,
-      );
+      const activity = await prisma.activity.findUnique({
+        where: { id: params.activityId },
+        select: {
+          id: true,
+          subjectVersionId: true,
+          timeSlot: { select: { planning: { select: { eventId: true } } } },
+        },
+      });
+      if (!activity) return fail(404, { message: 'Activité introuvable.' });
+
+      if (activity.subjectVersionId) {
+        const eventId = activity.timeSlot?.planning?.eventId;
+        if (!eventId) {
+          return fail(400, {
+            message: 'Événement introuvable pour cette activité.',
+          });
+        }
+        await advanceGithubStep({
+          talentId: locals.talent!.id,
+          activityId: activity.id,
+          subjectVersionId: activity.subjectVersionId,
+          eventId,
+          progressId,
+          stepId,
+        });
+      } else {
+        await ProgressService.validateStep(
+          locals.talent!.id,
+          params.activityId,
+          stepId,
+          progressId,
+          answerIndexStr,
+          pinInput,
+        );
+      }
       return { success: true };
     } catch (err) {
       if (err instanceof ValidationError) {

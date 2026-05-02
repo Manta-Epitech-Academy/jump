@@ -44,7 +44,7 @@
 
   const containerClass = $derived(
     cn(
-      'group flex w-full items-center gap-4 rounded-sm border-y border-r border-l-4 border-y-border border-r-border bg-card p-5 text-left shadow-sm transition-all hover:bg-muted/20 hover:shadow-md',
+      'group flex w-full cursor-pointer items-center gap-4 rounded-sm border-y border-r border-l-4 border-y-border border-r-border bg-card p-5 text-left shadow-sm transition-all hover:bg-muted/20 hover:shadow-md',
       accentColor,
     ),
   );

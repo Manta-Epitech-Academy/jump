@@ -129,6 +129,8 @@ model StaffProfile {
   notesAuthored       Participation[] @relation("NoteAuthor")
   interviewsConducted Interview[]
   adminFiles          AdminFile[]
+  subjectVersionsImported SubjectVersion[]
+  observableValidations   TalentObservableState[]
 
   @@index([campusId])
 }
@@ -184,6 +186,9 @@ model Talent {
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
   interviews     Interview[]
+  observableStates TalentObservableState[]
+  competenceStates TalentCompetenceState[]
+  quizAttempts     TalentQuizAttempt[]
 }
 
 // ─── Domain Tables ───
@@ -233,12 +238,19 @@ model ActivityTemplate {
   content          String?
   contentStructure Json?
   defaultDuration  Int?
+  subjectId        String?
+  subjectVersionId String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
   campus                 Campus?                @relation(fields: [campusId], references: [id])
   activityTemplateThemes ActivityTemplateTheme[]
   planningTemplateSlots  PlanningTemplateSlot[]
+  subject                Subject?               @relation(fields: [subjectId], references: [id])
+  subjectVersion         SubjectVersion?        @relation(fields: [subjectVersionId], references: [id])
+
+  @@index([subjectId])
+  @@index([subjectVersionId])
 }
 
 model ActivityTemplateTheme {
@@ -287,6 +299,7 @@ model Activity {
   contentStructure Json?
   timeSlotId       String       @unique
   templateId       String?
+  subjectVersionId String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -295,8 +308,10 @@ model Activity {
   participationActivities ParticipationActivity[]
   stepsProgress           StepsProgress[]
   portfolioItems          PortfolioItem[]
+  subjectVersion          SubjectVersion?         @relation(fields: [subjectVersionId], references: [id])
 
   @@index([templateId])
+  @@index([subjectVersionId])
 }
 
 model ActivityTheme {
@@ -330,6 +345,8 @@ model Event {
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
   planning       Planning?
+  observableStates TalentObservableState[]
+  quizAttempts     TalentQuizAttempt[]
 
   @@index([campusId])
 }
@@ -574,4 +591,256 @@ model AdminFile {
   uploadedBy StaffProfile @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@index([uploadedById])
+}
+
+// ─── GitHub-backed Subjects + Competence Reference ───
+
+model RefCompSnapshot {
+  id        String   @id @default(cuid())
+  commitSha String   @unique
+  fetchedAt DateTime @default(now())
+  isCurrent Boolean  @default(false)
+
+  competences     Competence[]
+  skills          Skill[]
+  skillLevels     SkillLevel[]
+  observables     Observable[]
+  subjectVersions SubjectVersion[]
+
+  @@index([isCurrent])
+}
+
+model Competence {
+  id         String @id @default(cuid())
+  snapshotId String
+  domain     String
+  desc       String
+
+  snapshot RefCompSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  skills   Skill[]
+
+  @@unique([snapshotId, domain])
+}
+
+model Skill {
+  id           String @id @default(cuid())
+  snapshotId   String
+  competenceId String
+  numericId    Int
+  shortName    String
+
+  snapshot   RefCompSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  competence Competence      @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+  levels     SkillLevel[]
+
+  @@unique([snapshotId, competenceId, numericId])
+  @@index([snapshotId])
+}
+
+model SkillLevel {
+  id         String @id @default(cuid())
+  snapshotId String
+  skillId    String
+  level      String
+  name       String
+  desc       String
+
+  snapshot           RefCompSnapshot         @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  skill              Skill                   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  subjectObservables SubjectObservable[]
+  competenceStates   TalentCompetenceState[]
+
+  @@unique([snapshotId, skillId, level])
+  @@index([snapshotId])
+}
+
+model Observable {
+  id          String @id @default(cuid())
+  snapshotId  String
+  projectSlug String
+  externalId  Int
+  desc        String
+
+  snapshot           RefCompSnapshot         @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  subjectObservables SubjectObservable[]
+  states             TalentObservableState[]
+
+  @@unique([snapshotId, projectSlug, externalId])
+  @@index([snapshotId])
+  @@index([projectSlug])
+}
+
+model Subject {
+  id      String @id @default(cuid())
+  repoUrl String @unique
+  slug    String @unique
+
+  versions  SubjectVersion[]
+  templates ActivityTemplate[]
+}
+
+model SubjectVersion {
+  id                String   @id @default(cuid())
+  subjectId         String
+  repoCommitSha     String
+  refCompSnapshotId String
+  metadataJson      Json
+  importedAt        DateTime @default(now())
+  importedById      String
+
+  subject         Subject             @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  refCompSnapshot RefCompSnapshot     @relation(fields: [refCompSnapshotId], references: [id])
+  importedBy      StaffProfile        @relation(fields: [importedById], references: [id])
+  documents       Document[]
+  sections        Section[]
+  quizzes         SubjectQuiz[]
+  observableLinks SubjectObservable[]
+  activities      Activity[]
+  templates       ActivityTemplate[]
+
+  @@unique([subjectId, repoCommitSha])
+  @@index([subjectId])
+  @@index([refCompSnapshotId])
+}
+
+model Document {
+  id               String @id @default(cuid())
+  subjectVersionId String
+  path             String
+  rawMd            String
+  renderedHtml     String
+  sortOrder        Int
+
+  subjectVersion SubjectVersion @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
+  sections       Section[]
+  quizzes        SubjectQuiz[]
+
+  @@unique([subjectVersionId, path])
+  @@index([subjectVersionId])
+}
+
+model Section {
+  id               String  @id @default(cuid())
+  subjectVersionId String
+  documentId       String
+  level            Int
+  anchor           String
+  title            String
+  sortOrder        Int
+  // For level=1 sections, the rendered HTML between this H1 and the next.
+  // Computed at import time so the talent reader does no DOM-string surgery.
+  // Null for H2/H3, which are tracked only for observable wiring.
+  htmlSlice        String?
+
+  subjectVersion        SubjectVersion          @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
+  document              Document                @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  observableLinks       SubjectObservable[]
+  observableStateSource TalentObservableState[] @relation("TalentObservableStateSourceSection")
+
+  @@unique([subjectVersionId, documentId, anchor])
+  @@index([subjectVersionId])
+  @@index([documentId])
+}
+
+model SubjectObservable {
+  id               String @id @default(cuid())
+  subjectVersionId String
+  sectionId        String
+  observableId     String
+  skillLevelId     String
+
+  subjectVersion SubjectVersion @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
+  section        Section        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  observable     Observable     @relation(fields: [observableId], references: [id])
+  skillLevel     SkillLevel     @relation(fields: [skillLevelId], references: [id])
+
+  @@unique([sectionId, observableId])
+  @@index([subjectVersionId])
+  @@index([observableId])
+  @@index([skillLevelId])
+}
+
+model SubjectQuiz {
+  id               String  @id @default(cuid())
+  subjectVersionId String
+  documentId       String
+  fqn              String
+  type             String
+  expectedCount    Int?
+  level            String
+  externalIndex    Int
+  title            String
+  question         String
+  options          Json
+  canonicalAnswer  Json?
+
+  subjectVersion SubjectVersion      @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
+  document       Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  attempts       TalentQuizAttempt[]
+
+  @@unique([subjectVersionId, fqn])
+  @@index([subjectVersionId])
+  @@index([documentId])
+}
+
+model TalentObservableState {
+  id              String    @id @default(cuid())
+  talentId        String
+  eventId         String
+  observableId    String
+  // Section the talent had reached when this row was created. Lets the manta
+  // validation view deep-link to the exact spot in the subject without
+  // guessing among the SubjectObservable rows linked to the observable.
+  sourceSectionId String?
+  state           String
+  observedById    String?
+  observedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  talent        Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  observable    Observable    @relation(fields: [observableId], references: [id])
+  observedBy    StaffProfile? @relation(fields: [observedById], references: [id])
+  sourceSection Section?      @relation("TalentObservableStateSourceSection", fields: [sourceSectionId], references: [id], onDelete: SetNull)
+
+  @@unique([talentId, eventId, observableId])
+  @@index([talentId])
+  @@index([eventId])
+  @@index([observableId])
+  @@index([state])
+  @@index([sourceSectionId])
+}
+
+model TalentCompetenceState {
+  id           String    @id @default(cuid())
+  talentId     String
+  skillLevelId String
+  state        String
+  certifiedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  talent     Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  skillLevel SkillLevel @relation(fields: [skillLevelId], references: [id])
+
+  @@unique([talentId, skillLevelId])
+  @@index([talentId])
+  @@index([skillLevelId])
+}
+
+model TalentQuizAttempt {
+  id          String   @id @default(cuid())
+  talentId    String
+  quizId      String
+  eventId     String
+  submitted   Json
+  correct     Boolean
+  attemptedAt DateTime @default(now())
+
+  talent Talent      @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  quiz   SubjectQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  event  Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([talentId])
+  @@index([quizId])
+  @@index([eventId])
 }

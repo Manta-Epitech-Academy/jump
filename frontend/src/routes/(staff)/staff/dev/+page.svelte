@@ -353,8 +353,72 @@
         </Card.Footer>
       </Card.Root>
 
-      <!-- ÉVÉNEMENTS A VENIR + OBJECTIFS -->
+      <!-- ÉVÉNEMENTS EN COURS / À VENIR + OBJECTIFS -->
       <div class="flex flex-col space-y-6">
+        {#if data.ongoingEvents.length > 0}
+          <div class="space-y-3">
+            <h3
+              class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"
+            >
+              <span class="relative inline-flex h-2 w-2" aria-hidden="true">
+                <span
+                  class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-orange/60"
+                ></span>
+                <span
+                  class="relative inline-flex h-2 w-2 rounded-full bg-epi-orange"
+                ></span>
+              </span>
+              Événements en cours
+            </h3>
+            <div class="flex flex-col gap-3">
+              {#each data.ongoingEvents as event}
+                <div
+                  class="group flex items-center justify-between rounded-sm border border-epi-orange/40 bg-epi-orange/5 p-4 shadow-sm transition-all hover:border-epi-orange hover:shadow-md dark:shadow-none"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-background/60 p-2"
+                    >
+                      <span
+                        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                        >{new Date(event.date).toLocaleDateString('fr-FR', {
+                          month: 'short',
+                          timeZone: data.timezone,
+                        })}</span
+                      >
+                      <span
+                        class="mt-0.5 font-heading text-xl leading-none text-foreground"
+                        >{new Date(event.date).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          timeZone: data.timezone,
+                        })}</span
+                      >
+                    </div>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-bold uppercase">
+                        {event.titre}
+                      </p>
+                      <div
+                        class="mt-1 text-xs font-medium text-muted-foreground"
+                      >
+                        {event._count.participations} inscrits
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    href={resolve(`/staff/dev/events/${event.id}/manage`)}
+                    class="shrink-0 rounded-sm bg-background text-xs transition-colors group-hover:border-epi-orange group-hover:bg-epi-orange group-hover:text-white"
+                  >
+                    Gérer
+                  </Button>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
         <div class="space-y-3">
           <h3
             class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"

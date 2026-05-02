@@ -4,8 +4,14 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
+import {
+  eventOverlappingWhere,
+  getLifecycleBounds,
+  ongoingEventWhere,
+  pastEventWhere,
+  upcomingEventWhere,
+} from '$lib/domain/eventLifecycle';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -13,22 +19,13 @@ export const load: PageServerLoad = async ({ locals }) => {
   const role = locals.staffProfile?.staffRole;
   const staffProfileId = locals.staffProfile?.id;
 
-  const tzNow = now(tz);
-  const startOfDay = tzNow
-    .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
-    .toDate();
-  const endOfDay = tzNow
-    .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
-    .toDate();
-  const endOfWeek = tzNow
-    .add({ days: 7 })
-    .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
-    .toDate();
+  const bounds = getLifecycleBounds(tz);
+  const endOfWeek = new Date(bounds.endOfDay);
+  endOfWeek.setDate(endOfWeek.getDate() + 7);
 
   const liveEvent = await db.event.findFirst({
-    where: {
-      date: { gte: startOfDay, lte: endOfDay },
-    },
+    where: ongoingEventWhere(bounds),
+    orderBy: { date: 'asc' },
     include: {
       theme: true,
       _count: { select: { participations: true } },
@@ -53,7 +50,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     const nextAssignedEvents = staffProfileId
       ? await db.event.findMany({
           where: {
-            date: { gt: endOfDay },
+            ...upcomingEventWhere(bounds),
             mantas: { some: { staffProfileId } },
           },
           orderBy: { date: 'asc' },
@@ -88,9 +85,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // Pedago (peda) payload
   const upcomingEvents = await db.event.findMany({
-    where: {
-      date: { gt: endOfDay },
-    },
+    where: upcomingEventWhere(bounds),
     orderBy: { date: 'asc' },
     include: {
       theme: true,
@@ -104,11 +99,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     },
   });
 
-  // Task derivations need today's ongoing events too (active stage may have
-  // started). upcomingEvents excludes them by design (gt endOfDay) so it
-  // serves the "À venir" tab only.
+  // Task derivations cover everything overlapping the next week, including
+  // multi-day events that started earlier — they still need mantas/planning
+  // attention now. upcomingEvents serves the "À venir" tab only.
   const eventsInWeek = await db.event.findMany({
-    where: { date: { gte: startOfDay, lte: endOfWeek } },
+    where: eventOverlappingWhere(bounds.startOfDay, endOfWeek),
     include: {
       mantas: { select: { staffProfileId: true } },
       planning: {
@@ -124,9 +119,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   });
 
   const pastEvents = await db.event.findMany({
-    where: {
-      date: { lt: startOfDay },
-    },
+    where: pastEventWhere(bounds),
     orderBy: { date: 'desc' },
     take: 20,
     include: {
