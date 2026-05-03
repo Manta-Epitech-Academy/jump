@@ -13,7 +13,7 @@
 </svelte:head>
 
 <div class="flex h-[calc(100vh-4rem)] flex-col bg-background">
-  <div class="shrink-0 border-b px-6 py-4">
+  <div class="shrink-0 border-b pb-4">
     <PageBreadcrumb
       items={[
         { label: 'Dashboard', href: resolve('/staff/dev') },
