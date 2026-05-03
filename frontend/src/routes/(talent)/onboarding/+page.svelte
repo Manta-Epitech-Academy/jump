@@ -7,6 +7,12 @@
   const stepNumber = $derived(data.step === 'info-validation' ? 1 : 2);
 </script>
 
+<svelte:head>
+  <title
+    >{data.step === 'info-validation' ? 'Mes informations' : 'Règlement'} — Bienvenue</title
+  >
+</svelte:head>
+
 <div
   class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"
 >

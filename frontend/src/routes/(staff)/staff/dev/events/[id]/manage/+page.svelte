@@ -93,6 +93,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{data.event.titre}</title>
+</svelte:head>
+
 <div class="flex flex-col space-y-6 pb-12">
   <PageBreadcrumb
     items={[

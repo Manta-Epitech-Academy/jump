@@ -82,6 +82,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{data.template.nom} — Aperçu</title>
+</svelte:head>
+
 {#if !isDynamic}
   <div
     class="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"

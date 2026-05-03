@@ -9,6 +9,10 @@
   let { data }: { data: PageData } = $props();
 </script>
 
+<svelte:head>
+  <title>{data.event.titre} — Présences</title>
+</svelte:head>
+
 <div class="flex h-full flex-col space-y-6 pb-10">
   <PresencesHeader event={data.event} totals={data.totals} />
 
