@@ -8,6 +8,7 @@
     X,
     BookOpenText,
     UserCheck,
+    LifeBuoy,
   } from '@lucide/svelte';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -19,6 +20,7 @@
   import { resolve } from '$app/paths';
   import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
+  import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -131,6 +133,30 @@
       >
         <BookOpenText class="h-5 w-5" />
         <span>Sujets & Corrections</span>
+      </a>
+    </nav>
+  {/if}
+
+  {#if data.ticketsEnabled}
+    <div class="sidebar-section-title">
+      Support<span class="text-foreground">_</span>
+    </div>
+    <nav class="space-y-1">
+      <a
+        href={resolve('/staff/pedago/tickets')}
+        class={navLinkClass(isActive('/staff/pedago/tickets'))}
+      >
+        <LifeBuoy class="h-5 w-5" />
+        <span class="flex flex-1 items-center justify-between">
+          <span>Tickets</span>
+          {#if data.ticketsUnread > 0}
+            <span
+              class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
+            >
+              {data.ticketsUnread}
+            </span>
+          {/if}
+        </span>
       </a>
     </nav>
   {/if}
@@ -270,4 +296,8 @@
 
 {#if hasCodingClub}
   <GlobalCommand bind:open={commandOpen} basePath="/staff/pedago" />
+{/if}
+
+{#if data.ticketsEnabled}
+  <TicketsLauncher basePath="/staff/pedago" unreadCount={data.ticketsUnread} />
 {/if}
