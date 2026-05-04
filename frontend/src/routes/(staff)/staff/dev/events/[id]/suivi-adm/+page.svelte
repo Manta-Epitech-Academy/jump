@@ -1,11 +1,17 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { FileText, ScrollText, Camera } from '@lucide/svelte';
+  import Send from '@lucide/svelte/icons/send';
   import { resolve } from '$app/paths';
+  import { superForm } from 'sveltekit-superforms';
   import type { PageData } from './$types';
+  import { Button } from '$lib/components/ui/button';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
+  import Gated from '$lib/components/auth/Gated.svelte';
   import { cn } from '$lib/utils';
+  import { toast } from 'svelte-sonner';
   import SuiviAdmTable from './components/SuiviAdmTable.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -71,6 +77,46 @@
       };
     };
   };
+
+  // Reminders
+  let selectedTalentIds = $state<Set<string>>(new Set());
+  let sendType = $state<'student' | 'parent'>('student');
+  let showConfirm = $state(false);
+
+  const { enhance: reminderEnhance } = superForm(
+    untrack(() => data.reminderForm),
+    {
+      resetForm: false,
+      onResult: ({ result }) => {
+        if (result.type === 'success') {
+          toast.success(result.data?.form?.message || 'Relances envoyées');
+          selectedTalentIds = new Set();
+        } else if (result.type === 'failure' && result.data?.form?.message) {
+          toast.error(result.data.form.message);
+        }
+      },
+    },
+  );
+
+  function toggleAllTalents() {
+    if (selectedTalentIds.size === participations.length) {
+      selectedTalentIds = new Set();
+    } else {
+      selectedTalentIds = new Set(participations.map((p) => p.talent.id));
+    }
+  }
+
+  function toggleTalent(talentId: string) {
+    const next = new Set(selectedTalentIds);
+    if (next.has(talentId)) next.delete(talentId);
+    else next.add(talentId);
+    selectedTalentIds = next;
+  }
+
+  function prepareSend(type: 'student' | 'parent') {
+    sendType = type;
+    showConfirm = true;
+  }
 </script>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
@@ -142,9 +188,71 @@
     </div>
   </div>
 
+  <!-- Reminder bulk actions -->
+  <Gated group="devLead" mode="hide">
+    <div
+      class="flex items-center gap-3 rounded-sm border border-dashed border-border bg-muted/30 px-4 py-3"
+    >
+      <Send class="h-4 w-4 text-muted-foreground" />
+      <span class="text-sm text-muted-foreground">
+        {selectedTalentIds.size} sélectionné{selectedTalentIds.size > 1
+          ? 's'
+          : ''}
+      </span>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={selectedTalentIds.size === 0}
+        onclick={() => prepareSend('student')}
+      >
+        <Send class="mr-2 h-3.5 w-3.5" />
+        Relancer étudiants
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={selectedTalentIds.size === 0}
+        onclick={() => prepareSend('parent')}
+      >
+        <Send class="mr-2 h-3.5 w-3.5" />
+        Relancer parents
+      </Button>
+    </div>
+  </Gated>
+
   <SuiviAdmTable
     {participations}
     {optimisticAdminToggle}
     {optimisticPcToggle}
+    {selectedTalentIds}
+    onToggleTalent={toggleTalent}
+    onToggleAll={toggleAllTalents}
   />
 </div>
+
+<!-- Confirm dialog -->
+<AlertDialog.Root bind:open={showConfirm}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>Confirmer l'envoi</AlertDialog.Title>
+      <AlertDialog.Description>
+        Envoyer une relance {sendType === 'student' ? 'étudiant' : 'parent'} à
+        <strong>{selectedTalentIds.size}</strong>
+        destinataire{selectedTalentIds.size > 1 ? 's' : ''} ? Les relances envoyées
+        il y a moins de 3 jours seront ignorées.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+      <form method="POST" action="?/sendReminders" use:reminderEnhance>
+        {#each [...selectedTalentIds] as id}
+          <input type="hidden" name="talentIds" value={id} />
+        {/each}
+        <input type="hidden" name="type" value={sendType} />
+        <Button type="submit" onclick={() => (showConfirm = false)}>
+          Envoyer
+        </Button>
+      </form>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

@@ -189,6 +189,7 @@ model Talent {
   observableStates TalentObservableState[]
   competenceStates TalentCompetenceState[]
   quizAttempts     TalentQuizAttempt[]
+  reminders      OnboardingReminder[]
 }
 
 // ─── Domain Tables ───
@@ -843,4 +844,16 @@ model TalentQuizAttempt {
   @@index([talentId])
   @@index([quizId])
   @@index([eventId])
+}
+
+model OnboardingReminder {
+  id       String   @id @default(cuid())
+  talentId String
+  type     String   // "student" | "parent"
+  sentAt   DateTime @default(now())
+  sentBy   String   // staff userId
+
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([talentId])
 }
