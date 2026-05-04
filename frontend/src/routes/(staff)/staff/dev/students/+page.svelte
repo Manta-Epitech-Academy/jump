@@ -133,6 +133,10 @@
   ];
 </script>
 
+<svelte:head>
+  <title>Talents</title>
+</svelte:head>
+
 <div class="space-y-6">
   <PageBreadcrumb
     items={[

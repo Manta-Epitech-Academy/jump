@@ -53,7 +53,11 @@
   }
 </script>
 
-<div class="space-y-6 p-6">
+<svelte:head>
+  <title>Équipe du campus</title>
+</svelte:head>
+
+<div class="space-y-6 pb-12">
   <PageBreadcrumb
     items={[
       { label: 'Dashboard', href: resolve('/staff/dev') },

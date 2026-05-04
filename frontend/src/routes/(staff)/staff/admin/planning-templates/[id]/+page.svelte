@@ -159,6 +159,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>{data.planningTemplate.nom}</title>
+</svelte:head>
+
 <div class="space-y-6">
   <!-- Header -->
   <div class="flex items-center gap-4">

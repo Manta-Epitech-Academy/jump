@@ -4,8 +4,6 @@
   import * as Tabs from '$lib/components/ui/tabs';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { Button, buttonVariants } from '$lib/components/ui/button';
-  import { EVENT_TYPES } from '$lib/domain/event';
-  import type { FlagKey } from '$lib/domain/featureFlags';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import MonitorPlay from '@lucide/svelte/icons/monitor-play';
   import Users from '@lucide/svelte/icons/users';
@@ -28,10 +26,6 @@
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';
 
   let { data } = $props();
-
-  let featureFlags = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
-  );
 
   function formatDate(date: Date): string {
     return date.toLocaleDateString('fr-FR', {
@@ -132,6 +126,10 @@
         ],
   );
 </script>
+
+<svelte:head>
+  <title>Tableau de bord</title>
+</svelte:head>
 
 {#snippet stageCard(ctaLabel: string)}
   {#if data.activeStage}
@@ -299,7 +297,7 @@
             >
               <div class="flex items-center gap-4">
                 <div
-                  class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
+                  class="`min-w-14 flex shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
                 >
                   <span
                     class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
@@ -577,7 +575,7 @@
                 <div class="flex items-start justify-between gap-4">
                   <div class="flex min-w-0 items-start gap-4">
                     <div
-                      class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
+                      class="flex min-w-14 shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
                     >
                       <span
                         class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"

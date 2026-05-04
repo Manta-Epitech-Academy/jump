@@ -51,6 +51,10 @@
   };
 </script>
 
+<svelte:head>
+  <title>{data.template.nom}</title>
+</svelte:head>
+
 <div class="space-y-6">
   <PageBreadcrumb
     items={[
