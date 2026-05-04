@@ -8,6 +8,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import { getStaffRoleLabel } from '$lib/domain/staff';
+  import { getInitials, staffRoleAvatarFallbackClass } from '$lib/avatar';
   import { cn } from '$lib/utils';
 
   type Member = {
@@ -49,13 +50,6 @@
     { value: 'peda', label: 'Pédago' },
     { value: 'manta', label: 'Manta' },
   ];
-
-  function getInitials(name: string | null | undefined) {
-    if (!name) return '??';
-    const parts = name.trim().split(' ').filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.substring(0, 2).toUpperCase();
-  }
 </script>
 
 <Dialog.Root bind:open>
@@ -140,9 +134,7 @@
                     <Avatar.Fallback
                       class={cn(
                         'text-[10px] font-bold',
-                        isPeda
-                          ? 'bg-epi-teal/15 text-epi-teal-solid'
-                          : 'bg-epi-blue/15 text-epi-blue',
+                        staffRoleAvatarFallbackClass(m.staffRole),
                       )}
                     >
                       {getInitials(m.user?.name)}

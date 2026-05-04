@@ -14,6 +14,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const db = scopedPrisma(getCampusId(locals));
 
   const staff = await db.staffProfile.findMany({
+    where: { staffRole: { in: ['peda', 'manta'] } },
     include: { user: true },
     orderBy: { user: { name: 'asc' } },
   });

@@ -13,6 +13,7 @@
   import { Calendar, Tag, Archive, Users, FileCheck } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { formatDateFr } from '$lib/utils';
+  import { getInitials } from '$lib/avatar';
   import { resolve } from '$app/paths';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
@@ -113,7 +114,7 @@
                         <Tooltip.Root>
                           <Tooltip.Trigger>
                             <Avatar.Root
-                              class="relative h-6 w-6 rounded-sm border-2 border-background hover:z-10"
+                              class="relative h-6 w-6 border-2 border-background hover:z-10"
                             >
                               {#if manta.avatarUrl}
                                 <Avatar.Image
@@ -124,7 +125,7 @@
                               <Avatar.Fallback
                                 class="bg-muted text-[8px] font-bold text-foreground opacity-70"
                               >
-                                {manta.name.substring(0, 2).toUpperCase()}
+                                {getInitials(manta.name)}
                               </Avatar.Fallback>
                             </Avatar.Root>
                           </Tooltip.Trigger>

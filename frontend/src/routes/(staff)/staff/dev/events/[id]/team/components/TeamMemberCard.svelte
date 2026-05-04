@@ -8,6 +8,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { getStaffRoleLabel } from '$lib/domain/staff';
+  import { getInitials, staffRoleAvatarFallbackClass } from '$lib/avatar';
   import { cn } from '$lib/utils';
 
   type Member = {
@@ -22,13 +23,6 @@
   };
 
   let { member }: { member: Member } = $props();
-
-  function getInitials(name: string | null | undefined) {
-    if (!name) return '??';
-    const parts = name.trim().split(' ').filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.substring(0, 2).toUpperCase();
-  }
 
   let isPeda = $derived(member.staffRole === 'peda');
   let displayName = $derived(member.user?.name ?? 'Inconnu');
@@ -99,9 +93,7 @@
     <Avatar.Fallback
       class={cn(
         'text-base font-bold',
-        isPeda
-          ? 'bg-epi-teal/15 text-epi-teal-solid'
-          : 'bg-epi-blue/15 text-epi-blue',
+        staffRoleAvatarFallbackClass(member.staffRole),
       )}
     >
       {getInitials(displayName)}

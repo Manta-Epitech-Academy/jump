@@ -22,6 +22,7 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
+  import { getInitials, staffRoleAvatarFallbackClass } from '$lib/avatar';
   import { cn } from '$lib/utils';
   import { EVENT_TYPES } from '$lib/domain/event';
 
@@ -52,7 +53,7 @@
     return d1 === d2 ? d1 : `${d1} – ${d2}`;
   }
 
-  function getInitials(prenom: string, nom: string) {
+  function getTalentInitials(prenom: string, nom: string) {
     return ((nom?.[0] ?? '') + (prenom?.[0] ?? '')).toUpperCase();
   }
 
@@ -398,7 +399,7 @@
                 >
                   <Avatar.Root class="h-10 w-10 border-2 border-muted">
                     <Avatar.Fallback class="bg-muted text-xs font-bold">
-                      {getInitials(p.talent.prenom, p.talent.nom)}
+                      {getTalentInitials(p.talent.prenom, p.talent.nom)}
                     </Avatar.Fallback>
                   </Avatar.Root>
                 </span>
@@ -455,10 +456,18 @@
                 class="flex items-center gap-3 rounded-sm border bg-card p-2.5"
               >
                 <Avatar.Root class="h-8 w-8">
-                  <Avatar.Fallback class="bg-muted text-[10px] font-bold">
-                    {(m.staffProfile.user.name ?? '??')
-                      .slice(0, 2)
-                      .toUpperCase()}
+                  <Avatar.Image
+                    src={m.staffProfile.user.image ?? undefined}
+                    alt={m.staffProfile.user.name ?? ''}
+                    class="object-cover"
+                  />
+                  <Avatar.Fallback
+                    class={cn(
+                      'text-[10px] font-bold',
+                      staffRoleAvatarFallbackClass(m.staffProfile.staffRole),
+                    )}
+                  >
+                    {getInitials(m.staffProfile.user.name)}
                   </Avatar.Fallback>
                 </Avatar.Root>
                 <span class="truncate text-sm font-medium"

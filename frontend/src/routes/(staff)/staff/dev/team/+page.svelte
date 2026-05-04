@@ -16,6 +16,7 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
+  import { getInitials } from '$lib/avatar';
 
   let { data } = $props();
 
@@ -212,17 +213,18 @@
               {@const nameParts = (user.name || 'Sans nom').trim().split(' ')}
               {@const lastName = nameParts[0]}
               {@const firstName = nameParts.slice(1).join(' ')}
-              {@const initials =
-                (
-                  (lastName?.[0] ?? '') + (firstName?.[0] ?? '')
-                ).toUpperCase() || 'ST'}
               <Table.Row class="hover:bg-muted/20">
                 <Table.Cell>
                   <div class="flex items-center gap-3">
-                    <Avatar.Root class="h-8 w-8 rounded-sm">
+                    <Avatar.Root class="h-8 w-8">
+                      <Avatar.Image
+                        src={user.image ?? undefined}
+                        alt={user.name ?? ''}
+                        class="object-cover"
+                      />
                       <Avatar.Fallback
                         class="bg-primary/10 text-[10px] font-bold text-primary"
-                        >{initials}</Avatar.Fallback
+                        >{getInitials(user.name)}</Avatar.Fallback
                       >
                     </Avatar.Root>
                     <span
