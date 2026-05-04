@@ -34,9 +34,4 @@ export const eventSchema = z.object({
   mantas: z.array(z.string()).default([]),
 });
 
-export const addParticipantSchema = z.object({
-  studentId: z.string().min(1, 'Veuillez sélectionner un Talent'),
-});
-
 export type EventForm = z.infer<typeof eventSchema>;
-export type AddParticipantForm = z.infer<typeof addParticipantSchema>;
