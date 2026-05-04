@@ -15,6 +15,7 @@
     UserCog,
     ClipboardCheck,
     CalendarDays,
+    GraduationCap,
   } from '@lucide/svelte';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
@@ -139,6 +140,15 @@
         <span>Vue d'ensemble</span>
       </a>
       <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+        )}
+      >
+        <CalendarDays class="h-5 w-5" />
+        <span>Planning</span>
+      </a>
+      <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
         class={navLinkClass(
           isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
@@ -148,13 +158,13 @@
         <span>Inscrits</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/suivi-adm`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/suivi-adm`),
         )}
       >
-        <CalendarDays class="h-5 w-5" />
-        <span>Planning</span>
+        <ClipboardCheck class="h-5 w-5" />
+        <span>Suivi ADM</span>
       </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
@@ -166,13 +176,13 @@
         <span>Entretiens</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/suivi-adm`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/suivi-adm`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/team`),
         )}
       >
-        <ClipboardCheck class="h-5 w-5" />
-        <span>Suivi ADM</span>
+        <GraduationCap class="h-5 w-5" />
+        <span>Équipe pédagogique</span>
       </a>
     </nav>
   {/if}
