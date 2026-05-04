@@ -120,6 +120,10 @@ export const actions: Actions = {
         email: true,
         parentEmail: true,
         parentNom: true,
+        infoValidatedAt: true,
+        rulesSignedAt: true,
+        charterAcceptedAt: true,
+        imageRightsSignedAt: true,
         reminders: {
           where: { type },
           orderBy: { sentAt: 'desc' },
@@ -138,6 +142,17 @@ export const actions: Actions = {
     for (const talent of talents) {
       const lastReminder = talent.reminders[0];
       if (lastReminder && lastReminder.sentAt > cooldownDate) {
+        skipped++;
+        continue;
+      }
+
+      const onboardingComplete =
+        type === 'student'
+          ? talent.infoValidatedAt &&
+            talent.rulesSignedAt &&
+            talent.charterAcceptedAt
+          : talent.imageRightsSignedAt;
+      if (onboardingComplete) {
         skipped++;
         continue;
       }
@@ -169,10 +184,11 @@ export const actions: Actions = {
       }
     }
 
+    const skipReason = 'cooldown, onboarding complet ou email manquant';
     const msg =
       sent > 0
-        ? `${sent} relance${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''}.${skipped > 0 ? ` ${skipped} ignorée${skipped > 1 ? 's' : ''} (cooldown ou email manquant).` : ''}`
-        : `Aucune relance envoyée. ${skipped} ignorée${skipped > 1 ? 's' : ''} (cooldown ou email manquant).`;
+        ? `${sent} relance${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''}.${skipped > 0 ? ` ${skipped} ignorée${skipped > 1 ? 's' : ''} (${skipReason}).` : ''}`
+        : `Aucune relance envoyée. ${skipped} ignorée${skipped > 1 ? 's' : ''} (${skipReason}).`;
 
     return message(form, msg);
   },
