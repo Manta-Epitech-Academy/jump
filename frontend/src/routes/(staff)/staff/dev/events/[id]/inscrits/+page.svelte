@@ -1,11 +1,10 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { ArrowLeft } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import type { PageData } from './$types';
-  import { buttonVariants } from '$lib/components/ui/button';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import ParticipantManager from './components/ParticipantManager.svelte';
   import StudentSearchSidebar from './components/StudentSearchSidebar.svelte';
@@ -43,18 +42,20 @@
 </script>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
-  <div class="flex items-center gap-3">
-    <a
-      href={resolve(`/staff/dev/events/${data.event.id}/manage`)}
-      class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-    >
-      <ArrowLeft class="h-4 w-4" />
-    </a>
-    <PageHeader
-      title="Inscrits"
-      subtitle={`${data.event.titre} — ${participations.length} talent${participations.length > 1 ? 's' : ''}`}
-    />
-  </div>
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      {
+        label: data.event.titre,
+        href: resolve(`/staff/dev/events/${data.event.id}/manage`),
+      },
+      { label: 'Inscrits' },
+    ]}
+  />
+  <PageHeader
+    title="Inscrits"
+    subtitle={`${data.event.titre} — ${participations.length} talent${participations.length > 1 ? 's' : ''}`}
+  />
 
   <div class="grid gap-6 md:grid-cols-12">
     <ParticipantManager

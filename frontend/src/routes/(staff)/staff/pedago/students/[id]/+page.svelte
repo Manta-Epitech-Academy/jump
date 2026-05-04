@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { ArrowLeft, Clock } from '@lucide/svelte';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import { Clock } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import PedagoTalentCard from './components/PedagoTalentCard.svelte';
   import StudentTimeline from '$lib/components/students/StudentTimeline.svelte';
 
@@ -13,15 +13,15 @@
 </script>
 
 <div class="space-y-6 pb-10">
-  <div class="flex items-center gap-4">
-    <!-- Back to cockpit (could use browser history but standard is dashboard) -->
-    <Button variant="ghost" size="icon" href={resolve('/staff/pedago')}>
-      <ArrowLeft class="h-4 w-4" />
-    </Button>
-    <h1 class="text-3xl font-bold text-epi-blue uppercase">
-      Suivi Pédagogique<span class="text-foreground">_</span>
-    </h1>
-  </div>
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/pedago') },
+      { label: `${data.student.nom} ${data.student.prenom}` },
+    ]}
+  />
+  <h1 class="text-3xl font-bold text-epi-blue uppercase">
+    Suivi Pédagogique<span class="text-foreground">_</span>
+  </h1>
 
   <div class="grid gap-6 md:grid-cols-12">
     <div class="space-y-6 md:col-span-4 lg:col-span-3">

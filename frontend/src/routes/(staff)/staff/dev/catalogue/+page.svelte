@@ -1,8 +1,10 @@
 <script lang="ts">
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import * as Table from '$lib/components/ui/table';
   import { Badge } from '$lib/components/ui/badge';
   import { FileText, Zap, ExternalLink, Clock } from '@lucide/svelte';
+  import { resolve } from '$app/paths';
   import { activityTypeLabels } from '$lib/validation/templates';
 
   let { data } = $props();
@@ -18,6 +20,12 @@
 </script>
 
 <div class="space-y-6">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      { label: 'Catalogue' },
+    ]}
+  />
   <PageHeader
     title="Catalogue Epitech"
     subtitle="Fiches descriptives vulgarisées pour argumenter avec les Talents et les parents."

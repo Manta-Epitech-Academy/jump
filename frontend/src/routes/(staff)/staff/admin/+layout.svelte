@@ -180,7 +180,7 @@
       <div class="ml-2 flex items-center gap-4">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger
-            class="flex items-center gap-3 transition-opacity outline-none hover:opacity-80"
+            class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
           >
             <div class="hidden flex-col items-end md:flex">
               <span

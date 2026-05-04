@@ -1,46 +1,47 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { ArrowLeft } from '@lucide/svelte';
-  import { buttonVariants } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import CalendarPlanner from '$lib/components/events/planning/CalendarPlanner.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { can } from '$lib/domain/permissions';
 
   let { data }: { data: PageData } = $props();
 </script>
 
 <div class="flex h-[calc(100vh-4rem)] flex-col bg-background">
-  <div class="flex shrink-0 items-center justify-between border-b px-6 py-4">
-    <div class="flex items-center gap-4">
-      <a
-        href={resolve(`/staff/dev/events/${data.event.id}/manage`)}
-        class={buttonVariants({ variant: 'ghost', size: 'icon' })}
+  <div class="shrink-0 border-b px-6 py-4">
+    <PageBreadcrumb
+      items={[
+        { label: 'Dashboard', href: resolve('/staff/dev') },
+        {
+          label: data.event.titre,
+          href: resolve(`/staff/dev/events/${data.event.id}/manage`),
+        },
+        { label: 'Planning' },
+      ]}
+    />
+    <div>
+      <h1 class="text-2xl font-bold text-epi-blue uppercase">
+        Planning<span class="text-epi-teal">_</span>
+      </h1>
+      <p
+        class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
       >
-        <ArrowLeft class="h-4 w-4" />
-      </a>
-      <div>
-        <h1 class="text-2xl font-bold text-epi-blue uppercase">
-          Planning<span class="text-epi-teal">_</span>
-        </h1>
-        <p
-          class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
-        >
-          {data.event.titre} • {new Date(data.event.date).toLocaleDateString(
-            'fr-FR',
-            {
-              day: 'numeric',
-              month: 'short',
-              timeZone: data.timezone,
-            },
-          )}{#if data.event.endDate}
-            – {new Date(data.event.endDate).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'short',
-              timeZone: data.timezone,
-            })}
-          {/if}
-        </p>
-      </div>
+        {data.event.titre} • {new Date(data.event.date).toLocaleDateString(
+          'fr-FR',
+          {
+            day: 'numeric',
+            month: 'short',
+            timeZone: data.timezone,
+          },
+        )}{#if data.event.endDate}
+          – {new Date(data.event.endDate).toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'short',
+            timeZone: data.timezone,
+          })}
+        {/if}
+      </p>
     </div>
   </div>
 

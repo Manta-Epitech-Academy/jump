@@ -1,5 +1,6 @@
 <script lang="ts">
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import {
     Phone,
     CheckCircle2,
@@ -8,10 +9,9 @@
     GripVertical,
     Plus,
     Sparkles,
-    ArrowLeft,
   } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { enhance } from '$app/forms';
   import InterviewGridModal from '$lib/components/interviews/InterviewGridModal.svelte';
@@ -38,19 +38,21 @@
 </script>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      {
+        label: data.event.titre,
+        href: resolve(`/staff/dev/events/${data.event.id}/manage`),
+      },
+      { label: 'Entretiens' },
+    ]}
+  />
   <div class="flex items-start justify-between gap-4">
-    <div class="flex items-center gap-3">
-      <a
-        href={resolve(`/staff/dev/events/${data.event.id}/manage`)}
-        class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-      >
-        <ArrowLeft class="h-4 w-4" />
-      </a>
-      <PageHeader
-        title="Entretiens"
-        subtitle={`Entretiens de mi-parcours — ${data.event.titre}.`}
-      />
-    </div>
+    <PageHeader
+      title="Entretiens"
+      subtitle={`Entretiens de mi-parcours — ${data.event.titre}.`}
+    />
     {#if data.participationsToCall.length > 0 && data.devs.length > 0}
       <Button
         onclick={() => (autoOpen = true)}

@@ -3,7 +3,6 @@
   import { superForm } from 'sveltekit-superforms';
   import {
     Calendar as CalendarIcon,
-    ArrowLeft,
     Tag,
     Users,
     CalendarDays,
@@ -23,6 +22,7 @@
   import type { PageData } from './$types';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -94,14 +94,14 @@
 </script>
 
 <div class="flex flex-col space-y-6 pb-12">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      { label: data.event.titre },
+    ]}
+  />
   <div class="flex items-center justify-between border-b pb-4">
     <div class="flex items-center gap-4">
-      <a
-        href={resolve('/staff/dev')}
-        class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-      >
-        <ArrowLeft class="h-4 w-4" />
-      </a>
       <div>
         <h1 class="text-3xl font-bold text-epi-blue uppercase">
           {data.event.titre}<span class="text-epi-teal">_</span>

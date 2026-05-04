@@ -3,7 +3,7 @@
   import * as Card from '$lib/components/ui/card';
   import * as Tabs from '$lib/components/ui/tabs';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { Button } from '$lib/components/ui/button';
+  import { Button, buttonVariants } from '$lib/components/ui/button';
   import { EVENT_TYPES } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import {
@@ -225,12 +225,17 @@
           class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
         >
           <div class="space-y-1">
-            <h2
-              class="text-xl font-bold tracking-tight text-foreground uppercase"
-              style:view-transition-name={`event-title-${data.liveEvent.id}`}
+            <a
+              href={resolve(`/staff/pedago/events/${data.liveEvent.id}`)}
+              class="block"
             >
-              {data.liveEvent.titre}
-            </h2>
+              <h2
+                class="text-xl font-bold tracking-tight text-foreground uppercase transition-colors hover:text-epi-blue"
+                style:view-transition-name={`event-title-${data.liveEvent.id}`}
+              >
+                {data.liveEvent.titre}
+              </h2>
+            </a>
             <p
               class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
             >
@@ -424,12 +429,17 @@
           class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
         >
           <div class="space-y-1">
-            <h2
-              class="text-xl font-bold tracking-tight text-foreground uppercase"
-              style:view-transition-name={`event-title-${data.liveEvent.id}`}
+            <a
+              href={resolve(`/staff/pedago/events/${data.liveEvent.id}`)}
+              class="block"
             >
-              {data.liveEvent.titre}
-            </h2>
+              <h2
+                class="text-xl font-bold tracking-tight text-foreground uppercase transition-colors hover:text-epi-blue"
+                style:view-transition-name={`event-title-${data.liveEvent.id}`}
+              >
+                {data.liveEvent.titre}
+              </h2>
+            </a>
             <div
               class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
             >
@@ -585,12 +595,17 @@
                       </span>
                     </div>
                     <div class="min-w-0">
-                      <div
-                        class="truncate text-sm font-bold tracking-tight text-foreground uppercase"
-                        style:view-transition-name={`event-title-${event.id}`}
+                      <a
+                        href={resolve(`/staff/pedago/events/${event.id}`)}
+                        class="block"
                       >
-                        {event.titre}
-                      </div>
+                        <div
+                          class="truncate text-sm font-bold tracking-tight text-foreground uppercase transition-colors hover:text-epi-blue"
+                          style:view-transition-name={`event-title-${event.id}`}
+                        >
+                          {event.titre}
+                        </div>
+                      </a>
                       <div
                         class="mt-1 flex items-center gap-2 text-xs font-medium text-muted-foreground"
                       >
@@ -609,7 +624,10 @@
 
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger
-                      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors hover:bg-muted"
+                      class={buttonVariants({
+                        variant: 'ghost',
+                        size: 'icon-sm',
+                      })}
                     >
                       <Ellipsis class="h-4 w-4 text-muted-foreground" />
                     </DropdownMenu.Trigger>
@@ -684,11 +702,16 @@
                 class="flex flex-col justify-between rounded-sm border bg-card p-4 shadow-sm transition-all hover:border-epi-blue/30 hover:shadow-md"
               >
                 <div class="min-w-0">
-                  <div
-                    class="truncate text-xs font-bold tracking-tight text-foreground uppercase"
+                  <a
+                    href={resolve(`/staff/pedago/events/${event.id}`)}
+                    class="block"
                   >
-                    {event.titre}
-                  </div>
+                    <div
+                      class="truncate text-xs font-bold tracking-tight text-foreground uppercase transition-colors hover:text-epi-blue"
+                    >
+                      {event.titre}
+                    </div>
+                  </a>
                   <div
                     class="mt-1 flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground"
                   >
