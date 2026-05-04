@@ -31,11 +31,6 @@
     value = value.filter((v) => v !== id);
   }
 
-  function getAvatarUrl(user: any) {
-    // TODO: implement S3 file storage
-    return undefined;
-  }
-
   function getInitials(name: string) {
     return name ? name.substring(0, 2).toUpperCase() : 'ST';
   }
@@ -67,7 +62,7 @@
                   class="flex items-center gap-1.5 rounded-sm border bg-epi-blue/10 px-1.5 py-0.5 text-epi-blue hover:bg-epi-blue/20 dark:border-epi-blue/30 dark:bg-epi-blue/20 dark:text-blue-300"
                 >
                   <Avatar.Root class="h-4 w-4">
-                    <Avatar.Image src={getAvatarUrl(person)} />
+                    <Avatar.Image src={person.user?.image ?? undefined} />
                     <Avatar.Fallback class="bg-background text-[8px]"
                       >{getInitials(person.user.name)}</Avatar.Fallback
                     >
@@ -113,7 +108,7 @@
                   />
                 </div>
                 <Avatar.Root class="mr-2 h-6 w-6">
-                  <Avatar.Image src={getAvatarUrl(person)} />
+                  <Avatar.Image src={person.user?.image ?? undefined} />
                   <Avatar.Fallback
                     class="bg-muted text-[10px] font-bold text-foreground"
                   >

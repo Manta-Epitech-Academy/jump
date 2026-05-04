@@ -118,7 +118,6 @@ model StaffProfile {
   userId    String     @unique
   campusId  String?
   staffRole StaffRole?
-  avatar    String?
   discordId String?    @unique
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt

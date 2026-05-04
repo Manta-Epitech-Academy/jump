@@ -152,11 +152,10 @@
                         <Avatar.Root
                           class="relative h-6 w-6 border-2 border-card hover:z-10"
                         >
-                          <!-- TODO: implement S3 file storage -->
-                          {#if staff?.avatar}<Avatar.Image
-                              src={''}
-                              alt={staff?.user?.name}
-                            />{/if}
+                          <Avatar.Image
+                            src={staff?.user?.image ?? undefined}
+                            alt={staff?.user?.name ?? ''}
+                          />
                           <Avatar.Fallback
                             class="bg-muted text-[8px] font-bold text-foreground"
                             >{(staff?.user?.name || 'ST')
@@ -303,11 +302,10 @@
                         <Avatar.Root
                           class="h-5 w-5 border border-yellow-300 shadow-xs"
                         >
-                          <!-- TODO: implement S3 file storage -->
-                          {#if p.noteAuthor.avatar}<Avatar.Image
-                              src={''}
-                              alt={p.noteAuthor.user?.name}
-                            />{/if}
+                          <Avatar.Image
+                            src={p.noteAuthor.user?.image ?? undefined}
+                            alt={p.noteAuthor.user?.name ?? ''}
+                          />
                           <Avatar.Fallback
                             class="bg-yellow-200 text-[8px] font-bold text-yellow-800"
                             >{(p.noteAuthor.user?.name || 'ST')

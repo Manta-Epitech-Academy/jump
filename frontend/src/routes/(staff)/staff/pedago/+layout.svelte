@@ -62,10 +62,6 @@
     }
     return user?.username?.substring(0, 2).toUpperCase() ?? 'PD';
   }
-
-  function getAvatarUrl(user: any) {
-    return undefined;
-  }
 </script>
 
 {#snippet navMenu()}
@@ -200,13 +196,11 @@
               <Avatar.Root
                 class="h-9 w-9 rounded-full border-2 border-epi-blue bg-header-foreground/20 md:h-11 md:w-11"
               >
-                {#if user?.avatar}
-                  <Avatar.Image
-                    src={getAvatarUrl(user)}
-                    alt={user.name ?? user.username}
-                    class="object-cover"
-                  />
-                {/if}
+                <Avatar.Image
+                  src={user?.image ?? undefined}
+                  alt={user?.name ?? user?.username ?? ''}
+                  class="object-cover"
+                />
                 <Avatar.Fallback
                   class="bg-transparent text-xs font-bold text-header-foreground uppercase"
                 >
