@@ -1,5 +1,10 @@
 import { prisma } from '$lib/server/db';
 import { Prisma } from '@prisma/client';
+import {
+  EVENT_TYPES,
+  EVENT_TYPE_VALUES,
+  type EventType,
+} from '$lib/domain/event';
 
 export async function listCampuses() {
   return prisma.campus.findMany({
@@ -10,7 +15,13 @@ export async function listCampuses() {
 
 export async function syncEvents(
   campusExternalName: string,
-  events: { external_id: string; title: string; date?: string }[],
+  events: {
+    external_id: string;
+    title: string;
+    date?: string;
+    type?: string;
+    is_coding_club?: boolean;
+  }[],
 ) {
   const campus = await prisma.campus.findUnique({
     where: { externalName: campusExternalName },
@@ -24,6 +35,12 @@ export async function syncEvents(
     if (!e.external_id || !e.title)
       return { error: 'Each event must have external_id and title' as const };
 
+    const eventType: EventType = resolveEventType(e);
+    if (!EVENT_TYPE_VALUES.includes(eventType))
+      return {
+        error: `Invalid event type "${e.type}" for ${e.external_id}` as const,
+      };
+
     const existing = await prisma.event.findUnique({
       where: { externalId: e.external_id },
     });
@@ -34,6 +51,7 @@ export async function syncEvents(
           externalId: e.external_id,
           date: e.date ? new Date(e.date) : new Date(),
           titre: e.title,
+          eventType,
           campusId: campus.id,
           planning: { create: {} },
         },
@@ -42,6 +60,7 @@ export async function syncEvents(
     } else if (
       existing.titre !== e.title ||
       existing.campusId !== campus.id ||
+      existing.eventType !== eventType ||
       (e.date && existing.date.getTime() !== new Date(e.date).getTime())
     ) {
       await prisma.event.update({
@@ -49,6 +68,7 @@ export async function syncEvents(
         data: {
           titre: e.title,
           campusId: campus.id,
+          eventType,
           date: e.date ? new Date(e.date) : existing.date,
         },
       });
@@ -57,6 +77,18 @@ export async function syncEvents(
   }
 
   return { created, updated };
+}
+
+function resolveEventType(e: {
+  type?: string;
+  is_coding_club?: boolean;
+}): EventType {
+  if (e.type) return e.type as EventType;
+  if (typeof e.is_coding_club === 'boolean')
+    return e.is_coding_club
+      ? EVENT_TYPES.CODING_CLUB
+      : EVENT_TYPES.STAGE_SECONDE;
+  return EVENT_TYPES.CODING_CLUB;
 }
 
 async function logSyncError(params: {
