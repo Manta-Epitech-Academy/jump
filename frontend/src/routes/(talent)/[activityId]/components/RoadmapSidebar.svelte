@@ -4,8 +4,13 @@
   import { ArrowLeft, CircleCheck, Lock } from '@lucide/svelte';
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
-  import type { ActivityStep } from '$lib/server/services/progressService';
   import type { StepsProgress } from '@prisma/client';
+
+  type RoadmapStep = {
+    id: string;
+    title: string;
+    type?: 'theory' | 'exercise' | 'checkpoint';
+  };
 
   let {
     steps,
@@ -14,7 +19,7 @@
     unlockedIndex,
     showRoadmapMobile = $bindable(),
   }: {
-    steps: ActivityStep[];
+    steps: RoadmapStep[];
     progress: StepsProgress;
     currentIndex: number;
     unlockedIndex: number;

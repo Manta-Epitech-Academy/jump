@@ -61,7 +61,12 @@
       ? ((activity.contentStructure as ActivityStructure | null) ?? null)
       : null,
   );
-  let stepCount = $derived(structure?.steps?.length ?? 0);
+  let isGithubBacked = $derived(!!activity?.subjectVersion);
+  let stepCount = $derived(
+    isGithubBacked
+      ? (activity?.subjectVersion?._count?.sections ?? 0)
+      : (structure?.steps?.length ?? 0),
+  );
 
   let staticHtml = $derived(
     activity && !activity.isDynamic && activity.content

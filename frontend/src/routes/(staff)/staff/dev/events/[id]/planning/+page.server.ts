@@ -35,7 +35,20 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     include: {
       timeSlots: {
         orderBy: { startTime: 'asc' },
-        include: { activity: true },
+        include: {
+          activity: {
+            include: {
+              subjectVersion: {
+                select: {
+                  id: true,
+                  _count: {
+                    select: { sections: { where: { level: 1 } } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
   });

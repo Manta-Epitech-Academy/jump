@@ -107,6 +107,9 @@
     $form.themes = [];
     $form.content = '';
     $form.contentStructure = '';
+    $form.contentSource = 'github';
+    $form.repoUrl = '';
+    $form.ref = '';
     $form.defaultDuration = undefined;
     $form.link = '';
     $form.description = '';
@@ -130,6 +133,9 @@
     $form.contentStructure = template.contentStructure
       ? JSON.stringify(template.contentStructure, null, 2)
       : '';
+    $form.contentSource = template.subjectVersionId ? 'github' : 'inline_json';
+    $form.repoUrl = template.subject?.repoUrl ?? '';
+    $form.ref = '';
     isEditing = true;
     editId = template.id;
     open = true;
@@ -542,18 +548,87 @@
         </div>
 
         {#if $form.isDynamic}
-          <div class="grid gap-2">
-            <Label>Structure du contenu (JSON)</Label>
-            <Textarea
-              name="contentStructure"
-              bind:value={$form.contentStructure}
-              class="h-40 font-mono text-sm"
-              placeholder={'[\n  { "titre": "Étape 1", "type": "auto_qcm" },\n  { "titre": "Étape 2", "type": "manual_manta" }\n]'}
-            />
-            {#if $errors.contentStructure}
-              <span class="text-xs text-destructive">
-                {$errors.contentStructure}
-              </span>
+          <div class="grid gap-3 rounded-md border p-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <Label>Source du contenu</Label>
+              <div class="flex gap-2">
+                <Button
+                  type="button"
+                  variant={$form.contentSource === 'inline_json'
+                    ? 'default'
+                    : 'outline'}
+                  size="sm"
+                  onclick={() => {
+                    $form.contentSource = 'inline_json';
+                    $form.repoUrl = '';
+                    $form.ref = '';
+                  }}
+                >
+                  Structure JSON
+                </Button>
+                <Button
+                  type="button"
+                  variant={$form.contentSource === 'github'
+                    ? 'default'
+                    : 'outline'}
+                  size="sm"
+                  onclick={() => {
+                    $form.contentSource = 'github';
+                    $form.contentStructure = '';
+                  }}
+                >
+                  Repo GitHub
+                </Button>
+              </div>
+              <input
+                type="hidden"
+                name="contentSource"
+                value={$form.contentSource}
+              />
+            </div>
+
+            {#if $form.contentSource === 'github'}
+              <div class="grid gap-2">
+                <Label>URL du repo GitHub</Label>
+                <Input
+                  name="repoUrl"
+                  bind:value={$form.repoUrl}
+                  placeholder="https://github.com/Manta-Epitech-Academy/pypong_new"
+                />
+                {#if $errors.repoUrl}
+                  <span class="text-xs text-destructive">
+                    {$errors.repoUrl}
+                  </span>
+                {/if}
+              </div>
+              <div class="grid gap-2">
+                <Label>Référence (branche, tag ou SHA — optionnel)</Label>
+                <Input name="ref" bind:value={$form.ref} placeholder="main" />
+                {#if $errors.ref}
+                  <span class="text-xs text-destructive">{$errors.ref}</span>
+                {/if}
+              </div>
+              {#if isEditing}
+                <p class="text-xs text-muted-foreground">
+                  Soumettre re-importera le sujet depuis le commit courant et
+                  liera le template à la nouvelle version.
+                </p>
+              {/if}
+            {:else}
+              <div class="grid gap-2">
+                <Label>Structure du contenu (JSON)</Label>
+                <Textarea
+                  name="contentStructure"
+                  bind:value={$form.contentStructure}
+                  class="h-40 font-mono text-sm"
+                  placeholder={'[\n  { "titre": "Étape 1", "type": "auto_qcm" },\n  { "titre": "Étape 2", "type": "manual_manta" }\n]'}
+                />
+                {#if $errors.contentStructure}
+                  <span class="text-xs text-destructive">
+                    {$errors.contentStructure}
+                  </span>
+                {/if}
+              </div>
             {/if}
           </div>
         {:else}

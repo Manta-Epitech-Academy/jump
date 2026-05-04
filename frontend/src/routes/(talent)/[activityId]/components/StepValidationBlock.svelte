@@ -29,7 +29,7 @@
     currentStep: ActivityStep;
     currentIndex: number;
     unlockedIndex: number;
-    steps: ActivityStep[];
+    steps: { id: string; title: string }[];
     progress: StepsProgress;
     selectedAnswer: number | null;
     qcmFails: number;

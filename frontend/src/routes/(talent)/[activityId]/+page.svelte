@@ -20,6 +20,7 @@
   import StepValidationBlock from './components/StepValidationBlock.svelte';
   import PortfolioDrawer from './components/PortfolioDrawer.svelte';
   import MantaSignalButton from './components/MantaSignalButton.svelte';
+  import type { ActivityStep } from '$lib/server/services/progressService';
 
   let { data }: { data: PageData } = $props();
 
@@ -49,7 +50,13 @@
     isDynamic ? progress?.status === 'completed' : false,
   );
   let parsedHtml = $derived(
-    currentStep ? renderMarkdown(currentStep.content_markdown) : '',
+    !currentStep
+      ? ''
+      : 'content_html' in currentStep && currentStep.content_html
+        ? currentStep.content_html
+        : 'content_markdown' in currentStep && currentStep.content_markdown
+          ? renderMarkdown(currentStep.content_markdown)
+          : '',
   );
 
   // Static activity markdown
@@ -393,7 +400,7 @@
               <hr class="my-10 border-slate-200 dark:border-slate-800" />
 
               <StepValidationBlock
-                {currentStep}
+                currentStep={currentStep as ActivityStep}
                 {currentIndex}
                 {unlockedIndex}
                 {steps}

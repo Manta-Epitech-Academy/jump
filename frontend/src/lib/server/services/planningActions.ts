@@ -124,6 +124,7 @@ export const planningActions = {
             link: template.link,
             content: template.content,
             contentStructure: template.contentStructure ?? undefined,
+            subjectVersionId: template.subjectVersionId,
             templateId: template.id,
             timeSlotId: form.data.timeSlotId,
             activityThemes:
@@ -221,6 +222,7 @@ export const planningActions = {
                   link: template.link,
                   content: template.content,
                   contentStructure: template.contentStructure ?? undefined,
+                  subjectVersionId: template.subjectVersionId,
                   templateId: template.id,
                   activityThemes:
                     template.activityTemplateThemes.length > 0

@@ -24,6 +24,8 @@
     campus_list: 'Liste des campus',
     events: 'Événements',
     talents: 'Talents',
+    ref_comp: 'Référentiel de compétences',
+    subject_import: 'Import de sujet',
   } as const;
 
   function formatSyncDateTime(date: Date | string): string {
@@ -95,19 +97,6 @@
         </Card.Content>
       </Card.Root>
     </a>
-
-    <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
-      <Card.Header
-        class="flex flex-row items-center justify-between space-y-0 pb-2"
-      >
-        <Card.Title class="text-sm font-bold uppercase">Staff</Card.Title>
-        <Users class="h-4 w-4 text-muted-foreground" />
-      </Card.Header>
-      <Card.Content>
-        <div class="text-2xl font-black">{data.stats.users}</div>
-        <p class="text-xs text-muted-foreground">Membres de l'équipe</p>
-      </Card.Content>
-    </Card.Root>
 
     <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
       <Card.Header
