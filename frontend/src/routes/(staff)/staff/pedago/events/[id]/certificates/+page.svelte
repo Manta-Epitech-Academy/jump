@@ -53,6 +53,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{data.event.titre} — Diplômes</title>
+</svelte:head>
+
 <div class="space-y-6 pb-12">
   <div class="border-b pb-4">
     <PageBreadcrumb

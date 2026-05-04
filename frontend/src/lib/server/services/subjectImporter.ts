@@ -28,7 +28,11 @@ import {
   type RepoCoords,
 } from './githubClient';
 import { parseQuizBlocks } from './quizParser';
-import { loadSnapshotResolver, type SnapshotResolver } from './refCompSync';
+import {
+  loadSnapshotResolver,
+  syncRefComp,
+  type SnapshotResolver,
+} from './refCompSync';
 import { recordSync } from '$lib/server/infra/syncStatus';
 
 // ─── Metadata YAML shapes (subset we read) ─────────────────────────────────
@@ -223,15 +227,25 @@ export async function importSubject(
   const ref = params.ref ?? 'main';
   const sha = await getCommitSha(coords, ref);
 
-  const currentSnapshot = await prisma.refCompSnapshot.findFirst({
+  let currentSnapshot = await prisma.refCompSnapshot.findFirst({
     where: { isCurrent: true },
     select: { id: true, commitSha: true },
   });
   if (!currentSnapshot) {
-    throw new ImportSubjectError(
-      'no_ref_comp',
-      'No current RefCompSnapshot. Run /api/jobs/sync-ref-comp first.',
-    );
+    // Bootstrap on first import: fetch the ref_comp HEAD into a snapshot so
+    // operators don't have to hit /api/jobs/sync-ref-comp manually before the
+    // very first subject binding.
+    await syncRefComp();
+    currentSnapshot = await prisma.refCompSnapshot.findFirst({
+      where: { isCurrent: true },
+      select: { id: true, commitSha: true },
+    });
+    if (!currentSnapshot) {
+      throw new ImportSubjectError(
+        'no_ref_comp',
+        'Impossible de synchroniser le référentiel de compétences.',
+      );
+    }
   }
 
   const meta = await fetchAndValidateMetadata(coords, sha);

@@ -109,6 +109,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Tableau de bord</title>
+</svelte:head>
+
 {#if minimalist}
   <div
     class="mx-auto mt-12 max-w-xl rounded-sm border border-dashed bg-card px-8 py-12 text-center shadow-sm dark:shadow-none"

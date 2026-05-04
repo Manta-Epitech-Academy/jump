@@ -69,6 +69,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>Nouvel événement</title>
+</svelte:head>
+
 <div class="mx-auto max-w-5xl space-y-6 pb-12">
   <div class="border-b pb-4">
     <PageBreadcrumb

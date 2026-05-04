@@ -1,17 +1,37 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Badge } from '$lib/components/ui/badge';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import * as Table from '$lib/components/ui/table';
   import * as Avatar from '$lib/components/ui/avatar';
   import { resolve } from '$app/paths';
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
+  import Gated from '$lib/components/auth/Gated.svelte';
   import { cn } from '$lib/utils';
 
-  let { participations, optimisticAdminToggle, optimisticPcToggle } = $props();
+  let {
+    participations,
+    optimisticAdminToggle,
+    optimisticPcToggle,
+    selectedTalentIds = new Set<string>(),
+    onToggleTalent,
+    onToggleAll,
+  } = $props();
 
   function formatFirstName(name: string | undefined) {
     if (!name) return '';
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  }
+
+  function lastReminderLabel(
+    reminders: { sentAt: Date; type: string }[],
+  ): string {
+    if (!reminders || reminders.length === 0) return '—';
+    const d = new Date(reminders[0].sentAt);
+    return d.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+    });
   }
 </script>
 
@@ -29,16 +49,39 @@
     <Table.Root>
       <Table.Header>
         <Table.Row>
+          <Gated group="devLead" mode="hide">
+            <Table.Head class="w-10">
+              <Checkbox
+                checked={selectedTalentIds.size === participations.length &&
+                  participations.length > 0}
+                indeterminate={selectedTalentIds.size > 0 &&
+                  selectedTalentIds.size < participations.length}
+                onCheckedChange={onToggleAll}
+              />
+            </Table.Head>
+          </Gated>
           <Table.Head class="w-64">Participant</Table.Head>
           <Table.Head class="text-center">Charte informatique</Table.Head>
           <Table.Head class="text-center">Convention de stage</Table.Head>
           <Table.Head class="text-center">Droit à l'image</Table.Head>
           <Table.Head class="text-center">Matériel (PC)</Table.Head>
+          <Gated group="devLead" mode="hide">
+            <Table.Head class="text-center">Dernière relance</Table.Head>
+          </Gated>
         </Table.Row>
       </Table.Header>
       <Table.Body>
         {#each participations as p (p.id)}
           <Table.Row class="hover:bg-muted/20">
+            <Gated group="devLead" mode="hide">
+              <Table.Cell>
+                <Checkbox
+                  checked={selectedTalentIds.has(p.talent.id)}
+                  onCheckedChange={() => onToggleTalent(p.talent.id)}
+                />
+              </Table.Cell>
+            </Gated>
+
             <!-- Profil -->
             <Table.Cell class="py-4">
               <div class="flex items-center gap-3">
@@ -201,11 +244,20 @@
                 </div>
               </form>
             </Table.Cell>
+
+            <!-- Dernière relance -->
+            <Gated group="devLead" mode="hide">
+              <Table.Cell
+                class="py-4 text-center text-sm text-muted-foreground"
+              >
+                {lastReminderLabel(p.talent.reminders)}
+              </Table.Cell>
+            </Gated>
           </Table.Row>
         {:else}
           <Table.Row>
             <Table.Cell
-              colspan={5}
+              colspan={7}
               class="py-12 text-center text-muted-foreground"
             >
               Aucun inscrit pour cet événement.

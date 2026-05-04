@@ -40,6 +40,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Tableau de bord</title>
+</svelte:head>
+
 <div class="space-y-6">
   <div>
     <h1 class="font-heading text-3xl tracking-wide uppercase">
