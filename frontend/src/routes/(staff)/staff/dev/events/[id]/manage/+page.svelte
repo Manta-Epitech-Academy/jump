@@ -13,7 +13,7 @@
     Camera,
     MessageSquare,
     Bell,
-    UserCog,
+    GraduationCap,
     Pencil,
   } from '@lucide/svelte';
   import { goto } from '$app/navigation';
@@ -24,7 +24,6 @@
   import { resolve } from '$app/paths';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import * as Card from '$lib/components/ui/card';
-  import * as Avatar from '$lib/components/ui/avatar';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import Gated from '$lib/components/auth/Gated.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
@@ -83,13 +82,6 @@
     if (n === 0)
       return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400';
     return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-400';
-  }
-
-  function getInitials(name: string | null | undefined) {
-    if (!name) return '??';
-    const parts = name.trim().split(' ').filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.substring(0, 2).toUpperCase();
   }
 </script>
 
@@ -160,6 +152,16 @@
         <CalendarDays class="h-4 w-4" />
         Planning
       </a>
+      <a
+        href={resolve(`/staff/dev/events/${data.event.id}/team`)}
+        class={buttonVariants({
+          variant: 'outline',
+          class: 'gap-2 rounded-sm',
+        })}
+      >
+        <GraduationCap class="h-4 w-4" />
+        Équipe ({data.event.mantas.length})
+      </a>
       <EditEventSettingsModal
         bind:open={openEditEvent}
         bind:deleteEventDialogOpen
@@ -173,110 +175,51 @@
     </div>
   </div>
 
-  <div class="grid gap-4 md:grid-cols-12">
-    <Card.Root class="rounded-sm shadow-sm md:col-span-8">
-      <Card.Header class="flex flex-row items-center justify-between pb-3">
-        <Card.Title
-          class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          <StickyNote class="h-4 w-4 text-epi-blue" /> Notes de l'événement
-        </Card.Title>
-        <Gated group="devLead" mode="hide">
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props: tooltipProps })}
-                  <Button
-                    {...tooltipProps}
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 text-muted-foreground hover:text-foreground"
-                    onclick={() => (openEditEvent = true)}
-                  >
-                    <Pencil class="h-3.5 w-3.5" />
-                  </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content class="rounded-sm">
-                <p>Modifier les notes</p>
-              </Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
-        </Gated>
-      </Card.Header>
-      <Card.Content>
-        {#if notesHtml}
-          <div
-            class="prose max-w-none text-sm leading-relaxed prose-slate dark:prose-invert"
-          >
-            {@html notesHtml}
-          </div>
-        {:else}
-          <p class="text-sm text-muted-foreground italic">
-            Aucune note. Ajoutez du contexte (objectifs, consignes, infos
-            pratiques) via les paramètres de l'événement.
-          </p>
-        {/if}
-      </Card.Content>
-    </Card.Root>
-
-    <Card.Root class="rounded-sm shadow-sm md:col-span-4">
-      <Card.Header class="flex flex-row items-center justify-between pb-3">
-        <Card.Title
-          class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          <UserCog class="h-4 w-4 text-epi-teal-solid" /> Mantas assignés ({data
-            .event.mantas.length})
-        </Card.Title>
-        <Gated group="devLead" mode="hide">
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger>
-                {#snippet child({ props: tooltipProps })}
-                  <Button
-                    {...tooltipProps}
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 text-muted-foreground hover:text-foreground"
-                    onclick={() => (openEditEvent = true)}
-                  >
-                    <Pencil class="h-3.5 w-3.5" />
-                  </Button>
-                {/snippet}
-              </Tooltip.Trigger>
-              <Tooltip.Content class="rounded-sm">
-                <p>Modifier les mantas assignés</p>
-              </Tooltip.Content>
-            </Tooltip.Root>
-          </Tooltip.Provider>
-        </Gated>
-      </Card.Header>
-      <Card.Content>
-        {#if data.event.mantas.length > 0}
-          <ul class="space-y-2">
-            {#each data.event.mantas as m (m.staffProfileId)}
-              <li class="flex items-center gap-3 text-sm">
-                <Avatar.Root class="h-8 w-8 rounded-sm">
-                  <Avatar.Fallback
-                    class="bg-primary/5 text-xs font-bold text-primary"
-                  >
-                    {getInitials(m.staffProfile?.user?.name)}
-                  </Avatar.Fallback>
-                </Avatar.Root>
-                <span class="font-bold"
-                  >{m.staffProfile?.user?.name ?? 'Inconnu'}</span
+  <Card.Root class="rounded-sm shadow-sm">
+    <Card.Header class="flex flex-row items-center justify-between pb-3">
+      <Card.Title
+        class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+      >
+        <StickyNote class="h-4 w-4 text-epi-blue" /> Notes de l'événement
+      </Card.Title>
+      <Gated group="devLead" mode="hide">
+        <Tooltip.Provider delayDuration={300}>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props: tooltipProps })}
+                <Button
+                  {...tooltipProps}
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onclick={() => (openEditEvent = true)}
                 >
-              </li>
-            {/each}
-          </ul>
-        {:else}
-          <p class="text-sm text-muted-foreground italic">
-            Aucun manta assigné. Modifiez les paramètres pour en ajouter.
-          </p>
-        {/if}
-      </Card.Content>
-    </Card.Root>
-  </div>
+                  <Pencil class="h-3.5 w-3.5" />
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content class="rounded-sm">
+              <p>Modifier les notes</p>
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      </Gated>
+    </Card.Header>
+    <Card.Content>
+      {#if notesHtml}
+        <div
+          class="prose max-w-none text-sm leading-relaxed prose-slate dark:prose-invert"
+        >
+          {@html notesHtml}
+        </div>
+      {:else}
+        <p class="text-sm text-muted-foreground italic">
+          Aucune note. Ajoutez du contexte (objectifs, consignes, infos
+          pratiques) via les paramètres de l'événement.
+        </p>
+      {/if}
+    </Card.Content>
+  </Card.Root>
 
   <div
     class={cn(
