@@ -6,6 +6,7 @@
     Lightbulb,
     Lock,
     LockOpen,
+    MessageCircle,
     Send,
   } from '@lucide/svelte';
   import { Badge } from '$lib/components/ui/badge';
@@ -21,6 +22,9 @@
 
   let body = $state('');
   let isClosed = $derived(data.ticket.status === 'closed');
+  let teamsHref = $derived(
+    `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(data.ticket.author.email)}`,
+  );
 </script>
 
 <div class="mx-auto max-w-3xl space-y-6">
@@ -63,27 +67,41 @@
           </p>
         </div>
 
-        <form
-          method="POST"
-          action={isClosed ? '?/reopen' : '?/close'}
-          use:enhance={() =>
-            ({ result, update }) => {
-              if (result.type === 'success') {
-                toast.success(isClosed ? 'Ticket réouvert' : 'Ticket fermé');
-                update();
-              }
-            }}
-        >
-          <Button type="submit" variant="outline" size="sm" class="gap-2">
-            {#if isClosed}
-              <LockOpen class="h-4 w-4" />
-              Rouvrir
-            {:else}
-              <Lock class="h-4 w-4" />
-              Fermer
-            {/if}
+        <div class="flex items-center gap-2">
+          <Button
+            href={teamsHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="outline"
+            size="sm"
+            class="gap-2"
+          >
+            <MessageCircle class="h-4 w-4" />
+            Contacter Teams
           </Button>
-        </form>
+
+          <form
+            method="POST"
+            action={isClosed ? '?/reopen' : '?/close'}
+            use:enhance={() =>
+              ({ result, update }) => {
+                if (result.type === 'success') {
+                  toast.success(isClosed ? 'Ticket réouvert' : 'Ticket fermé');
+                  update();
+                }
+              }}
+          >
+            <Button type="submit" variant="outline" size="sm" class="gap-2">
+              {#if isClosed}
+                <LockOpen class="h-4 w-4" />
+                Rouvrir
+              {:else}
+                <Lock class="h-4 w-4" />
+                Fermer
+              {/if}
+            </Button>
+          </form>
+        </div>
       </div>
     </Card.Header>
     <Card.Content>
