@@ -1013,6 +1013,7 @@ const STAFF_MEMBERS = [
     name: 'Pauline Marchand',
     campus: 'Paris',
     role: 'superdev' as const,
+    image: 'https://i.pravatar.cc/96?u=pauline.marchand@epitech.eu',
   },
   {
     key: 'marie.manta',
@@ -1020,6 +1021,7 @@ const STAFF_MEMBERS = [
     name: 'Marie Manta',
     campus: 'Paris',
     role: 'dev' as const,
+    image: 'https://i.pravatar.cc/96?u=marie.manta@epitech.eu',
   },
   {
     key: 'sophie.bernard',
@@ -1027,6 +1029,7 @@ const STAFF_MEMBERS = [
     name: 'Sophie Bernard',
     campus: 'Paris',
     role: 'peda' as const,
+    image: 'https://i.pravatar.cc/96?u=sophie.bernard@epitech.eu',
   },
   {
     key: 'jules.dupont',
@@ -1034,6 +1037,7 @@ const STAFF_MEMBERS = [
     name: 'Jules Dupont',
     campus: 'Paris',
     role: 'manta' as const,
+    image: 'https://i.pravatar.cc/96?u=jules.dupont@epitech.eu',
   },
   {
     key: 'laura.garcia',
@@ -1041,6 +1045,7 @@ const STAFF_MEMBERS = [
     name: 'Laura Garcia',
     campus: 'Paris',
     role: 'manta' as const,
+    image: null,
   },
   {
     key: 'nathan.blanc',
@@ -1048,6 +1053,7 @@ const STAFF_MEMBERS = [
     name: 'Nathan Blanc',
     campus: 'Lyon',
     role: 'peda' as const,
+    image: 'https://i.pravatar.cc/96?u=nathan.blanc@epitech.eu',
   },
   {
     key: 'pierre.leblanc',
@@ -1055,6 +1061,7 @@ const STAFF_MEMBERS = [
     name: 'Pierre Leblanc',
     campus: 'Lyon',
     role: 'manta' as const,
+    image: null,
   },
   {
     key: 'camille.reader',
@@ -1062,6 +1069,7 @@ const STAFF_MEMBERS = [
     name: 'Camille Reader',
     campus: 'Paris',
     role: null, // Unassigned — tests the "contact admin" guard
+    image: null,
   },
 ];
 
@@ -2184,6 +2192,7 @@ async function seedStaff(
         name: s.name,
         role: 'staff',
         emailVerified: true,
+        image: s.image,
       },
     });
     const profile = await prisma.staffProfile.create({
