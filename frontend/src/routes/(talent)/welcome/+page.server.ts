@@ -13,22 +13,33 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  // Resolve campus from the talent's most recent participation
-  const participation = await prisma.participation.findFirst({
-    where: { talentId: locals.talent.id },
+  // Resolve campus from the talent's stage_seconde participation
+  const stageParticipation = await prisma.participation.findFirst({
+    where: {
+      talentId: locals.talent.id,
+      event: { eventType: 'stage_seconde' },
+    },
     orderBy: { event: { date: 'desc' } },
     select: { campusId: true },
   });
 
-  if (!participation) {
-    return { cmsContent: null };
+  if (!stageParticipation) {
+    // No stage_seconde participation — skip welcome, go to dashboard
+    throw redirect(303, resolve('/'));
   }
 
   const page = await prisma.cmsPage.findUnique({
-    where: { slug_campusId: { slug: SLUG, campusId: participation.campusId } },
+    where: {
+      slug_campusId: { slug: SLUG, campusId: stageParticipation.campusId },
+    },
   });
 
-  return { cmsContent: page?.content ?? null };
+  if (!page?.content) {
+    // No welcome content for this campus — skip to dashboard
+    throw redirect(303, resolve('/'));
+  }
+
+  return { cmsContent: page.content };
 };
 
 export const actions: Actions = {

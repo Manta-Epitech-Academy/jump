@@ -11,17 +11,23 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     throw error(401, 'Non autorisé');
   }
 
-  // Redirect to welcome page if talent hasn't seen it yet
+  // Redirect to welcome page if talent hasn't seen it yet and participates in a stage_seconde
   if (!locals.talent.welcomeSeenAt) {
-    const participation = await prisma.participation.findFirst({
-      where: { talentId: locals.talent.id },
+    const stageParticipation = await prisma.participation.findFirst({
+      where: {
+        talentId: locals.talent.id,
+        event: { eventType: 'stage_seconde' },
+      },
       orderBy: { event: { date: 'desc' } },
       select: { campusId: true },
     });
-    if (participation) {
+    if (stageParticipation) {
       const welcomePage = await prisma.cmsPage.findUnique({
         where: {
-          slug_campusId: { slug: 'welcome', campusId: participation.campusId },
+          slug_campusId: {
+            slug: 'welcome',
+            campusId: stageParticipation.campusId,
+          },
         },
       });
       if (welcomePage?.content) {
