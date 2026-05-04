@@ -22,6 +22,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Connexion staff</title>
+</svelte:head>
+
 <!-- Outer Container with Custom Background Class -->
 <div
   class="login-bg relative flex min-h-screen w-full items-center justify-center overflow-hidden p-4"

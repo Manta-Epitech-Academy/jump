@@ -89,6 +89,10 @@
   let progressId = $derived(data.progress?.id);
 </script>
 
+<svelte:head>
+  <title>{data.activity.nom}</title>
+</svelte:head>
+
 {#if !isDynamic}
   <!-- ═══ STATIC ACTIVITY PAGE ═══ -->
   <div

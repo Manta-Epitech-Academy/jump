@@ -32,6 +32,10 @@
   let actionManager: ReturnType<typeof EventActionManager>;
 </script>
 
+<svelte:head>
+  <title>Historique des événements</title>
+</svelte:head>
+
 <div class="space-y-6">
   <PageBreadcrumb
     items={[

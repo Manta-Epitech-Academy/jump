@@ -214,6 +214,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>{data.currentSlot.nom} — Cockpit</title>
+</svelte:head>
+
 <div class="flex min-h-screen flex-col bg-background pb-20">
   <!-- Cockpit header (hidden in focus mode) -->
   <div
