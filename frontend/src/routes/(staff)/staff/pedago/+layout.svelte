@@ -17,7 +17,10 @@
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { fly, fade } from 'svelte/transition';
   import { resolve } from '$app/paths';
-  import { getStaffRoleLabel } from '$lib/domain/staff';
+  import {
+    getStaffRoleLabel,
+    getStaffRoleCampusSuffix,
+  } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { children, data } = $props();
@@ -162,17 +165,19 @@
         </Button>
         <a href={resolve('/staff/pedago')} class="flex items-center gap-2">
           <span class="text-lg font-bold uppercase">Jump</span>
-          {#if data.staffProfile?.campus?.name}
-            <span
-              class="hidden self-center rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-header-foreground/90 uppercase md:inline-block"
-            >
-              {data.staffProfile.campus.name}
-            </span>
-          {/if}
           <span
             class="text-xs font-bold tracking-wider text-epi-teal uppercase"
           >
-            {getStaffRoleLabel(data.staffProfile?.staffRole)}
+            {getStaffRoleLabel(
+              data.staffProfile?.staffRole,
+            )}{#if getStaffRoleCampusSuffix(data.staffProfile?.staffRole, data.staffProfile?.campus?.name)}<span
+                class="hidden md:inline"
+              >
+                {getStaffRoleCampusSuffix(
+                  data.staffProfile?.staffRole,
+                  data.staffProfile?.campus?.name,
+                )}</span
+              >{/if}
           </span>
         </a>
       </div>
