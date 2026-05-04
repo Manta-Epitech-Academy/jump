@@ -1,6 +1,11 @@
 import { prisma } from '$lib/server/db';
+import { getStorage } from '$lib/server/infra/storage';
 
 const PHOTO_SIZE = 96;
+
+export function avatarStorageKey(userId: string): string {
+  return `avatars/${userId}.jpg`;
+}
 
 // Refresh bauth_user.image from MS Graph. BetterAuth's Microsoft provider
 // only fetches the photo on first user creation, so pre-provisioned accounts
@@ -21,13 +26,15 @@ export async function syncMicrosoftAvatar(userId: string): Promise<void> {
     // 404 = user has no Graph photo set; skip silently.
     if (!res.ok) return;
 
-    const contentType = res.headers.get('content-type') ?? 'image/jpeg';
-    const base64 = Buffer.from(await res.arrayBuffer()).toString('base64');
-    const dataUrl = `data:${contentType};base64,${base64}`;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    await getStorage().save(avatarStorageKey(userId), buffer);
 
+    // Cache-busting token: changes on each sync so the proxy URL stored in
+    // bauth_user.image can be served with `immutable` browser caching.
+    const v = Date.now().toString(36);
     await prisma.bauth_user.update({
       where: { id: userId },
-      data: { image: dataUrl },
+      data: { image: `/api/avatars/${userId}?v=${v}` },
     });
   } catch (err) {
     console.error('[microsoftProfile] avatar sync failed', err);
