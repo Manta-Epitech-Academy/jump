@@ -73,3 +73,18 @@ export function getStaffRoleRedirectPath(
       return null;
   }
 }
+
+/**
+ * StaffProfile.staffRole is the source of truth for what a user can do inside
+ * the app; bauth_user.role is BetterAuth's admin-plugin gate. They must agree
+ * (`admin` ↔ `admin`, anything else ↔ `staff`) — otherwise impersonation,
+ * banning, etc. desync with the in-app role.
+ *
+ * Callers that change one MUST change the other in the same transaction. Use
+ * this helper as the single source for the mapping.
+ */
+export function bauthRoleForStaffRole(
+  staffRole: StaffRole | null | undefined,
+): 'admin' | 'staff' {
+  return staffRole === 'admin' ? 'admin' : 'staff';
+}
