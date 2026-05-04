@@ -40,6 +40,8 @@ export const handle: Handle = async ({ event, resolve }) => {
       where: { id: event.locals.user.id },
       select: {
         role: true,
+        name: true,
+        image: true,
         staffProfile: { include: { campus: true } },
         talent: true,
       },
@@ -47,6 +49,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     if (record) {
       event.locals.user.role = record.role;
+      event.locals.user.name = record.name ?? event.locals.user.name;
+      event.locals.user.image = record.image ?? event.locals.user.image;
       event.locals.staffProfile = record.staffProfile;
       event.locals.talent = record.talent;
     }

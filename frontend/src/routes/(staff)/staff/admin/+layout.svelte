@@ -18,6 +18,7 @@
   } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { fly, fade } from 'svelte/transition';
 
@@ -192,11 +193,18 @@
                 >{data.user?.email}</span
               >
             </div>
-            <div
-              class="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-700 bg-slate-900 text-epi-pink"
+            <Avatar.Root
+              class="h-9 w-9 rounded-sm border border-slate-700 bg-slate-900"
             >
-              <ShieldAlert class="h-4 w-4" />
-            </div>
+              <Avatar.Image
+                src={data.user?.image ?? undefined}
+                alt={data.user?.name ?? data.user?.email ?? 'Admin'}
+                class="object-cover"
+              />
+              <Avatar.Fallback class="rounded-sm bg-slate-900 text-epi-pink">
+                <ShieldAlert class="h-4 w-4" />
+              </Avatar.Fallback>
+            </Avatar.Root>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
             <DropdownMenu.Label class="text-xs text-muted-foreground uppercase"
