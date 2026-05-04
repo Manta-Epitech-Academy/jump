@@ -4,23 +4,21 @@
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import {
-    UserCheck,
-    Clock,
-    LifeBuoy,
-    X,
-    LockOpen,
-    MessageSquareQuote,
-    Award,
-    Check,
-    CircleCheck,
-    MessageCircleReply,
-    LoaderCircle,
-    BrainCircuit,
-    Gauge,
-    Zap,
-    Ellipsis,
-  } from '@lucide/svelte';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import Clock from '@lucide/svelte/icons/clock';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import X from '@lucide/svelte/icons/x';
+  import LockOpen from '@lucide/svelte/icons/lock-open';
+  import MessageSquareQuote from '@lucide/svelte/icons/message-square-quote';
+  import Award from '@lucide/svelte/icons/award';
+  import Check from '@lucide/svelte/icons/check';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import MessageCircleReply from '@lucide/svelte/icons/message-circle-reply';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import BrainCircuit from '@lucide/svelte/icons/brain-circuit';
+  import Gauge from '@lucide/svelte/icons/gauge';
+  import Zap from '@lucide/svelte/icons/zap';
+  import Ellipsis from '@lucide/svelte/icons/ellipsis';
   import { cn } from '$lib/utils';
   import { tick } from 'svelte';
   import { toast } from 'svelte-sonner';

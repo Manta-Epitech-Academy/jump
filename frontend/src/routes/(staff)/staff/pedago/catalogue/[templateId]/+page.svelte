@@ -9,17 +9,15 @@
   import { Switch } from '$lib/components/ui/switch';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import {
-    ExternalLink,
-    FlaskConical,
-    Zap,
-    FileText,
-    Clock,
-    CirclePlay,
-    BookOpenCheck,
-    Eye,
-    CircleCheck,
-  } from '@lucide/svelte';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import FlaskConical from '@lucide/svelte/icons/flask-conical';
+  import Zap from '@lucide/svelte/icons/zap';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import Clock from '@lucide/svelte/icons/clock';
+  import CirclePlay from '@lucide/svelte/icons/circle-play';
+  import BookOpenCheck from '@lucide/svelte/icons/book-open-check';
+  import Eye from '@lucide/svelte/icons/eye';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
   import { activityTypeLabels } from '$lib/validation/templates';
   import type {
     ActivityStep,

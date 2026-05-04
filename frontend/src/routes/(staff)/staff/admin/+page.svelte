@@ -1,11 +1,9 @@
 <script lang="ts">
-  import {
-    Map,
-    Users,
-    GraduationCap,
-    CalendarDays,
-    RefreshCw,
-  } from '@lucide/svelte';
+  import Map from '@lucide/svelte/icons/map';
+  import Users from '@lucide/svelte/icons/users';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import RefreshCw from '@lucide/svelte/icons/refresh-cw';
   import * as Card from '$lib/components/ui/card';
   import {
     Table,

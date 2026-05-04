@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { Clock } from '@lucide/svelte';
+  import Clock from '@lucide/svelte/icons/clock';
   import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';

@@ -4,7 +4,8 @@
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { CircleCheck, Eye } from '@lucide/svelte';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import Eye from '@lucide/svelte/icons/eye';
   import { toast } from 'svelte-sonner';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
 

@@ -2,7 +2,8 @@
   import { untrack, type Snippet } from 'svelte';
   import { enhance } from '$app/forms';
   import { today, type DateValue } from '@internationalized/date';
-  import { CalendarClock, Check } from '@lucide/svelte';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import Check from '@lucide/svelte/icons/check';
   import { Button } from '$lib/components/ui/button';
   import * as Popover from '$lib/components/ui/popover';
   import { Label } from '$lib/components/ui/label';

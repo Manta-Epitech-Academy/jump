@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { X, UserPen } from '@lucide/svelte';
+  import X from '@lucide/svelte/icons/x';
+  import UserPen from '@lucide/svelte/icons/user-pen';
 
   let dismissed = $state(false);
 </script>

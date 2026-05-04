@@ -1,21 +1,19 @@
 <script lang="ts">
-  import {
-    LogOut,
-    LayoutDashboard,
-    Users,
-    Plus,
-    ChevronDown,
-    Menu,
-    History,
-    Search,
-    X,
-    Unlink,
-    MessageSquare,
-    BookOpen,
-    UserCog,
-    ClipboardCheck,
-    CalendarDays,
-  } from '@lucide/svelte';
+  import LogOut from '@lucide/svelte/icons/log-out';
+  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+  import Users from '@lucide/svelte/icons/users';
+  import Plus from '@lucide/svelte/icons/plus';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import Menu from '@lucide/svelte/icons/menu';
+  import History from '@lucide/svelte/icons/history';
+  import Search from '@lucide/svelte/icons/search';
+  import X from '@lucide/svelte/icons/x';
+  import Unlink from '@lucide/svelte/icons/unlink';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import BookOpen from '@lucide/svelte/icons/book-open';
+  import UserCog from '@lucide/svelte/icons/user-cog';
+  import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';

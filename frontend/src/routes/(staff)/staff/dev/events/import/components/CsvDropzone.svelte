@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Upload, FileCheck } from '@lucide/svelte';
+  import Upload from '@lucide/svelte/icons/upload';
+  import FileCheck from '@lucide/svelte/icons/file-check';
   import { Button } from '$lib/components/ui/button';
   import { toast } from 'svelte-sonner';
   import { cn } from '$lib/utils';

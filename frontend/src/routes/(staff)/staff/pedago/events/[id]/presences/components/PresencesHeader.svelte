@@ -2,7 +2,10 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { resolve } from '$app/paths';
-  import { CalendarRange, CheckCircle2, Users, Radio } from '@lucide/svelte';
+  import CalendarRange from '@lucide/svelte/icons/calendar-range';
+  import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+  import Users from '@lucide/svelte/icons/users';
+  import Radio from '@lucide/svelte/icons/radio';
   import { cn } from '$lib/utils';
 
   type LucideIcon = typeof CalendarRange;

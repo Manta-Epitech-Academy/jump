@@ -1,15 +1,13 @@
 <script lang="ts">
-  import {
-    Calendar,
-    CircleCheck,
-    CircleX,
-    Clock,
-    BookOpen,
-    ExternalLink,
-    CalendarClock,
-    MessageSquareQuote,
-    MessageCircleReply,
-  } from '@lucide/svelte';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import CircleX from '@lucide/svelte/icons/circle-x';
+  import Clock from '@lucide/svelte/icons/clock';
+  import BookOpen from '@lucide/svelte/icons/book-open';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import MessageSquareQuote from '@lucide/svelte/icons/message-square-quote';
+  import MessageCircleReply from '@lucide/svelte/icons/message-circle-reply';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as Tooltip from '$lib/components/ui/tooltip';

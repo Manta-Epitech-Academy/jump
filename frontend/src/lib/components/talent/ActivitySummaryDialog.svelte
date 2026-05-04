@@ -2,7 +2,10 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { ArrowRight, Clock, Lock, Zap } from '@lucide/svelte';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Lock from '@lucide/svelte/icons/lock';
+  import Zap from '@lucide/svelte/icons/zap';
   import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
   import {

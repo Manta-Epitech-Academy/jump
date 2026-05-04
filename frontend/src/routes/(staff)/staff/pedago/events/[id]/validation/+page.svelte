@@ -4,7 +4,10 @@
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Avatar from '$lib/components/ui/avatar';
-  import { ArrowRight, Eye, ShieldCheck, Users } from '@lucide/svelte';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Eye from '@lucide/svelte/icons/eye';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import Users from '@lucide/svelte/icons/users';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
 
   let { data }: { data: PageData } = $props();

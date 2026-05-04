@@ -6,25 +6,23 @@
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { EVENT_TYPES } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
-  import {
-    CalendarDays,
-    MonitorPlay,
-    Users,
-    ShieldHalf,
-    Award,
-    ArchiveRestore,
-    Activity,
-    LifeBuoy,
-    RadioTower,
-    UserPlus,
-    CalendarClock,
-    BookOpenText,
-    FileText,
-    Zap,
-    ArrowRight,
-    Ellipsis,
-    TriangleAlert,
-  } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import MonitorPlay from '@lucide/svelte/icons/monitor-play';
+  import Users from '@lucide/svelte/icons/users';
+  import ShieldHalf from '@lucide/svelte/icons/shield-half';
+  import Award from '@lucide/svelte/icons/award';
+  import ArchiveRestore from '@lucide/svelte/icons/archive-restore';
+  import Activity from '@lucide/svelte/icons/activity';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import RadioTower from '@lucide/svelte/icons/radio-tower';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import BookOpenText from '@lucide/svelte/icons/book-open-text';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import Zap from '@lucide/svelte/icons/zap';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Ellipsis from '@lucide/svelte/icons/ellipsis';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { resolve } from '$app/paths';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';

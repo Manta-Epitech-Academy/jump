@@ -3,7 +3,10 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
-  import { Trash2, Sprout, FileCheck, Trophy } from '@lucide/svelte';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Sprout from '@lucide/svelte/icons/sprout';
+  import FileCheck from '@lucide/svelte/icons/file-check';
+  import Trophy from '@lucide/svelte/icons/trophy';
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';

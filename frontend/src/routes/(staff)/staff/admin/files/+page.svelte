@@ -1,16 +1,14 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import {
-    Upload,
-    Trash2,
-    Download,
-    FileIcon,
-    FileImage,
-    FileText,
-    FileArchive,
-    FileVideo,
-    FileAudio,
-  } from '@lucide/svelte';
+  import Upload from '@lucide/svelte/icons/upload';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Download from '@lucide/svelte/icons/download';
+  import FileIcon from '@lucide/svelte/icons/file';
+  import FileImage from '@lucide/svelte/icons/file-image';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import FileArchive from '@lucide/svelte/icons/file-archive';
+  import FileVideo from '@lucide/svelte/icons/file-video';
+  import FileAudio from '@lucide/svelte/icons/file-audio';
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { TriangleAlert, Check, CheckCheck } from '@lucide/svelte';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import Check from '@lucide/svelte/icons/check';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';

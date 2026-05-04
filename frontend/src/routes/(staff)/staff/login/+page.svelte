@@ -6,7 +6,10 @@
     AlertDescription,
     AlertTitle,
   } from '$lib/components/ui/alert';
-  import { CircleAlert, Terminal, Lock, LoaderCircle } from '@lucide/svelte';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Terminal from '@lucide/svelte/icons/terminal';
+  import Lock from '@lucide/svelte/icons/lock';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { authClient } from '$lib/auth-client';
   import { resolve } from '$app/paths';
 

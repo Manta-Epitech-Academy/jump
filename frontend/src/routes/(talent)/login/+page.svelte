@@ -3,7 +3,9 @@
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import { Alert, AlertDescription } from '$lib/components/ui/alert';
-  import { Rocket, CircleAlert, Mail } from '@lucide/svelte';
+  import Rocket from '@lucide/svelte/icons/rocket';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Mail from '@lucide/svelte/icons/mail';
   import { untrack } from 'svelte';
 
   import LoginEmailStep from './components/LoginEmailStep.svelte';

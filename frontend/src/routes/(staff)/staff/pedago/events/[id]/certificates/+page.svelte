@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { Award, Download, CircleCheck, LoaderCircle } from '@lucide/svelte';
+  import Award from '@lucide/svelte/icons/award';
+  import Download from '@lucide/svelte/icons/download';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';

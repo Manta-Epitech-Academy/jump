@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Camera, CheckCircle } from '@lucide/svelte';
+  import Camera from '@lucide/svelte/icons/camera';
+  import CheckCircle from '@lucide/svelte/icons/check-circle';
   import { renderMarkdown } from '$lib/markdown';
   import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
   import { fly } from 'svelte/transition';
