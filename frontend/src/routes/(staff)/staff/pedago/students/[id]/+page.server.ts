@@ -46,9 +46,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             activity: {
               include: { activityThemes: { include: { theme: true } } },
             },
+            verdictAuthor: { include: { user: true } },
           },
         },
-        noteAuthor: { include: { user: true } },
       },
       orderBy: { event: { date: 'desc' } },
     });

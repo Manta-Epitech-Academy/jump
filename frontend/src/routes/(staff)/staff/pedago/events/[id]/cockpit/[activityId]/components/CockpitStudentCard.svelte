@@ -10,7 +10,6 @@
     LifeBuoy,
     X,
     LockOpen,
-    MessageSquareQuote,
     Award,
     Check,
     CircleCheck,
@@ -24,7 +23,7 @@
   import { cn } from '$lib/utils';
   import { tick } from 'svelte';
   import { toast } from 'svelte-sonner';
-  import NoteInput from '$lib/components/NoteInput.svelte';
+  import VerdictPicker from '$lib/components/students/VerdictPicker.svelte';
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
   import { resolve } from '$app/paths';
 
@@ -513,67 +512,11 @@
           </div>
         {/if}
 
-        <div class="flex items-start gap-3">
-          <MessageSquareQuote
-            class="mt-2 h-5 w-5 shrink-0 text-muted-foreground/40"
-          />
-          <div class="flex-1 space-y-2">
-            <NoteInput
-              id={participation.id}
-              value={participation.note}
-              onSave={triggerXp}
-              placeholder="Observation pédagogique..."
-              class="h-10 rounded-sm border-transparent bg-card text-sm focus:border-epi-blue"
-            />
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                class="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 transition-colors hover:bg-green-100 dark:border-green-900/50 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40"
-                onclick={() => {
-                  const i = document.querySelector(
-                    `#note-form-${participation.id} input[name="note"]`,
-                  ) as HTMLInputElement;
-                  if (i) {
-                    i.value = i.value
-                      ? `${i.value} [✨ Très à l'aise]`
-                      : `[✨ Très à l'aise]`;
-                    i.dispatchEvent(new Event('input'));
-                  }
-                }}>✨ Très à l'aise</button
-              >
-              <button
-                type="button"
-                class="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
-                onclick={() => {
-                  const i = document.querySelector(
-                    `#note-form-${participation.id} input[name="note"]`,
-                  ) as HTMLInputElement;
-                  if (i) {
-                    i.value = i.value
-                      ? `${i.value}[⏳ Besoin de temps]`
-                      : `[⏳ Besoin de temps]`;
-                    i.dispatchEvent(new Event('input'));
-                  }
-                }}>⏳ Besoin de temps</button
-              >
-              <button
-                type="button"
-                class="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-900/50 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40"
-                onclick={() => {
-                  const i = document.querySelector(
-                    `#note-form-${participation.id} input[name="note"]`,
-                  ) as HTMLInputElement;
-                  if (i) {
-                    i.value = i.value
-                      ? `${i.value} [🔧 Pb Setup]`
-                      : `[🔧 Pb Setup]`;
-                    i.dispatchEvent(new Event('input'));
-                  }
-                }}>🔧 Pb Setup</button
-              >
-            </div>
-          </div>
-        </div>
+        <VerdictPicker
+          id={participation.id}
+          verdict={participation.verdict}
+          contextTag={participation.contextTag}
+        />
       </div>
     {/if}
   </div>

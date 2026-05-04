@@ -48,6 +48,17 @@ enum InterviewStatus {
   cancelled
 }
 
+enum ParticipationVerdict {
+  comfortable
+  progressing
+  struggling
+}
+
+enum ParticipationContextTag {
+  helped_others
+  disengaged
+}
+
 // ─── Auth (BetterAuth managed) ───
 
 model bauth_user {
@@ -123,10 +134,10 @@ model StaffProfile {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  user                bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campus              Campus?         @relation(fields: [campusId], references: [id])
+  user                bauth_user              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus              Campus?                 @relation(fields: [campusId], references: [id])
   eventMantas         EventManta[]
-  notesAuthored       Participation[] @relation("NoteAuthor")
+  verdictsAuthored    ParticipationActivity[] @relation("VerdictAuthor")
   interviewsConducted Interview[]
   adminFiles          AdminFile[]
   subjectVersionsImported SubjectVersion[]
@@ -370,8 +381,6 @@ model Participation {
   delay     Int?    @default(0)
   bringPc   Boolean @default(false)
 
-  note           String?
-  noteAuthorId   String?
   camperRating   Int?
   camperFeedback String?
   createdAt      DateTime @default(now())
@@ -380,7 +389,6 @@ model Participation {
   talent          Talent                  @relation(fields: [talentId], references: [id], onDelete: Cascade)
   event           Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   campus          Campus                  @relation(fields: [campusId], references: [id])
-  noteAuthor      StaffProfile?           @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
   activities      ParticipationActivity[]
   stageCompliance StageCompliance?
   interview       Interview?
@@ -406,13 +414,19 @@ model StageCompliance {
 model ParticipationActivity {
   participationId String
   activityId      String
-  isPresent       Boolean @default(false)
-  delay           Int     @default(0)
+  isPresent       Boolean                  @default(false)
+  delay           Int                      @default(0)
+  verdict         ParticipationVerdict?
+  contextTag      ParticipationContextTag?
+  verdictAuthorId String?
+  verdictAt       DateTime?
 
-  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  activity      Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  participation  Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  activity       Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  verdictAuthor  StaffProfile? @relation("VerdictAuthor", fields: [verdictAuthorId], references: [id])
 
   @@id([participationId, activityId])
+  @@index([verdictAuthorId])
 }
 
 model Interview {

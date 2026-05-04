@@ -10,7 +10,7 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { hasFlag, requireStaffGroup } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
@@ -43,9 +43,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             activity: {
               include: { activityThemes: { include: { theme: true } } },
             },
+            verdictAuthor: { include: { user: true } },
           },
         },
-        noteAuthor: { include: { user: true } },
       },
       orderBy: { event: { date: 'desc' } },
     });
@@ -158,6 +158,13 @@ export const actions: Actions = {
       console.error('Error deleting student:', err);
       return fail(500, { message: 'Impossible de supprimer ce Talent' });
     }
-    throw redirect(303, resolve('/staff/dev/students'));
+    // The /staff/dev/students listing is coding_club-gated; fall back to the
+    // dev dashboard when the campus can't reach it.
+    throw redirect(
+      303,
+      hasFlag(locals, 'coding_club')
+        ? resolve('/staff/dev/students')
+        : resolve('/staff/dev'),
+    );
   },
 };
