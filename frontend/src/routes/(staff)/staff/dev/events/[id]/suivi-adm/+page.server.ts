@@ -163,7 +163,7 @@ export const actions: Actions = {
         } else if (type === 'parent' && talent.parentEmail) {
           await sendParentReminderEmail(
             talent.parentEmail,
-            talent.parentNom || 'Parent',
+            talent.parentNom,
             `${talent.prenom} ${talent.nom}`,
           );
         } else {
