@@ -24,6 +24,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { bauthRoleForStaffRole } from '../src/lib/domain/staff';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -58,7 +59,7 @@ async function main() {
     process.exit(1);
   }
 
-  const bauthRole = invitation.staffRole === 'admin' ? 'admin' : 'staff';
+  const bauthRole = bauthRoleForStaffRole(invitation.staffRole);
 
   await prisma.$transaction(async (tx) => {
     const user = await tx.bauth_user.upsert({
