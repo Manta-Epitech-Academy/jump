@@ -52,14 +52,44 @@ async function main() {
     process.exit(1);
   }
 
-  // Find an event on Paris campus to link participation
-  const event = await prisma.event.findFirst({
-    where: { campusId: paris.id },
-    select: { id: true },
+  // Find the active stage_seconde event on Paris campus
+  const now = new Date();
+  const lookaheadDays = 60;
+  const lookahead = new Date(now);
+  lookahead.setDate(lookahead.getDate() + lookaheadDays);
+  const defaultDuration = 14;
+  const implicitLookback = new Date(now);
+  implicitLookback.setDate(implicitLookback.getDate() - defaultDuration);
+
+  let event = await prisma.event.findFirst({
+    where: {
+      campusId: paris.id,
+      eventType: 'stage_seconde',
+      date: { lte: lookahead },
+      OR: [
+        { endDate: { gte: now } },
+        { endDate: null, date: { gte: implicitLookback } },
+      ],
+    },
+    select: { id: true, titre: true },
+    orderBy: { date: 'asc' },
   });
+
   if (!event) {
-    console.error('No event found on Paris campus. Run seed first.');
-    process.exit(1);
+    // Fallback: create a stage_seconde event starting today
+    event = await prisma.event.create({
+      data: {
+        titre: 'Stage de Seconde – Test',
+        eventType: 'stage_seconde',
+        date: now,
+        endDate: new Date(now.getTime() + defaultDuration * 86_400_000),
+        campusId: paris.id,
+      },
+      select: { id: true, titre: true },
+    });
+    console.log(`  Created test stage event: ${event.titre}`);
+  } else {
+    console.log(`  Using existing stage event: ${event.titre}`);
   }
 
   // Create or update the test talent
@@ -91,9 +121,9 @@ async function main() {
     },
   });
 
-  // Ensure participation exists on Paris campus
+  // Ensure participation exists on this specific stage event
   const existingParticipation = await prisma.participation.findFirst({
-    where: { talentId: talent.id, campusId: paris.id },
+    where: { talentId: talent.id, eventId: event.id },
   });
 
   if (!existingParticipation) {
@@ -111,7 +141,7 @@ async function main() {
   console.log(`  - rulesSignedAt: ❌ (missing)`);
   console.log(`  - imageRightsSignedAt: ❌ (missing)`);
   console.log(`  - parentEmail: ${email}`);
-  console.log(`  - Campus: Paris (via participation)`);
+  console.log(`  - Campus: Paris (via participation on stage: ${event.titre})`);
 }
 
 main()
