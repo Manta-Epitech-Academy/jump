@@ -52,11 +52,9 @@
     currentStep ? renderMarkdown(currentStep.content_markdown) : '',
   );
 
-  // Static activity markdown
+  // Static activity content (stored as HTML from WYSIWYG editor)
   let staticHtml = $derived(
-    !isDynamic && data.activity.content
-      ? renderMarkdown(data.activity.content)
-      : '',
+    !isDynamic && data.activity.content ? data.activity.content : '',
   );
 
   let selectedAnswer = $state<number | null>(null);

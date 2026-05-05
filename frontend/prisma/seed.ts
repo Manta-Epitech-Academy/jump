@@ -5,6 +5,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { PrismaClient, type ActivityType } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { marked } from 'marked';
 
 const EVENT_TYPES = {
   CODING_CLUB: 'coding_club',
@@ -2357,7 +2358,9 @@ async function seedActivityTemplates(
         contentStructure: def.isDynamic
           ? (contentStructures[def.nom] ?? undefined)
           : undefined,
-        content: def.content,
+        content: def.content
+          ? (marked.parse(def.content) as string)
+          : undefined,
         link: def.link,
         defaultDuration: def.defaultDuration,
         campusId,

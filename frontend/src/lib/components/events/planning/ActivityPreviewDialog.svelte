@@ -2,7 +2,6 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { renderMarkdown } from '$lib/markdown';
   import {
     Pencil,
     Trash2,
@@ -64,9 +63,7 @@
   let stepCount = $derived(structure?.steps?.length ?? 0);
 
   let staticHtml = $derived(
-    activity && !activity.isDynamic && activity.content
-      ? renderMarkdown(activity.content)
-      : '',
+    activity && !activity.isDynamic && activity.content ? activity.content : '',
   );
 
   function formatTime(date: Date | string): string {

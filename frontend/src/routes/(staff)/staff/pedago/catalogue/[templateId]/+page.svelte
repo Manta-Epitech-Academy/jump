@@ -37,9 +37,7 @@
   let showCorrections = $state(false);
 
   let staticHtml = $derived(
-    !template.isDynamic && template.content
-      ? renderMarkdown(template.content)
-      : '',
+    !template.isDynamic && template.content ? template.content : '',
   );
 
   function stepHtml(step: ActivityStep) {

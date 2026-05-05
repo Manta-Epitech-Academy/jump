@@ -50,7 +50,7 @@
     currentStep ? renderMarkdown(currentStep.content_markdown) : '',
   );
   let staticHtml = $derived(
-    !isDynamic && template.content ? renderMarkdown(template.content) : '',
+    !isDynamic && template.content ? template.content : '',
   );
 
   $effect(() => {
