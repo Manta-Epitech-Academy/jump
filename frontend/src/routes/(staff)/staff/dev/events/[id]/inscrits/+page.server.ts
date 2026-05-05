@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const participations = await db.participation.findMany({
     where: { eventId: event.id },
-    include: { talent: true },
+    include: { talent: { include: { lycee: true } } },
     orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
 

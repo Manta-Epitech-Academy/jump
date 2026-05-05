@@ -1,0 +1,159 @@
+<script lang="ts" module>
+  export type EventKpiTone = 'blue' | 'teal' | 'orange' | 'pink' | 'neutral';
+</script>
+
+<script lang="ts">
+  import type { Component, Snippet } from 'svelte';
+  import type { Icon as IconType } from '@lucide/svelte';
+  import * as Card from '$lib/components/ui/card';
+  import { cn } from '$lib/utils';
+
+  type Props = {
+    label: string;
+    /**
+     * Big primary value. Pass a string (already formatted) or a number.
+     * Use the `valueSnippet` prop for richer markup (e.g. "42 / 124").
+     */
+    value?: string | number;
+    /** Optional companion line under the value. */
+    sub?: string;
+    /** Lucide icon component for the right-side badge. Optional. */
+    icon?: typeof IconType | Component;
+    /** Progress bar value (0-100). Omit to hide the bar. */
+    progress?: number;
+    tone?: EventKpiTone;
+    /** Anchor wrap; tile becomes a clickable link. */
+    href?: string;
+    /** Custom value renderer when a string/number isn't enough. */
+    valueSnippet?: Snippet;
+  };
+
+  let {
+    label,
+    value,
+    sub,
+    icon,
+    progress,
+    tone = 'blue',
+    href,
+    valueSnippet,
+  }: Props = $props();
+
+  const toneAccent = $derived(
+    tone === 'teal'
+      ? 'border-l-epi-teal-solid'
+      : tone === 'orange'
+        ? 'border-l-epi-orange'
+        : tone === 'pink'
+          ? 'border-l-epi-pink'
+          : tone === 'neutral'
+            ? 'border-l-muted-foreground/40'
+            : 'border-l-epi-blue',
+  );
+
+  const toneText = $derived(
+    tone === 'teal'
+      ? 'text-epi-teal-solid'
+      : tone === 'orange'
+        ? 'text-epi-orange'
+        : tone === 'pink'
+          ? 'text-epi-pink'
+          : tone === 'neutral'
+            ? 'text-muted-foreground'
+            : 'text-epi-blue',
+  );
+
+  const toneBg = $derived(
+    tone === 'teal'
+      ? 'bg-epi-teal-solid/10'
+      : tone === 'orange'
+        ? 'bg-orange-50 dark:bg-orange-900/20'
+        : tone === 'pink'
+          ? 'bg-epi-pink/10'
+          : tone === 'neutral'
+            ? 'bg-muted/40'
+            : 'bg-blue-50 dark:bg-blue-900/20',
+  );
+
+  const toneFill = $derived(
+    tone === 'teal'
+      ? 'bg-epi-teal-solid'
+      : tone === 'orange'
+        ? 'bg-epi-orange'
+        : tone === 'pink'
+          ? 'bg-epi-pink'
+          : tone === 'neutral'
+            ? 'bg-muted-foreground'
+            : 'bg-epi-blue',
+  );
+
+  const Icon = $derived(icon);
+</script>
+
+{#snippet body()}
+  <Card.Content class="p-5">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0 flex-1">
+        <p
+          class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          {label}
+        </p>
+        <div class="flex items-baseline gap-2">
+          {#if valueSnippet}
+            {@render valueSnippet()}
+          {:else}
+            <p class="text-3xl font-black text-foreground">
+              {value ?? '—'}
+            </p>
+          {/if}
+        </div>
+        {#if sub}
+          <p class="mt-1 text-xs font-medium text-muted-foreground">
+            {sub}
+          </p>
+        {/if}
+      </div>
+      {#if Icon}
+        <div
+          class={cn(
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm',
+            toneBg,
+            toneText,
+          )}
+        >
+          <Icon class="h-6 w-6" />
+        </div>
+      {/if}
+    </div>
+    {#if typeof progress === 'number'}
+      <div
+        class="mt-4 h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30"
+      >
+        <div
+          class={cn(
+            'h-full transition-[width] duration-700 ease-out',
+            toneFill,
+          )}
+          style="width: {Math.max(0, Math.min(100, progress))}%"
+        ></div>
+      </div>
+    {/if}
+  </Card.Content>
+{/snippet}
+
+{#if href}
+  <a {href} class="block transition-shadow hover:shadow-md">
+    <Card.Root
+      class={cn('rounded-sm border-l-4 shadow-sm dark:shadow-none', toneAccent)}
+    >
+      {@render body()}
+    </Card.Root>
+  </a>
+{:else}
+  <Card.Root
+    class={cn('rounded-sm border-l-4 shadow-sm dark:shadow-none', toneAccent)}
+  >
+    {@render body()}
+  </Card.Root>
+{/if}

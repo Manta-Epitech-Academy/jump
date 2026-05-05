@@ -25,9 +25,6 @@
     onDelete: (id: string) => void;
   } = $props();
 
-  // TODO: replace with talent.lycee once schema lands
-  const LYCEE_PLACEHOLDER = 'Lycée X';
-
   let isNewStudent = $derived.by(() => {
     const count = participation.talent?.eventsCount ?? 0;
     const isPresent = participation.isPresent ? 1 : 0;
@@ -80,9 +77,11 @@
             {humanNiveau}
           </p>
         {/if}
-        <p class="mt-0.5 truncate text-xs text-muted-foreground">
-          {LYCEE_PLACEHOLDER}
-        </p>
+        {#if participation.talent?.lycee}
+          <p class="mt-0.5 truncate text-xs text-muted-foreground">
+            {participation.talent.lycee.nom}
+          </p>
+        {/if}
       </div>
     </div>
 

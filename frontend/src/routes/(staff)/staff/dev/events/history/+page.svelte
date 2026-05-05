@@ -73,7 +73,7 @@
             <TableRow class="hover:bg-muted/30">
               <TableCell class="font-bold">
                 <a
-                  href={resolve(`/staff/dev/events/${event.id}/manage`)}
+                  href={resolve(`/staff/dev/events/${event.id}`)}
                   class="tracking-tight text-foreground transition-colors hover:text-epi-blue"
                 >
                   {event.titre}
@@ -159,9 +159,7 @@
                             {...props}
                             variant="outline"
                             size="icon"
-                            href={resolve(
-                              `/staff/dev/events/${event.id}/manage`,
-                            )}
+                            href={resolve(`/staff/dev/events/${event.id}`)}
                             class="h-8 w-8 rounded-sm border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
                           >
                             <FileCheck class="h-4 w-4" />

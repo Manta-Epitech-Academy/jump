@@ -26,6 +26,8 @@ All commands run from `frontend/` using **Bun**:
 
 No test framework is configured — there are no automated tests.
 
+**When a `package.json` script exists for the task, use `bun run <script>` rather than invoking the tool directly.** The scripts often set env vars (`KIT_OUTDIR=.svelte-kit-check`) or flags (`--tsconfig ./tsconfig.check.json`) that a bare `bun svelte-check` or `bunx svelte-check` will silently skip — leading to types being written to the default `.svelte-kit/` dir or the wrong strictness. For one-shots without a matching script, `bun <tool>` is fine; reach for `bunx` only when the tool isn't installed locally.
+
 ## Tech Stack
 
 - **SvelteKit 2** (Svelte 5) with `adapter-node`

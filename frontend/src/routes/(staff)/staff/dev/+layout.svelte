@@ -131,9 +131,9 @@
     </div>
     <nav class="space-y-1">
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/manage`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/manage`),
+          isActive(`/staff/dev/events/${data.activeStage.id}`),
         )}
       >
         <LayoutDashboard class="h-5 w-5" />

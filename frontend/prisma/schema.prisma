@@ -173,6 +173,7 @@ model Talent {
   parentPrenom      String?
   parentPhone       String?
   phone             String?
+  lyceeId           String?
   discordId         String?   @unique
   externalId        String?   @unique
   lastSyncedAt      DateTime?
@@ -181,6 +182,7 @@ model Talent {
   updatedAt         DateTime  @updatedAt
 
   user           bauth_user?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lycee          Lycee?          @relation(fields: [lyceeId], references: [id], onDelete: SetNull)
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
@@ -189,6 +191,41 @@ model Talent {
   competenceStates TalentCompetenceState[]
   quizAttempts     TalentQuizAttempt[]
   reminders      OnboardingReminder[]
+  interests      TalentInterest[]
+
+  @@index([lyceeId])
+}
+
+model Lycee {
+  id          String   @id @default(cuid())
+  nom         String   @unique
+  ville       String?
+  departement String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  talents Talent[]
+}
+
+model Interest {
+  id        String   @id @default(cuid())
+  label     String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  talents TalentInterest[]
+}
+
+model TalentInterest {
+  talentId   String
+  interestId String
+
+  talent   Talent   @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  interest Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@id([talentId, interestId])
+  @@index([interestId])
 }
 
 // ─── Domain Tables ───

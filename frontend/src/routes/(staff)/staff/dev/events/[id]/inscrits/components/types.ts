@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 
 export type ParticipationWithTalent = Prisma.ParticipationGetPayload<{
-  include: { talent: true };
+  include: { talent: { include: { lycee: true } } };
 }>;
 
 export type LastEvent = { titre: string; date: Date };

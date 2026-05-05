@@ -136,7 +136,7 @@
                 class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue"
               >
                 {#if p.event?.id}<a
-                    href={resolve(`/staff/dev/events/${p.event.id}/manage`)}
+                    href={resolve(`/staff/dev/events/${p.event.id}`)}
                     >{p.event.titre}</a
                   >{:else}Événement inconnu{/if}
               </Card.Title>

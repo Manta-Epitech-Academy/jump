@@ -47,7 +47,7 @@
       { label: 'Dashboard', href: resolve('/staff/dev') },
       {
         label: data.event.titre,
-        href: resolve(`/staff/dev/events/${data.event.id}/manage`),
+        href: resolve(`/staff/dev/events/${data.event.id}`),
       },
       { label: 'Entretiens' },
     ]}

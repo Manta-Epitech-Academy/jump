@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { now as nowInTimezone } from '@internationalized/date';
+import { now as nowInTimezone, parseAbsolute } from '@internationalized/date';
 
 /**
  * Single source of truth for "is an event upcoming, ongoing, or past".
@@ -31,6 +31,26 @@ export function getLifecycleBounds(timezone: string): LifecycleBounds {
       .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
       .toDate(),
     endOfDay: tzNow
+      .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
+      .toDate(),
+  };
+}
+
+/**
+ * Calendar-day bounds (start/end) for an arbitrary date in the given timezone.
+ * Used when a query needs "everything happening on day X in campus tz",
+ * regardless of "today".
+ */
+export function getDayBounds(
+  date: Date,
+  timezone: string,
+): { startOfDay: Date; endOfDay: Date } {
+  const zoned = parseAbsolute(date.toISOString(), timezone);
+  return {
+    startOfDay: zoned
+      .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
+      .toDate(),
+    endOfDay: zoned
       .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
       .toDate(),
   };

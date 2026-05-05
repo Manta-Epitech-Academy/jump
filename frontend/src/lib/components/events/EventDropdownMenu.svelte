@@ -28,7 +28,7 @@
       {#snippet child({ props })}
         <a
           {...props}
-          href={resolve(`/staff/dev/events/${event.id}/manage`)}
+          href={resolve(`/staff/dev/events/${event.id}`)}
           class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
         >
           <Users class="mr-2 h-4 w-4 text-muted-foreground" />

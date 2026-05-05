@@ -72,6 +72,6 @@ export const actions: Actions = {
       console.error('Final Import Error:', err);
       return fail(500, { error: "Erreur lors de l'import final" });
     }
-    throw redirect(303, resolve(`/staff/dev/events/${newEventId}/manage`));
+    throw redirect(303, resolve(`/staff/dev/events/${newEventId}`));
   },
 };
