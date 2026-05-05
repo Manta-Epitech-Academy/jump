@@ -1170,6 +1170,52 @@ const STAFF_MEMBERS = [
   },
 ];
 
+// ─── Lycée + Interest catalogues (curated, populates Préparation breakdowns) ───
+
+type LyceeDef = { nom: string; ville: string; departement: string };
+
+const LYCEES: LyceeDef[] = [
+  // Paris (intra-muros, where most stagiaires come from)
+  { nom: 'Lycée Henri-IV', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Louis-le-Grand', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Charlemagne', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Voltaire', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Buffon', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Jean-Zay', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Turgot', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Hélène-Boucher', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Jacques-Decour', ville: 'Paris', departement: '75' },
+  { nom: 'Lycée Condorcet', ville: 'Paris', departement: '75' },
+  // Couronne — variety
+  {
+    nom: 'Lycée Marcelin-Berthelot',
+    ville: 'Saint-Maur-des-Fossés',
+    departement: '94',
+  },
+  { nom: 'Lycée Lakanal', ville: 'Sceaux', departement: '92' },
+  // Province (mostly for Lyon scenarios)
+  { nom: 'Lycée du Parc', ville: 'Lyon', departement: '69' },
+  { nom: 'Lycée Ampère', ville: 'Lyon', departement: '69' },
+  { nom: 'Lycée Édouard-Herriot', ville: 'Lyon', departement: '69' },
+];
+
+type InterestDef = { label: string; slug: string };
+
+const INTERESTS: InterestDef[] = [
+  { label: 'Jeu vidéo', slug: 'jeu-video' },
+  { label: 'IA', slug: 'ia' },
+  { label: 'Cybersécurité', slug: 'cybersecurite' },
+  { label: 'Web design', slug: 'web-design' },
+  { label: 'Robotique', slug: 'robotique' },
+  { label: 'Esport', slug: 'esport' },
+  { label: 'Cinéma', slug: 'cinema' },
+  { label: 'Musique', slug: 'musique' },
+  { label: 'Crypto', slug: 'crypto' },
+  { label: 'Mobile dev', slug: 'mobile-dev' },
+  { label: 'Hardware', slug: 'hardware' },
+  { label: 'Open source', slug: 'open-source' },
+];
+
 type StudentDef = {
   email: string;
   prenom: string;
@@ -2073,16 +2119,17 @@ const EVENTS: EventBlueprint[] = [
     bringPc: () => true,
   },
 
-  // 8. Future STAGE DE SECONDE (stage compliance in planning)
+  // 8. Future STAGE DE SECONDE — close to launch (Préparation phase QA)
   {
-    titre: 'Stage de seconde — Avril',
+    titre: 'Stage de seconde — Édition Printemps',
     eventType: EVENT_TYPES.STAGE_SECONDE,
-    daysOffset: 30,
+    daysOffset: 12,
     durationDays: 3,
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1002',
-    notes: null,
+    notes:
+      'Édition Printemps. Cohorte fermée le 5 mai. Prévoir le briefing Dev Co la veille (vendredi 14h en salle Atlas).',
     mantaKeys: ['jules.dupont'],
     days: [
       {
@@ -2132,6 +2179,144 @@ const EVENTS: EventBlueprint[] = [
     stageSigned: parisStudents.slice(0, 12), // 12 of 24 fully signed
     stageUnsigned: parisStudents.slice(12, 24), // 12 partial — triggers compliance alert
     bringPc: () => true,
+  },
+
+  // 8b. Ongoing STAGE DE SECONDE — En-cours phase QA (today = J3 of 5)
+  {
+    titre: 'Stage de seconde — Cohorte en cours',
+    eventType: EVENT_TYPES.STAGE_SECONDE,
+    daysOffset: -2,
+    durationDays: 5,
+    campus: 'Paris',
+    theme: 'Développement Web',
+    pin: '1003',
+    notes:
+      "Cohorte en plein milieu du stage. Demo Day vendredi à 14h (Amphi A).\n\n## Logistique\n\n- Repas : commande validée pour les 5 jours.\n- Mentors : 2 référents pédago disponibles tous les après-midis.\n\n## À surveiller\n\n- Retour parents sur le droit à l'image — 3 dossiers en attente de relance.",
+    mantaKeys: ['jules.dupont', 'laura.garcia'],
+    days: [
+      // Day 0 — Lundi (déjà passé, J1)
+      {
+        dayOffset: 0,
+        slots: [
+          {
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J1', activityType: 'orga' }],
+          },
+          {
+            startHour: 9,
+            startMinute: 30,
+            endHour: 12,
+            label: 'Web — démarrage',
+            activities: [{ nom: 'Ma première page HTML' }],
+          },
+          {
+            startHour: 14,
+            endHour: 17,
+            label: 'CSS & créa',
+            activities: [{ nom: 'CSS : Styliser sa page' }],
+          },
+        ],
+      },
+      // Day 1 — Mardi (déjà passé, J2)
+      {
+        dayOffset: 1,
+        slots: [
+          {
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J2', activityType: 'orga' }],
+          },
+          {
+            startHour: 10,
+            endHour: 12,
+            label: 'IA — découverte',
+            activities: [{ nom: "L'IA et moi" }],
+          },
+          {
+            startHour: 14,
+            endHour: 17,
+            label: 'IA — entraînement',
+            activities: [{ nom: 'Entraîne ton modèle' }],
+          },
+        ],
+      },
+      // Day 2 — Aujourd'hui (J3)
+      {
+        dayOffset: 2,
+        slots: [
+          {
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J3', activityType: 'orga' }],
+          },
+          {
+            startHour: 10,
+            endHour: 12,
+            label: 'Robotique',
+            activities: [{ nom: 'Construis ton robot' }],
+          },
+          {
+            startHour: 14,
+            endHour: 16,
+            label: 'Capteurs',
+            activities: [{ nom: 'Capteurs et actionneurs' }],
+          },
+        ],
+      },
+      // Day 3 — Jeudi (à venir, J4)
+      {
+        dayOffset: 3,
+        slots: [
+          {
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J4', activityType: 'orga' }],
+          },
+          {
+            startHour: 10,
+            endHour: 17,
+            label: 'Game design',
+            activities: [{ nom: 'Crée ton jeu Scratch' }],
+          },
+        ],
+      },
+      // Day 4 — Vendredi (à venir, J5 — Demo Day)
+      {
+        dayOffset: 4,
+        slots: [
+          {
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J5', activityType: 'orga' }],
+          },
+          {
+            startHour: 14,
+            endHour: 16,
+            label: 'Demo Day',
+            activities: [
+              { nom: 'Demo Day — final', activityType: 'conference' },
+            ],
+          },
+        ],
+      },
+    ],
+    studentEmails: parisStudents.slice(0, 12),
+    presentEmails: parisStudents.slice(0, 10), // 10/12 émargés
+    delays: { [parisStudents[3]]: 10, [parisStudents[7]]: 5 },
+    bringPc: () => true,
+    stageSigned: parisStudents.slice(0, 8), // 8/12 dossiers complets
+    stageUnsigned: parisStudents.slice(8, 12), // 4 partiels — alimente alertes
   },
 
   // 9. Past Lyon event
@@ -2255,7 +2440,14 @@ type InterviewBlueprint = {
   studentEmail: string;
   staffKey: string;
   daysOffset: number; // when the interview is/was scheduled
+  hour?: number; // optional clock-hour, defaults to 14h
   status: 'planned' | 'completed' | 'cancelled';
+  /**
+   * Event title to link the interview to a specific participation.
+   * Required for stage_seconde interviews so the manage page En-cours view
+   * surfaces them under "Mes prochains entretiens" / completed counts.
+   */
+  forEventTitre?: string;
   notes?: {
     motivation?: string;
     globalNote?: string;
@@ -2422,6 +2614,76 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: 5,
     status: 'planned',
   },
+
+  // ── Ongoing stage de seconde — tied to participations ──
+  // Entretiens d'orientation menés pendant le stage. Utilisé par les KPIs
+  // "Entretiens X/Y" et "Mes prochains entretiens" sur la vue En-cours.
+  {
+    studentEmail: parisStudents[0],
+    staffKey: 'marie.manta',
+    daysOffset: -1,
+    hour: 10,
+    status: 'completed',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    notes: {
+      motivation: 'Veut découvrir l’IA générative.',
+      globalNote: 'Profil curieux, à orienter Pré-Tech.',
+      satisfaction: 'Très satisfaite',
+    },
+  },
+  {
+    studentEmail: parisStudents[1],
+    staffKey: 'marie.manta',
+    daysOffset: -1,
+    hour: 14,
+    status: 'completed',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    notes: {
+      motivation: 'Cherche un cursus tech après le bac.',
+      globalNote: 'Engagement fort sur l’atelier robotique.',
+    },
+  },
+  {
+    studentEmail: parisStudents[2],
+    staffKey: 'marie.manta',
+    daysOffset: 0,
+    hour: 14,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+  {
+    studentEmail: parisStudents[3],
+    staffKey: 'marie.manta',
+    daysOffset: 0,
+    hour: 16,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+  {
+    studentEmail: parisStudents[4],
+    staffKey: 'pauline.marchand',
+    daysOffset: 1,
+    hour: 11,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+  {
+    studentEmail: parisStudents[5],
+    staffKey: 'pauline.marchand',
+    daysOffset: 1,
+    hour: 14,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+  // En retard — entretien planifié hier, pas marqué fait → alerte "Entretiens en retard"
+  {
+    studentEmail: parisStudents[6],
+    staffKey: 'marie.manta',
+    daysOffset: -1,
+    hour: 16,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
 ];
 
 // ─── Portfolio items ───
@@ -2479,8 +2741,14 @@ async function main() {
   const staffByKey = await seedStaff(campuses);
   console.log(`✓  Users (${Object.keys(staffByKey).length} staff)`);
 
+  // 2b. Lycées + intérêts catalogues (referenced by talents)
+  const lycees = await seedLycees();
+  console.log(`✓  Lycées (${lycees.length})`);
+  const interests = await seedInterests();
+  console.log(`✓  Intérêts (${interests.length})`);
+
   // 3. Students
-  const talentByEmail = await seedStudents();
+  const talentByEmail = await seedStudents(lycees, interests);
   console.log(`✓  Students (${Object.keys(talentByEmail).length})`);
 
   // 3b. Parent account (links to first child for portal testing)
@@ -2557,7 +2825,10 @@ async function wipeAll() {
   await prisma.planningTemplate.deleteMany();
   await prisma.activityTemplate.deleteMany();
   await prisma.theme.deleteMany();
+  await prisma.talentInterest.deleteMany();
+  await prisma.interest.deleteMany();
   await prisma.talent.deleteMany();
+  await prisma.lycee.deleteMany();
   await prisma.staffProfile.deleteMany();
   await prisma.campus.deleteMany();
   await prisma.syncError.deleteMany();
@@ -2607,12 +2878,65 @@ async function seedStaff(
   return byKey;
 }
 
-async function seedStudents(): Promise<
-  Record<string, { id: string; nom: string; prenom: string }>
+async function seedLycees(): Promise<
+  { id: string; nom: string; ville: string; departement: string }[]
 > {
+  const created: {
+    id: string;
+    nom: string;
+    ville: string;
+    departement: string;
+  }[] = [];
+  for (const l of LYCEES) {
+    const row = await prisma.lycee.create({
+      data: { nom: l.nom, ville: l.ville, departement: l.departement },
+    });
+    created.push({
+      id: row.id,
+      nom: row.nom,
+      ville: row.ville!,
+      departement: row.departement!,
+    });
+  }
+  return created;
+}
+
+async function seedInterests(): Promise<{ id: string; slug: string }[]> {
+  const created: { id: string; slug: string }[] = [];
+  for (const i of INTERESTS) {
+    const row = await prisma.interest.create({
+      data: { label: i.label, slug: i.slug },
+    });
+    created.push({ id: row.id, slug: row.slug });
+  }
+  return created;
+}
+
+async function seedStudents(
+  lycees: { id: string; nom: string; ville: string; departement: string }[],
+  interests: { id: string; slug: string }[],
+): Promise<Record<string, { id: string; nom: string; prenom: string }>> {
   const byEmail: Record<string, { id: string; nom: string; prenom: string }> =
     {};
-  for (const s of STUDENTS) {
+  // Deterministic-but-spread distribution. Paris students drawn from the
+  // Île-de-France lycées (départements 75/92/93/94/95/77/78/91), Lyon
+  // students from the Lyon-area lycées, with ~10% null (covers the
+  // LyceesBreakdown empty-row case + signal that the field is optional).
+  const idfDepartements = new Set([
+    '75',
+    '77',
+    '78',
+    '91',
+    '92',
+    '93',
+    '94',
+    '95',
+  ]);
+  const parisLycees = lycees.filter((l) => idfDepartements.has(l.departement));
+  const lyonLycees = lycees.filter((l) => l.ville === 'Lyon');
+
+  for (let i = 0; i < STUDENTS.length; i++) {
+    const s = STUDENTS[i];
     const user = await prisma.bauth_user.create({
       data: {
         email: s.email,
@@ -2621,10 +2945,50 @@ async function seedStudents(): Promise<
         emailVerified: true,
       },
     });
+
+    // Connexions plateforme : 10% jamais connecté·e (alerte "Jamais
+    // connectés"), le reste avec une dernière activité datée selon la
+    // valeur déclarée par StudentDef.
+    const neverLogged = i % 10 === 9;
     const lastActiveAt =
-      s.lastActiveDaysAgo !== null
-        ? new Date(now.getTime() - s.lastActiveDaysAgo * 86400000)
+      neverLogged || s.lastActiveDaysAgo === null
+        ? null
+        : new Date(now.getTime() - s.lastActiveDaysAgo * 86400000);
+
+    // Lycée: 90% from the campus-region pool, 10% null.
+    const pool = s.campus === 'Lyon' ? lyonLycees : parisLycees;
+    const lyceeId =
+      i % 10 === 0 || pool.length === 0 ? null : pool[i % pool.length].id;
+
+    // Onboarding plateforme — distribution réaliste pour la KPI "Profil
+    // complété" (gate du dashboard talent : infoValidatedAt + rulesSignedAt
+    // + charterAcceptedAt tous non-null) :
+    //   - skipOnboarding === true       → tout signé (override explicite)
+    //   - 70% des autres                → tout signé
+    //   - 20%                           → infoValidatedAt uniquement (en
+    //                                     cours d'onboarding)
+    //   - 10% (incluant neverLogged)    → rien signé (bloqués avant le
+    //                                     dashboard)
+    const onboardingBucket = neverLogged
+      ? 'none'
+      : i % 10 < 7
+        ? 'full'
+        : i % 10 < 9
+          ? 'partial'
+          : 'none';
+    const fullyOnboarded =
+      s.skipOnboarding === true || onboardingBucket === 'full';
+    const partiallyOnboarded = onboardingBucket === 'partial';
+    const charterAcceptedAt = fullyOnboarded
+      ? new Date()
+      : s.charterSigned && !neverLogged
+        ? new Date()
         : null;
+    const infoValidatedAt =
+      fullyOnboarded || partiallyOnboarded ? new Date() : null;
+    const rulesSignedAt = fullyOnboarded ? new Date() : null;
+    const hasParentInfo = fullyOnboarded || s.skipOnboarding === true;
+
     const talent = await prisma.talent.create({
       data: {
         userId: user.id,
@@ -2635,15 +2999,32 @@ async function seedStudents(): Promise<
         parentPhone: s.parentPhone,
         niveau: s.niveau,
         niveauDifficulte: s.niveauDifficulte,
-        charterAcceptedAt: s.charterSigned ? new Date() : null,
-        infoValidatedAt: s.skipOnboarding ? new Date() : null,
-        rulesSignedAt: s.skipOnboarding ? new Date() : null,
-        parentNom: s.skipOnboarding ? 'Martin' : null,
-        parentPrenom: s.skipOnboarding ? 'Sophie' : null,
-        parentEmail: s.skipOnboarding ? `parent.${s.email}` : null,
+        charterAcceptedAt,
+        infoValidatedAt,
+        rulesSignedAt,
+        parentNom: hasParentInfo ? 'Martin' : null,
+        parentPrenom: hasParentInfo ? 'Sophie' : null,
+        parentEmail: hasParentInfo ? `parent.${s.email}` : null,
         lastActiveAt,
+        lyceeId,
       },
     });
+
+    // Interests: 0–3, deterministic by index. Every 7th student has none
+    // (covers empty-state in InterestsCloud).
+    const interestCount = i % 7 === 0 ? 0 : (i % 3) + 1;
+    for (let k = 0; k < interestCount; k++) {
+      const interest = interests[(i * 5 + k * 11) % interests.length];
+      // Skip duplicates from the modular formula (rare but possible).
+      try {
+        await prisma.talentInterest.create({
+          data: { talentId: talent.id, interestId: interest.id },
+        });
+      } catch {
+        // unique violation — talent already has this interest.
+      }
+    }
+
     byEmail[s.email] = {
       id: talent.id,
       nom: talent.nom,
@@ -3134,21 +3515,49 @@ async function recomputeXp(): Promise<number> {
 async function seedInterviews(
   staffByKey: Record<string, { id: string; campusId: string }>,
   talentByEmail: Record<string, { id: string }>,
-  campuses: Record<string, { id: string }>,
+  _campuses: Record<string, { id: string }>,
 ): Promise<number> {
+  // Pre-resolve titre → eventId once so the per-interview lookup stays cheap.
+  const events = await prisma.event.findMany({
+    select: { id: true, titre: true },
+  });
+  const eventIdByTitre = new Map(events.map((e) => [e.titre, e.id]));
+
   let count = 0;
   for (const iv of INTERVIEWS) {
     const talent = talentByEmail[iv.studentEmail];
     const staff = staffByKey[iv.staffKey];
     if (!talent || !staff) continue;
-    // Interview campus follows the staff member's campus
-    const campusId = staff.campusId;
+
+    let participationId: string | null = null;
+    if (iv.forEventTitre) {
+      const eventId = eventIdByTitre.get(iv.forEventTitre);
+      if (!eventId) {
+        console.warn(
+          `⚠ Interview for ${iv.studentEmail} references unknown event "${iv.forEventTitre}"`,
+        );
+        continue;
+      }
+      const participation = await prisma.participation.findUnique({
+        where: { talentId_eventId: { talentId: talent.id, eventId } },
+        select: { id: true },
+      });
+      if (!participation) {
+        console.warn(
+          `⚠ Interview for ${iv.studentEmail} has no participation in "${iv.forEventTitre}"`,
+        );
+        continue;
+      }
+      participationId = participation.id;
+    }
+
     await prisma.interview.create({
       data: {
         talentId: talent.id,
         staffId: staff.id,
-        campusId,
-        date: dayAt(iv.daysOffset, 14, 0),
+        campusId: staff.campusId,
+        participationId,
+        date: dayAt(iv.daysOffset, iv.hour ?? 14, 0),
         status: iv.status,
         motivation: iv.notes?.motivation ?? null,
         globalNote: iv.notes?.globalNote ?? null,
