@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 OUTPUT="$ROOT/CHANGELOG.md"
-REPO="Manta-Epitech-Academy/intra-epitech-academy"
+REPO="${REPO:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
 
 echo "# Changelog" > "$OUTPUT"
 echo "" >> "$OUTPUT"
