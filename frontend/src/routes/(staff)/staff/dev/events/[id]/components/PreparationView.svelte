@@ -1,10 +1,8 @@
 <script lang="ts">
-  import {
-    UserPlus,
-    KeyRound,
-    UserCheck,
-    ClipboardCheck,
-  } from '@lucide/svelte';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import KeyRound from '@lucide/svelte/icons/key-round';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
   import type { EventAlert } from '$lib/server/services/eventTasks';
   import { activityTypes } from '$lib/validation/templates';

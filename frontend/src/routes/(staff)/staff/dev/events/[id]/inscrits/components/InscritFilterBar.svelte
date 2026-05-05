@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Search, ArrowDownAZ } from '@lucide/svelte';
+  import Search from '@lucide/svelte/icons/search';
+  import ArrowDownAZ from '@lucide/svelte/icons/arrow-down-az';
   import { Input } from '$lib/components/ui/input';
   import * as Select from '$lib/components/ui/select';
   import { cn } from '$lib/utils';

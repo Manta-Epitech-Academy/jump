@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GraduationCap } from '@lucide/svelte';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import * as Card from '$lib/components/ui/card';
 
   type LyceeRow = {

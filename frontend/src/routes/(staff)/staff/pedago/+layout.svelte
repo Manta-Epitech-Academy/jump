@@ -1,14 +1,12 @@
 <script lang="ts">
-  import {
-    LogOut,
-    LayoutDashboard,
-    CalendarDays,
-    ChevronDown,
-    Menu,
-    X,
-    BookOpenText,
-    UserCheck,
-  } from '@lucide/svelte';
+  import LogOut from '@lucide/svelte/icons/log-out';
+  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import Menu from '@lucide/svelte/icons/menu';
+  import X from '@lucide/svelte/icons/x';
+  import BookOpenText from '@lucide/svelte/icons/book-open-text';
+  import UserCheck from '@lucide/svelte/icons/user-check';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';

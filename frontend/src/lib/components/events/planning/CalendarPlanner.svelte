@@ -2,17 +2,15 @@
   import { onMount, tick, untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import {
-    Plus,
-    LayoutTemplate,
-    Zap,
-    ExternalLink,
-    Search,
-    GripVertical,
-    Clock,
-    TriangleAlert,
-    SquarePen,
-  } from '@lucide/svelte';
+  import Plus from '@lucide/svelte/icons/plus';
+  import LayoutTemplate from '@lucide/svelte/icons/layout-template';
+  import Zap from '@lucide/svelte/icons/zap';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Search from '@lucide/svelte/icons/search';
+  import GripVertical from '@lucide/svelte/icons/grip-vertical';
+  import Clock from '@lucide/svelte/icons/clock';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import SquarePen from '@lucide/svelte/icons/square-pen';
   import ApplyPlanningTemplateDialog from './ApplyPlanningTemplateDialog.svelte';
   import EditActivityDialog from './EditActivityDialog.svelte';
   import AssignActivityDialog from './AssignActivityDialog.svelte';

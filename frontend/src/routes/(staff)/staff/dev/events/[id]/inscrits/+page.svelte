@@ -1,6 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { Users } from '@lucide/svelte';
+  import Users from '@lucide/svelte/icons/users';
   import { Button } from '$lib/components/ui/button';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';

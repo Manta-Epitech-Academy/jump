@@ -1,21 +1,19 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import {
-    ShieldAlert,
-    Map,
-    Users,
-    Tags,
-    LogOut,
-    Menu,
-    X,
-    LayoutDashboard,
-    FingerprintPattern,
-    FileText,
-    CalendarDays,
-    TriangleAlert,
-    FolderOpen,
-  } from '@lucide/svelte';
+  import ShieldAlert from '@lucide/svelte/icons/shield-alert';
+  import Map from '@lucide/svelte/icons/map';
+  import Users from '@lucide/svelte/icons/users';
+  import Tags from '@lucide/svelte/icons/tags';
+  import LogOut from '@lucide/svelte/icons/log-out';
+  import Menu from '@lucide/svelte/icons/menu';
+  import X from '@lucide/svelte/icons/x';
+  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+  import FingerprintPattern from '@lucide/svelte/icons/fingerprint-pattern';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import FolderOpen from '@lucide/svelte/icons/folder-open';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';

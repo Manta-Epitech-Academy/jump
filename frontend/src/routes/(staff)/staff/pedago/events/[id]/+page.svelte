@@ -5,20 +5,18 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
-  import {
-    CalendarDays,
-    ShieldHalf,
-    LifeBuoy,
-    RadioTower,
-    Award,
-    CalendarClock,
-    UserPlus,
-    StickyNote,
-    ArrowRight,
-    CircleCheck,
-    UserCheck,
-    Eye,
-  } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import ShieldHalf from '@lucide/svelte/icons/shield-half';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import RadioTower from '@lucide/svelte/icons/radio-tower';
+  import Award from '@lucide/svelte/icons/award';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import StickyNote from '@lucide/svelte/icons/sticky-note';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import Eye from '@lucide/svelte/icons/eye';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';

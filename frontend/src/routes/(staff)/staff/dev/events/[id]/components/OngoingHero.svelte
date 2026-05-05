@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Activity as ActivityIcon } from '@lucide/svelte';
+  import ActivityIcon from '@lucide/svelte/icons/activity';
   import PageHero from '$lib/components/layout/PageHero.svelte';
 
   type Props = {

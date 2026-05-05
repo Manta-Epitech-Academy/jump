@@ -1,11 +1,9 @@
 <script lang="ts">
-  import {
-    CalendarDays,
-    Tag,
-    Users,
-    GraduationCap,
-    Laptop,
-  } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Tag from '@lucide/svelte/icons/tag';
+  import Users from '@lucide/svelte/icons/users';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import Laptop from '@lucide/svelte/icons/laptop';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { buttonVariants } from '$lib/components/ui/button';
   import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';

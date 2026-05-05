@@ -1,6 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { Search, Plus, Sprout } from '@lucide/svelte';
+  import Search from '@lucide/svelte/icons/search';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Sprout from '@lucide/svelte/icons/sprout';
   import { toast } from 'svelte-sonner';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as Dialog from '$lib/components/ui/dialog';

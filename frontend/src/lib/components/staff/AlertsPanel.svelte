@@ -1,19 +1,17 @@
 <script lang="ts">
-  import {
-    AlarmClock,
-    AlertTriangle,
-    CalendarClock,
-    FileSignature,
-    GraduationCap,
-    Inbox,
-    Laptop,
-    Mail,
-    PhoneCall,
-    PowerOff,
-    UserPlus,
-    UserX,
-    type Icon as IconType,
-  } from '@lucide/svelte';
+  import AlarmClock from '@lucide/svelte/icons/alarm-clock';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import FileSignature from '@lucide/svelte/icons/file-signature';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import Inbox from '@lucide/svelte/icons/inbox';
+  import Laptop from '@lucide/svelte/icons/laptop';
+  import Mail from '@lucide/svelte/icons/mail';
+  import PhoneCall from '@lucide/svelte/icons/phone-call';
+  import PowerOff from '@lucide/svelte/icons/power-off';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import UserX from '@lucide/svelte/icons/user-x';
+  import IconType from '@lucide/svelte/icons/type';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
   import type {
     EventAlert,

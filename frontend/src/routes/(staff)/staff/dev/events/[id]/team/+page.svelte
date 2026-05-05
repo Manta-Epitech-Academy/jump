@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { UserPlus, GraduationCap } from '@lucide/svelte';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import type { PageData } from './$types';
   import { Button } from '$lib/components/ui/button';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Sparkle } from '@lucide/svelte';
+  import Sparkle from '@lucide/svelte/icons/sparkle';
   import * as Card from '$lib/components/ui/card';
 
   type InterestRow = {

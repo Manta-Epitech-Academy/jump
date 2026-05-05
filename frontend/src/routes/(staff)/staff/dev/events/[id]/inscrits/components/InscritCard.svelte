@@ -1,6 +1,9 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { Trash2, Trophy, Calendar, Laptop } from '@lucide/svelte';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import Laptop from '@lucide/svelte/icons/laptop';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Tooltip from '$lib/components/ui/tooltip';

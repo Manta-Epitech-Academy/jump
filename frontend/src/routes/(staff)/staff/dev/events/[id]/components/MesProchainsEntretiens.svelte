@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { MessageSquare, ArrowRight } from '@lucide/svelte';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
   import { Button } from '$lib/components/ui/button';

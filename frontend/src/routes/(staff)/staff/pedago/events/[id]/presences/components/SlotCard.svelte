@@ -1,6 +1,9 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { ArrowRight, Clock, Users, CircleAlert } from '@lucide/svelte';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Users from '@lucide/svelte/icons/users';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import { cn } from '$lib/utils';
   import {
     formatSlotTimeRange,

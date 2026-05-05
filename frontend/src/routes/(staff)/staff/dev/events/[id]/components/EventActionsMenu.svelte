@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { MoreVertical, Pencil, Trash2 } from '@lucide/svelte';
+  import MoreVertical from '@lucide/svelte/icons/more-vertical';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import Gated from '$lib/components/auth/Gated.svelte';

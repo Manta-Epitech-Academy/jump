@@ -4,17 +4,15 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
-  import {
-    CalendarDays,
-    Target,
-    ArrowRight,
-    Users,
-    MessageSquare,
-    TrendingUp,
-    Trophy,
-    Medal,
-    Inbox,
-  } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Target from '@lucide/svelte/icons/target';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Users from '@lucide/svelte/icons/users';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import TrendingUp from '@lucide/svelte/icons/trending-up';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Medal from '@lucide/svelte/icons/medal';
+  import Inbox from '@lucide/svelte/icons/inbox';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
 

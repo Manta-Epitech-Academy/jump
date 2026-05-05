@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { StickyNote, ChevronDown, Pencil } from '@lucide/svelte';
+  import StickyNote from '@lucide/svelte/icons/sticky-note';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import Pencil from '@lucide/svelte/icons/pencil';
   import * as Card from '$lib/components/ui/card';
   import * as Collapsible from '$lib/components/ui/collapsible';
   import { Button } from '$lib/components/ui/button';

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
-  import { ShieldAlert, TriangleAlert } from '@lucide/svelte';
+  import ShieldAlert from '@lucide/svelte/icons/shield-alert';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { resolve } from '$app/paths';
   import { getStaffRoleRedirectPath } from '$lib/domain/staff';
   import { describeGroup } from '$lib/domain/permissions';

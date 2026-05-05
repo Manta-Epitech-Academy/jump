@@ -1,20 +1,18 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { superForm } from 'sveltekit-superforms';
-  import {
-    Funnel,
-    Ellipsis,
-    Pencil,
-    Trash2,
-    Search,
-    Eye,
-    Users,
-    SignalLow,
-    SignalMedium,
-    SignalHigh,
-    ChevronLeft,
-    ChevronRight,
-  } from '@lucide/svelte';
+  import Funnel from '@lucide/svelte/icons/funnel';
+  import Ellipsis from '@lucide/svelte/icons/ellipsis';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Search from '@lucide/svelte/icons/search';
+  import Eye from '@lucide/svelte/icons/eye';
+  import Users from '@lucide/svelte/icons/users';
+  import SignalLow from '@lucide/svelte/icons/signal-low';
+  import SignalMedium from '@lucide/svelte/icons/signal-medium';
+  import SignalHigh from '@lucide/svelte/icons/signal-high';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { buttonVariants, Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import * as Select from '$lib/components/ui/select';

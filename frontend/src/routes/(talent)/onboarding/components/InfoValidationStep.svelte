@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { UserCheck } from '@lucide/svelte';
+  import UserCheck from '@lucide/svelte/icons/user-check';
 
   let {
     profile,

@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { Users, UserCheck, MessageSquare, ShieldCheck } from '@lucide/svelte';
+  import Users from '@lucide/svelte/icons/users';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
   import type { EventAlert } from '$lib/server/services/eventTasks';
   import { activityTypes } from '$lib/validation/templates';

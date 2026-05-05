@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CalendarDays } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import PageHero from '$lib/components/layout/PageHero.svelte';
 
   type Props = {

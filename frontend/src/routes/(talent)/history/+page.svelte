@@ -4,7 +4,10 @@
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { formatDateFr, flattenActivityMissions } from '$lib/utils';
-  import { History, Calendar, BookOpen, ArrowLeft } from '@lucide/svelte';
+  import History from '@lucide/svelte/icons/history';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import BookOpen from '@lucide/svelte/icons/book-open';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
   let { data }: { data: PageData } = $props();
 

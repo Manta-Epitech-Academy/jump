@@ -1,13 +1,11 @@
 <script lang="ts">
-  import {
-    Users,
-    Laptop,
-    FileText,
-    ScrollText,
-    Camera,
-    MessageSquare,
-    History,
-  } from '@lucide/svelte';
+  import Users from '@lucide/svelte/icons/users';
+  import Laptop from '@lucide/svelte/icons/laptop';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import ScrollText from '@lucide/svelte/icons/scroll-text';
+  import Camera from '@lucide/svelte/icons/camera';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import History from '@lucide/svelte/icons/history';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import EventKpiTile from './EventKpiTile.svelte';
   import EventNotesCard from './EventNotesCard.svelte';

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { X, CalendarDays, Sprout } from '@lucide/svelte';
+  import X from '@lucide/svelte/icons/x';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Sprout from '@lucide/svelte/icons/sprout';
   import { toast } from 'svelte-sonner';
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { TimeField } from 'bits-ui';
   import { Time } from '@internationalized/date';
-  import { Clock } from '@lucide/svelte';
+  import Clock from '@lucide/svelte/icons/clock';
   import TimeSegment from './time-segment.svelte';
   import { cn } from '$lib/utils';
 

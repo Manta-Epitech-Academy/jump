@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Sprout } from '@lucide/svelte';
+  import Sprout from '@lucide/svelte/icons/sprout';
   import { Badge } from '$lib/components/ui/badge';
   import { cn } from '$lib/utils';
 
