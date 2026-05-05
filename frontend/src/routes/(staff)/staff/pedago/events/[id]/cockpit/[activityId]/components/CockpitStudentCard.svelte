@@ -288,25 +288,32 @@
           href={resolve(`/staff/pedago/students/${participation.talent?.id}`)}
           class="relative block transition-transform hover:scale-105"
         >
-          <Avatar.Root
-            class={cn(
-              'border-2',
-              focusMode ? 'h-14 w-14' : 'h-12 w-12',
-              needsHelpProgress
-                ? 'border-epi-orange'
-                : participation.isPresent
-                  ? participation.delay > 0
-                    ? 'border-orange-400'
-                    : 'border-epi-blue'
-                  : 'border-muted',
-            )}
+          <span
+            class="block rounded-full"
+            style:view-transition-name={participation.talent?.id
+              ? `student-avatar-${participation.talent.id}`
+              : undefined}
           >
-            <Avatar.Fallback class="bg-muted font-bold text-muted-foreground"
-              >{(participation.talent?.nom?.[0] ?? '').toUpperCase()}{(
-                participation.talent?.prenom?.[0] ?? ''
-              ).toUpperCase()}</Avatar.Fallback
+            <Avatar.Root
+              class={cn(
+                'border-2',
+                focusMode ? 'h-14 w-14' : 'h-12 w-12',
+                needsHelpProgress
+                  ? 'border-epi-orange'
+                  : participation.isPresent
+                    ? participation.delay > 0
+                      ? 'border-orange-400'
+                      : 'border-epi-blue'
+                    : 'border-muted',
+              )}
             >
-          </Avatar.Root>
+              <Avatar.Fallback class="bg-muted font-bold text-muted-foreground"
+                >{(participation.talent?.nom?.[0] ?? '').toUpperCase()}{(
+                  participation.talent?.prenom?.[0] ?? ''
+                ).toUpperCase()}</Avatar.Fallback
+              >
+            </Avatar.Root>
+          </span>
           {#if participation.isPresent}
             <div
               class={cn(

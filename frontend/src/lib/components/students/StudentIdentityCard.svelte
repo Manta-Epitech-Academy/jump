@@ -13,6 +13,7 @@
     xpProgress,
     accent,
     hideName = false,
+    avatarViewTransitionName,
     afterIdentity,
     beforeStats,
     footer,
@@ -22,6 +23,7 @@
     xpProgress: number;
     accent: 'blue' | 'teal';
     hideName?: boolean;
+    avatarViewTransitionName?: string;
     afterIdentity?: Snippet;
     beforeStats?: Snippet;
     footer?: Snippet;
@@ -61,14 +63,19 @@
   )}
 >
   <Card.Header class="flex flex-col items-center pt-8 pb-4 text-center">
-    <Avatar.Root
-      class="h-28 w-28 border-4 border-muted bg-white shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
+    <span
+      class="block rounded-full"
+      style:view-transition-name={avatarViewTransitionName}
     >
-      <Avatar.Fallback
-        class="bg-secondary text-3xl font-bold text-secondary-foreground"
-        >{getInitials(student.prenom, student.nom)}</Avatar.Fallback
+      <Avatar.Root
+        class="h-28 w-28 border-4 border-muted bg-white shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/50"
       >
-    </Avatar.Root>
+        <Avatar.Fallback
+          class="bg-secondary text-3xl font-bold text-secondary-foreground"
+          >{getInitials(student.prenom, student.nom)}</Avatar.Fallback
+        >
+      </Avatar.Root>
+    </span>
     {#if !hideName}
       <!-- Tightened header typography -->
       <Card.Title

@@ -55,11 +55,10 @@ The app splits into four workspaces, each serving a distinct audience and busine
 
 ### Auth System
 
-Uses **BetterAuth** (`src/lib/server/auth.ts`) with three methods:
+Uses **BetterAuth** (`src/lib/server/auth.ts`) with two methods:
 
-- **Microsoft OAuth** for staff (must be `@epitech.eu`)
-- **Email OTP** (6-digit, sent via Resend) for students
-- **Email + password** for staff
+- **Microsoft OAuth** for staff and admins (must be `@epitech.eu`)
+- **Email OTP** (6-digit, sent via Resend) for students and parents
 
 Route guards in `src/lib/server/auth/guards.ts` enforce role-based access. Session data is loaded in `hooks.server.ts` into `event.locals` (user, session, staffProfile, talent).
 

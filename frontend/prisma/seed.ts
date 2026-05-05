@@ -16,14 +16,6 @@ type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-// ─── Credentials ───
-
-const PASSWORDS = {
-  admin: 'admin1234',
-  staff: 'staff1234',
-  student: 'student1234',
-};
-
 // ─── XP mapping (matches src/lib/domain/xp.ts) ───
 
 const XP_MAP: Record<string, number> = {
@@ -2075,10 +2067,10 @@ async function main() {
   const campuses = await seedCampuses();
   console.log(`✓  Campuses (${Object.keys(campuses).length})`);
 
-  // 2. Admin + staff
-  const adminUser = await seedAdmin();
+  // 2. Staff (no default admin — admins are provisioned via
+  //    scripts/add-admin-user.ts and authenticate via Microsoft OAuth only)
   const staffByKey = await seedStaff(campuses);
-  console.log(`✓  Users (1 admin, ${Object.keys(staffByKey).length} staff)`);
+  console.log(`✓  Users (${Object.keys(staffByKey).length} staff)`);
 
   // 3. Students
   const talentByEmail = await seedStudents();
@@ -2133,7 +2125,7 @@ async function main() {
   console.log(`✓  Portfolio (${portfolioCount} items)`);
 
   // ── Final summary ──
-  await printSummary(adminUser.email, parentEmail);
+  await printSummary(parentEmail);
 }
 
 // ─── Wipe ───
@@ -2182,25 +2174,6 @@ async function seedCampuses(): Promise<
   return byName;
 }
 
-async function seedAdmin() {
-  const user = await prisma.bauth_user.create({
-    data: {
-      email: 'admin@jump.fr',
-      name: 'Admin Jump',
-      role: 'admin',
-      emailVerified: true,
-    },
-  });
-  await prisma.staffProfile.create({
-    data: {
-      userId: user.id,
-      staffRole: 'admin',
-    },
-  });
-  await createCredential(user.id, PASSWORDS.admin);
-  return user;
-}
-
 async function seedStaff(
   campuses: Record<string, { id: string }>,
 ): Promise<Record<string, { id: string; campusId: string }>> {
@@ -2222,7 +2195,6 @@ async function seedStaff(
       },
     });
     byKey[s.key] = { id: profile.id, campusId: profile.campusId! };
-    await createCredential(user.id, PASSWORDS.staff);
   }
   return byKey;
 }
@@ -2269,7 +2241,6 @@ async function seedStudents(): Promise<
       nom: talent.nom,
       prenom: talent.prenom,
     };
-    await createCredential(user.id, PASSWORDS.student);
   }
   return byEmail;
 }
@@ -2808,23 +2779,7 @@ async function seedPortfolio(
 
 // ─── Helpers ───
 
-async function createCredential(userId: string, password: string) {
-  const hashed = await Bun.password.hash(password, {
-    algorithm: 'argon2id',
-    memoryCost: 19456,
-    timeCost: 2,
-  });
-  await prisma.bauth_account.create({
-    data: {
-      userId,
-      accountId: userId,
-      providerId: 'credential',
-      password: hashed,
-    },
-  });
-}
-
-async function printSummary(adminEmail: string, parentEmail: string) {
+async function printSummary(parentEmail: string) {
   const origin = process.env.ORIGIN || 'http://localhost:3030';
   const [parisTalents, lyonTalents, eventCount, interviewCount] =
     await Promise.all([
@@ -2869,13 +2824,15 @@ async function printSummary(adminEmail: string, parentEmail: string) {
   console.log('════════════════════════════════════════════════════════\n');
 
   console.log('🔑 Credentials');
-  console.log(`   admin      ${adminEmail} / ${PASSWORDS.admin}`);
-  console.log(`   staff      *@epitech.eu / ${PASSWORDS.staff}`);
+  console.log(
+    `   admin      Microsoft OAuth only — bun run scripts/add-admin-user.ts`,
+  );
+  console.log(`   staff      *@epitech.eu (Microsoft OAuth)`);
   console.log(`              (pauline.marchand=superdev, marie.manta=dev,`);
   console.log(`               sophie.bernard/nathan.blanc=peda,`);
   console.log(`               jules.dupont/laura.garcia/pierre.leblanc=manta,`);
   console.log(`               camille.reader=no role → "contact admin")`);
-  console.log(`   students   *@mail.com / ${PASSWORDS.student}`);
+  console.log(`   students   *@mail.com (OTP via email)`);
   console.log(`   parent     ${parentEmail} (OTP via email)\n`);
 
   console.log('📊 Volume');

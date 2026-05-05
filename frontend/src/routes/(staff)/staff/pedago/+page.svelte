@@ -3,9 +3,7 @@
   import * as Card from '$lib/components/ui/card';
   import * as Tabs from '$lib/components/ui/tabs';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { Button } from '$lib/components/ui/button';
-  import { EVENT_TYPES } from '$lib/domain/event';
-  import type { FlagKey } from '$lib/domain/featureFlags';
+  import { Button, buttonVariants } from '$lib/components/ui/button';
   import {
     CalendarDays,
     MonitorPlay,
@@ -23,17 +21,13 @@
     Zap,
     ArrowRight,
     Ellipsis,
-    AlertTriangle,
+    TriangleAlert,
   } from '@lucide/svelte';
   import { resolve } from '$app/paths';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';
 
   let { data } = $props();
-
-  let featureFlags = $derived(
-    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
-  );
 
   function formatDate(date: Date): string {
     return date.toLocaleDateString('fr-FR', {
@@ -60,10 +54,6 @@
         )
       : 0,
   );
-  let cockpitRouteId = $derived(
-    data.liveEvent?.planning?.timeSlots?.[0]?.activity?.id,
-  );
-
   let assignDialogOpen = $state(false);
   let assignDialogEvent = $state<{
     id: string;
@@ -127,7 +117,7 @@
           ...(data.tasks?.eventsWithUnassignedSlots ?? []).map(
             (ev): TaskRow => ({
               key: `unassigned-${ev.id}`,
-              icon: AlertTriangle,
+              icon: TriangleAlert,
               title: 'Créneaux à assigner',
               description: `${ev.titre} — créneaux sans activité`,
               count: ev.unassignedCount,
@@ -138,6 +128,10 @@
         ],
   );
 </script>
+
+<svelte:head>
+  <title>Tableau de bord</title>
+</svelte:head>
 
 {#snippet stageCard(ctaLabel: string)}
   {#if data.activeStage}
@@ -168,7 +162,9 @@
         class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
       >
         <div class="space-y-1">
-          <h2 class="font-heading text-2xl text-foreground">
+          <h2
+            class="text-xl font-bold tracking-tight text-foreground uppercase"
+          >
             {data.activeStage.titre}
           </h2>
           <p
@@ -227,9 +223,17 @@
           class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
         >
           <div class="space-y-1">
-            <h2 class="font-heading text-2xl text-foreground">
-              {data.liveEvent.titre}
-            </h2>
+            <a
+              href={resolve(`/staff/pedago/events/${data.liveEvent.id}`)}
+              class="block"
+            >
+              <h2
+                class="text-xl font-bold tracking-tight text-foreground uppercase transition-colors hover:text-epi-blue"
+                style:view-transition-name={`event-title-${data.liveEvent.id}`}
+              >
+                {data.liveEvent.titre}
+              </h2>
+            </a>
             <p
               class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
             >
@@ -256,11 +260,9 @@
 
             <Button
               class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-              href={cockpitRouteId
-                ? resolve(
-                    `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
-                  )
-                : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
+              href={resolve(
+                `/staff/pedago/events/${data.liveEvent.id}/presences`,
+              )}
             >
               <RadioTower class="mr-2 h-4 w-4" /> Rejoindre
             </Button>
@@ -297,7 +299,7 @@
             >
               <div class="flex items-center gap-4">
                 <div
-                  class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
+                  class="`min-w-14 flex shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
                 >
                   <span
                     class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
@@ -307,7 +309,7 @@
                     })}
                   </span>
                   <span
-                    class="mt-0.5 font-heading text-xl leading-none text-foreground"
+                    class="mt-0.5 text-xl leading-none font-black text-foreground"
                   >
                     {new Date(event.date).getDate()}
                   </span>
@@ -425,9 +427,17 @@
           class="flex flex-col justify-between gap-4 p-5 md:flex-row md:items-center"
         >
           <div class="space-y-1">
-            <h2 class="font-heading text-2xl text-foreground">
-              {data.liveEvent.titre}
-            </h2>
+            <a
+              href={resolve(`/staff/pedago/events/${data.liveEvent.id}`)}
+              class="block"
+            >
+              <h2
+                class="text-xl font-bold tracking-tight text-foreground uppercase transition-colors hover:text-epi-blue"
+                style:view-transition-name={`event-title-${data.liveEvent.id}`}
+              >
+                {data.liveEvent.titre}
+              </h2>
+            </a>
             <div
               class="flex items-center gap-2 text-sm font-medium text-muted-foreground"
             >
@@ -447,7 +457,7 @@
             <div
               class="flex items-center gap-3 rounded-sm bg-muted/30 px-4 py-2"
             >
-              <div class="font-heading text-2xl leading-none text-epi-blue">
+              <div class="text-2xl leading-none font-black text-epi-blue">
                 {liveProgressPercent}%
               </div>
               <div
@@ -495,11 +505,9 @@
 
             <Button
               class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-              href={cockpitRouteId
-                ? resolve(
-                    `/staff/pedago/events/${data.liveEvent.id}/cockpit/${cockpitRouteId}`,
-                  )
-                : resolve(`/staff/pedago/events/${data.liveEvent.id}/cockpit`)}
+              href={resolve(
+                `/staff/pedago/events/${data.liveEvent.id}/presences`,
+              )}
             >
               <RadioTower class="mr-2 h-4 w-4" /> Cockpit
             </Button>
@@ -569,7 +577,7 @@
                 <div class="flex items-start justify-between gap-4">
                   <div class="flex min-w-0 items-start gap-4">
                     <div
-                      class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
+                      class="flex min-w-14 shrink-0 flex-col items-center justify-center rounded-sm bg-muted/30 p-2"
                     >
                       <span
                         class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
@@ -579,17 +587,23 @@
                         })}
                       </span>
                       <span
-                        class="mt-0.5 font-heading text-2xl leading-none text-foreground"
+                        class="mt-0.5 text-2xl leading-none font-black text-foreground"
                       >
                         {new Date(event.date).getDate()}
                       </span>
                     </div>
                     <div class="min-w-0">
-                      <div
-                        class="truncate text-sm font-bold tracking-tight text-foreground uppercase"
+                      <a
+                        href={resolve(`/staff/pedago/events/${event.id}`)}
+                        class="block"
                       >
-                        {event.titre}
-                      </div>
+                        <div
+                          class="truncate text-sm font-bold tracking-tight text-foreground uppercase transition-colors hover:text-epi-blue"
+                          style:view-transition-name={`event-title-${event.id}`}
+                        >
+                          {event.titre}
+                        </div>
+                      </a>
                       <div
                         class="mt-1 flex items-center gap-2 text-xs font-medium text-muted-foreground"
                       >
@@ -608,7 +622,10 @@
 
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger
-                      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors hover:bg-muted"
+                      class={buttonVariants({
+                        variant: 'ghost',
+                        size: 'icon-sm',
+                      })}
                     >
                       <Ellipsis class="h-4 w-4 text-muted-foreground" />
                     </DropdownMenu.Trigger>
@@ -656,10 +673,10 @@
                     size="sm"
                     variant="default"
                     class="gap-1.5 bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-                    href={resolve(`/staff/pedago/events/${event.id}/cockpit`)}
+                    href={resolve(`/staff/pedago/events/${event.id}/presences`)}
                   >
                     <MonitorPlay class="h-3.5 w-3.5" />
-                    Cockpit
+                    Présences
                   </Button>
                 </div>
               </div>
@@ -683,11 +700,16 @@
                 class="flex flex-col justify-between rounded-sm border bg-card p-4 shadow-sm transition-all hover:border-epi-blue/30 hover:shadow-md"
               >
                 <div class="min-w-0">
-                  <div
-                    class="truncate text-xs font-bold tracking-tight text-foreground uppercase"
+                  <a
+                    href={resolve(`/staff/pedago/events/${event.id}`)}
+                    class="block"
                   >
-                    {event.titre}
-                  </div>
+                    <div
+                      class="truncate text-xs font-bold tracking-tight text-foreground uppercase transition-colors hover:text-epi-blue"
+                    >
+                      {event.titre}
+                    </div>
+                  </a>
                   <div
                     class="mt-1 flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground"
                   >

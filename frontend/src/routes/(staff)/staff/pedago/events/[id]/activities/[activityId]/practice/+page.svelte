@@ -71,6 +71,10 @@
   let backHref = $derived(resolve(`/staff/pedago/events/${event.id}/planning`));
 </script>
 
+<svelte:head>
+  <title>{data.activity.nom} — Aperçu</title>
+</svelte:head>
+
 <div
   class="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
 >

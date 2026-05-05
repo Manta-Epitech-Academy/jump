@@ -160,11 +160,6 @@
   }
   /* Typography rules applied here: Tight leading for large headers */
   h1:not(.prose *),
-  h2:not(.prose *),
-  h3:not(.prose *),
-  h4:not(.prose *),
-  h5:not(.prose *),
-  h6:not(.prose *),
   .font-heading {
     @apply font-heading leading-[1.1] font-normal tracking-wide uppercase;
   }
@@ -173,16 +168,12 @@
     @apply mt-4 mb-2 font-heading text-sm tracking-wider text-epi-blue uppercase;
   }
 
-  header {
+  .app-header {
     view-transition-name: main-header;
   }
 
-  aside {
+  .app-sidebar {
     view-transition-name: main-sidebar;
-  }
-
-  main {
-    view-transition-name: main-content;
   }
 }
 

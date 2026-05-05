@@ -11,7 +11,7 @@ Built for the **stage de seconde** (2-week high school internship, ~2000 student
 | Framework  | SvelteKit 2 (Node adapter)                        |
 | Language   | TypeScript (strict)                               |
 | Database   | PostgreSQL 18 + Prisma 7                          |
-| Auth       | BetterAuth (Microsoft OAuth, email OTP, password) |
+| Auth       | BetterAuth (Microsoft OAuth, email OTP)           |
 | Styling    | Tailwind CSS 4 + Shadcn/Svelte                    |
 | PDF        | Puppeteer (diplomas & certificates)               |
 | Email      | Resend (OTP delivery)                             |

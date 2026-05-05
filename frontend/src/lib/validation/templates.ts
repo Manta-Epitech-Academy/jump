@@ -123,17 +123,15 @@ export const templateSchema = z
         },
         { message: "Le JSON n'est pas valide" },
       ),
+    contentSource: z.enum(['inline_json', 'github']).default('github'),
+    repoUrl: z
+      .url("L'URL du repo GitHub n'est pas valide (https://github.com/...)")
+      .optional()
+      .or(z.literal('')),
+    ref: z.string().min(1).max(80).optional().or(z.literal('')),
   })
   .superRefine((data, ctx) => {
     if (data.isDynamic) {
-      if (!data.contentStructure) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message:
-            'La structure du contenu est requise pour une activité dynamique',
-          path: ['contentStructure'],
-        });
-      }
       if (data.content) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -142,6 +140,40 @@ export const templateSchema = z
           path: ['content'],
         });
       }
+      if (data.contentSource === 'github') {
+        if (!data.repoUrl) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "L'URL du repo GitHub est requise",
+            path: ['repoUrl'],
+          });
+        }
+        if (data.contentStructure) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              'La structure JSON ne doit pas être renseignée quand la source est GitHub',
+            path: ['contentStructure'],
+          });
+        }
+      } else {
+        if (!data.contentStructure) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              'La structure du contenu est requise pour une activité dynamique',
+            path: ['contentStructure'],
+          });
+        }
+        if (data.repoUrl) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              "L'URL du repo ne doit pas être renseignée quand la source est JSON",
+            path: ['repoUrl'],
+          });
+        }
+      }
     } else {
       if (data.contentStructure) {
         ctx.addIssue({
@@ -149,6 +181,14 @@ export const templateSchema = z
           message:
             'La structure JSON ne doit pas être renseignée pour une activité statique',
           path: ['contentStructure'],
+        });
+      }
+      if (data.repoUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "L'URL du repo ne doit pas être renseignée pour une activité statique",
+          path: ['repoUrl'],
         });
       }
     }

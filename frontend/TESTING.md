@@ -172,30 +172,33 @@ describe('studentService.create', () => {
 
 **Exemple :**
 
+> ⚠️ Le projet n'utilise plus de mots de passe : staff via Microsoft OAuth,
+> étudiants/parents via OTP par email. Les tests E2E doivent donc soit
+> mocker l'OAuth (staff), soit lire l'OTP depuis la table `bauth_verification`
+> en base de test (étudiants/parents).
+
 ```typescript
 // tests/e2e/auth.spec.ts
 import { test, expect } from '@playwright/test';
+import { prismaTest } from './fixtures/db';
 
-test('a staff member can log in and access the dashboard', async ({ page }) => {
-  await page.goto('/login');
-  await page.fill('[data-testid="email"]', 'staff@epitech.eu');
-  await page.fill('[data-testid="password"]', process.env.TEST_STAFF_PASSWORD!);
-  await page.click('[data-testid="submit"]');
-
-  await expect(page).toHaveURL('/dashboard');
-  await expect(page.locator('h1')).toContainText('Dashboard');
-});
-
-test('a student cannot access the staff dashboard', async ({ page }) => {
+test('a student can request an OTP and access the dashboard', async ({
+  page,
+}) => {
   await page.goto('/login');
   await page.fill('[data-testid="email"]', 'student@test.fr');
-  await page.fill(
-    '[data-testid="password"]',
-    process.env.TEST_STUDENT_PASSWORD!,
-  );
+  await page.click('[data-testid="request-otp"]');
+
+  // Read the OTP from the test DB rather than the email inbox
+  const otp = await prismaTest.bauth_verification.findFirstOrThrow({
+    where: { identifier: 'student@test.fr' },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  await page.fill('[data-testid="otp"]', otp.value);
   await page.click('[data-testid="submit"]');
 
-  await expect(page).not.toHaveURL('/dashboard');
+  await expect(page).toHaveURL('/');
 });
 ```
 

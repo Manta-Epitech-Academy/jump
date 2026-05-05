@@ -1,5 +1,6 @@
 <script lang="ts">
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import * as Card from '$lib/components/ui/card';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
@@ -115,7 +116,17 @@
   }
 </script>
 
+<svelte:head>
+  <title>Bibliothèque de sujets</title>
+</svelte:head>
+
 <div class="space-y-8">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/pedago') },
+      { label: 'Bibliothèque' },
+    ]}
+  />
   <PageHeader
     title="Bibliothèque"
     subtitle="Sujets, corrections et exercices prêts à être rejoués par la péda et les mantas."
@@ -164,7 +175,7 @@
         <div class="grid gap-6 md:grid-cols-3">
           <div class="space-y-3">
             <div
-              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
             >
               Format
             </div>
@@ -185,7 +196,7 @@
           </div>
           <div class="space-y-3">
             <div
-              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
             >
               Difficulté
             </div>
@@ -202,7 +213,7 @@
           </div>
           <div class="space-y-3">
             <div
-              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+              class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
             >
               Type
             </div>
@@ -219,7 +230,7 @@
           {#if allThemes.length > 0}
             <div class="space-y-3 md:col-span-3">
               <div
-                class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
               >
                 Thèmes
               </div>
@@ -266,6 +277,7 @@
                 <div class="min-w-0">
                   <div
                     class="truncate text-sm leading-tight font-bold text-foreground"
+                    style:view-transition-name={`tpl-title-${template.id}`}
                   >
                     {template.nom}
                   </div>

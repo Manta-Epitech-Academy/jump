@@ -30,6 +30,7 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentFormDialog from './components/StudentFormDialog.svelte';
   import { can } from '$lib/domain/permissions';
@@ -134,7 +135,17 @@
   ];
 </script>
 
+<svelte:head>
+  <title>Talents</title>
+</svelte:head>
+
 <div class="space-y-6">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      { label: 'Talents' },
+    ]}
+  />
   <PageHeader
     title="Talents"
     subtitle="Annuaire et progression des Talents du campus."

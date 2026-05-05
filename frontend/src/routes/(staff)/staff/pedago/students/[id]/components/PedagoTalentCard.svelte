@@ -9,11 +9,13 @@
     stats,
     xpProgress,
     sortedThemes,
+    avatarViewTransitionName,
   }: {
     student: any;
     stats: { totalEvents: number; presentCount: number; lateCount: number };
     xpProgress: number;
     sortedThemes: [string, number][];
+    avatarViewTransitionName?: string;
   } = $props();
 
   const email = $derived(student.user?.email || student.email);
@@ -23,6 +25,7 @@
   {student}
   {stats}
   {xpProgress}
+  {avatarViewTransitionName}
   accent="blue"
   afterIdentity={contact}
   beforeStats={competences}

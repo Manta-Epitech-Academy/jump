@@ -63,7 +63,7 @@
 >
   <Dialog.Content class="flex max-h-[85vh] flex-col sm:max-w-2xl">
     <Dialog.Header class="shrink-0">
-      <Dialog.Title class="font-heading text-xl tracking-tight uppercase">
+      <Dialog.Title class="text-xl font-bold tracking-tight uppercase">
         Modifier l'activité
       </Dialog.Title>
       <Dialog.Description>

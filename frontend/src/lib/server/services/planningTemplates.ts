@@ -98,6 +98,7 @@ export async function applyPlanningTemplate(
               link: at.link,
               content: at.content,
               contentStructure: at.contentStructure ?? undefined,
+              subjectVersionId: at.subjectVersionId,
               templateId: at.id,
               timeSlotId: timeSlot.id,
               activityThemes:
