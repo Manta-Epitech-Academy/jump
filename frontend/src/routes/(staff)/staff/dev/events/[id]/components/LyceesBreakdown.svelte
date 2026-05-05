@@ -14,8 +14,6 @@
   };
 
   let { lycees, totalParticipations }: Props = $props();
-
-  const max = $derived(lycees.reduce((m, r) => Math.max(m, r.count), 0) || 1);
 </script>
 
 <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
@@ -50,8 +48,8 @@
             class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30"
           >
             <div
-              class="h-full bg-linear-to-r from-epi-blue to-epi-pink transition-[width] duration-700 ease-out"
-              style="width: {(lyc.count / max) * 100}%"
+              class="h-full bg-epi-blue transition-[width] duration-700 ease-out"
+              style="width: {pct}%"
             ></div>
           </div>
         </div>

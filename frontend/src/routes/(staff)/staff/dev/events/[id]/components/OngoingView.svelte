@@ -11,6 +11,8 @@
   import ProgrammeJour from './ProgrammeJour.svelte';
   import MesProchainsEntretiens from './MesProchainsEntretiens.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
+  import LyceesBreakdown from './LyceesBreakdown.svelte';
+  import InterestsCloud from './InterestsCloud.svelte';
 
   type ActivityTypeKey = (typeof activityTypes)[number];
 
@@ -51,6 +53,8 @@
       date: Date | string;
       talent: { id: string; nom: string; prenom: string };
     }[];
+    lyceesBreakdown: { lyceeId: string; nom: string; count: number }[];
+    interestsCloud: { interestId: string; label: string; count: number }[];
     onEditNotes: () => void;
   };
 
@@ -67,8 +71,14 @@
     alerts,
     timeSlots,
     mesProchainsEntretiens,
+    lyceesBreakdown,
+    interestsCloud,
     onEditNotes,
   }: Props = $props();
+
+  const hasOriginsData = $derived(
+    lyceesBreakdown.length > 0 || interestsCloud.length > 0,
+  );
 
   const interviewsPct = $derived(
     kpis.interviewsTotal === 0
@@ -174,6 +184,16 @@
       />
     </div>
   </div>
+
+  {#if hasOriginsData}
+    <div class="grid gap-4 lg:grid-cols-2">
+      <LyceesBreakdown
+        lycees={lyceesBreakdown}
+        totalParticipations={kpis.total}
+      />
+      <InterestsCloud interests={interestsCloud} />
+    </div>
+  {/if}
 
   <EventNotesCard {notes} onEdit={onEditNotes} />
 </div>

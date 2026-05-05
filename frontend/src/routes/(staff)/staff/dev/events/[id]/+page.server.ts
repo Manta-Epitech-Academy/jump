@@ -247,6 +247,8 @@ async function loadStageOngoing(
     orgaSlots,
     todayTimeSlots,
     mesProchainsEntretiens,
+    lyceesBreakdown,
+    interestsCloud,
   ] = await Promise.all([
     db.participation.count({ where: { eventId: event.id } }),
     db.interview.count({
@@ -307,6 +309,8 @@ async function loadStageOngoing(
           take: 5,
         })
       : Promise.resolve([]),
+    loadLyceesBreakdown(db, event.id),
+    loadInterestsCloud(db, event.id),
   ]);
 
   const stageEnd = stageEndOrDefault(event);
@@ -358,6 +362,8 @@ async function loadStageOngoing(
     alerts,
     todayTimeSlots,
     mesProchainsEntretiens,
+    lyceesBreakdown,
+    interestsCloud,
     dayN,
     totalDays,
   };

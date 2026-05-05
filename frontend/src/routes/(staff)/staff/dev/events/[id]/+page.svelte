@@ -97,6 +97,8 @@
       alerts={data.ongoing.alerts}
       timeSlots={data.ongoing.todayTimeSlots}
       mesProchainsEntretiens={data.ongoing.mesProchainsEntretiens}
+      lyceesBreakdown={data.ongoing.lyceesBreakdown}
+      interestsCloud={data.ongoing.interestsCloud}
       onEditNotes={() => (openEditEvent = true)}
     />
   {:else if data.kind === 'stage' && data.status === 'past'}
