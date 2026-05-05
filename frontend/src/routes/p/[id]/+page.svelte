@@ -1,14 +1,12 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { Badge } from '$lib/components/ui/badge';
-  import {
-    Trophy,
-    Rocket,
-    Link as LinkIcon,
-    Calendar,
-    Image as ImageIcon,
-    Target,
-  } from '@lucide/svelte';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Rocket from '@lucide/svelte/icons/rocket';
+  import LinkIcon from '@lucide/svelte/icons/link';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import ImageIcon from '@lucide/svelte/icons/image';
+  import Target from '@lucide/svelte/icons/target';
   import { resolve } from '$app/paths';
 
   let { data }: { data: PageData } = $props();

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { LayoutTemplate, TriangleAlert, LoaderCircle } from '@lucide/svelte';
+  import LayoutTemplate from '@lucide/svelte/icons/layout-template';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import * as Dialog from '$lib/components/ui/dialog';

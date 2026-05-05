@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { Search, Plus, CircleCheck } from '@lucide/svelte';
+  import Search from '@lucide/svelte/icons/search';
+  import Plus from '@lucide/svelte/icons/plus';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
   import { resolve } from '$app/paths';
   import type { Readable } from 'svelte/store';
   import { Button } from '$lib/components/ui/button';

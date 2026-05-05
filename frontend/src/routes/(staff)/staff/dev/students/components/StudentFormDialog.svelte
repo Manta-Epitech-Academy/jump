@@ -4,7 +4,7 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
-  import { LoaderCircle } from '@lucide/svelte';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { difficultes } from '$lib/domain/xp';
   import type { StudentForm } from '$lib/validation/students';
   import type { Snippet } from 'svelte';

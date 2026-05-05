@@ -1,7 +1,11 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Trash2, Mail, Plus, X, LogIn } from '@lucide/svelte';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Mail from '@lucide/svelte/icons/mail';
+  import Plus from '@lucide/svelte/icons/plus';
+  import X from '@lucide/svelte/icons/x';
+  import LogIn from '@lucide/svelte/icons/log-in';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';

@@ -1,14 +1,12 @@
 <script lang="ts">
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
-  import {
-    CalendarDays,
-    Users,
-    ChevronRight,
-    FileCheck,
-    FilePen,
-    Settings,
-  } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Users from '@lucide/svelte/icons/users';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import FileCheck from '@lucide/svelte/icons/file-check';
+  import FilePen from '@lucide/svelte/icons/file-pen';
+  import Settings from '@lucide/svelte/icons/settings';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
 

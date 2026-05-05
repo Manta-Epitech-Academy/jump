@@ -2,7 +2,8 @@
   import type { PageData } from './$types';
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Trash2, Calendar } from '@lucide/svelte';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Calendar from '@lucide/svelte/icons/calendar';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Card from '$lib/components/ui/card';

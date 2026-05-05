@@ -1,15 +1,13 @@
 <script lang="ts">
   import * as Command from '$lib/components/ui/command';
   import { goto } from '$app/navigation';
-  import {
-    Calendar,
-    LayoutDashboard,
-    History,
-    Users,
-    LifeBuoy,
-    Phone,
-    ArrowRight,
-  } from '@lucide/svelte';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+  import History from '@lucide/svelte/icons/history';
+  import Users from '@lucide/svelte/icons/users';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import Phone from '@lucide/svelte/icons/phone';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { onMount, onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import * as Avatar from '$lib/components/ui/avatar';

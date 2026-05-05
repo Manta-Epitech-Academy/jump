@@ -1,7 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Input } from '$lib/components/ui/input';
-  import { LoaderCircle, Check, Save, TriangleAlert } from '@lucide/svelte';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import Check from '@lucide/svelte/icons/check';
+  import Save from '@lucide/svelte/icons/save';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { cn } from '$lib/utils';
   import { onDestroy } from 'svelte';
 

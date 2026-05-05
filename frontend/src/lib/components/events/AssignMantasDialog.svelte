@@ -4,7 +4,8 @@
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { UsersRound, LoaderCircle } from '@lucide/svelte';
+  import UsersRound from '@lucide/svelte/icons/users-round';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 
   let {
     open = $bindable(false),

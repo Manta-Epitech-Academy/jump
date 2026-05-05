@@ -4,22 +4,20 @@
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
-  import {
-    CalendarDays,
-    Target,
-    ArrowRight,
-    Users,
-    MessageSquare,
-    TrendingUp,
-    Trophy,
-    Medal,
-    UserPlus,
-    CalendarClock,
-    PhoneCall,
-    AlarmClock,
-    Inbox,
-    AlertTriangle,
-  } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Target from '@lucide/svelte/icons/target';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Users from '@lucide/svelte/icons/users';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import TrendingUp from '@lucide/svelte/icons/trending-up';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Medal from '@lucide/svelte/icons/medal';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import PhoneCall from '@lucide/svelte/icons/phone-call';
+  import AlarmClock from '@lucide/svelte/icons/alarm-clock';
+  import Inbox from '@lucide/svelte/icons/inbox';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
 

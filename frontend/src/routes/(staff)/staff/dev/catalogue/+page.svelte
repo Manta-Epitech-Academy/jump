@@ -3,7 +3,10 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import * as Table from '$lib/components/ui/table';
   import { Badge } from '$lib/components/ui/badge';
-  import { FileText, Zap, ExternalLink, Clock } from '@lucide/svelte';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import Zap from '@lucide/svelte/icons/zap';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Clock from '@lucide/svelte/icons/clock';
   import { resolve } from '$app/paths';
   import { activityTypeLabels } from '$lib/validation/templates';
 
