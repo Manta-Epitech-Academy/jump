@@ -4,7 +4,8 @@
   import { resolve } from '$app/paths';
   import { authClient } from '$lib/auth-client';
   import { Button } from '$lib/components/ui/button';
-  import { LogOut, UserCheck } from '@lucide/svelte';
+  import LogOut from '@lucide/svelte/icons/log-out';
+  import UserCheck from '@lucide/svelte/icons/user-check';
   import { toast } from 'svelte-sonner';
 
   let busy = $state(false);

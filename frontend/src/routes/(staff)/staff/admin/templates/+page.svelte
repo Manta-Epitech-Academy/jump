@@ -1,17 +1,15 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import {
-    Plus,
-    Pencil,
-    Trash2,
-    Copy,
-    FileText,
-    ExternalLink,
-    Globe,
-    Zap,
-    RotateCcw,
-  } from '@lucide/svelte';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Copy from '@lucide/svelte/icons/copy';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Globe from '@lucide/svelte/icons/globe';
+  import Zap from '@lucide/svelte/icons/zap';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';

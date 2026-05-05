@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { resolve } from '$app/paths';
-  import { CalendarOff } from '@lucide/svelte';
+  import CalendarOff from '@lucide/svelte/icons/calendar-off';
   import { buttonVariants } from '$lib/components/ui/button';
   import PresencesHeader from './components/PresencesHeader.svelte';
   import SlotDayGroup from './components/SlotDayGroup.svelte';

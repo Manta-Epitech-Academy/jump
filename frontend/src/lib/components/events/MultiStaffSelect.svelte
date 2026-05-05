@@ -3,7 +3,9 @@
   import * as Popover from '$lib/components/ui/popover';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
-  import { Check, Users, X } from '@lucide/svelte';
+  import Check from '@lucide/svelte/icons/check';
+  import Users from '@lucide/svelte/icons/users';
+  import X from '@lucide/svelte/icons/x';
   import * as Avatar from '$lib/components/ui/avatar';
   let {
     staff = [],

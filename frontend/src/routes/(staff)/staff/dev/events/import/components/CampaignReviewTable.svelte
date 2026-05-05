@@ -3,13 +3,11 @@
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
-  import {
-    Laptop,
-    ArrowRight,
-    UserPlus,
-    Link as LinkIcon,
-    Split,
-  } from '@lucide/svelte';
+  import Laptop from '@lucide/svelte/icons/laptop';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import LinkIcon from '@lucide/svelte/icons/link';
+  import Split from '@lucide/svelte/icons/split';
 
   let { analysisResult = $bindable() } = $props();
 

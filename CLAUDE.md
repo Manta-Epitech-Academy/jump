@@ -165,6 +165,15 @@ Activity difficulty determines XP: Débutant=20, Intermédiaire=45, Avancé=75. 
 - **Auth checks:** Always go through `locals.user` / `locals.staffProfile` / `locals.talent` set in hooks. Never call BetterAuth directly in page server loads.
 - **Styling:** Tailwind utility classes only. Use `cn()` from `$lib/utils` for conditional classes. No inline styles.
 - **Component naming:** PascalCase, domain-scoped in subfolders (`components/events/`, `components/students/`).
+- **Lucide icons:** Always import per-icon, never the barrel. Barrel imports drag every icon through Vite's dev resolver and tank cold-start (~9s → ~3s on this codebase). If you slip, run `bun scripts/codemod-lucide-imports.ts` to auto-rewrite.
+
+  ```ts
+  // ✅ correct
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+
+  // ❌ wrong — barrel import
+  import { Trash2 } from '@lucide/svelte';
+  ```
 
 ## Constraints
 

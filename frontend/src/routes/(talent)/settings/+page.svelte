@@ -5,15 +5,13 @@
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
   import { fly } from 'svelte/transition';
-  import {
-    ArrowLeft,
-    Trash2,
-    User,
-    Mail,
-    Sun,
-    Moon,
-    Unlink,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import User from '@lucide/svelte/icons/user';
+  import Mail from '@lucide/svelte/icons/mail';
+  import Sun from '@lucide/svelte/icons/sun';
+  import Moon from '@lucide/svelte/icons/moon';
+  import Unlink from '@lucide/svelte/icons/unlink';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
 
   let { data }: { data: PageData } = $props();

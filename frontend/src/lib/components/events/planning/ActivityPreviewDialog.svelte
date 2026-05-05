@@ -3,14 +3,12 @@
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import { renderMarkdown } from '$lib/markdown';
-  import {
-    Pencil,
-    Trash2,
-    ExternalLink,
-    Zap,
-    FlaskConical,
-    Clock,
-  } from '@lucide/svelte';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Zap from '@lucide/svelte/icons/zap';
+  import FlaskConical from '@lucide/svelte/icons/flask-conical';
+  import Clock from '@lucide/svelte/icons/clock';
   import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
   import {

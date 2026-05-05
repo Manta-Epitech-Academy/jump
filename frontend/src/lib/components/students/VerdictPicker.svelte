@@ -1,7 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { tick } from 'svelte';
-  import { LoaderCircle, TriangleAlert } from '@lucide/svelte';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import {
     VERDICT_VALUES,
     CONTEXT_TAG_VALUES,

@@ -5,7 +5,8 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import { FileSpreadsheet, LoaderCircle } from '@lucide/svelte';
+  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';

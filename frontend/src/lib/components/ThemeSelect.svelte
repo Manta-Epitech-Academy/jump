@@ -2,14 +2,12 @@
   import * as Command from '$lib/components/ui/command';
   import * as Popover from '$lib/components/ui/popover';
   import { Button } from '$lib/components/ui/button';
-  import {
-    Check,
-    ChevronsUpDown,
-    Plus,
-    Tag,
-    Globe,
-    MapPin,
-  } from '@lucide/svelte';
+  import Check from '@lucide/svelte/icons/check';
+  import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Tag from '@lucide/svelte/icons/tag';
+  import Globe from '@lucide/svelte/icons/globe';
+  import MapPin from '@lucide/svelte/icons/map-pin';
   import { cn } from '$lib/utils';
 
   let {
