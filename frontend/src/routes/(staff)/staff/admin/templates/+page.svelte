@@ -16,6 +16,7 @@
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
+  import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Switch } from '$lib/components/ui/switch';
   import * as Dialog from '$lib/components/ui/dialog';
@@ -558,12 +559,13 @@
           </div>
         {:else}
           <div class="grid gap-2">
-            <Label>Contenu (Markdown)</Label>
-            <Textarea
-              name="content"
-              bind:value={$form.content}
-              class="h-40"
-              placeholder="Rédigez le contenu de l'activité en Markdown..."
+            <Label>Contenu</Label>
+            <input type="hidden" name="content" value={$form.content} />
+            <CmsEditor
+              bind:content={
+                () => $form.content ?? '', (v) => ($form.content = v)
+              }
+              placeholder="Rédigez le contenu de l'activité..."
             />
             {#if $errors.content}
               <span class="text-xs text-destructive">

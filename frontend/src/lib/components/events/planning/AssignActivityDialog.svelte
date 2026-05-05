@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
+  import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import * as Tabs from '$lib/components/ui/tabs';
@@ -284,8 +284,12 @@
           </div>
 
           <div class="grid gap-2">
-            <Label>Contenu (Markdown)</Label>
-            <Textarea name="content" bind:value={content} rows={4} />
+            <Label>Contenu</Label>
+            <input type="hidden" name="content" value={content} />
+            <CmsEditor
+              bind:content
+              placeholder="Rédigez le contenu de l'activité..."
+            />
           </div>
         </form>
       </Tabs.Content>
