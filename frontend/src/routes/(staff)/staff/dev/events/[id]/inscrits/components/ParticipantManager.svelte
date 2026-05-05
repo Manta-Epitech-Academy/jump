@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Users } from '@lucide/svelte';
+  import Users from '@lucide/svelte/icons/users';
   import * as Card from '$lib/components/ui/card';
   import { Separator } from '$lib/components/ui/separator';
   import StudentParticipationRow from './StudentParticipationRow.svelte';

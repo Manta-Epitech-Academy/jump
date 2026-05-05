@@ -4,23 +4,21 @@
   import StarterKit from '@tiptap/starter-kit';
   import Link from '@tiptap/extension-link';
   import Placeholder from '@tiptap/extension-placeholder';
-  import {
-    Bold,
-    Italic,
-    Strikethrough,
-    List,
-    ListOrdered,
-    Heading1,
-    Heading2,
-    Heading3,
-    Quote,
-    Code,
-    Minus,
-    Undo,
-    Redo,
-    Link as LinkIcon,
-    Unlink,
-  } from '@lucide/svelte';
+  import Bold from '@lucide/svelte/icons/bold';
+  import Italic from '@lucide/svelte/icons/italic';
+  import Strikethrough from '@lucide/svelte/icons/strikethrough';
+  import List from '@lucide/svelte/icons/list';
+  import ListOrdered from '@lucide/svelte/icons/list-ordered';
+  import Heading1 from '@lucide/svelte/icons/heading-1';
+  import Heading2 from '@lucide/svelte/icons/heading-2';
+  import Heading3 from '@lucide/svelte/icons/heading-3';
+  import Quote from '@lucide/svelte/icons/quote';
+  import Code from '@lucide/svelte/icons/code';
+  import Minus from '@lucide/svelte/icons/minus';
+  import Undo from '@lucide/svelte/icons/undo';
+  import Redo from '@lucide/svelte/icons/redo';
+  import LinkIcon from '@lucide/svelte/icons/link';
+  import Unlink from '@lucide/svelte/icons/unlink';
 
   type Props = {
     content: string;

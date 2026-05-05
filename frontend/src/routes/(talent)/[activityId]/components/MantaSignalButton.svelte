@@ -2,7 +2,8 @@
   import { Button } from '$lib/components/ui/button';
   import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';
-  import { CircleCheck, LifeBuoy } from '@lucide/svelte';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { toast } from 'svelte-sonner';
   import type { StepsProgress } from '@prisma/client';
 

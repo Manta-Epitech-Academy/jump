@@ -1,7 +1,9 @@
 <script lang="ts">
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import { Button } from '$lib/components/ui/button';
-  import { ArrowLeft, CircleCheck, Lock } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import Lock from '@lucide/svelte/icons/lock';
   import { cn } from '$lib/utils';
   import { enhance } from '$app/forms';
   import type { StepsProgress } from '@prisma/client';

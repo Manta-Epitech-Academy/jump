@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { ArrowRight } from '@lucide/svelte';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
   let { data }: { data: PageData } = $props();
 </script>

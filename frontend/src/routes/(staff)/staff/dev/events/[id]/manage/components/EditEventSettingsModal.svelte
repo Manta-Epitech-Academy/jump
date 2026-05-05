@@ -7,7 +7,9 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { Separator } from '$lib/components/ui/separator';
-  import { Settings, Trash2, LoaderCircle } from '@lucide/svelte';
+  import Settings from '@lucide/svelte/icons/settings';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { buttonVariants } from '$lib/components/ui/button';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';

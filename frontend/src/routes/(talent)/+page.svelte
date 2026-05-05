@@ -13,29 +13,27 @@
     THEME_TIER_CEILING,
   } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
-  import {
-    Rocket,
-    Trophy,
-    BookOpen,
-    ArrowRight,
-    Clock,
-    Coffee,
-    Hourglass,
-    MapPin,
-    Share2,
-    ExternalLink,
-    Check,
-    FileDown,
-    LoaderCircle,
-    LogOut,
-    History,
-    Calendar,
-    Target,
-    CalendarClock,
-    Laptop,
-    Monitor,
-    Settings,
-  } from '@lucide/svelte';
+  import Rocket from '@lucide/svelte/icons/rocket';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import BookOpen from '@lucide/svelte/icons/book-open';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Coffee from '@lucide/svelte/icons/coffee';
+  import Hourglass from '@lucide/svelte/icons/hourglass';
+  import MapPin from '@lucide/svelte/icons/map-pin';
+  import Share2 from '@lucide/svelte/icons/share-2';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Check from '@lucide/svelte/icons/check';
+  import FileDown from '@lucide/svelte/icons/file-down';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import LogOut from '@lucide/svelte/icons/log-out';
+  import History from '@lucide/svelte/icons/history';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import Target from '@lucide/svelte/icons/target';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import Laptop from '@lucide/svelte/icons/laptop';
+  import Monitor from '@lucide/svelte/icons/monitor';
+  import Settings from '@lucide/svelte/icons/settings';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
   import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';

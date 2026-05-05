@@ -3,12 +3,13 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
-  import { Save } from '@lucide/svelte';
+  import Save from '@lucide/svelte/icons/save';
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
 
   let { data, form: actionData }: { data: PageData; form: ActionData } =
     $props();
 
+  // svelte-ignore state_referenced_locally
   let content = $state(data.cmsContent);
   let saving = $state(false);
 

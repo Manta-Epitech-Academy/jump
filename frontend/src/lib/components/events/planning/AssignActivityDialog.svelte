@@ -6,15 +6,13 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import * as Tabs from '$lib/components/ui/tabs';
-  import {
-    LoaderCircle,
-    Trash2,
-    Search,
-    Zap,
-    Clock,
-    LayoutGrid,
-    Pencil,
-  } from '@lucide/svelte';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Search from '@lucide/svelte/icons/search';
+  import Zap from '@lucide/svelte/icons/zap';
+  import Clock from '@lucide/svelte/icons/clock';
+  import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+  import Pencil from '@lucide/svelte/icons/pencil';
   import { toast } from 'svelte-sonner';
   import { enhance as kitEnhance } from '$app/forms';
   import { difficultes } from '$lib/domain/xp';

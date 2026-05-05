@@ -7,7 +7,9 @@
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { Sparkles, Loader2, AlertTriangle } from '@lucide/svelte';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
+  import Loader2 from '@lucide/svelte/icons/loader-2';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   type Dev = { id: string; name: string };
   type Candidate = {

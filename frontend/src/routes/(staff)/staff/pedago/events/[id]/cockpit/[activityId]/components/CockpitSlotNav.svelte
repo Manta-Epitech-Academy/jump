@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { ChevronLeft, ChevronRight, Calendar } from '@lucide/svelte';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import Calendar from '@lucide/svelte/icons/calendar';
   import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
   import { formatSlotLabel, type OrgaSlot } from '$lib/domain/presences';

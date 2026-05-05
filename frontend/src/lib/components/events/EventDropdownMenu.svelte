@@ -1,7 +1,10 @@
 <script lang="ts">
   import { buttonVariants } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { Ellipsis, Copy, Trash2, Users } from '@lucide/svelte';
+  import Ellipsis from '@lucide/svelte/icons/ellipsis';
+  import Copy from '@lucide/svelte/icons/copy';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Users from '@lucide/svelte/icons/users';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { can } from '$lib/domain/permissions';

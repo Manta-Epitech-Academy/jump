@@ -5,7 +5,7 @@
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
-  import { LoaderCircle } from '@lucide/svelte';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { toast } from 'svelte-sonner';
   import { enhance as kitEnhance } from '$app/forms';
   import { difficultes } from '$lib/domain/xp';

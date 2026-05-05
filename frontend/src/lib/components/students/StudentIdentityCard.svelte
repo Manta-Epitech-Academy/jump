@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { Trophy, SignalLow } from '@lucide/svelte';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import SignalLow from '@lucide/svelte/icons/signal-low';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';

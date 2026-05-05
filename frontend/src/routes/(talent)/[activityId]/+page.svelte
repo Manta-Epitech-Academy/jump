@@ -6,13 +6,11 @@
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import {
-    ArrowLeft,
-    Map as MapIcon,
-    FolderOpen,
-    Trophy,
-    ExternalLink,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import MapIcon from '@lucide/svelte/icons/map';
+  import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import { toast } from 'svelte-sonner';
   import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';

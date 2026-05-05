@@ -1,21 +1,19 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import {
-    Calendar as CalendarIcon,
-    Tag,
-    Users,
-    CalendarDays,
-    StickyNote,
-    Laptop,
-    FileText,
-    ScrollText,
-    Camera,
-    MessageSquare,
-    Bell,
-    UserCog,
-    Pencil,
-  } from '@lucide/svelte';
+  import CalendarIcon from '@lucide/svelte/icons/calendar';
+  import Tag from '@lucide/svelte/icons/tag';
+  import Users from '@lucide/svelte/icons/users';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import StickyNote from '@lucide/svelte/icons/sticky-note';
+  import Laptop from '@lucide/svelte/icons/laptop';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import ScrollText from '@lucide/svelte/icons/scroll-text';
+  import Camera from '@lucide/svelte/icons/camera';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import Bell from '@lucide/svelte/icons/bell';
+  import UserCog from '@lucide/svelte/icons/user-cog';
+  import Pencil from '@lucide/svelte/icons/pencil';
   import { goto } from '$app/navigation';
   import { toast } from 'svelte-sonner';
 
