@@ -70,10 +70,10 @@
     }
   });
 
-  function isActive(path: string) {
+  function isActive(path: string, exact = false) {
     const basePath = resolve('/').replace(/\/$/, '');
     const fullPath = `${basePath}${path}`;
-    if (path === '/staff/dev')
+    if (exact || path === '/staff/dev')
       return (
         page.url.pathname === fullPath || page.url.pathname === `${fullPath}/`
       );
@@ -133,7 +133,7 @@
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}`),
+          isActive(`/staff/dev/events/${data.activeStage.id}`, true),
         )}
       >
         <LayoutDashboard class="h-5 w-5" />
