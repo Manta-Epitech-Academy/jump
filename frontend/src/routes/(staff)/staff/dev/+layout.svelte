@@ -176,6 +176,13 @@
         <ClipboardCheck class="h-5 w-5" />
         <span>Suivi ADM</span>
       </a>
+      <a
+        href={resolve('/staff/dev/contenu/welcome')}
+        class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+      >
+        <FileText class="h-5 w-5" />
+        <span>Page d'accueil</span>
+      </a>
     </nav>
   {/if}
 
@@ -193,19 +200,6 @@
       </a>
     </nav>
   {/if}
-
-  <div class="sidebar-section-title">
-    Contenu<span class="text-epi-orange">_</span>
-  </div>
-  <nav class="space-y-1">
-    <a
-      href={resolve('/staff/dev/contenu/welcome')}
-      class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
-    >
-      <FileText class="h-5 w-5" />
-      <span>Page d'accueil</span>
-    </a>
-  </nav>
 
   <Gated group="devLead" mode="hide">
     <div class="sidebar-section-title">

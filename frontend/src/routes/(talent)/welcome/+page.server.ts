@@ -13,14 +13,14 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  // Resolve campus from the talent's stage_seconde participation
+  // Resolve the talent's most recent stage_seconde participation
   const stageParticipation = await prisma.participation.findFirst({
     where: {
       talentId: locals.talent.id,
       event: { eventType: 'stage_seconde' },
     },
     orderBy: { event: { date: 'desc' } },
-    select: { campusId: true },
+    select: { eventId: true },
   });
 
   if (!stageParticipation) {
@@ -30,12 +30,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const page = await prisma.cmsPage.findUnique({
     where: {
-      slug_campusId: { slug: SLUG, campusId: stageParticipation.campusId },
+      slug_eventId: { slug: SLUG, eventId: stageParticipation.eventId },
     },
   });
 
   if (!page?.content) {
-    // No welcome content for this campus — skip to dashboard
+    // No welcome content for this stage — skip to dashboard
     throw redirect(303, resolve('/'));
   }
 

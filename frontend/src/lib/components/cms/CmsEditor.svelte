@@ -43,6 +43,7 @@
         Link.configure({
           openOnClick: false,
           HTMLAttributes: { rel: 'noopener noreferrer nofollow' },
+          validate: (href) => /^(https?|mailto|tel):/i.test(href),
         }),
         Placeholder.configure({ placeholder }),
       ],

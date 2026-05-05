@@ -119,6 +119,13 @@
         <UserCheck class="h-5 w-5" />
         <span>Présences</span>
       </a>
+      <a
+        href={resolve('/staff/pedago/contenu/welcome')}
+        class={navLinkClass(isActive('/staff/pedago/contenu/welcome'))}
+      >
+        <FileText class="h-5 w-5" />
+        <span>Page d'accueil</span>
+      </a>
     </nav>
   {/if}
 
@@ -136,19 +143,6 @@
       </a>
     </nav>
   {/if}
-
-  <div class="sidebar-section-title">
-    Contenu<span class="text-foreground">_</span>
-  </div>
-  <nav class="space-y-1">
-    <a
-      href={resolve('/staff/pedago/contenu/welcome')}
-      class={navLinkClass(isActive('/staff/pedago/contenu/welcome'))}
-    >
-      <FileText class="h-5 w-5" />
-      <span>Page d'accueil</span>
-    </a>
-  </nav>
 {/snippet}
 
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">

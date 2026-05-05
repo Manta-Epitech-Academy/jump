@@ -1,20 +1,29 @@
 import type { PageServerLoad, Actions } from './$types';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { getCampusId } from '$lib/server/db/scoped';
+import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { can } from '$lib/domain/permissions';
+import { resolveStageContext } from '$lib/server/services/stageContext';
 import DOMPurify from 'isomorphic-dompurify';
 
 const SLUG = 'welcome';
 
-export const load: PageServerLoad = async ({ locals }) => {
+async function getActiveStageId(locals: App.Locals): Promise<string> {
+  const db = scopedPrisma(getCampusId(locals));
+  const stage = await resolveStageContext(db);
+  if (!stage) throw error(404, 'Aucun stage actif.');
+  return stage.id;
+}
+
+export const load: PageServerLoad = async ({ locals, parent }) => {
   requireStaffGroup(locals, 'pedaMember');
-  const campusId = getCampusId(locals);
+  const { activeStage } = await parent();
+  if (!activeStage) throw error(404, 'Aucun stage actif.');
   const canEdit = can('pedaLead', locals.staffProfile?.staffRole);
 
   const page = await prisma.cmsPage.findUnique({
-    where: { slug_campusId: { slug: SLUG, campusId } },
+    where: { slug_eventId: { slug: SLUG, eventId: activeStage.id } },
   });
 
   return { cmsContent: page?.content ?? '', canEdit };
@@ -23,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   save: async ({ request, locals }) => {
     requireStaffGroup(locals, 'pedaLead');
-    const campusId = getCampusId(locals);
+    const eventId = await getActiveStageId(locals);
     const userId = locals.user!.id;
 
     const formData = await request.formData();
@@ -36,9 +45,9 @@ export const actions: Actions = {
     const content = DOMPurify.sanitize(rawContent);
 
     await prisma.cmsPage.upsert({
-      where: { slug_campusId: { slug: SLUG, campusId } },
+      where: { slug_eventId: { slug: SLUG, eventId } },
       update: { content, updatedBy: userId },
-      create: { slug: SLUG, campusId, content, updatedBy: userId },
+      create: { slug: SLUG, eventId, content, updatedBy: userId },
     });
 
     return { success: true };

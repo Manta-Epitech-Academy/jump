@@ -83,6 +83,7 @@ export async function applyRouteGuards(
   const pathStaffDev = p('/staff/dev');
   const pathStaffPedago = p('/staff/pedago');
 
+  const pathTalentWelcome = p('/welcome');
   const pathParentLogin = p('/parent/login');
   const pathParentRoot = p('/parent');
   const pathParentSignature = p('/parent/signature');
@@ -153,6 +154,48 @@ export async function applyRouteGuards(
     if (
       event.locals.talent?.charterAcceptedAt &&
       currentPath === pathTalentCharter
+    ) {
+      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+    }
+
+    // Welcome guard: redirect to /welcome if talent hasn't seen welcome page yet
+    if (
+      event.locals.talent &&
+      event.locals.talent.charterAcceptedAt &&
+      !event.locals.talent.welcomeSeenAt &&
+      currentPath !== pathTalentWelcome &&
+      !currentPath.startsWith(pathTalentOnboarding) &&
+      currentPath !== pathTalentLogin
+    ) {
+      const stageParticipation = await prisma.participation.findFirst({
+        where: {
+          talentId: event.locals.talent.id,
+          event: { eventType: 'stage_seconde' },
+        },
+        orderBy: { event: { date: 'desc' } },
+        select: { eventId: true },
+      });
+      if (stageParticipation) {
+        const welcomePage = await prisma.cmsPage.findUnique({
+          where: {
+            slug_eventId: {
+              slug: 'welcome',
+              eventId: stageParticipation.eventId,
+            },
+          },
+        });
+        if (welcomePage?.content) {
+          return Response.redirect(
+            new URL(pathTalentWelcome, event.url).href,
+            303,
+          );
+        }
+      }
+    }
+    // Already seen: prevent going back to welcome
+    if (
+      event.locals.talent?.welcomeSeenAt &&
+      currentPath === pathTalentWelcome
     ) {
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }

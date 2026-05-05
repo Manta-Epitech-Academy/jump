@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { renderMarkdown } from '$lib/markdown';
+  import DOMPurify from 'isomorphic-dompurify';
   import { fade, fly } from 'svelte/transition';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
@@ -53,7 +54,7 @@
     !currentStep
       ? ''
       : 'content_html' in currentStep && currentStep.content_html
-        ? currentStep.content_html
+        ? DOMPurify.sanitize(currentStep.content_html)
         : 'content_markdown' in currentStep && currentStep.content_markdown
           ? renderMarkdown(currentStep.content_markdown)
           : '',
@@ -61,7 +62,9 @@
 
   // Static activity content (stored as HTML from WYSIWYG editor)
   let staticHtml = $derived(
-    !isDynamic && data.activity.content ? data.activity.content : '',
+    !isDynamic && data.activity.content
+      ? DOMPurify.sanitize(data.activity.content)
+      : '',
   );
 
   let selectedAnswer = $state<number | null>(null);
