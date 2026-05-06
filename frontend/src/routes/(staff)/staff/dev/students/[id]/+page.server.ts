@@ -77,6 +77,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       stats.favoriteTheme = sortedThemes[0][0];
     }
 
+    const interests = await prisma.talentInterest.findMany({
+      where: { talentId: params.id },
+      include: {
+        interest: {
+          include: { category: true },
+        },
+      },
+      orderBy: [
+        { interest: { category: { order: 'asc' } } },
+        { interest: { order: 'asc' } },
+      ],
+    });
+
     const form = await superValidate(zod4(studentSchema));
 
     return {
@@ -84,6 +97,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       participations,
       stats,
       form,
+      interests,
       timezone: getCampusTimezone(locals),
     };
   } catch (e) {

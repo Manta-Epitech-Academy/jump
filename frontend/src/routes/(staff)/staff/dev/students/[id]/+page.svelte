@@ -93,6 +93,42 @@
         onOpenEdit={openEdit}
       />
       <OnboardingStatus student={data.student} />
+
+      {#if data.interests && data.interests.length > 0}
+        <Card.Root>
+          <Card.Header>
+            <Card.Title class="text-sm font-bold tracking-wide uppercase">
+              Centres d'intérêt
+            </Card.Title>
+          </Card.Header>
+          <Card.Content>
+            {@const grouped = Object.groupBy(
+              data.interests,
+              (i) => i.interest.category.nom,
+            )}
+            {#each Object.entries(grouped) as [categoryName, items] (categoryName)}
+              <div class="mb-3 last:mb-0">
+                <p
+                  class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                >
+                  {categoryName}
+                </p>
+                <div class="flex flex-wrap gap-1.5">
+                  {#each items as ti (ti.interest.id)}
+                    <span
+                      class="inline-flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs font-medium text-foreground"
+                    >
+                      {#if ti.interest.emoji}<span>{ti.interest.emoji}</span
+                        >{/if}
+                      {ti.interest.nom}
+                    </span>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </Card.Content>
+        </Card.Root>
+      {/if}
     </div>
 
     <div class="space-y-6 md:col-span-8 lg:col-span-9">
