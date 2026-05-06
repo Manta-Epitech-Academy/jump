@@ -2080,6 +2080,10 @@ async function main() {
   const campuses = await seedCampuses();
   console.log(`✓  Campuses (${Object.keys(campuses).length})`);
 
+  // 1b. Interest categories & interests
+  const allInterestIds = await seedInterests();
+  console.log('✓  Interest categories & interests');
+
   // 2. Staff (no default admin — admins are provisioned via
   //    scripts/add-admin-user.ts and authenticate via Microsoft OAuth only)
   const staffByKey = await seedStaff(campuses);
@@ -2092,6 +2096,10 @@ async function main() {
   // 3b. Parent account (links to first child for portal testing)
   const parentEmail = await seedParents(talentByEmail);
   console.log(`✓  Parent (${parentEmail})`);
+
+  // 3c. Talent interest assignments
+  await assignTalentInterests(allInterestIds);
+  console.log('✓  Talent interest assignments');
 
   // 4. Themes
   const themesByKey = await seedThemes(campuses);
@@ -2163,6 +2171,9 @@ async function wipeAll() {
   await prisma.planningTemplate.deleteMany();
   await prisma.activityTemplate.deleteMany();
   await prisma.theme.deleteMany();
+  await prisma.talentInterest.deleteMany();
+  await prisma.interest.deleteMany();
+  await prisma.interestCategory.deleteMany();
   await prisma.talent.deleteMany();
   // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
   // is a required FK with default RESTRICT, so live versions block the delete.
@@ -2176,6 +2187,104 @@ async function wipeAll() {
   await prisma.bauth_account.deleteMany();
   await prisma.bauth_verification.deleteMany();
   await prisma.bauth_user.deleteMany();
+}
+
+// ─── Interests ───
+
+async function seedInterests() {
+  const categories = [
+    {
+      nom: 'Sport',
+      interests: [
+        { nom: 'Football', emoji: '⚽' },
+        { nom: 'Basketball', emoji: '🏀' },
+        { nom: 'Tennis', emoji: '🎾' },
+        { nom: 'Natation', emoji: '🏊' },
+        { nom: 'Danse', emoji: '💃' },
+      ],
+    },
+    {
+      nom: 'Tech',
+      interests: [
+        { nom: 'Développement web', emoji: '🌐' },
+        { nom: 'Cybersécurité', emoji: '🔒' },
+        { nom: 'IA', emoji: '🤖' },
+        { nom: 'Robotique', emoji: '🦾' },
+        { nom: 'Game design', emoji: '🎮' },
+      ],
+    },
+    {
+      nom: 'Art',
+      interests: [
+        { nom: 'Dessin', emoji: '✏️' },
+        { nom: 'Musique', emoji: '🎵' },
+        { nom: 'Photo', emoji: '📷' },
+        { nom: 'Cinéma', emoji: '🎬' },
+        { nom: 'Écriture', emoji: '📝' },
+      ],
+    },
+    {
+      nom: 'Sciences',
+      interests: [
+        { nom: 'Maths', emoji: '🔢' },
+        { nom: 'Physique', emoji: '⚛️' },
+        { nom: 'Biologie', emoji: '🧬' },
+        { nom: 'Astronomie', emoji: '🔭' },
+      ],
+    },
+    {
+      nom: 'Loisirs',
+      interests: [
+        { nom: 'Jeux vidéo', emoji: '🕹️' },
+        { nom: 'Lecture', emoji: '📚' },
+        { nom: 'Cuisine', emoji: '👨‍🍳' },
+        { nom: 'Voyage', emoji: '✈️' },
+        { nom: 'Bénévolat', emoji: '🤝' },
+      ],
+    },
+  ];
+
+  const allInterestIds: string[] = [];
+
+  for (let ci = 0; ci < categories.length; ci++) {
+    const cat = await prisma.interestCategory.create({
+      data: { nom: categories[ci].nom, order: ci },
+    });
+    for (let ii = 0; ii < categories[ci].interests.length; ii++) {
+      const interest = await prisma.interest.create({
+        data: {
+          nom: categories[ci].interests[ii].nom,
+          emoji: categories[ci].interests[ii].emoji,
+          categoryId: cat.id,
+          order: ii,
+        },
+      });
+      allInterestIds.push(interest.id);
+    }
+  }
+
+  return allInterestIds;
+}
+
+async function assignTalentInterests(allInterestIds: string[]) {
+  const talents = await prisma.talent.findMany({
+    where: { interestsValidatedAt: { not: null } },
+    select: { id: true },
+  });
+
+  for (const talent of talents) {
+    const count = 3 + Math.floor(Math.random() * 4); // 3-6
+    const shuffled = [...allInterestIds].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, count);
+
+    await prisma.talentInterest.createMany({
+      data: selected.map((interestId) => ({
+        talentId: talent.id,
+        interestId,
+      })),
+      skipDuplicates: true,
+    });
+  }
 }
 
 // ─── Seeders ───
@@ -2247,6 +2356,7 @@ async function seedStudents(): Promise<
         niveauDifficulte: s.niveauDifficulte,
         charterAcceptedAt: s.charterSigned ? new Date() : null,
         infoValidatedAt: s.skipOnboarding ? new Date() : null,
+        interestsValidatedAt: s.skipOnboarding ? new Date() : null,
         rulesSignedAt: s.skipOnboarding ? new Date() : null,
         parentNom: s.skipOnboarding ? 'Martin' : null,
         parentPrenom: s.skipOnboarding ? 'Sophie' : null,
