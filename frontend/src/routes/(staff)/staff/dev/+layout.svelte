@@ -157,13 +157,13 @@
         <span>Inscrits</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/suivi-adm`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/suivi-adm`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
         )}
       >
         <ClipboardCheck class="h-5 w-5" />
-        <span>Suivi ADM</span>
+        <span>Onboarding</span>
       </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}

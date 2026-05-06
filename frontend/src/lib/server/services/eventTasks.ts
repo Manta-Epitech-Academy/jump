@@ -284,7 +284,7 @@ export async function deriveEventAlerts(
 
   const interviewsHref = `${eventBase}/interviews`;
   const inscritsHref = `${eventBase}/inscrits`;
-  const suiviHref = `${eventBase}/suivi-adm`;
+  const onboardingHref = `${eventBase}/onboarding`;
 
   if (facts.conventionsToChase > 0) {
     alerts.push({
@@ -297,7 +297,7 @@ export async function deriveEventAlerts(
         'Salesforce ne marque pas la convention comme signée — vérifier l’upload SF',
       count: facts.conventionsToChase,
       severity: 'warning',
-      href: `${suiviHref}?filter=convention-missing`,
+      href: `${onboardingHref}?filter=convention-missing`,
     });
   }
   if (facts.chartesToChase > 0) {
@@ -307,10 +307,10 @@ export async function deriveEventAlerts(
       eventId: event.id,
       eventTitre: event.titre,
       title: 'Chartes à valider',
-      description: 'Cocher dans Suivi ADM dès réception du document signé',
+      description: 'Cocher dans Onboarding dès réception du document signé',
       count: facts.chartesToChase,
       severity: 'info',
-      href: `${suiviHref}?filter=charte-missing`,
+      href: `${onboardingHref}?filter=charte-missing`,
     });
   }
   if (facts.imageRightsToChase > 0) {
@@ -321,10 +321,10 @@ export async function deriveEventAlerts(
       eventTitre: event.titre,
       title: 'Droits à l’image à valider',
       description:
-        'Cocher dans Suivi ADM dès réception du document signé par les parents',
+        'Cocher dans Onboarding dès réception du document signé par les parents',
       count: facts.imageRightsToChase,
       severity: 'info',
-      href: `${suiviHref}?filter=image-rights-missing`,
+      href: `${onboardingHref}?filter=image-rights-missing`,
     });
   }
   if (facts.pcMissing > 0) {
@@ -338,7 +338,7 @@ export async function deriveEventAlerts(
         'Inscrits sans PC personnel — prévoir un poste pour le stage',
       count: facts.pcMissing,
       severity: 'info',
-      href: `${suiviHref}?filter=pc-missing`,
+      href: `${onboardingHref}?filter=pc-missing`,
     });
   }
   if (facts.talentsNeverLogged > 0) {
@@ -467,7 +467,7 @@ export async function deriveEventChecklist(
   if (!facts.isStage || facts.totalParticipations === 0) return items;
 
   const inscritsHref = `${eventBase}/inscrits`;
-  const suiviHref = `${eventBase}/suivi-adm`;
+  const onboardingHref = `${eventBase}/onboarding`;
   const total = facts.totalParticipations;
 
   // — Group: onboarding plateforme —
@@ -513,35 +513,35 @@ export async function deriveEventChecklist(
         : `${facts.conventionsToChase} non remontée${facts.conventionsToChase > 1 ? 's' : ''} par Salesforce`,
     done: facts.conventionsToChase === 0,
     severity: 'warning',
-    href: `${suiviHref}?filter=convention-missing`,
+    href: `${onboardingHref}?filter=convention-missing`,
   });
 
   items.push({
     key: `chartes-${event.id}`,
     kind: 'chartes-to-chase',
     group: 'documents',
-    title: 'Chartes validées dans Suivi ADM',
+    title: 'Chartes validées dans Onboarding',
     meta:
       facts.chartesToChase === 0
         ? `${total}/${total} cochées`
-        : `${facts.chartesToChase} à cocher dans Suivi ADM`,
+        : `${facts.chartesToChase} à cocher dans Onboarding`,
     done: facts.chartesToChase === 0,
     severity: 'info',
-    href: `${suiviHref}?filter=charte-missing`,
+    href: `${onboardingHref}?filter=charte-missing`,
   });
 
   items.push({
     key: `image-rights-${event.id}`,
     kind: 'image-rights-to-chase',
     group: 'documents',
-    title: 'Droits à l’image validés dans Suivi ADM',
+    title: 'Droits à l’image validés dans Onboarding',
     meta:
       facts.imageRightsToChase === 0
         ? `${total}/${total} cochés`
-        : `${facts.imageRightsToChase} à cocher dans Suivi ADM`,
+        : `${facts.imageRightsToChase} à cocher dans Onboarding`,
     done: facts.imageRightsToChase === 0,
     severity: 'info',
-    href: `${suiviHref}?filter=image-rights-missing`,
+    href: `${onboardingHref}?filter=image-rights-missing`,
   });
 
   items.push({
@@ -555,7 +555,7 @@ export async function deriveEventChecklist(
         : `${facts.pcMissing} sans PC personnel — prévoir un poste`,
     done: facts.pcMissing === 0,
     severity: 'info',
-    href: `${suiviHref}?filter=pc-missing`,
+    href: `${onboardingHref}?filter=pc-missing`,
   });
 
   return items;

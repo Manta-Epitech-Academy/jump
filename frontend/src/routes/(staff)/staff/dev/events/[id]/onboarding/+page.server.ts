@@ -12,13 +12,13 @@ import {
   sendStudentReminderEmail,
   sendParentReminderEmail,
 } from '$lib/server/otp';
-import { SUIVI_FILTER_KEYS, type SuiviFilterKey } from './filters';
+import { ONBOARDING_FILTER_KEYS, type OnboardingFilterKey } from './filters';
 
 const COOLDOWN_DAYS = 3;
 
-function validateFilter(raw: string | null): SuiviFilterKey {
-  return (SUIVI_FILTER_KEYS as readonly string[]).includes(raw ?? '')
-    ? (raw as SuiviFilterKey)
+function validateFilter(raw: string | null): OnboardingFilterKey {
+  return (ONBOARDING_FILTER_KEYS as readonly string[]).includes(raw ?? '')
+    ? (raw as OnboardingFilterKey)
     : 'all';
 }
 

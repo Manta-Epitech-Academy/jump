@@ -71,7 +71,9 @@
   const inscritsHref = $derived(
     resolve(`/staff/dev/events/${eventId}/inscrits`),
   );
-  const suiviHref = $derived(resolve(`/staff/dev/events/${eventId}/suivi-adm`));
+  const onboardingHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/onboarding`),
+  );
 </script>
 
 <div class="space-y-6 pb-12">
@@ -111,7 +113,7 @@
       icon={ClipboardCheck}
       tone="orange"
       progress={pct(kpis.dossiersAdmin)}
-      href={suiviHref}
+      href={onboardingHref}
     />
   </div>
 
@@ -127,7 +129,7 @@
       <p
         class="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
       >
-        Auto-cochée selon Suivi ADM, Salesforce et l’activité plateforme
+        Auto-cochée selon Onboarding, Salesforce et l’activité plateforme
       </p>
       <div class="pt-2">
         <ChecklistPanel items={checklist} />

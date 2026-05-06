@@ -85,11 +85,11 @@
               </span>
             {/each}
             <a
-              href={resolve(`/staff/dev/events/${p.event.id}/suivi-adm`)}
+              href={resolve(`/staff/dev/events/${p.event.id}/onboarding`)}
               class="ml-auto inline-flex items-center gap-1 text-[10px] font-bold tracking-widest text-epi-blue uppercase transition-colors hover:underline sm:ml-2"
-              aria-label="Modifier sur le suivi administratif"
+              aria-label="Modifier sur l'onboarding"
             >
-              Suivi <ExternalLink class="h-2.5 w-2.5" />
+              Onboarding <ExternalLink class="h-2.5 w-2.5" />
             </a>
           </div>
         </li>

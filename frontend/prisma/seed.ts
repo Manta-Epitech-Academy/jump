@@ -2646,7 +2646,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
 
 // ─── Reminder blueprints ───
 //
-// Onboarding relances envoyées depuis /staff/dev/events/[id]/suivi-adm. Visible
+// Onboarding relances envoyées depuis /staff/dev/events/[id]/onboarding. Visible
 // dans "Historique des relances" sur la fiche talent. Cible : élèves en cours
 // d'onboarding (signatures incomplètes), avec une vraie cadence (J-10 puis J-3
 // par exemple) plutôt que des dates uniformes.

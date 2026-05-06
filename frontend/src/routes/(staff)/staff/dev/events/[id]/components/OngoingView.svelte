@@ -103,7 +103,9 @@
   const interviewsHref = $derived(
     resolve(`/staff/dev/events/${eventId}/interviews`),
   );
-  const suiviHref = $derived(resolve(`/staff/dev/events/${eventId}/suivi-adm`));
+  const onboardingHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/onboarding`),
+  );
 </script>
 
 <div class="space-y-6 pb-12">
@@ -169,7 +171,7 @@
       icon={ShieldCheck}
       tone="orange"
       progress={conformitePctRounded}
-      href={suiviHref}
+      href={onboardingHref}
     />
   </div>
 
@@ -181,7 +183,7 @@
       <p
         class="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
       >
-        Dérivées de Suivi ADM, Salesforce et l’activité plateforme
+        Dérivées d’Onboarding, Salesforce et l’activité plateforme
       </p>
       <div class="pt-2">
         <AlertsPanel

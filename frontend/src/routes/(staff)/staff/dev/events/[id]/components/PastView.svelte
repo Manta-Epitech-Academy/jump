@@ -45,7 +45,9 @@
   const interviewsHref = $derived(
     resolve(`/staff/dev/events/${eventId}/interviews`),
   );
-  const suiviHref = $derived(resolve(`/staff/dev/events/${eventId}/suivi-adm`));
+  const onboardingHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/onboarding`),
+  );
 
   const datesLabel = $derived(
     `${startDate.toLocaleDateString('fr-FR', {
@@ -97,7 +99,7 @@
       value={`${stats.bringPc} / ${stats.total}`}
       icon={Laptop}
       tone="neutral"
-      href={suiviHref}
+      href={onboardingHref}
     />
     <EventKpiTile
       label="Entretiens menés"
@@ -111,21 +113,21 @@
       value={`${stats.chartes} / ${stats.total}`}
       icon={FileText}
       tone="neutral"
-      href={suiviHref}
+      href={onboardingHref}
     />
     <EventKpiTile
       label="Conventions signées"
       value={`${stats.conventions} / ${stats.total}`}
       icon={ScrollText}
       tone="neutral"
-      href={suiviHref}
+      href={onboardingHref}
     />
     <EventKpiTile
       label="Droits à l’image"
       value={`${stats.droitsImage} / ${stats.total}`}
       icon={Camera}
       tone="neutral"
-      href={suiviHref}
+      href={onboardingHref}
     />
   </div>
 
