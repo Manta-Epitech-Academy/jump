@@ -40,3 +40,10 @@ export const infoValidationSchema = infoBaseSchema
   );
 
 export type InfoValidationForm = z.infer<typeof infoBaseSchema>;
+
+export const interestsSchema = z.object({
+  interestIds: z
+    .array(z.string().cuid())
+    .min(3, "Choisis au moins 3 centres d'intérêt")
+    .max(10, "10 centres d'intérêt maximum"),
+});
