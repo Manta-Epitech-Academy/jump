@@ -4,17 +4,21 @@
   import ScrollText from '@lucide/svelte/icons/scroll-text';
   import Camera from '@lucide/svelte/icons/camera';
   import Send from '@lucide/svelte/icons/send';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { resolve } from '$app/paths';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { superForm } from 'sveltekit-superforms';
   import type { PageData } from './$types';
   import { Button } from '$lib/components/ui/button';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import * as Dialog from '$lib/components/ui/dialog';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { cn } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import SuiviAdmTable from './components/SuiviAdmTable.svelte';
+  import type { SuiviFilterKey } from './filters';
 
   let { data }: { data: PageData } = $props();
 
@@ -82,10 +86,9 @@
 
   // Reminders
   let selectedTalentIds = $state<Set<string>>(new Set());
-  let sendType = $state<'student' | 'parent'>('student');
-  let showConfirm = $state(false);
+  let confirmType = $state<'student' | 'parent' | null>(null);
 
-  const { enhance: reminderEnhance } = superForm(
+  const { enhance: reminderEnhance, delayed: reminderDelayed } = superForm(
     untrack(() => data.reminderForm),
     {
       resetForm: false,
@@ -93,6 +96,7 @@
         if (result.type === 'success') {
           toast.success(result.data?.form?.message || 'Relances envoyées');
           selectedTalentIds = new Set();
+          confirmType = null;
         } else if (result.type === 'failure' && result.data?.form?.message) {
           toast.error(result.data.form.message);
         }
@@ -113,11 +117,6 @@
     if (next.has(talentId)) next.delete(talentId);
     else next.add(talentId);
     selectedTalentIds = next;
-  }
-
-  function prepareSend(type: 'student' | 'parent') {
-    sendType = type;
-    showConfirm = true;
   }
 </script>
 
@@ -209,7 +208,7 @@
         size="sm"
         variant="outline"
         disabled={selectedTalentIds.size === 0}
-        onclick={() => prepareSend('student')}
+        onclick={() => (confirmType = 'student')}
       >
         <Send class="mr-2 h-3.5 w-3.5" />
         Relancer étudiants
@@ -218,7 +217,7 @@
         size="sm"
         variant="outline"
         disabled={selectedTalentIds.size === 0}
-        onclick={() => prepareSend('parent')}
+        onclick={() => (confirmType = 'parent')}
       >
         <Send class="mr-2 h-3.5 w-3.5" />
         Relancer parents
@@ -237,28 +236,47 @@
 </div>
 
 <!-- Confirm dialog -->
-<AlertDialog.Root bind:open={showConfirm}>
-  <AlertDialog.Content>
-    <AlertDialog.Header>
-      <AlertDialog.Title>Confirmer l'envoi</AlertDialog.Title>
-      <AlertDialog.Description>
-        Envoyer une relance {sendType === 'student' ? 'étudiant' : 'parent'} à
-        <strong>{selectedTalentIds.size}</strong>
-        destinataire{selectedTalentIds.size > 1 ? 's' : ''} ? Les relances envoyées
-        il y a moins de 3 jours seront ignorées.
-      </AlertDialog.Description>
-    </AlertDialog.Header>
-    <AlertDialog.Footer>
-      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
-      <form method="POST" action="?/sendReminders" use:reminderEnhance>
-        {#each [...selectedTalentIds] as id}
-          <input type="hidden" name="talentIds" value={id} />
-        {/each}
-        <input type="hidden" name="type" value={sendType} />
-        <Button type="submit" onclick={() => (showConfirm = false)}>
-          Envoyer
+<Dialog.Root
+  open={confirmType !== null}
+  onOpenChange={(open) => {
+    if (!open) confirmType = null;
+  }}
+>
+  <Dialog.Content>
+    <form method="POST" action="?/sendReminders" use:reminderEnhance>
+      <Dialog.Header>
+        <Dialog.Title>Confirmer l'envoi</Dialog.Title>
+        <Dialog.Description>
+          Envoyer une relance {confirmType === 'student'
+            ? 'étudiant'
+            : 'parent'}
+          à
+          <strong>{selectedTalentIds.size}</strong>
+          destinataire{selectedTalentIds.size > 1 ? 's' : ''} ? Les relances envoyées
+          il y a moins de 3 jours seront ignorées.
+        </Dialog.Description>
+      </Dialog.Header>
+      {#each [...selectedTalentIds] as id}
+        <input type="hidden" name="talentIds" value={id} />
+      {/each}
+      <input type="hidden" name="type" value={confirmType} />
+      <Dialog.Footer class="mt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          onclick={() => (confirmType = null)}
+        >
+          Annuler
         </Button>
-      </form>
-    </AlertDialog.Footer>
-  </AlertDialog.Content>
-</AlertDialog.Root>
+        <Button type="submit" disabled={$reminderDelayed}>
+          {#if $reminderDelayed}
+            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+            Envoi...
+          {:else}
+            Envoyer
+          {/if}
+        </Button>
+      </Dialog.Footer>
+    </form>
+  </Dialog.Content>
+</Dialog.Root>
