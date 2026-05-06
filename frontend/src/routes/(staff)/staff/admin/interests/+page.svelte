@@ -2,7 +2,6 @@
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import Plus from '@lucide/svelte/icons/plus';
-  import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Heart from '@lucide/svelte/icons/heart';
   import { Button } from '$lib/components/ui/button';
