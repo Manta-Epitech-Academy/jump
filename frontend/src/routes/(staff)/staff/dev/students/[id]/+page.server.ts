@@ -11,44 +11,82 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { hasFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
+import { EVENT_TYPES } from '$lib/domain/event';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+const TAB_KEYS = ['pedago', 'admin'] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
+function validateTab(raw: string | null): TabKey {
+  return TAB_KEYS.includes(raw as TabKey) ? (raw as TabKey) : 'pedago';
+}
+
+export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
   try {
-    const student = await db.talent.findUniqueOrThrow({
-      where: { id: params.id },
-      include: {
-        user: true,
-        interviews: {
-          where: { campusId },
-          include: { staff: { include: { user: true } } },
-          orderBy: { date: 'desc' },
-        },
-      },
-    });
-
-    const participations = await db.participation.findMany({
-      where: { talentId: student.id },
-      include: {
-        stageCompliance: true,
-        interview: true,
-        event: {
-          include: {
-            mantas: { include: { staffProfile: { include: { user: true } } } },
-          },
-        },
-        activities: {
-          include: {
-            activity: {
-              include: { activityThemes: { include: { theme: true } } },
+    const [student, participations, reminderRows] = await Promise.all([
+      db.talent.findUniqueOrThrow({
+        where: { id: params.id },
+        include: {
+          user: true,
+          lycee: true,
+          interests: { include: { interest: true } },
+          interviews: {
+            where: { campusId },
+            include: {
+              staff: { include: { user: true } },
+              participation: { include: { event: true } },
             },
-            verdictAuthor: { include: { user: true } },
+            orderBy: { date: 'desc' },
           },
         },
-      },
-      orderBy: { event: { date: 'desc' } },
-    });
+      }),
+      db.participation.findMany({
+        where: { talentId: params.id },
+        include: {
+          stageCompliance: true,
+          interview: true,
+          event: {
+            include: {
+              mantas: {
+                include: { staffProfile: { include: { user: true } } },
+              },
+            },
+          },
+          activities: {
+            include: {
+              activity: {
+                include: {
+                  activityThemes: { include: { theme: true } },
+                  timeSlot: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { event: { date: 'desc' } },
+      }),
+      prisma.onboardingReminder.findMany({
+        where: { talentId: params.id },
+        orderBy: { sentAt: 'desc' },
+      }),
+    ]);
+
+    const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
+    const senders = senderIds.length
+      ? await prisma.bauth_user.findMany({
+          where: { id: { in: senderIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+    const senderById = new Map(senders.map((s) => [s.id, s]));
+    const reminders = reminderRows.map((r) => ({
+      id: r.id,
+      type: r.type as 'student' | 'parent',
+      sentAt: r.sentAt,
+      sender: senderById.get(r.sentBy) ?? null,
+    }));
 
     const stats = {
       totalEvents: participations.length,
@@ -78,13 +116,25 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     }
 
     const form = await superValidate(zod4(studentSchema));
+    const tab = validateTab(url.searchParams.get('tab'));
+    const timezone = getCampusTimezone(locals);
+    const bounds = getLifecycleBounds(timezone);
+
+    const activeStageParticipations = participations.filter((p) => {
+      if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
+      const status = getEventStatus(p.event, bounds);
+      return status === 'upcoming' || status === 'ongoing';
+    });
 
     return {
       student,
       participations,
+      activeStageParticipations,
+      reminders,
       stats,
       form,
-      timezone: getCampusTimezone(locals),
+      tab,
+      timezone,
     };
   } catch (e) {
     console.error('Erreur chargement Talent:', e);
@@ -111,6 +161,8 @@ export const actions: Actions = {
             ? form.data.parent_email.toLowerCase().trim()
             : null,
           parentPhone: form.data.parent_phone || null,
+          parentNom: form.data.parent_nom?.trim() || null,
+          parentPrenom: form.data.parent_prenom?.trim() || null,
           phone: form.data.phone || null,
         },
       });
@@ -128,8 +180,13 @@ export const actions: Actions = {
       }
 
       return message(form, 'Profil mis à jour avec succès !');
-    } catch (err: any) {
-      if (err.code === 'P2002') {
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        (err as { code?: string }).code === 'P2002'
+      ) {
         return message(
           form,
           'Un Talent avec ce nom et cet email existe déjà.',

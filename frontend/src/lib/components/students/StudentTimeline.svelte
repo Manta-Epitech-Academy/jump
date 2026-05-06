@@ -119,42 +119,6 @@
                     class="h-5 px-1.5 text-[10px] uppercase">Absent</Badge
                   >
                 {/if}
-                {#if p.stageCompliance}
-                  {@const sc = p.stageCompliance}
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.charteSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-700',
-                    )}
-                  >
-                    Charte {sc.charteSigned ? 'OK' : '·'}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.conventionSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-700',
-                    )}
-                  >
-                    Conv. {sc.conventionSigned ? 'OK' : '·'}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.imageRightsSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-red-200 bg-red-50 text-red-700',
-                    )}
-                  >
-                    Image {sc.imageRightsSigned ? 'OK' : '·'}
-                  </Badge>
-                {/if}
               </div>
               <Card.Title
                 class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue"

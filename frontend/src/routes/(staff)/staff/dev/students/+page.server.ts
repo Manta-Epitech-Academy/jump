@@ -75,6 +75,8 @@ export const actions: Actions = {
             ? form.data.parent_email.toLowerCase().trim()
             : null,
           parentPhone: form.data.parent_phone || null,
+          parentNom: form.data.parent_nom?.trim() || null,
+          parentPrenom: form.data.parent_prenom?.trim() || null,
           phone: form.data.phone || null,
         },
       });

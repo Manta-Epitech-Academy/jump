@@ -103,6 +103,7 @@ export type EventRecord = {
   endDate: Date | null;
   eventType: string;
   campusId: string;
+  externalId: string | null;
 };
 
 export async function loadEventOr404(
@@ -118,6 +119,7 @@ export async function loadEventOr404(
       endDate: true,
       eventType: true,
       campusId: true,
+      externalId: true,
     },
   });
   if (!event || event.campusId !== campusId) {
