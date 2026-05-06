@@ -4,22 +4,20 @@
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
-  import {
-    CalendarDays,
-    Target,
-    ArrowRight,
-    Users,
-    MessageSquare,
-    TrendingUp,
-    Trophy,
-    Medal,
-    UserPlus,
-    CalendarClock,
-    PhoneCall,
-    AlarmClock,
-    Inbox,
-    AlertTriangle,
-  } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Target from '@lucide/svelte/icons/target';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Users from '@lucide/svelte/icons/users';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import TrendingUp from '@lucide/svelte/icons/trending-up';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Medal from '@lucide/svelte/icons/medal';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import PhoneCall from '@lucide/svelte/icons/phone-call';
+  import AlarmClock from '@lucide/svelte/icons/alarm-clock';
+  import Inbox from '@lucide/svelte/icons/inbox';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
 
@@ -108,6 +106,10 @@
     return 'text-transparent';
   }
 </script>
+
+<svelte:head>
+  <title>Tableau de bord</title>
+</svelte:head>
 
 {#if minimalist}
   <div
@@ -353,8 +355,72 @@
         </Card.Footer>
       </Card.Root>
 
-      <!-- ÉVÉNEMENTS A VENIR + OBJECTIFS -->
+      <!-- ÉVÉNEMENTS EN COURS / À VENIR + OBJECTIFS -->
       <div class="flex flex-col space-y-6">
+        {#if data.ongoingEvents.length > 0}
+          <div class="space-y-3">
+            <h3
+              class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"
+            >
+              <span class="relative inline-flex h-2 w-2" aria-hidden="true">
+                <span
+                  class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-orange/60"
+                ></span>
+                <span
+                  class="relative inline-flex h-2 w-2 rounded-full bg-epi-orange"
+                ></span>
+              </span>
+              Événements en cours
+            </h3>
+            <div class="flex flex-col gap-3">
+              {#each data.ongoingEvents as event}
+                <div
+                  class="group flex items-center justify-between rounded-sm border border-epi-orange/40 bg-epi-orange/5 p-4 shadow-sm transition-all hover:border-epi-orange hover:shadow-md dark:shadow-none"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-background/60 p-2"
+                    >
+                      <span
+                        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                        >{new Date(event.date).toLocaleDateString('fr-FR', {
+                          month: 'short',
+                          timeZone: data.timezone,
+                        })}</span
+                      >
+                      <span
+                        class="mt-0.5 font-heading text-xl leading-none text-foreground"
+                        >{new Date(event.date).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          timeZone: data.timezone,
+                        })}</span
+                      >
+                    </div>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-bold uppercase">
+                        {event.titre}
+                      </p>
+                      <div
+                        class="mt-1 text-xs font-medium text-muted-foreground"
+                      >
+                        {event._count.participations} inscrits
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    href={resolve(`/staff/dev/events/${event.id}/manage`)}
+                    class="shrink-0 rounded-sm bg-background text-xs transition-colors group-hover:border-epi-orange group-hover:bg-epi-orange group-hover:text-white"
+                  >
+                    Gérer
+                  </Button>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
         <div class="space-y-3">
           <h3
             class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"

@@ -5,13 +5,11 @@
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
   import { Alert, AlertDescription } from '$lib/components/ui/alert';
-  import {
-    CircleAlert,
-    Sparkles,
-    Lock,
-    ArrowLeft,
-    Users,
-  } from '@lucide/svelte';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
+  import Lock from '@lucide/svelte/icons/lock';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Users from '@lucide/svelte/icons/users';
   import { cn } from '$lib/utils';
   import { fly } from 'svelte/transition';
   import { untrack } from 'svelte';
@@ -111,6 +109,10 @@
     $otpMessage = undefined;
   }
 </script>
+
+<svelte:head>
+  <title>Connexion — Espace Parent</title>
+</svelte:head>
 
 <div
   class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"

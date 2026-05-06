@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Badge } from '$lib/components/ui/badge';
-  import { Laptop, MonitorX } from '@lucide/svelte';
+  import Laptop from '@lucide/svelte/icons/laptop';
+  import MonitorX from '@lucide/svelte/icons/monitor-x';
 
   let { bringPc }: { bringPc: boolean } = $props();
 </script>

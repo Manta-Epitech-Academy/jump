@@ -1,21 +1,19 @@
 <script lang="ts">
   import { Badge } from '$lib/components/ui/badge';
   import * as Collapsible from '$lib/components/ui/collapsible';
-  import {
-    ArrowLeft,
-    CalendarDays,
-    Check,
-    X,
-    ChevronDown,
-    FileCheck,
-    FilePen,
-    Rocket,
-    LogOut,
-    Clock,
-    MapPin,
-    History,
-    Settings,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Check from '@lucide/svelte/icons/check';
+  import X from '@lucide/svelte/icons/x';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import FileCheck from '@lucide/svelte/icons/file-check';
+  import FilePen from '@lucide/svelte/icons/file-pen';
+  import Rocket from '@lucide/svelte/icons/rocket';
+  import LogOut from '@lucide/svelte/icons/log-out';
+  import Clock from '@lucide/svelte/icons/clock';
+  import MapPin from '@lucide/svelte/icons/map-pin';
+  import History from '@lucide/svelte/icons/history';
+  import Settings from '@lucide/svelte/icons/settings';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
@@ -73,6 +71,10 @@
     };
   }
 </script>
+
+<svelte:head>
+  <title>{data.child.prenom} — Espace Parent</title>
+</svelte:head>
 
 <div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
   <!-- Header -->

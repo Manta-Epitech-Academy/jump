@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Camera, CheckCircle } from '@lucide/svelte';
+  import Camera from '@lucide/svelte/icons/camera';
+  import CheckCircle from '@lucide/svelte/icons/check-circle';
   import { renderMarkdown } from '$lib/markdown';
   import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
   import { fly } from 'svelte/transition';
@@ -9,6 +10,10 @@
 
   let { data, form } = $props();
 </script>
+
+<svelte:head>
+  <title>Droit à l'image — Espace Parent</title>
+</svelte:head>
 
 <div
   class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"

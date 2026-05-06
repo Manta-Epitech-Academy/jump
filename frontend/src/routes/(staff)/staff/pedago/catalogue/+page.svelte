@@ -5,15 +5,13 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import {
-    FileText,
-    Zap,
-    Clock,
-    Search,
-    X,
-    ExternalLink,
-    Filter,
-  } from '@lucide/svelte';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import Zap from '@lucide/svelte/icons/zap';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Search from '@lucide/svelte/icons/search';
+  import X from '@lucide/svelte/icons/x';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Filter from '@lucide/svelte/icons/filter';
   import { cn } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
   import { resolve } from '$app/paths';
@@ -115,6 +113,10 @@
     }
   }
 </script>
+
+<svelte:head>
+  <title>Bibliothèque de sujets</title>
+</svelte:head>
 
 <div class="space-y-8">
   <PageBreadcrumb

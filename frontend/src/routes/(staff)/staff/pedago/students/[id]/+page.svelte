@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { Clock } from '@lucide/svelte';
+  import Clock from '@lucide/svelte/icons/clock';
   import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
@@ -11,6 +11,10 @@
 
   let xpProgress = $derived(Math.min((data.student.xp / 1000) * 100, 100));
 </script>
+
+<svelte:head>
+  <title>{data.student.prenom} {data.student.nom}</title>
+</svelte:head>
 
 <div class="space-y-6 pb-10">
   <PageBreadcrumb

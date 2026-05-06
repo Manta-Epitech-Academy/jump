@@ -3,15 +3,13 @@
   import { Input } from '$lib/components/ui/input';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import { fade, fly } from 'svelte/transition';
-  import {
-    FolderOpen,
-    X,
-    ImagePlus,
-    CircleCheck,
-    Link as LinkIcon,
-    LoaderCircle,
-    Trash2,
-  } from '@lucide/svelte';
+  import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import X from '@lucide/svelte/icons/x';
+  import ImagePlus from '@lucide/svelte/icons/image-plus';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import LinkIcon from '@lucide/svelte/icons/link';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
   import { toast } from 'svelte-sonner';
   import { enhance } from '$app/forms';
   let { showPortfolio = $bindable(), portfolioItems, eventId } = $props();

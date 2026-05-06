@@ -2,10 +2,14 @@
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import { Checkbox } from '$lib/components/ui/checkbox';
-  import { ShieldCheck } from '@lucide/svelte';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
   let accepted = $state(false);
 </script>
+
+<svelte:head>
+  <title>Charte informatique</title>
+</svelte:head>
 
 <div
   class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"

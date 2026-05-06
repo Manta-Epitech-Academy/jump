@@ -1,15 +1,13 @@
 <script lang="ts">
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
-  import {
-    Phone,
-    CheckCircle2,
-    XCircle,
-    CalendarClock,
-    GripVertical,
-    Plus,
-    Sparkles,
-  } from '@lucide/svelte';
+  import Phone from '@lucide/svelte/icons/phone';
+  import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+  import XCircle from '@lucide/svelte/icons/x-circle';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import GripVertical from '@lucide/svelte/icons/grip-vertical';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -36,6 +34,10 @@
     gridOpen = true;
   }
 </script>
+
+<svelte:head>
+  <title>{data.event.titre} — Entretiens</title>
+</svelte:head>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
   <PageBreadcrumb

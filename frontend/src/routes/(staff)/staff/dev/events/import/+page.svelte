@@ -5,7 +5,8 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import { FileSpreadsheet, LoaderCircle } from '@lucide/svelte';
+  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
@@ -68,6 +69,10 @@
     }
   });
 </script>
+
+<svelte:head>
+  <title>Nouvel événement</title>
+</svelte:head>
 
 <div class="mx-auto max-w-5xl space-y-6 pb-12">
   <div class="border-b pb-4">

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { FileText, ScrollText, Camera } from '@lucide/svelte';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import ScrollText from '@lucide/svelte/icons/scroll-text';
+  import Camera from '@lucide/svelte/icons/camera';
   import Send from '@lucide/svelte/icons/send';
   import { resolve } from '$app/paths';
   import { superForm } from 'sveltekit-superforms';
@@ -118,6 +120,10 @@
     showConfirm = true;
   }
 </script>
+
+<svelte:head>
+  <title>{data.event.titre} — Suivi ADM</title>
+</svelte:head>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
   <PageBreadcrumb

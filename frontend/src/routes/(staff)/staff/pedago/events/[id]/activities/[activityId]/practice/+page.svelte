@@ -7,14 +7,12 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Switch } from '$lib/components/ui/switch';
   import { Label } from '$lib/components/ui/label';
-  import {
-    ArrowLeft,
-    Map as MapIcon,
-    Trophy,
-    RotateCcw,
-    Eye,
-    FlaskConical,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import MapIcon from '@lucide/svelte/icons/map';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+  import Eye from '@lucide/svelte/icons/eye';
+  import FlaskConical from '@lucide/svelte/icons/flask-conical';
   import type { ActivityStep } from '$lib/server/services/progressService';
 
   import StaffRoadmapSidebar from '$lib/components/staff-practice/StaffRoadmapSidebar.svelte';
@@ -70,6 +68,10 @@
 
   let backHref = $derived(resolve(`/staff/pedago/events/${event.id}/planning`));
 </script>
+
+<svelte:head>
+  <title>{data.activity.nom} — Aperçu</title>
+</svelte:head>
 
 <div
   class="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"

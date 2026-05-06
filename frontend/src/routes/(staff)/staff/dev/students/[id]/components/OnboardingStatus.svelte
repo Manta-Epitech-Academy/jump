@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { FileCheck, FileClock } from '@lucide/svelte';
+  import FileCheck from '@lucide/svelte/icons/file-check';
+  import FileClock from '@lucide/svelte/icons/file-clock';
   import * as Card from '$lib/components/ui/card';
 
   let {

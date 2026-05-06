@@ -3,14 +3,12 @@
   import { Input } from '$lib/components/ui/input';
   import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';
-  import {
-    CircleCheck,
-    CirclePlay,
-    Send,
-    ArrowRight,
-    ShieldCheck,
-    Lock,
-  } from '@lucide/svelte';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import CirclePlay from '@lucide/svelte/icons/circle-play';
+  import Send from '@lucide/svelte/icons/send';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import Lock from '@lucide/svelte/icons/lock';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
   import type { ActivityStep } from '$lib/server/services/progressService';
@@ -29,7 +27,7 @@
     currentStep: ActivityStep;
     currentIndex: number;
     unlockedIndex: number;
-    steps: ActivityStep[];
+    steps: { id: string; title: string }[];
     progress: StepsProgress;
     selectedAnswer: number | null;
     qcmFails: number;

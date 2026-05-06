@@ -1,14 +1,12 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
-  import {
-    CircleCheck,
-    CirclePlay,
-    Send,
-    ArrowRight,
-    Eye,
-    BookOpenCheck,
-  } from '@lucide/svelte';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import CirclePlay from '@lucide/svelte/icons/circle-play';
+  import Send from '@lucide/svelte/icons/send';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Eye from '@lucide/svelte/icons/eye';
+  import BookOpenCheck from '@lucide/svelte/icons/book-open-check';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
   import type { ActivityStep } from '$lib/server/services/progressService';

@@ -3,7 +3,10 @@
   import { onMount, untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
-  import { ArrowLeft, ChevronLeft, ChevronRight, Zap } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import Zap from '@lucide/svelte/icons/zap';
   import { cn } from '$lib/utils';
   import { activityTypeStyles } from '$lib/validation/templates';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';

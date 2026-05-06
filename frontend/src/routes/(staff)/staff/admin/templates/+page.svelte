@@ -1,21 +1,20 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import {
-    Plus,
-    Pencil,
-    Trash2,
-    Copy,
-    FileText,
-    ExternalLink,
-    Globe,
-    Zap,
-    RotateCcw,
-  } from '@lucide/svelte';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Copy from '@lucide/svelte/icons/copy';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Globe from '@lucide/svelte/icons/globe';
+  import Zap from '@lucide/svelte/icons/zap';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
+  import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Switch } from '$lib/components/ui/switch';
   import * as Dialog from '$lib/components/ui/dialog';
@@ -107,6 +106,9 @@
     $form.themes = [];
     $form.content = '';
     $form.contentStructure = '';
+    $form.contentSource = 'github';
+    $form.repoUrl = '';
+    $form.ref = '';
     $form.defaultDuration = undefined;
     $form.link = '';
     $form.description = '';
@@ -130,6 +132,9 @@
     $form.contentStructure = template.contentStructure
       ? JSON.stringify(template.contentStructure, null, 2)
       : '';
+    $form.contentSource = template.subjectVersionId ? 'github' : 'inline_json';
+    $form.repoUrl = template.subject?.repoUrl ?? '';
+    $form.ref = '';
     isEditing = true;
     editId = template.id;
     open = true;
@@ -147,6 +152,10 @@
     deleteDialogOpen = true;
   }
 </script>
+
+<svelte:head>
+  <title>Modèles d'activité</title>
+</svelte:head>
 
 <div class="space-y-6">
   <div class="flex items-center justify-between">
@@ -542,28 +551,98 @@
         </div>
 
         {#if $form.isDynamic}
-          <div class="grid gap-2">
-            <Label>Structure du contenu (JSON)</Label>
-            <Textarea
-              name="contentStructure"
-              bind:value={$form.contentStructure}
-              class="h-40 font-mono text-sm"
-              placeholder={'[\n  { "titre": "Étape 1", "type": "auto_qcm" },\n  { "titre": "Étape 2", "type": "manual_manta" }\n]'}
-            />
-            {#if $errors.contentStructure}
-              <span class="text-xs text-destructive">
-                {$errors.contentStructure}
-              </span>
+          <div class="grid gap-3 rounded-md border p-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <Label>Source du contenu</Label>
+              <div class="flex gap-2">
+                <Button
+                  type="button"
+                  variant={$form.contentSource === 'inline_json'
+                    ? 'default'
+                    : 'outline'}
+                  size="sm"
+                  onclick={() => {
+                    $form.contentSource = 'inline_json';
+                    $form.repoUrl = '';
+                    $form.ref = '';
+                  }}
+                >
+                  Structure JSON
+                </Button>
+                <Button
+                  type="button"
+                  variant={$form.contentSource === 'github'
+                    ? 'default'
+                    : 'outline'}
+                  size="sm"
+                  onclick={() => {
+                    $form.contentSource = 'github';
+                    $form.contentStructure = '';
+                  }}
+                >
+                  Repo GitHub
+                </Button>
+              </div>
+              <input
+                type="hidden"
+                name="contentSource"
+                value={$form.contentSource}
+              />
+            </div>
+
+            {#if $form.contentSource === 'github'}
+              <div class="grid gap-2">
+                <Label>URL du repo GitHub</Label>
+                <Input
+                  name="repoUrl"
+                  bind:value={$form.repoUrl}
+                  placeholder="https://github.com/Manta-Epitech-Academy/pypong_new"
+                />
+                {#if $errors.repoUrl}
+                  <span class="text-xs text-destructive">
+                    {$errors.repoUrl}
+                  </span>
+                {/if}
+              </div>
+              <div class="grid gap-2">
+                <Label>Référence (branche, tag ou SHA — optionnel)</Label>
+                <Input name="ref" bind:value={$form.ref} placeholder="main" />
+                {#if $errors.ref}
+                  <span class="text-xs text-destructive">{$errors.ref}</span>
+                {/if}
+              </div>
+              {#if isEditing}
+                <p class="text-xs text-muted-foreground">
+                  Soumettre re-importera le sujet depuis le commit courant et
+                  liera le template à la nouvelle version.
+                </p>
+              {/if}
+            {:else}
+              <div class="grid gap-2">
+                <Label>Structure du contenu (JSON)</Label>
+                <Textarea
+                  name="contentStructure"
+                  bind:value={$form.contentStructure}
+                  class="h-40 font-mono text-sm"
+                  placeholder={'[\n  { "titre": "Étape 1", "type": "auto_qcm" },\n  { "titre": "Étape 2", "type": "manual_manta" }\n]'}
+                />
+                {#if $errors.contentStructure}
+                  <span class="text-xs text-destructive">
+                    {$errors.contentStructure}
+                  </span>
+                {/if}
+              </div>
             {/if}
           </div>
         {:else}
           <div class="grid gap-2">
-            <Label>Contenu (Markdown)</Label>
-            <Textarea
-              name="content"
-              bind:value={$form.content}
-              class="h-40"
-              placeholder="Rédigez le contenu de l'activité en Markdown..."
+            <Label>Contenu</Label>
+            <input type="hidden" name="content" value={$form.content} />
+            <CmsEditor
+              bind:content={
+                () => $form.content ?? '', (v) => ($form.content = v)
+              }
+              placeholder="Rédigez le contenu de l'activité..."
             />
             {#if $errors.content}
               <span class="text-xs text-destructive">

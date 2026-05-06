@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { Mail, Phone, Users, Pencil, ExternalLink } from '@lucide/svelte';
+  import Mail from '@lucide/svelte/icons/mail';
+  import Phone from '@lucide/svelte/icons/phone';
+  import Users from '@lucide/svelte/icons/users';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import { Separator } from '$lib/components/ui/separator';
   import { Button } from '$lib/components/ui/button';
   import StudentIdentityCard from '$lib/components/students/StudentIdentityCard.svelte';

@@ -2,15 +2,13 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { renderMarkdown } from '$lib/markdown';
-  import {
-    Pencil,
-    Trash2,
-    ExternalLink,
-    Zap,
-    FlaskConical,
-    Clock,
-  } from '@lucide/svelte';
+  import DOMPurify from 'isomorphic-dompurify';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Zap from '@lucide/svelte/icons/zap';
+  import FlaskConical from '@lucide/svelte/icons/flask-conical';
+  import Clock from '@lucide/svelte/icons/clock';
   import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
   import {
@@ -61,11 +59,16 @@
       ? ((activity.contentStructure as ActivityStructure | null) ?? null)
       : null,
   );
-  let stepCount = $derived(structure?.steps?.length ?? 0);
+  let isGithubBacked = $derived(!!activity?.subjectVersion);
+  let stepCount = $derived(
+    isGithubBacked
+      ? (activity?.subjectVersion?._count?.sections ?? 0)
+      : (structure?.steps?.length ?? 0),
+  );
 
   let staticHtml = $derived(
     activity && !activity.isDynamic && activity.content
-      ? renderMarkdown(activity.content)
+      ? DOMPurify.sanitize(activity.content)
       : '',
   );
 

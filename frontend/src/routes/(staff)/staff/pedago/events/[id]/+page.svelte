@@ -5,19 +5,18 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
-  import {
-    CalendarDays,
-    ShieldHalf,
-    LifeBuoy,
-    RadioTower,
-    Award,
-    CalendarClock,
-    UserPlus,
-    StickyNote,
-    ArrowRight,
-    CircleCheck,
-    UserCheck,
-  } from '@lucide/svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import ShieldHalf from '@lucide/svelte/icons/shield-half';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import RadioTower from '@lucide/svelte/icons/radio-tower';
+  import Award from '@lucide/svelte/icons/award';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import UserPlus from '@lucide/svelte/icons/user-plus';
+  import StickyNote from '@lucide/svelte/icons/sticky-note';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import Eye from '@lucide/svelte/icons/eye';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
@@ -67,6 +66,10 @@
       .slice(0, 6),
   );
 </script>
+
+<svelte:head>
+  <title>{data.event.titre}</title>
+</svelte:head>
 
 <div class="space-y-6 pb-12">
   <PageBreadcrumb
@@ -488,6 +491,15 @@
           >
             <span class="flex items-center gap-2 text-sm font-bold uppercase">
               <ShieldHalf class="h-4 w-4 text-muted-foreground" /> Factions
+            </span>
+            <ArrowRight class="h-4 w-4 text-muted-foreground" />
+          </a>
+          <a
+            href={resolve(`/staff/pedago/events/${event.id}/validation`)}
+            class="flex items-center justify-between rounded-sm border bg-card p-3 transition-colors hover:border-epi-blue/50"
+          >
+            <span class="flex items-center gap-2 text-sm font-bold uppercase">
+              <Eye class="h-4 w-4 text-muted-foreground" /> Validation
             </span>
             <ArrowRight class="h-4 w-4 text-muted-foreground" />
           </a>

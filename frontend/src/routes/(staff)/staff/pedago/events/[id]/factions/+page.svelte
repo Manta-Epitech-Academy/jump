@@ -1,11 +1,16 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { ShieldHalf, HardHat } from '@lucide/svelte';
+  import ShieldHalf from '@lucide/svelte/icons/shield-half';
+  import HardHat from '@lucide/svelte/icons/hard-hat';
   import { resolve } from '$app/paths';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
 
   let { data }: { data: PageData } = $props();
 </script>
+
+<svelte:head>
+  <title>{data.event.titre} — Factions</title>
+</svelte:head>
 
 <div class="flex flex-col space-y-6">
   <div class="border-b pb-4">

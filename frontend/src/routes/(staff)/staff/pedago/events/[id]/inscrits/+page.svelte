@@ -1,14 +1,12 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { resolve } from '$app/paths';
-  import {
-    Search,
-    SignalLow,
-    Trophy,
-    Sparkles,
-    ArrowUpDown,
-    Baby,
-  } from '@lucide/svelte';
+  import Search from '@lucide/svelte/icons/search';
+  import SignalLow from '@lucide/svelte/icons/signal-low';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
+  import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
+  import Baby from '@lucide/svelte/icons/baby';
   import { Input } from '$lib/components/ui/input';
   import { Badge } from '$lib/components/ui/badge';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -106,6 +104,10 @@
     data.participations.filter((p) => (p.talent.eventsCount ?? 0) === 0).length,
   );
 </script>
+
+<svelte:head>
+  <title>{data.event.titre} — Inscrits</title>
+</svelte:head>
 
 <div class="space-y-6 pb-12">
   <PageBreadcrumb

@@ -1,7 +1,10 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Plus, Mail, X, LoaderCircle } from '@lucide/svelte';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Mail from '@lucide/svelte/icons/mail';
+  import X from '@lucide/svelte/icons/x';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
@@ -50,7 +53,11 @@
   }
 </script>
 
-<div class="space-y-6 p-6">
+<svelte:head>
+  <title>Équipe du campus</title>
+</svelte:head>
+
+<div class="space-y-6 pb-12">
   <PageBreadcrumb
     items={[
       { label: 'Dashboard', href: resolve('/staff/dev') },
