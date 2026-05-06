@@ -64,8 +64,8 @@
           onclick={() => toggle(interest.id)}
           class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
             {isSelected
-            ? 'border-epi-teal bg-epi-teal text-white shadow-sm'
-            : 'border-border bg-card text-muted-foreground hover:border-epi-teal/50 hover:bg-epi-teal/5'}"
+            ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
+            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
         >
           {#if interest.emoji}
             <span>{interest.emoji}</span>
@@ -75,19 +75,7 @@
       {/each}
     </div>
 
-    <div class="mt-6 flex items-center justify-between">
-      <span
-        class="text-sm font-medium {count < 3
-          ? 'text-muted-foreground'
-          : count >= 10
-            ? 'text-orange-500'
-            : 'text-epi-teal'}"
-      >
-        {count}/10 sélectionnés
-        {#if count < 3}
-          <span class="text-xs">— encore {3 - count}</span>
-        {/if}
-      </span>
+    <div class="mt-6 flex justify-end">
       <Button type="submit" disabled={!canSubmit} class="px-6">Suivant</Button>
     </div>
   </form>
