@@ -14,6 +14,7 @@
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
@@ -71,6 +72,22 @@
     >
       <TriangleAlert class="h-4 w-4" />
       <span>Erreurs de Sync</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/tickets')}
+      class={navLinkClass(isActive('/staff/admin/tickets'))}
+    >
+      <LifeBuoy class="h-4 w-4" />
+      <span class="flex flex-1 items-center justify-between">
+        <span>Tickets</span>
+        {#if data.ticketsUnread > 0}
+          <span
+            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
+          >
+            {data.ticketsUnread}
+          </span>
+        {/if}
+      </span>
     </a>
     <a
       href={resolve('/staff/admin/files')}

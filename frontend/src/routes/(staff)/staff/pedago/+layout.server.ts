@@ -5,6 +5,7 @@ import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { applyStaffRoleGate, hasFlag } from '$lib/server/auth/guards';
 import { resolveStageContext } from '$lib/server/services/stageContext';
+import { countUnreadForAuthor } from '$lib/server/services/tickets';
 
 export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   const { user, staffProfile } = await parent();
@@ -26,10 +27,15 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
     ? await resolveStageContext(db)
     : null;
 
+  const ticketsUnread = locals.ticketsEnabled
+    ? await countUnreadForAuthor(user.id)
+    : 0;
+
   return {
     user,
     staffProfile,
     viewMode: locals.viewMode,
     activeStage,
+    ticketsUnread,
   };
 };
