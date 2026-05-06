@@ -7,6 +7,7 @@
   import X from '@lucide/svelte/icons/x';
   import BookOpenText from '@lucide/svelte/icons/book-open-text';
   import UserCheck from '@lucide/svelte/icons/user-check';
+  import FileText from '@lucide/svelte/icons/file-text';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -16,6 +17,7 @@
   import { fly, fade } from 'svelte/transition';
   import { resolve } from '$app/paths';
   import { getStaffRoleLabel } from '$lib/domain/staff';
+  import Gated from '$lib/components/auth/Gated.svelte';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { children, data } = $props();
@@ -114,6 +116,13 @@
       >
         <UserCheck class="h-5 w-5" />
         <span>Présences</span>
+      </a>
+      <a
+        href={resolve('/staff/pedago/contenu/welcome')}
+        class={navLinkClass(isActive('/staff/pedago/contenu/welcome'))}
+      >
+        <FileText class="h-5 w-5" />
+        <span>Page d'accueil</span>
       </a>
     </nav>
   {/if}

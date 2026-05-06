@@ -14,6 +14,7 @@
   import UserCog from '@lucide/svelte/icons/user-cog';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import FileText from '@lucide/svelte/icons/file-text';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -172,6 +173,13 @@
       >
         <ClipboardCheck class="h-5 w-5" />
         <span>Suivi ADM</span>
+      </a>
+      <a
+        href={resolve('/staff/dev/contenu/welcome')}
+        class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+      >
+        <FileText class="h-5 w-5" />
+        <span>Page d'accueil</span>
       </a>
     </nav>
   {/if}

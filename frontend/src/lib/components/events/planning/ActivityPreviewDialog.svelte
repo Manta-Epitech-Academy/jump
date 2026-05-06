@@ -2,7 +2,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import { renderMarkdown } from '$lib/markdown';
+  import DOMPurify from 'isomorphic-dompurify';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import ExternalLink from '@lucide/svelte/icons/external-link';
@@ -68,7 +68,7 @@
 
   let staticHtml = $derived(
     activity && !activity.isDynamic && activity.content
-      ? renderMarkdown(activity.content)
+      ? DOMPurify.sanitize(activity.content)
       : '',
   );
 

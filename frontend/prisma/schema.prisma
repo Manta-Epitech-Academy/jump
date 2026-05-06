@@ -68,6 +68,7 @@ model bauth_user {
   staffProfile      StaffProfile?
   talent            Talent?
   invitationsIssued StaffInvitation[] @relation("StaffInvitationInvitedBy")
+  cmsPages          CmsPage[]
 }
 
 model bauth_session {
@@ -178,6 +179,7 @@ model Talent {
   externalId        String?   @unique
   lastSyncedAt      DateTime?
   lastActiveAt      DateTime?
+  welcomeSeenAt     DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -210,6 +212,21 @@ model Campus {
   interviews        Interview[]
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
+}
+
+model CmsPage {
+  id        String   @id @default(cuid())
+  slug      String
+  eventId   String
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+  updatedBy String
+
+  event Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  bauth_user @relation(fields: [updatedBy], references: [id])
+
+  @@unique([slug, eventId])
+  @@index([eventId])
 }
 
 model Theme {
@@ -348,6 +365,7 @@ model Event {
   planning       Planning?
   observableStates TalentObservableState[]
   quizAttempts     TalentQuizAttempt[]
+  cmsPages         CmsPage[]
 
   @@index([campusId])
 }
