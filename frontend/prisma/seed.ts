@@ -48,6 +48,13 @@ function dayAt(offsetDays: number, hour: number, minute = 0): Date {
   return d;
 }
 
+// Fake 18-char Salesforce Lead id (`00Q…`). Real prefix for Lead is `00Q`;
+// the trailing 3 chars are normally a checksum we don't bother computing.
+function mockSalesforceLeadId(seed: number): string {
+  const tail = (seed + 1_000_000).toString(36).toUpperCase().padStart(13, '0');
+  return `00Q5j${tail}`;
+}
+
 // ─── Activity step content (dynamic activity checkpoints) ───
 
 type StepDef = {
@@ -1940,17 +1947,16 @@ const EVENTS: EventBlueprint[] = [
     bringPc: () => false,
   },
 
-  // 3. Past 3-day STAGE DE SECONDE (test multi-day planning + compliance)
+  // 3. Past STAGE DE SECONDE (semestre précédent — historique + portfolio)
   {
     titre: 'Stage de seconde — Découverte Tech',
     eventType: EVENT_TYPES.STAGE_SECONDE,
-    daysOffset: -21,
+    daysOffset: -180,
     durationDays: 3,
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1001',
-    notes:
-      'Premier stage de la saison. 3 élèves ont signé tous leurs documents.',
+    notes: 'Édition automne — promotion précédente. Archive pédagogique.',
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       {
@@ -2133,69 +2139,7 @@ const EVENTS: EventBlueprint[] = [
     bringPc: () => true,
   },
 
-  // 8. Future STAGE DE SECONDE — close to launch (Préparation phase QA)
-  {
-    titre: 'Stage de seconde — Édition Printemps',
-    eventType: EVENT_TYPES.STAGE_SECONDE,
-    daysOffset: 12,
-    durationDays: 3,
-    campus: 'Paris',
-    theme: 'Développement Web',
-    pin: '1002',
-    notes:
-      'Édition Printemps. Cohorte fermée le 5 mai. Prévoir le briefing Dev Co la veille (vendredi 14h en salle Atlas).',
-    mantaKeys: ['jules.dupont'],
-    days: [
-      {
-        dayOffset: 0,
-        slots: [
-          standardOrgaSlot(),
-          {
-            startHour: 13,
-            startMinute: 45,
-            endHour: 16,
-            label: 'Web',
-            activities: [
-              { nom: 'Ma première page HTML' },
-              { nom: 'CSS : Styliser sa page' },
-            ],
-          },
-        ],
-      },
-      {
-        dayOffset: 1,
-        slots: [
-          standardOrgaSlot(),
-          {
-            startHour: 13,
-            startMinute: 45,
-            endHour: 16,
-            label: 'IA',
-            activities: [{ nom: "L'IA et moi" }],
-          },
-        ],
-      },
-      {
-        dayOffset: 2,
-        slots: [
-          standardOrgaSlot(),
-          {
-            startHour: 13,
-            startMinute: 45,
-            endHour: 16,
-            label: 'Game Design',
-            activities: [{ nom: 'Crée ton jeu Scratch' }],
-          },
-        ],
-      },
-    ],
-    studentEmails: parisStudents.slice(0, 24),
-    stageSigned: parisStudents.slice(0, 12), // 12 of 24 fully signed
-    stageUnsigned: parisStudents.slice(12, 24), // 12 partial — triggers compliance alert
-    bringPc: () => true,
-  },
-
-  // 8b. Ongoing STAGE DE SECONDE — En-cours phase QA (today = J3 of 5)
+  // 8. Ongoing STAGE DE SECONDE — En-cours phase QA (today = J3 of 5)
   {
     titre: 'Stage de seconde — Cohorte en cours',
     eventType: EVENT_TYPES.STAGE_SECONDE,
@@ -2325,12 +2269,12 @@ const EVENTS: EventBlueprint[] = [
         ],
       },
     ],
-    studentEmails: parisStudents.slice(0, 12),
-    presentEmails: parisStudents.slice(0, 10), // 10/12 émargés
-    delays: { [parisStudents[3]]: 10, [parisStudents[7]]: 5 },
+    studentEmails: parisStudents.slice(6, 18),
+    presentEmails: parisStudents.slice(6, 16), // 10/12 émargés
+    delays: { [parisStudents[9]]: 10, [parisStudents[13]]: 5 },
     bringPc: () => true,
-    stageSigned: parisStudents.slice(0, 8), // 8/12 dossiers complets
-    stageUnsigned: parisStudents.slice(8, 12), // 4 partiels — alimente alertes
+    stageSigned: parisStudents.slice(6, 14), // 8/12 dossiers complets
+    stageUnsigned: parisStudents.slice(14, 18), // 4 partiels — alimente alertes
   },
 
   // 9. Past Lyon event
@@ -2633,7 +2577,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
   // Entretiens d'orientation menés pendant le stage. Utilisé par les KPIs
   // "Entretiens X/Y" et "Mes prochains entretiens" sur la vue En-cours.
   {
-    studentEmail: parisStudents[0],
+    studentEmail: parisStudents[6],
     staffKey: 'marie.manta',
     daysOffset: -1,
     hour: 10,
@@ -2646,7 +2590,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     },
   },
   {
-    studentEmail: parisStudents[1],
+    studentEmail: parisStudents[7],
     staffKey: 'marie.manta',
     daysOffset: -1,
     hour: 14,
@@ -2658,7 +2602,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     },
   },
   {
-    studentEmail: parisStudents[2],
+    studentEmail: parisStudents[8],
     staffKey: 'marie.manta',
     daysOffset: 0,
     hour: 14,
@@ -2666,7 +2610,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     forEventTitre: 'Stage de seconde — Cohorte en cours',
   },
   {
-    studentEmail: parisStudents[3],
+    studentEmail: parisStudents[9],
     staffKey: 'marie.manta',
     daysOffset: 0,
     hour: 16,
@@ -2674,7 +2618,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     forEventTitre: 'Stage de seconde — Cohorte en cours',
   },
   {
-    studentEmail: parisStudents[4],
+    studentEmail: parisStudents[10],
     staffKey: 'pauline.marchand',
     daysOffset: 1,
     hour: 11,
@@ -2682,7 +2626,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     forEventTitre: 'Stage de seconde — Cohorte en cours',
   },
   {
-    studentEmail: parisStudents[5],
+    studentEmail: parisStudents[11],
     staffKey: 'pauline.marchand',
     daysOffset: 1,
     hour: 14,
@@ -2691,12 +2635,120 @@ const INTERVIEWS: InterviewBlueprint[] = [
   },
   // En retard — entretien planifié hier, pas marqué fait → alerte "Entretiens en retard"
   {
-    studentEmail: parisStudents[6],
+    studentEmail: parisStudents[12],
     staffKey: 'marie.manta',
     daysOffset: -1,
     hour: 16,
     status: 'planned',
     forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+];
+
+// ─── Reminder blueprints ───
+//
+// Onboarding relances envoyées depuis /staff/dev/events/[id]/suivi-adm. Visible
+// dans "Historique des relances" sur la fiche talent. Cible : élèves en cours
+// d'onboarding (signatures incomplètes), avec une vraie cadence (J-10 puis J-3
+// par exemple) plutôt que des dates uniformes.
+
+type ReminderBlueprint = {
+  studentEmail: string;
+  type: 'student' | 'parent';
+  staffKey: string;
+  daysOffset: number; // negative = past
+  hour?: number;
+};
+
+const REMINDERS: ReminderBlueprint[] = [
+  // Cohorte en cours — 4 dossiers partiels (parisStudents 14–17). Pauline
+  // (devLead) et Marie (dev) ont relancé à plusieurs reprises avant le démarrage.
+  {
+    studentEmail: parisStudents[14],
+    type: 'student',
+    staffKey: 'pauline.marchand',
+    daysOffset: -10,
+    hour: 9,
+  },
+  {
+    studentEmail: parisStudents[14],
+    type: 'parent',
+    staffKey: 'pauline.marchand',
+    daysOffset: -3,
+    hour: 11,
+  },
+  {
+    studentEmail: parisStudents[15],
+    type: 'parent',
+    staffKey: 'marie.manta',
+    daysOffset: -4,
+    hour: 14,
+  },
+  {
+    studentEmail: parisStudents[16],
+    type: 'student',
+    staffKey: 'marie.manta',
+    daysOffset: -12,
+    hour: 10,
+  },
+  {
+    studentEmail: parisStudents[16],
+    type: 'parent',
+    staffKey: 'pauline.marchand',
+    daysOffset: -5,
+    hour: 9,
+  },
+  {
+    studentEmail: parisStudents[17],
+    type: 'parent',
+    staffKey: 'pauline.marchand',
+    daysOffset: -2,
+    hour: 16,
+  },
+  // Talents hors stage avec onboarding incomplet — relances génériques pour
+  // alimenter les fiches profils en dehors du contexte stage.
+  {
+    studentEmail: parisStudents[20],
+    type: 'student',
+    staffKey: 'antoine.roux',
+    daysOffset: -15,
+    hour: 11,
+  },
+  {
+    studentEmail: parisStudents[25],
+    type: 'parent',
+    staffKey: 'clara.noel',
+    daysOffset: -7,
+    hour: 14,
+  },
+  // Lyon — stage de seconde Lyon a 5 dossiers partiels (lyonStudents 5–9).
+  // Hugo (Lyon devLead) et Sarah (Lyon dev) gèrent les relances.
+  {
+    studentEmail: lyonStudents[5],
+    type: 'parent',
+    staffKey: 'hugo.lefebvre',
+    daysOffset: -6,
+    hour: 10,
+  },
+  {
+    studentEmail: lyonStudents[6],
+    type: 'student',
+    staffKey: 'sarah.moreau',
+    daysOffset: -8,
+    hour: 15,
+  },
+  {
+    studentEmail: lyonStudents[6],
+    type: 'parent',
+    staffKey: 'hugo.lefebvre',
+    daysOffset: -4,
+    hour: 9,
+  },
+  {
+    studentEmail: lyonStudents[8],
+    type: 'parent',
+    staffKey: 'sarah.moreau',
+    daysOffset: -3,
+    hour: 11,
   },
 ];
 
@@ -2813,6 +2865,10 @@ async function main() {
   const portfolioCount = await seedPortfolio(talentByEmail, eventIds);
   console.log(`✓  Portfolio (${portfolioCount} items)`);
 
+  // 12. Reminders (Historique des relances)
+  const reminderCount = await seedReminders(staffByKey, talentByEmail);
+  console.log(`✓  Reminders (${reminderCount})`);
+
   // ── Final summary ──
   await printSummary(parentEmail);
 }
@@ -2825,6 +2881,7 @@ async function wipeAll() {
   await prisma.participationActivity.deleteMany();
   await prisma.portfolioItem.deleteMany();
   await prisma.stepsProgress.deleteMany();
+  await prisma.onboardingReminder.deleteMany();
   await prisma.participation.deleteMany();
   await prisma.interview.deleteMany();
   await prisma.eventManta.deleteMany();
@@ -2873,8 +2930,11 @@ async function seedCampuses(): Promise<
 
 async function seedStaff(
   campuses: Record<string, { id: string }>,
-): Promise<Record<string, { id: string; campusId: string }>> {
-  const byKey: Record<string, { id: string; campusId: string }> = {};
+): Promise<Record<string, { id: string; userId: string; campusId: string }>> {
+  const byKey: Record<
+    string,
+    { id: string; userId: string; campusId: string }
+  > = {};
   for (const s of STAFF_MEMBERS) {
     const user = await prisma.bauth_user.create({
       data: {
@@ -2892,7 +2952,11 @@ async function seedStaff(
         staffRole: s.role,
       },
     });
-    byKey[s.key] = { id: profile.id, campusId: profile.campusId! };
+    byKey[s.key] = {
+      id: profile.id,
+      userId: user.id,
+      campusId: profile.campusId!,
+    };
   }
   return byKey;
 }
@@ -3026,6 +3090,7 @@ async function seedStudents(
         parentEmail: hasParentInfo ? `parent.${s.email}` : null,
         lastActiveAt,
         lyceeId,
+        externalId: mockSalesforceLeadId(i),
       },
     });
 
@@ -3217,7 +3282,7 @@ async function seedPlanningTemplate(
 
 async function seedEvents(
   campuses: Record<string, { id: string }>,
-  staffByKey: Record<string, { id: string; campusId: string }>,
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
   talentByEmail: Record<string, { id: string; nom: string; prenom: string }>,
   themesByKey: Record<string, { id: string }>,
   templatesByName: Record<string, { id: string }>,
@@ -3548,7 +3613,7 @@ async function recomputeXp(): Promise<number> {
 }
 
 async function seedInterviews(
-  staffByKey: Record<string, { id: string; campusId: string }>,
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
   talentByEmail: Record<string, { id: string }>,
   _campuses: Record<string, { id: string }>,
 ): Promise<number> {
@@ -3620,6 +3685,28 @@ async function seedPortfolio(
         eventId,
         url: p.url ?? null,
         caption: p.caption,
+      },
+    });
+    count++;
+  }
+  return count;
+}
+
+async function seedReminders(
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
+  talentByEmail: Record<string, { id: string }>,
+): Promise<number> {
+  let count = 0;
+  for (const r of REMINDERS) {
+    const talent = talentByEmail[r.studentEmail];
+    const staff = staffByKey[r.staffKey];
+    if (!talent || !staff) continue;
+    await prisma.onboardingReminder.create({
+      data: {
+        talentId: talent.id,
+        type: r.type,
+        sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
+        sentBy: staff.userId,
       },
     });
     count++;
@@ -3709,7 +3796,11 @@ async function printSummary(parentEmail: string) {
     `   Task queue — missing planning: 1 event (Atelier Game Design, +4d)`,
   );
   console.log(
-    '   Stage compliance:              2 stage_seconde events with mixed signed/unsigned',
+    '   Stage compliance:              3 stage_seconde events with mixed signed/unsigned',
+  );
+  const reminderTotal = await prisma.onboardingReminder.count();
+  console.log(
+    `   Onboarding reminders:          ${reminderTotal} relances envoyées (CommHistoryList)`,
   );
   console.log('');
 
