@@ -306,9 +306,8 @@ export async function deriveEventAlerts(
       kind: 'chartes-to-chase',
       eventId: event.id,
       eventTitre: event.titre,
-      title: 'Chartes non remontées par Salesforce',
-      description:
-        'Salesforce ne marque pas la charte comme signée — vérifier l’upload SF',
+      title: 'Chartes à valider',
+      description: 'Cocher dans Suivi ADM dès réception du document signé',
       count: facts.chartesToChase,
       severity: 'info',
       href: `${suiviHref}?filter=charte-missing`,
@@ -320,9 +319,9 @@ export async function deriveEventAlerts(
       kind: 'image-rights-to-chase',
       eventId: event.id,
       eventTitre: event.titre,
-      title: 'Droits à l’image non remontés par Salesforce',
+      title: 'Droits à l’image à valider',
       description:
-        'Aucun document de droits à l’image côté Salesforce — vérifier l’upload SF',
+        'Cocher dans Suivi ADM dès réception du document signé par les parents',
       count: facts.imageRightsToChase,
       severity: 'info',
       href: `${suiviHref}?filter=image-rights-missing`,
@@ -334,9 +333,9 @@ export async function deriveEventAlerts(
       kind: 'pc-missing',
       eventId: event.id,
       eventTitre: event.titre,
-      title: 'PC non confirmé sur Salesforce',
+      title: 'Matériel à prévoir',
       description:
-        'Champ « PC apporté » non renseigné côté Salesforce pour ces inscrits',
+        'Inscrits sans PC personnel — prévoir un poste pour le stage',
       count: facts.pcMissing,
       severity: 'info',
       href: `${suiviHref}?filter=pc-missing`,
@@ -507,10 +506,10 @@ export async function deriveEventChecklist(
     key: `conventions-${event.id}`,
     kind: 'conventions-to-chase',
     group: 'documents',
-    title: 'Conventions de stage signées sur Salesforce',
+    title: 'Conventions de stage signées (Salesforce)',
     meta:
       facts.conventionsToChase === 0
-        ? `${total}/${total} signées sur SF`
+        ? `${total}/${total} remontées par Salesforce`
         : `${facts.conventionsToChase} non remontée${facts.conventionsToChase > 1 ? 's' : ''} par Salesforce`,
     done: facts.conventionsToChase === 0,
     severity: 'warning',
@@ -521,11 +520,11 @@ export async function deriveEventChecklist(
     key: `chartes-${event.id}`,
     kind: 'chartes-to-chase',
     group: 'documents',
-    title: 'Chartes informatiques signées sur Salesforce',
+    title: 'Chartes validées dans Suivi ADM',
     meta:
       facts.chartesToChase === 0
-        ? `${total}/${total} signées sur SF`
-        : `${facts.chartesToChase} non remontée${facts.chartesToChase > 1 ? 's' : ''} par Salesforce`,
+        ? `${total}/${total} cochées`
+        : `${facts.chartesToChase} à cocher dans Suivi ADM`,
     done: facts.chartesToChase === 0,
     severity: 'info',
     href: `${suiviHref}?filter=charte-missing`,
@@ -535,11 +534,11 @@ export async function deriveEventChecklist(
     key: `image-rights-${event.id}`,
     kind: 'image-rights-to-chase',
     group: 'documents',
-    title: 'Droits à l’image collectés sur Salesforce',
+    title: 'Droits à l’image validés dans Suivi ADM',
     meta:
       facts.imageRightsToChase === 0
-        ? `${total}/${total} collectés sur SF`
-        : `${facts.imageRightsToChase} non remonté${facts.imageRightsToChase > 1 ? 's' : ''} par Salesforce`,
+        ? `${total}/${total} cochés`
+        : `${facts.imageRightsToChase} à cocher dans Suivi ADM`,
     done: facts.imageRightsToChase === 0,
     severity: 'info',
     href: `${suiviHref}?filter=image-rights-missing`,
@@ -549,11 +548,11 @@ export async function deriveEventChecklist(
     key: `pc-${event.id}`,
     kind: 'pc-missing',
     group: 'documents',
-    title: 'PC personnels confirmés sur Salesforce',
+    title: 'Matériel prévu pour les inscrits sans PC',
     meta:
       facts.pcMissing === 0
-        ? `${total}/${total} confirmés sur SF`
-        : `${facts.pcMissing} non confirmé${facts.pcMissing > 1 ? 's' : ''} sur Salesforce`,
+        ? `${total}/${total} ont un PC personnel`
+        : `${facts.pcMissing} sans PC personnel — prévoir un poste`,
     done: facts.pcMissing === 0,
     severity: 'info',
     href: `${suiviHref}?filter=pc-missing`,

@@ -61,7 +61,7 @@
             </Table.Head>
           </Gated>
           <Table.Head class="w-64">Participant</Table.Head>
-          <Table.Head class="text-center">Charte informatique</Table.Head>
+          <Table.Head class="text-center">Charte</Table.Head>
           <Table.Head class="text-center">Convention de stage</Table.Head>
           <Table.Head class="text-center">Droit à l'image</Table.Head>
           <Table.Head class="text-center">Matériel (PC)</Table.Head>

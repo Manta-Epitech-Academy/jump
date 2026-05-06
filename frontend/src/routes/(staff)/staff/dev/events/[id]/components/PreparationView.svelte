@@ -127,7 +127,7 @@
       <p
         class="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
       >
-        Données issues de Salesforce — un item peut être déjà réglé hors-ligne
+        Auto-cochée selon Suivi ADM, Salesforce et l’activité plateforme
       </p>
       <div class="pt-2">
         <ChecklistPanel items={checklist} />

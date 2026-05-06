@@ -181,7 +181,7 @@
       <p
         class="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
       >
-        Données issues de Salesforce et de Jump
+        Dérivées de Suivi ADM, Salesforce et l’activité plateforme
       </p>
       <div class="pt-2">
         <AlertsPanel

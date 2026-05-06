@@ -71,17 +71,17 @@
     },
     {
       key: 'charte-missing',
-      label: 'Charte manquante (SF)',
+      label: 'Charte à valider',
       missing: total - charteCount,
     },
     {
       key: 'image-rights-missing',
-      label: 'Droits image manquants (SF)',
+      label: 'Droits image à valider',
       missing: total - imageCount,
     },
     {
       key: 'pc-missing',
-      label: 'PC non confirmé (SF)',
+      label: 'Sans PC personnel',
       missing: total - pcCount,
     },
   ]);
@@ -201,7 +201,7 @@
         class="flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase"
       >
         <FileText class="h-3.5 w-3.5" />
-        Charte informatique
+        Charte
       </div>
       <div class="mt-2 font-mono text-2xl font-black">
         {charteCount}<span class="text-base text-muted-foreground"

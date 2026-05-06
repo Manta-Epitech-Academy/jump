@@ -27,16 +27,16 @@
 
 <Collapsible.Root {open} onOpenChange={(v) => (open = v)}>
   <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
-    <Card.Header
-      class="flex flex-row items-center justify-between border-b bg-muted/30 pt-4 pb-3"
+    <div
+      class="flex flex-row items-center justify-between gap-3 border-b bg-muted/30 px-6 pt-4 pb-3"
     >
       <Collapsible.Trigger class="flex flex-1 items-center gap-2 text-left">
-        <StickyNote class="h-4 w-4 text-epi-blue" />
-        <span
-          class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+        <StickyNote class="h-5 w-5 text-epi-blue" />
+        <h3
+          class="font-heading text-2xl tracking-wide text-foreground uppercase"
         >
           Notes de l’événement
-        </span>
+        </h3>
         <ChevronDown
           class={cn(
             'ml-1 h-4 w-4 text-muted-foreground transition-transform',
@@ -68,7 +68,7 @@
           </Tooltip.Provider>
         </Gated>
       {/if}
-    </Card.Header>
+    </div>
     <Collapsible.Content>
       <Card.Content>
         {#if html}
