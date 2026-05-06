@@ -2,18 +2,23 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { infoValidationSchema } from '$lib/validation/onboarding';
+import {
+  infoValidationSchema,
+  interestsSchema,
+} from '$lib/validation/onboarding';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 
-export type OnboardingStep = 'info-validation' | 'rules';
+export type OnboardingStep = 'info-validation' | 'interests' | 'rules';
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
+  interestsValidatedAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
   if (!profile.infoValidatedAt) return 'info-validation';
+  if (!profile.interestsValidatedAt) return 'interests';
   if (!profile.rulesSignedAt) return 'rules';
   return null;
 }
@@ -43,6 +48,26 @@ export const load: PageServerLoad = async ({ locals }) => {
         parentPhone: locals.talent.parentPhone ?? '',
         phone: locals.talent.phone ?? '',
       },
+    };
+  }
+
+  if (step === 'interests') {
+    const categories = await prisma.interestCategory.findMany({
+      orderBy: { order: 'asc' },
+      include: {
+        interests: { orderBy: { order: 'asc' } },
+      },
+    });
+
+    const existing = await prisma.talentInterest.findMany({
+      where: { talentId: locals.talent.id },
+      select: { interestId: true },
+    });
+
+    return {
+      step,
+      categories,
+      selectedIds: existing.map((e) => e.interestId),
     };
   }
 
@@ -118,6 +143,51 @@ export const actions: Actions = {
         console.error('Failed to send parent welcome email:', err),
       );
     }
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  validateInterests: async ({ request, locals }) => {
+    if (!locals.talent) {
+      throw error(401, 'Non autorisé');
+    }
+
+    const formData = await request.formData();
+    const raw = formData.getAll('interestIds');
+    const result = interestsSchema.safeParse({ interestIds: raw });
+
+    if (!result.success) {
+      return {
+        step: 'interests' as const,
+        error: result.error.errors[0]?.message ?? 'Sélection invalide.',
+      };
+    }
+
+    const count = await prisma.interest.count({
+      where: { id: { in: result.data.interestIds } },
+    });
+    if (count !== result.data.interestIds.length) {
+      return {
+        step: 'interests' as const,
+        error: "Certains centres d'intérêt sélectionnés n'existent plus.",
+      };
+    }
+
+    await prisma.$transaction([
+      prisma.talentInterest.deleteMany({
+        where: { talentId: locals.talent.id },
+      }),
+      prisma.talentInterest.createMany({
+        data: result.data.interestIds.map((interestId) => ({
+          talentId: locals.talent!.id,
+          interestId,
+        })),
+      }),
+      prisma.talent.update({
+        where: { id: locals.talent.id },
+        data: { interestsValidatedAt: new Date() },
+      }),
+    ]);
 
     throw redirect(303, resolve('/onboarding'));
   },
