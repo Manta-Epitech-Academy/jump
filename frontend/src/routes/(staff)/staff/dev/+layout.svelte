@@ -15,7 +15,7 @@
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import FileText from '@lucide/svelte/icons/file-text';
-  import LifeBuoy from '@lucide/svelte';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';

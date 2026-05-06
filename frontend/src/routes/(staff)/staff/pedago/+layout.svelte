@@ -8,7 +8,7 @@
   import BookOpenText from '@lucide/svelte/icons/book-open-text';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import FileText from '@lucide/svelte/icons/file-text';
-  import LifeBuoy from '@lucide/svelte';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';

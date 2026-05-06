@@ -14,7 +14,7 @@
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
-  import LifeBuoy from '@lucide/svelte';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
