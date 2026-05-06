@@ -262,7 +262,7 @@ export async function deriveEventAlerts(
         description: 'Inscrits sans PC personnel confirmé',
         count: pcMissing,
         severity: 'info',
-        href: inscritsHref,
+        href: suiviHref,
       });
     }
     if (talentsNeverLogged > 0) {
@@ -275,7 +275,7 @@ export async function deriveEventAlerts(
         description: 'Talents qui ne se sont pas encore connectés à Jump',
         count: talentsNeverLogged,
         severity: 'danger',
-        href: inscritsHref,
+        href: `${inscritsHref}?filter=never-logged`,
       });
     }
     if (talentsProfileIncomplete > 0) {
@@ -288,7 +288,7 @@ export async function deriveEventAlerts(
         description: 'Talents bloqués avant le tableau de bord élève',
         count: talentsProfileIncomplete,
         severity: 'warning',
-        href: inscritsHref,
+        href: `${inscritsHref}?filter=profile-incomplete`,
       });
     }
     if (overdueInterviews > 0) {

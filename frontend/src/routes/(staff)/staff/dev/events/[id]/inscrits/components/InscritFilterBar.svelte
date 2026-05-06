@@ -22,7 +22,6 @@
   const SORT_LABELS: Record<Sort, string> = {
     alpha: 'Alphabétique',
     xp: 'XP descendant',
-    lastEvent: 'Dernier événement',
     events: 'Plus de participations',
   };
 
