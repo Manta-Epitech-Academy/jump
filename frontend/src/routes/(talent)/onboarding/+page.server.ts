@@ -159,7 +159,7 @@ export const actions: Actions = {
     if (!result.success) {
       return {
         step: 'interests' as const,
-        error: result.error.errors[0]?.message ?? 'Sélection invalide.',
+        error: result.error.issues[0]?.message ?? 'Sélection invalide.',
       };
     }
 
