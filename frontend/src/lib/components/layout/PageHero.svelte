@@ -3,18 +3,12 @@
 </script>
 
 <script lang="ts">
-  import type { Component, Snippet } from 'svelte';
-  import type { Icon as IconType } from '@lucide/svelte';
+  import type { Snippet } from 'svelte';
   import { cn } from '$lib/utils';
 
   type Props = {
-    /** Background gradient flavour. Blue is the workspace default. */
+    /** Background flavour. Blue is the workspace default. */
     variant?: PageHeroVariant;
-    /**
-     * Optional decorative icon rendered top-right with low opacity.
-     * Pass any lucide icon component.
-     */
-    decorationIcon?: typeof IconType | Component;
     /** Vertical padding density. Compact for sub-pages, comfortable for top-level dashboards. */
     density?: 'compact' | 'comfortable';
     /** Extra classes appended to the outer wrapper. */
@@ -24,7 +18,6 @@
 
   let {
     variant = 'blue',
-    decorationIcon,
     density = 'comfortable',
     class: extraClass,
     children,
@@ -32,17 +25,15 @@
 
   const variantClass = $derived(
     variant === 'teal'
-      ? 'bg-linear-to-r from-epi-teal-solid via-teal-700 to-slate-900'
+      ? 'bg-epi-teal-solid'
       : variant === 'amber'
-        ? 'bg-linear-to-r from-epi-orange via-orange-800 to-slate-900'
+        ? 'bg-epi-orange'
         : 'bg-epi-blue',
   );
 
   const paddingClass = $derived(
     density === 'compact' ? 'px-6 py-6' : 'px-8 py-10',
   );
-
-  const Decoration = $derived(decorationIcon);
 </script>
 
 <div
@@ -53,14 +44,31 @@
     extraClass,
   )}
 >
-  {#if Decoration}
+  <!-- Blueprint grid texture (charte signature) -->
+  <div
+    class="pointer-events-none absolute inset-0"
+    style="background-image: linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 40px 40px;"
+    aria-hidden="true"
+  ></div>
+
+  <!-- Pixel overlays — 50%-opacity squares, charte signature texture -->
+  <div
+    class="pointer-events-none absolute top-4 right-4 hidden md:block"
+    aria-hidden="true"
+  >
     <div
-      class="pointer-events-none absolute -top-20 -right-20 opacity-20 mix-blend-overlay"
-      aria-hidden="true"
-    >
-      <Decoration class="h-96 w-96" />
-    </div>
-  {/if}
+      class="absolute"
+      style="top: 0; right: 0; width: 56px; height: 56px; background: rgba(255,255,255,0.5);"
+    ></div>
+    <div
+      class="absolute"
+      style="top: 0; right: 64px; width: 28px; height: 56px; background: rgba(255,255,255,0.25);"
+    ></div>
+    <div
+      class="absolute"
+      style="top: 64px; right: 0; width: 28px; height: 28px; background: rgba(255,255,255,0.35);"
+    ></div>
+  </div>
 
   <div class="relative z-10">
     {@render children()}

@@ -60,7 +60,7 @@
 </script>
 
 <div class="space-y-6 pb-12">
-  <PageHero decorationIcon={CalendarDays}>
+  <PageHero>
     <div
       class="flex flex-wrap items-center gap-3 font-mono text-[10px] font-bold tracking-widest text-blue-100 uppercase"
     >

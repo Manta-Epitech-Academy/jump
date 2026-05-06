@@ -66,7 +66,7 @@
             href={resolve(`/staff/dev/students/${iv.talent.id}`)}
             class="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/30"
           >
-            <Avatar.Root class="h-8 w-8 rounded-sm border">
+            <Avatar.Root class="h-8 w-8">
               <Avatar.Fallback
                 class="bg-primary/10 text-[10px] font-bold text-primary uppercase"
               >

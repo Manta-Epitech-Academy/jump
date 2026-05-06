@@ -5,7 +5,6 @@
   import ScrollText from '@lucide/svelte/icons/scroll-text';
   import Camera from '@lucide/svelte/icons/camera';
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import History from '@lucide/svelte/icons/history';
   import { resolve } from '$app/paths';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import EventKpiTile from './EventKpiTile.svelte';
@@ -63,11 +62,12 @@
 </script>
 
 <div class="space-y-6 pb-12">
-  <PageHero variant="amber" decorationIcon={History}>
+  <PageHero variant="amber">
     <p
       class="font-mono text-[10px] font-bold tracking-widest text-orange-100 uppercase"
     >
-      Stage terminé · {datesLabel}
+      <span class="opacity-60">&lt;</span> Stage terminé · {datesLabel}
+      <span class="opacity-60">/&gt;</span>
     </p>
     <h1 class="mt-3 font-heading text-4xl tracking-wide uppercase">
       {titre}<span class="text-epi-teal">_</span>

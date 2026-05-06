@@ -9,7 +9,6 @@
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import Users from '@lucide/svelte/icons/users';
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import TrendingUp from '@lucide/svelte/icons/trending-up';
   import Trophy from '@lucide/svelte/icons/trophy';
   import Medal from '@lucide/svelte/icons/medal';
   import Inbox from '@lucide/svelte/icons/inbox';
@@ -63,7 +62,7 @@
 {:else}
   <div class="space-y-8">
     <!-- HERO BANNER -->
-    <PageHero decorationIcon={TrendingUp}>
+    <PageHero>
       <h1 class="mb-2 font-heading text-4xl tracking-wide uppercase">
         Bienvenue, <span class="text-epi-teal">{data.userName}</span>.
       </h1>

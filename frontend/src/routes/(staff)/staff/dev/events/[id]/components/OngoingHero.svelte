@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ActivityIcon from '@lucide/svelte/icons/activity';
   import PageHero from '$lib/components/layout/PageHero.svelte';
 
   type Props = {
@@ -44,7 +43,7 @@
   );
 </script>
 
-<PageHero decorationIcon={ActivityIcon}>
+<PageHero>
   <div class="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
     <div>
       <div class="flex flex-wrap items-center gap-3">
@@ -58,12 +57,8 @@
             <span class="relative inline-flex h-2 w-2 rounded-full bg-epi-teal"
             ></span>
           </span>
-          Stage en cours
-        </span>
-        <span
-          class="font-mono text-[10px] font-bold tracking-widest text-blue-100 uppercase"
-        >
-          {datesLabel}
+          <span class="opacity-60">&lt;</span> Stage en cours · {datesLabel}
+          <span class="opacity-60">/&gt;</span>
         </span>
       </div>
       <h1

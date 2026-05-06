@@ -77,7 +77,8 @@
     <div class={titleClass}>{title}</div>
     {#if meta}
       <p class={metaClass}>
-        {#if urgent}<span class="mr-1.5">⚠ URGENT</span>{/if}{meta}
+        {#if urgent}<span class="mr-1.5 font-bold">&lt; URGENT /&gt;</span
+          >{/if}{meta}
       </p>
     {/if}
   </div>

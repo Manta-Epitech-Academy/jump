@@ -1,5 +1,4 @@
 <script lang="ts">
-  import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { onMount } from 'svelte';
 
@@ -62,13 +61,14 @@
   );
 </script>
 
-<PageHero decorationIcon={CalendarDays}>
+<PageHero>
   <div class="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
     <div>
       <p
         class="font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
       >
-        Préparation · {ribbon}
+        <span class="opacity-60">&lt;</span> Préparation · {ribbon}
+        <span class="opacity-60">/&gt;</span>
       </p>
       <h1
         class="mt-3 font-heading text-4xl tracking-wide uppercase md:text-5xl"
