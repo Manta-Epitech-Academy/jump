@@ -1,6 +1,7 @@
 import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
+import { countUnreadForAdmin } from '$lib/server/services/tickets';
 
 export const load: LayoutServerLoad = async ({ parent }) => {
   const { user, staffProfile } = await parent();
@@ -9,5 +10,7 @@ export const load: LayoutServerLoad = async ({ parent }) => {
     throw redirect(302, resolve('/staff/login'));
   }
 
-  return { user, staffProfile };
+  const ticketsUnread = await countUnreadForAdmin();
+
+  return { user, staffProfile, ticketsUnread };
 };

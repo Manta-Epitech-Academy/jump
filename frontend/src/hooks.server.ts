@@ -3,6 +3,7 @@ import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
+import { getTicketsEnabled } from '$lib/server/settings/tickets';
 
 function setSecurityHeaders(response: Response) {
   response.headers.set('X-Frame-Options', 'DENY');
@@ -29,6 +30,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.staffProfile = null;
   event.locals.talent = null;
   event.locals.featureFlags = new Set();
+  event.locals.ticketsEnabled = false;
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -58,6 +60,10 @@ export const handle: Handle = async ({ event, resolve }) => {
         select: { flagKey: true, enabled: true },
       });
       event.locals.featureFlags = resolveEffectiveFlags(overrides);
+    }
+
+    if (event.locals.staffProfile) {
+      event.locals.ticketsEnabled = await getTicketsEnabled();
     }
 
     // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget)

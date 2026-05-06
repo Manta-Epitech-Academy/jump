@@ -15,6 +15,7 @@
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import FileText from '@lucide/svelte/icons/file-text';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -28,6 +29,7 @@
   import Gated from '$lib/components/auth/Gated.svelte';
   import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
+  import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -213,6 +215,30 @@
       </a>
     </nav>
   </Gated>
+
+  {#if data.ticketsEnabled}
+    <div class="sidebar-section-title">
+      Support<span class="text-epi-pink">_</span>
+    </div>
+    <nav class="space-y-1">
+      <a
+        href={resolve('/staff/dev/tickets')}
+        class={navLinkClass(isActive('/staff/dev/tickets'))}
+      >
+        <LifeBuoy class="h-5 w-5" />
+        <span class="flex flex-1 items-center justify-between">
+          <span>Tickets</span>
+          {#if data.ticketsUnread > 0}
+            <span
+              class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
+            >
+              {data.ticketsUnread}
+            </span>
+          {/if}
+        </span>
+      </a>
+    </nav>
+  {/if}
 {/snippet}
 
 <div class="flex h-screen w-full flex-col overflow-hidden bg-background">
@@ -427,4 +453,8 @@
 
 {#if hasCodingClub}
   <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
+{/if}
+
+{#if data.ticketsEnabled}
+  <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />
 {/if}

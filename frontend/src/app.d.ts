@@ -17,6 +17,7 @@ declare global {
       talent: Talent | null;
       viewMode: 'readonly' | 'edit';
       featureFlags: Set<FlagKey>;
+      ticketsEnabled: boolean;
     }
     // interface PageData {}
     // interface PageState {}
