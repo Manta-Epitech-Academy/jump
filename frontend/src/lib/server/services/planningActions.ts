@@ -11,6 +11,7 @@ import {
 } from '$lib/validation/planning';
 import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
 import { applyPlanningTemplate } from './planningTemplates';
+import { sanitizeRichHtml } from '$lib/server/sanitize';
 import {
   getCampusId,
   getCampusTimezone,
@@ -151,7 +152,9 @@ export const planningActions = {
             activityType: form.data.activityType,
             isDynamic: false,
             link: form.data.link || null,
-            content: form.data.content || null,
+            content: form.data.content
+              ? sanitizeRichHtml(form.data.content)
+              : null,
             timeSlotId: form.data.timeSlotId,
           },
         });

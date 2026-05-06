@@ -3,8 +3,14 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-import { PrismaClient, type ActivityType } from '@prisma/client';
+import {
+  PrismaClient,
+  type ActivityType,
+  type ParticipationVerdict,
+  type ParticipationContextTag,
+} from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { marked } from 'marked';
 
 const EVENT_TYPES = {
   CODING_CLUB: 'coding_club',
@@ -1810,7 +1816,14 @@ type EventBlueprint = {
   studentEmails: string[];
   presentEmails?: string[]; // subset of studentEmails
   delays?: Record<string, number>; // email -> delay minutes
-  notes_by_email?: Record<string, { text: string; authorKey: string }>;
+  verdicts_by_email?: Record<
+    string,
+    {
+      verdict: ParticipationVerdict;
+      contextTag?: ParticipationContextTag;
+      authorKey: string;
+    }
+  >;
   ratings?: Record<string, number>;
   feedback?: Record<string, string>;
   bringPc?: (email: string, index: number) => boolean;
@@ -1862,13 +1875,14 @@ const EVENTS: EventBlueprint[] = [
     studentEmails: parisStudents.slice(0, 8),
     presentEmails: parisStudents.slice(0, 7), // 7/8 attended
     delays: { [parisStudents[3]]: 10 },
-    notes_by_email: {
+    verdicts_by_email: {
       [parisStudents[0]]: {
-        text: 'Très engagée, super motivée sur les exercices.',
+        verdict: 'comfortable',
         authorKey: 'jules.dupont',
       },
       [parisStudents[4]]: {
-        text: 'A aidé ses camarades sur César.',
+        verdict: 'comfortable',
+        contextTag: 'helped_others',
         authorKey: 'laura.garcia',
       },
     },
@@ -2046,9 +2060,9 @@ const EVENTS: EventBlueprint[] = [
     studentEmails: parisStudents.slice(0, 8),
     presentEmails: parisStudents.slice(0, 6), // 6 already checked in
     delays: { [parisStudents[4]]: 15 },
-    notes_by_email: {
+    verdicts_by_email: {
       [parisStudents[2]]: {
-        text: 'Hésite sur la collecte des données.',
+        verdict: 'progressing',
         authorKey: 'jules.dupont',
       },
     },
@@ -2829,6 +2843,11 @@ async function wipeAll() {
   await prisma.interest.deleteMany();
   await prisma.talent.deleteMany();
   await prisma.lycee.deleteMany();
+  // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
+  // is a required FK with default RESTRICT, so live versions block the delete.
+  await prisma.subjectVersion.deleteMany();
+  await prisma.subject.deleteMany();
+  await prisma.refCompSnapshot.deleteMany();
   await prisma.staffProfile.deleteMany();
   await prisma.campus.deleteMany();
   await prisma.syncError.deleteMany();
@@ -3118,7 +3137,9 @@ async function seedActivityTemplates(
         contentStructure: def.isDynamic
           ? (contentStructures[def.nom] ?? undefined)
           : undefined,
-        content: def.content,
+        content: def.content
+          ? (marked.parse(def.content) as string)
+          : undefined,
         link: def.link,
         defaultDuration: def.defaultDuration,
         campusId,
@@ -3322,8 +3343,10 @@ async function seedEvents(
         ? blueprint.presentEmails.includes(email)
         : false;
 
-      const note = blueprint.notes_by_email?.[email];
-      const noteAuthor = note ? staffByKey[note.authorKey] : undefined;
+      const verdictEntry = blueprint.verdicts_by_email?.[email];
+      const verdictAuthor = verdictEntry
+        ? staffByKey[verdictEntry.authorKey]
+        : undefined;
 
       const participation = await prisma.participation.create({
         data: {
@@ -3333,8 +3356,6 @@ async function seedEvents(
           isPresent,
           delay: blueprint.delays?.[email] ?? 0,
           bringPc: blueprint.bringPc ? blueprint.bringPc(email, i) : false,
-          note: note?.text ?? null,
-          noteAuthorId: noteAuthor?.id ?? null,
           camperRating: isPresent ? (blueprint.ratings?.[email] ?? null) : null,
           camperFeedback: isPresent
             ? (blueprint.feedback?.[email] ?? null)
@@ -3342,14 +3363,28 @@ async function seedEvents(
         },
       });
 
-      // ParticipationActivity for every activity in the event
+      // Cockpit attaches verdicts at the orga (roll-call) slot, so seed
+      // mirrors that on the first orga activity of the event.
+      const verdictTargetId = activitiesCreated.find(
+        (a) => a.type === 'orga',
+      )?.id;
       for (const activity of activitiesCreated) {
+        const isVerdictTarget =
+          verdictEntry && verdictAuthor && activity.id === verdictTargetId;
         await prisma.participationActivity.create({
           data: {
             participationId: participation.id,
             activityId: activity.id,
             isPresent,
             delay: blueprint.delays?.[email] ?? 0,
+            ...(isVerdictTarget
+              ? {
+                  verdict: verdictEntry.verdict,
+                  contextTag: verdictEntry.contextTag ?? null,
+                  verdictAuthorId: verdictAuthor.id,
+                  verdictAt: new Date(),
+                }
+              : {}),
           },
         });
       }

@@ -4,6 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { templateSchema } from '$lib/validation/templates';
 import { prisma } from '$lib/server/db';
+import { sanitizeRichHtml } from '$lib/server/sanitize';
 import { processOfficialThemes } from '$lib/server/services/themes';
 import {
   importSubject,
@@ -113,7 +114,9 @@ export const actions: Actions = {
           ? JSON.parse(form.data.contentStructure)
           : null;
       const content =
-        !isDynamic && form.data.content ? form.data.content : null;
+        !isDynamic && form.data.content
+          ? sanitizeRichHtml(form.data.content)
+          : null;
 
       await prisma.activityTemplate.create({
         data: {
@@ -173,7 +176,9 @@ export const actions: Actions = {
           ? JSON.parse(form.data.contentStructure)
           : null;
       const content =
-        !isDynamic && form.data.content ? form.data.content : null;
+        !isDynamic && form.data.content
+          ? sanitizeRichHtml(form.data.content)
+          : null;
 
       await prisma.activityTemplate.update({
         where: { id },

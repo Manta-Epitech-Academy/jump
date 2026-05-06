@@ -15,6 +15,7 @@
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import FileText from '@lucide/svelte/icons/file-text';
   import { enhance } from '$app/forms';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
@@ -181,6 +182,13 @@
       >
         <GraduationCap class="h-5 w-5" />
         <span>Équipe pédagogique</span>
+      </a>
+      <a
+        href={resolve('/staff/dev/contenu/welcome')}
+        class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+      >
+        <FileText class="h-5 w-5" />
+        <span>Page d'accueil</span>
       </a>
     </nav>
   {/if}
