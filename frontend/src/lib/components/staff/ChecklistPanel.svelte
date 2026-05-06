@@ -11,7 +11,7 @@
 
   let { items }: Props = $props();
 
-  let hideDone = $state(false);
+  let hideDone = $state(true);
 
   const total = $derived(items.length);
   const doneCount = $derived(items.filter((i) => i.done).length);

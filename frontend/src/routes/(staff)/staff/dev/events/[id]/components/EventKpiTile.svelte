@@ -75,6 +75,18 @@
             : 'bg-blue-50 dark:bg-blue-900/20',
   );
 
+  const toneFill = $derived(
+    tone === 'teal'
+      ? 'bg-epi-teal-solid'
+      : tone === 'orange'
+        ? 'bg-epi-orange'
+        : tone === 'pink'
+          ? 'bg-epi-pink'
+          : tone === 'neutral'
+            ? 'bg-muted-foreground'
+            : 'bg-epi-blue',
+  );
+
   const Icon = $derived(icon);
 </script>
 
@@ -118,7 +130,10 @@
     {#if typeof progress === 'number'}
       <div class="h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30">
         <div
-          class="h-full bg-epi-blue transition-[width] duration-700 ease-out"
+          class={cn(
+            'h-full transition-[width] duration-700 ease-out',
+            toneFill,
+          )}
           style="width: {Math.max(0, Math.min(100, progress))}%"
         ></div>
       </div>
