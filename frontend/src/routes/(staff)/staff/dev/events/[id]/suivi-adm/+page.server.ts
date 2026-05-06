@@ -12,14 +12,22 @@ import {
   sendStudentReminderEmail,
   sendParentReminderEmail,
 } from '$lib/server/otp';
+import { SUIVI_FILTER_KEYS, type SuiviFilterKey } from './filters';
 
 const COOLDOWN_DAYS = 3;
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+function validateFilter(raw: string | null): SuiviFilterKey {
+  return (SUIVI_FILTER_KEYS as readonly string[]).includes(raw ?? '')
+    ? (raw as SuiviFilterKey)
+    : 'all';
+}
+
+export const load: PageServerLoad = async ({ params, locals, url }) => {
   requireFlag(locals, 'stage_seconde');
   const campusId = getCampusId(locals);
   const event = await loadStageOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
+  const filter = validateFilter(url.searchParams.get('filter'));
 
   const participations = await db.participation.findMany({
     where: { eventId: event.id },
@@ -40,7 +48,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
   const reminderForm = await superValidate(zod4(sendRemindersSchema));
 
-  return { event, participations, reminderForm };
+  return { event, participations, reminderForm, filter };
 };
 
 // Maps form-side doc type identifiers to their Prisma column.

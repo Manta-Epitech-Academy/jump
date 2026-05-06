@@ -1,6 +1,7 @@
 <script lang="ts">
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import { onMount } from 'svelte';
 
   type Props = {
     titre: string;
@@ -10,6 +11,22 @@
   };
 
   let { titre, daysToStart, openDate, timezone }: Props = $props();
+
+  let now = $state(Date.now());
+
+  onMount(() => {
+    const id = setInterval(() => {
+      now = Date.now();
+    }, 1000);
+    return () => clearInterval(id);
+  });
+
+  const remaining = $derived(Math.max(0, openDate.getTime() - now));
+  const days = $derived(Math.floor(remaining / 86_400_000));
+  const hours = $derived(Math.floor((remaining % 86_400_000) / 3_600_000));
+  const minutes = $derived(Math.floor((remaining % 3_600_000) / 60_000));
+
+  const pad = (n: number) => String(n).padStart(2, '0');
 
   const openDateLabel = $derived(
     openDate.toLocaleDateString('fr-FR', {
@@ -70,14 +87,41 @@
     </div>
     <div class="text-left lg:pr-6 lg:text-right">
       <div
-        class="font-heading text-6xl leading-none text-white md:text-7xl lg:text-8xl"
+        class="flex items-baseline justify-start gap-3 font-heading leading-none lg:justify-end"
       >
-        {String(daysToStart).padStart(2, '0')}
-      </div>
-      <div
-        class="mt-2 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
-      >
-        {daysToStart > 1 ? 'jours' : 'jour'} restants
+        <div class="flex flex-col items-center">
+          <span class="text-7xl text-white md:text-8xl lg:text-[8.5rem]"
+            >{pad(days)}</span
+          >
+          <span
+            class="mt-2 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+            >jours</span
+          >
+        </div>
+        <span class="-mx-1 text-7xl text-white/40 md:text-8xl lg:text-[8.5rem]"
+          >:</span
+        >
+        <div class="flex flex-col items-center">
+          <span class="text-7xl text-white md:text-8xl lg:text-[8.5rem]"
+            >{pad(hours)}</span
+          >
+          <span
+            class="mt-2 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+            >heures</span
+          >
+        </div>
+        <span class="-mx-1 text-7xl text-white/40 md:text-8xl lg:text-[8.5rem]"
+          >:</span
+        >
+        <div class="flex flex-col items-center">
+          <span class="text-7xl text-white md:text-8xl lg:text-[8.5rem]"
+            >{pad(minutes)}</span
+          >
+          <span
+            class="mt-2 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+            >minutes</span
+          >
+        </div>
       </div>
     </div>
   </div>

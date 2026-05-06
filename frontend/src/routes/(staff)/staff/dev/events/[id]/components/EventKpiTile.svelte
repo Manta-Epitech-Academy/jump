@@ -75,23 +75,11 @@
             : 'bg-blue-50 dark:bg-blue-900/20',
   );
 
-  const toneFill = $derived(
-    tone === 'teal'
-      ? 'bg-epi-teal-solid'
-      : tone === 'orange'
-        ? 'bg-epi-orange'
-        : tone === 'pink'
-          ? 'bg-epi-pink'
-          : tone === 'neutral'
-            ? 'bg-muted-foreground'
-            : 'bg-epi-blue',
-  );
-
   const Icon = $derived(icon);
 </script>
 
 {#snippet body()}
-  <Card.Content class="p-5">
+  <Card.Content class="flex flex-1 flex-col p-5">
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0 flex-1">
         <p
@@ -103,7 +91,7 @@
           {#if valueSnippet}
             {@render valueSnippet()}
           {:else}
-            <p class="text-3xl font-black text-foreground">
+            <p class={cn('font-heading text-5xl tracking-wide', toneText)}>
               {value ?? '—'}
             </p>
           {/if}
@@ -126,15 +114,11 @@
         </div>
       {/if}
     </div>
+    <div class="mt-4 flex-1"></div>
     {#if typeof progress === 'number'}
-      <div
-        class="mt-4 h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30"
-      >
+      <div class="h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30">
         <div
-          class={cn(
-            'h-full transition-[width] duration-700 ease-out',
-            toneFill,
-          )}
+          class="h-full bg-epi-blue transition-[width] duration-700 ease-out"
           style="width: {Math.max(0, Math.min(100, progress))}%"
         ></div>
       </div>
@@ -143,16 +127,22 @@
 {/snippet}
 
 {#if href}
-  <a {href} class="block transition-shadow hover:shadow-md">
+  <a {href} class="flex h-full transition-shadow hover:shadow-md">
     <Card.Root
-      class={cn('rounded-sm border-l-4 shadow-sm dark:shadow-none', toneAccent)}
+      class={cn(
+        'flex w-full flex-col rounded-sm border-l-4 shadow-sm dark:shadow-none',
+        toneAccent,
+      )}
     >
       {@render body()}
     </Card.Root>
   </a>
 {:else}
   <Card.Root
-    class={cn('rounded-sm border-l-4 shadow-sm dark:shadow-none', toneAccent)}
+    class={cn(
+      'flex h-full flex-col rounded-sm border-l-4 shadow-sm dark:shadow-none',
+      toneAccent,
+    )}
   >
     {@render body()}
   </Card.Root>

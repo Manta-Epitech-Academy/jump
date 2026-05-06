@@ -3,8 +3,9 @@
   import KeyRound from '@lucide/svelte/icons/key-round';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
-  import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
-  import type { EventAlert } from '$lib/server/services/eventTasks';
+  import { resolve } from '$app/paths';
+  import ChecklistPanel from '$lib/components/staff/ChecklistPanel.svelte';
+  import type { ChecklistItem } from '$lib/server/services/eventTasks';
   import { activityTypes } from '$lib/validation/templates';
   import CountdownHero from './CountdownHero.svelte';
   import EventKpiTile from './EventKpiTile.svelte';
@@ -28,7 +29,7 @@
       profilComplete: number;
       dossiersAdmin: number;
     };
-    alerts: EventAlert[];
+    checklist: ChecklistItem[];
     firstDayTimeSlots: {
       id: string;
       startTime: Date | string;
@@ -53,7 +54,7 @@
     openDate,
     timezone,
     kpis,
-    alerts,
+    checklist,
     firstDayTimeSlots,
     lyceesBreakdown,
     interestsCloud,
@@ -66,6 +67,11 @@
 
   const pct = (n: number) =>
     kpis.total === 0 ? 0 : Math.round((n / kpis.total) * 100);
+
+  const inscritsHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/inscrits`),
+  );
+  const suiviHref = $derived(resolve(`/staff/dev/events/${eventId}/suivi-adm`));
 </script>
 
 <div class="space-y-6 pb-12">
@@ -78,6 +84,7 @@
       sub="cohorte confirmée"
       icon={UserPlus}
       tone="blue"
+      href={inscritsHref}
     />
     <EventKpiTile
       label="Comptes activés"
@@ -86,6 +93,7 @@
       icon={KeyRound}
       tone="teal"
       progress={pct(kpis.comptesActives)}
+      href={`${inscritsHref}?filter=never-logged`}
     />
     <EventKpiTile
       label="Profil complété"
@@ -94,6 +102,7 @@
       icon={UserCheck}
       tone="pink"
       progress={pct(kpis.profilComplete)}
+      href={`${inscritsHref}?filter=profile-incomplete`}
     />
     <EventKpiTile
       label="Dossiers admin OK"
@@ -102,10 +111,28 @@
       icon={ClipboardCheck}
       tone="orange"
       progress={pct(kpis.dossiersAdmin)}
+      href={suiviHref}
     />
   </div>
 
   <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
+    <section class="space-y-2">
+      <div class="flex items-baseline justify-between gap-2">
+        <h2
+          class="font-heading text-2xl tracking-wide text-foreground uppercase"
+        >
+          Checklist d’ouverture
+        </h2>
+      </div>
+      <p
+        class="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
+      >
+        Données issues de Salesforce — un item peut être déjà réglé hors-ligne
+      </p>
+      <div class="pt-2">
+        <ChecklistPanel items={checklist} />
+      </div>
+    </section>
     <ProgrammeJour
       {eventId}
       timeSlots={firstDayTimeSlots}
@@ -113,23 +140,16 @@
       title="Programme du J1"
       emptyLabel="Aucun créneau publié pour le J1. Préparez le planning d’ouverture."
     />
-    <section class="space-y-3">
-      <h2
-        class="font-sans text-base font-bold tracking-wide text-foreground uppercase"
-      >
-        À traiter
-      </h2>
-      <AlertsPanel {alerts} layout="list" emptyLabel="Préparation à jour." />
-    </section>
   </div>
 
   {#if hasOriginsData}
     <div class="grid gap-4 lg:grid-cols-2">
       <LyceesBreakdown
+        {eventId}
         lycees={lyceesBreakdown}
         totalParticipations={kpis.total}
       />
-      <InterestsCloud interests={interestsCloud} />
+      <InterestsCloud {eventId} interests={interestsCloud} />
     </div>
   {/if}
 

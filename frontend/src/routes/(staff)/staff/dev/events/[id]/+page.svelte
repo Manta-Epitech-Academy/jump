@@ -4,14 +4,16 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { toast } from 'svelte-sonner';
+  import Settings from '@lucide/svelte/icons/settings';
 
   import type { PageData } from './$types';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { Button } from '$lib/components/ui/button';
+  import Gated from '$lib/components/auth/Gated.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
 
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
-  import EventActionsMenu from './components/EventActionsMenu.svelte';
   import PreparationView from './components/PreparationView.svelte';
   import OngoingView from './components/OngoingView.svelte';
   import PastView from './components/PastView.svelte';
@@ -62,10 +64,17 @@
         { label: data.event.titre },
       ]}
     />
-    <EventActionsMenu
-      onEdit={() => (openEditEvent = true)}
-      onDelete={() => (deleteEventDialogOpen = true)}
-    />
+    <Gated group="devLead" mode="hide">
+      <Button
+        variant="outline"
+        size="sm"
+        class="rounded-sm shadow-sm"
+        onclick={() => (openEditEvent = true)}
+      >
+        <Settings class="mr-2 h-4 w-4" />
+        Paramètres de l'événement
+      </Button>
+    </Gated>
   </div>
 
   {#if data.kind === 'stage' && data.status === 'upcoming'}
@@ -77,7 +86,7 @@
       openDate={new Date(data.prep.openDate)}
       timezone={data.timezone}
       kpis={data.prep.kpis}
-      alerts={data.prep.alerts}
+      checklist={data.prep.checklist}
       firstDayTimeSlots={data.prep.firstDayTimeSlots}
       lyceesBreakdown={data.prep.lyceesBreakdown}
       interestsCloud={data.prep.interestsCloud}
@@ -103,6 +112,7 @@
     />
   {:else if data.kind === 'stage' && data.status === 'past'}
     <PastView
+      eventId={data.event.id}
       titre={data.event.titre}
       notes={data.event.notes}
       startDate={eventDate}

@@ -35,7 +35,7 @@
       ? 'bg-linear-to-r from-epi-teal-solid via-teal-700 to-slate-900'
       : variant === 'amber'
         ? 'bg-linear-to-r from-epi-orange via-orange-800 to-slate-900'
-        : 'bg-linear-to-r from-epi-blue via-blue-800 to-slate-900',
+        : 'bg-epi-blue',
   );
 
   const paddingClass = $derived(

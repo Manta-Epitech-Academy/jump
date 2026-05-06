@@ -5,16 +5,12 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import { Separator } from '$lib/components/ui/separator';
-  import Settings from '@lucide/svelte/icons/settings';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { buttonVariants } from '$lib/components/ui/button';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
   import DatePicker from '$lib/components/DatePicker.svelte';
-  import Gated from '$lib/components/auth/Gated.svelte';
   import { CalendarDateTime } from '@internationalized/date';
   import type { Readable } from 'svelte/store';
   import type { SuperForm } from 'sveltekit-superforms/client';
@@ -93,30 +89,6 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Gated group="devLead">
-    <Tooltip.Provider delayDuration={300}>
-      <Tooltip.Root>
-        <Tooltip.Trigger>
-          {#snippet child({ props: tooltipProps })}
-            <Dialog.Trigger
-              {...tooltipProps}
-              class={buttonVariants({
-                variant: 'outline',
-                size: 'icon',
-                class: 'rounded-sm shadow-sm',
-              })}
-            >
-              <Settings class="h-4 w-4" />
-            </Dialog.Trigger>
-          {/snippet}
-        </Tooltip.Trigger>
-        <Tooltip.Content class="rounded-sm"
-          ><p>Paramètres de l'événement</p></Tooltip.Content
-        >
-      </Tooltip.Root>
-    </Tooltip.Provider>
-  </Gated>
-
   <Dialog.Content class="rounded-sm sm:max-w-125">
     <Dialog.Header>
       <Dialog.Title class="text-lg font-bold tracking-tight uppercase"

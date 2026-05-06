@@ -27,6 +27,28 @@ function validateFilter(raw: string | null): FilterKey {
     : 'all';
 }
 
+function filterCondition(filter: FilterKey) {
+  if (filter === 'never-logged') return { talent: { lastActiveAt: null } };
+  if (filter === 'profile-incomplete') {
+    return {
+      OR: [
+        { talent: { infoValidatedAt: null } },
+        { talent: { rulesSignedAt: null } },
+        { talent: { charterAcceptedAt: null } },
+      ],
+    };
+  }
+  return null;
+}
+
+function originConditions(lyceeId: string | null, interestId: string | null) {
+  const conds: object[] = [];
+  if (lyceeId) conds.push({ talent: { lyceeId } });
+  if (interestId)
+    conds.push({ talent: { interests: { some: { interestId } } } });
+  return conds;
+}
+
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
   const event = await loadEventOr404(params.id, campusId);
@@ -34,24 +56,43 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const timezone = getCampusTimezone(locals);
   const bounds = getLifecycleBounds(timezone);
   const phase = getEventStatus(event, bounds);
+  const lyceeId = url.searchParams.get('lycee');
+  const interestId = url.searchParams.get('interest');
+
+  const [activeLycee, activeInterest] = await Promise.all([
+    lyceeId
+      ? db.lycee.findUnique({
+          where: { id: lyceeId },
+          select: { id: true, nom: true },
+        })
+      : Promise.resolve(null),
+    interestId
+      ? db.interest.findUnique({
+          where: { id: interestId },
+          select: { id: true, label: true },
+        })
+      : Promise.resolve(null),
+  ]);
+  const origin = {
+    lycee: activeLycee,
+    interest: activeInterest,
+  };
+  const originAnd = originConditions(
+    activeLycee?.id ?? null,
+    activeInterest?.id ?? null,
+  );
 
   if (phase === 'upcoming') {
     const filter = validateFilter(url.searchParams.get('filter'));
-    const baseWhere = { eventId: event.id } as const;
-
+    const baseAnd: object[] = [{ eventId: event.id }];
+    const filterCond = filterCondition(filter);
+    const scopedAnd = [
+      ...baseAnd,
+      ...(filterCond ? [filterCond] : []),
+      ...originAnd,
+    ];
     const filteredWhere =
-      filter === 'never-logged'
-        ? { ...baseWhere, talent: { lastActiveAt: null } }
-        : filter === 'profile-incomplete'
-          ? {
-              ...baseWhere,
-              OR: [
-                { talent: { infoValidatedAt: null } },
-                { talent: { rulesSignedAt: null } },
-                { talent: { charterAcceptedAt: null } },
-              ],
-            }
-          : baseWhere;
+      scopedAnd.length === 1 ? scopedAnd[0] : { AND: scopedAnd };
 
     const [participations, allCount, neverLoggedCount, profileIncompleteCount] =
       await Promise.all([
@@ -67,13 +108,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           },
           orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
         }),
-        db.participation.count({ where: baseWhere }),
+        db.participation.count({ where: { eventId: event.id } }),
         db.participation.count({
-          where: { ...baseWhere, talent: { lastActiveAt: null } },
+          where: { eventId: event.id, talent: { lastActiveAt: null } },
         }),
         db.participation.count({
           where: {
-            ...baseWhere,
+            eventId: event.id,
             OR: [
               { talent: { infoValidatedAt: null } },
               { talent: { rulesSignedAt: null } },
@@ -102,14 +143,18 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     return {
       event,
       timezone,
+      origin,
       availableNiveaux: computeAvailableNiveaux(participations),
       variant: { kind: 'prep' as const, rows, filter, counts },
     };
   }
 
   // ongoing or past — same query shape, card behaviour differs only in tone.
+  const ongoingAnd = [{ eventId: event.id }, ...originAnd];
+  const ongoingWhere =
+    ongoingAnd.length === 1 ? ongoingAnd[0] : { AND: ongoingAnd };
   const participations = await db.participation.findMany({
-    where: { eventId: event.id },
+    where: ongoingWhere,
     include: {
       talent: {
         include: {
@@ -162,6 +207,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   return {
     event,
     timezone,
+    origin,
     availableNiveaux: computeAvailableNiveaux(participations),
     variant: {
       kind: phase === 'past' ? ('past' as const) : ('ongoing' as const),

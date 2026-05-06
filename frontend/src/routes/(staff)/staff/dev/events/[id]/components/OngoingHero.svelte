@@ -82,7 +82,7 @@
     </div>
     <div class="text-left lg:pr-6 lg:text-right">
       <div
-        class="font-heading text-6xl leading-none text-white md:text-7xl lg:text-8xl"
+        class="font-heading text-7xl leading-none text-white md:text-8xl lg:text-[9rem]"
       >
         J{dayN}
       </div>

@@ -38,6 +38,53 @@
   let imageCount = $derived(
     participations.filter((p) => p.stageCompliance?.imageRightsSigned).length,
   );
+  let pcCount = $derived(participations.filter((p) => p.bringPc).length);
+
+  let filter = $derived(data.filter);
+
+  const filteredParticipations = $derived(
+    filter === 'convention-missing'
+      ? participations.filter((p) => !p.stageCompliance?.conventionSigned)
+      : filter === 'charte-missing'
+        ? participations.filter((p) => !p.stageCompliance?.charteSigned)
+        : filter === 'image-rights-missing'
+          ? participations.filter((p) => !p.stageCompliance?.imageRightsSigned)
+          : filter === 'pc-missing'
+            ? participations.filter((p) => !p.bringPc)
+            : participations,
+  );
+
+  function changeFilter(next: SuiviFilterKey) {
+    const url = new URL(page.url);
+    if (next === 'all') url.searchParams.delete('filter');
+    else url.searchParams.set('filter', next);
+    goto(url.toString(), { keepFocus: true, noScroll: true });
+  }
+
+  type Chip = { key: SuiviFilterKey; label: string; missing: number };
+  const chips = $derived<Chip[]>([
+    { key: 'all', label: 'Tous', missing: total },
+    {
+      key: 'convention-missing',
+      label: 'Convention manquante (SF)',
+      missing: total - conventionCount,
+    },
+    {
+      key: 'charte-missing',
+      label: 'Charte manquante (SF)',
+      missing: total - charteCount,
+    },
+    {
+      key: 'image-rights-missing',
+      label: 'Droits image manquants (SF)',
+      missing: total - imageCount,
+    },
+    {
+      key: 'pc-missing',
+      label: 'PC non confirmé (SF)',
+      missing: total - pcCount,
+    },
+  ]);
 
   function ratioClass(n: number, t: number) {
     if (t === 0) return 'border-border bg-muted/20 text-muted-foreground';
@@ -105,10 +152,16 @@
   );
 
   function toggleAllTalents() {
-    if (selectedTalentIds.size === participations.length) {
-      selectedTalentIds = new Set();
+    const visibleIds = filteredParticipations.map((p) => p.talent.id);
+    const allSelected = visibleIds.every((id) => selectedTalentIds.has(id));
+    if (allSelected) {
+      const next = new Set(selectedTalentIds);
+      for (const id of visibleIds) next.delete(id);
+      selectedTalentIds = next;
     } else {
-      selectedTalentIds = new Set(participations.map((p) => p.talent.id));
+      const next = new Set(selectedTalentIds);
+      for (const id of visibleIds) next.add(id);
+      selectedTalentIds = next;
     }
   }
 
@@ -225,8 +278,37 @@
     </div>
   </Gated>
 
+  <div class="flex flex-wrap items-center gap-2">
+    {#each chips as chip (chip.key)}
+      {@const active = filter === chip.key}
+      <button
+        type="button"
+        onclick={() => changeFilter(chip.key)}
+        class={cn(
+          'inline-flex cursor-pointer items-center gap-2 rounded-sm border px-2.5 py-1 text-[10px] font-bold tracking-widest uppercase transition-colors',
+          active
+            ? 'border-epi-blue bg-epi-blue text-white'
+            : 'border-border bg-card text-muted-foreground hover:border-epi-blue/50 hover:text-foreground',
+        )}
+        aria-pressed={active}
+      >
+        <span>{chip.label}</span>
+        <span
+          class={cn(
+            'inline-flex min-w-5 justify-center rounded-sm px-1 font-mono text-[10px] tabular-nums',
+            active
+              ? 'bg-white/20 text-white'
+              : 'bg-muted text-muted-foreground',
+          )}
+        >
+          {chip.missing}
+        </span>
+      </button>
+    {/each}
+  </div>
+
   <SuiviAdmTable
-    {participations}
+    participations={filteredParticipations}
     {optimisticAdminToggle}
     {optimisticPcToggle}
     {selectedTalentIds}

@@ -69,15 +69,15 @@
 </script>
 
 <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
-  <Card.Header
-    class="flex flex-row items-center justify-between border-b bg-muted/30 pt-4 pb-3"
+  <div
+    class="flex flex-row items-center justify-between gap-3 border-b bg-muted/30 px-6 pt-4 pb-3"
   >
-    <Card.Title
-      class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+    <h3
+      class="flex items-center gap-2 font-heading text-2xl tracking-wide text-foreground uppercase"
     >
-      <CalendarDays class="h-4 w-4 text-epi-blue" />
+      <CalendarDays class="h-5 w-5 text-epi-blue" />
       {title}
-    </Card.Title>
+    </h3>
     <Button
       variant="ghost"
       size="sm"
@@ -86,7 +86,7 @@
     >
       Planning <ArrowRight class="ml-1 h-3 w-3" />
     </Button>
-  </Card.Header>
+  </div>
   <Card.Content class="p-0">
     {#if timeSlots.length === 0}
       <div class="px-5 py-10 text-center text-sm text-muted-foreground">

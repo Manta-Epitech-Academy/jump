@@ -3,6 +3,7 @@
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import { resolve } from '$app/paths';
   import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
   import type { EventAlert } from '$lib/server/services/eventTasks';
   import { activityTypes } from '$lib/validation/templates';
@@ -95,6 +96,14 @@
         )
       : 0,
   );
+
+  const inscritsHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/inscrits`),
+  );
+  const interviewsHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/interviews`),
+  );
+  const suiviHref = $derived(resolve(`/staff/dev/events/${eventId}/suivi-adm`));
 </script>
 
 <div class="space-y-6 pb-12">
@@ -107,6 +116,7 @@
       sub="cohorte confirmée"
       icon={Users}
       tone="blue"
+      href={inscritsHref}
     />
     {#if kpis.todayPresence}
       {@const present = kpis.todayPresence.present}
@@ -119,10 +129,9 @@
         sub={`${kpis.todayPresence.slotName} · ${presencePctRounded} %`}
       >
         {#snippet valueSnippet()}
-          <p class="text-3xl font-black text-foreground">
+          <p class="font-heading text-5xl tracking-wide text-epi-teal-solid">
             {present}
-            <span class="text-base text-muted-foreground"
-              >/ {totalPresence}</span
+            <span class="text-2xl text-muted-foreground">/ {totalPresence}</span
             >
           </p>
         {/snippet}
@@ -142,11 +151,12 @@
       tone="pink"
       progress={interviewsPct}
       sub={`${interviewsPct} % · ${kpis.interviewsCompleted} terminés`}
+      href={interviewsHref}
     >
       {#snippet valueSnippet()}
-        <p class="text-3xl font-black text-foreground">
+        <p class="font-heading text-5xl tracking-wide text-epi-pink">
           {kpis.interviewsCompleted}
-          <span class="text-base text-muted-foreground"
+          <span class="text-2xl text-muted-foreground"
             >/ {kpis.interviewsTotal}</span
           >
         </p>
@@ -159,24 +169,30 @@
       icon={ShieldCheck}
       tone="orange"
       progress={conformitePctRounded}
+      href={suiviHref}
     />
   </div>
 
   <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
-    <ProgrammeJour {eventId} {timeSlots} {timezone} />
-    <div class="flex flex-col gap-4">
-      <section class="space-y-3">
-        <h2
-          class="font-sans text-base font-bold tracking-wide text-foreground uppercase"
-        >
-          Alertes
-        </h2>
+    <section class="space-y-2">
+      <h2 class="font-heading text-2xl tracking-wide text-foreground uppercase">
+        Alertes
+      </h2>
+      <p
+        class="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
+      >
+        Données issues de Salesforce et de Jump
+      </p>
+      <div class="pt-2">
         <AlertsPanel
           {alerts}
           layout="list"
           emptyLabel="Tout est sous contrôle."
         />
-      </section>
+      </div>
+    </section>
+    <div class="flex flex-col gap-4">
+      <ProgrammeJour {eventId} {timeSlots} {timezone} />
       <MesProchainsEntretiens
         {eventId}
         interviews={mesProchainsEntretiens}
@@ -188,10 +204,11 @@
   {#if hasOriginsData}
     <div class="grid gap-4 lg:grid-cols-2">
       <LyceesBreakdown
+        {eventId}
         lycees={lyceesBreakdown}
         totalParticipations={kpis.total}
       />
-      <InterestsCloud interests={interestsCloud} />
+      <InterestsCloud {eventId} interests={interestsCloud} />
     </div>
   {/if}
 

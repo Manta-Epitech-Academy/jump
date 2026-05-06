@@ -6,11 +6,13 @@
   import Camera from '@lucide/svelte/icons/camera';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import History from '@lucide/svelte/icons/history';
+  import { resolve } from '$app/paths';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import EventKpiTile from './EventKpiTile.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
 
   type Props = {
+    eventId: string;
     titre: string;
     notes: string | null;
     startDate: Date;
@@ -28,6 +30,7 @@
   };
 
   let {
+    eventId,
     titre,
     notes,
     startDate,
@@ -36,6 +39,14 @@
     stats,
     onEditNotes,
   }: Props = $props();
+
+  const inscritsHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/inscrits`),
+  );
+  const interviewsHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/interviews`),
+  );
+  const suiviHref = $derived(resolve(`/staff/dev/events/${eventId}/suivi-adm`));
 
   const datesLabel = $derived(
     `${startDate.toLocaleDateString('fr-FR', {
@@ -79,36 +90,42 @@
       value={stats.total}
       icon={Users}
       tone="neutral"
+      href={inscritsHref}
     />
     <EventKpiTile
       label="PC apportés"
       value={`${stats.bringPc} / ${stats.total}`}
       icon={Laptop}
       tone="neutral"
+      href={suiviHref}
     />
     <EventKpiTile
       label="Entretiens menés"
       value={`${stats.interviewsCompleted} / ${stats.total}`}
       icon={MessageSquare}
       tone="neutral"
+      href={interviewsHref}
     />
     <EventKpiTile
       label="Chartes signées"
       value={`${stats.chartes} / ${stats.total}`}
       icon={FileText}
       tone="neutral"
+      href={suiviHref}
     />
     <EventKpiTile
       label="Conventions signées"
       value={`${stats.conventions} / ${stats.total}`}
       icon={ScrollText}
       tone="neutral"
+      href={suiviHref}
     />
     <EventKpiTile
       label="Droits à l’image"
       value={`${stats.droitsImage} / ${stats.total}`}
       icon={Camera}
       tone="neutral"
+      href={suiviHref}
     />
   </div>
 

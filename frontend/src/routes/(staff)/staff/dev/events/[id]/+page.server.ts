@@ -21,7 +21,10 @@ import {
   type LifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { stageEndOrDefault } from '$lib/server/services/stageContext';
-import { deriveEventAlerts } from '$lib/server/services/eventTasks';
+import {
+  deriveEventAlerts,
+  deriveEventChecklist,
+} from '$lib/server/services/eventTasks';
 import { getEventOrgaSlotsWithCounts } from '$lib/domain/presences';
 
 const MS_PER_DAY = 86_400_000;
@@ -163,7 +166,7 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
     comptesActives,
     profilComplete,
     dossiersAdmin,
-    alerts,
+    checklist,
     lyceesBreakdown,
     interestsCloud,
     firstDayTimeSlots,
@@ -193,7 +196,7 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
         },
       },
     }),
-    deriveEventAlerts(db, event, { basePath: ctx.basePath, bounds }),
+    deriveEventChecklist(db, event, { basePath: ctx.basePath, bounds }),
     loadLyceesBreakdown(db, event.id),
     loadInterestsCloud(db, event.id),
     db.timeSlot.findMany({
@@ -220,7 +223,7 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
 
   return {
     kpis: { total, comptesActives, profilComplete, dossiersAdmin },
-    alerts,
+    checklist,
     lyceesBreakdown,
     interestsCloud,
     firstDayTimeSlots,

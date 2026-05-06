@@ -4,6 +4,7 @@
   import { page } from '$app/state';
   import Search from '@lucide/svelte/icons/search';
   import Users from '@lucide/svelte/icons/users';
+  import X from '@lucide/svelte/icons/x';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import type { PageData } from './$types';
@@ -39,6 +40,13 @@
 
   function changeFilter(next: FilterKey) {
     navigateWithParams({ filter: next === 'all' ? '' : next });
+  }
+
+  function clearLycee() {
+    navigateWithParams({ lycee: '' });
+  }
+  function clearInterest() {
+    navigateWithParams({ interest: '' });
   }
 
   function resetClientFilters() {
@@ -156,6 +164,46 @@
     ]}
   />
   <PageHeader title="Inscrits" />
+
+  {#if data.origin.lycee || data.origin.interest}
+    <div class="flex flex-wrap items-center gap-2">
+      <span
+        class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+      >
+        Filtré par
+      </span>
+      {#if data.origin.lycee}
+        <span
+          class="inline-flex items-center gap-1.5 rounded-sm border border-epi-blue bg-epi-blue/10 px-2.5 py-1 text-xs font-bold text-epi-blue"
+        >
+          Lycée · {data.origin.lycee.nom}
+          <button
+            type="button"
+            onclick={clearLycee}
+            aria-label="Retirer le filtre lycée"
+            class="cursor-pointer rounded-sm hover:bg-epi-blue/20"
+          >
+            <X class="h-3 w-3" />
+          </button>
+        </span>
+      {/if}
+      {#if data.origin.interest}
+        <span
+          class="inline-flex items-center gap-1.5 rounded-sm border border-epi-pink bg-epi-pink/10 px-2.5 py-1 text-xs font-bold text-epi-pink"
+        >
+          Intérêt · {data.origin.interest.label}
+          <button
+            type="button"
+            onclick={clearInterest}
+            aria-label="Retirer le filtre intérêt"
+            class="cursor-pointer rounded-sm hover:bg-epi-pink/20"
+          >
+            <X class="h-3 w-3" />
+          </button>
+        </span>
+      {/if}
+    </div>
+  {/if}
 
   {#if totalCount === 0}
     <div
