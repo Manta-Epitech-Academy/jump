@@ -2080,9 +2080,9 @@ async function main() {
   const campuses = await seedCampuses();
   console.log(`✓  Campuses (${Object.keys(campuses).length})`);
 
-  // 1b. Interest categories & interests
+  // 1b. Interests
   const allInterestIds = await seedInterests();
-  console.log('✓  Interest categories & interests');
+  console.log('✓  Interests');
 
   // 2. Staff (no default admin — admins are provisioned via
   //    scripts/add-admin-user.ts and authenticate via Microsoft OAuth only)
@@ -2173,7 +2173,6 @@ async function wipeAll() {
   await prisma.theme.deleteMany();
   await prisma.talentInterest.deleteMany();
   await prisma.interest.deleteMany();
-  await prisma.interestCategory.deleteMany();
   await prisma.talent.deleteMany();
   // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
   // is a required FK with default RESTRICT, so live versions block the delete.
@@ -2192,78 +2191,52 @@ async function wipeAll() {
 // ─── Interests ───
 
 async function seedInterests() {
-  const categories = [
-    {
-      nom: 'Sport',
-      interests: [
-        { nom: 'Football', emoji: '⚽' },
-        { nom: 'Basketball', emoji: '🏀' },
-        { nom: 'Tennis', emoji: '🎾' },
-        { nom: 'Natation', emoji: '🏊' },
-        { nom: 'Danse', emoji: '💃' },
-      ],
-    },
-    {
-      nom: 'Tech',
-      interests: [
-        { nom: 'Développement web', emoji: '🌐' },
-        { nom: 'Cybersécurité', emoji: '🔒' },
-        { nom: 'IA', emoji: '🤖' },
-        { nom: 'Robotique', emoji: '🦾' },
-        { nom: 'Game design', emoji: '🎮' },
-      ],
-    },
-    {
-      nom: 'Art',
-      interests: [
-        { nom: 'Dessin', emoji: '✏️' },
-        { nom: 'Musique', emoji: '🎵' },
-        { nom: 'Photo', emoji: '📷' },
-        { nom: 'Cinéma', emoji: '🎬' },
-        { nom: 'Écriture', emoji: '📝' },
-      ],
-    },
-    {
-      nom: 'Sciences',
-      interests: [
-        { nom: 'Maths', emoji: '🔢' },
-        { nom: 'Physique', emoji: '⚛️' },
-        { nom: 'Biologie', emoji: '🧬' },
-        { nom: 'Astronomie', emoji: '🔭' },
-      ],
-    },
-    {
-      nom: 'Loisirs',
-      interests: [
-        { nom: 'Jeux vidéo', emoji: '🕹️' },
-        { nom: 'Lecture', emoji: '📚' },
-        { nom: 'Cuisine', emoji: '👨‍🍳' },
-        { nom: 'Voyage', emoji: '✈️' },
-        { nom: 'Bénévolat', emoji: '🤝' },
-      ],
-    },
+  const items = [
+    { nom: 'Jeux vidéo', emoji: '🎮' },
+    { nom: 'Manga / Anime', emoji: '📺' },
+    { nom: 'Séries / Films', emoji: '🎬' },
+    { nom: 'Musique (écouter)', emoji: '🎧' },
+    { nom: "Jouer d'un instrument", emoji: '🎸' },
+    { nom: 'Dessin / Illustration', emoji: '✏️' },
+    { nom: 'Photo / Vidéo', emoji: '📷' },
+    { nom: 'Lecture', emoji: '📚' },
+    { nom: 'Écriture / Poésie', emoji: '📝' },
+    { nom: 'Cuisine / Pâtisserie', emoji: '👨‍🍳' },
+    { nom: 'Sport collectif', emoji: '⚽' },
+    { nom: 'Sport individuel', emoji: '🏃' },
+    { nom: 'Danse', emoji: '💃' },
+    { nom: 'Skateboard / Roller', emoji: '🛹' },
+    { nom: 'Mode / Streetwear', emoji: '👟' },
+    { nom: 'Maquillage / Beauté', emoji: '💄' },
+    { nom: 'DIY / Bricolage', emoji: '🔨' },
+    { nom: 'Jardinage', emoji: '🌱' },
+    { nom: 'Créer des sites web', emoji: '🌐' },
+    { nom: 'Créer des apps', emoji: '📱' },
+    { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
+    { nom: 'Montage vidéo', emoji: '🎞️' },
+    { nom: 'Streaming / YouTube', emoji: '📡' },
+    { nom: 'Réseaux sociaux', emoji: '💬' },
+    { nom: 'Intelligence artificielle', emoji: '🤖' },
+    { nom: 'Robotique', emoji: '🦾' },
+    { nom: 'Impression 3D', emoji: '🖨️' },
+    { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
+    { nom: "L'espace / Astronomie", emoji: '🔭' },
+    { nom: 'Les animaux', emoji: '🐾' },
+    { nom: 'Environnement / Écologie', emoji: '🌍' },
+    { nom: 'Psychologie', emoji: '🧠' },
+    { nom: 'Histoire', emoji: '📜' },
+    { nom: 'Politique / Débats', emoji: '🗳️' },
+    { nom: 'Économie / Business', emoji: '💼' },
   ];
 
-  const allInterestIds: string[] = [];
-
-  for (let ci = 0; ci < categories.length; ci++) {
-    const cat = await prisma.interestCategory.create({
-      data: { nom: categories[ci].nom, order: ci },
+  const allIds: string[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const interest = await prisma.interest.create({
+      data: { nom: items[i].nom, emoji: items[i].emoji, order: i },
     });
-    for (let ii = 0; ii < categories[ci].interests.length; ii++) {
-      const interest = await prisma.interest.create({
-        data: {
-          nom: categories[ci].interests[ii].nom,
-          emoji: categories[ci].interests[ii].emoji,
-          categoryId: cat.id,
-          order: ii,
-        },
-      });
-      allInterestIds.push(interest.id);
-    }
+    allIds.push(interest.id);
   }
-
-  return allInterestIds;
+  return allIds;
 }
 
 async function assignTalentInterests(allInterestIds: string[]) {

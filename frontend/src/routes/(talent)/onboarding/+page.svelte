@@ -52,7 +52,7 @@
       />
     {:else if data.step === 'interests'}
       <InterestsStep
-        categories={data.categories}
+        interests={data.interests}
         selectedIds={data.selectedIds}
         error={form?.error}
       />

@@ -52,11 +52,8 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   if (step === 'interests') {
-    const categories = await prisma.interestCategory.findMany({
+    const interests = await prisma.interest.findMany({
       orderBy: { order: 'asc' },
-      include: {
-        interests: { orderBy: { order: 'asc' } },
-      },
     });
 
     const existing = await prisma.talentInterest.findMany({
@@ -66,7 +63,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     return {
       step,
-      categories,
+      interests,
       selectedIds: existing.map((e) => e.interestId),
     };
   }

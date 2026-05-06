@@ -4,15 +4,11 @@
   import Sparkles from '@lucide/svelte/icons/sparkles';
 
   let {
-    categories,
+    interests,
     selectedIds = [],
     error,
   }: {
-    categories: {
-      id: string;
-      nom: string;
-      interests: { id: string; nom: string; emoji: string | null }[];
-    }[];
+    interests: { id: string; nom: string; emoji: string | null }[];
     selectedIds?: string[];
     error?: string;
   } = $props();
@@ -60,33 +56,22 @@
       <input type="hidden" name="interestIds" value={id} />
     {/each}
 
-    <div class="space-y-6">
-      {#each categories as category (category.id)}
-        <div>
-          <h2
-            class="mb-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            {category.nom}
-          </h2>
-          <div class="flex flex-wrap gap-2">
-            {#each category.interests as interest (interest.id)}
-              {@const isSelected = selected.has(interest.id)}
-              <button
-                type="button"
-                onclick={() => toggle(interest.id)}
-                class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
-                  {isSelected
-                  ? 'border-epi-teal bg-epi-teal text-white shadow-sm'
-                  : 'border-border bg-card text-muted-foreground hover:border-epi-teal/50 hover:bg-epi-teal/5'}"
-              >
-                {#if interest.emoji}
-                  <span>{interest.emoji}</span>
-                {/if}
-                <span>{interest.nom}</span>
-              </button>
-            {/each}
-          </div>
-        </div>
+    <div class="flex flex-wrap gap-2">
+      {#each interests as interest (interest.id)}
+        {@const isSelected = selected.has(interest.id)}
+        <button
+          type="button"
+          onclick={() => toggle(interest.id)}
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
+            {isSelected
+            ? 'border-epi-teal bg-epi-teal text-white shadow-sm'
+            : 'border-border bg-card text-muted-foreground hover:border-epi-teal/50 hover:bg-epi-teal/5'}"
+        >
+          {#if interest.emoji}
+            <span>{interest.emoji}</span>
+          {/if}
+          <span>{interest.nom}</span>
+        </button>
       {/each}
     </div>
 

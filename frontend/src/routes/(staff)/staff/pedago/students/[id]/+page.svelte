@@ -46,30 +46,16 @@
             </Card.Title>
           </Card.Header>
           <Card.Content>
-            {@const grouped = Object.groupBy(
-              data.interests,
-              (i) => i.interest.category.nom,
-            )}
-            {#each Object.entries(grouped) as [categoryName, items] (categoryName)}
-              <div class="mb-3 last:mb-0">
-                <p
-                  class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+            <div class="flex flex-wrap gap-1.5">
+              {#each data.interests as ti (ti.interest.id)}
+                <span
+                  class="inline-flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs font-medium text-foreground"
                 >
-                  {categoryName}
-                </p>
-                <div class="flex flex-wrap gap-1.5">
-                  {#each items as ti (ti.interest.id)}
-                    <span
-                      class="inline-flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs font-medium text-foreground"
-                    >
-                      {#if ti.interest.emoji}<span>{ti.interest.emoji}</span
-                        >{/if}
-                      {ti.interest.nom}
-                    </span>
-                  {/each}
-                </div>
-              </div>
-            {/each}
+                  {#if ti.interest.emoji}<span>{ti.interest.emoji}</span>{/if}
+                  {ti.interest.nom}
+                </span>
+              {/each}
+            </div>
           </Card.Content>
         </Card.Root>
       {/if}

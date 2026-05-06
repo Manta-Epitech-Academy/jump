@@ -84,14 +84,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const interests = await prisma.talentInterest.findMany({
       where: { talentId: params.id },
       include: {
-        interest: {
-          include: { category: true },
-        },
+        interest: true,
       },
-      orderBy: [
-        { interest: { category: { order: 'asc' } } },
-        { interest: { order: 'asc' } },
-      ],
+      orderBy: { interest: { order: 'asc' } },
     });
 
     return {

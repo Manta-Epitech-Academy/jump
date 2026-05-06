@@ -61,26 +61,13 @@ enum ParticipationContextTag {
 
 // ─── Interests ───
 
-model InterestCategory {
-  id        String     @id @default(cuid())
-  nom       String     @unique
-  order     Int
-
-  interests Interest[]
-}
-
 model Interest {
-  id         String   @id @default(cuid())
-  categoryId String
-  nom        String
-  emoji      String?
-  order      Int
+  id    String  @id @default(cuid())
+  nom   String  @unique
+  emoji String?
+  order Int
 
-  category        InterestCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   talentInterests TalentInterest[]
-
-  @@unique([categoryId, nom])
-  @@index([categoryId])
 }
 
 model TalentInterest {
