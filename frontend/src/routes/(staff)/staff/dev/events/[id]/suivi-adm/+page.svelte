@@ -14,6 +14,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
+  import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { cn } from '$lib/utils';
   import { toast } from 'svelte-sonner';
@@ -188,7 +189,9 @@
       { label: 'Suivi ADM' },
     ]}
   />
-  <PageHeader title="Suivi ADM" subtitle={data.event.titre} />
+  <PageHeader title="Suivi ADM" subtitle={data.event.titre}>
+    <EventSalesforceButton externalId={data.event.externalId} />
+  </PageHeader>
 
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
     <div

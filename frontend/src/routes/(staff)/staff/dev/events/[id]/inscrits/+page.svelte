@@ -10,6 +10,7 @@
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
+  import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import InscritFilterBar from './components/InscritFilterBar.svelte';
   import InscritCardPrep from './components/InscritCardPrep.svelte';
   import InscritCardOngoing from './components/InscritCardOngoing.svelte';
@@ -163,7 +164,9 @@
       { label: 'Inscrits' },
     ]}
   />
-  <PageHeader title="Inscrits" />
+  <PageHeader title="Inscrits">
+    <EventSalesforceButton externalId={data.event.externalId} />
+  </PageHeader>
 
   {#if data.origin.lycee || data.origin.interest}
     <div class="flex flex-wrap items-center gap-2">

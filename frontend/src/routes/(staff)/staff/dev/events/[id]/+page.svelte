@@ -14,6 +14,7 @@
   import { onErrorToast } from '$lib/utils/formErrors';
 
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
+  import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import PreparationView from './components/PreparationView.svelte';
   import OngoingView from './components/OngoingView.svelte';
   import PastView from './components/PastView.svelte';
@@ -64,17 +65,20 @@
         { label: data.event.titre },
       ]}
     />
-    <Gated group="devLead" mode="hide">
-      <Button
-        variant="outline"
-        size="sm"
-        class="rounded-sm shadow-sm"
-        onclick={() => (openEditEvent = true)}
-      >
-        <Settings class="mr-2 h-4 w-4" />
-        Paramètres de l'événement
-      </Button>
-    </Gated>
+    <div class="flex items-center gap-2">
+      <EventSalesforceButton externalId={data.event.externalId} />
+      <Gated group="devLead" mode="hide">
+        <Button
+          variant="outline"
+          size="sm"
+          class="rounded-sm shadow-sm"
+          onclick={() => (openEditEvent = true)}
+        >
+          <Settings class="mr-2 h-4 w-4" />
+          Paramètres de l'événement
+        </Button>
+      </Gated>
+    </div>
   </div>
 
   {#if data.kind === 'stage' && data.status === 'upcoming'}
