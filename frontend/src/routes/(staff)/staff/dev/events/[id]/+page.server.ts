@@ -424,7 +424,44 @@ async function loadStagePast({ db, event }: LoaderCtx) {
 
 // ─── Helpers for prep view ───────────────────────────────────────────────
 
-async function loadLyceesBreakdown(db: ScopedPrismaClient, eventId: string) {
+/**
+ * Cap shown rows for both breakdown sections at the same N. Keeps the two
+ * cards visually balanced side-by-side and protects the page layout when a
+ * cohort spans many lycées or picks across the full interest catalogue.
+ * The tail is summarised in a non-clickable footer row by the components.
+ */
+const BREAKDOWN_TOP_N = 10;
+
+type LyceeBreakdownRow = { lyceeId: string; nom: string; count: number };
+type InterestBreakdownRow = {
+  interestId: string;
+  nom: string;
+  emoji: string | null;
+  count: number;
+};
+
+/**
+ * Tail aggregate. `count` semantics differ per section:
+ *   - lycées: unique talents (each talent has one lycée),
+ *   - interests: declarations (a talent picking 3 tail interests adds 3).
+ * The components label this accordingly.
+ */
+type BreakdownTail = { count: number; categories: number };
+
+export type LyceesBreakdown = {
+  rows: LyceeBreakdownRow[];
+  others: BreakdownTail | null;
+};
+
+export type InterestsBreakdown = {
+  rows: InterestBreakdownRow[];
+  others: BreakdownTail | null;
+};
+
+async function loadLyceesBreakdown(
+  db: ScopedPrismaClient,
+  eventId: string,
+): Promise<LyceesBreakdown> {
   const grouped = await db.talent.groupBy({
     by: ['lyceeId'],
     where: {
@@ -433,27 +470,43 @@ async function loadLyceesBreakdown(db: ScopedPrismaClient, eventId: string) {
     },
     _count: { _all: true },
     orderBy: { _count: { id: 'desc' } },
-    take: 8,
   });
 
-  const lyceeIds = grouped
+  if (grouped.length === 0) return { rows: [], others: null };
+
+  const top = grouped.slice(0, BREAKDOWN_TOP_N);
+  const tail = grouped.slice(BREAKDOWN_TOP_N);
+
+  const lyceeIds = top
     .map((g) => g.lyceeId)
     .filter((id): id is string => id !== null);
-  if (lyceeIds.length === 0) return [];
-
-  const lycees = await db.lycee.findMany({
-    where: { id: { in: lyceeIds } },
-  });
+  const lycees =
+    lyceeIds.length === 0
+      ? []
+      : await db.lycee.findMany({ where: { id: { in: lyceeIds } } });
   const byId = new Map(lycees.map((l) => [l.id, l]));
 
-  return grouped.flatMap((g) => {
+  const rows = top.flatMap((g) => {
     const lyc = g.lyceeId ? byId.get(g.lyceeId) : null;
     if (!lyc) return [];
     return [{ lyceeId: lyc.id, nom: lyc.nom, count: g._count._all }];
   });
+
+  const others =
+    tail.length === 0
+      ? null
+      : {
+          count: tail.reduce((sum, g) => sum + g._count._all, 0),
+          categories: tail.length,
+        };
+
+  return { rows, others };
 }
 
-async function loadInterestsCloud(db: ScopedPrismaClient, eventId: string) {
+async function loadInterestsCloud(
+  db: ScopedPrismaClient,
+  eventId: string,
+): Promise<InterestsBreakdown> {
   const grouped = await db.talentInterest.groupBy({
     by: ['interestId'],
     where: { talent: { participations: { some: { eventId } } } },
@@ -461,14 +514,17 @@ async function loadInterestsCloud(db: ScopedPrismaClient, eventId: string) {
     orderBy: { _count: { interestId: 'desc' } },
   });
 
-  if (grouped.length === 0) return [];
+  if (grouped.length === 0) return { rows: [], others: null };
+
+  const top = grouped.slice(0, BREAKDOWN_TOP_N);
+  const tail = grouped.slice(BREAKDOWN_TOP_N);
 
   const interests = await db.interest.findMany({
-    where: { id: { in: grouped.map((g) => g.interestId) } },
+    where: { id: { in: top.map((g) => g.interestId) } },
   });
   const byId = new Map(interests.map((i) => [i.id, i]));
 
-  return grouped.flatMap((g) => {
+  const rows = top.flatMap((g) => {
     const i = byId.get(g.interestId);
     if (!i) return [];
     return [
@@ -480,6 +536,16 @@ async function loadInterestsCloud(db: ScopedPrismaClient, eventId: string) {
       },
     ];
   });
+
+  const others =
+    tail.length === 0
+      ? null
+      : {
+          count: tail.reduce((sum, g) => sum + g._count._all, 0),
+          categories: tail.length,
+        };
+
+  return { rows, others };
 }
 
 // ─── Edit form ───────────────────────────────────────────────────────────

@@ -181,6 +181,7 @@ Activity difficulty determines XP: Débutant=20, Intermédiaire=45, Avancé=75. 
 
 - **RGPD:** Some users are minors. The charter must be signed before accessing the app. Anonymization job available via `POST /api/jobs/anonymize` with `Authorization: Bearer <CRON_SECRET>`. Never store personal data unnecessarily.
 - **Salesforce:** `Event.externalId` optionally links events to Salesforce campaigns.
+- **Scale:** typical stage de seconde event = ~200 students. Cohort-wide views (origin breakdowns, interest distributions, attendance lists) hit this volume — keep it in mind when designing layouts and queries.
 
 ## Environment Variables
 

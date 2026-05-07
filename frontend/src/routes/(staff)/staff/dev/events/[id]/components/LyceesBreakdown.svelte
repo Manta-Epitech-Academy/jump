@@ -10,13 +10,22 @@
     count: number;
   };
 
+  /**
+   * The server caps `rows` to a top-N; `others` summarises the truncated tail
+   * so the user never thinks the visible rows are exhaustive.
+   */
+  type Breakdown = {
+    rows: LyceeRow[];
+    others: { count: number; categories: number } | null;
+  };
+
   type Props = {
     eventId: string;
-    lycees: LyceeRow[];
+    breakdown: Breakdown;
     totalParticipations: number;
   };
 
-  let { eventId, lycees, totalParticipations }: Props = $props();
+  let { eventId, breakdown, totalParticipations }: Props = $props();
 
   const inscritsBase = $derived(
     resolve(`/staff/dev/events/${eventId}/inscrits`),
@@ -33,17 +42,18 @@
     </h3>
   </div>
   <Card.Content class="space-y-1 p-2">
-    {#if lycees.length === 0}
+    {#if breakdown.rows.length === 0}
       <p class="py-6 text-center text-sm text-muted-foreground">
         Aucun lycée renseigné pour les inscrits.
       </p>
     {:else}
-      {#each lycees as lyc (lyc.lyceeId)}
+      {#each breakdown.rows as lyc (lyc.lyceeId)}
         {@const pct = totalParticipations
           ? Math.round((lyc.count / totalParticipations) * 100)
           : 0}
         <a
           href={`${inscritsBase}?lycee=${lyc.lyceeId}`}
+          title={`Filtrer · ${lyc.count} ${lyc.count > 1 ? 'talents' : 'talent'}`}
           class="group block rounded-sm px-3 py-2 transition-colors hover:bg-epi-blue/5"
         >
           <div class="flex items-baseline justify-between gap-3 text-sm">
@@ -70,6 +80,26 @@
           </div>
         </a>
       {/each}
+
+      {#if breakdown.others}
+        <div
+          class="block rounded-sm border-t border-dashed border-border/60 px-3 py-2 text-sm"
+        >
+          <div
+            class="flex items-baseline justify-between gap-3 text-muted-foreground"
+          >
+            <span class="italic">Autres</span>
+            <span
+              class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold"
+            >
+              {breakdown.others.count}
+              {breakdown.others.count > 1 ? 'talents' : 'talent'} ·
+              {breakdown.others.categories}
+              {breakdown.others.categories > 1 ? 'lycées' : 'lycée'}
+            </span>
+          </div>
+        </div>
+      {/if}
     {/if}
   </Card.Content>
 </Card.Root>

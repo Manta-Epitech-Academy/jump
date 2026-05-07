@@ -1,10 +1,8 @@
 <script lang="ts">
   import Sparkle from '@lucide/svelte/icons/sparkle';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { resolve } from '$app/paths';
   import * as Card from '$lib/components/ui/card';
-
-  // epi-blue (#013afb) as rgb for the bg tint scale.
-  const BG_RGB = '1, 58, 251';
 
   type InterestRow = {
     interestId: string;
@@ -13,28 +11,27 @@
     count: number;
   };
 
-  type Props = {
-    eventId: string;
-    interests: InterestRow[];
+  /**
+   * The server caps `rows` to a top-N; `others.count` is the sum of tail
+   * declarations (a talent picking 3 tail interests adds 3) — labelled
+   * "déclarations" rather than "talents" because it's not unique-talent count.
+   */
+  type Breakdown = {
+    rows: InterestRow[];
+    others: { count: number; categories: number } | null;
   };
 
-  let { eventId, interests }: Props = $props();
+  type Props = {
+    eventId: string;
+    breakdown: Breakdown;
+    /** Cohort size — denominator for the proportion bar. */
+    totalParticipations: number;
+  };
+
+  let { eventId, breakdown, totalParticipations }: Props = $props();
 
   const inscritsBase = $derived(
     resolve(`/staff/dev/events/${eventId}/inscrits`),
-  );
-
-  const max = $derived(
-    interests.reduce((m, r) => Math.max(m, r.count), 0) || 1,
-  );
-
-  const sized = $derived(
-    interests.map((i) => ({
-      ...i,
-      // Maps count → font-size 12-20px and bg opacity 0.08 → 0.32.
-      fontSize: 12 + Math.round((i.count / max) * 8),
-      bgAlpha: 0.08 + (i.count / max) * 0.24,
-    })),
   );
 </script>
 
@@ -47,32 +44,77 @@
       Centres d’intérêt déclarés
     </h3>
   </div>
-  <Card.Content class="p-5">
-    {#if interests.length === 0}
+  <Card.Content class="space-y-1 p-2">
+    {#if breakdown.rows.length === 0}
       <p class="py-6 text-center text-sm text-muted-foreground">
         Aucun centre d’intérêt renseigné pour les inscrits.
       </p>
     {:else}
       <p
-        class="mb-3 font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
+        class="px-2 pt-1 pb-2 font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
       >
         Cliquer pour filtrer les inscrits
       </p>
-      <div class="flex flex-wrap gap-2">
-        {#each sized as i (i.interestId)}
-          <a
-            href={`${inscritsBase}?interest=${i.interestId}`}
-            class="inline-flex items-baseline gap-1.5 rounded-sm border border-epi-blue/20 px-3 py-1 font-medium text-foreground transition-all hover:border-epi-blue hover:bg-epi-blue/15 hover:text-epi-blue hover:shadow-sm"
-            style="font-size: {i.fontSize}px; background: rgba({BG_RGB},{i.bgAlpha});"
-          >
-            {#if i.emoji}<span aria-hidden="true">{i.emoji}</span>{/if}
-            {i.nom}
-            <span class="font-mono text-[10px] font-bold text-epi-blue">
-              {i.count}
+      {#each breakdown.rows as i (i.interestId)}
+        {@const pct = totalParticipations
+          ? Math.round((i.count / totalParticipations) * 100)
+          : 0}
+        <a
+          href={`${inscritsBase}?interest=${i.interestId}`}
+          title={`Filtrer · ${i.count} ${i.count > 1 ? 'talents' : 'talent'}`}
+          class="group block rounded-sm px-3 py-2 transition-colors hover:bg-epi-blue/5"
+        >
+          <div class="flex items-baseline justify-between gap-3 text-sm">
+            <span class="flex min-w-0 items-baseline gap-2">
+              {#if i.emoji}
+                <span aria-hidden="true" class="shrink-0 text-base leading-none"
+                  >{i.emoji}</span
+                >
+              {/if}
+              <span
+                class="truncate font-medium underline decoration-muted-foreground/40 decoration-dotted underline-offset-4 group-hover:text-epi-blue group-hover:decoration-epi-blue"
+                >{i.nom}</span
+              >
             </span>
-          </a>
-        {/each}
-      </div>
+            <span
+              class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold text-muted-foreground"
+            >
+              {i.count} · {pct}%
+              <ChevronRight
+                class="h-3.5 w-3.5 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-epi-blue"
+              />
+            </span>
+          </div>
+          <div
+            class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30"
+          >
+            <div
+              class="h-full bg-epi-blue transition-[width] duration-700 ease-out"
+              style="width: {pct}%"
+            ></div>
+          </div>
+        </a>
+      {/each}
+
+      {#if breakdown.others}
+        <div
+          class="block rounded-sm border-t border-dashed border-border/60 px-3 py-2 text-sm"
+        >
+          <div
+            class="flex items-baseline justify-between gap-3 text-muted-foreground"
+          >
+            <span class="italic">Autres</span>
+            <span
+              class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold"
+            >
+              {breakdown.others.count}
+              {breakdown.others.count > 1 ? 'déclarations' : 'déclaration'} ·
+              {breakdown.others.categories}
+              {breakdown.others.categories > 1 ? 'centres' : 'centre'}
+            </span>
+          </div>
+        </div>
+      {/if}
     {/if}
   </Card.Content>
 </Card.Root>

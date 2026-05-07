@@ -54,13 +54,19 @@
       date: Date | string;
       talent: { id: string; nom: string; prenom: string };
     }[];
-    lyceesBreakdown: { lyceeId: string; nom: string; count: number }[];
+    lyceesBreakdown: {
+      rows: { lyceeId: string; nom: string; count: number }[];
+      others: { count: number; categories: number } | null;
+    };
     interestsCloud: {
-      interestId: string;
-      nom: string;
-      emoji: string | null;
-      count: number;
-    }[];
+      rows: {
+        interestId: string;
+        nom: string;
+        emoji: string | null;
+        count: number;
+      }[];
+      others: { count: number; categories: number } | null;
+    };
     onEditNotes: () => void;
   };
 
@@ -83,7 +89,7 @@
   }: Props = $props();
 
   const hasOriginsData = $derived(
-    lyceesBreakdown.length > 0 || interestsCloud.length > 0,
+    lyceesBreakdown.rows.length > 0 || interestsCloud.rows.length > 0,
   );
 
   const interviewsPct = $derived(
@@ -212,10 +218,14 @@
     <div class="grid gap-4 lg:grid-cols-2">
       <LyceesBreakdown
         {eventId}
-        lycees={lyceesBreakdown}
+        breakdown={lyceesBreakdown}
         totalParticipations={kpis.total}
       />
-      <InterestsCloud {eventId} interests={interestsCloud} />
+      <InterestsCloud
+        {eventId}
+        breakdown={interestsCloud}
+        totalParticipations={kpis.total}
+      />
     </div>
   {/if}
 
