@@ -8,6 +8,7 @@
   import { page } from '$app/state';
   import { dev } from '$app/environment';
   import ImpersonationBanner from '$lib/components/ImpersonationBanner.svelte';
+  import Umami from '$lib/components/Umami.svelte';
 
   // Import SVGs as URLs using Vite's ?url suffix
   import faviconProd from '$lib/assets/favicon.svg?url';
@@ -36,6 +37,7 @@
 </svelte:head>
 
 <ModeWatcher />
+<Umami />
 
 <div style="display: contents">
   <Toaster richColors position="top-center" />
