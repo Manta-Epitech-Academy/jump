@@ -131,11 +131,14 @@
                   <School class="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span class="font-medium text-foreground">{s.nom}</span>
                 </div>
-                <span
-                  class="shrink-0 text-xs font-semibold text-muted-foreground"
-                >
-                  {s.codePostal ? `${s.ville} (${s.codePostal})` : s.ville}
-                </span>
+                <div class="shrink-0 text-right">
+                  <p class="text-sm font-bold text-foreground">{s.ville}</p>
+                  {#if s.codePostal}
+                    <p class="text-[11px] text-muted-foreground">
+                      {s.codePostal}
+                    </p>
+                  {/if}
+                </div>
               </button>
             {/each}
           </div>
