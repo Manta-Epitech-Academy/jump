@@ -30,6 +30,7 @@
     activityTypes,
     activityTypeLabels,
   } from '$lib/validation/templates';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -38,8 +39,19 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track(
+            isEditing
+              ? 'official_template_updated'
+              : 'official_template_created',
+          );
           open = false;
           toast.success(result.data?.form?.message);
+        } else if (result.type === 'failure') {
+          track(
+            isEditing
+              ? 'official_template_update_failed'
+              : 'official_template_create_failed',
+          );
         }
       },
     },
@@ -674,5 +686,6 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer un template officiel ?"
     description="Cela le supprimera des bibliothèques de TOUS les campus."
+    onSuccess={() => track('official_template_deleted')}
   />
 </div>

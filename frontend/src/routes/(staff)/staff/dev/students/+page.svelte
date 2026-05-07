@@ -32,6 +32,7 @@
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentFormDialog from './components/StudentFormDialog.svelte';
   import { can } from '$lib/domain/permissions';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
   const canDelete = $derived(can('devLead', data.staffProfile?.staffRole));
@@ -41,9 +42,11 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track(isEditing ? 'student_updated' : 'student_created');
           open = false;
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
+          track(isEditing ? 'student_update_failed' : 'student_create_failed');
           toast.error(result.data?.form.message || 'Erreur de validation');
         }
       },
@@ -197,6 +200,7 @@
       title="Supprimer le Talent"
       description="Êtes-vous sûr ? Cette action est définitive."
       buttonText="Supprimer"
+      onSuccess={() => track('student_deleted')}
     />
   </div>
 

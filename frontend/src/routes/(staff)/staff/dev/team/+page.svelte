@@ -19,6 +19,7 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -38,9 +39,13 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track('staff_invitation_sent', {
+            role: $inviteForm.staffRole,
+          });
           inviteOpen = false;
           toast.success(result.data?.form?.message || 'Invitation envoyée');
         } else if (result.type === 'failure' && result.data?.form?.message) {
+          track('staff_invitation_failed');
           toast.error(result.data.form.message);
         }
       },
@@ -142,8 +147,10 @@
                     action="?/cancelInvitation&id={inv.id}"
                     use:enhance={() => {
                       return async ({ update, result }) => {
-                        if (result.type === 'success')
+                        if (result.type === 'success') {
+                          track('staff_invitation_cancelled');
                           toast.success('Invitation annulée');
+                        }
                         await update();
                       };
                     }}
@@ -267,8 +274,10 @@
                       use:enhance={() => {
                         submitting = `role-${user.id}`;
                         return async ({ update, result }) => {
-                          if (result.type === 'success')
+                          if (result.type === 'success') {
+                            track('staff_role_updated');
                             toast.success('Rôle mis à jour');
+                          }
                           await update();
                           submitting = null;
                         };

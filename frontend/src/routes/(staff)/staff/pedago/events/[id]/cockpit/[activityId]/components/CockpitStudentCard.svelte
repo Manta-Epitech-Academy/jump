@@ -24,6 +24,7 @@
   import VerdictPicker from '$lib/components/students/VerdictPicker.svelte';
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
   import { resolve } from '$app/paths';
+  import { track } from '$lib/analytics';
 
   let {
     participation,
@@ -229,7 +230,15 @@
         <div class="flex items-center gap-3">
           <span class="font-mono text-xs font-bold">{timerDisplay}</span>
           <div class="flex gap-1">
-            <form action="?/dismissAlert" method="POST" use:enhance>
+            <form
+              action="?/dismissAlert"
+              method="POST"
+              use:enhance={() =>
+                async ({ update }) => {
+                  track('cockpit_alert_dismissed');
+                  await update();
+                }}
+            >
               <input
                 type="hidden"
                 name="progressId"
@@ -249,7 +258,10 @@
                 isUnlocking = true;
                 return async ({ result, update }) => {
                   isUnlocking = false;
-                  if (result.type === 'success') triggerXp();
+                  if (result.type === 'success') {
+                    track('cockpit_step_unlocked');
+                    triggerXp();
+                  }
                   await update();
                 };
               }}
@@ -359,6 +371,10 @@
               method="POST"
               action="?/toggleBringPc"
               use:enhance={optimisticToggle(participation.id, 'bringPc')}
+              onsubmit={() =>
+                track('cockpit_bring_pc_toggled', {
+                  from: participation.bringPc,
+                })}
               class="inline"
             >
               <input type="hidden" name="id" value={participation.id} /><input
@@ -382,6 +398,7 @@
         action="?/updateDelay"
         method="POST"
         use:enhance
+        onsubmit={() => track('cockpit_delay_updated', { delay: pendingDelay })}
         class="hidden"
       >
         <input type="hidden" name="id" value={participation.id} />
@@ -394,6 +411,10 @@
           method="POST"
           action="?/togglePresent"
           use:enhance={optimisticToggle(participation.id, 'isPresent')}
+          onsubmit={() =>
+            track('cockpit_presence_toggled', {
+              from: participation.isPresent,
+            })}
         >
           <input type="hidden" name="id" value={participation.id} />
           <input

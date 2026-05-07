@@ -20,6 +20,8 @@
   import PortfolioDrawer from './components/PortfolioDrawer.svelte';
   import MantaSignalButton from './components/MantaSignalButton.svelte';
   import type { ActivityStep } from '$lib/server/services/progressService';
+  import { onMount } from 'svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -86,6 +88,14 @@
   });
 
   let progressId = $derived(data.progress?.id);
+
+  onMount(() => {
+    track('activity_opened', {
+      activityId: data.activity.id,
+      type: data.activity.activityType,
+      isDynamic: data.activity.isDynamic,
+    });
+  });
 </script>
 
 <svelte:head>
@@ -289,8 +299,12 @@
                   return async ({ result, update }) => {
                     isSubmittingFeedback = false;
                     if (result.type === 'success') {
+                      track('activity_feedback_submitted', {
+                        rating: feedbackRating ?? null,
+                      });
                       toast.success('Feedback envoyé !');
                     } else {
+                      track('activity_feedback_failed');
                       toast.error("Erreur lors de l'envoi du feedback");
                     }
                     await update();

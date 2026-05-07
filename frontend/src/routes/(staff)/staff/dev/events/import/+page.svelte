@@ -16,6 +16,7 @@
   import FakeProgressLoader from './components/FakeProgressLoader.svelte';
   import CsvDropzone from './components/CsvDropzone.svelte';
   import CampaignReviewTable from './components/CampaignReviewTable.svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -111,25 +112,30 @@
           enctype="multipart/form-data"
           use:kitEnhance={() => {
             isAnalyzing = true;
+            track('event_csv_analyze_started');
             startFakeProgress();
             return async ({ result }) => {
               completeProgress(() => {
                 isAnalyzing = false;
                 if (result.type === 'success' && result.data) {
                   if (result.data.analysisSuccess) {
+                    track('event_csv_analyzed');
                     analysisResult = result.data;
                   } else {
+                    track('event_csv_analyze_failed');
                     toast.error(
                       (result.data as Record<string, any>).error ||
                         "Erreur d'analyse",
                     );
                   }
                 } else if (result.type === 'failure') {
+                  track('event_csv_analyze_failed');
                   toast.error(
                     (result.data as Record<string, any> | undefined)?.error ||
                       "Erreur d'analyse",
                   );
                 } else {
+                  track('event_csv_analyze_failed');
                   toast.error("Erreur d'analyse");
                 }
               });
@@ -190,9 +196,15 @@
             method="POST"
             use:kitEnhance={() => {
               isConfirming = true;
+              track('event_csv_import_started');
               startFakeProgress();
-              return async ({ update }) => {
+              return async ({ result, update }) => {
                 completeProgress(async () => {
+                  if (result.type === 'success' || result.type === 'redirect') {
+                    track('event_csv_imported');
+                  } else if (result.type === 'failure') {
+                    track('event_csv_import_failed');
+                  }
                   await update();
                   isConfirming = false;
                 });

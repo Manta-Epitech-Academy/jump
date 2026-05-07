@@ -12,6 +12,7 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import { toast } from 'svelte-sonner';
   import { enhance } from '$app/forms';
+  import { track } from '$lib/analytics';
   let { showPortfolio = $bindable(), portfolioItems, eventId } = $props();
 
   let isUploadingPortfolio = $state(false);
@@ -75,12 +76,17 @@
             return async ({ result, update }) => {
               isUploadingPortfolio = false;
               if (result.type === 'success') {
+                track('portfolio_item_created', {
+                  hasFile: portfolioFile !== null,
+                  hasUrl: portfolioUrl !== '',
+                });
                 toast.success('Élément ajouté au portfolio !');
                 portfolioFile = null;
                 portfolioUrl = '';
                 portfolioCaption = '';
                 if (fileInputRef) fileInputRef.value = '';
               } else {
+                track('portfolio_item_create_failed');
                 toast.error(
                   (result as any).data?.message || "Erreur lors de l'ajout.",
                 );
@@ -240,6 +246,7 @@
                     method="POST"
                     use:enhance={() =>
                       async ({ update }) => {
+                        track('portfolio_item_deleted');
                         toast.success('Élément supprimé');
                         await update();
                       }}

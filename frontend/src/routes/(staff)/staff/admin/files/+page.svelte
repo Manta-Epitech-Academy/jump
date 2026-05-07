@@ -14,6 +14,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -83,10 +84,12 @@
         return async ({ result, update }) => {
           uploading = false;
           if (result.type === 'success') {
+            track('admin_file_uploaded');
             toast.success('Fichier uploadé avec succès');
             if (fileInput) fileInput.value = '';
             await update();
           } else if (result.type === 'failure') {
+            track('admin_file_upload_failed');
             toast.error(
               (result.data as { message?: string })?.message ||
                 "Erreur lors de l'upload",
@@ -177,12 +180,14 @@
                                 result.type === 'success' &&
                                 result.data?.signedUrl
                               ) {
+                                track('admin_file_downloaded');
                                 const a = document.createElement('a');
                                 a.href = result.data.signedUrl as string;
                                 a.download =
                                   (result.data.fileName as string) || '';
                                 a.click();
                               } else {
+                                track('admin_file_download_failed');
                                 toast.error('Erreur lors du téléchargement');
                               }
                             };
@@ -231,5 +236,6 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer le fichier"
     description="Êtes-vous sûr ? Le fichier sera définitivement supprimé."
+    onSuccess={() => track('admin_file_deleted')}
   />
 </div>
