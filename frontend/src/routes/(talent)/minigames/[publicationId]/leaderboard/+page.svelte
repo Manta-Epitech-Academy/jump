@@ -35,7 +35,7 @@
 
     {#if data.rows.length === 0}
       <p class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-        Personne n'a encore joué. Sois le premier !
+        Personne n'a encore joué.
       </p>
     {:else}
       <table class="w-full text-sm">
