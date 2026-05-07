@@ -2195,12 +2195,12 @@ async function seedInterests() {
     { nom: 'Créer des sites web', emoji: '🌐' },
     { nom: 'Créer des apps', emoji: '📱' },
     { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
-    { nom: 'Montage vidéo', emoji: '🎞️' },
-    { nom: 'Streaming / YouTube', emoji: '📡' },
-    { nom: 'Réseaux sociaux', emoji: '💬' },
+    { nom: 'Programmation', emoji: '💻' },
+    { nom: 'Développement de logiciels', emoji: '🖥️' },
     { nom: 'Intelligence artificielle', emoji: '🤖' },
     { nom: 'Robotique', emoji: '🦾' },
-    { nom: 'Impression 3D', emoji: '🖨️' },
+    { nom: 'Data science / Analyse de données', emoji: '📊' },
+    { nom: 'Cloud / Infrastructure', emoji: '☁️' },
     { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
   ];
 
