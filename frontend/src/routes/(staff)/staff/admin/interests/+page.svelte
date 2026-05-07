@@ -89,8 +89,16 @@
           role="button"
           tabindex="0"
           class="group inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-          onclick={() => openEdit(interest)}
+          onclick={(e: MouseEvent) => {
+            if (
+              e.target !== e.currentTarget &&
+              (e.target as HTMLElement).closest('button')
+            )
+              return;
+            openEdit(interest);
+          }}
           onkeydown={(e: KeyboardEvent) => {
+            if (e.target !== e.currentTarget) return;
             if (e.key === 'Enter' || e.key === ' ') openEdit(interest);
           }}
         >
@@ -142,8 +150,16 @@
           role="button"
           tabindex="0"
           class="group inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-          onclick={() => openEdit(interest)}
+          onclick={(e: MouseEvent) => {
+            if (
+              e.target !== e.currentTarget &&
+              (e.target as HTMLElement).closest('button')
+            )
+              return;
+            openEdit(interest);
+          }}
           onkeydown={(e: KeyboardEvent) => {
+            if (e.target !== e.currentTarget) return;
             if (e.key === 'Enter' || e.key === ' ') openEdit(interest);
           }}
         >
@@ -188,8 +204,9 @@
     >
       {#if isEditing}
         <input type="hidden" name="id" value={editId} />
+      {:else}
+        <input type="hidden" name="kind" value={$form.kind} />
       {/if}
-      <input type="hidden" name="kind" value={$form.kind} />
       <div class="space-y-4 py-4">
         <div>
           <Label for="int-nom">Nom</Label>

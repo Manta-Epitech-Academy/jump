@@ -5,11 +5,13 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 
-const interestSchema = z.object({
+const createSchema = z.object({
   nom: z.string().min(1, 'Le nom est requis').trim(),
   emoji: z.string().optional().or(z.literal('')),
   kind: z.enum(['tech', 'general']),
 });
+
+const updateSchema = createSchema.omit({ kind: true });
 
 export const load: PageServerLoad = async () => {
   const techInterests = await prisma.interest.findMany({
@@ -24,14 +26,14 @@ export const load: PageServerLoad = async () => {
     include: { _count: { select: { talentInterests: true } } },
   });
 
-  const form = await superValidate(zod4(interestSchema));
+  const form = await superValidate(zod4(createSchema));
 
   return { techInterests, generalInterests, form };
 };
 
 export const actions: Actions = {
   create: async ({ request }) => {
-    const form = await superValidate(request, zod4(interestSchema));
+    const form = await superValidate(request, zod4(createSchema));
     if (!form.valid) return fail(400, { form });
 
     try {
@@ -55,7 +57,7 @@ export const actions: Actions = {
 
   update: async ({ request }) => {
     const formData = await request.formData();
-    const form = await superValidate(formData, zod4(interestSchema));
+    const form = await superValidate(formData, zod4(updateSchema));
     const id = formData.get('id') as string;
     if (!form.valid || !id) return fail(400, { form });
 

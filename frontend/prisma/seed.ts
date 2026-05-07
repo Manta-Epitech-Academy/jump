@@ -2081,7 +2081,7 @@ async function main() {
   console.log(`✓  Campuses (${Object.keys(campuses).length})`);
 
   // 1b. Interests
-  const allInterestIds = await seedInterests();
+  await seedInterests();
   console.log('✓  Interests');
 
   // 2. Staff (no default admin — admins are provisioned via
@@ -2098,7 +2098,7 @@ async function main() {
   console.log(`✓  Parent (${parentEmail})`);
 
   // 3c. Talent interest assignments
-  await assignTalentInterests(allInterestIds);
+  await assignTalentInterests();
   console.log('✓  Talent interest assignments');
 
   // 4. Themes
@@ -2232,10 +2232,8 @@ async function seedInterests() {
     { nom: 'Économie / Business', emoji: '💼' },
   ];
 
-  const allIds: string[] = [];
-
   for (let i = 0; i < techItems.length; i++) {
-    const interest = await prisma.interest.create({
+    await prisma.interest.create({
       data: {
         nom: techItems[i].nom,
         emoji: techItems[i].emoji,
@@ -2243,11 +2241,10 @@ async function seedInterests() {
         order: i,
       },
     });
-    allIds.push(interest.id);
   }
 
   for (let i = 0; i < generalItems.length; i++) {
-    const interest = await prisma.interest.create({
+    await prisma.interest.create({
       data: {
         nom: generalItems[i].nom,
         emoji: generalItems[i].emoji,
@@ -2255,13 +2252,10 @@ async function seedInterests() {
         order: i,
       },
     });
-    allIds.push(interest.id);
   }
-
-  return allIds;
 }
 
-async function assignTalentInterests(allInterestIds: string[]) {
+async function assignTalentInterests() {
   const talents = await prisma.talent.findMany({
     where: { techInterestsValidatedAt: { not: null } },
     select: { id: true },

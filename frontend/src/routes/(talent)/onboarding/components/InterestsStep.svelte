@@ -47,11 +47,13 @@
     selected = next;
   }
 
-  // IKEA effect: build a recap phrase from selections
+  // IKEA effect: build a recap phrase from selections (in click order)
+  const byId = $derived(new Map(interests.map((i) => [i.id, i])));
   const recapPhrase = $derived.by(() => {
     if (count === 0) return '';
-    const names = shuffled
-      .filter((i) => selected.has(i.id))
+    const names = [...selected]
+      .map((id) => byId.get(id))
+      .filter((i): i is (typeof interests)[number] => i !== undefined)
       .map((i) => `${i.emoji ?? ''} ${i.nom}`.trim());
     if (kind === 'tech') {
       return `Tu es attiré par ${names.join(' et ')}`;
