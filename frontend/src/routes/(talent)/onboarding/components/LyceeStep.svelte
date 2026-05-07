@@ -129,7 +129,7 @@
               >
                 <div class="flex items-center gap-3">
                   <School class="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span class="font-medium text-foreground">{s.nom}</span>
+                  <span class="font-bold text-foreground">{s.nom}</span>
                 </div>
                 <div class="shrink-0 text-right">
                   <p class="text-sm font-bold text-foreground">{s.ville}</p>
