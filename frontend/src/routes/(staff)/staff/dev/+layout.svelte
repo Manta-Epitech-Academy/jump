@@ -199,6 +199,13 @@
         <FileText class="h-5 w-5" />
         <span>Page d'accueil</span>
       </a>
+      <a
+        href={resolve('/staff/dev/contenu/welcome')}
+        class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+      >
+        <FileText class="h-5 w-5" />
+        <span>Page d'accueil</span>
+      </a>
     </nav>
   {/if}
 
