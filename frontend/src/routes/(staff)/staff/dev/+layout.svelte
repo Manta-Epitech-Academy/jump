@@ -34,6 +34,7 @@
   } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
+  import StagePhaseOverrideToggle from '$lib/components/dev/StagePhaseOverrideToggle.svelte';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -321,6 +322,14 @@
         >
           <Search class="h-5 w-5" />
         </Button>
+      {/if}
+      {#if data.canOverridePhase}
+        <div class="hidden md:block">
+          <StagePhaseOverrideToggle
+            current={data.phaseOverride}
+            realPhase={data.activeStage?.realStatus ?? null}
+          />
+        </div>
       {/if}
       <ModeToggle />
 

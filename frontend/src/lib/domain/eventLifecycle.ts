@@ -114,3 +114,16 @@ export function getEventStatus(
   if (event.date.getTime() > b.endOfDay.getTime()) return 'upcoming';
   return 'ongoing';
 }
+
+/**
+ * Returns the override when present, otherwise the real status. Pure helper:
+ * the call site decides whether an override is in scope (e.g. dev impersonation).
+ * Keeping this separate from {@link getEventStatus} preserves that function as
+ * a domain primitive with no awareness of UI/session concerns.
+ */
+export function applyPhaseOverride(
+  real: EventLifecycleStatus,
+  override: EventLifecycleStatus | null | undefined,
+): EventLifecycleStatus {
+  return override ?? real;
+}

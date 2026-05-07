@@ -15,6 +15,7 @@ import { CalendarDateTime } from '@internationalized/date';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_TYPES } from '$lib/domain/event';
 import {
+  applyPhaseOverride,
   getDayBounds,
   getEventStatus,
   getLifecycleBounds,
@@ -72,7 +73,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const editForm = await buildEditForm(event, staff, tz);
 
   const bounds = getLifecycleBounds(tz);
-  const status = getEventStatus(event, bounds);
+  const status = applyPhaseOverride(
+    getEventStatus(event, bounds),
+    locals.stagePhaseOverride,
+  );
   const isStage = event.eventType === EVENT_TYPES.STAGE_SECONDE;
   const baseLoader = { db, event, bounds, basePath: '/staff/dev' };
 

@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import { EVENT_TYPES } from '$lib/domain/event';
+import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
 import { prisma } from '$lib/server/db';
 
 export const STAGE_DEFAULT_DURATION_DAYS = 14;
@@ -8,15 +9,40 @@ export const STAGE_UPCOMING_WINDOW_DAYS = 60;
 
 const MS_PER_DAY = 86_400_000;
 
-export type StageStatus = 'ongoing' | 'upcoming';
+/**
+ * Stages are surfaced when ongoing or upcoming; `past` only appears when a
+ * dev-tooling phase override is applied (see `devPhaseOverride.ts`). Sharing
+ * `EventLifecycleStatus` keeps the override and the per-event status on the
+ * same vocabulary.
+ */
+export type StageStatus = EventLifecycleStatus;
 
 export type StageContext = {
   id: string;
   titre: string;
+  /**
+   * Phase the UI should display. Equals `realStatus` unless a dev phase
+   * override is in effect, in which case it reflects the override.
+   */
   status: StageStatus;
+  /**
+   * Underlying phase derived purely from event dates, ignoring any override.
+   * Surfaced separately so the override toggle can mark which option is the
+   * "real" one without losing the effective `status` semantics.
+   */
+  realStatus: StageStatus;
   startDate: Date;
   endDate: Date;
   startsInDays: number;
+};
+
+export type ResolveStageContextOptions = {
+  now?: Date;
+  /**
+   * Forces the returned `status` (the candidate stage is still selected from
+   * real data — only the perceived phase changes). Used by the dev override.
+   */
+  phaseOverride?: EventLifecycleStatus | null;
 };
 
 /**
@@ -30,8 +56,10 @@ export type StageContext = {
  */
 export async function resolveStageContext(
   db: ScopedPrismaClient,
-  now: Date = new Date(),
+  options: ResolveStageContextOptions = {},
 ): Promise<StageContext | null> {
+  const now = options.now ?? new Date();
+  const override = options.phaseOverride ?? null;
   const implicitLookback = addDays(now, -STAGE_DEFAULT_DURATION_DAYS);
   const lookahead = addDays(now, STAGE_UPCOMING_WINDOW_DAYS);
 
@@ -60,7 +88,8 @@ export async function resolveStageContext(
       return {
         id: event.id,
         titre: event.titre,
-        status: 'ongoing',
+        status: override ?? 'ongoing',
+        realStatus: 'ongoing',
         startDate: event.date,
         endDate,
         startsInDays: 0,
@@ -81,7 +110,8 @@ export async function resolveStageContext(
   return {
     id: nextUpcoming.id,
     titre: nextUpcoming.titre,
-    status: 'upcoming',
+    status: override ?? 'upcoming',
+    realStatus: 'upcoming',
     startDate: nextUpcoming.date,
     endDate,
     startsInDays: Math.ceil(

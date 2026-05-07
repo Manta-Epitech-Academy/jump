@@ -12,7 +12,11 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { hasFlag, requireStaffGroup } from '$lib/server/auth/guards';
-import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
+import {
+  applyPhaseOverride,
+  getEventStatus,
+  getLifecycleBounds,
+} from '$lib/domain/eventLifecycle';
 import { EVENT_TYPES } from '$lib/domain/event';
 import {
   sendRelances,
@@ -139,7 +143,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const activeStageParticipations = participations.filter((p) => {
       if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
-      const status = getEventStatus(p.event, bounds);
+      const status = applyPhaseOverride(
+        getEventStatus(p.event, bounds),
+        locals.stagePhaseOverride,
+      );
       return status === 'upcoming' || status === 'ongoing';
     });
 

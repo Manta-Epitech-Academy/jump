@@ -10,7 +10,11 @@ import {
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { getEventStatus, getLifecycleBounds } from '$lib/domain/eventLifecycle';
+import {
+  applyPhaseOverride,
+  getEventStatus,
+  getLifecycleBounds,
+} from '$lib/domain/eventLifecycle';
 import { getInterviewDisplayStatus } from '$lib/domain/interview';
 import { compareNiveaux } from './components/niveau';
 import {
@@ -55,7 +59,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
   const bounds = getLifecycleBounds(timezone);
-  const phase = getEventStatus(event, bounds);
+  const phase = applyPhaseOverride(
+    getEventStatus(event, bounds),
+    locals.stagePhaseOverride,
+  );
   const lyceeId = url.searchParams.get('lycee');
   const interestId = url.searchParams.get('interest');
 

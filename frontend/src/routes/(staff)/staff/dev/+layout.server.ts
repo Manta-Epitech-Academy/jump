@@ -10,6 +10,7 @@ import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { applyStaffRoleGate, hasFlag } from '$lib/server/auth/guards';
 import { resolveStageContext } from '$lib/server/services/stageContext';
 import { countUnreadForAuthor } from '$lib/server/services/tickets';
+import { isDevImpersonation } from '$lib/server/devPhaseOverride';
 
 export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   const { user, staffProfile } = await parent();
@@ -27,8 +28,9 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   applyStaffRoleGate(locals, url.pathname);
 
   const db = scopedPrisma(getCampusId(locals));
+  const phaseOverride = locals.stagePhaseOverride;
   const activeStage = hasFlag(locals, 'stage_seconde')
-    ? await resolveStageContext(db)
+    ? await resolveStageContext(db, { phaseOverride })
     : null;
 
   const ticketsUnread = locals.ticketsEnabled
@@ -41,5 +43,7 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
     timezone: getCampusTimezone(locals),
     activeStage,
     ticketsUnread,
+    phaseOverride,
+    canOverridePhase: isDevImpersonation(locals),
   };
 };

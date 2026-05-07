@@ -85,6 +85,9 @@
             >{activeStage.startsInDays}
             {activeStage.startsInDays > 1 ? 'jours' : 'jour'}</strong
           >. Préparez les entretiens dès maintenant.
+        {:else if activeStage?.status === 'past'}
+          Le stage <strong>{activeStage.titre}</strong> est terminé. Bilan, rétro
+          et préparation du suivant.
         {:else}
           Aucun événement n'est en cours. Utilisez ce temps calme pour préparer
           la suite.
