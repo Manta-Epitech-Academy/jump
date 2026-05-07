@@ -6,6 +6,13 @@ const API_URL =
 
 type Lycee = { nom: string; ville: string };
 
+function normalize(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 let lyceeCache: Lycee[] | null = null;
 let cacheLoadedAt = 0;
 const CACHE_TTL = 1000 * 60 * 60 * 24; // 24h
@@ -53,13 +60,13 @@ export const GET: RequestHandler = async ({ url }) => {
 
   try {
     const all = await loadAllLycees();
-    const query = q.toLowerCase();
+    const query = normalize(q);
 
     const results = all
       .filter(
         (lycee) =>
-          (lycee.nom.toLowerCase().includes(query) ||
-            lycee.ville.toLowerCase().includes(query)) &&
+          (normalize(lycee.nom).includes(query) ||
+            normalize(lycee.ville).includes(query)) &&
           !lycee.nom.toLowerCase().startsWith("section d'enseignement"),
       )
       .slice(0, 10);
