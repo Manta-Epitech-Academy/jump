@@ -51,7 +51,15 @@ export const handle: Handle = async ({ event, resolve }) => {
       event.locals.talent = record.talent;
     }
 
-    const campusId = event.locals.staffProfile?.campusId;
+    let campusId = event.locals.staffProfile?.campusId ?? null;
+    if (!campusId && event.locals.talent) {
+      const participation = await prisma.participation.findFirst({
+        where: { talentId: event.locals.talent.id },
+        orderBy: { event: { date: 'desc' } },
+        select: { campusId: true },
+      });
+      campusId = participation?.campusId ?? null;
+    }
     if (campusId) {
       const overrides = await prisma.campusFeatureFlag.findMany({
         where: { campusId },

@@ -34,6 +34,7 @@
   import Laptop from '@lucide/svelte/icons/laptop';
   import Monitor from '@lucide/svelte/icons/monitor';
   import Settings from '@lucide/svelte/icons/settings';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
   import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';
@@ -286,6 +287,66 @@
               ></div>
             </div>
           </div>
+
+          <!-- Mini-jeu du jour -->
+          {#if data.minigame}
+            {@const mg = data.minigame}
+            {#if mg.ok || (mg.publication && mg.reason === 'already_played')}
+              <div
+                class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
+              >
+                <h3
+                  class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
+                >
+                  <Gamepad2 class="h-4 w-4 text-epi-teal-solid" />
+                  Mini-jeu du jour
+                </h3>
+                {#if mg.ok}
+                  <div class="text-center">
+                    <p
+                      class="text-sm font-bold text-slate-800 capitalize dark:text-slate-200"
+                    >
+                      {mg.publication.game} · niveau {mg.publication.level}
+                    </p>
+                    <Button
+                      href={resolve(`/minigames/${mg.publication.id}`)}
+                      class="mt-2 w-full bg-epi-teal-solid text-white hover:bg-epi-teal-solid/90"
+                    >
+                      Jouer
+                    </Button>
+                  </div>
+                {:else if mg.reason === 'already_played' && mg.publication}
+                  <div class="space-y-2 text-center">
+                    <p
+                      class="text-sm font-bold text-slate-800 dark:text-slate-200"
+                    >
+                      Déjà joué !
+                    </p>
+                    {#if mg.lastAttempt}
+                      <p class="text-xs text-slate-500 dark:text-slate-400">
+                        {#if mg.lastAttempt.score !== null && mg.lastAttempt.score !== undefined}
+                          Score : {mg.lastAttempt.score}
+                        {/if}
+                        {#if mg.lastAttempt.chrono}
+                          {#if mg.lastAttempt.score !== null && mg.lastAttempt.score !== undefined}·{/if}
+                          {(mg.lastAttempt.chrono / 1000).toFixed(1)}s
+                        {/if}
+                      </p>
+                    {/if}
+                    <Button
+                      variant="outline"
+                      href={resolve(
+                        `/minigames/${mg.publication.id}/leaderboard`,
+                      )}
+                      class="w-full"
+                    >
+                      <Trophy class="mr-2 h-4 w-4" /> Classement
+                    </Button>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          {/if}
 
           <!-- RPG Skill Radar / Top Themes -->
           {#if topThemes.length > 0}

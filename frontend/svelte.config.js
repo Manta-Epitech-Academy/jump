@@ -1,6 +1,10 @@
 import adapter from '@sveltejs/adapter-node';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
+const jumpGamesOrigin = process.env.JUMP_GAMES_URL
+  ? new URL(process.env.JUMP_GAMES_URL).origin
+  : null;
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   // Consult https://svelte.dev/docs/kit/integrations
@@ -24,6 +28,9 @@ const config = {
         'font-src': ['self', 'https://fonts.gstatic.com'],
         'connect-src': ['self', 'https://discord.com'],
         'frame-ancestors': ['none'],
+        // Allow embedding the jump-games iframe (mini-jeux). Origin comes from
+        // JUMP_GAMES_URL at build time; falls back to self-only when unset.
+        'frame-src': jumpGamesOrigin ? ['self', jumpGamesOrigin] : ['self'],
       },
     },
     adapter: adapter(),

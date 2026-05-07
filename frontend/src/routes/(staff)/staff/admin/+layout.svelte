@@ -14,6 +14,7 @@
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
@@ -129,6 +130,13 @@
     >
       <CalendarDays class="h-4 w-4" />
       <span>Modèles de Planning</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/minigames')}
+      class={navLinkClass(isActive('/staff/admin/minigames'))}
+    >
+      <Gamepad2 class="h-4 w-4" />
+      <span>Mini-jeux</span>
     </a>
   </nav>
 {/snippet}

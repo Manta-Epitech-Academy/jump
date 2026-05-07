@@ -203,6 +203,7 @@ model Talent {
   competenceStates TalentCompetenceState[]
   quizAttempts     TalentQuizAttempt[]
   reminders      OnboardingReminder[]
+  minigameAttempts MinigameAttempt[]
 }
 
 // ─── Domain Tables ───
@@ -377,6 +378,8 @@ model Event {
   observableStates TalentObservableState[]
   quizAttempts     TalentQuizAttempt[]
   cmsPages         CmsPage[]
+  minigameAttempts MinigameAttempt[]
+  minigameSettings EventMinigameSettings?
 
   @@index([campusId])
 }
@@ -888,4 +891,74 @@ model OnboardingReminder {
   talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
 
   @@index([talentId])
+}
+
+// ─── Minigames ───
+
+enum MinigameScoring {
+  score
+  chrono
+}
+
+enum MinigameAttemptStatus {
+  pending
+  done
+  invalid
+}
+
+model MinigameConfig {
+  game        String          @id
+  levelCount  Int             @default(0)
+  weight      Int             @default(1)
+  scoringType MinigameScoring @default(score)
+  enabled     Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  publications MinigamePublication[]
+}
+
+model MinigamePublication {
+  id          String   @id @default(cuid())
+  game        String
+  level       Int
+  publishedAt DateTime @default(now())
+  forcedById  String?
+
+  config   MinigameConfig    @relation(fields: [game], references: [game])
+  attempts MinigameAttempt[]
+
+  @@index([publishedAt])
+  @@index([game])
+}
+
+model MinigameAttempt {
+  id            String                @id @default(cuid())
+  talentId      String
+  publicationId String
+  eventId       String
+  status        MinigameAttemptStatus @default(pending)
+  score         Int?
+  chrono        Int?
+  valid         Boolean?
+  startedAt     DateTime              @default(now())
+  finishedAt    DateTime?
+  jti           String                @unique
+
+  talent      Talent              @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  publication MinigamePublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([talentId, publicationId])
+  @@index([eventId, publicationId])
+  @@index([publicationId])
+}
+
+model EventMinigameSettings {
+  eventId     String   @id
+  enabled     Boolean  @default(false)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
