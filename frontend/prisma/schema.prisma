@@ -80,6 +80,8 @@ model bauth_user {
   talent            Talent?
   invitationsIssued StaffInvitation[] @relation("StaffInvitationInvitedBy")
   cmsPages          CmsPage[]
+  ticketsAuthored   Ticket[]          @relation("TicketAuthor")
+  ticketMessages    TicketMessage[]
 }
 
 model bauth_session {
@@ -926,4 +928,40 @@ model OnboardingReminder {
   talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
 
   @@index([talentId])
+}
+
+// ── Tickets (staff → admin support) ──
+
+model Ticket {
+  id                 String    @id @default(cuid())
+  authorId           String
+  category           String    // "bug" | "suggestion"
+  title              String
+  status             String    @default("open") // "open" | "closed"
+  lastMessageAt      DateTime  @default(now())
+  lastSeenByAuthorAt DateTime?
+  lastSeenByAdminAt  DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  author   bauth_user      @relation("TicketAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
+
+  @@index([authorId])
+  @@index([status])
+  @@index([lastMessageAt])
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author bauth_user @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
 }

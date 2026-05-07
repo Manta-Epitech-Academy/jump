@@ -67,6 +67,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
                   timeSlot: true,
                 },
               },
+              verdictAuthor: { include: { user: true } },
             },
           },
         },

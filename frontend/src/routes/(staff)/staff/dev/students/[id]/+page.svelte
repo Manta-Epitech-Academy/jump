@@ -56,10 +56,22 @@
   import { can } from '$lib/domain/permissions';
   import { salesforceContactUrl } from '$lib/domain/salesforce';
   import { cn } from '$lib/utils';
+  import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
 
   const canDelete = $derived(can('devLead', data.staffProfile?.staffRole));
+
+  // The /staff/dev/students listing is gated on coding_club, so the
+  // breadcrumb can only link there when the campus has the flag.
+  let featureFlags = $derived(
+    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
+  );
+  let talentsHref = $derived(
+    featureFlags.has('coding_club')
+      ? resolve('/staff/dev/students')
+      : undefined,
+  );
 
   const { form, errors, delayed, enhance, reset } = superForm(
     untrack(() => data.form),
@@ -185,7 +197,7 @@
   <PageBreadcrumb
     items={[
       { label: 'Dashboard', href: resolve('/staff/dev') },
-      { label: 'Talents', href: resolve('/staff/dev/students') },
+      { label: 'Talents', href: talentsHref },
       { label: `${data.student.nom} ${data.student.prenom}` },
     ]}
   />
