@@ -2,11 +2,9 @@
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import Search from '@lucide/svelte/icons/search';
   import Users from '@lucide/svelte/icons/users';
   import X from '@lucide/svelte/icons/x';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
@@ -252,16 +250,12 @@
 
     {#if variant.kind === 'prep'}
       <div class="space-y-3">
-        <div class="relative">
-          <Search
-            class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground"
-          />
-          <Input
-            placeholder="Rechercher un talent..."
-            class="rounded-sm bg-card pl-8"
-            bind:value={searchQuery}
-          />
-        </div>
+        <InscritFilterBar
+          bind:searchQuery
+          bind:niveauFilter
+          bind:sort
+          availableNiveaux={data.availableNiveaux}
+        />
         <PrepFilterChips
           filter={variant.filter}
           counts={variant.counts}
@@ -269,7 +263,10 @@
         />
       </div>
 
-      {@const filtered = applySearch(variant.rows, searchQuery)}
+      {@const filtered = applySort(
+        applyNiveau(applySearch(variant.rows, searchQuery), niveauFilter),
+        sort,
+      )}
       {#if filtered.length === 0}
         <div
           class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"

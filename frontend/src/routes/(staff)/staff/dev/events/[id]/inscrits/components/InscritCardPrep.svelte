@@ -2,6 +2,7 @@
   import { resolve } from '$app/paths';
   import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
+  import Trophy from '@lucide/svelte/icons/trophy';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import NewTalentBadge from '$lib/components/students/NewTalentBadge.svelte';
@@ -85,6 +86,14 @@
   {/if}
 
   <div class="border-t border-border/60"></div>
+
+  <div class="flex items-center gap-2 text-xs text-muted-foreground">
+    <Trophy class="h-3.5 w-3.5 text-epi-orange" />
+    <span class="font-mono font-bold text-foreground">
+      {talent?.xp ?? 0}
+    </span>
+    <span>XP</span>
+  </div>
 
   <ul class="space-y-1">
     {#each tiles as tile (tile.label)}
