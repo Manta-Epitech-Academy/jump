@@ -80,6 +80,8 @@ model bauth_user {
   talent            Talent?
   invitationsIssued StaffInvitation[] @relation("StaffInvitationInvitedBy")
   cmsPages          CmsPage[]
+  tickets           Ticket[]          @relation("TicketAuthor")
+  ticketMessages    TicketMessage[]
 }
 
 model bauth_session {
@@ -203,6 +205,7 @@ model Talent {
   competenceStates TalentCompetenceState[]
   quizAttempts     TalentQuizAttempt[]
   reminders      OnboardingReminder[]
+  minigameAttempts MinigameAttempt[]
 }
 
 // ─── Domain Tables ───
@@ -377,6 +380,8 @@ model Event {
   observableStates TalentObservableState[]
   quizAttempts     TalentQuizAttempt[]
   cmsPages         CmsPage[]
+  minigameAttempts MinigameAttempt[]
+  minigameSettings EventMinigameSettings?
 
   @@index([campusId])
 }
