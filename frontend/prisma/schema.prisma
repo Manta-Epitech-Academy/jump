@@ -80,7 +80,7 @@ model bauth_user {
   talent            Talent?
   invitationsIssued StaffInvitation[] @relation("StaffInvitationInvitedBy")
   cmsPages          CmsPage[]
-  tickets           Ticket[]          @relation("TicketAuthor")
+  ticketsAuthored   Ticket[]          @relation("TicketAuthor")
   ticketMessages    TicketMessage[]
 }
 
