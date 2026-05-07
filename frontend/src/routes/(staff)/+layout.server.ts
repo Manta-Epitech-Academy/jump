@@ -1,5 +1,8 @@
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-  return { featureFlags: [...locals.featureFlags] };
+  return {
+    featureFlags: [...locals.featureFlags],
+    ticketsEnabled: locals.ticketsEnabled,
+  };
 };

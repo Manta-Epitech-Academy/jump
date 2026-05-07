@@ -203,7 +203,6 @@ model Talent {
   competenceStates TalentCompetenceState[]
   quizAttempts     TalentQuizAttempt[]
   reminders      OnboardingReminder[]
-  minigameAttempts MinigameAttempt[]
 }
 
 // ─── Domain Tables ───
@@ -378,8 +377,6 @@ model Event {
   observableStates TalentObservableState[]
   quizAttempts     TalentQuizAttempt[]
   cmsPages         CmsPage[]
-  minigameAttempts MinigameAttempt[]
-  minigameSettings EventMinigameSettings?
 
   @@index([campusId])
 }
@@ -962,3 +959,41 @@ model EventMinigameSettings {
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
+
+
+// ── Tickets (staff → admin support) ──
+
+model Ticket {
+  id                 String    @id @default(cuid())
+  authorId           String
+  category           String    // "bug" | "suggestion"
+  title              String
+  status             String    @default("open") // "open" | "closed"
+  lastMessageAt      DateTime  @default(now())
+  lastSeenByAuthorAt DateTime?
+  lastSeenByAdminAt  DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  author   bauth_user      @relation("TicketAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
+
+  @@index([authorId])
+  @@index([status])
+  @@index([lastMessageAt])
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author bauth_user @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+}
+
