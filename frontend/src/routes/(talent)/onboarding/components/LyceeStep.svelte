@@ -121,7 +121,7 @@
             {#each suggestions as s, i}
               <button
                 type="button"
-                class="flex w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 text-left text-sm transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted {i >
+                class="flex w-full cursor-pointer items-start justify-between gap-4 px-4 py-3 text-left text-sm transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted {i >
                 0
                   ? 'border-t border-border'
                   : ''}"
