@@ -22,22 +22,23 @@ function setSecurityHeaders(response: Response) {
 
 // SvelteKit builds the CSP at build time from svelte.config.js. To allow
 // runtime-configured external hosts (e.g. Umami host injected by Kubernetes),
-// we patch the existing header in-place per request — preserving the SvelteKit
-// nonce and the rest of the directives.
+// we append to the existing directives in-place per request — preserving the
+// SvelteKit nonce. We deliberately do NOT add script-src-elem: if it's absent,
+// the browser falls back to script-src (which we DO patch), which is exactly
+// what we want. Adding script-src-elem from scratch here would lose the nonce
+// and break SvelteKit hydration.
 function extendCspWithRuntimeHosts(response: Response) {
   const umamiHost = publicEnv.PUBLIC_UMAMI_HOST?.replace(/\/$/, '');
   if (!umamiHost) return;
 
   const extras: Record<string, string[]> = {
     'script-src': [umamiHost],
-    'script-src-elem': [umamiHost],
     'connect-src': [umamiHost],
   };
 
   const csp = response.headers.get('content-security-policy');
   if (!csp) return;
 
-  const seen = new Set<string>();
   const updated = csp
     .split(';')
     .map((directive) => directive.trim())
@@ -45,18 +46,9 @@ function extendCspWithRuntimeHosts(response: Response) {
     .map((directive) => {
       const spaceIdx = directive.indexOf(' ');
       const name = spaceIdx === -1 ? directive : directive.slice(0, spaceIdx);
-      seen.add(name);
       const additions = extras[name];
       return additions ? `${directive} ${additions.join(' ')}` : directive;
     });
-
-  // If a directive we care about wasn't in the original CSP, append it
-  // anchored on 'self' so we don't accidentally widen the policy.
-  for (const [name, additions] of Object.entries(extras)) {
-    if (!seen.has(name)) {
-      updated.push(`${name} 'self' ${additions.join(' ')}`);
-    }
-  }
 
   response.headers.set('content-security-policy', updated.join('; '));
 }
