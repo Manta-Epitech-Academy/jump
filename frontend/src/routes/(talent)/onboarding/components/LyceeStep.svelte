@@ -121,7 +121,7 @@
 
         {#if showSuggestions}
           <div
-            class="absolute z-10 mt-2 max-h-64 w-full overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm dark:border-slate-700/50 dark:bg-slate-900/95"
+            class="absolute z-10 mt-2 max-h-96 w-full overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm dark:border-slate-700/50 dark:bg-slate-900/95"
           >
             {#each suggestions as s, i}
               <button
