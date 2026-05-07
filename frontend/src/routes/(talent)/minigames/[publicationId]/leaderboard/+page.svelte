@@ -28,7 +28,7 @@
           {data.publication.game} · niveau {data.publication.level}
         </h1>
         <p class="text-xs text-slate-500 dark:text-slate-400">
-          Classement de ton event
+          Classement de ton campus
         </p>
       </div>
     </div>

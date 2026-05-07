@@ -4,6 +4,7 @@ import type {
   MinigameAttempt,
   MinigamePublication,
   MinigameConfig,
+  Prisma,
 } from '@prisma/client';
 
 export interface CallbackPayload {
@@ -34,6 +35,15 @@ export async function getActivePublication(): Promise<MinigamePublication | null
   return prisma.minigamePublication.findFirst({
     orderBy: { publishedAt: 'desc' },
   });
+}
+
+export async function getTalentCampusIds(talentId: string): Promise<string[]> {
+  const rows = await prisma.participation.findMany({
+    where: { talentId },
+    distinct: ['campusId'],
+    select: { campusId: true },
+  });
+  return rows.map((r) => r.campusId);
 }
 
 export async function getCurrentEventForTalent(talentId: string): Promise<{
@@ -228,9 +238,9 @@ export interface LeaderboardRow {
   finishedAt: Date | null;
 }
 
-export async function getLeaderboard(
+async function buildLeaderboard(
   publicationId: string,
-  eventId: string,
+  scopeWhere: Prisma.MinigameAttemptWhereInput,
 ): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
   const publication = await prisma.minigamePublication.findUnique({
     where: { id: publicationId },
@@ -241,9 +251,9 @@ export async function getLeaderboard(
   const attempts = await prisma.minigameAttempt.findMany({
     where: {
       publicationId,
-      eventId,
       status: 'done',
       valid: true,
+      ...scopeWhere,
     },
     include: {
       talent: { select: { id: true, prenom: true, nom: true } },
@@ -269,6 +279,23 @@ export async function getLeaderboard(
   }));
 
   return { rows, scoringType: publication.config.scoringType };
+}
+
+export async function getLeaderboard(
+  publicationId: string,
+  eventId: string,
+): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
+  return buildLeaderboard(publicationId, { eventId });
+}
+
+export async function getCampusLeaderboard(
+  publicationId: string,
+  campusIds: string[],
+): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
+  if (campusIds.length === 0) return { rows: [], scoringType: 'score' };
+  return buildLeaderboard(publicationId, {
+    event: { campusId: { in: campusIds } },
+  });
 }
 
 function weightedPick(candidates: MinigameConfig[]): MinigameConfig {
