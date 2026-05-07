@@ -1,34 +1,39 @@
 <script lang="ts">
   import InfoValidationStep from './components/InfoValidationStep.svelte';
+  import LyceeStep from './components/LyceeStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
   import InterestsRecapStep from './components/InterestsRecapStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
 
   let { data, form } = $props();
 
-  const TOTAL_STEPS = 5;
+  const TOTAL_STEPS = 6;
   const stepNumber = $derived(
     data.step === 'info-validation'
       ? 1
-      : data.step === 'interests-tech'
+      : data.step === 'lycee'
         ? 2
-        : data.step === 'interests-general'
+        : data.step === 'interests-tech'
           ? 3
-          : data.step === 'interests-recap'
+          : data.step === 'interests-general'
             ? 4
-            : 5,
+            : data.step === 'interests-recap'
+              ? 5
+              : 6,
   );
 
   const stepTitle = $derived(
     data.step === 'info-validation'
       ? 'Mes informations'
-      : data.step === 'interests-tech'
-        ? 'Informatique'
-        : data.step === 'interests-general'
-          ? "Centres d'intérêt"
-          : data.step === 'interests-recap'
-            ? 'Ton profil'
-            : 'Règlement',
+      : data.step === 'lycee'
+        ? 'Mon lycée'
+        : data.step === 'interests-tech'
+          ? 'Informatique'
+          : data.step === 'interests-general'
+            ? "Centres d'intérêt"
+            : data.step === 'interests-recap'
+              ? 'Ton profil'
+              : 'Règlement',
   );
 </script>
 
@@ -62,6 +67,12 @@
       <InfoValidationStep
         profile={(form?.values as typeof data.profile) ?? data.profile}
         errors={form?.errors}
+      />
+    {:else if data.step === 'lycee'}
+      <LyceeStep
+        lyceeNom={data.lyceeNom}
+        lyceeVille={data.lyceeVille}
+        error={form?.error}
       />
     {:else if data.step === 'interests-tech'}
       <InterestsStep

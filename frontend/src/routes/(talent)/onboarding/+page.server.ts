@@ -4,6 +4,7 @@ import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import {
   infoValidationSchema,
+  lyceeSchema,
   techInterestsSchema,
   generalInterestsSchema,
 } from '$lib/validation/onboarding';
@@ -13,6 +14,7 @@ import { sendParentWelcomeEmail } from '$lib/server/otp';
 
 export type OnboardingStep =
   | 'info-validation'
+  | 'lycee'
   | 'interests-tech'
   | 'interests-general'
   | 'interests-recap'
@@ -20,12 +22,14 @@ export type OnboardingStep =
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
+  lyceeValidatedAt: Date | null;
   techInterestsValidatedAt: Date | null;
   generalInterestsValidatedAt: Date | null;
   interestsRecapSeenAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
   if (!profile.infoValidatedAt) return 'info-validation';
+  if (!profile.lyceeValidatedAt) return 'lycee';
   if (!profile.techInterestsValidatedAt) return 'interests-tech';
   if (!profile.generalInterestsValidatedAt) return 'interests-general';
   if (!profile.interestsRecapSeenAt) return 'interests-recap';
@@ -58,6 +62,14 @@ export const load: PageServerLoad = async ({ locals }) => {
         parentPhone: locals.talent.parentPhone ?? '',
         phone: locals.talent.phone ?? '',
       },
+    };
+  }
+
+  if (step === 'lycee') {
+    return {
+      step,
+      lyceeNom: locals.talent.lyceeNom ?? '',
+      lyceeVille: locals.talent.lyceeVille ?? '',
     };
   }
 
@@ -197,6 +209,32 @@ export const actions: Actions = {
         console.error('Failed to send parent welcome email:', err),
       );
     }
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  validateLycee: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const formData = await request.formData();
+    const raw = Object.fromEntries(formData);
+    const result = lyceeSchema.safeParse(raw);
+
+    if (!result.success) {
+      return {
+        step: 'lycee' as const,
+        error: result.error.issues[0]?.message ?? 'Données invalides.',
+      };
+    }
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: {
+        lyceeNom: result.data.lyceeNom,
+        lyceeVille: result.data.lyceeVille || null,
+        lyceeValidatedAt: new Date(),
+      },
+    });
 
     throw redirect(303, resolve('/onboarding'));
   },

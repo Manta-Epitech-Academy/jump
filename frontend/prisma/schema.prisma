@@ -205,6 +205,9 @@ model Talent {
   imageRightsSignedAt   DateTime?
   imageRightsSignerName String?
   infoValidatedAt       DateTime?
+  lyceeNom              String?
+  lyceeVille            String?
+  lyceeValidatedAt      DateTime?
   charterFilePath       String?
   rulesFilePath         String?
   imageRightsFilePath   String?
