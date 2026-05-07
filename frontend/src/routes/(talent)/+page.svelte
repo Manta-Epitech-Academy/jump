@@ -39,6 +39,7 @@
   import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import { onMount, untrack } from 'svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -205,7 +206,11 @@
           <Settings class="h-4 w-4" />
           <span class="sr-only">Paramètres</span>
         </Button>
-        <form action="{resolve('/logout')}?type=student" method="POST">
+        <form
+          action="{resolve('/logout')}?type=student"
+          method="POST"
+          onsubmit={() => track('logout', { kind: 'talent' })}
+        >
           <Button
             type="submit"
             variant="ghost"
