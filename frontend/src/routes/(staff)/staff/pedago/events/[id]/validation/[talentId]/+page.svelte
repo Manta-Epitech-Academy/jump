@@ -8,6 +8,7 @@
   import Eye from '@lucide/svelte/icons/eye';
   import { toast } from 'svelte-sonner';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
+  import { track } from '$lib/analytics';
 
   let { data, form }: { data: PageData; form: any } = $props();
 
@@ -106,7 +107,19 @@
                   </p>
                 {/if}
               </div>
-              <form method="POST" action="?/validate" use:enhance>
+              <form
+                method="POST"
+                action="?/validate"
+                use:enhance={() =>
+                  async ({ result, update }) => {
+                    if (result.type === 'success') {
+                      track('observable_validated', {
+                        observableId: obs.observableId,
+                      });
+                    }
+                    await update();
+                  }}
+              >
                 <input
                   type="hidden"
                   name="observableId"

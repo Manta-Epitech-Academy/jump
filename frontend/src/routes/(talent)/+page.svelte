@@ -124,6 +124,7 @@
     try {
       await navigator.clipboard.writeText(shareUrl);
       copied = true;
+      track('talent_portfolio_link_copied');
       toast.success('Lien copié dans le presse-papier !');
       setTimeout(() => {
         copied = false;
@@ -137,6 +138,7 @@
   let isDownloading = $state(false);
 
   async function downloadCertificate() {
+    track('certificate_download_clicked');
     isDownloading = true;
     try {
       const res = await fetch(resolve('/api/certificate'));
@@ -158,9 +160,11 @@
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      track('certificate_downloaded');
       toast.success('Attestation téléchargée !');
       triggerConfetti();
     } catch (e) {
+      track('certificate_download_failed');
       toast.error("Erreur lors de la génération de l'attestation.");
     } finally {
       isDownloading = false;

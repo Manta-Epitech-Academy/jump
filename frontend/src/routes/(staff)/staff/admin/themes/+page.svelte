@@ -14,6 +14,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -23,6 +24,9 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track(
+            isEditing ? 'official_theme_updated' : 'official_theme_created',
+          );
           open = false;
           toast.success(result.data?.form?.message || 'Action réussie');
         }
@@ -186,5 +190,6 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer le thème"
     description="Êtes-vous sûr ? Impossible s'il est utilisé par un ou plusieurs sujets."
+    onSuccess={() => track('official_theme_deleted')}
   />
 </div>

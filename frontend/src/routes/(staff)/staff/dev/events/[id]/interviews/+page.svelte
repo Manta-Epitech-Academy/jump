@@ -17,6 +17,7 @@
   import AutoScheduleDialog from '$lib/components/interviews/AutoScheduleDialog.svelte';
   import { resolve } from '$app/paths';
   import * as Avatar from '$lib/components/ui/avatar';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -208,6 +209,8 @@
                 action="?/updateStatus"
                 method="POST"
                 use:enhance
+                onsubmit={() =>
+                  track('interview_status_changed', { status: 'completed' })}
                 class="flex-1"
               >
                 <input type="hidden" name="id" value={interview.id} />
@@ -223,6 +226,8 @@
                 action="?/updateStatus"
                 method="POST"
                 use:enhance
+                onsubmit={() =>
+                  track('interview_status_changed', { status: 'cancelled' })}
                 class="shrink-0"
               >
                 <input type="hidden" name="id" value={interview.id} />
