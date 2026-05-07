@@ -61,7 +61,9 @@ export const GET: RequestHandler = async ({ url }) => {
     const results = all
       .filter((lycee) => {
         if (isPostalCode) {
-          return lycee.codePostal.startsWith(q);
+          // Match on first 4 digits to handle cedex variants (34973 vs 34970)
+          const matchLen = Math.min(q.length, 4);
+          return lycee.codePostal.slice(0, matchLen) === q.slice(0, matchLen);
         }
         return (
           lycee.nom.toLowerCase().includes(query) ||
