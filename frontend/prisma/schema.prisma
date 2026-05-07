@@ -200,6 +200,7 @@ model Talent {
   charterAcceptedAt     DateTime?
   techInterestsValidatedAt    DateTime?
   generalInterestsValidatedAt DateTime?
+  interestsRecapSeenAt  DateTime?
   rulesSignedAt         DateTime?
   imageRightsSignedAt   DateTime?
   imageRightsSignerName String?

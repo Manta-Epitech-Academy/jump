@@ -15,17 +15,20 @@ export type OnboardingStep =
   | 'info-validation'
   | 'interests-tech'
   | 'interests-general'
+  | 'interests-recap'
   | 'rules';
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
   techInterestsValidatedAt: Date | null;
   generalInterestsValidatedAt: Date | null;
+  interestsRecapSeenAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
   if (!profile.infoValidatedAt) return 'info-validation';
   if (!profile.techInterestsValidatedAt) return 'interests-tech';
   if (!profile.generalInterestsValidatedAt) return 'interests-general';
+  if (!profile.interestsRecapSeenAt) return 'interests-recap';
   if (!profile.rulesSignedAt) return 'rules';
   return null;
 }
@@ -101,6 +104,24 @@ export const load: PageServerLoad = async ({ locals }) => {
         nom: t.interest.nom,
         emoji: t.interest.emoji,
       })),
+    };
+  }
+
+  if (step === 'interests-recap') {
+    const allSelections = await prisma.talentInterest.findMany({
+      where: { talentId: locals.talent.id },
+      include: { interest: { select: { nom: true, emoji: true, kind: true } } },
+      orderBy: { interest: { order: 'asc' } },
+    });
+
+    return {
+      step,
+      techSelections: allSelections
+        .filter((s) => s.interest.kind === 'tech')
+        .map((s) => ({ nom: s.interest.nom, emoji: s.interest.emoji })),
+      generalSelections: allSelections
+        .filter((s) => s.interest.kind === 'general')
+        .map((s) => ({ nom: s.interest.nom, emoji: s.interest.emoji })),
     };
   }
 
@@ -262,6 +283,17 @@ export const actions: Actions = {
         data: { generalInterestsValidatedAt: new Date() },
       }),
     ]);
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  confirmRecap: async ({ locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: { interestsRecapSeenAt: new Date() },
+    });
 
     throw redirect(303, resolve('/onboarding'));
   },

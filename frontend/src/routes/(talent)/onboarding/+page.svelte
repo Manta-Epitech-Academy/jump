@@ -1,11 +1,12 @@
 <script lang="ts">
   import InfoValidationStep from './components/InfoValidationStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
+  import InterestsRecapStep from './components/InterestsRecapStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
 
   let { data, form } = $props();
 
-  const TOTAL_STEPS = 4;
+  const TOTAL_STEPS = 5;
   const stepNumber = $derived(
     data.step === 'info-validation'
       ? 1
@@ -13,7 +14,9 @@
         ? 2
         : data.step === 'interests-general'
           ? 3
-          : 4,
+          : data.step === 'interests-recap'
+            ? 4
+            : 5,
   );
 
   const stepTitle = $derived(
@@ -22,8 +25,10 @@
       : data.step === 'interests-tech'
         ? 'Informatique'
         : data.step === 'interests-general'
-          ? "Centres d'int\u00e9r\u00eat"
-          : 'R\u00e8glement',
+          ? "Centres d'intérêt"
+          : data.step === 'interests-recap'
+            ? 'Ton profil'
+            : 'Règlement',
   );
 </script>
 
@@ -76,6 +81,11 @@
         maxSelect={5}
         actionName="validateGeneralInterests"
         techSelections={data.techSelections}
+      />
+    {:else if data.step === 'interests-recap'}
+      <InterestsRecapStep
+        techSelections={data.techSelections}
+        generalSelections={data.generalSelections}
       />
     {:else if data.step === 'rules'}
       <RulesStep error={form?.error} />

@@ -2368,6 +2368,7 @@ async function seedStudents(): Promise<
         infoValidatedAt: s.skipOnboarding ? new Date() : null,
         techInterestsValidatedAt: s.skipOnboarding ? new Date() : null,
         generalInterestsValidatedAt: s.skipOnboarding ? new Date() : null,
+        interestsRecapSeenAt: s.skipOnboarding ? new Date() : null,
         rulesSignedAt: s.skipOnboarding ? new Date() : null,
         parentNom: s.skipOnboarding ? 'Martin' : null,
         parentPrenom: s.skipOnboarding ? 'Sophie' : null,
