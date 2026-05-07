@@ -4,7 +4,6 @@ import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { getTicketsEnabled } from '$lib/server/settings/tickets';
-import { env as publicEnv } from '$env/dynamic/public';
 
 function setSecurityHeaders(response: Response) {
   response.headers.set('X-Frame-Options', 'DENY');
@@ -18,39 +17,6 @@ function setSecurityHeaders(response: Response) {
     'Strict-Transport-Security',
     'max-age=31536000; includeSubDomains',
   );
-}
-
-// SvelteKit builds the CSP at build time from svelte.config.js. To allow
-// runtime-configured external hosts (e.g. Umami host injected by Kubernetes),
-// we append to the existing directives in-place per request — preserving the
-// SvelteKit nonce. We deliberately do NOT add script-src-elem: if it's absent,
-// the browser falls back to script-src (which we DO patch), which is exactly
-// what we want. Adding script-src-elem from scratch here would lose the nonce
-// and break SvelteKit hydration.
-function extendCspWithRuntimeHosts(response: Response) {
-  const umamiHost = publicEnv.PUBLIC_UMAMI_HOST?.replace(/\/$/, '');
-  if (!umamiHost) return;
-
-  const extras: Record<string, string[]> = {
-    'script-src': [umamiHost],
-    'connect-src': [umamiHost],
-  };
-
-  const csp = response.headers.get('content-security-policy');
-  if (!csp) return;
-
-  const updated = csp
-    .split(';')
-    .map((directive) => directive.trim())
-    .filter(Boolean)
-    .map((directive) => {
-      const spaceIdx = directive.indexOf(' ');
-      const name = spaceIdx === -1 ? directive : directive.slice(0, spaceIdx);
-      const additions = extras[name];
-      return additions ? `${directive} ${additions.join(' ')}` : directive;
-    });
-
-  response.headers.set('content-security-policy', updated.join('; '));
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -128,7 +94,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
   const response = await resolve(event);
   setSecurityHeaders(response);
-  extendCspWithRuntimeHosts(response);
 
   return response;
 };

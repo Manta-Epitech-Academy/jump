@@ -1,6 +1,8 @@
 import adapter from '@sveltejs/adapter-node';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
+const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   // Consult https://svelte.dev/docs/kit/integrations
@@ -16,18 +18,13 @@ const config = {
     // See `tsconfig.check.json` and the `check` script in package.json.
     outDir: process.env.KIT_OUTDIR || '.svelte-kit',
     csp: {
-      // Hash mode: SvelteKit computes a sha256 of each inline <script>/<style>
-      // at SSR and appends it to the CSP header. Covers third-party inline
-      // scripts (e.g. mode-watcher's setInitialMode in <svelte:head>) which
-      // nonce mode does not stamp.
-      mode: 'hash',
       directives: {
         'default-src': ['self'],
-        'script-src': ['self'],
+        'script-src': ['self', UMAMI_HOST],
         'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
         'img-src': ['self', 'data:', 'https:'],
         'font-src': ['self', 'https://fonts.gstatic.com'],
-        'connect-src': ['self', 'https://discord.com'],
+        'connect-src': ['self', 'https://discord.com', UMAMI_HOST],
         'frame-ancestors': ['none'],
       },
     },
