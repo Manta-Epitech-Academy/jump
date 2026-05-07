@@ -125,11 +125,14 @@
                 onclick={() => select(s)}
               >
                 <School class="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div>
+                <div class="flex-1">
                   <p class="font-medium text-foreground">{s.nom}</p>
-                  <p class="text-xs text-muted-foreground">
-                    {s.codePostal ? `${s.codePostal} ${s.ville}` : s.ville}
-                  </p>
+                </div>
+                <div class="shrink-0 text-right">
+                  <p class="text-sm font-semibold text-foreground">{s.ville}</p>
+                  {#if s.codePostal}
+                    <p class="text-xs text-muted-foreground">{s.codePostal}</p>
+                  {/if}
                 </div>
               </button>
             {/each}
