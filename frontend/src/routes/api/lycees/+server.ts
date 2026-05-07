@@ -58,8 +58,9 @@ export const GET: RequestHandler = async ({ url }) => {
     const results = all
       .filter(
         (lycee) =>
-          lycee.nom.toLowerCase().includes(query) ||
-          lycee.ville.toLowerCase().includes(query),
+          (lycee.nom.toLowerCase().includes(query) ||
+            lycee.ville.toLowerCase().includes(query)) &&
+          !lycee.nom.toLowerCase().startsWith("section d'enseignement"),
       )
       .slice(0, 10);
 
