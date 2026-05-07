@@ -23,6 +23,7 @@
   let showSuggestions = $state(false);
   let freeTextMode = $state(false);
   let loading = $state(false);
+  let noResults = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout>;
 
   const hasSelection = $derived(selectedNom.length >= 2);
@@ -30,15 +31,19 @@
   async function search(q: string) {
     if (q.length < 2) {
       suggestions = [];
+      noResults = false;
       return;
     }
     loading = true;
+    noResults = false;
     try {
       const res = await fetch(`/api/lycees?q=${encodeURIComponent(q)}`);
       suggestions = await res.json();
       showSuggestions = suggestions.length > 0;
+      noResults = suggestions.length === 0;
     } catch {
       suggestions = [];
+      noResults = true;
     } finally {
       loading = false;
     }
@@ -139,6 +144,10 @@
               </button>
             {/each}
           </div>
+        {:else if noResults && !selectedNom && !freeTextMode}
+          <p class="mt-2 text-sm text-muted-foreground">
+            Aucun lycée trouvé pour cette recherche.
+          </p>
         {/if}
       </div>
 
