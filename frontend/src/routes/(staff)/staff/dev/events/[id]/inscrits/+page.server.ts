@@ -69,7 +69,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     interestId
       ? db.interest.findUnique({
           where: { id: interestId },
-          select: { id: true, label: true },
+          select: { id: true, nom: true, emoji: true },
         })
       : Promise.resolve(null),
   ]);

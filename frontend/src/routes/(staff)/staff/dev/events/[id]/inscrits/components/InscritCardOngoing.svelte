@@ -117,7 +117,10 @@
         <span
           class="rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
         >
-          {ti.interest.label}
+          {#if ti.interest.emoji}<span aria-hidden="true"
+              >{ti.interest.emoji}</span
+            >{/if}
+          {ti.interest.nom}
         </span>
       {/each}
       {#if overflow > 0}

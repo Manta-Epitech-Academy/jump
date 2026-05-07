@@ -1212,23 +1212,6 @@ const LYCEES: LyceeDef[] = [
   { nom: 'Lycée Édouard-Herriot', ville: 'Lyon', departement: '69' },
 ];
 
-type InterestDef = { label: string; slug: string };
-
-const INTERESTS: InterestDef[] = [
-  { label: 'Jeu vidéo', slug: 'jeu-video' },
-  { label: 'IA', slug: 'ia' },
-  { label: 'Cybersécurité', slug: 'cybersecurite' },
-  { label: 'Web design', slug: 'web-design' },
-  { label: 'Robotique', slug: 'robotique' },
-  { label: 'Esport', slug: 'esport' },
-  { label: 'Cinéma', slug: 'cinema' },
-  { label: 'Musique', slug: 'musique' },
-  { label: 'Crypto', slug: 'crypto' },
-  { label: 'Mobile dev', slug: 'mobile-dev' },
-  { label: 'Hardware', slug: 'hardware' },
-  { label: 'Open source', slug: 'open-source' },
-];
-
 type StudentDef = {
   email: string;
   prenom: string;
@@ -2810,16 +2793,20 @@ async function main() {
   // 2b. Lycées + intérêts catalogues (referenced by talents)
   const lycees = await seedLycees();
   console.log(`✓  Lycées (${lycees.length})`);
-  const interests = await seedInterests();
-  console.log(`✓  Intérêts (${interests.length})`);
+  await seedInterests();
+  console.log('✓  Intérêts');
 
   // 3. Students
-  const talentByEmail = await seedStudents(lycees, interests);
+  const talentByEmail = await seedStudents(lycees);
   console.log(`✓  Students (${Object.keys(talentByEmail).length})`);
 
   // 3b. Parent account (links to first child for portal testing)
   const parentEmail = await seedParents(talentByEmail);
   console.log(`✓  Parent (${parentEmail})`);
+
+  // 3c. Talent interest assignments
+  await assignTalentInterests();
+  console.log('✓  Talent interest assignments');
 
   // 4. Themes
   const themesByKey = await seedThemes(campuses);
@@ -2914,6 +2901,109 @@ async function wipeAll() {
   await prisma.bauth_user.deleteMany();
 }
 
+// ─── Interests ───
+
+async function seedInterests() {
+  const techItems = [
+    { nom: 'Créer des sites web', emoji: '🌐' },
+    { nom: 'Créer des apps', emoji: '📱' },
+    { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
+    { nom: 'Programmation', emoji: '💻' },
+    { nom: 'Développement de logiciels', emoji: '🖥️' },
+    { nom: 'Intelligence artificielle', emoji: '🤖' },
+    { nom: 'Robotique', emoji: '🦾' },
+    { nom: 'Data science / Analyse de données', emoji: '📊' },
+    { nom: 'Cloud / Infrastructure', emoji: '☁️' },
+    { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
+  ];
+
+  const generalItems = [
+    { nom: 'Jeux vidéo', emoji: '🎮' },
+    { nom: 'Manga / Anime', emoji: '📺' },
+    { nom: 'Séries / Films', emoji: '🎬' },
+    { nom: 'Musique (écouter)', emoji: '🎧' },
+    { nom: "Jouer d'un instrument", emoji: '🎸' },
+    { nom: 'Dessin / Illustration', emoji: '✏️' },
+    { nom: 'Photo / Vidéo', emoji: '📷' },
+    { nom: 'Lecture', emoji: '📚' },
+    { nom: 'Écriture / Poésie', emoji: '📝' },
+    { nom: 'Cuisine / Pâtisserie', emoji: '👨‍🍳' },
+    { nom: 'Sport collectif', emoji: '⚽' },
+    { nom: 'Sport individuel', emoji: '🏃' },
+    { nom: 'Danse', emoji: '💃' },
+    { nom: 'Skateboard / Roller', emoji: '🛹' },
+    { nom: 'Mode / Streetwear', emoji: '👟' },
+    { nom: 'Maquillage / Beauté', emoji: '💄' },
+    { nom: 'DIY / Bricolage', emoji: '🔨' },
+    { nom: 'Jardinage', emoji: '🌱' },
+    { nom: "L'espace / Astronomie", emoji: '🔭' },
+    { nom: 'Les animaux', emoji: '🐾' },
+    { nom: 'Environnement / Écologie', emoji: '🌍' },
+    { nom: 'Psychologie', emoji: '🧠' },
+    { nom: 'Histoire', emoji: '📜' },
+    { nom: 'Politique / Débats', emoji: '🗳️' },
+    { nom: 'Économie / Business', emoji: '💼' },
+  ];
+
+  for (let i = 0; i < techItems.length; i++) {
+    await prisma.interest.create({
+      data: {
+        nom: techItems[i].nom,
+        emoji: techItems[i].emoji,
+        kind: 'tech',
+        order: i,
+      },
+    });
+  }
+
+  for (let i = 0; i < generalItems.length; i++) {
+    await prisma.interest.create({
+      data: {
+        nom: generalItems[i].nom,
+        emoji: generalItems[i].emoji,
+        kind: 'general',
+        order: i,
+      },
+    });
+  }
+}
+
+async function assignTalentInterests() {
+  const talents = await prisma.talent.findMany({
+    where: { techInterestsValidatedAt: { not: null } },
+    select: { id: true },
+  });
+
+  const techIds = await prisma.interest.findMany({
+    where: { kind: 'tech' },
+    select: { id: true },
+  });
+  const generalIds = await prisma.interest.findMany({
+    where: { kind: 'general' },
+    select: { id: true },
+  });
+
+  for (const talent of talents) {
+    // 1-2 tech
+    const techCount = 1 + Math.floor(Math.random() * 2);
+    const shuffledTech = [...techIds].sort(() => Math.random() - 0.5);
+    const selectedTech = shuffledTech.slice(0, techCount);
+
+    // 1-5 general
+    const genCount = 1 + Math.floor(Math.random() * 5);
+    const shuffledGen = [...generalIds].sort(() => Math.random() - 0.5);
+    const selectedGen = shuffledGen.slice(0, genCount);
+
+    await prisma.talentInterest.createMany({
+      data: [
+        ...selectedTech.map((t) => ({ talentId: talent.id, interestId: t.id })),
+        ...selectedGen.map((g) => ({ talentId: talent.id, interestId: g.id })),
+      ],
+      skipDuplicates: true,
+    });
+  }
+}
+
 // ─── Seeders ───
 
 async function seedCampuses(): Promise<
@@ -2984,20 +3074,8 @@ async function seedLycees(): Promise<
   return created;
 }
 
-async function seedInterests(): Promise<{ id: string; slug: string }[]> {
-  const created: { id: string; slug: string }[] = [];
-  for (const i of INTERESTS) {
-    const row = await prisma.interest.create({
-      data: { label: i.label, slug: i.slug },
-    });
-    created.push({ id: row.id, slug: row.slug });
-  }
-  return created;
-}
-
 async function seedStudents(
   lycees: { id: string; nom: string; ville: string; departement: string }[],
-  interests: { id: string; slug: string }[],
 ): Promise<Record<string, { id: string; nom: string; prenom: string }>> {
   const byEmail: Record<string, { id: string; nom: string; prenom: string }> =
     {};
@@ -3084,6 +3162,9 @@ async function seedStudents(
         niveauDifficulte: s.niveauDifficulte,
         charterAcceptedAt,
         infoValidatedAt,
+        techInterestsValidatedAt: fullyOnboarded ? new Date() : null,
+        generalInterestsValidatedAt: fullyOnboarded ? new Date() : null,
+        interestsRecapSeenAt: fullyOnboarded ? new Date() : null,
         rulesSignedAt,
         parentNom: hasParentInfo ? 'Martin' : null,
         parentPrenom: hasParentInfo ? 'Sophie' : null,
@@ -3093,21 +3174,6 @@ async function seedStudents(
         externalId: mockSalesforceLeadId(i),
       },
     });
-
-    // Interests: 0–3, deterministic by index. Every 7th student has none
-    // (covers empty-state in InterestsCloud).
-    const interestCount = i % 7 === 0 ? 0 : (i % 3) + 1;
-    for (let k = 0; k < interestCount; k++) {
-      const interest = interests[(i * 5 + k * 11) % interests.length];
-      // Skip duplicates from the modular formula (rare but possible).
-      try {
-        await prisma.talentInterest.create({
-          data: { talentId: talent.id, interestId: interest.id },
-        });
-      } catch {
-        // unique violation — talent already has this interest.
-      }
-    }
 
     byEmail[s.email] = {
       id: talent.id,

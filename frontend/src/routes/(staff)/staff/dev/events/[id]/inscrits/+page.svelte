@@ -61,9 +61,7 @@
 
   function makeHaystack(row: PrepRow | OngoingRow): string {
     const t = row.participation.talent;
-    const interests = (t?.interests ?? [])
-      .map((i) => i.interest.label)
-      .join(' ');
+    const interests = (t?.interests ?? []).map((i) => i.interest.nom).join(' ');
     return norm(
       [
         t?.nom,
@@ -194,7 +192,8 @@
         <span
           class="inline-flex items-center gap-1.5 rounded-sm border border-epi-pink bg-epi-pink/10 px-2.5 py-1 text-xs font-bold text-epi-pink"
         >
-          Intérêt · {data.origin.interest.label}
+          Intérêt · {data.origin.interest.emoji ?? ''}
+          {data.origin.interest.nom}
           <button
             type="button"
             onclick={clearInterest}

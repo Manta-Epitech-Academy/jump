@@ -55,7 +55,12 @@
       talent: { id: string; nom: string; prenom: string };
     }[];
     lyceesBreakdown: { lyceeId: string; nom: string; count: number }[];
-    interestsCloud: { interestId: string; label: string; count: number }[];
+    interestsCloud: {
+      interestId: string;
+      nom: string;
+      emoji: string | null;
+      count: number;
+    }[];
     onEditNotes: () => void;
   };
 

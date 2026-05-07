@@ -8,7 +8,8 @@
 
   type InterestRow = {
     interestId: string;
-    label: string;
+    nom: string;
+    emoji: string | null;
     count: number;
   };
 
@@ -64,7 +65,8 @@
             class="inline-flex items-baseline gap-1.5 rounded-sm border border-epi-blue/20 px-3 py-1 font-medium text-foreground transition-all hover:border-epi-blue hover:bg-epi-blue/15 hover:text-epi-blue hover:shadow-sm"
             style="font-size: {i.fontSize}px; background: rgba({BG_RGB},{i.bgAlpha});"
           >
-            {i.label}
+            {#if i.emoji}<span aria-hidden="true">{i.emoji}</span>{/if}
+            {i.nom}
             <span class="font-mono text-[10px] font-bold text-epi-blue">
               {i.count}
             </span>

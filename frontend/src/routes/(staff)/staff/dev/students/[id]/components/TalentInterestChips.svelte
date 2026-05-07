@@ -1,7 +1,9 @@
 <script lang="ts">
   import Heart from '@lucide/svelte/icons/heart';
 
-  type InterestRow = { interest: { id: string; label: string } };
+  type InterestRow = {
+    interest: { id: string; nom: string; emoji: string | null };
+  };
 
   let { interests }: { interests: InterestRow[] } = $props();
 </script>
@@ -19,7 +21,10 @@
         <span
           class="rounded-sm border border-border bg-muted/40 px-2 py-0.5 text-xs font-medium text-foreground"
         >
-          {ti.interest.label}
+          {#if ti.interest.emoji}<span aria-hidden="true"
+              >{ti.interest.emoji}</span
+            >{/if}
+          {ti.interest.nom}
         </span>
       {/each}
     </div>

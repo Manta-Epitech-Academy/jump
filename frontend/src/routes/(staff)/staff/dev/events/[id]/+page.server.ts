@@ -467,7 +467,14 @@ async function loadInterestsCloud(db: ScopedPrismaClient, eventId: string) {
   return grouped.flatMap((g) => {
     const i = byId.get(g.interestId);
     if (!i) return [];
-    return [{ interestId: i.id, label: i.label, count: g._count._all }];
+    return [
+      {
+        interestId: i.id,
+        nom: i.nom,
+        emoji: i.emoji,
+        count: g._count._all,
+      },
+    ];
   });
 }
 
