@@ -79,7 +79,7 @@
     </div>
     <h1 class="text-xl font-bold text-foreground">Dans quel lycée es-tu ?</h1>
     <p class="text-center text-sm text-muted-foreground">
-      Commence à taper le nom de ton lycée pour le trouver.
+      Cherche par nom, ville ou code postal.
     </p>
   </div>
 
@@ -103,7 +103,7 @@
           />
           <Input
             type="text"
-            placeholder="Rechercher un lycée..."
+            placeholder="Rechercher par nom, ville ou code postal..."
             bind:value={query}
             oninput={handleInput}
             onfocus={() => {
@@ -127,7 +127,9 @@
                 <School class="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div>
                   <p class="font-medium text-foreground">{s.nom}</p>
-                  <p class="text-xs text-muted-foreground">{s.ville}</p>
+                  <p class="text-xs text-muted-foreground">
+                    {s.codePostal ? `${s.codePostal} ${s.ville}` : s.ville}
+                  </p>
                 </div>
               </button>
             {/each}

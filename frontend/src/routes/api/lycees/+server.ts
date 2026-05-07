@@ -11,8 +11,9 @@ export const GET: RequestHandler = async ({ url }) => {
   try {
     const params = new URLSearchParams({
       limit: '10',
-      select: 'nom_etablissement,nom_commune',
-      where: `type_etablissement="Lycée" AND nom_etablissement LIKE "${q}"`,
+      select: 'nom_etablissement,nom_commune,code_postal_uai',
+      where: 'type_etablissement="Lycée"',
+      search: q,
     });
 
     const res = await fetch(`${API_URL}?${params}`);
@@ -22,6 +23,7 @@ export const GET: RequestHandler = async ({ url }) => {
     const results = (data.results ?? []).map((r: any) => ({
       nom: r.nom_etablissement,
       ville: r.nom_commune,
+      codePostal: r.code_postal_uai ?? '',
     }));
 
     return json(results);
