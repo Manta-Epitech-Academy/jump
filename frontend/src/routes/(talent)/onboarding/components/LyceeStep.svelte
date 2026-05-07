@@ -121,24 +121,28 @@
 
         {#if showSuggestions}
           <div
-            class="absolute z-10 mt-1 w-full rounded-lg border border-border bg-card shadow-lg"
+            class="absolute z-10 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm dark:border-slate-700/50 dark:bg-slate-900/95"
           >
             {#each suggestions as s, i}
               <button
                 type="button"
-                class="flex w-full cursor-pointer items-start justify-between gap-4 px-4 py-3 text-left text-sm transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted {i >
+                class="group flex w-full cursor-pointer items-start justify-between gap-4 px-4 py-3.5 text-left text-sm transition-all duration-150 hover:bg-epi-blue/5 hover:pl-5 active:bg-epi-blue/10 dark:hover:bg-epi-blue/10 {i >
                 0
-                  ? 'border-t border-border'
+                  ? 'border-t border-slate-100 dark:border-slate-800'
                   : ''}"
                 onclick={() => select(s)}
               >
                 <div class="flex items-start gap-3">
                   <School
-                    class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                    class="mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-colors group-hover:text-epi-blue"
                   />
-                  <span class="font-bold text-foreground">{s.nom}</span>
+                  <span
+                    class="font-bold text-slate-700 transition-colors group-hover:text-epi-blue dark:text-slate-200"
+                    >{s.nom}</span
+                  >
                 </div>
-                <span class="shrink-0 text-sm font-bold text-foreground"
+                <span
+                  class="shrink-0 text-sm font-semibold text-slate-400 transition-colors group-hover:text-epi-blue/70 dark:text-slate-500"
                   >{s.ville}</span
                 >
               </button>
