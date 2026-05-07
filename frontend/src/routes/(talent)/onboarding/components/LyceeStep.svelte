@@ -5,6 +5,7 @@
   import School from '@lucide/svelte/icons/school';
   import Search from '@lucide/svelte/icons/search';
   import PenLine from '@lucide/svelte/icons/pen-line';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 
   let {
     lyceeNom = '',
@@ -24,7 +25,9 @@
   let freeTextMode = $state(false);
   let loading = $state(false);
   let noResults = $state(false);
+  let searched = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout>;
+  let containerEl: HTMLDivElement;
 
   const hasSelection = $derived(selectedNom.length >= 2);
 
@@ -32,6 +35,7 @@
     if (q.length < 2) {
       suggestions = [];
       noResults = false;
+      searched = false;
       return;
     }
     loading = true;
@@ -41,9 +45,11 @@
       suggestions = await res.json();
       showSuggestions = suggestions.length > 0;
       noResults = suggestions.length === 0;
+      searched = true;
     } catch {
       suggestions = [];
       noResults = true;
+      searched = true;
     } finally {
       loading = false;
     }
@@ -71,7 +77,21 @@
     selectedNom = query;
     selectedVille = '';
   }
+
+  function handleClickOutside(e: MouseEvent) {
+    if (containerEl && !containerEl.contains(e.target as Node)) {
+      showSuggestions = false;
+    }
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      showSuggestions = false;
+    }
+  }
 </script>
+
+<svelte:document onclick={handleClickOutside} onkeydown={handleKeydown} />
 
 <div
   class="rounded-xl border border-slate-200 bg-white p-6 shadow-lg md:p-8 dark:border-slate-800 dark:bg-slate-900"
@@ -101,11 +121,17 @@
     <input type="hidden" name="lyceeVille" value={selectedVille} />
 
     <div class="space-y-4">
-      <div class="relative">
+      <div class="relative" bind:this={containerEl}>
         <div class="relative">
-          <Search
-            class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          />
+          {#if loading}
+            <LoaderCircle
+              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
+            />
+          {:else}
+            <Search
+              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            />
+          {/if}
           <Input
             type="text"
             placeholder="Rechercher par nom ou ville..."
@@ -147,6 +173,14 @@
                 >
               </button>
             {/each}
+            <button
+              type="button"
+              class="flex w-full cursor-pointer items-center gap-2 border-t border-slate-100 px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground dark:border-slate-800"
+              onclick={enableFreeText}
+            >
+              <PenLine class="h-4 w-4" />
+              Mon lycée n'est pas dans la liste
+            </button>
           </div>
         {:else if noResults && !selectedNom && !freeTextMode}
           <p class="mt-2 text-sm text-muted-foreground">
@@ -184,7 +218,7 @@
         </div>
       {/if}
 
-      {#if !freeTextMode && query.length >= 2 && !selectedNom}
+      {#if !freeTextMode && noResults && !selectedNom}
         <button
           type="button"
           class="flex w-full cursor-pointer items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
