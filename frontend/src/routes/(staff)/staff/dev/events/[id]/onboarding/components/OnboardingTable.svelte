@@ -2,14 +2,19 @@
   import { enhance } from '$app/forms';
   import { Badge } from '$lib/components/ui/badge';
   import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { resolve } from '$app/paths';
+  import Send from '@lucide/svelte/icons/send';
+  import Users from '@lucide/svelte/icons/users';
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { cn } from '$lib/utils';
   import { countSignedDocs, TOTAL_DOCS } from '../progress';
+  import type { RelanceType } from '$lib/domain/relance';
 
   let {
     participations,
@@ -18,6 +23,15 @@
     selectedTalentIds = new Set<string>(),
     onToggleTalent,
     onToggleAll,
+    onRowRelance,
+  }: {
+    participations: any[];
+    optimisticAdminToggle: (id: string, docType: string) => any;
+    optimisticPcToggle: (id: string) => any;
+    selectedTalentIds?: Set<string>;
+    onToggleTalent: (talentId: string) => void;
+    onToggleAll: () => void;
+    onRowRelance?: (talentId: string, type: RelanceType) => void;
   } = $props();
 
   function lastReminderLabel(
@@ -59,6 +73,7 @@
         <Table.Head class="w-40">Avancement</Table.Head>
         <Gated group="devLead" mode="hide">
           <Table.Head class="text-center">Dernière relance</Table.Head>
+          <Table.Head class="w-24 text-center">Actions</Table.Head>
         </Gated>
       </Table.Row>
     </Table.Header>
@@ -84,10 +99,6 @@
                 class="text-sm font-bold transition-colors hover:text-epi-blue hover:underline"
               >
                 <TalentName talent={p.talent} />
-                <span
-                  class="ml-2 text-[10px] font-medium text-muted-foreground uppercase"
-                  >{p.talent.niveau}</span
-                >
               </a>
             </div>
           </Table.Cell>
@@ -254,6 +265,50 @@
           <Gated group="devLead" mode="hide">
             <Table.Cell class="py-4 text-center text-sm text-muted-foreground">
               {lastReminderLabel(p.talent.reminders)}
+            </Table.Cell>
+            <Table.Cell class="py-4 text-center">
+              <div class="inline-flex items-center gap-1">
+                <Tooltip.Provider delayDuration={150}>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={!(p.talent.email || p.talent.user?.email)}
+                          onclick={() => onRowRelance?.(p.talent.id, 'student')}
+                          aria-label="Relancer étudiant"
+                          class="h-7 w-7 text-muted-foreground hover:text-epi-blue"
+                        >
+                          <Send class="h-3.5 w-3.5" />
+                        </Button>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>Relancer étudiant</Tooltip.Content>
+                  </Tooltip.Root>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <Button
+                          {...props}
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={!p.talent.parentEmail}
+                          onclick={() => onRowRelance?.(p.talent.id, 'parent')}
+                          aria-label="Relancer parent"
+                          class="h-7 w-7 text-muted-foreground hover:text-epi-blue"
+                        >
+                          <Users class="h-3.5 w-3.5" />
+                        </Button>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>Relancer parent</Tooltip.Content>
+                  </Tooltip.Root>
+                </Tooltip.Provider>
+              </div>
             </Table.Cell>
           </Gated>
         </Table.Row>

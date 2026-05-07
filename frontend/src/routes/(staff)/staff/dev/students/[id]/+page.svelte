@@ -40,6 +40,19 @@
   import ComplianceByEventTable from './components/ComplianceByEventTable.svelte';
   import CommHistoryList from './components/CommHistoryList.svelte';
   import InterviewHistoryList from './components/InterviewHistoryList.svelte';
+  import RelanceComposeDialog, {
+    type ComposeRecipient,
+  } from '$lib/components/comms/RelanceComposeDialog.svelte';
+  import Send from '@lucide/svelte/icons/send';
+  import Gated from '$lib/components/auth/Gated.svelte';
+  import { invalidateAll } from '$app/navigation';
+  import { defaultRelanceFor } from '$lib/domain/relanceTemplates';
+  import {
+    classifyRelanceSkip,
+    formatTalentVars,
+    type RelanceType,
+    type RelanceVar,
+  } from '$lib/domain/relance';
   import { can } from '$lib/domain/permissions';
   import { salesforceContactUrl } from '$lib/domain/salesforce';
   import { cn } from '$lib/utils';
@@ -97,6 +110,37 @@
     if (next !== 'pedago' && next !== 'admin') return;
     tab = next;
     navigateWithParams({ tab: next === 'pedago' ? '' : next });
+  }
+
+  // Relance compose state — shared between the étudiant + parent buttons.
+  let composeType = $state<RelanceType | null>(null);
+  let composeOpen = $state(false);
+
+  function openCompose(type: RelanceType) {
+    composeType = type;
+    composeOpen = true;
+  }
+
+  const composeRecipients = $derived.by<ComposeRecipient[]>(() => {
+    if (!composeType) return [];
+    const t = data.student;
+    const vars = formatTalentVars(t);
+    const willSkip = classifyRelanceSkip({
+      type: composeType,
+      talent: { ...t, email: t.user?.email ?? t.email },
+      lastReminderAt: data.reminders.find((r) => r.type === composeType)
+        ?.sentAt,
+    });
+    const label = `${vars.nom} ${vars.prenom}`.trim();
+    return [{ id: t.id, label, willSkip }];
+  });
+
+  const composePreviewVars = $derived.by<Partial<Record<RelanceVar, string>>>(
+    () => formatTalentVars(data.student),
+  );
+
+  async function onRelanceSent() {
+    await invalidateAll();
   }
 
   function difficultyClass(diff: string | null | undefined) {
@@ -433,6 +477,33 @@
 
     <!-- ADMIN TAB -->
     <Tabs.Content value="admin" class="space-y-6">
+      <Gated group="devLead" mode="hide">
+        <div
+          class="flex flex-wrap items-center gap-2 rounded-sm border border-dashed border-border bg-muted/30 px-4 py-3"
+        >
+          <Send class="h-4 w-4 text-muted-foreground" />
+          <span class="text-sm text-muted-foreground">Relancer ce talent</span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!(data.student.user?.email || data.student.email)}
+            onclick={() => openCompose('student')}
+          >
+            <Send class="mr-2 h-3.5 w-3.5" />
+            Étudiant
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!data.student.parentEmail}
+            onclick={() => openCompose('parent')}
+          >
+            <Send class="mr-2 h-3.5 w-3.5" />
+            Parent
+          </Button>
+        </div>
+      </Gated>
+
       <div class="grid gap-6 md:grid-cols-2">
         <ContactCard student={data.student} />
         <OnboardingStatus student={data.student} timezone={data.timezone} />
@@ -489,6 +560,19 @@
       </Card.Root>
     </Tabs.Content>
   </Tabs.Root>
+
+  {#if composeType}
+    <RelanceComposeDialog
+      bind:open={composeOpen}
+      type={composeType}
+      recipients={composeRecipients}
+      formAction="?/sendRelance"
+      initialForm={data.relanceForm}
+      defaultTemplate={defaultRelanceFor(composeType)}
+      previewVars={composePreviewVars}
+      onSent={onRelanceSent}
+    />
+  {/if}
 
   <StudentFormDialog
     bind:open={editOpen}

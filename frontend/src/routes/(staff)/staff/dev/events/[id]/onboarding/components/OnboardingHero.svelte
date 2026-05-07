@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Component } from 'svelte';
   import FileText from '@lucide/svelte/icons/file-text';
   import ScrollText from '@lucide/svelte/icons/scroll-text';
   import Camera from '@lucide/svelte/icons/camera';
@@ -34,46 +35,86 @@
     onDocCardClick: (key: DocFilterKey) => void;
   } = $props();
 
-  // Tryptique TECH/TOGETHER/TOMORROW + brand blue, one accent per doc:
-  //   Charte           → blue  (admin paperwork)
+  type CardSpec = {
+    key: DocFilterKey;
+    label: string;
+    Icon: Component<{ class?: string }>;
+    headlineValue: number;
+    headlineTotal?: number;
+    progressPct: number;
+    complete: boolean;
+    subLabel: string;
+    themeKey: KpiThemeKey;
+  };
+
+  // Tryptique TECH/TOGETHER/TOMORROW + brand blue, one accent per card:
+  //   Charte           → blue   (admin paperwork)
   //   Convention       → orange (epi-together · parent / collab signature)
   //   Droit à l'image  → pink   (epi-tomorrow · vision / future-facing rights)
   //   PC personnel     → teal   (epi-tech · technical readiness)
-  const cards: {
-    key: DocFilterKey;
-    label: string;
-    Icon: typeof FileText;
-    ok: number;
-    themeKey: KpiThemeKey;
-  }[] = $derived([
-    {
+  //
+  // The first three are validation docs (signed = good, headline = ok/total).
+  // PC is reframed as "X PC à préparer" — logistics, not a missing doc; a
+  // talent without their own laptop isn't blocked, we just need to plan
+  // for it. The PC card keeps the click-to-filter behaviour (?filter=
+  // pc-missing) so staff can still slice the list to "who needs a PC".
+  const docCard = (
+    spec: Omit<CardSpec, 'subLabel' | 'complete' | 'progressPct'>,
+  ): CardSpec => {
+    const ok = spec.headlineValue;
+    const t = spec.headlineTotal ?? total;
+    const missing = Math.max(0, t - ok);
+    const complete = t > 0 && ok === t;
+    return {
+      ...spec,
+      complete,
+      progressPct: t === 0 ? 0 : (ok / t) * 100,
+      subLabel: complete ? 'Tous validés' : `${missing} à finaliser`,
+    };
+  };
+
+  const pcCard = $derived<CardSpec>({
+    key: 'pc-missing',
+    label: 'PC à préparer',
+    Icon: Laptop,
+    headlineValue: total - pcCount,
+    progressPct: total === 0 ? 0 : (pcCount / total) * 100,
+    complete: total > 0 && pcCount === total,
+    subLabel:
+      total === 0
+        ? '—'
+        : pcCount === total
+          ? 'Toute la cohorte est autonome'
+          : `${pcCount}/${total} apporteront leur PC`,
+    themeKey: 'teal',
+  });
+
+  const cards: CardSpec[] = $derived([
+    docCard({
       key: 'charte-missing',
       label: 'Charte',
       Icon: FileText,
-      ok: charteCount,
+      headlineValue: charteCount,
+      headlineTotal: total,
       themeKey: 'blue',
-    },
-    {
+    }),
+    docCard({
       key: 'convention-missing',
       label: 'Convention de stage',
       Icon: ScrollText,
-      ok: conventionCount,
+      headlineValue: conventionCount,
+      headlineTotal: total,
       themeKey: 'orange',
-    },
-    {
+    }),
+    docCard({
       key: 'image-rights-missing',
       label: "Droit à l'image",
       Icon: Camera,
-      ok: imageCount,
+      headlineValue: imageCount,
+      headlineTotal: total,
       themeKey: 'pink',
-    },
-    {
-      key: 'pc-missing',
-      label: 'PC personnel',
-      Icon: Laptop,
-      ok: pcCount,
-      themeKey: 'teal',
-    },
+    }),
+    pcCard,
   ]);
 </script>
 
@@ -94,8 +135,11 @@
       <OnboardingKpiCard
         label={card.label}
         Icon={card.Icon}
-        ok={card.ok}
-        {total}
+        headlineValue={card.headlineValue}
+        headlineTotal={card.headlineTotal}
+        progressPct={card.progressPct}
+        complete={card.complete}
+        subLabel={card.subLabel}
         theme={KPI_THEMES[card.themeKey]}
         active={activeFilter === card.key}
         onToggle={() => onDocCardClick(card.key)}

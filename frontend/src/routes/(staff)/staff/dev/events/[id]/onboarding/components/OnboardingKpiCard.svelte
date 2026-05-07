@@ -39,24 +39,31 @@
   let {
     label,
     Icon,
-    ok,
-    total,
+    headlineValue,
+    headlineTotal,
+    progressPct,
+    complete = false,
+    subLabel,
     theme,
     active = false,
     onToggle,
   }: {
     label: string;
     Icon: Component<{ class?: string }>;
-    ok: number;
-    total: number;
+    /** The big number rendered in the card. */
+    headlineValue: number;
+    /** Optional denominator. Omit to render `value` alone (no `/total`). */
+    headlineTotal?: number;
+    /** 0–100. Drives the progress bar fill. */
+    progressPct: number;
+    /** When true, bar uses `epi-teal-solid` (success) instead of `epi-blue`. */
+    complete?: boolean;
+    /** Sub-line under the bar (e.g. "X à finaliser", "X apporteront leur PC"). */
+    subLabel: string;
     theme: KpiTheme;
     active?: boolean;
     onToggle: () => void;
   } = $props();
-
-  let pct = $derived(total === 0 ? 0 : Math.round((ok / total) * 100));
-  let missing = $derived(Math.max(0, total - ok));
-  let complete = $derived(total > 0 && ok === total);
 </script>
 
 <button
@@ -87,12 +94,12 @@
           active ? 'text-white' : 'text-foreground',
         )}
       >
-        {ok}<span
-          class={cn(
-            'font-mono text-base font-bold',
-            active ? 'text-white/60' : 'text-muted-foreground',
-          )}>/{total}</span
-        >
+        {headlineValue}{#if headlineTotal != null}<span
+            class={cn(
+              'font-mono text-base font-bold',
+              active ? 'text-white/60' : 'text-muted-foreground',
+            )}>/{headlineTotal}</span
+          >{/if}
       </div>
     </div>
     <div
@@ -116,7 +123,7 @@
         'h-full transition-all',
         active ? 'bg-white' : complete ? 'bg-epi-teal-solid' : 'bg-epi-blue',
       )}
-      style:width={`${pct}%`}
+      style:width={`${Math.max(0, Math.min(100, progressPct))}%`}
     ></div>
   </div>
 
@@ -126,16 +133,6 @@
       active ? 'text-white/80' : 'text-muted-foreground',
     )}
   >
-    {#if complete}
-      Tous validés
-    {:else}
-      <span
-        class={cn(
-          'font-mono font-bold',
-          active ? 'text-white' : 'text-foreground',
-        )}>{missing}</span
-      >
-      à finaliser
-    {/if}
+    {subLabel}
   </p>
 </button>

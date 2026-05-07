@@ -95,8 +95,8 @@
       href={inscritsHref}
     />
     <EventKpiTile
-      label="PC apportés"
-      value={`${stats.bringPc} / ${stats.total}`}
+      label="PC à préparer"
+      value={stats.total - stats.bringPc}
       icon={Laptop}
       tone="neutral"
       href={onboardingHref}

@@ -1,23 +1,20 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import Send from '@lucide/svelte/icons/send';
-  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import X from '@lucide/svelte/icons/x';
   import { resolve } from '$app/paths';
-  import { goto } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
-  import { superForm } from 'sveltekit-superforms';
   import type { PageData } from './$types';
   import { Button } from '$lib/components/ui/button';
-  import * as Dialog from '$lib/components/ui/dialog';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { cn } from '$lib/utils';
-  import { toast } from 'svelte-sonner';
   import OnboardingTable from './components/OnboardingTable.svelte';
   import OnboardingHero from './components/OnboardingHero.svelte';
+  import RelanceComposeDialog from '$lib/components/comms/RelanceComposeDialog.svelte';
   import {
     DOC_FILTER_KEYS,
     DOC_FILTER_LABELS,
@@ -25,6 +22,14 @@
     type OnboardingFilterKey,
   } from './filters';
   import { countSignedDocs, isReady, TOTAL_DOCS } from './progress';
+  import { defaultRelanceFor } from '$lib/domain/relanceTemplates';
+  import {
+    classifyRelanceSkip,
+    formatTalentVars,
+    type RelanceType,
+    type RelanceVar,
+  } from '$lib/domain/relance';
+  import type { ComposeRecipient } from '$lib/components/comms/RelanceComposeDialog.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -132,25 +137,49 @@
     };
   };
 
-  // Reminders
+  // Selection (bulk) + relance composer state
   let selectedTalentIds = $state<Set<string>>(new Set());
-  let confirmType = $state<'student' | 'parent' | null>(null);
+  type ComposeState = {
+    type: RelanceType;
+    talentIds: string[];
+  };
+  let compose = $state<ComposeState | null>(null);
+  let composeOpen = $state(false);
 
-  const { enhance: reminderEnhance, delayed: reminderDelayed } = superForm(
-    untrack(() => data.reminderForm),
-    {
-      resetForm: false,
-      onResult: ({ result }) => {
-        if (result.type === 'success') {
-          toast.success(result.data?.form?.message || 'Relances envoyées');
-          selectedTalentIds = new Set();
-          confirmType = null;
-        } else if (result.type === 'failure' && result.data?.form?.message) {
-          toast.error(result.data.form.message);
-        }
-      },
-    },
-  );
+  function openCompose(type: RelanceType, talentIds: string[]) {
+    if (talentIds.length === 0) return;
+    compose = { type, talentIds };
+    composeOpen = true;
+  }
+
+  function onRowRelance(talentId: string, type: RelanceType) {
+    openCompose(type, [talentId]);
+  }
+
+  function buildRecipients(state: ComposeState): ComposeRecipient[] {
+    const lookup = new Map(participations.map((p) => [p.talent.id, p]));
+    return state.talentIds.map((id) => {
+      const t = lookup.get(id)?.talent;
+      if (!t) return { id, label: id };
+      const vars = formatTalentVars(t);
+      const willSkip = classifyRelanceSkip({
+        type: state.type,
+        talent: { ...t, email: t.email ?? t.user?.email ?? null },
+        lastReminderAt: t.reminders?.[0]?.sentAt,
+      });
+      const label = `${vars.nom} ${vars.prenom}`.trim();
+      return { id, label, willSkip };
+    });
+  }
+
+  function buildPreviewVars(
+    state: ComposeState,
+  ): Partial<Record<RelanceVar, string>> {
+    const first = participations.find(
+      (p) => p.talent.id === state.talentIds[0],
+    )?.talent;
+    return first ? formatTalentVars(first) : {};
+  }
 
   function toggleAllTalents() {
     const visibleIds = filteredParticipations.map((p) => p.talent.id);
@@ -171,6 +200,11 @@
     if (next.has(talentId)) next.delete(talentId);
     else next.add(talentId);
     selectedTalentIds = next;
+  }
+
+  async function onSent() {
+    selectedTalentIds = new Set();
+    await invalidateAll();
   }
 </script>
 
@@ -215,6 +249,11 @@
       {:else}
         — cohorte complète.
       {/if}
+      {#if total - pcCount > 0}
+        <span class="font-mono font-bold text-epi-teal-solid"
+          >{total - pcCount}</span
+        > PC à préparer.
+      {/if}
     </p>
 
     <OnboardingHero
@@ -245,7 +284,7 @@
           size="sm"
           variant="outline"
           disabled={selectedTalentIds.size === 0}
-          onclick={() => (confirmType = 'student')}
+          onclick={() => openCompose('student', [...selectedTalentIds])}
         >
           <Send class="mr-2 h-3.5 w-3.5" />
           Relancer étudiants
@@ -254,7 +293,7 @@
           size="sm"
           variant="outline"
           disabled={selectedTalentIds.size === 0}
-          onclick={() => (confirmType = 'parent')}
+          onclick={() => openCompose('parent', [...selectedTalentIds])}
         >
           <Send class="mr-2 h-3.5 w-3.5" />
           Relancer parents
@@ -334,53 +373,21 @@
         {selectedTalentIds}
         onToggleTalent={toggleTalent}
         onToggleAll={toggleAllTalents}
+        {onRowRelance}
       />
     {/if}
   {/if}
 </div>
 
-<!-- Confirm dialog -->
-<Dialog.Root
-  open={confirmType !== null}
-  onOpenChange={(open) => {
-    if (!open) confirmType = null;
-  }}
->
-  <Dialog.Content>
-    <form method="POST" action="?/sendReminders" use:reminderEnhance>
-      <Dialog.Header>
-        <Dialog.Title>Confirmer l'envoi</Dialog.Title>
-        <Dialog.Description>
-          Envoyer une relance {confirmType === 'student'
-            ? 'étudiant'
-            : 'parent'}
-          à
-          <strong>{selectedTalentIds.size}</strong>
-          destinataire{selectedTalentIds.size > 1 ? 's' : ''} ? Les relances envoyées
-          il y a moins de 3 jours seront ignorées.
-        </Dialog.Description>
-      </Dialog.Header>
-      {#each [...selectedTalentIds] as id}
-        <input type="hidden" name="talentIds" value={id} />
-      {/each}
-      <input type="hidden" name="type" value={confirmType} />
-      <Dialog.Footer class="mt-4">
-        <Button
-          type="button"
-          variant="ghost"
-          onclick={() => (confirmType = null)}
-        >
-          Annuler
-        </Button>
-        <Button type="submit" disabled={$reminderDelayed}>
-          {#if $reminderDelayed}
-            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-            Envoi...
-          {:else}
-            Envoyer
-          {/if}
-        </Button>
-      </Dialog.Footer>
-    </form>
-  </Dialog.Content>
-</Dialog.Root>
+{#if compose}
+  <RelanceComposeDialog
+    bind:open={composeOpen}
+    type={compose.type}
+    recipients={buildRecipients(compose)}
+    formAction="?/sendRelance"
+    initialForm={data.relanceForm}
+    defaultTemplate={defaultRelanceFor(compose.type)}
+    previewVars={buildPreviewVars(compose)}
+    {onSent}
+  />
+{/if}

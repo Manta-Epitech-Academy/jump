@@ -93,8 +93,8 @@
       href={resolve(`/staff/dev/events/${eventId}/inscrits`)}
     />
     <EventKpiTile
-      label="PC à apporter"
-      value={`${stats.bringPc} / ${stats.total}`}
+      label="PC à préparer"
+      value={stats.total - stats.bringPc}
       icon={Laptop}
       tone="orange"
     />

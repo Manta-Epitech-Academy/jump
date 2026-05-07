@@ -109,7 +109,7 @@
     <EventKpiTile
       label="Dossiers admin OK"
       value={kpis.dossiersAdmin}
-      sub={`${pct(kpis.dossiersAdmin)} % · 4 documents validés`}
+      sub={`${pct(kpis.dossiersAdmin)} % · 3 documents validés`}
       icon={ClipboardCheck}
       tone="orange"
       progress={pct(kpis.dossiersAdmin)}

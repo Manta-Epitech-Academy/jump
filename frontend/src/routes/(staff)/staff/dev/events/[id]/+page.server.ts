@@ -185,10 +185,11 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
         },
       },
     }),
+    // Validation funnel only — bringing a PC is logistics (we just plan
+    // the laptops), not a doc to validate.
     db.participation.count({
       where: {
         eventId: event.id,
-        bringPc: true,
         stageCompliance: {
           charteSigned: true,
           conventionSigned: true,
@@ -245,7 +246,6 @@ async function loadStageOngoing(
     chartes,
     conventions,
     droitsImage,
-    bringPc,
     alerts,
     orgaSlots,
     todayTimeSlots,
@@ -277,9 +277,6 @@ async function loadStageOngoing(
         eventId: event.id,
         stageCompliance: { imageRightsSigned: true },
       },
-    }),
-    db.participation.count({
-      where: { eventId: event.id, bringPc: true },
     }),
     deriveEventAlerts(db, event, {
       basePath: ctx.basePath,
@@ -343,10 +340,10 @@ async function loadStageOngoing(
       ? todayOrgaSlots[todayOrgaSlots.length - 1]
       : null;
 
+  // Average over the three validation docs only — `bringPc` is logistics,
+  // not part of the conformity score.
   const conformitePct =
-    total === 0
-      ? 0
-      : (chartes + conventions + droitsImage + bringPc) / (total * 4);
+    total === 0 ? 0 : (chartes + conventions + droitsImage) / (total * 3);
 
   return {
     kpis: {

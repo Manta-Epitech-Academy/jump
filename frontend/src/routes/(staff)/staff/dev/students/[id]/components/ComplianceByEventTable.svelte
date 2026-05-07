@@ -15,7 +15,6 @@
 
   type Row = {
     id: string;
-    bringPc: boolean | null;
     stageCompliance: StageCompliance;
     event: {
       id: string;
@@ -32,12 +31,14 @@
   type Tile = { label: string; ok: boolean };
 
   function tilesFor(p: Row): Tile[] {
+    // Three validation tiles only — bringing a PC is logistics (handled
+    // on the Onboarding page's separate "PC à préparer" tile), not part
+    // of the talent's compliance footprint.
     const sc = p.stageCompliance;
     return [
       { label: 'Convention', ok: !!sc?.conventionSigned },
       { label: 'Charte', ok: !!sc?.charteSigned },
       { label: 'Droit image', ok: !!sc?.imageRightsSigned },
-      { label: 'PC apporté', ok: !!p.bringPc },
     ];
   }
 </script>

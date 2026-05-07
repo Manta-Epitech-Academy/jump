@@ -167,7 +167,7 @@
     <EventKpiTile
       label="Conformité ADM"
       value={`${conformitePctRounded} %`}
-      sub="moyenne sur 4 documents"
+      sub="moyenne sur 3 documents"
       icon={ShieldCheck}
       tone="orange"
       progress={conformitePctRounded}

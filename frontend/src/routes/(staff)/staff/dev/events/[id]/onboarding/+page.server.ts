@@ -7,14 +7,12 @@ import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { loadStageOr404 } from '$lib/server/services/stageContext';
-import { sendRemindersSchema } from '$lib/validation/reminders';
+import { sendRelanceSchema } from '$lib/validation/reminders';
 import {
-  sendStudentReminderEmail,
-  sendParentReminderEmail,
-} from '$lib/server/otp';
+  sendRelances,
+  formatRelanceMessage,
+} from '$lib/server/services/relanceService';
 import { ONBOARDING_FILTER_KEYS, type OnboardingFilterKey } from './filters';
-
-const COOLDOWN_DAYS = 3;
 
 function validateFilter(raw: string | null): OnboardingFilterKey {
   return (ONBOARDING_FILTER_KEYS as readonly string[]).includes(raw ?? '')
@@ -34,6 +32,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     include: {
       talent: {
         include: {
+          // Mirrors the server's `user.email ?? talent.email` fallback so
+          // the relance dialog preview agrees with what the send action
+          // will actually do.
+          user: { select: { email: true } },
           reminders: {
             orderBy: { sentAt: 'desc' },
             take: 1,
@@ -46,9 +48,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
 
-  const reminderForm = await superValidate(zod4(sendRemindersSchema));
+  const relanceForm = await superValidate(zod4(sendRelanceSchema));
 
-  return { event, participations, reminderForm, filter };
+  return { event, participations, relanceForm, filter };
 };
 
 // Maps form-side doc type identifiers to their Prisma column.
@@ -105,99 +107,24 @@ export const actions: Actions = {
     return toggleBringPc(data, campusId, params.id);
   },
 
-  sendReminders: async ({ request, locals, params }) => {
+  sendRelance: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
-    const form = await superValidate(formData, zod4(sendRemindersSchema));
+    const form = await superValidate(formData, zod4(sendRelanceSchema));
 
     if (!form.valid) {
       return message(form, 'Données invalides.', { status: 400 });
     }
 
-    const { talentIds, type } = form.data;
     const campusId = getCampusId(locals);
     await loadStageOr404(params.id, campusId);
-    const db = scopedPrisma(campusId);
 
-    const talents = await db.talent.findMany({
-      where: { id: { in: talentIds } },
-      select: {
-        id: true,
-        nom: true,
-        prenom: true,
-        email: true,
-        parentEmail: true,
-        parentNom: true,
-        infoValidatedAt: true,
-        rulesSignedAt: true,
-        charterAcceptedAt: true,
-        imageRightsSignedAt: true,
-        reminders: {
-          where: { type },
-          orderBy: { sentAt: 'desc' },
-          take: 1,
-          select: { sentAt: true },
-        },
-      },
+    const result = await sendRelances({
+      ...form.data,
+      sentBy: locals.user!.id,
+      campusId,
     });
 
-    const cooldownDate = new Date();
-    cooldownDate.setDate(cooldownDate.getDate() - COOLDOWN_DAYS);
-
-    let sent = 0;
-    let skipped = 0;
-
-    for (const talent of talents) {
-      const lastReminder = talent.reminders[0];
-      if (lastReminder && lastReminder.sentAt > cooldownDate) {
-        skipped++;
-        continue;
-      }
-
-      const onboardingComplete =
-        type === 'student'
-          ? talent.infoValidatedAt &&
-            talent.rulesSignedAt &&
-            talent.charterAcceptedAt
-          : talent.imageRightsSignedAt;
-      if (onboardingComplete) {
-        skipped++;
-        continue;
-      }
-
-      try {
-        if (type === 'student' && talent.email) {
-          await sendStudentReminderEmail(talent.email, talent.prenom);
-        } else if (type === 'parent' && talent.parentEmail) {
-          await sendParentReminderEmail(
-            talent.parentEmail,
-            talent.parentNom,
-            `${talent.prenom} ${talent.nom}`,
-          );
-        } else {
-          skipped++;
-          continue;
-        }
-
-        await prisma.onboardingReminder.create({
-          data: {
-            talentId: talent.id,
-            type,
-            sentBy: locals.user!.id,
-          },
-        });
-        sent++;
-      } catch {
-        skipped++;
-      }
-    }
-
-    const skipReason = 'cooldown, onboarding complet ou email manquant';
-    const msg =
-      sent > 0
-        ? `${sent} relance${sent > 1 ? 's' : ''} envoyée${sent > 1 ? 's' : ''}.${skipped > 0 ? ` ${skipped} ignorée${skipped > 1 ? 's' : ''} (${skipReason}).` : ''}`
-        : `Aucune relance envoyée. ${skipped} ignorée${skipped > 1 ? 's' : ''} (${skipReason}).`;
-
-    return message(form, msg);
+    return message(form, formatRelanceMessage(result));
   },
 };
