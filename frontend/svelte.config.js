@@ -1,5 +1,14 @@
 import adapter from '@sveltejs/adapter-node';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+
+const umamiHost = process.env.PUBLIC_UMAMI_HOST?.replace(/\/$/, '') || null;
+const umamiSrc = umamiHost ? [umamiHost] : [];
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -18,11 +27,11 @@ const config = {
     csp: {
       directives: {
         'default-src': ['self'],
-        'script-src': ['self'],
+        'script-src': ['self', ...umamiSrc],
         'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
         'img-src': ['self', 'data:', 'https:'],
         'font-src': ['self', 'https://fonts.gstatic.com'],
-        'connect-src': ['self', 'https://discord.com'],
+        'connect-src': ['self', 'https://discord.com', ...umamiSrc],
         'frame-ancestors': ['none'],
       },
     },
