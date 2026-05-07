@@ -79,7 +79,7 @@
     </div>
     <h1 class="text-xl font-bold text-foreground">Dans quel lycée es-tu ?</h1>
     <p class="text-center text-sm text-muted-foreground">
-      Cherche par nom, ville ou code postal.
+      Cherche par nom ou ville.
     </p>
   </div>
 
@@ -103,7 +103,7 @@
           />
           <Input
             type="text"
-            placeholder="Rechercher par nom, ville ou code postal..."
+            placeholder="Rechercher par nom ou ville..."
             bind:value={query}
             oninput={handleInput}
             onfocus={() => {
@@ -133,14 +133,9 @@
                   />
                   <span class="font-bold text-foreground">{s.nom}</span>
                 </div>
-                <div class="shrink-0 text-right">
-                  <p class="text-sm font-bold text-foreground">{s.ville}</p>
-                  {#if s.codePostal}
-                    <p class="text-[11px] text-muted-foreground">
-                      {s.codePostal}
-                    </p>
-                  {/if}
-                </div>
+                <span class="shrink-0 text-sm font-bold text-foreground"
+                  >{s.ville}</span
+                >
               </button>
             {/each}
           </div>

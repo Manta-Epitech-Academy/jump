@@ -4,7 +4,7 @@ import { json } from '@sveltejs/kit';
 const API_URL =
   'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records';
 
-type Lycee = { nom: string; ville: string; codePostal: string };
+type Lycee = { nom: string; ville: string };
 
 let lyceeCache: Lycee[] | null = null;
 let cacheLoadedAt = 0;
@@ -21,7 +21,7 @@ async function loadAllLycees(): Promise<Lycee[]> {
     const params = new URLSearchParams({
       limit: String(limit),
       offset: String(offset),
-      select: 'nom_etablissement,nom_commune,code_postal',
+      select: 'nom_etablissement,nom_commune',
       where: 'type_etablissement="Lycée"',
       order_by: 'nom_etablissement',
     });
@@ -35,7 +35,6 @@ async function loadAllLycees(): Promise<Lycee[]> {
       all.push({
         nom: r.nom_etablissement,
         ville: r.nom_commune ?? '',
-        codePostal: r.code_postal ?? '',
       });
     }
 
@@ -56,20 +55,12 @@ export const GET: RequestHandler = async ({ url }) => {
     const all = await loadAllLycees();
     const query = q.toLowerCase();
 
-    const isPostalCode = /^\d{2,5}$/.test(q);
-
     const results = all
-      .filter((lycee) => {
-        if (isPostalCode) {
-          // Match on first 4 digits to handle cedex variants (34973 vs 34970)
-          const matchLen = Math.min(q.length, 4);
-          return lycee.codePostal.slice(0, matchLen) === q.slice(0, matchLen);
-        }
-        return (
+      .filter(
+        (lycee) =>
           lycee.nom.toLowerCase().includes(query) ||
-          lycee.ville.toLowerCase().includes(query)
-        );
-      })
+          lycee.ville.toLowerCase().includes(query),
+      )
       .slice(0, 10);
 
     return json(results);
