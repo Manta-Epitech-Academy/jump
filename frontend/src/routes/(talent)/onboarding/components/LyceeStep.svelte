@@ -118,22 +118,24 @@
           <div
             class="absolute z-10 mt-1 w-full rounded-lg border border-border bg-card shadow-lg"
           >
-            {#each suggestions as s}
+            {#each suggestions as s, i}
               <button
                 type="button"
-                class="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted"
+                class="flex w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 text-left text-sm transition-colors first:rounded-t-lg last:rounded-b-lg hover:bg-muted {i >
+                0
+                  ? 'border-t border-border'
+                  : ''}"
                 onclick={() => select(s)}
               >
-                <School class="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div class="flex-1">
-                  <p class="font-medium text-foreground">{s.nom}</p>
+                <div class="flex items-center gap-3">
+                  <School class="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span class="font-medium text-foreground">{s.nom}</span>
                 </div>
-                <div class="shrink-0 text-right">
-                  <p class="text-sm font-semibold text-foreground">{s.ville}</p>
-                  {#if s.codePostal}
-                    <p class="text-xs text-muted-foreground">{s.codePostal}</p>
-                  {/if}
-                </div>
+                <span
+                  class="shrink-0 text-xs font-semibold text-muted-foreground"
+                >
+                  {s.codePostal ? `${s.ville} (${s.codePostal})` : s.ville}
+                </span>
               </button>
             {/each}
           </div>
