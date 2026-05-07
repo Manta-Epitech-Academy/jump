@@ -2080,6 +2080,10 @@ async function main() {
   const campuses = await seedCampuses();
   console.log(`✓  Campuses (${Object.keys(campuses).length})`);
 
+  // 1b. Interests
+  await seedInterests();
+  console.log('✓  Interests');
+
   // 2. Staff (no default admin — admins are provisioned via
   //    scripts/add-admin-user.ts and authenticate via Microsoft OAuth only)
   const staffByKey = await seedStaff(campuses);
@@ -2092,6 +2096,10 @@ async function main() {
   // 3b. Parent account (links to first child for portal testing)
   const parentEmail = await seedParents(talentByEmail);
   console.log(`✓  Parent (${parentEmail})`);
+
+  // 3c. Talent interest assignments
+  await assignTalentInterests();
+  console.log('✓  Talent interest assignments');
 
   // 4. Themes
   const themesByKey = await seedThemes(campuses);
@@ -2163,6 +2171,8 @@ async function wipeAll() {
   await prisma.planningTemplate.deleteMany();
   await prisma.activityTemplate.deleteMany();
   await prisma.theme.deleteMany();
+  await prisma.talentInterest.deleteMany();
+  await prisma.interest.deleteMany();
   await prisma.talent.deleteMany();
   // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
   // is a required FK with default RESTRICT, so live versions block the delete.
@@ -2176,6 +2186,109 @@ async function wipeAll() {
   await prisma.bauth_account.deleteMany();
   await prisma.bauth_verification.deleteMany();
   await prisma.bauth_user.deleteMany();
+}
+
+// ─── Interests ───
+
+async function seedInterests() {
+  const techItems = [
+    { nom: 'Créer des sites web', emoji: '🌐' },
+    { nom: 'Créer des apps', emoji: '📱' },
+    { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
+    { nom: 'Programmation', emoji: '💻' },
+    { nom: 'Développement de logiciels', emoji: '🖥️' },
+    { nom: 'Intelligence artificielle', emoji: '🤖' },
+    { nom: 'Robotique', emoji: '🦾' },
+    { nom: 'Data science / Analyse de données', emoji: '📊' },
+    { nom: 'Cloud / Infrastructure', emoji: '☁️' },
+    { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
+  ];
+
+  const generalItems = [
+    { nom: 'Jeux vidéo', emoji: '🎮' },
+    { nom: 'Manga / Anime', emoji: '📺' },
+    { nom: 'Séries / Films', emoji: '🎬' },
+    { nom: 'Musique (écouter)', emoji: '🎧' },
+    { nom: "Jouer d'un instrument", emoji: '🎸' },
+    { nom: 'Dessin / Illustration', emoji: '✏️' },
+    { nom: 'Photo / Vidéo', emoji: '📷' },
+    { nom: 'Lecture', emoji: '📚' },
+    { nom: 'Écriture / Poésie', emoji: '📝' },
+    { nom: 'Cuisine / Pâtisserie', emoji: '👨‍🍳' },
+    { nom: 'Sport collectif', emoji: '⚽' },
+    { nom: 'Sport individuel', emoji: '🏃' },
+    { nom: 'Danse', emoji: '💃' },
+    { nom: 'Skateboard / Roller', emoji: '🛹' },
+    { nom: 'Mode / Streetwear', emoji: '👟' },
+    { nom: 'Maquillage / Beauté', emoji: '💄' },
+    { nom: 'DIY / Bricolage', emoji: '🔨' },
+    { nom: 'Jardinage', emoji: '🌱' },
+    { nom: "L'espace / Astronomie", emoji: '🔭' },
+    { nom: 'Les animaux', emoji: '🐾' },
+    { nom: 'Environnement / Écologie', emoji: '🌍' },
+    { nom: 'Psychologie', emoji: '🧠' },
+    { nom: 'Histoire', emoji: '📜' },
+    { nom: 'Politique / Débats', emoji: '🗳️' },
+    { nom: 'Économie / Business', emoji: '💼' },
+  ];
+
+  for (let i = 0; i < techItems.length; i++) {
+    await prisma.interest.create({
+      data: {
+        nom: techItems[i].nom,
+        emoji: techItems[i].emoji,
+        kind: 'tech',
+        order: i,
+      },
+    });
+  }
+
+  for (let i = 0; i < generalItems.length; i++) {
+    await prisma.interest.create({
+      data: {
+        nom: generalItems[i].nom,
+        emoji: generalItems[i].emoji,
+        kind: 'general',
+        order: i,
+      },
+    });
+  }
+}
+
+async function assignTalentInterests() {
+  const talents = await prisma.talent.findMany({
+    where: { techInterestsValidatedAt: { not: null } },
+    select: { id: true },
+  });
+
+  const techIds = await prisma.interest.findMany({
+    where: { kind: 'tech' },
+    select: { id: true },
+  });
+  const generalIds = await prisma.interest.findMany({
+    where: { kind: 'general' },
+    select: { id: true },
+  });
+
+  for (const talent of talents) {
+    // 1-2 tech
+    const techCount = 1 + Math.floor(Math.random() * 2);
+    const shuffledTech = [...techIds].sort(() => Math.random() - 0.5);
+    const selectedTech = shuffledTech.slice(0, techCount);
+
+    // 1-5 general
+    const genCount = 1 + Math.floor(Math.random() * 5);
+    const shuffledGen = [...generalIds].sort(() => Math.random() - 0.5);
+    const selectedGen = shuffledGen.slice(0, genCount);
+
+    await prisma.talentInterest.createMany({
+      data: [
+        ...selectedTech.map((t) => ({ talentId: talent.id, interestId: t.id })),
+        ...selectedGen.map((g) => ({ talentId: talent.id, interestId: g.id })),
+      ],
+      skipDuplicates: true,
+    });
+  }
 }
 
 // ─── Seeders ───
@@ -2247,6 +2360,9 @@ async function seedStudents(): Promise<
         niveauDifficulte: s.niveauDifficulte,
         charterAcceptedAt: s.charterSigned ? new Date() : null,
         infoValidatedAt: s.skipOnboarding ? new Date() : null,
+        techInterestsValidatedAt: s.skipOnboarding ? new Date() : null,
+        generalInterestsValidatedAt: s.skipOnboarding ? new Date() : null,
+        interestsRecapSeenAt: s.skipOnboarding ? new Date() : null,
         rulesSignedAt: s.skipOnboarding ? new Date() : null,
         parentNom: s.skipOnboarding ? 'Martin' : null,
         parentPrenom: s.skipOnboarding ? 'Sophie' : null,

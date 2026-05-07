@@ -12,6 +12,7 @@
   import FingerprintPattern from '@lucide/svelte/icons/fingerprint-pattern';
   import FileText from '@lucide/svelte/icons/file-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
@@ -139,6 +140,13 @@
     >
       <Tags class="h-4 w-4" />
       <span>Thèmes Officiels</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/interests')}
+      class={navLinkClass(isActive('/staff/admin/interests'))}
+    >
+      <Heart class="h-4 w-4" />
+      <span>Centres d'intérêt</span>
     </a>
     <a
       href={resolve('/staff/admin/planning-templates')}

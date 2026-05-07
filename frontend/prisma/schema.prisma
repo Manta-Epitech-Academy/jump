@@ -59,6 +59,29 @@ enum ParticipationContextTag {
   disengaged
 }
 
+// ─── Interests ───
+
+model Interest {
+  id    String  @id @default(cuid())
+  nom   String  @unique
+  emoji String?
+  kind  String  @default("general") // "tech" | "general"
+  order Int
+
+  talentInterests TalentInterest[]
+}
+
+model TalentInterest {
+  talentId   String
+  interestId String
+
+  talent   Talent   @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  interest Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@id([talentId, interestId])
+  @@index([interestId])
+}
+
 // ─── Auth (BetterAuth managed) ───
 
 model bauth_user {
@@ -175,6 +198,9 @@ model Talent {
   xp                Int       @default(0)
   eventsCount       Int       @default(0)
   charterAcceptedAt     DateTime?
+  techInterestsValidatedAt    DateTime?
+  generalInterestsValidatedAt DateTime?
+  interestsRecapSeenAt  DateTime?
   rulesSignedAt         DateTime?
   imageRightsSignedAt   DateTime?
   imageRightsSignerName String?
@@ -205,6 +231,7 @@ model Talent {
   competenceStates TalentCompetenceState[]
   quizAttempts     TalentQuizAttempt[]
   reminders      OnboardingReminder[]
+  talentInterests TalentInterest[]
 }
 
 // ─── Domain Tables ───
