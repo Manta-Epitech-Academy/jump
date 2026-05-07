@@ -8,17 +8,25 @@ import { prisma } from '$lib/server/db';
 const interestSchema = z.object({
   nom: z.string().min(1, 'Le nom est requis').trim(),
   emoji: z.string().optional().or(z.literal('')),
+  kind: z.enum(['tech', 'general']),
 });
 
 export const load: PageServerLoad = async () => {
-  const interests = await prisma.interest.findMany({
+  const techInterests = await prisma.interest.findMany({
+    where: { kind: 'tech' },
+    orderBy: { order: 'asc' },
+    include: { _count: { select: { talentInterests: true } } },
+  });
+
+  const generalInterests = await prisma.interest.findMany({
+    where: { kind: 'general' },
     orderBy: { order: 'asc' },
     include: { _count: { select: { talentInterests: true } } },
   });
 
   const form = await superValidate(zod4(interestSchema));
 
-  return { interests, form };
+  return { techInterests, generalInterests, form };
 };
 
 export const actions: Actions = {
@@ -28,12 +36,14 @@ export const actions: Actions = {
 
     try {
       const maxOrder = await prisma.interest.aggregate({
+        where: { kind: form.data.kind },
         _max: { order: true },
       });
       await prisma.interest.create({
         data: {
           nom: form.data.nom,
           emoji: form.data.emoji || null,
+          kind: form.data.kind,
           order: (maxOrder._max.order ?? -1) + 1,
         },
       });
