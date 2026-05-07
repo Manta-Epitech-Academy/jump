@@ -65,6 +65,7 @@ model Interest {
   id    String  @id @default(cuid())
   nom   String  @unique
   emoji String?
+  kind  String  @default("general") // "tech" | "general"
   order Int
 
   talentInterests TalentInterest[]
@@ -197,7 +198,8 @@ model Talent {
   xp                Int       @default(0)
   eventsCount       Int       @default(0)
   charterAcceptedAt     DateTime?
-  interestsValidatedAt  DateTime?
+  techInterestsValidatedAt    DateTime?
+  generalInterestsValidatedAt DateTime?
   rulesSignedAt         DateTime?
   imageRightsSignedAt   DateTime?
   imageRightsSignerName String?

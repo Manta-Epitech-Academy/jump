@@ -5,17 +5,25 @@
 
   let { data, form } = $props();
 
-  const TOTAL_STEPS = 3;
+  const TOTAL_STEPS = 4;
   const stepNumber = $derived(
-    data.step === 'info-validation' ? 1 : data.step === 'interests' ? 2 : 3,
+    data.step === 'info-validation'
+      ? 1
+      : data.step === 'interests-tech'
+        ? 2
+        : data.step === 'interests-general'
+          ? 3
+          : 4,
   );
 
   const stepTitle = $derived(
     data.step === 'info-validation'
       ? 'Mes informations'
-      : data.step === 'interests'
-        ? "Mes centres d'intérêt"
-        : 'Règlement',
+      : data.step === 'interests-tech'
+        ? 'Informatique'
+        : data.step === 'interests-general'
+          ? "Centres d'int\u00e9r\u00eat"
+          : 'R\u00e8glement',
   );
 </script>
 
@@ -50,11 +58,24 @@
         profile={(form?.values as typeof data.profile) ?? data.profile}
         errors={form?.errors}
       />
-    {:else if data.step === 'interests'}
+    {:else if data.step === 'interests-tech'}
       <InterestsStep
         interests={data.interests}
         selectedIds={data.selectedIds}
         error={form?.error}
+        kind="tech"
+        maxSelect={2}
+        actionName="validateTechInterests"
+      />
+    {:else if data.step === 'interests-general'}
+      <InterestsStep
+        interests={data.interests}
+        selectedIds={data.selectedIds}
+        error={form?.error}
+        kind="general"
+        maxSelect={5}
+        actionName="validateGeneralInterests"
+        techSelections={data.techSelections}
       />
     {:else if data.step === 'rules'}
       <RulesStep error={form?.error} />

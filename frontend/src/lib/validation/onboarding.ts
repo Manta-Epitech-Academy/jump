@@ -41,9 +41,16 @@ export const infoValidationSchema = infoBaseSchema
 
 export type InfoValidationForm = z.infer<typeof infoBaseSchema>;
 
-export const interestsSchema = z.object({
+export const techInterestsSchema = z.object({
   interestIds: z
     .array(z.string().cuid())
-    .min(3, "Choisis au moins 3 centres d'intérêt")
-    .max(10, "10 centres d'intérêt maximum"),
+    .min(1, 'Choisis au moins 1 domaine tech')
+    .max(2, '2 domaines tech maximum'),
+});
+
+export const generalInterestsSchema = z.object({
+  interestIds: z
+    .array(z.string().cuid())
+    .min(1, "Choisis au moins 1 centre d'intérêt")
+    .max(5, "5 centres d'intérêt maximum"),
 });

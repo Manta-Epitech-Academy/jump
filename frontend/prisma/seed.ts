@@ -2191,7 +2191,20 @@ async function wipeAll() {
 // ─── Interests ───
 
 async function seedInterests() {
-  const items = [
+  const techItems = [
+    { nom: 'Créer des sites web', emoji: '🌐' },
+    { nom: 'Créer des apps', emoji: '📱' },
+    { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
+    { nom: 'Montage vidéo', emoji: '🎞️' },
+    { nom: 'Streaming / YouTube', emoji: '📡' },
+    { nom: 'Réseaux sociaux', emoji: '💬' },
+    { nom: 'Intelligence artificielle', emoji: '🤖' },
+    { nom: 'Robotique', emoji: '🦾' },
+    { nom: 'Impression 3D', emoji: '🖨️' },
+    { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
+  ];
+
+  const generalItems = [
     { nom: 'Jeux vidéo', emoji: '🎮' },
     { nom: 'Manga / Anime', emoji: '📺' },
     { nom: 'Séries / Films', emoji: '🎬' },
@@ -2210,16 +2223,6 @@ async function seedInterests() {
     { nom: 'Maquillage / Beauté', emoji: '💄' },
     { nom: 'DIY / Bricolage', emoji: '🔨' },
     { nom: 'Jardinage', emoji: '🌱' },
-    { nom: 'Créer des sites web', emoji: '🌐' },
-    { nom: 'Créer des apps', emoji: '📱' },
-    { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
-    { nom: 'Montage vidéo', emoji: '🎞️' },
-    { nom: 'Streaming / YouTube', emoji: '📡' },
-    { nom: 'Réseaux sociaux', emoji: '💬' },
-    { nom: 'Intelligence artificielle', emoji: '🤖' },
-    { nom: 'Robotique', emoji: '🦾' },
-    { nom: 'Impression 3D', emoji: '🖨️' },
-    { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
     { nom: "L'espace / Astronomie", emoji: '🔭' },
     { nom: 'Les animaux', emoji: '🐾' },
     { nom: 'Environnement / Écologie', emoji: '🌍' },
@@ -2230,31 +2233,65 @@ async function seedInterests() {
   ];
 
   const allIds: string[] = [];
-  for (let i = 0; i < items.length; i++) {
+
+  for (let i = 0; i < techItems.length; i++) {
     const interest = await prisma.interest.create({
-      data: { nom: items[i].nom, emoji: items[i].emoji, order: i },
+      data: {
+        nom: techItems[i].nom,
+        emoji: techItems[i].emoji,
+        kind: 'tech',
+        order: i,
+      },
     });
     allIds.push(interest.id);
   }
+
+  for (let i = 0; i < generalItems.length; i++) {
+    const interest = await prisma.interest.create({
+      data: {
+        nom: generalItems[i].nom,
+        emoji: generalItems[i].emoji,
+        kind: 'general',
+        order: i,
+      },
+    });
+    allIds.push(interest.id);
+  }
+
   return allIds;
 }
 
 async function assignTalentInterests(allInterestIds: string[]) {
   const talents = await prisma.talent.findMany({
-    where: { interestsValidatedAt: { not: null } },
+    where: { techInterestsValidatedAt: { not: null } },
+    select: { id: true },
+  });
+
+  const techIds = await prisma.interest.findMany({
+    where: { kind: 'tech' },
+    select: { id: true },
+  });
+  const generalIds = await prisma.interest.findMany({
+    where: { kind: 'general' },
     select: { id: true },
   });
 
   for (const talent of talents) {
-    const count = 3 + Math.floor(Math.random() * 4); // 3-6
-    const shuffled = [...allInterestIds].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, count);
+    // 1-2 tech
+    const techCount = 1 + Math.floor(Math.random() * 2);
+    const shuffledTech = [...techIds].sort(() => Math.random() - 0.5);
+    const selectedTech = shuffledTech.slice(0, techCount);
+
+    // 1-5 general
+    const genCount = 1 + Math.floor(Math.random() * 5);
+    const shuffledGen = [...generalIds].sort(() => Math.random() - 0.5);
+    const selectedGen = shuffledGen.slice(0, genCount);
 
     await prisma.talentInterest.createMany({
-      data: selected.map((interestId) => ({
-        talentId: talent.id,
-        interestId,
-      })),
+      data: [
+        ...selectedTech.map((t) => ({ talentId: talent.id, interestId: t.id })),
+        ...selectedGen.map((g) => ({ talentId: talent.id, interestId: g.id })),
+      ],
       skipDuplicates: true,
     });
   }
@@ -2329,7 +2366,8 @@ async function seedStudents(): Promise<
         niveauDifficulte: s.niveauDifficulte,
         charterAcceptedAt: s.charterSigned ? new Date() : null,
         infoValidatedAt: s.skipOnboarding ? new Date() : null,
-        interestsValidatedAt: s.skipOnboarding ? new Date() : null,
+        techInterestsValidatedAt: s.skipOnboarding ? new Date() : null,
+        generalInterestsValidatedAt: s.skipOnboarding ? new Date() : null,
         rulesSignedAt: s.skipOnboarding ? new Date() : null,
         parentNom: s.skipOnboarding ? 'Martin' : null,
         parentPrenom: s.skipOnboarding ? 'Sophie' : null,
