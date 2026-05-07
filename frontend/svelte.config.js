@@ -16,6 +16,11 @@ const config = {
     // See `tsconfig.check.json` and the `check` script in package.json.
     outDir: process.env.KIT_OUTDIR || '.svelte-kit',
     csp: {
+      // Hash mode: SvelteKit computes a sha256 of each inline <script>/<style>
+      // at SSR and appends it to the CSP header. Covers third-party inline
+      // scripts (e.g. mode-watcher's setInitialMode in <svelte:head>) which
+      // nonce mode does not stamp.
+      mode: 'hash',
       directives: {
         'default-src': ['self'],
         'script-src': ['self'],
