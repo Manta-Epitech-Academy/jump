@@ -55,20 +55,20 @@
 </script>
 
 <svelte:head>
-  <title>Équipe du campus</title>
+  <title>Staff du campus</title>
 </svelte:head>
 
 <div class="space-y-6 pb-12">
   <PageBreadcrumb
     items={[
       { label: 'Dashboard', href: resolve('/staff/dev') },
-      { label: 'Équipe' },
+      { label: 'Staff du campus' },
     ]}
   />
   <div class="flex items-end justify-between gap-4">
     <div>
       <h1 class="font-heading text-3xl tracking-wide text-epi-blue uppercase">
-        Équipe du campus<span class="text-epi-teal">_</span>
+        Staff du campus<span class="text-epi-teal">_</span>
       </h1>
       <p
         class="mt-1 text-sm font-bold tracking-widest text-muted-foreground uppercase"

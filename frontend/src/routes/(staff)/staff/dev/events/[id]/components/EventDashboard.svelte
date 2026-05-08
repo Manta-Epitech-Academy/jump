@@ -99,7 +99,7 @@
       tone="orange"
     />
     <EventKpiTile
-      label="Équipe"
+      label="Intervenants"
       value={mantasCount}
       icon={GraduationCap}
       tone="teal"

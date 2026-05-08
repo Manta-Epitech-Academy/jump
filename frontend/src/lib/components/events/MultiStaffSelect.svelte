@@ -151,7 +151,7 @@
               {/each}
             </Command.Group>
           {:else}
-            <Command.Group heading="Équipe du campus">
+            <Command.Group heading="Staff du campus">
               {#each staff as person (person.id)}
                 {@render staffItem(person)}
               {/each}

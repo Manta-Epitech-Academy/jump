@@ -248,7 +248,7 @@ export async function deriveEventAlerts(
       kind: 'missing-mantas',
       eventId: event.id,
       eventTitre: event.titre,
-      title: 'Équipe pédagogique non assignée',
+      title: 'Intervenants non assignés',
       description: `${event.titre} — aucun manta`,
       severity: 'warning',
       href: `${eventBase}/team`,
@@ -424,11 +424,11 @@ export async function deriveEventChecklist(
     key: `missing-mantas-${event.id}`,
     kind: 'missing-mantas',
     group: 'team',
-    title: 'Équipe pédagogique assignée',
+    title: 'Intervenants assignés',
     meta:
       facts.mantaCount > 0
         ? `${facts.mantaCount} manta${facts.mantaCount > 1 ? 's' : ''} confirmé${facts.mantaCount > 1 ? 's' : ''}`
-        : 'Aucun manta — assigner depuis Équipe',
+        : 'Aucun manta — assigner depuis Intervenants',
     done: facts.mantaCount > 0,
     severity: 'warning',
     href: `${eventBase}/team`,

@@ -184,7 +184,7 @@
         )}
       >
         <GraduationCap class="h-5 w-5" />
-        <span>Équipe pédagogique</span>
+        <span>Intervenants</span>
       </a>
       <a
         href={resolve('/staff/dev/contenu/welcome')}
@@ -221,7 +221,7 @@
         class={navLinkClass(isActive('/staff/dev/team'))}
       >
         <UserCog class="h-5 w-5" />
-        <span>Équipe</span>
+        <span>Staff du campus</span>
       </a>
     </nav>
   </Gated>
