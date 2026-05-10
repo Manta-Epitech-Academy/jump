@@ -5,10 +5,9 @@
   import Camera from '@lucide/svelte/icons/camera';
   import Laptop from '@lucide/svelte/icons/laptop';
   import CohortHealthBar from './CohortHealthBar.svelte';
-  import OnboardingKpiCard, {
-    KPI_THEMES,
-    type KpiThemeKey,
-  } from './OnboardingKpiCard.svelte';
+  import EventKpiTile, {
+    type EventKpiTone,
+  } from '../../components/EventKpiTile.svelte';
   import type { DocFilterKey, OnboardingFilterKey } from '../filters';
 
   let {
@@ -39,12 +38,12 @@
     key: DocFilterKey;
     label: string;
     Icon: Component<{ class?: string }>;
-    headlineValue: number;
-    headlineTotal?: number;
+    value: number;
+    /** When unset, the tile renders the bare number; otherwise `value/total`. */
+    total?: number;
     progressPct: number;
-    complete: boolean;
-    subLabel: string;
-    themeKey: KpiThemeKey;
+    sub: string;
+    tone: EventKpiTone;
   };
 
   // Tryptique TECH/TOGETHER/TOMORROW + brand blue, one accent per card:
@@ -58,18 +57,15 @@
   // talent without their own laptop isn't blocked, we just need to plan
   // for it. The PC card keeps the click-to-filter behaviour (?filter=
   // pc-missing) so staff can still slice the list to "who needs a PC".
-  const docCard = (
-    spec: Omit<CardSpec, 'subLabel' | 'complete' | 'progressPct'>,
-  ): CardSpec => {
-    const ok = spec.headlineValue;
-    const t = spec.headlineTotal ?? total;
+  const docCard = (spec: Omit<CardSpec, 'sub' | 'progressPct'>): CardSpec => {
+    const ok = spec.value;
+    const t = spec.total ?? total;
     const missing = Math.max(0, t - ok);
     const complete = t > 0 && ok === t;
     return {
       ...spec,
-      complete,
       progressPct: t === 0 ? 0 : (ok / t) * 100,
-      subLabel: complete ? 'Tous validés' : `${missing} à finaliser`,
+      sub: complete ? 'Tous validés' : `${missing} à finaliser`,
     };
   };
 
@@ -77,16 +73,15 @@
     key: 'pc-missing',
     label: 'PC à préparer',
     Icon: Laptop,
-    headlineValue: total - pcCount,
+    value: total - pcCount,
     progressPct: total === 0 ? 0 : (pcCount / total) * 100,
-    complete: total > 0 && pcCount === total,
-    subLabel:
+    sub:
       total === 0
         ? '—'
         : pcCount === total
           ? 'Toute la cohorte est autonome'
           : `${pcCount}/${total} apporteront leur PC`,
-    themeKey: 'teal',
+    tone: 'teal',
   });
 
   const cards: CardSpec[] = $derived([
@@ -94,25 +89,25 @@
       key: 'charte-missing',
       label: 'Charte',
       Icon: FileText,
-      headlineValue: charteCount,
-      headlineTotal: total,
-      themeKey: 'blue',
+      value: charteCount,
+      total,
+      tone: 'blue',
     }),
     docCard({
       key: 'convention-missing',
       label: 'Convention de stage',
       Icon: ScrollText,
-      headlineValue: conventionCount,
-      headlineTotal: total,
-      themeKey: 'orange',
+      value: conventionCount,
+      total,
+      tone: 'orange',
     }),
     docCard({
       key: 'image-rights-missing',
       label: "Droit à l'image",
       Icon: Camera,
-      headlineValue: imageCount,
-      headlineTotal: total,
-      themeKey: 'pink',
+      value: imageCount,
+      total,
+      tone: 'pink',
     }),
     pcCard,
   ]);
@@ -132,17 +127,16 @@
 
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
     {#each cards as card (card.key)}
-      <OnboardingKpiCard
+      <EventKpiTile
         label={card.label}
-        Icon={card.Icon}
-        headlineValue={card.headlineValue}
-        headlineTotal={card.headlineTotal}
-        progressPct={card.progressPct}
-        complete={card.complete}
-        subLabel={card.subLabel}
-        theme={KPI_THEMES[card.themeKey]}
-        active={activeFilter === card.key}
-        onToggle={() => onDocCardClick(card.key)}
+        value={card.value}
+        total={card.total}
+        icon={card.Icon}
+        progress={card.progressPct}
+        sub={card.sub}
+        tone={card.tone}
+        onclick={() => onDocCardClick(card.key)}
+        pressed={activeFilter === card.key}
       />
     {/each}
   </div>

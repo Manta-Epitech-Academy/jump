@@ -15,6 +15,8 @@
      * Use the `valueSnippet` prop for richer markup (e.g. "42 / 124").
      */
     value?: string | number;
+    /** Optional denominator. Renders as `value/total`. */
+    total?: number;
     /** Optional companion line under the value. */
     sub?: string;
     /** Lucide icon component for the right-side badge. Optional. */
@@ -24,6 +26,13 @@
     tone?: EventKpiTone;
     /** Anchor wrap; tile becomes a clickable link. */
     href?: string;
+    /**
+     * Filter mode: tile becomes a `<button>` with `aria-pressed`.
+     * Mutually exclusive with `href`. Pair with `pressed` to mark active.
+     */
+    onclick?: () => void;
+    /** Filter is currently active (only meaningful with `onclick`). */
+    pressed?: boolean;
     /** Custom value renderer when a string/number isn't enough. */
     valueSnippet?: Snippet;
   };
@@ -31,13 +40,18 @@
   let {
     label,
     value,
+    total,
     sub,
     icon,
     progress,
     tone = 'blue',
     href,
+    onclick,
+    pressed = false,
     valueSnippet,
   }: Props = $props();
+
+  const isInteractive = $derived(Boolean(onclick) || Boolean(href));
 
   const toneAccent = $derived(
     tone === 'teal'
@@ -95,7 +109,10 @@
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0 flex-1">
         <p
-          class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+          class={cn(
+            'mb-1 text-[10px] font-bold tracking-widest uppercase',
+            pressed ? 'text-white/70' : 'text-muted-foreground',
+          )}
         >
           {label}
         </p>
@@ -103,13 +120,28 @@
           {#if valueSnippet}
             {@render valueSnippet()}
           {:else}
-            <p class={cn('font-heading text-5xl tracking-wide', toneText)}>
-              {value ?? '—'}
+            <p
+              class={cn(
+                'font-heading text-5xl tracking-wide',
+                pressed ? 'text-white' : toneText,
+              )}
+            >
+              {value ?? '—'}{#if total != null}<span
+                  class={cn(
+                    'ml-1 font-mono text-base font-bold',
+                    pressed ? 'text-white/70' : 'text-muted-foreground',
+                  )}>/{total}</span
+                >{/if}
             </p>
           {/if}
         </div>
         {#if sub}
-          <p class="mt-1 text-xs font-medium text-muted-foreground">
+          <p
+            class={cn(
+              'mt-1 text-xs font-medium',
+              pressed ? 'text-white/80' : 'text-muted-foreground',
+            )}
+          >
             {sub}
           </p>
         {/if}
@@ -118,8 +150,7 @@
         <div
           class={cn(
             'flex h-12 w-12 shrink-0 items-center justify-center rounded-sm',
-            toneBg,
-            toneText,
+            pressed ? 'bg-white/15 text-white' : cn(toneBg, toneText),
           )}
         >
           <Icon class="h-6 w-6" />
@@ -128,11 +159,16 @@
     </div>
     <div class="mt-4 flex-1"></div>
     {#if typeof progress === 'number'}
-      <div class="h-1.5 overflow-hidden rounded-full bg-muted dark:bg-muted/30">
+      <div
+        class={cn(
+          'h-1.5 overflow-hidden rounded-full',
+          pressed ? 'bg-white/20' : 'bg-muted dark:bg-muted/30',
+        )}
+      >
         <div
           class={cn(
             'h-full transition-[width] duration-700 ease-out',
-            toneFill,
+            pressed ? 'bg-white' : toneFill,
           )}
           style="width: {Math.max(0, Math.min(100, progress))}%"
         ></div>
@@ -141,24 +177,35 @@
   </Card.Content>
 {/snippet}
 
-{#if href}
-  <a {href} class="flex h-full transition-shadow hover:shadow-md">
-    <Card.Root
-      class={cn(
-        'flex w-full flex-col rounded-sm border-l-4 shadow-sm dark:shadow-none',
-        toneAccent,
-      )}
-    >
-      {@render body()}
-    </Card.Root>
-  </a>
-{:else}
+{#snippet shell(extraClass: string)}
   <Card.Root
     class={cn(
       'flex h-full flex-col rounded-sm border-l-4 shadow-sm dark:shadow-none',
-      toneAccent,
+      pressed ? 'border-l-white/40 bg-epi-blue text-white' : toneAccent,
+      isInteractive && !pressed
+        ? 'transition-colors hover:border-epi-blue/60 hover:bg-muted/30'
+        : '',
+      pressed ? 'transition-colors hover:bg-[#0026b8]' : '',
+      extraClass,
     )}
   >
     {@render body()}
   </Card.Root>
+{/snippet}
+
+{#if onclick}
+  <button
+    type="button"
+    {onclick}
+    aria-pressed={pressed}
+    class="block h-full w-full cursor-pointer text-left"
+  >
+    {@render shell('')}
+  </button>
+{:else if href}
+  <a {href} class="flex h-full transition-shadow hover:shadow-md">
+    {@render shell('w-full')}
+  </a>
+{:else}
+  {@render shell('')}
 {/if}

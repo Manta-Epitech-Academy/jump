@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { InterviewRecommendation } from '@prisma/client';
 
 const optionalText = (max: number) =>
   z
@@ -8,18 +9,23 @@ const optionalText = (max: number) =>
     .optional()
     .or(z.literal('').transform(() => undefined));
 
+const optionalRecommendation = z
+  .nativeEnum(InterviewRecommendation)
+  .nullish()
+  .or(z.literal('').transform(() => null));
+
 export const interviewGridSchema = z.object({
   id: z.string().min(1, 'Identifiant manquant'),
   discoveryReason: optionalText(1000),
   motivation: optionalText(1000),
   nextEventInterest: optionalText(500),
-  influencers: optionalText(500),
   platforms: optionalText(500),
   specialties: optionalText(500),
   interests: optionalText(500),
   otherJobs: optionalText(500),
   satisfaction: optionalText(1000),
   globalNote: optionalText(2000),
+  recommendation: optionalRecommendation,
 });
 
 export const scheduleInterviewSchema = z.object({
@@ -50,6 +56,24 @@ export const autoScheduleInterviewsSchema = z.object({
   mode: z.enum(['preview', 'apply']),
 });
 
+export const reassignInterviewSchema = z.object({
+  interviewId: z.string().min(1, 'Identifiant manquant'),
+  staffId: z.string().min(1, 'Interviewer requis'),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (AAAA-MM-JJ)')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  time: z
+    .string()
+    .regex(
+      /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/,
+      'Format horaire invalide (HH:MM)',
+    )
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+});
+
 export type InterviewGridForm = z.infer<typeof interviewGridSchema>;
 export type ScheduleInterviewForm = z.infer<typeof scheduleInterviewSchema>;
 export type UpdateInterviewStatusForm = z.infer<
@@ -58,3 +82,4 @@ export type UpdateInterviewStatusForm = z.infer<
 export type AutoScheduleInterviewsForm = z.infer<
   typeof autoScheduleInterviewsSchema
 >;
+export type ReassignInterviewForm = z.infer<typeof reassignInterviewSchema>;

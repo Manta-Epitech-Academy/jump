@@ -23,7 +23,7 @@
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} — Équipe pédagogique</title>
+  <title>{data.event.titre} — Intervenants</title>
 </svelte:head>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
@@ -34,7 +34,7 @@
         label: data.event.titre,
         href: resolve(`/staff/dev/events/${data.event.id}`),
       },
-      { label: 'Équipe pédagogique' },
+      { label: 'Intervenants' },
     ]}
   />
 
@@ -44,7 +44,7 @@
     <div class="flex flex-col items-start gap-4 sm:flex-row">
       <div class="min-w-0 flex-1 space-y-3">
         <h1 class="text-3xl font-bold text-epi-blue uppercase">
-          Équipe pédagogique<span class="text-epi-teal">_</span>
+          Intervenants<span class="text-epi-teal">_</span>
         </h1>
         {#if data.assigned.length === 0}
           <p class="text-sm text-muted-foreground">

@@ -11,6 +11,7 @@
   import { INTERVIEW_DISPLAY_LABELS } from '$lib/domain/interview';
   import type { OngoingRow } from './types';
   import { humanizeNiveau } from './niveau';
+  import RecommendationChip from '../../interviews/components/RecommendationChip.svelte';
 
   let {
     row,
@@ -174,5 +175,8 @@
       <MessageSquare class="h-2.5 w-2.5" />
       {interviewLabel}
     </Badge>
+    {#if row.interviewRecommendation}
+      <RecommendationChip value={row.interviewRecommendation} />
+    {/if}
   </div>
 </a>

@@ -169,7 +169,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           interests: { include: { interest: true } },
         },
       },
-      interview: { select: { id: true, status: true, date: true } },
+      interview: {
+        select: {
+          id: true,
+          status: true,
+          date: true,
+          recommendation: true,
+        },
+      },
     },
     orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
@@ -206,6 +213,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       participation: p,
       interviewStatus: getInterviewDisplayStatus(p.interview, bounds),
       interviewDate: p.interview?.date ?? null,
+      interviewRecommendation: p.interview?.recommendation ?? null,
       lastActivityName: last?.name ?? null,
       lastActivityAt: last?.at ?? null,
     };

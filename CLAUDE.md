@@ -46,12 +46,12 @@ No test framework is configured — there are no automated tests.
 
 The app splits into four workspaces, each serving a distinct audience and business goal:
 
-| Workspace  | Path             | Audience                         | Objective                                                    |
-| ---------- | ---------------- | -------------------------------- | ------------------------------------------------------------ |
-| **Dev**    | `/staff/dev/`    | `superdev`, `dev`                | Talent Acquisition & Recruitment (admissions pipeline)       |
-| **Pedago** | `/staff/pedago/` | `peda`, `manta`                  | Knowledge transmission & academic management                 |
-| **Admin**  | `/staff/admin/`  | `admin`                          | Global system overview; account impersonation                |
-| **Talent** | `(talent)/`      | students                         | Student experience — gamification, progression, portfolio    |
+| Workspace  | Path             | Audience          | Objective                                                 |
+| ---------- | ---------------- | ----------------- | --------------------------------------------------------- |
+| **Dev**    | `/staff/dev/`    | `superdev`, `dev` | Talent Acquisition & Recruitment (admissions pipeline)    |
+| **Pedago** | `/staff/pedago/` | `peda`, `manta`   | Knowledge transmission & academic management              |
+| **Admin**  | `/staff/admin/`  | `admin`           | Global system overview; account impersonation             |
+| **Talent** | `(talent)/`      | students          | Student experience — gamification, progression, portfolio |
 
 **Terminology:** "Dev" is short for **Business Development / Admissions / Talent Acquisition** — not software engineers. Keep this in mind when reading code: a `dev` role or `/dev/` route refers to the recruitment team.
 
@@ -79,13 +79,14 @@ Client-side auth at `src/lib/auth-client.ts` (browser-side BetterAuth).
 
 Inside a workspace, role-based gating goes through **one table** of named role groups in `src/lib/domain/permissions.ts`:
 
-| Group        | Roles                | Use for                                                    |
-| ------------ | -------------------- | ---------------------------------------------------------- |
-| `devLead`    | `superdev`           | Dev workspace lead-only mutations (delete, import, update) |
-| `devMember`  | `superdev`, `dev`    | Dev workspace daily ops (participants, interviews, update) |
-| `pedaLead`   | `peda`               | Pedago workspace lead-only (planning page, factions)       |
-| `pedaMember` | `peda`, `manta`      | Pedago workspace field ops (cockpit mutations)             |
-| `leads`      | `superdev`, `peda`   | Actions shared across both workspace leads                 |
+| Group          | Roles                     | Use for                                                                            |
+| -------------- | ------------------------- | ---------------------------------------------------------------------------------- |
+| `devLead`      | `superdev`                | Dev workspace lead-only mutations (delete, import, update)                         |
+| `devMember`    | `superdev`, `dev`         | Dev workspace daily ops (participants, interviews, update)                         |
+| `pedaLead`     | `peda`                    | Pedago workspace lead-only (planning page, factions)                               |
+| `pedaMember`   | `peda`, `manta`           | Pedago workspace field ops (cockpit mutations)                                     |
+| `leads`        | `superdev`, `peda`        | Actions shared across both workspace leads                                         |
+| `interviewers` | `superdev`, `dev`, `peda`, `manta` | Roles eligible to be the `staff` of an Interview and fill its grid (any campus staff)  |
 
 - **Client:** `<Gated group="devLead">...</Gated>` — reads role from page state, hides or disables with tooltip. Import: `$lib/components/auth/Gated.svelte`.
 - **Server:** `requireStaffGroup(locals, 'devLead')` in every mutating action. Import: `$lib/server/auth/guards`.
@@ -93,12 +94,12 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 
 **UI pattern rule — pick one per site, do not mix:**
 
-| Pattern              | When                                                      |
-| -------------------- | --------------------------------------------------------- |
-| Hide                 | Nav entries to lead-only destinations (sidebar, menus)    |
-| Disable + tooltip    | Mutating controls visible on shared screens               |
-| Readonly banner      | Whole-page readonly context (e.g. manta on planning)      |
-| Redirect / 403       | Direct URL access to lead-only routes (via STAFF_ROLE_GATES) |
+| Pattern           | When                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| Hide              | Nav entries to lead-only destinations (sidebar, menus)       |
+| Disable + tooltip | Mutating controls visible on shared screens                  |
+| Readonly banner   | Whole-page readonly context (e.g. manta on planning)         |
+| Redirect / 403    | Direct URL access to lead-only routes (via STAFF_ROLE_GATES) |
 
 Never inline a `['superdev']` array at a call site. If the group you need doesn't exist, add it to `STAFF_GROUPS`.
 
@@ -171,10 +172,10 @@ Activity difficulty determines XP: Débutant=20, Intermédiaire=45, Avancé=75. 
 
   ```ts
   // ✅ correct
-  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Trash2 from "@lucide/svelte/icons/trash-2";
 
   // ❌ wrong — barrel import
-  import { Trash2 } from '@lucide/svelte';
+  import { Trash2 } from "@lucide/svelte";
   ```
 
 ## Constraints
@@ -185,7 +186,19 @@ Activity difficulty determines XP: Débutant=20, Intermédiaire=45, Avancé=75. 
 
 ## Environment Variables
 
-See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), `RESEND_API_KEY`. Optional: `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`, `CRON_SECRET`, `WORKER_API_TOKEN`.
+See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), `RESEND_API_KEY`. Optional: `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`, `CRON_SECRET`, `WORKER_API_TOKEN`, `INTERVIEW_SYNC_MODE`.
+
+### `INTERVIEW_SYNC_MODE`
+
+Picks the calendar sync backend for interview events. Lives behind a façade in `$lib/server/services/calendarSync/` — flipping the env var swaps the active backend with no code change.
+
+| Value             | Behavior                                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `email` (default) | Send iCalendar invites (`METHOD:REQUEST` / `METHOD:CANCEL`) via Resend. No extra OAuth scope needed; works for every staff regardless of tenant policy. Schedule-affecting actions fan out to every affected staff member's mailbox (reassign emits CANCEL to old + REQUEST to new in one shot). |
+| `graph`           | Push events directly to the user's Outlook calendar via Microsoft Graph. Requires the `Calendars.ReadWrite` delegated scope, which Epitech-style tenants gate behind admin consent. Opt in only once consent is granted; the `Calendars.ReadWrite` scope is added to the OAuth request automatically when this mode is active. |
+| `off`             | Disable sync entirely; sync UI controls hide.                                                                                                                                         |
+
+`OutlookCalendarSync` rows carry `syncKind` so both backends share the table; flipping modes leaves stale rows behind, which the next reconcile in the new mode will simply ignore.
 
 ## Prisma Migrations
 

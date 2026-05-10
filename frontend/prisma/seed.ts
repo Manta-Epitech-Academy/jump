@@ -2393,7 +2393,6 @@ type InterviewBlueprint = {
     motivation?: string;
     globalNote?: string;
     satisfaction?: string;
-    influencers?: string;
   };
 };
 
@@ -2440,7 +2439,6 @@ const INTERVIEWS: InterviewBlueprint[] = [
       motivation: 'Très motivée, projet déjà clair.',
       globalNote: 'Profil idéal pour le coding club.',
       satisfaction: 'Très satisfaite',
-      influencers: 'Sa grande sœur (ingénieure)',
     },
   },
   {
@@ -3728,7 +3726,6 @@ async function seedInterviews(
         motivation: iv.notes?.motivation ?? null,
         globalNote: iv.notes?.globalNote ?? null,
         satisfaction: iv.notes?.satisfaction ?? null,
-        influencers: iv.notes?.influencers ?? null,
       },
     });
     count++;

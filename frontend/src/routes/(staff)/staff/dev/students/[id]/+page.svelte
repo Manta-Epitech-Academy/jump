@@ -40,6 +40,7 @@
   import ComplianceByEventTable from './components/ComplianceByEventTable.svelte';
   import CommHistoryList from './components/CommHistoryList.svelte';
   import InterviewHistoryList from './components/InterviewHistoryList.svelte';
+  import RecommendationChip from '../../events/[id]/interviews/components/RecommendationChip.svelte';
   import RelanceComposeDialog, {
     type ComposeRecipient,
   } from '$lib/components/comms/RelanceComposeDialog.svelte';
@@ -71,6 +72,15 @@
     featureFlags.has('coding_club')
       ? resolve('/staff/dev/students')
       : undefined,
+  );
+
+  // Latest interview recommendation — surfaced in the identity strip so dev
+  // staff see the orientation outcome without opening the history list.
+  let latestRecommendation = $derived(
+    data.student.interviews?.find(
+      (iv: { status: string; recommendation: unknown }) =>
+        iv.status === 'completed' && iv.recommendation,
+    )?.recommendation ?? null,
   );
 
   const { form, errors, delayed, enhance, reset } = superForm(
@@ -267,6 +277,13 @@
           <Trophy class="mr-1 h-3 w-3 text-epi-orange" />
           {data.student.xp} XP · {data.student.level}
         </Badge>
+        {#if latestRecommendation}
+          <RecommendationChip
+            value={latestRecommendation}
+            variant="full"
+            size="md"
+          />
+        {/if}
       </div>
     </div>
   </section>

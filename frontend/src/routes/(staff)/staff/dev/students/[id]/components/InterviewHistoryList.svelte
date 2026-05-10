@@ -10,12 +10,15 @@
     getInterviewDisplayStatus,
   } from '$lib/domain/interview';
   import { getLifecycleBounds } from '$lib/domain/eventLifecycle';
+  import RecommendationChip from '../../../events/[id]/interviews/components/RecommendationChip.svelte';
+  import type { InterviewRecommendation } from '@prisma/client';
 
   type Interview = {
     id: string;
     date: Date | string;
     status: 'planned' | 'completed' | 'cancelled';
     globalNote?: string | null;
+    recommendation?: InterviewRecommendation | null;
     staff: { user: { name: string | null } | null } | null;
     participation: { event: { id: string; titre: string } } | null;
   };
@@ -82,6 +85,9 @@
                     >{iv.staff.user.name}</span
                   >
                 </span>
+              {/if}
+              {#if iv.recommendation}
+                <RecommendationChip value={iv.recommendation} variant="full" />
               {/if}
             </div>
             {#if iv.participation?.event}

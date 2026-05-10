@@ -42,6 +42,10 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
+  // Peda visiting a single interviews route gets a stripped shell — no
+  // sidebar, no command-K, no impersonation, no tickets. Just header + main.
+  let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
+  let showFullChrome = $derived(!isInterviewOnly);
 
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
@@ -257,24 +261,26 @@
   >
     <div class="flex items-center gap-4 md:gap-8">
       <div class="flex items-center gap-2 md:gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="relative h-12 w-12 text-inherit md:hidden"
-          onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-        >
-          <Menu
-            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
-              ? 'scale-0 opacity-0'
-              : 'scale-100 opacity-100'}"
-          />
-          <X
-            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
-              ? 'scale-100 rotate-0 opacity-100'
-              : 'scale-0 -rotate-90 opacity-0'}"
-          />
-          <span class="sr-only">Toggle menu</span>
-        </Button>
+        {#if showFullChrome}
+          <Button
+            variant="ghost"
+            size="icon"
+            class="relative h-12 w-12 text-inherit md:hidden"
+            onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+          >
+            <Menu
+              class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+                ? 'scale-0 opacity-0'
+                : 'scale-100 opacity-100'}"
+            />
+            <X
+              class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+                ? 'scale-100 rotate-0 opacity-100'
+                : 'scale-0 -rotate-90 opacity-0'}"
+            />
+            <span class="sr-only">Toggle menu</span>
+          </Button>
+        {/if}
         <a href={resolve('/staff/dev')} class="flex items-center gap-2">
           <span class="text-lg font-bold uppercase">Jump</span>
           <span
@@ -294,7 +300,7 @@
         </a>
       </div>
 
-      {#if hasCodingClub}
+      {#if hasCodingClub && showFullChrome}
         <button
           class="hidden h-9 w-64 items-center justify-between rounded-sm border border-header-foreground/20 bg-header-foreground/10 px-3 text-sm text-header-foreground/70 transition-colors hover:bg-header-foreground/20 md:flex"
           onclick={() => (commandOpen = true)}
@@ -313,7 +319,7 @@
     </div>
 
     <div class="flex items-center gap-2">
-      {#if hasCodingClub}
+      {#if hasCodingClub && showFullChrome}
         <Button
           variant="ghost"
           size="icon"
@@ -323,7 +329,7 @@
           <Search class="h-5 w-5" />
         </Button>
       {/if}
-      {#if data.canOverridePhase}
+      {#if data.canOverridePhase && showFullChrome}
         <div class="hidden md:block">
           <StagePhaseOverrideToggle
             current={data.phaseOverride}
@@ -411,27 +417,29 @@
   </header>
 
   <div class="relative flex flex-1 overflow-hidden">
-    <aside
-      class="hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
-    >
-      <div class="flex-1 overflow-y-auto p-4">
-        {@render navMenu()}
-      </div>
-      {#if hasCodingClub}<Gated group="devLead" mode="hide">
-          <div class="border-t border-border p-4">
-            <Button
-              variant="outline"
-              class="w-full justify-start border-dashed"
-              href={resolve('/staff/dev/events/import')}
-            >
-              <Plus class="mr-2 h-4 w-4" />
-              Importer un événement
-            </Button>
-          </div>
-        </Gated>{/if}
-    </aside>
+    {#if showFullChrome}
+      <aside
+        class="hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
+      >
+        <div class="flex-1 overflow-y-auto p-4">
+          {@render navMenu()}
+        </div>
+        {#if hasCodingClub}<Gated group="devLead" mode="hide">
+            <div class="border-t border-border p-4">
+              <Button
+                variant="outline"
+                class="w-full justify-start border-dashed"
+                href={resolve('/staff/dev/events/import')}
+              >
+                <Plus class="mr-2 h-4 w-4" />
+                Importer un événement
+              </Button>
+            </div>
+          </Gated>{/if}
+      </aside>
+    {/if}
 
-    {#if mobileMenuOpen}
+    {#if mobileMenuOpen && showFullChrome}
       <div
         class="absolute inset-0 z-40 bg-black/50 md:hidden"
         transition:fade={{ duration: 200 }}
@@ -469,10 +477,10 @@
   </div>
 </div>
 
-{#if hasCodingClub}
+{#if hasCodingClub && showFullChrome}
   <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
 {/if}
 
-{#if data.ticketsEnabled}
+{#if data.ticketsEnabled && showFullChrome}
   <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />
 {/if}

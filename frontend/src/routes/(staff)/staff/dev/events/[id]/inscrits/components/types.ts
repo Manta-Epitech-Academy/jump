@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { InterviewRecommendation, Prisma } from '@prisma/client';
 import type { InterviewDisplayStatus } from '$lib/domain/interview';
 
 export const FILTER_KEYS = [
@@ -29,7 +29,14 @@ type ParticipationOngoing = Prisma.ParticipationGetPayload<{
         interests: { include: { interest: true } };
       };
     };
-    interview: { select: { id: true; status: true; date: true } };
+    interview: {
+      select: {
+        id: true;
+        status: true;
+        date: true;
+        recommendation: true;
+      };
+    };
   };
 }>;
 
@@ -47,6 +54,7 @@ export type OngoingRow = {
   participation: ParticipationOngoing;
   interviewStatus: InterviewDisplayStatus;
   interviewDate: Date | null;
+  interviewRecommendation: InterviewRecommendation | null;
   lastActivityName: string | null;
   lastActivityAt: Date | null;
 };
