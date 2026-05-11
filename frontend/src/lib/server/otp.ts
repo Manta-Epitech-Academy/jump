@@ -1,19 +1,10 @@
-import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
-
-let resend: Resend;
-
-function getResend() {
-  if (!resend) {
-    resend = new Resend(env.RESEND_API_KEY);
-  }
-  return resend;
-}
+import { sendEmailOrThrow } from '$lib/server/email/resend';
 
 export async function sendOtpEmail(email: string, otp: string, name?: string) {
   const displayName = name || 'futur·e codeur·se';
-  await getResend().emails.send({
+  await sendEmailOrThrow({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
     to: email,
     subject: "Ton code d'accès secret pour Jump 🔑",
@@ -45,7 +36,7 @@ export async function sendParentWelcomeEmail(
   const displayName =
     parentName.charAt(0).toUpperCase() + parentName.slice(1).toLowerCase();
   const loginUrl = `${env.ORIGIN}${base}/parent/login`;
-  await getResend().emails.send({
+  await sendEmailOrThrow({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
     to: email,
     subject: `${childName} participe à Epitech Academy — votre accès parent`,
@@ -77,7 +68,7 @@ export async function sendParentOtpEmail(
 ) {
   const displayName = name || 'Parent';
   const loginUrl = `${env.ORIGIN}${base}/parent/login`;
-  await getResend().emails.send({
+  await sendEmailOrThrow({
     from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
     to: email,
     subject: "Votre code d'accès Jump — Espace Parent",

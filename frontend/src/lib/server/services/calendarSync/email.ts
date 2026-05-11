@@ -9,7 +9,6 @@
  * lifecycle — just SMTP-via-Resend.
  */
 
-import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import type { Interview, Talent } from '@prisma/client';
@@ -25,6 +24,7 @@ import type {
   ReconcileOpts,
   ReconcileResult,
 } from './types';
+import { sendEmail } from '$lib/server/email/resend';
 
 const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';
 const ORGANIZER_EMAIL = parseFromEmail(FROM_EMAIL);
@@ -38,12 +38,6 @@ const ORGANIZER_EMAIL = parseFromEmail(FROM_EMAIL);
  * cannot actually receive mail. Leave unset in production.
  */
 const DEV_REDIRECT = env.INTERVIEW_SYNC_DEV_REDIRECT?.trim() || null;
-
-let resend: Resend | null = null;
-function getResend(): Resend {
-  if (!resend) resend = new Resend(env.RESEND_API_KEY);
-  return resend;
-}
 
 function parseFromEmail(from: string): { email: string; name?: string } {
   // Accept either `Name <email>` or bare `email`.
@@ -97,30 +91,33 @@ async function sendInvite(args: {
     timeZone: args.timezone,
   });
 
-  try {
-    await getResend().emails.send({
-      from: FROM_EMAIL,
-      to: recipient,
-      subject,
-      text: cancel
-        ? `L'entretien avec ${args.interview.talent.prenom} ${args.interview.talent.nom} prévu le ${date} a été annulé.`
-        : `Entretien avec ${args.interview.talent.prenom} ${args.interview.talent.nom} le ${date}.\n\nAcceptez l'invitation pour l'ajouter à votre agenda.`,
-      attachments: [
-        {
-          filename: cancel ? 'cancellation.ics' : 'invite.ics',
-          content: Buffer.from(ics, 'utf-8').toString('base64'),
-          // `method=REQUEST|CANCEL` on the Content-Type is what flips
-          // Outlook from "attachment" to "auto-add invite". Resend
-          // forwards this verbatim as `content_type` on the API.
-          contentType: `text/calendar; method=${args.method}; charset=utf-8`,
-        },
-      ],
-    });
-    return true;
-  } catch (err) {
-    console.error('email invite send failed', err);
+  const result = await sendEmail({
+    from: FROM_EMAIL,
+    to: recipient,
+    subject,
+    text: cancel
+      ? `L'entretien avec ${args.interview.talent.prenom} ${args.interview.talent.nom} prévu le ${date} a été annulé.`
+      : `Entretien avec ${args.interview.talent.prenom} ${args.interview.talent.nom} le ${date}.\n\nAcceptez l'invitation pour l'ajouter à votre agenda.`,
+    attachments: [
+      {
+        filename: cancel ? 'cancellation.ics' : 'invite.ics',
+        content: Buffer.from(ics, 'utf-8').toString('base64'),
+        // `method=REQUEST|CANCEL` on the Content-Type is what flips
+        // Outlook from "attachment" to "auto-add invite". Resend
+        // forwards this verbatim as `content_type` on the API.
+        contentType: `text/calendar; method=${args.method}; charset=utf-8`,
+      },
+    ],
+  });
+  if (!result.ok) {
+    // Important: we return `false` on any non-success so the reconciler
+    // refuses to write `contentHash`. Otherwise the next pass dedupes a
+    // recipient that never actually got the invite — forceResync is
+    // then the only recovery affordance.
+    console.error('email invite send failed', result.reason, result.message);
     return false;
   }
+  return true;
 }
 
 export const emailBackend: CalendarSyncBackend = {

@@ -1,4 +1,3 @@
-import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 import { prisma } from '$lib/server/db';
@@ -17,17 +16,10 @@ import {
   buildBrandEmailText,
   type BrandEmailCta,
 } from '$lib/server/templates/brandEmail';
+import { sendEmail } from '$lib/server/email/resend';
 
 const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';
 const SIGNATURE = "À très vite,\nL'équipe Epitech Academy";
-
-let resend: Resend;
-function getResend(): Resend {
-  if (!resend) {
-    resend = new Resend(env.RESEND_API_KEY);
-  }
-  return resend;
-}
 
 function ctaFor(type: RelanceType): BrandEmailCta {
   if (type === 'student') {
@@ -124,25 +116,38 @@ export async function sendRelances(
     const renderedBody = applyPlaceholders(body, vars);
     const greeting = relanceGreeting(type, vars);
 
-    try {
-      await getResend().emails.send({
-        from: FROM_EMAIL,
-        to: recipient,
-        subject: renderedSubject,
-        text: buildBrandEmailText({
-          greeting,
-          body: renderedBody,
-          cta,
-          signature: SIGNATURE,
-        }),
-        html: buildBrandEmailHtml({
-          greeting,
-          body: renderedBody,
-          cta,
-          signature: SIGNATURE,
-        }),
-      });
+    const sendResult = await sendEmail({
+      from: FROM_EMAIL,
+      to: recipient,
+      subject: renderedSubject,
+      text: buildBrandEmailText({
+        greeting,
+        body: renderedBody,
+        cta,
+        signature: SIGNATURE,
+      }),
+      html: buildBrandEmailHtml({
+        greeting,
+        body: renderedBody,
+        cta,
+        signature: SIGNATURE,
+      }),
+    });
+    if (!sendResult.ok) {
+      // Skip the audit write on failure — otherwise the "Historique des
+      // relances" panel on the talent fiche shows a relance that never
+      // left Resend, and the cooldown classifier blocks the next genuine
+      // retry as if it had.
+      console.error(
+        'relance send failed',
+        sendResult.reason,
+        sendResult.message,
+      );
+      skipCounts.error++;
+      continue;
+    }
 
+    try {
       // OnboardingReminder has no campusId — uses the unscoped client by
       // design; the talentId is enough to reach the row campus-side via
       // the FK.
@@ -156,7 +161,11 @@ export async function sendRelances(
         },
       });
       sent++;
-    } catch {
+    } catch (err) {
+      // Email went out but the audit write failed — count it as `error`
+      // so the staff toast surfaces it. The duplicate-send risk on retry
+      // is bounded by the per-(type, talent) cooldown classifier.
+      console.error('relance audit write failed', err);
       skipCounts.error++;
     }
   }

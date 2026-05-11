@@ -146,6 +146,18 @@ async function loadEventFacts(
 
   if (!isStage || totalParticipations === 0) return baseFacts;
 
+  // `forStaffProfileId` narrows both interview counts to the actor's own
+  // assignments. Applied symmetrically so that when the event dashboard
+  // renders the per-staff lens ("Vos entretiens du jour"), the sibling
+  // "Entretiens en retard" alert doesn't suddenly switch back to an
+  // event-wide tally — staff would see "2 today / 47 overdue" and parse
+  // it as their own 47.
+  const interviewBaseWhere = {
+    participation: { eventId: event.id },
+    status: 'planned' as const,
+    ...(ctx.forStaffProfileId ? { staffId: ctx.forStaffProfileId } : {}),
+  };
+
   const [
     conventionsToChase,
     chartesToChase,
@@ -201,16 +213,13 @@ async function loadEventFacts(
     }),
     db.interview.count({
       where: {
-        participation: { eventId: event.id },
-        status: 'planned',
+        ...interviewBaseWhere,
         date: { gte: ctx.bounds.startOfDay, lte: ctx.bounds.endOfDay },
-        ...(ctx.forStaffProfileId ? { staffId: ctx.forStaffProfileId } : {}),
       },
     }),
     db.interview.count({
       where: {
-        participation: { eventId: event.id },
-        status: 'planned',
+        ...interviewBaseWhere,
         date: { lt: ctx.bounds.startOfDay },
       },
     }),
@@ -373,7 +382,9 @@ export async function deriveEventAlerts(
       kind: 'interviews-overdue',
       eventId: event.id,
       eventTitre: event.titre,
-      title: 'Entretiens en retard',
+      title: ctx.forStaffProfileId
+        ? 'Vos entretiens en retard'
+        : 'Entretiens en retard',
       description: 'Reprogrammer ou marquer comme terminés',
       count: facts.overdueInterviews,
       severity: 'danger',
