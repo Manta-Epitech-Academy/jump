@@ -118,3 +118,49 @@ export async function loadCalendarSyncState(opts: {
 }): Promise<CalendarSyncState> {
   return backend.loadState(opts);
 }
+
+/**
+ * Force-resync escape hatch for the email backend. Clears `contentHash` on
+ * every email-mode sync row matching the scope, so the next reconcile pass
+ * cannot dedupe and re-emits a REQUEST (with a bumped sequence) for each
+ * row. UID is preserved, so recipient mail clients merge the new invite
+ * onto the existing event rather than creating a duplicate.
+ *
+ * Two scopes:
+ *   - `{ scope: 'event' }` — every staff on the event. Use for the
+ *     dev-only "Tout renvoyer" action (recovery after a wrong recipient
+ *     batch, e.g. dev-redirect set after the first send).
+ *   - `{ scope: 'user' }` — just one user's rows. Use for the actor's
+ *     personal re-send.
+ *
+ * Returns the number of rows touched. Caller is expected to invoke
+ * `backgroundReconcile` (or `reconcileForStaff`) afterwards to actually
+ * re-emit the invites.
+ *
+ * No-op outside email mode — graph backend doesn't dedupe via
+ * `contentHash`, every reconcile already pushes the latest body. Returns
+ * `0` so callers don't need to special-case the mode.
+ */
+export async function clearEmailSyncCache(
+  opts:
+    | { scope: 'event'; eventId: string }
+    | { scope: 'user'; userId: string; eventId: string },
+): Promise<number> {
+  if (calendarSyncMode !== 'email') return 0;
+  const where =
+    opts.scope === 'event'
+      ? {
+          syncKind: 'email',
+          interview: { participation: { eventId: opts.eventId } },
+        }
+      : {
+          syncKind: 'email',
+          userId: opts.userId,
+          interview: { participation: { eventId: opts.eventId } },
+        };
+  const result = await prisma.outlookCalendarSync.updateMany({
+    where,
+    data: { contentHash: null },
+  });
+  return result.count;
+}

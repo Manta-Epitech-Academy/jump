@@ -44,6 +44,7 @@ import {
 import { INTERVIEW_SLOT_MINUTES } from '$lib/domain/interview';
 import {
   backgroundReconcile,
+  clearEmailSyncCache,
   loadCalendarSyncState,
   reconcileForStaff,
   isSyncEnabled,
@@ -719,6 +720,87 @@ export const actions: Actions = {
       console.error('interview reassign failed', err);
       return fail(500, { form });
     }
+  },
+
+  /**
+   * Bypass the contentHash dedupe and re-emit every email-mode invite for
+   * the actor's scope. Recovery affordance for cases where the sync row
+   * exists but the recipient never actually received the invite — bounce
+   * before the webhook caught it, recipient deleted the original from
+   * their inbox, dev-redirect flipped after a misdirected batch, etc.
+   *
+   * Two scopes mirror the page:
+   *   - devMember: reset all rows on the event, then fan out reconcile
+   *     to every assigned staff (recovers a misdirected batch in one
+   *     click).
+   *   - peda / manta (scope=self): reset only their own rows, reconcile
+   *     only themselves (the equivalent of "redonner moi mes invites").
+   */
+  forceResync: async ({ params, locals }) => {
+    if (!locals.user?.id || !locals.staffProfile?.id) {
+      return fail(403, { message: 'Profil staff requis.' });
+    }
+    if (locals.session?.impersonatedBy) {
+      return fail(403, {
+        message: 'La synchronisation est désactivée en mode impersonation.',
+      });
+    }
+    const role = locals.staffProfile.staffRole;
+    if (!can('interviewers', role)) {
+      return fail(403, { message: 'Réservé aux interviewers.' });
+    }
+    if (!isSyncEnabled()) {
+      return fail(409, { message: 'Synchronisation désactivée.' });
+    }
+
+    const campusId = getCampusId(locals);
+    const timezone = getCampusTimezone(locals);
+    const event = await loadStageOr404(params.id, campusId);
+
+    if (can('devMember', role)) {
+      await clearEmailSyncCache({ scope: 'event', eventId: event.id });
+      // Resolve every staff currently assigned on this event, not just
+      // those with an existing sync row — a fresh assignee with no row
+      // also needs an invite, and the cache clear doesn't cover them.
+      const assignees = await prisma.interview.findMany({
+        where: { participation: { eventId: event.id } },
+        select: { staffId: true },
+        distinct: ['staffId'],
+      });
+      reconcileAffected(
+        event.id,
+        assignees.map((a) => a.staffId),
+        timezone,
+      );
+      return {
+        forceResync: { scope: 'event' as const, dispatched: assignees.length },
+      };
+    }
+
+    await clearEmailSyncCache({
+      scope: 'user',
+      userId: locals.user.id,
+      eventId: event.id,
+    });
+    const result = await reconcileForStaff({
+      staffProfileId: locals.staffProfile.id,
+      userId: locals.user.id,
+      eventId: event.id,
+      timezone,
+    });
+    if ('error' in result) {
+      const errorMessages: Record<typeof result.error, string> = {
+        needs_reauth:
+          'Veuillez reconnecter votre compte Microsoft pour autoriser la synchronisation.',
+        no_email: "Aucune adresse email n'est associée à votre compte staff.",
+        disabled: 'Synchronisation désactivée.',
+      };
+      return fail(409, {
+        message: errorMessages[result.error],
+        needsReauth: result.error === 'needs_reauth',
+      });
+    }
+    return { forceResync: { scope: 'self' as const, sync: result } };
   },
 
   syncCalendar: async ({ params, locals }) => {

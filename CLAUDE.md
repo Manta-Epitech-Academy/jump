@@ -200,6 +200,8 @@ Picks the calendar sync backend for interview events. Lives behind a façade in 
 
 `OutlookCalendarSync` rows carry `syncKind` so both backends share the table; flipping modes leaves stale rows behind, which the next reconcile in the new mode will simply ignore.
 
+**Re-send escape hatch (email mode).** `Resend.emails.send()` resolves on accepted-by-Resend, not delivery — a bounce never invalidates the sync row, so the `contentHash` dedupe keeps blocking retries. The `forceResync` page action (chevron menu next to the calendar-sync button) clears `contentHash` for the scope (current user, or whole event for dev) and re-reconciles. Use when staff reports a missing invite.
+
 ## Prisma Migrations
 
 Always include `--name` when creating migrations:

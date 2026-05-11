@@ -149,6 +149,7 @@
     <CalendarSyncButton
       sync={calendarSync}
       returnTo={resolve(`/staff/dev/events/${event.id}/interviews` as any)}
+      canResyncAll={canMutate && scope !== 'self'}
     />
     <a
       href={resolve(
