@@ -8,18 +8,18 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 
   let {
-    lyceeNom = '',
-    lyceeVille = '',
+    highSchoolName = '',
+    highSchoolCity = '',
     error,
   }: {
-    lyceeNom?: string;
-    lyceeVille?: string;
+    highSchoolName?: string;
+    highSchoolCity?: string;
     error?: string;
   } = $props();
 
-  let query = $state(lyceeNom);
-  let selectedNom = $state(lyceeNom);
-  let selectedVille = $state(lyceeVille);
+  let query = $state(highSchoolName);
+  let selectedNom = $state(highSchoolName);
+  let selectedVille = $state(highSchoolCity);
   let suggestions = $state<{ nom: string; ville: string }[]>([]);
   let showSuggestions = $state(false);
   let freeTextMode = $state(false);
@@ -117,8 +117,8 @@
   {/if}
 
   <form method="POST" action="?/validateLycee" use:enhance>
-    <input type="hidden" name="lyceeNom" value={selectedNom} />
-    <input type="hidden" name="lyceeVille" value={selectedVille} />
+    <input type="hidden" name="highSchoolName" value={selectedNom} />
+    <input type="hidden" name="highSchoolCity" value={selectedVille} />
 
     <div class="space-y-4">
       <div class="relative" bind:this={containerEl}>

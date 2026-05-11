@@ -22,14 +22,14 @@ export type OnboardingStep =
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
-  lyceeValidatedAt: Date | null;
+  highSchoolValidatedAt: Date | null;
   techInterestsValidatedAt: Date | null;
   generalInterestsValidatedAt: Date | null;
   interestsRecapSeenAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
   if (!profile.infoValidatedAt) return 'info-validation';
-  if (!profile.lyceeValidatedAt) return 'lycee';
+  if (!profile.highSchoolValidatedAt) return 'lycee';
   if (!profile.techInterestsValidatedAt) return 'interests-tech';
   if (!profile.generalInterestsValidatedAt) return 'interests-general';
   if (!profile.interestsRecapSeenAt) return 'interests-recap';
@@ -68,8 +68,8 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (step === 'lycee') {
     return {
       step,
-      lyceeNom: locals.talent.lyceeNom ?? '',
-      lyceeVille: locals.talent.lyceeVille ?? '',
+      highSchoolName: locals.talent.highSchoolName ?? '',
+      highSchoolCity: locals.talent.highSchoolCity ?? '',
     };
   }
 
@@ -230,9 +230,9 @@ export const actions: Actions = {
     await prisma.talent.update({
       where: { id: locals.talent.id },
       data: {
-        lyceeNom: result.data.lyceeNom,
-        lyceeVille: result.data.lyceeVille || null,
-        lyceeValidatedAt: new Date(),
+        highSchoolName: result.data.highSchoolName,
+        highSchoolCity: result.data.highSchoolCity || null,
+        highSchoolValidatedAt: new Date(),
       },
     });
 

@@ -7,34 +7,18 @@
 
   let { data, form } = $props();
 
-  const TOTAL_STEPS = 6;
-  const stepNumber = $derived(
-    data.step === 'info-validation'
-      ? 1
-      : data.step === 'lycee'
-        ? 2
-        : data.step === 'interests-tech'
-          ? 3
-          : data.step === 'interests-general'
-            ? 4
-            : data.step === 'interests-recap'
-              ? 5
-              : 6,
-  );
+  const STEP_CONFIG: Record<string, { number: number; title: string }> = {
+    'info-validation': { number: 1, title: 'Mes informations' },
+    lycee: { number: 2, title: 'Mon lycée' },
+    'interests-tech': { number: 3, title: 'Informatique' },
+    'interests-general': { number: 4, title: "Centres d'intérêt" },
+    'interests-recap': { number: 5, title: 'Ton profil' },
+    rules: { number: 6, title: 'Règlement' },
+  };
 
-  const stepTitle = $derived(
-    data.step === 'info-validation'
-      ? 'Mes informations'
-      : data.step === 'lycee'
-        ? 'Mon lycée'
-        : data.step === 'interests-tech'
-          ? 'Informatique'
-          : data.step === 'interests-general'
-            ? "Centres d'intérêt"
-            : data.step === 'interests-recap'
-              ? 'Ton profil'
-              : 'Règlement',
-  );
+  const TOTAL_STEPS = Object.keys(STEP_CONFIG).length;
+  const stepNumber = $derived(STEP_CONFIG[data.step].number);
+  const stepTitle = $derived(STEP_CONFIG[data.step].title);
 </script>
 
 <svelte:head>
@@ -70,8 +54,8 @@
       />
     {:else if data.step === 'lycee'}
       <LyceeStep
-        lyceeNom={data.lyceeNom}
-        lyceeVille={data.lyceeVille}
+        highSchoolName={data.highSchoolName}
+        highSchoolCity={data.highSchoolCity}
         error={form?.error}
       />
     {:else if data.step === 'interests-tech'}
