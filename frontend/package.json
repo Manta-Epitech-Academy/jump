@@ -95,13 +95,15 @@
     "seed": "bun run prisma/seed.ts"
   },
   "overrides": {
-    "basic-ftp": "^5.2.1",
+    "basic-ftp": "^5.3.1",
     "picomatch": "^4.0.4",
     "cookie": "^0.7.0",
     "@hono/node-server": "^1.19.13",
-    "hono": "^4.12.14",
+    "hono": "^4.12.18",
     "brace-expansion": "^5.0.5",
     "fast-xml-parser": "^5.7.0",
+    "fast-xml-builder": "^1.1.7",
+    "fast-uri": "^3.1.2",
     "uuid": "^14.0.0",
     "postcss": "^8.5.10",
     "ip-address": "^10.1.1"
