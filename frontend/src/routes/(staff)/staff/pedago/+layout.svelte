@@ -19,6 +19,7 @@
   import { resolve } from '$app/paths';
   import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
+  import { track } from '$lib/analytics';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -214,7 +215,11 @@
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
             <DropdownMenu.Label>Mon Profil Pédago</DropdownMenu.Label>
             <DropdownMenu.Separator />
-            <form action={resolve('/logout')} method="POST">
+            <form
+              action={resolve('/logout')}
+              method="POST"
+              onsubmit={() => track('logout', { kind: 'pedago' })}
+            >
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item class="cursor-pointer text-destructive"
                   ><LogOut class="mr-2 h-4 w-4" /> Déconnexion</DropdownMenu.Item

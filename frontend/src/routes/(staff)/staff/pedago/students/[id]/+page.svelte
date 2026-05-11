@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import Clock from '@lucide/svelte/icons/clock';
   import { Badge } from '$lib/components/ui/badge';
+  import * as Card from '$lib/components/ui/card';
   import { resolve } from '$app/paths';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import PedagoTalentCard from './components/PedagoTalentCard.svelte';
@@ -36,6 +37,28 @@
         sortedThemes={data.sortedThemes}
         avatarViewTransitionName={`student-avatar-${data.student.id}`}
       />
+
+      {#if data.interests && data.interests.length > 0}
+        <Card.Root>
+          <Card.Header>
+            <Card.Title class="text-sm font-bold tracking-wide uppercase">
+              Centres d'intérêt
+            </Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <div class="flex flex-wrap gap-1.5">
+              {#each data.interests as ti (ti.interest.id)}
+                <span
+                  class="inline-flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs font-medium text-foreground"
+                >
+                  {#if ti.interest.emoji}<span>{ti.interest.emoji}</span>{/if}
+                  {ti.interest.nom}
+                </span>
+              {/each}
+            </div>
+          </Card.Content>
+        </Card.Root>
+      {/if}
     </div>
 
     <div class="space-y-6 md:col-span-8 lg:col-span-9">

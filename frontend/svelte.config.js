@@ -1,6 +1,8 @@
 import adapter from '@sveltejs/adapter-node';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
+const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
+
 const jumpGamesOrigin = process.env.JUMP_GAMES_URL
   ? new URL(process.env.JUMP_GAMES_URL).origin
   : null;

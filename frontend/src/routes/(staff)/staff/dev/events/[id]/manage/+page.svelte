@@ -26,6 +26,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import Gated from '$lib/components/auth/Gated.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { track } from '$lib/analytics';
   import { onErrorToast } from '$lib/utils/formErrors';
   import { renderMarkdown } from '$lib/markdown';
   import { cn } from '$lib/utils';
@@ -57,9 +58,11 @@
       resetForm: false,
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track('event_updated');
           openEditEvent = false;
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
+          track('event_update_failed');
           toast.error(result.data?.form?.message ?? 'Action impossible.');
         }
       },
@@ -418,5 +421,8 @@
   title="Supprimer définitivement ?"
   description="Cette action est irréversible. Toutes les données associées à cet événement seront perdues."
   buttonText="Confirmer la suppression"
-  onSuccess={() => goto(resolve('/staff/dev'))}
+  onSuccess={() => {
+    track('event_deleted');
+    goto(resolve('/staff/dev'));
+  }}
 />

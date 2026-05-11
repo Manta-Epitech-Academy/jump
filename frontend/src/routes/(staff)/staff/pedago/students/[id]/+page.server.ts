@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
+import { prisma } from '$lib/server/db';
 import {
   getCampusId,
   getCampusTimezone,
@@ -80,11 +81,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       stats.favoriteTheme = sortedThemes[0][0];
     }
 
+    const interests = await prisma.talentInterest.findMany({
+      where: { talentId: params.id },
+      include: {
+        interest: true,
+      },
+      orderBy: { interest: { order: 'asc' } },
+    });
+
     return {
       student,
       participations,
       stats,
       sortedThemes,
+      interests,
       timezone: getCampusTimezone(locals),
     };
   } catch (e) {

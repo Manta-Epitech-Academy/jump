@@ -15,6 +15,7 @@
   import { cn } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import SuiviAdmTable from './components/SuiviAdmTable.svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -91,9 +92,14 @@
       resetForm: false,
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track('adm_reminders_sent', {
+            type: sendType,
+            count: selectedTalentIds.size,
+          });
           toast.success(result.data?.form?.message || 'Relances envoyées');
           selectedTalentIds = new Set();
         } else if (result.type === 'failure' && result.data?.form?.message) {
+          track('adm_reminders_failed');
           toast.error(result.data.form.message);
         }
       },

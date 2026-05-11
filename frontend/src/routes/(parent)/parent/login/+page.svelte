@@ -13,6 +13,7 @@
   import { cn } from '$lib/utils';
   import { fly } from 'svelte/transition';
   import { untrack } from 'svelte';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
   let step = $state<'email' | 'otp'>('email');
@@ -29,8 +30,11 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.valid && form.message?.type === 'success') {
+          track('parent_otp_email_submitted');
           $otpForm.email = $emailForm.email.toLowerCase().trim();
           step = 'otp';
+        } else if (form.message?.type === 'error') {
+          track('parent_otp_email_failed');
         }
       },
     },
@@ -44,7 +48,17 @@
     message: otpMessage,
   } = superForm(
     untrack(() => data.otpForm),
-    { resetForm: false },
+    {
+      resetForm: false,
+      onSubmit: () => {
+        track('parent_otp_code_submitted');
+      },
+      onUpdated: ({ form }) => {
+        if (form.message?.type === 'error') {
+          track('parent_otp_code_failed');
+        }
+      },
+    },
   );
 
   let digitRefs = $state<HTMLInputElement[]>([]);

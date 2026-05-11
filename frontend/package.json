@@ -78,9 +78,7 @@
     "ejs": "^4.0.1",
     "github-slugger": "^2.0.0",
     "highlight.js": "^11.11.1",
-    "hono": "^4.12.16",
     "isomorphic-dompurify": "^3.10.0",
-    "jose": "^6.2.3",
     "marked": "^17.0.6",
     "marked-highlight": "^2.2.4",
     "papaparse": "^5.5.3",
@@ -97,11 +95,11 @@
     "seed": "bun run prisma/seed.ts"
   },
   "overrides": {
-    "basic-ftp": "^5.3.1",
+    "basic-ftp": "^5.2.1",
     "picomatch": "^4.0.4",
     "cookie": "^0.7.0",
     "@hono/node-server": "^1.19.13",
-    "hono": "^4.12.16",
+    "hono": "^4.12.14",
     "brace-expansion": "^5.0.5",
     "fast-xml-parser": "^5.7.0",
     "uuid": "^14.0.0",

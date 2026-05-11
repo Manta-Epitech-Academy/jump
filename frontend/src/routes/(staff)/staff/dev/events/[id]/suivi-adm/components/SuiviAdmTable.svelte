@@ -8,6 +8,7 @@
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { cn } from '$lib/utils';
+  import { track } from '$lib/analytics';
 
   let {
     participations,
@@ -113,6 +114,7 @@
                 method="POST"
                 action="?/toggleAdminDoc"
                 use:enhance={optimisticAdminToggle(p.id, 'charte')}
+                onsubmit={() => track('adm_doc_toggled', { docType: 'charte' })}
               >
                 <input type="hidden" name="id" value={p.id} />
                 <input type="hidden" name="docType" value="charte" />
@@ -150,6 +152,8 @@
                 method="POST"
                 action="?/toggleAdminDoc"
                 use:enhance={optimisticAdminToggle(p.id, 'convention')}
+                onsubmit={() =>
+                  track('adm_doc_toggled', { docType: 'convention' })}
               >
                 <input type="hidden" name="id" value={p.id} />
                 <input type="hidden" name="docType" value="convention" />
@@ -190,6 +194,7 @@
                 method="POST"
                 action="?/toggleAdminDoc"
                 use:enhance={optimisticAdminToggle(p.id, 'image')}
+                onsubmit={() => track('adm_doc_toggled', { docType: 'image' })}
               >
                 <input type="hidden" name="id" value={p.id} />
                 <input type="hidden" name="docType" value="image" />

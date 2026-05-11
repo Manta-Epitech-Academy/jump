@@ -40,6 +40,7 @@
   import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import { onMount, untrack } from 'svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -124,6 +125,7 @@
     try {
       await navigator.clipboard.writeText(shareUrl);
       copied = true;
+      track('talent_portfolio_link_copied');
       toast.success('Lien copié dans le presse-papier !');
       setTimeout(() => {
         copied = false;
@@ -137,6 +139,7 @@
   let isDownloading = $state(false);
 
   async function downloadCertificate() {
+    track('certificate_download_clicked');
     isDownloading = true;
     try {
       const res = await fetch(resolve('/api/certificate'));
@@ -158,9 +161,11 @@
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      track('certificate_downloaded');
       toast.success('Attestation téléchargée !');
       triggerConfetti();
     } catch (e) {
+      track('certificate_download_failed');
       toast.error("Erreur lors de la génération de l'attestation.");
     } finally {
       isDownloading = false;
@@ -206,7 +211,11 @@
           <Settings class="h-4 w-4" />
           <span class="sr-only">Paramètres</span>
         </Button>
-        <form action="{resolve('/logout')}?type=student" method="POST">
+        <form
+          action="{resolve('/logout')}?type=student"
+          method="POST"
+          onsubmit={() => track('logout', { kind: 'talent' })}
+        >
           <Button
             type="submit"
             variant="ghost"

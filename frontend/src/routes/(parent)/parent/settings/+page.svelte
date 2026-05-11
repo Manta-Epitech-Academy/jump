@@ -9,6 +9,7 @@
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 </script>
@@ -121,7 +122,11 @@
         >
           Session
         </h2>
-        <form action="{resolve('/logout')}?type=parent" method="POST">
+        <form
+          action="{resolve('/logout')}?type=parent"
+          method="POST"
+          onsubmit={() => track('logout', { kind: 'parent' })}
+        >
           <Button
             type="submit"
             variant="ghost"

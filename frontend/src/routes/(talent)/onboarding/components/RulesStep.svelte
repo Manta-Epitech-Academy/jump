@@ -4,6 +4,7 @@
   import BookOpen from '@lucide/svelte/icons/book-open';
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
+  import { track } from '$lib/analytics';
 
   let { error: formError }: { error?: string } = $props();
 
@@ -49,7 +50,13 @@
   action="?/signRules"
   use:enhance={() => {
     submitting = true;
-    return async ({ update }) => {
+    return async ({ result, update }) => {
+      if (result.type === 'redirect' || result.type === 'success') {
+        track('rules_signed');
+        track('onboarding_completed');
+      } else if (result.type === 'failure') {
+        track('rules_signing_failed');
+      }
       await update();
       submitting = false;
     };

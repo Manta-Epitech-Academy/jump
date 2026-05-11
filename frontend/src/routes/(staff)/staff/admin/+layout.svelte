@@ -12,6 +12,7 @@
   import FingerprintPattern from '@lucide/svelte/icons/fingerprint-pattern';
   import FileText from '@lucide/svelte/icons/file-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
@@ -20,6 +21,7 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { fly, fade } from 'svelte/transition';
+  import { track } from '$lib/analytics';
 
   let { children, data } = $props();
 
@@ -126,6 +128,13 @@
       <span>Thèmes Officiels</span>
     </a>
     <a
+      href={resolve('/staff/admin/interests')}
+      class={navLinkClass(isActive('/staff/admin/interests'))}
+    >
+      <Heart class="h-4 w-4" />
+      <span>Centres d'intérêt</span>
+    </a>
+    <a
       href={resolve('/staff/admin/planning-templates')}
       class={navLinkClass(isActive('/staff/admin/planning-templates'))}
     >
@@ -203,7 +212,11 @@
               >Session Globale</DropdownMenu.Label
             >
             <DropdownMenu.Separator />
-            <form action="{resolve('/logout')}?type=admin" method="POST">
+            <form
+              action="{resolve('/logout')}?type=admin"
+              method="POST"
+              onsubmit={() => track('logout', { kind: 'admin' })}
+            >
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item
                   class="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"

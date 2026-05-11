@@ -6,6 +6,7 @@
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { toast } from 'svelte-sonner';
   import type { StepsProgress } from '@prisma/client';
+  import { track } from '$lib/analytics';
 
   let {
     progress,
@@ -35,6 +36,10 @@
           progress.status = previousStatus;
           toast.error('Impossible de contacter le serveur.');
         } else {
+          track('manta_signal_toggled', {
+            from: previousStatus,
+            to: progress.status,
+          });
           mantaCooldown = true;
           setTimeout(() => (mantaCooldown = false), 5000);
         }

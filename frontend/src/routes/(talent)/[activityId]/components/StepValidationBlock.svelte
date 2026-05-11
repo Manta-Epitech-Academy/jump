@@ -13,6 +13,7 @@
   import { triggerConfetti } from '$lib/actions/confetti';
   import type { ActivityStep } from '$lib/server/services/progressService';
   import type { StepsProgress } from '@prisma/client';
+  import { track } from '$lib/analytics';
 
   let {
     currentStep,
@@ -45,7 +46,15 @@
         <span class="font-bold uppercase">Étape validée</span>
       </div>
       {#if currentIndex < steps.length - 1}
-        <form method="POST" action="?/changeStep" use:enhance>
+        <form
+          method="POST"
+          action="?/changeStep"
+          use:enhance={() =>
+            async ({ update }) => {
+              track('activity_step_navigate_next');
+              await update();
+            }}
+        >
           <input
             type="hidden"
             name="stepId"
@@ -78,11 +87,16 @@
           return async ({ result, update }) => {
             isValidating = false;
             if (result.type === 'success') {
+              track('activity_qcm_passed', { stepId: currentStep.id });
               toast.success('Bonne réponse !');
               triggerConfetti();
               qcmFails = 0;
             } else if (result.type === 'failure') {
               qcmFails++;
+              track('activity_qcm_failed', {
+                stepId: currentStep.id,
+                fails: qcmFails,
+              });
               toast.error(
                 ((result.data as Record<string, unknown>)?.message as string) ||
                   'Mauvaise réponse.',
@@ -175,9 +189,11 @@
             return async ({ result, update }) => {
               isValidating = false;
               if (result.type === 'success') {
+                track('activity_pin_validated', { stepId: currentStep.id });
                 toast.success('Étape débloquée localement !');
                 if (currentIndex === steps.length - 1) triggerConfetti();
               } else {
+                track('activity_pin_failed', { stepId: currentStep.id });
                 toast.error((result as any).data?.message || 'PIN Incorrect');
               }
               await update({ reset: false });
@@ -217,7 +233,10 @@
         method="POST"
         action="?/validateStep"
         use:enhance={() => {
-          return async ({ update }) => {
+          return async ({ result, update }) => {
+            if (result.type === 'success') {
+              track('activity_step_advanced', { stepId: currentStep.id });
+            }
             await update({ reset: false });
           };
         }}

@@ -13,6 +13,7 @@
   import Moon from '@lucide/svelte/icons/moon';
   import Unlink from '@lucide/svelte/icons/unlink';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -165,7 +166,10 @@
               method="POST"
               use:enhance={() => {
                 unlinkingDiscord = true;
-                return async ({ update }) => {
+                return async ({ result, update }) => {
+                  if (result.type === 'success') {
+                    track('discord_unlinked');
+                  }
                   await update();
                   unlinkingDiscord = false;
                 };
@@ -247,6 +251,7 @@
         method="POST"
         use:enhance={() => {
           deleting = true;
+          track('account_deletion_requested');
           return async ({ update }) => {
             await update();
             deleting = false;
