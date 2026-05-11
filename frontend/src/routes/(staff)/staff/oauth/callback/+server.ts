@@ -6,6 +6,7 @@ import {
   bauthRoleForStaffRole,
   getStaffRoleRedirectPath,
 } from '$lib/domain/staff';
+import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
 
 // BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft.
 // This route serves as the post-auth gate that:
@@ -80,6 +81,8 @@ export const GET: RequestHandler = async ({ locals }) => {
   if (!targetPath) {
     throw redirect(303, `${resolve('/staff/login')}?error=NoRole`);
   }
+
+  await syncMicrosoftAvatar(locals.user.id);
 
   throw redirect(303, resolve(targetPath));
 };

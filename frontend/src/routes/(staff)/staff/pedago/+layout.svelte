@@ -17,8 +17,12 @@
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { fly, fade } from 'svelte/transition';
   import { resolve } from '$app/paths';
-  import { getStaffRoleLabel } from '$lib/domain/staff';
+  import {
+    getStaffRoleLabel,
+    getStaffRoleCampusSuffix,
+  } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
+  import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import { track } from '$lib/analytics';
 
   let { children, data } = $props();
@@ -59,10 +63,6 @@
       return user.name.substring(0, 2).toUpperCase();
     }
     return user?.username?.substring(0, 2).toUpperCase() ?? 'PD';
-  }
-
-  function getAvatarUrl(user: any) {
-    return undefined;
   }
 </script>
 
@@ -118,6 +118,13 @@
         <UserCheck class="h-5 w-5" />
         <span>Présences</span>
       </a>
+      <a
+        href={resolve('/staff/pedago/contenu/welcome')}
+        class={navLinkClass(isActive('/staff/pedago/contenu/welcome'))}
+      >
+        <FileText class="h-5 w-5" />
+        <span>Page d'accueil</span>
+      </a>
     </nav>
   {/if}
 
@@ -132,6 +139,30 @@
       >
         <BookOpenText class="h-5 w-5" />
         <span>Sujets & Corrections</span>
+      </a>
+    </nav>
+  {/if}
+
+  {#if data.ticketsEnabled}
+    <div class="sidebar-section-title">
+      Support<span class="text-epi-pink">_</span>
+    </div>
+    <nav class="space-y-1">
+      <a
+        href={resolve('/staff/pedago/tickets')}
+        class={navLinkClass(isActive('/staff/pedago/tickets'))}
+      >
+        <LifeBuoy class="h-5 w-5" />
+        <span class="flex flex-1 items-center justify-between">
+          <span>Tickets</span>
+          {#if data.ticketsUnread > 0}
+            <span
+              class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
+            >
+              {data.ticketsUnread}
+            </span>
+          {/if}
+        </span>
       </a>
     </nav>
   {/if}
@@ -163,17 +194,19 @@
         </Button>
         <a href={resolve('/staff/pedago')} class="flex items-center gap-2">
           <span class="text-lg font-bold uppercase">Jump</span>
-          {#if data.staffProfile?.campus?.name}
-            <span
-              class="hidden self-center rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-header-foreground/90 uppercase md:inline-block"
-            >
-              {data.staffProfile.campus.name}
-            </span>
-          {/if}
           <span
             class="text-xs font-bold tracking-wider text-epi-teal uppercase"
           >
-            {getStaffRoleLabel(data.staffProfile?.staffRole)}
+            {getStaffRoleLabel(
+              data.staffProfile?.staffRole,
+            )}{#if getStaffRoleCampusSuffix(data.staffProfile?.staffRole, data.staffProfile?.campus?.name)}<span
+                class="hidden md:inline"
+              >
+                {getStaffRoleCampusSuffix(
+                  data.staffProfile?.staffRole,
+                  data.staffProfile?.campus?.name,
+                )}</span
+              >{/if}
           </span>
         </a>
       </div>
@@ -196,13 +229,11 @@
               <Avatar.Root
                 class="h-9 w-9 rounded-full border-2 border-epi-blue bg-header-foreground/20 md:h-11 md:w-11"
               >
-                {#if user?.avatar}
-                  <Avatar.Image
-                    src={getAvatarUrl(user)}
-                    alt={user.name ?? user.username}
-                    class="object-cover"
-                  />
-                {/if}
+                <Avatar.Image
+                  src={user?.image ?? undefined}
+                  alt={user?.name ?? user?.username ?? ''}
+                  class="object-cover"
+                />
                 <Avatar.Fallback
                   class="bg-transparent text-xs font-bold text-header-foreground uppercase"
                 >
@@ -275,4 +306,8 @@
 
 {#if hasCodingClub}
   <GlobalCommand bind:open={commandOpen} basePath="/staff/pedago" />
+{/if}
+
+{#if data.ticketsEnabled}
+  <TicketsLauncher basePath="/staff/pedago" unreadCount={data.ticketsUnread} />
 {/if}

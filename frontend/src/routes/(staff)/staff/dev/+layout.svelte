@@ -14,6 +14,7 @@
   import UserCog from '@lucide/svelte/icons/user-cog';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import FileText from '@lucide/svelte/icons/file-text';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { enhance } from '$app/forms';
@@ -28,9 +29,13 @@
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
   import Gated from '$lib/components/auth/Gated.svelte';
-  import { getStaffRoleLabel } from '$lib/domain/staff';
+  import {
+    getStaffRoleLabel,
+    getStaffRoleCampusSuffix,
+  } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
+  import StagePhaseOverrideToggle from '$lib/components/dev/StagePhaseOverrideToggle.svelte';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -38,6 +43,10 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
+  // Peda visiting a single interviews route gets a stripped shell — no
+  // sidebar, no command-K, no impersonation, no tickets. Just header + main.
+  let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
+  let showFullChrome = $derived(!isInterviewOnly);
 
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
@@ -68,10 +77,10 @@
     }
   });
 
-  function isActive(path: string) {
+  function isActive(path: string, exact = false) {
     const basePath = resolve('/').replace(/\/$/, '');
     const fullPath = `${basePath}${path}`;
-    if (path === '/staff/dev')
+    if (exact || path === '/staff/dev')
       return (
         page.url.pathname === fullPath || page.url.pathname === `${fullPath}/`
       );
@@ -90,10 +99,6 @@
       return user.name.substring(0, 2).toUpperCase();
     }
     return user?.username?.substring(0, 2).toUpperCase() ?? 'AD';
-  }
-
-  function getAvatarUrl(user: any) {
-    return undefined;
   }
 </script>
 
@@ -133,22 +138,13 @@
     </div>
     <nav class="space-y-1">
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/manage`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/manage`),
+          isActive(`/staff/dev/events/${data.activeStage.id}`, true),
         )}
       >
         <LayoutDashboard class="h-5 w-5" />
         <span>Vue d'ensemble</span>
-      </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
-        )}
-      >
-        <Users class="h-5 w-5" />
-        <span>Inscrits</span>
       </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
@@ -160,6 +156,24 @@
         <span>Planning</span>
       </a>
       <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
+        )}
+      >
+        <Users class="h-5 w-5" />
+        <span>Inscrits</span>
+      </a>
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
+        )}
+      >
+        <ClipboardCheck class="h-5 w-5" />
+        <span>Onboarding</span>
+      </a>
+      <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
         class={navLinkClass(
           isActive(`/staff/dev/events/${data.activeStage.id}/interviews`),
@@ -169,13 +183,13 @@
         <span>Entretiens</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/suivi-adm`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/suivi-adm`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/team`),
         )}
       >
-        <ClipboardCheck class="h-5 w-5" />
-        <span>Suivi ADM</span>
+        <GraduationCap class="h-5 w-5" />
+        <span>Intervenants</span>
       </a>
       <a
         href={resolve('/staff/dev/contenu/welcome')}
@@ -212,7 +226,7 @@
         class={navLinkClass(isActive('/staff/dev/team'))}
       >
         <UserCog class="h-5 w-5" />
-        <span>Équipe</span>
+        <span>Staff du campus</span>
       </a>
     </nav>
   </Gated>
@@ -248,42 +262,46 @@
   >
     <div class="flex items-center gap-4 md:gap-8">
       <div class="flex items-center gap-2 md:gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="relative h-12 w-12 text-inherit md:hidden"
-          onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-        >
-          <Menu
-            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
-              ? 'scale-0 opacity-0'
-              : 'scale-100 opacity-100'}"
-          />
-          <X
-            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
-              ? 'scale-100 rotate-0 opacity-100'
-              : 'scale-0 -rotate-90 opacity-0'}"
-          />
-          <span class="sr-only">Toggle menu</span>
-        </Button>
+        {#if showFullChrome}
+          <Button
+            variant="ghost"
+            size="icon"
+            class="relative h-12 w-12 text-inherit md:hidden"
+            onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+          >
+            <Menu
+              class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+                ? 'scale-0 opacity-0'
+                : 'scale-100 opacity-100'}"
+            />
+            <X
+              class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+                ? 'scale-100 rotate-0 opacity-100'
+                : 'scale-0 -rotate-90 opacity-0'}"
+            />
+            <span class="sr-only">Toggle menu</span>
+          </Button>
+        {/if}
         <a href={resolve('/staff/dev')} class="flex items-center gap-2">
           <span class="text-lg font-bold uppercase">Jump</span>
-          {#if data.staffProfile?.campus?.name}
-            <span
-              class="hidden self-center rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-header-foreground/90 uppercase md:inline-block"
-            >
-              {data.staffProfile.campus.name}
-            </span>
-          {/if}
           <span
             class="text-xs font-bold tracking-wider text-epi-teal uppercase"
           >
-            {getStaffRoleLabel(data.staffProfile?.staffRole)}
+            {getStaffRoleLabel(
+              data.staffProfile?.staffRole,
+            )}{#if getStaffRoleCampusSuffix(data.staffProfile?.staffRole, data.staffProfile?.campus?.name)}<span
+                class="hidden md:inline"
+              >
+                {getStaffRoleCampusSuffix(
+                  data.staffProfile?.staffRole,
+                  data.staffProfile?.campus?.name,
+                )}</span
+              >{/if}
           </span>
         </a>
       </div>
 
-      {#if hasCodingClub}
+      {#if hasCodingClub && showFullChrome}
         <button
           class="hidden h-9 w-64 items-center justify-between rounded-sm border border-header-foreground/20 bg-header-foreground/10 px-3 text-sm text-header-foreground/70 transition-colors hover:bg-header-foreground/20 md:flex"
           onclick={() => (commandOpen = true)}
@@ -302,7 +320,7 @@
     </div>
 
     <div class="flex items-center gap-2">
-      {#if hasCodingClub}
+      {#if hasCodingClub && showFullChrome}
         <Button
           variant="ghost"
           size="icon"
@@ -311,6 +329,14 @@
         >
           <Search class="h-5 w-5" />
         </Button>
+      {/if}
+      {#if data.canOverridePhase && showFullChrome}
+        <div class="hidden md:block">
+          <StagePhaseOverrideToggle
+            current={data.phaseOverride}
+            realPhase={data.activeStage?.realStatus ?? null}
+          />
+        </div>
       {/if}
       <ModeToggle />
 
@@ -333,13 +359,11 @@
               <Avatar.Root
                 class="h-9 w-9 rounded-full bg-header-foreground/20 md:h-11 md:w-11"
               >
-                {#if user?.avatar}
-                  <Avatar.Image
-                    src={getAvatarUrl(user)}
-                    alt={user.name ?? user.username}
-                    class="object-cover"
-                  />
-                {/if}
+                <Avatar.Image
+                  src={user?.image ?? undefined}
+                  alt={user?.name ?? user?.username ?? ''}
+                  class="object-cover"
+                />
                 <Avatar.Fallback
                   class="bg-transparent text-xs font-bold text-header-foreground uppercase"
                 >
@@ -398,27 +422,29 @@
   </header>
 
   <div class="relative flex flex-1 overflow-hidden">
-    <aside
-      class="hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
-    >
-      <div class="flex-1 overflow-y-auto p-4">
-        {@render navMenu()}
-      </div>
-      {#if hasCodingClub}<Gated group="devLead" mode="hide">
-          <div class="border-t border-border p-4">
-            <Button
-              variant="outline"
-              class="w-full justify-start border-dashed"
-              href={resolve('/staff/dev/events/import')}
-            >
-              <Plus class="mr-2 h-4 w-4" />
-              Importer un événement
-            </Button>
-          </div>
-        </Gated>{/if}
-    </aside>
+    {#if showFullChrome}
+      <aside
+        class="hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
+      >
+        <div class="flex-1 overflow-y-auto p-4">
+          {@render navMenu()}
+        </div>
+        {#if hasCodingClub}<Gated group="devLead" mode="hide">
+            <div class="border-t border-border p-4">
+              <Button
+                variant="outline"
+                class="w-full justify-start border-dashed"
+                href={resolve('/staff/dev/events/import')}
+              >
+                <Plus class="mr-2 h-4 w-4" />
+                Importer un événement
+              </Button>
+            </div>
+          </Gated>{/if}
+      </aside>
+    {/if}
 
-    {#if mobileMenuOpen}
+    {#if mobileMenuOpen && showFullChrome}
       <div
         class="absolute inset-0 z-40 bg-black/50 md:hidden"
         transition:fade={{ duration: 200 }}
@@ -456,10 +482,10 @@
   </div>
 </div>
 
-{#if hasCodingClub}
+{#if hasCodingClub && showFullChrome}
   <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
 {/if}
 
-{#if data.ticketsEnabled}
+{#if data.ticketsEnabled && showFullChrome}
   <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />
 {/if}

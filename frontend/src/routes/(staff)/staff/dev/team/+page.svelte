@@ -19,6 +19,7 @@
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
+  import { getInitials } from '$lib/avatar';
   import { track } from '$lib/analytics';
 
   let { data } = $props();
@@ -59,20 +60,20 @@
 </script>
 
 <svelte:head>
-  <title>Équipe du campus</title>
+  <title>Staff du campus</title>
 </svelte:head>
 
 <div class="space-y-6 pb-12">
   <PageBreadcrumb
     items={[
       { label: 'Dashboard', href: resolve('/staff/dev') },
-      { label: 'Équipe' },
+      { label: 'Staff du campus' },
     ]}
   />
   <div class="flex items-end justify-between gap-4">
     <div>
       <h1 class="font-heading text-3xl tracking-wide text-epi-blue uppercase">
-        Équipe du campus<span class="text-epi-teal">_</span>
+        Staff du campus<span class="text-epi-teal">_</span>
       </h1>
       <p
         class="mt-1 text-sm font-bold tracking-widest text-muted-foreground uppercase"
@@ -222,17 +223,18 @@
               {@const nameParts = (user.name || 'Sans nom').trim().split(' ')}
               {@const lastName = nameParts[0]}
               {@const firstName = nameParts.slice(1).join(' ')}
-              {@const initials =
-                (
-                  (lastName?.[0] ?? '') + (firstName?.[0] ?? '')
-                ).toUpperCase() || 'ST'}
               <Table.Row class="hover:bg-muted/20">
                 <Table.Cell>
                   <div class="flex items-center gap-3">
-                    <Avatar.Root class="h-8 w-8 rounded-sm">
+                    <Avatar.Root class="h-8 w-8">
+                      <Avatar.Image
+                        src={user.image ?? undefined}
+                        alt={user.name ?? ''}
+                        class="object-cover"
+                      />
                       <Avatar.Fallback
                         class="bg-primary/10 text-[10px] font-bold text-primary"
-                        >{initials}</Avatar.Fallback
+                        >{getInitials(user.name)}</Avatar.Fallback
                       >
                     </Avatar.Root>
                     <span

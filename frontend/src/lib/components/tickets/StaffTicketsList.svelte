@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { Bug, Lightbulb, Lock, Inbox, Plus } from '@lucide/svelte';
+  import Bug from '@lucide/svelte/icons/bug';
+  import Lightbulb from '@lucide/svelte/icons/lightbulb';
+  import Lock from '@lucide/svelte/icons/lock';
+  import Inbox from '@lucide/svelte/icons/inbox';
+  import Plus from '@lucide/svelte/icons/plus';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';

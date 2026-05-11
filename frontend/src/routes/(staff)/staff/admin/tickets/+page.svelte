@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { LifeBuoy, Bug, Lightbulb, Inbox } from '@lucide/svelte';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import Bug from '@lucide/svelte/icons/bug';
+  import Lightbulb from '@lucide/svelte/icons/lightbulb';
+  import Inbox from '@lucide/svelte/icons/inbox';
   import { Badge } from '$lib/components/ui/badge';
   import * as Card from '$lib/components/ui/card';
   import * as Table from '$lib/components/ui/table';

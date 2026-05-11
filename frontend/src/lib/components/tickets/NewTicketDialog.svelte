@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { LifeBuoy, Bug, Lightbulb, LoaderCircle, Send } from '@lucide/svelte';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import Bug from '@lucide/svelte/icons/bug';
+  import Lightbulb from '@lucide/svelte/icons/lightbulb';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import Send from '@lucide/svelte/icons/send';
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';

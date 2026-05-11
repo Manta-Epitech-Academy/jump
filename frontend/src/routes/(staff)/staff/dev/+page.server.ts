@@ -20,6 +20,7 @@ import {
   ongoingEventWhere,
   upcomingEventWhere,
 } from '$lib/domain/eventLifecycle';
+import { deriveWorkspaceAlerts } from '$lib/server/services/eventTasks';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
   if (!locals.user) {
@@ -30,10 +31,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
   if (!hasFlag(locals, 'coding_club')) {
     if (activeStage) {
-      throw redirect(
-        303,
-        resolvePath(`/staff/dev/events/${activeStage.id}/manage`),
-      );
+      throw redirect(303, resolvePath(`/staff/dev/events/${activeStage.id}`));
     }
     return {
       userName: locals.user.name || 'Utilisateur',
@@ -48,13 +46,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
         plannedInterviews: null,
       },
       stageObjectives: null,
-      tasks: {
-        eventsMissingMantas: [],
-        eventsMissingPlanning: [],
-        eventsWithUnassignedSlots: [],
-        interviewsToday: 0,
-        overdueInterviews: 0,
-      },
+      tasks: [],
       minimalist: true,
     };
   }
@@ -92,55 +84,28 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
     const eventsInWeek = await db.event.findMany({
       where: eventOverlappingWhere(bounds.startOfDay, endOfWeek),
-      include: {
-        mantas: { select: { staffProfileId: true } },
-        planning: {
-          include: {
-            _count: { select: { timeSlots: true } },
-            timeSlots: {
-              where: { activity: { is: null } },
-              select: { id: true },
-            },
-          },
-        },
-      },
+      select: { id: true, titre: true, eventType: true },
     });
 
-    const eventsMissingMantas = eventsInWeek.filter(
-      (ev) => ev.mantas.length === 0,
-    );
-    const eventsMissingPlanning = eventsInWeek.filter(
-      (ev) => !ev.planning || ev.planning._count.timeSlots === 0,
-    );
-    const eventsWithUnassignedSlots = eventsInWeek.filter(
-      (ev) =>
-        ev.planning &&
-        ev.planning._count.timeSlots > 0 &&
-        ev.planning.timeSlots.length > 0,
-    );
+    // Active stage may sit outside the week window (upcoming-in-30-days).
+    // Always include it so its overdue interviews + onboarding gaps surface.
+    const alertEventsMap = new Map(eventsInWeek.map((ev) => [ev.id, ev]));
+    if (activeStage) {
+      const existing = alertEventsMap.get(activeStage.id);
+      if (!existing) {
+        const stageEvent = await db.event.findUnique({
+          where: { id: activeStage.id },
+          select: { id: true, titre: true, eventType: true },
+        });
+        if (stageEvent) alertEventsMap.set(stageEvent.id, stageEvent);
+      }
+    }
 
-    const stageInterviewWhere = activeStage
-      ? { participation: { eventId: activeStage.id } }
-      : null;
-
-    const interviewsToday = stageInterviewWhere
-      ? await db.interview.count({
-          where: {
-            ...stageInterviewWhere,
-            status: 'planned',
-            date: { gte: bounds.startOfDay, lte: bounds.endOfDay },
-          },
-        })
-      : 0;
-    const overdueInterviews = stageInterviewWhere
-      ? await db.interview.count({
-          where: {
-            ...stageInterviewWhere,
-            status: 'planned',
-            date: { lt: bounds.startOfDay },
-          },
-        })
-      : 0;
+    const tasks = await deriveWorkspaceAlerts(
+      db,
+      Array.from(alertEventsMap.values()),
+      { basePath: '/staff/dev', bounds },
+    );
 
     const totalTalents = await db.talent.count();
 
@@ -205,26 +170,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
             totalParticipations: stageStats.totalParticipations,
           }
         : null,
-      tasks: {
-        eventsMissingMantas: eventsMissingMantas.map((ev) => ({
-          id: ev.id,
-          titre: ev.titre,
-          date: ev.date,
-        })),
-        eventsMissingPlanning: eventsMissingPlanning.map((ev) => ({
-          id: ev.id,
-          titre: ev.titre,
-          date: ev.date,
-        })),
-        eventsWithUnassignedSlots: eventsWithUnassignedSlots.map((ev) => ({
-          id: ev.id,
-          titre: ev.titre,
-          date: ev.date,
-          unassignedCount: ev.planning!.timeSlots.length,
-        })),
-        interviewsToday,
-        overdueInterviews,
-      },
+      tasks,
     };
   } catch (err) {
     console.error('Erreur load dashboard:', err);

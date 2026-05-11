@@ -119,48 +119,12 @@
                     class="h-5 px-1.5 text-[10px] uppercase">Absent</Badge
                   >
                 {/if}
-                {#if p.stageCompliance}
-                  {@const sc = p.stageCompliance}
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.charteSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-700',
-                    )}
-                  >
-                    Charte {sc.charteSigned ? 'OK' : '·'}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.conventionSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-700',
-                    )}
-                  >
-                    Conv. {sc.conventionSigned ? 'OK' : '·'}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.imageRightsSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-red-200 bg-red-50 text-red-700',
-                    )}
-                  >
-                    Image {sc.imageRightsSigned ? 'OK' : '·'}
-                  </Badge>
-                {/if}
               </div>
               <Card.Title
                 class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue"
               >
                 {#if p.event?.id}<a
-                    href={resolve(`/staff/dev/events/${p.event.id}/manage`)}
+                    href={resolve(`/staff/dev/events/${p.event.id}`)}
                     >{p.event.titre}</a
                   >{:else}Événement inconnu{/if}
               </Card.Title>
@@ -176,11 +140,10 @@
                         <Avatar.Root
                           class="relative h-6 w-6 border-2 border-card hover:z-10"
                         >
-                          <!-- TODO: implement S3 file storage -->
-                          {#if staff?.avatar}<Avatar.Image
-                              src={''}
-                              alt={staff?.user?.name}
-                            />{/if}
+                          <Avatar.Image
+                            src={staff?.user?.image ?? undefined}
+                            alt={staff?.user?.name ?? ''}
+                          />
                           <Avatar.Fallback
                             class="bg-muted text-[8px] font-bold text-foreground"
                             >{(staff?.user?.name || 'ST')

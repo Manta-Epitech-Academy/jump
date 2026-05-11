@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { LifeBuoy } from '@lucide/svelte';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { resolve } from '$app/paths';
 
   let {

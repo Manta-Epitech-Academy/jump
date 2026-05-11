@@ -1,6 +1,11 @@
 <script lang="ts">
   import '@fontsource/anton';
   import '@fontsource-variable/ibm-plex-sans';
+  // Space Mono — `font-mono` accents (overlines, dates, code blocks). Per
+  // the charte, mono is the third brand family alongside Anton + IBM Plex
+  // Sans, used to keep the "typed terminal" voice on tech surfaces.
+  import '@fontsource/space-mono/400.css';
+  import '@fontsource/space-mono/700.css';
   import './layout.css';
   import { Toaster } from '$lib/components/ui/sonner';
   import { onNavigate } from '$app/navigation';

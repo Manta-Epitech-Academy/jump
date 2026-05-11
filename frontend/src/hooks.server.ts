@@ -4,6 +4,7 @@ import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { getTicketsEnabled } from '$lib/server/settings/tickets';
+import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
 
 function setSecurityHeaders(response: Response) {
   response.headers.set('X-Frame-Options', 'DENY');
@@ -31,6 +32,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.talent = null;
   event.locals.featureFlags = new Set();
   event.locals.ticketsEnabled = false;
+  event.locals.stagePhaseOverride = null;
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -42,6 +44,8 @@ export const handle: Handle = async ({ event, resolve }) => {
       where: { id: event.locals.user.id },
       select: {
         role: true,
+        name: true,
+        image: true,
         staffProfile: { include: { campus: true } },
         talent: true,
       },
@@ -49,6 +53,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     if (record) {
       event.locals.user.role = record.role;
+      event.locals.user.name = record.name ?? event.locals.user.name;
+      event.locals.user.image = record.image ?? event.locals.user.image;
       event.locals.staffProfile = record.staffProfile;
       event.locals.talent = record.talent;
     }
@@ -65,6 +71,8 @@ export const handle: Handle = async ({ event, resolve }) => {
     if (event.locals.staffProfile) {
       event.locals.ticketsEnabled = await getTicketsEnabled();
     }
+
+    event.locals.stagePhaseOverride = readDevPhaseOverride(event);
 
     // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget)
     if (event.locals.talent) {

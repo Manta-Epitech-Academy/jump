@@ -18,6 +18,8 @@ export const studentSchema = z.object({
   niveau_difficulte: z.enum(difficultes).default('Débutant'),
   parent_email: z.email('Email parent invalide').optional().or(z.literal('')),
   parent_phone: z.string().optional(),
+  parent_nom: z.string().optional(),
+  parent_prenom: z.string().optional(),
 });
 
 export type StudentForm = z.infer<typeof studentSchema>;

@@ -92,6 +92,8 @@
     $form.phone = student.phone || '';
     $form.parent_email = student.parentEmail || '';
     $form.parent_phone = student.parentPhone || '';
+    $form.parent_nom = student.parentNom || '';
+    $form.parent_prenom = student.parentPrenom || '';
     $form.niveau = student.niveau;
     $form.niveau_difficulte = student.niveauDifficulte || 'Débutant';
     isEditing = true;
