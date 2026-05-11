@@ -6,6 +6,13 @@ import { mintGameJwt } from '$lib/server/jwt';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) throw error(401, 'Non autorisé');
+  // Defense-in-depth: this page mints signed JWTs (mintGameJwt) accepted
+  // by the external jump-games service. Even though `/staff/admin/*` is
+  // gated to admin at the URL layer, re-check here so this load never
+  // hands out tokens to a non-admin if the gate is bypassed or refactored.
+  if (locals.staffProfile?.staffRole !== 'admin') {
+    throw error(403, 'Réservé aux administrateurs');
+  }
 
   const game = url.searchParams.get('game');
   const levelParam = url.searchParams.get('level');
