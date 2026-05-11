@@ -12,6 +12,7 @@
   import { resolve } from '$app/paths';
   import { goto, invalidateAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
+  import { track } from '$lib/analytics';
 
   let {
     open = $bindable(false),
@@ -44,10 +45,12 @@
       });
       if (!response.ok) {
         const message = await response.text();
+        track('ticket_create_failed', { category });
         toast.error(message || 'Erreur lors de la création');
         return;
       }
       const { id } = await response.json();
+      track('ticket_created', { category });
       toast.success('Ticket envoyé');
       open = false;
       reset();

@@ -30,6 +30,7 @@
     type RelanceVar,
   } from '$lib/domain/relance';
   import type { ComposeRecipient } from '$lib/components/comms/RelanceComposeDialog.svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -203,6 +204,12 @@
   }
 
   async function onSent() {
+    if (compose) {
+      track('adm_reminders_sent', {
+        type: compose.type,
+        count: compose.talentIds.length,
+      });
+    }
     selectedTalentIds = new Set();
     await invalidateAll();
   }

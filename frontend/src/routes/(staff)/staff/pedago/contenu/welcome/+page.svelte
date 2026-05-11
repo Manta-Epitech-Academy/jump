@@ -5,6 +5,7 @@
   import { Button } from '$lib/components/ui/button';
   import Save from '@lucide/svelte/icons/save';
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
+  import { track } from '$lib/analytics';
 
   let { data, form: actionData }: { data: PageData; form: ActionData } =
     $props();
@@ -40,8 +41,11 @@
       action="?/save"
       use:enhance={() => {
         saving = true;
-        return async ({ update }) => {
+        return async ({ result, update }) => {
           saving = false;
+          if (result.type === 'success') {
+            track('cms_welcome_saved', { space: 'pedago' });
+          }
           await update();
         };
       }}

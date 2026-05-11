@@ -27,6 +27,7 @@
   } from '$lib/domain/staff';
   import { authClient } from '$lib/auth-client';
   import type { StaffRole } from '@prisma/client';
+  import { track } from '$lib/analytics';
   let { data } = $props();
 
   let submitting = $state<string | null>(null);
@@ -58,9 +59,11 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track('admin_invitation_sent', { role: $inviteForm.staffRole });
           inviteOpen = false;
           toast.success(result.data?.form?.message || 'Invitation envoyée');
         } else if (result.type === 'failure' && result.data?.form?.message) {
+          track('admin_invitation_failed');
           toast.error(result.data.form.message);
         }
       },
@@ -90,14 +93,17 @@
     try {
       const { error } = await authClient.admin.impersonateUser({ userId });
       if (error) {
+        track('impersonation_failed');
         toast.error(error.message ?? 'Impersonation refusée.');
         return;
       }
+      track('impersonation_started', { targetRole: staffRole ?? 'unknown' });
       // Full-page navigation (not goto) so the new session cookie is read
       // fresh on the next request and route guards re-evaluate.
       window.location.href = resolve(target as any);
     } catch (err) {
       console.error(err);
+      track('impersonation_failed');
       toast.error("Erreur lors de l'impersonation.");
     } finally {
       impersonating = null;
@@ -190,8 +196,10 @@
                     action="?/cancelInvitation&id={inv.id}"
                     use:enhance={() => {
                       return async ({ update, result }) => {
-                        if (result.type === 'success')
+                        if (result.type === 'success') {
+                          track('admin_invitation_cancelled');
                           toast.success('Invitation annulée');
+                        }
                         await update();
                       };
                     }}
@@ -283,8 +291,10 @@
                     use:enhance={() => {
                       submitting = `campus-${user.id}`;
                       return async ({ update, result }) => {
-                        if (result.type === 'success')
+                        if (result.type === 'success') {
+                          track('admin_user_campus_updated');
                           toast.success('Campus mis à jour');
+                        }
                         await update();
                         submitting = null;
                       };
@@ -328,8 +338,10 @@
                   use:enhance={() => {
                     submitting = `role-${user.id}`;
                     return async ({ update, result }) => {
-                      if (result.type === 'success')
+                      if (result.type === 'success') {
+                        track('admin_user_role_updated');
                         toast.success('Rôle mis à jour');
+                      }
                       await update();
                       submitting = null;
                     };

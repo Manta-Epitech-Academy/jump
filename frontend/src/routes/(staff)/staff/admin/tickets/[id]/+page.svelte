@@ -15,6 +15,7 @@
   import { TICKET_CATEGORY_LABELS } from '$lib/domain/tickets';
   import TicketThread from '$lib/components/tickets/TicketThread.svelte';
   import { toast } from 'svelte-sonner';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -84,6 +85,10 @@
             use:enhance={() =>
               ({ result, update }) => {
                 if (result.type === 'success') {
+                  track('ticket_status_changed', {
+                    side: 'admin',
+                    to: isClosed ? 'open' : 'closed',
+                  });
                   toast.success(isClosed ? 'Ticket réouvert' : 'Ticket fermé');
                   update();
                 }
@@ -116,10 +121,12 @@
           use:enhance={() =>
             ({ result, update }) => {
               if (result.type === 'success') {
+                track('ticket_replied', { side: 'admin' });
                 body = '';
                 toast.success('Réponse envoyée');
                 update();
               } else if (result.type === 'failure') {
+                track('ticket_reply_failed', { side: 'admin' });
                 toast.error("Échec de l'envoi");
               }
             }}

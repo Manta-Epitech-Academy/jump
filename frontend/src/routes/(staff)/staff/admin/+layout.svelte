@@ -21,6 +21,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { fly, fade } from 'svelte/transition';
+  import { track } from '$lib/analytics';
 
   let { children, data } = $props();
 
@@ -234,7 +235,11 @@
               >Session Globale</DropdownMenu.Label
             >
             <DropdownMenu.Separator />
-            <form action="{resolve('/logout')}?type=admin" method="POST">
+            <form
+              action="{resolve('/logout')}?type=admin"
+              method="POST"
+              onsubmit={() => track('logout', { kind: 'admin' })}
+            >
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item
                   class="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
