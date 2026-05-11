@@ -107,7 +107,7 @@
   const studentEmail = $derived(data.student.user?.email || data.student.email);
   const isNewTalent = $derived((data.student.eventsCount ?? 0) === 0);
   const interests = $derived(data.student.interests ?? []);
-  const lycee = $derived(data.student.lycee);
+  const lycee = $derived(data.student.highSchoolName);
   const externalId = $derived(data.student.externalId);
 
   const mostRecentStageParticipation = $derived(
@@ -242,7 +242,7 @@
             class="rounded-sm border-epi-blue/40 px-2 py-0.5 text-[10px] font-bold uppercase"
           >
             <GraduationCap class="mr-1 h-3 w-3" />
-            {lycee.nom}
+            {lycee}
           </Badge>
         {/if}
         {#if data.student.niveau}

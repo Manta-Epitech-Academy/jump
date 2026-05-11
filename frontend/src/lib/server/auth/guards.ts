@@ -132,6 +132,7 @@ export async function applyRouteGuards(
     if (event.locals.talent) {
       const needsOnboarding =
         !event.locals.talent.infoValidatedAt ||
+        !event.locals.talent.highSchoolValidatedAt ||
         !event.locals.talent.techInterestsValidatedAt ||
         !event.locals.talent.generalInterestsValidatedAt ||
         !event.locals.talent.interestsRecapSeenAt ||

@@ -55,7 +55,7 @@
       talent: { id: string; nom: string; prenom: string };
     }[];
     lyceesBreakdown: {
-      rows: { lyceeId: string; nom: string; count: number }[];
+      rows: { highSchoolName: string; count: number }[];
       others: { count: number; categories: number } | null;
     };
     interestsCloud: {

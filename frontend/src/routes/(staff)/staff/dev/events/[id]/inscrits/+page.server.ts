@@ -45,9 +45,9 @@ function filterCondition(filter: FilterKey) {
   return null;
 }
 
-function originConditions(lyceeId: string | null, interestId: string | null) {
+function originConditions(lyceeName: string | null, interestId: string | null) {
   const conds: object[] = [];
-  if (lyceeId) conds.push({ talent: { lyceeId } });
+  if (lyceeName) conds.push({ talent: { highSchoolName: lyceeName } });
   if (interestId)
     conds.push({ talent: { interests: { some: { interestId } } } });
   return conds;
@@ -63,16 +63,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     getEventStatus(event, bounds),
     locals.stagePhaseOverride,
   );
-  const lyceeId = url.searchParams.get('lycee');
+  const lyceeName = url.searchParams.get('lycee');
   const interestId = url.searchParams.get('interest');
 
   const [activeLycee, activeInterest] = await Promise.all([
-    lyceeId
-      ? db.lycee.findUnique({
-          where: { id: lyceeId },
-          select: { id: true, nom: true },
-        })
-      : Promise.resolve(null),
+    lyceeName ? Promise.resolve({ nom: lyceeName }) : Promise.resolve(null),
     interestId
       ? db.interest.findUnique({
           where: { id: interestId },
@@ -85,7 +80,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     interest: activeInterest,
   };
   const originAnd = originConditions(
-    activeLycee?.id ?? null,
+    activeLycee?.nom ?? null,
     activeInterest?.id ?? null,
   );
 
@@ -108,7 +103,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           include: {
             talent: {
               include: {
-                lycee: true,
                 interests: { include: { interest: true } },
               },
             },
@@ -165,7 +159,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     include: {
       talent: {
         include: {
-          lycee: true,
           interests: { include: { interest: true } },
         },
       },
