@@ -1,6 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { ArrowLeft, Bug, Lightbulb, Lock, Send } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Bug from '@lucide/svelte/icons/bug';
+  import Lightbulb from '@lucide/svelte/icons/lightbulb';
+  import Lock from '@lucide/svelte/icons/lock';
+  import Send from '@lucide/svelte/icons/send';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
@@ -9,6 +13,7 @@
   import { TICKET_CATEGORY_LABELS } from '$lib/domain/tickets';
   import TicketThread from '$lib/components/tickets/TicketThread.svelte';
   import { toast } from 'svelte-sonner';
+  import { track } from '$lib/analytics';
 
   type Message = {
     id: string;
@@ -85,10 +90,12 @@
           use:enhance={() =>
             ({ result, update }) => {
               if (result.type === 'success') {
+                track('ticket_replied', { side: 'author' });
                 body = '';
                 toast.success('Message envoyé');
                 update();
               } else if (result.type === 'failure') {
+                track('ticket_reply_failed', { side: 'author' });
                 toast.error("Échec de l'envoi");
               }
             }}

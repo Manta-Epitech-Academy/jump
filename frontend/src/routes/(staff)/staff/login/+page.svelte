@@ -12,11 +12,13 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { authClient } from '$lib/auth-client';
   import { resolve } from '$app/paths';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
   let isLoading = $state(false);
 
   async function handleMicrosoftLogin() {
+    track('staff_login_microsoft_clicked');
     isLoading = true;
     await authClient.signIn.social({
       provider: 'microsoft',

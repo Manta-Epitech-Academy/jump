@@ -11,6 +11,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function capitalize(value: string | null | undefined): string {
+  if (!value) return '';
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
 /**
  * Formats a CalendarDateTime, Date object, or ISO string to a French date string (DD/MM/YYYY)
  */

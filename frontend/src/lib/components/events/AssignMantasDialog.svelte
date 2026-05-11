@@ -17,7 +17,11 @@
     open: boolean;
     eventId: string;
     eventTitle: string;
-    mantas: { id: string; user: { name: string | null } }[];
+    mantas: {
+      id: string;
+      staffRole: string | null;
+      user: { name: string | null; image: string | null };
+    }[];
     currentMantaIds: string[];
   } = $props();
 

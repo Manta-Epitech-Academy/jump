@@ -18,8 +18,10 @@
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { fly, fade } from 'svelte/transition';
+  import { track } from '$lib/analytics';
 
   let { children, data } = $props();
 
@@ -215,18 +217,29 @@
                 >{data.user?.email}</span
               >
             </div>
-            <div
-              class="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-700 bg-slate-900 text-epi-pink"
+            <Avatar.Root
+              class="h-9 w-9 rounded-sm border border-slate-700 bg-slate-900"
             >
-              <ShieldAlert class="h-4 w-4" />
-            </div>
+              <Avatar.Image
+                src={data.user?.image ?? undefined}
+                alt={data.user?.name ?? data.user?.email ?? 'Admin'}
+                class="object-cover"
+              />
+              <Avatar.Fallback class="rounded-sm bg-slate-900 text-epi-pink">
+                <ShieldAlert class="h-4 w-4" />
+              </Avatar.Fallback>
+            </Avatar.Root>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="w-48 rounded-sm">
             <DropdownMenu.Label class="text-xs text-muted-foreground uppercase"
               >Session Globale</DropdownMenu.Label
             >
             <DropdownMenu.Separator />
-            <form action="{resolve('/logout')}?type=admin" method="POST">
+            <form
+              action="{resolve('/logout')}?type=admin"
+              method="POST"
+              onsubmit={() => track('logout', { kind: 'admin' })}
+            >
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item
                   class="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"

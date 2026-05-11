@@ -48,6 +48,13 @@ enum InterviewStatus {
   cancelled
 }
 
+enum InterviewRecommendation {
+  epitech_orientation_forte
+  a_explorer
+  autre_filiere
+  a_determiner
+}
+
 enum ParticipationVerdict {
   comfortable
   progressing
@@ -101,10 +108,11 @@ model bauth_user {
   accounts          bauth_account[]
   staffProfile      StaffProfile?
   talent            Talent?
-  invitationsIssued StaffInvitation[] @relation("StaffInvitationInvitedBy")
+  invitationsIssued StaffInvitation[]     @relation("StaffInvitationInvitedBy")
   cmsPages          CmsPage[]
-  ticketsAuthored   Ticket[]          @relation("TicketAuthor")
+  ticketsAuthored   Ticket[]              @relation("TicketAuthor")
   ticketMessages    TicketMessage[]
+  outlookSyncs      OutlookCalendarSync[]
 }
 
 model bauth_session {
@@ -155,7 +163,6 @@ model StaffProfile {
   userId    String     @unique
   campusId  String?
   staffRole StaffRole?
-  avatar    String?
   discordId String?    @unique
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
@@ -234,7 +241,8 @@ model Talent {
   competenceStates TalentCompetenceState[]
   quizAttempts     TalentQuizAttempt[]
   reminders      OnboardingReminder[]
-  talentInterests TalentInterest[]
+  interests      TalentInterest[]
+
 }
 
 // ─── Domain Tables ───
@@ -492,13 +500,13 @@ model Interview {
   discoveryReason   String?
   motivation        String?
   nextEventInterest String?
-  influencers       String?
   platforms         String?
   specialties       String?
   interests         String?
   otherJobs         String?
   satisfaction      String?
   globalNote        String?
+  recommendation    InterviewRecommendation?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -507,10 +515,44 @@ model Interview {
   staff         StaffProfile   @relation(fields: [staffId], references: [id], onDelete: Cascade)
   campus        Campus         @relation(fields: [campusId], references: [id], onDelete: Cascade)
   participation Participation? @relation(fields: [participationId], references: [id], onDelete: SetNull)
+  outlookSyncs  OutlookCalendarSync[]
 
   @@index([talentId])
   @@index([staffId])
   @@index([campusId])
+}
+
+/// One row per (Interview, user) pair we've pushed to that user's calendar.
+/// Acts as the idempotency map across both sync backends:
+///
+///   - `syncKind = 'graph'`: `outlookEventId` is the Graph event id;
+///     reconcile PATCH/DELETEs through Microsoft Graph using the user's
+///     delegated `Calendars.ReadWrite` token. `sequence` and `contentHash`
+///     are unused (Graph sends the latest body each time).
+///   - `syncKind = 'email'`: `outlookEventId` is the iCalendar UID we
+///     emit (stable: `<interview.id>@jump.epitech.eu`). `sequence` is
+///     bumped on every meaningful change so Outlook merges the invite
+///     update onto the existing event. `contentHash` lets us skip
+///     re-sending an unchanged invite.
+///
+/// Per-user because each backend writes to the signed-in user's own
+/// calendar — Graph via delegated token, email via the user's mailbox.
+model OutlookCalendarSync {
+  id             String   @id @default(cuid())
+  interviewId    String
+  userId         String
+  outlookEventId String
+  syncKind       String   @default("graph")
+  sequence       Int      @default(0)
+  contentHash    String?
+  syncedAt       DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  interview Interview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  user      bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, userId])
+  @@index([userId])
 }
 
 model StepsProgress {
@@ -914,6 +956,8 @@ model OnboardingReminder {
   id       String   @id @default(cuid())
   talentId String
   type     String   // "student" | "parent"
+  subject  String?  // captured at send time, for audit + comm history
+  body     String?  // captured at send time, for audit + comm history
   sentAt   DateTime @default(now())
   sentBy   String   // staff userId
 

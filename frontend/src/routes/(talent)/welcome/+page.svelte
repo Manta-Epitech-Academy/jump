@@ -3,8 +3,14 @@
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import { onMount } from 'svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
+
+  onMount(() => {
+    track('welcome_seen');
+  });
 </script>
 
 <div class="mx-auto max-w-3xl px-4 py-12">
@@ -13,7 +19,16 @@
   </div>
 
   <div class="mt-8 flex justify-center">
-    <form method="POST" action="?/markSeen" use:enhance>
+    <form
+      method="POST"
+      action="?/markSeen"
+      use:enhance={() => {
+        return async ({ update }) => {
+          track('welcome_dismissed');
+          await update();
+        };
+      }}
+    >
       <Button type="submit">
         Accéder au tableau de bord
         <ArrowRight class="ml-2 h-4 w-4" />

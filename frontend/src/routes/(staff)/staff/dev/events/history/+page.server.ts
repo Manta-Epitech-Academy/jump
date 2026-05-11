@@ -36,8 +36,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         presentCount: event.participations.length,
         mantas: event.mantas.map((m) => ({
           name: m.staffProfile.user?.name || '',
-          // TODO: implement S3 file storage for avatars
-          avatarUrl: m.staffProfile.avatar,
+          avatarUrl: m.staffProfile.user?.image ?? null,
         })),
       })),
     };

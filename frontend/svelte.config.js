@@ -1,6 +1,8 @@
 import adapter from '@sveltejs/adapter-node';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
+const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   // Consult https://svelte.dev/docs/kit/integrations
@@ -18,11 +20,20 @@ const config = {
     csp: {
       directives: {
         'default-src': ['self'],
-        'script-src': ['self'],
+        'script-src': [
+          'self',
+          UMAMI_HOST,
+          // mode-watcher ships an inline FOUC-prevention <script> in
+          // <svelte:head> with no nonce. SvelteKit's CSP only nonces/hashes
+          // its own injected scripts, so we whitelist this hash explicitly.
+          // Bump if mode-watcher's setInitialMode body changes — the new
+          // hash is printed in the browser's CSP violation message.
+          'sha256-Stkt8ip/11kybd4lt+wxSqAzIicXuhKo5w+vKPzFxdE=',
+        ],
         'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
         'img-src': ['self', 'data:', 'https:'],
         'font-src': ['self', 'https://fonts.gstatic.com'],
-        'connect-src': ['self', 'https://discord.com'],
+        'connect-src': ['self', 'https://discord.com', UMAMI_HOST],
         'frame-ancestors': ['none'],
       },
     },

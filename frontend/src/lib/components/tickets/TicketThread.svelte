@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { ShieldAlert, User } from '@lucide/svelte';
+  import ShieldAlert from '@lucide/svelte/icons/shield-alert';
+  import User from '@lucide/svelte/icons/user';
   import { formatDateTimeFr } from '$lib/utils';
 
   type Message = {

@@ -9,6 +9,7 @@
   import * as Table from '$lib/components/ui/table';
   import { formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 </script>
@@ -35,6 +36,9 @@
         use:enhance={() =>
           async ({ result, update }) => {
             if (result.type === 'success') {
+              track('sync_errors_resolved_all', {
+                count: data.unresolvedCount,
+              });
               toast.success('Toutes les erreurs ont été résolues');
               await update();
             } else {
@@ -108,6 +112,7 @@
                     use:enhance={() =>
                       async ({ result, update }) => {
                         if (result.type === 'success') {
+                          track('sync_error_resolved');
                           toast.success('Erreur résolue');
                           await update();
                         } else {

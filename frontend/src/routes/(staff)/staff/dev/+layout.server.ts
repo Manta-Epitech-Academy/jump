@@ -7,9 +7,15 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
-import { applyStaffRoleGate, hasFlag } from '$lib/server/auth/guards';
+import {
+  applyStaffRoleGate,
+  DEV_INTERVIEWS_PATH_PATTERN,
+  hasFlag,
+} from '$lib/server/auth/guards';
+import { can } from '$lib/domain/permissions';
 import { resolveStageContext } from '$lib/server/services/stageContext';
 import { countUnreadForAuthor } from '$lib/server/services/tickets';
+import { isDevImpersonation } from '$lib/server/devPhaseOverride';
 
 export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   const { user, staffProfile } = await parent();
@@ -19,7 +25,14 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   }
 
   const role = staffProfile?.staffRole;
-  if (role !== 'superdev' && role !== 'dev') {
+  const isInterviewsPath = DEV_INTERVIEWS_PATH_PATTERN.test(url.pathname);
+  const isInterviewerOnly =
+    role !== 'superdev' &&
+    role !== 'dev' &&
+    isInterviewsPath &&
+    can('interviewers', role);
+
+  if (role !== 'superdev' && role !== 'dev' && !isInterviewerOnly) {
     const target = getStaffRoleRedirectPath(role);
     throw redirect(302, resolve(target ?? '/staff/login'));
   }
@@ -27,13 +40,20 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   applyStaffRoleGate(locals, url.pathname);
 
   const db = scopedPrisma(getCampusId(locals));
-  const activeStage = hasFlag(locals, 'stage_seconde')
-    ? await resolveStageContext(db)
-    : null;
+  const phaseOverride = locals.stagePhaseOverride;
+  // Non-dev interviewers (peda, manta) only see the interviews route in this
+  // workspace — skip the dev shell side effects (stage resolution, ticket
+  // counts) and signal `devLayoutScope: 'interview-only'` so the layout
+  // svelte strips sidebar/header chrome.
+  const activeStage =
+    !isInterviewerOnly && hasFlag(locals, 'stage_seconde')
+      ? await resolveStageContext(db, { phaseOverride })
+      : null;
 
-  const ticketsUnread = locals.ticketsEnabled
-    ? await countUnreadForAuthor(user.id)
-    : 0;
+  const ticketsUnread =
+    !isInterviewerOnly && locals.ticketsEnabled
+      ? await countUnreadForAuthor(user.id)
+      : 0;
 
   return {
     user,
@@ -41,5 +61,10 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
     timezone: getCampusTimezone(locals),
     activeStage,
     ticketsUnread,
+    phaseOverride,
+    canOverridePhase: isDevImpersonation(locals),
+    devLayoutScope: isInterviewerOnly
+      ? ('interview-only' as const)
+      : ('full' as const),
   };
 };

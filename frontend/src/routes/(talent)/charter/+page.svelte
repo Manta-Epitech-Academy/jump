@@ -3,6 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import { track } from '$lib/analytics';
 
   let accepted = $state(false);
 </script>
@@ -118,7 +119,19 @@
     </div>
 
     <!-- Accept form -->
-    <form method="POST" action="?/accept" use:enhance class="mt-6">
+    <form
+      method="POST"
+      action="?/accept"
+      use:enhance={() => {
+        return async ({ result, update }) => {
+          if (result.type === 'redirect' || result.type === 'success') {
+            track('charter_signed');
+          }
+          await update();
+        };
+      }}
+      class="mt-6"
+    >
       <label
         class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >

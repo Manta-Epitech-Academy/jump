@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { LifeBuoy, Bug, Lightbulb, LoaderCircle, Send } from '@lucide/svelte';
+  import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import Bug from '@lucide/svelte/icons/bug';
+  import Lightbulb from '@lucide/svelte/icons/lightbulb';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import Send from '@lucide/svelte/icons/send';
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -8,6 +12,7 @@
   import { resolve } from '$app/paths';
   import { goto, invalidateAll } from '$app/navigation';
   import { toast } from 'svelte-sonner';
+  import { track } from '$lib/analytics';
 
   let {
     open = $bindable(false),
@@ -40,10 +45,12 @@
       });
       if (!response.ok) {
         const message = await response.text();
+        track('ticket_create_failed', { category });
         toast.error(message || 'Erreur lors de la création');
         return;
       }
       const { id } = await response.json();
+      track('ticket_created', { category });
       toast.success('Ticket envoyé');
       open = false;
       reset();

@@ -1,14 +1,12 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import {
-    ArrowLeft,
-    Bug,
-    Lightbulb,
-    Lock,
-    LockOpen,
-    MessageCircle,
-    Send,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Bug from '@lucide/svelte/icons/bug';
+  import Lightbulb from '@lucide/svelte/icons/lightbulb';
+  import Lock from '@lucide/svelte/icons/lock';
+  import LockOpen from '@lucide/svelte/icons/lock-open';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import Send from '@lucide/svelte/icons/send';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
@@ -17,6 +15,7 @@
   import { TICKET_CATEGORY_LABELS } from '$lib/domain/tickets';
   import TicketThread from '$lib/components/tickets/TicketThread.svelte';
   import { toast } from 'svelte-sonner';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -86,6 +85,10 @@
             use:enhance={() =>
               ({ result, update }) => {
                 if (result.type === 'success') {
+                  track('ticket_status_changed', {
+                    side: 'admin',
+                    to: isClosed ? 'open' : 'closed',
+                  });
                   toast.success(isClosed ? 'Ticket réouvert' : 'Ticket fermé');
                   update();
                 }
@@ -118,10 +121,12 @@
           use:enhance={() =>
             ({ result, update }) => {
               if (result.type === 'success') {
+                track('ticket_replied', { side: 'admin' });
                 body = '';
                 toast.success('Réponse envoyée');
                 update();
               } else if (result.type === 'failure') {
+                track('ticket_reply_failed', { side: 'admin' });
                 toast.error("Échec de l'envoi");
               }
             }}

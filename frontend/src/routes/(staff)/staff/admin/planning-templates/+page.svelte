@@ -18,6 +18,7 @@
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -26,6 +27,11 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track(
+            isEditing
+              ? 'planning_template_updated'
+              : 'planning_template_created',
+          );
           open = false;
           toast.success(result.data?.form?.message);
         }
@@ -264,5 +270,6 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer ce modèle de planning ?"
     description="Cette action supprimera définitivement le modèle et tous ses créneaux configurés."
+    onSuccess={() => track('planning_template_deleted')}
   />
 </div>
