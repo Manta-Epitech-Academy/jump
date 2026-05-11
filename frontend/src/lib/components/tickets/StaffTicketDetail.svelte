@@ -1,6 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { ArrowLeft, Bug, Lightbulb, Lock, Send } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Bug from '@lucide/svelte/icons/bug';
+  import Lightbulb from '@lucide/svelte/icons/lightbulb';
+  import Lock from '@lucide/svelte/icons/lock';
+  import Send from '@lucide/svelte/icons/send';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';

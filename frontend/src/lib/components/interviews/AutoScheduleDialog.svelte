@@ -10,8 +10,13 @@
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import Loader2 from '@lucide/svelte/icons/loader-2';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import type { StaffRole } from '@prisma/client';
+  import { getStaffRoleLabel } from '$lib/domain/staff';
 
-  type Dev = { id: string; name: string };
+  // The interviewer pool spans every campus staff role (superdev / dev /
+  // peda / manta) — naming kept as `Dev` internally to avoid churning the
+  // form-field name `devIds` shared with the server schema.
+  type Dev = { id: string; name: string; role?: StaffRole };
   type Candidate = {
     id: string;
     talent: { nom: string; prenom: string };
@@ -152,8 +157,12 @@
 
       <section class="space-y-2 rounded-md border bg-muted/20 p-3">
         <Label class="text-xs font-bold text-epi-blue uppercase"
-          >Devs participants</Label
+          >Membres participants</Label
         >
+        <p class="text-[11px] text-muted-foreground">
+          Tout le staff du campus peut mener un entretien — sélectionnez qui
+          fait partie de cette session.
+        </p>
         <div class="grid grid-cols-2 gap-2">
           {#each devs as dev}
             <label class="flex items-center gap-2 text-sm">
@@ -161,7 +170,16 @@
                 checked={selectedDevIds.includes(dev.id)}
                 onCheckedChange={(v) => toggleDev(dev.id, v === true)}
               />
-              <span>{dev.name}</span>
+              <span class="flex min-w-0 flex-1 items-center gap-2">
+                <span class="truncate">{dev.name}</span>
+                {#if dev.role}
+                  <span
+                    class="rounded-sm bg-muted px-1 py-0.5 font-mono text-[9px] tracking-widest text-muted-foreground uppercase"
+                  >
+                    {getStaffRoleLabel(dev.role)}
+                  </span>
+                {/if}
+              </span>
             </label>
           {/each}
         </div>
@@ -169,7 +187,7 @@
 
       <section class="grid grid-cols-2 gap-3 md:grid-cols-3">
         <div class="space-y-1">
-          <Label class="text-xs uppercase">Entretiens / dev / jour</Label>
+          <Label class="text-xs uppercase">Entretiens / personne / jour</Label>
           <Input
             type="number"
             name="interviewsPerDevPerDay"
@@ -270,8 +288,8 @@
               <AlertTriangle class="h-4 w-4 shrink-0 text-amber-600" />
               <span>
                 <strong>{preview.unscheduled.length}</strong> stagiaire(s) non planifié(s)
-                — capacité insuffisante. Ajustez le nombre de devs, le créneau, ou
-                étendez la plage horaire.
+                — capacité insuffisante. Ajoutez des participants, raccourcissez le
+                créneau, ou étendez la plage horaire.
               </span>
             </div>
           {/if}

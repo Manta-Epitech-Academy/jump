@@ -80,10 +80,6 @@
     deleteDialogOpen = true;
   }
 
-  function getAvatarUrl(_user: any) {
-    return undefined;
-  }
-
   let impersonating = $state<string | null>(null);
 
   async function loginAs(userId: string, staffRole: StaffRole | null) {
@@ -262,7 +258,7 @@
               <Table.Cell>
                 <div class="flex items-center gap-3">
                   <Avatar.Root class="h-8 w-8">
-                    <Avatar.Image src={getAvatarUrl(user)} />
+                    <Avatar.Image src={user.image ?? undefined} />
                     <Avatar.Fallback class="text-xs font-bold"
                       >{user.name?.substring(0, 2).toUpperCase() ||
                         'ST'}</Avatar.Fallback
