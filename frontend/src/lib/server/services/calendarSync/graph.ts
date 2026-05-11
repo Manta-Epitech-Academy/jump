@@ -23,6 +23,37 @@ const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const TOKEN_HOST = 'https://login.microsoftonline.com';
 const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
+/**
+ * Azure AD `oauth2/v2.0/token` error codes that mean the stored refresh
+ * token will never work again — the only recovery is interactive re-OAuth.
+ *
+ *   - `invalid_grant`: refresh token revoked, expired past its sliding
+ *     window, password changed, or device-level revocation.
+ *   - `interaction_required` / `consent_required`: tenant policy requires
+ *     a fresh consent screen (e.g. admin revoked the app's
+ *     `Calendars.ReadWrite` consent).
+ *
+ * Anything else — HTTP 429, 5xx, transient network errors, app-level
+ * `invalid_client` (deployment misconfig, not user-fixable) — leaves the
+ * tokens alone. Previously we cleared on any 4xx, which forced re-OAuth on
+ * throttling and on tenant-side hiccups.
+ */
+const NON_RECOVERABLE_OAUTH_ERRORS = new Set([
+  'invalid_grant',
+  'interaction_required',
+  'consent_required',
+]);
+
+async function readOauthError(
+  res: Response,
+): Promise<{ error?: string; error_description?: string } | null> {
+  try {
+    return (await res.json()) as { error?: string; error_description?: string };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Connection inspection ────────────────────────────────────────────────
 
 async function getMicrosoftAccount(
@@ -76,8 +107,14 @@ async function refreshAccessToken(
     body,
   });
   if (!res.ok) {
-    if (res.status >= 400 && res.status < 500) {
-      // Refresh token revoked / expired — clear so UI can prompt re-OAuth.
+    const body = await readOauthError(res);
+    const oauthError = body?.error;
+    if (oauthError && NON_RECOVERABLE_OAUTH_ERRORS.has(oauthError)) {
+      console.error(
+        'graph token refresh: clearing tokens for re-OAuth',
+        oauthError,
+        body?.error_description,
+      );
       await prisma.bauth_account.update({
         where: { id: account.id },
         data: {
@@ -87,6 +124,13 @@ async function refreshAccessToken(
           refreshTokenExpiresAt: null,
         },
       });
+    } else {
+      console.error(
+        'graph token refresh failed (transient, tokens preserved)',
+        res.status,
+        oauthError,
+        body?.error_description,
+      );
     }
     return null;
   }

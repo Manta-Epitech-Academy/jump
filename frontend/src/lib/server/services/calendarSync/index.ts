@@ -21,6 +21,7 @@ import type {
 } from './types';
 import { graphBackend } from './graph';
 import { emailBackend } from './email';
+import { reconcileKey, scheduleReconcile } from './scheduler';
 
 export type { CalendarSyncMode } from './config';
 export {
@@ -60,10 +61,18 @@ const backend: CalendarSyncBackend =
       ? emailBackend
       : noopBackend;
 
+/**
+ * Reconcile the actor's calendar for an event and return the result. Routed
+ * through the per-(user, event) coalescing scheduler so a foreground call
+ * landing on a key that already has an in-flight pass shares that pass's
+ * result rather than racing it — see {@link scheduleReconcile}.
+ */
 export async function reconcileForStaff(
   opts: ReconcileOpts,
 ): Promise<ReconcileResult> {
-  return backend.reconcile(opts);
+  return scheduleReconcile(reconcileKey(opts.userId, opts.eventId), () =>
+    backend.reconcile(opts),
+  );
 }
 
 /**
@@ -73,6 +82,12 @@ export async function reconcileForStaff(
  * need the recipient's token), so reassign / autoSchedule fan-out actually
  * lands invites in everyone's mailbox. Graph backend silently no-ops for
  * users it doesn't have a stored token for — same code path, no harm.
+ *
+ * Each per-staff reconcile is queued through the coalescing scheduler keyed
+ * by (userId, eventId), so a burst of triggers on the same key (saveGrid →
+ * updateStatus → reassign) collapses into at most one extra pass after the
+ * current one finishes. Removes the `OutlookCalendarSync(interviewId,
+ * userId)` race that previously surfaced as P2002 + duplicate invites.
  *
  * Never throws, never blocks the calling action's response.
  */
@@ -90,20 +105,18 @@ export function backgroundReconcile(opts: {
         where: { id: { in: [...opts.staffProfileIds] } },
         select: { id: true, userId: true },
       });
-      await Promise.all(
-        profiles.map((p) =>
-          backend
-            .reconcile({
-              staffProfileId: p.id,
-              userId: p.userId,
-              eventId: opts.eventId,
-              timezone: opts.timezone,
-            })
-            .catch((err: unknown) => {
-              console.error('background reconcile (per-staff) failed', err);
-            }),
-        ),
-      );
+      for (const p of profiles) {
+        scheduleReconcile(reconcileKey(p.userId, opts.eventId), () =>
+          backend.reconcile({
+            staffProfileId: p.id,
+            userId: p.userId,
+            eventId: opts.eventId,
+            timezone: opts.timezone,
+          }),
+        ).catch((err: unknown) => {
+          console.error('background reconcile (per-staff) failed', err);
+        });
+      }
     } catch (err) {
       console.error('background reconcile fan-out failed', err);
     }
