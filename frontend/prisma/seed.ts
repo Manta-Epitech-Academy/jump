@@ -1183,35 +1183,6 @@ const STAFF_MEMBERS = [
   },
 ];
 
-// ─── Lycée + Interest catalogues (curated, populates Préparation breakdowns) ───
-
-type LyceeDef = { nom: string; ville: string; departement: string };
-
-const LYCEES: LyceeDef[] = [
-  // Paris (intra-muros, where most stagiaires come from)
-  { nom: 'Lycée Henri-IV', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Louis-le-Grand', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Charlemagne', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Voltaire', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Buffon', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Jean-Zay', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Turgot', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Hélène-Boucher', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Jacques-Decour', ville: 'Paris', departement: '75' },
-  { nom: 'Lycée Condorcet', ville: 'Paris', departement: '75' },
-  // Couronne — variety
-  {
-    nom: 'Lycée Marcelin-Berthelot',
-    ville: 'Saint-Maur-des-Fossés',
-    departement: '94',
-  },
-  { nom: 'Lycée Lakanal', ville: 'Sceaux', departement: '92' },
-  // Province (mostly for Lyon scenarios)
-  { nom: 'Lycée du Parc', ville: 'Lyon', departement: '69' },
-  { nom: 'Lycée Ampère', ville: 'Lyon', departement: '69' },
-  { nom: 'Lycée Édouard-Herriot', ville: 'Lyon', departement: '69' },
-];
-
 type StudentDef = {
   email: string;
   prenom: string;
@@ -1252,6 +1223,7 @@ const STUDENTS: StudentDef[] = [
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 2,
+    skipOnboarding: false,
   },
   {
     email: 'emma.bernard@mail.com',
@@ -2788,14 +2760,12 @@ async function main() {
   const staffByKey = await seedStaff(campuses);
   console.log(`✓  Users (${Object.keys(staffByKey).length} staff)`);
 
-  // 2b. Lycées + intérêts catalogues (referenced by talents)
-  const lycees = await seedLycees();
-  console.log(`✓  Lycées (${lycees.length})`);
+  // 2b. Intérêts catalogue (referenced by talents)
   await seedInterests();
   console.log('✓  Intérêts');
 
   // 3. Students
-  const talentByEmail = await seedStudents(lycees);
+  const talentByEmail = await seedStudents();
   console.log(`✓  Students (${Object.keys(talentByEmail).length})`);
 
   // 3b. Parent account (links to first child for portal testing)
@@ -2884,7 +2854,6 @@ async function wipeAll() {
   await prisma.talentInterest.deleteMany();
   await prisma.interest.deleteMany();
   await prisma.talent.deleteMany();
-  await prisma.lycee.deleteMany();
   // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
   // is a required FK with default RESTRICT, so live versions block the delete.
   await prisma.subjectVersion.deleteMany();
@@ -3049,50 +3018,11 @@ async function seedStaff(
   return byKey;
 }
 
-async function seedLycees(): Promise<
-  { id: string; nom: string; ville: string; departement: string }[]
+async function seedStudents(): Promise<
+  Record<string, { id: string; nom: string; prenom: string }>
 > {
-  const created: {
-    id: string;
-    nom: string;
-    ville: string;
-    departement: string;
-  }[] = [];
-  for (const l of LYCEES) {
-    const row = await prisma.lycee.create({
-      data: { nom: l.nom, ville: l.ville, departement: l.departement },
-    });
-    created.push({
-      id: row.id,
-      nom: row.nom,
-      ville: row.ville!,
-      departement: row.departement!,
-    });
-  }
-  return created;
-}
-
-async function seedStudents(
-  lycees: { id: string; nom: string; ville: string; departement: string }[],
-): Promise<Record<string, { id: string; nom: string; prenom: string }>> {
   const byEmail: Record<string, { id: string; nom: string; prenom: string }> =
     {};
-  // Deterministic-but-spread distribution. Paris students drawn from the
-  // Île-de-France lycées (départements 75/92/93/94/95/77/78/91), Lyon
-  // students from the Lyon-area lycées, with ~10% null (covers the
-  // LyceesBreakdown empty-row case + signal that the field is optional).
-  const idfDepartements = new Set([
-    '75',
-    '77',
-    '78',
-    '91',
-    '92',
-    '93',
-    '94',
-    '95',
-  ]);
-  const parisLycees = lycees.filter((l) => idfDepartements.has(l.departement));
-  const lyonLycees = lycees.filter((l) => l.ville === 'Lyon');
 
   for (let i = 0; i < STUDENTS.length; i++) {
     const s = STUDENTS[i];
@@ -3114,11 +3044,6 @@ async function seedStudents(
         ? null
         : new Date(now.getTime() - s.lastActiveDaysAgo * 86400000);
 
-    // Lycée: 90% from the campus-region pool, 10% null.
-    const pool = s.campus === 'Lyon' ? lyonLycees : parisLycees;
-    const lyceeId =
-      i % 10 === 0 || pool.length === 0 ? null : pool[i % pool.length].id;
-
     // Onboarding plateforme — distribution réaliste pour la KPI "Profil
     // complété" (gate du dashboard talent : infoValidatedAt + rulesSignedAt
     // + charterAcceptedAt tous non-null) :
@@ -3128,13 +3053,16 @@ async function seedStudents(
     //                                     cours d'onboarding)
     //   - 10% (incluant neverLogged)    → rien signé (bloqués avant le
     //                                     dashboard)
-    const onboardingBucket = neverLogged
-      ? 'none'
-      : i % 10 < 7
-        ? 'full'
-        : i % 10 < 9
-          ? 'partial'
-          : 'none';
+    const onboardingBucket =
+      s.skipOnboarding === false
+        ? 'none'
+        : neverLogged
+          ? 'none'
+          : i % 10 < 7
+            ? 'full'
+            : i % 10 < 9
+              ? 'partial'
+              : 'none';
     const fullyOnboarded =
       s.skipOnboarding === true || onboardingBucket === 'full';
     const partiallyOnboarded = onboardingBucket === 'partial';
@@ -3164,11 +3092,13 @@ async function seedStudents(
         generalInterestsValidatedAt: fullyOnboarded ? new Date() : null,
         interestsRecapSeenAt: fullyOnboarded ? new Date() : null,
         rulesSignedAt,
+        highSchoolValidatedAt: fullyOnboarded ? new Date() : null,
+        highSchoolName: fullyOnboarded ? 'Lycée général Victor Hugo' : null,
+        highSchoolCity: fullyOnboarded ? 'Paris' : null,
         parentNom: hasParentInfo ? 'Martin' : null,
         parentPrenom: hasParentInfo ? 'Sophie' : null,
         parentEmail: hasParentInfo ? `parent.${s.email}` : null,
         lastActiveAt,
-        lyceeId,
         externalId: mockSalesforceLeadId(i),
       },
     });

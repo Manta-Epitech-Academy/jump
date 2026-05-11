@@ -67,7 +67,7 @@
         t?.email,
         t?.parentEmail,
         humanizeNiveau(t?.niveau),
-        t?.lycee?.nom,
+        t?.highSchoolName,
         interests,
       ]
         .filter(Boolean)

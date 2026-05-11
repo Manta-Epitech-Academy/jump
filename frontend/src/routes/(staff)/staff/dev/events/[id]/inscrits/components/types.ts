@@ -14,7 +14,6 @@ type ParticipationPrep = Prisma.ParticipationGetPayload<{
   include: {
     talent: {
       include: {
-        lycee: true;
         interests: { include: { interest: true } };
       };
     };
@@ -25,7 +24,6 @@ type ParticipationOngoing = Prisma.ParticipationGetPayload<{
   include: {
     talent: {
       include: {
-        lycee: true;
         interests: { include: { interest: true } };
       };
     };

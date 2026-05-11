@@ -212,6 +212,9 @@ model Talent {
   imageRightsSignedAt   DateTime?
   imageRightsSignerName String?
   infoValidatedAt       DateTime?
+  highSchoolName        String?
+  highSchoolCity        String?
+  highSchoolValidatedAt DateTime?
   charterFilePath       String?
   rulesFilePath         String?
   imageRightsFilePath   String?
@@ -221,7 +224,6 @@ model Talent {
   parentPrenom      String?
   parentPhone       String?
   phone             String?
-  lyceeId           String?
   discordId         String?   @unique
   externalId        String?   @unique
   lastSyncedAt      DateTime?
@@ -231,7 +233,6 @@ model Talent {
   updatedAt         DateTime  @updatedAt
 
   user           bauth_user?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  lycee          Lycee?          @relation(fields: [lyceeId], references: [id], onDelete: SetNull)
   participations Participation[]
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
@@ -242,18 +243,6 @@ model Talent {
   reminders      OnboardingReminder[]
   interests      TalentInterest[]
 
-  @@index([lyceeId])
-}
-
-model Lycee {
-  id          String   @id @default(cuid())
-  nom         String   @unique
-  ville       String?
-  departement String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  talents Talent[]
 }
 
 // ─── Domain Tables ───

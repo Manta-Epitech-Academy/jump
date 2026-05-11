@@ -1,35 +1,24 @@
 <script lang="ts">
   import InfoValidationStep from './components/InfoValidationStep.svelte';
+  import LyceeStep from './components/LyceeStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
   import InterestsRecapStep from './components/InterestsRecapStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
 
   let { data, form } = $props();
 
-  const TOTAL_STEPS = 5;
-  const stepNumber = $derived(
-    data.step === 'info-validation'
-      ? 1
-      : data.step === 'interests-tech'
-        ? 2
-        : data.step === 'interests-general'
-          ? 3
-          : data.step === 'interests-recap'
-            ? 4
-            : 5,
-  );
+  const STEP_CONFIG: Record<string, { number: number; title: string }> = {
+    'info-validation': { number: 1, title: 'Mes informations' },
+    lycee: { number: 2, title: 'Mon lycée' },
+    'interests-tech': { number: 3, title: 'Informatique' },
+    'interests-general': { number: 4, title: "Centres d'intérêt" },
+    'interests-recap': { number: 5, title: 'Ton profil' },
+    rules: { number: 6, title: 'Règlement' },
+  };
 
-  const stepTitle = $derived(
-    data.step === 'info-validation'
-      ? 'Mes informations'
-      : data.step === 'interests-tech'
-        ? 'Informatique'
-        : data.step === 'interests-general'
-          ? "Centres d'intérêt"
-          : data.step === 'interests-recap'
-            ? 'Ton profil'
-            : 'Règlement',
-  );
+  const TOTAL_STEPS = Object.keys(STEP_CONFIG).length;
+  const stepNumber = $derived(STEP_CONFIG[data.step].number);
+  const stepTitle = $derived(STEP_CONFIG[data.step].title);
 </script>
 
 <svelte:head>
@@ -62,6 +51,12 @@
       <InfoValidationStep
         profile={(form?.values as typeof data.profile) ?? data.profile}
         errors={form?.errors}
+      />
+    {:else if data.step === 'lycee'}
+      <LyceeStep
+        highSchoolName={data.highSchoolName}
+        highSchoolCity={data.highSchoolCity}
+        error={form?.error}
       />
     {:else if data.step === 'interests-tech'}
       <InterestsStep
