@@ -7,6 +7,11 @@
 :root {
   --font-sans: 'IBM Plex Sans Variable', sans-serif;
   --font-heading: 'Anton', sans-serif;
+  /* Mono = Space Mono (charte). Falls back to IBM Plex Mono / OS mono so
+     dev surfaces still render if the webfont fails to load. */
+  --font-mono:
+    'Space Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
 
   /* --- Epitech Brand Colors --- */
   --epi-blue: #013afb;
@@ -145,6 +150,7 @@
 
   --font-sans: var(--font-sans);
   --font-heading: var(--font-heading);
+  --font-mono: var(--font-mono);
 
   --radius-sm: var(--radius);
   --radius-md: var(--radius);
