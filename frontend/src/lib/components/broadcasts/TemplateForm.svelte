@@ -16,6 +16,7 @@
     substituteVariables,
     buildDemoContext,
   } from '$lib/domain/broadcastVariables';
+  import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
   import type { MessageTemplateForm } from '$lib/validation/broadcasts';
 
   type Props = {
@@ -42,7 +43,12 @@
   const previewSubject = $derived(
     $form.subject ? substituteVariables($form.subject, demoCtx) : '',
   );
-  const previewBody = $derived(substituteVariables($form.body ?? '', demoCtx));
+  const previewBodyRaw = $derived(
+    substituteVariables($form.body ?? '', demoCtx),
+  );
+  const previewMailHtml = $derived(
+    $form.channel === 'mail' ? renderBroadcastMail(previewBodyRaw) : '',
+  );
 
   const smsLength = $derived(
     $form.channel === 'sms' ? estimateSmsLength($form.body ?? '') : 0,
@@ -115,8 +121,9 @@
         name="body"
         bind:value={$form.body}
         rows={$form.channel === 'sms' ? 4 : 16}
+        class={$form.channel === 'mail' ? 'font-mono text-sm' : ''}
         placeholder={$form.channel === 'mail'
-          ? 'HTML autorisé. Utilise le panneau de variables à droite pour personnaliser.'
+          ? 'Markdown. Titres avec #, gras **texte**, listes -, etc.\nPour un bouton centré : :button[Mon libellé](https://...)\nVariables {{prenom}}, {{event_name}}… (panneau à droite).'
           : 'Texte simple. 160 caractères max après ajout des liens trackés.'}
       />
       {#if $errors.body}
@@ -124,7 +131,7 @@
       {/if}
     </div>
 
-    <details class="rounded-md border bg-muted/20 p-3 text-sm">
+    <details class="rounded-md border bg-muted/20 p-3 text-sm" open>
       <summary class="cursor-pointer font-medium"
         >Aperçu avec données fictives</summary
       >
@@ -135,14 +142,12 @@
           </p>
         {/if}
         {#if $form.channel === 'mail'}
-          <div
-            class="rounded border bg-white p-3 text-xs text-slate-800 dark:bg-slate-900 dark:text-slate-200"
-          >
-            {@html previewBody}
+          <div class="overflow-hidden rounded border">
+            {@html previewMailHtml}
           </div>
         {:else}
           <pre
-            class="rounded border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{previewBody}</pre>
+            class="rounded border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{previewBodyRaw}</pre>
         {/if}
       </div>
     </details>
@@ -163,6 +168,6 @@
   </div>
 
   <aside class="space-y-4">
-    <VariablesPanel onInsert={insertVariable} />
+    <VariablesPanel onInsert={insertVariable} channel={$form.channel} />
   </aside>
 </form>

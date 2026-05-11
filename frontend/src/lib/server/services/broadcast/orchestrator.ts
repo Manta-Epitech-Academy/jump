@@ -11,6 +11,7 @@ import {
   substituteVariables,
   type VariableContext,
 } from '$lib/domain/broadcastVariables';
+import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 import { resolveRecipients } from './recipients';
 import { getMailProvider } from './providers/mail';
 import { getSmsProvider } from './providers/sms';
@@ -195,10 +196,13 @@ async function sendOne(
   const subject = broadcast.subjectSnapshot
     ? substituteVariables(broadcast.subjectSnapshot, ctx)
     : '';
+  // bodySnapshot is markdown for mail, plain text for SMS.
+  // For mail: substitute vars in markdown → render to branded HTML → rewrite
+  // links with tracking_id. For SMS: substitute → rewrite URL tracking inline.
   const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
   const body =
     broadcast.channel === 'mail'
-      ? rewriteHtmlLinks(bodyWithVars, recipient.id)
+      ? rewriteHtmlLinks(renderBroadcastMail(bodyWithVars), recipient.id)
       : rewriteSmsLinks(bodyWithVars, recipient.id);
 
   let outcome: SendOutcome;

@@ -6,6 +6,7 @@
     BROADCAST_AUDIENCE_LABELS,
     BROADCAST_CHANNEL_LABELS,
   } from '$lib/domain/broadcasts';
+  import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
   import type { BroadcastStatus } from '@prisma/client';
 
   let { data } = $props();
@@ -106,10 +107,8 @@
         </p>
       {/if}
       {#if data.broadcast.channel === 'mail'}
-        <div
-          class="rounded border bg-white p-3 text-xs text-slate-800 dark:bg-slate-900 dark:text-slate-200"
-        >
-          {@html data.broadcast.bodySnapshot}
+        <div class="overflow-hidden rounded border">
+          {@html renderBroadcastMail(data.broadcast.bodySnapshot)}
         </div>
       {:else}
         <pre

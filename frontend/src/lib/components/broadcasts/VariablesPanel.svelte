@@ -3,12 +3,36 @@
 
   type Props = {
     onInsert: (token: string) => void;
+    channel?: 'mail' | 'sms';
   };
 
-  let { onInsert }: Props = $props();
+  let { onInsert, channel = 'mail' }: Props = $props();
 
   const recipientVars = BROADCAST_VARIABLES.filter((v) => !v.contextual);
   const contextVars = BROADCAST_VARIABLES.filter((v) => v.contextual);
+
+  const markdownSnippets: { label: string; snippet: string; hint: string }[] = [
+    {
+      label: 'Bouton CTA',
+      snippet: '\n\n:button[Mon libellé](https://jump.epiboost.fr/...)\n\n',
+      hint: ':button[label](url)',
+    },
+    {
+      label: 'Titre',
+      snippet: '\n\n## Mon titre\n\n',
+      hint: '## titre',
+    },
+    {
+      label: 'Liste',
+      snippet: '\n\n- Premier point\n- Second point\n- Troisième point\n\n',
+      hint: '- item',
+    },
+    {
+      label: 'Séparateur',
+      snippet: '\n\n---\n\n',
+      hint: '---',
+    },
+  ];
 </script>
 
 <div class="rounded-lg border bg-muted/30 p-4 text-sm">
@@ -39,7 +63,7 @@
     {/each}
   </div>
 
-  <div class="space-y-1">
+  <div class="mb-3 space-y-1">
     <p
       class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
     >
@@ -56,4 +80,24 @@
       </button>
     {/each}
   </div>
+
+  {#if channel === 'mail'}
+    <div class="space-y-1 border-t pt-3">
+      <p
+        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+      >
+        Markdown
+      </p>
+      {#each markdownSnippets as s}
+        <button
+          type="button"
+          onclick={() => onInsert(s.snippet)}
+          class="block w-full rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent"
+        >
+          <code class="font-mono text-epi-blue">{s.hint}</code>
+          <span class="ml-2 text-muted-foreground">{s.label}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
 </div>

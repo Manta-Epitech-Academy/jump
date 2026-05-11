@@ -17,6 +17,7 @@ import {
   rewriteHtmlLinks,
   rewriteSmsLinks,
 } from '$lib/server/services/broadcast/linkRewriter';
+import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 import { sendEmail } from '$lib/server/email/resend';
 import { env } from '$env/dynamic/private';
 
@@ -155,7 +156,7 @@ export const actions: Actions = {
       ? `[TEST] ${substituteVariables(template.subject, ctx)}`
       : '[TEST] Envoi en masse';
     const body = rewriteHtmlLinks(
-      substituteVariables(template.body, ctx),
+      renderBroadcastMail(substituteVariables(template.body, ctx)),
       'TEST_TRACKING_ID',
     );
 
