@@ -184,9 +184,13 @@
             flipDurationMs: 150,
             dragDisabled: !canReassign,
             type: 'interview-cards',
+            // Solid 2px outline + faint brand-blue tint. The charte rejects
+            // dashed dividers as a default; a solid ring on the active drop
+            // zone reads as deliberate UI rather than a sketch placeholder.
             dropTargetStyle: {
-              outline: '2px dashed var(--epi-blue, #013afb)',
+              outline: '2px solid var(--epi-blue, #013afb)',
               outlineOffset: '-2px',
+              backgroundColor: 'rgba(1, 58, 251, 0.06)',
             },
           }}
           onconsider={(e) => handleConsider(person.id, e)}
@@ -200,10 +204,10 @@
               class={cn(
                 'group block w-full cursor-pointer rounded-sm border bg-card p-2 text-left shadow-sm transition-shadow hover:shadow-md',
                 iv.status === 'completed'
-                  ? 'border-emerald-200'
+                  ? 'border-epi-teal-solid/40'
                   : iv.status === 'cancelled'
                     ? 'border-border opacity-60'
-                    : 'border-blue-100',
+                    : 'border-epi-blue/20',
               )}
             >
               <div class="flex items-center justify-between gap-2">
@@ -214,7 +218,7 @@
                 <RecommendationChip value={iv.recommendation} />
               </div>
               <div
-                class="mt-1 inline-block rounded-sm bg-blue-50 px-1.5 py-0.5 font-mono text-[9px] tracking-widest text-epi-blue uppercase dark:bg-blue-900/20"
+                class="mt-1 inline-block rounded-sm bg-epi-blue/10 px-1.5 py-0.5 font-mono text-[9px] tracking-widest text-epi-blue uppercase"
               >
                 {fmtTime(iv.date)}
               </div>

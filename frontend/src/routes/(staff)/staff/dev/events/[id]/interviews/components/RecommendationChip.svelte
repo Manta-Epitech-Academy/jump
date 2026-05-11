@@ -24,11 +24,15 @@
 
   let descriptor = $derived(value ? INTERVIEW_RECOMMENDATIONS[value] : null);
 
+  // Each token maps onto its namesake brand color so the chip's identity
+  // stays consistent if one of the recommendation values is renamed —
+  // `epi-tomorrow` always renders as `--epi-pink`, never as raw fuchsia.
   const TONE_CLASSES: Record<RecommendationToneToken, string> = {
-    'epi-tech': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'epi-blue': 'bg-blue-50 text-epi-blue border-blue-200',
-    'epi-tomorrow': 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
-    'epi-drift': 'bg-muted text-muted-foreground border-border',
+    'epi-tech':
+      'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid',
+    'epi-blue': 'border-epi-blue/30 bg-epi-blue/10 text-epi-blue',
+    'epi-tomorrow': 'border-epi-pink/30 bg-epi-pink/10 text-epi-pink',
+    'epi-drift': 'border-border bg-muted text-muted-foreground',
   };
 </script>
 

@@ -35,7 +35,7 @@
         ? 'bg-epi-teal-solid text-white'
         : status === 'current'
           ? 'bg-epi-blue text-white'
-          : 'border border-dashed border-muted-foreground/40 text-muted-foreground',
+          : 'bg-muted text-muted-foreground',
     )}
     aria-hidden="true"
   >

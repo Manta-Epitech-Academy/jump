@@ -104,8 +104,8 @@
               class={cn(
                 'inline-block rounded-sm px-2 py-0.5 font-mono text-[10px] tracking-widest uppercase',
                 display === 'overdue'
-                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30'
-                  : 'bg-blue-50 text-epi-blue dark:bg-blue-900/20',
+                  ? 'bg-epi-orange/10 text-epi-orange'
+                  : 'bg-epi-blue/10 text-epi-blue',
               )}
             >
               {fmtSlot(iv.date)}
@@ -137,12 +137,12 @@
               class={cn(
                 'inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase',
                 display === 'done'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
                   : display === 'overdue'
-                    ? 'border-orange-200 bg-orange-50 text-orange-700'
+                    ? 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange'
                     : display === 'cancelled'
                       ? 'border-border bg-muted text-muted-foreground'
-                      : 'border-blue-200 bg-blue-50 text-epi-blue',
+                      : 'border-epi-blue/30 bg-epi-blue/10 text-epi-blue',
               )}
             >
               {display === 'done'

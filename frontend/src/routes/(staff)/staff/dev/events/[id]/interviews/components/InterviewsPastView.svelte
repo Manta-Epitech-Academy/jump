@@ -193,7 +193,7 @@
   </div>
 
   {#if noInterviewParticipations.length > 0 && scope === 'all'}
-    <Card.Root class="rounded-sm border-orange-200">
+    <Card.Root class="rounded-sm border-epi-orange/30">
       <Card.Header class="pb-3">
         <Card.Title
           class="flex items-center gap-2 font-heading text-base tracking-wide uppercase"
