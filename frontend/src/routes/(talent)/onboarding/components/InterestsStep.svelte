@@ -32,6 +32,7 @@
     return arr;
   });
 
+  // svelte-ignore state_referenced_locally
   let selected = $state(new Set<string>(selectedIds));
   const count = $derived(selected.size);
   const minSelect = 1;
@@ -63,15 +64,17 @@
     return `Tu aimes ${names.join(', ')} et ${last}`;
   });
 
-  const title =
+  const title = $derived(
     kind === 'tech'
       ? "Qu'est-ce qui t'attire en informatique ?"
-      : 'Et en dehors du code ?';
+      : 'Et en dehors du code ?',
+  );
 
-  const subtitle =
+  const subtitle = $derived(
     kind === 'tech'
       ? `Choisis 1 ou 2 domaines qui t'intéressent.`
-      : `Choisis entre 1 et 5 sujets qui te passionnent.`;
+      : `Choisis entre 1 et 5 sujets qui te passionnent.`,
+  );
 </script>
 
 <div
