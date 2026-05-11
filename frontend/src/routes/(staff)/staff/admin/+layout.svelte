@@ -16,6 +16,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import Send from '@lucide/svelte/icons/send';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -98,6 +99,21 @@
     >
       <FolderOpen class="h-4 w-4" />
       <span>[DEV] S3 Test</span>
+    </a>
+  </nav>
+
+  <div
+    class="mb-2 px-6 text-[10px] font-black tracking-widest text-slate-500 uppercase"
+  >
+    Communication<span class="text-epi-pink">_</span>
+  </div>
+  <nav class="mb-8 space-y-1">
+    <a
+      href={resolve('/staff/admin/broadcasts')}
+      class={navLinkClass(isActive('/staff/admin/broadcasts'))}
+    >
+      <Send class="h-4 w-4" />
+      <span>Envoi en masse</span>
     </a>
   </nav>
 

@@ -20,7 +20,28 @@ function setSecurityHeaders(response: Response) {
   );
 }
 
+// Cuid v2 (default Prisma) is 24+ lowercase alphanumeric chars. We keep the
+// shape check loose to remain forward-compatible with cuid2 / id changes,
+// but tight enough to reject obvious garbage before hitting the DB.
+const TRACKING_ID_RE = /^[a-z0-9]{20,40}$/i;
+
+function recordOpenIfTracked(event: Parameters<Handle>[0]['event']) {
+  const trackingId = event.url.searchParams.get('tracking_id');
+  if (!trackingId || !TRACKING_ID_RE.test(trackingId)) return;
+  // Fire-and-forget. `updateMany` silently no-ops if the id is unknown.
+  // `openedAt: null` in the filter makes the first hit win, idempotent
+  // on subsequent clicks.
+  prisma.broadcastRecipient
+    .updateMany({
+      where: { id: trackingId, openedAt: null },
+      data: { openedAt: new Date() },
+    })
+    .catch(() => {});
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
+  recordOpenIfTracked(event);
+
   // 1. Get session from BetterAuth
   const sessionData = await auth.api.getSession({
     headers: event.request.headers,

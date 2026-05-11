@@ -34,62 +34,89 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
   try {
-    const [student, participations, reminderRows] = await Promise.all([
-      db.talent.findUniqueOrThrow({
-        where: { id: params.id },
-        include: {
-          user: true,
-          lycee: true,
-          interests: { include: { interest: true } },
-          interviews: {
-            where: { campusId },
-            include: {
-              staff: { include: { user: true } },
-              participation: { include: { event: true } },
-            },
-            orderBy: { date: 'desc' },
-          },
-        },
-      }),
-      db.participation.findMany({
-        where: { talentId: params.id },
-        include: {
-          stageCompliance: true,
-          interview: true,
-          event: {
-            include: {
-              mantas: {
-                include: { staffProfile: { include: { user: true } } },
+    const [student, participations, reminderRows, broadcastsReceived] =
+      await Promise.all([
+        db.talent.findUniqueOrThrow({
+          where: { id: params.id },
+          include: {
+            user: true,
+            lycee: true,
+            interests: { include: { interest: true } },
+            interviews: {
+              where: { campusId },
+              include: {
+                staff: { include: { user: true } },
+                participation: { include: { event: true } },
               },
+              orderBy: { date: 'desc' },
             },
           },
-          activities: {
-            include: {
-              activity: {
-                include: {
-                  activityThemes: { include: { theme: true } },
-                  timeSlot: true,
+        }),
+        db.participation.findMany({
+          where: { talentId: params.id },
+          include: {
+            stageCompliance: true,
+            interview: true,
+            event: {
+              include: {
+                mantas: {
+                  include: { staffProfile: { include: { user: true } } },
                 },
               },
-              verdictAuthor: { include: { user: true } },
+            },
+            activities: {
+              include: {
+                activity: {
+                  include: {
+                    activityThemes: { include: { theme: true } },
+                    timeSlot: true,
+                  },
+                },
+                verdictAuthor: { include: { user: true } },
+              },
             },
           },
-        },
-        orderBy: { event: { date: 'desc' } },
-      }),
-      prisma.onboardingReminder.findMany({
-        where: { talentId: params.id },
-        orderBy: { sentAt: 'desc' },
-        select: {
-          id: true,
-          type: true,
-          subject: true,
-          body: true,
-          sentAt: true,
-          sentBy: true,
-        },
-      }),
-    ]);
+          orderBy: { event: { date: 'desc' } },
+        }),
+        prisma.onboardingReminder.findMany({
+          where: { talentId: params.id },
+          orderBy: { sentAt: 'desc' },
+          select: {
+            id: true,
+            type: true,
+            subject: true,
+            body: true,
+            sentAt: true,
+            sentBy: true,
+          },
+        }),
+        prisma.broadcastRecipient.findMany({
+          where: {
+            OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: {
+            id: true,
+            status: true,
+            sentAt: true,
+            openedAt: true,
+            talentId: true,
+            parentOfTalentId: true,
+            recipientEmail: true,
+            recipientPhone: true,
+            broadcast: {
+              select: {
+                id: true,
+                name: true,
+                channel: true,
+                subjectSnapshot: true,
+                createdAt: true,
+              },
+            },
+          },
+        }),
+      ]);
 
     const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
     const senders = senderIds.length
@@ -155,6 +182,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       participations,
       activeStageParticipations,
       reminders,
+      broadcastsReceived,
       stats,
       form,
       relanceForm,

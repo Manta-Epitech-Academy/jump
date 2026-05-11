@@ -1,0 +1,65 @@
+import type { Actions, PageServerLoad } from './$types';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
+import { prisma } from '$lib/server/db';
+import { messageTemplateSchema } from '$lib/validation/broadcasts';
+
+export const load: PageServerLoad = async ({ params }) => {
+  const template = await prisma.messageTemplate.findUnique({
+    where: { id: params.id },
+    select: {
+      id: true,
+      name: true,
+      channel: true,
+      subject: true,
+      body: true,
+      _count: { select: { broadcasts: true } },
+    },
+  });
+  if (!template) error(404, 'Template introuvable');
+
+  const form = await superValidate(
+    {
+      name: template.name,
+      channel: template.channel,
+      subject: template.subject ?? '',
+      body: template.body,
+    },
+    zod4(messageTemplateSchema),
+  );
+
+  return { template, form };
+};
+
+export const actions: Actions = {
+  update: async ({ request, params }) => {
+    const form = await superValidate(request, zod4(messageTemplateSchema));
+    if (!form.valid) return fail(400, { form });
+
+    await prisma.messageTemplate.update({
+      where: { id: params.id },
+      data: {
+        name: form.data.name,
+        channel: form.data.channel,
+        subject: form.data.subject || null,
+        body: form.data.body,
+      },
+    });
+
+    return { form, success: true };
+  },
+
+  delete: async ({ params }) => {
+    const used = await prisma.broadcast.count({
+      where: { templateId: params.id },
+    });
+    if (used > 0) {
+      return fail(400, {
+        deleteError: `Impossible : ${used} envoi(s) utilisent ce template.`,
+      });
+    }
+    await prisma.messageTemplate.delete({ where: { id: params.id } });
+    redirect(303, '/staff/admin/broadcasts/templates');
+  },
+};

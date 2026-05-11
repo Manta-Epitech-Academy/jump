@@ -113,6 +113,9 @@ model bauth_user {
   ticketsAuthored   Ticket[]              @relation("TicketAuthor")
   ticketMessages    TicketMessage[]
   outlookSyncs      OutlookCalendarSync[]
+  broadcastsCreated Broadcast[]           @relation("BroadcastCreator")
+  templatesCreated  MessageTemplate[]     @relation("MessageTemplateCreator")
+  broadcastsReceivedAsStaff BroadcastRecipient[] @relation("BroadcastRecipientStaff")
 }
 
 model bauth_session {
@@ -241,6 +244,8 @@ model Talent {
   quizAttempts     TalentQuizAttempt[]
   reminders      OnboardingReminder[]
   interests      TalentInterest[]
+  broadcastsReceived BroadcastRecipient[] @relation("BroadcastRecipientTalent")
+  broadcastsAsParent BroadcastRecipient[] @relation("BroadcastRecipientParent")
 
   @@index([lyceeId])
 }
@@ -274,6 +279,7 @@ model Campus {
   interviews        Interview[]
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
+  broadcasts        Broadcast[]
 }
 
 model CmsPage {
@@ -428,6 +434,7 @@ model Event {
   observableStates TalentObservableState[]
   quizAttempts     TalentQuizAttempt[]
   cmsPages         CmsPage[]
+  broadcasts       Broadcast[]
 
   @@index([campusId])
 }
@@ -1011,4 +1018,115 @@ model TicketMessage {
   author bauth_user @relation(fields: [authorId], references: [id])
 
   @@index([ticketId])
+}
+
+// ─── Broadcasts (envoi en masse mail/SMS) ───
+
+enum BroadcastChannel {
+  mail
+  sms
+}
+
+enum BroadcastStatus {
+  queued
+  sending
+  sent
+  partial_failed
+  failed
+}
+
+enum BroadcastRecipientStatus {
+  pending
+  sent
+  failed
+}
+
+enum BroadcastAudience {
+  talent
+  parent
+  dev
+  peda
+  manta
+  superdev
+}
+
+enum BroadcastSourceFilter {
+  opened
+  not_opened
+  all
+}
+
+model MessageTemplate {
+  id          String           @id @default(cuid())
+  name        String
+  channel     BroadcastChannel
+  subject     String?
+  body        String
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  createdBy  bauth_user  @relation("MessageTemplateCreator", fields: [createdById], references: [id])
+  broadcasts Broadcast[]
+
+  @@index([channel])
+}
+
+model Broadcast {
+  id                String                 @id @default(cuid())
+  name              String
+  channel           BroadcastChannel
+  templateId        String
+  campusId          String
+  audience          BroadcastAudience
+  eventId           String?
+  sourceBroadcastId String?
+  sourceFilter      BroadcastSourceFilter?
+  filters           Json?
+  subjectSnapshot   String?
+  bodySnapshot      String
+  status            BroadcastStatus        @default(queued)
+  createdById       String
+  createdAt         DateTime               @default(now())
+
+  template        MessageTemplate      @relation(fields: [templateId], references: [id])
+  campus          Campus               @relation(fields: [campusId], references: [id])
+  event           Event?               @relation(fields: [eventId], references: [id])
+  sourceBroadcast Broadcast?           @relation("BroadcastRetargeting", fields: [sourceBroadcastId], references: [id])
+  retargets       Broadcast[]          @relation("BroadcastRetargeting")
+  createdBy       bauth_user           @relation("BroadcastCreator", fields: [createdById], references: [id])
+  recipients      BroadcastRecipient[]
+
+  @@index([campusId])
+  @@index([eventId])
+  @@index([sourceBroadcastId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model BroadcastRecipient {
+  id               String                   @id @default(cuid())
+  broadcastId      String
+  talentId         String?
+  staffUserId      String?
+  parentOfTalentId String?
+  recipientEmail   String?
+  recipientPhone   String?
+  status           BroadcastRecipientStatus @default(pending)
+  errorMessage     String?
+  sentAt           DateTime?
+  openedAt         DateTime?
+  createdAt        DateTime                 @default(now())
+
+  broadcast Broadcast  @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  talent    Talent?    @relation("BroadcastRecipientTalent", fields: [talentId], references: [id], onDelete: SetNull)
+  staffUser bauth_user? @relation("BroadcastRecipientStaff", fields: [staffUserId], references: [id], onDelete: SetNull)
+  parentOf  Talent?    @relation("BroadcastRecipientParent", fields: [parentOfTalentId], references: [id], onDelete: SetNull)
+
+  @@index([broadcastId])
+  @@index([talentId])
+  @@index([parentOfTalentId])
+  @@index([staffUserId])
+  @@index([openedAt])
+  @@index([status])
 }

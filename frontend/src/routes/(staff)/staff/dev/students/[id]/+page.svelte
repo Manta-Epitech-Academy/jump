@@ -39,6 +39,7 @@
   import ContactCard from './components/ContactCard.svelte';
   import ComplianceByEventTable from './components/ComplianceByEventTable.svelte';
   import CommHistoryList from './components/CommHistoryList.svelte';
+  import BroadcastHistoryList from './components/BroadcastHistoryList.svelte';
   import InterviewHistoryList from './components/InterviewHistoryList.svelte';
   import RecommendationChip from '../../events/[id]/interviews/components/RecommendationChip.svelte';
   import RelanceComposeDialog, {
@@ -552,6 +553,11 @@
           timezone={data.timezone}
         />
       </div>
+
+      <BroadcastHistoryList
+        items={data.broadcastsReceived}
+        timezone={data.timezone}
+      />
 
       <Card.Root
         class="rounded-sm border border-destructive/30 bg-destructive/5 shadow-sm dark:shadow-none"
