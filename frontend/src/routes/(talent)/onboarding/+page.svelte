@@ -8,7 +8,6 @@
   import PhonesStep from './components/PhonesStep.svelte';
   import LyceeStep from './components/LyceeStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
-  import InterestsRecapStep from './components/InterestsRecapStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
 
   let { data, form } = $props();
@@ -19,11 +18,10 @@
     lycee: 5,
     'interests-tech': 6,
     'interests-general': 7,
-    'interests-recap': 8,
-    rules: 9,
+    rules: 8,
   };
 
-  const TOTAL_MICRO_STEPS = 9;
+  const TOTAL_MICRO_STEPS = 8;
 
   let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
   let lastServerStep = $state(data.step);
@@ -50,6 +48,17 @@
     }
   });
 
+  // Auto-skip the recap step (server still requires it, but we don't show it)
+  $effect(() => {
+    if (data.step === 'interests-recap') {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '?/confirmRecap';
+      document.body.appendChild(form);
+      form.submit();
+    }
+  });
+
   // If server returned validation errors on validateInfo, jump to PhonesStep (micro 4)
   $effect(() => {
     if (form?.errors && data.step === 'info-validation') {
@@ -71,14 +80,12 @@
     5: 'Ton lycée',
     6: 'Informatique',
     7: "Centres d'intérêt",
-    8: 'Ton profil',
-    9: 'Règlement',
+    8: 'Règlement',
   };
   const pageTitle = $derived(TITLES[microStep] ?? 'Onboarding');
 
   // Interstitial messages after specific steps
   const INTERSTITIALS: Record<number, string> = {
-    2: 'Parfait !',
     4: "L'administratif c'est fini !",
     7: 'On y est presque',
   };
@@ -191,14 +198,8 @@
               kind="general"
               maxSelect={5}
               actionName="validateGeneralInterests"
-              techSelections={data.techSelections ?? []}
             />
           {:else if microStep === 8}
-            <InterestsRecapStep
-              techSelections={data.techSelections ?? []}
-              generalSelections={data.generalSelections ?? []}
-            />
-          {:else if microStep === 9}
             <RulesStep error={form?.error} />
           {/if}
         </div>

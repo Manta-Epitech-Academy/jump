@@ -96,16 +96,6 @@
   <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
 </div>
 
-{#if techSelections && techSelections.length > 0}
-  <div
-    class="mb-4 rounded-xl bg-white/70 px-4 py-3 text-center text-sm text-epi-blue shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
-  >
-    Tu es attiré par {techSelections
-      .map((t) => `${t.emoji ?? ''} ${t.nom}`.trim())
-      .join(' et ')} — maintenant, parle-nous de toi !
-  </div>
-{/if}
-
 {#if error}
   <p
     class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"

@@ -139,8 +139,5 @@
     <p class="text-sm text-slate-500 dark:text-slate-400">
       Ton aventure commence maintenant.
     </p>
-    <div class="animate-xp-float mt-2 text-lg font-bold text-epi-teal">
-      +20 XP
-    </div>
   </div>
 {/if}
