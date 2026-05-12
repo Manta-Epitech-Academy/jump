@@ -109,17 +109,17 @@
     <input type="hidden" name="interestIds" value={id} />
   {/each}
 
-  <div class="flex flex-wrap gap-2">
+  <div class="flex flex-wrap gap-2 p-1">
     {#each shuffled as interest, index (interest.id)}
       {@const isSelected = selected.has(interest.id)}
       <button
         type="button"
         in:fly={{ y: 15, duration: 300, delay: index * 50 }}
         onclick={() => toggle(interest.id)}
-        class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all active:scale-95
+        class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
           {isSelected
           ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
-          : 'border-slate-200 bg-white text-slate-600 hover:border-epi-blue/40 hover:shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-epi-blue/40'}"
+          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
       >
         {#if interest.emoji}
           <span>{interest.emoji}</span>

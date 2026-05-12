@@ -122,7 +122,7 @@
     <input type="hidden" name="highSchoolCity" value={selectedVille} />
 
     <div class="space-y-4">
-      <div bind:this={containerEl}>
+      <div class="relative" bind:this={containerEl}>
         <div
           class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
         >
