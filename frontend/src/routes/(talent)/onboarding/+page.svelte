@@ -1,5 +1,11 @@
 <script lang="ts">
-  import InfoValidationStep from './components/InfoValidationStep.svelte';
+  import { fly, fade } from 'svelte/transition';
+  import ProgressBar from './components/ProgressBar.svelte';
+  import InterstitialMessage from './components/InterstitialMessage.svelte';
+  import NameStep from './components/NameStep.svelte';
+  import EmailStep from './components/EmailStep.svelte';
+  import ParentStep from './components/ParentStep.svelte';
+  import PhonesStep from './components/PhonesStep.svelte';
   import LyceeStep from './components/LyceeStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
   import InterestsRecapStep from './components/InterestsRecapStep.svelte';
@@ -7,23 +13,87 @@
 
   let { data, form } = $props();
 
-  const STEP_CONFIG: Record<string, { number: number; title: string }> = {
-    'info-validation': { number: 1, title: 'Mes informations' },
-    lycee: { number: 2, title: 'Mon lycée' },
-    'interests-tech': { number: 3, title: 'Informatique' },
-    'interests-general': { number: 4, title: "Centres d'intérêt" },
-    'interests-recap': { number: 5, title: 'Ton profil' },
-    rules: { number: 6, title: 'Règlement' },
+  // Server step -> first micro-step mapping
+  const SERVER_STEP_TO_MICRO: Record<string, number> = {
+    'info-validation': 1,
+    lycee: 5,
+    'interests-tech': 6,
+    'interests-general': 7,
+    'interests-recap': 8,
+    rules: 9,
   };
 
-  const TOTAL_STEPS = Object.keys(STEP_CONFIG).length;
-  const stepNumber = $derived(STEP_CONFIG[data.step].number);
-  const stepTitle = $derived(STEP_CONFIG[data.step].title);
+  const TOTAL_MICRO_STEPS = 9;
+
+  let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
+  let interstitial = $state<string | null>(null);
+  let interstitialDone: (() => void) | null = $state(null);
+
+  // Accumulated info fields for micro-steps 1-4
+  let infoFields = $state({
+    nom: data.profile?.nom ?? '',
+    prenom: data.profile?.prenom ?? '',
+    email: data.profile?.email ?? '',
+    parentNom: data.profile?.parentNom ?? '',
+    parentPrenom: data.profile?.parentPrenom ?? '',
+    parentEmail: data.profile?.parentEmail ?? '',
+    parentPhone: data.profile?.parentPhone ?? '',
+    phone: data.profile?.phone ?? '',
+  });
+
+  // If server returned validation errors on validateInfo, jump to PhonesStep (micro 4)
+  $effect(() => {
+    if (form?.errors && data.step === 'info-validation') {
+      microStep = 4;
+    }
+  });
+
+  // Progress: 10% base + ~10% per step
+  const progress = $derived(
+    Math.round((microStep / TOTAL_MICRO_STEPS) * 90 + 10),
+  );
+
+  // Page title per micro-step
+  const TITLES: Record<number, string> = {
+    1: 'Tes infos',
+    2: 'Ton email',
+    3: 'Ton parent',
+    4: 'Téléphones',
+    5: 'Ton lycée',
+    6: 'Informatique',
+    7: "Centres d'intérêt",
+    8: 'Ton profil',
+    9: 'Règlement',
+  };
+  const pageTitle = $derived(TITLES[microStep] ?? 'Onboarding');
+
+  // Interstitial messages after specific steps
+  const INTERSTITIALS: Record<number, string> = {
+    2: 'Parfait !',
+    4: "L'administratif c'est fini !",
+    7: 'On y est presque',
+  };
+
+  function advanceMicroStep(nextStep: number) {
+    const message = INTERSTITIALS[microStep];
+    if (message) {
+      interstitial = message;
+      interstitialDone = () => {
+        interstitial = null;
+        interstitialDone = null;
+        microStep = nextStep;
+      };
+    } else {
+      microStep = nextStep;
+    }
+  }
 </script>
 
 <svelte:head>
-  <title>{stepTitle} — Bienvenue</title>
+  <title>{pageTitle} — Bienvenue</title>
 </svelte:head>
+
+<ProgressBar {progress} />
 
 <div
   class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"
@@ -39,51 +109,91 @@
   ></div>
 
   <div class="z-10 w-full max-w-lg">
-    <div class="mb-6 text-center">
-      <span
-        class="inline-block rounded-full bg-epi-blue/10 px-3 py-1 text-xs font-medium text-epi-blue dark:bg-epi-blue/20"
-      >
-        &Eacute;tape {stepNumber} / {TOTAL_STEPS}
-      </span>
-    </div>
-
-    {#if data.step === 'info-validation'}
-      <InfoValidationStep
-        profile={(form?.values as typeof data.profile) ?? data.profile}
-        errors={form?.errors}
-      />
-    {:else if data.step === 'lycee'}
-      <LyceeStep
-        highSchoolName={data.highSchoolName}
-        highSchoolCity={data.highSchoolCity}
-        error={form?.error}
-      />
-    {:else if data.step === 'interests-tech'}
-      <InterestsStep
-        interests={data.interests}
-        selectedIds={data.selectedIds}
-        error={form?.error}
-        kind="tech"
-        maxSelect={2}
-        actionName="validateTechInterests"
-      />
-    {:else if data.step === 'interests-general'}
-      <InterestsStep
-        interests={data.interests}
-        selectedIds={data.selectedIds}
-        error={form?.error}
-        kind="general"
-        maxSelect={5}
-        actionName="validateGeneralInterests"
-        techSelections={data.techSelections}
-      />
-    {:else if data.step === 'interests-recap'}
-      <InterestsRecapStep
-        techSelections={data.techSelections}
-        generalSelections={data.generalSelections}
-      />
-    {:else if data.step === 'rules'}
-      <RulesStep error={form?.error} />
+    {#if interstitial && interstitialDone}
+      <InterstitialMessage message={interstitial} ondone={interstitialDone} />
+    {:else}
+      {#key microStep}
+        <div
+          in:fly={{ x: 30, duration: 300, delay: 100 }}
+          out:fly={{ x: -30, duration: 250 }}
+        >
+          {#if microStep === 1}
+            <NameStep
+              prenom={infoFields.prenom}
+              nom={infoFields.nom}
+              onvalidate={(d) => {
+                infoFields.prenom = d.prenom;
+                infoFields.nom = d.nom;
+                advanceMicroStep(2);
+              }}
+            />
+          {:else if microStep === 2}
+            <EmailStep
+              email={infoFields.email}
+              onvalidate={(d) => {
+                infoFields.email = d.email;
+                advanceMicroStep(3);
+              }}
+            />
+          {:else if microStep === 3}
+            <ParentStep
+              parentNom={infoFields.parentNom}
+              parentPrenom={infoFields.parentPrenom}
+              parentEmail={infoFields.parentEmail}
+              onvalidate={(d) => {
+                infoFields.parentNom = d.parentNom;
+                infoFields.parentPrenom = d.parentPrenom;
+                infoFields.parentEmail = d.parentEmail;
+                advanceMicroStep(4);
+              }}
+            />
+          {:else if microStep === 4}
+            <PhonesStep
+              nom={infoFields.nom}
+              prenom={infoFields.prenom}
+              email={infoFields.email}
+              parentNom={infoFields.parentNom}
+              parentPrenom={infoFields.parentPrenom}
+              parentEmail={infoFields.parentEmail}
+              parentPhone={infoFields.parentPhone}
+              phone={infoFields.phone}
+              errors={form?.errors}
+            />
+          {:else if microStep === 5}
+            <LyceeStep
+              highSchoolName={data.highSchoolName}
+              highSchoolCity={data.highSchoolCity}
+              error={form?.error}
+            />
+          {:else if microStep === 6}
+            <InterestsStep
+              interests={data.interests ?? []}
+              selectedIds={data.selectedIds ?? []}
+              error={form?.error}
+              kind="tech"
+              maxSelect={2}
+              actionName="validateTechInterests"
+            />
+          {:else if microStep === 7}
+            <InterestsStep
+              interests={data.interests ?? []}
+              selectedIds={data.selectedIds ?? []}
+              error={form?.error}
+              kind="general"
+              maxSelect={5}
+              actionName="validateGeneralInterests"
+              techSelections={data.techSelections ?? []}
+            />
+          {:else if microStep === 8}
+            <InterestsRecapStep
+              techSelections={data.techSelections ?? []}
+              generalSelections={data.generalSelections ?? []}
+            />
+          {:else if microStep === 9}
+            <RulesStep error={form?.error} />
+          {/if}
+        </div>
+      {/key}
     {/if}
 
     <p
