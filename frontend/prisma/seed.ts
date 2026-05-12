@@ -1588,6 +1588,19 @@ const STUDENTS: StudentDef[] = [
   },
   // ── Lyon (5 students) ──
   {
+    email: 'eliot.amanieu@epitech.eu',
+    prenom: 'Eliot',
+    nom: 'Amanieu',
+    phone: '+33 7 12 34 56 20',
+    parentPhone: '+33 7 98 76 54 20',
+    niveau: '2nde',
+    niveauDifficulte: 'Débutant',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: 0,
+    skipOnboarding: true,
+  },
+  {
     email: 'ines.durand@mail.com',
     prenom: 'Inès',
     nom: 'Durand',

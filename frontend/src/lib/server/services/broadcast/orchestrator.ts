@@ -131,6 +131,8 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
   let failed = 0;
 
   // Stream recipients in pages to keep memory bounded for large broadcasts.
+  // PAGE is also the upstream batch-API cap for mail (Resend = 100), so a
+  // mail page maps to one API call.
   const PAGE = 100;
   while (true) {
     const batch = await prisma.broadcastRecipient.findMany({
@@ -149,8 +151,12 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
     });
     if (batch.length === 0) break;
 
-    for (const recipient of batch) {
-      const outcome = await sendOne(recipient, broadcast);
+    const outcomes =
+      broadcast.channel === 'mail'
+        ? await sendMailBatch(batch, broadcast)
+        : await sendSmsSerial(batch, broadcast);
+
+    for (const outcome of outcomes) {
       if (outcome.ok) sent++;
       else failed++;
     }
@@ -187,61 +193,139 @@ type BroadcastForSend = {
   event: { titre: string } | null;
 };
 
-async function sendOne(
+/**
+ * Build the per-recipient mail payload: subject + body with variable
+ * substitution, branded HTML render, and tracking_id link rewrite.
+ * Returns null if the recipient is unsendable (no email address) — caller
+ * marks it failed without burning a slot in the upstream batch.
+ */
+function buildMailMessage(
   recipient: RecipientWithRelations,
   broadcast: BroadcastForSend,
-): Promise<SendOutcome> {
+): { to: string; subject: string; html: string } | null {
+  if (!recipient.recipientEmail) return null;
   const ctx = buildContext(recipient, broadcast);
-
   const subject = broadcast.subjectSnapshot
     ? substituteVariables(broadcast.subjectSnapshot, ctx)
     : '';
-  // bodySnapshot is markdown for mail, plain text for SMS.
-  // For mail: substitute vars in markdown → render to branded HTML → rewrite
-  // links with tracking_id. For SMS: substitute → rewrite URL tracking inline.
   const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
-  const body =
-    broadcast.channel === 'mail'
-      ? rewriteHtmlLinks(renderBroadcastMail(bodyWithVars), recipient.id)
-      : rewriteSmsLinks(bodyWithVars, recipient.id);
+  const html = rewriteHtmlLinks(
+    renderBroadcastMail(bodyWithVars),
+    recipient.id,
+  );
+  return { to: recipient.recipientEmail, subject, html };
+}
 
-  let outcome: SendOutcome;
-  try {
-    if (broadcast.channel === 'mail') {
-      if (!recipient.recipientEmail) {
-        outcome = { ok: false, message: 'recipient has no email' };
-      } else {
-        outcome = await getMailProvider().sendMail({
-          to: recipient.recipientEmail,
-          subject,
-          html: body,
-        });
-      }
+/**
+ * Mail path: render every recipient's payload, ship them in one batch API
+ * call (Resend caps at 100 — matches PAGE), then persist per-recipient
+ * status. Recipients with no email are marked failed without consuming a
+ * batch slot.
+ */
+async function sendMailBatch(
+  recipients: RecipientWithRelations[],
+  broadcast: BroadcastForSend,
+): Promise<SendOutcome[]> {
+  const sendable: {
+    recipient: RecipientWithRelations;
+    msg: NonNullable<ReturnType<typeof buildMailMessage>>;
+  }[] = [];
+  const outcomeById = new Map<string, SendOutcome>();
+
+  for (const recipient of recipients) {
+    const msg = buildMailMessage(recipient, broadcast);
+    if (!msg) {
+      outcomeById.set(recipient.id, {
+        ok: false,
+        message: 'recipient has no email',
+      });
     } else {
-      if (!recipient.recipientPhone) {
-        outcome = { ok: false, message: 'recipient has no phone' };
-      } else {
+      sendable.push({ recipient, msg });
+    }
+  }
+
+  if (sendable.length > 0) {
+    let providerOutcomes: SendOutcome[];
+    try {
+      providerOutcomes = await getMailProvider().sendMailBatch(
+        sendable.map((s) => s.msg),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      providerOutcomes = sendable.map(() => ({ ok: false, message }));
+    }
+    sendable.forEach(({ recipient }, i) => {
+      outcomeById.set(recipient.id, providerOutcomes[i]);
+    });
+  }
+
+  await persistOutcomes(recipients, outcomeById);
+  return recipients.map((r) => outcomeById.get(r.id)!);
+}
+
+/**
+ * SMS path: providers aren't batched (the null stub doesn't need it; a
+ * future Twilio/OVH integration would expose its own batch). Send one at a
+ * time and persist as we go.
+ */
+async function sendSmsSerial(
+  recipients: RecipientWithRelations[],
+  broadcast: BroadcastForSend,
+): Promise<SendOutcome[]> {
+  const outcomeById = new Map<string, SendOutcome>();
+  for (const recipient of recipients) {
+    let outcome: SendOutcome;
+    if (!recipient.recipientPhone) {
+      outcome = { ok: false, message: 'recipient has no phone' };
+    } else {
+      const ctx = buildContext(recipient, broadcast);
+      const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
+      const body = rewriteSmsLinks(bodyWithVars, recipient.id);
+      try {
         outcome = await getSmsProvider().sendSms({
           to: recipient.recipientPhone,
           body,
         });
+      } catch (err) {
+        outcome = {
+          ok: false,
+          message: err instanceof Error ? err.message : String(err),
+        };
       }
     }
-  } catch (err) {
-    outcome = {
-      ok: false,
-      message: err instanceof Error ? err.message : String(err),
-    };
+    outcomeById.set(recipient.id, outcome);
   }
+  await persistOutcomes(recipients, outcomeById);
+  return recipients.map((r) => outcomeById.get(r.id)!);
+}
 
-  await prisma.broadcastRecipient.update({
-    where: { id: recipient.id },
-    data: outcome.ok
-      ? { status: 'sent', sentAt: new Date(), errorMessage: null }
-      : { status: 'failed', errorMessage: outcome.message },
-  });
-
-  return outcome;
+async function persistOutcomes(
+  recipients: RecipientWithRelations[],
+  outcomeById: Map<string, SendOutcome>,
+): Promise<void> {
+  const now = new Date();
+  const succeededIds: string[] = [];
+  const failed: { id: string; message: string }[] = [];
+  for (const recipient of recipients) {
+    const outcome = outcomeById.get(recipient.id);
+    if (!outcome) continue;
+    if (outcome.ok) succeededIds.push(recipient.id);
+    else failed.push({ id: recipient.id, message: outcome.message });
+  }
+  await Promise.all([
+    succeededIds.length > 0
+      ? prisma.broadcastRecipient.updateMany({
+          where: { id: { in: succeededIds } },
+          data: { status: 'sent', sentAt: now, errorMessage: null },
+        })
+      : Promise.resolve(),
+    ...failed.map((f) =>
+      prisma.broadcastRecipient.update({
+        where: { id: f.id },
+        data: { status: 'failed', errorMessage: f.message },
+      }),
+    ),
+  ]);
 }
 
 function buildContext(
