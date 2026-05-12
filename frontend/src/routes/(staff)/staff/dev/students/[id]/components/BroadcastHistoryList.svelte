@@ -2,8 +2,19 @@
   import Megaphone from '@lucide/svelte/icons/megaphone';
   import Mail from '@lucide/svelte/icons/mail';
   import MessageSquare from '@lucide/svelte/icons/message-square';
+  import MailOpen from '@lucide/svelte/icons/mail-open';
+  import CircleHelp from '@lucide/svelte/icons/circle-help';
+  import X from '@lucide/svelte/icons/x';
+  import Clock from '@lucide/svelte/icons/clock';
   import * as Card from '$lib/components/ui/card';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { resolve } from '$app/paths';
+
+  const STATUS_LABELS: Record<Item['status'], string> = {
+    sent: 'Envoyé',
+    failed: 'Échec',
+    pending: 'En attente',
+  };
 
   type Item = {
     id: string;
@@ -84,17 +95,54 @@
               {/if}
             </div>
             <div class="flex shrink-0 flex-col items-end gap-1 text-xs">
-              <span
-                class="rounded px-2 py-0.5 {item.status === 'sent'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : item.status === 'failed'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-slate-100 text-slate-700'}"
-              >
-                {item.status}
-              </span>
-              {#if item.openedAt || true}
-                <span class="text-emerald-600">Ouvert</span>
+              {#if item.status === 'failed'}
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 font-semibold text-white shadow-sm"
+                >
+                  <X class="h-3.5 w-3.5" />
+                  {STATUS_LABELS.failed}
+                </span>
+              {:else if item.status === 'pending'}
+                <span
+                  class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-semibold text-muted-foreground"
+                >
+                  <Clock class="h-3.5 w-3.5" />
+                  {STATUS_LABELS.pending}
+                </span>
+              {/if}
+              {#if item.openedAt}
+                <span
+                  class="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 font-semibold text-white shadow-sm"
+                >
+                  <MailOpen class="h-3.5 w-3.5" />
+                  Ouvert
+                </span>
+                <span class="text-[11px] text-muted-foreground">
+                  {formatter.format(new Date(item.openedAt))}
+                </span>
+              {:else}
+                <span
+                  class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-muted-foreground"
+                >
+                  Non ouvert
+                  <Tooltip.Provider delayDuration={150}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger
+                        class="inline-flex cursor-help items-center"
+                        aria-label="Comment l'ouverture est détectée"
+                      >
+                        <CircleHelp class="h-3.5 w-3.5 opacity-70" />
+                      </Tooltip.Trigger>
+                      <Tooltip.Content class="max-w-xs">
+                        <p class="text-xs">
+                          Un message est marqué « Ouvert » uniquement si le
+                          destinataire a cliqué sur un lien qu'il contient. Un
+                          envoi sans lien restera toujours « Non ouvert ».
+                        </p>
+                      </Tooltip.Content>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
+                </span>
               {/if}
             </div>
           </li>
