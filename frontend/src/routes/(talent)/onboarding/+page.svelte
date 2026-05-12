@@ -112,7 +112,7 @@
 <ProgressBar {progress} />
 
 <div
-  class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"
+  class="relative flex min-h-screen w-full justify-center overflow-hidden bg-slate-50 px-4 pt-[20vh] transition-colors duration-500 dark:bg-slate-950"
 >
   <div
     class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
