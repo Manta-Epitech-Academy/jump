@@ -40,7 +40,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           where: { id: params.id },
           include: {
             user: true,
-            lycee: true,
             interests: { include: { interest: true } },
             interviews: {
               where: { campusId },

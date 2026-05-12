@@ -432,7 +432,7 @@ async function loadStagePast({ db, event }: LoaderCtx) {
  */
 const BREAKDOWN_TOP_N = 10;
 
-type LyceeBreakdownRow = { lyceeId: string; nom: string; count: number };
+type LyceeBreakdownRow = { highSchoolName: string; count: number };
 type InterestBreakdownRow = {
   interestId: string;
   nom: string;
@@ -463,9 +463,9 @@ async function loadLyceesBreakdown(
   eventId: string,
 ): Promise<LyceesBreakdown> {
   const grouped = await db.talent.groupBy({
-    by: ['lyceeId'],
+    by: ['highSchoolName'],
     where: {
-      lyceeId: { not: null },
+      highSchoolName: { not: null },
       participations: { some: { eventId } },
     },
     _count: { _all: true },
@@ -477,20 +477,12 @@ async function loadLyceesBreakdown(
   const top = grouped.slice(0, BREAKDOWN_TOP_N);
   const tail = grouped.slice(BREAKDOWN_TOP_N);
 
-  const lyceeIds = top
-    .map((g) => g.lyceeId)
-    .filter((id): id is string => id !== null);
-  const lycees =
-    lyceeIds.length === 0
-      ? []
-      : await db.lycee.findMany({ where: { id: { in: lyceeIds } } });
-  const byId = new Map(lycees.map((l) => [l.id, l]));
-
-  const rows = top.flatMap((g) => {
-    const lyc = g.lyceeId ? byId.get(g.lyceeId) : null;
-    if (!lyc) return [];
-    return [{ lyceeId: lyc.id, nom: lyc.nom, count: g._count._all }];
-  });
+  const rows = top
+    .filter(
+      (g): g is typeof g & { highSchoolName: string } =>
+        g.highSchoolName !== null,
+    )
+    .map((g) => ({ highSchoolName: g.highSchoolName, count: g._count._all }));
 
   const others =
     tail.length === 0

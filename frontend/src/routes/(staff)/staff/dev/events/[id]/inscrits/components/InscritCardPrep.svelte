@@ -51,10 +51,12 @@
           <NewTalentBadge />
         {/if}
       </div>
-      {#if talent?.lycee || talent?.niveau}
+      {#if talent?.highSchoolName || talent?.niveau}
         <p class="mt-0.5 truncate text-xs text-muted-foreground">
-          {#if talent?.lycee}{talent.lycee.nom}{/if}
-          {#if talent?.lycee && talent?.niveau}<span aria-hidden="true">
+          {#if talent?.highSchoolName}{talent.highSchoolName}{/if}
+          {#if talent?.highSchoolName && talent?.niveau}<span
+              aria-hidden="true"
+            >
               ·
             </span>{/if}
           {#if talent?.niveau}{humanizeNiveau(talent.niveau)}{/if}

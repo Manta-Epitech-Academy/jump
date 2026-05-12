@@ -4,6 +4,8 @@ import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { getStartOfDay, tallyTopThemesFromActivities } from '$lib/utils';
+import { hasFlag } from '$lib/server/auth/guards';
+import { checkTalentEligibility } from '$lib/server/services/minigameService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -156,6 +158,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const todayIsMultiDay = isMultiDay(todayParticipation?.event);
     const upcomingIsMultiDay = isMultiDay(upcomingParticipation?.event);
 
+    const minigame = hasFlag(locals, 'minigames')
+      ? await checkTalentEligibility(studentId)
+      : null;
+
     return {
       student: locals.talent,
       participation: todayParticipation,
@@ -168,6 +174,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       todayIsMultiDay,
       upcomingIsMultiDay,
       serverNow: Date.now(),
+      minigame,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);

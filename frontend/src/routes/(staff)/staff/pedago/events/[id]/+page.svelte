@@ -17,6 +17,7 @@
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import Eye from '@lucide/svelte/icons/eye';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import AssignMantasDialog from '$lib/components/events/AssignMantasDialog.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
@@ -512,6 +513,17 @@
             </span>
             <ArrowRight class="h-4 w-4 text-muted-foreground" />
           </a>
+          {#if data.featureFlags?.includes('minigames')}
+            <a
+              href={resolve(`/staff/pedago/events/${event.id}/minigames`)}
+              class="flex items-center justify-between rounded-sm border bg-card p-3 transition-colors hover:border-epi-blue/50"
+            >
+              <span class="flex items-center gap-2 text-sm font-bold uppercase">
+                <Gamepad2 class="h-4 w-4 text-muted-foreground" /> Mini-jeux
+              </span>
+              <ArrowRight class="h-4 w-4 text-muted-foreground" />
+            </a>
+          {/if}
         </div>
       </section>
     </aside>

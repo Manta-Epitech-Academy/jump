@@ -15,6 +15,7 @@
   import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import Send from '@lucide/svelte/icons/send';
   import { Button } from '$lib/components/ui/button';

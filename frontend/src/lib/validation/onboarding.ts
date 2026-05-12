@@ -41,6 +41,11 @@ export const infoValidationSchema = infoBaseSchema
 
 export type InfoValidationForm = z.infer<typeof infoBaseSchema>;
 
+export const lyceeSchema = z.object({
+  highSchoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
+  highSchoolCity: z.string().optional().or(z.literal('')),
+});
+
 export const techInterestsSchema = z.object({
   interestIds: z
     .array(z.string().cuid())
