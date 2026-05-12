@@ -128,12 +128,17 @@
     {#if interstitial && interstitialDone}
       <InterstitialMessage message={interstitial} ondone={interstitialDone} />
     {:else}
-      <div class="relative">
+      <div class="relative overflow-hidden">
         {#key microStep}
           <div
             class="w-full"
             in:fly|local={{ x: 30, duration: 300, delay: 280 }}
-            out:fly|local={{ x: -30, duration: 250 }}
+            out:fly|local={{
+              x: -30,
+              duration: 250,
+              css: (t, u) =>
+                `position: absolute; top: 0; left: 0; right: 0; opacity: ${t};  transform: translateX(${-30 * u}px);`,
+            }}
           >
             {#if microStep === 1}
               <NameStep
