@@ -1,7 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
   import School from '@lucide/svelte/icons/school';
   import Search from '@lucide/svelte/icons/search';
   import PenLine from '@lucide/svelte/icons/pen-line';
@@ -127,6 +126,12 @@
         <div
           class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
         >
+          <label
+            for="lycee-search"
+            class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+          >
+            Nom ou ville
+          </label>
           <div class="relative">
             {#if loading}
               <LoaderCircle
@@ -134,10 +139,11 @@
               />
             {:else}
               <Search
-                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
               />
             {/if}
-            <Input
+            <input
+              id="lycee-search"
               type="text"
               placeholder="Rechercher par nom ou ville..."
               bind:value={query}
@@ -145,8 +151,8 @@
               onfocus={() => {
                 if (suggestions.length > 0) showSuggestions = true;
               }}
-              class="pl-10"
               autocomplete="off"
+              class="w-full rounded-lg border border-transparent bg-transparent p-1 pl-9 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
             />
           </div>
         </div>
@@ -197,30 +203,56 @@
 
       {#if selectedNom && !freeTextMode}
         <div
-          class="rounded-lg border border-epi-blue/30 bg-epi-blue/5 px-4 py-3 dark:bg-epi-blue/10"
+          class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
         >
           <p class="text-sm font-medium text-epi-blue">{selectedNom}</p>
           {#if selectedVille}
-            <p class="text-xs text-epi-blue/70">{selectedVille}</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              {selectedVille}
+            </p>
           {/if}
         </div>
       {/if}
 
       {#if freeTextMode}
-        <div class="space-y-2">
-          <Input
-            type="text"
-            placeholder="Nom de ton lycée"
-            bind:value={selectedNom}
-            oninput={() => {
-              query = selectedNom;
-            }}
-          />
-          <Input
-            type="text"
-            placeholder="Ville (optionnel)"
-            bind:value={selectedVille}
-          />
+        <div class="space-y-3">
+          <div
+            class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+          >
+            <label
+              for="free-lycee-name"
+              class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+            >
+              Nom de ton lycée <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="free-lycee-name"
+              type="text"
+              placeholder="Lycée Victor Hugo"
+              bind:value={selectedNom}
+              oninput={() => {
+                query = selectedNom;
+              }}
+              class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+            />
+          </div>
+          <div
+            class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+          >
+            <label
+              for="free-lycee-city"
+              class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+            >
+              Ville (optionnel)
+            </label>
+            <input
+              id="free-lycee-city"
+              type="text"
+              placeholder="Paris"
+              bind:value={selectedVille}
+              class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+            />
+          </div>
         </div>
       {/if}
 
