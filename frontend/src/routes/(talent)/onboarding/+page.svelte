@@ -1,5 +1,17 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition';
+  import type { TransitionConfig } from 'svelte/transition';
+
+  function exitSlide(
+    _node: Element,
+    { duration = 250 }: { duration?: number } = {},
+  ): TransitionConfig {
+    return {
+      duration,
+      css: (t: number, u: number) =>
+        `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-30 * u}px);`,
+    };
+  }
   import ProgressBar from './components/ProgressBar.svelte';
   import InterstitialMessage from './components/InterstitialMessage.svelte';
   import NameStep from './components/NameStep.svelte';
@@ -133,12 +145,7 @@
           <div
             class="w-full"
             in:fly|local={{ x: 30, duration: 300, delay: 280 }}
-            out:fly|local={{
-              x: -30,
-              duration: 250,
-              css: (t, u) =>
-                `position: absolute; top: 0; left: 0; right: 0; opacity: ${t};  transform: translateX(${-30 * u}px);`,
-            }}
+            out:exitSlide|local={{ duration: 250 }}
           >
             {#if microStep === 1}
               <NameStep

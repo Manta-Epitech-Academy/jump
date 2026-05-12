@@ -94,7 +94,6 @@
           duration: 12000,
           style:
             'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
-          descriptionStyle: 'color: rgba(255,255,255,0.85);',
         });
       }, 1000);
     }
