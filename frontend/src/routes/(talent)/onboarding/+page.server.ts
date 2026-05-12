@@ -373,7 +373,7 @@ export const actions: Actions = {
         rulesSignedAt: now,
         rulesFilePath: key,
         charterAcceptedAt: now,
-        xp: { increment: 10 },
+        xp: { increment: 50 },
       },
     });
 
