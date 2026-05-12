@@ -93,27 +93,29 @@
 
 <svelte:document onclick={handleClickOutside} onkeydown={handleKeydown} />
 
-<div
-  class="rounded-xl border border-slate-200 bg-white p-6 shadow-lg md:p-8 dark:border-slate-800 dark:bg-slate-900"
->
-  <div class="mb-6 flex flex-col items-center gap-2">
+<div>
+  <div class="mb-6 text-center">
     <div
-      class="flex h-12 w-12 items-center justify-center rounded-full bg-epi-blue/10 text-epi-blue"
+      class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
     >
-      <School class="h-6 w-6" />
+      <School class="h-7 w-7" />
     </div>
-    <h1 class="text-xl font-bold text-foreground">Dans quel lycée es-tu ?</h1>
-    <p class="text-center text-sm text-muted-foreground">
-      Cherche par nom ou ville.
+    <h1
+      class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
+    >
+      Tu viens d'où ?
+    </h1>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      Cherche ton lycée par nom ou ville.
     </p>
   </div>
 
   {#if error}
-    <div
-      class="mb-4 rounded-sm border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive"
+    <p
+      class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
     >
       {error}
-    </div>
+    </p>
   {/if}
 
   <form method="POST" action="?/validateLycee" use:enhance>
@@ -122,27 +124,31 @@
 
     <div class="space-y-4">
       <div class="relative" bind:this={containerEl}>
-        <div class="relative">
-          {#if loading}
-            <LoaderCircle
-              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
+        <div
+          class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        >
+          <div class="relative">
+            {#if loading}
+              <LoaderCircle
+                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
+              />
+            {:else}
+              <Search
+                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              />
+            {/if}
+            <Input
+              type="text"
+              placeholder="Rechercher par nom ou ville..."
+              bind:value={query}
+              oninput={handleInput}
+              onfocus={() => {
+                if (suggestions.length > 0) showSuggestions = true;
+              }}
+              class="pl-10"
+              autocomplete="off"
             />
-          {:else}
-            <Search
-              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            />
-          {/if}
-          <Input
-            type="text"
-            placeholder="Rechercher par nom ou ville..."
-            bind:value={query}
-            oninput={handleInput}
-            onfocus={() => {
-              if (suggestions.length > 0) showSuggestions = true;
-            }}
-            class="pl-10"
-            autocomplete="off"
-          />
+          </div>
         </div>
 
         {#if showSuggestions}
@@ -230,10 +236,12 @@
       {/if}
     </div>
 
-    <div class="mt-6 flex justify-end">
-      <Button type="submit" disabled={!hasSelection} class="px-6"
-        >Suivant</Button
-      >
-    </div>
+    <Button
+      type="submit"
+      disabled={!hasSelection}
+      class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+    >
+      Continuer
+    </Button>
   </form>
 </div>

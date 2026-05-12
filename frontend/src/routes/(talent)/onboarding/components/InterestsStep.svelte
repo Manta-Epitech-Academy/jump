@@ -78,79 +78,78 @@
   );
 </script>
 
-<div
-  class="rounded-xl border border-slate-200 bg-white p-6 shadow-lg md:p-8 dark:border-slate-800 dark:bg-slate-900"
->
-  <div class="mb-6 flex flex-col items-center gap-2">
-    <div
-      class="flex h-12 w-12 items-center justify-center rounded-full {kind ===
-      'tech'
-        ? 'bg-epi-blue/10 text-epi-blue'
-        : 'bg-epi-teal/10 text-epi-teal'}"
-    >
-      {#if kind === 'tech'}
-        <Code class="h-6 w-6" />
-      {:else}
-        <Sparkles class="h-6 w-6" />
-      {/if}
-    </div>
-    <h1 class="text-xl font-bold text-foreground">{title}</h1>
-    <p class="text-center text-sm text-muted-foreground">
-      {subtitle}
-    </p>
+<div class="mb-6 text-center">
+  <div
+    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+  >
+    {#if kind === 'tech'}
+      <Code class="h-6 w-6" />
+    {:else}
+      <Sparkles class="h-6 w-6" />
+    {/if}
+  </div>
+  <h1
+    class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
+  >
+    {title}
+  </h1>
+  <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
+</div>
+
+{#if techSelections && techSelections.length > 0}
+  <div
+    class="mb-4 rounded-xl bg-white/70 px-4 py-3 text-center text-sm text-epi-blue shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+  >
+    Tu es attiré par {techSelections
+      .map((t) => `${t.emoji ?? ''} ${t.nom}`.trim())
+      .join(' et ')} — maintenant, parle-nous de toi !
+  </div>
+{/if}
+
+{#if error}
+  <p
+    class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+  >
+    {error}
+  </p>
+{/if}
+
+<form method="POST" action="?/{actionName}" use:enhance>
+  {#each [...selected] as id}
+    <input type="hidden" name="interestIds" value={id} />
+  {/each}
+
+  <div class="flex flex-wrap gap-2">
+    {#each shuffled as interest, index (interest.id)}
+      {@const isSelected = selected.has(interest.id)}
+      <button
+        type="button"
+        in:fly={{ y: 15, duration: 300, delay: index * 50 }}
+        onclick={() => toggle(interest.id)}
+        class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
+          {isSelected
+          ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
+          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
+      >
+        {#if interest.emoji}
+          <span>{interest.emoji}</span>
+        {/if}
+        <span>{interest.nom}</span>
+      </button>
+    {/each}
   </div>
 
-  {#if techSelections && techSelections.length > 0}
-    <div
-      class="mb-4 rounded-lg bg-epi-blue/5 px-4 py-3 text-center text-sm text-epi-blue dark:bg-epi-blue/10"
-    >
-      Tu es attiré par {techSelections
-        .map((t) => `${t.emoji ?? ''} ${t.nom}`.trim())
-        .join(' et ')} — maintenant, parle-nous de toi !
-    </div>
+  {#if recapPhrase}
+    <p class="mt-4 text-center text-sm font-medium text-foreground/80 italic">
+      {recapPhrase}
+    </p>
   {/if}
 
-  {#if error}
-    <div
-      class="mb-4 rounded-sm border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive"
-    >
-      {error}
-    </div>
-  {/if}
-
-  <form method="POST" action="?/{actionName}" use:enhance>
-    {#each [...selected] as id}
-      <input type="hidden" name="interestIds" value={id} />
-    {/each}
-
-    <div class="flex flex-wrap gap-2">
-      {#each shuffled as interest, index (interest.id)}
-        {@const isSelected = selected.has(interest.id)}
-        <button
-          type="button"
-          in:fly={{ y: 15, duration: 300, delay: index * 50 }}
-          onclick={() => toggle(interest.id)}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
-            {isSelected
-            ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
-            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
-        >
-          {#if interest.emoji}
-            <span>{interest.emoji}</span>
-          {/if}
-          <span>{interest.nom}</span>
-        </button>
-      {/each}
-    </div>
-
-    {#if recapPhrase}
-      <p class="mt-4 text-center text-sm font-medium text-foreground/80 italic">
-        {recapPhrase}
-      </p>
-    {/if}
-
-    <div class="mt-6 flex justify-end">
-      <Button type="submit" disabled={!canSubmit} class="px-6">Suivant</Button>
-    </div>
-  </form>
-</div>
+  <Button
+    type="submit"
+    disabled={!canSubmit}
+    class="mt-6 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+  >
+    Continuer
+  </Button>
+</form>
