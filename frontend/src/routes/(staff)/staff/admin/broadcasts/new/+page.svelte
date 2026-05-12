@@ -1,8 +1,9 @@
 <script lang="ts">
   import { superForm } from 'sveltekit-superforms';
-  import { Button } from '$lib/components/ui/button';
+  import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import {
     BROADCAST_AUDIENCES,
     BROADCAST_AUDIENCE_LABELS,
@@ -48,6 +49,7 @@
 
   let showFilters = $state(false);
   let showRetarget = $state(false);
+  let confirmEnqueueOpen = $state(false);
 
   const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
@@ -67,7 +69,12 @@
   const tristateValues = ['any', 'yes', 'no'] as const;
 </script>
 
-<form method="POST" use:enhance class="grid gap-6 lg:grid-cols-[1fr_320px]">
+<form
+  id="broadcast-form"
+  method="POST"
+  use:enhance
+  class="grid gap-6 lg:grid-cols-[1fr_320px]"
+>
   <div class="space-y-5">
     <div class="grid gap-2">
       <Label for="name">Nom de l'envoi</Label>
@@ -349,8 +356,12 @@
       >
         S'envoyer un test
       </Button>
-      <Button type="submit" formaction="?/enqueue" disabled={$submitting}>
-        Valider l'envoi
+      <Button
+        type="button"
+        onclick={() => (confirmEnqueueOpen = true)}
+        disabled={$submitting}
+      >
+        Démarrer les envois
       </Button>
     </div>
   </div>
@@ -401,3 +412,41 @@
     </div>
   </aside>
 </form>
+
+<AlertDialog.Root bind:open={confirmEnqueueOpen}>
+  <AlertDialog.Content class="rounded-sm">
+    <AlertDialog.Header>
+      <AlertDialog.Title
+        class="text-lg font-bold tracking-tight text-destructive uppercase"
+      >
+        Démarrer les envois ?
+      </AlertDialog.Title>
+      <AlertDialog.Description class="text-sm font-medium">
+        {#if actionForm && 'preview' in actionForm && actionForm.preview}
+          {actionForm.preview.total} message(s) vont être envoyés immédiatement aux
+          destinataires sélectionnés. Cette action est
+          <strong>irréversible</strong>.
+        {:else}
+          Les messages vont être envoyés immédiatement aux destinataires
+          sélectionnés. Cette action est <strong>irréversible</strong>. Lance
+          d'abord un « Aperçu destinataires » si tu veux voir le nombre exact.
+        {/if}
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel class="rounded-sm">Annuler</AlertDialog.Cancel>
+      <AlertDialog.Action
+        type="submit"
+        form="broadcast-form"
+        formaction="?/enqueue"
+        disabled={$submitting}
+        class={buttonVariants({
+          variant: 'destructive',
+          class: 'rounded-sm',
+        })}
+      >
+        Oui, démarrer les envois
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

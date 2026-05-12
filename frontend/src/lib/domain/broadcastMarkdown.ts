@@ -31,7 +31,12 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-const BUTTON_RE = /^:button\[([^\]\n]+)\]\(([^)\n]+)\)\s*(?:\n|$)/;
+// `[^)\n]*` (not `+`) so the tokenizer still claims `:button[…]()` when the
+// URL variable hasn't been substituted yet — otherwise marked falls back to
+// inline link parsing and the `:button` prefix leaks into the rendered HTML
+// as literal text (`:buttonLabel` artefact). The renderer below handles the
+// empty-href case explicitly.
+const BUTTON_RE = /^:button\[([^\]\n]+)\]\(([^)\n]*)\)\s*(?:\n|$)/;
 
 const broadcastButton = {
   name: 'broadcastButton',
@@ -52,8 +57,14 @@ const broadcastButton = {
   },
   renderer(token: Tokens.Generic): string {
     const t = token as BroadcastButtonToken;
-    const href = escapeHtml(t.href);
     const label = escapeHtml(t.label);
+    if (!t.href) {
+      // Missing URL (e.g. unresolved variable). Render a disabled-looking
+      // pill so the broadcast still reaches the recipient with a visible
+      // placeholder instead of broken `:buttonLabel` text.
+      return `<div style="text-align: center; margin: 28px 0 30px;"><span style="display: inline-block; background-color: #cbd5e1; color: #ffffff; font-size: 16px; font-weight: 600; padding: 14px 32px; border-radius: 12px;">${label}</span></div>\n`;
+    }
+    const href = escapeHtml(t.href);
     return `<div style="text-align: center; margin: 28px 0 30px;"><a href="${href}" style="display: inline-block; background-color: #013afb; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 12px;">${label}</a></div>\n`;
   },
 };
