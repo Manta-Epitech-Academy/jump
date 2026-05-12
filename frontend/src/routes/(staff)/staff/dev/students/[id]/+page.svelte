@@ -579,6 +579,7 @@
         <BroadcastHistoryList
           items={data.broadcastsReceived}
           timezone={data.timezone}
+          talentId={data.student.id}
         />
         {#if data.broadcastsTotal > data.broadcastsPreviewLimit}
           <div class="flex justify-end">
@@ -634,6 +635,7 @@
       <BroadcastHistoryList
         items={data.broadcastsReceived}
         timezone={data.timezone}
+        talentId={data.student.id}
       />
       {#if data.broadcastsTotal > data.broadcastsPageSize}
         <div

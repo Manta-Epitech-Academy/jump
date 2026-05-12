@@ -34,7 +34,10 @@
     };
   };
 
-  let { items }: { items: Item[]; timezone: string } = $props();
+  let {
+    items,
+    talentId,
+  }: { items: Item[]; timezone: string; talentId: string } = $props();
 
   const formatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
@@ -83,7 +86,7 @@
                 >
               </div>
               <a
-                href={resolve(`/staff/admin/broadcasts/${item.broadcast.id}`)}
+                href={`${resolve(`/staff/dev/broadcasts/${item.broadcast.id}`)}?from=${talentId}`}
                 class="block truncate font-medium hover:underline"
               >
                 {item.broadcast.name}
