@@ -128,82 +128,85 @@
     {#if interstitial && interstitialDone}
       <InterstitialMessage message={interstitial} ondone={interstitialDone} />
     {:else}
-      {#key microStep}
-        <div
-          in:fly={{ x: 30, duration: 300, delay: 100 }}
-          out:fly={{ x: -30, duration: 250 }}
-        >
-          {#if microStep === 1}
-            <NameStep
-              prenom={infoFields.prenom}
-              nom={infoFields.nom}
-              onvalidate={(d) => {
-                infoFields.prenom = d.prenom;
-                infoFields.nom = d.nom;
-                advanceMicroStep(2);
-              }}
-            />
-          {:else if microStep === 2}
-            <EmailStep
-              email={infoFields.email}
-              onvalidate={(d) => {
-                infoFields.email = d.email;
-                advanceMicroStep(3);
-              }}
-            />
-          {:else if microStep === 3}
-            <ParentStep
-              parentNom={infoFields.parentNom}
-              parentPrenom={infoFields.parentPrenom}
-              parentEmail={infoFields.parentEmail}
-              onvalidate={(d) => {
-                infoFields.parentNom = d.parentNom;
-                infoFields.parentPrenom = d.parentPrenom;
-                infoFields.parentEmail = d.parentEmail;
-                advanceMicroStep(4);
-              }}
-            />
-          {:else if microStep === 4}
-            <PhonesStep
-              nom={infoFields.nom}
-              prenom={infoFields.prenom}
-              email={infoFields.email}
-              parentNom={infoFields.parentNom}
-              parentPrenom={infoFields.parentPrenom}
-              parentEmail={infoFields.parentEmail}
-              parentPhone={infoFields.parentPhone}
-              phone={infoFields.phone}
-              errors={form?.errors}
-            />
-          {:else if microStep === 5}
-            <LyceeStep
-              highSchoolName={data.highSchoolName}
-              highSchoolCity={data.highSchoolCity}
-              error={form?.error}
-            />
-          {:else if microStep === 6}
-            <InterestsStep
-              interests={data.interests ?? []}
-              selectedIds={data.selectedIds ?? []}
-              error={form?.error}
-              kind="tech"
-              maxSelect={2}
-              actionName="validateTechInterests"
-            />
-          {:else if microStep === 7}
-            <InterestsStep
-              interests={data.interests ?? []}
-              selectedIds={data.selectedIds ?? []}
-              error={form?.error}
-              kind="general"
-              maxSelect={5}
-              actionName="validateGeneralInterests"
-            />
-          {:else if microStep === 8}
-            <RulesStep error={form?.error} />
-          {/if}
-        </div>
-      {/key}
+      <div class="relative">
+        {#key microStep}
+          <div
+            class="w-full"
+            in:fly|local={{ x: 30, duration: 300, delay: 280 }}
+            out:fly|local={{ x: -30, duration: 250 }}
+          >
+            {#if microStep === 1}
+              <NameStep
+                prenom={infoFields.prenom}
+                nom={infoFields.nom}
+                onvalidate={(d) => {
+                  infoFields.prenom = d.prenom;
+                  infoFields.nom = d.nom;
+                  advanceMicroStep(2);
+                }}
+              />
+            {:else if microStep === 2}
+              <EmailStep
+                email={infoFields.email}
+                onvalidate={(d) => {
+                  infoFields.email = d.email;
+                  advanceMicroStep(3);
+                }}
+              />
+            {:else if microStep === 3}
+              <ParentStep
+                parentNom={infoFields.parentNom}
+                parentPrenom={infoFields.parentPrenom}
+                parentEmail={infoFields.parentEmail}
+                onvalidate={(d) => {
+                  infoFields.parentNom = d.parentNom;
+                  infoFields.parentPrenom = d.parentPrenom;
+                  infoFields.parentEmail = d.parentEmail;
+                  advanceMicroStep(4);
+                }}
+              />
+            {:else if microStep === 4}
+              <PhonesStep
+                nom={infoFields.nom}
+                prenom={infoFields.prenom}
+                email={infoFields.email}
+                parentNom={infoFields.parentNom}
+                parentPrenom={infoFields.parentPrenom}
+                parentEmail={infoFields.parentEmail}
+                parentPhone={infoFields.parentPhone}
+                phone={infoFields.phone}
+                errors={form?.errors}
+              />
+            {:else if microStep === 5}
+              <LyceeStep
+                highSchoolName={data.highSchoolName}
+                highSchoolCity={data.highSchoolCity}
+                error={form?.error}
+              />
+            {:else if microStep === 6}
+              <InterestsStep
+                interests={data.interests ?? []}
+                selectedIds={data.selectedIds ?? []}
+                error={form?.error}
+                kind="tech"
+                maxSelect={2}
+                actionName="validateTechInterests"
+              />
+            {:else if microStep === 7}
+              <InterestsStep
+                interests={data.interests ?? []}
+                selectedIds={data.selectedIds ?? []}
+                error={form?.error}
+                kind="general"
+                maxSelect={5}
+                actionName="validateGeneralInterests"
+              />
+            {:else if microStep === 8}
+              <RulesStep error={form?.error} />
+            {/if}
+          </div>
+        {/key}
+      </div>
     {/if}
 
     <p
