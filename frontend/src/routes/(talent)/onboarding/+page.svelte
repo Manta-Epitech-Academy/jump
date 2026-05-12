@@ -26,6 +26,7 @@
   const TOTAL_MICRO_STEPS = 9;
 
   let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
+  let lastServerStep = $state(data.step);
   let interstitial = $state<string | null>(null);
   let interstitialDone: (() => void) | null = $state(null);
 
@@ -39,6 +40,14 @@
     parentEmail: data.profile?.parentEmail ?? '',
     parentPhone: data.profile?.parentPhone ?? '',
     phone: data.profile?.phone ?? '',
+  });
+
+  // Sync microStep when the server step changes (after form POST + redirect)
+  $effect(() => {
+    if (data.step !== lastServerStep) {
+      lastServerStep = data.step;
+      microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
+    }
   });
 
   // If server returned validation errors on validateInfo, jump to PhonesStep (micro 4)
