@@ -1,6 +1,16 @@
 export type SendOutcome =
   | { ok: true; providerMessageId?: string }
-  | { ok: false; message: string };
+  | {
+      ok: false;
+      message: string;
+      /**
+       * Whether the failure looks transient (network error, 429, 5xx).
+       * Orchestrator uses this to decide between "retry later" and
+       * "give up permanently". Default `false` — caller must opt-in by
+       * proving the failure is recoverable.
+       */
+      retryable: boolean;
+    };
 
 export interface MailMessage {
   to: string;

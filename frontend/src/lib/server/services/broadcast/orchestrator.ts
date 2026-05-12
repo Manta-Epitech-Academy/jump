@@ -132,16 +132,20 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
     data: { status: 'sending' },
   });
 
-  let sent = 0;
-  let failed = 0;
-
   // Stream recipients in pages to keep memory bounded for large broadcasts.
   // PAGE is also the upstream batch-API cap for mail (Resend = 100), so a
   // mail page maps to one API call.
   const PAGE = 100;
   while (true) {
+    const retryCutoff = new Date(Date.now() - RETRY_COOLDOWN_MS);
     const batch = await prisma.broadcastRecipient.findMany({
-      where: { broadcastId, status: 'pending' },
+      where: {
+        broadcastId,
+        status: 'pending',
+        // Eligibility: never tried OR cooled down past the backoff window.
+        // Rows in cooldown are left for the worker's next tick to retry.
+        OR: [{ lastTriedAt: null }, { lastTriedAt: { lt: retryCutoff } }],
+      },
       take: PAGE,
       include: {
         talent: { select: { id: true, email: true, prenom: true, nom: true } },
@@ -156,19 +160,43 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
     });
     if (batch.length === 0) break;
 
-    const outcomes =
-      broadcast.channel === 'mail'
-        ? await sendMailBatch(batch, broadcast)
-        : await sendSmsSerial(batch, broadcast);
-
-    for (const outcome of outcomes) {
-      if (outcome.ok) sent++;
-      else failed++;
+    if (broadcast.channel === 'mail') {
+      await sendMailBatch(batch, broadcast);
+    } else {
+      await sendSmsSerial(batch, broadcast);
     }
+
+    // Checkpoint: bump `updatedAt` so the stuck-broadcast recovery in
+    // `processNextQueuedBroadcast` knows this loop is still alive. If the
+    // process dies between two pages, the worker will pick up the broadcast
+    // on the next tick and resume from the remaining `pending` recipients.
+    await prisma.broadcast.update({
+      where: { id: broadcastId },
+      data: { updatedAt: new Date() },
+    });
   }
 
+  // Final tally from DB so it covers rows persisted across earlier runs
+  // (resumed broadcasts). If any rows are still `pending`, the broadcast
+  // has retry candidates in cooldown — leave at `sending`, the worker will
+  // pick it back up after the stuck timeout (or after the cooldown elapses,
+  // whichever fires first, given the heartbeat goes stale once we return).
+  const counts = await prisma.broadcastRecipient.groupBy({
+    by: ['status'],
+    where: { broadcastId },
+    _count: { _all: true },
+  });
+  const tally = { pending: 0, sent: 0, failed: 0 };
+  for (const c of counts) tally[c.status] = c._count._all;
+
+  if (tally.pending > 0) return; // not finalized yet — retry candidates remain
+
   const finalStatus =
-    failed === 0 ? 'sent' : sent === 0 ? 'failed' : 'partial_failed';
+    tally.failed === 0
+      ? 'sent'
+      : tally.sent === 0
+        ? 'failed'
+        : 'partial_failed';
 
   await prisma.broadcast.update({
     where: { id: broadcastId },
@@ -239,10 +267,14 @@ async function sendMailBatch(
     otp: templateUses(broadcast, 'otp_code'),
   };
   // Mint per-recipient secrets concurrently — JWT signing is in-memory,
-  // OTP minting is one DB insert per talent. Errors are swallowed inside
-  // buildPersonalization so one bad mint doesn't fail the whole batch.
-  const personalizations = await Promise.all(
-    recipients.map((r) => buildPersonalization(r, broadcast, needs)),
+  // OTP minting is one DB insert per talent. Cap concurrency to avoid
+  // saturating the Prisma connection pool when needs.otp is true. Errors
+  // are swallowed inside buildPersonalization so one bad mint doesn't fail
+  // the whole batch.
+  const personalizations = await mapWithConcurrency(
+    recipients,
+    PERSONALIZATION_CONCURRENCY,
+    (r) => buildPersonalization(r, broadcast, needs),
   );
 
   const sendable: {
@@ -257,6 +289,7 @@ async function sendMailBatch(
       outcomeById.set(recipient.id, {
         ok: false,
         message: 'recipient has no email',
+        retryable: false,
       });
     } else {
       sendable.push({ recipient, msg });
@@ -271,7 +304,13 @@ async function sendMailBatch(
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      providerOutcomes = sendable.map(() => ({ ok: false, message }));
+      // Thrown out of sendMailBatch = something went wrong before the
+      // SDK could respond (network, init). Treat as transient.
+      providerOutcomes = sendable.map(() => ({
+        ok: false,
+        message,
+        retryable: true,
+      }));
     }
     sendable.forEach(({ recipient }, i) => {
       outcomeById.set(recipient.id, providerOutcomes[i]);
@@ -299,7 +338,11 @@ async function sendSmsSerial(
   for (const recipient of recipients) {
     let outcome: SendOutcome;
     if (!recipient.recipientPhone) {
-      outcome = { ok: false, message: 'recipient has no phone' };
+      outcome = {
+        ok: false,
+        message: 'recipient has no phone',
+        retryable: false,
+      };
     } else {
       const personal = await buildPersonalization(recipient, broadcast, needs);
       const ctx = buildContext(recipient, broadcast, personal);
@@ -314,6 +357,7 @@ async function sendSmsSerial(
         outcome = {
           ok: false,
           message: err instanceof Error ? err.message : String(err),
+          retryable: true,
         };
       }
     }
@@ -329,26 +373,62 @@ async function persistOutcomes(
 ): Promise<void> {
   const now = new Date();
   const succeededIds: string[] = [];
-  const failed: { id: string; message: string }[] = [];
+  // Per-row update for retries/failures because each one carries its own
+  // message + retryCount. updateMany only works for the homogeneous "sent"
+  // bucket below.
+  const updates: Promise<unknown>[] = [];
+
   for (const recipient of recipients) {
     const outcome = outcomeById.get(recipient.id);
     if (!outcome) continue;
-    if (outcome.ok) succeededIds.push(recipient.id);
-    else failed.push({ id: recipient.id, message: outcome.message });
+    if (outcome.ok) {
+      succeededIds.push(recipient.id);
+      continue;
+    }
+    const willRetry =
+      outcome.retryable && recipient.retryCount + 1 < MAX_RETRIES;
+    if (willRetry) {
+      // Stay `pending`, bump retryCount + lastTriedAt. The page query
+      // gates on `lastTriedAt < now - RETRY_COOLDOWN_MS` so this row sits
+      // out for the cooldown window before being picked up again.
+      updates.push(
+        prisma.broadcastRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            retryCount: { increment: 1 },
+            lastTriedAt: now,
+            errorMessage: outcome.message,
+          },
+        }),
+      );
+    } else {
+      updates.push(
+        prisma.broadcastRecipient.update({
+          where: { id: recipient.id },
+          data: {
+            status: 'failed',
+            retryCount: { increment: 1 },
+            lastTriedAt: now,
+            errorMessage: outcome.message,
+          },
+        }),
+      );
+    }
   }
+
   await Promise.all([
     succeededIds.length > 0
       ? prisma.broadcastRecipient.updateMany({
           where: { id: { in: succeededIds } },
-          data: { status: 'sent', sentAt: now, errorMessage: null },
+          data: {
+            status: 'sent',
+            sentAt: now,
+            lastTriedAt: now,
+            errorMessage: null,
+          },
         })
       : Promise.resolve(),
-    ...failed.map((f) =>
-      prisma.broadcastRecipient.update({
-        where: { id: f.id },
-        data: { status: 'failed', errorMessage: f.message },
-      }),
-    ),
+    ...updates,
   ]);
 }
 
@@ -401,6 +481,34 @@ function templateUses(
 }
 
 /**
+ * Cap on concurrent personalization writes per page. OTP minting writes to
+ * `bauth_verification` once per recipient; firing all 100 in parallel
+ * saturates the Prisma connection pool (~10 by default) and stalls other
+ * requests. Limiting to 10 keeps the loop fast without ddos-ing ourselves.
+ */
+const PERSONALIZATION_CONCURRENCY = 10;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () =>
+    (async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= items.length) return;
+        results[i] = await fn(items[i], i);
+      }
+    })(),
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+/**
  * Mint per-recipient secrets up-front. Only talents get them; parents and
  * staff have null and the template-side substitution renders empty.
  * Failures are isolated (we don't tank a 200-recipient batch because one
@@ -445,12 +553,55 @@ async function buildPersonalization(
 }
 
 /**
- * Process the next broadcast that's in `queued` status. Returns null if
- * nothing is queued. Designed to be called periodically by a worker.
+ * How long a broadcast can stay in `sending` before the worker considers
+ * it stuck (process crashed / restarted mid-send) and resumes it. The
+ * orchestrator's PAGE-by-PAGE loop checkpoints `updatedAt` on every page,
+ * so anything older than this means the in-process loop is gone.
+ */
+const SENDING_STUCK_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
+ * Max number of send attempts per recipient before giving up. Includes the
+ * initial attempt — so MAX_RETRIES=3 means up to 2 retries after the first
+ * failure. Tuned conservatively to avoid burning the Resend quota on
+ * persistent (mis-classified-permanent) errors.
+ */
+const MAX_RETRIES = 3;
+
+/**
+ * Cooldown between a failed attempt and its retry. The page query skips
+ * rows whose `lastTriedAt` is more recent than `now - cooldown`. Matched
+ * roughly to `SENDING_STUCK_TIMEOUT_MS` so the worker's next tick (after
+ * stuck-pickup) finds the row eligible.
+ */
+const RETRY_COOLDOWN_MS = 5 * 60 * 1000;
+
+/**
+ * Process the next broadcast that needs work:
+ *   - `queued`: never started, run it now.
+ *   - `sending` with a stale heartbeat (`updatedAt < stuck cutoff`): the
+ *     owning process is gone, resume it.
+ *
+ * Recipients already marked `sent` or beyond `MAX_RETRIES` are skipped by
+ * the page query, so resumption is idempotent — never double-sends.
+ *
+ * Note: a `sending` broadcast with retry candidates still in cooldown but
+ * a fresh heartbeat (`updatedAt` recent because the loop just exited)
+ * waits out the stuck cutoff before being picked up. That gives the retry
+ * cooldown room to elapse. With `RETRY_COOLDOWN_MS=5min` and
+ * `SENDING_STUCK_TIMEOUT_MS=10min`, retries land on the next-next tick.
+ *
+ * Designed to be called periodically by a worker.
  */
 export async function processNextQueuedBroadcast(): Promise<string | null> {
+  const stuckBefore = new Date(Date.now() - SENDING_STUCK_TIMEOUT_MS);
   const next = await prisma.broadcast.findFirst({
-    where: { status: 'queued' },
+    where: {
+      OR: [
+        { status: 'queued' },
+        { status: 'sending', updatedAt: { lt: stuckBefore } },
+      ],
+    },
     orderBy: { createdAt: 'asc' },
     select: { id: true },
   });

@@ -67,14 +67,20 @@ function applyDevRedirect(
 export type SendEmailFailure = {
   ok: false;
   /**
-   * `api_error`: Resend rejected the request (bad address, rate limit,
-   * suppression, validation). Retrying without changing the payload won't
-   * help — fix the input or wait out the throttle.
-   * `network_error`: the SDK threw before getting a response. Transient;
-   * a retry may succeed.
+   * `api_error`: Resend rejected the request. Could be permanent (bad
+   * address, validation) or transient (rate limit, 5xx) — inspect
+   * `statusCode` to decide.
+   * `network_error`: the SDK threw before getting a response. Always
+   * transient; a retry may succeed.
    */
   reason: 'api_error' | 'network_error';
   message: string;
+  /**
+   * HTTP status from Resend when `reason === 'api_error'`. `null` /
+   * `undefined` for network errors or when the SDK didn't surface one.
+   * 429 and 5xx → retryable. 4xx (other) → permanent.
+   */
+  statusCode?: number | null;
 };
 
 export type SendEmailResult = { ok: true; id: string } | SendEmailFailure;
@@ -89,7 +95,12 @@ export async function sendEmail(
       : payload;
     const { data, error } = await getClient().emails.send(finalPayload);
     if (error) {
-      return { ok: false, reason: 'api_error', message: error.message };
+      return {
+        ok: false,
+        reason: 'api_error',
+        message: error.message,
+        statusCode: error.statusCode ?? null,
+      };
     }
     if (!data?.id) {
       // The SDK contract says one of `data` / `error` is set, never both
@@ -152,6 +163,7 @@ export async function sendEmailBatch(
         ok: false as const,
         reason: 'api_error' as const,
         message: error.message,
+        statusCode: error.statusCode ?? null,
       }));
     }
     if (!data) {

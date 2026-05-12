@@ -1,5 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import {
@@ -10,6 +12,17 @@
   import type { BroadcastStatus } from '@prisma/client';
 
   let { data } = $props();
+
+  const totalPages = $derived(
+    Math.max(1, Math.ceil(data.recipientsTotal / data.recipientsPageSize)),
+  );
+
+  function goToPage(p: number) {
+    const url = new URL(page.url);
+    if (p <= 1) url.searchParams.delete('page');
+    else url.searchParams.set('page', String(p));
+    goto(url.toString(), { keepFocus: true, noScroll: false });
+  }
 
   const formatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
@@ -117,6 +130,44 @@
       {/if}
     </div>
   </details>
+
+  <div class="flex items-center justify-between text-xs text-muted-foreground">
+    <span>
+      Destinataires {(data.recipientsPage - 1) * data.recipientsPageSize +
+        1}–{Math.min(
+        data.recipientsPage * data.recipientsPageSize,
+        data.recipientsTotal,
+      )}
+      sur {data.recipientsTotal}
+    </span>
+    {#if totalPages > 1}
+      <div class="flex gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          class="rounded-sm"
+          disabled={data.recipientsPage <= 1}
+          onclick={() => goToPage(data.recipientsPage - 1)}
+        >
+          ← Précédent
+        </Button>
+        <span class="self-center text-xs">
+          Page {data.recipientsPage} / {totalPages}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          class="rounded-sm"
+          disabled={data.recipientsPage >= totalPages}
+          onclick={() => goToPage(data.recipientsPage + 1)}
+        >
+          Suivant →
+        </Button>
+      </div>
+    {/if}
+  </div>
 
   <div class="overflow-hidden rounded-lg border">
     <table class="w-full text-sm">
