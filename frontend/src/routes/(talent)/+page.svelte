@@ -77,21 +77,23 @@
   onMount(() => {
     if (page.url.searchParams.has('welcome')) {
       // Clean URL without reloading
-      goto(page.url.pathname, { replaceState: true, noScroll: true });
+      history.replaceState({}, '', page.url.pathname);
 
       // Sequence: confetti → XP float → toast
-      triggerConfetti();
-      showXpFloat = true;
+      setTimeout(() => {
+        triggerConfetti();
+        showXpFloat = true;
+      }, 300);
       setTimeout(() => {
         showXpFloat = false;
-      }, 2000);
+      }, 2500);
       setTimeout(() => {
         toast('Bienvenue sur Jump !', {
           description:
             'Tu viens de gagner +10 XP pour avoir complété ton profil. Les XP mesurent ta progression pendant le stage — tu en gagneras en participant aux activités !',
-          duration: 8000,
+          duration: 12000,
         });
-      }, 800);
+      }, 1000);
     }
   });
 
@@ -206,7 +208,7 @@
     class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
   >
     <div
-      class="animate-xp-float text-4xl font-bold text-epi-teal drop-shadow-lg"
+      class="animate-xp-float text-4xl font-bold text-epi-orange drop-shadow-lg"
     >
       +10 XP
     </div>
