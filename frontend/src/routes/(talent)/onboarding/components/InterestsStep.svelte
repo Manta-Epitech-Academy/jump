@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fly } from 'svelte/transition';
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import Sparkles from '@lucide/svelte/icons/sparkles';
@@ -123,10 +124,11 @@
     {/each}
 
     <div class="flex flex-wrap gap-2">
-      {#each shuffled as interest (interest.id)}
+      {#each shuffled as interest, index (interest.id)}
         {@const isSelected = selected.has(interest.id)}
         <button
           type="button"
+          in:fly={{ y: 15, duration: 300, delay: index * 50 }}
           onclick={() => toggle(interest.id)}
           class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
             {isSelected
