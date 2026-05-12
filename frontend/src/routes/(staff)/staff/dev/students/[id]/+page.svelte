@@ -98,10 +98,11 @@
 
   let editOpen = $state(false);
   let deleteDialogOpen = $state(false);
-  let tab = $state<'pedago' | 'admin'>(untrack(() => data.tab));
+  type Tab = 'pedago' | 'admin' | 'communications';
+  let tab = $state<Tab>(untrack(() => data.tab as Tab));
 
   $effect(() => {
-    tab = data.tab;
+    tab = data.tab as Tab;
   });
 
   const xpProgress = $derived(Math.min((data.student.xp / 1000) * 100, 100));
@@ -130,9 +131,19 @@
   }
 
   function changeTab(next: string) {
-    if (next !== 'pedago' && next !== 'admin') return;
+    if (next !== 'pedago' && next !== 'admin' && next !== 'communications')
+      return;
     tab = next;
-    navigateWithParams({ tab: next === 'pedago' ? '' : next });
+    // Reset pagination when leaving the communications tab — `?page=N` is
+    // only meaningful there and clutters the URL otherwise.
+    navigateWithParams({ tab: next === 'pedago' ? '' : next, page: '' });
+  }
+
+  const broadcastsTotalPages = $derived(
+    Math.max(1, Math.ceil(data.broadcastsTotal / data.broadcastsPageSize)),
+  );
+  function goToBroadcastPage(p: number) {
+    navigateWithParams({ tab: 'communications', page: String(p) });
   }
 
   // Relance compose state — shared between the étudiant + parent buttons.
@@ -362,11 +373,21 @@
   </section>
 
   <Tabs.Root value={tab} onValueChange={changeTab} class="space-y-6">
-    <Tabs.List class="grid w-full max-w-md grid-cols-2 rounded-sm">
+    <Tabs.List class="grid w-full max-w-xl grid-cols-3 rounded-sm">
       <Tabs.Trigger value="pedago" class="rounded-sm">Pédagogie</Tabs.Trigger>
       <Tabs.Trigger value="admin" class="rounded-sm"
         >Administration</Tabs.Trigger
       >
+      <Tabs.Trigger value="communications" class="rounded-sm">
+        Communications
+        {#if data.broadcastsTotal > 0}
+          <span
+            class="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground"
+          >
+            {data.broadcastsTotal}
+          </span>
+        {/if}
+      </Tabs.Trigger>
     </Tabs.List>
 
     <!-- PEDAGOGIE TAB -->
@@ -554,10 +575,23 @@
         />
       </div>
 
-      <BroadcastHistoryList
-        items={data.broadcastsReceived}
-        timezone={data.timezone}
-      />
+      <div class="space-y-2">
+        <BroadcastHistoryList
+          items={data.broadcastsReceived}
+          timezone={data.timezone}
+        />
+        {#if data.broadcastsTotal > data.broadcastsPreviewLimit}
+          <div class="flex justify-end">
+            <button
+              type="button"
+              onclick={() => changeTab('communications')}
+              class="text-xs font-medium text-epi-blue hover:underline"
+            >
+              Voir tout l'historique ({data.broadcastsTotal}) →
+            </button>
+          </div>
+        {/if}
+      </div>
 
       <Card.Root
         class="rounded-sm border border-destructive/30 bg-destructive/5 shadow-sm dark:shadow-none"
@@ -593,6 +627,47 @@
           </Button>
         </Card.Content>
       </Card.Root>
+    </Tabs.Content>
+
+    <!-- COMMUNICATIONS TAB -->
+    <Tabs.Content value="communications" class="space-y-4">
+      <BroadcastHistoryList
+        items={data.broadcastsReceived}
+        timezone={data.timezone}
+      />
+      {#if data.broadcastsTotal > data.broadcastsPageSize}
+        <div
+          class="flex items-center justify-between gap-2 text-xs text-muted-foreground"
+        >
+          <span>
+            Page {data.broadcastsPage} sur {broadcastsTotalPages}
+            <span class="ml-2">·</span>
+            <span class="ml-2">{data.broadcastsTotal} au total</span>
+          </span>
+          <div class="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              class="rounded-sm"
+              disabled={data.broadcastsPage <= 1}
+              onclick={() => goToBroadcastPage(data.broadcastsPage - 1)}
+            >
+              ← Précédent
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              class="rounded-sm"
+              disabled={data.broadcastsPage >= broadcastsTotalPages}
+              onclick={() => goToBroadcastPage(data.broadcastsPage + 1)}
+            >
+              Suivant →
+            </Button>
+          </div>
+        </div>
+      {/if}
     </Tabs.Content>
   </Tabs.Root>
 
