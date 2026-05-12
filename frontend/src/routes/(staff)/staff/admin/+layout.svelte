@@ -15,6 +15,7 @@
   import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
