@@ -90,8 +90,11 @@
       setTimeout(() => {
         toast('Bienvenue sur Jump !', {
           description:
-            'Tu viens de gagner +10 XP pour avoir complété ton profil. Les XP mesurent ta progression pendant le stage — tu en gagneras en participant aux activités !',
+            'Tu gagnes +10 XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !',
           duration: 12000,
+          style:
+            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
+          descriptionStyle: 'color: rgba(255,255,255,0.85);',
         });
       }, 1000);
     }
