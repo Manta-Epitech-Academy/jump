@@ -1034,10 +1034,26 @@ model MessageTemplate {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  createdBy  bauth_user  @relation("MessageTemplateCreator", fields: [createdById], references: [id])
-  broadcasts Broadcast[]
+  createdBy           bauth_user           @relation("MessageTemplateCreator", fields: [createdById], references: [id])
+  broadcasts          Broadcast[]
+  emailActionMappings EmailActionMapping[]
 
   @@index([channel])
+}
+
+/// Maps a transactional email action (OTP login, welcome…) to a
+/// MessageTemplate. Resolved at send time by `sendActionEmail`. When no
+/// row exists for an action, the email is silently skipped (an admin
+/// warning surfaces in `/staff/admin/email-actions`). Action keys live in
+/// `$lib/domain/emailActions.ts`.
+model EmailActionMapping {
+  actionKey  String   @id
+  templateId String
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  template MessageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
 }
 
 model Broadcast {

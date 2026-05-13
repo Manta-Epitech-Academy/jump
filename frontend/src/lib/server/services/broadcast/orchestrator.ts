@@ -149,7 +149,14 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
       take: PAGE,
       include: {
         talent: { select: { id: true, email: true, prenom: true, nom: true } },
-        parentOf: { select: { parentPrenom: true, parentNom: true } },
+        parentOf: {
+          select: {
+            parentPrenom: true,
+            parentNom: true,
+            prenom: true,
+            nom: true,
+          },
+        },
         staffUser: { select: { name: true } },
         broadcast: {
           select: {
@@ -211,7 +218,14 @@ type RecipientWithRelations = Awaited<
         talent: {
           select: { id: true; email: true; prenom: true; nom: true };
         };
-        parentOf: { select: { parentPrenom: true; parentNom: true } };
+        parentOf: {
+          select: {
+            parentPrenom: true;
+            parentNom: true;
+            prenom: true;
+            nom: true;
+          };
+        };
         staffUser: { select: { name: true } };
         broadcast: { select: { campus: { select: { name: true } } } };
       };
@@ -451,6 +465,12 @@ function buildContext(
     nom = rest.join(' ');
   }
 
+  // For broadcasts with audience=parent, the parent_* variables surface
+  // the parent's own identity (already in prenom/nom) and child_* the
+  // talent they're tied to. For talent recipients, parent_* mirror the
+  // talent's parent info if present. login_link is null here — broadcasts
+  // use fastlogin_link instead (the JWT carries the session).
+  const isParentRecipient = !!recipient.parentOf;
   return {
     prenom,
     nom,
@@ -460,6 +480,17 @@ function buildContext(
     event_name: broadcast.event?.titre ?? null,
     fastlogin_link: personal.fastloginLink,
     otp_code: personal.otpCode,
+    parent_prenom: isParentRecipient
+      ? (recipient.parentOf?.parentPrenom ?? null)
+      : null,
+    parent_nom: isParentRecipient
+      ? (recipient.parentOf?.parentNom ?? null)
+      : null,
+    child_prenom: isParentRecipient
+      ? (recipient.parentOf?.prenom ?? null)
+      : null,
+    child_nom: isParentRecipient ? (recipient.parentOf?.nom ?? null) : null,
+    login_link: null,
   };
 }
 

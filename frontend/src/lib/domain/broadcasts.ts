@@ -47,7 +47,12 @@ export type BroadcastVariableKey =
   | 'campus'
   | 'event_name'
   | 'fastlogin_link'
-  | 'otp_code';
+  | 'otp_code'
+  | 'parent_prenom'
+  | 'parent_nom'
+  | 'child_prenom'
+  | 'child_nom'
+  | 'login_link';
 
 export interface BroadcastVariable {
   key: BroadcastVariableKey;
@@ -112,6 +117,41 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     token: '{{otp_code}}',
     label: 'Code OTP à usage unique (par destinataire)',
     demo: '[OTP_DEMO]',
+    contextual: true,
+  },
+  {
+    key: 'parent_prenom',
+    token: '{{parent_prenom}}',
+    label: 'Prénom du parent (emails parent)',
+    demo: 'Sophie',
+    contextual: true,
+  },
+  {
+    key: 'parent_nom',
+    token: '{{parent_nom}}',
+    label: 'Nom du parent (emails parent)',
+    demo: 'Dupont',
+    contextual: true,
+  },
+  {
+    key: 'child_prenom',
+    token: '{{child_prenom}}',
+    label: "Prénom de l'enfant (emails parent)",
+    demo: 'Léa',
+    contextual: true,
+  },
+  {
+    key: 'child_nom',
+    token: '{{child_nom}}',
+    label: "Nom de l'enfant (emails parent)",
+    demo: 'Dupont',
+    contextual: true,
+  },
+  {
+    key: 'login_link',
+    token: '{{login_link}}',
+    label: "Lien de connexion vers l'espace concerné",
+    demo: 'https://jump.epiboost.fr/parent/login',
     contextual: true,
   },
 ] as const;

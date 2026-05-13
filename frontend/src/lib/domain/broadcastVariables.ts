@@ -12,7 +12,33 @@ export interface VariableContext {
   event_name: string | null;
   fastlogin_link: string | null;
   otp_code: string | null;
+  parent_prenom: string | null;
+  parent_nom: string | null;
+  child_prenom: string | null;
+  child_nom: string | null;
+  login_link: string | null;
 }
+
+/**
+ * Empty context with every variable set to its zero value. Callers can
+ * spread their per-send vars on top — anything they don't set renders
+ * empty via `substituteVariables` instead of throwing.
+ */
+export const EMPTY_VARIABLE_CONTEXT: VariableContext = {
+  prenom: '',
+  nom: '',
+  email: null,
+  phone: null,
+  campus: '',
+  event_name: null,
+  fastlogin_link: null,
+  otp_code: null,
+  parent_prenom: null,
+  parent_nom: null,
+  child_prenom: null,
+  child_nom: null,
+  login_link: null,
+};
 
 export function buildDemoContext(eventName?: string | null): VariableContext {
   const demo = Object.fromEntries(

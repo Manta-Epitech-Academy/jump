@@ -18,6 +18,7 @@
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import Send from '@lucide/svelte/icons/send';
+  import MailCog from '@lucide/svelte/icons/mail-warning';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -115,6 +116,13 @@
     >
       <Send class="h-4 w-4" />
       <span>Envoi en masse</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/email-actions')}
+      class={navLinkClass(isActive('/staff/admin/email-actions'))}
+    >
+      <MailCog class="h-4 w-4" />
+      <span>Mails transactionnels</span>
     </a>
   </nav>
 
