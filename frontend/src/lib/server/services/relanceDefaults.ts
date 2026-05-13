@@ -2,18 +2,16 @@
  * Server-side helper: resolve the admin-bound MessageTemplate for a
  * relance action and return its `{subject, body}` for the compose dialog.
  *
- * When no template is mapped, falls back to the hardcoded
- * `defaultRelanceFor()` so staff still see *something* in the dialog —
- * but `sendRelances` will refuse to send (returns `noTemplate` skip).
- * Pair with a UI hint surfaced from the same `hasMapping` flag.
+ * When no template is mapped, returns empty strings — the dialog shows
+ * the "non configuré" banner, the send button is disabled, and staff
+ * can't accidentally compose-then-have-it-silently-dropped. We used to
+ * fall back to `defaultRelanceFor()` here but it was misleading: the
+ * dialog was pre-filled with content that would never be sent.
  */
 
 import { prisma } from '$lib/server/db';
 import type { RelanceType } from '$lib/domain/relance';
-import {
-  defaultRelanceFor,
-  type RelanceTemplate,
-} from '$lib/domain/relanceTemplates';
+import type { RelanceTemplate } from '$lib/domain/relanceTemplates';
 
 export interface RelanceDefaultsResult {
   template: RelanceTemplate;
@@ -39,7 +37,10 @@ export async function loadRelanceDefaults(
       hasMapping: true,
     };
   }
-  return { template: defaultRelanceFor(type), hasMapping: false };
+  return {
+    template: { subject: '', body: '' },
+    hasMapping: false,
+  };
 }
 
 export async function loadAllRelanceDefaults(): Promise<{

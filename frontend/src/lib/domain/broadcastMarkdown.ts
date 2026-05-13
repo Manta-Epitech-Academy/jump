@@ -31,6 +31,31 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * URLs allowed in `<a href>` after markdown rendering. `javascript:`,
+ * `data:`, `vbscript:` are blocked — even though most email clients strip
+ * scripts, the same rendered HTML powers in-app previews (compose dialog,
+ * dev broadcast detail) where a script execution context exists.
+ *
+ * Rejected URLs render as `about:blank` so the link is visibly inert
+ * instead of dangerous-but-clickable.
+ */
+function sanitizeHref(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  // Block any control characters that could break out of the href attr.
+  if (/[\x00-\x1f]/.test(trimmed)) return 'about:blank';
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.startsWith('javascript:') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('vbscript:')
+  ) {
+    return 'about:blank';
+  }
+  return trimmed;
+}
+
 // `[^)\n]*` (not `+`) so the tokenizer still claims `:button[…]()` when the
 // URL variable hasn't been substituted yet — otherwise marked falls back to
 // inline link parsing and the `:button` prefix leaks into the rendered HTML
@@ -64,7 +89,7 @@ const broadcastButton = {
       // placeholder instead of broken `:buttonLabel` text.
       return `<div style="text-align: center; margin: 28px 0 30px;"><span style="display: inline-block; background-color: #cbd5e1; color: #ffffff; font-size: 16px; font-weight: 600; padding: 14px 32px; border-radius: 12px;">${label}</span></div>\n`;
     }
-    const href = escapeHtml(t.href);
+    const href = escapeHtml(sanitizeHref(t.href));
     return `<div style="text-align: center; margin: 28px 0 30px;"><a href="${href}" style="display: inline-block; background-color: #013afb; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 12px;">${label}</a></div>\n`;
   },
 };
@@ -97,7 +122,8 @@ marked.use({
     },
     link(this: any, token: Tokens.Link) {
       const inner = this.parser.parseInline(token.tokens);
-      return `<a href="${token.href}" style="color: #013afb; text-decoration: underline;">${inner}</a>`;
+      const href = escapeHtml(sanitizeHref(token.href));
+      return `<a href="${href}" style="color: #013afb; text-decoration: underline;">${inner}</a>`;
     },
     strong(this: any, token: Tokens.Strong) {
       const inner = this.parser.parseInline(token.tokens);
