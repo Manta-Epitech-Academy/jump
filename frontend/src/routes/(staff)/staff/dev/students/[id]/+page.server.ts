@@ -22,6 +22,7 @@ import {
   sendRelances,
   formatRelanceMessage,
 } from '$lib/server/services/relanceService';
+import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
 
 const TAB_KEYS = ['pedago', 'admin', 'communications'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -186,6 +187,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const form = await superValidate(zod4(studentSchema));
     const relanceForm = await superValidate(zod4(sendRelanceSchema));
+    const relanceDefaults = await loadAllRelanceDefaults();
     const timezone = getCampusTimezone(locals);
     const bounds = getLifecycleBounds(timezone);
 
@@ -211,6 +213,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       stats,
       form,
       relanceForm,
+      relanceDefaults,
       tab,
       timezone,
     };

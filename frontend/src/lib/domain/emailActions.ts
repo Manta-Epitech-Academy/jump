@@ -45,6 +45,20 @@ export const EMAIL_ACTIONS = {
       "Envoyé au parent quand son enfant termine l'onboarding et lui ouvre l'espace parent.",
     variables: ['parent_prenom', 'child_prenom', 'login_link'],
   },
+  relance_student: {
+    key: 'relance_student',
+    label: 'Relance — étudiant',
+    description:
+      "Envoyé par le staff dev pour pousser un étudiant à finaliser son onboarding. Le template fournit le brouillon initial (sujet + corps) ; le staff peut l'éditer avant envoi.",
+    variables: ['prenom', 'nom', 'login_link'],
+  },
+  relance_parent: {
+    key: 'relance_parent',
+    label: 'Relance — parent',
+    description:
+      "Envoyé par le staff dev pour pousser un parent à signer le droit à l'image. Brouillon éditable avant envoi.",
+    variables: ['parent_prenom', 'parent_nom', 'child_prenom', 'login_link'],
+  },
 } as const satisfies Record<string, EmailAction>;
 
 export type EmailActionKey = keyof typeof EMAIL_ACTIONS;

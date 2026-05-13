@@ -1,14 +1,17 @@
 /**
- * Default relance templates. Loaded fresh into the compose dialog on each
- * open — no persistence. Edits stay local to the send.
+ * Hardcoded fallback content used to seed the compose dialog when the
+ * admin hasn't bound a MessageTemplate to the `relance_student` /
+ * `relance_parent` action yet. Once a mapping exists, the dialog loads
+ * the bound template's subject + body instead of these defaults.
  *
- * The brand frame (greeting + CTA + signature) is rendered around the body
- * automatically — do NOT prefix the body with "Salut …" / "Bonjour …",
- * the greeting is generated server-side per recipient.
+ * The body is markdown rendered through `renderBroadcastMail` at send
+ * time — same pipeline as broadcasts. Include greeting + CTA + signature
+ * directly (the legacy `buildBrandEmailHtml` shell is gone).
  *
- * Variables (rendered per recipient via applyPlaceholders):
- *   student → {{prenom}}, {{nom}}
- *   parent  → {{prenomParent}}, {{nomParent}}, {{childName}}
+ * Variables follow the unified broadcast-style naming:
+ *   student → {{prenom}}, {{nom}}, {{login_link}}
+ *   parent  → {{parent_prenom}}, {{parent_nom}}, {{child_prenom}},
+ *             {{child_nom}}, {{login_link}}
  */
 
 import type { RelanceType } from '$lib/domain/relance';
@@ -20,14 +23,28 @@ export type RelanceTemplate = {
 
 export const STUDENT_RELANCE_DEFAULT: RelanceTemplate = {
   subject: 'Finalise ton inscription sur Jump',
-  body: `Ton inscription sur Jump n'est pas encore terminée. Il ne te reste que quelques étapes pour accéder à ton espace.`,
+  body: `Salut {{prenom}} !
+
+Ton inscription sur Jump n'est pas encore terminée. Il ne te reste que quelques étapes pour accéder à ton espace.
+
+:button[Finaliser mon inscription]({{login_link}})
+
+À très vite,
+L'équipe Epitech Academy`,
 };
 
 export const PARENT_RELANCE_DEFAULT: RelanceTemplate = {
-  subject: "Rappel : signez le droit à l'image de {{childName}}",
-  body: `Nous n'avons pas encore reçu votre autorisation pour le droit à l'image de {{childName}} dans le cadre de son stage Epitech Academy.
+  subject: "Rappel : signez le droit à l'image de {{child_prenom}}",
+  body: `Bonjour {{parent_prenom}},
 
-Cette signature est nécessaire avant le début du stage et ne prend qu'une minute.`,
+Nous n'avons pas encore reçu votre autorisation pour le droit à l'image de **{{child_prenom}}** dans le cadre de son stage Epitech Academy.
+
+Cette signature est nécessaire avant le début du stage et ne prend qu'une minute.
+
+:button[Signer le droit à l'image]({{login_link}})
+
+À très vite,
+L'équipe Epitech Academy`,
 };
 
 export function defaultRelanceFor(type: RelanceType): RelanceTemplate {

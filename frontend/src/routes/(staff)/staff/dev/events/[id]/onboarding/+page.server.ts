@@ -12,6 +12,7 @@ import {
   sendRelances,
   formatRelanceMessage,
 } from '$lib/server/services/relanceService';
+import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
 import { ONBOARDING_FILTER_KEYS, type OnboardingFilterKey } from './filters';
 
 function validateFilter(raw: string | null): OnboardingFilterKey {
@@ -49,8 +50,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   });
 
   const relanceForm = await superValidate(zod4(sendRelanceSchema));
+  const relanceDefaults = await loadAllRelanceDefaults();
 
-  return { event, participations, relanceForm, filter };
+  return { event, participations, relanceForm, relanceDefaults, filter };
 };
 
 // Maps form-side doc type identifiers to their Prisma column.

@@ -48,7 +48,6 @@
   import Send from '@lucide/svelte/icons/send';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { invalidateAll } from '$app/navigation';
-  import { defaultRelanceFor } from '$lib/domain/relanceTemplates';
   import {
     classifyRelanceSkip,
     formatTalentVars,
@@ -680,7 +679,8 @@
       recipients={composeRecipients}
       formAction="?/sendRelance"
       initialForm={data.relanceForm}
-      defaultTemplate={defaultRelanceFor(composeType)}
+      defaultTemplate={data.relanceDefaults[composeType].template}
+      hasMapping={data.relanceDefaults[composeType].hasMapping}
       previewVars={composePreviewVars}
       onSent={onRelanceSent}
     />
