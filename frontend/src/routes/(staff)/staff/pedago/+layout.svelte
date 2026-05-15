@@ -17,10 +17,7 @@
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { fly, fade } from 'svelte/transition';
   import { resolve } from '$app/paths';
-  import {
-    getStaffRoleLabel,
-    getStaffRoleCampusSuffix,
-  } from '$lib/domain/staff';
+  import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import { track } from '$lib/analytics';
@@ -65,6 +62,24 @@
     return user?.username?.substring(0, 2).toUpperCase() ?? 'PD';
   }
 </script>
+
+{#snippet sidebarBrand()}
+  <a href={resolve('/staff/pedago')} class="flex flex-col gap-0.5 px-4 py-4">
+    <span class="text-lg leading-none font-bold uppercase">Jump</span>
+    <span
+      class="truncate text-xs font-bold tracking-wider text-epi-teal-solid uppercase dark:text-epi-teal"
+    >
+      {getStaffRoleLabel(data.staffProfile?.staffRole)}
+    </span>
+    {#if data.staffProfile?.campus?.name}
+      <span
+        class="truncate font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
+      >
+        Campus {data.staffProfile.campus.name}
+      </span>
+    {/if}
+  </a>
+{/snippet}
 
 {#snippet navMenu()}
   {#if data.staffProfile?.staffRole === 'manta'}
@@ -168,16 +183,77 @@
   {/if}
 {/snippet}
 
-<div class="flex h-screen w-full flex-col overflow-hidden bg-background">
-  <header
-    class="app-header z-50 flex h-15 w-full shrink-0 items-center justify-between border-b border-border bg-header px-4 text-header-foreground shadow-md md:px-6"
+{#snippet sidebarFooter()}
+  <div class="border-t border-border">
+    <div class="flex items-center justify-between gap-2 p-3">
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors outline-none hover:bg-muted"
+        >
+          <Avatar.Root
+            class="h-9 w-9 shrink-0 rounded-full border-2 border-epi-blue bg-muted"
+          >
+            <Avatar.Image
+              src={user?.image ?? undefined}
+              alt={user?.name ?? user?.username ?? ''}
+              class="object-cover"
+            />
+            <Avatar.Fallback class="bg-transparent text-xs font-bold uppercase">
+              {getInitials(data.user)}
+            </Avatar.Fallback>
+          </Avatar.Root>
+          <div class="flex min-w-0 flex-1 flex-col items-start text-left">
+            <span class="truncate text-sm leading-tight font-bold">
+              {user?.name || user?.username}
+            </span>
+          </div>
+          <ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end" side="top" class="w-48 rounded-sm">
+          <DropdownMenu.Label>Mon Profil Pédago</DropdownMenu.Label>
+          <DropdownMenu.Separator />
+          <form
+            action={resolve('/logout')}
+            method="POST"
+            onsubmit={() => track('logout', { kind: 'pedago' })}
+          >
+            <button type="submit" class="w-full cursor-pointer">
+              <DropdownMenu.Item class="cursor-pointer text-destructive"
+                ><LogOut class="mr-2 h-4 w-4" /> Déconnexion</DropdownMenu.Item
+              >
+            </button>
+          </form>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+      <ModeToggle />
+    </div>
+  </div>
+{/snippet}
+
+<div
+  class="flex h-[calc(100dvh-var(--impersonation-banner-h,0px))] w-full overflow-hidden bg-background"
+>
+  <aside
+    class="app-sidebar hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
   >
-    <div class="flex items-center gap-4 md:gap-8">
-      <div class="flex items-center gap-2 md:gap-4">
+    <div class="border-b border-border">
+      {@render sidebarBrand()}
+    </div>
+    <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
+      {@render navMenu()}
+    </div>
+    {@render sidebarFooter()}
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <header
+      class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
+    >
+      <div class="flex items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
-          class="relative h-12 w-12 text-inherit md:hidden"
+          class="relative h-10 w-10"
           onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
         >
           <Menu
@@ -193,84 +269,15 @@
           <span class="sr-only">Toggle menu</span>
         </Button>
         <a href={resolve('/staff/pedago')} class="flex items-center gap-2">
-          <span class="text-lg font-bold uppercase">Jump</span>
+          <span class="text-base font-bold uppercase">Jump</span>
           <span
-            class="text-xs font-bold tracking-wider text-epi-teal uppercase"
+            class="text-[10px] font-bold tracking-wider text-epi-teal-solid uppercase dark:text-epi-teal"
           >
-            {getStaffRoleLabel(
-              data.staffProfile?.staffRole,
-            )}{#if getStaffRoleCampusSuffix(data.staffProfile?.staffRole, data.staffProfile?.campus?.name)}<span
-                class="hidden md:inline"
-              >
-                {getStaffRoleCampusSuffix(
-                  data.staffProfile?.staffRole,
-                  data.staffProfile?.campus?.name,
-                )}</span
-              >{/if}
+            {getStaffRoleLabel(data.staffProfile?.staffRole)}
           </span>
         </a>
       </div>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <ModeToggle />
-
-      <div class="ml-2 flex items-center gap-4">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger
-            class="flex cursor-pointer items-center gap-3 transition-opacity outline-none hover:opacity-80"
-          >
-            <div class="hidden flex-col items-end md:flex">
-              <span class="text-sm leading-none font-bold"
-                >{user?.name || user?.username}</span
-              >
-            </div>
-            <div class="flex items-center gap-2">
-              <Avatar.Root
-                class="h-9 w-9 rounded-full border-2 border-epi-blue bg-header-foreground/20 md:h-11 md:w-11"
-              >
-                <Avatar.Image
-                  src={user?.image ?? undefined}
-                  alt={user?.name ?? user?.username ?? ''}
-                  class="object-cover"
-                />
-                <Avatar.Fallback
-                  class="bg-transparent text-xs font-bold text-header-foreground uppercase"
-                >
-                  {getInitials(data.user)}
-                </Avatar.Fallback>
-              </Avatar.Root>
-              <ChevronDown class="hidden h-4 w-4 opacity-50 md:block" />
-            </div>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="end" class="w-48 rounded-sm">
-            <DropdownMenu.Label>Mon Profil Pédago</DropdownMenu.Label>
-            <DropdownMenu.Separator />
-            <form
-              action={resolve('/logout')}
-              method="POST"
-              onsubmit={() => track('logout', { kind: 'pedago' })}
-            >
-              <button type="submit" class="w-full cursor-pointer">
-                <DropdownMenu.Item class="cursor-pointer text-destructive"
-                  ><LogOut class="mr-2 h-4 w-4" /> Déconnexion</DropdownMenu.Item
-                >
-              </button>
-            </form>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      </div>
-    </div>
-  </header>
-
-  <div class="relative flex flex-1 overflow-hidden">
-    <aside
-      class="app-sidebar hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
-    >
-      <div class="flex-1 overflow-y-auto p-4">
-        {@render navMenu()}
-      </div>
-    </aside>
+    </header>
 
     {#if mobileMenuOpen}
       <div
@@ -285,9 +292,13 @@
         class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-border bg-sidebar shadow-2xl md:hidden"
         transition:fly={{ x: -300, duration: 300 }}
       >
-        <div class="flex-1 overflow-y-auto p-4">
+        <div class="border-b border-border">
+          {@render sidebarBrand()}
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 pt-2 pb-4">
           {@render navMenu()}
         </div>
+        {@render sidebarFooter()}
       </aside>
     {/if}
 
