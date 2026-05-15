@@ -1,17 +1,16 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { renderMarkdown } from '$lib/markdown';
+  import DOMPurify from 'isomorphic-dompurify';
   import { fade, fly } from 'svelte/transition';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import {
-    ArrowLeft,
-    Map as MapIcon,
-    FolderOpen,
-    Trophy,
-    ExternalLink,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import MapIcon from '@lucide/svelte/icons/map';
+  import FolderOpen from '@lucide/svelte/icons/folder-open';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import { toast } from 'svelte-sonner';
   import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';
@@ -20,6 +19,9 @@
   import StepValidationBlock from './components/StepValidationBlock.svelte';
   import PortfolioDrawer from './components/PortfolioDrawer.svelte';
   import MantaSignalButton from './components/MantaSignalButton.svelte';
+  import type { ActivityStep } from '$lib/server/services/progressService';
+  import { onMount } from 'svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -49,13 +51,19 @@
     isDynamic ? progress?.status === 'completed' : false,
   );
   let parsedHtml = $derived(
-    currentStep ? renderMarkdown(currentStep.content_markdown) : '',
+    !currentStep
+      ? ''
+      : 'content_html' in currentStep && currentStep.content_html
+        ? DOMPurify.sanitize(currentStep.content_html)
+        : 'content_markdown' in currentStep && currentStep.content_markdown
+          ? renderMarkdown(currentStep.content_markdown)
+          : '',
   );
 
-  // Static activity markdown
+  // Static activity content (stored as HTML from WYSIWYG editor)
   let staticHtml = $derived(
     !isDynamic && data.activity.content
-      ? renderMarkdown(data.activity.content)
+      ? DOMPurify.sanitize(data.activity.content)
       : '',
   );
 
@@ -80,7 +88,19 @@
   });
 
   let progressId = $derived(data.progress?.id);
+
+  onMount(() => {
+    track('activity_opened', {
+      activityId: data.activity.id,
+      type: data.activity.activityType,
+      isDynamic: data.activity.isDynamic,
+    });
+  });
 </script>
+
+<svelte:head>
+  <title>{data.activity.nom}</title>
+</svelte:head>
 
 {#if !isDynamic}
   <!-- ═══ STATIC ACTIVITY PAGE ═══ -->
@@ -279,8 +299,12 @@
                   return async ({ result, update }) => {
                     isSubmittingFeedback = false;
                     if (result.type === 'success') {
+                      track('activity_feedback_submitted', {
+                        rating: feedbackRating ?? null,
+                      });
                       toast.success('Feedback envoyé !');
                     } else {
+                      track('activity_feedback_failed');
                       toast.error("Erreur lors de l'envoi du feedback");
                     }
                     await update();
@@ -393,7 +417,7 @@
               <hr class="my-10 border-slate-200 dark:border-slate-800" />
 
               <StepValidationBlock
-                {currentStep}
+                currentStep={currentStep as ActivityStep}
                 {currentIndex}
                 {unlockedIndex}
                 {steps}

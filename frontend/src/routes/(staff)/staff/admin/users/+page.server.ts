@@ -4,7 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { Prisma, type StaffRole } from '@prisma/client';
-import { staffRoles } from '$lib/domain/staff';
+import { staffRoles, bauthRoleForStaffRole } from '$lib/domain/staff';
 import { createAdminInvitationSchema } from '$lib/validation/staff';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -158,17 +158,23 @@ export const actions: Actions = {
     if (staffRole && !validRole) return fail(400, { message: 'Rôle invalide' });
 
     try {
-      await prisma.staffProfile.upsert({
-        where: { userId },
-        update: {
-          staffRole: validRole,
-          ...(validRole === 'admin' ? { campusId: null } : {}),
-        },
-        create: {
-          userId,
-          staffRole: validRole,
-        },
-      });
+      await prisma.$transaction([
+        prisma.staffProfile.upsert({
+          where: { userId },
+          update: {
+            staffRole: validRole,
+            ...(validRole === 'admin' ? { campusId: null } : {}),
+          },
+          create: {
+            userId,
+            staffRole: validRole,
+          },
+        }),
+        prisma.bauth_user.update({
+          where: { id: userId },
+          data: { role: bauthRoleForStaffRole(validRole) },
+        }),
+      ]);
       return { success: true };
     } catch (err) {
       console.error(err);

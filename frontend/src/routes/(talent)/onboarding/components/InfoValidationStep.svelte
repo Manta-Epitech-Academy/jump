@@ -1,7 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { UserCheck } from '@lucide/svelte';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import { track } from '$lib/analytics';
 
   let {
     profile,
@@ -39,7 +40,21 @@
   </p>
 </div>
 
-<form method="POST" action="?/validateInfo" use:enhance class="mt-6 space-y-3">
+<form
+  method="POST"
+  action="?/validateInfo"
+  use:enhance={() => {
+    return async ({ result, update }) => {
+      if (result.type === 'redirect' || result.type === 'success') {
+        track('onboarding_info_validated');
+      } else if (result.type === 'failure') {
+        track('onboarding_info_validation_failed');
+      }
+      await update();
+    };
+  }}
+  class="mt-6 space-y-3"
+>
   <!-- Nom -->
   <div
     class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"

@@ -10,11 +10,17 @@
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as Avatar from '$lib/components/ui/avatar';
-  import { Calendar, Tag, Archive, Users, FileCheck } from '@lucide/svelte';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import Tag from '@lucide/svelte/icons/tag';
+  import Archive from '@lucide/svelte/icons/archive';
+  import Users from '@lucide/svelte/icons/users';
+  import FileCheck from '@lucide/svelte/icons/file-check';
   import { Badge } from '$lib/components/ui/badge';
   import { formatDateFr } from '$lib/utils';
+  import { getInitials } from '$lib/avatar';
   import { resolve } from '$app/paths';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventDropdownMenu from '$lib/components/events/EventDropdownMenu.svelte';
   import EventActionManager from '$lib/components/events/EventActionManager.svelte';
 
@@ -31,7 +37,17 @@
   let actionManager: ReturnType<typeof EventActionManager>;
 </script>
 
+<svelte:head>
+  <title>Historique des événements</title>
+</svelte:head>
+
 <div class="space-y-6">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      { label: 'Historique' },
+    ]}
+  />
   <PageHeader title="Historique" subtitle="Archives des événements passés" />
 
   {#if data.events.length > 0}
@@ -61,7 +77,7 @@
             <TableRow class="hover:bg-muted/30">
               <TableCell class="font-bold">
                 <a
-                  href={resolve(`/staff/dev/events/${event.id}/manage`)}
+                  href={resolve(`/staff/dev/events/${event.id}`)}
                   class="tracking-tight text-foreground transition-colors hover:text-epi-blue"
                 >
                   {event.titre}
@@ -102,7 +118,7 @@
                         <Tooltip.Root>
                           <Tooltip.Trigger>
                             <Avatar.Root
-                              class="relative h-6 w-6 rounded-sm border-2 border-background hover:z-10"
+                              class="relative h-6 w-6 border-2 border-background hover:z-10"
                             >
                               {#if manta.avatarUrl}
                                 <Avatar.Image
@@ -113,7 +129,7 @@
                               <Avatar.Fallback
                                 class="bg-muted text-[8px] font-bold text-foreground opacity-70"
                               >
-                                {manta.name.substring(0, 2).toUpperCase()}
+                                {getInitials(manta.name)}
                               </Avatar.Fallback>
                             </Avatar.Root>
                           </Tooltip.Trigger>
@@ -147,9 +163,7 @@
                             {...props}
                             variant="outline"
                             size="icon"
-                            href={resolve(
-                              `/staff/dev/events/${event.id}/manage`,
-                            )}
+                            href={resolve(`/staff/dev/events/${event.id}`)}
                             class="h-8 w-8 rounded-sm border-epi-blue/30 bg-epi-blue/10 text-epi-blue hover:bg-epi-blue hover:text-white"
                           >
                             <FileCheck class="h-4 w-4" />

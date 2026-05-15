@@ -1,11 +1,9 @@
 <script lang="ts">
-  import {
-    Map,
-    Users,
-    GraduationCap,
-    CalendarDays,
-    RefreshCw,
-  } from '@lucide/svelte';
+  import Map from '@lucide/svelte/icons/map';
+  import Users from '@lucide/svelte/icons/users';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import RefreshCw from '@lucide/svelte/icons/refresh-cw';
   import * as Card from '$lib/components/ui/card';
   import {
     Table,
@@ -24,6 +22,8 @@
     campus_list: 'Liste des campus',
     events: 'Événements',
     talents: 'Talents',
+    ref_comp: 'Référentiel de compétences',
+    subject_import: 'Import de sujet',
   } as const;
 
   function formatSyncDateTime(date: Date | string): string {
@@ -37,6 +37,10 @@
     });
   }
 </script>
+
+<svelte:head>
+  <title>Tableau de bord</title>
+</svelte:head>
 
 <div class="space-y-6">
   <div>
@@ -95,19 +99,6 @@
         </Card.Content>
       </Card.Root>
     </a>
-
-    <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
-      <Card.Header
-        class="flex flex-row items-center justify-between space-y-0 pb-2"
-      >
-        <Card.Title class="text-sm font-bold uppercase">Staff</Card.Title>
-        <Users class="h-4 w-4 text-muted-foreground" />
-      </Card.Header>
-      <Card.Content>
-        <div class="text-2xl font-black">{data.stats.users}</div>
-        <p class="text-xs text-muted-foreground">Membres de l'équipe</p>
-      </Card.Content>
-    </Card.Root>
 
     <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
       <Card.Header

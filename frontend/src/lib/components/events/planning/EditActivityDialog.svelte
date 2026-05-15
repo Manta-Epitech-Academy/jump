@@ -1,11 +1,11 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
+  import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
-  import { LoaderCircle } from '@lucide/svelte';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { toast } from 'svelte-sonner';
   import { enhance as kitEnhance } from '$app/forms';
   import { difficultes } from '$lib/domain/xp';
@@ -61,8 +61,8 @@
     if (!v && onClose) onClose();
   }}
 >
-  <Dialog.Content class="sm:max-w-lg">
-    <Dialog.Header>
+  <Dialog.Content class="flex max-h-[85vh] flex-col sm:max-w-2xl">
+    <Dialog.Header class="shrink-0">
       <Dialog.Title class="text-xl font-bold tracking-tight uppercase">
         Modifier l'activité
       </Dialog.Title>
@@ -72,6 +72,7 @@
     </Dialog.Header>
 
     <form
+      id="edit-activity-form"
       method="POST"
       action="?/updateActivity"
       use:kitEnhance={() => {
@@ -88,7 +89,7 @@
           await update({ reset: false });
         };
       }}
-      class="grid gap-4 py-2"
+      class="grid min-h-0 flex-1 gap-4 overflow-y-auto py-2"
     >
       <input type="hidden" name="activityId" value={activity.id} />
 
@@ -146,25 +147,30 @@
 
       {#if !activity.isDynamic}
         <div class="grid gap-2">
-          <Label>Contenu (Markdown)</Label>
-          <Textarea name="content" bind:value={content} rows={4} />
+          <Label>Contenu</Label>
+          <input type="hidden" name="content" value={content} />
+          <CmsEditor
+            bind:content
+            placeholder="Rédigez le contenu de l'activité..."
+          />
         </div>
       {/if}
-
-      <Dialog.Footer class="pt-2">
-        <Button
-          type="submit"
-          disabled={submitting}
-          class="bg-epi-blue text-white"
-        >
-          {#if submitting}
-            <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-            Enregistrement...
-          {:else}
-            Enregistrer
-          {/if}
-        </Button>
-      </Dialog.Footer>
     </form>
+
+    <Dialog.Footer class="shrink-0 pt-2">
+      <Button
+        type="submit"
+        form="edit-activity-form"
+        disabled={submitting}
+        class="bg-epi-blue text-white"
+      >
+        {#if submitting}
+          <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+          Enregistrement...
+        {:else}
+          Enregistrer
+        {/if}
+      </Button>
+    </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>

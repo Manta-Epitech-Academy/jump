@@ -1,9 +1,15 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
-  import { ArrowLeft, User, Mail, Sun, Moon, SunMoon } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import User from '@lucide/svelte/icons/user';
+  import Mail from '@lucide/svelte/icons/mail';
+  import Sun from '@lucide/svelte/icons/sun';
+  import Moon from '@lucide/svelte/icons/moon';
+  import SunMoon from '@lucide/svelte/icons/sun-moon';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 </script>
@@ -116,7 +122,11 @@
         >
           Session
         </h2>
-        <form action="{resolve('/logout')}?type=parent" method="POST">
+        <form
+          action="{resolve('/logout')}?type=parent"
+          method="POST"
+          onsubmit={() => track('logout', { kind: 'parent' })}
+        >
           <Button
             type="submit"
             variant="ghost"

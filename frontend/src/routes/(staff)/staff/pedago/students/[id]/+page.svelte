@@ -1,9 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { ArrowLeft, Clock } from '@lucide/svelte';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import Clock from '@lucide/svelte/icons/clock';
   import { Badge } from '$lib/components/ui/badge';
+  import * as Card from '$lib/components/ui/card';
   import { resolve } from '$app/paths';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import PedagoTalentCard from './components/PedagoTalentCard.svelte';
   import StudentTimeline from '$lib/components/students/StudentTimeline.svelte';
 
@@ -12,16 +13,20 @@
   let xpProgress = $derived(Math.min((data.student.xp / 1000) * 100, 100));
 </script>
 
+<svelte:head>
+  <title>{data.student.prenom} {data.student.nom}</title>
+</svelte:head>
+
 <div class="space-y-6 pb-10">
-  <div class="flex items-center gap-4">
-    <!-- Back to cockpit (could use browser history but standard is dashboard) -->
-    <Button variant="ghost" size="icon" href={resolve('/staff/pedago')}>
-      <ArrowLeft class="h-4 w-4" />
-    </Button>
-    <h1 class="text-3xl font-bold text-epi-blue uppercase">
-      Suivi Pédagogique<span class="text-foreground">_</span>
-    </h1>
-  </div>
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/pedago') },
+      { label: `${data.student.nom} ${data.student.prenom}` },
+    ]}
+  />
+  <h1 class="text-3xl font-bold text-epi-blue uppercase">
+    Suivi Pédagogique<span class="text-foreground">_</span>
+  </h1>
 
   <div class="grid gap-6 md:grid-cols-12">
     <div class="space-y-6 md:col-span-4 lg:col-span-3">
@@ -32,6 +37,28 @@
         sortedThemes={data.sortedThemes}
         avatarViewTransitionName={`student-avatar-${data.student.id}`}
       />
+
+      {#if data.interests && data.interests.length > 0}
+        <Card.Root>
+          <Card.Header>
+            <Card.Title class="text-sm font-bold tracking-wide uppercase">
+              Centres d'intérêt
+            </Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <div class="flex flex-wrap gap-1.5">
+              {#each data.interests as ti (ti.interest.id)}
+                <span
+                  class="inline-flex items-center gap-1 rounded-full border bg-card px-2 py-0.5 text-xs font-medium text-foreground"
+                >
+                  {#if ti.interest.emoji}<span>{ti.interest.emoji}</span>{/if}
+                  {ti.interest.nom}
+                </span>
+              {/each}
+            </div>
+          </Card.Content>
+        </Card.Root>
+      {/if}
     </div>
 
     <div class="space-y-6 md:col-span-8 lg:col-span-9">

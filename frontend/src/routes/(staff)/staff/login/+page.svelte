@@ -6,14 +6,19 @@
     AlertDescription,
     AlertTitle,
   } from '$lib/components/ui/alert';
-  import { CircleAlert, Terminal, Lock, LoaderCircle } from '@lucide/svelte';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Terminal from '@lucide/svelte/icons/terminal';
+  import Lock from '@lucide/svelte/icons/lock';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { authClient } from '$lib/auth-client';
   import { resolve } from '$app/paths';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
   let isLoading = $state(false);
 
   async function handleMicrosoftLogin() {
+    track('staff_login_microsoft_clicked');
     isLoading = true;
     await authClient.signIn.social({
       provider: 'microsoft',
@@ -21,6 +26,10 @@
     });
   }
 </script>
+
+<svelte:head>
+  <title>Connexion staff</title>
+</svelte:head>
 
 <!-- Outer Container with Custom Background Class -->
 <div

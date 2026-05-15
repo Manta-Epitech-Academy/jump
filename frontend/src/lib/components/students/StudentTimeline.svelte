@@ -1,15 +1,12 @@
 <script lang="ts">
-  import {
-    Calendar,
-    CircleCheck,
-    CircleX,
-    Clock,
-    BookOpen,
-    ExternalLink,
-    CalendarClock,
-    MessageSquareQuote,
-    MessageCircleReply,
-  } from '@lucide/svelte';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import CircleX from '@lucide/svelte/icons/circle-x';
+  import Clock from '@lucide/svelte/icons/clock';
+  import BookOpen from '@lucide/svelte/icons/book-open';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import MessageCircleReply from '@lucide/svelte/icons/message-circle-reply';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -17,11 +14,38 @@
   import { Button } from '$lib/components/ui/button';
   import { formatDateFr, cn } from '$lib/utils';
   import { resolve } from '$app/paths';
+  import {
+    VERDICT_VALUES,
+    VERDICT_LABELS,
+    VERDICT_EMOJIS,
+    CONTEXT_TAG_LABELS,
+    CONTEXT_TAG_EMOJIS,
+    tallyVerdicts,
+  } from '$lib/domain/verdict';
+  import type {
+    ParticipationVerdict,
+    ParticipationContextTag,
+  } from '@prisma/client';
 
   let {
     participations,
     timezone,
   }: { participations: any[]; timezone: string } = $props();
+
+  const VERDICT_PILL_CLASS: Record<ParticipationVerdict, string> = {
+    comfortable:
+      'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-200',
+    progressing:
+      'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800/50 dark:bg-blue-950/30 dark:text-blue-200',
+    struggling:
+      'border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-800/50 dark:bg-orange-950/30 dark:text-orange-200',
+  };
+
+  const VERDICT_HISTOGRAM_TEXT_CLASS: Record<ParticipationVerdict, string> = {
+    comfortable: 'text-emerald-700 dark:text-emerald-300',
+    progressing: 'text-blue-700 dark:text-blue-300',
+    struggling: 'text-orange-700 dark:text-orange-300',
+  };
 </script>
 
 <div
@@ -95,48 +119,12 @@
                     class="h-5 px-1.5 text-[10px] uppercase">Absent</Badge
                   >
                 {/if}
-                {#if p.stageCompliance}
-                  {@const sc = p.stageCompliance}
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.charteSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-700',
-                    )}
-                  >
-                    Charte {sc.charteSigned ? 'OK' : '·'}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.conventionSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-amber-200 bg-amber-50 text-amber-700',
-                    )}
-                  >
-                    Conv. {sc.conventionSigned ? 'OK' : '·'}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    class={cn(
-                      'h-5 px-1.5 text-[10px] font-bold uppercase',
-                      sc.imageRightsSigned
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-red-200 bg-red-50 text-red-700',
-                    )}
-                  >
-                    Image {sc.imageRightsSigned ? 'OK' : '·'}
-                  </Badge>
-                {/if}
               </div>
               <Card.Title
                 class="text-base leading-tight font-bold uppercase transition-colors hover:text-epi-blue"
               >
                 {#if p.event?.id}<a
-                    href={resolve(`/staff/dev/events/${p.event.id}/manage`)}
+                    href={resolve(`/staff/dev/events/${p.event.id}`)}
                     >{p.event.titre}</a
                   >{:else}Événement inconnu{/if}
               </Card.Title>
@@ -152,11 +140,10 @@
                         <Avatar.Root
                           class="relative h-6 w-6 border-2 border-card hover:z-10"
                         >
-                          <!-- TODO: implement S3 file storage -->
-                          {#if staff?.avatar}<Avatar.Image
-                              src={''}
-                              alt={staff?.user?.name}
-                            />{/if}
+                          <Avatar.Image
+                            src={staff?.user?.image ?? undefined}
+                            alt={staff?.user?.name ?? ''}
+                          />
                           <Avatar.Fallback
                             class="bg-muted text-[8px] font-bold text-foreground"
                             >{(staff?.user?.name || 'ST')
@@ -178,8 +165,36 @@
         <Card.Content class="space-y-3 p-4 pt-2">
           {#if p.activities && p.activities.length > 0}
             {@const displayActivities = p.activities.filter(
-              (pa: any) => pa.activity.activityType !== 'orga',
+              (pa: any) =>
+                pa.activity.activityType !== 'orga' ||
+                pa.verdict ||
+                pa.contextTag,
             )}
+            {@const histogram = tallyVerdicts(
+              displayActivities.map((pa: any) => pa.verdict),
+            )}
+            {@const verdictTotal =
+              histogram.comfortable +
+              histogram.progressing +
+              histogram.struggling}
+            <!-- Histogram is a multi-slot summary; with 0 or 1 verdict the
+                 inline pill on the activity row already says everything. -->
+            {#if verdictTotal > 1}
+              <div
+                class="flex flex-wrap items-center gap-2 text-[11px] font-bold"
+              >
+                <span class="text-muted-foreground uppercase"
+                  >Verdict encadrants :</span
+                >
+                {#each VERDICT_VALUES as v (v)}
+                  {#if histogram[v] > 0}
+                    <span class={VERDICT_HISTOGRAM_TEXT_CLASS[v]}
+                      >{VERDICT_EMOJIS[v]} ×{histogram[v]}</span
+                    >
+                  {/if}
+                {/each}
+              </div>
+            {/if}
             {#if displayActivities.length > 0}
               <div class="flex flex-col gap-2">
                 {#each displayActivities as pa}
@@ -201,7 +216,7 @@
                               >{activity.nom}</a
                             >{:else}{activity.nom}{/if}
                         </p>
-                        {#if activity.activityThemes}
+                        {#if activity.activityThemes && activity.activityThemes.length > 0}
                           <div class="mt-1 flex flex-wrap gap-1">
                             {#each activity.activityThemes as at}
                               <span
@@ -209,6 +224,63 @@
                                 >#{at.theme.nom}</span
                               >
                             {/each}
+                          </div>
+                        {/if}
+                        {#if pa.verdict || pa.contextTag}
+                          <div class="mt-1.5 flex flex-wrap items-center gap-1">
+                            {#if pa.verdict}
+                              {@const v = pa.verdict as ParticipationVerdict}
+                              <span
+                                class={cn(
+                                  'inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-bold',
+                                  VERDICT_PILL_CLASS[v],
+                                )}
+                              >
+                                <span aria-hidden="true"
+                                  >{VERDICT_EMOJIS[v]}</span
+                                >
+                                <span>{VERDICT_LABELS[v]}</span>
+                              </span>
+                            {/if}
+                            {#if pa.contextTag}
+                              {@const t =
+                                pa.contextTag as ParticipationContextTag}
+                              <span
+                                class="inline-flex items-center gap-1 rounded-full border border-border bg-card px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground"
+                              >
+                                <span aria-hidden="true"
+                                  >{CONTEXT_TAG_EMOJIS[t]}</span
+                                >
+                                <span>{CONTEXT_TAG_LABELS[t]}</span>
+                              </span>
+                            {/if}
+                            {#if pa.verdictAuthor}
+                              <Tooltip.Provider delayDuration={300}>
+                                <Tooltip.Root>
+                                  <Tooltip.Trigger>
+                                    <Avatar.Root
+                                      class="h-4 w-4 border border-border shadow-xs"
+                                    >
+                                      {#if pa.verdictAuthor.avatar}<Avatar.Image
+                                          src={''}
+                                          alt={pa.verdictAuthor.user?.name}
+                                        />{/if}
+                                      <Avatar.Fallback
+                                        class="bg-muted text-[8px] font-bold text-muted-foreground"
+                                        >{(pa.verdictAuthor.user?.name || 'ST')
+                                          .substring(0, 2)
+                                          .toUpperCase()}</Avatar.Fallback
+                                      >
+                                    </Avatar.Root>
+                                  </Tooltip.Trigger>
+                                  <Tooltip.Content
+                                    ><p>
+                                      {pa.verdictAuthor.user?.name}
+                                    </p></Tooltip.Content
+                                  >
+                                </Tooltip.Root>
+                              </Tooltip.Provider>
+                            {/if}
                           </div>
                         {/if}
                       </div>
@@ -285,53 +357,6 @@
                 {/if}
               </div>
             </div>
-          {/if}
-
-          <!-- TEACHER NOTE (OFFICIAL YELLOW POST-IT STYLE) -->
-          {#if p.note}
-            <div
-              class="relative mt-2 rounded-sm border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900 dark:border-yellow-900/30 dark:bg-yellow-950/20 dark:text-yellow-200"
-            >
-              <MessageSquareQuote
-                class="absolute -top-2 -right-2 h-6 w-6 fill-yellow-100 text-yellow-400 dark:fill-yellow-900/40"
-              />
-              <div class="mb-1.5 flex items-center gap-2">
-                {#if p.noteAuthor}
-                  <Tooltip.Provider delayDuration={300}>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        <Avatar.Root
-                          class="h-5 w-5 border border-yellow-300 shadow-xs"
-                        >
-                          <!-- TODO: implement S3 file storage -->
-                          {#if p.noteAuthor.avatar}<Avatar.Image
-                              src={''}
-                              alt={p.noteAuthor.user?.name}
-                            />{/if}
-                          <Avatar.Fallback
-                            class="bg-yellow-200 text-[8px] font-bold text-yellow-800"
-                            >{(p.noteAuthor.user?.name || 'ST')
-                              .substring(0, 2)
-                              .toUpperCase()}</Avatar.Fallback
-                          >
-                        </Avatar.Root>
-                      </Tooltip.Trigger>
-                      <Tooltip.Content
-                        ><p>{p.noteAuthor.user?.name}</p></Tooltip.Content
-                      >
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-                {/if}
-                <span class="text-[10px] font-bold text-yellow-700/70 uppercase"
-                  >Observation encadrant :</span
-                >
-              </div>
-              <p class="leading-relaxed italic">« {p.note} »</p>
-            </div>
-          {:else if p.isPresent}
-            <p class="pt-1 pl-1 text-xs text-muted-foreground italic">
-              Aucune observation enregistrée.
-            </p>
           {/if}
         </Card.Content>
       </Card.Root>

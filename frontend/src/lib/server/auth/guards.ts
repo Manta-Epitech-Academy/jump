@@ -30,6 +30,12 @@ type StaffRoleGate = {
   readOnlyForRest?: readonly StaffRole[];
 };
 
+// Single source of truth for the dev-space carve-out that lets peda reach
+// the interviews route. Used by hooks (`applyRouteGuards` dev sub-guard),
+// the `/staff/dev/` layout gate, and `STAFF_ROLE_GATES` below.
+export const DEV_INTERVIEWS_PATH_PATTERN =
+  /^\/staff\/dev\/events\/[^/]+\/interviews(?:\/|$)/;
+
 const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
   {
     pattern: /^\/staff\/dev\/events\/import(?:\/|$)/,
@@ -40,6 +46,10 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
     group: 'devLead',
   },
   {
+    pattern: DEV_INTERVIEWS_PATH_PATTERN,
+    group: 'interviewers',
+  },
+  {
     pattern: /^\/staff\/pedago\/events\/[^/]+\/planning(?:\/|$)/,
     group: 'pedaLead',
     readOnlyForRest: ['manta'],
@@ -47,6 +57,14 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
   {
     pattern: /^\/staff\/pedago\/events\/[^/]+\/factions(?:\/|$)/,
     group: 'pedaLead',
+  },
+  {
+    pattern: /^\/staff\/dev\/contenu(?:\/|$)/,
+    group: 'devMember',
+  },
+  {
+    pattern: /^\/staff\/pedago\/contenu(?:\/|$)/,
+    group: 'pedaMember',
   },
 ];
 
@@ -75,6 +93,7 @@ export async function applyRouteGuards(
   const pathStaffDev = p('/staff/dev');
   const pathStaffPedago = p('/staff/pedago');
 
+  const pathTalentWelcome = p('/welcome');
   const pathParentLogin = p('/parent/login');
   const pathParentRoot = p('/parent');
   const pathParentSignature = p('/parent/signature');
@@ -113,6 +132,10 @@ export async function applyRouteGuards(
     if (event.locals.talent) {
       const needsOnboarding =
         !event.locals.talent.infoValidatedAt ||
+        !event.locals.talent.highSchoolValidatedAt ||
+        !event.locals.talent.techInterestsValidatedAt ||
+        !event.locals.talent.generalInterestsValidatedAt ||
+        !event.locals.talent.interestsRecapSeenAt ||
         !event.locals.talent.rulesSignedAt;
 
       if (
@@ -148,6 +171,48 @@ export async function applyRouteGuards(
     ) {
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
+
+    // Welcome guard: redirect to /welcome if talent hasn't seen welcome page yet
+    if (
+      event.locals.talent &&
+      event.locals.talent.charterAcceptedAt &&
+      !event.locals.talent.welcomeSeenAt &&
+      currentPath !== pathTalentWelcome &&
+      !currentPath.startsWith(pathTalentOnboarding) &&
+      currentPath !== pathTalentLogin
+    ) {
+      const stageParticipation = await prisma.participation.findFirst({
+        where: {
+          talentId: event.locals.talent.id,
+          event: { eventType: 'stage_seconde' },
+        },
+        orderBy: { event: { date: 'desc' } },
+        select: { eventId: true },
+      });
+      if (stageParticipation) {
+        const welcomePage = await prisma.cmsPage.findUnique({
+          where: {
+            slug_eventId: {
+              slug: 'welcome',
+              eventId: stageParticipation.eventId,
+            },
+          },
+        });
+        if (welcomePage?.content) {
+          return Response.redirect(
+            new URL(pathTalentWelcome, event.url).href,
+            303,
+          );
+        }
+      }
+    }
+    // Already seen: prevent going back to welcome
+    if (
+      event.locals.talent?.welcomeSeenAt &&
+      currentPath === pathTalentWelcome
+    ) {
+      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+    }
   }
 
   // --- Staff Guards ---
@@ -177,10 +242,19 @@ export async function applyRouteGuards(
       }
     }
 
-    // Dev sub-guard: only superdev or dev
+    // Dev sub-guard: only superdev or dev. Carve-out: any role in the
+    // `interviewers` group can reach the interviews route on any event so
+    // they can fill the grid for interviews they were assigned. The
+    // `interviewers` STAFF_ROLE_GATES entry below narrows it further; the
+    // wider /staff/dev/* shell stays dev-only.
     if (isDevPath) {
       const role = event.locals.staffProfile?.staffRole;
-      if (role !== 'superdev' && role !== 'dev') {
+      const isInterviewsPath = DEV_INTERVIEWS_PATH_PATTERN.test(currentPath);
+      const allowed =
+        role === 'superdev' ||
+        role === 'dev' ||
+        (isInterviewsPath && can('interviewers', role));
+      if (!allowed) {
         const correctPath = getStaffRoleRedirectPath(role);
         if (correctPath) {
           return Response.redirect(
@@ -302,4 +376,29 @@ export function requireStaffGroup(
 } {
   if (can(group, locals.staffProfile?.staffRole)) return;
   forbidGroup(group);
+}
+
+/**
+ * Allow either devMember (admissions team owns the workflow) OR the staff
+ * the interview was assigned to (so a pédago who was assigned an interview
+ * can fill its evaluation grid and close it out themselves).
+ *
+ * The null-role check up front is what makes the `staffRole: StaffRole`
+ * narrowing sound: without it, an unrolled staff whose `id` happens to
+ * match `interview.staffId` would slip through and the assertion would
+ * lie to callers.
+ */
+export function requireInterviewActor(
+  locals: App.Locals,
+  interview: { staffId: string },
+): asserts locals is App.Locals & {
+  staffProfile: NonNullable<App.Locals['staffProfile']> & {
+    staffRole: StaffRole;
+  };
+} {
+  const profile = locals.staffProfile;
+  if (!profile || !profile.staffRole) forbidGroup('interviewers');
+  if (can('devMember', profile.staffRole)) return;
+  if (interview.staffId === profile.id) return;
+  forbidGroup('interviewers');
 }

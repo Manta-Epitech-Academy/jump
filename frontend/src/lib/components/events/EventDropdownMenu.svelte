@@ -1,7 +1,10 @@
 <script lang="ts">
   import { buttonVariants } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import { Ellipsis, Copy, Trash2, Users } from '@lucide/svelte';
+  import Ellipsis from '@lucide/svelte/icons/ellipsis';
+  import Copy from '@lucide/svelte/icons/copy';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Users from '@lucide/svelte/icons/users';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { can } from '$lib/domain/permissions';
@@ -28,7 +31,7 @@
       {#snippet child({ props })}
         <a
           {...props}
-          href={resolve(`/staff/dev/events/${event.id}/manage`)}
+          href={resolve(`/staff/dev/events/${event.id}`)}
           class="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
         >
           <Users class="mr-2 h-4 w-4 text-muted-foreground" />

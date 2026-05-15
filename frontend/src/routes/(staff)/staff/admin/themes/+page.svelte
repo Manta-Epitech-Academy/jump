@@ -1,7 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Plus, Pencil, Trash2, Tags, Globe } from '@lucide/svelte';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Tags from '@lucide/svelte/icons/tags';
+  import Globe from '@lucide/svelte/icons/globe';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -10,6 +14,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -19,6 +24,9 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track(
+            isEditing ? 'official_theme_updated' : 'official_theme_created',
+          );
           open = false;
           toast.success(result.data?.form?.message || 'Action réussie');
         }
@@ -55,6 +63,10 @@
     deleteDialogOpen = true;
   }
 </script>
+
+<svelte:head>
+  <title>Thèmes</title>
+</svelte:head>
 
 <div class="space-y-6">
   <div class="flex items-center justify-between">
@@ -178,5 +190,6 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer le thème"
     description="Êtes-vous sûr ? Impossible s'il est utilisé par un ou plusieurs sujets."
+    onSuccess={() => track('official_theme_deleted')}
   />
 </div>

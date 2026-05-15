@@ -13,34 +13,34 @@
     THEME_TIER_CEILING,
   } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
-  import {
-    Rocket,
-    Trophy,
-    BookOpen,
-    ArrowRight,
-    Clock,
-    Coffee,
-    Hourglass,
-    MapPin,
-    Share2,
-    ExternalLink,
-    Check,
-    FileDown,
-    LoaderCircle,
-    LogOut,
-    History,
-    Calendar,
-    Target,
-    CalendarClock,
-    Laptop,
-    Monitor,
-    Settings,
-  } from '@lucide/svelte';
+  import Rocket from '@lucide/svelte/icons/rocket';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import BookOpen from '@lucide/svelte/icons/book-open';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Coffee from '@lucide/svelte/icons/coffee';
+  import Hourglass from '@lucide/svelte/icons/hourglass';
+  import MapPin from '@lucide/svelte/icons/map-pin';
+  import Share2 from '@lucide/svelte/icons/share-2';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Check from '@lucide/svelte/icons/check';
+  import FileDown from '@lucide/svelte/icons/file-down';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import LogOut from '@lucide/svelte/icons/log-out';
+  import History from '@lucide/svelte/icons/history';
+  import Calendar from '@lucide/svelte/icons/calendar';
+  import Target from '@lucide/svelte/icons/target';
+  import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import Laptop from '@lucide/svelte/icons/laptop';
+  import Monitor from '@lucide/svelte/icons/monitor';
+  import Settings from '@lucide/svelte/icons/settings';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
   import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import { onMount, untrack } from 'svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -125,6 +125,7 @@
     try {
       await navigator.clipboard.writeText(shareUrl);
       copied = true;
+      track('talent_portfolio_link_copied');
       toast.success('Lien copié dans le presse-papier !');
       setTimeout(() => {
         copied = false;
@@ -138,6 +139,7 @@
   let isDownloading = $state(false);
 
   async function downloadCertificate() {
+    track('certificate_download_clicked');
     isDownloading = true;
     try {
       const res = await fetch(resolve('/api/certificate'));
@@ -159,9 +161,11 @@
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      track('certificate_downloaded');
       toast.success('Attestation téléchargée !');
       triggerConfetti();
     } catch (e) {
+      track('certificate_download_failed');
       toast.error("Erreur lors de la génération de l'attestation.");
     } finally {
       isDownloading = false;
@@ -207,7 +211,11 @@
           <Settings class="h-4 w-4" />
           <span class="sr-only">Paramètres</span>
         </Button>
-        <form action="{resolve('/logout')}?type=student" method="POST">
+        <form
+          action="{resolve('/logout')}?type=student"
+          method="POST"
+          onsubmit={() => track('logout', { kind: 'talent' })}
+        >
           <Button
             type="submit"
             variant="ghost"
@@ -288,6 +296,66 @@
               ></div>
             </div>
           </div>
+
+          <!-- Mini-jeu du jour -->
+          {#if data.minigame}
+            {@const mg = data.minigame}
+            {#if mg.ok || (mg.publication && mg.reason === 'already_played')}
+              <div
+                class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
+              >
+                <h3
+                  class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
+                >
+                  <Gamepad2 class="h-4 w-4 text-epi-teal-solid" />
+                  Mini-jeu du jour
+                </h3>
+                {#if mg.ok}
+                  <div class="text-center">
+                    <p
+                      class="text-sm font-bold text-slate-800 capitalize dark:text-slate-200"
+                    >
+                      {mg.publication.game} · niveau {mg.publication.level}
+                    </p>
+                    <Button
+                      href={resolve(`/minigames/${mg.publication.id}`)}
+                      class="mt-2 w-full bg-epi-teal-solid text-white hover:bg-epi-teal-solid/90"
+                    >
+                      Jouer
+                    </Button>
+                  </div>
+                {:else if mg.reason === 'already_played' && mg.publication}
+                  <div class="space-y-2 text-center">
+                    <p
+                      class="text-sm font-bold text-slate-800 dark:text-slate-200"
+                    >
+                      Déjà joué !
+                    </p>
+                    {#if mg.lastAttempt}
+                      <p class="text-xs text-slate-500 dark:text-slate-400">
+                        {#if mg.lastAttempt.score !== null && mg.lastAttempt.score !== undefined}
+                          Score : {mg.lastAttempt.score}
+                        {/if}
+                        {#if mg.lastAttempt.chrono}
+                          {#if mg.lastAttempt.score !== null && mg.lastAttempt.score !== undefined}·{/if}
+                          {(mg.lastAttempt.chrono / 1000).toFixed(1)}s
+                        {/if}
+                      </p>
+                    {/if}
+                    <Button
+                      variant="outline"
+                      href={resolve(
+                        `/minigames/${mg.publication.id}/leaderboard`,
+                      )}
+                      class="w-full"
+                    >
+                      <Trophy class="mr-2 h-4 w-4" /> Classement
+                    </Button>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          {/if}
 
           <!-- RPG Skill Radar / Top Themes -->
           {#if topThemes.length > 0}

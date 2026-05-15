@@ -1,13 +1,17 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { resolve } from '$app/paths';
-  import { CalendarOff } from '@lucide/svelte';
+  import CalendarOff from '@lucide/svelte/icons/calendar-off';
   import { buttonVariants } from '$lib/components/ui/button';
   import PresencesHeader from './components/PresencesHeader.svelte';
   import SlotDayGroup from './components/SlotDayGroup.svelte';
 
   let { data }: { data: PageData } = $props();
 </script>
+
+<svelte:head>
+  <title>{data.event.titre} — Présences</title>
+</svelte:head>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
   <PresencesHeader event={data.event} totals={data.totals} />

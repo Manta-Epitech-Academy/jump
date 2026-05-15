@@ -1,13 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import {
-    Plus,
-    Pencil,
-    Trash2,
-    CalendarDays,
-    ArrowRight,
-  } from '@lucide/svelte';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
@@ -20,6 +18,7 @@
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -28,6 +27,11 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track(
+            isEditing
+              ? 'planning_template_updated'
+              : 'planning_template_created',
+          );
           open = false;
           toast.success(result.data?.form?.message);
         }
@@ -66,6 +70,10 @@
     deleteDialogOpen = true;
   }
 </script>
+
+<svelte:head>
+  <title>Modèles de planning</title>
+</svelte:head>
 
 <div class="space-y-6">
   <div class="flex items-center justify-between">
@@ -262,5 +270,6 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer ce modèle de planning ?"
     description="Cette action supprimera définitivement le modèle et tous ses créneaux configurés."
+    onSuccess={() => track('planning_template_deleted')}
   />
 </div>

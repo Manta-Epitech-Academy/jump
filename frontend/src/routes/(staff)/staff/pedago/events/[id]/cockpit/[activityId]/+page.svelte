@@ -1,16 +1,14 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { untrack, onDestroy, onMount } from 'svelte';
-  import {
-    ArrowLeft,
-    KeyRound,
-    Search,
-    SignalHigh,
-    MonitorSmartphone,
-    Maximize,
-    Minimize,
-    Info,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import KeyRound from '@lucide/svelte/icons/key-round';
+  import Search from '@lucide/svelte/icons/search';
+  import SignalHigh from '@lucide/svelte/icons/signal-high';
+  import MonitorSmartphone from '@lucide/svelte/icons/monitor-smartphone';
+  import Maximize from '@lucide/svelte/icons/maximize';
+  import Minimize from '@lucide/svelte/icons/minimize';
+  import Info from '@lucide/svelte/icons/info';
   import { Input } from '$lib/components/ui/input';
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
@@ -213,6 +211,10 @@
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
   });
 </script>
+
+<svelte:head>
+  <title>{data.currentSlot.nom} — Cockpit</title>
+</svelte:head>
 
 <div class="flex min-h-screen flex-col bg-background pb-20">
   <!-- Cockpit header (hidden in focus mode) -->

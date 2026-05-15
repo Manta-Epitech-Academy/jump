@@ -3,18 +3,17 @@
   import { Input } from '$lib/components/ui/input';
   import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';
-  import {
-    CircleCheck,
-    CirclePlay,
-    Send,
-    ArrowRight,
-    ShieldCheck,
-    Lock,
-  } from '@lucide/svelte';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
+  import CirclePlay from '@lucide/svelte/icons/circle-play';
+  import Send from '@lucide/svelte/icons/send';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import Lock from '@lucide/svelte/icons/lock';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
   import type { ActivityStep } from '$lib/server/services/progressService';
   import type { StepsProgress } from '@prisma/client';
+  import { track } from '$lib/analytics';
 
   let {
     currentStep,
@@ -29,7 +28,7 @@
     currentStep: ActivityStep;
     currentIndex: number;
     unlockedIndex: number;
-    steps: ActivityStep[];
+    steps: { id: string; title: string }[];
     progress: StepsProgress;
     selectedAnswer: number | null;
     qcmFails: number;
@@ -47,7 +46,15 @@
         <span class="font-bold uppercase">Étape validée</span>
       </div>
       {#if currentIndex < steps.length - 1}
-        <form method="POST" action="?/changeStep" use:enhance>
+        <form
+          method="POST"
+          action="?/changeStep"
+          use:enhance={() =>
+            async ({ update }) => {
+              track('activity_step_navigate_next');
+              await update();
+            }}
+        >
           <input
             type="hidden"
             name="stepId"
@@ -80,11 +87,16 @@
           return async ({ result, update }) => {
             isValidating = false;
             if (result.type === 'success') {
+              track('activity_qcm_passed', { stepId: currentStep.id });
               toast.success('Bonne réponse !');
               triggerConfetti();
               qcmFails = 0;
             } else if (result.type === 'failure') {
               qcmFails++;
+              track('activity_qcm_failed', {
+                stepId: currentStep.id,
+                fails: qcmFails,
+              });
               toast.error(
                 ((result.data as Record<string, unknown>)?.message as string) ||
                   'Mauvaise réponse.',
@@ -177,9 +189,11 @@
             return async ({ result, update }) => {
               isValidating = false;
               if (result.type === 'success') {
+                track('activity_pin_validated', { stepId: currentStep.id });
                 toast.success('Étape débloquée localement !');
                 if (currentIndex === steps.length - 1) triggerConfetti();
               } else {
+                track('activity_pin_failed', { stepId: currentStep.id });
                 toast.error((result as any).data?.message || 'PIN Incorrect');
               }
               await update({ reset: false });
@@ -219,7 +233,10 @@
         method="POST"
         action="?/validateStep"
         use:enhance={() => {
-          return async ({ update }) => {
+          return async ({ result, update }) => {
+            if (result.type === 'success') {
+              track('activity_step_advanced', { stepId: currentStep.id });
+            }
             await update({ reset: false });
           };
         }}

@@ -48,6 +48,24 @@ enum InterviewStatus {
   cancelled
 }
 
+enum InterviewRecommendation {
+  epitech_orientation_forte
+  a_explorer
+  autre_filiere
+  a_determiner
+}
+
+enum ParticipationVerdict {
+  comfortable
+  progressing
+  struggling
+}
+
+enum ParticipationContextTag {
+  helped_others
+  disengaged
+}
+
 // ─── Auth (BetterAuth managed) ───
 
 model bauth_user {
@@ -67,7 +85,11 @@ model bauth_user {
   accounts          bauth_account[]
   staffProfile      StaffProfile?
   talent            Talent?
-  invitationsIssued StaffInvitation[] @relation("StaffInvitationInvitedBy")
+  invitationsIssued StaffInvitation[]     @relation("StaffInvitationInvitedBy")
+  cmsPages          CmsPage[]
+  ticketsAuthored   Ticket[]              @relation("TicketAuthor")
+  ticketMessages    TicketMessage[]
+  outlookSyncs      OutlookCalendarSync[]
 }
 
 model bauth_session {
@@ -118,17 +140,18 @@ model StaffProfile {
   userId    String     @unique
   campusId  String?
   staffRole StaffRole?
-  avatar    String?
   discordId String?    @unique
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  user                bauth_user      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campus              Campus?         @relation(fields: [campusId], references: [id])
+  user                bauth_user              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus              Campus?                 @relation(fields: [campusId], references: [id])
   eventMantas         EventManta[]
-  notesAuthored       Participation[] @relation("NoteAuthor")
+  verdictsAuthored    ParticipationActivity[] @relation("VerdictAuthor")
   interviewsConducted Interview[]
   adminFiles          AdminFile[]
+  subjectVersionsImported SubjectVersion[]
+  observableValidations   TalentObservableState[]
 
   @@index([campusId])
 }
@@ -159,10 +182,16 @@ model Talent {
   xp                Int       @default(0)
   eventsCount       Int       @default(0)
   charterAcceptedAt     DateTime?
+  techInterestsValidatedAt    DateTime?
+  generalInterestsValidatedAt DateTime?
+  interestsRecapSeenAt        DateTime?
   rulesSignedAt         DateTime?
   imageRightsSignedAt   DateTime?
   imageRightsSignerName String?
   infoValidatedAt       DateTime?
+  highSchoolName        String?
+  highSchoolCity        String?
+  highSchoolValidatedAt DateTime?
   charterFilePath       String?
   rulesFilePath         String?
   imageRightsFilePath   String?
@@ -176,6 +205,7 @@ model Talent {
   externalId        String?   @unique
   lastSyncedAt      DateTime?
   lastActiveAt      DateTime?
+  welcomeSeenAt     DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -184,6 +214,13 @@ model Talent {
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
   interviews     Interview[]
+  observableStates TalentObservableState[]
+  competenceStates TalentCompetenceState[]
+  quizAttempts     TalentQuizAttempt[]
+  reminders      OnboardingReminder[]
+  minigameAttempts MinigameAttempt[]
+  interests      TalentInterest[]
+
 }
 
 // ─── Domain Tables ───
@@ -204,6 +241,21 @@ model Campus {
   interviews        Interview[]
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
+}
+
+model CmsPage {
+  id        String   @id @default(cuid())
+  slug      String
+  eventId   String
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+  updatedBy String
+
+  event Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  bauth_user @relation(fields: [updatedBy], references: [id])
+
+  @@unique([slug, eventId])
+  @@index([eventId])
 }
 
 model Theme {
@@ -233,12 +285,19 @@ model ActivityTemplate {
   content          String?
   contentStructure Json?
   defaultDuration  Int?
+  subjectId        String?
+  subjectVersionId String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
   campus                 Campus?                @relation(fields: [campusId], references: [id])
   activityTemplateThemes ActivityTemplateTheme[]
   planningTemplateSlots  PlanningTemplateSlot[]
+  subject                Subject?               @relation(fields: [subjectId], references: [id])
+  subjectVersion         SubjectVersion?        @relation(fields: [subjectVersionId], references: [id])
+
+  @@index([subjectId])
+  @@index([subjectVersionId])
 }
 
 model ActivityTemplateTheme {
@@ -287,6 +346,7 @@ model Activity {
   contentStructure Json?
   timeSlotId       String       @unique
   templateId       String?
+  subjectVersionId String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -295,8 +355,10 @@ model Activity {
   participationActivities ParticipationActivity[]
   stepsProgress           StepsProgress[]
   portfolioItems          PortfolioItem[]
+  subjectVersion          SubjectVersion?         @relation(fields: [subjectVersionId], references: [id])
 
   @@index([templateId])
+  @@index([subjectVersionId])
 }
 
 model ActivityTheme {
@@ -330,6 +392,11 @@ model Event {
   stepsProgress  StepsProgress[]
   portfolioItems PortfolioItem[]
   planning       Planning?
+  observableStates TalentObservableState[]
+  quizAttempts     TalentQuizAttempt[]
+  cmsPages         CmsPage[]
+  minigameAttempts MinigameAttempt[]
+  minigameSettings EventMinigameSettings?
 
   @@index([campusId])
 }
@@ -353,8 +420,6 @@ model Participation {
   delay     Int?    @default(0)
   bringPc   Boolean @default(false)
 
-  note           String?
-  noteAuthorId   String?
   camperRating   Int?
   camperFeedback String?
   createdAt      DateTime @default(now())
@@ -363,7 +428,6 @@ model Participation {
   talent          Talent                  @relation(fields: [talentId], references: [id], onDelete: Cascade)
   event           Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   campus          Campus                  @relation(fields: [campusId], references: [id])
-  noteAuthor      StaffProfile?           @relation("NoteAuthor", fields: [noteAuthorId], references: [id])
   activities      ParticipationActivity[]
   stageCompliance StageCompliance?
   interview       Interview?
@@ -389,13 +453,19 @@ model StageCompliance {
 model ParticipationActivity {
   participationId String
   activityId      String
-  isPresent       Boolean @default(false)
-  delay           Int     @default(0)
+  isPresent       Boolean                  @default(false)
+  delay           Int                      @default(0)
+  verdict         ParticipationVerdict?
+  contextTag      ParticipationContextTag?
+  verdictAuthorId String?
+  verdictAt       DateTime?
 
-  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  activity      Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  participation  Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  activity       Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  verdictAuthor  StaffProfile? @relation("VerdictAuthor", fields: [verdictAuthorId], references: [id])
 
   @@id([participationId, activityId])
+  @@index([verdictAuthorId])
 }
 
 model Interview {
@@ -410,13 +480,13 @@ model Interview {
   discoveryReason   String?
   motivation        String?
   nextEventInterest String?
-  influencers       String?
   platforms         String?
   specialties       String?
   interests         String?
   otherJobs         String?
   satisfaction      String?
   globalNote        String?
+  recommendation    InterviewRecommendation?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -425,10 +495,44 @@ model Interview {
   staff         StaffProfile   @relation(fields: [staffId], references: [id], onDelete: Cascade)
   campus        Campus         @relation(fields: [campusId], references: [id], onDelete: Cascade)
   participation Participation? @relation(fields: [participationId], references: [id], onDelete: SetNull)
+  outlookSyncs  OutlookCalendarSync[]
 
   @@index([talentId])
   @@index([staffId])
   @@index([campusId])
+}
+
+/// One row per (Interview, user) pair we've pushed to that user's calendar.
+/// Acts as the idempotency map across both sync backends:
+///
+///   - `syncKind = 'graph'`: `outlookEventId` is the Graph event id;
+///     reconcile PATCH/DELETEs through Microsoft Graph using the user's
+///     delegated `Calendars.ReadWrite` token. `sequence` and `contentHash`
+///     are unused (Graph sends the latest body each time).
+///   - `syncKind = 'email'`: `outlookEventId` is the iCalendar UID we
+///     emit (stable: `<interview.id>@jump.epitech.eu`). `sequence` is
+///     bumped on every meaningful change so Outlook merges the invite
+///     update onto the existing event. `contentHash` lets us skip
+///     re-sending an unchanged invite.
+///
+/// Per-user because each backend writes to the signed-in user's own
+/// calendar — Graph via delegated token, email via the user's mailbox.
+model OutlookCalendarSync {
+  id             String   @id @default(cuid())
+  interviewId    String
+  userId         String
+  outlookEventId String
+  syncKind       String   @default("graph")
+  sequence       Int      @default(0)
+  contentHash    String?
+  syncedAt       DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  interview Interview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  user      bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, userId])
+  @@index([userId])
 }
 
 model StepsProgress {
@@ -574,4 +678,399 @@ model AdminFile {
   uploadedBy StaffProfile @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@index([uploadedById])
+}
+
+// ─── GitHub-backed Subjects + Competence Reference ───
+
+model RefCompSnapshot {
+  id        String   @id @default(cuid())
+  commitSha String   @unique
+  fetchedAt DateTime @default(now())
+  isCurrent Boolean  @default(false)
+
+  competences     Competence[]
+  skills          Skill[]
+  skillLevels     SkillLevel[]
+  observables     Observable[]
+  subjectVersions SubjectVersion[]
+
+  @@index([isCurrent])
+}
+
+model Competence {
+  id         String @id @default(cuid())
+  snapshotId String
+  domain     String
+  desc       String
+
+  snapshot RefCompSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  skills   Skill[]
+
+  @@unique([snapshotId, domain])
+}
+
+model Skill {
+  id           String @id @default(cuid())
+  snapshotId   String
+  competenceId String
+  numericId    Int
+  shortName    String
+
+  snapshot   RefCompSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  competence Competence      @relation(fields: [competenceId], references: [id], onDelete: Cascade)
+  levels     SkillLevel[]
+
+  @@unique([snapshotId, competenceId, numericId])
+  @@index([snapshotId])
+}
+
+model SkillLevel {
+  id         String @id @default(cuid())
+  snapshotId String
+  skillId    String
+  level      String
+  name       String
+  desc       String
+
+  snapshot           RefCompSnapshot         @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  skill              Skill                   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  subjectObservables SubjectObservable[]
+  competenceStates   TalentCompetenceState[]
+
+  @@unique([snapshotId, skillId, level])
+  @@index([snapshotId])
+}
+
+model Observable {
+  id          String @id @default(cuid())
+  snapshotId  String
+  projectSlug String
+  externalId  Int
+  desc        String
+
+  snapshot           RefCompSnapshot         @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  subjectObservables SubjectObservable[]
+  states             TalentObservableState[]
+
+  @@unique([snapshotId, projectSlug, externalId])
+  @@index([snapshotId])
+  @@index([projectSlug])
+}
+
+model Subject {
+  id      String @id @default(cuid())
+  repoUrl String @unique
+  slug    String @unique
+
+  versions  SubjectVersion[]
+  templates ActivityTemplate[]
+}
+
+model SubjectVersion {
+  id                String   @id @default(cuid())
+  subjectId         String
+  repoCommitSha     String
+  refCompSnapshotId String
+  metadataJson      Json
+  importedAt        DateTime @default(now())
+  importedById      String
+
+  subject         Subject             @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  refCompSnapshot RefCompSnapshot     @relation(fields: [refCompSnapshotId], references: [id])
+  importedBy      StaffProfile        @relation(fields: [importedById], references: [id])
+  documents       Document[]
+  sections        Section[]
+  quizzes         SubjectQuiz[]
+  observableLinks SubjectObservable[]
+  activities      Activity[]
+  templates       ActivityTemplate[]
+
+  @@unique([subjectId, repoCommitSha])
+  @@index([subjectId])
+  @@index([refCompSnapshotId])
+}
+
+model Document {
+  id               String @id @default(cuid())
+  subjectVersionId String
+  path             String
+  rawMd            String
+  renderedHtml     String
+  sortOrder        Int
+
+  subjectVersion SubjectVersion @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
+  sections       Section[]
+  quizzes        SubjectQuiz[]
+
+  @@unique([subjectVersionId, path])
+  @@index([subjectVersionId])
+}
+
+model Section {
+  id               String  @id @default(cuid())
+  subjectVersionId String
+  documentId       String
+  level            Int
+  anchor           String
+  title            String
+  sortOrder        Int
+  // For level=1 sections, the rendered HTML between this H1 and the next.
+  // Computed at import time so the talent reader does no DOM-string surgery.
+  // Null for H2/H3, which are tracked only for observable wiring.
+  htmlSlice        String?
+
+  subjectVersion        SubjectVersion          @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
+  document              Document                @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  observableLinks       SubjectObservable[]
+  observableStateSource TalentObservableState[] @relation("TalentObservableStateSourceSection")
+
+  @@unique([subjectVersionId, documentId, anchor])
+  @@index([subjectVersionId])
+  @@index([documentId])
+}
+
+model SubjectObservable {
+  id               String @id @default(cuid())
+  subjectVersionId String
+  sectionId        String
+  observableId     String
+  skillLevelId     String
+
+  subjectVersion SubjectVersion @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
+  section        Section        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  observable     Observable     @relation(fields: [observableId], references: [id])
+  skillLevel     SkillLevel     @relation(fields: [skillLevelId], references: [id])
+
+  @@unique([sectionId, observableId])
+  @@index([subjectVersionId])
+  @@index([observableId])
+  @@index([skillLevelId])
+}
+
+model SubjectQuiz {
+  id               String  @id @default(cuid())
+  subjectVersionId String
+  documentId       String
+  fqn              String
+  type             String
+  expectedCount    Int?
+  level            String
+  externalIndex    Int
+  title            String
+  question         String
+  options          Json
+  canonicalAnswer  Json?
+
+  subjectVersion SubjectVersion      @relation(fields: [subjectVersionId], references: [id], onDelete: Cascade)
+  document       Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  attempts       TalentQuizAttempt[]
+
+  @@unique([subjectVersionId, fqn])
+  @@index([subjectVersionId])
+  @@index([documentId])
+}
+
+model TalentObservableState {
+  id              String    @id @default(cuid())
+  talentId        String
+  eventId         String
+  observableId    String
+  // Section the talent had reached when this row was created. Lets the manta
+  // validation view deep-link to the exact spot in the subject without
+  // guessing among the SubjectObservable rows linked to the observable.
+  sourceSectionId String?
+  state           String
+  observedById    String?
+  observedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  talent        Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event         Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  observable    Observable    @relation(fields: [observableId], references: [id])
+  observedBy    StaffProfile? @relation(fields: [observedById], references: [id])
+  sourceSection Section?      @relation("TalentObservableStateSourceSection", fields: [sourceSectionId], references: [id], onDelete: SetNull)
+
+  @@unique([talentId, eventId, observableId])
+  @@index([talentId])
+  @@index([eventId])
+  @@index([observableId])
+  @@index([state])
+  @@index([sourceSectionId])
+}
+
+model TalentCompetenceState {
+  id           String    @id @default(cuid())
+  talentId     String
+  skillLevelId String
+  state        String
+  certifiedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  talent     Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  skillLevel SkillLevel @relation(fields: [skillLevelId], references: [id])
+
+  @@unique([talentId, skillLevelId])
+  @@index([talentId])
+  @@index([skillLevelId])
+}
+
+model TalentQuizAttempt {
+  id          String   @id @default(cuid())
+  talentId    String
+  quizId      String
+  eventId     String
+  submitted   Json
+  correct     Boolean
+  attemptedAt DateTime @default(now())
+
+  talent Talent      @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  quiz   SubjectQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  event  Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([talentId])
+  @@index([quizId])
+  @@index([eventId])
+}
+
+model OnboardingReminder {
+  id       String   @id @default(cuid())
+  talentId String
+  type     String   // "student" | "parent"
+  subject  String?  // captured at send time, for audit + comm history
+  body     String?  // captured at send time, for audit + comm history
+  sentAt   DateTime @default(now())
+  sentBy   String   // staff userId
+
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([talentId])
+}
+
+// ── Tickets (staff → admin support) ──
+
+model Ticket {
+  id                 String    @id @default(cuid())
+  authorId           String
+  category           String    // "bug" | "suggestion"
+  title              String
+  status             String    @default("open") // "open" | "closed"
+  lastMessageAt      DateTime  @default(now())
+  lastSeenByAuthorAt DateTime?
+  lastSeenByAdminAt  DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  author   bauth_user      @relation("TicketAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  messages TicketMessage[]
+
+  @@index([authorId])
+  @@index([status])
+  @@index([lastMessageAt])
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author bauth_user @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+}
+
+// ─── Interests ───
+
+model Interest {
+  id    String  @id @default(cuid())
+  nom   String  @unique
+  emoji String?
+  kind  String  @default("general") // "tech" | "general"
+  order Int
+
+  talentInterests TalentInterest[]
+}
+
+model TalentInterest {
+  talentId   String
+  interestId String
+
+  talent   Talent   @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  interest Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@id([talentId, interestId])
+  @@index([interestId])
+}
+
+// ─── Minigames ───
+
+enum MinigameScoring {
+  score
+  chrono
+}
+
+enum MinigameAttemptStatus {
+  pending
+  done
+  invalid
+}
+
+model MinigameConfig {
+  game        String          @id
+  levelCount  Int             @default(0)
+  weight      Int             @default(1)
+  scoringType MinigameScoring @default(score)
+  enabled     Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  publications MinigamePublication[]
+}
+
+model MinigamePublication {
+  id          String   @id @default(cuid())
+  game        String
+  level       Int
+  publishedAt DateTime @default(now())
+  forcedById  String?
+
+  config   MinigameConfig    @relation(fields: [game], references: [game])
+  attempts MinigameAttempt[]
+
+  @@index([publishedAt])
+  @@index([game])
+}
+
+model MinigameAttempt {
+  id            String                @id @default(cuid())
+  talentId      String
+  publicationId String
+  eventId       String
+  status        MinigameAttemptStatus @default(pending)
+  score         Int?
+  chrono        Int?
+  valid         Boolean?
+  startedAt     DateTime              @default(now())
+  finishedAt    DateTime?
+  jti           String                @unique
+
+  talent      Talent              @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  publication MinigamePublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([talentId, publicationId])
+  @@index([eventId, publicationId])
+  @@index([publicationId])
+}
+
+model EventMinigameSettings {
+  eventId     String   @id
+  enabled     Boolean  @default(false)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }

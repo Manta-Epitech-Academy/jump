@@ -1,19 +1,22 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import { ChevronLeft, FileSpreadsheet, LoaderCircle } from '@lucide/svelte';
+  import FileSpreadsheet from '@lucide/svelte/icons/file-spreadsheet';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
 
   import FakeProgressLoader from './components/FakeProgressLoader.svelte';
   import CsvDropzone from './components/CsvDropzone.svelte';
   import CampaignReviewTable from './components/CampaignReviewTable.svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -68,14 +71,18 @@
   });
 </script>
 
+<svelte:head>
+  <title>Nouvel événement</title>
+</svelte:head>
+
 <div class="mx-auto max-w-5xl space-y-6 pb-12">
-  <div class="flex items-center gap-4 border-b pb-4">
-    <a
-      href={resolve('/staff/dev')}
-      class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-    >
-      <ChevronLeft class="h-4 w-4" />
-    </a>
+  <div class="border-b pb-4">
+    <PageBreadcrumb
+      items={[
+        { label: 'Dashboard', href: resolve('/staff/dev') },
+        { label: 'Importer' },
+      ]}
+    />
     <h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
       Nouvel Événement<span class="text-epi-teal">_</span>
     </h1>
@@ -105,25 +112,30 @@
           enctype="multipart/form-data"
           use:kitEnhance={() => {
             isAnalyzing = true;
+            track('event_csv_analyze_started');
             startFakeProgress();
             return async ({ result }) => {
               completeProgress(() => {
                 isAnalyzing = false;
                 if (result.type === 'success' && result.data) {
                   if (result.data.analysisSuccess) {
+                    track('event_csv_analyzed');
                     analysisResult = result.data;
                   } else {
+                    track('event_csv_analyze_failed');
                     toast.error(
                       (result.data as Record<string, any>).error ||
                         "Erreur d'analyse",
                     );
                   }
                 } else if (result.type === 'failure') {
+                  track('event_csv_analyze_failed');
                   toast.error(
                     (result.data as Record<string, any> | undefined)?.error ||
                       "Erreur d'analyse",
                   );
                 } else {
+                  track('event_csv_analyze_failed');
                   toast.error("Erreur d'analyse");
                 }
               });
@@ -184,9 +196,15 @@
             method="POST"
             use:kitEnhance={() => {
               isConfirming = true;
+              track('event_csv_import_started');
               startFakeProgress();
-              return async ({ update }) => {
+              return async ({ result, update }) => {
                 completeProgress(async () => {
+                  if (result.type === 'success' || result.type === 'redirect') {
+                    track('event_csv_imported');
+                  } else if (result.type === 'failure') {
+                    track('event_csv_import_failed');
+                  }
                   await update();
                   isConfirming = false;
                 });

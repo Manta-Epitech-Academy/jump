@@ -1,7 +1,7 @@
 <script lang="ts">
   import '../../layout.css';
   import { Button } from '$lib/components/ui/button';
-  import { LogOut } from '@lucide/svelte';
+  import LogOut from '@lucide/svelte/icons/log-out';
   import { resolve } from '$app/paths';
 
   let { data, children } = $props();

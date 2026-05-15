@@ -3,7 +3,7 @@
   import { buttonVariants } from '$lib/components/ui/button';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { LoaderCircle } from '@lucide/svelte';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 
   let {
     open = $bindable(false),

@@ -4,10 +4,9 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
-  import { LoaderCircle } from '@lucide/svelte';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { difficultes } from '$lib/domain/xp';
   import type { StudentForm } from '$lib/validation/students';
-  import type { Snippet } from 'svelte';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { studentSchema } from '$lib/validation/students';
 
@@ -22,7 +21,6 @@
     delayed,
     enhance,
     action,
-    children,
   }: {
     open: boolean;
     isEditing: boolean;
@@ -32,7 +30,6 @@
     delayed: StudentSuperForm['delayed'];
     enhance: StudentSuperForm['enhance'];
     action: string;
-    children?: Snippet;
   } = $props();
 
   const niveaux = [
@@ -149,6 +146,42 @@
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div class="grid gap-2">
+            <Label for="parent_nom" class="text-xs"
+              >Nom Parent <span class="font-normal text-muted-foreground"
+                >(optionnel)</span
+              ></Label
+            >
+            <Input
+              id="parent_nom"
+              name="parent_nom"
+              bind:value={$form.parent_nom}
+              placeholder="DUPONT"
+              class="rounded-sm bg-background"
+            />
+            {#if $errors.parent_nom}<span class="text-xs text-destructive"
+                >{$errors.parent_nom}</span
+              >{/if}
+          </div>
+          <div class="grid gap-2">
+            <Label for="parent_prenom" class="text-xs"
+              >Prénom Parent <span class="font-normal text-muted-foreground"
+                >(optionnel)</span
+              ></Label
+            >
+            <Input
+              id="parent_prenom"
+              name="parent_prenom"
+              bind:value={$form.parent_prenom}
+              placeholder="Marie"
+              class="rounded-sm bg-background"
+            />
+            {#if $errors.parent_prenom}<span class="text-xs text-destructive"
+                >{$errors.parent_prenom}</span
+              >{/if}
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="grid gap-2">
             <Label for="parent_email" class="text-xs"
               >Email Parent <span class="font-normal text-muted-foreground"
                 >(optionnel)</span
@@ -255,7 +288,5 @@
         </Button>
       </Dialog.Footer>
     </form>
-
-    {@render children?.()}
   </Dialog.Content>
 </Dialog.Root>

@@ -3,8 +3,14 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-import { PrismaClient, type ActivityType } from '@prisma/client';
+import {
+  PrismaClient,
+  type ActivityType,
+  type ParticipationVerdict,
+  type ParticipationContextTag,
+} from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { marked } from 'marked';
 
 const EVENT_TYPES = {
   CODING_CLUB: 'coding_club',
@@ -40,6 +46,13 @@ function dayAt(offsetDays: number, hour: number, minute = 0): Date {
   d.setDate(d.getDate() + offsetDays);
   d.setHours(hour, minute, 0, 0);
   return d;
+}
+
+// Fake 18-char Salesforce Lead id (`00Q…`). Real prefix for Lead is `00Q`;
+// the trailing 3 chars are normally a checksum we don't bother computing.
+function mockSalesforceLeadId(seed: number): string {
+  const tail = (seed + 1_000_000).toString(36).toUpperCase().padStart(13, '0');
+  return `00Q5j${tail}`;
 }
 
 // ─── Activity step content (dynamic activity checkpoints) ───
@@ -1013,6 +1026,7 @@ const STAFF_MEMBERS = [
     name: 'Pauline Marchand',
     campus: 'Paris',
     role: 'superdev' as const,
+    image: 'https://i.pravatar.cc/96?u=pauline.marchand@epitech.eu',
   },
   {
     key: 'marie.manta',
@@ -1020,6 +1034,7 @@ const STAFF_MEMBERS = [
     name: 'Marie Manta',
     campus: 'Paris',
     role: 'dev' as const,
+    image: 'https://i.pravatar.cc/96?u=marie.manta@epitech.eu',
   },
   {
     key: 'sophie.bernard',
@@ -1027,6 +1042,7 @@ const STAFF_MEMBERS = [
     name: 'Sophie Bernard',
     campus: 'Paris',
     role: 'peda' as const,
+    image: 'https://i.pravatar.cc/96?u=sophie.bernard@epitech.eu',
   },
   {
     key: 'jules.dupont',
@@ -1034,6 +1050,7 @@ const STAFF_MEMBERS = [
     name: 'Jules Dupont',
     campus: 'Paris',
     role: 'manta' as const,
+    image: 'https://i.pravatar.cc/96?u=jules.dupont@epitech.eu',
   },
   {
     key: 'laura.garcia',
@@ -1041,6 +1058,7 @@ const STAFF_MEMBERS = [
     name: 'Laura Garcia',
     campus: 'Paris',
     role: 'manta' as const,
+    image: null,
   },
   {
     key: 'nathan.blanc',
@@ -1048,6 +1066,7 @@ const STAFF_MEMBERS = [
     name: 'Nathan Blanc',
     campus: 'Lyon',
     role: 'peda' as const,
+    image: 'https://i.pravatar.cc/96?u=nathan.blanc@epitech.eu',
   },
   {
     key: 'pierre.leblanc',
@@ -1055,6 +1074,7 @@ const STAFF_MEMBERS = [
     name: 'Pierre Leblanc',
     campus: 'Lyon',
     role: 'manta' as const,
+    image: null,
   },
   {
     key: 'camille.reader',
@@ -1062,6 +1082,104 @@ const STAFF_MEMBERS = [
     name: 'Camille Reader',
     campus: 'Paris',
     role: null, // Unassigned — tests the "contact admin" guard
+    image: null,
+  },
+  // ── Extra staff for grid density ──
+  {
+    key: 'hugo.lefebvre',
+    email: 'hugo.lefebvre@epitech.eu',
+    name: 'Hugo Lefebvre',
+    campus: 'Lyon',
+    role: 'superdev' as const,
+    image: 'https://i.pravatar.cc/96?u=hugo.lefebvre@epitech.eu',
+  },
+  {
+    key: 'sarah.moreau',
+    email: 'sarah.moreau@epitech.eu',
+    name: 'Sarah Moreau',
+    campus: 'Lyon',
+    role: 'dev' as const,
+    image: 'https://i.pravatar.cc/96?u=sarah.moreau@epitech.eu',
+  },
+  {
+    key: 'antoine.roux',
+    email: 'antoine.roux@epitech.eu',
+    name: 'Antoine Roux',
+    campus: 'Paris',
+    role: 'dev' as const,
+    image: null,
+  },
+  {
+    key: 'clara.noel',
+    email: 'clara.noel@epitech.eu',
+    name: 'Clara Noël',
+    campus: 'Paris',
+    role: 'dev' as const,
+    image: 'https://i.pravatar.cc/96?u=clara.noel@epitech.eu',
+  },
+  {
+    key: 'elise.dumas',
+    email: 'elise.dumas@epitech.eu',
+    name: 'Élise Dumas',
+    campus: 'Lyon',
+    role: 'peda' as const,
+    image: 'https://i.pravatar.cc/96?u=elise.dumas@epitech.eu',
+  },
+  {
+    key: 'maxime.girard',
+    email: 'maxime.girard@epitech.eu',
+    name: 'Maxime Girard',
+    campus: 'Paris',
+    role: 'peda' as const,
+    image: 'https://i.pravatar.cc/96?u=maxime.girard@epitech.eu',
+  },
+  {
+    key: 'theo.vincent',
+    email: 'theo.vincent@epitech.eu',
+    name: 'Théo Vincent',
+    campus: 'Paris',
+    role: 'manta' as const,
+    image: null,
+  },
+  {
+    key: 'lena.faure',
+    email: 'lena.faure@epitech.eu',
+    name: 'Léna Faure',
+    campus: 'Paris',
+    role: 'manta' as const,
+    image: 'https://i.pravatar.cc/96?u=lena.faure@epitech.eu',
+  },
+  {
+    key: 'jeanne.albert',
+    email: 'jeanne.albert@epitech.eu',
+    name: 'Jeanne Albert',
+    campus: 'Lyon',
+    role: 'manta' as const,
+    image: null,
+  },
+  {
+    key: 'romain.caron',
+    email: 'romain.caron@epitech.eu',
+    name: 'Romain Caron',
+    campus: 'Lyon',
+    role: 'manta' as const,
+    image: 'https://i.pravatar.cc/96?u=romain.caron@epitech.eu',
+  },
+  {
+    key: 'yacine.benali',
+    email: 'yacine.benali@epitech.eu',
+    name: 'Yacine Benali',
+    campus: 'Paris',
+    role: 'manta' as const,
+    image: null,
+  },
+  {
+    key: 'martin.ferrand',
+    email: 'martin.ferrand@epitech.eu',
+    name: 'Martin Ferrand',
+    campus: 'Lyon',
+    role: 'manta' as const,
+    image: null,
   },
 ];
 
@@ -1105,6 +1223,7 @@ const STUDENTS: StudentDef[] = [
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 2,
+    skipOnboarding: false,
   },
   {
     email: 'emma.bernard@mail.com',
@@ -1322,6 +1441,151 @@ const STUDENTS: StudentDef[] = [
     charterSigned: true,
     lastActiveDaysAgo: 1,
   },
+  // ── Paris extras (grid density) ──
+  {
+    email: 'mathis.perrin@mail.com',
+    prenom: 'Mathis',
+    nom: 'Perrin',
+    phone: '+33 6 12 34 56 26',
+    parentPhone: '+33 6 98 76 54 26',
+    niveau: '5eme',
+    niveauDifficulte: 'Débutant',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 4,
+  },
+  {
+    email: 'eva.lambert@mail.com',
+    prenom: 'Eva',
+    nom: 'Lambert',
+    phone: '+33 6 12 34 56 27',
+    parentPhone: '+33 6 98 76 54 27',
+    niveau: '3eme',
+    niveauDifficulte: 'Intermédiaire',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 11,
+  },
+  {
+    email: 'raphael.mercier@mail.com',
+    prenom: 'Raphaël',
+    nom: 'Mercier',
+    phone: '+33 6 12 34 56 28',
+    parentPhone: '+33 6 98 76 54 28',
+    niveau: '4eme',
+    niveauDifficulte: 'Intermédiaire',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 2,
+  },
+  {
+    email: 'ines.renaud@mail.com',
+    prenom: 'Inès',
+    nom: 'Renaud',
+    phone: '+33 6 12 34 56 29',
+    parentPhone: '+33 6 98 76 54 29',
+    niveau: '2nde',
+    niveauDifficulte: 'Avancé',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 0,
+  },
+  {
+    email: 'noah.brun@mail.com',
+    prenom: 'Noah',
+    nom: 'Brun',
+    phone: '+33 6 12 34 56 30',
+    parentPhone: '+33 6 98 76 54 30',
+    niveau: '6eme',
+    niveauDifficulte: 'Débutant',
+    campus: 'Paris',
+    charterSigned: false,
+    lastActiveDaysAgo: 90,
+  },
+  {
+    email: 'camille.lopez@mail.com',
+    prenom: 'Camille',
+    nom: 'Lopez',
+    phone: '+33 6 12 34 56 31',
+    parentPhone: '+33 6 98 76 54 31',
+    niveau: 'Terminale',
+    niveauDifficulte: 'Avancé',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 1,
+  },
+  {
+    email: 'elise.pierre@mail.com',
+    prenom: 'Élise',
+    nom: 'Pierre',
+    phone: '+33 6 12 34 56 32',
+    parentPhone: '+33 6 98 76 54 32',
+    niveau: '3eme',
+    niveauDifficulte: 'Avancé',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 6,
+  },
+  {
+    email: 'tristan.roussel@mail.com',
+    prenom: 'Tristan',
+    nom: 'Roussel',
+    phone: '+33 6 12 34 56 33',
+    parentPhone: '+33 6 98 76 54 33',
+    niveau: '4eme',
+    niveauDifficulte: 'Débutant',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: null,
+  },
+  {
+    email: 'leon.marin@mail.com',
+    prenom: 'Léon',
+    nom: 'Marin',
+    phone: '+33 6 12 34 56 34',
+    parentPhone: '+33 6 98 76 54 34',
+    niveau: '1ere',
+    niveauDifficulte: 'Intermédiaire',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 14,
+  },
+  {
+    email: 'anais.vasseur@mail.com',
+    prenom: 'Anaïs',
+    nom: 'Vasseur',
+    phone: '+33 6 12 34 56 35',
+    parentPhone: '+33 6 98 76 54 35',
+    niveau: '5eme',
+    niveauDifficulte: 'Débutant',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 3,
+  },
+  {
+    email: 'sacha.picard@mail.com',
+    prenom: 'Sacha',
+    nom: 'Picard',
+    phone: '+33 6 12 34 56 36',
+    parentPhone: '+33 6 98 76 54 36',
+    niveau: '2nde',
+    niveauDifficulte: 'Intermédiaire',
+    campus: 'Paris',
+    charterSigned: false,
+    lastActiveDaysAgo: 220,
+  },
+  {
+    email: 'lou.carpentier@mail.com',
+    prenom: 'Lou',
+    nom: 'Carpentier',
+    phone: '+33 6 12 34 56 37',
+    parentPhone: '+33 6 98 76 54 37',
+    niveau: '6eme',
+    niveauDifficulte: 'Débutant',
+    campus: 'Paris',
+    charterSigned: true,
+    lastActiveDaysAgo: 5,
+  },
   // ── Lyon (5 students) ──
   {
     email: 'ines.durand@mail.com',
@@ -1383,6 +1647,103 @@ const STUDENTS: StudentDef[] = [
     charterSigned: false,
     lastActiveDaysAgo: 20,
   },
+  // ── Lyon extras (grid density) ──
+  {
+    email: 'eliott.marchal@mail.com',
+    prenom: 'Eliott',
+    nom: 'Marchal',
+    phone: '+33 7 12 34 56 26',
+    parentPhone: '+33 7 98 76 54 26',
+    niveau: '4eme',
+    niveauDifficulte: 'Intermédiaire',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: 4,
+  },
+  {
+    email: 'romane.garnier@mail.com',
+    prenom: 'Romane',
+    nom: 'Garnier',
+    phone: '+33 7 12 34 56 27',
+    parentPhone: '+33 7 98 76 54 27',
+    niveau: '3eme',
+    niveauDifficulte: 'Avancé',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: 1,
+  },
+  {
+    email: 'owen.pasquier@mail.com',
+    prenom: 'Owen',
+    nom: 'Pasquier',
+    phone: '+33 7 12 34 56 28',
+    parentPhone: '+33 7 98 76 54 28',
+    niveau: '5eme',
+    niveauDifficulte: 'Débutant',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: 8,
+  },
+  {
+    email: 'maelys.olivier@mail.com',
+    prenom: 'Maëlys',
+    nom: 'Olivier',
+    phone: '+33 7 12 34 56 29',
+    parentPhone: '+33 7 98 76 54 29',
+    niveau: '2nde',
+    niveauDifficulte: 'Intermédiaire',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: 0,
+  },
+  {
+    email: 'jules.riviere@mail.com',
+    prenom: 'Jules',
+    nom: 'Rivière',
+    phone: '+33 7 12 34 56 30',
+    parentPhone: '+33 7 98 76 54 30',
+    niveau: '1ere',
+    niveauDifficulte: 'Avancé',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: 13,
+  },
+  {
+    email: 'lilou.renaud@mail.com',
+    prenom: 'Lilou',
+    nom: 'Renaud',
+    phone: '+33 7 12 34 56 31',
+    parentPhone: '+33 7 98 76 54 31',
+    niveau: '6eme',
+    niveauDifficulte: 'Débutant',
+    campus: 'Lyon',
+    charterSigned: false,
+    lastActiveDaysAgo: 150,
+  },
+  {
+    email: 'soan.brunet@mail.com',
+    prenom: 'Soan',
+    nom: 'Brunet',
+    phone: '+33 7 12 34 56 32',
+    parentPhone: '+33 7 98 76 54 32',
+    niveau: '4eme',
+    niveauDifficulte: 'Intermédiaire',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: null,
+  },
+  {
+    email: 'iris.lemaire@mail.com',
+    prenom: 'Iris',
+    nom: 'Lemaire',
+    phone: '+33 7 12 34 56 33',
+    parentPhone: '+33 7 98 76 54 33',
+    niveau: 'Terminale',
+    niveauDifficulte: 'Avancé',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: 2,
+  },
 ];
 
 // ─── Event blueprints ───
@@ -1417,7 +1778,14 @@ type EventBlueprint = {
   studentEmails: string[];
   presentEmails?: string[]; // subset of studentEmails
   delays?: Record<string, number>; // email -> delay minutes
-  notes_by_email?: Record<string, { text: string; authorKey: string }>;
+  verdicts_by_email?: Record<
+    string,
+    {
+      verdict: ParticipationVerdict;
+      contextTag?: ParticipationContextTag;
+      authorKey: string;
+    }
+  >;
   ratings?: Record<string, number>;
   feedback?: Record<string, string>;
   bringPc?: (email: string, index: number) => boolean;
@@ -1469,13 +1837,14 @@ const EVENTS: EventBlueprint[] = [
     studentEmails: parisStudents.slice(0, 8),
     presentEmails: parisStudents.slice(0, 7), // 7/8 attended
     delays: { [parisStudents[3]]: 10 },
-    notes_by_email: {
+    verdicts_by_email: {
       [parisStudents[0]]: {
-        text: 'Très engagée, super motivée sur les exercices.',
+        verdict: 'comfortable',
         authorKey: 'jules.dupont',
       },
       [parisStudents[4]]: {
-        text: 'A aidé ses camarades sur César.',
+        verdict: 'comfortable',
+        contextTag: 'helped_others',
         authorKey: 'laura.garcia',
       },
     },
@@ -1533,17 +1902,16 @@ const EVENTS: EventBlueprint[] = [
     bringPc: () => false,
   },
 
-  // 3. Past 3-day STAGE DE SECONDE (test multi-day planning + compliance)
+  // 3. Past STAGE DE SECONDE (semestre précédent — historique + portfolio)
   {
     titre: 'Stage de seconde — Découverte Tech',
     eventType: EVENT_TYPES.STAGE_SECONDE,
-    daysOffset: -21,
+    daysOffset: -180,
     durationDays: 3,
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1001',
-    notes:
-      'Premier stage de la saison. 3 élèves ont signé tous leurs documents.',
+    notes: 'Édition automne — promotion précédente. Archive pédagogique.',
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       {
@@ -1653,9 +2021,9 @@ const EVENTS: EventBlueprint[] = [
     studentEmails: parisStudents.slice(0, 8),
     presentEmails: parisStudents.slice(0, 6), // 6 already checked in
     delays: { [parisStudents[4]]: 15 },
-    notes_by_email: {
+    verdicts_by_email: {
       [parisStudents[2]]: {
-        text: 'Hésite sur la collecte des données.',
+        verdict: 'progressing',
         authorKey: 'jules.dupont',
       },
     },
@@ -1726,65 +2094,142 @@ const EVENTS: EventBlueprint[] = [
     bringPc: () => true,
   },
 
-  // 8. Future STAGE DE SECONDE (stage compliance in planning)
+  // 8. Ongoing STAGE DE SECONDE — En-cours phase QA (today = J3 of 5)
   {
-    titre: 'Stage de seconde — Avril',
+    titre: 'Stage de seconde — Cohorte en cours',
     eventType: EVENT_TYPES.STAGE_SECONDE,
-    daysOffset: 30,
-    durationDays: 3,
+    daysOffset: -2,
+    durationDays: 5,
     campus: 'Paris',
     theme: 'Développement Web',
-    pin: '1002',
-    notes: null,
-    mantaKeys: ['jules.dupont'],
+    pin: '1003',
+    notes:
+      "Cohorte en plein milieu du stage. Demo Day vendredi à 14h (Amphi A).\n\n## Logistique\n\n- Repas : commande validée pour les 5 jours.\n- Mentors : 2 référents pédago disponibles tous les après-midis.\n\n## À surveiller\n\n- Retour parents sur le droit à l'image — 3 dossiers en attente de relance.",
+    mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
+      // Day 0 — Lundi (déjà passé, J1)
       {
         dayOffset: 0,
         slots: [
-          standardOrgaSlot(),
           {
-            startHour: 13,
-            startMinute: 45,
-            endHour: 16,
-            label: 'Web',
-            activities: [
-              { nom: 'Ma première page HTML' },
-              { nom: 'CSS : Styliser sa page' },
-            ],
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J1', activityType: 'orga' }],
+          },
+          {
+            startHour: 9,
+            startMinute: 30,
+            endHour: 12,
+            label: 'Web — démarrage',
+            activities: [{ nom: 'Ma première page HTML' }],
+          },
+          {
+            startHour: 14,
+            endHour: 17,
+            label: 'CSS & créa',
+            activities: [{ nom: 'CSS : Styliser sa page' }],
           },
         ],
       },
+      // Day 1 — Mardi (déjà passé, J2)
       {
         dayOffset: 1,
         slots: [
-          standardOrgaSlot(),
           {
-            startHour: 13,
-            startMinute: 45,
-            endHour: 16,
-            label: 'IA',
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J2', activityType: 'orga' }],
+          },
+          {
+            startHour: 10,
+            endHour: 12,
+            label: 'IA — découverte',
             activities: [{ nom: "L'IA et moi" }],
+          },
+          {
+            startHour: 14,
+            endHour: 17,
+            label: 'IA — entraînement',
+            activities: [{ nom: 'Entraîne ton modèle' }],
           },
         ],
       },
+      // Day 2 — Aujourd'hui (J3)
       {
         dayOffset: 2,
         slots: [
-          standardOrgaSlot(),
           {
-            startHour: 13,
-            startMinute: 45,
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J3', activityType: 'orga' }],
+          },
+          {
+            startHour: 10,
+            endHour: 12,
+            label: 'Robotique',
+            activities: [{ nom: 'Construis ton robot' }],
+          },
+          {
+            startHour: 14,
             endHour: 16,
-            label: 'Game Design',
+            label: 'Capteurs',
+            activities: [{ nom: 'Capteurs et actionneurs' }],
+          },
+        ],
+      },
+      // Day 3 — Jeudi (à venir, J4)
+      {
+        dayOffset: 3,
+        slots: [
+          {
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J4', activityType: 'orga' }],
+          },
+          {
+            startHour: 10,
+            endHour: 17,
+            label: 'Game design',
             activities: [{ nom: 'Crée ton jeu Scratch' }],
           },
         ],
       },
+      // Day 4 — Vendredi (à venir, J5 — Demo Day)
+      {
+        dayOffset: 4,
+        slots: [
+          {
+            startHour: 9,
+            endHour: 9,
+            endMinute: 30,
+            label: 'Appel matin',
+            activities: [{ nom: 'Appel matin J5', activityType: 'orga' }],
+          },
+          {
+            startHour: 14,
+            endHour: 16,
+            label: 'Demo Day',
+            activities: [
+              { nom: 'Demo Day — final', activityType: 'conference' },
+            ],
+          },
+        ],
+      },
     ],
-    studentEmails: parisStudents.slice(10, 16),
-    stageSigned: parisStudents.slice(10, 12), // 2 of 6 fully signed
-    stageUnsigned: parisStudents.slice(12, 16), // 4 partial — triggers compliance alert
+    studentEmails: parisStudents.slice(6, 18),
+    presentEmails: parisStudents.slice(6, 16), // 10/12 émargés
+    delays: { [parisStudents[9]]: 10, [parisStudents[13]]: 5 },
     bringPc: () => true,
+    stageSigned: parisStudents.slice(6, 14), // 8/12 dossiers complets
+    stageUnsigned: parisStudents.slice(14, 18), // 4 partiels — alimente alertes
   },
 
   // 9. Past Lyon event
@@ -1839,6 +2284,67 @@ const EVENTS: EventBlueprint[] = [
     studentEmails: lyonStudents,
     bringPc: () => false,
   },
+
+  // 11. Future STAGE DE SECONDE Lyon (compliance + cross-campus coverage)
+  {
+    titre: 'Stage de seconde Lyon — Mai',
+    eventType: EVENT_TYPES.STAGE_SECONDE,
+    daysOffset: 25,
+    durationDays: 3,
+    campus: 'Lyon',
+    theme: 'Développement Web',
+    pin: '6003',
+    notes: null,
+    mantaKeys: ['pierre.leblanc', 'jeanne.albert', 'romain.caron'],
+    days: [
+      {
+        dayOffset: 0,
+        slots: [
+          standardOrgaSlot(),
+          {
+            startHour: 13,
+            startMinute: 45,
+            endHour: 16,
+            label: 'Web',
+            activities: [
+              { nom: 'Ma première page HTML' },
+              { nom: 'CSS : Styliser sa page' },
+            ],
+          },
+        ],
+      },
+      {
+        dayOffset: 1,
+        slots: [
+          standardOrgaSlot(),
+          {
+            startHour: 13,
+            startMinute: 45,
+            endHour: 16,
+            label: 'Robotique',
+            activities: [{ nom: 'Construis ton robot' }],
+          },
+        ],
+      },
+      {
+        dayOffset: 2,
+        slots: [
+          standardOrgaSlot(),
+          {
+            startHour: 13,
+            startMinute: 45,
+            endHour: 16,
+            label: 'IA',
+            activities: [{ nom: "L'IA et moi" }],
+          },
+        ],
+      },
+    ],
+    studentEmails: lyonStudents.slice(0, 10),
+    stageSigned: lyonStudents.slice(0, 5), // 5 of 10 fully signed
+    stageUnsigned: lyonStudents.slice(5, 10), // 5 partial
+    bringPc: () => true,
+  },
 ];
 
 // ─── Interview blueprints ───
@@ -1847,12 +2353,18 @@ type InterviewBlueprint = {
   studentEmail: string;
   staffKey: string;
   daysOffset: number; // when the interview is/was scheduled
+  hour?: number; // optional clock-hour, defaults to 14h
   status: 'planned' | 'completed' | 'cancelled';
+  /**
+   * Event title to link the interview to a specific participation.
+   * Required for stage_seconde interviews so the manage page En-cours view
+   * surfaces them under "Mes prochains entretiens" / completed counts.
+   */
+  forEventTitre?: string;
   notes?: {
     motivation?: string;
     globalNote?: string;
     satisfaction?: string;
-    influencers?: string;
   };
 };
 
@@ -1899,7 +2411,6 @@ const INTERVIEWS: InterviewBlueprint[] = [
       motivation: 'Très motivée, projet déjà clair.',
       globalNote: 'Profil idéal pour le coding club.',
       satisfaction: 'Très satisfaite',
-      influencers: 'Sa grande sœur (ingénieure)',
     },
   },
   {
@@ -2014,6 +2525,184 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: 5,
     status: 'planned',
   },
+
+  // ── Ongoing stage de seconde — tied to participations ──
+  // Entretiens d'orientation menés pendant le stage. Utilisé par les KPIs
+  // "Entretiens X/Y" et "Mes prochains entretiens" sur la vue En-cours.
+  {
+    studentEmail: parisStudents[6],
+    staffKey: 'marie.manta',
+    daysOffset: -1,
+    hour: 10,
+    status: 'completed',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    notes: {
+      motivation: 'Veut découvrir l’IA générative.',
+      globalNote: 'Profil curieux, à orienter Pré-Tech.',
+      satisfaction: 'Très satisfaite',
+    },
+  },
+  {
+    studentEmail: parisStudents[7],
+    staffKey: 'marie.manta',
+    daysOffset: -1,
+    hour: 14,
+    status: 'completed',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    notes: {
+      motivation: 'Cherche un cursus tech après le bac.',
+      globalNote: 'Engagement fort sur l’atelier robotique.',
+    },
+  },
+  {
+    studentEmail: parisStudents[8],
+    staffKey: 'marie.manta',
+    daysOffset: 0,
+    hour: 14,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+  {
+    studentEmail: parisStudents[9],
+    staffKey: 'marie.manta',
+    daysOffset: 0,
+    hour: 16,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+  {
+    studentEmail: parisStudents[10],
+    staffKey: 'pauline.marchand',
+    daysOffset: 1,
+    hour: 11,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+  {
+    studentEmail: parisStudents[11],
+    staffKey: 'pauline.marchand',
+    daysOffset: 1,
+    hour: 14,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+  // En retard — entretien planifié hier, pas marqué fait → alerte "Entretiens en retard"
+  {
+    studentEmail: parisStudents[12],
+    staffKey: 'marie.manta',
+    daysOffset: -1,
+    hour: 16,
+    status: 'planned',
+    forEventTitre: 'Stage de seconde — Cohorte en cours',
+  },
+];
+
+// ─── Reminder blueprints ───
+//
+// Onboarding relances envoyées depuis /staff/dev/events/[id]/onboarding. Visible
+// dans "Historique des relances" sur la fiche talent. Cible : élèves en cours
+// d'onboarding (signatures incomplètes), avec une vraie cadence (J-10 puis J-3
+// par exemple) plutôt que des dates uniformes.
+
+type ReminderBlueprint = {
+  studentEmail: string;
+  type: 'student' | 'parent';
+  staffKey: string;
+  daysOffset: number; // negative = past
+  hour?: number;
+};
+
+const REMINDERS: ReminderBlueprint[] = [
+  // Cohorte en cours — 4 dossiers partiels (parisStudents 14–17). Pauline
+  // (devLead) et Marie (dev) ont relancé à plusieurs reprises avant le démarrage.
+  {
+    studentEmail: parisStudents[14],
+    type: 'student',
+    staffKey: 'pauline.marchand',
+    daysOffset: -10,
+    hour: 9,
+  },
+  {
+    studentEmail: parisStudents[14],
+    type: 'parent',
+    staffKey: 'pauline.marchand',
+    daysOffset: -3,
+    hour: 11,
+  },
+  {
+    studentEmail: parisStudents[15],
+    type: 'parent',
+    staffKey: 'marie.manta',
+    daysOffset: -4,
+    hour: 14,
+  },
+  {
+    studentEmail: parisStudents[16],
+    type: 'student',
+    staffKey: 'marie.manta',
+    daysOffset: -12,
+    hour: 10,
+  },
+  {
+    studentEmail: parisStudents[16],
+    type: 'parent',
+    staffKey: 'pauline.marchand',
+    daysOffset: -5,
+    hour: 9,
+  },
+  {
+    studentEmail: parisStudents[17],
+    type: 'parent',
+    staffKey: 'pauline.marchand',
+    daysOffset: -2,
+    hour: 16,
+  },
+  // Talents hors stage avec onboarding incomplet — relances génériques pour
+  // alimenter les fiches profils en dehors du contexte stage.
+  {
+    studentEmail: parisStudents[20],
+    type: 'student',
+    staffKey: 'antoine.roux',
+    daysOffset: -15,
+    hour: 11,
+  },
+  {
+    studentEmail: parisStudents[25],
+    type: 'parent',
+    staffKey: 'clara.noel',
+    daysOffset: -7,
+    hour: 14,
+  },
+  // Lyon — stage de seconde Lyon a 5 dossiers partiels (lyonStudents 5–9).
+  // Hugo (Lyon devLead) et Sarah (Lyon dev) gèrent les relances.
+  {
+    studentEmail: lyonStudents[5],
+    type: 'parent',
+    staffKey: 'hugo.lefebvre',
+    daysOffset: -6,
+    hour: 10,
+  },
+  {
+    studentEmail: lyonStudents[6],
+    type: 'student',
+    staffKey: 'sarah.moreau',
+    daysOffset: -8,
+    hour: 15,
+  },
+  {
+    studentEmail: lyonStudents[6],
+    type: 'parent',
+    staffKey: 'hugo.lefebvre',
+    daysOffset: -4,
+    hour: 9,
+  },
+  {
+    studentEmail: lyonStudents[8],
+    type: 'parent',
+    staffKey: 'sarah.moreau',
+    daysOffset: -3,
+    hour: 11,
+  },
 ];
 
 // ─── Portfolio items ───
@@ -2071,6 +2760,10 @@ async function main() {
   const staffByKey = await seedStaff(campuses);
   console.log(`✓  Users (${Object.keys(staffByKey).length} staff)`);
 
+  // 2b. Intérêts catalogue (referenced by talents)
+  await seedInterests();
+  console.log('✓  Intérêts');
+
   // 3. Students
   const talentByEmail = await seedStudents();
   console.log(`✓  Students (${Object.keys(talentByEmail).length})`);
@@ -2078,6 +2771,10 @@ async function main() {
   // 3b. Parent account (links to first child for portal testing)
   const parentEmail = await seedParents(talentByEmail);
   console.log(`✓  Parent (${parentEmail})`);
+
+  // 3c. Talent interest assignments
+  await assignTalentInterests();
+  console.log('✓  Talent interest assignments');
 
   // 4. Themes
   const themesByKey = await seedThemes(campuses);
@@ -2123,6 +2820,10 @@ async function main() {
   const portfolioCount = await seedPortfolio(talentByEmail, eventIds);
   console.log(`✓  Portfolio (${portfolioCount} items)`);
 
+  // 12. Reminders (Historique des relances)
+  const reminderCount = await seedReminders(staffByKey, talentByEmail);
+  console.log(`✓  Reminders (${reminderCount})`);
+
   // ── Final summary ──
   await printSummary(parentEmail);
 }
@@ -2135,6 +2836,7 @@ async function wipeAll() {
   await prisma.participationActivity.deleteMany();
   await prisma.portfolioItem.deleteMany();
   await prisma.stepsProgress.deleteMany();
+  await prisma.onboardingReminder.deleteMany();
   await prisma.participation.deleteMany();
   await prisma.interview.deleteMany();
   await prisma.eventManta.deleteMany();
@@ -2149,7 +2851,14 @@ async function wipeAll() {
   await prisma.planningTemplate.deleteMany();
   await prisma.activityTemplate.deleteMany();
   await prisma.theme.deleteMany();
+  await prisma.talentInterest.deleteMany();
+  await prisma.interest.deleteMany();
   await prisma.talent.deleteMany();
+  // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
+  // is a required FK with default RESTRICT, so live versions block the delete.
+  await prisma.subjectVersion.deleteMany();
+  await prisma.subject.deleteMany();
+  await prisma.refCompSnapshot.deleteMany();
   await prisma.staffProfile.deleteMany();
   await prisma.campus.deleteMany();
   await prisma.syncError.deleteMany();
@@ -2157,6 +2866,109 @@ async function wipeAll() {
   await prisma.bauth_account.deleteMany();
   await prisma.bauth_verification.deleteMany();
   await prisma.bauth_user.deleteMany();
+}
+
+// ─── Interests ───
+
+async function seedInterests() {
+  const techItems = [
+    { nom: 'Créer des sites web', emoji: '🌐' },
+    { nom: 'Créer des apps', emoji: '📱' },
+    { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
+    { nom: 'Programmation', emoji: '💻' },
+    { nom: 'Développement de logiciels', emoji: '🖥️' },
+    { nom: 'Intelligence artificielle', emoji: '🤖' },
+    { nom: 'Robotique', emoji: '🦾' },
+    { nom: 'Data science / Analyse de données', emoji: '📊' },
+    { nom: 'Cloud / Infrastructure', emoji: '☁️' },
+    { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
+  ];
+
+  const generalItems = [
+    { nom: 'Jeux vidéo', emoji: '🎮' },
+    { nom: 'Manga / Anime', emoji: '📺' },
+    { nom: 'Séries / Films', emoji: '🎬' },
+    { nom: 'Musique (écouter)', emoji: '🎧' },
+    { nom: "Jouer d'un instrument", emoji: '🎸' },
+    { nom: 'Dessin / Illustration', emoji: '✏️' },
+    { nom: 'Photo / Vidéo', emoji: '📷' },
+    { nom: 'Lecture', emoji: '📚' },
+    { nom: 'Écriture / Poésie', emoji: '📝' },
+    { nom: 'Cuisine / Pâtisserie', emoji: '👨‍🍳' },
+    { nom: 'Sport collectif', emoji: '⚽' },
+    { nom: 'Sport individuel', emoji: '🏃' },
+    { nom: 'Danse', emoji: '💃' },
+    { nom: 'Skateboard / Roller', emoji: '🛹' },
+    { nom: 'Mode / Streetwear', emoji: '👟' },
+    { nom: 'Maquillage / Beauté', emoji: '💄' },
+    { nom: 'DIY / Bricolage', emoji: '🔨' },
+    { nom: 'Jardinage', emoji: '🌱' },
+    { nom: "L'espace / Astronomie", emoji: '🔭' },
+    { nom: 'Les animaux', emoji: '🐾' },
+    { nom: 'Environnement / Écologie', emoji: '🌍' },
+    { nom: 'Psychologie', emoji: '🧠' },
+    { nom: 'Histoire', emoji: '📜' },
+    { nom: 'Politique / Débats', emoji: '🗳️' },
+    { nom: 'Économie / Business', emoji: '💼' },
+  ];
+
+  for (let i = 0; i < techItems.length; i++) {
+    await prisma.interest.create({
+      data: {
+        nom: techItems[i].nom,
+        emoji: techItems[i].emoji,
+        kind: 'tech',
+        order: i,
+      },
+    });
+  }
+
+  for (let i = 0; i < generalItems.length; i++) {
+    await prisma.interest.create({
+      data: {
+        nom: generalItems[i].nom,
+        emoji: generalItems[i].emoji,
+        kind: 'general',
+        order: i,
+      },
+    });
+  }
+}
+
+async function assignTalentInterests() {
+  const talents = await prisma.talent.findMany({
+    where: { techInterestsValidatedAt: { not: null } },
+    select: { id: true },
+  });
+
+  const techIds = await prisma.interest.findMany({
+    where: { kind: 'tech' },
+    select: { id: true },
+  });
+  const generalIds = await prisma.interest.findMany({
+    where: { kind: 'general' },
+    select: { id: true },
+  });
+
+  for (const talent of talents) {
+    // 1-2 tech
+    const techCount = 1 + Math.floor(Math.random() * 2);
+    const shuffledTech = [...techIds].sort(() => Math.random() - 0.5);
+    const selectedTech = shuffledTech.slice(0, techCount);
+
+    // 1-5 general
+    const genCount = 1 + Math.floor(Math.random() * 5);
+    const shuffledGen = [...generalIds].sort(() => Math.random() - 0.5);
+    const selectedGen = shuffledGen.slice(0, genCount);
+
+    await prisma.talentInterest.createMany({
+      data: [
+        ...selectedTech.map((t) => ({ talentId: talent.id, interestId: t.id })),
+        ...selectedGen.map((g) => ({ talentId: talent.id, interestId: g.id })),
+      ],
+      skipDuplicates: true,
+    });
+  }
 }
 
 // ─── Seeders ───
@@ -2175,8 +2987,11 @@ async function seedCampuses(): Promise<
 
 async function seedStaff(
   campuses: Record<string, { id: string }>,
-): Promise<Record<string, { id: string; campusId: string }>> {
-  const byKey: Record<string, { id: string; campusId: string }> = {};
+): Promise<Record<string, { id: string; userId: string; campusId: string }>> {
+  const byKey: Record<
+    string,
+    { id: string; userId: string; campusId: string }
+  > = {};
   for (const s of STAFF_MEMBERS) {
     const user = await prisma.bauth_user.create({
       data: {
@@ -2184,6 +2999,7 @@ async function seedStaff(
         name: s.name,
         role: 'staff',
         emailVerified: true,
+        image: s.image,
       },
     });
     const profile = await prisma.staffProfile.create({
@@ -2193,7 +3009,11 @@ async function seedStaff(
         staffRole: s.role,
       },
     });
-    byKey[s.key] = { id: profile.id, campusId: profile.campusId! };
+    byKey[s.key] = {
+      id: profile.id,
+      userId: user.id,
+      campusId: profile.campusId!,
+    };
   }
   return byKey;
 }
@@ -2203,7 +3023,9 @@ async function seedStudents(): Promise<
 > {
   const byEmail: Record<string, { id: string; nom: string; prenom: string }> =
     {};
-  for (const s of STUDENTS) {
+
+  for (let i = 0; i < STUDENTS.length; i++) {
+    const s = STUDENTS[i];
     const user = await prisma.bauth_user.create({
       data: {
         email: s.email,
@@ -2212,10 +3034,48 @@ async function seedStudents(): Promise<
         emailVerified: true,
       },
     });
+
+    // Connexions plateforme : 10% jamais connecté·e (alerte "Jamais
+    // connectés"), le reste avec une dernière activité datée selon la
+    // valeur déclarée par StudentDef.
+    const neverLogged = i % 10 === 9;
     const lastActiveAt =
-      s.lastActiveDaysAgo !== null
-        ? new Date(now.getTime() - s.lastActiveDaysAgo * 86400000)
+      neverLogged || s.lastActiveDaysAgo === null
+        ? null
+        : new Date(now.getTime() - s.lastActiveDaysAgo * 86400000);
+
+    // Onboarding plateforme — distribution réaliste pour la KPI "Profil
+    // complété" (gate du dashboard talent : infoValidatedAt + rulesSignedAt
+    // + charterAcceptedAt tous non-null) :
+    //   - skipOnboarding === true       → tout signé (override explicite)
+    //   - 70% des autres                → tout signé
+    //   - 20%                           → infoValidatedAt uniquement (en
+    //                                     cours d'onboarding)
+    //   - 10% (incluant neverLogged)    → rien signé (bloqués avant le
+    //                                     dashboard)
+    const onboardingBucket =
+      s.skipOnboarding === false
+        ? 'none'
+        : neverLogged
+          ? 'none'
+          : i % 10 < 7
+            ? 'full'
+            : i % 10 < 9
+              ? 'partial'
+              : 'none';
+    const fullyOnboarded =
+      s.skipOnboarding === true || onboardingBucket === 'full';
+    const partiallyOnboarded = onboardingBucket === 'partial';
+    const charterAcceptedAt = fullyOnboarded
+      ? new Date()
+      : s.charterSigned && !neverLogged
+        ? new Date()
         : null;
+    const infoValidatedAt =
+      fullyOnboarded || partiallyOnboarded ? new Date() : null;
+    const rulesSignedAt = fullyOnboarded ? new Date() : null;
+    const hasParentInfo = fullyOnboarded || s.skipOnboarding === true;
+
     const talent = await prisma.talent.create({
       data: {
         userId: user.id,
@@ -2226,15 +3086,23 @@ async function seedStudents(): Promise<
         parentPhone: s.parentPhone,
         niveau: s.niveau,
         niveauDifficulte: s.niveauDifficulte,
-        charterAcceptedAt: s.charterSigned ? new Date() : null,
-        infoValidatedAt: s.skipOnboarding ? new Date() : null,
-        rulesSignedAt: s.skipOnboarding ? new Date() : null,
-        parentNom: s.skipOnboarding ? 'Martin' : null,
-        parentPrenom: s.skipOnboarding ? 'Sophie' : null,
-        parentEmail: s.skipOnboarding ? `parent.${s.email}` : null,
+        charterAcceptedAt,
+        infoValidatedAt,
+        techInterestsValidatedAt: fullyOnboarded ? new Date() : null,
+        generalInterestsValidatedAt: fullyOnboarded ? new Date() : null,
+        interestsRecapSeenAt: fullyOnboarded ? new Date() : null,
+        rulesSignedAt,
+        highSchoolValidatedAt: fullyOnboarded ? new Date() : null,
+        highSchoolName: fullyOnboarded ? 'Lycée général Victor Hugo' : null,
+        highSchoolCity: fullyOnboarded ? 'Paris' : null,
+        parentNom: hasParentInfo ? 'Martin' : null,
+        parentPrenom: hasParentInfo ? 'Sophie' : null,
+        parentEmail: hasParentInfo ? `parent.${s.email}` : null,
         lastActiveAt,
+        externalId: mockSalesforceLeadId(i),
       },
     });
+
     byEmail[s.email] = {
       id: talent.id,
       nom: talent.nom,
@@ -2328,7 +3196,9 @@ async function seedActivityTemplates(
         contentStructure: def.isDynamic
           ? (contentStructures[def.nom] ?? undefined)
           : undefined,
-        content: def.content,
+        content: def.content
+          ? (marked.parse(def.content) as string)
+          : undefined,
         link: def.link,
         defaultDuration: def.defaultDuration,
         campusId,
@@ -2406,7 +3276,7 @@ async function seedPlanningTemplate(
 
 async function seedEvents(
   campuses: Record<string, { id: string }>,
-  staffByKey: Record<string, { id: string; campusId: string }>,
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
   talentByEmail: Record<string, { id: string; nom: string; prenom: string }>,
   themesByKey: Record<string, { id: string }>,
   templatesByName: Record<string, { id: string }>,
@@ -2532,8 +3402,10 @@ async function seedEvents(
         ? blueprint.presentEmails.includes(email)
         : false;
 
-      const note = blueprint.notes_by_email?.[email];
-      const noteAuthor = note ? staffByKey[note.authorKey] : undefined;
+      const verdictEntry = blueprint.verdicts_by_email?.[email];
+      const verdictAuthor = verdictEntry
+        ? staffByKey[verdictEntry.authorKey]
+        : undefined;
 
       const participation = await prisma.participation.create({
         data: {
@@ -2543,8 +3415,6 @@ async function seedEvents(
           isPresent,
           delay: blueprint.delays?.[email] ?? 0,
           bringPc: blueprint.bringPc ? blueprint.bringPc(email, i) : false,
-          note: note?.text ?? null,
-          noteAuthorId: noteAuthor?.id ?? null,
           camperRating: isPresent ? (blueprint.ratings?.[email] ?? null) : null,
           camperFeedback: isPresent
             ? (blueprint.feedback?.[email] ?? null)
@@ -2552,14 +3422,28 @@ async function seedEvents(
         },
       });
 
-      // ParticipationActivity for every activity in the event
+      // Cockpit attaches verdicts at the orga (roll-call) slot, so seed
+      // mirrors that on the first orga activity of the event.
+      const verdictTargetId = activitiesCreated.find(
+        (a) => a.type === 'orga',
+      )?.id;
       for (const activity of activitiesCreated) {
+        const isVerdictTarget =
+          verdictEntry && verdictAuthor && activity.id === verdictTargetId;
         await prisma.participationActivity.create({
           data: {
             participationId: participation.id,
             activityId: activity.id,
             isPresent,
             delay: blueprint.delays?.[email] ?? 0,
+            ...(isVerdictTarget
+              ? {
+                  verdict: verdictEntry.verdict,
+                  contextTag: verdictEntry.contextTag ?? null,
+                  verdictAuthorId: verdictAuthor.id,
+                  verdictAt: new Date(),
+                }
+              : {}),
           },
         });
       }
@@ -2723,28 +3607,55 @@ async function recomputeXp(): Promise<number> {
 }
 
 async function seedInterviews(
-  staffByKey: Record<string, { id: string; campusId: string }>,
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
   talentByEmail: Record<string, { id: string }>,
-  campuses: Record<string, { id: string }>,
+  _campuses: Record<string, { id: string }>,
 ): Promise<number> {
+  // Pre-resolve titre → eventId once so the per-interview lookup stays cheap.
+  const events = await prisma.event.findMany({
+    select: { id: true, titre: true },
+  });
+  const eventIdByTitre = new Map(events.map((e) => [e.titre, e.id]));
+
   let count = 0;
   for (const iv of INTERVIEWS) {
     const talent = talentByEmail[iv.studentEmail];
     const staff = staffByKey[iv.staffKey];
     if (!talent || !staff) continue;
-    // Interview campus follows the staff member's campus
-    const campusId = staff.campusId;
+
+    let participationId: string | null = null;
+    if (iv.forEventTitre) {
+      const eventId = eventIdByTitre.get(iv.forEventTitre);
+      if (!eventId) {
+        console.warn(
+          `⚠ Interview for ${iv.studentEmail} references unknown event "${iv.forEventTitre}"`,
+        );
+        continue;
+      }
+      const participation = await prisma.participation.findUnique({
+        where: { talentId_eventId: { talentId: talent.id, eventId } },
+        select: { id: true },
+      });
+      if (!participation) {
+        console.warn(
+          `⚠ Interview for ${iv.studentEmail} has no participation in "${iv.forEventTitre}"`,
+        );
+        continue;
+      }
+      participationId = participation.id;
+    }
+
     await prisma.interview.create({
       data: {
         talentId: talent.id,
         staffId: staff.id,
-        campusId,
-        date: dayAt(iv.daysOffset, 14, 0),
+        campusId: staff.campusId,
+        participationId,
+        date: dayAt(iv.daysOffset, iv.hour ?? 14, 0),
         status: iv.status,
         motivation: iv.notes?.motivation ?? null,
         globalNote: iv.notes?.globalNote ?? null,
         satisfaction: iv.notes?.satisfaction ?? null,
-        influencers: iv.notes?.influencers ?? null,
       },
     });
     count++;
@@ -2767,6 +3678,28 @@ async function seedPortfolio(
         eventId,
         url: p.url ?? null,
         caption: p.caption,
+      },
+    });
+    count++;
+  }
+  return count;
+}
+
+async function seedReminders(
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
+  talentByEmail: Record<string, { id: string }>,
+): Promise<number> {
+  let count = 0;
+  for (const r of REMINDERS) {
+    const talent = talentByEmail[r.studentEmail];
+    const staff = staffByKey[r.staffKey];
+    if (!talent || !staff) continue;
+    await prisma.onboardingReminder.create({
+      data: {
+        talentId: talent.id,
+        type: r.type,
+        sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
+        sentBy: staff.userId,
       },
     });
     count++;
@@ -2856,7 +3789,11 @@ async function printSummary(parentEmail: string) {
     `   Task queue — missing planning: 1 event (Atelier Game Design, +4d)`,
   );
   console.log(
-    '   Stage compliance:              2 stage_seconde events with mixed signed/unsigned',
+    '   Stage compliance:              3 stage_seconde events with mixed signed/unsigned',
+  );
+  const reminderTotal = await prisma.onboardingReminder.count();
+  console.log(
+    `   Onboarding reminders:          ${reminderTotal} relances envoyées (CommHistoryList)`,
   );
   console.log('');
 

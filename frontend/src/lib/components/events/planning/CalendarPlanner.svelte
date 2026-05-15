@@ -2,17 +2,15 @@
   import { onMount, tick, untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
-  import {
-    Plus,
-    LayoutTemplate,
-    Zap,
-    ExternalLink,
-    Search,
-    GripVertical,
-    Clock,
-    TriangleAlert,
-    SquarePen,
-  } from '@lucide/svelte';
+  import Plus from '@lucide/svelte/icons/plus';
+  import LayoutTemplate from '@lucide/svelte/icons/layout-template';
+  import Zap from '@lucide/svelte/icons/zap';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Search from '@lucide/svelte/icons/search';
+  import GripVertical from '@lucide/svelte/icons/grip-vertical';
+  import Clock from '@lucide/svelte/icons/clock';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import SquarePen from '@lucide/svelte/icons/square-pen';
   import ApplyPlanningTemplateDialog from './ApplyPlanningTemplateDialog.svelte';
   import EditActivityDialog from './EditActivityDialog.svelte';
   import AssignActivityDialog from './AssignActivityDialog.svelte';
@@ -26,6 +24,13 @@
     activityTypeStyles,
     activityTypes,
   } from '$lib/validation/templates';
+  import {
+    addDays,
+    dayOfMonth,
+    fromWallClock,
+    toDateKey,
+    toMinutesOfDay,
+  } from '$lib/domain/planningTime';
   import { enhance as kitEnhance } from '$app/forms';
   import { goto } from '$app/navigation';
 
@@ -126,11 +131,11 @@
   });
 
   // ── Date helpers ──
-
-  function getDateKey(date: Date | string): string {
-    const d = new Date(date);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
+  //
+  // Slots come in as UTC instants but the planner thinks in campus-local time:
+  // a slot at 14:00 in Lille belongs to that calendar day, that hour, no
+  // matter where the staff is browsing from. All Date↔string conversions go
+  // through `$lib/domain/planningTime` — never call `Date.getHours()` here.
 
   function formatTime(date: Date | string): string {
     return new Date(date).toLocaleTimeString('fr-FR', {
@@ -147,41 +152,43 @@
     return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`;
   }
 
-  function generateDays(start: Date | string, end: Date | string | null) {
-    const startDate = new Date(start);
-    const endDate = end ? new Date(end) : startDate;
-    const days: Date[] = [];
-    const current = new Date(startDate);
-    current.setHours(0, 0, 0, 0);
-    const endMidnight = new Date(endDate);
-    endMidnight.setHours(0, 0, 0, 0);
-    while (current <= endMidnight) {
-      days.push(new Date(current));
-      current.setDate(current.getDate() + 1);
-      if (days.length > 30) break;
+  function generateDayKeys(
+    start: Date | string,
+    end: Date | string | null,
+  ): string[] {
+    const startKey = toDateKey(start, timezone);
+    const endKey = end ? toDateKey(end, timezone) : startKey;
+    const keys: string[] = [];
+    let cur = startKey;
+    // Lexical comparison is correct for YYYY-MM-DD strings.
+    while (cur <= endKey && keys.length < 31) {
+      keys.push(cur);
+      cur = addDays(cur, 1);
     }
-    return days;
+    return keys;
   }
 
   // ── Layout: days, conflict-column bin-packing ──
 
   const calendarDays = $derived.by(() => {
-    let days: Date[] = [];
+    let dayKeys: string[];
     if (eventDate) {
-      days = generateDays(eventDate, eventEndDate || null);
+      dayKeys = generateDayKeys(eventDate, eventEndDate || null);
     } else if (localSlots.length > 0) {
-      const uniqueDates = [
-        ...new Set(localSlots.map((s) => getDateKey(s.startTime))),
+      dayKeys = [
+        ...new Set(localSlots.map((s) => toDateKey(s.startTime, timezone))),
       ].sort();
-      days = uniqueDates.map((d) => new Date(d));
     } else {
-      days = [new Date()];
+      dayKeys = [toDateKey(new Date(), timezone)];
     }
 
-    return days.map((d) => {
-      const key = getDateKey(d);
+    return dayKeys.map((key) => {
+      // A noon-in-campus-TZ Date is safe to feed `toLocaleDateString` with the
+      // campus timezone — it can't drift to the previous/next day under any
+      // formatter offset.
+      const labelDate = fromWallClock(key, '12:00', timezone);
       const daySlots = localSlots.filter(
-        (s) => getDateKey(s.startTime) === key,
+        (s) => toDateKey(s.startTime, timezone) === key,
       );
 
       function overlaps(a: Slot, b: Slot) {
@@ -270,40 +277,43 @@
       const unassignedCount = daySlots.filter((s) => !s.activity).length;
 
       return {
-        date: d,
+        date: labelDate,
         dateKey: key,
+        dayOfMonth: dayOfMonth(key),
         slots: enrichedSlots,
         unassignedCount,
-        isToday: getDateKey(currentTime) === key,
+        isToday: toDateKey(currentTime, timezone) === key,
       };
     });
   });
 
   // ── Grid geometry ──
+  //
+  // Pixel position is driven by minutes-since-campus-local-midnight, not by
+  // the browser's Date.getHours(). That keeps the slot pinned to the same
+  // visual row regardless of where the staff is browsing from.
 
-  function getHoursRange(slots: Slot[]) {
-    let minHour = 8;
-    let maxHour = 20;
-    for (const slot of slots) {
-      const start = new Date(slot.startTime).getHours();
-      const end =
-        new Date(slot.endTime).getHours() +
-        (new Date(slot.endTime).getMinutes() > 0 ? 1 : 0);
-      if (start < minHour) minHour = start;
-      if (end > maxHour) maxHour = end;
+  const range = $derived.by(() => {
+    let minMinutes = 8 * 60;
+    let maxMinutes = 20 * 60;
+    for (const slot of localSlots) {
+      const startMin = toMinutesOfDay(slot.startTime, timezone);
+      let endMin = toMinutesOfDay(slot.endTime, timezone);
+      // Treat a 00:00 end as end-of-day (24:00) when the slot started later,
+      // so a 23:00–00:00 slot doesn't collapse the range.
+      if (endMin === 0 && startMin > 0) endMin = 24 * 60;
+      if (startMin < minMinutes) minMinutes = startMin;
+      if (endMin > maxMinutes) maxMinutes = endMin;
     }
-    return {
-      start: Math.max(0, minHour - 1),
-      end: Math.min(24, Math.max(minHour + 1, maxHour) + 1),
-    };
-  }
-  const range = $derived(getHoursRange(localSlots));
+    const start = Math.max(0, Math.floor(minMinutes / 60) - 1);
+    const end = Math.min(24, Math.ceil(maxMinutes / 60) + 1);
+    return { start, end: Math.max(start + 1, end) };
+  });
   const totalHours = $derived(range.end - range.start);
 
   function getPixels(time: Date | string) {
-    const d = new Date(time);
     return (
-      ((d.getHours() - range.start) * 60 + d.getMinutes()) * PIXELS_PER_MINUTE
+      (toMinutesOfDay(time, timezone) - range.start * 60) * PIXELS_PER_MINUTE
     );
   }
   function getTimeFromPixels(px: number) {
@@ -775,13 +785,8 @@
     endTime: string,
     template: (typeof templates)[number] | null,
   ): Slot {
-    const [sH, sM] = startTime.split(':').map(Number);
-    const [eH, eM] = endTime.split(':').map(Number);
-    const base = new Date(dateKey);
-    const start = new Date(base);
-    start.setHours(sH, sM, 0, 0);
-    const end = new Date(base);
-    end.setHours(eH, eM, 0, 0);
+    const start = fromWallClock(dateKey, startTime, timezone);
+    const end = fromWallClock(dateKey, endTime, timezone);
     const id = stubId();
     return {
       id,
@@ -824,13 +829,8 @@
     if (!target) return;
     isSubmitting = true;
     const snap = snapshot();
-    const [sH, sM] = startTime.split(':').map(Number);
-    const [eH, eM] = endTime.split(':').map(Number);
-    const base = new Date(dateKey);
-    const newStart = new Date(base);
-    newStart.setHours(sH, sM, 0, 0);
-    const newEnd = new Date(base);
-    newEnd.setHours(eH, eM, 0, 0);
+    const newStart = fromWallClock(dateKey, startTime, timezone);
+    const newEnd = fromWallClock(dateKey, endTime, timezone);
     localSlots = localSlots.map((s) =>
       s.id === slotId ? { ...s, startTime: newStart, endTime: newEnd } : s,
     );
@@ -974,7 +974,7 @@
   function findEmptySlotAt(dateKey: string, y: number): string | null {
     for (const s of localSlots) {
       if (s.activity) continue;
-      if (getDateKey(s.startTime) !== dateKey) continue;
+      if (toDateKey(s.startTime, timezone) !== dateKey) continue;
       const top = getPixels(s.startTime);
       const bottom = getPixels(s.endTime);
       if (y >= top && y <= bottom) return s.id;
@@ -1110,7 +1110,7 @@
                 day.isToday ? 'bg-epi-blue text-white' : 'text-foreground',
               )}
             >
-              {day.date.getDate()}
+              {day.dayOfMonth}
             </div>
             {#if canEdit && day.unassignedCount > 0}
               <div

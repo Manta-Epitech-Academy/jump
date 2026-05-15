@@ -1,79 +1,71 @@
 <script lang="ts">
-  import { FileCheck, FileClock } from '@lucide/svelte';
+  import FileCheck from '@lucide/svelte/icons/file-check';
+  import FileClock from '@lucide/svelte/icons/file-clock';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import UserX from '@lucide/svelte/icons/user-x';
   import * as Card from '$lib/components/ui/card';
+  import { formatDateFr } from '$lib/utils';
 
   let {
     student,
+    timezone,
   }: {
     student: {
-      charterAcceptedAt: Date | string | null;
-      rulesSignedAt: Date | string | null;
-      imageRightsSignedAt: Date | string | null;
-      imageRightsSignerName: string | null;
+      userId: string | null;
+      lastActiveAt: Date | string | null;
+      infoValidatedAt: Date | string | null;
     };
+    timezone: string;
   } = $props();
 
-  const documents = $derived([
-    {
-      label: 'Charte informatique',
-      signedAt: student.charterAcceptedAt,
-      signer: null,
-    },
-    {
-      label: 'Règlement intérieur',
-      signedAt: student.rulesSignedAt,
-      signer: null,
-    },
-    {
-      label: "Droit à l'image",
-      signedAt: student.imageRightsSignedAt,
-      signer: student.imageRightsSignerName,
-    },
-  ]);
-
-  function formatDate(date: Date | string | null): string {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  }
-
-  const completedCount = $derived(documents.filter((d) => d.signedAt).length);
+  const accountState = $derived(
+    student.userId
+      ? student.lastActiveAt
+        ? ('active' as const)
+        : ('created' as const)
+      : ('none' as const),
+  );
 </script>
 
-<Card.Root class="shadow-md">
-  <Card.Header class="pb-3">
-    <Card.Title class="text-sm font-bold uppercase">
-      Onboarding
-      <span class="ml-1 text-xs font-normal text-muted-foreground">
-        ({completedCount}/3)
-      </span>
+<Card.Root class="rounded-sm border shadow-sm dark:shadow-none">
+  <Card.Header class="border-b bg-muted/30 pt-4 pb-4">
+    <Card.Title
+      class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
+    >
+      <UserCheck class="h-4 w-4 text-epi-blue" />
+      Onboarding plateforme
     </Card.Title>
   </Card.Header>
-  <Card.Content class="space-y-2">
-    {#each documents as doc}
-      <div class="flex items-center gap-2 text-sm">
-        {#if doc.signedAt}
-          <FileCheck class="h-4 w-4 shrink-0 text-green-500" />
-          <div class="flex-1">
-            <span class="text-foreground">{doc.label}</span>
-            {#if doc.signer}
-              <span class="text-xs text-muted-foreground">
-                — {doc.signer}
-              </span>
-            {/if}
-          </div>
-          <span class="text-xs text-muted-foreground">
-            {formatDate(doc.signedAt)}
-          </span>
-        {:else}
-          <FileClock class="h-4 w-4 shrink-0 text-amber-500" />
-          <span class="flex-1 text-muted-foreground">{doc.label}</span>
-          <span class="text-xs text-amber-500">En attente</span>
-        {/if}
-      </div>
-    {/each}
+  <Card.Content class="space-y-2 pt-5">
+    <div class="flex items-center gap-2 text-sm">
+      {#if accountState === 'active'}
+        <UserCheck class="h-4 w-4 shrink-0 text-green-500" />
+        <span class="flex-1">Compte plateforme actif</span>
+        <span class="text-xs text-muted-foreground">
+          Dernière connexion : {formatDateFr(student.lastActiveAt!, timezone)}
+        </span>
+      {:else if accountState === 'created'}
+        <FileClock class="h-4 w-4 shrink-0 text-amber-500" />
+        <span class="flex-1 text-muted-foreground">
+          Compte créé, jamais connecté
+        </span>
+      {:else}
+        <UserX class="h-4 w-4 shrink-0 text-destructive" />
+        <span class="flex-1 text-muted-foreground">Aucun compte plateforme</span
+        >
+      {/if}
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      {#if student.infoValidatedAt}
+        <FileCheck class="h-4 w-4 shrink-0 text-green-500" />
+        <span class="flex-1">Profil complété</span>
+        <span class="text-xs text-muted-foreground">
+          {formatDateFr(student.infoValidatedAt, timezone)}
+        </span>
+      {:else}
+        <FileClock class="h-4 w-4 shrink-0 text-amber-500" />
+        <span class="flex-1 text-muted-foreground">Profil incomplet</span>
+      {/if}
+    </div>
   </Card.Content>
 </Card.Root>

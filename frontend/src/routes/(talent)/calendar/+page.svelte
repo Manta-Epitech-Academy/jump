@@ -3,10 +3,14 @@
   import { onMount, untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
-  import { ArrowLeft, ChevronLeft, ChevronRight, Zap } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import Zap from '@lucide/svelte/icons/zap';
   import { cn } from '$lib/utils';
   import { activityTypeStyles } from '$lib/validation/templates';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -99,18 +103,21 @@
   });
 
   function openPreview(slot: Slot) {
+    track('calendar_slot_previewed');
     previewSlot = slot;
     previewOpen = true;
   }
 
   function prevWeek() {
     if (!canGoPrev) return;
+    track('calendar_week_navigated', { direction: 'prev' });
     const n = new Date(weekStart);
     n.setDate(n.getDate() - 7);
     weekStart = n;
   }
   function nextWeek() {
     if (!canGoNext) return;
+    track('calendar_week_navigated', { direction: 'next' });
     const n = new Date(weekStart);
     n.setDate(n.getDate() + 7);
     weekStart = n;

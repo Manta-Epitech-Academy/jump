@@ -1,17 +1,21 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { EventService } from '$lib/server/services/events';
-import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { getLifecycleBounds, pastEventWhere } from '$lib/domain/eventLifecycle';
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireFlag(locals, 'coding_club');
   try {
     const db = scopedPrisma(getCampusId(locals));
+    const bounds = getLifecycleBounds(getCampusTimezone(locals));
     const events = await db.event.findMany({
-      where: {
-        date: { lt: new Date() },
-      },
+      where: pastEventWhere(bounds),
       include: {
         theme: true,
         mantas: { include: { staffProfile: { include: { user: true } } } },
@@ -32,8 +36,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         presentCount: event.participations.length,
         mantas: event.mantas.map((m) => ({
           name: m.staffProfile.user?.name || '',
-          // TODO: implement S3 file storage for avatars
-          avatarUrl: m.staffProfile.avatar,
+          avatarUrl: m.staffProfile.user?.image ?? null,
         })),
       })),
     };

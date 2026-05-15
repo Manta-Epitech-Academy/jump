@@ -2,7 +2,11 @@ import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { getStaffRoleRedirectPath } from '$lib/domain/staff';
+import {
+  bauthRoleForStaffRole,
+  getStaffRoleRedirectPath,
+} from '$lib/domain/staff';
+import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
 
 // BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft.
 // This route serves as the post-auth gate that:
@@ -60,9 +64,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       prisma.staffInvitation.delete({ where: { email } }),
       prisma.bauth_user.update({
         where: { id: locals.user.id },
-        data: {
-          role: invitation.staffRole === 'admin' ? 'admin' : 'staff',
-        },
+        data: { role: bauthRoleForStaffRole(invitation.staffRole) },
       }),
     ]);
 
@@ -70,7 +72,7 @@ export const GET: RequestHandler = async ({ locals }) => {
   } else if (locals.user.role !== 'staff' && locals.user.role !== 'admin') {
     await prisma.bauth_user.update({
       where: { id: locals.user.id },
-      data: { role: profile.staffRole === 'admin' ? 'admin' : 'staff' },
+      data: { role: bauthRoleForStaffRole(profile.staffRole) },
     });
   }
 
@@ -79,6 +81,8 @@ export const GET: RequestHandler = async ({ locals }) => {
   if (!targetPath) {
     throw redirect(303, `${resolve('/staff/login')}?error=NoRole`);
   }
+
+  await syncMicrosoftAvatar(locals.user.id);
 
   throw redirect(303, resolve(targetPath));
 };

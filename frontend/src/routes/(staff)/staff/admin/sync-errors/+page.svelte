@@ -1,15 +1,22 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { TriangleAlert, Check, CheckCheck } from '@lucide/svelte';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import Check from '@lucide/svelte/icons/check';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import * as Table from '$lib/components/ui/table';
   import { formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 </script>
+
+<svelte:head>
+  <title>Erreurs de sync</title>
+</svelte:head>
 
 <div class="space-y-6">
   <div class="flex items-center justify-between">
@@ -29,6 +36,9 @@
         use:enhance={() =>
           async ({ result, update }) => {
             if (result.type === 'success') {
+              track('sync_errors_resolved_all', {
+                count: data.unresolvedCount,
+              });
               toast.success('Toutes les erreurs ont été résolues');
               await update();
             } else {
@@ -102,6 +112,7 @@
                     use:enhance={() =>
                       async ({ result, update }) => {
                         if (result.type === 'success') {
+                          track('sync_error_resolved');
                           toast.success('Erreur résolue');
                           await update();
                         } else {

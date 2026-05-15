@@ -7,15 +7,13 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Switch } from '$lib/components/ui/switch';
   import { Label } from '$lib/components/ui/label';
-  import {
-    ArrowLeft,
-    Map as MapIcon,
-    Trophy,
-    ExternalLink,
-    RotateCcw,
-    Eye,
-    FlaskConical,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import MapIcon from '@lucide/svelte/icons/map';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+  import Eye from '@lucide/svelte/icons/eye';
+  import FlaskConical from '@lucide/svelte/icons/flask-conical';
   import type {
     ActivityStep,
     ActivityStructure,
@@ -50,7 +48,7 @@
     currentStep ? renderMarkdown(currentStep.content_markdown) : '',
   );
   let staticHtml = $derived(
-    !isDynamic && template.content ? renderMarkdown(template.content) : '',
+    !isDynamic && template.content ? template.content : '',
   );
 
   $effect(() => {
@@ -81,6 +79,10 @@
     qcmFails = 0;
   }
 </script>
+
+<svelte:head>
+  <title>{data.template.nom} — Aperçu</title>
+</svelte:head>
 
 {#if !isDynamic}
   <div

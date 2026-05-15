@@ -5,16 +5,15 @@
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
   import { Alert, AlertDescription } from '$lib/components/ui/alert';
-  import {
-    CircleAlert,
-    Sparkles,
-    Lock,
-    ArrowLeft,
-    Users,
-  } from '@lucide/svelte';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
+  import Lock from '@lucide/svelte/icons/lock';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Users from '@lucide/svelte/icons/users';
   import { cn } from '$lib/utils';
   import { fly } from 'svelte/transition';
   import { untrack } from 'svelte';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
   let step = $state<'email' | 'otp'>('email');
@@ -31,8 +30,11 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.valid && form.message?.type === 'success') {
+          track('parent_otp_email_submitted');
           $otpForm.email = $emailForm.email.toLowerCase().trim();
           step = 'otp';
+        } else if (form.message?.type === 'error') {
+          track('parent_otp_email_failed');
         }
       },
     },
@@ -46,7 +48,17 @@
     message: otpMessage,
   } = superForm(
     untrack(() => data.otpForm),
-    { resetForm: false },
+    {
+      resetForm: false,
+      onSubmit: () => {
+        track('parent_otp_code_submitted');
+      },
+      onUpdated: ({ form }) => {
+        if (form.message?.type === 'error') {
+          track('parent_otp_code_failed');
+        }
+      },
+    },
   );
 
   let digitRefs = $state<HTMLInputElement[]>([]);
@@ -111,6 +123,10 @@
     $otpMessage = undefined;
   }
 </script>
+
+<svelte:head>
+  <title>Connexion — Espace Parent</title>
+</svelte:head>
 
 <div
   class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"

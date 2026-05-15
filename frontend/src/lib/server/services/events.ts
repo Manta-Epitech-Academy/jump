@@ -228,4 +228,47 @@ export const EventService = {
       }
     });
   },
+
+  async addEventStaff(
+    eventId: string,
+    campusId: string,
+    staffProfileId: string,
+  ) {
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { campusId: true },
+    });
+    if (event.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
+    await validateMantaIds(campusId, [staffProfileId]);
+    await prisma.eventManta.upsert({
+      where: { eventId_staffProfileId: { eventId, staffProfileId } },
+      create: { eventId, staffProfileId },
+      update: {},
+    });
+  },
+
+  async removeEventStaff(
+    eventId: string,
+    campusId: string,
+    staffProfileId: string,
+  ) {
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { campusId: true },
+    });
+    if (event.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
+    await prisma.eventManta.deleteMany({
+      where: { eventId, staffProfileId },
+    });
+  },
 };

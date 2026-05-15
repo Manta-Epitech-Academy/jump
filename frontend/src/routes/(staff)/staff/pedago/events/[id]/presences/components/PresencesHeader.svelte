@@ -1,14 +1,11 @@
 <script lang="ts">
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import { buttonVariants } from '$lib/components/ui/button';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { resolve } from '$app/paths';
-  import {
-    ArrowLeft,
-    CalendarRange,
-    CheckCircle2,
-    Users,
-    Radio,
-  } from '@lucide/svelte';
+  import CalendarRange from '@lucide/svelte/icons/calendar-range';
+  import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+  import Users from '@lucide/svelte/icons/users';
+  import Radio from '@lucide/svelte/icons/radio';
   import { cn } from '$lib/utils';
 
   type LucideIcon = typeof CalendarRange;
@@ -64,22 +61,21 @@
 {/snippet}
 
 <div class="space-y-4">
-  <div class="flex items-start justify-between gap-4">
-    <div class="flex items-center gap-3">
-      <a
-        href={resolve(`/staff/pedago/events/${event.id}/planning`)}
-        class={buttonVariants({ variant: 'ghost', size: 'icon' })}
-        aria-label="Retour au planning"
-      >
-        <ArrowLeft class="h-4 w-4" />
-      </a>
-      <PageHeader
-        title={event.titre}
-        subtitle="Présences"
-        titleViewTransitionName={`event-title-${event.id}`}
-      />
-    </div>
-  </div>
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/pedago') },
+      {
+        label: event.titre,
+        href: resolve(`/staff/pedago/events/${event.id}`),
+      },
+      { label: 'Présences' },
+    ]}
+  />
+  <PageHeader
+    title={event.titre}
+    subtitle="Présences"
+    titleViewTransitionName={`event-title-${event.id}`}
+  />
 
   <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
     {@render kpiTile(CalendarRange, "Créneaux d'appel", totals.totalSlots)}

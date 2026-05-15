@@ -5,10 +5,42 @@
   import { Label } from '$lib/components/ui/label';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
+  import {
+    INTERVIEW_RECOMMENDATIONS,
+    INTERVIEW_RECOMMENDATION_VALUES,
+    type RecommendationToneToken,
+  } from '$lib/domain/interview';
+  import type { InterviewRecommendation } from '@prisma/client';
+  import { cn } from '$lib/utils';
 
   let { open = $bindable(false), interview } = $props();
 
   let saving = $state(false);
+  let selectedReco = $state<InterviewRecommendation | ''>('');
+
+  $effect(() => {
+    if (interview) {
+      selectedReco =
+        (interview.recommendation as InterviewRecommendation) ?? '';
+    }
+  });
+
+  const TONE_CLASSES: Record<RecommendationToneToken, string> = {
+    'epi-tech':
+      'bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-400',
+    'epi-blue':
+      'bg-blue-50 text-epi-blue border-blue-200 hover:border-epi-blue',
+    'epi-tomorrow':
+      'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200 hover:border-fuchsia-400',
+    'epi-drift':
+      'bg-muted text-muted-foreground border-border hover:border-foreground/40',
+  };
+  const ACTIVE_TONE_CLASSES: Record<RecommendationToneToken, string> = {
+    'epi-tech': 'ring-2 ring-emerald-500 border-emerald-500',
+    'epi-blue': 'ring-2 ring-epi-blue border-epi-blue',
+    'epi-tomorrow': 'ring-2 ring-fuchsia-500 border-fuchsia-500',
+    'epi-drift': 'ring-2 ring-foreground/40 border-foreground/40',
+  };
 </script>
 
 <Dialog.Root bind:open>
@@ -45,6 +77,7 @@
         }}
       >
         <input type="hidden" name="id" value={interview.id} />
+        <input type="hidden" name="recommendation" value={selectedReco} />
 
         <div class="space-y-2 rounded-md border bg-muted/20 p-3">
           <Label class="text-xs font-bold text-epi-blue uppercase"
@@ -68,28 +101,16 @@
           />
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2 rounded-md border bg-muted/20 p-3">
-            <Label class="text-xs font-bold text-epi-blue uppercase"
-              >Souhaitez-vous revenir à Epitech (Coding Club, autre stage,
-              cursus) ?</Label
-            >
-            <Textarea
-              name="nextEventInterest"
-              value={interview.nextEventInterest}
-              class="h-14 resize-none bg-background"
-            />
-          </div>
-          <div class="space-y-2 rounded-md border bg-muted/20 p-3">
-            <Label class="text-xs font-bold text-epi-blue uppercase"
-              >Influenceurs & Médias suivis ?</Label
-            >
-            <Textarea
-              name="influencers"
-              value={interview.influencers}
-              class="h-14 resize-none bg-background"
-            />
-          </div>
+        <div class="space-y-2 rounded-md border bg-muted/20 p-3">
+          <Label class="text-xs font-bold text-epi-blue uppercase"
+            >Souhaitez-vous revenir à Epitech (Coding Club, autre stage, cursus)
+            ?</Label
+          >
+          <Textarea
+            name="nextEventInterest"
+            value={interview.nextEventInterest}
+            class="h-14 resize-none bg-background"
+          />
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -150,12 +171,34 @@
         </div>
 
         <div
-          class="space-y-2 rounded-md border-2 border-epi-blue bg-blue-50/50 p-4 shadow-inner dark:bg-blue-950/20"
+          class="space-y-3 rounded-md border-2 border-epi-blue bg-blue-50/50 p-4 shadow-inner dark:bg-blue-950/20"
         >
           <Label
             class="flex items-center gap-2 text-sm font-black text-epi-blue uppercase"
-            >Bilan & Recommandation de réorientation</Label
+            >Recommandation</Label
           >
+          <div class="grid grid-cols-2 gap-2">
+            {#each INTERVIEW_RECOMMENDATION_VALUES as value (value)}
+              {@const desc = INTERVIEW_RECOMMENDATIONS[value]}
+              {@const active = selectedReco === value}
+              <button
+                type="button"
+                onclick={() => (selectedReco = active ? '' : value)}
+                class={cn(
+                  'cursor-pointer rounded-sm border px-3 py-2 text-left text-xs font-bold tracking-wide uppercase transition-all',
+                  TONE_CLASSES[desc.tone],
+                  active && ACTIVE_TONE_CLASSES[desc.tone],
+                )}
+                aria-pressed={active}
+              >
+                {desc.label}
+              </button>
+            {/each}
+          </div>
+
+          <Label class="text-xs font-bold text-epi-blue uppercase">
+            Notes complémentaires
+          </Label>
           <Textarea
             name="globalNote"
             value={interview.globalNote}

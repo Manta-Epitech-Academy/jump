@@ -3,23 +3,21 @@
   import { renderMarkdown } from '$lib/markdown';
   import { resolve } from '$app/paths';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import { Switch } from '$lib/components/ui/switch';
   import { Label } from '$lib/components/ui/label';
   import * as Card from '$lib/components/ui/card';
-  import {
-    ArrowLeft,
-    ExternalLink,
-    FlaskConical,
-    Zap,
-    FileText,
-    Clock,
-    CirclePlay,
-    BookOpenCheck,
-    Eye,
-    CircleCheck,
-  } from '@lucide/svelte';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import FlaskConical from '@lucide/svelte/icons/flask-conical';
+  import Zap from '@lucide/svelte/icons/zap';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import Clock from '@lucide/svelte/icons/clock';
+  import CirclePlay from '@lucide/svelte/icons/circle-play';
+  import BookOpenCheck from '@lucide/svelte/icons/book-open-check';
+  import Eye from '@lucide/svelte/icons/eye';
+  import CircleCheck from '@lucide/svelte/icons/circle-check';
   import { activityTypeLabels } from '$lib/validation/templates';
   import type {
     ActivityStep,
@@ -37,9 +35,7 @@
   let showCorrections = $state(false);
 
   let staticHtml = $derived(
-    !template.isDynamic && template.content
-      ? renderMarkdown(template.content)
-      : '',
+    !template.isDynamic && template.content ? template.content : '',
   );
 
   function stepHtml(step: ActivityStep) {
@@ -53,22 +49,18 @@
   };
 </script>
 
+<svelte:head>
+  <title>{data.template.nom}</title>
+</svelte:head>
+
 <div class="space-y-6">
-  <div class="flex items-center gap-3">
-    <Button
-      variant="ghost"
-      size="icon"
-      href={resolve('/staff/pedago/catalogue')}
-      class="h-9 w-9 shrink-0"
-    >
-      <ArrowLeft class="h-4 w-4" />
-    </Button>
-    <span
-      class="text-xs font-bold tracking-wider text-muted-foreground uppercase"
-    >
-      Bibliothèque
-    </span>
-  </div>
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/pedago') },
+      { label: 'Bibliothèque', href: resolve('/staff/pedago/catalogue') },
+      { label: template.nom },
+    ]}
+  />
 
   <PageHeader
     title={template.nom}

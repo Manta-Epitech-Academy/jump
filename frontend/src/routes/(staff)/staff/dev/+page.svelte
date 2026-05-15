@@ -1,25 +1,17 @@
 <script lang="ts">
   import * as Card from '$lib/components/ui/card';
-  import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
-  import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
-  import {
-    CalendarDays,
-    Target,
-    ArrowRight,
-    Users,
-    MessageSquare,
-    TrendingUp,
-    Trophy,
-    Medal,
-    UserPlus,
-    CalendarClock,
-    PhoneCall,
-    AlarmClock,
-    Inbox,
-    AlertTriangle,
-  } from '@lucide/svelte';
+  import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
+  import PageHero from '$lib/components/layout/PageHero.svelte';
+  import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Target from '@lucide/svelte/icons/target';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Users from '@lucide/svelte/icons/users';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Medal from '@lucide/svelte/icons/medal';
+  import Inbox from '@lucide/svelte/icons/inbox';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
 
@@ -28,11 +20,6 @@
   const minimalist = $derived(Boolean(data.minimalist));
 
   const activeStage = $derived(page.data.activeStage);
-  const interviewsHref = $derived(
-    activeStage
-      ? resolve(`/staff/dev/events/${activeStage.id}/interviews`)
-      : null,
-  );
 
   const todayStr = $derived(
     new Date().toLocaleDateString('fr-FR', {
@@ -41,61 +28,6 @@
       year: 'numeric',
       timeZone: data.timezone,
     }),
-  );
-
-  const taskRows = $derived(
-    [
-      ...data.tasks.eventsMissingMantas.map((ev) => ({
-        key: `missing-mantas-${ev.id}`,
-        icon: UserPlus,
-        title: 'Événement sans Mantas',
-        description: `${ev.titre} — aucun manta assigné`,
-        count: undefined as number | undefined,
-        href: resolve(`/staff/dev/events/${ev.id}/manage`),
-        severity: 'warning' as const,
-      })),
-      ...data.tasks.eventsMissingPlanning.map((ev) => ({
-        key: `missing-planning-${ev.id}`,
-        icon: CalendarClock,
-        title: 'Planning à construire',
-        description: `${ev.titre} — aucun créneau`,
-        count: undefined as number | undefined,
-        href: resolve(`/staff/dev/events/${ev.id}/planning`),
-        severity: 'warning' as const,
-      })),
-      data.tasks.interviewsToday > 0 && interviewsHref
-        ? {
-            key: 'interviews-today',
-            icon: PhoneCall,
-            title: 'Entretiens à mener aujourd\u2019hui',
-            description:
-              'Préparer la grille avant chaque entretien de mi-parcours',
-            count: data.tasks.interviewsToday,
-            href: interviewsHref,
-            severity: 'info' as const,
-          }
-        : null,
-      data.tasks.overdueInterviews > 0 && interviewsHref
-        ? {
-            key: 'interviews-overdue',
-            icon: AlarmClock,
-            title: 'Entretiens en retard',
-            description: 'Reprogrammer ou marquer comme terminé',
-            count: data.tasks.overdueInterviews,
-            href: interviewsHref,
-            severity: 'danger' as const,
-          }
-        : null,
-      ...data.tasks.eventsWithUnassignedSlots.map((ev) => ({
-        key: `unassigned-${ev.id}`,
-        icon: AlertTriangle,
-        title: 'Créneaux à assigner',
-        description: `${ev.titre} — créneaux sans activité`,
-        count: ev.unassignedCount as number | undefined,
-        href: resolve(`/staff/dev/events/${ev.id}/planning`),
-        severity: 'warning' as const,
-      })),
-    ].filter((row): row is NonNullable<typeof row> => row !== null),
   );
 
   function getMedalColor(index: number) {
@@ -108,6 +40,10 @@
     return 'text-transparent';
   }
 </script>
+
+<svelte:head>
+  <title>Tableau de bord</title>
+</svelte:head>
 
 {#if minimalist}
   <div
@@ -126,42 +62,38 @@
 {:else}
   <div class="space-y-8">
     <!-- HERO BANNER -->
-    <div
-      class="relative overflow-hidden rounded-sm bg-linear-to-r from-epi-blue via-blue-800 to-slate-900 px-8 py-10 text-white shadow-md dark:shadow-none"
-    >
-      <div class="absolute -top-20 -right-20 opacity-20 mix-blend-overlay">
-        <TrendingUp class="h-96 w-96" />
-      </div>
-      <div class="relative z-10">
-        <h1 class="mb-2 font-heading text-4xl tracking-wide uppercase">
-          Bienvenue, <span class="text-epi-teal">{data.userName}</span>.
-        </h1>
-        <p class="max-w-xl text-sm leading-relaxed font-medium text-blue-100">
-          Nous sommes le {todayStr} sur le campus de {data.campusName}.
-          {#if data.ongoingEvents.length > 0}
-            Actuellement se déroule l'évènement <strong
-              >{data.ongoingEvents[0].titre}</strong
-            >
-            avec
-            <strong
-              >{data.ongoingEvents[0]._count.participations} participants</strong
-            >. Allez les rencontrer !
-          {:else if activeStage?.status === 'ongoing'}
-            C'est le moment idéal pour faire le point sur les entretiens du
-            stage en cours.
-          {:else if activeStage?.status === 'upcoming'}
-            Le stage <strong>{activeStage.titre}</strong> démarre dans
-            <strong
-              >{activeStage.startsInDays}
-              {activeStage.startsInDays > 1 ? 'jours' : 'jour'}</strong
-            >. Préparez les entretiens dès maintenant.
-          {:else}
-            Aucun événement n'est en cours. Utilisez ce temps calme pour
-            préparer la suite.
-          {/if}
-        </p>
-      </div>
-    </div>
+    <PageHero>
+      <h1 class="mb-2 font-heading text-4xl tracking-wide uppercase">
+        Bienvenue, <span class="text-epi-teal">{data.userName}</span>.
+      </h1>
+      <p class="max-w-xl text-sm leading-relaxed font-medium text-blue-100">
+        Nous sommes le {todayStr} sur le campus de {data.campusName}.
+        {#if data.ongoingEvents.length > 0}
+          Actuellement se déroule l'évènement <strong
+            >{data.ongoingEvents[0].titre}</strong
+          >
+          avec
+          <strong
+            >{data.ongoingEvents[0]._count.participations} participants</strong
+          >. Allez les rencontrer !
+        {:else if activeStage?.status === 'ongoing'}
+          C'est le moment idéal pour faire le point sur les entretiens du stage
+          en cours.
+        {:else if activeStage?.status === 'upcoming'}
+          Le stage <strong>{activeStage.titre}</strong> démarre dans
+          <strong
+            >{activeStage.startsInDays}
+            {activeStage.startsInDays > 1 ? 'jours' : 'jour'}</strong
+          >. Préparez les entretiens dès maintenant.
+        {:else if activeStage?.status === 'past'}
+          Le stage <strong>{activeStage.titre}</strong> est terminé. Bilan, rétro
+          et préparation du suivant.
+        {:else}
+          Aucun événement n'est en cours. Utilisez ce temps calme pour préparer
+          la suite.
+        {/if}
+      </p>
+    </PageHero>
 
     <!-- TASK QUEUE -->
     <section class="space-y-3">
@@ -173,27 +105,7 @@
         </h2>
       </div>
 
-      {#if taskRows.length === 0}
-        <div
-          class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 py-10 text-muted-foreground"
-        >
-          <Inbox class="mb-2 h-8 w-8 opacity-50" />
-          <p class="text-sm font-medium">Inbox Zero. Rien ne presse.</p>
-        </div>
-      {:else}
-        <div class="grid gap-3 md:grid-cols-2">
-          {#each taskRows as row (row.key)}
-            <TaskQueueItem
-              icon={row.icon}
-              title={row.title}
-              description={row.description}
-              count={row.count}
-              href={row.href}
-              severity={row.severity}
-            />
-          {/each}
-        </div>
-      {/if}
+      <AlertsPanel alerts={data.tasks} />
     </section>
 
     <!-- KPI STRIP -->
@@ -353,8 +265,72 @@
         </Card.Footer>
       </Card.Root>
 
-      <!-- ÉVÉNEMENTS A VENIR + OBJECTIFS -->
+      <!-- ÉVÉNEMENTS EN COURS / À VENIR + OBJECTIFS -->
       <div class="flex flex-col space-y-6">
+        {#if data.ongoingEvents.length > 0}
+          <div class="space-y-3">
+            <h3
+              class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"
+            >
+              <span class="relative inline-flex h-2 w-2" aria-hidden="true">
+                <span
+                  class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-orange/60"
+                ></span>
+                <span
+                  class="relative inline-flex h-2 w-2 rounded-full bg-epi-orange"
+                ></span>
+              </span>
+              Événements en cours
+            </h3>
+            <div class="flex flex-col gap-3">
+              {#each data.ongoingEvents as event}
+                <div
+                  class="group flex items-center justify-between rounded-sm border border-epi-orange/40 bg-epi-orange/5 p-4 shadow-sm transition-all hover:border-epi-orange hover:shadow-md dark:shadow-none"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="flex min-w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-sm bg-background/60 p-2"
+                    >
+                      <span
+                        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                        >{new Date(event.date).toLocaleDateString('fr-FR', {
+                          month: 'short',
+                          timeZone: data.timezone,
+                        })}</span
+                      >
+                      <span
+                        class="mt-0.5 font-heading text-xl leading-none text-foreground"
+                        >{new Date(event.date).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          timeZone: data.timezone,
+                        })}</span
+                      >
+                    </div>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-bold uppercase">
+                        {event.titre}
+                      </p>
+                      <div
+                        class="mt-1 text-xs font-medium text-muted-foreground"
+                      >
+                        {event._count.participations} inscrits
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    href={resolve(`/staff/dev/events/${event.id}`)}
+                    class="shrink-0 rounded-sm bg-background text-xs transition-colors group-hover:border-epi-orange group-hover:bg-epi-orange group-hover:text-white"
+                  >
+                    Gérer
+                  </Button>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
         <div class="space-y-3">
           <h3
             class="flex items-center gap-2 font-sans text-base font-bold tracking-wide text-foreground uppercase"
@@ -394,7 +370,7 @@
                 <Button
                   variant="outline"
                   size="sm"
-                  href={resolve(`/staff/dev/events/${event.id}/manage`)}
+                  href={resolve(`/staff/dev/events/${event.id}`)}
                   class="shrink-0 rounded-sm bg-background text-xs transition-colors group-hover:border-epi-teal-solid group-hover:bg-epi-teal-solid group-hover:text-white"
                 >
                   Gérer

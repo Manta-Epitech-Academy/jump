@@ -1,20 +1,18 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { superForm } from 'sveltekit-superforms';
-  import {
-    Funnel,
-    Ellipsis,
-    Pencil,
-    Trash2,
-    Search,
-    Eye,
-    Users,
-    SignalLow,
-    SignalMedium,
-    SignalHigh,
-    ChevronLeft,
-    ChevronRight,
-  } from '@lucide/svelte';
+  import Funnel from '@lucide/svelte/icons/funnel';
+  import Ellipsis from '@lucide/svelte/icons/ellipsis';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Search from '@lucide/svelte/icons/search';
+  import Eye from '@lucide/svelte/icons/eye';
+  import Users from '@lucide/svelte/icons/users';
+  import SignalLow from '@lucide/svelte/icons/signal-low';
+  import SignalMedium from '@lucide/svelte/icons/signal-medium';
+  import SignalHigh from '@lucide/svelte/icons/signal-high';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { buttonVariants, Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import * as Select from '$lib/components/ui/select';
@@ -30,9 +28,11 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentFormDialog from './components/StudentFormDialog.svelte';
   import { can } from '$lib/domain/permissions';
+  import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
   const canDelete = $derived(can('devLead', data.staffProfile?.staffRole));
@@ -42,9 +42,11 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track(isEditing ? 'student_updated' : 'student_created');
           open = false;
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
+          track(isEditing ? 'student_update_failed' : 'student_create_failed');
           toast.error(result.data?.form.message || 'Erreur de validation');
         }
       },
@@ -90,6 +92,8 @@
     $form.phone = student.phone || '';
     $form.parent_email = student.parentEmail || '';
     $form.parent_phone = student.parentPhone || '';
+    $form.parent_nom = student.parentNom || '';
+    $form.parent_prenom = student.parentPrenom || '';
     $form.niveau = student.niveau;
     $form.niveau_difficulte = student.niveauDifficulte || 'Débutant';
     isEditing = true;
@@ -134,7 +138,17 @@
   ];
 </script>
 
+<svelte:head>
+  <title>Talents</title>
+</svelte:head>
+
 <div class="space-y-6">
+  <PageBreadcrumb
+    items={[
+      { label: 'Dashboard', href: resolve('/staff/dev') },
+      { label: 'Talents' },
+    ]}
+  />
   <PageHeader
     title="Talents"
     subtitle="Annuaire et progression des Talents du campus."
@@ -188,6 +202,7 @@
       title="Supprimer le Talent"
       description="Êtes-vous sûr ? Cette action est définitive."
       buttonText="Supprimer"
+      onSuccess={() => track('student_deleted')}
     />
   </div>
 

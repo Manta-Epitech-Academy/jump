@@ -3,9 +3,19 @@ import { difficultes } from '$lib/domain/xp';
 import { activityTypes } from './templates';
 
 const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+// Calendar day in the campus timezone, ISO 8601 `YYYY-MM-DD`. The server
+// resolves this against the campus timezone, so a wall-clock 14:00 on
+// `2026-05-10` always means 14:00 at the campus regardless of the staff's
+// browser timezone.
+const dateKeyRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const timeSlotSchema = z
   .object({
+    slotDate: z
+      .string()
+      .regex(dateKeyRegex, 'Format de date invalide (YYYY-MM-DD)')
+      .optional()
+      .or(z.literal('')),
     startTime: z.string().regex(timeRegex, 'Format horaire invalide (HH:MM)'),
     endTime: z.string().regex(timeRegex, 'Format horaire invalide (HH:MM)'),
   })
@@ -18,7 +28,11 @@ export const createSlotWithActivitySchema = z
   .object({
     startTime: z.string().regex(timeRegex, 'Format horaire invalide (HH:MM)'),
     endTime: z.string().regex(timeRegex, 'Format horaire invalide (HH:MM)'),
-    slotDate: z.string().optional().or(z.literal('')),
+    slotDate: z
+      .string()
+      .regex(dateKeyRegex, 'Format de date invalide (YYYY-MM-DD)')
+      .optional()
+      .or(z.literal('')),
     activityType: z.enum(activityTypes).default('break'),
     nom: z.string().max(100).optional().or(z.literal('')),
     templateId: z.string().optional().or(z.literal('')),

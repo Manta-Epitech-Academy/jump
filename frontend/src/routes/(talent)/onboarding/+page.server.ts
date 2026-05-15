@@ -2,18 +2,37 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { infoValidationSchema } from '$lib/validation/onboarding';
+import {
+  infoValidationSchema,
+  lyceeSchema,
+  techInterestsSchema,
+  generalInterestsSchema,
+} from '$lib/validation/onboarding';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 
-export type OnboardingStep = 'info-validation' | 'rules';
+export type OnboardingStep =
+  | 'info-validation'
+  | 'lycee'
+  | 'interests-tech'
+  | 'interests-general'
+  | 'interests-recap'
+  | 'rules';
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
+  highSchoolValidatedAt: Date | null;
+  techInterestsValidatedAt: Date | null;
+  generalInterestsValidatedAt: Date | null;
+  interestsRecapSeenAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
   if (!profile.infoValidatedAt) return 'info-validation';
+  if (!profile.highSchoolValidatedAt) return 'lycee';
+  if (!profile.techInterestsValidatedAt) return 'interests-tech';
+  if (!profile.generalInterestsValidatedAt) return 'interests-general';
+  if (!profile.interestsRecapSeenAt) return 'interests-recap';
   if (!profile.rulesSignedAt) return 'rules';
   return null;
 }
@@ -43,6 +62,78 @@ export const load: PageServerLoad = async ({ locals }) => {
         parentPhone: locals.talent.parentPhone ?? '',
         phone: locals.talent.phone ?? '',
       },
+    };
+  }
+
+  if (step === 'lycee') {
+    return {
+      step,
+      highSchoolName: locals.talent.highSchoolName ?? '',
+      highSchoolCity: locals.talent.highSchoolCity ?? '',
+    };
+  }
+
+  if (step === 'interests-tech') {
+    const interests = await prisma.interest.findMany({
+      where: { kind: 'tech' },
+      orderBy: { order: 'asc' },
+    });
+
+    const existing = await prisma.talentInterest.findMany({
+      where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
+      select: { interestId: true },
+    });
+
+    return {
+      step,
+      interests,
+      selectedIds: existing.map((e) => e.interestId),
+    };
+  }
+
+  if (step === 'interests-general') {
+    const interests = await prisma.interest.findMany({
+      where: { kind: 'general' },
+      orderBy: { order: 'asc' },
+    });
+
+    const existing = await prisma.talentInterest.findMany({
+      where: { talentId: locals.talent.id, interest: { kind: 'general' } },
+      select: { interestId: true },
+    });
+
+    // Load tech selections for the recap phrase
+    const techSelections = await prisma.talentInterest.findMany({
+      where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
+      include: { interest: { select: { nom: true, emoji: true } } },
+    });
+
+    return {
+      step,
+      interests,
+      selectedIds: existing.map((e) => e.interestId),
+      techSelections: techSelections.map((t) => ({
+        nom: t.interest.nom,
+        emoji: t.interest.emoji,
+      })),
+    };
+  }
+
+  if (step === 'interests-recap') {
+    const allSelections = await prisma.talentInterest.findMany({
+      where: { talentId: locals.talent.id },
+      include: { interest: { select: { nom: true, emoji: true, kind: true } } },
+      orderBy: { interest: { order: 'asc' } },
+    });
+
+    return {
+      step,
+      techSelections: allSelections
+        .filter((s) => s.interest.kind === 'tech')
+        .map((s) => ({ nom: s.interest.nom, emoji: s.interest.emoji })),
+      generalSelections: allSelections
+        .filter((s) => s.interest.kind === 'general')
+        .map((s) => ({ nom: s.interest.nom, emoji: s.interest.emoji })),
     };
   }
 
@@ -118,6 +209,129 @@ export const actions: Actions = {
         console.error('Failed to send parent welcome email:', err),
       );
     }
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  validateLycee: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const formData = await request.formData();
+    const raw = Object.fromEntries(formData);
+    const result = lyceeSchema.safeParse(raw);
+
+    if (!result.success) {
+      return {
+        step: 'lycee' as const,
+        error: result.error.issues[0]?.message ?? 'Données invalides.',
+      };
+    }
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: {
+        highSchoolName: result.data.highSchoolName,
+        highSchoolCity: result.data.highSchoolCity || null,
+        highSchoolValidatedAt: new Date(),
+      },
+    });
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  validateTechInterests: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const formData = await request.formData();
+    const raw = formData.getAll('interestIds');
+    const result = techInterestsSchema.safeParse({ interestIds: raw });
+
+    if (!result.success) {
+      return {
+        step: 'interests-tech' as const,
+        error: result.error.issues[0]?.message ?? 'Sélection invalide.',
+      };
+    }
+
+    const count = await prisma.interest.count({
+      where: { id: { in: result.data.interestIds }, kind: 'tech' },
+    });
+    if (count !== result.data.interestIds.length) {
+      return {
+        step: 'interests-tech' as const,
+        error: "Certains domaines sélectionnés n'existent plus.",
+      };
+    }
+
+    await prisma.$transaction([
+      prisma.talentInterest.deleteMany({
+        where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
+      }),
+      prisma.talentInterest.createMany({
+        data: result.data.interestIds.map((interestId) => ({
+          talentId: locals.talent!.id,
+          interestId,
+        })),
+      }),
+      prisma.talent.update({
+        where: { id: locals.talent.id },
+        data: { techInterestsValidatedAt: new Date() },
+      }),
+    ]);
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  validateGeneralInterests: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const formData = await request.formData();
+    const raw = formData.getAll('interestIds');
+    const result = generalInterestsSchema.safeParse({ interestIds: raw });
+
+    if (!result.success) {
+      return {
+        step: 'interests-general' as const,
+        error: result.error.issues[0]?.message ?? 'Sélection invalide.',
+      };
+    }
+
+    const count = await prisma.interest.count({
+      where: { id: { in: result.data.interestIds }, kind: 'general' },
+    });
+    if (count !== result.data.interestIds.length) {
+      return {
+        step: 'interests-general' as const,
+        error: "Certains centres d'intérêt sélectionnés n'existent plus.",
+      };
+    }
+
+    await prisma.$transaction([
+      prisma.talentInterest.deleteMany({
+        where: { talentId: locals.talent.id, interest: { kind: 'general' } },
+      }),
+      prisma.talentInterest.createMany({
+        data: result.data.interestIds.map((interestId) => ({
+          talentId: locals.talent!.id,
+          interestId,
+        })),
+      }),
+      prisma.talent.update({
+        where: { id: locals.talent.id },
+        data: { generalInterestsValidatedAt: new Date() },
+      }),
+    ]);
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  confirmRecap: async ({ locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: { interestsRecapSeenAt: new Date() },
+    });
 
     throw redirect(303, resolve('/onboarding'));
   },

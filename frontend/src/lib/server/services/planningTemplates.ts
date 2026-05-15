@@ -1,6 +1,11 @@
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { CalendarDateTime } from '@internationalized/date';
+import {
+  addDays,
+  fromWallClock,
+  toDateKey,
+  toWallClockTime,
+} from '$lib/domain/planningTime';
 
 /**
  * Apply a PlanningTemplate to an event, creating all TimeSlots and Activities.
@@ -44,7 +49,11 @@ export async function applyPlanningTemplate(
     );
   }
 
-  const eventDate = new Date(event.date);
+  // Day 0 of the template aligns with the event's calendar day in the campus
+  // timezone. Going through DateKey strings (rather than Date arithmetic) keeps
+  // multi-day templates DST-safe — `addDays` increments the calendar field, so
+  // a +1 day across a DST switch still lands on the next calendar day.
+  const eventDateKey = toDateKey(event.date, timezone);
 
   await prisma.$transaction(async (tx) => {
     const planning = await tx.planning.upsert({
@@ -56,33 +65,14 @@ export async function applyPlanningTemplate(
     await tx.timeSlot.deleteMany({ where: { planningId: planning.id } });
 
     for (const day of template.days) {
-      const dayDate = new Date(eventDate);
-      dayDate.setDate(dayDate.getDate() + day.dayIndex);
+      const dayKey = addDays(eventDateKey, day.dayIndex);
 
       for (const slot of day.slots) {
-        const [startH, startM] = slot.startTime.split(':').map(Number);
-        const [endH, endM] = slot.endTime.split(':').map(Number);
-
-        const startCdt = new CalendarDateTime(
-          dayDate.getFullYear(),
-          dayDate.getMonth() + 1,
-          dayDate.getDate(),
-          startH,
-          startM,
-        );
-        const endCdt = new CalendarDateTime(
-          dayDate.getFullYear(),
-          dayDate.getMonth() + 1,
-          dayDate.getDate(),
-          endH,
-          endM,
-        );
-
         const timeSlot = await tx.timeSlot.create({
           data: {
             planningId: planning.id,
-            startTime: startCdt.toDate(timezone),
-            endTime: endCdt.toDate(timezone),
+            startTime: fromWallClock(dayKey, slot.startTime, timezone),
+            endTime: fromWallClock(dayKey, slot.endTime, timezone),
           },
         });
 
@@ -98,6 +88,7 @@ export async function applyPlanningTemplate(
               link: at.link,
               content: at.content,
               contentStructure: at.contentStructure ?? undefined,
+              subjectVersionId: at.subjectVersionId,
               templateId: at.id,
               timeSlotId: timeSlot.id,
               activityThemes:
@@ -125,11 +116,13 @@ export async function applyPlanningTemplate(
     }
 
     if (template.nbDays > 1) {
-      const endDate = new Date(eventDate);
-      endDate.setDate(endDate.getDate() + template.nbDays - 1);
+      // Preserve the event's wall-clock start time on the last day, matching
+      // the previous semantics (endDate = event start time + N calendar days).
+      const lastDayKey = addDays(eventDateKey, template.nbDays - 1);
+      const eventTime = toWallClockTime(event.date, timezone);
       await tx.event.update({
         where: { id: eventId },
-        data: { endDate },
+        data: { endDate: fromWallClock(lastDayKey, eventTime, timezone) },
       });
     }
   });

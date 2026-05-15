@@ -11,41 +11,37 @@ import {
 } from '$lib/validation/planning';
 import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
 import { applyPlanningTemplate } from './planningTemplates';
+import { sanitizeRichHtml } from '$lib/server/sanitize';
 import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { CalendarDateTime } from '@internationalized/date';
+import { fromWallClock, isDateKey, toDateKey } from '$lib/domain/planningTime';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 
 type PlanningEvent = RequestEvent<{ id: string }>;
 
-function parseSlotDateTimes(
-  slotDateStr: string | null,
+// Builds the UTC start/end instants for a slot from the form's wall-clock
+// inputs. The `slotDate` form field is the campus-local calendar day the user
+// actually clicked on; if it's missing or malformed we fall back to the
+// event's own date (also resolved in the campus TZ) so both inputs share the
+// same frame of reference.
+function buildSlotInstants(
+  slotDateKey: string | null | undefined,
   fallback: Date,
   startTime: string,
   endTime: string,
+  tz: string,
 ) {
-  const targetDate = slotDateStr ? new Date(slotDateStr) : fallback;
-  const [startH, startM] = startTime.split(':').map(Number);
-  const [endH, endM] = endTime.split(':').map(Number);
-
-  const startCdt = new CalendarDateTime(
-    targetDate.getFullYear(),
-    targetDate.getMonth() + 1,
-    targetDate.getDate(),
-    startH,
-    startM,
-  );
-  const endCdt = new CalendarDateTime(
-    targetDate.getFullYear(),
-    targetDate.getMonth() + 1,
-    targetDate.getDate(),
-    endH,
-    endM,
-  );
-  return { startCdt, endCdt };
+  const dateKey =
+    slotDateKey && isDateKey(slotDateKey)
+      ? slotDateKey
+      : toDateKey(fallback, tz);
+  return {
+    start: fromWallClock(dateKey, startTime, tz),
+    end: fromWallClock(dateKey, endTime, tz),
+  };
 }
 
 export const planningActions = {
@@ -62,11 +58,12 @@ export const planningActions = {
       const event = await db.event.findUniqueOrThrow({
         where: { id: params.id },
       });
-      const { startCdt, endCdt } = parseSlotDateTimes(
-        formData.get('slotDate') as string | null,
+      const { start, end } = buildSlotInstants(
+        form.data.slotDate,
         event.date,
         form.data.startTime,
         form.data.endTime,
+        tz,
       );
       const planning = await db.planning.findUniqueOrThrow({
         where: { eventId: params.id },
@@ -74,8 +71,8 @@ export const planningActions = {
       const slot = await db.timeSlot.create({
         data: {
           planningId: planning.id,
-          startTime: startCdt.toDate(tz),
-          endTime: endCdt.toDate(tz),
+          startTime: start,
+          endTime: end,
         },
       });
       return message(form, { text: 'Créneau ajouté !', slotId: slot.id });
@@ -124,6 +121,7 @@ export const planningActions = {
             link: template.link,
             content: template.content,
             contentStructure: template.contentStructure ?? undefined,
+            subjectVersionId: template.subjectVersionId,
             templateId: template.id,
             timeSlotId: form.data.timeSlotId,
             activityThemes:
@@ -150,7 +148,9 @@ export const planningActions = {
             activityType: form.data.activityType,
             isDynamic: false,
             link: form.data.link || null,
-            content: form.data.content || null,
+            content: form.data.content
+              ? sanitizeRichHtml(form.data.content)
+              : null,
             timeSlotId: form.data.timeSlotId,
           },
         });
@@ -186,11 +186,12 @@ export const planningActions = {
         where: { id: params.id },
       });
 
-      const { startCdt, endCdt } = parseSlotDateTimes(
-        form.data.slotDate || null,
+      const { start, end } = buildSlotInstants(
+        form.data.slotDate,
         event.date,
         form.data.startTime,
         form.data.endTime,
+        tz,
       );
 
       const planning = await db.planning.findUniqueOrThrow({
@@ -208,8 +209,8 @@ export const planningActions = {
       const slot = await db.timeSlot.create({
         data: {
           planningId: planning.id,
-          startTime: startCdt.toDate(tz),
-          endTime: endCdt.toDate(tz),
+          startTime: start,
+          endTime: end,
           activity: {
             create: template
               ? {
@@ -221,6 +222,7 @@ export const planningActions = {
                   link: template.link,
                   content: template.content,
                   contentStructure: template.contentStructure ?? undefined,
+                  subjectVersionId: template.subjectVersionId,
                   templateId: template.id,
                   activityThemes:
                     template.activityTemplateThemes.length > 0
@@ -277,18 +279,19 @@ export const planningActions = {
         where: { id: params.id },
       });
 
-      const { startCdt, endCdt } = parseSlotDateTimes(
-        formData.get('slotDate') as string | null,
+      const { start, end } = buildSlotInstants(
+        form.data.slotDate,
         event.date,
         form.data.startTime,
         form.data.endTime,
+        tz,
       );
 
       await db.timeSlot.update({
         where: { id: timeSlotId },
         data: {
-          startTime: startCdt.toDate(tz),
-          endTime: endCdt.toDate(tz),
+          startTime: start,
+          endTime: end,
         },
       });
       return message(form, 'Créneau mis à jour !');

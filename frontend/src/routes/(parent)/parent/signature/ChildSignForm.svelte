@@ -1,6 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
+  import { track } from '$lib/analytics';
 
   interface Props {
     child: { id: string; prenom: string; nom: string };
@@ -40,7 +41,12 @@
     action="?/sign"
     use:enhance={() => {
       submitting = true;
-      return async ({ update }) => {
+      return async ({ result, update }) => {
+        if (result.type === 'success' || result.type === 'redirect') {
+          track('parent_image_rights_signed');
+        } else if (result.type === 'failure') {
+          track('parent_image_rights_signing_failed');
+        }
         await update();
         submitting = false;
       };

@@ -1,21 +1,20 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import {
-    Upload,
-    Trash2,
-    Download,
-    FileIcon,
-    FileImage,
-    FileText,
-    FileArchive,
-    FileVideo,
-    FileAudio,
-  } from '@lucide/svelte';
+  import Upload from '@lucide/svelte/icons/upload';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Download from '@lucide/svelte/icons/download';
+  import FileIcon from '@lucide/svelte/icons/file';
+  import FileImage from '@lucide/svelte/icons/file-image';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import FileArchive from '@lucide/svelte/icons/file-archive';
+  import FileVideo from '@lucide/svelte/icons/file-video';
+  import FileAudio from '@lucide/svelte/icons/file-audio';
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -62,6 +61,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Fichiers</title>
+</svelte:head>
+
 <div class="space-y-6">
   <div class="flex items-center justify-between">
     <div>
@@ -81,10 +84,12 @@
         return async ({ result, update }) => {
           uploading = false;
           if (result.type === 'success') {
+            track('admin_file_uploaded');
             toast.success('Fichier uploadé avec succès');
             if (fileInput) fileInput.value = '';
             await update();
           } else if (result.type === 'failure') {
+            track('admin_file_upload_failed');
             toast.error(
               (result.data as { message?: string })?.message ||
                 "Erreur lors de l'upload",
@@ -175,12 +180,14 @@
                                 result.type === 'success' &&
                                 result.data?.signedUrl
                               ) {
+                                track('admin_file_downloaded');
                                 const a = document.createElement('a');
                                 a.href = result.data.signedUrl as string;
                                 a.download =
                                   (result.data.fileName as string) || '';
                                 a.click();
                               } else {
+                                track('admin_file_download_failed');
                                 toast.error('Erreur lors du téléchargement');
                               }
                             };
@@ -229,5 +236,6 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer le fichier"
     description="Êtes-vous sûr ? Le fichier sera définitivement supprimé."
+    onSuccess={() => track('admin_file_deleted')}
   />
 </div>

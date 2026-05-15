@@ -1,6 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { X } from '@lucide/svelte';
+  import X from '@lucide/svelte/icons/x';
   import { onMount } from 'svelte';
 
   const STORAGE_KEY = 'discord-banner-dismissed';

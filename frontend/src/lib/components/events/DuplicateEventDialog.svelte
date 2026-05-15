@@ -3,7 +3,8 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import { Copy, LoaderCircle } from '@lucide/svelte';
+  import Copy from '@lucide/svelte/icons/copy';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { goto } from '$app/navigation';
@@ -91,8 +92,7 @@
                 duration: 5000,
                 action: {
                   label: 'Ouvrir le Builder',
-                  onClick: () =>
-                    goto(resolve(`/staff/dev/events/${newId}/manage`)),
+                  onClick: () => goto(resolve(`/staff/dev/events/${newId}`)),
                 },
               });
 

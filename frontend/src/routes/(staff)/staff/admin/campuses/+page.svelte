@@ -1,7 +1,10 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { Plus, Pencil, Trash2, Map } from '@lucide/svelte';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Map from '@lucide/svelte/icons/map';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -14,6 +17,7 @@
   import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { FEATURE_FLAGS, type FlagKey } from '$lib/domain/featureFlags';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
   const flagDefs = Object.values(FEATURE_FLAGS);
@@ -27,8 +31,11 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
+          track(isEditing ? 'campus_updated' : 'campus_created');
           open = false;
           toast.success(result.data?.form?.message || 'Action réussie');
+        } else if (result.type === 'failure') {
+          track(isEditing ? 'campus_update_failed' : 'campus_create_failed');
         }
       },
     },
@@ -133,6 +140,10 @@
     deleteDialogOpen = true;
   }
 </script>
+
+<svelte:head>
+  <title>Campus</title>
+</svelte:head>
 
 <div class="space-y-6">
   <div class="flex items-center justify-between">
@@ -356,5 +367,6 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer le campus"
     description="Êtes-vous sûr ? Impossible si des données y sont attachées."
+    onSuccess={() => track('campus_deleted')}
   />
 </div>

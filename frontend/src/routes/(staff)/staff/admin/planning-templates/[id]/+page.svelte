@@ -3,17 +3,15 @@
   import { superForm } from 'sveltekit-superforms';
   import { enhance as kitEnhance } from '$app/forms';
   import { resolve } from '$app/paths';
-  import {
-    ArrowLeft,
-    Plus,
-    Trash2,
-    Pencil,
-    Copy,
-    Search,
-    Clock,
-    Zap,
-    FileText,
-  } from '@lucide/svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Copy from '@lucide/svelte/icons/copy';
+  import Search from '@lucide/svelte/icons/search';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Zap from '@lucide/svelte/icons/zap';
+  import FileText from '@lucide/svelte/icons/file-text';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -160,6 +158,10 @@
     $slotForm.planningTemplateDayId = slotDialogDayId;
   });
 </script>
+
+<svelte:head>
+  <title>{data.planningTemplate.nom}</title>
+</svelte:head>
 
 <div class="space-y-6">
   <!-- Header -->

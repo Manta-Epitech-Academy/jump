@@ -3,18 +3,22 @@
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import { Alert, AlertDescription } from '$lib/components/ui/alert';
-  import { Rocket, CircleAlert, Mail } from '@lucide/svelte';
+  import Rocket from '@lucide/svelte/icons/rocket';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Mail from '@lucide/svelte/icons/mail';
   import { untrack } from 'svelte';
 
   import LoginEmailStep from './components/LoginEmailStep.svelte';
   import LoginOtpStep from './components/LoginOtpStep.svelte';
   import { authClient } from '$lib/auth-client';
   import { resolve } from '$app/paths';
+  import { track } from '$lib/analytics';
 
   let { data } = $props();
   let isOAuthLoading = $state(false);
 
   async function handleMicrosoftLogin() {
+    track('talent_login_microsoft_clicked');
     isOAuthLoading = true;
     await authClient.signIn.social({
       provider: 'microsoft',
@@ -37,8 +41,11 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.valid && form.message?.type === 'success') {
+          track('talent_otp_email_submitted');
           $otpForm.email = $emailForm.email.toLowerCase().trim();
           step = 'otp';
+        } else if (form.message?.type === 'error') {
+          track('talent_otp_email_failed');
         }
       },
     },
@@ -54,6 +61,14 @@
     untrack(() => data.otpForm),
     {
       resetForm: false,
+      onUpdated: ({ form }) => {
+        if (form.message?.type === 'error') {
+          track('talent_otp_code_failed');
+        }
+      },
+      onSubmit: () => {
+        track('talent_otp_code_submitted');
+      },
     },
   );
 
@@ -68,6 +83,10 @@
     $emailMessage = undefined;
   }
 </script>
+
+<svelte:head>
+  <title>Connexion</title>
+</svelte:head>
 
 <div
   class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"

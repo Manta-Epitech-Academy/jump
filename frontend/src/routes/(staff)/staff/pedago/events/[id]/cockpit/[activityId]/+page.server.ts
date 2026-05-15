@@ -11,6 +11,7 @@ import { assertEventCampus } from '$lib/server/db/assert';
 import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { getAdjacentSlots, getEventOrgaSlots } from '$lib/domain/presences';
+import { isVerdict, isContextTag } from '$lib/domain/verdict';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -61,6 +62,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         ...p,
         isPresent: pa?.isPresent ?? false,
         delay: pa?.delay ?? 0,
+        verdict: pa?.verdict ?? null,
+        contextTag: pa?.contextTag ?? null,
       };
     })
     .sort((a, b) => {
@@ -207,21 +210,67 @@ export const actions: Actions = {
     }
   },
 
-  updateNote: async ({ request, locals }) => {
+  updateVerdict: async ({ request, params, locals }) => {
     requireStaffGroup(locals, 'pedaMember');
     const data = await request.formData();
     const id = data.get('id') as string;
-    const note = data.get('note') as string;
+    const rawVerdict = data.get('verdict');
+    const rawContextTag = data.get('contextTag');
+
+    const verdict =
+      rawVerdict === '' || rawVerdict === null
+        ? null
+        : isVerdict(rawVerdict)
+          ? rawVerdict
+          : undefined;
+    const contextTag =
+      rawContextTag === '' || rawContextTag === null
+        ? null
+        : isContextTag(rawContextTag)
+          ? rawContextTag
+          : undefined;
+
+    if (verdict === undefined || contextTag === undefined) {
+      return fail(400, { error: 'Verdict ou contexte invalide' });
+    }
+
     const db = scopedPrisma(getCampusId(locals));
+    const where = {
+      participationId_activityId: {
+        participationId: id,
+        activityId: params.activityId,
+      },
+    };
 
     try {
-      await db.participation.update({
-        where: { id },
-        data: { note, noteAuthorId: locals.staffProfile?.id || null },
+      const current = await db.participationActivity.findUniqueOrThrow({
+        where,
+        select: { verdict: true },
+      });
+
+      // Attribution follows the verdict, not the contextTag — toggling a tag
+      // alone must not reassign authorship of the verdict itself.
+      const verdictChanged = current.verdict !== verdict;
+      const verdictAttribution = verdictChanged
+        ? verdict !== null
+          ? {
+              verdictAuthorId: locals.staffProfile?.id ?? null,
+              verdictAt: new Date(),
+            }
+          : { verdictAuthorId: null, verdictAt: null }
+        : {};
+
+      await db.participationActivity.update({
+        where,
+        data: {
+          verdict,
+          contextTag,
+          ...verdictAttribution,
+        },
       });
       return { success: true };
     } catch {
-      return fail(500, { error: 'Erreur sauvegarde note' });
+      return fail(500, { error: 'Erreur sauvegarde verdict' });
     }
   },
 
