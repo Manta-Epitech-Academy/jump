@@ -14,10 +14,8 @@
   }
   import ProgressBar from './components/ProgressBar.svelte';
   import InterstitialMessage from './components/InterstitialMessage.svelte';
-  import NameStep from './components/NameStep.svelte';
-  import EmailStep from './components/EmailStep.svelte';
-  import ParentStep from './components/ParentStep.svelte';
-  import PhonesStep from './components/PhonesStep.svelte';
+  import StudentInfoStep from './components/StudentInfoStep.svelte';
+  import ParentInfoStep from './components/ParentInfoStep.svelte';
   import LyceeStep from './components/LyceeStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
@@ -27,13 +25,13 @@
   // Server step -> first micro-step mapping
   const SERVER_STEP_TO_MICRO: Record<string, number> = {
     'info-validation': 1,
-    lycee: 5,
-    'interests-tech': 6,
-    'interests-general': 7,
-    rules: 8,
+    lycee: 3,
+    'interests-tech': 4,
+    'interests-general': 5,
+    rules: 6,
   };
 
-  const TOTAL_MICRO_STEPS = 8;
+  const TOTAL_MICRO_STEPS = 6;
 
   let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
   let lastServerStep = $state(data.step);
@@ -71,10 +69,10 @@
     }
   });
 
-  // If server returned validation errors on validateInfo, jump to PhonesStep (micro 4)
+  // If server returned validation errors on validateInfo, jump to ParentInfoStep (micro 2)
   $effect(() => {
     if (form?.errors && data.step === 'info-validation') {
-      microStep = 4;
+      microStep = 2;
     }
   });
 
@@ -86,20 +84,18 @@
   // Page title per micro-step
   const TITLES: Record<number, string> = {
     1: 'Tes infos',
-    2: 'Ton email',
-    3: 'Ton parent',
-    4: 'Téléphones',
-    5: 'Ton lycée',
-    6: 'Informatique',
-    7: "Centres d'intérêt",
-    8: 'Règlement',
+    2: 'Ton parent',
+    3: 'Ton lycée',
+    4: 'Informatique',
+    5: "Centres d'intérêt",
+    6: 'Règlement',
   };
   const pageTitle = $derived(TITLES[microStep] ?? 'Onboarding');
 
   // Interstitial messages after specific steps
   const INTERSTITIALS: Record<number, string> = {
-    4: "L'administratif c'est fini !",
-    7: 'On y est presque',
+    2: "L'administratif c'est fini !",
+    5: 'On y est presque',
   };
 
   function advanceMicroStep(nextStep: number) {
@@ -148,54 +144,38 @@
             out:exitSlide|local={{ duration: 250 }}
           >
             {#if microStep === 1}
-              <NameStep
+              <StudentInfoStep
                 prenom={infoFields.prenom}
                 nom={infoFields.nom}
+                email={infoFields.email}
+                phone={infoFields.phone}
                 onvalidate={(d) => {
                   infoFields.prenom = d.prenom;
                   infoFields.nom = d.nom;
+                  infoFields.email = d.email;
+                  infoFields.phone = d.phone;
                   advanceMicroStep(2);
                 }}
               />
             {:else if microStep === 2}
-              <EmailStep
-                email={infoFields.email}
-                onvalidate={(d) => {
-                  infoFields.email = d.email;
-                  advanceMicroStep(3);
-                }}
-              />
-            {:else if microStep === 3}
-              <ParentStep
-                parentNom={infoFields.parentNom}
-                parentPrenom={infoFields.parentPrenom}
-                parentEmail={infoFields.parentEmail}
-                onvalidate={(d) => {
-                  infoFields.parentNom = d.parentNom;
-                  infoFields.parentPrenom = d.parentPrenom;
-                  infoFields.parentEmail = d.parentEmail;
-                  advanceMicroStep(4);
-                }}
-              />
-            {:else if microStep === 4}
-              <PhonesStep
+              <ParentInfoStep
                 nom={infoFields.nom}
                 prenom={infoFields.prenom}
                 email={infoFields.email}
+                phone={infoFields.phone}
                 parentNom={infoFields.parentNom}
                 parentPrenom={infoFields.parentPrenom}
                 parentEmail={infoFields.parentEmail}
                 parentPhone={infoFields.parentPhone}
-                phone={infoFields.phone}
                 errors={form?.errors}
               />
-            {:else if microStep === 5}
+            {:else if microStep === 3}
               <LyceeStep
                 highSchoolName={data.highSchoolName}
                 highSchoolCity={data.highSchoolCity}
                 error={form?.error}
               />
-            {:else if microStep === 6}
+            {:else if microStep === 4}
               <InterestsStep
                 interests={data.interests ?? []}
                 selectedIds={data.selectedIds ?? []}
@@ -204,7 +184,7 @@
                 maxSelect={2}
                 actionName="validateTechInterests"
               />
-            {:else if microStep === 7}
+            {:else if microStep === 5}
               <InterestsStep
                 interests={data.interests ?? []}
                 selectedIds={data.selectedIds ?? []}
@@ -213,7 +193,7 @@
                 maxSelect={5}
                 actionName="validateGeneralInterests"
               />
-            {:else if microStep === 8}
+            {:else if microStep === 6}
               <RulesStep error={form?.error} />
             {/if}
           </div>

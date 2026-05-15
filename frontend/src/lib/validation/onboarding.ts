@@ -16,8 +16,8 @@ const infoBaseSchema = z.object({
     .min(2, 'Le prénom du parent doit faire au moins 2 caractères')
     .trim(),
   parentEmail: z.email('Email parent invalide'),
-  parentPhone: z.string().optional().or(z.literal('')),
-  phone: z.string().optional().or(z.literal('')),
+  parentPhone: z.string().min(10, 'Le numéro du parent est requis'),
+  phone: z.string().min(10, 'Ton numéro est requis'),
 });
 
 export const infoValidationSchema = infoBaseSchema
@@ -25,19 +25,10 @@ export const infoValidationSchema = infoBaseSchema
     message: "L'email du parent doit être différent de celui de l'enfant",
     path: ['parentEmail'],
   })
-  .refine(
-    (data) => {
-      if (data.phone && data.parentPhone) {
-        return data.phone !== data.parentPhone;
-      }
-      return true;
-    },
-    {
-      message:
-        "Le téléphone du parent doit être différent de celui de l'enfant",
-      path: ['parentPhone'],
-    },
-  );
+  .refine((data) => data.phone !== data.parentPhone, {
+    message: "Le téléphone du parent doit être différent de celui de l'enfant",
+    path: ['parentPhone'],
+  });
 
 export type InfoValidationForm = z.infer<typeof infoBaseSchema>;
 

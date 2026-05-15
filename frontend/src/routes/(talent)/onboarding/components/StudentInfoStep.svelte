@@ -1,40 +1,46 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
-  import Users from '@lucide/svelte/icons/users';
+  import UserCheck from '@lucide/svelte/icons/user-check';
 
   let {
-    parentNom = '',
-    parentPrenom = '',
-    parentEmail = '',
+    prenom = '',
+    nom = '',
+    email = '',
+    phone = '',
     onvalidate,
   }: {
-    parentNom?: string;
-    parentPrenom?: string;
-    parentEmail?: string;
+    prenom?: string;
+    nom?: string;
+    email?: string;
+    phone?: string;
     onvalidate: (data: {
-      parentNom: string;
-      parentPrenom: string;
-      parentEmail: string;
+      prenom: string;
+      nom: string;
+      email: string;
+      phone: string;
     }) => void;
   } = $props();
 
-  let localParentNom = $state(parentNom);
-  let localParentPrenom = $state(parentPrenom);
-  let localParentEmail = $state(parentEmail);
+  let localPrenom = $state(prenom);
+  let localNom = $state(nom);
+  let localEmail = $state(email);
+  let localPhone = $state(phone);
 
   const canSubmit = $derived(
-    localParentNom.trim().length >= 2 &&
-      localParentPrenom.trim().length >= 2 &&
-      localParentEmail.includes('@'),
+    localPrenom.trim().length >= 2 &&
+      localNom.trim().length >= 2 &&
+      localEmail.includes('@') &&
+      localPhone.trim().length >= 10,
   );
 
   function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     if (canSubmit) {
       onvalidate({
-        parentNom: localParentNom.trim(),
-        parentPrenom: localParentPrenom.trim(),
-        parentEmail: localParentEmail.trim(),
+        prenom: localPrenom.trim(),
+        nom: localNom.trim(),
+        email: localEmail.trim(),
+        phone: localPhone.trim(),
       });
     }
   }
@@ -44,15 +50,15 @@
   <div
     class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
   >
-    <Users class="h-7 w-7" />
+    <UserCheck class="h-7 w-7" />
   </div>
   <h1
     class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
   >
-    Ton responsable légal
+    Faisons connaissance !
   </h1>
   <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-    Un contact pour ton parent ou représentant légal.
+    Parle-nous un peu de toi 😊
   </p>
 </div>
 
@@ -61,16 +67,16 @@
     class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
     <label
-      for="parentPrenom"
+      for="prenom"
       class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
     >
       Prénom <span class="text-red-500">*</span>
     </label>
     <input
-      id="parentPrenom"
+      id="prenom"
       type="text"
-      bind:value={localParentPrenom}
-      placeholder="Marie"
+      bind:value={localPrenom}
+      placeholder="Jean"
       required
       class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
     />
@@ -80,15 +86,15 @@
     class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
     <label
-      for="parentNom"
+      for="nom"
       class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
     >
       Nom <span class="text-red-500">*</span>
     </label>
     <input
-      id="parentNom"
+      id="nom"
       type="text"
-      bind:value={localParentNom}
+      bind:value={localNom}
       placeholder="Dupont"
       required
       class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
@@ -99,16 +105,35 @@
     class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
     <label
-      for="parentEmail"
+      for="email"
       class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
     >
       Email <span class="text-red-500">*</span>
     </label>
     <input
-      id="parentEmail"
+      id="email"
       type="email"
-      bind:value={localParentEmail}
-      placeholder="parent@mail.com"
+      bind:value={localEmail}
+      placeholder="jean.dupont@mail.com"
+      required
+      class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+    />
+  </div>
+
+  <div
+    class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+  >
+    <label
+      for="phone"
+      class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+    >
+      Ton téléphone <span class="text-red-500">*</span>
+    </label>
+    <input
+      id="phone"
+      type="tel"
+      bind:value={localPhone}
+      placeholder="06 98 76 54 32"
       required
       class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
     />

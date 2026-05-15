@@ -102,7 +102,7 @@
     <h1
       class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
     >
-      Tu viens d'où ?
+      Quel est ton lycée ? 🏫
     </h1>
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
       Cherche ton lycée par nom ou ville.
