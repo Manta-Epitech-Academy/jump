@@ -94,6 +94,9 @@
     "brace-expansion": "^5.0.5",
     "fast-xml-parser": "^5.7.0",
     "uuid": "^14.0.0",
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "kysely": "^0.28.17",
+    "devalue": "^5.8.1",
+    "svelte": "^5.55.7"
   }
 }
