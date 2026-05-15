@@ -124,3 +124,54 @@ All notable changes to this project will be documented in this file.
 - **added:** feat(auth): disable password authentication globally ([#55](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/55))
 - **added:** feat(staff/pedago): rebuild presences flow + readability pass ([#56](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/56))
 
+---
+
+### 2026-04-30
+
+- **changed:** refactor(staff): replace back-button headers with breadcrumbs ([#57](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/57))
+- **added:** feat(pedago): event detail hub + inscrits page ([#59](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/59))
+
+---
+
+### 2026-05-04
+
+- **added:** feat(sync): persist event type from worker payload ([#63](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/63))
+- Feat/onboarding reminders ([#58](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/58))
+- **fixed:** fix(staff/admin): sync bauth_user.role with StaffProfile.staffRole ([#64](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/64))
+- **added:** feat(subjects): import dynamic activities from GitHub repositories ([#61](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/61))
+- Feat/page titles ([#62](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/62))
+
+---
+
+### 2026-05-05
+
+- **changed:** perf(dev): switch lucide to per-icon imports ([#65](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/65))
+
+---
+
+### 2026-05-06
+
+- **added:** feat(markdown): CMS editor ([#54](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/54))
+- Replace free-text encadrant notes with structured verdict ([#67](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/67))
+- **added:** feat(staff): ticket system for bug/feedback reports ([#68](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/68))
+
+---
+
+### 2026-05-07
+
+- **added:** feat(onboarding): interests selection step ([#69](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/69))
+- **added:** feat(analytics): integrate Umami SDK and events ([#72](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/72))
+
+---
+
+### 2026-05-11
+
+- **changed:** refactor(dev): dev workspace UX rework — events, interviews, onboarding ([#71](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/71))
+- **added:** feat(onboarding): add lycée collection step ([#73](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/73))
+
+---
+
+### 2026-05-12
+
+- **added:** feat(games): jump-games integration ([#70](https://github.com/Manta-Epitech-Academy/intra-epitech-academy/pull/70))
+
