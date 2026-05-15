@@ -172,7 +172,7 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Welcome guard: redirect to /welcome if talent hasn't seen welcome page yet
+    // Welcome guard: redirect to /welcome on first visit (not yet seen)
     if (
       event.locals.talent &&
       event.locals.talent.charterAcceptedAt &&
@@ -187,31 +187,28 @@ export async function applyRouteGuards(
           event: { eventType: 'stage_seconde' },
         },
         orderBy: { event: { date: 'desc' } },
-        select: { eventId: true },
+        select: { event: { select: { id: true, endDate: true, date: true } } },
       });
       if (stageParticipation) {
-        const welcomePage = await prisma.cmsPage.findUnique({
-          where: {
-            slug_eventId: {
-              slug: 'welcome',
-              eventId: stageParticipation.eventId,
+        const stageEnd =
+          stageParticipation.event.endDate ?? stageParticipation.event.date;
+        if (stageEnd >= new Date()) {
+          const welcomePage = await prisma.cmsPage.findUnique({
+            where: {
+              slug_eventId: {
+                slug: 'welcome',
+                eventId: stageParticipation.event.id,
+              },
             },
-          },
-        });
-        if (welcomePage?.content) {
-          return Response.redirect(
-            new URL(pathTalentWelcome, event.url).href,
-            303,
-          );
+          });
+          if (welcomePage?.content) {
+            return Response.redirect(
+              new URL(pathTalentWelcome, event.url).href,
+              303,
+            );
+          }
         }
       }
-    }
-    // Already seen: prevent going back to welcome
-    if (
-      event.locals.talent?.welcomeSeenAt &&
-      currentPath === pathTalentWelcome
-    ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
   }
 

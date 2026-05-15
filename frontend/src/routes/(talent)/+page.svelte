@@ -35,6 +35,7 @@
   import Monitor from '@lucide/svelte/icons/monitor';
   import Settings from '@lucide/svelte/icons/settings';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
+  import Mail from '@lucide/svelte/icons/mail';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
   import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';
@@ -198,6 +199,15 @@
           <p class="font-bold text-slate-500 uppercase">
             Bienvenue dans ton cockpit.
           </p>
+          {#if data.hasWelcomePage}
+            <a
+              href={resolve('/welcome')}
+              class="mt-1 inline-flex items-center gap-1 text-sm text-epi-blue hover:underline"
+            >
+              <Mail class="h-3.5 w-3.5" />
+              Revoir le message de bienvenue
+            </a>
+          {/if}
         </div>
       </div>
       <div class="flex items-center gap-1">
