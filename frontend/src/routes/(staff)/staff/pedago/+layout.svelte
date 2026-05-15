@@ -65,7 +65,7 @@
 
 {#snippet sidebarBrand()}
   <a href={resolve('/staff/pedago')} class="flex flex-col gap-0.5 px-4 py-4">
-    <span class="text-lg leading-none font-bold uppercase">Jump</span>
+    <span class="font-heading text-2xl leading-none">Jump</span>
     <span
       class="truncate text-xs font-bold tracking-wider text-epi-teal-solid uppercase dark:text-epi-teal"
     >
@@ -269,7 +269,7 @@
           <span class="sr-only">Toggle menu</span>
         </Button>
         <a href={resolve('/staff/pedago')} class="flex items-center gap-2">
-          <span class="text-base font-bold uppercase">Jump</span>
+          <span class="font-heading text-xl leading-none">Jump</span>
           <span
             class="text-[10px] font-bold tracking-wider text-epi-teal-solid uppercase dark:text-epi-teal"
           >
