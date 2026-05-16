@@ -50,7 +50,7 @@
 
   const navLinkClass = (active: boolean) => `
     flex items-center gap-3 px-3 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer
-    ${active ? 'bg-primary/10 text-epi-blue dark:text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
+    ${active ? 'bg-epi-blue text-white' : 'text-sidebar-foreground-muted hover:bg-sidebar-hover hover:text-sidebar-foreground'}
   `;
 
   function getInitials(user: any) {
@@ -64,16 +64,19 @@
 </script>
 
 {#snippet sidebarBrand()}
-  <a href={resolve('/staff/pedago')} class="flex flex-col gap-0.5 px-4 py-4">
+  <a
+    href={resolve('/staff/pedago')}
+    class="flex flex-col gap-0.5 px-4 py-4 text-sidebar-foreground"
+  >
     <span class="font-heading text-2xl leading-none">Jump</span>
     <span
-      class="truncate text-xs font-bold tracking-wider text-epi-teal-solid uppercase dark:text-epi-teal"
+      class="truncate text-xs font-bold tracking-wider text-epi-teal uppercase"
     >
       {getStaffRoleLabel(data.staffProfile?.staffRole)}
     </span>
     {#if data.staffProfile?.campus?.name}
       <span
-        class="truncate font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
+        class="truncate font-mono text-[10px] tracking-widest text-sidebar-foreground-muted uppercase"
       >
         Campus {data.staffProfile.campus.name}
       </span>
@@ -184,14 +187,14 @@
 {/snippet}
 
 {#snippet sidebarFooter()}
-  <div class="border-t border-border">
+  <div class="border-t border-sidebar-border text-sidebar-foreground">
     <div class="flex items-center justify-between gap-2 p-3">
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors outline-none hover:bg-muted"
+          class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm p-1 transition-colors outline-none hover:bg-sidebar-hover"
         >
           <Avatar.Root
-            class="h-9 w-9 shrink-0 rounded-full border-2 border-epi-blue bg-muted"
+            class="h-9 w-9 shrink-0 rounded-full border-2 border-epi-blue bg-white/10"
           >
             <Avatar.Image
               src={user?.image ?? undefined}
@@ -234,9 +237,9 @@
   class="flex h-[calc(100dvh-var(--impersonation-banner-h,0px))] w-full overflow-hidden bg-background"
 >
   <aside
-    class="app-sidebar hidden w-62.5 flex-col border-r border-border bg-sidebar md:flex"
+    class="app-sidebar hidden w-62.5 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
   >
-    <div class="border-b border-border">
+    <div class="border-b border-sidebar-border">
       {@render sidebarBrand()}
     </div>
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
@@ -289,10 +292,10 @@
         onkeydown={(e) => e.key === 'Escape' && (mobileMenuOpen = false)}
       ></div>
       <aside
-        class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-border bg-sidebar shadow-2xl md:hidden"
+        class="absolute inset-y-0 left-0 z-40 flex w-3/4 max-w-75 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl md:hidden"
         transition:fly={{ x: -300, duration: 300 }}
       >
-        <div class="border-b border-border">
+        <div class="border-b border-sidebar-border">
           {@render sidebarBrand()}
         </div>
         <div class="flex-1 overflow-y-auto px-4 pt-2 pb-4">
