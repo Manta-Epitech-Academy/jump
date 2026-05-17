@@ -41,6 +41,7 @@
     progressPct: number;
     sub: string;
     tone: EventKpiTone;
+    helpText?: string;
   };
 
   // Charte / Droit à l'image are validation docs (signed = good,
@@ -84,6 +85,8 @@
       value: charteCount,
       total,
       tone: 'blue',
+      helpText:
+        'Signé en ligne par le talent depuis son espace personnel, à la dernière étape de son onboarding. Cochez manuellement uniquement en cas de signature papier.',
     }),
     docCard({
       key: 'image-rights-missing',
@@ -92,6 +95,8 @@
       value: imageCount,
       total,
       tone: 'pink',
+      helpText:
+        'Autorisation parentale pour les photos/vidéos du stage. Demandée automatiquement par email aux parents à la création du compte. Cochez manuellement uniquement en cas de retour papier.',
     }),
     pcCard,
   ]);
@@ -113,6 +118,7 @@
     {#each cards as card (card.key)}
       <EventKpiTile
         label={card.label}
+        helpText={card.helpText}
         value={card.value}
         total={card.total}
         icon={card.Icon}

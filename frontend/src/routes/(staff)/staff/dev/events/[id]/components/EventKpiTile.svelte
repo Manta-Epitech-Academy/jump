@@ -6,10 +6,13 @@
   import type { Component, Snippet } from 'svelte';
   import type { Icon as IconType } from '@lucide/svelte';
   import * as Card from '$lib/components/ui/card';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import { cn } from '$lib/utils';
 
   type Props = {
     label: string;
+    /** Short explainer rendered behind a ⓘ icon next to the label. */
+    helpText?: string;
     /**
      * Big primary value. Pass a string (already formatted) or a number.
      * Use the `valueSnippet` prop for richer markup (e.g. "42 / 124").
@@ -39,6 +42,7 @@
 
   let {
     label,
+    helpText,
     value,
     total,
     sub,
@@ -108,14 +112,22 @@
   <Card.Content class="flex flex-1 flex-col p-5">
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0 flex-1">
-        <p
-          class={cn(
-            'mb-1 text-[10px] font-bold tracking-widest uppercase',
-            pressed ? 'text-white/70' : 'text-muted-foreground',
-          )}
-        >
-          {label}
-        </p>
+        <div class="mb-1 flex items-center gap-1.5">
+          <p
+            class={cn(
+              'text-[10px] font-bold tracking-widest uppercase',
+              pressed ? 'text-white/70' : 'text-muted-foreground',
+            )}
+          >
+            {label}
+          </p>
+          {#if helpText}
+            <InfoTooltip
+              text={helpText}
+              iconClass={pressed ? 'text-white/70 hover:text-white' : ''}
+            />
+          {/if}
+        </div>
         <div class="flex items-baseline gap-2">
           {#if valueSnippet}
             {@render valueSnippet()}

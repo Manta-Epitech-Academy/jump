@@ -12,6 +12,7 @@
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import { cn } from '$lib/utils';
   import { countSignedDocs, TOTAL_DOCS } from '../progress';
   import type { RelanceType } from '$lib/domain/relance';
@@ -67,8 +68,22 @@
           </Table.Head>
         </Gated>
         <Table.Head class="w-64">Participant</Table.Head>
-        <Table.Head class="text-center">Règlement intérieur</Table.Head>
-        <Table.Head class="text-center">Droit à l'image</Table.Head>
+        <Table.Head class="text-center">
+          <span class="inline-flex items-center justify-center gap-1.5">
+            Règlement intérieur
+            <InfoTooltip
+              text="Signé en ligne par le talent depuis son espace personnel, à la dernière étape de son onboarding. Cochez manuellement uniquement en cas de signature papier."
+            />
+          </span>
+        </Table.Head>
+        <Table.Head class="text-center">
+          <span class="inline-flex items-center justify-center gap-1.5">
+            Droit à l'image
+            <InfoTooltip
+              text="Autorisation parentale pour les photos/vidéos du stage. Demandée automatiquement par email aux parents à la création du compte. Cochez manuellement uniquement en cas de retour papier."
+            />
+          </span>
+        </Table.Head>
         <Table.Head class="text-center">Matériel (PC)</Table.Head>
         <Table.Head class="w-40">Avancement</Table.Head>
         <Gated group="devLead" mode="hide">

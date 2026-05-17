@@ -14,6 +14,7 @@
   import { cn } from '$lib/utils';
   import OnboardingTable from './components/OnboardingTable.svelte';
   import OnboardingHero from './components/OnboardingHero.svelte';
+  import TalentJourneyExplainer from '$lib/components/dev/TalentJourneyExplainer.svelte';
   import RelanceComposeDialog from '$lib/components/comms/RelanceComposeDialog.svelte';
   import {
     DOC_FILTER_KEYS,
@@ -224,6 +225,8 @@
   <PageHeader title="Onboarding">
     <EventSalesforceButton externalId={data.event.externalId} />
   </PageHeader>
+
+  <TalentJourneyExplainer />
 
   {#if total === 0}
     <p class="text-sm text-muted-foreground">
