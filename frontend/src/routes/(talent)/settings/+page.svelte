@@ -122,24 +122,13 @@
       </div>
 
       <!-- Danger Zone -->
-      <div
-        class="rounded-3xl border border-red-100 bg-white p-5 shadow-xl shadow-slate-200/50 dark:border-red-950/40 dark:bg-slate-900 dark:shadow-none"
-      >
-        <h2
-          class="mb-1 text-base font-bold tracking-widest text-red-400 uppercase dark:text-red-500/70"
-        >
-          Zone de danger
-        </h2>
-        <p class="mb-4 text-xs leading-relaxed text-slate-400">
-          La suppression de ton compte est définitive. Toutes tes données seront
-          perdues.
-        </p>
+      <div class="pt-2 text-center">
         <Button
-          variant="ghost"
-          class="h-11 w-full rounded-2xl border border-red-200 bg-red-50/80 tracking-normal text-red-500 normal-case transition-all hover:scale-[1.02] hover:border-red-300 hover:bg-red-100 active:scale-[0.98] dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400 dark:hover:border-red-800 dark:hover:bg-red-950/40"
+          variant="link"
+          size="sm"
           onclick={() => (deleteDialogOpen = true)}
+          class="h-auto p-0 text-[11px] font-normal text-slate-400 decoration-dotted underline-offset-4 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400"
         >
-          <Trash2 class="mr-2 inline h-4 w-4" />
           Supprimer mon compte
         </Button>
       </div>
