@@ -186,13 +186,13 @@
         <span>Vue d'ensemble</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
         )}
       >
-        <CalendarDays class="h-5 w-5" />
-        <span>Planning</span>
+        <ClipboardCheck class="h-5 w-5" />
+        <span>Onboarding</span>
       </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
@@ -204,13 +204,13 @@
         <span>Inscrits</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
         )}
       >
-        <ClipboardCheck class="h-5 w-5" />
-        <span>Onboarding</span>
+        <CalendarDays class="h-5 w-5" />
+        <span>Planning</span>
       </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
