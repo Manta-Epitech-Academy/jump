@@ -14,6 +14,7 @@
   type Interviewer = {
     id: string;
     name: string;
+    image: string | null;
     role: StaffRole;
     count: number;
   };
@@ -156,6 +157,11 @@
       <div class="flex min-h-[300px] flex-col rounded-sm border bg-muted/20">
         <div class="flex items-center gap-2 border-b border-border bg-card p-2">
           <Avatar.Root class="h-7 w-7 rounded-full">
+            <Avatar.Image
+              src={person.image ?? undefined}
+              alt={person.name}
+              class="object-cover"
+            />
             <Avatar.Fallback class="bg-muted text-[10px] font-bold uppercase">
               {initials(person.name)}
             </Avatar.Fallback>

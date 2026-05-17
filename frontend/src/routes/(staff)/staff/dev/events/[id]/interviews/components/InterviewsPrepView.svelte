@@ -28,6 +28,7 @@
     interviewers: {
       id: string;
       name: string;
+      image: string | null;
       role: StaffRole;
       count: number;
     }[];

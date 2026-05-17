@@ -5,7 +5,13 @@
   import type { StaffRole } from '@prisma/client';
   import { getStaffRoleLabel } from '$lib/domain/staff';
 
-  type Row = { id: string; name: string; role: StaffRole; count: number };
+  type Row = {
+    id: string;
+    name: string;
+    image: string | null;
+    role: StaffRole;
+    count: number;
+  };
 
   type Props = {
     rows: Row[];
@@ -54,6 +60,11 @@
       {#each rows as row (row.id)}
         <div class="flex items-center gap-3">
           <Avatar.Root class="h-8 w-8 rounded-full">
+            <Avatar.Image
+              src={row.image ?? undefined}
+              alt={row.name}
+              class="object-cover"
+            />
             <Avatar.Fallback class="bg-muted text-[10px] font-bold uppercase">
               {row.name
                 .split(' ')
