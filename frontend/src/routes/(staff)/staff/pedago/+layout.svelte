@@ -28,6 +28,7 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
+  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
 
   let mobileMenuOpen = $state(false);
   let commandOpen = $state(false);
@@ -136,13 +137,15 @@
         <UserCheck class="h-5 w-5" />
         <span>Présences</span>
       </a>
-      <a
-        href={resolve('/staff/pedago/contenu/welcome')}
-        class={navLinkClass(isActive('/staff/pedago/contenu/welcome'))}
-      >
-        <FileText class="h-5 w-5" />
-        <span>Page d'accueil</span>
-      </a>
+      {#if hasWelcomePage}
+        <a
+          href={resolve('/staff/pedago/contenu/welcome')}
+          class={navLinkClass(isActive('/staff/pedago/contenu/welcome'))}
+        >
+          <FileText class="h-5 w-5" />
+          <span>Page d'accueil</span>
+        </a>
+      {/if}
     </nav>
   {/if}
 

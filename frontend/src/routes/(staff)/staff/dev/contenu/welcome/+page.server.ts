@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { can } from '$lib/domain/permissions';
 import { resolveStageContext } from '$lib/server/services/stageContext';
 import DOMPurify from 'isomorphic-dompurify';
@@ -17,6 +17,7 @@ async function getActiveStageId(locals: App.Locals): Promise<string> {
 }
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
+  requireFlag(locals, 'staff_welcome_page');
   requireStaffGroup(locals, 'devMember');
   const { activeStage } = await parent();
   if (!activeStage) throw error(404, 'Aucun stage actif.');
@@ -31,6 +32,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 export const actions: Actions = {
   save: async ({ request, locals }) => {
+    requireFlag(locals, 'staff_welcome_page');
     requireStaffGroup(locals, 'devLead');
     const eventId = await getActiveStageId(locals);
     const userId = locals.user!.id;

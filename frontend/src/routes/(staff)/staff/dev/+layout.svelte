@@ -37,6 +37,9 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
+  let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
+  let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
+  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
   // Peda visiting a single interviews route gets a stripped shell — no
   // sidebar, no command-K, no impersonation, no tickets. Just header + main.
   let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
@@ -218,22 +221,26 @@
         <MessageSquare class="h-5 w-5" />
         <span>Entretiens</span>
       </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/team`),
-        )}
-      >
-        <GraduationCap class="h-5 w-5" />
-        <span>Intervenants</span>
-      </a>
-      <a
-        href={resolve('/staff/dev/contenu/welcome')}
-        class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
-      >
-        <FileText class="h-5 w-5" />
-        <span>Page d'accueil</span>
-      </a>
+      {#if hasIntervenants}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/team`),
+          )}
+        >
+          <GraduationCap class="h-5 w-5" />
+          <span>Intervenants</span>
+        </a>
+      {/if}
+      {#if hasWelcomePage}
+        <a
+          href={resolve('/staff/dev/contenu/welcome')}
+          class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+        >
+          <FileText class="h-5 w-5" />
+          <span>Page d'accueil</span>
+        </a>
+      {/if}
     </nav>
   {/if}
 
@@ -252,20 +259,22 @@
     </nav>
   {/if}
 
-  <Gated group="devLead" mode="hide">
-    <div class="sidebar-section-title">
-      Gestion<span class="text-epi-orange">_</span>
-    </div>
-    <nav class="space-y-1">
-      <a
-        href={resolve('/staff/dev/team')}
-        class={navLinkClass(isActive('/staff/dev/team'))}
-      >
-        <UserCog class="h-5 w-5" />
-        <span>Staff du campus</span>
-      </a>
-    </nav>
-  </Gated>
+  {#if hasCampusTeam}
+    <Gated group="devLead" mode="hide">
+      <div class="sidebar-section-title">
+        Gestion<span class="text-epi-orange">_</span>
+      </div>
+      <nav class="space-y-1">
+        <a
+          href={resolve('/staff/dev/team')}
+          class={navLinkClass(isActive('/staff/dev/team'))}
+        >
+          <UserCog class="h-5 w-5" />
+          <span>Staff du campus</span>
+        </a>
+      </nav>
+    </Gated>
+  {/if}
 
   {#if data.ticketsEnabled}
     <div class="sidebar-section-title">

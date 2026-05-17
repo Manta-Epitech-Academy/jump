@@ -26,6 +26,7 @@
       bringPc: number;
     };
     alerts: EventAlert[];
+    showIntervenants: boolean;
     onEditNotes: () => void;
   };
 
@@ -40,6 +41,7 @@
     mantasCount,
     stats,
     alerts,
+    showIntervenants,
     onEditNotes,
   }: Props = $props();
 
@@ -98,13 +100,15 @@
       icon={Laptop}
       tone="orange"
     />
-    <EventKpiTile
-      label="Intervenants"
-      value={mantasCount}
-      icon={GraduationCap}
-      tone="teal"
-      href={resolve(`/staff/dev/events/${eventId}/team`)}
-    />
+    {#if showIntervenants}
+      <EventKpiTile
+        label="Intervenants"
+        value={mantasCount}
+        icon={GraduationCap}
+        tone="teal"
+        href={resolve(`/staff/dev/events/${eventId}/team`)}
+      />
+    {/if}
   </div>
 
   <div class="flex flex-wrap gap-2">
@@ -120,12 +124,14 @@
     >
       <CalendarDays class="mr-2 h-4 w-4" /> Planning
     </a>
-    <a
-      href={resolve(`/staff/dev/events/${eventId}/team`)}
-      class={buttonVariants({ variant: 'outline', class: 'rounded-sm' })}
-    >
-      <GraduationCap class="mr-2 h-4 w-4" /> Équipe
-    </a>
+    {#if showIntervenants}
+      <a
+        href={resolve(`/staff/dev/events/${eventId}/team`)}
+        class={buttonVariants({ variant: 'outline', class: 'rounded-sm' })}
+      >
+        <GraduationCap class="mr-2 h-4 w-4" /> Équipe
+      </a>
+    {/if}
   </div>
 
   <section class="space-y-3">

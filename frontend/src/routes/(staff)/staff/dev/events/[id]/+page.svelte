@@ -140,6 +140,7 @@
       mantasCount={data.event.mantas.length}
       stats={data.legacy.stats}
       alerts={data.legacy.alerts}
+      showIntervenants={data.featureFlags.includes('staff_intervenants')}
       onEditNotes={() => (openEditEvent = true)}
     />
   {/if}

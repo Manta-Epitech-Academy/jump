@@ -4,13 +4,14 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { Prisma } from '@prisma/client';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import {
   createSuperDevInvitationSchema,
   updateMemberRoleSchema,
 } from '$lib/validation/staff';
 
 export const load: PageServerLoad = async ({ locals }) => {
+  requireFlag(locals, 'staff_campus_team');
   requireStaffGroup(locals, 'devLead');
 
   const campusId = locals.staffProfile.campusId;
@@ -40,6 +41,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
   invite: async ({ request, locals }) => {
+    requireFlag(locals, 'staff_campus_team');
     requireStaffGroup(locals, 'devLead');
     const campusId = locals.staffProfile.campusId;
     if (!campusId) return fail(400, { message: 'Campus manquant.' });
@@ -101,6 +103,7 @@ export const actions: Actions = {
   },
 
   cancelInvitation: async ({ url, locals }) => {
+    requireFlag(locals, 'staff_campus_team');
     requireStaffGroup(locals, 'devLead');
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
@@ -122,6 +125,7 @@ export const actions: Actions = {
   },
 
   updateMemberRole: async ({ request, locals }) => {
+    requireFlag(locals, 'staff_campus_team');
     requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(updateMemberRoleSchema));

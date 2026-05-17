@@ -38,6 +38,33 @@ export const FEATURE_FLAGS = {
     description:
       'Active les mini-jeux du jour pour les talents (cf. MINIGAMES.md).',
   }),
+  staff_intervenants: def({
+    key: 'staff_intervenants',
+    kind: 'rollout',
+    defaultEnabled: false,
+    label: 'Intervenants par événement',
+    description:
+      "Page d'assignation des mantas à un événement (/staff/dev/events/[id]/team).",
+    removeBy: new Date('2026-07-15'),
+  }),
+  staff_campus_team: def({
+    key: 'staff_campus_team',
+    kind: 'rollout',
+    defaultEnabled: false,
+    label: 'Staff du campus',
+    description:
+      'Gestion des membres staff et invitations au niveau campus (/staff/dev/team).',
+    removeBy: new Date('2026-07-15'),
+  }),
+  staff_welcome_page: def({
+    key: 'staff_welcome_page',
+    kind: 'rollout',
+    defaultEnabled: false,
+    label: "Édition page d'accueil talents",
+    description:
+      "Édition CMS de la page d'accueil affichée aux talents (dev + pedago).",
+    removeBy: new Date('2026-07-15'),
+  }),
 };
 
 export type FlagKey = keyof typeof FEATURE_FLAGS;
