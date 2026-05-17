@@ -76,6 +76,21 @@
   let todayIsMultiDay = $derived(data.todayIsMultiDay);
   let upcomingIsMultiDay = $derived(data.upcomingIsMultiDay);
 
+  function isStageUpcoming(
+    event:
+      | { eventType?: string | null; date?: string | Date | null }
+      | null
+      | undefined,
+  ) {
+    if (!event || event.eventType !== 'stage_seconde' || !event.date)
+      return false;
+    return new Date(event.date) > nowTime;
+  }
+  let hideTodayCalendarLink = $derived(isStageUpcoming(participation?.event));
+  let hideUpcomingCalendarLink = $derived(
+    isStageUpcoming(upcomingParticipation?.event),
+  );
+
   let levelLabel = $derived(
     student?.level === 'Expert'
       ? 'Expert ✦'
@@ -467,7 +482,7 @@
               <span class="text-slate-300 dark:text-slate-700">•</span>
               <Clock class="h-4 w-4" />
               <span>{formatTime(participation?.event?.date)}</span>
-              {#if todayIsMultiDay}
+              {#if todayIsMultiDay && !hideTodayCalendarLink}
                 <a
                   href={resolve('/calendar')}
                   class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
@@ -623,7 +638,7 @@
             >
               <CalendarClock class="h-4 w-4" />
               <span>Mission à venir</span>
-              {#if upcomingIsMultiDay}
+              {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
                 <a
                   href={resolve('/calendar')}
                   class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
