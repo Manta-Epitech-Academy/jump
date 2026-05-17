@@ -36,7 +36,6 @@
   import Settings from '@lucide/svelte/icons/settings';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import { onMount, untrack } from 'svelte';
   import { track } from '$lib/analytics';
@@ -228,15 +227,6 @@
       </div>
     </div>
   </header>
-
-  {#if !student?.discordId}
-    <div
-      class="fixed right-4 bottom-4 left-4 z-50 mx-auto max-w-lg"
-      in:fly={{ y: 20, duration: 300, delay: 150 }}
-    >
-      <DiscordLinkBanner />
-    </div>
-  {/if}
 
   <div class="grid gap-6 md:grid-cols-12">
     <!-- LEFT COLUMN: Stats & Profile -->
