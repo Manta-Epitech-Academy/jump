@@ -442,7 +442,6 @@ model Participation {
 model StageCompliance {
   participationId   String   @id
   charteSigned      Boolean  @default(false)
-  conventionSigned  Boolean  @default(false)
   imageRightsSigned Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

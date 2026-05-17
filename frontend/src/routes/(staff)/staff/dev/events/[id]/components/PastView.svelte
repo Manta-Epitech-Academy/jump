@@ -2,7 +2,6 @@
   import Users from '@lucide/svelte/icons/users';
   import Laptop from '@lucide/svelte/icons/laptop';
   import FileText from '@lucide/svelte/icons/file-text';
-  import ScrollText from '@lucide/svelte/icons/scroll-text';
   import Camera from '@lucide/svelte/icons/camera';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import { resolve } from '$app/paths';
@@ -21,7 +20,6 @@
       total: number;
       bringPc: number;
       chartes: number;
-      conventions: number;
       droitsImage: number;
       interviewsCompleted: number;
     };
@@ -112,13 +110,6 @@
       label="Chartes signées"
       value={`${stats.chartes} / ${stats.total}`}
       icon={FileText}
-      tone="neutral"
-      href={onboardingHref}
-    />
-    <EventKpiTile
-      label="Conventions signées"
-      value={`${stats.conventions} / ${stats.total}`}
-      icon={ScrollText}
       tone="neutral"
       href={onboardingHref}
     />

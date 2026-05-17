@@ -196,7 +196,6 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
         eventId: event.id,
         stageCompliance: {
           charteSigned: true,
-          conventionSigned: true,
           imageRightsSigned: true,
         },
       },
@@ -248,7 +247,6 @@ async function loadStageOngoing(
     interviewsCompleted,
     interviewsTotal,
     chartes,
-    conventions,
     droitsImage,
     alerts,
     orgaSlots,
@@ -268,12 +266,6 @@ async function loadStageOngoing(
       where: {
         eventId: event.id,
         stageCompliance: { charteSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { conventionSigned: true },
       },
     }),
     db.participation.count({
@@ -344,10 +336,9 @@ async function loadStageOngoing(
       ? todayOrgaSlots[todayOrgaSlots.length - 1]
       : null;
 
-  // Average over the three validation docs only — `bringPc` is logistics,
+  // Average over the two validation docs only — `bringPc` is logistics,
   // not part of the conformity score.
-  const conformitePct =
-    total === 0 ? 0 : (chartes + conventions + droitsImage) / (total * 3);
+  const conformitePct = total === 0 ? 0 : (chartes + droitsImage) / (total * 2);
 
   return {
     kpis: {
@@ -374,47 +365,34 @@ async function loadStageOngoing(
 }
 
 async function loadStagePast({ db, event }: LoaderCtx) {
-  const [
-    total,
-    interviewsCompleted,
-    chartes,
-    conventions,
-    droitsImage,
-    bringPc,
-  ] = await Promise.all([
-    db.participation.count({ where: { eventId: event.id } }),
-    db.interview.count({
-      where: { participation: { eventId: event.id }, status: 'completed' },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { charteSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { conventionSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { imageRightsSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: { eventId: event.id, bringPc: true },
-    }),
-  ]);
+  const [total, interviewsCompleted, chartes, droitsImage, bringPc] =
+    await Promise.all([
+      db.participation.count({ where: { eventId: event.id } }),
+      db.interview.count({
+        where: { participation: { eventId: event.id }, status: 'completed' },
+      }),
+      db.participation.count({
+        where: {
+          eventId: event.id,
+          stageCompliance: { charteSigned: true },
+        },
+      }),
+      db.participation.count({
+        where: {
+          eventId: event.id,
+          stageCompliance: { imageRightsSigned: true },
+        },
+      }),
+      db.participation.count({
+        where: { eventId: event.id, bringPc: true },
+      }),
+    ]);
 
   return {
     stats: {
       total,
       bringPc,
       chartes,
-      conventions,
       droitsImage,
       interviewsCompleted,
     },

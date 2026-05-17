@@ -50,9 +50,6 @@
   let charteCount = $derived(
     participations.filter((p) => p.stageCompliance?.charteSigned).length,
   );
-  let conventionCount = $derived(
-    participations.filter((p) => p.stageCompliance?.conventionSigned).length,
-  );
   let imageCount = $derived(
     participations.filter((p) => p.stageCompliance?.imageRightsSigned).length,
   );
@@ -71,8 +68,6 @@
     if (filter === 'all') return participations;
     if (filter === 'incomplete')
       return participations.filter((p) => countSignedDocs(p) < TOTAL_DOCS);
-    if (filter === 'convention-missing')
-      return participations.filter((p) => !p.stageCompliance?.conventionSigned);
     if (filter === 'charte-missing')
       return participations.filter((p) => !p.stageCompliance?.charteSigned);
     if (filter === 'image-rights-missing')
@@ -108,7 +103,6 @@
       if (index !== -1) {
         const compliance = (participations[index].stageCompliance ??= {
           charteSigned: false,
-          conventionSigned: false,
           imageRightsSigned: false,
           participationId: id,
           createdAt: new Date(),
@@ -116,8 +110,6 @@
         });
         if (docType === 'charte')
           compliance.charteSigned = !compliance.charteSigned;
-        if (docType === 'convention')
-          compliance.conventionSigned = !compliance.conventionSigned;
         if (docType === 'image')
           compliance.imageRightsSigned = !compliance.imageRightsSigned;
       }
@@ -269,7 +261,6 @@
       incomplete={incompleteCount}
       none={noneCount}
       {charteCount}
-      {conventionCount}
       {imageCount}
       {pcCount}
       activeFilter={filter}

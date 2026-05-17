@@ -9,7 +9,6 @@
 
   type StageCompliance = {
     charteSigned: boolean;
-    conventionSigned: boolean;
     imageRightsSigned: boolean;
   } | null;
 
@@ -31,12 +30,11 @@
   type Tile = { label: string; ok: boolean };
 
   function tilesFor(p: Row): Tile[] {
-    // Three validation tiles only — bringing a PC is logistics (handled
-    // on the Onboarding page's separate "PC à préparer" tile), not part
-    // of the talent's compliance footprint.
+    // Validation tiles only — bringing a PC is logistics (handled on the
+    // Onboarding page's separate "PC à préparer" tile), not part of the
+    // talent's compliance footprint.
     const sc = p.stageCompliance;
     return [
-      { label: 'Convention', ok: !!sc?.conventionSigned },
       { label: 'Charte', ok: !!sc?.charteSigned },
       { label: 'Droit image', ok: !!sc?.imageRightsSigned },
     ];

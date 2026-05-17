@@ -3458,7 +3458,6 @@ async function seedEvents(
             data: {
               participationId: participation.id,
               charteSigned: fullySigned || Math.random() < 0.5,
-              conventionSigned: fullySigned,
               imageRightsSigned: fullySigned || partiallySigned,
             },
           });

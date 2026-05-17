@@ -41,7 +41,6 @@
     'unassigned-slots': AlertTriangle,
     'interviews-today': PhoneCall,
     'interviews-overdue': AlarmClock,
-    'conventions-to-chase': FileSignature,
     'chartes-to-chase': FileSignature,
     'image-rights-to-chase': Mail,
     'pc-missing': Laptop,

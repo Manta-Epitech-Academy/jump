@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Component } from 'svelte';
   import FileText from '@lucide/svelte/icons/file-text';
-  import ScrollText from '@lucide/svelte/icons/scroll-text';
   import Camera from '@lucide/svelte/icons/camera';
   import Laptop from '@lucide/svelte/icons/laptop';
   import CohortHealthBar from './CohortHealthBar.svelte';
@@ -16,7 +15,6 @@
     incomplete,
     none,
     charteCount,
-    conventionCount,
     imageCount,
     pcCount,
     activeFilter,
@@ -27,7 +25,6 @@
     incomplete: number;
     none: number;
     charteCount: number;
-    conventionCount: number;
     imageCount: number;
     pcCount: number;
     activeFilter: OnboardingFilterKey;
@@ -46,17 +43,12 @@
     tone: EventKpiTone;
   };
 
-  // Tryptique TECH/TOGETHER/TOMORROW + brand blue, one accent per card:
-  //   Charte           → blue   (admin paperwork)
-  //   Convention       → orange (epi-together · parent / collab signature)
-  //   Droit à l'image  → pink   (epi-tomorrow · vision / future-facing rights)
-  //   PC personnel     → teal   (epi-tech · technical readiness)
-  //
-  // The first three are validation docs (signed = good, headline = ok/total).
-  // PC is reframed as "X PC à préparer" — logistics, not a missing doc; a
-  // talent without their own laptop isn't blocked, we just need to plan
-  // for it. The PC card keeps the click-to-filter behaviour (?filter=
-  // pc-missing) so staff can still slice the list to "who needs a PC".
+  // Charte / Droit à l'image are validation docs (signed = good,
+  // headline = ok/total). PC is logistics — "X PC à préparer" — not a
+  // missing doc; a talent without their own laptop isn't blocked, we just
+  // need to plan for it. The PC card keeps the click-to-filter behaviour
+  // (?filter=pc-missing) so staff can still slice the list to "who needs a
+  // PC".
   const docCard = (spec: Omit<CardSpec, 'sub' | 'progressPct'>): CardSpec => {
     const ok = spec.value;
     const t = spec.total ?? total;
@@ -92,14 +84,6 @@
       value: charteCount,
       total,
       tone: 'blue',
-    }),
-    docCard({
-      key: 'convention-missing',
-      label: 'Convention de stage',
-      Icon: ScrollText,
-      value: conventionCount,
-      total,
-      tone: 'orange',
     }),
     docCard({
       key: 'image-rights-missing',

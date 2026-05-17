@@ -24,7 +24,6 @@ export type EventAlertKind =
   | 'unassigned-slots'
   | 'interviews-today'
   | 'interviews-overdue'
-  | 'conventions-to-chase'
   | 'chartes-to-chase'
   | 'image-rights-to-chase'
   | 'pc-missing'
@@ -86,7 +85,6 @@ type EventFacts = {
   mantaCount: number;
   slotCount: number;
   unassignedSlots: number;
-  conventionsToChase: number;
   chartesToChase: number;
   imageRightsToChase: number;
   pcMissing: number;
@@ -134,7 +132,6 @@ async function loadEventFacts(
     mantaCount,
     slotCount,
     unassignedSlots,
-    conventionsToChase: 0,
     chartesToChase: 0,
     imageRightsToChase: 0,
     pcMissing: 0,
@@ -159,7 +156,6 @@ async function loadEventFacts(
   };
 
   const [
-    conventionsToChase,
     chartesToChase,
     imageRightsToChase,
     pcMissing,
@@ -168,15 +164,6 @@ async function loadEventFacts(
     interviewsToday,
     overdueInterviews,
   ] = await Promise.all([
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        OR: [
-          { stageCompliance: null },
-          { stageCompliance: { conventionSigned: false } },
-        ],
-      },
-    }),
     db.participation.count({
       where: {
         eventId: event.id,
@@ -227,7 +214,6 @@ async function loadEventFacts(
 
   return {
     ...baseFacts,
-    conventionsToChase,
     chartesToChase,
     imageRightsToChase,
     pcMissing,
@@ -295,20 +281,6 @@ export async function deriveEventAlerts(
   const inscritsHref = `${eventBase}/inscrits`;
   const onboardingHref = `${eventBase}/onboarding`;
 
-  if (facts.conventionsToChase > 0) {
-    alerts.push({
-      key: `conventions-${event.id}`,
-      kind: 'conventions-to-chase',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Conventions non remontées par Salesforce',
-      description:
-        'Salesforce ne marque pas la convention comme signée — vérifier l’upload SF',
-      count: facts.conventionsToChase,
-      severity: 'warning',
-      href: `${onboardingHref}?filter=convention-missing`,
-    });
-  }
   if (facts.chartesToChase > 0) {
     alerts.push({
       key: `chartes-${event.id}`,
@@ -512,20 +484,6 @@ export async function deriveEventChecklist(
   });
 
   // — Group: documents administratifs —
-
-  items.push({
-    key: `conventions-${event.id}`,
-    kind: 'conventions-to-chase',
-    group: 'documents',
-    title: 'Conventions de stage signées (Salesforce)',
-    meta:
-      facts.conventionsToChase === 0
-        ? `${total}/${total} remontées par Salesforce`
-        : `${facts.conventionsToChase} non remontée${facts.conventionsToChase > 1 ? 's' : ''} par Salesforce`,
-    done: facts.conventionsToChase === 0,
-    severity: 'warning',
-    href: `${onboardingHref}?filter=convention-missing`,
-  });
 
   items.push({
     key: `chartes-${event.id}`,

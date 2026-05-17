@@ -68,7 +68,6 @@
         </Gated>
         <Table.Head class="w-64">Participant</Table.Head>
         <Table.Head class="text-center">Charte</Table.Head>
-        <Table.Head class="text-center">Convention de stage</Table.Head>
         <Table.Head class="text-center">Droit à l'image</Table.Head>
         <Table.Head class="text-center">Matériel (PC)</Table.Head>
         <Table.Head class="w-40">Avancement</Table.Head>
@@ -136,46 +135,6 @@
                     )}
                   >
                     {p.stageCompliance?.charteSigned ? 'OK' : 'Manquant'}
-                  </Badge>
-                {/key}
-              </button>
-            </form>
-          </Table.Cell>
-
-          <!-- Convention -->
-          <Table.Cell class="py-4 text-center">
-            <form
-              method="POST"
-              action="?/toggleAdminDoc"
-              use:enhance={optimisticAdminToggle(p.id, 'convention')}
-              onsubmit={() =>
-                track('adm_doc_toggled', { docType: 'convention' })}
-            >
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="docType" value="convention" />
-              <input
-                type="hidden"
-                name="state"
-                value={p.stageCompliance?.conventionSigned?.toString() ||
-                  'false'}
-              />
-              <button
-                type="submit"
-                class="cursor-pointer transition-transform active:scale-90"
-              >
-                {#key p.stageCompliance?.conventionSigned}
-                  <Badge
-                    variant={p.stageCompliance?.conventionSigned
-                      ? 'outline'
-                      : 'secondary'}
-                    class={cn(
-                      'animate-in duration-300 zoom-in',
-                      p.stageCompliance?.conventionSigned
-                        ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
-                        : 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange hover:bg-epi-orange/15',
-                    )}
-                  >
-                    {p.stageCompliance?.conventionSigned ? 'OK' : 'Manquant'}
                   </Badge>
                 {/key}
               </button>
