@@ -62,12 +62,7 @@
 
 <div class="flex flex-col gap-4">
   <div class="flex items-start justify-between gap-3">
-    <PageBreadcrumb
-      items={[
-        { label: 'Dashboard', href: resolve('/staff/dev') },
-        { label: data.event.titre },
-      ]}
-    />
+    <PageBreadcrumb items={[{ label: data.event.titre }]} />
     <div class="flex items-center gap-2">
       <EventSalesforceButton externalId={data.event.externalId} />
       <Gated group="devLead" mode="hide">

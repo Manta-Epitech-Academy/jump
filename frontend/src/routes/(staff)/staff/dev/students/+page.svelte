@@ -143,12 +143,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <PageBreadcrumb
-    items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
-      { label: 'Talents' },
-    ]}
-  />
+  <PageBreadcrumb items={[{ label: 'Talents' }]} />
   <PageHeader
     title="Talents"
     subtitle="Annuaire et progression des Talents du campus."

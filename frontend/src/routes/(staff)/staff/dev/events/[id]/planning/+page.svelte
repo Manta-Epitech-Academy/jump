@@ -16,7 +16,6 @@
   <div class="shrink-0 border-b pb-4">
     <PageBreadcrumb
       items={[
-        { label: 'Dashboard', href: resolve('/staff/dev') },
         {
           label: data.event.titre,
           href: resolve(`/staff/dev/events/${data.event.id}`),

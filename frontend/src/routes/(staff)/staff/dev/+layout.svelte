@@ -152,7 +152,7 @@
         class={navLinkClass(isActive('/staff/dev'))}
       >
         <LayoutDashboard class="h-5 w-5" />
-        <span>Dashboard</span>
+        <span>Tableau de bord</span>
       </a>
       <a
         href={resolve('/staff/dev/students')}

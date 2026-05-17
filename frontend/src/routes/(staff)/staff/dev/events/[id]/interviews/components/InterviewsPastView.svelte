@@ -80,7 +80,6 @@
 <div class="space-y-6 pb-10">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
       {
         label: event.titre,
         href: resolve(`/staff/dev/events/${event.id}`),

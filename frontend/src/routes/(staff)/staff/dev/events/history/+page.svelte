@@ -42,12 +42,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <PageBreadcrumb
-    items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
-      { label: 'Historique' },
-    ]}
-  />
+  <PageBreadcrumb items={[{ label: 'Historique' }]} />
   <PageHeader title="Historique" subtitle="Archives des événements passés" />
 
   {#if data.events.length > 0}

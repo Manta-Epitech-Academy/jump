@@ -7,7 +7,6 @@
   import Zap from '@lucide/svelte/icons/zap';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Clock from '@lucide/svelte/icons/clock';
-  import { resolve } from '$app/paths';
   import { activityTypeLabels } from '$lib/validation/templates';
 
   let { data } = $props();
@@ -27,12 +26,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <PageBreadcrumb
-    items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
-      { label: 'Catalogue' },
-    ]}
-  />
+  <PageBreadcrumb items={[{ label: 'Catalogue' }]} />
   <PageHeader
     title="Catalogue Epitech"
     subtitle="Fiches descriptives vulgarisées pour argumenter avec les Talents et les parents."

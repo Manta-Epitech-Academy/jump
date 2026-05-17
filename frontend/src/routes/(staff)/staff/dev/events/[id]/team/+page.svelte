@@ -29,7 +29,6 @@
 <div class="flex h-full flex-col space-y-6 pb-10">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
       {
         label: data.event.titre,
         href: resolve(`/staff/dev/events/${data.event.id}`),

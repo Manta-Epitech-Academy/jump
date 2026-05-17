@@ -206,7 +206,6 @@
 <div class="space-y-6 pb-12">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
       { label: 'Talents', href: talentsHref },
       { label: `${data.student.nom} ${data.student.prenom}` },
     ]}
