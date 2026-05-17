@@ -79,7 +79,7 @@
   const cards: CardSpec[] = $derived([
     docCard({
       key: 'charte-missing',
-      label: 'Charte',
+      label: 'Règlement intérieur',
       Icon: FileText,
       value: charteCount,
       total,

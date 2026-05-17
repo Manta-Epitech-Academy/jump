@@ -67,7 +67,7 @@
           </Table.Head>
         </Gated>
         <Table.Head class="w-64">Participant</Table.Head>
-        <Table.Head class="text-center">Charte</Table.Head>
+        <Table.Head class="text-center">Règlement intérieur</Table.Head>
         <Table.Head class="text-center">Droit à l'image</Table.Head>
         <Table.Head class="text-center">Matériel (PC)</Table.Head>
         <Table.Head class="w-40">Avancement</Table.Head>

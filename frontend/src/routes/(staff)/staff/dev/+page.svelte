@@ -422,7 +422,7 @@
               </div>
               <div class="space-y-1.5">
                 <div class="flex justify-between text-sm font-bold">
-                  <span>Chartes signées</span>
+                  <span>Règlements intérieurs signés</span>
                   <span class="text-epi-teal-solid"
                     >{data.stageObjectives.chartes}
                     <span class="text-muted-foreground"

@@ -107,7 +107,7 @@
       href={interviewsHref}
     />
     <EventKpiTile
-      label="Chartes signées"
+      label="Règlements intérieurs signés"
       value={`${stats.chartes} / ${stats.total}`}
       icon={FileText}
       tone="neutral"

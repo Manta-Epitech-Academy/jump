@@ -35,7 +35,7 @@
     // talent's compliance footprint.
     const sc = p.stageCompliance;
     return [
-      { label: 'Charte', ok: !!sc?.charteSigned },
+      { label: 'Règlement intérieur', ok: !!sc?.charteSigned },
       { label: 'Droit image', ok: !!sc?.imageRightsSigned },
     ];
   }

@@ -21,7 +21,7 @@ export const FEATURE_FLAGS = {
     defaultEnabled: true,
     label: 'Stage de Seconde',
     description:
-      'Événement annuel de 2 semaines avec suivi de conformité (charte, matériel, droits à l’image).',
+      'Événement annuel de 2 semaines avec suivi de conformité (règlement intérieur, matériel, droits à l’image).',
   }),
   coding_club: def({
     key: 'coding_club',

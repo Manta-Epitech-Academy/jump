@@ -287,7 +287,7 @@ export async function deriveEventAlerts(
       kind: 'chartes-to-chase',
       eventId: event.id,
       eventTitre: event.titre,
-      title: 'Chartes à valider',
+      title: 'Règlements intérieurs à valider',
       description: 'Cocher dans Onboarding dès réception du document signé',
       count: facts.chartesToChase,
       severity: 'info',
@@ -489,7 +489,7 @@ export async function deriveEventChecklist(
     key: `chartes-${event.id}`,
     kind: 'chartes-to-chase',
     group: 'documents',
-    title: 'Chartes validées dans Onboarding',
+    title: 'Règlements intérieurs validés dans Onboarding',
     meta:
       facts.chartesToChase === 0
         ? `${total}/${total} cochées`
