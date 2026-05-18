@@ -3,6 +3,7 @@
   import StickyNote from '@lucide/svelte/icons/sticky-note';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import Pencil from '@lucide/svelte/icons/pencil';
+  import Plus from '@lucide/svelte/icons/plus';
   import * as Card from '$lib/components/ui/card';
   import * as Collapsible from '$lib/components/ui/collapsible';
   import { Button } from '$lib/components/ui/button';
@@ -25,7 +26,18 @@
   const html = $derived(notes ? renderMarkdown(notes) : '');
 </script>
 
-{#if html}
+{#if !html && onEdit}
+  <Gated group="devLead" mode="hide">
+    <button
+      type="button"
+      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+      onclick={() => onEdit?.()}
+    >
+      <Plus class="h-3.5 w-3.5" />
+      Ajouter des notes pour le staff
+    </button>
+  </Gated>
+{:else if html}
   <Collapsible.Root {open} onOpenChange={(v) => (open = v)}>
     <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
       <div

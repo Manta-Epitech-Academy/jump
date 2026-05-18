@@ -2,17 +2,14 @@
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
-  import Settings from '@lucide/svelte/icons/settings';
 
   import type { PageData } from './$types';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
-  import { Button } from '$lib/components/ui/button';
-  import Gated from '$lib/components/auth/Gated.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
   import { track } from '$lib/analytics';
   import { STAGE_SECONDE_LABEL, eventTypeHasTheme } from '$lib/domain/event';
 
-  import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
+  import EditEventDialog from './components/EditEventDialog.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import PreparationView from './components/PreparationView.svelte';
   import OngoingView from './components/OngoingView.svelte';
@@ -66,20 +63,7 @@
 <div class="flex flex-col gap-4">
   <div class="flex items-start justify-between gap-3">
     <PageBreadcrumb items={[{ label: pageTitle }]} />
-    <div class="flex items-center gap-2">
-      <EventSalesforceButton externalId={data.event.externalId} />
-      <Gated group="devLead" mode="hide">
-        <Button
-          variant="outline"
-          size="sm"
-          class="rounded-sm shadow-sm"
-          onclick={() => (openEditEvent = true)}
-        >
-          <Settings class="mr-2 h-4 w-4" />
-          Paramètres de l'événement
-        </Button>
-      </Gated>
-    </div>
+    <EventSalesforceButton externalId={data.event.externalId} />
   </div>
 
   {#if data.kind === 'stage' && data.status === 'upcoming'}
@@ -144,7 +128,7 @@
   {/if}
 </div>
 
-<EditEventSettingsModal
+<EditEventDialog
   bind:open={openEditEvent}
   {editForm}
   {editErrors}
