@@ -146,5 +146,4 @@
   {editEnhance}
   {editDelayed}
   themes={data.themes}
-  staff={data.staff}
 />

@@ -1,13 +1,11 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
-  import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
   import DatePicker from '$lib/components/DatePicker.svelte';
   import { CalendarDateTime } from '@internationalized/date';
   import type { Readable } from 'svelte/store';
@@ -21,7 +19,6 @@
     editEnhance,
     editDelayed,
     themes,
-    staff,
   }: {
     open: boolean;
     editForm: SuperForm<EventForm>['form'];
@@ -29,7 +26,6 @@
     editEnhance: SuperForm<EventForm>['enhance'];
     editDelayed: Readable<boolean>;
     themes: any[];
-    staff: any[];
   } = $props();
 
   function parseInitialDate(val: any) {
@@ -102,20 +98,6 @@
         <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
           <div class="space-y-2">
             <Label class="text-[10px] font-bold tracking-widest uppercase"
-              >Titre</Label
-            >
-            <Input
-              name="titre"
-              bind:value={$editForm.titre}
-              class="rounded-sm bg-background"
-            />
-            {#if $editErrors.titre}<p class="text-xs text-destructive">
-                {$editErrors.titre}
-              </p>{/if}
-          </div>
-
-          <div class="space-y-2">
-            <Label class="text-[10px] font-bold tracking-widest uppercase"
               >Notes & Planning</Label
             >
             <Textarea
@@ -146,21 +128,6 @@
               </div>
               {#if $editErrors.theme}<p class="text-xs text-destructive">
                   {$editErrors.theme}
-                </p>{/if}
-            </div>
-            <div class="space-y-2">
-              <Label class="text-[10px] font-bold tracking-widest uppercase"
-                >Mantas</Label
-              >
-              <div class="rounded-sm bg-background">
-                <MultiStaffSelect
-                  {staff}
-                  bind:value={$editForm.mantas}
-                  name="mantas"
-                />
-              </div>
-              {#if $editErrors.mantas}<p class="text-xs text-destructive">
-                  {$editErrors.mantas}
                 </p>{/if}
             </div>
           </div>
