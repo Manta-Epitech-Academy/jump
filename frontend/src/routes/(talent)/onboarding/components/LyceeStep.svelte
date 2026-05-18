@@ -1,7 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
   import School from '@lucide/svelte/icons/school';
   import Search from '@lucide/svelte/icons/search';
   import PenLine from '@lucide/svelte/icons/pen-line';
@@ -93,27 +92,29 @@
 
 <svelte:document onclick={handleClickOutside} onkeydown={handleKeydown} />
 
-<div
-  class="rounded-xl border border-slate-200 bg-white p-6 shadow-lg md:p-8 dark:border-slate-800 dark:bg-slate-900"
->
-  <div class="mb-6 flex flex-col items-center gap-2">
+<div>
+  <div class="mb-6 text-center">
     <div
-      class="flex h-12 w-12 items-center justify-center rounded-full bg-epi-blue/10 text-epi-blue"
+      class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
     >
-      <School class="h-6 w-6" />
+      <School class="h-7 w-7" />
     </div>
-    <h1 class="text-xl font-bold text-foreground">Dans quel lycée es-tu ?</h1>
-    <p class="text-center text-sm text-muted-foreground">
-      Cherche par nom ou ville.
+    <h1
+      class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
+    >
+      Quel est ton lycée ? 🏫
+    </h1>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      Cherche ton lycée par nom ou ville.
     </p>
   </div>
 
   {#if error}
-    <div
-      class="mb-4 rounded-sm border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive"
+    <p
+      class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
     >
       {error}
-    </div>
+    </p>
   {/if}
 
   <form method="POST" action="?/validateLycee" use:enhance>
@@ -122,27 +123,38 @@
 
     <div class="space-y-4">
       <div class="relative" bind:this={containerEl}>
-        <div class="relative">
-          {#if loading}
-            <LoaderCircle
-              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
+        <div
+          class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        >
+          <label
+            for="lycee-search"
+            class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+          >
+            Nom ou ville
+          </label>
+          <div class="relative">
+            {#if loading}
+              <LoaderCircle
+                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
+              />
+            {:else}
+              <Search
+                class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+              />
+            {/if}
+            <input
+              id="lycee-search"
+              type="text"
+              placeholder="Rechercher par nom ou ville..."
+              bind:value={query}
+              oninput={handleInput}
+              onfocus={() => {
+                if (suggestions.length > 0) showSuggestions = true;
+              }}
+              autocomplete="off"
+              class="w-full rounded-lg border border-transparent bg-transparent p-1 pl-9 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
             />
-          {:else}
-            <Search
-              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            />
-          {/if}
-          <Input
-            type="text"
-            placeholder="Rechercher par nom ou ville..."
-            bind:value={query}
-            oninput={handleInput}
-            onfocus={() => {
-              if (suggestions.length > 0) showSuggestions = true;
-            }}
-            class="pl-10"
-            autocomplete="off"
-          />
+          </div>
         </div>
 
         {#if showSuggestions}
@@ -191,30 +203,56 @@
 
       {#if selectedNom && !freeTextMode}
         <div
-          class="rounded-lg border border-epi-blue/30 bg-epi-blue/5 px-4 py-3 dark:bg-epi-blue/10"
+          class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
         >
           <p class="text-sm font-medium text-epi-blue">{selectedNom}</p>
           {#if selectedVille}
-            <p class="text-xs text-epi-blue/70">{selectedVille}</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              {selectedVille}
+            </p>
           {/if}
         </div>
       {/if}
 
       {#if freeTextMode}
-        <div class="space-y-2">
-          <Input
-            type="text"
-            placeholder="Nom de ton lycée"
-            bind:value={selectedNom}
-            oninput={() => {
-              query = selectedNom;
-            }}
-          />
-          <Input
-            type="text"
-            placeholder="Ville (optionnel)"
-            bind:value={selectedVille}
-          />
+        <div class="space-y-3">
+          <div
+            class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+          >
+            <label
+              for="free-lycee-name"
+              class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+            >
+              Nom de ton lycée <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="free-lycee-name"
+              type="text"
+              placeholder="Lycée Victor Hugo"
+              bind:value={selectedNom}
+              oninput={() => {
+                query = selectedNom;
+              }}
+              class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+            />
+          </div>
+          <div
+            class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+          >
+            <label
+              for="free-lycee-city"
+              class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+            >
+              Ville (optionnel)
+            </label>
+            <input
+              id="free-lycee-city"
+              type="text"
+              placeholder="Paris"
+              bind:value={selectedVille}
+              class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+            />
+          </div>
         </div>
       {/if}
 
@@ -230,10 +268,12 @@
       {/if}
     </div>
 
-    <div class="mt-6 flex justify-end">
-      <Button type="submit" disabled={!hasSelection} class="px-6"
-        >Suivant</Button
-      >
-    </div>
+    <Button
+      type="submit"
+      disabled={!hasSelection}
+      class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+    >
+      Continuer
+    </Button>
   </form>
 </div>
