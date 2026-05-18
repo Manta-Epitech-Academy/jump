@@ -4,12 +4,13 @@
   import CalendarPlanner from '$lib/components/events/planning/CalendarPlanner.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { can } from '$lib/domain/permissions';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
 
   let { data }: { data: PageData } = $props();
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} — Planning</title>
+  <title>{STAGE_SECONDE_LABEL} — Planning</title>
 </svelte:head>
 
 <div class="flex h-[calc(100vh-4rem)] flex-col bg-background">
@@ -17,7 +18,7 @@
     <PageBreadcrumb
       items={[
         {
-          label: data.event.titre,
+          label: STAGE_SECONDE_LABEL,
           href: resolve(`/staff/dev/events/${data.event.id}`),
         },
         { label: 'Planning' },
@@ -30,7 +31,7 @@
       <p
         class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
       >
-        {data.event.titre} • {new Date(data.event.date).toLocaleDateString(
+        {STAGE_SECONDE_LABEL} • {new Date(data.event.date).toLocaleDateString(
           'fr-FR',
           {
             day: 'numeric',

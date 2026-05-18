@@ -9,6 +9,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import InscritFilterBar from './components/InscritFilterBar.svelte';
   import InscritCardPrep from './components/InscritCardPrep.svelte';
   import InscritCardOngoing from './components/InscritCardOngoing.svelte';
@@ -146,14 +147,14 @@
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} — Inscrits</title>
+  <title>{STAGE_SECONDE_LABEL} — Inscrits</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   <PageBreadcrumb
     items={[
       {
-        label: data.event.titre,
+        label: STAGE_SECONDE_LABEL,
         href: resolve(`/staff/dev/events/${data.event.id}`),
       },
       { label: 'Inscrits' },

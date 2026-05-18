@@ -5,6 +5,7 @@
   import InterviewsOngoingView from './components/InterviewsOngoingView.svelte';
   import InterviewsPastView from './components/InterviewsPastView.svelte';
   import { can } from '$lib/domain/permissions';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { InterviewWithRelations } from './+page.server';
 
   let { data } = $props();
@@ -29,7 +30,7 @@
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} — Entretiens</title>
+  <title>{STAGE_SECONDE_LABEL} — Entretiens</title>
 </svelte:head>
 
 {#if data.kind === 'prep'}

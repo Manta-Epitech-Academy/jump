@@ -13,6 +13,7 @@
   import AutoScheduleDialog from '$lib/components/interviews/AutoScheduleDialog.svelte';
   import SetupStep from './SetupStep.svelte';
   import WorkloadByStaffCard from './WorkloadByStaffCard.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { StaffRole } from '@prisma/client';
 
   type Props = {
@@ -71,7 +72,7 @@
   <PageBreadcrumb
     items={[
       {
-        label: event.titre,
+        label: STAGE_SECONDE_LABEL,
         href: resolve(`/staff/dev/events/${event.id}`),
       },
       { label: 'Entretiens' },
@@ -80,7 +81,7 @@
 
   <PageHeader
     title="Entretiens"
-    subtitle={`Préparation · J-${daysToStart} · ${event.titre}`}
+    subtitle={`Préparation · J-${daysToStart} · ${STAGE_SECONDE_LABEL}`}
   >
     {#if canMutate && participationsToCall.length > 0 && devs.length > 0}
       <Button

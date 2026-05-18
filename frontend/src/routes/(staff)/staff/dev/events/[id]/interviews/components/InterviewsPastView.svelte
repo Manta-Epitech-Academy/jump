@@ -11,6 +11,7 @@
   import Star from '@lucide/svelte/icons/star';
   import RecommendationChip from './RecommendationChip.svelte';
   import InterviewTable from './InterviewTable.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import {
     INTERVIEW_RECOMMENDATIONS,
     recommendationDescriptor,
@@ -82,7 +83,7 @@
   <PageBreadcrumb
     items={[
       {
-        label: event.titre,
+        label: STAGE_SECONDE_LABEL,
         href: resolve(`/staff/dev/events/${event.id}`),
       },
       { label: 'Entretiens' },
@@ -92,8 +93,8 @@
   <PageHeader
     title="Entretiens"
     subtitle={scope === 'self'
-      ? `Mes entretiens menés · ${event.titre}`
-      : `Bilan · ${event.titre}`}
+      ? `Mes entretiens menés · ${STAGE_SECONDE_LABEL}`
+      : `Bilan · ${STAGE_SECONDE_LABEL}`}
   />
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

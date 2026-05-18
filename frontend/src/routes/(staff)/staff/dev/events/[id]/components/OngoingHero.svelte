@@ -1,8 +1,8 @@
 <script lang="ts">
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
 
   type Props = {
-    titre: string;
     dayN: number;
     totalDays: number;
     startDate: Date;
@@ -10,8 +10,7 @@
     timezone: string;
   };
 
-  let { titre, dayN, totalDays, startDate, endDate, timezone }: Props =
-    $props();
+  let { dayN, totalDays, startDate, endDate, timezone }: Props = $props();
 
   const intro = $derived(
     dayN === totalDays
@@ -64,7 +63,7 @@
       <h1
         class="mt-3 font-heading text-4xl tracking-wide uppercase md:text-5xl"
       >
-        {titre}<span class="text-epi-teal">_</span>
+        {STAGE_SECONDE_LABEL}<span class="text-epi-teal">_</span>
       </h1>
       <p class="mt-2 text-sm font-medium text-blue-100 first-letter:capitalize">
         {todayLabel}

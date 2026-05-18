@@ -6,12 +6,12 @@
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import { resolve } from '$app/paths';
   import PageHero from '$lib/components/layout/PageHero.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import EventKpiTile from './EventKpiTile.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
 
   type Props = {
     eventId: string;
-    titre: string;
     notes: string | null;
     startDate: Date;
     endDate: Date;
@@ -28,7 +28,6 @@
 
   let {
     eventId,
-    titre,
     notes,
     startDate,
     endDate,
@@ -70,7 +69,7 @@
       <span class="opacity-60">/&gt;</span>
     </p>
     <h1 class="mt-3 font-heading text-4xl tracking-wide uppercase">
-      {titre}<span class="text-epi-teal">_</span>
+      {STAGE_SECONDE_LABEL}<span class="text-epi-teal">_</span>
     </h1>
     <p class="mt-2 text-sm text-orange-100">
       {stats.total} inscrits · {stats.interviewsCompleted} entretiens menés

@@ -13,6 +13,7 @@
   import Gated from '$lib/components/auth/Gated.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
   import { track } from '$lib/analytics';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
 
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
@@ -54,15 +55,19 @@
   const eventEndDate = $derived(
     data.event.endDate ? new Date(data.event.endDate) : null,
   );
+
+  const pageTitle = $derived(
+    data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
+  );
 </script>
 
 <svelte:head>
-  <title>{data.event.titre}</title>
+  <title>{pageTitle}</title>
 </svelte:head>
 
 <div class="flex flex-col gap-4">
   <div class="flex items-start justify-between gap-3">
-    <PageBreadcrumb items={[{ label: data.event.titre }]} />
+    <PageBreadcrumb items={[{ label: pageTitle }]} />
     <div class="flex items-center gap-2">
       <EventSalesforceButton externalId={data.event.externalId} />
       <Gated group="devLead" mode="hide">
@@ -82,7 +87,6 @@
   {#if data.kind === 'stage' && data.status === 'upcoming'}
     <PreparationView
       eventId={data.event.id}
-      titre={data.event.titre}
       notes={data.event.notes}
       daysToStart={data.prep.daysToStart}
       openDate={new Date(data.prep.openDate)}
@@ -97,7 +101,6 @@
   {:else if data.kind === 'stage' && data.status === 'ongoing'}
     <OngoingView
       eventId={data.event.id}
-      titre={data.event.titre}
       notes={data.event.notes}
       dayN={data.ongoing.dayN}
       totalDays={data.ongoing.totalDays}
@@ -115,7 +118,6 @@
   {:else if data.kind === 'stage' && data.status === 'past'}
     <PastView
       eventId={data.event.id}
-      titre={data.event.titre}
       notes={data.event.notes}
       startDate={eventDate}
       endDate={new Date(data.past.endDate)}

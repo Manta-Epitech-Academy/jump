@@ -19,7 +19,6 @@
 
   type Props = {
     eventId: string;
-    titre: string;
     notes: string | null;
     dayN: number;
     totalDays: number;
@@ -72,7 +71,6 @@
 
   let {
     eventId,
-    titre,
     notes,
     dayN,
     totalDays,
@@ -120,7 +118,7 @@
 </script>
 
 <div class="space-y-6 pb-12">
-  <OngoingHero {titre} {dayN} {totalDays} {startDate} {endDate} {timezone} />
+  <OngoingHero {dayN} {totalDays} {startDate} {endDate} {timezone} />
 
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <EventKpiTile

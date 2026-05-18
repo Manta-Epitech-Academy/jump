@@ -23,6 +23,7 @@
   import InterviewTable from './InterviewTable.svelte';
   import InterviewStaffCalendar from './InterviewStaffCalendar.svelte';
   import ReassignDialog from './ReassignDialog.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import WorkloadByStaffCard from './WorkloadByStaffCard.svelte';
   import CalendarSyncButton from './CalendarSyncButton.svelte';
   import type { StaffRole } from '@prisma/client';
@@ -133,7 +134,7 @@
   <PageBreadcrumb
     items={[
       {
-        label: event.titre,
+        label: STAGE_SECONDE_LABEL,
         href: resolve(`/staff/dev/events/${event.id}`),
       },
       { label: 'Entretiens' },
@@ -143,8 +144,8 @@
   <PageHeader
     title="Entretiens"
     subtitle={scope === 'self'
-      ? `Mes entretiens · ${event.titre}`
-      : `Jour ${dayN} / ${totalDays} · ${event.titre}`}
+      ? `Mes entretiens · ${STAGE_SECONDE_LABEL}`
+      : `Jour ${dayN} / ${totalDays} · ${STAGE_SECONDE_LABEL}`}
   >
     <CalendarSyncButton
       sync={calendarSync}

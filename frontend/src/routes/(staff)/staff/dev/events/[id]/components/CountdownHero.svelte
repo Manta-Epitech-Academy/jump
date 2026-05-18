@@ -1,15 +1,15 @@
 <script lang="ts">
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { onMount } from 'svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
 
   type Props = {
-    titre: string;
     daysToStart: number;
     openDate: Date;
     timezone: string;
   };
 
-  let { titre, daysToStart, openDate, timezone }: Props = $props();
+  let { daysToStart, openDate, timezone }: Props = $props();
 
   let now = $state(Date.now());
 
@@ -73,7 +73,7 @@
       <h1
         class="mt-3 font-heading text-4xl tracking-wide uppercase md:text-5xl"
       >
-        {titre}<span class="text-epi-teal">_</span>
+        {STAGE_SECONDE_LABEL}<span class="text-epi-teal">_</span>
       </h1>
       <p class="mt-2 text-sm font-medium text-blue-100">
         Ouverture le <span class="text-epi-teal">{openDateLabel}</span> à

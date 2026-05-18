@@ -19,7 +19,6 @@
 
   type Props = {
     eventId: string;
-    titre: string;
     notes: string | null;
     daysToStart: number;
     openDate: Date;
@@ -60,7 +59,6 @@
 
   let {
     eventId,
-    titre,
     notes,
     daysToStart,
     openDate,
@@ -89,7 +87,7 @@
 </script>
 
 <div class="space-y-6 pb-12">
-  <CountdownHero {titre} {daysToStart} {openDate} {timezone} />
+  <CountdownHero {daysToStart} {openDate} {timezone} />
 
   <TalentJourneyExplainer />
 
