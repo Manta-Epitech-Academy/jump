@@ -77,10 +77,12 @@
     "better-auth": "^1.6.7",
     "brace-expansion": "^5.0.5",
     "canvas-confetti": "^1.9.4",
+    "devalue": "^5.8.1",
     "ejs": "^4.0.1",
     "github-slugger": "^2.0.0",
     "highlight.js": "^11.11.1",
     "isomorphic-dompurify": "^3.10.0",
+    "kysely": "^0.28.17",
     "marked": "^17.0.6",
     "marked-highlight": "^2.2.4",
     "papaparse": "^5.5.3",
@@ -110,6 +112,7 @@
     "uuid": "^14.0.0",
     "postcss": "^8.5.10",
     "ip-address": "^10.1.1",
-    "kysely": "^0.28.17"
+    "kysely": "^0.28.17",
+    "devalue": "^5.8.1"
   }
 }
