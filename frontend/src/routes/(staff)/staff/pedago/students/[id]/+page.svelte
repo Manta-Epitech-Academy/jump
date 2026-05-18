@@ -7,6 +7,7 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import PedagoTalentCard from './components/PedagoTalentCard.svelte';
   import StudentTimeline from '$lib/components/students/StudentTimeline.svelte';
+  import TalentOtpDialog from '$lib/components/students/TalentOtpDialog.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -24,9 +25,17 @@
       { label: `${data.student.nom} ${data.student.prenom}` },
     ]}
   />
-  <h1 class="text-3xl font-bold text-epi-blue uppercase">
-    Suivi Pédagogique<span class="text-foreground">_</span>
-  </h1>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-3xl font-bold text-epi-blue uppercase">
+      Suivi Pédagogique<span class="text-foreground">_</span>
+    </h1>
+    <TalentOtpDialog
+      action="?/generateOtp"
+      talentName={`${data.student.prenom} ${data.student.nom}`}
+      disabled={!data.student.user?.email}
+      disabledReason="Le talent n'a pas encore de compte (aucune connexion enregistrée)."
+    />
+  </div>
 
   <div class="grid gap-6 md:grid-cols-12">
     <div class="space-y-6 md:col-span-4 lg:col-span-3">
