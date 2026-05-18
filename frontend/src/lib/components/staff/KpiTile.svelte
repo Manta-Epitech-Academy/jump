@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type EventKpiTone = 'blue' | 'teal' | 'orange' | 'pink' | 'neutral';
+  export type KpiTone = 'blue' | 'teal' | 'orange' | 'pink' | 'neutral';
 </script>
 
 <script lang="ts">
@@ -26,7 +26,7 @@
     icon?: typeof IconType | Component;
     /** Progress bar value (0-100). Omit to hide the bar. */
     progress?: number;
-    tone?: EventKpiTone;
+    tone?: KpiTone;
     /** Anchor wrap; tile becomes a clickable link. */
     href?: string;
     /**

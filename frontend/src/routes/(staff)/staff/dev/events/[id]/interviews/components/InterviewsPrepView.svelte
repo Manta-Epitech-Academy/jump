@@ -2,7 +2,7 @@
   import { resolve } from '$app/paths';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
-  import EventKpiTile from '../../components/EventKpiTile.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import Users from '@lucide/svelte/icons/users';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
@@ -95,14 +95,14 @@
   </PageHeader>
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-    <EventKpiTile
+    <KpiTile
       label="Inscrits"
       value={kpis.participationsTotal}
       icon={Users}
       tone="blue"
       sub="Cohorte du stage"
     />
-    <EventKpiTile
+    <KpiTile
       label="Entretiens prévus"
       value={kpis.interviewsScheduled}
       icon={CalendarClock}
@@ -116,14 +116,14 @@
           100,
       )}
     />
-    <EventKpiTile
+    <KpiTile
       label="Sans créneau"
       value={kpis.unassigned}
       icon={AlertCircle}
       tone={kpis.unassigned > 0 ? 'orange' : 'neutral'}
       sub={kpis.unassigned > 0 ? 'À planifier' : 'Tout le monde a un créneau'}
     />
-    <EventKpiTile
+    <KpiTile
       label="Interviewers"
       value={kpis.interviewersCount}
       icon={Users}

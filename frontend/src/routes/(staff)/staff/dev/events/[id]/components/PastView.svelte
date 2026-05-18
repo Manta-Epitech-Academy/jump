@@ -7,7 +7,7 @@
   import { resolve } from '$app/paths';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
-  import EventKpiTile from './EventKpiTile.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
 
   type Props = {
@@ -84,35 +84,35 @@
   </PageHero>
 
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    <EventKpiTile
+    <KpiTile
       label="Inscrits"
       value={stats.total}
       icon={Users}
       tone="neutral"
       href={inscritsHref}
     />
-    <EventKpiTile
+    <KpiTile
       label="PC à préparer"
       value={stats.total - stats.bringPc}
       icon={Laptop}
       tone="neutral"
       href={onboardingHref}
     />
-    <EventKpiTile
+    <KpiTile
       label="Entretiens menés"
       value={`${stats.interviewsCompleted} / ${stats.total}`}
       icon={MessageSquare}
       tone="neutral"
       href={interviewsHref}
     />
-    <EventKpiTile
+    <KpiTile
       label="Règlements intérieurs signés"
       value={`${stats.chartes} / ${stats.total}`}
       icon={FileText}
       tone="neutral"
       href={onboardingHref}
     />
-    <EventKpiTile
+    <KpiTile
       label="Droits à l’image"
       value={`${stats.droitsImage} / ${stats.total}`}
       icon={Camera}

@@ -6,7 +6,7 @@
   import type { ChecklistItem } from '$lib/server/services/eventTasks';
   import { activityTypes } from '$lib/validation/templates';
   import CountdownHero from './CountdownHero.svelte';
-  import EventKpiTile from './EventKpiTile.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import ProgrammeJour from './ProgrammeJour.svelte';
   import LyceesBreakdown from './LyceesBreakdown.svelte';
   import InterestsCloud from './InterestsCloud.svelte';
@@ -88,7 +88,7 @@
   <TalentJourneyExplainer />
 
   <div class="grid gap-3 sm:grid-cols-2">
-    <EventKpiTile
+    <KpiTile
       label="Inscrits"
       helpText="Talents inscrits à ce stage (synchro automatique Salesforce). Un compte personnel Jump leur est automatiquement créé."
       value={kpis.total}
@@ -97,7 +97,7 @@
       tone="blue"
       href={inscritsHref}
     />
-    <EventKpiTile
+    <KpiTile
       label="Dossiers admin OK"
       helpText="Talents pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
       value={kpis.dossiersAdmin}

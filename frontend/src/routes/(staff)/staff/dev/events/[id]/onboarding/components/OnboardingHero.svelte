@@ -4,9 +4,7 @@
   import Camera from '@lucide/svelte/icons/camera';
   import Laptop from '@lucide/svelte/icons/laptop';
   import CohortHealthBar from './CohortHealthBar.svelte';
-  import EventKpiTile, {
-    type EventKpiTone,
-  } from '../../components/EventKpiTile.svelte';
+  import KpiTile, { type KpiTone } from '$lib/components/staff/KpiTile.svelte';
   import type { DocFilterKey, OnboardingFilterKey } from '../filters';
 
   let {
@@ -40,7 +38,7 @@
     total?: number;
     progressPct: number;
     sub: string;
-    tone: EventKpiTone;
+    tone: KpiTone;
     helpText?: string;
   };
 
@@ -116,7 +114,7 @@
 
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
     {#each cards as card (card.key)}
-      <EventKpiTile
+      <KpiTile
         label={card.label}
         helpText={card.helpText}
         value={card.value}

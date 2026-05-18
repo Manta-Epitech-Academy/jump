@@ -4,7 +4,7 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import * as Card from '$lib/components/ui/card';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import EventKpiTile from '../../components/EventKpiTile.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
   import XCircle from '@lucide/svelte/icons/x-circle';
   import AlertCircle from '@lucide/svelte/icons/alert-circle';
@@ -98,28 +98,28 @@
   />
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-    <EventKpiTile
+    <KpiTile
       label="Menés"
       value={kpis.done}
       icon={CheckCircle2}
       tone="teal"
       sub="Grilles complétées"
     />
-    <EventKpiTile
+    <KpiTile
       label="Manqués"
       value={kpis.missed}
       icon={AlertCircle}
       tone={kpis.missed > 0 ? 'orange' : 'neutral'}
       sub="Planifiés non clôturés"
     />
-    <EventKpiTile
+    <KpiTile
       label="Annulés"
       value={kpis.cancelled}
       icon={XCircle}
       tone="neutral"
       sub="Statut « cancelled »"
     />
-    <EventKpiTile
+    <KpiTile
       label="Sans entretien"
       value={kpis.noInterview}
       icon={AlertCircle}

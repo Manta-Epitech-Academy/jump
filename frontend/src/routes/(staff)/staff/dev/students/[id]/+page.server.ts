@@ -22,6 +22,8 @@ import {
   sendRelances,
   formatRelanceMessage,
 } from '$lib/server/services/relanceService';
+import { buildBadgeCtx, computeBadges } from '$lib/domain/badges';
+import { groupParticipations } from '$lib/domain/talentTimeline';
 
 const TAB_KEYS = ['pedago', 'admin'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -107,6 +109,42 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       sender: senderById.get(r.sentBy) ?? null,
     }));
 
+    const timezone = getCampusTimezone(locals);
+    const bounds = getLifecycleBounds(timezone);
+
+    const activeStageParticipations = participations.filter((p) => {
+      if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
+      const status = applyPhaseOverride(
+        getEventStatus(p.event, bounds),
+        locals.stagePhaseOverride,
+      );
+      return status === 'upcoming' || status === 'ongoing';
+    });
+
+    // Second wave — independent queries fired in parallel once `userId` is
+    // known. Cohort rank dropped per design feedback (hero is now identity-
+    // only); the page no longer carries that signal.
+    const [portfolioItems, firstLoginRow] = await Promise.all([
+      db.portfolioItem.findMany({
+        where: { talentId: params.id },
+        include: {
+          event: { select: { id: true, titre: true, date: true } },
+          activity: { select: { id: true, nom: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      }),
+      student.userId
+        ? prisma.bauth_session.findFirst({
+            where: { userId: student.userId },
+            orderBy: { createdAt: 'asc' },
+            select: { createdAt: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const firstLoginAt = firstLoginRow?.createdAt ?? null;
+
     const stats = {
       totalEvents: participations.length,
       presentCount: participations.filter((p) => p.isPresent).length,
@@ -134,20 +172,29 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       stats.favoriteTheme = sortedThemes[0][0];
     }
 
+    const badges = computeBadges(
+      buildBadgeCtx({
+        talent: {
+          xp: student.xp,
+          eventsCount: student.eventsCount,
+          charterAcceptedAt: student.charterAcceptedAt,
+          interests: student.interests,
+        },
+        participations,
+        portfolioItems,
+        interviews: student.interviews,
+      }),
+    );
+
+    const timelineGroups = groupParticipations(
+      participations,
+      timezone,
+      locals.stagePhaseOverride,
+    );
+
     const form = await superValidate(zod4(studentSchema));
     const relanceForm = await superValidate(zod4(sendRelanceSchema));
     const tab = validateTab(url.searchParams.get('tab'));
-    const timezone = getCampusTimezone(locals);
-    const bounds = getLifecycleBounds(timezone);
-
-    const activeStageParticipations = participations.filter((p) => {
-      if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
-      const status = applyPhaseOverride(
-        getEventStatus(p.event, bounds),
-        locals.stagePhaseOverride,
-      );
-      return status === 'upcoming' || status === 'ongoing';
-    });
 
     return {
       student,
@@ -155,6 +202,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       activeStageParticipations,
       reminders,
       stats,
+      portfolioItems,
+      firstLoginAt,
+      badges,
+      timelineGroups,
       form,
       relanceForm,
       tab,

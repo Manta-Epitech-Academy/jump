@@ -7,7 +7,7 @@
   import type { EventAlert } from '$lib/server/services/eventTasks';
   import { activityTypes } from '$lib/validation/templates';
   import OngoingHero from './OngoingHero.svelte';
-  import EventKpiTile from './EventKpiTile.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import ProgrammeJour from './ProgrammeJour.svelte';
   import MesProchainsEntretiens from './MesProchainsEntretiens.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
@@ -114,7 +114,7 @@
   <OngoingHero {dayN} {totalDays} {startDate} {endDate} {timezone} />
 
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    <EventKpiTile
+    <KpiTile
       label="Inscrits"
       value={kpis.total}
       sub="cohorte confirmée"
@@ -125,7 +125,7 @@
     {#if kpis.todayPresence}
       {@const present = kpis.todayPresence.present}
       {@const totalPresence = kpis.todayPresence.total}
-      <EventKpiTile
+      <KpiTile
         label="Présents au dernier appel"
         icon={UserCheck}
         tone="teal"
@@ -139,9 +139,9 @@
             >
           </p>
         {/snippet}
-      </EventKpiTile>
+      </KpiTile>
     {:else}
-      <EventKpiTile
+      <KpiTile
         label="Présents aujourd’hui"
         value="—"
         sub="aucun appel terminé"
@@ -149,7 +149,7 @@
         tone="neutral"
       />
     {/if}
-    <EventKpiTile
+    <KpiTile
       label="Entretiens"
       icon={MessageSquare}
       tone="pink"
@@ -165,7 +165,7 @@
           >
         </p>
       {/snippet}
-    </EventKpiTile>
+    </KpiTile>
   </div>
 
   <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">

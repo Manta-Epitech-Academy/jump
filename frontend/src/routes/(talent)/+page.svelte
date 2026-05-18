@@ -38,6 +38,7 @@
   import { onMount, untrack } from 'svelte';
   import { track } from '$lib/analytics';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
 
