@@ -110,7 +110,7 @@
             <div class="flex items-center gap-3">
               <TalentAvatar talent={p.talent} size="sm" />
               <a
-                href={resolve(`/staff/dev/students/${p.talent.id}`)}
+                href={`${resolve(`/staff/dev/students/${p.talent.id}`)}?tab=admin`}
                 class="text-sm font-bold transition-colors hover:text-epi-blue hover:underline"
               >
                 <TalentName talent={p.talent} />
