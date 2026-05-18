@@ -14,7 +14,6 @@
   import Gated from '$lib/components/auth/Gated.svelte';
   import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import { cn } from '$lib/utils';
-  import { countSignedDocs, TOTAL_DOCS } from '../progress';
   import type { RelanceType } from '$lib/domain/relance';
   import { track } from '$lib/analytics';
 
@@ -85,7 +84,6 @@
           </span>
         </Table.Head>
         <Table.Head class="text-center">Matériel (PC)</Table.Head>
-        <Table.Head class="w-40">Avancement</Table.Head>
         <Gated group="devLead" mode="hide">
           <Table.Head class="text-center">Dernière relance</Table.Head>
           <Table.Head class="w-24 text-center">Actions</Table.Head>
@@ -94,7 +92,6 @@
     </Table.Header>
     <Table.Body>
       {#each participations as p (p.id)}
-        {@const ok = countSignedDocs(p)}
         <Table.Row class="hover:bg-muted/20">
           <Gated group="devLead" mode="hide">
             <Table.Cell>
@@ -215,29 +212,6 @@
                 {/key}
               </button>
             </form>
-          </Table.Cell>
-
-          <!-- Avancement -->
-          <Table.Cell class="py-4">
-            <div class="flex items-center gap-2">
-              <div class="flex flex-1 gap-0.5">
-                {#each Array(TOTAL_DOCS) as _, i (i)}
-                  <div
-                    class={cn(
-                      'h-1.5 flex-1 rounded-full',
-                      i < ok
-                        ? 'bg-epi-teal-solid'
-                        : 'bg-muted dark:bg-muted/40',
-                    )}
-                  ></div>
-                {/each}
-              </div>
-              <span
-                class="font-mono text-[11px] font-bold text-muted-foreground tabular-nums"
-              >
-                {ok}/{TOTAL_DOCS}
-              </span>
-            </div>
           </Table.Cell>
 
           <!-- Dernière relance -->
