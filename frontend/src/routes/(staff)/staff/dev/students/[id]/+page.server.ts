@@ -1,6 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail, redirect } from '@sveltejs/kit';
-import { resolve } from '$app/paths';
+import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
@@ -11,7 +10,7 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import { hasFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { requireStaffGroup } from '$lib/server/auth/guards';
 import {
   applyPhaseOverride,
   getEventStatus,
@@ -303,31 +302,5 @@ export const actions: Actions = {
     });
 
     return message(form, formatRelanceMessage(result));
-  },
-
-  delete: async ({ params, locals }) => {
-    requireStaffGroup(locals, 'devLead');
-    const db = scopedPrisma(getCampusId(locals));
-    try {
-      const profile = await db.talent.findUniqueOrThrow({
-        where: { id: params.id },
-      });
-      if (profile.userId) {
-        await prisma.bauth_user.delete({ where: { id: profile.userId } });
-      } else {
-        await db.talent.delete({ where: { id: params.id } });
-      }
-    } catch (err) {
-      console.error('Error deleting student:', err);
-      return fail(500, { message: 'Impossible de supprimer ce Talent' });
-    }
-    // The /staff/dev/students listing is coding_club-gated; fall back to the
-    // dev dashboard when the campus can't reach it.
-    throw redirect(
-      303,
-      hasFlag(locals, 'coding_club')
-        ? resolve('/staff/dev/students')
-        : resolve('/staff/dev'),
-    );
   },
 };

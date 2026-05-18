@@ -107,25 +107,4 @@ export const actions: Actions = {
       return message(form, 'Erreur lors de la modification', { status: 500 });
     }
   },
-
-  delete: async ({ url, locals }) => {
-    requireStaffGroup(locals, 'devLead');
-    const id = url.searchParams.get('id');
-    if (!id) return fail(400);
-    const db = scopedPrisma(getCampusId(locals));
-
-    try {
-      const profile = await db.talent.findUniqueOrThrow({
-        where: { id },
-      });
-      if (profile.userId) {
-        await prisma.bauth_user.delete({ where: { id: profile.userId } });
-      } else {
-        await db.talent.delete({ where: { id } });
-      }
-      return { success: true };
-    } catch {
-      return fail(500);
-    }
-  },
 };

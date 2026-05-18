@@ -81,7 +81,6 @@
                   class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-sm border border-epi-teal/60 bg-white/5 px-3 font-mono text-[11px] font-bold tracking-widest text-epi-teal uppercase transition-colors hover:bg-epi-teal hover:text-epi-blue"
                 >
                   <Cloud class="h-4 w-4" />
-                  Salesforce
                 </a>
               </Tooltip.Trigger>
               <Tooltip.Content>

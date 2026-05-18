@@ -4,7 +4,6 @@
   import Funnel from '@lucide/svelte/icons/funnel';
   import Ellipsis from '@lucide/svelte/icons/ellipsis';
   import Pencil from '@lucide/svelte/icons/pencil';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
   import Search from '@lucide/svelte/icons/search';
   import Eye from '@lucide/svelte/icons/eye';
   import Users from '@lucide/svelte/icons/users';
@@ -26,16 +25,13 @@
   import { resolve } from '$app/paths';
   import { cn } from '$lib/utils';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentFormDialog from './components/StudentFormDialog.svelte';
-  import { can } from '$lib/domain/permissions';
   import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
-  const canDelete = $derived(can('devLead', data.staffProfile?.staffRole));
 
   const { form, errors, delayed, enhance, reset } = superForm(
     untrack(() => data.form),
@@ -58,8 +54,6 @@
   let editId = $state('');
   let searchQuery = $state(page.url.searchParams.get('q') || '');
   let selectedLevel = $state(page.url.searchParams.get('niveau') || 'all');
-  let deleteDialogOpen = $state(false);
-  let studentToDelete = $state<string | null>(null);
   let searchTimeout: ReturnType<typeof setTimeout>;
 
   function navigateWithParams(params: Record<string, string>) {
@@ -106,11 +100,6 @@
     if (p > 1) url.searchParams.set('page', String(p));
     else url.searchParams.delete('page');
     goto(url.toString());
-  }
-
-  function confirmDelete(id: string) {
-    studentToDelete = id;
-    deleteDialogOpen = true;
   }
 
   function getDifficultyColor(diff: string) {
@@ -189,15 +178,6 @@
       {delayed}
       {enhance}
       action="?/update"
-    />
-
-    <ConfirmDeleteDialog
-      bind:open={deleteDialogOpen}
-      action="?/delete&id={studentToDelete}"
-      title="Supprimer le Talent"
-      description="Êtes-vous sûr ? Cette action est définitive."
-      buttonText="Supprimer"
-      onSuccess={() => track('student_deleted')}
     />
   </div>
 
@@ -285,14 +265,6 @@
                     <DropdownMenu.Item onclick={() => openEdit(student)}
                       ><Pencil class="mr-2 h-4 w-4" /> Modifier</DropdownMenu.Item
                     >
-                    <DropdownMenu.Separator />
-                    <DropdownMenu.Item
-                      class="cursor-pointer text-destructive"
-                      disabled={!canDelete}
-                      onclick={() => canDelete && confirmDelete(student.id)}
-                    >
-                      <Trash2 class="mr-2 h-4 w-4" /> Supprimer
-                    </DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </Table.Cell>

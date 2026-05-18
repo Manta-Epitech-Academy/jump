@@ -5,17 +5,13 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
-  import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
 
-  import ShieldAlert from '@lucide/svelte/icons/shield-alert';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
   import Send from '@lucide/svelte/icons/send';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import FileText from '@lucide/svelte/icons/file-text';
 
-  import { Button, buttonVariants } from '$lib/components/ui/button';
-  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { Button } from '$lib/components/ui/button';
   import * as Tabs from '$lib/components/ui/tabs';
 
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
@@ -48,13 +44,10 @@
     type RelanceType,
     type RelanceVar,
   } from '$lib/domain/relance';
-  import { can } from '$lib/domain/permissions';
   import { cn } from '$lib/utils';
   import type { FlagKey } from '$lib/domain/featureFlags';
 
   let { data }: { data: PageData } = $props();
-
-  const canDelete = $derived(can('devLead', data.staffProfile?.staffRole));
 
   // The /staff/dev/students listing is gated on coding_club, so the
   // breadcrumb can only link there when the campus has the flag.
@@ -90,7 +83,6 @@
   );
 
   let editOpen = $state(false);
-  let deleteDialogOpen = $state(false);
   let tab = $state<'pedago' | 'admin'>(untrack(() => data.tab));
 
   $effect(() => {
@@ -369,45 +361,6 @@
         interviews={data.student.interviews}
         timezone={data.timezone}
       />
-
-      <section class="rounded-sm border border-destructive/30 bg-destructive/5">
-        <header class="border-b border-destructive/20 px-5 pt-5 pb-4">
-          <p
-            class="flex items-center gap-2 font-mono text-[10px] font-bold tracking-widest text-destructive uppercase"
-          >
-            <ShieldAlert class="h-3.5 w-3.5" />
-            <span class="opacity-60">&lt;</span> Irréversible
-            <span class="opacity-60">/&gt;</span>
-          </p>
-          <h2
-            class="mt-1.5 font-heading text-xl tracking-wide text-destructive uppercase md:text-2xl"
-          >
-            Zone de danger<span class="text-destructive/60">_</span>
-          </h2>
-        </header>
-        <div class="space-y-3 px-5 pt-4 pb-5">
-          <p class="text-xs font-medium text-muted-foreground">
-            La suppression est définitive et entraînera la suppression de tout
-            son historique sur Jump.
-          </p>
-          <Button
-            type="button"
-            variant="destructive"
-            class="rounded-sm"
-            disabled={!canDelete}
-            title={canDelete
-              ? undefined
-              : "Réservé aux responsables de l'espace"}
-            onclick={() => {
-              if (!canDelete) return;
-              deleteDialogOpen = true;
-            }}
-          >
-            <Trash2 class="mr-2 h-4 w-4" />
-            Supprimer le dossier
-          </Button>
-        </div>
-      </section>
     </Tabs.Content>
   </Tabs.Root>
 
@@ -434,34 +387,4 @@
     {enhance}
     action="?/update"
   />
-
-  <AlertDialog.Root bind:open={deleteDialogOpen}>
-    <AlertDialog.Content class="rounded-sm">
-      <AlertDialog.Header>
-        <AlertDialog.Title
-          class="text-lg font-bold tracking-tight text-destructive uppercase"
-        >
-          Confirmer la suppression
-        </AlertDialog.Title>
-        <AlertDialog.Description class="text-sm font-medium">
-          Êtes-vous sûr de vouloir supprimer définitivement ce Talent du CRM
-          Epitech ?
-        </AlertDialog.Description>
-      </AlertDialog.Header>
-      <AlertDialog.Footer>
-        <AlertDialog.Cancel class="rounded-sm">Annuler</AlertDialog.Cancel>
-        <form action="?/delete" method="POST" use:kitEnhance>
-          <AlertDialog.Action
-            type="submit"
-            class={buttonVariants({
-              variant: 'destructive',
-              class: 'rounded-sm',
-            })}
-          >
-            Supprimer définitivement
-          </AlertDialog.Action>
-        </form>
-      </AlertDialog.Footer>
-    </AlertDialog.Content>
-  </AlertDialog.Root>
 </div>
