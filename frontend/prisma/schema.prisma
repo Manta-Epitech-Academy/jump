@@ -402,7 +402,6 @@ model Event {
   cmsPages         CmsPage[]
   broadcasts       Broadcast[]
   minigameAttempts MinigameAttempt[]
-  minigameSettings EventMinigameSettings?
 
   @@index([campusId])
 }
@@ -1205,11 +1204,3 @@ model MinigameAttempt {
   @@index([publicationId])
 }
 
-model EventMinigameSettings {
-  eventId     String   @id
-  enabled     Boolean  @default(false)
-  updatedById String?
-  updatedAt   DateTime @updatedAt
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-}
