@@ -42,6 +42,7 @@
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import { onMount, untrack } from 'svelte';
   import { track } from '$lib/analytics';
+  import { goto } from '$app/navigation';
 
   let { data }: { data: PageData } = $props();
 
@@ -70,6 +71,33 @@
     nowTime = new Date();
     const i = setInterval(() => (nowTime = new Date()), 60_000);
     return () => clearInterval(i);
+  });
+
+  // Welcome celebration after onboarding completion
+  let showXpFloat = $state(false);
+  onMount(() => {
+    if (page.url.searchParams.has('welcome')) {
+      // Clean URL without reloading
+      history.replaceState({}, '', page.url.pathname);
+
+      // Sequence: confetti → XP float → toast
+      setTimeout(() => {
+        triggerConfetti();
+        showXpFloat = true;
+      }, 300);
+      setTimeout(() => {
+        showXpFloat = false;
+      }, 2500);
+      setTimeout(() => {
+        toast('Bienvenue sur Jump !', {
+          description:
+            'Tu gagnes +50 XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !',
+          duration: 12000,
+          style:
+            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
+        });
+      }, 1000);
+    }
   });
 
   let student = $derived(data.student);
@@ -177,6 +205,18 @@
 <svelte:head>
   <title>Cockpit</title>
 </svelte:head>
+
+{#if showXpFloat}
+  <div
+    class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
+  >
+    <div
+      class="animate-xp-float text-4xl font-bold text-epi-orange drop-shadow-lg"
+    >
+      +50 XP
+    </div>
+  </div>
+{/if}
 
 <div class="mx-auto max-w-5xl px-4 py-8 pb-20 sm:py-12">
   <!-- HEADER: Greeting & Context -->
