@@ -98,7 +98,7 @@
       href={inscritsHref}
     />
     <KpiTile
-      label="Dossiers admin OK"
+      label="Dossiers administratifs validés"
       helpText="Talents pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
       value={kpis.dossiersAdmin}
       sub={`${pct(kpis.dossiersAdmin)} % · 2 documents validés`}
