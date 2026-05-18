@@ -61,10 +61,16 @@
 </svelte:head>
 
 <div class="flex flex-col gap-4">
-  <div class="flex items-start justify-between gap-3">
-    <PageBreadcrumb items={[{ label: pageTitle }]} />
-    <EventSalesforceButton externalId={data.event.externalId} />
-  </div>
+  {#if data.kind !== 'stage' || data.event.externalId}
+    <div class="flex items-start justify-between gap-3">
+      {#if data.kind !== 'stage'}
+        <PageBreadcrumb items={[{ label: pageTitle }]} />
+      {:else}
+        <div></div>
+      {/if}
+      <EventSalesforceButton externalId={data.event.externalId} />
+    </div>
+  {/if}
 
   {#if data.kind === 'stage' && data.status === 'upcoming'}
     <PreparationView
