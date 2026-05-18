@@ -81,15 +81,18 @@ model bauth_user {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions          bauth_session[]
-  accounts          bauth_account[]
-  staffProfile      StaffProfile?
-  talent            Talent?
-  invitationsIssued StaffInvitation[]     @relation("StaffInvitationInvitedBy")
-  cmsPages          CmsPage[]
-  ticketsAuthored   Ticket[]              @relation("TicketAuthor")
-  ticketMessages    TicketMessage[]
-  outlookSyncs      OutlookCalendarSync[]
+  sessions                  bauth_session[]
+  accounts                  bauth_account[]
+  staffProfile              StaffProfile?
+  talent                    Talent?
+  invitationsIssued         StaffInvitation[]     @relation("StaffInvitationInvitedBy")
+  cmsPages                  CmsPage[]
+  ticketsAuthored           Ticket[]              @relation("TicketAuthor")
+  ticketMessages            TicketMessage[]
+  outlookSyncs              OutlookCalendarSync[]
+  broadcastsCreated         Broadcast[]           @relation("BroadcastCreator")
+  templatesCreated          MessageTemplate[]     @relation("MessageTemplateCreator")
+  broadcastsReceivedAsStaff BroadcastRecipient[]  @relation("BroadcastRecipientStaff")
 }
 
 model bauth_session {
@@ -144,12 +147,12 @@ model StaffProfile {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  user                bauth_user              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campus              Campus?                 @relation(fields: [campusId], references: [id])
-  eventMantas         EventManta[]
-  verdictsAuthored    ParticipationActivity[] @relation("VerdictAuthor")
-  interviewsConducted Interview[]
-  adminFiles          AdminFile[]
+  user                    bauth_user              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus                  Campus?                 @relation(fields: [campusId], references: [id])
+  eventMantas             EventManta[]
+  verdictsAuthored        ParticipationActivity[] @relation("VerdictAuthor")
+  interviewsConducted     Interview[]
+  adminFiles              AdminFile[]
   subjectVersionsImported SubjectVersion[]
   observableValidations   TalentObservableState[]
 
@@ -171,56 +174,57 @@ model StaffInvitation {
 }
 
 model Talent {
-  id                String    @id @default(cuid())
-  userId            String?   @unique
-  email             String?   @unique
-  nom               String
-  prenom            String
-  niveau            String?
-  niveauDifficulte  String?
-  level             String    @default("Novice")
-  xp                Int       @default(0)
-  eventsCount       Int       @default(0)
-  charterAcceptedAt     DateTime?
+  id                          String    @id @default(cuid())
+  userId                      String?   @unique
+  email                       String?   @unique
+  nom                         String
+  prenom                      String
+  niveau                      String?
+  niveauDifficulte            String?
+  level                       String    @default("Novice")
+  xp                          Int       @default(0)
+  eventsCount                 Int       @default(0)
+  charterAcceptedAt           DateTime?
   techInterestsValidatedAt    DateTime?
   generalInterestsValidatedAt DateTime?
   interestsRecapSeenAt        DateTime?
-  rulesSignedAt         DateTime?
-  imageRightsSignedAt   DateTime?
-  imageRightsSignerName String?
-  infoValidatedAt       DateTime?
-  highSchoolName        String?
-  highSchoolCity        String?
-  highSchoolValidatedAt DateTime?
-  charterFilePath       String?
-  rulesFilePath         String?
-  imageRightsFilePath   String?
-  badges                Json?
-  parentEmail       String?
-  parentNom         String?
-  parentPrenom      String?
-  parentPhone       String?
-  phone             String?
-  discordId         String?   @unique
-  externalId        String?   @unique
-  lastSyncedAt      DateTime?
-  lastActiveAt      DateTime?
-  welcomeSeenAt     DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  rulesSignedAt               DateTime?
+  imageRightsSignedAt         DateTime?
+  imageRightsSignerName       String?
+  infoValidatedAt             DateTime?
+  highSchoolName              String?
+  highSchoolCity              String?
+  highSchoolValidatedAt       DateTime?
+  charterFilePath             String?
+  rulesFilePath               String?
+  imageRightsFilePath         String?
+  badges                      Json?
+  parentEmail                 String?
+  parentNom                   String?
+  parentPrenom                String?
+  parentPhone                 String?
+  phone                       String?
+  discordId                   String?   @unique
+  externalId                  String?   @unique
+  lastSyncedAt                DateTime?
+  lastActiveAt                DateTime?
+  welcomeSeenAt               DateTime?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
-  user           bauth_user?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  participations Participation[]
-  stepsProgress  StepsProgress[]
-  portfolioItems PortfolioItem[]
-  interviews     Interview[]
-  observableStates TalentObservableState[]
-  competenceStates TalentCompetenceState[]
-  quizAttempts     TalentQuizAttempt[]
-  reminders      OnboardingReminder[]
-  minigameAttempts MinigameAttempt[]
-  interests      TalentInterest[]
-
+  user               bauth_user?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  participations     Participation[]
+  stepsProgress      StepsProgress[]
+  portfolioItems     PortfolioItem[]
+  interviews         Interview[]
+  observableStates   TalentObservableState[]
+  competenceStates   TalentCompetenceState[]
+  quizAttempts       TalentQuizAttempt[]
+  reminders          OnboardingReminder[]
+  minigameAttempts   MinigameAttempt[]
+  interests          TalentInterest[]
+  broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
+  broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
 }
 
 // ─── Domain Tables ───
@@ -241,6 +245,7 @@ model Campus {
   interviews        Interview[]
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
+  broadcasts        Broadcast[]
 }
 
 model CmsPage {
@@ -290,11 +295,11 @@ model ActivityTemplate {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  campus                 Campus?                @relation(fields: [campusId], references: [id])
+  campus                 Campus?                 @relation(fields: [campusId], references: [id])
   activityTemplateThemes ActivityTemplateTheme[]
   planningTemplateSlots  PlanningTemplateSlot[]
-  subject                Subject?               @relation(fields: [subjectId], references: [id])
-  subjectVersion         SubjectVersion?        @relation(fields: [subjectVersionId], references: [id])
+  subject                Subject?                @relation(fields: [subjectId], references: [id])
+  subjectVersion         SubjectVersion?         @relation(fields: [subjectVersionId], references: [id])
 
   @@index([subjectId])
   @@index([subjectVersionId])
@@ -385,18 +390,18 @@ model Event {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  campus         Campus          @relation(fields: [campusId], references: [id])
-  theme          Theme?          @relation(fields: [themeId], references: [id])
-  mantas         EventManta[]
-  participations Participation[]
-  stepsProgress  StepsProgress[]
-  portfolioItems PortfolioItem[]
-  planning       Planning?
+  campus           Campus                  @relation(fields: [campusId], references: [id])
+  theme            Theme?                  @relation(fields: [themeId], references: [id])
+  mantas           EventManta[]
+  participations   Participation[]
+  stepsProgress    StepsProgress[]
+  portfolioItems   PortfolioItem[]
+  planning         Planning?
   observableStates TalentObservableState[]
   quizAttempts     TalentQuizAttempt[]
   cmsPages         CmsPage[]
+  broadcasts       Broadcast[]
   minigameAttempts MinigameAttempt[]
-  minigameSettings EventMinigameSettings?
 
   @@index([campusId])
 }
@@ -459,9 +464,9 @@ model ParticipationActivity {
   verdictAuthorId String?
   verdictAt       DateTime?
 
-  participation  Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  activity       Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  verdictAuthor  StaffProfile? @relation("VerdictAuthor", fields: [verdictAuthorId], references: [id])
+  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  activity      Activity      @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  verdictAuthor StaffProfile? @relation("VerdictAuthor", fields: [verdictAuthorId], references: [id])
 
   @@id([participationId, activityId])
   @@index([verdictAuthorId])
@@ -490,10 +495,10 @@ model Interview {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  talent        Talent         @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  staff         StaffProfile   @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  campus        Campus         @relation(fields: [campusId], references: [id], onDelete: Cascade)
-  participation Participation? @relation(fields: [participationId], references: [id], onDelete: SetNull)
+  talent        Talent                @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  staff         StaffProfile          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  campus        Campus                @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  participation Participation?        @relation(fields: [participationId], references: [id], onDelete: SetNull)
   outlookSyncs  OutlookCalendarSync[]
 
   @@index([talentId])
@@ -847,7 +852,7 @@ model SubjectObservable {
 }
 
 model SubjectQuiz {
-  id               String  @id @default(cuid())
+  id               String @id @default(cuid())
   subjectVersionId String
   documentId       String
   fqn              String
@@ -934,11 +939,11 @@ model TalentQuizAttempt {
 model OnboardingReminder {
   id       String   @id @default(cuid())
   talentId String
-  type     String   // "student" | "parent"
-  subject  String?  // captured at send time, for audit + comm history
-  body     String?  // captured at send time, for audit + comm history
+  type     String // "student" | "parent"
+  subject  String? // captured at send time, for audit + comm history
+  body     String? // captured at send time, for audit + comm history
   sentAt   DateTime @default(now())
-  sentBy   String   // staff userId
+  sentBy   String // staff userId
 
   talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
 
@@ -950,7 +955,7 @@ model OnboardingReminder {
 model Ticket {
   id                 String    @id @default(cuid())
   authorId           String
-  category           String    // "bug" | "suggestion"
+  category           String // "bug" | "suggestion"
   title              String
   status             String    @default("open") // "open" | "closed"
   lastMessageAt      DateTime  @default(now())
@@ -979,6 +984,139 @@ model TicketMessage {
   author bauth_user @relation(fields: [authorId], references: [id])
 
   @@index([ticketId])
+}
+
+// ─── Broadcasts (envoi en masse mail/SMS) ───
+
+enum BroadcastChannel {
+  mail
+  sms
+}
+
+enum BroadcastStatus {
+  queued
+  sending
+  sent
+  partial_failed
+  failed
+}
+
+enum BroadcastRecipientStatus {
+  pending
+  sent
+  failed
+}
+
+enum BroadcastAudience {
+  talent
+  parent
+  dev
+  peda
+  manta
+  superdev
+}
+
+enum BroadcastSourceFilter {
+  opened
+  not_opened
+  all
+}
+
+model MessageTemplate {
+  id          String           @id @default(cuid())
+  name        String
+  channel     BroadcastChannel
+  subject     String?
+  body        String
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  createdBy           bauth_user           @relation("MessageTemplateCreator", fields: [createdById], references: [id])
+  broadcasts          Broadcast[]
+  emailActionMappings EmailActionMapping[]
+
+  @@index([channel])
+}
+
+/// Maps a transactional email action (OTP login, welcome…) to a
+/// MessageTemplate. Resolved at send time by `sendActionEmail`. When no
+/// row exists for an action, the email is silently skipped (an admin
+/// warning surfaces in `/staff/admin/email-actions`). Action keys live in
+/// `$lib/domain/emailActions.ts`.
+model EmailActionMapping {
+  actionKey  String   @id
+  templateId String
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  template MessageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model Broadcast {
+  id                String                 @id @default(cuid())
+  name              String
+  channel           BroadcastChannel
+  templateId        String
+  campusId          String
+  audience          BroadcastAudience
+  eventId           String?
+  sourceBroadcastId String?
+  sourceFilter      BroadcastSourceFilter?
+  filters           Json?
+  subjectSnapshot   String?
+  bodySnapshot      String
+  status            BroadcastStatus        @default(queued)
+  createdById       String
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @default(now()) @updatedAt
+
+  template        MessageTemplate      @relation(fields: [templateId], references: [id])
+  campus          Campus               @relation(fields: [campusId], references: [id])
+  event           Event?               @relation(fields: [eventId], references: [id])
+  sourceBroadcast Broadcast?           @relation("BroadcastRetargeting", fields: [sourceBroadcastId], references: [id])
+  retargets       Broadcast[]          @relation("BroadcastRetargeting")
+  createdBy       bauth_user           @relation("BroadcastCreator", fields: [createdById], references: [id])
+  recipients      BroadcastRecipient[]
+
+  @@index([campusId])
+  @@index([eventId])
+  @@index([sourceBroadcastId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model BroadcastRecipient {
+  id               String                   @id @default(cuid())
+  broadcastId      String
+  talentId         String?
+  staffUserId      String?
+  parentOfTalentId String?
+  recipientEmail   String?
+  recipientPhone   String?
+  status           BroadcastRecipientStatus @default(pending)
+  errorMessage     String?
+  sentAt           DateTime?
+  openedAt         DateTime?
+  /// Number of send attempts so far. Capped by orchestrator's MAX_RETRIES.
+  retryCount       Int                      @default(0)
+  /// When the last send attempt happened. NULL = never tried. Used to gate
+  /// retries: a transient failure can be retried after a backoff window.
+  lastTriedAt      DateTime?
+  createdAt        DateTime                 @default(now())
+
+  broadcast Broadcast   @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  talent    Talent?     @relation("BroadcastRecipientTalent", fields: [talentId], references: [id], onDelete: SetNull)
+  staffUser bauth_user? @relation("BroadcastRecipientStaff", fields: [staffUserId], references: [id], onDelete: SetNull)
+  parentOf  Talent?     @relation("BroadcastRecipientParent", fields: [parentOfTalentId], references: [id], onDelete: SetNull)
+
+  @@index([broadcastId])
+  @@index([talentId])
+  @@index([parentOfTalentId])
+  @@index([staffUserId])
+  @@index([openedAt])
+  @@index([status])
 }
 
 // ─── Interests ───
@@ -1065,11 +1203,3 @@ model MinigameAttempt {
   @@index([publicationId])
 }
 
-model EventMinigameSettings {
-  eventId     String   @id
-  enabled     Boolean  @default(false)
-  updatedById String?
-  updatedAt   DateTime @updatedAt
-
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-}

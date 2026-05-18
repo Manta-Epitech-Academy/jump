@@ -16,9 +16,14 @@ export interface CallbackPayload {
   valid: boolean;
 }
 
+/**
+ * `no_event` is now a true edge case — only fires when the talent has zero
+ * `Participation` rows in their entire history. Per-event activation has
+ * been removed (admins gate at the campus feature-flag level), so any
+ * talent enrolled in *some* event past/present/future is eligible.
+ */
 export type EligibilityReason =
   | 'no_event'
-  | 'event_disabled'
   | 'no_publication'
   | 'already_played';
 
@@ -46,7 +51,19 @@ export async function getTalentCampusIds(talentId: string): Promise<string[]> {
   return rows.map((r) => r.campusId);
 }
 
-export async function getCurrentEventForTalent(talentId: string): Promise<{
+/**
+ * Pick the event "closest" to the talent — used both to tag a new
+ * `MinigameAttempt.eventId` and to scope leaderboards.
+ *
+ *   1. An event spanning today (multi-day or single-day): prefer that.
+ *   2. Otherwise, the next upcoming event.
+ *   3. Otherwise, the most recent past event.
+ *
+ * Returns `null` only when the talent has zero participations ever — in
+ * which case mini-games can't run because `MinigameAttempt.eventId` is
+ * NOT NULL.
+ */
+export async function getClosestEventForTalent(talentId: string): Promise<{
   participationId: string;
   eventId: string;
   campusId: string;
@@ -57,9 +74,7 @@ export async function getCurrentEventForTalent(talentId: string): Promise<{
   const endOfDay = new Date(now);
   endOfDay.setHours(23, 59, 59, 999);
 
-  // 1. Try a participation whose event spans today:
-  //    - multi-day: date <= endOfDay AND endDate >= startOfDay
-  //    - single-day (endDate null): date within [startOfDay, endOfDay]
+  // 1. Event spanning today.
   const ongoing = await prisma.participation.findFirst({
     where: {
       talentId,
@@ -82,7 +97,7 @@ export async function getCurrentEventForTalent(talentId: string): Promise<{
     };
   }
 
-  // 2. Fallback: next upcoming event (date > today), pick the closest.
+  // 2. Next upcoming event.
   const upcoming = await prisma.participation.findFirst({
     where: {
       talentId,
@@ -91,24 +106,39 @@ export async function getCurrentEventForTalent(talentId: string): Promise<{
     orderBy: { event: { date: 'asc' } },
     select: { id: true, eventId: true, campusId: true },
   });
-  if (!upcoming) return null;
+  if (upcoming) {
+    return {
+      participationId: upcoming.id,
+      eventId: upcoming.eventId,
+      campusId: upcoming.campusId,
+    };
+  }
+
+  // 3. Most recent past event.
+  const past = await prisma.participation.findFirst({
+    where: {
+      talentId,
+      event: { date: { lt: startOfDay } },
+    },
+    orderBy: { event: { date: 'desc' } },
+    select: { id: true, eventId: true, campusId: true },
+  });
+  if (!past) return null;
   return {
-    participationId: upcoming.id,
-    eventId: upcoming.eventId,
-    campusId: upcoming.campusId,
+    participationId: past.id,
+    eventId: past.eventId,
+    campusId: past.campusId,
   };
 }
+
+/** @deprecated kept temporarily for back-compat; use `getClosestEventForTalent`. */
+export const getCurrentEventForTalent = getClosestEventForTalent;
 
 export async function checkTalentEligibility(
   talentId: string,
 ): Promise<EligibilityResult> {
-  const current = await getCurrentEventForTalent(talentId);
-  if (!current) return { ok: false, reason: 'no_event' };
-
-  const settings = await prisma.eventMinigameSettings.findUnique({
-    where: { eventId: current.eventId },
-  });
-  if (!settings?.enabled) return { ok: false, reason: 'event_disabled' };
+  const closest = await getClosestEventForTalent(talentId);
+  if (!closest) return { ok: false, reason: 'no_event' };
 
   const publication = await getActivePublication();
   if (!publication) return { ok: false, reason: 'no_publication' };
@@ -127,7 +157,7 @@ export async function checkTalentEligibility(
     };
   }
 
-  return { ok: true, eventId: current.eventId, publication };
+  return { ok: true, eventId: closest.eventId, publication };
 }
 
 export interface MintAttemptResult {
@@ -286,16 +316,6 @@ export async function getLeaderboard(
   eventId: string,
 ): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
   return buildLeaderboard(publicationId, { eventId });
-}
-
-export async function getCampusLeaderboard(
-  publicationId: string,
-  campusIds: string[],
-): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
-  if (campusIds.length === 0) return { rows: [], scoringType: 'score' };
-  return buildLeaderboard(publicationId, {
-    event: { campusId: { in: campusIds } },
-  });
 }
 
 function weightedPick(candidates: MinigameConfig[]): MinigameConfig {

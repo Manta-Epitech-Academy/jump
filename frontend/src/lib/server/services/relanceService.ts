@@ -3,35 +3,27 @@ import { base } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { scopedPrisma } from '$lib/server/db/scoped';
 import {
-  applyPlaceholders,
   classifyRelanceSkip,
   formatTalentVars,
-  relanceGreeting,
   RELANCE_SKIP_LABELS,
   type RelanceSkipReason,
   type RelanceType,
 } from '$lib/domain/relance';
 import {
-  buildBrandEmailHtml,
-  buildBrandEmailText,
-  type BrandEmailCta,
-} from '$lib/server/templates/brandEmail';
-import { sendEmail } from '$lib/server/email/resend';
+  substituteVariables,
+  EMPTY_VARIABLE_CONTEXT,
+  type VariableContext,
+} from '$lib/domain/broadcastVariables';
+import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+import { sendEmail, MAIL_FROM } from '$lib/server/email';
 
-const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';
-const SIGNATURE = "À très vite,\nL'équipe Epitech Academy";
+function loginLinkFor(type: RelanceType): string {
+  const path = type === 'student' ? '/onboarding' : '/parent/login';
+  return `${env.ORIGIN}${base}${path}`;
+}
 
-function ctaFor(type: RelanceType): BrandEmailCta {
-  if (type === 'student') {
-    return {
-      label: 'Finaliser mon inscription',
-      url: `${env.ORIGIN}${base}/onboarding`,
-    };
-  }
-  return {
-    label: "Signer le droit à l'image",
-    url: `${env.ORIGIN}${base}/parent/login`,
-  };
+function actionKeyFor(type: RelanceType): 'relance_student' | 'relance_parent' {
+  return type === 'student' ? 'relance_student' : 'relance_parent';
 }
 
 export type SendRelancesInput = {
@@ -43,8 +35,8 @@ export type SendRelancesInput = {
   campusId: string;
 };
 
-/** Server-side skip buckets — the predictable reasons plus transport errors. */
-type ServerSkipReason = RelanceSkipReason | 'error';
+/** Server-side skip buckets — predictable reasons + transport / config. */
+type ServerSkipReason = RelanceSkipReason | 'error' | 'noTemplate';
 export type RelanceSkipCounts = Record<ServerSkipReason, number>;
 
 export type SendRelancesResult = {
@@ -58,6 +50,28 @@ export async function sendRelances(
 ): Promise<SendRelancesResult> {
   const { talentIds, type, subject, body, sentBy, campusId } = input;
   const db = scopedPrisma(campusId);
+
+  // Gate at the top: no template bound for this action → every recipient
+  // bucketed as `noTemplate`. Consistent with the global rule "no template
+  // = email ignored". Admin warning lives in /staff/admin/email-actions.
+  const actionKey = actionKeyFor(type);
+  const mapping = await prisma.emailActionMapping.findUnique({
+    where: { actionKey },
+    select: { actionKey: true },
+  });
+  if (!mapping) {
+    console.warn(
+      `[relance] No template mapped for action="${actionKey}" — skipping ${talentIds.length} recipient(s).`,
+    );
+    const skipCounts: RelanceSkipCounts = {
+      cooldown: 0,
+      completed: 0,
+      noEmail: 0,
+      error: 0,
+      noTemplate: talentIds.length,
+    };
+    return { sent: 0, skipped: talentIds.length, skipCounts };
+  }
 
   const talents = await db.talent.findMany({
     where: { id: { in: talentIds } },
@@ -93,8 +107,9 @@ export async function sendRelances(
     completed: 0,
     noEmail: 0,
     error: 0,
+    noTemplate: 0,
   };
-  const cta = ctaFor(type);
+  const loginLink = loginLinkFor(type);
 
   for (const talent of talents) {
     const studentEmail = talent.email ?? talent.user?.email ?? null;
@@ -111,33 +126,27 @@ export async function sendRelances(
     }
 
     const recipient = type === 'student' ? studentEmail! : talent.parentEmail!;
-    const vars = formatTalentVars(talent);
-    const renderedSubject = applyPlaceholders(subject, vars);
-    const renderedBody = applyPlaceholders(body, vars);
-    const greeting = relanceGreeting(type, vars);
+    const talentVars = formatTalentVars(talent);
+    const ctx: VariableContext = {
+      ...EMPTY_VARIABLE_CONTEXT,
+      ...talentVars,
+      login_link: loginLink,
+    };
+    const renderedSubject = substituteVariables(subject, ctx);
+    const renderedBody = substituteVariables(body, ctx);
+    const html = renderBroadcastMail(renderedBody);
 
     const sendResult = await sendEmail({
-      from: FROM_EMAIL,
+      from: MAIL_FROM,
       to: recipient,
       subject: renderedSubject,
-      text: buildBrandEmailText({
-        greeting,
-        body: renderedBody,
-        cta,
-        signature: SIGNATURE,
-      }),
-      html: buildBrandEmailHtml({
-        greeting,
-        body: renderedBody,
-        cta,
-        signature: SIGNATURE,
-      }),
+      html,
     });
     if (!sendResult.ok) {
       // Skip the audit write on failure — otherwise the "Historique des
-      // relances" panel on the talent fiche shows a relance that never
-      // left Resend, and the cooldown classifier blocks the next genuine
-      // retry as if it had.
+      // relances" panel shows a relance that never left the mail provider,
+      // and the cooldown classifier blocks the next genuine retry as if
+      // it had.
       console.error(
         'relance send failed',
         sendResult.reason,
@@ -174,7 +183,8 @@ export async function sendRelances(
     skipCounts.cooldown +
     skipCounts.completed +
     skipCounts.noEmail +
-    skipCounts.error;
+    skipCounts.error +
+    skipCounts.noTemplate;
   return { sent, skipped, skipCounts };
 }
 

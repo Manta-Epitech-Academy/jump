@@ -24,7 +24,6 @@
     type OnboardingFilterKey,
   } from './filters';
   import { countSignedDocs, isReady, TOTAL_DOCS } from './progress';
-  import { defaultRelanceFor } from '$lib/domain/relanceTemplates';
   import {
     classifyRelanceSkip,
     formatTalentVars,
@@ -387,7 +386,8 @@
     recipients={buildRecipients(compose)}
     formAction="?/sendRelance"
     initialForm={data.relanceForm}
-    defaultTemplate={defaultRelanceFor(compose.type)}
+    defaultTemplate={data.relanceDefaults[compose.type].template}
+    hasMapping={data.relanceDefaults[compose.type].hasMapping}
     previewVars={buildPreviewVars(compose)}
     {onSent}
   />

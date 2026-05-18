@@ -18,6 +18,7 @@
   import GroupedTalentTimeline from '$lib/components/students/GroupedTalentTimeline.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
+  import TalentOtpDialog from '$lib/components/students/TalentOtpDialog.svelte';
 
   import StudentFormDialog from '../components/StudentFormDialog.svelte';
   import TalentProfileHero from './components/TalentProfileHero.svelte';
@@ -32,12 +33,12 @@
   import ContactCard from './components/ContactCard.svelte';
   import ComplianceDocsTable from './components/ComplianceDocsTable.svelte';
   import CommHistoryList from './components/CommHistoryList.svelte';
+  import BroadcastHistoryList from './components/BroadcastHistoryList.svelte';
   import InterviewHistoryList from './components/InterviewHistoryList.svelte';
 
   import RelanceComposeDialog, {
     type ComposeRecipient,
   } from '$lib/components/comms/RelanceComposeDialog.svelte';
-  import { defaultRelanceFor } from '$lib/domain/relanceTemplates';
   import {
     classifyRelanceSkip,
     formatTalentVars,
@@ -83,10 +84,11 @@
   );
 
   let editOpen = $state(false);
-  let tab = $state<'pedago' | 'admin'>(untrack(() => data.tab));
+  type Tab = 'pedago' | 'admin' | 'communications';
+  let tab = $state<Tab>(untrack(() => data.tab as Tab));
 
   $effect(() => {
-    tab = data.tab;
+    tab = data.tab as Tab;
   });
 
   const studentEmail = $derived(data.student.user?.email || data.student.email);
@@ -123,9 +125,19 @@
   }
 
   function changeTab(next: string) {
-    if (next !== 'pedago' && next !== 'admin') return;
+    if (next !== 'pedago' && next !== 'admin' && next !== 'communications')
+      return;
     tab = next;
-    navigateWithParams({ tab: next === 'pedago' ? '' : next });
+    // Reset pagination when leaving the communications tab — `?page=N` is
+    // only meaningful there and clutters the URL otherwise.
+    navigateWithParams({ tab: next === 'pedago' ? '' : next, page: '' });
+  }
+
+  const broadcastsTotalPages = $derived(
+    Math.max(1, Math.ceil(data.broadcastsTotal / data.broadcastsPageSize)),
+  );
+  function goToBroadcastPage(p: number) {
+    navigateWithParams({ tab: 'communications', page: String(p) });
   }
 
   // Relance compose state — shared between the étudiant + parent buttons.
@@ -227,6 +239,30 @@
             class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
           >
             Suivi &amp; relances
+          </span>
+        </span>
+      </Tabs.Trigger>
+      <Tabs.Trigger value="communications" class={triggerClass}>
+        <Send
+          class="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]/tab:text-epi-blue"
+        />
+        <span class="flex flex-col items-start gap-0.5">
+          <span
+            class="flex items-center gap-1.5 text-sm font-bold tracking-wide uppercase"
+          >
+            Communications
+            {#if data.broadcastsTotal > 0}
+              <span
+                class="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground"
+              >
+                {data.broadcastsTotal}
+              </span>
+            {/if}
+          </span>
+          <span
+            class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
+          >
+            Historique &amp; envois
           </span>
         </span>
       </Tabs.Trigger>
@@ -357,10 +393,69 @@
         timezone={data.timezone}
       />
 
+      <Gated group="devMember" mode="hide">
+        <div
+          class="flex flex-wrap items-center gap-3 rounded-sm border border-dashed border-border bg-muted/30 px-4 py-3"
+        >
+          <span class="text-sm text-muted-foreground">
+            Connexion en présentiel
+          </span>
+          <span class="ml-auto"></span>
+          <TalentOtpDialog
+            action="?/generateOtp"
+            talentName={`${data.student.prenom} ${data.student.nom}`}
+            disabled={!data.student.user?.email}
+            disabledReason="Le talent n'a pas encore de compte (aucune connexion enregistrée)."
+          />
+        </div>
+      </Gated>
+
       <InterviewHistoryList
         interviews={data.student.interviews}
         timezone={data.timezone}
       />
+    </Tabs.Content>
+
+    <!-- COMMUNICATIONS TAB -->
+    <Tabs.Content value="communications" class="space-y-4">
+      <BroadcastHistoryList
+        items={data.broadcastsReceived}
+        timezone={data.timezone}
+        talentId={data.student.id}
+      />
+      {#if data.broadcastsTotal > data.broadcastsPageSize}
+        <div
+          class="flex items-center justify-between gap-2 text-xs text-muted-foreground"
+        >
+          <span>
+            Page {data.broadcastsPage} sur {broadcastsTotalPages}
+            <span class="ml-2">·</span>
+            <span class="ml-2">{data.broadcastsTotal} au total</span>
+          </span>
+          <div class="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              class="rounded-sm"
+              disabled={data.broadcastsPage <= 1}
+              onclick={() => goToBroadcastPage(data.broadcastsPage - 1)}
+            >
+              ← Précédent
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              class="rounded-sm"
+              disabled={data.broadcastsPage >= broadcastsTotalPages}
+              onclick={() => goToBroadcastPage(data.broadcastsPage + 1)}
+            >
+              Suivant →
+            </Button>
+          </div>
+        </div>
+      {/if}
     </Tabs.Content>
   </Tabs.Root>
 
@@ -371,7 +466,8 @@
       recipients={composeRecipients}
       formAction="?/sendRelance"
       initialForm={data.relanceForm}
-      defaultTemplate={defaultRelanceFor(composeType)}
+      defaultTemplate={data.relanceDefaults[composeType].template}
+      hasMapping={data.relanceDefaults[composeType].hasMapping}
       previewVars={composePreviewVars}
       onSent={onRelanceSent}
     />

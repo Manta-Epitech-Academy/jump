@@ -12,18 +12,30 @@
     emailEnhance,
     emailDelayed,
     emailMessage,
-    goBack,
+    errorMessage,
   }: {
     emailForm: any;
     emailErrors: any;
     emailEnhance: any;
     emailDelayed: any;
     emailMessage: any;
-    goBack?: () => void;
+    errorMessage?: string | null;
   } = $props();
 </script>
 
 <div class="animate-slide-in-right">
+  {#if errorMessage}
+    <Alert
+      variant="destructive"
+      class="mb-6 rounded-xl border-red-100 bg-red-50 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
+    >
+      <CircleAlert class="h-4 w-4" />
+      <AlertDescription class="text-xs font-medium">
+        {errorMessage}
+      </AlertDescription>
+    </Alert>
+  {/if}
+
   {#if $emailMessage && $emailMessage.type === 'error'}
     <Alert
       variant="destructive"
@@ -64,18 +76,8 @@
       {#if $emailDelayed}
         <Sparkles class="mr-2 h-4 w-4 animate-spin" /> Vérification...
       {:else}
-        Recevoir mon code
+        Continuer
       {/if}
     </Button>
   </form>
-
-  {#if goBack}
-    <Button
-      variant="ghost"
-      onclick={goBack}
-      class="mt-4 w-full text-xs tracking-normal text-slate-400 normal-case transition-colors hover:bg-transparent hover:text-epi-blue"
-    >
-      Retour
-    </Button>
-  {/if}
 </div>
