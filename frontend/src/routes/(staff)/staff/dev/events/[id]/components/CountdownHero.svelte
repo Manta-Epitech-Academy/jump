@@ -44,14 +44,6 @@
     }),
   );
 
-  const ribbon = $derived(
-    daysToStart === 0
-      ? 'Ouverture aujourd’hui'
-      : daysToStart === 1
-        ? 'Ouverture demain'
-        : `J–${daysToStart} avant l’ouverture`,
-  );
-
   const intro = $derived(
     daysToStart === 0
       ? 'C’est aujourd’hui. Les inscrits arrivent dans quelques heures — un dernier passage sur les dossiers en attente et l’équipe est prête.'
@@ -67,7 +59,7 @@
       <p
         class="font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
       >
-        <span class="opacity-60">&lt;</span> Préparation · {ribbon}
+        <span class="opacity-60">&lt;</span> Préparation
         <span class="opacity-60">/&gt;</span>
       </p>
       <h1
