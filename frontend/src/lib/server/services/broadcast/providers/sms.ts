@@ -3,13 +3,19 @@ import type { SmsProvider, SendOutcome } from './types';
 
 /**
  * Logs the SMS but doesn't actually send. Used as the default until a real
- * provider (Twilio, OVH, etc.) is wired. Always reports success so the
- * orchestrator can finish flows in dev/staging without a paid integration.
+ * provider (Twilio, OVH, etc.) is wired. Reports a non-retryable failure so
+ * the orchestrator marks recipients as `failed` with a clear reason — the
+ * admin UI then surfaces "0 envoyés / N échecs" instead of a false success
+ * that hides an unconfigured prod deployment.
  */
 export const nullSmsProvider: SmsProvider = {
   async sendSms({ to, body }): Promise<SendOutcome> {
     console.log(`[sms:null] to=${to} body=${body.slice(0, 60)}...`);
-    return { ok: true };
+    return {
+      ok: false,
+      message: 'SMS provider not configured (SMS_PROVIDER=null)',
+      retryable: false,
+    };
   },
 };
 

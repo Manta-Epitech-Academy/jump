@@ -115,6 +115,24 @@ export async function enqueueBroadcast(
  * After draining, set the broadcast status based on outcomes.
  */
 export async function processBroadcast(broadcastId: string): Promise<void> {
+  // Atomic claim. Only one caller can flip `queued → sending` (or take over
+  // a stuck `sending` row) for a given broadcast — the others see count=0
+  // and bail. Without this, the fire-and-forget call from the create action
+  // and a concurrent cron tick (or two cron ticks) would both page the same
+  // `pending` recipients and double-send.
+  const stuckBefore = new Date(Date.now() - SENDING_STUCK_TIMEOUT_MS);
+  const claim = await prisma.broadcast.updateMany({
+    where: {
+      id: broadcastId,
+      OR: [
+        { status: 'queued' },
+        { status: 'sending', updatedAt: { lt: stuckBefore } },
+      ],
+    },
+    data: { status: 'sending', updatedAt: new Date() },
+  });
+  if (claim.count === 0) return;
+
   const broadcast = await prisma.broadcast.findUniqueOrThrow({
     where: { id: broadcastId },
     select: {
@@ -125,11 +143,6 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
       eventId: true,
       event: { select: { titre: true } },
     },
-  });
-
-  await prisma.broadcast.update({
-    where: { id: broadcastId },
-    data: { status: 'sending' },
   });
 
   // Stream recipients in pages to keep memory bounded for large broadcasts.

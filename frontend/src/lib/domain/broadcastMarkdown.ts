@@ -14,6 +14,7 @@
  */
 
 import { Marked, type Tokens } from 'marked';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface BroadcastButtonToken extends Tokens.Generic {
   type: 'broadcastButton';
@@ -153,8 +154,41 @@ marked.use({
   },
 });
 
+// Tags + attrs DOMPurify is allowed to keep after sanitization. Marked passes
+// arbitrary HTML through (no built-in sanitization since v5), so an admin who
+// writes `<img src=x onerror=alert(1)>` in the body would otherwise ship that
+// payload into the in-app previews (compose dialog, admin/dev detail pages)
+// where `{@html}` executes it. The list mirrors the tags our custom
+// renderers emit plus inline `style` (we rely on inline CSS for email
+// clients that strip <style> tags).
+const SANITIZE_CONFIG = {
+  ALLOWED_TAGS: [
+    'a',
+    'p',
+    'br',
+    'strong',
+    'em',
+    'ul',
+    'ol',
+    'li',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'hr',
+    'blockquote',
+    'div',
+    'span',
+  ],
+  ALLOWED_ATTR: ['href', 'style'],
+  ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|about:blank$)/i,
+};
+
 export function renderBroadcastBodyHtml(markdown: string): string {
-  return marked.parse(markdown) as string;
+  const raw = marked.parse(markdown) as string;
+  return DOMPurify.sanitize(raw, SANITIZE_CONFIG);
 }
 
 const SHELL_OPEN = `<div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; padding: 40px 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 5px solid #00ff97; text-align: left;">`;
