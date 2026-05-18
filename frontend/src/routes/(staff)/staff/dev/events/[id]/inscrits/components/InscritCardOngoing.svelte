@@ -8,7 +8,10 @@
   import TalentName from '$lib/components/students/TalentName.svelte';
   import NewTalentBadge from '$lib/components/students/NewTalentBadge.svelte';
   import { cn, formatDateFr } from '$lib/utils';
-  import { INTERVIEW_DISPLAY_LABELS } from '$lib/domain/interview';
+  import {
+    INTERVIEW_DISPLAY_LABELS,
+    INTERVIEW_STATUS_CHIP_CLASS,
+  } from '$lib/domain/interview';
   import type { OngoingRow } from './types';
   import { humanizeNiveau } from './niveau';
   import RecommendationChip from '../../interviews/components/RecommendationChip.svelte';
@@ -29,15 +32,7 @@
   const overflow = $derived(Math.max(0, interests.length - 3));
 
   const interviewChipClass = $derived(
-    {
-      none: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
-      planned:
-        'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300',
-      overdue:
-        'border-destructive/40 bg-destructive/10 text-destructive dark:border-destructive/40 dark:bg-destructive/15',
-      done: 'border-green-300 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300',
-      cancelled: 'border-border bg-muted text-muted-foreground line-through',
-    }[row.interviewStatus],
+    INTERVIEW_STATUS_CHIP_CLASS[row.interviewStatus],
   );
 
   const interviewLabel = $derived.by(() => {
@@ -48,9 +43,11 @@
     return base;
   });
 
+  // Same DS palette family as INTERVIEW_STATUS_CHIP_CLASS["done"] —
+  // a "present" presence echoes a successful interview visually.
   const presenceTone = $derived(
     row.participation.isPresent
-      ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300'
+      ? 'border-epi-teal-solid/40 bg-epi-teal-solid/10 text-epi-teal-solid'
       : 'border-border bg-muted text-muted-foreground',
   );
 

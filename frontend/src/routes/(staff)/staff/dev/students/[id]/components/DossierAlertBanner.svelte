@@ -50,35 +50,36 @@
 </script>
 
 {#if state === 'complete'}
+  <!-- Epitech charte: success = epi-tech / epi-teal-solid (the "tech"
+       keyword), never green Tailwind utilities. -->
   <div
     class={cn(
-      'flex items-center gap-3 rounded-sm border border-green-200 bg-green-50 p-4',
-      'dark:border-green-900/40 dark:bg-green-900/20',
+      'flex items-center gap-3 rounded-sm border border-epi-teal-solid/30 bg-epi-teal-solid/10 p-4',
     )}
   >
-    <CheckCircle2 class="h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+    <CheckCircle2 class="h-5 w-5 shrink-0 text-epi-teal-solid" />
     <div class="flex-1">
-      <p class="text-sm font-bold text-green-900 dark:text-green-200">
+      <p class="text-sm font-bold text-foreground">
         Dossier complet — peut commencer.
       </p>
-      <p class="text-xs text-green-700/80 dark:text-green-300/80">
+      <p class="text-xs text-muted-foreground">
         Tous les documents administratifs sont validés.
       </p>
     </div>
   </div>
 {:else if state === 'blocked'}
+  <!-- Charte: "Destructive / alert → --epi-together" (orange). No red. -->
   <div
     class={cn(
-      'flex items-center gap-3 rounded-sm border border-red-200 bg-red-50 p-4',
-      'dark:border-red-900/40 dark:bg-red-900/20',
+      'flex items-center gap-3 rounded-sm border border-epi-orange/40 bg-epi-orange/10 p-4',
     )}
   >
-    <XCircle class="h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
+    <XCircle class="h-5 w-5 shrink-0 text-epi-orange" />
     <div class="flex-1">
-      <p class="text-sm font-bold text-red-900 dark:text-red-200">
+      <p class="text-sm font-bold text-foreground">
         Dossier bloqué — relancer.
       </p>
-      <p class="text-xs text-red-700/80 dark:text-red-300/80">
+      <p class="text-xs text-muted-foreground">
         Aucun document signé pour {counts.total > 1
           ? 'les stages en cours'
           : 'le stage en cours'}.
@@ -86,21 +87,22 @@
     </div>
   </div>
 {:else if state === 'pending'}
+  <!-- Pending is a neutral "in progress" state, not an alert — neutral muted
+       surface with an epi-blue accent (primary / info), per charte. -->
   <div
     class={cn(
-      'flex items-center gap-3 rounded-sm border border-amber-200 bg-amber-50 p-4',
-      'dark:border-amber-900/40 dark:bg-amber-900/20',
+      'flex items-center gap-3 rounded-sm border border-epi-blue/30 bg-epi-blue/5 p-4',
     )}
   >
-    <AlertCircle class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+    <AlertCircle class="h-5 w-5 shrink-0 text-epi-blue" />
     <div class="flex-1">
-      <p class="text-sm font-bold text-amber-900 dark:text-amber-200">
+      <p class="text-sm font-bold text-foreground">
         Dossier en attente — {counts.ready}/{counts.total} stage{counts.total >
         1
           ? 's'
           : ''} prêt{counts.ready > 1 ? 's' : ''}.
       </p>
-      <p class="text-xs text-amber-700/80 dark:text-amber-300/80">
+      <p class="text-xs text-muted-foreground">
         Il manque des signatures sur au moins un dossier.
       </p>
     </div>

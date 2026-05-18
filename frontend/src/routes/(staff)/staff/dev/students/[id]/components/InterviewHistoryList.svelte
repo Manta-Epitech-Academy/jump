@@ -6,6 +6,7 @@
   import { cn, formatDateFr } from '$lib/utils';
   import {
     INTERVIEW_DISPLAY_LABELS,
+    INTERVIEW_STATUS_CHIP_CLASS,
     getInterviewDisplayStatus,
   } from '$lib/domain/interview';
   import { getLifecycleBounds } from '$lib/domain/eventLifecycle';
@@ -26,18 +27,6 @@
     $props();
 
   const bounds = $derived(getLifecycleBounds(timezone));
-
-  function chipClass(state: ReturnType<typeof getInterviewDisplayStatus>) {
-    return {
-      none: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
-      planned:
-        'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300',
-      overdue:
-        'border-destructive/40 bg-destructive/10 text-destructive dark:border-destructive/40 dark:bg-destructive/15',
-      done: 'border-green-300 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300',
-      cancelled: 'border-border bg-muted text-muted-foreground line-through',
-    }[state];
-  }
 </script>
 
 <EpiSection overline="Suivi" title="Entretiens" accent="blue">
@@ -66,7 +55,7 @@
               variant="outline"
               class={cn(
                 'rounded-sm px-1.5 py-0 text-[10px] font-bold uppercase',
-                chipClass(state),
+                INTERVIEW_STATUS_CHIP_CLASS[state],
               )}
             >
               {INTERVIEW_DISPLAY_LABELS[state]}
@@ -99,11 +88,14 @@
             </p>
           {/if}
           {#if iv.globalNote}
-            <p
-              class="rounded-sm border border-yellow-200 bg-yellow-50 p-2 text-xs leading-relaxed text-yellow-900 italic dark:border-yellow-900/30 dark:bg-yellow-950/20 dark:text-yellow-200"
+            <!-- Mirrors the blockquote in InterviewRecoCard: neutral surface
+                 with an epi-teal left border so verbatim notes share the
+                 same on-brand quote treatment everywhere they appear. -->
+            <blockquote
+              class="border-l-2 border-epi-teal-solid/60 bg-muted/30 py-1.5 pl-3 text-xs leading-relaxed text-foreground/80 italic"
             >
               « {iv.globalNote} »
-            </p>
+            </blockquote>
           {/if}
         </li>
       {/each}

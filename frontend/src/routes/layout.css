@@ -19,6 +19,9 @@
   --epi-teal-solid: #14b8a6;
   --epi-orange: #ff5f3a;
   --epi-pink: #ff1ef7;
+  /* Charte: "Text on light; never pure black." Use #181818 wherever
+     near-black is needed (inverse cards, badges, dark tiles). */
+  --epi-dark: #181818;
 
   /* --- Gray Scale (Light Mode Defaults) --- */
   --color-gray-0: #f8f9fa;
@@ -154,6 +157,7 @@
   --color-epi-teal-solid: var(--epi-teal-solid);
   --color-epi-orange: var(--epi-orange);
   --color-epi-pink: var(--epi-pink);
+  --color-epi-dark: var(--epi-dark);
 
   --color-header: var(--header-bg);
   --color-header-foreground: var(--header-foreground);

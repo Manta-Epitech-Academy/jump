@@ -62,9 +62,7 @@
           accentColor,
         )}
       >
-        <span class="opacity-60">&lt;</span>
         {overline}
-        <span class="opacity-60">/&gt;</span>
       </p>
       <h2
         class="mt-1.5 font-heading text-xl tracking-wide uppercase md:text-2xl"

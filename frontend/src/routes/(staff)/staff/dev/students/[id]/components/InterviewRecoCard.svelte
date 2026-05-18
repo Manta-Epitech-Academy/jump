@@ -27,54 +27,70 @@
 </script>
 
 <div
-  class="relative overflow-hidden rounded-sm bg-zinc-950 p-5 text-white shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10"
+  class="relative overflow-hidden rounded-sm bg-epi-dark p-5 text-white shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10"
 >
-  <p
-    class="flex items-center gap-2 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
-  >
-    <MessageSquare class="h-3.5 w-3.5" />
-    Entretien d'orientation
-  </p>
+  <!-- Pixel overlays — charte signature texture for inverse / dark cards. -->
+  <div class="pointer-events-none absolute inset-0" aria-hidden="true">
+    <div
+      class="absolute"
+      style="top: 0; right: 0; width: 28px; height: 28px; background: rgba(255,255,255,0.07);"
+    ></div>
+    <div
+      class="absolute"
+      style="top: 0; right: 32px; width: 14px; height: 28px; background: rgba(255,255,255,0.04);"
+    ></div>
+  </div>
 
-  {#if interview && interview.recommendation}
-    <div class="mt-4 flex items-center gap-2">
-      <RecommendationChip
-        value={interview.recommendation}
-        variant="full"
-        size="md"
-      />
-    </div>
-    <p class="mt-3 text-xs text-zinc-400">
-      Mené par
-      <span class="text-zinc-100">{interview.staff?.user?.name ?? 'Staff'}</span
-      >
-      le
-      <span class="text-zinc-100">{formatDateFr(interview.date, timezone)}</span
-      >
+  <div class="relative z-10">
+    <p
+      class="flex items-center gap-2 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
+    >
+      <MessageSquare class="h-3.5 w-3.5" />
+      Entretien d'orientation
     </p>
-    {#if interview.globalNote}
-      <blockquote
-        class="mt-3 line-clamp-3 border-l-2 border-epi-teal/60 pl-3 text-sm text-zinc-300 italic"
-      >
-        « {interview.globalNote} »
-      </blockquote>
+
+    {#if interview && interview.recommendation}
+      <div class="mt-4 flex items-center gap-2">
+        <RecommendationChip
+          value={interview.recommendation}
+          variant="full"
+          size="md"
+        />
+      </div>
+      <p class="mt-3 text-xs text-white/60">
+        Mené par
+        <span class="text-white/90"
+          >{interview.staff?.user?.name ?? 'Staff'}</span
+        >
+        le
+        <span class="text-white/90"
+          >{formatDateFr(interview.date, timezone)}</span
+        >
+      </p>
+      {#if interview.globalNote}
+        <blockquote
+          class="mt-3 line-clamp-3 border-l-2 border-epi-teal/60 pl-3 text-sm text-white/80 italic"
+        >
+          « {interview.globalNote} »
+        </blockquote>
+      {/if}
+      {#if interview.participation?.event}
+        <a
+          href={resolve(
+            `/staff/dev/events/${interview.participation.event.id}/interviews`,
+          )}
+          class="mt-4 inline-flex items-center gap-1 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase hover:underline"
+        >
+          Voir la grille &rarr;
+        </a>
+      {/if}
+    {:else}
+      <p class="mt-4 text-sm text-white/80">
+        Pas encore d'entretien — orientation à déterminer.
+      </p>
+      <p class="mt-2 text-xs text-white/50">
+        La recommandation apparaîtra dès qu'un staff aura clôturé une grille.
+      </p>
     {/if}
-    {#if interview.participation?.event}
-      <a
-        href={resolve(
-          `/staff/dev/events/${interview.participation.event.id}/interviews`,
-        )}
-        class="mt-4 inline-flex items-center gap-1 font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase hover:underline"
-      >
-        Voir la grille &rarr;
-      </a>
-    {/if}
-  {:else}
-    <p class="mt-4 text-sm text-zinc-300">
-      Pas encore d'entretien — orientation à déterminer.
-    </p>
-    <p class="mt-2 text-xs text-zinc-500">
-      La recommandation apparaîtra dès qu'un staff aura clôturé une grille.
-    </p>
-  {/if}
+  </div>
 </div>

@@ -56,9 +56,9 @@
       <p
         class="font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
       >
-        <span class="opacity-60">&lt;</span>
+        <span class="opacity-70">&lt;</span>
         INSCRIT_{slug} · TALENT_VIEW
-        <span class="opacity-60">/&gt;</span>
+        <span class="opacity-70">/&gt;</span>
       </p>
       <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-3">
         <h1

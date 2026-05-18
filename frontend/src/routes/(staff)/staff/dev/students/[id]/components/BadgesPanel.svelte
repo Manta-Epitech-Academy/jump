@@ -36,8 +36,7 @@
     'epi-teal': 'bg-epi-teal-solid text-white',
     'epi-orange': 'bg-epi-orange text-white',
     'epi-pink': 'bg-epi-pink text-white',
-    'epi-black':
-      'bg-zinc-950 text-white dark:bg-zinc-900 dark:ring-1 dark:ring-white/10',
+    'epi-black': 'bg-epi-dark text-white dark:ring-1 dark:ring-white/10',
   };
 </script>
 

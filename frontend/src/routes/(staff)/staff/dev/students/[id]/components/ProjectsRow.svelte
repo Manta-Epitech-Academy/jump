@@ -29,7 +29,7 @@
   // hot colors next to each other.
   const TILE_COLORS = [
     'bg-epi-blue text-white',
-    'bg-zinc-950 text-white',
+    'bg-epi-dark text-white',
     'bg-epi-pink text-white',
   ];
 </script>
@@ -65,7 +65,7 @@
           <p
             class="font-mono text-[10px] font-bold tracking-widest uppercase opacity-80"
           >
-            &lt; {formatDateFr(item.createdAt, timezone)} /&gt;
+            {formatDateFr(item.createdAt, timezone)}
           </p>
           {#if href}
             <ExternalLink
