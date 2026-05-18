@@ -8,11 +8,6 @@ const SLUG = 'welcome';
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
-  // Already seen — redirect to dashboard
-  if (locals.talent.welcomeSeenAt) {
-    throw redirect(303, resolve('/'));
-  }
-
   // Resolve the talent's most recent stage_seconde participation
   const stageParticipation = await prisma.participation.findFirst({
     where: {
@@ -20,26 +15,35 @@ export const load: PageServerLoad = async ({ locals }) => {
       event: { eventType: 'stage_seconde' },
     },
     orderBy: { event: { date: 'desc' } },
-    select: { eventId: true },
+    select: { event: { select: { id: true, endDate: true, date: true } } },
   });
 
   if (!stageParticipation) {
-    // No stage_seconde participation — skip welcome, go to dashboard
+    throw redirect(303, resolve('/'));
+  }
+
+  // Stage is over — no longer accessible
+  const stageEnd =
+    stageParticipation.event.endDate ?? stageParticipation.event.date;
+  if (stageEnd < new Date()) {
     throw redirect(303, resolve('/'));
   }
 
   const page = await prisma.cmsPage.findUnique({
     where: {
-      slug_eventId: { slug: SLUG, eventId: stageParticipation.eventId },
+      slug_eventId: {
+        slug: SLUG,
+        eventId: stageParticipation.event.id,
+      },
     },
   });
 
   if (!page?.content) {
-    // No welcome content for this stage — skip to dashboard
     throw redirect(303, resolve('/'));
   }
 
-  return { cmsContent: page.content };
+  const alreadySeen = !!locals.talent.welcomeSeenAt;
+  return { cmsContent: page.content, alreadySeen };
 };
 
 export const actions: Actions = {

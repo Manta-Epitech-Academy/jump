@@ -19,20 +19,27 @@
   </div>
 
   <div class="mt-8 flex justify-center">
-    <form
-      method="POST"
-      action="?/markSeen"
-      use:enhance={() => {
-        return async ({ update }) => {
-          track('welcome_dismissed');
-          await update();
-        };
-      }}
-    >
-      <Button type="submit">
-        Accéder au tableau de bord
+    {#if data.alreadySeen}
+      <Button href="/">
+        Retour au tableau de bord
         <ArrowRight class="ml-2 h-4 w-4" />
       </Button>
-    </form>
+    {:else}
+      <form
+        method="POST"
+        action="?/markSeen"
+        use:enhance={() => {
+          return async ({ update }) => {
+            track('welcome_dismissed');
+            await update();
+          };
+        }}
+      >
+        <Button type="submit">
+          Accéder au tableau de bord
+          <ArrowRight class="ml-2 h-4 w-4" />
+        </Button>
+      </form>
+    {/if}
   </div>
 </div>

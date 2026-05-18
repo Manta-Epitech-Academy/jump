@@ -2237,11 +2237,11 @@ const EVENTS: EventBlueprint[] = [
         ],
       },
     ],
-    studentEmails: parisStudents.slice(6, 18),
-    presentEmails: parisStudents.slice(6, 16), // 10/12 émargés
+    studentEmails: [parisStudents[0], ...parisStudents.slice(6, 18)],
+    presentEmails: [parisStudents[0], ...parisStudents.slice(6, 16)], // 11/13 émargés
     delays: { [parisStudents[9]]: 10, [parisStudents[13]]: 5 },
     bringPc: () => true,
-    stageSigned: parisStudents.slice(6, 14), // 8/12 dossiers complets
+    stageSigned: [parisStudents[0], ...parisStudents.slice(6, 14)], // 9/13 dossiers complets
     stageUnsigned: parisStudents.slice(14, 18), // 4 partiels — alimente alertes
   },
 
@@ -2843,8 +2843,44 @@ async function main() {
   const reminderCount = await seedReminders(staffByKey, talentByEmail);
   console.log(`✓  Reminders (${reminderCount})`);
 
+  // 13. CMS welcome pages for stage_seconde events
+  await seedWelcomePages(eventIds, staffByKey);
+  console.log('✓  CMS welcome pages');
+
   // ── Final summary ──
   await printSummary(parentEmail);
+}
+
+// ─── Welcome pages ───
+
+async function seedWelcomePages(
+  eventIds: string[],
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
+) {
+  // stage_seconde events are at indices 2 (past), 7 (ongoing), 10 (future Lyon)
+  const stageEventIndices = [2, 7, 10];
+  const updatedBy = Object.values(staffByKey)[0].userId;
+
+  for (const idx of stageEventIndices) {
+    const eventId = eventIds[idx];
+    if (!eventId) continue;
+    await prisma.cmsPage.create({
+      data: {
+        slug: 'welcome',
+        eventId,
+        updatedBy,
+        content: `<h1>Bienvenue à ton stage de seconde !</h1>
+<p>Tu t'apprêtes à vivre une semaine immersive au cœur du numérique. Pendant ce stage, tu vas :</p>
+<ul>
+  <li>Découvrir les métiers de la tech</li>
+  <li>Participer à des ateliers pratiques</li>
+  <li>Créer ton premier projet</li>
+  <li>Rencontrer des professionnels passionnés</li>
+</ul>
+<p>Profite de chaque moment et n'hésite pas à poser des questions. Bonne découverte !</p>`,
+      },
+    });
+  }
 }
 
 // ─── Wipe ───

@@ -162,6 +162,35 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       ? await checkTalentEligibility(studentId)
       : null;
 
+    // Check if a welcome page is available for re-reading
+    let hasWelcomePage = false;
+    if (locals.talent.welcomeSeenAt) {
+      const stageParticipation = await prisma.participation.findFirst({
+        where: {
+          talentId: studentId,
+          event: { eventType: 'stage_seconde' },
+        },
+        orderBy: { event: { date: 'desc' } },
+        select: { event: { select: { id: true, endDate: true, date: true } } },
+      });
+      if (stageParticipation) {
+        const stageEnd =
+          stageParticipation.event.endDate ?? stageParticipation.event.date;
+        if (stageEnd >= new Date()) {
+          const welcomePage = await prisma.cmsPage.findUnique({
+            where: {
+              slug_eventId: {
+                slug: 'welcome',
+                eventId: stageParticipation.event.id,
+              },
+            },
+            select: { id: true },
+          });
+          hasWelcomePage = !!welcomePage;
+        }
+      }
+    }
+
     return {
       student: locals.talent,
       participation: todayParticipation,
@@ -175,6 +204,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       upcomingIsMultiDay,
       serverNow: Date.now(),
       minigame,
+      hasWelcomePage,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
