@@ -53,7 +53,7 @@ async function generatePDF(
   return withBrowser(async (browser) => {
     const page = await browser.newPage();
     try {
-      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      await page.setContent(htmlContent, { waitUntil: 'load' });
       await page.evaluateHandle('document.fonts.ready');
 
       const pdfBuffer = await page.pdf({

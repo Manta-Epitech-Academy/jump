@@ -158,6 +158,13 @@
       <CalendarDays class="h-4 w-4" />
       <span>Modèles de Planning</span>
     </a>
+    <a
+      href={resolve('/staff/admin/minigames')}
+      class={navLinkClass(isActive('/staff/admin/minigames'))}
+    >
+      <Gamepad2 class="h-4 w-4" />
+      <span>Mini-jeux</span>
+    </a>
   </nav>
 {/snippet}
 
