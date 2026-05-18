@@ -208,7 +208,7 @@
 
   <Tabs.Root value={tab} onValueChange={changeTab} class="space-y-6">
     <Tabs.List
-      class="h-auto w-full justify-start gap-0 rounded-none border-b bg-transparent p-0"
+      class="sticky top-0 z-20 h-auto w-full justify-start gap-0 rounded-none border-b bg-background p-0"
     >
       <Tabs.Trigger value="pedago" class={triggerClass}>
         <Sparkles
@@ -340,30 +340,30 @@
 
       <div class="grid gap-6 md:grid-cols-2">
         <ContactCard student={data.student} onEdit={openEdit} />
-        <TalentPlatformAccountCard
-          student={data.student}
-          firstLoginAt={data.firstLoginAt}
-          timezone={data.timezone}
-        />
+        {#if primaryComplianceParticipation}
+          <ComplianceDocsTable
+            participation={primaryComplianceParticipation}
+            timezone={data.timezone}
+          />
+        {/if}
       </div>
 
-      {#if primaryComplianceParticipation}
-        <ComplianceDocsTable
-          participation={primaryComplianceParticipation}
-          timezone={data.timezone}
-        />
-      {/if}
-
       <div class="grid gap-6 md:grid-cols-2">
+        <CommHistoryList reminders={data.reminders} timezone={data.timezone} />
+
         <EpiSection overline="Assiduité" title="Présence stage" accent="tech">
           <PresenceHeatmap
             participation={mostRecentStageParticipation}
             timezone={data.timezone}
           />
         </EpiSection>
-
-        <CommHistoryList reminders={data.reminders} timezone={data.timezone} />
       </div>
+
+      <TalentPlatformAccountCard
+        student={data.student}
+        firstLoginAt={data.firstLoginAt}
+        timezone={data.timezone}
+      />
 
       <InterviewHistoryList
         interviews={data.student.interviews}

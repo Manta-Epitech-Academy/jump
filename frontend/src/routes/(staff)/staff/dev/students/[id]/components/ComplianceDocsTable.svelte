@@ -1,10 +1,8 @@
 <script lang="ts">
-  import { resolve } from '$app/paths';
   import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
   import FileSignature from '@lucide/svelte/icons/file-signature';
   import Camera from '@lucide/svelte/icons/camera';
-  import ExternalLink from '@lucide/svelte/icons/external-link';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import { formatDateFr, cn } from '$lib/utils';
   import type { Component } from 'svelte';
@@ -64,9 +62,6 @@
   ]);
 
   const ready = $derived(rows.every((r) => r.signed));
-  const onboardingHref = $derived(
-    resolve(`/staff/dev/events/${participation.event.id}/onboarding`),
-  );
 </script>
 
 <EpiSection
@@ -102,7 +97,6 @@
           <th class="hidden px-3 py-2 sm:table-cell">Description</th>
           <th class="px-3 py-2">Statut</th>
           <th class="px-3 py-2">Signé le</th>
-          <th class="px-3 py-2 text-right">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -144,15 +138,6 @@
               {:else}
                 <span class="text-muted-foreground">—</span>
               {/if}
-            </td>
-            <td class="px-3 py-3 text-right">
-              <a
-                href={onboardingHref}
-                class="inline-flex items-center gap-1 font-mono text-[10px] font-bold tracking-widest text-epi-blue uppercase transition-colors hover:underline"
-              >
-                {row.signed ? 'Voir' : 'Relancer'}
-                <ExternalLink class="h-2.5 w-2.5" />
-              </a>
             </td>
           </tr>
         {/each}

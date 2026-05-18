@@ -32,7 +32,7 @@
   }
 </script>
 
-<EpiSection overline="Historique" title="Relances envoyées" accent="blue">
+<EpiSection overline="Historique" title="Communications" accent="blue">
   {#snippet meta()}
     <span
       class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
@@ -43,7 +43,7 @@
 
   {#if reminders.length === 0}
     <p class="text-sm text-muted-foreground italic">
-      Aucune relance envoyée à ce talent.
+      Aucune communication enregistrée avec ce talent.
     </p>
   {:else}
     <ul class="space-y-2">
