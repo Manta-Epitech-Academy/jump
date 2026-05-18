@@ -32,6 +32,7 @@
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import NewTalentBadge from '$lib/components/students/NewTalentBadge.svelte';
+  import TalentOtpDialog from '$lib/components/students/TalentOtpDialog.svelte';
 
   import OnboardingStatus from './components/OnboardingStatus.svelte';
   import TalentInterestChips from './components/TalentInterestChips.svelte';
@@ -359,6 +360,12 @@
       </Button>
     {/if}
     <span class="ml-auto"></span>
+    <TalentOtpDialog
+      action="?/generateOtp"
+      talentName={`${data.student.prenom} ${data.student.nom}`}
+      disabled={!data.student.user?.email}
+      disabledReason="Le talent n'a pas encore de compte (aucune connexion enregistrée)."
+    />
     <Button
       type="button"
       variant="default"

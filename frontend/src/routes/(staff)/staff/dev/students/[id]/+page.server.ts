@@ -23,6 +23,7 @@ import {
   formatRelanceMessage,
 } from '$lib/server/services/relanceService';
 import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
+import { generateTalentOtp } from '$lib/server/services/talentOtp';
 
 const TAB_KEYS = ['pedago', 'admin', 'communications'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
@@ -309,6 +310,27 @@ export const actions: Actions = {
     });
 
     return message(form, formatRelanceMessage(result));
+  },
+
+  generateOtp: async ({ params, locals }) => {
+    requireStaffGroup(locals, 'devMember');
+    const db = scopedPrisma(getCampusId(locals));
+    // Re-fetch in the campus scope so a dev can't mint an OTP for a talent
+    // outside their campus by guessing the id.
+    await db.talent.findUniqueOrThrow({
+      where: { id: params.id },
+      select: { id: true },
+    });
+    try {
+      const result = await generateTalentOtp(params.id);
+      console.log(
+        `[otp] staff=${locals.user!.id} minted sign-in OTP for talent=${params.id}`,
+      );
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur inattendue';
+      return fail(400, { message });
+    }
   },
 
   delete: async ({ params, locals }) => {
