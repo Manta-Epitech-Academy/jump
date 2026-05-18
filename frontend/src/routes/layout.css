@@ -65,7 +65,14 @@
 
   --header-bg: var(--epi-blue);
   --header-foreground: #ffffff;
-  --sidebar-bg: var(--color-gray-0);
+  /* Sidebar: dark navy — Epitech DS --epi-grey-900. Keeps the chrome
+     identity-rich without burning brand-blue on a 250px column we stare
+     at all day. Same token in both themes; the rail is intentional. */
+  --sidebar-bg: #0b0e1a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-foreground-muted: rgba(255, 255, 255, 0.6);
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
 }
 
 .dark {
@@ -114,7 +121,11 @@
 
   --header-bg: var(--color-dark-7);
   --header-foreground: var(--foreground);
-  --sidebar-bg: var(--color-dark-7);
+  --sidebar-bg: #0b0e1a;
+  --sidebar-foreground: #ffffff;
+  --sidebar-foreground-muted: rgba(255, 255, 255, 0.6);
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
 }
 
 @theme inline {
@@ -147,6 +158,10 @@
   --color-header: var(--header-bg);
   --color-header-foreground: var(--header-foreground);
   --color-sidebar: var(--sidebar-bg);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-foreground-muted: var(--sidebar-foreground-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-hover: var(--sidebar-hover);
 
   --font-sans: var(--font-sans);
   --font-heading: var(--font-heading);
@@ -171,7 +186,7 @@
   }
 
   .sidebar-section-title {
-    @apply mt-4 mb-2 font-heading text-sm tracking-wider text-epi-blue uppercase;
+    @apply mt-4 mb-2 font-heading text-sm tracking-wider text-sidebar-foreground-muted uppercase;
   }
 
   .app-header {

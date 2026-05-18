@@ -3,10 +3,6 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
 
-const jumpGamesOrigin = process.env.JUMP_GAMES_URL
-  ? new URL(process.env.JUMP_GAMES_URL).origin
-  : null;
-
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
   // Consult https://svelte.dev/docs/kit/integrations
@@ -38,9 +34,9 @@ const config = {
         // Umami beacons go to UMAMI_HOST; Discord OAuth pings discord.com.
         'connect-src': ['self', 'https://discord.com', UMAMI_HOST],
         'frame-ancestors': ['none'],
-        // Allow embedding the jump-games iframe (mini-jeux). Origin comes from
-        // JUMP_GAMES_URL at build time; falls back to self-only when unset.
-        'frame-src': jumpGamesOrigin ? ['self', jumpGamesOrigin] : ['self'],
+        // Allow embedding the jump-games iframe (mini-jeux) from any epiboost
+        // subdomain so per-env URLs (dev/staging/prod) work without rebuilds.
+        'frame-src': ['self', 'https://*.epiboost.eu', 'https://*.epiboost.fr'],
       },
     },
     adapter: adapter(),
