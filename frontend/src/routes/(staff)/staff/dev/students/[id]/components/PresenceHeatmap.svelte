@@ -86,24 +86,24 @@
     });
   });
 
+  // Charte: success → epi-teal-solid, destructive → epi-orange. Alpha-based
+  // surfaces work in both light and dark modes without per-mode overrides.
   const cellClass = (state: Cell['state']) =>
     state === 'present'
-      ? 'border-green-300 bg-green-100 text-green-800 dark:border-green-900/40 dark:bg-green-900/30 dark:text-green-200'
+      ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
       : state === 'absent'
-        ? 'border-destructive/30 bg-destructive/10 text-destructive'
+        ? 'border-epi-orange/40 bg-epi-orange/10 text-epi-orange'
         : 'border-border bg-muted/40 text-muted-foreground';
 </script>
 
 {#if participation}
-  <section class="space-y-2">
-    <div class="flex items-baseline justify-between">
-      <h3
-        class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        <CalendarDays class="h-3 w-3 text-epi-blue" />
-        Présences — {participation.event.titre}
-      </h3>
-    </div>
+  <div class="space-y-2">
+    <p
+      class="flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+    >
+      <CalendarDays class="h-3 w-3 text-epi-blue" />
+      {participation.event.titre}
+    </p>
     <div class="grid grid-cols-5 gap-1.5 sm:grid-cols-10">
       {#each cells as cell, idx (cell.date.getTime())}
         <Tooltip.Provider delayDuration={150}>
@@ -133,5 +133,5 @@
         </Tooltip.Provider>
       {/each}
     </div>
-  </section>
+  </div>
 {/if}

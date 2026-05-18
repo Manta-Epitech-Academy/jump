@@ -25,16 +25,20 @@ import { buildBadgeCtx, computeBadges } from '$lib/domain/badges';
 import { groupParticipations } from '$lib/domain/talentTimeline';
 import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
 import { generateTalentOtp } from '$lib/server/services/talentOtp';
+import type { Communication } from '$lib/domain/communications';
 
-const TAB_KEYS = ['pedago', 'admin', 'communications'] as const;
+const TAB_KEYS = ['pedago', 'admin'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 function validateTab(raw: string | null): TabKey {
   return TAB_KEYS.includes(raw as TabKey) ? (raw as TabKey) : 'pedago';
 }
 
-const BROADCAST_PREVIEW_LIMIT = 3;
-const BROADCAST_PAGE_SIZE = 20;
+// Communications timeline: per-talent volume caps in the low hundreds
+// (≤20 reminders + ≤200ish broadcast recipients across a stage lifecycle),
+// so we fetch both sources unbounded and merge in memory rather than
+// stitching a SQL UNION with per-source offsets that would never line up.
+const COMMUNICATIONS_PAGE_SIZE = 20;
 
 function parsePage(raw: string | null): number {
   const n = parseInt(raw ?? '1', 10);
@@ -45,103 +49,87 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
   const tab = validateTab(url.searchParams.get('tab'));
-  const broadcastsPage = parsePage(url.searchParams.get('page'));
-  // Communications tab paginates; other tabs only need a preview at the top.
-  const broadcastsTake =
-    tab === 'communications' ? BROADCAST_PAGE_SIZE : BROADCAST_PREVIEW_LIMIT;
-  const broadcastsSkip =
-    tab === 'communications' ? (broadcastsPage - 1) * BROADCAST_PAGE_SIZE : 0;
+  const communicationsPage = parsePage(url.searchParams.get('page'));
   const broadcastsWhere = {
     OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
   };
   try {
-    const [
-      student,
-      participations,
-      reminderRows,
-      broadcastsReceived,
-      broadcastsTotal,
-    ] = await Promise.all([
-      db.talent.findUniqueOrThrow({
-        where: { id: params.id },
-        include: {
-          user: true,
-          interests: { include: { interest: true } },
-          interviews: {
-            where: { campusId },
-            include: {
-              staff: { include: { user: true } },
-              participation: { include: { event: true } },
-            },
-            orderBy: { date: 'desc' },
-          },
-        },
-      }),
-      db.participation.findMany({
-        where: { talentId: params.id },
-        include: {
-          stageCompliance: true,
-          interview: true,
-          event: {
-            include: {
-              mantas: {
-                include: { staffProfile: { include: { user: true } } },
+    const [student, participations, reminderRows, broadcastRows] =
+      await Promise.all([
+        db.talent.findUniqueOrThrow({
+          where: { id: params.id },
+          include: {
+            user: true,
+            interests: { include: { interest: true } },
+            interviews: {
+              where: { campusId },
+              include: {
+                staff: { include: { user: true } },
+                participation: { include: { event: true } },
               },
+              orderBy: { date: 'desc' },
             },
           },
-          activities: {
-            include: {
-              activity: {
-                include: {
-                  activityThemes: { include: { theme: true } },
-                  timeSlot: true,
+        }),
+        db.participation.findMany({
+          where: { talentId: params.id },
+          include: {
+            stageCompliance: true,
+            interview: true,
+            event: {
+              include: {
+                mantas: {
+                  include: { staffProfile: { include: { user: true } } },
                 },
               },
-              verdictAuthor: { include: { user: true } },
+            },
+            activities: {
+              include: {
+                activity: {
+                  include: {
+                    activityThemes: { include: { theme: true } },
+                    timeSlot: true,
+                  },
+                },
+                verdictAuthor: { include: { user: true } },
+              },
             },
           },
-        },
-        orderBy: { event: { date: 'desc' } },
-      }),
-      prisma.onboardingReminder.findMany({
-        where: { talentId: params.id },
-        orderBy: { sentAt: 'desc' },
-        select: {
-          id: true,
-          type: true,
-          subject: true,
-          body: true,
-          sentAt: true,
-          sentBy: true,
-        },
-      }),
-      prisma.broadcastRecipient.findMany({
-        where: broadcastsWhere,
-        orderBy: { createdAt: 'desc' },
-        take: broadcastsTake,
-        skip: broadcastsSkip,
-        select: {
-          id: true,
-          status: true,
-          sentAt: true,
-          openedAt: true,
-          talentId: true,
-          parentOfTalentId: true,
-          recipientEmail: true,
-          recipientPhone: true,
-          broadcast: {
-            select: {
-              id: true,
-              name: true,
-              channel: true,
-              subjectSnapshot: true,
-              createdAt: true,
+          orderBy: { event: { date: 'desc' } },
+        }),
+        prisma.onboardingReminder.findMany({
+          where: { talentId: params.id },
+          orderBy: { sentAt: 'desc' },
+          select: {
+            id: true,
+            type: true,
+            subject: true,
+            body: true,
+            sentAt: true,
+            sentBy: true,
+          },
+        }),
+        prisma.broadcastRecipient.findMany({
+          where: broadcastsWhere,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            sentAt: true,
+            openedAt: true,
+            parentOfTalentId: true,
+            broadcast: {
+              select: {
+                id: true,
+                name: true,
+                channel: true,
+                subjectSnapshot: true,
+                createdAt: true,
+              },
             },
           },
-        },
-      }),
-      prisma.broadcastRecipient.count({ where: broadcastsWhere }),
-    ]);
+        }),
+      ]);
 
     const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
     const senders = senderIds.length
@@ -151,14 +139,54 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         })
       : [];
     const senderById = new Map(senders.map((s) => [s.id, s]));
-    const reminders = reminderRows.map((r) => ({
+
+    // Merge both sources into one chronological stream. `sentAt` is the
+    // canonical timestamp for the talent ("when did this land"); broadcasts
+    // fall back to the broadcast's createdAt when the recipient row has not
+    // been stamped yet (queued/pending).
+    const reminderComms: Communication[] = reminderRows.map((r) => ({
+      kind: 'reminder',
       id: r.id,
-      type: r.type as 'student' | 'parent',
+      sentAt: r.sentAt,
+      audience: r.type as 'student' | 'parent',
       subject: r.subject,
       body: r.body,
-      sentAt: r.sentAt,
       sender: senderById.get(r.sentBy) ?? null,
     }));
+    const broadcastComms: Communication[] = broadcastRows.map((b) => ({
+      kind: 'broadcast',
+      id: b.id,
+      sentAt: b.sentAt ?? b.broadcast.createdAt,
+      audience: b.parentOfTalentId ? 'parent' : 'student',
+      status: b.status as 'pending' | 'sent' | 'failed',
+      openedAt: b.openedAt,
+      channel: b.broadcast.channel as 'mail' | 'sms',
+      broadcast: {
+        id: b.broadcast.id,
+        name: b.broadcast.name,
+        subjectSnapshot: b.broadcast.subjectSnapshot,
+      },
+    }));
+    const allCommunications = [...reminderComms, ...broadcastComms].sort(
+      (a, b) => b.sentAt.getTime() - a.sentAt.getTime(),
+    );
+    const communicationsTotal = allCommunications.length;
+    const communicationsTotalPages = Math.max(
+      1,
+      Math.ceil(communicationsTotal / COMMUNICATIONS_PAGE_SIZE),
+    );
+    const safeCommunicationsPage = Math.min(
+      communicationsPage,
+      communicationsTotalPages,
+    );
+    const communications = allCommunications.slice(
+      (safeCommunicationsPage - 1) * COMMUNICATIONS_PAGE_SIZE,
+      safeCommunicationsPage * COMMUNICATIONS_PAGE_SIZE,
+    );
+
+    // `reminders` is still consumed by the relance compose dialog to detect
+    // recent skips (don't re-spam the same talent within the cooldown).
+    const reminders = reminderComms;
 
     const timezone = getCampusTimezone(locals);
     const bounds = getLifecycleBounds(timezone);
@@ -252,11 +280,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       participations,
       activeStageParticipations,
       reminders,
-      broadcastsReceived,
-      broadcastsTotal,
-      broadcastsPage,
-      broadcastsPageSize: BROADCAST_PAGE_SIZE,
-      broadcastsPreviewLimit: BROADCAST_PREVIEW_LIMIT,
+      communications,
+      communicationsTotal,
+      communicationsPage: safeCommunicationsPage,
+      communicationsPageSize: COMMUNICATIONS_PAGE_SIZE,
       stats,
       portfolioItems,
       firstLoginAt,

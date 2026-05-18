@@ -2623,6 +2623,11 @@ type ReminderBlueprint = {
   staffKey: string;
   daysOffset: number; // negative = past
   hour?: number;
+  // Optional archived copy of what was sent. When absent the fiche shows the
+  // "contenu non archivé" placeholder — keep a few that way so devs see both
+  // states in the timeline.
+  subject?: string;
+  body?: string;
 };
 
 const REMINDERS: ReminderBlueprint[] = [
@@ -2634,6 +2639,19 @@ const REMINDERS: ReminderBlueprint[] = [
     staffKey: 'pauline.marchand',
     daysOffset: -10,
     hour: 9,
+    subject: 'Ton stage de seconde — derniers documents à signer',
+    body: `Bonjour,
+
+Le stage commence dans une dizaine de jours et il manque encore ta
+convention signée pour finaliser ton inscription.
+
+Tu peux la récupérer directement depuis ton espace Jump (rubrique
+Documents) puis nous la renvoyer signée par tes parents.
+
+N'hésite pas à me répondre si tu rencontres la moindre difficulté.
+
+Bonne journée,
+Pauline — Epitech Academy Paris`,
   },
   {
     studentEmail: parisStudents[14],
@@ -2641,6 +2659,18 @@ const REMINDERS: ReminderBlueprint[] = [
     staffKey: 'pauline.marchand',
     daysOffset: -3,
     hour: 11,
+    subject: 'Stage de seconde — rappel signature convention',
+    body: `Bonjour,
+
+Nous accueillons votre enfant dans 3 jours pour son stage de seconde
+à Epitech Paris. Pour pouvoir le recevoir, il nous manque encore la
+convention de stage signée.
+
+Pourriez-vous nous la retourner avant vendredi soir ? Le document
+est disponible dans l'espace Jump de votre enfant.
+
+Bien cordialement,
+Pauline Marchand — Talent Acquisition`,
   },
   {
     studentEmail: parisStudents[15],
@@ -2655,6 +2685,17 @@ const REMINDERS: ReminderBlueprint[] = [
     staffKey: 'marie.manta',
     daysOffset: -12,
     hour: 10,
+    subject: 'Rappel — autorisation parentale',
+    body: `Salut,
+
+Petit rappel : il nous faut l'autorisation parentale signée par
+l'un de tes parents pour que tu puisses participer au stage.
+
+Le document se trouve sur ton espace Jump > Documents. Une fois
+signé, dépose-le au même endroit ou renvoie-le moi par mail.
+
+À très vite,
+Marie`,
   },
   {
     studentEmail: parisStudents[16],
@@ -2715,6 +2756,218 @@ const REMINDERS: ReminderBlueprint[] = [
     staffKey: 'sarah.moreau',
     daysOffset: -3,
     hour: 11,
+  },
+];
+
+// ─── Broadcast blueprints ───
+//
+// Mass campaigns (mail + SMS) targeting talents or their parents. Visible
+// in the Communications timeline on the fiche talent, mixed with the 1:1
+// onboarding reminders above. Covers every UI state we want devs to be
+// able to eyeball: opened, sent-not-opened, failed (with error), pending
+// (queued), SMS variant, parent-side recipient.
+
+type BroadcastRecipientBlueprint = {
+  studentEmail: string;
+  /** Recipient is the parent (parentOfTalentId) rather than the talent. */
+  parentSide?: boolean;
+  status: 'pending' | 'sent' | 'failed';
+  sentDaysOffset?: number;
+  sentHour?: number;
+  openedDaysOffset?: number;
+  openedHour?: number;
+  errorMessage?: string;
+};
+
+type BroadcastBlueprint = {
+  name: string;
+  channel: 'mail' | 'sms';
+  audience: 'talent' | 'parent';
+  campus: 'Paris' | 'Lyon';
+  /** Index into the seeded eventIds list; null = campus-wide, no event link. */
+  eventIndex: number | null;
+  subject: string | null;
+  body: string;
+  createdByStaffKey: string;
+  createdDaysOffset: number;
+  createdHour: number;
+  /** Final aggregate status of the broadcast itself (independent of each
+   * recipient row). `queued` = nothing dispatched yet; `sent` = all done. */
+  status: 'queued' | 'sent' | 'partial_failed';
+  recipients: BroadcastRecipientBlueprint[];
+};
+
+const BROADCASTS: BroadcastBlueprint[] = [
+  // Headline campaign sent at stage kickoff — drives the "opened" + "sent
+  // not opened" variants in the fiche timeline. Event-scoped to the
+  // ongoing Paris stage (eventIds[7]).
+  {
+    name: 'Bienvenue au stage de seconde 🚀',
+    channel: 'mail',
+    audience: 'talent',
+    campus: 'Paris',
+    eventIndex: 7,
+    createdByStaffKey: 'pauline.marchand',
+    createdDaysOffset: -8,
+    createdHour: 8,
+    status: 'sent',
+    subject: 'À demain ! Tout ce qu’il faut savoir pour ton stage',
+    body: `Salut {{prenom}},
+
+Demain, c'est le grand jour : ton stage de seconde commence à Epitech Paris !
+
+📍 Rendez-vous à 9h, 14-16 rue Voltaire, 94270 Le Kremlin-Bicêtre.
+🎒 Apporte-toi de quoi noter et ta carte d'identité.
+💻 Pas besoin d'ordinateur — tout est fourni sur place.
+
+On se voit demain !
+L'équipe Epitech Academy`,
+    recipients: [
+      {
+        studentEmail: parisStudents[0],
+        status: 'sent',
+        sentDaysOffset: -8,
+        sentHour: 8,
+        openedDaysOffset: -7,
+        openedHour: 19,
+      },
+      {
+        studentEmail: parisStudents[14],
+        status: 'sent',
+        sentDaysOffset: -8,
+        sentHour: 8,
+        openedDaysOffset: -7,
+        openedHour: 12,
+      },
+      {
+        studentEmail: parisStudents[16],
+        status: 'sent',
+        sentDaysOffset: -8,
+        sentHour: 8,
+        // No openedAt — surfaces the "Non ouvert" tooltip in the UI.
+      },
+      {
+        studentEmail: parisStudents[4],
+        status: 'sent',
+        sentDaysOffset: -8,
+        sentHour: 8,
+        openedDaysOffset: -6,
+        openedHour: 9,
+      },
+    ],
+  },
+  // Parent-side reminder — exercises audience=parent + parentSide on the
+  // recipient + the "Échec" delivery state.
+  {
+    name: 'Rappel — Signature de la convention',
+    channel: 'mail',
+    audience: 'parent',
+    campus: 'Paris',
+    eventIndex: 7,
+    createdByStaffKey: 'pauline.marchand',
+    createdDaysOffset: -5,
+    createdHour: 10,
+    status: 'partial_failed',
+    subject: 'Convention de stage — à signer avant vendredi',
+    body: `Bonjour,
+
+Le stage de votre enfant approche et nous n'avons pas encore reçu la
+convention signée. Pour pouvoir l'accueillir lundi, nous avons besoin
+du document avant vendredi soir.
+
+Vous le trouverez dans l'espace Jump de votre enfant (rubrique
+Documents). N'hésitez pas à nous écrire en cas de besoin.
+
+Bien cordialement,
+Pauline Marchand — Epitech Academy Paris`,
+    recipients: [
+      {
+        studentEmail: parisStudents[14],
+        parentSide: true,
+        status: 'sent',
+        sentDaysOffset: -5,
+        sentHour: 10,
+        openedDaysOffset: -5,
+        openedHour: 18,
+      },
+      {
+        studentEmail: parisStudents[15],
+        parentSide: true,
+        status: 'sent',
+        sentDaysOffset: -5,
+        sentHour: 10,
+      },
+      {
+        studentEmail: parisStudents[16],
+        parentSide: true,
+        status: 'failed',
+        errorMessage: 'Adresse parent inconnue ou inactive',
+      },
+    ],
+  },
+  // SMS J-1 — exercises the channel switch (MessageSquare icon, no opened
+  // state since SMS has no open tracking).
+  {
+    name: 'Démarrage demain — checklist & adresse',
+    channel: 'sms',
+    audience: 'talent',
+    campus: 'Paris',
+    eventIndex: 7,
+    createdByStaffKey: 'marie.manta',
+    createdDaysOffset: -1,
+    createdHour: 17,
+    status: 'sent',
+    subject: null,
+    body: `Salut {{prenom}}, RDV demain 9h au 14-16 rue Voltaire (Kremlin-Bicêtre). Apporte ta carte d'identité, on s'occupe du reste. — Epitech Academy`,
+    recipients: [
+      {
+        studentEmail: parisStudents[0],
+        status: 'sent',
+        sentDaysOffset: -1,
+        sentHour: 17,
+      },
+      {
+        studentEmail: parisStudents[14],
+        status: 'sent',
+        sentDaysOffset: -1,
+        sentHour: 17,
+      },
+      {
+        studentEmail: parisStudents[16],
+        status: 'sent',
+        sentDaysOffset: -1,
+        sentHour: 17,
+      },
+    ],
+  },
+  // Queued campaign — recipients are still pending (no sentAt yet), so the
+  // timeline falls back to broadcast.createdAt for ordering. Demonstrates
+  // the "En attente" pill.
+  {
+    name: 'Récap de stage — bravo et retours',
+    channel: 'mail',
+    audience: 'talent',
+    campus: 'Paris',
+    eventIndex: 7,
+    createdByStaffKey: 'pauline.marchand',
+    createdDaysOffset: 0,
+    createdHour: 9,
+    status: 'queued',
+    subject: 'Ton stage est fini — un dernier message',
+    body: `Bravo {{prenom}} !
+
+Tu viens de boucler ton stage de seconde à Epitech. On a passé une
+semaine super avec toi.
+
+On t'enverra un récap personnalisé d'ici quelques jours, avec
+quelques pistes pour la suite si la tech t'intéresse.
+
+À très vite,
+L'équipe Epitech Academy`,
+    recipients: [
+      { studentEmail: parisStudents[0], status: 'pending' },
+      { studentEmail: parisStudents[14], status: 'pending' },
+    ],
   },
 ];
 
@@ -2839,9 +3092,19 @@ async function main() {
   const portfolioCount = await seedPortfolio(talentByEmail, eventIds);
   console.log(`✓  Portfolio (${portfolioCount} items)`);
 
-  // 12. Reminders (Historique des relances)
+  // 12. Reminders (1:1 staff → talent / parent)
   const reminderCount = await seedReminders(staffByKey, talentByEmail);
   console.log(`✓  Reminders (${reminderCount})`);
+
+  // 12b. Broadcasts (mass mail / SMS campaigns) — feed the unified
+  //      communications timeline on the fiche talent.
+  const broadcastRecipientCount = await seedBroadcasts(
+    staffByKey,
+    talentByEmail,
+    campuses,
+    eventIds,
+  );
+  console.log(`✓  Broadcasts (${broadcastRecipientCount} recipient rows)`);
 
   // 13. CMS welcome pages for stage_seconde events
   await seedWelcomePages(eventIds, staffByKey);
@@ -3758,6 +4021,8 @@ async function seedReminders(
       data: {
         talentId: talent.id,
         type: r.type,
+        subject: r.subject ?? null,
+        body: r.body ?? null,
         sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
         sentBy: staff.userId,
       },
@@ -3765,6 +4030,113 @@ async function seedReminders(
     count++;
   }
   return count;
+}
+
+// ─── Broadcasts ───
+
+/**
+ * Seed mass campaigns (mail + SMS) and their per-talent / per-parent
+ * recipient rows. Each broadcast references a `MessageTemplate` (we
+ * create one per channel up-front and reuse it across campaigns — the
+ * snapshot lives on the `Broadcast` row itself, so reusing a template is
+ * realistic and keeps the seed tight). Returns the number of recipient
+ * rows created so `main()` can log it.
+ */
+async function seedBroadcasts(
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
+  talentByEmail: Record<string, { id: string }>,
+  campuses: Record<string, { id: string }>,
+  eventIds: string[],
+): Promise<number> {
+  // Pick a deterministic template author. Same staff member created the
+  // reusable transactional templates, so the broadcast templates feel
+  // consistent in the admin UI.
+  const templateAuthor =
+    staffByKey['pauline.marchand']?.userId ??
+    Object.values(staffByKey)[0]?.userId;
+  if (!templateAuthor) return 0;
+
+  const mailTemplate = await prisma.messageTemplate.create({
+    data: {
+      name: 'Communications stage (mail)',
+      channel: 'mail',
+      subject: 'Communication Epitech Academy',
+      body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+      createdById: templateAuthor,
+    },
+  });
+  const smsTemplate = await prisma.messageTemplate.create({
+    data: {
+      name: 'Communications stage (SMS)',
+      channel: 'sms',
+      subject: null,
+      body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+      createdById: templateAuthor,
+    },
+  });
+
+  let recipientCount = 0;
+
+  for (const bp of BROADCASTS) {
+    const campusId = campuses[bp.campus]?.id;
+    const author = staffByKey[bp.createdByStaffKey];
+    if (!campusId || !author) continue;
+
+    const eventId =
+      bp.eventIndex !== null ? (eventIds[bp.eventIndex] ?? null) : null;
+    const template = bp.channel === 'mail' ? mailTemplate : smsTemplate;
+    const createdAt = dayAt(bp.createdDaysOffset, bp.createdHour, 0);
+
+    const broadcast = await prisma.broadcast.create({
+      data: {
+        name: bp.name,
+        channel: bp.channel,
+        templateId: template.id,
+        campusId,
+        audience: bp.audience,
+        eventId,
+        subjectSnapshot: bp.subject,
+        bodySnapshot: bp.body,
+        status: bp.status,
+        createdById: author.userId,
+        createdAt,
+        updatedAt: createdAt,
+      },
+    });
+
+    for (const rcp of bp.recipients) {
+      const talent = talentByEmail[rcp.studentEmail];
+      if (!talent) continue;
+
+      const recipientEmail = rcp.parentSide
+        ? rcp.studentEmail.replace('@', '+parent@')
+        : rcp.studentEmail;
+
+      await prisma.broadcastRecipient.create({
+        data: {
+          broadcastId: broadcast.id,
+          talentId: rcp.parentSide ? null : talent.id,
+          parentOfTalentId: rcp.parentSide ? talent.id : null,
+          recipientEmail: bp.channel === 'mail' ? recipientEmail : null,
+          recipientPhone: bp.channel === 'sms' ? '+33600000000' : null,
+          status: rcp.status,
+          errorMessage: rcp.errorMessage ?? null,
+          sentAt:
+            rcp.sentDaysOffset !== undefined
+              ? dayAt(rcp.sentDaysOffset, rcp.sentHour ?? 10, 0)
+              : null,
+          openedAt:
+            rcp.openedDaysOffset !== undefined
+              ? dayAt(rcp.openedDaysOffset, rcp.openedHour ?? 10, 0)
+              : null,
+          createdAt,
+        },
+      });
+      recipientCount++;
+    }
+  }
+
+  return recipientCount;
 }
 
 // ─── Email templates + action mappings ───

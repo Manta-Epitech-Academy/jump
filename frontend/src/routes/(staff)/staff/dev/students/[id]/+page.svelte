@@ -32,8 +32,7 @@
   import PresenceHeatmap from './components/PresenceHeatmap.svelte';
   import ContactCard from './components/ContactCard.svelte';
   import ComplianceDocsTable from './components/ComplianceDocsTable.svelte';
-  import CommHistoryList from './components/CommHistoryList.svelte';
-  import BroadcastHistoryList from './components/BroadcastHistoryList.svelte';
+  import CommunicationsTimeline from './components/CommunicationsTimeline.svelte';
   import InterviewHistoryList from './components/InterviewHistoryList.svelte';
 
   import RelanceComposeDialog, {
@@ -84,7 +83,7 @@
   );
 
   let editOpen = $state(false);
-  type Tab = 'pedago' | 'admin' | 'communications';
+  type Tab = 'pedago' | 'admin';
   let tab = $state<Tab>(untrack(() => data.tab as Tab));
 
   $effect(() => {
@@ -125,19 +124,15 @@
   }
 
   function changeTab(next: string) {
-    if (next !== 'pedago' && next !== 'admin' && next !== 'communications')
-      return;
+    if (next !== 'pedago' && next !== 'admin') return;
     tab = next;
-    // Reset pagination when leaving the communications tab — `?page=N` is
-    // only meaningful there and clutters the URL otherwise.
+    // Reset comms pagination when switching tabs — `?page=N` only drives the
+    // communications timeline on the admin tab.
     navigateWithParams({ tab: next === 'pedago' ? '' : next, page: '' });
   }
 
-  const broadcastsTotalPages = $derived(
-    Math.max(1, Math.ceil(data.broadcastsTotal / data.broadcastsPageSize)),
-  );
-  function goToBroadcastPage(p: number) {
-    navigateWithParams({ tab: 'communications', page: String(p) });
+  function goToCommunicationsPage(p: number) {
+    navigateWithParams({ tab: 'admin', page: String(p) });
   }
 
   // Relance compose state — shared between the étudiant + parent buttons.
@@ -156,7 +151,7 @@
     const willSkip = classifyRelanceSkip({
       type: composeType,
       talent: { ...t, email: t.user?.email ?? t.email },
-      lastReminderAt: data.reminders.find((r) => r.type === composeType)
+      lastReminderAt: data.reminders.find((r) => r.audience === composeType)
         ?.sentAt,
     });
     const label = `${vars.nom} ${vars.prenom}`.trim();
@@ -238,31 +233,7 @@
           <span
             class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
           >
-            Suivi &amp; relances
-          </span>
-        </span>
-      </Tabs.Trigger>
-      <Tabs.Trigger value="communications" class={triggerClass}>
-        <Send
-          class="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]/tab:text-epi-blue"
-        />
-        <span class="flex flex-col items-start gap-0.5">
-          <span
-            class="flex items-center gap-1.5 text-sm font-bold tracking-wide uppercase"
-          >
-            Communications
-            {#if data.broadcastsTotal > 0}
-              <span
-                class="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground"
-              >
-                {data.broadcastsTotal}
-              </span>
-            {/if}
-          </span>
-          <span
-            class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-          >
-            Historique &amp; envois
+            Dossier &amp; communications
           </span>
         </span>
       </Tabs.Trigger>
@@ -377,7 +348,15 @@
       </div>
 
       <div class="grid gap-6 md:grid-cols-2">
-        <CommHistoryList reminders={data.reminders} timezone={data.timezone} />
+        <CommunicationsTimeline
+          items={data.communications}
+          total={data.communicationsTotal}
+          page={data.communicationsPage}
+          pageSize={data.communicationsPageSize}
+          talentId={data.student.id}
+          timezone={data.timezone}
+          onPageChange={goToCommunicationsPage}
+        />
 
         <EpiSection overline="Assiduité" title="Présence stage" accent="tech">
           <PresenceHeatmap
@@ -414,48 +393,6 @@
         interviews={data.student.interviews}
         timezone={data.timezone}
       />
-    </Tabs.Content>
-
-    <!-- COMMUNICATIONS TAB -->
-    <Tabs.Content value="communications" class="space-y-4">
-      <BroadcastHistoryList
-        items={data.broadcastsReceived}
-        timezone={data.timezone}
-        talentId={data.student.id}
-      />
-      {#if data.broadcastsTotal > data.broadcastsPageSize}
-        <div
-          class="flex items-center justify-between gap-2 text-xs text-muted-foreground"
-        >
-          <span>
-            Page {data.broadcastsPage} sur {broadcastsTotalPages}
-            <span class="ml-2">·</span>
-            <span class="ml-2">{data.broadcastsTotal} au total</span>
-          </span>
-          <div class="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              class="rounded-sm"
-              disabled={data.broadcastsPage <= 1}
-              onclick={() => goToBroadcastPage(data.broadcastsPage - 1)}
-            >
-              ← Précédent
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              class="rounded-sm"
-              disabled={data.broadcastsPage >= broadcastsTotalPages}
-              onclick={() => goToBroadcastPage(data.broadcastsPage + 1)}
-            >
-              Suivant →
-            </Button>
-          </div>
-        </div>
-      {/if}
     </Tabs.Content>
   </Tabs.Root>
 
