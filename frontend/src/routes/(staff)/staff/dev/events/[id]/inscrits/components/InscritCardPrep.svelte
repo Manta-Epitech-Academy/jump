@@ -1,12 +1,9 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import Check from '@lucide/svelte/icons/check';
-  import X from '@lucide/svelte/icons/x';
   import Trophy from '@lucide/svelte/icons/trophy';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import NewTalentBadge from '$lib/components/students/NewTalentBadge.svelte';
-  import { cn } from '$lib/utils';
   import type { PrepRow } from './types';
   import { humanizeNiveau } from './niveau';
 
@@ -18,13 +15,6 @@
   const overflow = $derived(Math.max(0, interests.length - 3));
 
   const isNewTalent = $derived((talent?.eventsCount ?? 0) === 0);
-
-  type Tile = { label: string; ok: boolean };
-  const tiles = $derived<Tile[]>([
-    { label: 'Compte plateforme', ok: row.hasAccount },
-    { label: '1ère connexion', ok: row.hasFirstLogin },
-    { label: 'Profil complété', ok: row.hasCompletedProfile },
-  ]);
 </script>
 
 <a
@@ -96,24 +86,4 @@
     </span>
     <span>XP</span>
   </div>
-
-  <ul class="space-y-1">
-    {#each tiles as tile (tile.label)}
-      <li
-        class={cn(
-          'flex items-center gap-2 rounded-sm px-2 py-1 text-[11px]',
-          tile.ok
-            ? 'bg-green-50 text-green-700 dark:bg-green-900/15 dark:text-green-300'
-            : 'bg-muted/50 text-muted-foreground',
-        )}
-      >
-        {#if tile.ok}
-          <Check class="h-3 w-3 shrink-0" />
-        {:else}
-          <X class="h-3 w-3 shrink-0 text-destructive/60" />
-        {/if}
-        <span class="font-medium">{tile.label}</span>
-      </li>
-    {/each}
-  </ul>
 </a>

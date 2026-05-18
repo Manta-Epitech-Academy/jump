@@ -167,8 +167,6 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
   const firstDayBounds = getDayBounds(event.date, timezone);
   const [
     total,
-    comptesActives,
-    profilComplete,
     dossiersAdmin,
     checklist,
     lyceesBreakdown,
@@ -176,19 +174,6 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
     firstDayTimeSlots,
   ] = await Promise.all([
     db.participation.count({ where: { eventId: event.id } }),
-    db.participation.count({
-      where: { eventId: event.id, talent: { userId: { not: null } } },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        talent: {
-          infoValidatedAt: { not: null },
-          rulesSignedAt: { not: null },
-          charterAcceptedAt: { not: null },
-        },
-      },
-    }),
     // Validation funnel only — bringing a PC is logistics (we just plan
     // the laptops), not a doc to validate.
     db.participation.count({
@@ -226,7 +211,7 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
   );
 
   return {
-    kpis: { total, comptesActives, profilComplete, dossiersAdmin },
+    kpis: { total, dossiersAdmin },
     checklist,
     lyceesBreakdown,
     interestsCloud,

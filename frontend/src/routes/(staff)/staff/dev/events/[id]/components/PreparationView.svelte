@@ -1,7 +1,5 @@
 <script lang="ts">
   import UserPlus from '@lucide/svelte/icons/user-plus';
-  import KeyRound from '@lucide/svelte/icons/key-round';
-  import UserCheck from '@lucide/svelte/icons/user-check';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import { resolve } from '$app/paths';
   import ChecklistPanel from '$lib/components/staff/ChecklistPanel.svelte';
@@ -25,8 +23,6 @@
     timezone: string;
     kpis: {
       total: number;
-      comptesActives: number;
-      profilComplete: number;
       dossiersAdmin: number;
     };
     checklist: ChecklistItem[];
@@ -91,7 +87,7 @@
 
   <TalentJourneyExplainer />
 
-  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+  <div class="grid gap-3 sm:grid-cols-2">
     <EventKpiTile
       label="Inscrits"
       helpText="Talents inscrits à ce stage (synchro automatique Salesforce). Un compte personnel Jump leur est automatiquement créé."
@@ -100,26 +96,6 @@
       icon={UserPlus}
       tone="blue"
       href={inscritsHref}
-    />
-    <EventKpiTile
-      label="Comptes activés"
-      helpText="Talents qui se sont connectés au moins une fois à leur espace Jump (via le code OTP reçu par email)."
-      value={kpis.comptesActives}
-      sub={`${pct(kpis.comptesActives)} % · ${kpis.total - kpis.comptesActives} à relancer`}
-      icon={KeyRound}
-      tone="teal"
-      progress={pct(kpis.comptesActives)}
-      href={`${inscritsHref}?filter=never-logged`}
-    />
-    <EventKpiTile
-      label="Profil complété"
-      helpText="Talents ayant terminé toutes les étapes de leur onboarding dans leur espace : infos perso, lycée, centres d'intérêt, règlement intérieur signé."
-      value={kpis.profilComplete}
-      sub={`${pct(kpis.profilComplete)} % · onboarding plateforme`}
-      icon={UserCheck}
-      tone="pink"
-      progress={pct(kpis.profilComplete)}
-      href={`${inscritsHref}?filter=profile-incomplete`}
     />
     <EventKpiTile
       label="Dossiers admin OK"

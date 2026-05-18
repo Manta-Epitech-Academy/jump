@@ -14,14 +14,8 @@
   import InscritCardPrep from './components/InscritCardPrep.svelte';
   import InscritCardOngoing from './components/InscritCardOngoing.svelte';
   import InscritCardPast from './components/InscritCardPast.svelte';
-  import PrepFilterChips from './components/PrepFilterChips.svelte';
   import { humanizeNiveau } from './components/niveau';
-  import type {
-    FilterKey,
-    OngoingRow,
-    PrepRow,
-    Sort,
-  } from './components/types';
+  import type { OngoingRow, PrepRow, Sort } from './components/types';
 
   let { data }: { data: PageData } = $props();
 
@@ -36,10 +30,6 @@
       else url.searchParams.delete(key);
     }
     goto(url.toString(), { keepFocus: true, noScroll: true });
-  }
-
-  function changeFilter(next: FilterKey) {
-    navigateWithParams({ filter: next === 'all' ? '' : next });
   }
 
   function clearLycee() {
@@ -126,9 +116,7 @@
 
   const variant = $derived(data.variant);
 
-  const totalCount = $derived(
-    variant.kind === 'prep' ? variant.counts.all : variant.rows.length,
-  );
+  const totalCount = $derived(variant.rows.length);
   const presentCount = $derived(
     variant.kind === 'past' || variant.kind === 'ongoing'
       ? variant.rows.filter((r) => r.participation.isPresent).length
@@ -140,9 +128,6 @@
 
   const clientFiltersApplied = $derived(
     searchQuery.trim().length > 0 || niveauFilter !== 'all',
-  );
-  const urlFilterApplied = $derived(
-    variant.kind === 'prep' && variant.filter !== 'all',
   );
 </script>
 
@@ -249,19 +234,12 @@
     </p>
 
     {#if variant.kind === 'prep'}
-      <div class="space-y-3">
-        <InscritFilterBar
-          bind:searchQuery
-          bind:niveauFilter
-          bind:sort
-          availableNiveaux={data.availableNiveaux}
-        />
-        <PrepFilterChips
-          filter={variant.filter}
-          counts={variant.counts}
-          onFilterChange={changeFilter}
-        />
-      </div>
+      <InscritFilterBar
+        bind:searchQuery
+        bind:niveauFilter
+        bind:sort
+        availableNiveaux={data.availableNiveaux}
+      />
 
       {@const filtered = applySort(
         applyNiveau(applySearch(variant.rows, searchQuery), niveauFilter),
@@ -276,14 +254,11 @@
           >
             Aucun résultat
           </h3>
-          {#if clientFiltersApplied || urlFilterApplied}
+          {#if clientFiltersApplied}
             <Button
               variant="outline"
               size="sm"
-              onclick={() => {
-                resetClientFilters();
-                changeFilter('all');
-              }}
+              onclick={resetClientFilters}
               class="mt-3 rounded-sm"
             >
               Réinitialiser les filtres

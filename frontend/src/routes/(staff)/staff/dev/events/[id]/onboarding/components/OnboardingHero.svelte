@@ -114,7 +114,7 @@
     <CohortHealthBar {ready} {incomplete} {none} />
   </div>
 
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
     {#each cards as card (card.key)}
       <EventKpiTile
         label={card.label}

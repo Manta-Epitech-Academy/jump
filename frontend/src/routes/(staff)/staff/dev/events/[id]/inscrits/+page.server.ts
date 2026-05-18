@@ -17,33 +17,7 @@ import {
 } from '$lib/domain/eventLifecycle';
 import { getInterviewDisplayStatus } from '$lib/domain/interview';
 import { compareNiveaux } from './components/niveau';
-import {
-  FILTER_KEYS,
-  type FilterCounts,
-  type FilterKey,
-  type OngoingRow,
-  type PrepRow,
-} from './components/types';
-
-function validateFilter(raw: string | null): FilterKey {
-  return (FILTER_KEYS as readonly string[]).includes(raw ?? '')
-    ? (raw as FilterKey)
-    : 'all';
-}
-
-function filterCondition(filter: FilterKey) {
-  if (filter === 'never-logged') return { talent: { lastActiveAt: null } };
-  if (filter === 'profile-incomplete') {
-    return {
-      OR: [
-        { talent: { infoValidatedAt: null } },
-        { talent: { rulesSignedAt: null } },
-        { talent: { charterAcceptedAt: null } },
-      ],
-    };
-  }
-  return null;
-}
+import type { OngoingRow, PrepRow } from './components/types';
 
 function originConditions(lyceeName: string | null, interestId: string | null) {
   const conds: object[] = [];
@@ -85,68 +59,30 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   );
 
   if (phase === 'upcoming') {
-    const filter = validateFilter(url.searchParams.get('filter'));
-    const baseAnd: object[] = [{ eventId: event.id }];
-    const filterCond = filterCondition(filter);
-    const scopedAnd = [
-      ...baseAnd,
-      ...(filterCond ? [filterCond] : []),
-      ...originAnd,
-    ];
+    const scopedAnd = [{ eventId: event.id }, ...originAnd];
     const filteredWhere =
       scopedAnd.length === 1 ? scopedAnd[0] : { AND: scopedAnd };
 
-    const [participations, allCount, neverLoggedCount, profileIncompleteCount] =
-      await Promise.all([
-        db.participation.findMany({
-          where: filteredWhere,
+    const participations = await db.participation.findMany({
+      where: filteredWhere,
+      include: {
+        talent: {
           include: {
-            talent: {
-              include: {
-                interests: { include: { interest: true } },
-              },
-            },
+            interests: { include: { interest: true } },
           },
-          orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-        }),
-        db.participation.count({ where: { eventId: event.id } }),
-        db.participation.count({
-          where: { eventId: event.id, talent: { lastActiveAt: null } },
-        }),
-        db.participation.count({
-          where: {
-            eventId: event.id,
-            OR: [
-              { talent: { infoValidatedAt: null } },
-              { talent: { rulesSignedAt: null } },
-              { talent: { charterAcceptedAt: null } },
-            ],
-          },
-        }),
-      ]);
+        },
+      },
+      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    });
 
-    const rows: PrepRow[] = participations.map((p) => ({
-      participation: p,
-      hasAccount: p.talent?.userId != null,
-      hasFirstLogin: p.talent?.lastActiveAt != null,
-      hasCompletedProfile:
-        !!p.talent?.infoValidatedAt &&
-        !!p.talent?.rulesSignedAt &&
-        !!p.talent?.charterAcceptedAt,
-    }));
-
-    const counts: FilterCounts = {
-      all: allCount,
-      neverLogged: neverLoggedCount,
-      profileIncomplete: profileIncompleteCount,
-    };
+    const rows: PrepRow[] = participations.map((p) => ({ participation: p }));
 
     return {
       event,
       timezone,
       origin,
       availableNiveaux: computeAvailableNiveaux(participations),
-      variant: { kind: 'prep' as const, rows, filter, counts },
+      variant: { kind: 'prep' as const, rows },
     };
   }
 

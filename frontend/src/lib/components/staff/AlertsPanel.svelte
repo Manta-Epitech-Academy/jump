@@ -8,9 +8,7 @@
   import Laptop from '@lucide/svelte/icons/laptop';
   import Mail from '@lucide/svelte/icons/mail';
   import PhoneCall from '@lucide/svelte/icons/phone-call';
-  import PowerOff from '@lucide/svelte/icons/power-off';
   import UserPlus from '@lucide/svelte/icons/user-plus';
-  import UserX from '@lucide/svelte/icons/user-x';
   import IconType from '@lucide/svelte/icons/type';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
   import type {
@@ -44,8 +42,6 @@
     'chartes-to-chase': FileSignature,
     'image-rights-to-chase': Mail,
     'pc-missing': Laptop,
-    'talents-never-logged': PowerOff,
-    'talents-profile-incomplete': UserX,
   };
 </script>
 

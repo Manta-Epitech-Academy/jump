@@ -1,13 +1,6 @@
 import type { InterviewRecommendation, Prisma } from '@prisma/client';
 import type { InterviewDisplayStatus } from '$lib/domain/interview';
 
-export const FILTER_KEYS = [
-  'all',
-  'never-logged',
-  'profile-incomplete',
-] as const;
-export type FilterKey = (typeof FILTER_KEYS)[number];
-
 export type Sort = 'alpha' | 'xp' | 'events';
 
 type ParticipationPrep = Prisma.ParticipationGetPayload<{
@@ -38,13 +31,7 @@ type ParticipationOngoing = Prisma.ParticipationGetPayload<{
   };
 }>;
 
-type OnboardingState = {
-  hasAccount: boolean;
-  hasFirstLogin: boolean;
-  hasCompletedProfile: boolean;
-};
-
-export type PrepRow = OnboardingState & {
+export type PrepRow = {
   participation: ParticipationPrep;
 };
 
@@ -58,9 +45,3 @@ export type OngoingRow = {
 };
 
 export type PastRow = OngoingRow;
-
-export type FilterCounts = {
-  all: number;
-  neverLogged: number;
-  profileIncomplete: number;
-};

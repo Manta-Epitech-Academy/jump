@@ -26,9 +26,7 @@ export type EventAlertKind =
   | 'interviews-overdue'
   | 'chartes-to-chase'
   | 'image-rights-to-chase'
-  | 'pc-missing'
-  | 'talents-never-logged'
-  | 'talents-profile-incomplete';
+  | 'pc-missing';
 
 export type EventAlert = {
   key: string;
@@ -47,7 +45,7 @@ export type ChecklistItemKind = Exclude<
   'interviews-today' | 'interviews-overdue'
 >;
 
-export type ChecklistGroup = 'team' | 'onboarding' | 'documents';
+export type ChecklistGroup = 'team' | 'documents';
 
 export type ChecklistItem = {
   key: string;
@@ -88,8 +86,6 @@ type EventFacts = {
   chartesToChase: number;
   imageRightsToChase: number;
   pcMissing: number;
-  talentsNeverLogged: number;
-  talentsProfileIncomplete: number;
   interviewsToday: number;
   overdueInterviews: number;
 };
@@ -135,8 +131,6 @@ async function loadEventFacts(
     chartesToChase: 0,
     imageRightsToChase: 0,
     pcMissing: 0,
-    talentsNeverLogged: 0,
-    talentsProfileIncomplete: 0,
     interviewsToday: 0,
     overdueInterviews: 0,
   };
@@ -159,8 +153,6 @@ async function loadEventFacts(
     chartesToChase,
     imageRightsToChase,
     pcMissing,
-    talentsNeverLogged,
-    talentsProfileIncomplete,
     interviewsToday,
     overdueInterviews,
   ] = await Promise.all([
@@ -185,19 +177,6 @@ async function loadEventFacts(
     db.participation.count({
       where: { eventId: event.id, bringPc: false },
     }),
-    db.participation.count({
-      where: { eventId: event.id, talent: { lastActiveAt: null } },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        OR: [
-          { talent: { infoValidatedAt: null } },
-          { talent: { rulesSignedAt: null } },
-          { talent: { charterAcceptedAt: null } },
-        ],
-      },
-    }),
     db.interview.count({
       where: {
         ...interviewBaseWhere,
@@ -217,8 +196,6 @@ async function loadEventFacts(
     chartesToChase,
     imageRightsToChase,
     pcMissing,
-    talentsNeverLogged,
-    talentsProfileIncomplete,
     interviewsToday,
     overdueInterviews,
   };
@@ -278,7 +255,6 @@ export async function deriveEventAlerts(
   if (!facts.isStage || facts.totalParticipations === 0) return alerts;
 
   const interviewsHref = `${eventBase}/interviews`;
-  const inscritsHref = `${eventBase}/inscrits`;
   const onboardingHref = `${eventBase}/onboarding`;
 
   if (facts.chartesToChase > 0) {
@@ -320,32 +296,6 @@ export async function deriveEventAlerts(
       count: facts.pcMissing,
       severity: 'info',
       href: `${onboardingHref}?filter=pc-missing`,
-    });
-  }
-  if (facts.talentsNeverLogged > 0) {
-    alerts.push({
-      key: `never-logged-${event.id}`,
-      kind: 'talents-never-logged',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Inscrits jamais connectés',
-      description: 'Talents qui ne se sont pas encore connectés à Jump',
-      count: facts.talentsNeverLogged,
-      severity: 'danger',
-      href: `${inscritsHref}?filter=never-logged`,
-    });
-  }
-  if (facts.talentsProfileIncomplete > 0) {
-    alerts.push({
-      key: `profile-incomplete-${event.id}`,
-      kind: 'talents-profile-incomplete',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Onboarding plateforme incomplet',
-      description: 'Talents bloqués avant le tableau de bord élève',
-      count: facts.talentsProfileIncomplete,
-      severity: 'warning',
-      href: `${inscritsHref}?filter=profile-incomplete`,
     });
   }
   if (facts.overdueInterviews > 0) {
@@ -449,39 +399,8 @@ export async function deriveEventChecklist(
 
   if (!facts.isStage || facts.totalParticipations === 0) return items;
 
-  const inscritsHref = `${eventBase}/inscrits`;
   const onboardingHref = `${eventBase}/onboarding`;
   const total = facts.totalParticipations;
-
-  // — Group: onboarding plateforme —
-
-  items.push({
-    key: `never-logged-${event.id}`,
-    kind: 'talents-never-logged',
-    group: 'onboarding',
-    title: 'Tous les inscrits se sont connectés à Jump',
-    meta:
-      facts.talentsNeverLogged === 0
-        ? `${total}/${total} actifs sur la plateforme`
-        : `${facts.talentsNeverLogged} jamais connecté${facts.talentsNeverLogged > 1 ? 's' : ''}`,
-    done: facts.talentsNeverLogged === 0,
-    severity: 'danger',
-    href: `${inscritsHref}?filter=never-logged`,
-  });
-
-  items.push({
-    key: `profile-incomplete-${event.id}`,
-    kind: 'talents-profile-incomplete',
-    group: 'onboarding',
-    title: 'Onboarding plateforme complet',
-    meta:
-      facts.talentsProfileIncomplete === 0
-        ? `${total}/${total} profils complets`
-        : `${facts.talentsProfileIncomplete} profil${facts.talentsProfileIncomplete > 1 ? 's' : ''} incomplet${facts.talentsProfileIncomplete > 1 ? 's' : ''}`,
-    done: facts.talentsProfileIncomplete === 0,
-    severity: 'warning',
-    href: `${inscritsHref}?filter=profile-incomplete`,
-  });
 
   // — Group: documents administratifs —
 
