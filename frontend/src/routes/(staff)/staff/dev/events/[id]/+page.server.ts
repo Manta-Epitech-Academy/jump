@@ -11,7 +11,7 @@ import {
   type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_TYPES } from '$lib/domain/event';
+import { EVENT_TYPES, eventTypeHasTheme } from '$lib/domain/event';
 import {
   applyPhaseOverride,
   getDayBounds,
@@ -55,7 +55,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(404, 'Événement introuvable');
   }
 
-  const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
+  const canHaveTheme = eventTypeHasTheme(event.eventType);
+  const themes = canHaveTheme
+    ? await db.theme.findMany({ orderBy: { nom: 'asc' } })
+    : [];
 
   const editForm = await buildEditForm(event);
 

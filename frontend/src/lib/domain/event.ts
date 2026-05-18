@@ -13,3 +13,13 @@ export const EVENT_TYPE_VALUES = Object.values(EVENT_TYPES) as EventType[];
  * suffixes) don't leak into page titles, breadcrumbs and hero headings.
  */
 export const STAGE_SECONDE_LABEL = 'Stage de Seconde';
+
+/**
+ * Whether an event type carries a transversal theme. Allow-list: a stage
+ * cohort has no single theme (activities span many), only year-round
+ * coding-club sessions do. New event types default to no-theme until they
+ * explicitly opt in here.
+ */
+export function eventTypeHasTheme(type: string): boolean {
+  return type === EVENT_TYPES.CODING_CLUB;
+}

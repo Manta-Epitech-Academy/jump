@@ -16,6 +16,7 @@
     editEnhance,
     editDelayed,
     themes,
+    canHaveTheme,
   }: {
     open: boolean;
     editForm: SuperForm<EventForm>['form'];
@@ -23,6 +24,7 @@
     editEnhance: SuperForm<EventForm>['enhance'];
     editDelayed: Readable<boolean>;
     themes: any[];
+    canHaveTheme: boolean;
   } = $props();
 </script>
 
@@ -43,12 +45,16 @@
         <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
           <div class="space-y-2">
             <Label class="text-[10px] font-bold tracking-widest uppercase"
-              >Notes & Planning</Label
+              >Notes pour le staff</Label
             >
+            <p class="text-xs text-muted-foreground">
+              Mémo partagé avec l'équipe pédago (déroulé, consignes, infos
+              pratiques).
+            </p>
             <Textarea
               name="notes"
               bind:value={$editForm.notes}
-              placeholder="Ex: 14h00 Intro, 15h30 Pause..."
+              placeholder="Ex: déroulé de la journée, consignes pour l'équipe pédago, infos pratiques..."
               class="min-h-25 rounded-sm bg-background"
             />
             {#if $editErrors.notes}<p class="text-xs text-destructive">
@@ -57,19 +63,25 @@
           </div>
         </div>
 
-        <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
-          <div class="space-y-2">
-            <Label class="text-[10px] font-bold tracking-widest uppercase"
-              >Thème</Label
-            >
-            <div class="rounded-sm bg-background">
-              <ThemeSelect {themes} bind:value={$editForm.theme} name="theme" />
+        {#if canHaveTheme}
+          <div class="space-y-4 rounded-sm border bg-muted/10 p-5">
+            <div class="space-y-2">
+              <Label class="text-[10px] font-bold tracking-widest uppercase"
+                >Thème</Label
+              >
+              <div class="rounded-sm bg-background">
+                <ThemeSelect
+                  {themes}
+                  bind:value={$editForm.theme}
+                  name="theme"
+                />
+              </div>
+              {#if $editErrors.theme}<p class="text-xs text-destructive">
+                  {$editErrors.theme}
+                </p>{/if}
             </div>
-            {#if $editErrors.theme}<p class="text-xs text-destructive">
-                {$editErrors.theme}
-              </p>{/if}
           </div>
-        </div>
+        {/if}
 
         <div class="flex justify-end pt-4">
           <Button

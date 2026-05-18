@@ -10,7 +10,7 @@
   import Gated from '$lib/components/auth/Gated.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
   import { track } from '$lib/analytics';
-  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
+  import { STAGE_SECONDE_LABEL, eventTypeHasTheme } from '$lib/domain/event';
 
   import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
@@ -151,4 +151,5 @@
   {editEnhance}
   {editDelayed}
   themes={data.themes}
+  canHaveTheme={eventTypeHasTheme(data.event.eventType)}
 />

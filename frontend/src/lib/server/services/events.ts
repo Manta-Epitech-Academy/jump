@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
+import { eventTypeHasTheme } from '$lib/domain/event';
 
 async function validateMantaIds(campusId: string, mantaIds: string[]) {
   if (mantaIds.length === 0) return;
@@ -101,9 +102,10 @@ export const EventService = {
       );
     }
     const oldThemeId = currentEvent.themeId;
+    const themeApplies = eventTypeHasTheme(currentEvent.eventType);
 
     let newThemeId: string | null = null;
-    if (data.theme && data.theme.trim() !== '') {
+    if (themeApplies && data.theme && data.theme.trim() !== '') {
       const existing = await prisma.theme.findFirst({
         where: { nom: data.theme },
       });
@@ -121,12 +123,12 @@ export const EventService = {
     await prisma.event.update({
       where: { id: eventId },
       data: {
-        themeId: newThemeId ?? undefined,
+        themeId: themeApplies ? (newThemeId ?? undefined) : undefined,
         notes: data.notes,
       },
     });
 
-    return oldThemeId !== newThemeId;
+    return themeApplies && oldThemeId !== newThemeId;
   },
 
   /**
