@@ -8,6 +8,25 @@ import {
 } from '$lib/domain/staff';
 import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
 
+/**
+ * Expire BetterAuth's session-data cookie cache so the next request
+ * fetches a fresh session from the DB. Without this, the cookie may
+ * still carry the default `role: 'user'` that was set when BetterAuth
+ * first created the bauth_user — before the OAuth callback updated the
+ * role to 'admin' or 'staff'. This caused "Cannot impersonate" on first
+ * login for invited admins.
+ */
+function expireSessionCache(redirectUrl: string): Response {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      Location: redirectUrl,
+      'Set-Cookie':
+        'better-auth.session_data=; Path=/; Max-Age=0; SameSite=Lax',
+    },
+  });
+}
+
 // BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft.
 // This route serves as the post-auth gate that:
 // 1. Verifies @epitech.eu domain.
@@ -84,5 +103,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 
   await syncMicrosoftAvatar(locals.user.id);
 
-  throw redirect(303, resolve(targetPath));
+  // Expire the cookie cache so the fresh role is picked up immediately.
+  // Using a raw Response instead of `throw redirect()` so we can set the
+  // Set-Cookie header — SvelteKit's redirect() doesn't allow that.
+  return expireSessionCache(resolve(targetPath));
 };
