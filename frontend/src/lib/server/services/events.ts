@@ -1,5 +1,4 @@
 import { error } from '@sveltejs/kit';
-import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
 
@@ -22,52 +21,6 @@ async function validateMantaIds(campusId: string, mantaIds: string[]) {
 }
 
 export const EventService = {
-  /**
-   * Deletes an event and automatically rolls back XP for all present students.
-   * Verifies the event belongs to the given campus before proceeding.
-   */
-  async deleteEvent(eventId: string, campusId: string) {
-    const event = await prisma.event.findUniqueOrThrow({
-      where: { id: eventId },
-      select: { campusId: true },
-    });
-    if (event.campusId !== campusId) {
-      throw error(
-        403,
-        'Accès refusé : cet événement appartient à un autre campus.',
-      );
-    }
-
-    await prisma.$transaction(async (tx) => {
-      const participations = await tx.participation.findMany({
-        where: { eventId, isPresent: true },
-        include: {
-          activities: { include: { activity: true } },
-        },
-      });
-
-      for (const p of participations) {
-        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
-
-        const profile = await tx.talent.findUniqueOrThrow({
-          where: { id: p.talentId },
-          select: { xp: true, eventsCount: true },
-        });
-        await tx.talent.update({
-          where: { id: p.talentId },
-          data: {
-            xp: Math.max(0, profile.xp - xpValue),
-            eventsCount: Math.max(0, profile.eventsCount - 1),
-          },
-        });
-      }
-
-      // All related records (participations, activities, mantas, progress, portfolio)
-      // are cascade-deleted by PostgreSQL foreign keys.
-      await tx.event.delete({ where: { id: eventId } });
-    });
-  },
-
   /**
    * Duplicates an event and its participants (resetting status).
    */

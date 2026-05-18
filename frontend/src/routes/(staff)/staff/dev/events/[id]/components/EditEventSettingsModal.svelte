@@ -5,8 +5,6 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
-  import { Separator } from '$lib/components/ui/separator';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ThemeSelect from '$lib/components/ThemeSelect.svelte';
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
@@ -18,7 +16,6 @@
 
   let {
     open = $bindable(false),
-    deleteEventDialogOpen = $bindable(false),
     editForm,
     editErrors,
     editEnhance,
@@ -27,7 +24,6 @@
     staff,
   }: {
     open: boolean;
-    deleteEventDialogOpen: boolean;
     editForm: SuperForm<EventForm>['form'];
     editErrors: SuperForm<EventForm>['errors'];
     editEnhance: SuperForm<EventForm>['enhance'];
@@ -255,33 +251,6 @@
           </Button>
         </div>
       </form>
-
-      <Separator />
-
-      <div
-        class="space-y-4 rounded-sm border border-destructive/20 bg-destructive/5 p-5"
-      >
-        <div class="space-y-1">
-          <h4
-            class="font-sans text-sm font-bold tracking-wide text-destructive uppercase"
-          >
-            Zone de danger
-          </h4>
-          <p class="text-xs font-medium text-muted-foreground">
-            La suppression d'un événement est irréversible. Les XP des Talents
-            validés seront automatiquement retirés.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="destructive"
-          class="w-full rounded-sm"
-          onclick={() => (deleteEventDialogOpen = true)}
-        >
-          <Trash2 class="mr-2 h-4 w-4" />
-          Supprimer définitivement l'événement
-        </Button>
-      </div>
     </div>
   </Dialog.Content>
 </Dialog.Root>

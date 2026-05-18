@@ -179,20 +179,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 };
 
 export const actions: Actions = {
-  deleteEvent: async ({ url, locals }) => {
-    requireStaffGroup(locals, 'devLead');
-    const id = url.searchParams.get('id');
-    if (!id) return fail(400);
-
-    try {
-      await EventService.deleteEvent(id, getCampusId(locals));
-      return { success: true };
-    } catch (err) {
-      console.error('Erreur suppression événement:', err);
-      return fail(500, { message: 'Erreur lors de la suppression' });
-    }
-  },
-
   duplicateEvent: async ({ request, locals }) => {
     requireStaffGroup(locals, 'devLead');
     requireFlag(locals, 'coding_club');

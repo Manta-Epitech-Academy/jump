@@ -1,6 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail, redirect } from '@sveltejs/kit';
-import { resolve } from '$app/paths';
+import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { eventSchema } from '$lib/validation/events';
@@ -572,15 +571,5 @@ export const actions: Actions = {
     });
 
     return message(form, 'Événement mis à jour !');
-  },
-
-  deleteEvent: async ({ params, locals }) => {
-    requireStaffGroup(locals, 'devLead');
-    try {
-      await EventService.deleteEvent(params.id, getCampusId(locals));
-    } catch {
-      return fail(500);
-    }
-    throw redirect(303, resolve('/staff/dev'));
   },
 };

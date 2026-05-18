@@ -1,14 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import { toast } from 'svelte-sonner';
   import Settings from '@lucide/svelte/icons/settings';
 
   import type { PageData } from './$types';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
   import { Button } from '$lib/components/ui/button';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
@@ -49,7 +46,6 @@
   );
 
   let openEditEvent = $state(false);
-  let deleteEventDialogOpen = $state(false);
 
   const eventDate = $derived(new Date(data.event.date));
   const eventEndDate = $derived(
@@ -145,23 +141,10 @@
 
 <EditEventSettingsModal
   bind:open={openEditEvent}
-  bind:deleteEventDialogOpen
   {editForm}
   {editErrors}
   {editEnhance}
   {editDelayed}
   themes={data.themes}
   staff={data.staff}
-/>
-
-<ConfirmDeleteDialog
-  bind:open={deleteEventDialogOpen}
-  action="?/deleteEvent"
-  title="Supprimer définitivement ?"
-  description="Cette action est irréversible. Toutes les données associées à cet événement seront perdues."
-  buttonText="Confirmer la suppression"
-  onSuccess={() => {
-    track('event_deleted');
-    goto(resolve('/staff/dev'));
-  }}
 />

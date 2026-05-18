@@ -173,7 +173,6 @@
                   <EventDropdownMenu
                     {event}
                     onDuplicate={(e) => actionManager.openDuplicate(e)}
-                    onDelete={(id) => actionManager.confirmDelete(id)}
                   />
                 </div>
               </TableCell>
