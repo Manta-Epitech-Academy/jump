@@ -1588,6 +1588,19 @@ const STUDENTS: StudentDef[] = [
   },
   // ── Lyon (5 students) ──
   {
+    email: 'eliot.amanieu@epitech.eu',
+    prenom: 'Eliot',
+    nom: 'Amanieu',
+    phone: '+33 7 12 34 56 20',
+    parentPhone: '+33 7 98 76 54 20',
+    niveau: '2nde',
+    niveauDifficulte: 'Débutant',
+    campus: 'Lyon',
+    charterSigned: true,
+    lastActiveDaysAgo: 0,
+    skipOnboarding: true,
+  },
+  {
     email: 'ines.durand@mail.com',
     prenom: 'Inès',
     nom: 'Durand',
@@ -2764,6 +2777,12 @@ async function main() {
   await seedInterests();
   console.log('✓  Intérêts');
 
+  // 2c. Email templates + action mappings (OTP, parent welcome, relances).
+  //     Without these, the transactional senders bail with `no_template` and
+  //     local dev breaks the OTP login flow.
+  const templateCount = await seedEmailTemplates(staffByKey);
+  console.log(`✓  Email templates + action mappings (${templateCount})`);
+
   // 3. Students
   const talentByEmail = await seedStudents();
   console.log(`✓  Students (${Object.keys(talentByEmail).length})`);
@@ -2873,6 +2892,12 @@ async function wipeAll() {
   await prisma.portfolioItem.deleteMany();
   await prisma.stepsProgress.deleteMany();
   await prisma.onboardingReminder.deleteMany();
+  // Broadcasts + email-action mappings — dropped before staff so the
+  // `MessageTemplate.createdById` FK doesn't block.
+  await prisma.emailActionMapping.deleteMany();
+  await prisma.broadcastRecipient.deleteMany();
+  await prisma.broadcast.deleteMany();
+  await prisma.messageTemplate.deleteMany();
   await prisma.participation.deleteMany();
   await prisma.interview.deleteMany();
   await prisma.eventManta.deleteMany();
@@ -3737,6 +3762,132 @@ async function seedReminders(
         sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
         sentBy: staff.userId,
       },
+    });
+    count++;
+  }
+  return count;
+}
+
+// ─── Email templates + action mappings ───
+
+/**
+ * Default transactional templates + their action mappings. Re-runnable —
+ * `wipeAll` clears the tables first, so calling seedEmailTemplates twice
+ * just refreshes the seeded content. Keep bodies in sync with
+ * `src/lib/domain/relanceTemplates.ts` (relance defaults) and the OTP
+ * legacy HTML they replace.
+ */
+async function seedEmailTemplates(
+  staffByKey: Record<string, { id: string; userId: string }>,
+): Promise<number> {
+  const createdById =
+    staffByKey['pauline.marchand']?.userId ??
+    Object.values(staffByKey)[0]?.userId;
+  if (!createdById)
+    throw new Error('No staff user available to author templates');
+
+  const templates: {
+    actionKey: string;
+    name: string;
+    subject: string;
+    body: string;
+  }[] = [
+    {
+      actionKey: 'otp_talent',
+      name: 'OTP — Login talent (par défaut)',
+      subject: "Ton code d'accès secret pour Jump 🔑",
+      body: `Salut **{{prenom}}** !
+
+Voici ton code secret temporaire pour te connecter à ton Cockpit :
+
+# {{otp_code}}
+
+*Si tu n'as pas essayé de te connecter, tu peux supprimer cet email sans t'inquiéter. Ce code expirera rapidement.*
+
+Bon atelier !
+L'équipe Epitech Academy`,
+    },
+    {
+      actionKey: 'otp_parent',
+      name: 'OTP — Login parent (par défaut)',
+      subject: "Votre code d'accès Jump — Espace Parent",
+      body: `Bonjour **{{parent_prenom}}**,
+
+Voici votre code de connexion à l'Espace Parent :
+
+# {{otp_code}}
+
+Ce code est valable **10 minutes**.
+
+:button[Se connecter à l'Espace Parent]({{login_link}})
+
+*Si vous n'avez pas demandé ce code, vous pouvez ignorer cet email.*
+
+Cordialement,
+L'équipe Epitech Academy`,
+    },
+    {
+      actionKey: 'parent_welcome',
+      name: 'Bienvenue parent (par défaut)',
+      subject:
+        '{{child_prenom}} participe à Epitech Academy — votre accès parent',
+      body: `Bonjour **{{parent_prenom}}**,
+
+Votre enfant **{{child_prenom}}** vient de s'inscrire à un stage **Epitech Academy**. Nous sommes ravis de l'accueillir !
+
+En tant que responsable légal, nous avons besoin de votre **autorisation pour le droit à l'image** avant le début du stage. Cela ne prend qu'une minute.
+
+:button[Signer le droit à l'image]({{login_link}})
+
+Cet espace vous permet également de suivre la progression de {{child_prenom}} et de consulter le programme des activités.
+
+À très vite,
+L'équipe Epitech Academy`,
+    },
+    {
+      actionKey: 'relance_student',
+      name: 'Relance — étudiant (par défaut)',
+      subject: 'Finalise ton inscription sur Jump',
+      body: `Salut {{prenom}} !
+
+Ton inscription sur Jump n'est pas encore terminée. Il ne te reste que quelques étapes pour accéder à ton espace.
+
+:button[Finaliser mon inscription]({{login_link}})
+
+À très vite,
+L'équipe Epitech Academy`,
+    },
+    {
+      actionKey: 'relance_parent',
+      name: 'Relance — parent (par défaut)',
+      subject: "Rappel : signez le droit à l'image de {{child_prenom}}",
+      body: `Bonjour {{parent_prenom}},
+
+Nous n'avons pas encore reçu votre autorisation pour le droit à l'image de **{{child_prenom}}** dans le cadre de son stage Epitech Academy.
+
+Cette signature est nécessaire avant le début du stage et ne prend qu'une minute.
+
+:button[Signer le droit à l'image]({{login_link}})
+
+À très vite,
+L'équipe Epitech Academy`,
+    },
+  ];
+
+  let count = 0;
+  for (const t of templates) {
+    const tpl = await prisma.messageTemplate.create({
+      data: {
+        name: t.name,
+        channel: 'mail',
+        subject: t.subject,
+        body: t.body,
+        createdById,
+      },
+      select: { id: true },
+    });
+    await prisma.emailActionMapping.create({
+      data: { actionKey: t.actionKey, templateId: tpl.id },
     });
     count++;
   }

@@ -1,10 +1,16 @@
 export type RelanceType = 'student' | 'parent';
 
-export const RELANCE_VARS_STUDENT = ['prenom', 'nom'] as const;
+// Aligned with broadcast / email-action variable names so admin-bound
+// templates use the same tokens everywhere. Migrated from the legacy
+// `prenomParent`/`nomParent`/`childName` set; `formatTalentVars` populates
+// these via the canonical Talent → context mapping below.
+export const RELANCE_VARS_STUDENT = ['prenom', 'nom', 'login_link'] as const;
 export const RELANCE_VARS_PARENT = [
-  'prenomParent',
-  'nomParent',
-  'childName',
+  'parent_prenom',
+  'parent_nom',
+  'child_prenom',
+  'child_nom',
+  'login_link',
 ] as const;
 
 export type StudentRelanceVar = (typeof RELANCE_VARS_STUDENT)[number];
@@ -62,9 +68,11 @@ export function formatTalentVars(
   return {
     prenom,
     nom,
-    prenomParent: capitalize(talent.parentPrenom),
-    nomParent: capitalize(talent.parentNom),
-    childName: `${prenom} ${nom}`.trim(),
+    parent_prenom: capitalize(talent.parentPrenom),
+    parent_nom: capitalize(talent.parentNom),
+    child_prenom: prenom,
+    child_nom: nom,
+    // login_link is injected by the server send (depends on `RelanceType`).
   };
 }
 
@@ -80,7 +88,7 @@ export function relanceGreeting(
   if (type === 'student') {
     return vars.prenom ? `Salut ${vars.prenom} !` : 'Salut !';
   }
-  return vars.nomParent ? `Bonjour Mr/Mme ${vars.nomParent},` : 'Bonjour,';
+  return vars.parent_nom ? `Bonjour Mr/Mme ${vars.parent_nom},` : 'Bonjour,';
 }
 
 /**
@@ -90,13 +98,16 @@ export function relanceGreeting(
  */
 export type RelanceSkipReason = 'cooldown' | 'completed' | 'noEmail';
 
-export const RELANCE_SKIP_LABELS: Record<RelanceSkipReason | 'error', string> =
-  {
-    cooldown: 'cooldown',
-    completed: 'onboarding complet',
-    noEmail: 'email manquant',
-    error: 'erreur',
-  };
+export const RELANCE_SKIP_LABELS: Record<
+  RelanceSkipReason | 'error' | 'noTemplate',
+  string
+> = {
+  cooldown: 'cooldown',
+  completed: 'onboarding complet',
+  noEmail: 'email manquant',
+  error: 'erreur',
+  noTemplate: 'template non configuré',
+};
 
 /** Subset of Talent state needed to decide eligibility for a relance. */
 export type TalentEligibilityFields = {

@@ -22,20 +22,45 @@ import {
   sendRelances,
   formatRelanceMessage,
 } from '$lib/server/services/relanceService';
+import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
 import { generateTalentOtp } from '$lib/server/services/talentOtp';
 
-const TAB_KEYS = ['pedago', 'admin'] as const;
+const TAB_KEYS = ['pedago', 'admin', 'communications'] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 function validateTab(raw: string | null): TabKey {
   return TAB_KEYS.includes(raw as TabKey) ? (raw as TabKey) : 'pedago';
 }
 
+const BROADCAST_PREVIEW_LIMIT = 3;
+const BROADCAST_PAGE_SIZE = 20;
+
+function parsePage(raw: string | null): number {
+  const n = parseInt(raw ?? '1', 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
+  const tab = validateTab(url.searchParams.get('tab'));
+  const broadcastsPage = parsePage(url.searchParams.get('page'));
+  // Communications tab paginates; other tabs only need a preview at the top.
+  const broadcastsTake =
+    tab === 'communications' ? BROADCAST_PAGE_SIZE : BROADCAST_PREVIEW_LIMIT;
+  const broadcastsSkip =
+    tab === 'communications' ? (broadcastsPage - 1) * BROADCAST_PAGE_SIZE : 0;
+  const broadcastsWhere = {
+    OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
+  };
   try {
-    const [student, participations, reminderRows] = await Promise.all([
+    const [
+      student,
+      participations,
+      reminderRows,
+      broadcastsReceived,
+      broadcastsTotal,
+    ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
         include: {
@@ -89,6 +114,32 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           sentBy: true,
         },
       }),
+      prisma.broadcastRecipient.findMany({
+        where: broadcastsWhere,
+        orderBy: { createdAt: 'desc' },
+        take: broadcastsTake,
+        skip: broadcastsSkip,
+        select: {
+          id: true,
+          status: true,
+          sentAt: true,
+          openedAt: true,
+          talentId: true,
+          parentOfTalentId: true,
+          recipientEmail: true,
+          recipientPhone: true,
+          broadcast: {
+            select: {
+              id: true,
+              name: true,
+              channel: true,
+              subjectSnapshot: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+      prisma.broadcastRecipient.count({ where: broadcastsWhere }),
     ]);
 
     const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
@@ -137,7 +188,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const form = await superValidate(zod4(studentSchema));
     const relanceForm = await superValidate(zod4(sendRelanceSchema));
-    const tab = validateTab(url.searchParams.get('tab'));
+    const relanceDefaults = await loadAllRelanceDefaults();
     const timezone = getCampusTimezone(locals);
     const bounds = getLifecycleBounds(timezone);
 
@@ -155,9 +206,15 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       participations,
       activeStageParticipations,
       reminders,
+      broadcastsReceived,
+      broadcastsTotal,
+      broadcastsPage,
+      broadcastsPageSize: BROADCAST_PAGE_SIZE,
+      broadcastsPreviewLimit: BROADCAST_PREVIEW_LIMIT,
       stats,
       form,
       relanceForm,
+      relanceDefaults,
       tab,
       timezone,
     };

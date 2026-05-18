@@ -17,7 +17,6 @@
   import { Label } from '$lib/components/ui/label';
   import {
     applyPlaceholders,
-    relanceGreeting,
     relanceVarsFor,
     RELANCE_SKIP_LABELS,
     type RelanceSkipReason,
@@ -46,6 +45,7 @@
     formAction,
     initialForm,
     defaultTemplate,
+    hasMapping = true,
     previewVars = {},
     onSent,
   }: {
@@ -55,6 +55,12 @@
     formAction: string;
     initialForm: RelanceForm;
     defaultTemplate: RelanceTemplate;
+    /**
+     * Whether an EmailActionMapping exists for this relance type. When
+     * false, the dialog shows a blocking warning and disables send —
+     * `sendRelances` would skip every recipient with `noTemplate`.
+     */
+    hasMapping?: boolean;
     /** First-recipient values to render the live preview. */
     previewVars?: Partial<Record<RelanceVar, string>>;
     onSent?: () => void;
@@ -99,15 +105,10 @@
       .map((p) => p.trim())
       .filter(Boolean),
   );
-  const previewGreeting = $derived(relanceGreeting(type, previewVars));
-  const ctaLabel = $derived(
-    type === 'student'
-      ? 'Finaliser mon inscription'
-      : "Signer le droit à l'image",
-  );
 
   const sendDisabled = $derived(
     $delayed ||
+      !hasMapping ||
       eligible.length === 0 ||
       subject.trim().length === 0 ||
       body.trim().length === 0,
@@ -174,6 +175,26 @@
       </Dialog.Header>
 
       <div class="mt-4 space-y-4">
+        {#if !hasMapping}
+          <div
+            class="flex items-start gap-3 rounded-md border-2 border-destructive bg-destructive/10 p-3 text-sm"
+            role="alert"
+          >
+            <AlertTriangle class="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <div class="space-y-1">
+              <p class="font-bold tracking-tight text-destructive uppercase">
+                Template non configuré
+              </p>
+              <p class="text-xs">
+                Aucun template n'est associé à l'action <code
+                  >relance_{type}</code
+                >. Le bouton d'envoi est désactivé. Configure un template dans
+                <strong>Admin → Mails transactionnels</strong> avant de pouvoir envoyer
+                cette relance.
+              </p>
+            </div>
+          </div>
+        {/if}
         <!-- Recipients -->
         <section class="space-y-1.5">
           <Label
@@ -287,21 +308,12 @@
             <div
               class="mt-3 rounded-sm border-t-4 border-t-epi-teal bg-card p-4 text-sm leading-relaxed"
             >
-              <p class="mb-3 font-medium">{previewGreeting}</p>
               {#each previewParagraphs as para (para)}
                 <p class="mb-3 whitespace-pre-line">{para}</p>
               {/each}
-              <div class="my-3 flex justify-center">
-                <span
-                  class="inline-flex items-center rounded-md bg-epi-blue px-4 py-2 text-xs font-bold text-white"
-                >
-                  {ctaLabel} →
-                </span>
-              </div>
-              <hr class="my-3 border-border" />
-              <p class="text-xs whitespace-pre-line text-muted-foreground">
-                À très vite,
-                {'\n'}L'équipe Epitech Academy
+              <p class="text-[10px] text-muted-foreground italic">
+                Rendu approximatif — les boutons <code>:button[…](…)</code> et le
+                style branding apparaîtront dans l'email final.
               </p>
             </div>
           </div>
