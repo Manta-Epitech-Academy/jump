@@ -55,6 +55,8 @@
   const pageTitle = $derived(
     data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
   );
+
+  const showPlanning = $derived(data.featureFlags.includes('event_planning'));
 </script>
 
 <svelte:head>
@@ -92,6 +94,7 @@
       firstDayTimeSlots={data.prep.firstDayTimeSlots}
       lyceesBreakdown={data.prep.lyceesBreakdown}
       interestsCloud={data.prep.interestsCloud}
+      {showPlanning}
       onEditNotes={() => (openEditEvent = true)}
     />
   {:else if data.kind === 'stage' && data.status === 'ongoing'}
@@ -109,6 +112,7 @@
       mesProchainsEntretiens={data.ongoing.mesProchainsEntretiens}
       lyceesBreakdown={data.ongoing.lyceesBreakdown}
       interestsCloud={data.ongoing.interestsCloud}
+      {showPlanning}
       onEditNotes={() => (openEditEvent = true)}
     />
   {:else if data.kind === 'stage' && data.status === 'past'}
@@ -134,6 +138,7 @@
       stats={data.legacy.stats}
       alerts={data.legacy.alerts}
       showIntervenants={data.featureFlags.includes('staff_intervenants')}
+      {showPlanning}
       onEditNotes={() => (openEditEvent = true)}
     />
   {/if}

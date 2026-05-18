@@ -65,6 +65,15 @@ export const FEATURE_FLAGS = {
       "Édition CMS de la page d'accueil affichée aux talents (dev + pedago).",
     removeBy: new Date('2026-07-15'),
   }),
+  event_planning: def({
+    key: 'event_planning',
+    kind: 'rollout',
+    defaultEnabled: false,
+    label: 'Planning par événement (dev)',
+    description:
+      'Édition du planning détaillé (créneaux, activités) côté dev (/staff/dev/events/[id]/planning). Pedago conserve son propre planning.',
+    removeBy: new Date('2026-07-15'),
+  }),
 };
 
 export type FlagKey = keyof typeof FEATURE_FLAGS;

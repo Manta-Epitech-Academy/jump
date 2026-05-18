@@ -40,6 +40,7 @@
   let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
+  let hasPlanning = $derived(featureFlags.has('event_planning'));
   // Peda visiting a single interviews route gets a stripped shell — no
   // sidebar, no command-K, no impersonation, no tickets. Just header + main.
   let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
@@ -203,15 +204,17 @@
         <Users class="h-5 w-5" />
         <span>Inscrits</span>
       </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
-        )}
-      >
-        <CalendarDays class="h-5 w-5" />
-        <span>Planning</span>
-      </a>
+      {#if hasPlanning}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span>Planning</span>
+        </a>
+      {/if}
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
         class={navLinkClass(

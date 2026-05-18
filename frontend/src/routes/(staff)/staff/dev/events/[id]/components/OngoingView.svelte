@@ -64,6 +64,7 @@
       }[];
       others: { count: number; categories: number } | null;
     };
+    showPlanning: boolean;
     onEditNotes: () => void;
   };
 
@@ -81,6 +82,7 @@
     mesProchainsEntretiens,
     lyceesBreakdown,
     interestsCloud,
+    showPlanning,
     onEditNotes,
   }: Props = $props();
 
@@ -187,7 +189,12 @@
       </div>
     </section>
     <div class="flex flex-col gap-4">
-      <ProgrammeJour {eventId} {timeSlots} {timezone} />
+      <ProgrammeJour
+        {eventId}
+        {timeSlots}
+        {timezone}
+        showPlanningLink={showPlanning}
+      />
       <MesProchainsEntretiens
         {eventId}
         interviews={mesProchainsEntretiens}

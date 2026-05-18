@@ -50,6 +50,7 @@
       }[];
       others: { count: number; categories: number } | null;
     };
+    showPlanning: boolean;
     onEditNotes: () => void;
   };
 
@@ -64,6 +65,7 @@
     firstDayTimeSlots,
     lyceesBreakdown,
     interestsCloud,
+    showPlanning,
     onEditNotes,
   }: Props = $props();
 
@@ -133,6 +135,7 @@
       {timezone}
       title="Programme du J1"
       emptyLabel="Aucun créneau publié pour le J1. Préparez le planning d’ouverture."
+      showPlanningLink={showPlanning}
     />
   </div>
 

@@ -27,6 +27,7 @@
     };
     alerts: EventAlert[];
     showIntervenants: boolean;
+    showPlanning: boolean;
     onEditNotes: () => void;
   };
 
@@ -42,6 +43,7 @@
     stats,
     alerts,
     showIntervenants,
+    showPlanning,
     onEditNotes,
   }: Props = $props();
 
@@ -118,12 +120,14 @@
     >
       <Users class="mr-2 h-4 w-4" /> Inscrits
     </a>
-    <a
-      href={resolve(`/staff/dev/events/${eventId}/planning`)}
-      class={buttonVariants({ variant: 'outline', class: 'rounded-sm' })}
-    >
-      <CalendarDays class="mr-2 h-4 w-4" /> Planning
-    </a>
+    {#if showPlanning}
+      <a
+        href={resolve(`/staff/dev/events/${eventId}/planning`)}
+        class={buttonVariants({ variant: 'outline', class: 'rounded-sm' })}
+      >
+        <CalendarDays class="mr-2 h-4 w-4" /> Planning
+      </a>
+    {/if}
     {#if showIntervenants}
       <a
         href={resolve(`/staff/dev/events/${eventId}/team`)}
