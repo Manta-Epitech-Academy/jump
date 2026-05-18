@@ -2,18 +2,12 @@
   import UserPlus from '@lucide/svelte/icons/user-plus';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import { resolve } from '$app/paths';
-  import ChecklistPanel from '$lib/components/staff/ChecklistPanel.svelte';
-  import type { ChecklistItem } from '$lib/server/services/eventTasks';
-  import { activityTypes } from '$lib/validation/templates';
   import CountdownHero from './CountdownHero.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
-  import ProgrammeJour from './ProgrammeJour.svelte';
   import LyceesBreakdown from './LyceesBreakdown.svelte';
   import InterestsCloud from './InterestsCloud.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
   import TalentJourneyExplainer from '$lib/components/dev/TalentJourneyExplainer.svelte';
-
-  type ActivityTypeKey = (typeof activityTypes)[number];
 
   type Props = {
     eventId: string;
@@ -25,18 +19,6 @@
       total: number;
       dossiersAdmin: number;
     };
-    checklist: ChecklistItem[];
-    firstDayTimeSlots: {
-      id: string;
-      startTime: Date | string;
-      endTime: Date | string;
-      activity: {
-        id: string;
-        nom: string;
-        activityType: ActivityTypeKey;
-        activityThemes: { theme: { nom: string } }[];
-      } | null;
-    }[];
     lyceesBreakdown: {
       rows: { highSchoolName: string; count: number }[];
       others: { count: number; categories: number } | null;
@@ -50,7 +32,6 @@
       }[];
       others: { count: number; categories: number } | null;
     };
-    showPlanning: boolean;
     onEditNotes: () => void;
   };
 
@@ -61,11 +42,8 @@
     openDate,
     timezone,
     kpis,
-    checklist,
-    firstDayTimeSlots,
     lyceesBreakdown,
     interestsCloud,
-    showPlanning,
     onEditNotes,
   }: Props = $props();
 
@@ -108,34 +86,6 @@
       tone="orange"
       progress={pct(kpis.dossiersAdmin)}
       href={onboardingHref}
-    />
-  </div>
-
-  <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
-    <section class="space-y-2">
-      <div class="flex items-baseline justify-between gap-2">
-        <h2
-          class="font-heading text-2xl tracking-wide text-foreground uppercase"
-        >
-          Checklist d’ouverture
-        </h2>
-      </div>
-      <p
-        class="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
-      >
-        Auto-cochée selon Onboarding, Salesforce et l’activité plateforme
-      </p>
-      <div class="pt-2">
-        <ChecklistPanel items={checklist} />
-      </div>
-    </section>
-    <ProgrammeJour
-      {eventId}
-      timeSlots={firstDayTimeSlots}
-      {timezone}
-      title="Programme du J1"
-      emptyLabel="Aucun créneau publié pour le J1. Préparez le planning d’ouverture."
-      showPlanningLink={showPlanning}
     />
   </div>
 

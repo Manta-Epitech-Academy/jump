@@ -14,16 +14,12 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_TYPES, eventTypeHasTheme } from '$lib/domain/event';
 import {
   applyPhaseOverride,
-  getDayBounds,
   getEventStatus,
   getLifecycleBounds,
   type LifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { stageEndOrDefault } from '$lib/server/services/stageContext';
-import {
-  deriveEventAlerts,
-  deriveEventChecklist,
-} from '$lib/server/services/eventTasks';
+import { deriveEventAlerts } from '$lib/server/services/eventTasks';
 import { getEventOrgaSlotsWithCounts } from '$lib/domain/presences';
 
 const MS_PER_DAY = 86_400_000;
@@ -86,7 +82,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const currentStaffProfileId = locals.staffProfile?.id ?? null;
 
   if (status === 'upcoming') {
-    const prep = await loadStagePrep(baseLoader, tz);
+    const prep = await loadStagePrep(baseLoader);
     return {
       kind: 'stage' as const,
       status,
@@ -148,48 +144,25 @@ async function loadLegacyEvent(ctx: LoaderCtx) {
   };
 }
 
-async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
+async function loadStagePrep(ctx: LoaderCtx) {
   const { db, event, bounds } = ctx;
-  const firstDayBounds = getDayBounds(event.date, timezone);
-  const [
-    total,
-    dossiersAdmin,
-    checklist,
-    lyceesBreakdown,
-    interestsCloud,
-    firstDayTimeSlots,
-  ] = await Promise.all([
-    db.participation.count({ where: { eventId: event.id } }),
-    // Validation funnel only — bringing a PC is logistics (we just plan
-    // the laptops), not a doc to validate.
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: {
-          charteSigned: true,
-          imageRightsSigned: true,
+  const [total, dossiersAdmin, lyceesBreakdown, interestsCloud] =
+    await Promise.all([
+      db.participation.count({ where: { eventId: event.id } }),
+      // Validation funnel only — bringing a PC is logistics (we just plan
+      // the laptops), not a doc to validate.
+      db.participation.count({
+        where: {
+          eventId: event.id,
+          stageCompliance: {
+            charteSigned: true,
+            imageRightsSigned: true,
+          },
         },
-      },
-    }),
-    deriveEventChecklist(db, event, { basePath: ctx.basePath, bounds }),
-    loadLyceesBreakdown(db, event.id),
-    loadInterestsCloud(db, event.id),
-    db.timeSlot.findMany({
-      where: {
-        planning: { eventId: event.id },
-        startTime: {
-          gte: firstDayBounds.startOfDay,
-          lte: firstDayBounds.endOfDay,
-        },
-      },
-      include: {
-        activity: {
-          include: { activityThemes: { include: { theme: true } } },
-        },
-      },
-      orderBy: { startTime: 'asc' },
-    }),
-  ]);
+      }),
+      loadLyceesBreakdown(db, event.id),
+      loadInterestsCloud(db, event.id),
+    ]);
 
   const daysToStart = Math.max(
     0,
@@ -198,10 +171,8 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
 
   return {
     kpis: { total, dossiersAdmin },
-    checklist,
     lyceesBreakdown,
     interestsCloud,
-    firstDayTimeSlots,
     daysToStart,
     openDate: event.date,
   };

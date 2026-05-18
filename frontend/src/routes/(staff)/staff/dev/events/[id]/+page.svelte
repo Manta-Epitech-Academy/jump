@@ -80,11 +80,8 @@
       openDate={new Date(data.prep.openDate)}
       timezone={data.timezone}
       kpis={data.prep.kpis}
-      checklist={data.prep.checklist}
-      firstDayTimeSlots={data.prep.firstDayTimeSlots}
       lyceesBreakdown={data.prep.lyceesBreakdown}
       interestsCloud={data.prep.interestsCloud}
-      {showPlanning}
       onEditNotes={() => (openEditEvent = true)}
     />
   {:else if data.kind === 'stage' && data.status === 'ongoing'}
