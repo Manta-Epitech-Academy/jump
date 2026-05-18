@@ -10,7 +10,6 @@ import {
   scopedPrisma,
   type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
-import { CalendarDateTime } from '@internationalized/date';
 import { requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_TYPES } from '$lib/domain/event';
 import {
@@ -57,19 +56,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   }
 
   const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
-  const assignedMantaIds = event.mantas.map((m) => m.staffProfileId);
-  const staff = await db.staffProfile.findMany({
-    where: {
-      OR: [
-        { staffRole: { in: ['manta', 'peda'] } },
-        { id: { in: assignedMantaIds } },
-      ],
-    },
-    include: { user: true },
-    orderBy: { user: { name: 'asc' } },
-  });
 
-  const editForm = await buildEditForm(event, staff, tz);
+  const editForm = await buildEditForm(event);
 
   const bounds = getLifecycleBounds(tz);
   const status = applyPhaseOverride(
@@ -87,7 +75,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       legacy,
       event,
       themes,
-      staff,
       editForm,
       timezone: tz,
     };
@@ -103,7 +90,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       prep,
       event,
       themes,
-      staff,
       editForm,
       timezone: tz,
     };
@@ -117,7 +103,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       ongoing,
       event,
       themes,
-      staff,
       editForm,
       timezone: tz,
     };
@@ -130,7 +115,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     past,
     event,
     themes,
-    staff,
     editForm,
     timezone: tz,
   };
@@ -485,44 +469,14 @@ async function loadInterestsCloud(
 
 // ─── Edit form ───────────────────────────────────────────────────────────
 
-async function buildEditForm(
-  event: {
-    titre: string;
-    theme: { nom: string } | null;
-    date: Date;
-    endDate: Date | null;
-    notes: string | null;
-    mantas: { staffProfileId: string }[];
-  },
-  staff: { id: string }[],
-  tz: string,
-) {
-  const dateString = event.date.toISOString().split('T')[0];
-  const timeParts = new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: tz,
-  }).formatToParts(event.date);
-  const hours = timeParts.find((p) => p.type === 'hour')?.value || '00';
-  const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
-  const timeString = `${hours}:${minutes}`;
-  const endDateString = event.endDate
-    ? event.endDate.toISOString().split('T')[0]
-    : '';
-
-  const staffIds = new Set(staff.map((s) => s.id));
+async function buildEditForm(event: {
+  theme: { nom: string } | null;
+  notes: string | null;
+}) {
   return superValidate(
     {
-      titre: event.titre,
       theme: event.theme?.nom || '',
-      date: dateString,
-      endDate: endDateString,
-      time: timeString,
       notes: event.notes || '',
-      mantas: event.mantas
-        .map((m) => m.staffProfileId)
-        .filter((id) => staffIds.has(id)),
     },
     zod4(eventSchema),
   );
@@ -533,42 +487,10 @@ async function buildEditForm(
 export const actions: Actions = {
   updateEvent: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'devLead');
-    const formData = await request.formData();
-    const dateStr = formData.get('date') as string;
-    const timeStr = formData.get('time') as string;
-    const endDateStr = formData.get('endDate') as string;
-
-    const transformedData = {
-      titre: (formData.get('titre') as string) || '',
-      date: dateStr,
-      endDate: endDateStr || '',
-      time: timeStr,
-      theme: formData.get('theme') as string,
-      notes: formData.get('notes') as string,
-      mantas: formData.getAll('mantas') as string[],
-    };
-
-    const form = await superValidate(transformedData, zod4(eventSchema));
+    const form = await superValidate(request, zod4(eventSchema));
     if (!form.valid) return fail(400, { form });
 
-    const tz = getCampusTimezone(locals);
-    const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
-    const [hour, minute] = timeStr.split(':').map(Number);
-    const cdt = new CalendarDateTime(year, month, day, hour, minute);
-    const jsDate = cdt.toDate(tz);
-
-    let endDateIso: string | undefined;
-    if (endDateStr && endDateStr.trim() !== '') {
-      const [ey, em, ed] = endDateStr.split('T')[0].split('-').map(Number);
-      const endCdt = new CalendarDateTime(ey, em, ed, 23, 59);
-      endDateIso = endCdt.toDate(tz).toISOString();
-    }
-
-    await EventService.updateEvent(params.id, getCampusId(locals), {
-      ...form.data,
-      date: jsDate.toISOString(),
-      endDate: endDateIso,
-    });
+    await EventService.updateEvent(params.id, getCampusId(locals), form.data);
 
     return message(form, 'Événement mis à jour !');
   },

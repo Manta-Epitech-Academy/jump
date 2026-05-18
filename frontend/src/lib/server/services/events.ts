@@ -79,18 +79,16 @@ export const EventService = {
   // TODO: activity recommender for parallel tracks in coding clubs
 
   /**
-   * Updates an event.
+   * Updates Jump-side metadata on an event. Identity fields (titre, date,
+   * endDate, mantas) are owned by Salesforce — the SF worker would overwrite
+   * anything we write locally, so they're not editable here.
    */
   async updateEvent(
     eventId: string,
     campusId: string,
     data: {
-      titre: string;
-      date: string;
-      endDate?: string;
       theme?: string;
       notes?: string;
-      mantas?: string[];
     },
   ) {
     const currentEvent = await prisma.event.findUniqueOrThrow({
@@ -103,10 +101,6 @@ export const EventService = {
       );
     }
     const oldThemeId = currentEvent.themeId;
-
-    if (data.mantas) {
-      await validateMantaIds(campusId, data.mantas);
-    }
 
     let newThemeId: string | null = null;
     if (data.theme && data.theme.trim() !== '') {
@@ -124,29 +118,12 @@ export const EventService = {
       }
     }
 
-    await prisma.$transaction(async (tx) => {
-      if (data.mantas) {
-        await tx.eventManta.deleteMany({ where: { eventId } });
-        if (data.mantas.length > 0) {
-          await tx.eventManta.createMany({
-            data: data.mantas.map((staffProfileId) => ({
-              eventId,
-              staffProfileId,
-            })),
-          });
-        }
-      }
-
-      await tx.event.update({
-        where: { id: eventId },
-        data: {
-          titre: data.titre,
-          date: new Date(data.date),
-          endDate: data.endDate ? new Date(data.endDate) : null,
-          themeId: newThemeId ?? undefined,
-          notes: data.notes,
-        },
-      });
+    await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        themeId: newThemeId ?? undefined,
+        notes: data.notes,
+      },
     });
 
     return oldThemeId !== newThemeId;
