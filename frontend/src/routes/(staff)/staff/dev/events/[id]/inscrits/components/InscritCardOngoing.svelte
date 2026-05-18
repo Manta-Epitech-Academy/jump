@@ -28,12 +28,6 @@
   const visibleInterests = $derived(interests.slice(0, 3));
   const overflow = $derived(Math.max(0, interests.length - 3));
 
-  const isNewTalent = $derived.by(() => {
-    const count = talent?.eventsCount ?? 0;
-    const isPresent = row.participation.isPresent ? 1 : 0;
-    return count - isPresent === 0;
-  });
-
   const interviewChipClass = $derived(
     {
       none: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
@@ -96,7 +90,7 @@
         >
           <TalentName talent={talent ?? {}} />
         </span>
-        {#if isNewTalent}
+        {#if row.isNewTalent}
           <NewTalentBadge />
         {/if}
       </div>

@@ -33,15 +33,32 @@ type ParticipationOngoing = Prisma.ParticipationGetPayload<{
 
 export type PrepRow = {
   participation: ParticipationPrep;
+  isNewTalent: boolean;
+  lastSeenName: string | null;
+  lastSeenAt: Date | null;
 };
 
 export type OngoingRow = {
   participation: ParticipationOngoing;
+  isNewTalent: boolean;
   interviewStatus: InterviewDisplayStatus;
   interviewDate: Date | null;
   interviewRecommendation: InterviewRecommendation | null;
   lastActivityName: string | null;
   lastActivityAt: Date | null;
 };
+
+/**
+ * "Nouveau" tag = this stage is the talent's first ever at Epitech.
+ * `eventsCount` is bumped on `markPresent`, so we must subtract the
+ * current event's presence to recover the "before this stage" count.
+ */
+export function computeIsNewTalent(p: {
+  isPresent: boolean;
+  talent: { eventsCount: number } | null;
+}): boolean {
+  const count = p.talent?.eventsCount ?? 0;
+  return count - (p.isPresent ? 1 : 0) <= 0;
+}
 
 export type PastRow = OngoingRow;

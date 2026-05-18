@@ -17,6 +17,7 @@ import {
 } from '$lib/domain/eventLifecycle';
 import { getInterviewDisplayStatus } from '$lib/domain/interview';
 import { compareNiveaux } from './components/niveau';
+import { computeIsNewTalent } from './components/types';
 import type { OngoingRow, PrepRow } from './components/types';
 
 function originConditions(lyceeName: string | null, interestId: string | null) {
@@ -75,7 +76,21 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     });
 
-    const rows: PrepRow[] = participations.map((p) => ({ participation: p }));
+    const lastSeenByTalent = await loadLastSeenByTalent(
+      db,
+      participations.map((p) => p.talentId),
+      event.id,
+    );
+
+    const rows: PrepRow[] = participations.map((p) => {
+      const seen = lastSeenByTalent.get(p.talentId) ?? null;
+      return {
+        participation: p,
+        isNewTalent: computeIsNewTalent(p),
+        lastSeenName: seen?.name ?? null,
+        lastSeenAt: seen?.at ?? null,
+      };
+    });
 
     return {
       event,
@@ -140,6 +155,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const last = lastByParticipation.get(p.id) ?? null;
     return {
       participation: p,
+      isNewTalent: computeIsNewTalent(p),
       interviewStatus: getInterviewDisplayStatus(p.interview, bounds),
       interviewDate: p.interview?.date ?? null,
       interviewRecommendation: p.interview?.recommendation ?? null,
@@ -159,6 +175,44 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     },
   };
 };
+
+async function loadLastSeenByTalent(
+  db: ReturnType<typeof scopedPrisma>,
+  talentIds: string[],
+  currentEventId: string,
+): Promise<Map<string, { name: string; at: Date }>> {
+  if (talentIds.length === 0) return new Map();
+  const priorActivities = await db.participationActivity.findMany({
+    where: {
+      isPresent: true,
+      participation: {
+        talentId: { in: talentIds },
+        eventId: { not: currentEventId },
+      },
+    },
+    select: {
+      activity: {
+        select: {
+          nom: true,
+          timeSlot: { select: { startTime: true } },
+        },
+      },
+      participation: { select: { talentId: true } },
+    },
+    orderBy: { activity: { timeSlot: { startTime: 'desc' } } },
+  });
+  const out = new Map<string, { name: string; at: Date }>();
+  for (const pa of priorActivities) {
+    const tid = pa.participation.talentId;
+    if (!out.has(tid)) {
+      out.set(tid, {
+        name: pa.activity.nom,
+        at: pa.activity.timeSlot.startTime,
+      });
+    }
+  }
+  return out;
+}
 
 function computeAvailableNiveaux<
   T extends { talent: { niveau: string | null } | null },

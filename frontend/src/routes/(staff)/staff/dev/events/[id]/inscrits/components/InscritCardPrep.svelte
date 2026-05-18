@@ -1,20 +1,25 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import Trophy from '@lucide/svelte/icons/trophy';
+  import History from '@lucide/svelte/icons/history';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import NewTalentBadge from '$lib/components/students/NewTalentBadge.svelte';
+  import { formatDateFr } from '$lib/utils';
   import type { PrepRow } from './types';
   import { humanizeNiveau } from './niveau';
 
-  let { row }: { row: PrepRow } = $props();
+  let { row, timezone }: { row: PrepRow; timezone: string } = $props();
 
   const talent = $derived(row.participation.talent);
   const interests = $derived(talent?.interests ?? []);
   const visibleInterests = $derived(interests.slice(0, 3));
   const overflow = $derived(Math.max(0, interests.length - 3));
 
-  const isNewTalent = $derived((talent?.eventsCount ?? 0) === 0);
+  const lastSeenLabel = $derived.by(() => {
+    if (!row.lastSeenName || !row.lastSeenAt) return null;
+    return `${row.lastSeenName} · ${formatDateFr(row.lastSeenAt, timezone)}`;
+  });
 </script>
 
 <a
@@ -37,7 +42,7 @@
         >
           <TalentName talent={talent ?? {}} />
         </span>
-        {#if isNewTalent}
+        {#if row.isNewTalent}
           <NewTalentBadge />
         {/if}
       </div>
@@ -86,4 +91,11 @@
     </span>
     <span>XP</span>
   </div>
+
+  {#if lastSeenLabel}
+    <div class="flex items-center gap-2 text-[11px] text-muted-foreground">
+      <History class="h-3 w-3 shrink-0 text-epi-blue" />
+      <span class="truncate">Vu · {lastSeenLabel}</span>
+    </div>
+  {/if}
 </a>

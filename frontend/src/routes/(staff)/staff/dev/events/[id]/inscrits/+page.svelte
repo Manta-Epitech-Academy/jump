@@ -229,127 +229,57 @@
           </span>
           {absentCount > 1 ? 'absents' : 'absent'}{/if}.
       {:else}
-        {totalCount > 1 ? 'sont attendus' : 'est attendu'}.
+        {totalCount > 1 ? 'sont inscrits' : 'est inscrit'}.
       {/if}
     </p>
 
-    {#if variant.kind === 'prep'}
-      <InscritFilterBar
-        bind:searchQuery
-        bind:niveauFilter
-        bind:sort
-        availableNiveaux={data.availableNiveaux}
-      />
+    <InscritFilterBar
+      bind:searchQuery
+      bind:niveauFilter
+      bind:sort
+      availableNiveaux={data.availableNiveaux}
+    />
 
-      {@const filtered = applySort(
-        applyNiveau(applySearch(variant.rows, searchQuery), niveauFilter),
-        sort,
-      )}
-      {#if filtered.length === 0}
-        <div
-          class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
+    {@const allRows = variant.rows as (PrepRow | OngoingRow)[]}
+    {@const filtered = applySort(
+      applyNiveau(applySearch(allRows, searchQuery), niveauFilter),
+      sort,
+    )}
+    {#if filtered.length === 0}
+      <div
+        class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
+      >
+        <h3
+          class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
         >
-          <h3
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+          Aucun résultat
+        </h3>
+        {#if clientFiltersApplied}
+          <Button
+            variant="outline"
+            size="sm"
+            onclick={resetClientFilters}
+            class="mt-3 rounded-sm"
           >
-            Aucun résultat
-          </h3>
-          {#if clientFiltersApplied}
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={resetClientFilters}
-              class="mt-3 rounded-sm"
-            >
-              Réinitialiser les filtres
-            </Button>
-          {/if}
-        </div>
-      {:else}
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {#each filtered as row (row.participation.id)}
-            <InscritCardPrep {row} />
-          {/each}
-        </div>
-      {/if}
-    {:else if variant.kind === 'ongoing'}
-      <InscritFilterBar
-        bind:searchQuery
-        bind:niveauFilter
-        bind:sort
-        availableNiveaux={data.availableNiveaux}
-      />
-
-      {@const filtered = applySort(
-        applyNiveau(applySearch(variant.rows, searchQuery), niveauFilter),
-        sort,
-      )}
-      {#if filtered.length === 0}
-        <div
-          class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
-        >
-          <h3
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Aucun résultat
-          </h3>
-          {#if clientFiltersApplied}
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={resetClientFilters}
-              class="mt-3 rounded-sm"
-            >
-              Réinitialiser les filtres
-            </Button>
-          {/if}
-        </div>
-      {:else}
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {#each filtered as row (row.participation.id)}
-            <InscritCardOngoing {row} timezone={data.timezone} />
-          {/each}
-        </div>
-      {/if}
+            Réinitialiser les filtres
+          </Button>
+        {/if}
+      </div>
     {:else}
-      <InscritFilterBar
-        bind:searchQuery
-        bind:niveauFilter
-        bind:sort
-        availableNiveaux={data.availableNiveaux}
-      />
-
-      {@const filtered = applySort(
-        applyNiveau(applySearch(variant.rows, searchQuery), niveauFilter),
-        sort,
-      )}
-      {#if filtered.length === 0}
-        <div
-          class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
-        >
-          <h3
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Aucun résultat
-          </h3>
-          {#if clientFiltersApplied}
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={resetClientFilters}
-              class="mt-3 rounded-sm"
-            >
-              Réinitialiser les filtres
-            </Button>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {#each filtered as row (row.participation.id)}
+          {#if variant.kind === 'prep'}
+            <InscritCardPrep row={row as PrepRow} timezone={data.timezone} />
+          {:else if variant.kind === 'ongoing'}
+            <InscritCardOngoing
+              row={row as OngoingRow}
+              timezone={data.timezone}
+            />
+          {:else}
+            <InscritCardPast row={row as OngoingRow} timezone={data.timezone} />
           {/if}
-        </div>
-      {:else}
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {#each filtered as row (row.participation.id)}
-            <InscritCardPast {row} timezone={data.timezone} />
-          {/each}
-        </div>
-      {/if}
+        {/each}
+      </div>
     {/if}
   {/if}
 </div>
