@@ -15,9 +15,7 @@ import {
   type VariableContext,
 } from '$lib/domain/broadcastVariables';
 import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
-import { sendEmail } from '$lib/server/email/resend';
-
-const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';
+import { sendEmail, MAIL_FROM } from '$lib/server/email';
 
 function loginLinkFor(type: RelanceType): string {
   const path = type === 'student' ? '/onboarding' : '/parent/login';
@@ -139,15 +137,16 @@ export async function sendRelances(
     const html = renderBroadcastMail(renderedBody);
 
     const sendResult = await sendEmail({
-      from: FROM_EMAIL,
+      from: MAIL_FROM,
       to: recipient,
       subject: renderedSubject,
       html,
     });
     if (!sendResult.ok) {
       // Skip the audit write on failure — otherwise the "Historique des
-      // relances" panel shows a relance that never left Resend, and the
-      // cooldown classifier blocks the next genuine retry as if it had.
+      // relances" panel shows a relance that never left the mail provider,
+      // and the cooldown classifier blocks the next genuine retry as if
+      // it had.
       console.error(
         'relance send failed',
         sendResult.reason,

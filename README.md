@@ -32,7 +32,8 @@ Built for the **stage de seconde** (2-week high school internship, ~2000 student
 ```bash
 # 1. Clone and configure
 cp .env.example .env
-# Fill in BETTER_AUTH_SECRET, Microsoft OAuth creds, and RESEND_API_KEY
+# Fill in BETTER_AUTH_SECRET, Microsoft OAuth creds, and the mail provider keys
+# (RESEND_API_KEY by default, or MAILJET_API_KEY + MAILJET_API_SECRET)
 
 # 2. Start PostgreSQL
 docker compose up postgres -d
@@ -136,8 +137,11 @@ CI builds and pushes Docker images to GHCR on pushes to `main`, `staging`, and `
 | `MICROSOFT_CLIENT_ID`     | Azure OAuth app ID            |
 | `MICROSOFT_CLIENT_SECRET` | Azure OAuth secret            |
 | `MICROSOFT_TENANT_ID`     | Azure AD tenant               |
-| `RESEND_API_KEY`          | Email delivery API key        |
-| `RESEND_FROM_EMAIL`       | Sender address for OTP emails |
+| `MAIL_PROVIDER`           | `resend` (default) or `mailjet` |
+| `MAIL_FROM`               | Sender address for transactional emails |
+| `RESEND_API_KEY`          | Resend API key (when `MAIL_PROVIDER=resend`) |
+| `MAILJET_API_KEY`         | Mailjet API key (when `MAIL_PROVIDER=mailjet`) |
+| `MAILJET_API_SECRET`      | Mailjet API secret (when `MAIL_PROVIDER=mailjet`) |
 
 See [`.env.example`](.env.example) for the full template.
 

@@ -5,7 +5,7 @@
  *   1. Resolve `EmailActionMapping[actionKey] -> MessageTemplate`
  *   2. Substitute `{{variables}}` in subject + body using the provided ctx
  *   3. Render the markdown body to the same branded HTML as broadcasts
- *   4. Send through Resend with our standard envelope
+ *   4. Send through the active mail provider with our standard envelope
  *
  * When no mapping exists for the action, the call is a no-op (logged as
  * a warning). Admins surface missing mappings in `/staff/admin/email-actions`.
@@ -14,9 +14,8 @@
  * a deploy ships before an admin configures templates.
  */
 
-import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
-import { sendEmail } from './resend';
+import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import {
   substituteVariables,
   EMPTY_VARIABLE_CONTEXT,
@@ -24,8 +23,6 @@ import {
 } from '$lib/domain/broadcastVariables';
 import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 import type { EmailActionKey } from '$lib/domain/emailActions';
-
-const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';
 
 export type ActionSendResult =
   | { ok: true; id: string }
@@ -67,7 +64,7 @@ export async function sendActionEmail(
   const html = renderBroadcastMail(bodyWithVars);
 
   const result = await sendEmail({
-    from: FROM_EMAIL,
+    from: MAIL_FROM,
     to: recipient,
     subject,
     html,

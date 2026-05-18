@@ -1,12 +1,13 @@
 /**
  * Email backend — emits iCalendar `METHOD:REQUEST` invites (and
- * `METHOD:CANCEL` on removal) to the staff member's mailbox via Resend.
- * Outlook / Apple Mail / Gmail all add the event to the user's calendar
- * on accept, and merge subsequent updates by stable UID + bumped SEQUENCE.
+ * `METHOD:CANCEL` on removal) to the staff member's mailbox via the active
+ * mail provider. Outlook / Apple Mail / Gmail all add the event to the
+ * user's calendar on accept, and merge subsequent updates by stable UID +
+ * bumped SEQUENCE.
  *
  * Picked over the Graph backend when the Microsoft tenant won't grant
  * `Calendars.ReadWrite` (admin-consent flow). No OAuth scope, no token
- * lifecycle — just SMTP-via-Resend.
+ * lifecycle — just SMTP via the transactional mail provider.
  */
 
 import { env } from '$env/dynamic/private';
@@ -24,10 +25,9 @@ import type {
   ReconcileOpts,
   ReconcileResult,
 } from './types';
-import { sendEmail } from '$lib/server/email/resend';
+import { sendEmail, MAIL_FROM } from '$lib/server/email';
 
-const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';
-const ORGANIZER_EMAIL = parseFromEmail(FROM_EMAIL);
+const ORGANIZER_EMAIL = parseFromEmail(MAIL_FROM);
 
 /**
  * Dev-only override: when set, every invite is rerouted to this address
@@ -92,7 +92,7 @@ async function sendInvite(args: {
   });
 
   const result = await sendEmail({
-    from: FROM_EMAIL,
+    from: MAIL_FROM,
     to: recipient,
     subject,
     text: cancel
@@ -103,8 +103,8 @@ async function sendInvite(args: {
         filename: cancel ? 'cancellation.ics' : 'invite.ics',
         content: Buffer.from(ics, 'utf-8').toString('base64'),
         // `method=REQUEST|CANCEL` on the Content-Type is what flips
-        // Outlook from "attachment" to "auto-add invite". Resend
-        // forwards this verbatim as `content_type` on the API.
+        // Outlook from "attachment" to "auto-add invite". Providers
+        // forward this verbatim as the attachment content type.
         contentType: `text/calendar; method=${args.method}; charset=utf-8`,
       },
     ],

@@ -18,8 +18,7 @@ import {
   rewriteSmsLinks,
 } from '$lib/server/services/broadcast/linkRewriter';
 import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
-import { sendEmail } from '$lib/server/email/resend';
-import { env } from '$env/dynamic/private';
+import { sendEmail, MAIL_FROM } from '$lib/server/email';
 
 export const load: PageServerLoad = async ({ url }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
@@ -161,7 +160,7 @@ export const actions: Actions = {
     );
 
     const result = await sendEmail({
-      from: env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>',
+      from: MAIL_FROM,
       to: locals.user.email,
       subject,
       html: body,

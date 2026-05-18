@@ -1,17 +1,15 @@
-import { env } from '$env/dynamic/private';
 import {
   sendEmail,
   sendEmailBatch,
-  RESEND_BATCH_MAX,
+  MAIL_BATCH_MAX,
+  MAIL_FROM,
   type SendEmailFailure,
-} from '$lib/server/email/resend';
+} from '$lib/server/email';
 import type { MailMessage, MailProvider, SendOutcome } from './types';
 
-const FROM_EMAIL = env.RESEND_FROM_EMAIL || 'Jump <noreply@jump.fr>';
-
 /**
- * Network errors are always transient (the SDK threw before getting a
- * response). API errors are transient only on 429 (rate limit) or 5xx.
+ * Network errors are always transient (the transport threw before getting
+ * a response). API errors are transient only on 429 (rate limit) or 5xx.
  * 4xx (validation, suppressed, invalid email) are permanent — retrying
  * won't help. When the statusCode is unknown, default to non-retryable
  * to avoid wasting API calls on inputs that will never work.
@@ -32,20 +30,22 @@ function toOutcome(result: Awaited<ReturnType<typeof sendEmail>>): SendOutcome {
   };
 }
 
-export const resendMailProvider: MailProvider = {
+export const transactionalMailProvider: MailProvider = {
   async sendMail({ to, subject, html }): Promise<SendOutcome> {
-    return toOutcome(await sendEmail({ from: FROM_EMAIL, to, subject, html }));
+    return toOutcome(await sendEmail({ from: MAIL_FROM, to, subject, html }));
   },
 
   async sendMailBatch(messages: MailMessage[]): Promise<SendOutcome[]> {
     if (messages.length === 0) return [];
     const outcomes: SendOutcome[] = [];
-    // Resend caps batches at RESEND_BATCH_MAX; chunk transparently.
-    for (let i = 0; i < messages.length; i += RESEND_BATCH_MAX) {
-      const chunk = messages.slice(i, i + RESEND_BATCH_MAX);
+    // Active provider caps batches at MAIL_BATCH_MAX (Resend=100, Mailjet=50);
+    // chunk transparently so the orchestrator's PAGE size stays provider-
+    // agnostic.
+    for (let i = 0; i < messages.length; i += MAIL_BATCH_MAX) {
+      const chunk = messages.slice(i, i + MAIL_BATCH_MAX);
       const results = await sendEmailBatch(
         chunk.map((m) => ({
-          from: FROM_EMAIL,
+          from: MAIL_FROM,
           to: m.to,
           subject: m.subject,
           html: m.html,
@@ -58,5 +58,5 @@ export const resendMailProvider: MailProvider = {
 };
 
 export function getMailProvider(): MailProvider {
-  return resendMailProvider;
+  return transactionalMailProvider;
 }
