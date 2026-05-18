@@ -99,9 +99,9 @@
     />
     <EventKpiTile
       label="Dossiers admin OK"
-      helpText="Talents pour qui les 3 documents administratifs (règlement intérieur, droit à l'image, matériel PC) sont validés dans la page Onboarding."
+      helpText="Talents pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
       value={kpis.dossiersAdmin}
-      sub={`${pct(kpis.dossiersAdmin)} % · 3 documents validés`}
+      sub={`${pct(kpis.dossiersAdmin)} % · 2 documents validés`}
       icon={ClipboardCheck}
       tone="orange"
       progress={pct(kpis.dossiersAdmin)}

@@ -231,8 +231,6 @@ async function loadStageOngoing(
     total,
     interviewsCompleted,
     interviewsTotal,
-    chartes,
-    droitsImage,
     alerts,
     orgaSlots,
     todayTimeSlots,
@@ -246,18 +244,6 @@ async function loadStageOngoing(
     }),
     db.interview.count({
       where: { participation: { eventId: event.id } },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { charteSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { imageRightsSigned: true },
-      },
     }),
     deriveEventAlerts(db, event, {
       basePath: ctx.basePath,
@@ -321,16 +307,11 @@ async function loadStageOngoing(
       ? todayOrgaSlots[todayOrgaSlots.length - 1]
       : null;
 
-  // Average over the two validation docs only — `bringPc` is logistics,
-  // not part of the conformity score.
-  const conformitePct = total === 0 ? 0 : (chartes + droitsImage) / (total * 2);
-
   return {
     kpis: {
       total,
       interviewsCompleted,
       interviewsTotal,
-      conformitePct,
       todayPresence: todayPresenceSlot
         ? {
             slotName: todayPresenceSlot.nom,
