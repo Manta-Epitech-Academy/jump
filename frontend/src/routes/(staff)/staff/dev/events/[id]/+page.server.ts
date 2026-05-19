@@ -1,6 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { error, fail, redirect } from '@sveltejs/kit';
-import { resolve } from '$app/paths';
+import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { eventSchema } from '$lib/validation/events';
@@ -11,21 +10,16 @@ import {
   scopedPrisma,
   type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
-import { CalendarDateTime } from '@internationalized/date';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_TYPES } from '$lib/domain/event';
+import { EVENT_TYPES, eventTypeHasTheme } from '$lib/domain/event';
 import {
   applyPhaseOverride,
-  getDayBounds,
   getEventStatus,
   getLifecycleBounds,
   type LifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { stageEndOrDefault } from '$lib/server/services/stageContext';
-import {
-  deriveEventAlerts,
-  deriveEventChecklist,
-} from '$lib/server/services/eventTasks';
+import { deriveEventAlerts } from '$lib/server/services/eventTasks';
 import { getEventOrgaSlotsWithCounts } from '$lib/domain/presences';
 
 const MS_PER_DAY = 86_400_000;
@@ -57,20 +51,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(404, 'Événement introuvable');
   }
 
-  const themes = await db.theme.findMany({ orderBy: { nom: 'asc' } });
-  const assignedMantaIds = event.mantas.map((m) => m.staffProfileId);
-  const staff = await db.staffProfile.findMany({
-    where: {
-      OR: [
-        { staffRole: { in: ['manta', 'peda'] } },
-        { id: { in: assignedMantaIds } },
-      ],
-    },
-    include: { user: true },
-    orderBy: { user: { name: 'asc' } },
-  });
+  const canHaveTheme = eventTypeHasTheme(event.eventType);
+  const themes = canHaveTheme
+    ? await db.theme.findMany({ orderBy: { nom: 'asc' } })
+    : [];
 
-  const editForm = await buildEditForm(event, staff, tz);
+  const editForm = await buildEditForm(event);
 
   const bounds = getLifecycleBounds(tz);
   const status = applyPhaseOverride(
@@ -88,7 +74,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       legacy,
       event,
       themes,
-      staff,
       editForm,
       timezone: tz,
     };
@@ -97,14 +82,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const currentStaffProfileId = locals.staffProfile?.id ?? null;
 
   if (status === 'upcoming') {
-    const prep = await loadStagePrep(baseLoader, tz);
+    const prep = await loadStagePrep(baseLoader);
     return {
       kind: 'stage' as const,
       status,
       prep,
       event,
       themes,
-      staff,
       editForm,
       timezone: tz,
     };
@@ -118,7 +102,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       ongoing,
       event,
       themes,
-      staff,
       editForm,
       timezone: tz,
     };
@@ -131,7 +114,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     past,
     event,
     themes,
-    staff,
     editForm,
     timezone: tz,
   };
@@ -162,64 +144,25 @@ async function loadLegacyEvent(ctx: LoaderCtx) {
   };
 }
 
-async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
+async function loadStagePrep(ctx: LoaderCtx) {
   const { db, event, bounds } = ctx;
-  const firstDayBounds = getDayBounds(event.date, timezone);
-  const [
-    total,
-    comptesActives,
-    profilComplete,
-    dossiersAdmin,
-    checklist,
-    lyceesBreakdown,
-    interestsCloud,
-    firstDayTimeSlots,
-  ] = await Promise.all([
-    db.participation.count({ where: { eventId: event.id } }),
-    db.participation.count({
-      where: { eventId: event.id, talent: { userId: { not: null } } },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        talent: {
-          infoValidatedAt: { not: null },
-          rulesSignedAt: { not: null },
-          charterAcceptedAt: { not: null },
+  const [total, dossiersAdmin, lyceesBreakdown, interestsCloud] =
+    await Promise.all([
+      db.participation.count({ where: { eventId: event.id } }),
+      // Validation funnel only — bringing a PC is logistics (we just plan
+      // the laptops), not a doc to validate.
+      db.participation.count({
+        where: {
+          eventId: event.id,
+          stageCompliance: {
+            charteSigned: true,
+            imageRightsSigned: true,
+          },
         },
-      },
-    }),
-    // Validation funnel only — bringing a PC is logistics (we just plan
-    // the laptops), not a doc to validate.
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: {
-          charteSigned: true,
-          conventionSigned: true,
-          imageRightsSigned: true,
-        },
-      },
-    }),
-    deriveEventChecklist(db, event, { basePath: ctx.basePath, bounds }),
-    loadLyceesBreakdown(db, event.id),
-    loadInterestsCloud(db, event.id),
-    db.timeSlot.findMany({
-      where: {
-        planning: { eventId: event.id },
-        startTime: {
-          gte: firstDayBounds.startOfDay,
-          lte: firstDayBounds.endOfDay,
-        },
-      },
-      include: {
-        activity: {
-          include: { activityThemes: { include: { theme: true } } },
-        },
-      },
-      orderBy: { startTime: 'asc' },
-    }),
-  ]);
+      }),
+      loadLyceesBreakdown(db, event.id),
+      loadInterestsCloud(db, event.id),
+    ]);
 
   const daysToStart = Math.max(
     0,
@@ -227,11 +170,9 @@ async function loadStagePrep(ctx: LoaderCtx, timezone: string) {
   );
 
   return {
-    kpis: { total, comptesActives, profilComplete, dossiersAdmin },
-    checklist,
+    kpis: { total, dossiersAdmin },
     lyceesBreakdown,
     interestsCloud,
-    firstDayTimeSlots,
     daysToStart,
     openDate: event.date,
   };
@@ -247,9 +188,6 @@ async function loadStageOngoing(
     total,
     interviewsCompleted,
     interviewsTotal,
-    chartes,
-    conventions,
-    droitsImage,
     alerts,
     orgaSlots,
     todayTimeSlots,
@@ -263,24 +201,6 @@ async function loadStageOngoing(
     }),
     db.interview.count({
       where: { participation: { eventId: event.id } },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { charteSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { conventionSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { imageRightsSigned: true },
-      },
     }),
     deriveEventAlerts(db, event, {
       basePath: ctx.basePath,
@@ -344,17 +264,11 @@ async function loadStageOngoing(
       ? todayOrgaSlots[todayOrgaSlots.length - 1]
       : null;
 
-  // Average over the three validation docs only — `bringPc` is logistics,
-  // not part of the conformity score.
-  const conformitePct =
-    total === 0 ? 0 : (chartes + conventions + droitsImage) / (total * 3);
-
   return {
     kpis: {
       total,
       interviewsCompleted,
       interviewsTotal,
-      conformitePct,
       todayPresence: todayPresenceSlot
         ? {
             slotName: todayPresenceSlot.nom,
@@ -374,47 +288,34 @@ async function loadStageOngoing(
 }
 
 async function loadStagePast({ db, event }: LoaderCtx) {
-  const [
-    total,
-    interviewsCompleted,
-    chartes,
-    conventions,
-    droitsImage,
-    bringPc,
-  ] = await Promise.all([
-    db.participation.count({ where: { eventId: event.id } }),
-    db.interview.count({
-      where: { participation: { eventId: event.id }, status: 'completed' },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { charteSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { conventionSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        stageCompliance: { imageRightsSigned: true },
-      },
-    }),
-    db.participation.count({
-      where: { eventId: event.id, bringPc: true },
-    }),
-  ]);
+  const [total, interviewsCompleted, chartes, droitsImage, bringPc] =
+    await Promise.all([
+      db.participation.count({ where: { eventId: event.id } }),
+      db.interview.count({
+        where: { participation: { eventId: event.id }, status: 'completed' },
+      }),
+      db.participation.count({
+        where: {
+          eventId: event.id,
+          stageCompliance: { charteSigned: true },
+        },
+      }),
+      db.participation.count({
+        where: {
+          eventId: event.id,
+          stageCompliance: { imageRightsSigned: true },
+        },
+      }),
+      db.participation.count({
+        where: { eventId: event.id, bringPc: true },
+      }),
+    ]);
 
   return {
     stats: {
       total,
       bringPc,
       chartes,
-      conventions,
       droitsImage,
       interviewsCompleted,
     },
@@ -542,44 +443,14 @@ async function loadInterestsCloud(
 
 // ─── Edit form ───────────────────────────────────────────────────────────
 
-async function buildEditForm(
-  event: {
-    titre: string;
-    theme: { nom: string } | null;
-    date: Date;
-    endDate: Date | null;
-    notes: string | null;
-    mantas: { staffProfileId: string }[];
-  },
-  staff: { id: string }[],
-  tz: string,
-) {
-  const dateString = event.date.toISOString().split('T')[0];
-  const timeParts = new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: tz,
-  }).formatToParts(event.date);
-  const hours = timeParts.find((p) => p.type === 'hour')?.value || '00';
-  const minutes = timeParts.find((p) => p.type === 'minute')?.value || '00';
-  const timeString = `${hours}:${minutes}`;
-  const endDateString = event.endDate
-    ? event.endDate.toISOString().split('T')[0]
-    : '';
-
-  const staffIds = new Set(staff.map((s) => s.id));
+async function buildEditForm(event: {
+  theme: { nom: string } | null;
+  notes: string | null;
+}) {
   return superValidate(
     {
-      titre: event.titre,
       theme: event.theme?.nom || '',
-      date: dateString,
-      endDate: endDateString,
-      time: timeString,
       notes: event.notes || '',
-      mantas: event.mantas
-        .map((m) => m.staffProfileId)
-        .filter((id) => staffIds.has(id)),
     },
     zod4(eventSchema),
   );
@@ -590,53 +461,11 @@ async function buildEditForm(
 export const actions: Actions = {
   updateEvent: async ({ request, locals, params }) => {
     requireStaffGroup(locals, 'devLead');
-    const formData = await request.formData();
-    const dateStr = formData.get('date') as string;
-    const timeStr = formData.get('time') as string;
-    const endDateStr = formData.get('endDate') as string;
-
-    const transformedData = {
-      titre: (formData.get('titre') as string) || '',
-      date: dateStr,
-      endDate: endDateStr || '',
-      time: timeStr,
-      theme: formData.get('theme') as string,
-      notes: formData.get('notes') as string,
-      mantas: formData.getAll('mantas') as string[],
-    };
-
-    const form = await superValidate(transformedData, zod4(eventSchema));
+    const form = await superValidate(request, zod4(eventSchema));
     if (!form.valid) return fail(400, { form });
 
-    const tz = getCampusTimezone(locals);
-    const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
-    const [hour, minute] = timeStr.split(':').map(Number);
-    const cdt = new CalendarDateTime(year, month, day, hour, minute);
-    const jsDate = cdt.toDate(tz);
-
-    let endDateIso: string | undefined;
-    if (endDateStr && endDateStr.trim() !== '') {
-      const [ey, em, ed] = endDateStr.split('T')[0].split('-').map(Number);
-      const endCdt = new CalendarDateTime(ey, em, ed, 23, 59);
-      endDateIso = endCdt.toDate(tz).toISOString();
-    }
-
-    await EventService.updateEvent(params.id, getCampusId(locals), {
-      ...form.data,
-      date: jsDate.toISOString(),
-      endDate: endDateIso,
-    });
+    await EventService.updateEvent(params.id, getCampusId(locals), form.data);
 
     return message(form, 'Événement mis à jour !');
-  },
-
-  deleteEvent: async ({ params, locals }) => {
-    requireStaffGroup(locals, 'devLead');
-    try {
-      await EventService.deleteEvent(params.id, getCampusId(locals));
-    } catch {
-      return fail(500);
-    }
-    throw redirect(303, resolve('/staff/dev'));
   },
 };

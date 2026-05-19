@@ -1,10 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { EventService } from '$lib/server/services/events';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
+  requireFlag(locals, 'staff_intervenants');
   const db = scopedPrisma(getCampusId(locals));
 
   let event;
@@ -61,6 +62,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   add: async ({ request, locals, params }) => {
+    requireFlag(locals, 'staff_intervenants');
     requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
     const staffProfileId = (formData.get('staffProfileId') ?? '')
@@ -95,6 +97,7 @@ export const actions: Actions = {
   },
 
   remove: async ({ request, locals, params }) => {
+    requireFlag(locals, 'staff_intervenants');
     requireStaffGroup(locals, 'devLead');
     const formData = await request.formData();
     const staffProfileId = (formData.get('staffProfileId') ?? '')

@@ -19,7 +19,7 @@
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { toast } from 'svelte-sonner';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import {
     STAFF_ROLES,
     getStaffRoleLabel,

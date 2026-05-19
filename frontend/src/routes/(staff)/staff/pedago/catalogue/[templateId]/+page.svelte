@@ -56,7 +56,6 @@
 <div class="space-y-6">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/pedago') },
       { label: 'Bibliothèque', href: resolve('/staff/pedago/catalogue') },
       { label: template.nom },
     ]}

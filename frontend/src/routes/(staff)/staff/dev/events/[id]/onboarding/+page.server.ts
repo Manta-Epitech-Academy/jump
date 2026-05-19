@@ -58,7 +58,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 // Maps form-side doc type identifiers to their Prisma column.
 const DOC_TYPE_FIELDS = {
   charte: 'charteSigned',
-  convention: 'conventionSigned',
   image: 'imageRightsSigned',
 } as const;
 type DocType = keyof typeof DOC_TYPE_FIELDS;

@@ -16,8 +16,11 @@
     error?: string;
   } = $props();
 
+  // svelte-ignore state_referenced_locally
   let query = $state(highSchoolName);
+  // svelte-ignore state_referenced_locally
   let selectedNom = $state(highSchoolName);
+  // svelte-ignore state_referenced_locally
   let selectedVille = $state(highSchoolCity);
   let suggestions = $state<{ nom: string; ville: string }[]>([]);
   let showSuggestions = $state(false);

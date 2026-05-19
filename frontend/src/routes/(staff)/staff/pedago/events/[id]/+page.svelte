@@ -74,12 +74,7 @@
 </svelte:head>
 
 <div class="space-y-6 pb-12">
-  <PageBreadcrumb
-    items={[
-      { label: 'Dashboard', href: resolve('/staff/pedago') },
-      { label: event.titre },
-    ]}
-  />
+  <PageBreadcrumb items={[{ label: event.titre }]} />
 
   <!-- HEADER -->
   <div

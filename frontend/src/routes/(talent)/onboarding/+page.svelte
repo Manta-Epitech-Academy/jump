@@ -33,12 +33,15 @@
 
   const TOTAL_MICRO_STEPS = 6;
 
+  // svelte-ignore state_referenced_locally
   let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
+  // svelte-ignore state_referenced_locally
   let lastServerStep = $state(data.step);
   let interstitial = $state<string | null>(null);
   let interstitialDone: (() => void) | null = $state(null);
 
   // Accumulated info fields for micro-steps 1-4
+  // svelte-ignore state_referenced_locally
   let infoFields = $state({
     nom: data.profile?.nom ?? '',
     prenom: data.profile?.prenom ?? '',

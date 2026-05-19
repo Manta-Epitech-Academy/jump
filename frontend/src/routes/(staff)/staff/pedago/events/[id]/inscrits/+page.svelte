@@ -2,7 +2,6 @@
   import type { PageData } from './$types';
   import { resolve } from '$app/paths';
   import Search from '@lucide/svelte/icons/search';
-  import SignalLow from '@lucide/svelte/icons/signal-low';
   import Trophy from '@lucide/svelte/icons/trophy';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
@@ -19,7 +18,6 @@
   type SortMode = 'name' | 'xp' | 'events';
   let search = $state('');
   let selectedNiveau = $state<string>('all');
-  let selectedDifficulty = $state<string>('all');
   let sortMode = $state<SortMode>('name');
 
   const NIVEAU_ORDER = [
@@ -48,8 +46,6 @@
     });
   });
 
-  const DIFFICULTIES = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
-
   let filtered = $derived.by(() => {
     const q = search.trim().toLowerCase();
     let list = data.participations.filter((p) => {
@@ -58,11 +54,6 @@
         if (!haystack.includes(q)) return false;
       }
       if (selectedNiveau !== 'all' && p.talent.niveau !== selectedNiveau)
-        return false;
-      if (
-        selectedDifficulty !== 'all' &&
-        p.talent.niveauDifficulte !== selectedDifficulty
-      )
         return false;
       return true;
     });
@@ -79,19 +70,6 @@
 
   function getInitials(prenom: string, nom: string) {
     return ((nom?.[0] ?? '') + (prenom?.[0] ?? '')).toUpperCase();
-  }
-
-  function getDifficultyClass(diff: string | null) {
-    switch (diff) {
-      case 'Débutant':
-        return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-400';
-      case 'Intermédiaire':
-        return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'Avancé':
-        return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/40 dark:bg-purple-900/20 dark:text-purple-400';
-      default:
-        return 'border-border text-muted-foreground';
-    }
   }
 
   let totalXp = $derived(
@@ -112,7 +90,6 @@
 <div class="space-y-6 pb-12">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/pedago') },
       {
         label: data.event.titre,
         href: resolve(`/staff/pedago/events/${data.event.id}`),
@@ -232,38 +209,6 @@
           {n}
         </button>
       {/each}
-
-      <span
-        class="ml-auto text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
-      >
-        Aisance :
-      </span>
-      <button
-        type="button"
-        onclick={() => (selectedDifficulty = 'all')}
-        class={cn(
-          'rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase transition-colors',
-          selectedDifficulty === 'all'
-            ? 'border-epi-blue bg-epi-blue text-white'
-            : 'border-border bg-card text-muted-foreground hover:border-epi-blue/50',
-        )}
-      >
-        Tous
-      </button>
-      {#each DIFFICULTIES as d (d)}
-        <button
-          type="button"
-          onclick={() => (selectedDifficulty = d)}
-          class={cn(
-            'rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase transition-colors',
-            selectedDifficulty === d
-              ? 'border-epi-blue bg-epi-blue text-white'
-              : 'border-border bg-card text-muted-foreground hover:border-epi-blue/50',
-          )}
-        >
-          {d}
-        </button>
-      {/each}
     </div>
   </div>
 
@@ -312,18 +257,6 @@
                   class="px-1.5 py-0 text-[9px] tracking-widest uppercase"
                 >
                   {p.talent.niveau}
-                </Badge>
-              {/if}
-              {#if p.talent.niveauDifficulte}
-                <Badge
-                  variant="outline"
-                  class={cn(
-                    'gap-1 px-1.5 py-0 text-[9px] uppercase',
-                    getDifficultyClass(p.talent.niveauDifficulte),
-                  )}
-                >
-                  <SignalLow class="h-2.5 w-2.5" />
-                  {p.talent.niveauDifficulte}
                 </Badge>
               {/if}
             </div>

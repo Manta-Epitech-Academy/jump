@@ -9,7 +9,7 @@
   import { toast } from 'svelte-sonner';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import DatePicker from '$lib/components/DatePicker.svelte';
+  import DatePicker from '$lib/components/dev/DatePicker.svelte';
   import {
     CalendarDateTime,
     getLocalTimeZone,

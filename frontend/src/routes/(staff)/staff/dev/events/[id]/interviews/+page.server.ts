@@ -64,13 +64,17 @@ type LoadedEvent = Awaited<ReturnType<typeof loadStageOr404>>;
 type InterviewerRow = {
   id: string;
   name: string;
+  image: string | null;
   role: StaffRole;
   count: number;
 };
 
 type InterviewWithRelations = Interview & {
   talent: Talent;
-  staff: { id: string; user: { name: string | null } | null };
+  staff: {
+    id: string;
+    user: { name: string | null; image: string | null } | null;
+  };
 };
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -213,6 +217,7 @@ async function loadInterviewers(
   return staff.map((s) => ({
     id: s.id,
     name: s.user?.name ?? 'Inconnu',
+    image: s.user?.image ?? null,
     role: s.staffRole as StaffRole,
     count: countById.get(s.id) ?? 0,
   }));

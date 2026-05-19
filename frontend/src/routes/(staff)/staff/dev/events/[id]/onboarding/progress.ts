@@ -2,7 +2,6 @@ export type ParticipationProgress = {
   bringPc: boolean;
   stageCompliance: {
     charteSigned: boolean;
-    conventionSigned: boolean;
     imageRightsSigned: boolean;
   } | null;
 };
@@ -13,12 +12,11 @@ export type ParticipationProgress = {
  * a logistics signal (we just need to know how many laptops to prepare).
  * It surfaces as a separate KPI tile, not part of the readiness funnel.
  */
-export const TOTAL_DOCS = 3;
+export const TOTAL_DOCS = 2;
 
 export function countSignedDocs(p: ParticipationProgress): number {
   return (
     (p.stageCompliance?.charteSigned ? 1 : 0) +
-    (p.stageCompliance?.conventionSigned ? 1 : 0) +
     (p.stageCompliance?.imageRightsSigned ? 1 : 0)
   );
 }

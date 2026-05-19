@@ -24,12 +24,9 @@ export type EventAlertKind =
   | 'unassigned-slots'
   | 'interviews-today'
   | 'interviews-overdue'
-  | 'conventions-to-chase'
   | 'chartes-to-chase'
   | 'image-rights-to-chase'
-  | 'pc-missing'
-  | 'talents-never-logged'
-  | 'talents-profile-incomplete';
+  | 'pc-missing';
 
 export type EventAlert = {
   key: string;
@@ -48,7 +45,7 @@ export type ChecklistItemKind = Exclude<
   'interviews-today' | 'interviews-overdue'
 >;
 
-export type ChecklistGroup = 'team' | 'onboarding' | 'documents';
+export type ChecklistGroup = 'team' | 'documents';
 
 export type ChecklistItem = {
   key: string;
@@ -86,12 +83,9 @@ type EventFacts = {
   mantaCount: number;
   slotCount: number;
   unassignedSlots: number;
-  conventionsToChase: number;
   chartesToChase: number;
   imageRightsToChase: number;
   pcMissing: number;
-  talentsNeverLogged: number;
-  talentsProfileIncomplete: number;
   interviewsToday: number;
   overdueInterviews: number;
 };
@@ -134,12 +128,9 @@ async function loadEventFacts(
     mantaCount,
     slotCount,
     unassignedSlots,
-    conventionsToChase: 0,
     chartesToChase: 0,
     imageRightsToChase: 0,
     pcMissing: 0,
-    talentsNeverLogged: 0,
-    talentsProfileIncomplete: 0,
     interviewsToday: 0,
     overdueInterviews: 0,
   };
@@ -159,24 +150,12 @@ async function loadEventFacts(
   };
 
   const [
-    conventionsToChase,
     chartesToChase,
     imageRightsToChase,
     pcMissing,
-    talentsNeverLogged,
-    talentsProfileIncomplete,
     interviewsToday,
     overdueInterviews,
   ] = await Promise.all([
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        OR: [
-          { stageCompliance: null },
-          { stageCompliance: { conventionSigned: false } },
-        ],
-      },
-    }),
     db.participation.count({
       where: {
         eventId: event.id,
@@ -198,19 +177,6 @@ async function loadEventFacts(
     db.participation.count({
       where: { eventId: event.id, bringPc: false },
     }),
-    db.participation.count({
-      where: { eventId: event.id, talent: { lastActiveAt: null } },
-    }),
-    db.participation.count({
-      where: {
-        eventId: event.id,
-        OR: [
-          { talent: { infoValidatedAt: null } },
-          { talent: { rulesSignedAt: null } },
-          { talent: { charterAcceptedAt: null } },
-        ],
-      },
-    }),
     db.interview.count({
       where: {
         ...interviewBaseWhere,
@@ -227,12 +193,9 @@ async function loadEventFacts(
 
   return {
     ...baseFacts,
-    conventionsToChase,
     chartesToChase,
     imageRightsToChase,
     pcMissing,
-    talentsNeverLogged,
-    talentsProfileIncomplete,
     interviewsToday,
     overdueInterviews,
   };
@@ -292,30 +255,15 @@ export async function deriveEventAlerts(
   if (!facts.isStage || facts.totalParticipations === 0) return alerts;
 
   const interviewsHref = `${eventBase}/interviews`;
-  const inscritsHref = `${eventBase}/inscrits`;
   const onboardingHref = `${eventBase}/onboarding`;
 
-  if (facts.conventionsToChase > 0) {
-    alerts.push({
-      key: `conventions-${event.id}`,
-      kind: 'conventions-to-chase',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Conventions non remontées par Salesforce',
-      description:
-        'Salesforce ne marque pas la convention comme signée — vérifier l’upload SF',
-      count: facts.conventionsToChase,
-      severity: 'warning',
-      href: `${onboardingHref}?filter=convention-missing`,
-    });
-  }
   if (facts.chartesToChase > 0) {
     alerts.push({
       key: `chartes-${event.id}`,
       kind: 'chartes-to-chase',
       eventId: event.id,
       eventTitre: event.titre,
-      title: 'Chartes à valider',
+      title: 'Règlements intérieurs à valider',
       description: 'Cocher dans Onboarding dès réception du document signé',
       count: facts.chartesToChase,
       severity: 'info',
@@ -348,32 +296,6 @@ export async function deriveEventAlerts(
       count: facts.pcMissing,
       severity: 'info',
       href: `${onboardingHref}?filter=pc-missing`,
-    });
-  }
-  if (facts.talentsNeverLogged > 0) {
-    alerts.push({
-      key: `never-logged-${event.id}`,
-      kind: 'talents-never-logged',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Inscrits jamais connectés',
-      description: 'Talents qui ne se sont pas encore connectés à Jump',
-      count: facts.talentsNeverLogged,
-      severity: 'danger',
-      href: `${inscritsHref}?filter=never-logged`,
-    });
-  }
-  if (facts.talentsProfileIncomplete > 0) {
-    alerts.push({
-      key: `profile-incomplete-${event.id}`,
-      kind: 'talents-profile-incomplete',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Onboarding plateforme incomplet',
-      description: 'Talents bloqués avant le tableau de bord élève',
-      count: facts.talentsProfileIncomplete,
-      severity: 'warning',
-      href: `${inscritsHref}?filter=profile-incomplete`,
     });
   }
   if (facts.overdueInterviews > 0) {
@@ -477,61 +399,16 @@ export async function deriveEventChecklist(
 
   if (!facts.isStage || facts.totalParticipations === 0) return items;
 
-  const inscritsHref = `${eventBase}/inscrits`;
   const onboardingHref = `${eventBase}/onboarding`;
   const total = facts.totalParticipations;
 
-  // — Group: onboarding plateforme —
-
-  items.push({
-    key: `never-logged-${event.id}`,
-    kind: 'talents-never-logged',
-    group: 'onboarding',
-    title: 'Tous les inscrits se sont connectés à Jump',
-    meta:
-      facts.talentsNeverLogged === 0
-        ? `${total}/${total} actifs sur la plateforme`
-        : `${facts.talentsNeverLogged} jamais connecté${facts.talentsNeverLogged > 1 ? 's' : ''}`,
-    done: facts.talentsNeverLogged === 0,
-    severity: 'danger',
-    href: `${inscritsHref}?filter=never-logged`,
-  });
-
-  items.push({
-    key: `profile-incomplete-${event.id}`,
-    kind: 'talents-profile-incomplete',
-    group: 'onboarding',
-    title: 'Onboarding plateforme complet',
-    meta:
-      facts.talentsProfileIncomplete === 0
-        ? `${total}/${total} profils complets`
-        : `${facts.talentsProfileIncomplete} profil${facts.talentsProfileIncomplete > 1 ? 's' : ''} incomplet${facts.talentsProfileIncomplete > 1 ? 's' : ''}`,
-    done: facts.talentsProfileIncomplete === 0,
-    severity: 'warning',
-    href: `${inscritsHref}?filter=profile-incomplete`,
-  });
-
   // — Group: documents administratifs —
-
-  items.push({
-    key: `conventions-${event.id}`,
-    kind: 'conventions-to-chase',
-    group: 'documents',
-    title: 'Conventions de stage signées (Salesforce)',
-    meta:
-      facts.conventionsToChase === 0
-        ? `${total}/${total} remontées par Salesforce`
-        : `${facts.conventionsToChase} non remontée${facts.conventionsToChase > 1 ? 's' : ''} par Salesforce`,
-    done: facts.conventionsToChase === 0,
-    severity: 'warning',
-    href: `${onboardingHref}?filter=convention-missing`,
-  });
 
   items.push({
     key: `chartes-${event.id}`,
     kind: 'chartes-to-chase',
     group: 'documents',
-    title: 'Chartes validées dans Onboarding',
+    title: 'Règlements intérieurs validés dans Onboarding',
     meta:
       facts.chartesToChase === 0
         ? `${total}/${total} cochées`

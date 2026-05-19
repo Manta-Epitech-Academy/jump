@@ -13,8 +13,8 @@
 
   /**
    * The server caps `rows` to a top-N; `others.count` is the sum of tail
-   * declarations (a talent picking 3 tail interests adds 3) — labelled
-   * "déclarations" rather than "talents" because it's not unique-talent count.
+   * declarations (a stagiaire picking 3 tail interests adds 3) — labelled
+   * "déclarations" rather than "stagiaires" because it's not unique-stagiaire count.
    */
   type Breakdown = {
     rows: InterestRow[];
@@ -61,7 +61,7 @@
           : 0}
         <a
           href={`${inscritsBase}?interest=${i.interestId}`}
-          title={`Filtrer · ${i.count} ${i.count > 1 ? 'talents' : 'talent'}`}
+          title={`Filtrer · ${i.count} ${i.count > 1 ? 'stagiaires' : 'stagiaire'}`}
           class="group block rounded-sm px-3 py-2 transition-colors hover:bg-epi-blue/5"
         >
           <div class="flex items-baseline justify-between gap-3 text-sm">

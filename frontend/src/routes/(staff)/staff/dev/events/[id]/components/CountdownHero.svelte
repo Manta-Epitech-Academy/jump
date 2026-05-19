@@ -1,15 +1,15 @@
 <script lang="ts">
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { onMount } from 'svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
 
   type Props = {
-    titre: string;
     daysToStart: number;
     openDate: Date;
     timezone: string;
   };
 
-  let { titre, daysToStart, openDate, timezone }: Props = $props();
+  let { daysToStart, openDate, timezone }: Props = $props();
 
   let now = $state(Date.now());
 
@@ -44,14 +44,6 @@
     }),
   );
 
-  const ribbon = $derived(
-    daysToStart === 0
-      ? 'Ouverture aujourd’hui'
-      : daysToStart === 1
-        ? 'Ouverture demain'
-        : `J–${daysToStart} avant l’ouverture`,
-  );
-
   const intro = $derived(
     daysToStart === 0
       ? 'C’est aujourd’hui. Les inscrits arrivent dans quelques heures — un dernier passage sur les dossiers en attente et l’équipe est prête.'
@@ -67,13 +59,13 @@
       <p
         class="font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
       >
-        <span class="opacity-60">&lt;</span> Préparation · {ribbon}
+        <span class="opacity-60">&lt;</span> Préparation
         <span class="opacity-60">/&gt;</span>
       </p>
       <h1
         class="mt-3 font-heading text-4xl tracking-wide uppercase md:text-5xl"
       >
-        {titre}<span class="text-epi-teal">_</span>
+        {STAGE_SECONDE_LABEL}<span class="text-epi-teal">_</span>
       </h1>
       <p class="mt-2 text-sm font-medium text-blue-100">
         Ouverture le <span class="text-epi-teal">{openDateLabel}</span> à
