@@ -3019,21 +3019,75 @@ L'équipe Epitech Academy`,
 
 // ─── Portfolio items ───
 
+// Portfolio livrables — populated for talents that have already been
+// marked present at a past or ongoing event. New talents (no presence
+// history) stay empty so the "premier livrable" empty state remains
+// reachable in QA.
 const PORTFOLIO: {
   studentEmail: string;
   eventIndex: number;
   url?: string;
   caption: string;
 }[] = [
+  // ── eventIndex 0 — Atelier Cybersécurité (-14d) ──
   {
     studentEmail: parisStudents[0],
-    eventIndex: 2, // stage past
-    url: 'https://codepen.io/example/first-page',
-    caption: 'Ma toute première page web (stage)',
+    eventIndex: 0,
+    caption: 'Affiche cyberhygiène pour ma classe',
   },
   {
+    studentEmail: parisStudents[1],
+    eventIndex: 0,
+    caption: 'Quiz cybersécurité — 9/10',
+  },
+  {
+    studentEmail: parisStudents[2],
+    eventIndex: 0,
+    url: 'https://example.com/phishing-poster',
+    caption: 'Affiche phishing en équipe',
+  },
+  {
+    studentEmail: parisStudents[3],
+    eventIndex: 0,
+    caption: 'Notes — comment fabriquer un mot de passe solide',
+  },
+  {
+    studentEmail: parisStudents[4],
+    eventIndex: 0,
+    url: 'https://example.com/crypto-challenge',
+    caption: 'Défi de cryptographie César résolu',
+  },
+  {
+    studentEmail: parisStudents[5],
+    eventIndex: 0,
+    caption: 'Démo chiffrement César',
+  },
+  {
+    studentEmail: parisStudents[6],
+    eventIndex: 0,
+    caption: 'Quiz cybersécurité complété',
+  },
+  {
+    studentEmail: parisStudents[19],
+    eventIndex: 0,
+    caption: 'Notes sur la cyberhygiène',
+  },
+  {
+    studentEmail: parisStudents[20],
+    eventIndex: 0,
+    caption: "Schéma d'un phishing reconstitué",
+  },
+  {
+    studentEmail: parisStudents[21],
+    eventIndex: 0,
+    url: 'https://example.com/phishing-spotted',
+    caption: 'Site phishing repéré et décortiqué',
+  },
+
+  // ── eventIndex 1 — Atelier Robotique (-7d) ──
+  {
     studentEmail: parisStudents[0],
-    eventIndex: 1, // robotics past
+    eventIndex: 1,
     caption: 'Robot assemblé avec Emma',
   },
   {
@@ -3043,15 +3097,160 @@ const PORTFOLIO: {
   },
   {
     studentEmail: parisStudents[2],
+    eventIndex: 1,
+    caption: 'Robot terminé et fonctionnel',
+  },
+  {
+    studentEmail: parisStudents[3],
+    eventIndex: 1,
+    caption: 'Capteur de distance calibré',
+  },
+  {
+    studentEmail: parisStudents[4],
+    eventIndex: 1,
+    caption: 'Photo de mon robot ramasseur',
+  },
+  {
+    studentEmail: parisStudents[5],
+    eventIndex: 1,
+    caption: 'Robot suiveur de ligne',
+  },
+  {
+    studentEmail: parisStudents[6],
+    eventIndex: 1,
+    caption: 'Programmation moteur — premiers pas',
+  },
+  {
+    studentEmail: parisStudents[7],
+    eventIndex: 1,
+    caption: 'Vidéo du robot en action',
+  },
+  {
+    studentEmail: parisStudents[8],
+    eventIndex: 1,
+    caption: 'Croquis du robot avant assemblage',
+  },
+  {
+    studentEmail: parisStudents[22],
+    eventIndex: 1,
+    caption: "Plan d'assemblage du robot",
+  },
+  {
+    studentEmail: parisStudents[24],
+    eventIndex: 1,
+    caption: 'Mon premier programme robot',
+  },
+
+  // ── eventIndex 2 — Past Stage de seconde (-338d, promotion précédente) ──
+  {
+    studentEmail: parisStudents[0],
+    eventIndex: 2,
+    url: 'https://codepen.io/example/first-page',
+    caption: 'Ma toute première page web (stage)',
+  },
+  {
+    studentEmail: parisStudents[1],
+    eventIndex: 2,
+    url: 'https://codepen.io/example/lucas-site',
+    caption: 'Mon site CSS perso',
+  },
+  {
+    studentEmail: parisStudents[2],
     eventIndex: 2,
     url: 'https://codepen.io/example/css-page',
     caption: 'Ma page CSS colorée',
   },
   {
+    studentEmail: parisStudents[3],
+    eventIndex: 2,
+    caption: 'Modèle IA entraîné sur images de chats',
+  },
+  {
     studentEmail: parisStudents[4],
-    eventIndex: 0, // cyber past
-    url: 'https://example.com/crypto-challenge',
-    caption: 'Défi de cryptographie César résolu',
+    eventIndex: 2,
+    caption: 'Robot soccer du stage',
+  },
+  {
+    studentEmail: parisStudents[5],
+    eventIndex: 2,
+    caption: 'Photo de la démo finale du stage',
+  },
+
+  // ── eventIndex 7 — Ongoing stage (J3 of 14): J1/J2 livrables ──
+  {
+    studentEmail: parisStudents[6],
+    eventIndex: 7,
+    url: 'https://codepen.io/example/chloe-html',
+    caption: 'Page HTML — J1 du stage',
+  },
+  {
+    studentEmail: parisStudents[7],
+    eventIndex: 7,
+    caption: 'CSS J1 — palette pastel',
+  },
+  {
+    studentEmail: parisStudents[8],
+    eventIndex: 7,
+    caption: 'Modèle IA J2 — reconnaissance images',
+  },
+  {
+    studentEmail: parisStudents[9],
+    eventIndex: 7,
+    url: 'https://codepen.io/example/louis-html',
+    caption: 'Site HTML J1',
+  },
+  {
+    studentEmail: parisStudents[10],
+    eventIndex: 7,
+    caption: 'Modèle IA J2 — chiffres manuscrits',
+  },
+  {
+    studentEmail: parisStudents[11],
+    eventIndex: 7,
+    caption: 'Page HTML J1',
+  },
+  {
+    studentEmail: parisStudents[12],
+    eventIndex: 7,
+    caption: 'Modèle IA J2 — entraîné en équipe',
+  },
+  {
+    studentEmail: parisStudents[13],
+    eventIndex: 7,
+    caption: 'CSS J1 — page de présentation',
+  },
+
+  // ── eventIndex 8 — Past Atelier Web Lyon (-10d) ──
+  {
+    studentEmail: lyonStudents[0],
+    eventIndex: 8,
+    url: 'https://codepen.io/example/eliot-html',
+    caption: 'Première page HTML Lyon',
+  },
+  {
+    studentEmail: lyonStudents[1],
+    eventIndex: 8,
+    caption: 'Page CSS avec mes couleurs préférées',
+  },
+  {
+    studentEmail: lyonStudents[2],
+    eventIndex: 8,
+    caption: 'Site portfolio HTML',
+  },
+  {
+    studentEmail: lyonStudents[3],
+    eventIndex: 8,
+    caption: 'Mes premiers tags HTML',
+  },
+  {
+    studentEmail: lyonStudents[10],
+    eventIndex: 8,
+    caption: 'Page web personnelle',
+  },
+  {
+    studentEmail: lyonStudents[11],
+    eventIndex: 8,
+    caption: 'Démo HTML présentée en classe',
   },
 ];
 
