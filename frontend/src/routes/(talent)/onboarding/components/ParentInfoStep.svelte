@@ -25,11 +25,6 @@
     parentPhone?: string;
     errors?: Record<string, string[]>;
   } = $props();
-
-  let localParentNom = $state(parentNom);
-  let localParentPrenom = $state(parentPrenom);
-  let localParentEmail = $state(parentEmail);
-  let localParentPhone = $state(parentPhone);
 </script>
 
 <div class="mb-6 text-center">
@@ -94,7 +89,7 @@
       id="parentPrenom"
       name="parentPrenom"
       type="text"
-      bind:value={localParentPrenom}
+      value={parentPrenom}
       placeholder="Marie"
       required
       class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
@@ -114,7 +109,7 @@
       id="parentNom"
       name="parentNom"
       type="text"
-      bind:value={localParentNom}
+      value={parentNom}
       placeholder="Dupont"
       required
       class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
@@ -134,7 +129,7 @@
       id="parentEmail"
       name="parentEmail"
       type="email"
-      bind:value={localParentEmail}
+      value={parentEmail}
       placeholder="parent@mail.com"
       required
       class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
@@ -154,7 +149,7 @@
       id="parentPhone"
       name="parentPhone"
       type="tel"
-      bind:value={localParentPhone}
+      value={parentPhone}
       placeholder="06 12 34 56 78"
       required
       class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"

@@ -10,6 +10,7 @@ bun.lockb
 
 # SvelteKit auto-generated
 .svelte-kit/
+.svelte-kit-check/
 build/
 
 # Paraglide auto-generated
