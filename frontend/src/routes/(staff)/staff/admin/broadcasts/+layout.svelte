@@ -1,20 +1,7 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import { resolve } from '$app/paths';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
   let { data, children } = $props();
-
-  function isOnTemplates(): boolean {
-    return page.url.pathname.includes('/broadcasts/templates');
-  }
-
-  const tabClass = (active: boolean) =>
-    `px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-      active
-        ? 'border-epi-pink text-foreground'
-        : 'border-transparent text-muted-foreground hover:text-foreground'
-    }`;
 </script>
 
 <div class="space-y-6">
@@ -25,21 +12,6 @@
       parents ou staff.
     </p>
   </header>
-
-  <nav class="flex border-b">
-    <a
-      href={resolve('/staff/admin/broadcasts')}
-      class={tabClass(!isOnTemplates())}
-    >
-      Envois
-    </a>
-    <a
-      href={resolve('/staff/admin/broadcasts/templates')}
-      class={tabClass(isOnTemplates())}
-    >
-      Templates
-    </a>
-  </nav>
 
   {#if data.devRedirectActive}
     <div

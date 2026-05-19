@@ -18,6 +18,7 @@
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import Send from '@lucide/svelte/icons/send';
+  import Mails from '@lucide/svelte/icons/mails';
   import MailCog from '@lucide/svelte/icons/mail-warning';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -37,13 +38,21 @@
     }
   });
 
-  function isActive(path: string) {
+  function isActive(path: string, excludePrefix?: string) {
     const basePath = resolve('/').replace(/\/$/, '');
     const fullPath = `${basePath}${path}`;
     if (path === '/staff/admin') {
       return (
         page.url.pathname === fullPath || page.url.pathname === `${fullPath}/`
       );
+    }
+    // Avoid double-highlight when a child route has its own sidebar entry
+    // (e.g. `/broadcasts/templates` shouldn't keep `/broadcasts` active).
+    if (
+      excludePrefix &&
+      page.url.pathname.startsWith(`${basePath}${excludePrefix}`)
+    ) {
+      return false;
     }
     return page.url.pathname.startsWith(fullPath);
   }
@@ -112,10 +121,22 @@
   <nav class="mb-8 space-y-1">
     <a
       href={resolve('/staff/admin/broadcasts')}
-      class={navLinkClass(isActive('/staff/admin/broadcasts'))}
+      class={navLinkClass(
+        isActive(
+          '/staff/admin/broadcasts',
+          '/staff/admin/broadcasts/templates',
+        ),
+      )}
     >
       <Send class="h-4 w-4" />
       <span>Envoi en masse</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/broadcasts/templates')}
+      class={navLinkClass(isActive('/staff/admin/broadcasts/templates'))}
+    >
+      <Mails class="h-4 w-4" />
+      <span>Templates</span>
     </a>
     <a
       href={resolve('/staff/admin/email-actions')}
