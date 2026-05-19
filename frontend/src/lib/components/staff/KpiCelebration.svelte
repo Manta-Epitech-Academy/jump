@@ -1,6 +1,9 @@
 <script lang="ts" module>
   import type { KpiTone } from './KpiTile.svelte';
-  export type CelebrationTone = Extract<KpiTone, 'orange' | 'teal' | 'pink'>;
+  export type CelebrationTone = Extract<
+    KpiTone,
+    'blue' | 'orange' | 'teal' | 'pink'
+  >;
 </script>
 
 <script lang="ts">
@@ -21,19 +24,23 @@
 
   // Brand-palette only. Each tone keeps the same hue used by KpiTile.
   const ringClass = $derived(
-    tone === 'orange'
-      ? 'ring-epi-orange'
-      : tone === 'teal'
-        ? 'ring-epi-teal-solid'
-        : 'ring-epi-pink',
+    tone === 'blue'
+      ? 'ring-epi-blue'
+      : tone === 'orange'
+        ? 'ring-epi-orange'
+        : tone === 'teal'
+          ? 'ring-epi-teal-solid'
+          : 'ring-epi-pink',
   );
 
   const iconColorClass = $derived(
-    tone === 'orange'
-      ? 'text-epi-orange'
-      : tone === 'teal'
-        ? 'text-epi-teal-solid'
-        : 'text-epi-pink',
+    tone === 'blue'
+      ? 'text-epi-blue'
+      : tone === 'orange'
+        ? 'text-epi-orange'
+        : tone === 'teal'
+          ? 'text-epi-teal-solid'
+          : 'text-epi-pink',
   );
 
   const Icon = $derived(badgeIcon);
@@ -41,11 +48,11 @@
 
 {#if active}
   <div
-    class="relative h-full animate-in rounded-sm ring-2 ring-offset-2 ring-offset-background duration-300 zoom-in-95 fade-in {ringClass}"
+    class="animate-celebrate-enter relative h-full rounded-sm ring-2 ring-offset-2 ring-offset-background {ringClass}"
   >
     {@render children()}
     <div
-      class="absolute -top-2 -right-2 flex h-7 w-7 animate-in items-center justify-center rounded-sm border border-border bg-background duration-300 fade-in slide-in-from-top-1"
+      class="animate-badge-enter absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-background"
     >
       <Icon class="h-4 w-4 {iconColorClass}" />
     </div>

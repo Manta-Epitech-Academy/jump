@@ -30,7 +30,9 @@
   import Award from '@lucide/svelte/icons/award';
   import Calendar from '@lucide/svelte/icons/calendar';
   import Activity from '@lucide/svelte/icons/activity';
+  import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import KpiCelebration from '$lib/components/staff/KpiCelebration.svelte';
   import { formatDateFr } from '$lib/utils';
 
   type Props = {
@@ -59,6 +61,11 @@
   const absoluteLogin = $derived(
     lastActiveAt ? formatDateFr(lastActiveAt, timezone) : null,
   );
+
+  const isAllBadges = $derived(
+    badgeCounts.total > 0 && badgeCounts.earned === badgeCounts.total,
+  );
+  const is100Presence = $derived(hasParticipations && presencePct === 100);
 </script>
 
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -69,27 +76,34 @@
     icon={Trophy}
     tone="orange"
   />
-  <KpiTile
-    label="Badges"
-    value={`${badgeCounts.earned}/${badgeCounts.total}`}
-    sub={badgeCounts.earned === 0
-      ? 'Rien débloqué pour l’instant'
-      : badgeCounts.earned === badgeCounts.total
-        ? 'Catalogue complet'
-        : 'Continuer à en débloquer'}
-    icon={Award}
-    tone="teal"
-  />
-  <KpiTile
-    label="Présence"
-    value={hasParticipations ? `${presencePct}%` : '—'}
-    sub={hasParticipations
-      ? 'sur l’ensemble des événements'
-      : 'Aucune participation'}
-    icon={Calendar}
-    tone="blue"
-    progress={hasParticipations ? presencePct : undefined}
-  />
+
+  <KpiCelebration active={isAllBadges} tone="teal" badgeIcon={Award}>
+    <KpiTile
+      label="Badges"
+      value={`${badgeCounts.earned}/${badgeCounts.total}`}
+      sub={badgeCounts.earned === 0
+        ? 'Rien débloqué pour l’instant'
+        : isAllBadges
+          ? 'Catalogue complet !'
+          : 'Continuer à en débloquer'}
+      icon={Award}
+      tone="teal"
+    />
+  </KpiCelebration>
+
+  <KpiCelebration active={is100Presence} tone="blue" badgeIcon={CheckCircle2}>
+    <KpiTile
+      label="Présence"
+      value={hasParticipations ? `${presencePct}%` : '—'}
+      sub={hasParticipations
+        ? 'sur l’ensemble des événements'
+        : 'Aucune participation'}
+      icon={Calendar}
+      tone="blue"
+      progress={hasParticipations ? presencePct : undefined}
+    />
+  </KpiCelebration>
+
   <KpiTile
     label="Dernière activité"
     value={relative ?? '—'}

@@ -78,7 +78,7 @@
       class="animate-in text-left duration-300 fade-in slide-in-from-bottom-2 lg:pr-6 lg:text-right"
     >
       <div
-        class="font-heading text-7xl leading-none text-white md:text-8xl lg:text-[9rem]"
+        class="font-heading text-7xl leading-none text-white [text-shadow:_2px_2px_0_rgba(0,0,0,0.25)] md:text-8xl lg:text-[9rem]"
       >
         J{dayN}
       </div>

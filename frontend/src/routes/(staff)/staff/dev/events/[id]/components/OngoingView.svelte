@@ -120,10 +120,12 @@
   );
 </script>
 
-<div class="animate-in space-y-6 pb-12 duration-300 fade-in">
+<div class="space-y-6 pb-12">
   <OngoingHero {dayN} {totalDays} {startDate} {endDate} {timezone} />
 
-  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+  <div
+    class="grid animate-in gap-3 delay-[20ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2 sm:grid-cols-2 lg:grid-cols-3"
+  >
     <KpiTile
       label="Inscrits"
       value={kpis.total}
@@ -194,7 +196,9 @@
     </KpiCelebration>
   </div>
 
-  <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
+  <div
+    class="grid animate-in gap-4 delay-[40ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2 lg:grid-cols-[2fr_1fr]"
+  >
     <section class="space-y-2">
       <h2 class="font-heading text-2xl tracking-wide text-foreground uppercase">
         Alertes
@@ -251,7 +255,9 @@
   </div>
 
   {#if hasOriginsData}
-    <div class="grid gap-4 lg:grid-cols-2">
+    <div
+      class="grid animate-in gap-4 delay-[60ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2 lg:grid-cols-2"
+    >
       <LyceesBreakdown
         {eventId}
         breakdown={lyceesBreakdown}
@@ -265,5 +271,9 @@
     </div>
   {/if}
 
-  <EventNotesCard {notes} onEdit={onEditNotes} />
+  <div
+    class="animate-in delay-[80ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2"
+  >
+    <EventNotesCard {notes} onEdit={onEditNotes} />
+  </div>
 </div>

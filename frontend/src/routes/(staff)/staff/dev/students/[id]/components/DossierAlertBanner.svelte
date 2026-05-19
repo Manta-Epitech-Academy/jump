@@ -50,8 +50,6 @@
 </script>
 
 {#if state === 'complete'}
-  <!-- Epitech charte: success = epi-tech / epi-teal-solid (the "tech"
-       keyword), never green Tailwind utilities. -->
   <div
     class={cn(
       'flex items-center gap-3 rounded-sm border border-epi-teal-solid/30 bg-epi-teal-solid/10 p-4',
@@ -60,7 +58,7 @@
     <CheckCircle2 class="h-5 w-5 shrink-0 text-epi-teal-solid" />
     <div class="flex-1">
       <p class="text-sm font-bold text-foreground">
-        Dossier complet — peut commencer.
+        Dossier complet — peut commencer<span class="text-epi-teal">_</span>
       </p>
       <p class="text-xs text-muted-foreground">
         Tous les documents administratifs sont validés.
@@ -68,7 +66,6 @@
     </div>
   </div>
 {:else if state === 'blocked'}
-  <!-- Charte: "Destructive / alert → --epi-together" (orange). No red. -->
   <div
     class={cn(
       'flex items-center gap-3 rounded-sm border border-epi-orange/40 bg-epi-orange/10 p-4',
@@ -87,8 +84,6 @@
     </div>
   </div>
 {:else if state === 'pending'}
-  <!-- Pending is a neutral "in progress" state, not an alert — neutral muted
-       surface with an epi-blue accent (primary / info), per charte. -->
   <div
     class={cn(
       'flex items-center gap-3 rounded-sm border border-epi-blue/30 bg-epi-blue/5 p-4',

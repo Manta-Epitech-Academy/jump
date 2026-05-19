@@ -27,10 +27,10 @@
 </script>
 
 <div
-  class="relative overflow-hidden rounded-sm bg-epi-dark p-5 text-white shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10"
+  class="relative overflow-hidden rounded-sm bg-epi-dark p-5 text-white shadow-sm dark:shadow-none dark:ring-1 dark:ring-white/10"
 >
   <!-- Pixel overlays — charte signature texture for inverse / dark cards. -->
-  <div class="pointer-events-none absolute inset-0" aria-hidden="true">
+  <div class="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
     <div
       class="absolute"
       style="top: 0; right: 0; width: 28px; height: 28px; background: rgba(255,255,255,0.07);"

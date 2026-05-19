@@ -409,6 +409,56 @@
   animation: xp-float 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* --- KPI 100% celebration --- */
+/* Entrance is delayed ~600ms after mount so the user has time to parse the
+   page layout before the celebration plays. Otherwise the badge animates while
+   the eye is still locating it — perceived as decorative noise rather than as
+   a reward. */
+@keyframes celebrate-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes badge-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slow opacity cycle — under 0.2 Hz, below the threshold the peripheral
+   rod system reacts to. Reads as "alive" up close, invisible from the corner
+   of the eye. */
+@keyframes badge-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.animate-celebrate-enter {
+  animation: celebrate-enter 320ms cubic-bezier(0.2, 0, 0, 1) 600ms both;
+}
+
+.animate-badge-enter {
+  animation:
+    badge-enter 320ms cubic-bezier(0.2, 0, 0, 1) 600ms both,
+    badge-breathe 8s ease-in-out 920ms infinite;
+}
+
 /* --- Focus Mode Kiosk Overrides --- */
 html.focus-mode header,
 html.focus-mode aside {

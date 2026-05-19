@@ -243,16 +243,22 @@
     <Tabs.Content value="pedago" class="space-y-6">
       <TalentProfileHero student={data.student} {isNewTalent} />
 
-      <TalentStatStrip
-        student={data.student}
-        presentCount={data.stats.presentCount}
-        totalEvents={data.stats.totalEvents}
-        lastActiveAt={data.student.lastActiveAt}
-        {badgeCounts}
-        timezone={data.timezone}
-      />
+      <div
+        class="animate-in delay-[20ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2"
+      >
+        <TalentStatStrip
+          student={data.student}
+          presentCount={data.stats.presentCount}
+          totalEvents={data.stats.totalEvents}
+          lastActiveAt={data.student.lastActiveAt}
+          {badgeCounts}
+          timezone={data.timezone}
+        />
+      </div>
 
-      <div class="grid gap-6 lg:grid-cols-12">
+      <div
+        class="grid animate-in gap-6 delay-[40ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2 lg:grid-cols-12"
+      >
         <div class="space-y-6 lg:col-span-8">
           <EpiSection
             overline="Parcours"
@@ -306,13 +312,17 @@
 
     <!-- ADMINISTRATION -->
     <Tabs.Content value="admin" class="space-y-6">
-      <DossierAlertBanner
-        activeStageParticipations={data.activeStageParticipations}
-      />
+      <div
+        class="animate-in duration-200 fill-mode-both fade-in slide-in-from-bottom-2"
+      >
+        <DossierAlertBanner
+          activeStageParticipations={data.activeStageParticipations}
+        />
+      </div>
 
       <Gated group="devLead" mode="hide">
         <div
-          class="flex flex-wrap items-center gap-2 rounded-sm border border-dashed border-border bg-muted/30 px-4 py-3"
+          class="flex animate-in flex-wrap items-center gap-2 rounded-sm border border-border bg-muted/30 px-4 py-3 delay-[20ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2"
         >
           <Send class="h-4 w-4 text-muted-foreground" />
           <span class="text-sm text-muted-foreground"
@@ -339,7 +349,9 @@
         </div>
       </Gated>
 
-      <div class="grid gap-6 md:grid-cols-2">
+      <div
+        class="grid animate-in gap-6 delay-[40ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2 md:grid-cols-2"
+      >
         <ContactCard student={data.student} onEdit={openEdit} />
         {#if primaryComplianceParticipation}
           <ComplianceDocsTable
@@ -349,7 +361,9 @@
         {/if}
       </div>
 
-      <div class="grid gap-6 md:grid-cols-2">
+      <div
+        class="grid animate-in gap-6 delay-[60ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2 md:grid-cols-2"
+      >
         <CommunicationsTimeline
           items={data.communications}
           total={data.communicationsTotal}
@@ -368,15 +382,19 @@
         </EpiSection>
       </div>
 
-      <TalentPlatformAccountCard
-        student={data.student}
-        firstLoginAt={data.firstLoginAt}
-        timezone={data.timezone}
-      />
+      <div
+        class="animate-in delay-[80ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2"
+      >
+        <TalentPlatformAccountCard
+          student={data.student}
+          firstLoginAt={data.firstLoginAt}
+          timezone={data.timezone}
+        />
+      </div>
 
       <Gated group="devMember" mode="hide">
         <div
-          class="flex flex-wrap items-center gap-3 rounded-sm border border-dashed border-border bg-muted/30 px-4 py-3"
+          class="flex animate-in flex-wrap items-center gap-3 rounded-sm border border-border bg-muted/30 px-4 py-3 delay-[100ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2"
         >
           <span class="text-sm text-muted-foreground">
             Connexion en présentiel
@@ -392,10 +410,14 @@
         </div>
       </Gated>
 
-      <InterviewHistoryList
-        interviews={data.student.interviews}
-        timezone={data.timezone}
-      />
+      <div
+        class="animate-in delay-[120ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2"
+      >
+        <InterviewHistoryList
+          interviews={data.student.interviews}
+          timezone={data.timezone}
+        />
+      </div>
     </Tabs.Content>
   </Tabs.Root>
 

@@ -68,10 +68,12 @@
   );
 </script>
 
-<div class="animate-in space-y-6 pb-12 duration-300 fade-in">
+<div class="space-y-6 pb-12">
   <CountdownHero {daysToStart} {openDate} {timezone} />
 
-  <div class="grid gap-4 lg:grid-cols-3">
+  <div
+    class="grid animate-in gap-4 delay-[20ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2 lg:grid-cols-3"
+  >
     <div class="lg:col-span-2">
       <TalentJourneyExplainer />
     </div>
@@ -106,7 +108,9 @@
   </div>
 
   {#if hasOriginsData}
-    <div class="grid gap-4 lg:grid-cols-2">
+    <div
+      class="grid animate-in gap-4 delay-[40ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2 lg:grid-cols-2"
+    >
       <LyceesBreakdown
         {eventId}
         breakdown={lyceesBreakdown}
@@ -120,5 +124,9 @@
     </div>
   {/if}
 
-  <EventNotesCard {notes} onEdit={onEditNotes} />
+  <div
+    class="animate-in delay-[60ms] duration-200 fill-mode-both fade-in slide-in-from-bottom-2"
+  >
+    <EventNotesCard {notes} onEdit={onEditNotes} />
+  </div>
 </div>

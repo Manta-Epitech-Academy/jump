@@ -30,11 +30,13 @@
 </script>
 
 <PageHero>
-  <div class="flex items-center gap-6">
+  <div
+    class="flex animate-in items-center gap-6 duration-300 fade-in slide-in-from-left-4"
+  >
     <TalentAvatar
       talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
       size="lg"
-      class="h-24 w-24 rounded-sm shadow-md md:h-28 md:w-28"
+      class="h-24 w-24 shrink-0 rounded-sm shadow-md md:h-28 md:w-28"
     />
     <div class="min-w-0">
       <div class="flex flex-wrap items-center gap-x-4 gap-y-3">

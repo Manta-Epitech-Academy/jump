@@ -84,7 +84,8 @@
         class="flex items-baseline justify-start gap-3 font-heading leading-none lg:justify-end"
       >
         <div class="flex flex-col items-center">
-          <span class="text-7xl text-white md:text-8xl lg:text-[8.5rem]"
+          <span
+            class="text-7xl text-white [text-shadow:_2px_2px_0_rgba(0,0,0,0.25)] md:text-8xl lg:text-[8.5rem]"
             >{pad(days)}</span
           >
           <span
@@ -96,7 +97,8 @@
           >:</span
         >
         <div class="flex flex-col items-center">
-          <span class="text-7xl text-white md:text-8xl lg:text-[8.5rem]"
+          <span
+            class="text-7xl text-white [text-shadow:_2px_2px_0_rgba(0,0,0,0.25)] md:text-8xl lg:text-[8.5rem]"
             >{pad(hours)}</span
           >
           <span
@@ -108,7 +110,8 @@
           >:</span
         >
         <div class="flex flex-col items-center">
-          <span class="text-7xl text-white md:text-8xl lg:text-[8.5rem]"
+          <span
+            class="text-7xl text-white [text-shadow:_2px_2px_0_rgba(0,0,0,0.25)] md:text-8xl lg:text-[8.5rem]"
             >{pad(minutes)}</span
           >
           <span
