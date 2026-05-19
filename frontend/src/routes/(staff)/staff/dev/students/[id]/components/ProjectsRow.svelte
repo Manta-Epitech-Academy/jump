@@ -43,7 +43,7 @@
       &lt; Aucun livrable /&gt;
     </p>
     <p class="mt-1 text-xs text-muted-foreground/80">
-      Les pièces déposées par le Talent apparaîtront ici.
+      Les pièces déposées par le stagiaire apparaîtront ici.
     </p>
   </div>
 {:else}

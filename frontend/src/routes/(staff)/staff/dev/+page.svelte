@@ -118,7 +118,7 @@
             <p
               class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
             >
-              Total Talents
+              Total Stagiaires
             </p>
             <p class="text-3xl font-black text-foreground">
               {data.kpis.totalTalents}
@@ -187,7 +187,7 @@
             class="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
           >
             <Trophy class="h-4 w-4 text-yellow-500" />
-            Top Talents (Leaderboard)
+            Top Stagiaires (Leaderboard)
           </Card.Title>
         </Card.Header>
         <Card.Content class="p-0">

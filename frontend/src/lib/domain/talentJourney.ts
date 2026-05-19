@@ -76,7 +76,7 @@ export const TALENT_JOURNEY_STEPS: TalentJourneyStep[] = [
 
 export const TALENT_JOURNEY_ACTOR_LABEL: Record<TalentJourneyActor, string> = {
   staff: 'côté staff',
-  talent: 'le talent',
+  talent: 'le stagiaire',
   parent: 'le parent',
   auto: 'automatique',
 };

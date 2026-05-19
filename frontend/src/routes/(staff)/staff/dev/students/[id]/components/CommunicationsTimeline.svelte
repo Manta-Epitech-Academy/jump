@@ -75,7 +75,7 @@
 
   {#if items.length === 0}
     <p class="text-sm text-muted-foreground italic">
-      Aucune communication enregistrée avec ce talent.
+      Aucune communication enregistrée avec ce stagiaire.
     </p>
   {:else}
     <ul class="space-y-2">
@@ -179,7 +179,7 @@
               <p class="text-xs text-muted-foreground">
                 Reçue par {item.audience === 'parent'
                   ? 'le parent'
-                  : 'le talent'}
+                  : 'le stagiaire'}
                 {#if item.broadcast.subjectSnapshot}
                   <span class="ml-1">— {item.broadcast.subjectSnapshot}</span>
                 {/if}

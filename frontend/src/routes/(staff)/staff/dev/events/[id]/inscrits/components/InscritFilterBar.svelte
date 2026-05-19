@@ -33,7 +33,7 @@
     <div class="relative flex-1">
       <Search class="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
       <Input
-        placeholder="Rechercher un talent..."
+        placeholder="Rechercher un stagiaire..."
         class="rounded-sm bg-card pl-8"
         bind:value={searchQuery}
       />

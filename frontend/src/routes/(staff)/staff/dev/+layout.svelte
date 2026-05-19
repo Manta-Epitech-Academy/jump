@@ -130,7 +130,7 @@
       >
         <span class="flex items-center gap-2">
           <Search class="h-4 w-4" />
-          <span class="text-xs font-medium">Rechercher un talent...</span>
+          <span class="text-xs font-medium">Rechercher un stagiaire...</span>
         </span>
         <kbd
           class="pointer-events-none flex h-5 items-center gap-1 rounded border border-sidebar-border bg-white/10 px-1.5 font-mono text-[10px] font-medium select-none"
@@ -160,7 +160,7 @@
         class={navLinkClass(isActive('/staff/dev/students'))}
       >
         <Users class="h-5 w-5" />
-        <span>Talents</span>
+        <span>Stagiaires</span>
       </a>
       <a
         href={resolve('/staff/dev/events/history')}

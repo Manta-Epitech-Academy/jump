@@ -48,7 +48,7 @@
     {
       key: 'charte',
       label: 'Règlement intérieur',
-      description: 'Charte signée en ligne par le talent.',
+      description: 'Charte signée en ligne par le stagiaire.',
       icon: FileSignature,
       signed: !!sc?.charteSigned,
     },

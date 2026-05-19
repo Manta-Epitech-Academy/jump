@@ -198,7 +198,7 @@
       <h3
         class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
       >
-        Aucun talent inscrit
+        Aucun stagiaire inscrit
       </h3>
       <p class="mt-1 text-xs font-medium text-muted-foreground">
         Importer une cohorte via la page d'import.
@@ -216,7 +216,7 @@
     <p class="text-sm text-muted-foreground">
       <span class="font-bold text-foreground">
         {totalCount}
-        {totalCount > 1 ? 'talents' : 'talent'}
+        {totalCount > 1 ? 'stagiaires' : 'stagiaire'}
       </span>
       {#if variant.kind === 'past'}
         {totalCount > 1 ? 'étaient inscrits' : 'était inscrit'} —

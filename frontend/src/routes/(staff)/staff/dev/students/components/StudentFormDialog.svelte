@@ -48,12 +48,12 @@
   <Dialog.Content class="rounded-sm sm:max-w-125">
     <Dialog.Header>
       <Dialog.Title class="text-lg font-bold tracking-tight uppercase"
-        >{isEditing ? 'Modifier' : 'Ajouter'} un Talent</Dialog.Title
+        >{isEditing ? 'Modifier' : 'Ajouter'} un stagiaire</Dialog.Title
       >
       <Dialog.Description class="text-xs font-medium">
         {isEditing
           ? 'Mettez à jour les informations du profil CRM.'
-          : "Créez le profil d'un nouveau Talent."}
+          : "Créez le profil d'un nouveau stagiaire."}
       </Dialog.Description>
     </Dialog.Header>
 
@@ -283,7 +283,7 @@
             <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
             Enregistrement...
           {:else}
-            {isEditing ? 'Mettre à jour' : 'Créer le Talent'}
+            {isEditing ? 'Mettre à jour' : 'Créer le stagiaire'}
           {/if}
         </Button>
       </Dialog.Footer>

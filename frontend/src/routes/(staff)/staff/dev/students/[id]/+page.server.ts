@@ -296,8 +296,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       timezone,
     };
   } catch (e) {
-    console.error('Erreur chargement Talent:', e);
-    throw error(404, 'Talent introuvable');
+    console.error('Erreur chargement stagiaire:', e);
+    throw error(404, 'Stagiaire introuvable');
   }
 };
 
@@ -348,7 +348,7 @@ export const actions: Actions = {
       ) {
         return message(
           form,
-          'Un Talent avec ce nom et cet email existe déjà.',
+          'Un stagiaire avec ce nom et cet email existe déjà.',
           {
             status: 400,
           },

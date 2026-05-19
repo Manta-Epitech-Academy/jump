@@ -84,7 +84,7 @@
       total,
       tone: 'blue',
       helpText:
-        'Signé en ligne par le talent depuis son espace personnel, à la dernière étape de son onboarding. Cochez manuellement uniquement en cas de signature papier.',
+        'Signé en ligne par le stagiaire depuis son espace personnel, à la dernière étape de son onboarding. Cochez manuellement uniquement en cas de signature papier.',
     }),
     docCard({
       key: 'image-rights-missing',

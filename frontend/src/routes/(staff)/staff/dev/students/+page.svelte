@@ -128,14 +128,14 @@
 </script>
 
 <svelte:head>
-  <title>Talents</title>
+  <title>Stagiaires</title>
 </svelte:head>
 
 <div class="space-y-6">
-  <PageBreadcrumb items={[{ label: 'Talents' }]} />
+  <PageBreadcrumb items={[{ label: 'Stagiaires' }]} />
   <PageHeader
-    title="Talents"
-    subtitle="Annuaire et progression des Talents du campus."
+    title="Stagiaires"
+    subtitle="Annuaire et progression des stagiaires du campus."
   />
 
   <div class="flex items-center gap-2">
@@ -189,7 +189,7 @@
         <Table.Header class="bg-muted/50">
           <Table.Row>
             <Table.Head class="w-60 text-xs font-bold uppercase"
-              >Talent</Table.Head
+              >Stagiaire</Table.Head
             >
             <Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
             <Table.Head class="hidden text-xs font-bold uppercase sm:table-cell"
@@ -278,7 +278,7 @@
     {#if data.totalPages > 1}
       <div class="flex items-center justify-between">
         <p class="text-sm text-muted-foreground">
-          {data.totalItems} Talent{data.totalItems > 1 ? 's' : ''} au total
+          {data.totalItems} Stagiaire{data.totalItems > 1 ? 's' : ''} au total
         </p>
         <div class="flex items-center gap-1">
           <Button
@@ -309,7 +309,7 @@
     <EmptyState
       icon={Users}
       title="Salle de classe vide"
-      description="Aucun Talent ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
+      description="Aucun stagiaire ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
     />
   {/if}
 </div>

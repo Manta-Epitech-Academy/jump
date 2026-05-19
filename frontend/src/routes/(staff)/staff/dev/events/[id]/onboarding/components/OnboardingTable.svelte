@@ -71,7 +71,7 @@
           <span class="inline-flex items-center justify-center gap-1.5">
             Règlement intérieur
             <InfoTooltip
-              text="Signé en ligne par le talent depuis son espace personnel, à la dernière étape de son onboarding. Cochez manuellement uniquement en cas de signature papier."
+              text="Signé en ligne par le stagiaire depuis son espace personnel, à la dernière étape de son onboarding. Cochez manuellement uniquement en cas de signature papier."
             />
           </span>
         </Table.Head>

@@ -200,7 +200,7 @@
 <div class="space-y-6 pb-12">
   <PageBreadcrumb
     items={[
-      { label: 'Talents', href: talentsHref },
+      { label: 'Stagiaires', href: talentsHref },
       { label: `${data.student.nom} ${data.student.prenom}` },
     ]}
   />
@@ -214,7 +214,9 @@
           class="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]/tab:text-epi-blue"
         />
         <span class="flex flex-col items-start gap-0.5">
-          <span class="text-sm font-bold tracking-wide uppercase">Talent</span>
+          <span class="text-sm font-bold tracking-wide uppercase"
+            >Stagiaire</span
+          >
           <span
             class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
           >
@@ -315,7 +317,9 @@
           class="flex flex-wrap items-center gap-2 rounded-sm border border-dashed border-border bg-muted/30 px-4 py-3"
         >
           <Send class="h-4 w-4 text-muted-foreground" />
-          <span class="text-sm text-muted-foreground">Relancer ce talent</span>
+          <span class="text-sm text-muted-foreground"
+            >Relancer ce stagiaire</span
+          >
           <Button
             size="sm"
             variant="outline"
@@ -383,8 +387,9 @@
           <TalentOtpDialog
             action="?/generateOtp"
             talentName={`${data.student.prenom} ${data.student.nom}`}
+            subjectLabel="le stagiaire"
             disabled={!data.student.user?.email}
-            disabledReason="Le talent n'a pas encore de compte (aucune connexion enregistrée)."
+            disabledReason="Le stagiaire n'a pas encore de compte (aucune connexion enregistrée)."
           />
         </div>
       </Gated>

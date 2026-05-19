@@ -93,12 +93,12 @@ export const actions: Actions = {
         }
       }
 
-      return message(form, 'Talent modifié avec succès !');
+      return message(form, 'Stagiaire modifié avec succès !');
     } catch (err: any) {
       if (err.code === 'P2002') {
         return message(
           form,
-          'Un Talent avec ce nom et cet email existe déjà.',
+          'Un stagiaire avec ce nom et cet email existe déjà.',
           {
             status: 400,
           },

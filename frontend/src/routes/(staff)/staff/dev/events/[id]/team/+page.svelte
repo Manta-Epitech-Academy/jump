@@ -57,7 +57,7 @@
               {data.assigned.length > 1 ? 'personnes' : 'personne'}
             </span>
             qui {data.assigned.length > 1 ? 'accompagneront' : 'accompagnera'} vos
-            talents —
+            stagiaires —
             <span class="font-mono font-bold text-epi-teal-solid">
               {pedaList.length}
             </span>

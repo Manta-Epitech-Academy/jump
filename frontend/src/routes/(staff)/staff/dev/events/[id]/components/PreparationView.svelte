@@ -72,7 +72,7 @@
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:gap-4">
       <KpiTile
         label="Inscrits"
-        helpText="Talents inscrits à ce stage. Un compte personnel Jump leur est automatiquement créé."
+        helpText="Stagiaires inscrits à ce stage. Un compte personnel Jump leur est automatiquement créé."
         value={kpis.total}
         sub="cohorte confirmée"
         icon={UserPlus}
@@ -82,7 +82,7 @@
       />
       <KpiTile
         label="Dossiers administratifs validés"
-        helpText="Talents pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
+        helpText="Stagiaires pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
         value={kpis.dossiersAdmin}
         sub={`${pct(kpis.dossiersAdmin)} % · 2 documents validés`}
         icon={ClipboardCheck}

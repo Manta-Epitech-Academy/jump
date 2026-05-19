@@ -94,7 +94,7 @@
       </Card.Title>
       <Card.Description class="text-sm font-medium">
         Importez un fichier CSV d'événement Salesforce. Vous pourrez ensuite
-        spécifier si les Talents apportent leur PC.
+        spécifier si les stagiaires apportent leur PC.
       </Card.Description>
     </Card.Header>
     <Card.Content>
