@@ -16,6 +16,7 @@
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import FileText from '@lucide/svelte/icons/file-text';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -252,17 +253,26 @@
     </nav>
   {/if}
 
-  <Gated group="devLead" mode="hide">
+  <Gated group="devMember" mode="hide">
     <div class="sidebar-section-title">
       Gestion<span class="text-epi-orange">_</span>
     </div>
     <nav class="space-y-1">
+      <Gated group="devLead" mode="hide">
+        <a
+          href={resolve('/staff/dev/team')}
+          class={navLinkClass(isActive('/staff/dev/team'))}
+        >
+          <UserCog class="h-5 w-5" />
+          <span>Staff du campus</span>
+        </a>
+      </Gated>
       <a
-        href={resolve('/staff/dev/team')}
-        class={navLinkClass(isActive('/staff/dev/team'))}
+        href={resolve('/staff/dev/sync-errors')}
+        class={navLinkClass(isActive('/staff/dev/sync-errors'))}
       >
-        <UserCog class="h-5 w-5" />
-        <span>Staff du campus</span>
+        <TriangleAlert class="h-5 w-5" />
+        <span>Doublons Salesforce</span>
       </a>
     </nav>
   </Gated>
