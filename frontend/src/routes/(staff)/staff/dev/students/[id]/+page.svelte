@@ -37,7 +37,7 @@
 
   import RelanceComposeDialog, {
     type ComposeRecipient,
-  } from '$lib/components/comms/RelanceComposeDialog.svelte';
+  } from '$lib/components/dev/RelanceComposeDialog.svelte';
   import {
     classifyRelanceSkip,
     formatTalentVars,

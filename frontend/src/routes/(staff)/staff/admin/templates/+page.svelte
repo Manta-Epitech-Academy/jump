@@ -21,9 +21,9 @@
   import * as Table from '$lib/components/ui/table';
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
-  import MultiThemeSelect from '$lib/components/MultiThemeSelect.svelte';
+  import MultiThemeSelect from '$lib/components/admin/MultiThemeSelect.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { toast } from 'svelte-sonner';
   import {
     difficultes,

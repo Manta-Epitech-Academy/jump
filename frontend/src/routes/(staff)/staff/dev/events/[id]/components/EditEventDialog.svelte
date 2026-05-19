@@ -4,7 +4,7 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import ThemeSelect from '$lib/components/ThemeSelect.svelte';
+  import ThemeSelect from '$lib/components/dev/ThemeSelect.svelte';
   import type { Readable } from 'svelte/store';
   import type { SuperForm } from 'sveltekit-superforms/client';
   import type { EventForm } from '$lib/validation/events';

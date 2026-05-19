@@ -14,8 +14,8 @@
   import LayoutList from '@lucide/svelte/icons/layout-list';
   import Columns3 from '@lucide/svelte/icons/columns-3';
   import { cn } from '$lib/utils';
-  import ScheduleInterviewPopover from '$lib/components/interviews/ScheduleInterviewPopover.svelte';
-  import AutoScheduleDialog from '$lib/components/interviews/AutoScheduleDialog.svelte';
+  import ScheduleInterviewPopover from '$lib/components/dev/interviews/ScheduleInterviewPopover.svelte';
+  import AutoScheduleDialog from '$lib/components/dev/interviews/AutoScheduleDialog.svelte';
   import InterviewKpiStrip from './InterviewKpiStrip.svelte';
   import InterviewFilterChips, {
     type InterviewFilter,

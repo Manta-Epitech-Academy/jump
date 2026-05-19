@@ -10,7 +10,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import AutoScheduleDialog from '$lib/components/interviews/AutoScheduleDialog.svelte';
+  import AutoScheduleDialog from '$lib/components/dev/interviews/AutoScheduleDialog.svelte';
   import SetupStep from './SetupStep.svelte';
   import WorkloadByStaffCard from './WorkloadByStaffCard.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';

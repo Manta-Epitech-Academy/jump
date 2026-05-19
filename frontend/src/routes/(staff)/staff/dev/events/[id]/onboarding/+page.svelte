@@ -16,7 +16,7 @@
   import OnboardingHero from './components/OnboardingHero.svelte';
   import TalentJourneyExplainer from '$lib/components/dev/TalentJourneyExplainer.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
-  import RelanceComposeDialog from '$lib/components/comms/RelanceComposeDialog.svelte';
+  import RelanceComposeDialog from '$lib/components/dev/RelanceComposeDialog.svelte';
   import {
     DOC_FILTER_KEYS,
     DOC_FILTER_LABELS,
@@ -30,7 +30,7 @@
     type RelanceType,
     type RelanceVar,
   } from '$lib/domain/relance';
-  import type { ComposeRecipient } from '$lib/components/comms/RelanceComposeDialog.svelte';
+  import type { ComposeRecipient } from '$lib/components/dev/RelanceComposeDialog.svelte';
   import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
