@@ -271,8 +271,24 @@
         href={resolve('/staff/dev/sync-errors')}
         class={navLinkClass(isActive('/staff/dev/sync-errors'))}
       >
-        <TriangleAlert class="h-5 w-5" />
-        <span>Doublons Salesforce</span>
+        <TriangleAlert class="h-5 w-5 shrink-0" />
+        <span class="flex flex-1 items-center justify-between gap-2">
+          <span class="truncate whitespace-nowrap">Doublons Salesforce</span>
+          {#if data.syncErrorCounts.urgent > 0}
+            <span
+              class="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold whitespace-nowrap text-white"
+            >
+              <TriangleAlert class="h-3 w-3" />
+              {data.syncErrorCounts.total}
+            </span>
+          {:else if data.syncErrorCounts.total > 0}
+            <span
+              class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold whitespace-nowrap text-sidebar-foreground-muted"
+            >
+              {data.syncErrorCounts.total}
+            </span>
+          {/if}
+        </span>
       </a>
     </nav>
   </Gated>
@@ -357,7 +373,7 @@
 >
   {#if showFullChrome}
     <aside
-      class="app-sidebar hidden w-62.5 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+      class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
     >
       <div class="border-b border-sidebar-border">
         {@render sidebarBrand()}

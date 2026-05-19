@@ -96,17 +96,17 @@
           {contact.extId}
         </p>
       </div>
-      <a
+      <Button
         href={salesforceContactUrl(contact.extId)}
         target="_blank"
         rel="noopener noreferrer"
-        class="block pt-1"
+        variant="outline"
+        size="sm"
+        class="mt-1 w-full gap-2 rounded-sm whitespace-nowrap"
       >
-        <Button variant="outline" size="sm" class="w-full gap-2 rounded-sm">
-          <Cloud class="h-3.5 w-3.5" />
-          Ouvrir dans Salesforce
-        </Button>
-      </a>
+        <Cloud class="h-3.5 w-3.5" />
+        Ouvrir Salesforce
+      </Button>
     </Card.Content>
   </Card.Root>
 {/snippet}

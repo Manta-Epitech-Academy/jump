@@ -70,48 +70,53 @@ export const load: PageServerLoad = async ({ locals }) => {
     talents.map((t) => [t.externalId!, t] as const),
   );
 
-  return {
-    errors: errors.map((e) => {
-      const attemptedTalent = talentByExtId.get(e.attemptedExtId) ?? null;
-      const existingTalent = e.existingExtId
-        ? (talentByExtId.get(e.existingExtId) ?? null)
-        : null;
+  const rows = errors.map((e) => {
+    const attemptedTalent = talentByExtId.get(e.attemptedExtId) ?? null;
+    const existingTalent = e.existingExtId
+      ? (talentByExtId.get(e.existingExtId) ?? null)
+      : null;
 
-      const types = new Set<string>();
-      for (const p of attemptedTalent?.participations ?? [])
-        types.add(p.event.eventType);
-      for (const p of existingTalent?.participations ?? [])
-        types.add(p.event.eventType);
-      const isStage = types.has(EVENT_TYPES.STAGE_SECONDE);
+    const types = new Set<string>();
+    for (const p of attemptedTalent?.participations ?? [])
+      types.add(p.event.eventType);
+    for (const p of existingTalent?.participations ?? [])
+      types.add(p.event.eventType);
+    const isStage = types.has(EVENT_TYPES.STAGE_SECONDE);
 
-      const fallback = splitName(e.talentName);
-      const event = e.eventExtId ? eventMap.get(e.eventExtId) : null;
+    const fallback = splitName(e.talentName);
+    const event = e.eventExtId ? eventMap.get(e.eventExtId) : null;
 
-      return {
-        id: e.id,
-        email: e.email,
-        message: e.message,
-        occurrenceCount: e.occurrenceCount,
-        lastOccurredAt: e.lastOccurredAt.toISOString(),
-        eventName: event?.titre ?? null,
-        isStage,
-        attempted: {
-          extId: e.attemptedExtId,
-          prenom: attemptedTalent?.prenom ?? fallback.prenom,
-          nom: attemptedTalent?.nom ?? fallback.nom,
-          phone: attemptedTalent?.phone ?? null,
-        },
-        existing: e.existingExtId
-          ? {
-              extId: e.existingExtId,
-              prenom: existingTalent?.prenom ?? null,
-              nom: existingTalent?.nom ?? null,
-              phone: existingTalent?.phone ?? null,
-            }
-          : null,
-      };
-    }),
-  };
+    return {
+      id: e.id,
+      email: e.email,
+      message: e.message,
+      occurrenceCount: e.occurrenceCount,
+      lastOccurredAt: e.lastOccurredAt.toISOString(),
+      eventName: event?.titre ?? null,
+      isStage,
+      attempted: {
+        extId: e.attemptedExtId,
+        prenom: attemptedTalent?.prenom ?? fallback.prenom,
+        nom: attemptedTalent?.nom ?? fallback.nom,
+        phone: attemptedTalent?.phone ?? null,
+      },
+      existing: e.existingExtId
+        ? {
+            extId: e.existingExtId,
+            prenom: existingTalent?.prenom ?? null,
+            nom: existingTalent?.nom ?? null,
+            phone: existingTalent?.phone ?? null,
+          }
+        : null,
+    };
+  });
+
+  // Urgent (stage) rows first, then by recency within each bucket — the
+  // `errors` query is already sorted by lastOccurredAt desc so a stable
+  // sort by isStage preserves that.
+  rows.sort((a, b) => Number(b.isStage) - Number(a.isStage));
+
+  return { errors: rows };
 };
 
 export const actions: Actions = {

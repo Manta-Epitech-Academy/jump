@@ -15,6 +15,7 @@ import {
 import { can } from '$lib/domain/permissions';
 import { resolveStageContext } from '$lib/server/services/stageContext';
 import { countUnreadForAuthor } from '$lib/server/services/tickets';
+import { countCampusSyncErrors } from '$lib/server/services/syncErrors';
 import { isDevImpersonation } from '$lib/server/devPhaseOverride';
 
 export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
@@ -55,12 +56,18 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
       ? await countUnreadForAuthor(user.id)
       : 0;
 
+  const syncErrorCounts =
+    !isInterviewerOnly && staffProfile?.campusId
+      ? await countCampusSyncErrors(staffProfile.campusId)
+      : { total: 0, urgent: 0 };
+
   return {
     user,
     staffProfile,
     timezone: getCampusTimezone(locals),
     activeStage,
     ticketsUnread,
+    syncErrorCounts,
     phaseOverride,
     canOverridePhase: isDevImpersonation(locals),
     devLayoutScope: isInterviewerOnly
