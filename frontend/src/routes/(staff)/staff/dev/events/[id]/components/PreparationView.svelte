@@ -1,9 +1,11 @@
 <script lang="ts">
   import UserPlus from '@lucide/svelte/icons/user-plus';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import { resolve } from '$app/paths';
   import CountdownHero from './CountdownHero.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import KpiCelebration from '$lib/components/staff/KpiCelebration.svelte';
   import LyceesBreakdown from './LyceesBreakdown.svelte';
   import InterestsCloud from './InterestsCloud.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
@@ -51,6 +53,10 @@
     lyceesBreakdown.rows.length > 0 || interestsCloud.rows.length > 0,
   );
 
+  const is100Pct = $derived(
+    kpis.total > 0 && kpis.dossiersAdmin === kpis.total,
+  );
+
   const pct = (n: number) =>
     kpis.total === 0 ? 0 : Math.round((n / kpis.total) * 100);
 
@@ -62,7 +68,7 @@
   );
 </script>
 
-<div class="space-y-6 pb-12">
+<div class="animate-in space-y-6 pb-12 duration-300 fade-in">
   <CountdownHero {daysToStart} {openDate} {timezone} />
 
   <div class="grid gap-4 lg:grid-cols-3">
@@ -80,17 +86,22 @@
         align="center"
         href={inscritsHref}
       />
-      <KpiTile
-        label="Dossiers administratifs validés"
-        helpText="Stagiaires pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
-        value={kpis.dossiersAdmin}
-        sub={`${pct(kpis.dossiersAdmin)} % · 2 documents validés`}
-        icon={ClipboardCheck}
-        tone="orange"
-        align="center"
-        progress={pct(kpis.dossiersAdmin)}
-        href={onboardingHref}
-      />
+
+      <KpiCelebration active={is100Pct} tone="orange" badgeIcon={Sparkles}>
+        <KpiTile
+          label="Dossiers administratifs validés"
+          helpText="Stagiaires pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding."
+          value={kpis.dossiersAdmin}
+          sub={is100Pct
+            ? 'Cohorte 100% prête'
+            : `${pct(kpis.dossiersAdmin)} % · 2 documents validés`}
+          icon={ClipboardCheck}
+          tone="orange"
+          align="center"
+          progress={pct(kpis.dossiersAdmin)}
+          href={onboardingHref}
+        />
+      </KpiCelebration>
     </div>
   </div>
 

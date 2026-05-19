@@ -2,12 +2,15 @@
   import Users from '@lucide/svelte/icons/users';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquare from '@lucide/svelte/icons/message-square';
+  import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import { resolve } from '$app/paths';
   import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
   import type { EventAlert } from '$lib/server/services/eventTasks';
   import { activityTypes } from '$lib/validation/templates';
   import OngoingHero from './OngoingHero.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import KpiCelebration from '$lib/components/staff/KpiCelebration.svelte';
   import ProgrammeJour from './ProgrammeJour.svelte';
   import MesProchainsEntretiens from './MesProchainsEntretiens.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
@@ -110,9 +113,14 @@
   const interviewsHref = $derived(
     resolve(`/staff/dev/events/${eventId}/interviews`),
   );
+
+  const is100Interviews = $derived(
+    kpis.interviewsTotal > 0 &&
+      kpis.interviewsCompleted === kpis.interviewsTotal,
+  );
 </script>
 
-<div class="space-y-6 pb-12">
+<div class="animate-in space-y-6 pb-12 duration-300 fade-in">
   <OngoingHero {dayN} {totalDays} {startDate} {endDate} {timezone} />
 
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -124,24 +132,31 @@
       tone="blue"
       href={inscritsHref}
     />
+
     {#if kpis.todayPresence}
       {@const present = kpis.todayPresence.present}
       {@const totalPresence = kpis.todayPresence.total}
-      <KpiTile
-        label="Présents au dernier appel"
-        icon={UserCheck}
-        tone="teal"
-        progress={presencePctRounded}
-        sub={`${kpis.todayPresence.slotName} · ${presencePctRounded} %`}
-      >
-        {#snippet valueSnippet()}
-          <p class="font-heading text-5xl tracking-wide text-epi-teal-solid">
-            {present}
-            <span class="text-2xl text-muted-foreground">/ {totalPresence}</span
-            >
-          </p>
-        {/snippet}
-      </KpiTile>
+      {@const is100Presence = totalPresence > 0 && present === totalPresence}
+      <KpiCelebration active={is100Presence} tone="teal" badgeIcon={UserCheck}>
+        <KpiTile
+          label="Présents au dernier appel"
+          icon={UserCheck}
+          tone="teal"
+          progress={presencePctRounded}
+          sub={is100Presence
+            ? `${kpis.todayPresence.slotName} · Classe complète`
+            : `${kpis.todayPresence.slotName} · ${presencePctRounded} %`}
+        >
+          {#snippet valueSnippet()}
+            <p class="font-heading text-5xl tracking-wide text-epi-teal-solid">
+              {present}
+              <span class="text-2xl text-muted-foreground"
+                >/ {totalPresence}</span
+              >
+            </p>
+          {/snippet}
+        </KpiTile>
+      </KpiCelebration>
     {:else}
       <KpiTile
         label="Présents aujourd’hui"
@@ -151,23 +166,32 @@
         tone="neutral"
       />
     {/if}
-    <KpiTile
-      label="Entretiens"
-      icon={MessageSquare}
+
+    <KpiCelebration
+      active={is100Interviews}
       tone="pink"
-      progress={interviewsPct}
-      sub={`${interviewsPct} % · ${kpis.interviewsCompleted} terminés`}
-      href={interviewsHref}
+      badgeIcon={CheckCircle2}
     >
-      {#snippet valueSnippet()}
-        <p class="font-heading text-5xl tracking-wide text-epi-pink">
-          {kpis.interviewsCompleted}
-          <span class="text-2xl text-muted-foreground"
-            >/ {kpis.interviewsTotal}</span
-          >
-        </p>
-      {/snippet}
-    </KpiTile>
+      <KpiTile
+        label="Entretiens"
+        icon={MessageSquare}
+        tone="pink"
+        progress={interviewsPct}
+        sub={is100Interviews
+          ? `Tous les entretiens sont menés`
+          : `${interviewsPct} % · ${kpis.interviewsCompleted} terminés`}
+        href={interviewsHref}
+      >
+        {#snippet valueSnippet()}
+          <p class="font-heading text-5xl tracking-wide text-epi-pink">
+            {kpis.interviewsCompleted}
+            <span class="text-2xl text-muted-foreground"
+              >/ {kpis.interviewsTotal}</span
+            >
+          </p>
+        {/snippet}
+      </KpiTile>
+    </KpiCelebration>
   </div>
 
   <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -181,11 +205,34 @@
         Dérivées d’Onboarding, Salesforce et l’activité plateforme
       </p>
       <div class="pt-2">
-        <AlertsPanel
-          {alerts}
-          layout="list"
-          emptyLabel="Tout est sous contrôle."
-        />
+        {#if alerts.length === 0}
+          <div
+            class="flex animate-in flex-col items-center justify-center rounded-sm border border-epi-teal-solid/30 bg-epi-teal-solid/5 p-8 text-center duration-300 fade-in"
+          >
+            <div
+              class="relative mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-epi-teal-solid/15"
+            >
+              <CheckCircle2 class="h-8 w-8 text-epi-teal-solid" />
+              <Sparkles
+                class="absolute top-0 -right-1 h-5 w-5 text-epi-orange"
+              />
+            </div>
+            <h3
+              class="text-sm font-bold tracking-widest text-epi-teal-solid uppercase"
+            >
+              Zéro alerte<span class="text-epi-teal">_</span>
+            </h3>
+            <p class="mt-1 text-xs text-muted-foreground">
+              Tout est sous contrôle, beau travail.
+            </p>
+          </div>
+        {:else}
+          <AlertsPanel
+            {alerts}
+            layout="list"
+            emptyLabel="Tout est sous contrôle."
+          />
+        {/if}
       </div>
     </section>
     <div class="flex flex-col gap-4">

@@ -55,7 +55,7 @@
 
 <PageHero>
   <div class="grid items-center gap-8 lg:grid-cols-[1fr_auto]">
-    <div>
+    <div class="animate-in duration-300 fade-in slide-in-from-left-4">
       <p
         class="font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
       >
@@ -77,7 +77,9 @@
         {intro}
       </p>
     </div>
-    <div class="text-left lg:pr-6 lg:text-right">
+    <div
+      class="animate-in text-left duration-300 fade-in slide-in-from-bottom-2 lg:pr-6 lg:text-right"
+    >
       <div
         class="flex items-baseline justify-start gap-3 font-heading leading-none lg:justify-end"
       >
