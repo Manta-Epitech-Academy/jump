@@ -7,16 +7,9 @@
   import { capitalize } from '$lib/utils';
   import { salesforceContactUrl } from '$lib/domain/salesforce';
 
-  /**
-   * Talent profile hero — blueprint-blue band with a square avatar, the
-   * Anton-uppercase name with the neon-teal `_` cursor, the `< INSCRIT_… />`
-   * code-tag overline, and a Salesforce shortcut.
-   *
-   * Per design feedback we strip the action button row entirely and drop the
-   * right-side cohort rank. The Salesforce link survives next to the name as
-   * a small but explicit button so staff can jump to the CRM without breaking
-   * the headline composition.
-   */
+  // Blueprint-blue band: square avatar + Anton-uppercase name with the
+  // neon-teal `_` cursor + Salesforce shortcut. No action row, no cohort
+  // rank — staff already have those affordances elsewhere on the page.
   type Props = {
     student: {
       id: string;
@@ -31,12 +24,6 @@
   };
 
   let { student, isNewTalent }: Props = $props();
-
-  const slug = $derived(
-    student.externalId
-      ? student.externalId.toUpperCase()
-      : student.id.slice(0, 6).toUpperCase(),
-  );
 
   const subtitle = $derived(
     [student.highSchoolName, student.niveau, student.niveauDifficulte]
@@ -53,14 +40,7 @@
       class="h-24 w-24 rounded-sm shadow-md md:h-28 md:w-28"
     />
     <div class="min-w-0">
-      <p
-        class="font-mono text-[10px] font-bold tracking-widest text-epi-teal uppercase"
-      >
-        <span class="opacity-70">&lt;</span>
-        INSCRIT_{slug} · STAGIAIRE_VIEW
-        <span class="opacity-70">/&gt;</span>
-      </p>
-      <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
         <h1
           class="flex items-baseline font-heading text-5xl tracking-wide uppercase md:text-6xl"
         >
