@@ -5,14 +5,6 @@
 </script>
 
 <div class="space-y-6">
-  <header class="space-y-2">
-    <h1 class="text-2xl font-bold tracking-tight">Envoi en masse</h1>
-    <p class="text-sm text-muted-foreground">
-      Crée des templates de mail / SMS et lance des envois ciblés aux talents,
-      parents ou staff.
-    </p>
-  </header>
-
   {#if data.devRedirectActive}
     <div
       class="flex items-start gap-3 rounded-md border-2 border-amber-500 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"

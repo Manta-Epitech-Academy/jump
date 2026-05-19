@@ -31,6 +31,14 @@
   };
 </script>
 
+<header class="space-y-2">
+  <h1 class="text-2xl font-bold tracking-tight">Envoi en masse</h1>
+  <p class="text-sm text-muted-foreground">
+    Lance des envois ciblés (mail / SMS) aux talents, parents ou staff, et suis
+    leur acheminement.
+  </p>
+</header>
+
 <div class="flex items-center justify-between">
   <p class="text-sm text-muted-foreground">
     {data.broadcasts.length} envoi{data.broadcasts.length > 1 ? 's' : ''}
