@@ -65,28 +65,33 @@
 <div class="space-y-6 pb-12">
   <CountdownHero {daysToStart} {openDate} {timezone} />
 
-  <TalentJourneyExplainer />
-
-  <div class="grid gap-3 sm:grid-cols-2">
-    <KpiTile
-      label="Inscrits"
-      helpText="Talents inscrits à ce stage (synchro automatique Salesforce). Un compte personnel Jump leur est automatiquement créé."
-      value={kpis.total}
-      sub="cohorte confirmée"
-      icon={UserPlus}
-      tone="blue"
-      href={inscritsHref}
-    />
-    <KpiTile
-      label="Dossiers administratifs validés"
-      helpText="Talents pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
-      value={kpis.dossiersAdmin}
-      sub={`${pct(kpis.dossiersAdmin)} % · 2 documents validés`}
-      icon={ClipboardCheck}
-      tone="orange"
-      progress={pct(kpis.dossiersAdmin)}
-      href={onboardingHref}
-    />
+  <div class="grid gap-4 lg:grid-cols-3">
+    <div class="lg:col-span-2">
+      <TalentJourneyExplainer />
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:gap-4">
+      <KpiTile
+        label="Inscrits"
+        helpText="Talents inscrits à ce stage. Un compte personnel Jump leur est automatiquement créé."
+        value={kpis.total}
+        sub="cohorte confirmée"
+        icon={UserPlus}
+        tone="blue"
+        align="center"
+        href={inscritsHref}
+      />
+      <KpiTile
+        label="Dossiers administratifs validés"
+        helpText="Talents pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
+        value={kpis.dossiersAdmin}
+        sub={`${pct(kpis.dossiersAdmin)} % · 2 documents validés`}
+        icon={ClipboardCheck}
+        tone="orange"
+        align="center"
+        progress={pct(kpis.dossiersAdmin)}
+        href={onboardingHref}
+      />
+    </div>
   </div>
 
   {#if hasOriginsData}
