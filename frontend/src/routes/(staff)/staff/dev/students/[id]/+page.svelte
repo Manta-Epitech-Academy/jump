@@ -177,8 +177,6 @@
     $form.parent_nom = data.student.parentNom ?? '';
     $form.parent_prenom = data.student.parentPrenom ?? '';
     $form.niveau = (data.student.niveau || '') as never;
-    $form.niveau_difficulte = (data.student.niveauDifficulte ||
-      'Débutant') as never;
     editOpen = true;
   }
 

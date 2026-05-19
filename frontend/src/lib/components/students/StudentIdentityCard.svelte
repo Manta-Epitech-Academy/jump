@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
-  import SignalLow from '@lucide/svelte/icons/signal-low';
   import * as Card from '$lib/components/ui/card';
   import * as Avatar from '$lib/components/ui/avatar';
   import { Badge } from '$lib/components/ui/badge';
@@ -42,19 +41,6 @@
   function getInitials(prenom: string, nom: string) {
     return (nom[0] + prenom[0]).toUpperCase();
   }
-
-  function getDifficultyColor(diff: string) {
-    switch (diff) {
-      case 'Débutant':
-        return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400';
-      case 'Intermédiaire':
-        return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'Avancé':
-        return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/30 dark:bg-purple-900/20 dark:text-purple-400';
-      default:
-        return 'border-border text-muted-foreground';
-    }
-  }
 </script>
 
 <Card.Root
@@ -94,16 +80,6 @@
       <Badge variant="outline" class={cn('px-3 py-0.5', levelBadgeClass)}
         >{student.niveau}</Badge
       >
-      <Badge
-        variant="outline"
-        class={cn(
-          'px-2 py-0.5 text-[10px] font-bold uppercase',
-          getDifficultyColor(student.niveauDifficulte || 'Débutant'),
-        )}
-      >
-        <SignalLow class="mr-1 h-3 w-3" />
-        {student.niveauDifficulte || 'Débutant'}
-      </Badge>
     </div>
   </Card.Header>
   <Card.Content class="space-y-8 px-6 pb-8">

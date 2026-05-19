@@ -5,7 +5,6 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { difficultes } from '$lib/domain/xp';
   import type { StudentForm } from '$lib/validation/students';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { studentSchema } from '$lib/validation/students';
@@ -227,49 +226,22 @@
         >
           Profil Pédagogique
         </h4>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="grid gap-2">
-            <Label for="niveau" class="text-xs">Niveau Scolaire</Label>
-            <Select.Root type="single" bind:value={$form.niveau}>
-              <Select.Trigger class="rounded-sm bg-background">
-                {$form.niveau ? $form.niveau : 'Sélectionner...'}
-              </Select.Trigger>
-              <Select.Content class="rounded-sm">
-                {#each niveaux as niveau}
-                  <Select.Item value={niveau}>{niveau}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <input type="hidden" name="niveau" value={$form.niveau} />
-            {#if $errors.niveau}<span class="text-xs text-destructive"
-                >{$errors.niveau}</span
-              >{/if}
-          </div>
-
-          <div class="grid gap-2">
-            <Label for="niveau_difficulte" class="text-xs"
-              >Niveau Informatique</Label
-            >
-            <Select.Root type="single" bind:value={$form.niveau_difficulte}>
-              <Select.Trigger class="rounded-sm bg-background">
-                {$form.niveau_difficulte ? $form.niveau_difficulte : 'Débutant'}
-              </Select.Trigger>
-              <Select.Content class="rounded-sm">
-                {#each difficultes as diff}
-                  <Select.Item value={diff}>{diff}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <input
-              type="hidden"
-              name="niveau_difficulte"
-              value={$form.niveau_difficulte}
-            />
-            {#if $errors.niveau_difficulte}<span
-                class="text-xs text-destructive"
-                >{$errors.niveau_difficulte}</span
-              >{/if}
-          </div>
+        <div class="grid gap-2">
+          <Label for="niveau" class="text-xs">Niveau Scolaire</Label>
+          <Select.Root type="single" bind:value={$form.niveau}>
+            <Select.Trigger class="rounded-sm bg-background">
+              {$form.niveau ? $form.niveau : 'Sélectionner...'}
+            </Select.Trigger>
+            <Select.Content class="rounded-sm">
+              {#each niveaux as niveau}
+                <Select.Item value={niveau}>{niveau}</Select.Item>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <input type="hidden" name="niveau" value={$form.niveau} />
+          {#if $errors.niveau}<span class="text-xs text-destructive"
+              >{$errors.niveau}</span
+            >{/if}
         </div>
       </div>
 

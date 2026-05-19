@@ -7,9 +7,6 @@
   import Search from '@lucide/svelte/icons/search';
   import Eye from '@lucide/svelte/icons/eye';
   import Users from '@lucide/svelte/icons/users';
-  import SignalLow from '@lucide/svelte/icons/signal-low';
-  import SignalMedium from '@lucide/svelte/icons/signal-medium';
-  import SignalHigh from '@lucide/svelte/icons/signal-high';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import { buttonVariants, Button } from '$lib/components/ui/button';
@@ -23,7 +20,6 @@
   import { toast } from 'svelte-sonner';
   import { untrack } from 'svelte';
   import { resolve } from '$app/paths';
-  import { cn } from '$lib/utils';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
@@ -89,7 +85,6 @@
     $form.parent_nom = student.parentNom || '';
     $form.parent_prenom = student.parentPrenom || '';
     $form.niveau = student.niveau;
-    $form.niveau_difficulte = student.niveauDifficulte || 'Débutant';
     isEditing = true;
     editId = student.id;
     open = true;
@@ -100,19 +95,6 @@
     if (p > 1) url.searchParams.set('page', String(p));
     else url.searchParams.delete('page');
     goto(url.toString());
-  }
-
-  function getDifficultyColor(diff: string) {
-    switch (diff) {
-      case 'Débutant':
-        return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/30 dark:bg-green-900/20 dark:text-green-400';
-      case 'Intermédiaire':
-        return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'Avancé':
-        return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/30 dark:bg-purple-900/20 dark:text-purple-400';
-      default:
-        return 'border-border text-muted-foreground';
-    }
   }
 
   const niveaux = [
@@ -192,9 +174,6 @@
               >Stagiaire</Table.Head
             >
             <Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
-            <Table.Head class="hidden text-xs font-bold uppercase sm:table-cell"
-              >Difficulté</Table.Head
-            >
             <Table.Head class="text-right text-xs font-bold uppercase"
               >XP / Événements</Table.Head
             >
@@ -203,7 +182,6 @@
         </Table.Header>
         <Table.Body>
           {#each data.students as student (student.id)}
-            {@const diff = student.niveauDifficulte || 'Débutant'}
             <Table.Row class="hover:bg-muted/30">
               <Table.Cell class="font-bold">
                 <a
@@ -219,22 +197,6 @@
                   class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
                 >
                   {student.niveau}
-                </Badge>
-              </Table.Cell>
-              <Table.Cell class="hidden sm:table-cell">
-                <Badge
-                  variant="outline"
-                  class={cn(
-                    'text-[9px] font-bold uppercase',
-                    getDifficultyColor(diff),
-                  )}
-                >
-                  {#if diff === 'Débutant'}<SignalLow
-                      class="mr-1 h-3 w-3"
-                    />{:else if diff === 'Intermédiaire'}<SignalMedium
-                      class="mr-1 h-3 w-3"
-                    />{:else}<SignalHigh class="mr-1 h-3 w-3" />{/if}
-                  {diff}
                 </Badge>
               </Table.Cell>
               <Table.Cell class="text-right text-muted-foreground">

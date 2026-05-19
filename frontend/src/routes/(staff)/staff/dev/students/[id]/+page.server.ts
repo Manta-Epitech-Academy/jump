@@ -315,7 +315,6 @@ export const actions: Actions = {
           nom: form.data.nom,
           prenom: form.data.prenom,
           niveau: form.data.niveau || null,
-          niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
           parentEmail: form.data.parent_email
             ? form.data.parent_email.toLowerCase().trim()
             : null,

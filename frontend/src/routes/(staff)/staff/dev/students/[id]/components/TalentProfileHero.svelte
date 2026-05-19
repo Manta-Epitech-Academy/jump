@@ -17,7 +17,6 @@
       nom: string;
       prenom: string;
       niveau: string | null;
-      niveauDifficulte: string | null;
       highSchoolName: string | null;
     };
     isNewTalent: boolean;
@@ -26,9 +25,7 @@
   let { student, isNewTalent }: Props = $props();
 
   const subtitle = $derived(
-    [student.highSchoolName, student.niveau, student.niveauDifficulte]
-      .filter(Boolean)
-      .join(' · '),
+    [student.highSchoolName, student.niveau].filter(Boolean).join(' · '),
   );
 </script>
 

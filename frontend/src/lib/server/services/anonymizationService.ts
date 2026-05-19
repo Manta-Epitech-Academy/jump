@@ -55,7 +55,6 @@ export const AnonymizationService = {
               parentPhone: null,
               parentEmail: null,
               niveau: null,
-              niveauDifficulte: null,
               badges: Prisma.DbNull,
               lastSyncedAt: null,
               charterAcceptedAt: null,

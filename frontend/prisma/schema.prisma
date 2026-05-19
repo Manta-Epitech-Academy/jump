@@ -180,7 +180,6 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
-  niveauDifficulte            String?
   level                       String    @default("Novice")
   xp                          Int       @default(0)
   eventsCount                 Int       @default(0)
