@@ -27,13 +27,56 @@ export const load: PageServerLoad = async () => {
     : [];
   const eventMap = new Map(events.map((ev) => [ev.externalId, ev]));
 
+  // Categorize each error by the event types found in either colliding
+  // talent's participations (existing + attempted). A row is "stage" if
+  // either talent has any stage participation; same for coding club; it
+  // can be both.
+  const extIds = [
+    ...new Set(
+      errors
+        .flatMap((e) => [e.attemptedExtId, e.existingExtId])
+        .filter(Boolean),
+    ),
+  ] as string[];
+  const talents = extIds.length
+    ? await prisma.talent.findMany({
+        where: { externalId: { in: extIds } },
+        select: {
+          externalId: true,
+          participations: {
+            select: { event: { select: { eventType: true } } },
+          },
+        },
+      })
+    : [];
+  const typesByExtId = new Map<string, Set<string>>();
+  for (const t of talents) {
+    if (!t.externalId) continue;
+    typesByExtId.set(
+      t.externalId,
+      new Set(t.participations.map((p) => p.event.eventType)),
+    );
+  }
+
+  const campusNames = [
+    ...new Set(
+      events.map((ev) => ev.campus?.name).filter((n): n is string => !!n),
+    ),
+  ].sort();
+
   return {
     errors: errors.map((e: (typeof errors)[number]) => {
       const event = e.eventExtId ? eventMap.get(e.eventExtId) : null;
+      const types = new Set<string>();
+      for (const t of typesByExtId.get(e.attemptedExtId) ?? []) types.add(t);
+      if (e.existingExtId) {
+        for (const t of typesByExtId.get(e.existingExtId) ?? []) types.add(t);
+      }
       return {
         ...e,
         eventName: event?.titre ?? null,
         campusName: event?.campus?.name ?? null,
+        eventTypes: [...types],
         createdAt: e.createdAt.toISOString(),
         updatedAt: e.updatedAt.toISOString(),
         lastOccurredAt: e.lastOccurredAt.toISOString(),
@@ -41,6 +84,7 @@ export const load: PageServerLoad = async () => {
       };
     }),
     unresolvedCount,
+    campusNames,
   };
 };
 

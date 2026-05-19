@@ -8,13 +8,32 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
+  import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
   import { formatDateTimeFr } from '$lib/utils';
   import { salesforceContactUrl } from '$lib/domain/salesforce';
+  import { EVENT_TYPES } from '$lib/domain/event';
   import { toast } from 'svelte-sonner';
   import { track } from '$lib/analytics';
 
   let { data } = $props();
+
+  let filterCampus = $state<string>('all');
+  let filterType = $state<string>('all');
+
+  const eventTypeLabels: Record<string, string> = {
+    [EVENT_TYPES.STAGE_SECONDE]: 'Stage de Seconde',
+    [EVENT_TYPES.CODING_CLUB]: 'Coding Club',
+  };
+
+  const filteredErrors = $derived(
+    data.errors.filter((e) => {
+      if (filterCampus !== 'all' && e.campusName !== filterCampus) return false;
+      if (filterType !== 'all' && !e.eventTypes.includes(filterType))
+        return false;
+      return true;
+    }),
+  );
 </script>
 
 <svelte:head>
@@ -32,29 +51,66 @@
       </p>
     </div>
 
-    {#if data.unresolvedCount > 0}
-      <form
-        method="POST"
-        action="?/resolveAll"
-        use:enhance={() =>
-          async ({ result, update }) => {
-            if (result.type === 'success') {
-              track('sync_errors_resolved_all', {
-                count: data.unresolvedCount,
-              });
-              toast.success('Toutes les erreurs ont été résolues');
-              await update();
-            } else {
-              toast.error('Une erreur est survenue');
-            }
-          }}
+    <div class="flex flex-wrap items-center gap-3">
+      <Select.Root
+        type="single"
+        value={filterCampus}
+        onValueChange={(v) => (filterCampus = v ?? 'all')}
       >
-        <Button type="submit" variant="outline" class="gap-2">
-          <CheckCheck class="h-4 w-4" />
-          Tout résoudre ({data.unresolvedCount})
-        </Button>
-      </form>
-    {/if}
+        <Select.Trigger class="h-9 min-w-[180px] text-xs">
+          {filterCampus !== 'all' ? filterCampus : 'Tous les campus'}
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item value="all">Tous les campus</Select.Item>
+          {#each data.campusNames as name}
+            <Select.Item value={name}>{name}</Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
+
+      <Select.Root
+        type="single"
+        value={filterType}
+        onValueChange={(v) => (filterType = v ?? 'all')}
+      >
+        <Select.Trigger class="h-9 min-w-[180px] text-xs">
+          {filterType !== 'all'
+            ? eventTypeLabels[filterType]
+            : 'Tous les types'}
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item value="all">Tous les types</Select.Item>
+          <Select.Item value={EVENT_TYPES.STAGE_SECONDE}
+            >Stage de Seconde</Select.Item
+          >
+          <Select.Item value={EVENT_TYPES.CODING_CLUB}>Coding Club</Select.Item>
+        </Select.Content>
+      </Select.Root>
+
+      {#if data.unresolvedCount > 0}
+        <form
+          method="POST"
+          action="?/resolveAll"
+          use:enhance={() =>
+            async ({ result, update }) => {
+              if (result.type === 'success') {
+                track('sync_errors_resolved_all', {
+                  count: data.unresolvedCount,
+                });
+                toast.success('Toutes les erreurs ont été résolues');
+                await update();
+              } else {
+                toast.error('Une erreur est survenue');
+              }
+            }}
+        >
+          <Button type="submit" variant="outline" class="gap-2">
+            <CheckCheck class="h-4 w-4" />
+            Tout résoudre ({data.unresolvedCount})
+          </Button>
+        </form>
+      {/if}
+    </div>
   </div>
 
   <Card.Root>
@@ -74,7 +130,7 @@
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {#each data.errors as error}
+          {#each filteredErrors as error}
             <Table.Row class={error.resolved ? 'opacity-50' : ''}>
               <Table.Cell>
                 {#if error.resolved}
