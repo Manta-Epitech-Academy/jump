@@ -6,7 +6,26 @@ import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
 
+const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
+
+// Built manually rather than via `kit.csp` because SvelteKit's auto-CSP
+// injects a per-request nonce in `script-src`, which makes browsers ignore
+// `'unsafe-inline'`. The Umami session-replay recorder needs to evaluate
+// ad-hoc inline scripts and `on*` attribute handlers we cannot pre-hash,
+// so `'unsafe-inline'` must actually take effect here.
+const CSP_HEADER = [
+  "default-src 'self'",
+  `script-src 'self' ${UMAMI_HOST} 'unsafe-inline' 'unsafe-hashes'`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: https:",
+  "font-src 'self' https://fonts.gstatic.com",
+  `connect-src 'self' https://discord.com ${UMAMI_HOST}`,
+  "frame-ancestors 'none'",
+  "frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr",
+].join('; ');
+
 function setSecurityHeaders(response: Response) {
+  response.headers.set('Content-Security-Policy', CSP_HEADER);
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
