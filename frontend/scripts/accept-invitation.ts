@@ -22,9 +22,16 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type StaffRole } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { bauthRoleForStaffRole } from '../src/lib/domain/staff';
+
+// Inlined from `src/lib/domain/staff.ts` so the script can run inside the
+// production image, which only ships the built app (no raw `src/`).
+function bauthRoleForStaffRole(
+  staffRole: StaffRole | null | undefined,
+): 'admin' | 'staff' {
+  return staffRole === 'admin' ? 'admin' : 'staff';
+}
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -43,7 +50,11 @@ function ask(question: string): Promise<string> {
 }
 
 async function main() {
-  const email = (await ask('Email of the invitee: ')).toLowerCase().trim();
+  // Accept email as a CLI arg first (works under `kubectl exec` where stdin
+  // may not be a TTY); fall back to interactive prompt otherwise.
+  const argEmail = process.argv[2]?.toLowerCase().trim();
+  const email =
+    argEmail || (await ask('Email of the invitee: ')).toLowerCase().trim();
   if (!email.includes('@')) {
     console.error('Invalid email.');
     process.exit(1);
