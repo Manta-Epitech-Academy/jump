@@ -16,6 +16,13 @@ declare global {
       session: Session | null;
       staffProfile: (StaffProfile & { campus: Campus | null }) | null;
       talent: Talent | null;
+      /**
+       * Campus name for the current talent, derived from their most recent
+       * participation (talents have no direct Campus relation). Null for staff
+       * (use `staffProfile.campus.name`) and anonymous requests. Resolved
+       * alongside the feature-flag campus scope in hooks.server.ts.
+       */
+      talentCampusName: string | null;
       viewMode: 'readonly' | 'edit';
       featureFlags: Set<FlagKey>;
       ticketsEnabled: boolean;
