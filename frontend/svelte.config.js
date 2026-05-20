@@ -23,10 +23,15 @@ const config = {
         // Umami analytics ships its tracker script from UMAMI_HOST; the
         // sha256 hash whitelists mode-watcher's inline theme bootstrap
         // script (used to avoid a flash of the wrong theme on load).
+        // `unsafe-hashes` + `unsafe-inline` are required because the Umami
+        // session-replay recorder instruments DOM nodes with inline `on*`
+        // attribute handlers, which neither nonces nor plain hashes cover.
         'script-src': [
           'self',
           UMAMI_HOST,
           'sha256-Stkt8ip/11kybd4lt+wxSqAzIicXuhKo5w+vKPzFxdE=',
+          'unsafe-hashes',
+          'unsafe-inline',
         ],
         'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
         'img-src': ['self', 'data:', 'https:'],
