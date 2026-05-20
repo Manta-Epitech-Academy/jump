@@ -14,7 +14,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { toast } from 'svelte-sonner';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { FEATURE_FLAGS, type FlagKey } from '$lib/domain/featureFlags';
   import { track } from '$lib/analytics';

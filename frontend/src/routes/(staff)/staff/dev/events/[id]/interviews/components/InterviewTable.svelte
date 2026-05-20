@@ -114,6 +114,11 @@
           <td class="px-3 py-2">
             <div class="flex items-center gap-2">
               <Avatar.Root class="h-6 w-6 rounded-full">
+                <Avatar.Image
+                  src={iv.staff?.user?.image ?? undefined}
+                  alt={iv.staff?.user?.name ?? ''}
+                  class="object-cover"
+                />
                 <Avatar.Fallback
                   class="bg-muted text-[9px] font-bold uppercase"
                 >

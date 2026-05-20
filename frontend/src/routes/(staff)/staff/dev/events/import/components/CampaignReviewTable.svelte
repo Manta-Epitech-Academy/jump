@@ -37,7 +37,7 @@
   <div
     class="flex items-center justify-between border-b bg-muted/30 px-5 py-3 text-xs font-bold tracking-widest text-muted-foreground uppercase"
   >
-    <span>Revue des Talents ({analysisResult.analysisData.length})</span>
+    <span>Revue des stagiaires ({analysisResult.analysisData.length})</span>
     <span class="text-[9px]">Cochez ceux qui apportent leur PC</span>
   </div>
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TemplateForm from '$lib/components/broadcasts/TemplateForm.svelte';
+  import TemplateForm from '$lib/components/admin/broadcasts/TemplateForm.svelte';
   import { enhance } from '$app/forms';
 
   let { data, form } = $props();

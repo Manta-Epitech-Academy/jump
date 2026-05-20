@@ -1,20 +1,15 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
-  import { goto } from '$app/navigation';
-  import { resolve } from '$app/paths';
   import { toast } from 'svelte-sonner';
-  import Settings from '@lucide/svelte/icons/settings';
 
   import type { PageData } from './$types';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
-  import { Button } from '$lib/components/ui/button';
-  import Gated from '$lib/components/auth/Gated.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
   import { track } from '$lib/analytics';
+  import { STAGE_SECONDE_LABEL, eventTypeHasTheme } from '$lib/domain/event';
 
-  import EditEventSettingsModal from './components/EditEventSettingsModal.svelte';
+  import EditEventDialog from './components/EditEventDialog.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
   import PreparationView from './components/PreparationView.svelte';
   import OngoingView from './components/OngoingView.svelte';
@@ -48,53 +43,43 @@
   );
 
   let openEditEvent = $state(false);
-  let deleteEventDialogOpen = $state(false);
 
   const eventDate = $derived(new Date(data.event.date));
   const eventEndDate = $derived(
     data.event.endDate ? new Date(data.event.endDate) : null,
   );
+
+  const pageTitle = $derived(
+    data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
+  );
+
+  const showPlanning = $derived(data.featureFlags.includes('event_planning'));
 </script>
 
 <svelte:head>
-  <title>{data.event.titre}</title>
+  <title>{pageTitle}</title>
 </svelte:head>
 
 <div class="flex flex-col gap-4">
-  <div class="flex items-start justify-between gap-3">
-    <PageBreadcrumb
-      items={[
-        { label: 'Dashboard', href: resolve('/staff/dev') },
-        { label: data.event.titre },
-      ]}
-    />
-    <div class="flex items-center gap-2">
+  {#if data.kind !== 'stage' || data.event.externalId}
+    <div class="flex items-start justify-between gap-3">
+      {#if data.kind !== 'stage'}
+        <PageBreadcrumb items={[{ label: pageTitle }]} />
+      {:else}
+        <div></div>
+      {/if}
       <EventSalesforceButton externalId={data.event.externalId} />
-      <Gated group="devLead" mode="hide">
-        <Button
-          variant="outline"
-          size="sm"
-          class="rounded-sm shadow-sm"
-          onclick={() => (openEditEvent = true)}
-        >
-          <Settings class="mr-2 h-4 w-4" />
-          Paramètres de l'événement
-        </Button>
-      </Gated>
     </div>
-  </div>
+  {/if}
 
   {#if data.kind === 'stage' && data.status === 'upcoming'}
     <PreparationView
       eventId={data.event.id}
-      titre={data.event.titre}
       notes={data.event.notes}
       daysToStart={data.prep.daysToStart}
       openDate={new Date(data.prep.openDate)}
       timezone={data.timezone}
       kpis={data.prep.kpis}
-      checklist={data.prep.checklist}
-      firstDayTimeSlots={data.prep.firstDayTimeSlots}
       lyceesBreakdown={data.prep.lyceesBreakdown}
       interestsCloud={data.prep.interestsCloud}
       onEditNotes={() => (openEditEvent = true)}
@@ -102,7 +87,6 @@
   {:else if data.kind === 'stage' && data.status === 'ongoing'}
     <OngoingView
       eventId={data.event.id}
-      titre={data.event.titre}
       notes={data.event.notes}
       dayN={data.ongoing.dayN}
       totalDays={data.ongoing.totalDays}
@@ -115,12 +99,12 @@
       mesProchainsEntretiens={data.ongoing.mesProchainsEntretiens}
       lyceesBreakdown={data.ongoing.lyceesBreakdown}
       interestsCloud={data.ongoing.interestsCloud}
+      {showPlanning}
       onEditNotes={() => (openEditEvent = true)}
     />
   {:else if data.kind === 'stage' && data.status === 'past'}
     <PastView
       eventId={data.event.id}
-      titre={data.event.titre}
       notes={data.event.notes}
       startDate={eventDate}
       endDate={new Date(data.past.endDate)}
@@ -140,30 +124,19 @@
       mantasCount={data.event.mantas.length}
       stats={data.legacy.stats}
       alerts={data.legacy.alerts}
+      showIntervenants={data.featureFlags.includes('staff_intervenants')}
+      {showPlanning}
       onEditNotes={() => (openEditEvent = true)}
     />
   {/if}
 </div>
 
-<EditEventSettingsModal
+<EditEventDialog
   bind:open={openEditEvent}
-  bind:deleteEventDialogOpen
   {editForm}
   {editErrors}
   {editEnhance}
   {editDelayed}
   themes={data.themes}
-  staff={data.staff}
-/>
-
-<ConfirmDeleteDialog
-  bind:open={deleteEventDialogOpen}
-  action="?/deleteEvent"
-  title="Supprimer définitivement ?"
-  description="Cette action est irréversible. Toutes les données associées à cet événement seront perdues."
-  buttonText="Confirmer la suppression"
-  onSuccess={() => {
-    track('event_deleted');
-    goto(resolve('/staff/dev'));
-  }}
+  canHaveTheme={eventTypeHasTheme(data.event.eventType)}
 />

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TemplateForm from '$lib/components/broadcasts/TemplateForm.svelte';
+  import TemplateForm from '$lib/components/admin/broadcasts/TemplateForm.svelte';
 
   let { data } = $props();
 </script>

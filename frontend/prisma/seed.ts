@@ -48,6 +48,21 @@ function dayAt(offsetDays: number, hour: number, minute = 0): Date {
   return d;
 }
 
+// Real stage de seconde campaigns are named after their kickoff date so
+// admissions can spot the cohort at a glance — e.g. `STAGE - Marseille -
+// 2026/06/15 - stage seconde`. Build the title from the seed's relative
+// offset so the format stays stable whenever the seed is replayed.
+function formatStageSecondeTitle(
+  campus: 'Paris' | 'Lyon',
+  daysOffset: number,
+): string {
+  const start = dayAt(daysOffset, 0, 0);
+  const y = start.getFullYear();
+  const m = String(start.getMonth() + 1).padStart(2, '0');
+  const d = String(start.getDate()).padStart(2, '0');
+  return `STAGE - ${campus} - ${y}/${m}/${d} - stage seconde`;
+}
+
 // Fake 18-char Salesforce Lead id (`00Q…`). Real prefix for Lead is `00Q`;
 // the trailing 3 chars are normally a checksum we don't bother computing.
 function mockSalesforceLeadId(seed: number): string {
@@ -1190,7 +1205,6 @@ type StudentDef = {
   phone: string;
   parentPhone: string;
   niveau: string;
-  niveauDifficulte: 'Débutant' | 'Intermédiaire' | 'Avancé';
   campus: 'Paris' | 'Lyon';
   charterSigned: boolean;
   lastActiveDaysAgo: number | null;
@@ -1205,8 +1219,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Martin',
     phone: '+33 6 12 34 56 01',
     parentPhone: '+33 6 98 76 54 01',
-    niveau: '4eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 1,
@@ -1218,8 +1231,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Dupont',
     phone: '+33 6 12 34 56 02',
     parentPhone: '+33 6 98 76 54 02',
-    niveau: '3eme',
-    niveauDifficulte: 'Intermédiaire',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 2,
@@ -1231,8 +1243,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Bernard',
     phone: '+33 6 12 34 56 03',
     parentPhone: '+33 6 98 76 54 03',
-    niveau: '5eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 5,
@@ -1243,8 +1254,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Petit',
     phone: '+33 6 12 34 56 04',
     parentPhone: '+33 6 98 76 54 04',
-    niveau: '6eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 3,
@@ -1256,7 +1266,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 05',
     parentPhone: '+33 6 98 76 54 05',
     niveau: '2nde',
-    niveauDifficulte: 'Avancé',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 0,
@@ -1267,8 +1276,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Garcia',
     phone: '+33 6 12 34 56 06',
     parentPhone: '+33 6 98 76 54 06',
-    niveau: '4eme',
-    niveauDifficulte: 'Intermédiaire',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 8,
@@ -1279,8 +1287,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Roux',
     phone: '+33 6 12 34 56 07',
     parentPhone: '+33 6 98 76 54 07',
-    niveau: '3eme',
-    niveauDifficulte: 'Intermédiaire',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 12,
@@ -1291,8 +1298,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Fournier',
     phone: '+33 6 12 34 56 08',
     parentPhone: '+33 6 98 76 54 08',
-    niveau: '5eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 4,
@@ -1303,8 +1309,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Morel',
     phone: '+33 6 12 34 56 09',
     parentPhone: '+33 6 98 76 54 09',
-    niveau: '6eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: false,
     lastActiveDaysAgo: 200,
@@ -1315,8 +1320,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Simon',
     phone: '+33 6 12 34 56 10',
     parentPhone: '+33 6 98 76 54 10',
-    niveau: '1ere',
-    niveauDifficulte: 'Avancé',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 1,
@@ -1328,7 +1332,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 11',
     parentPhone: '+33 6 98 76 54 11',
     niveau: '2nde',
-    niveauDifficulte: 'Intermédiaire',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 6,
@@ -1339,8 +1342,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Durand',
     phone: '+33 6 12 34 56 12',
     parentPhone: '+33 6 98 76 54 12',
-    niveau: '3eme',
-    niveauDifficulte: 'Intermédiaire',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: false,
     lastActiveDaysAgo: 180,
@@ -1351,8 +1353,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Leroy',
     phone: '+33 6 12 34 56 13',
     parentPhone: '+33 6 98 76 54 13',
-    niveau: '5eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 2,
@@ -1363,8 +1364,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Robert',
     phone: '+33 6 12 34 56 14',
     parentPhone: '+33 6 98 76 54 14',
-    niveau: '4eme',
-    niveauDifficulte: 'Intermédiaire',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 7,
@@ -1375,8 +1375,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Richard',
     phone: '+33 6 12 34 56 15',
     parentPhone: '+33 6 98 76 54 15',
-    niveau: 'Terminale',
-    niveauDifficulte: 'Avancé',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 0,
@@ -1387,8 +1386,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Michel',
     phone: '+33 6 12 34 56 16',
     parentPhone: '+33 6 98 76 54 16',
-    niveau: '6eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 15,
@@ -1399,8 +1397,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Laurent',
     phone: '+33 6 12 34 56 17',
     parentPhone: '+33 6 98 76 54 17',
-    niveau: '3eme',
-    niveauDifficulte: 'Avancé',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 3,
@@ -1411,8 +1408,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Chevalier',
     phone: '+33 6 12 34 56 18',
     parentPhone: '+33 6 98 76 54 18',
-    niveau: '4eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: null, // Never active
@@ -1424,7 +1420,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 19',
     parentPhone: '+33 6 98 76 54 19',
     niveau: '2nde',
-    niveauDifficulte: 'Intermédiaire',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 9,
@@ -1436,7 +1431,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 20',
     parentPhone: '+33 6 98 76 54 20',
     niveau: '1ere',
-    niveauDifficulte: 'Avancé',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 1,
@@ -1449,7 +1443,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 26',
     parentPhone: '+33 6 98 76 54 26',
     niveau: '5eme',
-    niveauDifficulte: 'Débutant',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 4,
@@ -1461,7 +1454,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 27',
     parentPhone: '+33 6 98 76 54 27',
     niveau: '3eme',
-    niveauDifficulte: 'Intermédiaire',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 11,
@@ -1473,7 +1465,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 28',
     parentPhone: '+33 6 98 76 54 28',
     niveau: '4eme',
-    niveauDifficulte: 'Intermédiaire',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 2,
@@ -1485,7 +1476,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 29',
     parentPhone: '+33 6 98 76 54 29',
     niveau: '2nde',
-    niveauDifficulte: 'Avancé',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 0,
@@ -1497,7 +1487,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 30',
     parentPhone: '+33 6 98 76 54 30',
     niveau: '6eme',
-    niveauDifficulte: 'Débutant',
     campus: 'Paris',
     charterSigned: false,
     lastActiveDaysAgo: 90,
@@ -1509,7 +1498,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 31',
     parentPhone: '+33 6 98 76 54 31',
     niveau: 'Terminale',
-    niveauDifficulte: 'Avancé',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 1,
@@ -1521,7 +1509,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 32',
     parentPhone: '+33 6 98 76 54 32',
     niveau: '3eme',
-    niveauDifficulte: 'Avancé',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 6,
@@ -1533,7 +1520,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 33',
     parentPhone: '+33 6 98 76 54 33',
     niveau: '4eme',
-    niveauDifficulte: 'Débutant',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: null,
@@ -1545,7 +1531,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 34',
     parentPhone: '+33 6 98 76 54 34',
     niveau: '1ere',
-    niveauDifficulte: 'Intermédiaire',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 14,
@@ -1557,7 +1542,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 35',
     parentPhone: '+33 6 98 76 54 35',
     niveau: '5eme',
-    niveauDifficulte: 'Débutant',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 3,
@@ -1569,7 +1553,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 36',
     parentPhone: '+33 6 98 76 54 36',
     niveau: '2nde',
-    niveauDifficulte: 'Intermédiaire',
     campus: 'Paris',
     charterSigned: false,
     lastActiveDaysAgo: 220,
@@ -1581,7 +1564,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 6 12 34 56 37',
     parentPhone: '+33 6 98 76 54 37',
     niveau: '6eme',
-    niveauDifficulte: 'Débutant',
     campus: 'Paris',
     charterSigned: true,
     lastActiveDaysAgo: 5,
@@ -1594,7 +1576,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 7 12 34 56 20',
     parentPhone: '+33 7 98 76 54 20',
     niveau: '2nde',
-    niveauDifficulte: 'Débutant',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 0,
@@ -1606,8 +1587,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Durand',
     phone: '+33 7 12 34 56 21',
     parentPhone: '+33 7 98 76 54 21',
-    niveau: '4eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 2,
@@ -1618,8 +1598,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Leroy',
     phone: '+33 7 12 34 56 22',
     parentPhone: '+33 7 98 76 54 22',
-    niveau: '3eme',
-    niveauDifficulte: 'Intermédiaire',
+    niveau: '2nde',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 5,
@@ -1630,8 +1609,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'David',
     phone: '+33 7 12 34 56 23',
     parentPhone: '+33 7 98 76 54 23',
-    niveau: '5eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 10,
@@ -1643,7 +1621,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 7 12 34 56 24',
     parentPhone: '+33 7 98 76 54 24',
     niveau: '2nde',
-    niveauDifficulte: 'Avancé',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 1,
@@ -1654,8 +1631,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Henri',
     phone: '+33 7 12 34 56 25',
     parentPhone: '+33 7 98 76 54 25',
-    niveau: '6eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Lyon',
     charterSigned: false,
     lastActiveDaysAgo: 20,
@@ -1667,8 +1643,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Marchal',
     phone: '+33 7 12 34 56 26',
     parentPhone: '+33 7 98 76 54 26',
-    niveau: '4eme',
-    niveauDifficulte: 'Intermédiaire',
+    niveau: '2nde',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 4,
@@ -1679,8 +1654,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Garnier',
     phone: '+33 7 12 34 56 27',
     parentPhone: '+33 7 98 76 54 27',
-    niveau: '3eme',
-    niveauDifficulte: 'Avancé',
+    niveau: '2nde',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 1,
@@ -1691,8 +1665,7 @@ const STUDENTS: StudentDef[] = [
     nom: 'Pasquier',
     phone: '+33 7 12 34 56 28',
     parentPhone: '+33 7 98 76 54 28',
-    niveau: '5eme',
-    niveauDifficulte: 'Débutant',
+    niveau: '2nde',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 8,
@@ -1704,7 +1677,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 7 12 34 56 29',
     parentPhone: '+33 7 98 76 54 29',
     niveau: '2nde',
-    niveauDifficulte: 'Intermédiaire',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 0,
@@ -1716,7 +1688,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 7 12 34 56 30',
     parentPhone: '+33 7 98 76 54 30',
     niveau: '1ere',
-    niveauDifficulte: 'Avancé',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 13,
@@ -1728,7 +1699,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 7 12 34 56 31',
     parentPhone: '+33 7 98 76 54 31',
     niveau: '6eme',
-    niveauDifficulte: 'Débutant',
     campus: 'Lyon',
     charterSigned: false,
     lastActiveDaysAgo: 150,
@@ -1740,7 +1710,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 7 12 34 56 32',
     parentPhone: '+33 7 98 76 54 32',
     niveau: '4eme',
-    niveauDifficulte: 'Intermédiaire',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: null,
@@ -1752,7 +1721,6 @@ const STUDENTS: StudentDef[] = [
     phone: '+33 7 12 34 56 33',
     parentPhone: '+33 7 98 76 54 33',
     niveau: 'Terminale',
-    niveauDifficulte: 'Avancé',
     campus: 'Lyon',
     charterSigned: true,
     lastActiveDaysAgo: 2,
@@ -1823,6 +1791,30 @@ const standardOrgaSlot = (): SlotBlueprint => ({
   activities: [{ nom: 'Appel', activityType: 'orga' }],
 });
 
+// Stage de seconde anchors. One stage per talent per academic year, ~2
+// weeks long, kickoff around mid-month. Past Paris edition is ~11 months
+// back (previous cohort), the current Paris one straddles "today" so QA
+// can exercise the En-cours phase, and the Lyon edition is the upcoming
+// kickoff. Shared between EVENTS and the INTERVIEWS/BROADCASTS
+// blueprints that point at those stages by titre/eventIndex.
+const STAGE_DURATION_DAYS = 14;
+const PAST_PARIS_STAGE_OFFSET = -338;
+const ONGOING_PARIS_STAGE_OFFSET = -2;
+const FUTURE_LYON_STAGE_OFFSET = 27;
+
+const PAST_PARIS_STAGE_TITLE = formatStageSecondeTitle(
+  'Paris',
+  PAST_PARIS_STAGE_OFFSET,
+);
+const ONGOING_PARIS_STAGE_TITLE = formatStageSecondeTitle(
+  'Paris',
+  ONGOING_PARIS_STAGE_OFFSET,
+);
+const FUTURE_LYON_STAGE_TITLE = formatStageSecondeTitle(
+  'Lyon',
+  FUTURE_LYON_STAGE_OFFSET,
+);
+
 const EVENTS: EventBlueprint[] = [
   // 1. Past cyber workshop (2 weeks ago) — certificate-ready
   {
@@ -1847,8 +1839,19 @@ const EVENTS: EventBlueprint[] = [
         ],
       },
     ],
-    studentEmails: parisStudents.slice(0, 8),
-    presentEmails: parisStudents.slice(0, 7), // 7/8 attended
+    // Niveau mix: stage cohort (2nde) + extras from other class levels.
+    studentEmails: [
+      ...parisStudents.slice(0, 8),
+      parisStudents[19], // ethan.bonnet — 1ere
+      parisStudents[20], // mathis.perrin — 5eme
+      parisStudents[21], // eva.lambert — 3eme
+    ],
+    presentEmails: [
+      ...parisStudents.slice(0, 7),
+      parisStudents[19],
+      parisStudents[20],
+      parisStudents[21],
+    ], // 10/11 attended
     delays: { [parisStudents[3]]: 10 },
     verdicts_by_email: {
       [parisStudents[0]]: {
@@ -1897,8 +1900,18 @@ const EVENTS: EventBlueprint[] = [
         activities: [{ nom: 'Construis ton robot' }],
       },
     ],
-    studentEmails: parisStudents.slice(0, 10),
-    presentEmails: parisStudents.slice(0, 9), // 9/10 attended
+    // Niveau mix: stage cohort (2nde) + extras from other class levels.
+    studentEmails: [
+      ...parisStudents.slice(0, 10),
+      parisStudents[22], // raphael.mercier — 4eme
+      parisStudents[24], // noah.brun — 6eme
+      parisStudents[25], // camille.lopez — Terminale
+    ],
+    presentEmails: [
+      ...parisStudents.slice(0, 9),
+      parisStudents[22],
+      parisStudents[24],
+    ], // 11/13 attended
     delays: { [parisStudents[1]]: 10, [parisStudents[5]]: 5 },
     ratings: {
       [parisStudents[0]]: 3,
@@ -1915,16 +1928,16 @@ const EVENTS: EventBlueprint[] = [
     bringPc: () => false,
   },
 
-  // 3. Past STAGE DE SECONDE (semestre précédent — historique + portfolio)
+  // 3. Past STAGE DE SECONDE (promotion précédente — historique + portfolio)
   {
-    titre: 'Stage de seconde — Découverte Tech',
+    titre: PAST_PARIS_STAGE_TITLE,
     eventType: EVENT_TYPES.STAGE_SECONDE,
-    daysOffset: -180,
-    durationDays: 3,
+    daysOffset: PAST_PARIS_STAGE_OFFSET,
+    durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1001',
-    notes: 'Édition automne — promotion précédente. Archive pédagogique.',
+    notes: 'Édition juin — promotion précédente. Archive pédagogique.',
     mantaKeys: ['jules.dupont', 'laura.garcia'],
     days: [
       {
@@ -2031,7 +2044,12 @@ const EVENTS: EventBlueprint[] = [
         activities: [{ nom: "L'IA et moi" }, { nom: 'Entraîne ton modèle' }],
       },
     ],
-    studentEmails: parisStudents.slice(0, 8),
+    // Niveau mix: stage cohort (2nde) + extras from other class levels.
+    studentEmails: [
+      ...parisStudents.slice(0, 8),
+      parisStudents[27], // tristan.roussel — 4eme
+      parisStudents[28], // leon.marin — 1ere
+    ],
     presentEmails: parisStudents.slice(0, 6), // 6 already checked in
     delays: { [parisStudents[4]]: 15 },
     verdicts_by_email: {
@@ -2066,7 +2084,12 @@ const EVENTS: EventBlueprint[] = [
         ],
       },
     ],
-    studentEmails: parisStudents.slice(10, 16),
+    // Niveau mix: stage cohort (2nde) + extras from other class levels.
+    studentEmails: [
+      ...parisStudents.slice(10, 16),
+      parisStudents[26], // elise.pierre — 3eme
+      parisStudents[29], // anais.vasseur — 5eme
+    ],
     bringPc: () => true,
   },
 
@@ -2080,7 +2103,12 @@ const EVENTS: EventBlueprint[] = [
     notes: null,
     mantaKeys: ['jules.dupont'],
     slots: [], // ← intentional (empty planning)
-    studentEmails: parisStudents.slice(5, 12),
+    // Niveau mix: stage cohort (2nde) + extras from other class levels.
+    studentEmails: [
+      ...parisStudents.slice(5, 12),
+      parisStudents[19], // ethan.bonnet — 1ere
+      parisStudents[31], // lou.carpentier — 6eme
+    ],
     bringPc: () => true,
   },
 
@@ -2103,16 +2131,22 @@ const EVENTS: EventBlueprint[] = [
         activities: [{ nom: 'Crée ton jeu Scratch' }],
       },
     ],
-    studentEmails: parisStudents.slice(0, 10),
+    // Niveau mix: stage cohort (2nde) + extras from other class levels.
+    studentEmails: [
+      ...parisStudents.slice(0, 10),
+      parisStudents[20], // mathis.perrin — 5eme
+      parisStudents[22], // raphael.mercier — 4eme
+      parisStudents[27], // tristan.roussel — 4eme
+    ],
     bringPc: () => true,
   },
 
-  // 8. Ongoing STAGE DE SECONDE — En-cours phase QA (today = J3 of 5)
+  // 8. Ongoing STAGE DE SECONDE — En-cours phase QA (today = J3 of 14)
   {
-    titre: 'Stage de seconde — Cohorte en cours',
+    titre: ONGOING_PARIS_STAGE_TITLE,
     eventType: EVENT_TYPES.STAGE_SECONDE,
-    daysOffset: -2,
-    durationDays: 5,
+    daysOffset: ONGOING_PARIS_STAGE_OFFSET,
+    durationDays: STAGE_DURATION_DAYS,
     campus: 'Paris',
     theme: 'Développement Web',
     pin: '1003',
@@ -2237,11 +2271,14 @@ const EVENTS: EventBlueprint[] = [
         ],
       },
     ],
-    studentEmails: [parisStudents[0], ...parisStudents.slice(6, 18)],
-    presentEmails: [parisStudents[0], ...parisStudents.slice(6, 16)], // 11/13 émargés
+    // parisStudents[0] (alice.martin) already did her stage de seconde with
+    // the previous cohort — one stage per talent, ever — so the current
+    // edition only registers the new cohort at indices 6..17.
+    studentEmails: parisStudents.slice(6, 18),
+    presentEmails: parisStudents.slice(6, 16), // 10/12 émargés
     delays: { [parisStudents[9]]: 10, [parisStudents[13]]: 5 },
     bringPc: () => true,
-    stageSigned: [parisStudents[0], ...parisStudents.slice(6, 14)], // 9/13 dossiers complets
+    stageSigned: parisStudents.slice(6, 14), // 8/12 dossiers complets
     stageUnsigned: parisStudents.slice(14, 18), // 4 partiels — alimente alertes
   },
 
@@ -2264,8 +2301,17 @@ const EVENTS: EventBlueprint[] = [
         activities: [{ nom: 'Ma première page HTML' }],
       },
     ],
-    studentEmails: lyonStudents.slice(0, 4),
-    presentEmails: lyonStudents.slice(0, 4),
+    // Niveau mix: stage cohort (2nde) + Lyon extras from other class levels.
+    studentEmails: [
+      ...lyonStudents.slice(0, 4),
+      lyonStudents[10], // jules.riviere — 1ere
+      lyonStudents[11], // lilou.renaud — 6eme
+    ],
+    presentEmails: [
+      ...lyonStudents.slice(0, 4),
+      lyonStudents[10],
+      lyonStudents[11],
+    ],
     ratings: {
       [lyonStudents[0]]: 3,
       [lyonStudents[1]]: 3,
@@ -2300,10 +2346,10 @@ const EVENTS: EventBlueprint[] = [
 
   // 11. Future STAGE DE SECONDE Lyon (compliance + cross-campus coverage)
   {
-    titre: 'Stage de seconde Lyon — Mai',
+    titre: FUTURE_LYON_STAGE_TITLE,
     eventType: EVENT_TYPES.STAGE_SECONDE,
-    daysOffset: 25,
-    durationDays: 3,
+    daysOffset: FUTURE_LYON_STAGE_OFFSET,
+    durationDays: STAGE_DURATION_DAYS,
     campus: 'Lyon',
     theme: 'Développement Web',
     pin: '6003',
@@ -2548,7 +2594,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: -1,
     hour: 10,
     status: 'completed',
-    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
     notes: {
       motivation: 'Veut découvrir l’IA générative.',
       globalNote: 'Profil curieux, à orienter Pré-Tech.',
@@ -2561,7 +2607,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: -1,
     hour: 14,
     status: 'completed',
-    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
     notes: {
       motivation: 'Cherche un cursus tech après le bac.',
       globalNote: 'Engagement fort sur l’atelier robotique.',
@@ -2573,7 +2619,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: 0,
     hour: 14,
     status: 'planned',
-    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
   },
   {
     studentEmail: parisStudents[9],
@@ -2581,7 +2627,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: 0,
     hour: 16,
     status: 'planned',
-    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
   },
   {
     studentEmail: parisStudents[10],
@@ -2589,7 +2635,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: 1,
     hour: 11,
     status: 'planned',
-    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
   },
   {
     studentEmail: parisStudents[11],
@@ -2597,7 +2643,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: 1,
     hour: 14,
     status: 'planned',
-    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
   },
   // En retard — entretien planifié hier, pas marqué fait → alerte "Entretiens en retard"
   {
@@ -2606,7 +2652,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     daysOffset: -1,
     hour: 16,
     status: 'planned',
-    forEventTitre: 'Stage de seconde — Cohorte en cours',
+    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
   },
 ];
 
@@ -2623,6 +2669,11 @@ type ReminderBlueprint = {
   staffKey: string;
   daysOffset: number; // negative = past
   hour?: number;
+  // Optional archived copy of what was sent. When absent the fiche shows the
+  // "contenu non archivé" placeholder — keep a few that way so devs see both
+  // states in the timeline.
+  subject?: string;
+  body?: string;
 };
 
 const REMINDERS: ReminderBlueprint[] = [
@@ -2634,6 +2685,19 @@ const REMINDERS: ReminderBlueprint[] = [
     staffKey: 'pauline.marchand',
     daysOffset: -10,
     hour: 9,
+    subject: 'Ton stage de seconde — derniers documents à signer',
+    body: `Bonjour,
+
+Le stage commence dans une dizaine de jours et il manque encore ta
+convention signée pour finaliser ton inscription.
+
+Tu peux la récupérer directement depuis ton espace Jump (rubrique
+Documents) puis nous la renvoyer signée par tes parents.
+
+N'hésite pas à me répondre si tu rencontres la moindre difficulté.
+
+Bonne journée,
+Pauline — Epitech Academy Paris`,
   },
   {
     studentEmail: parisStudents[14],
@@ -2641,6 +2705,18 @@ const REMINDERS: ReminderBlueprint[] = [
     staffKey: 'pauline.marchand',
     daysOffset: -3,
     hour: 11,
+    subject: 'Stage de seconde — rappel signature convention',
+    body: `Bonjour,
+
+Nous accueillons votre enfant dans 3 jours pour son stage de seconde
+à Epitech Paris. Pour pouvoir le recevoir, il nous manque encore la
+convention de stage signée.
+
+Pourriez-vous nous la retourner avant vendredi soir ? Le document
+est disponible dans l'espace Jump de votre enfant.
+
+Bien cordialement,
+Pauline Marchand — Talent Acquisition`,
   },
   {
     studentEmail: parisStudents[15],
@@ -2655,6 +2731,17 @@ const REMINDERS: ReminderBlueprint[] = [
     staffKey: 'marie.manta',
     daysOffset: -12,
     hour: 10,
+    subject: 'Rappel — autorisation parentale',
+    body: `Salut,
+
+Petit rappel : il nous faut l'autorisation parentale signée par
+l'un de tes parents pour que tu puisses participer au stage.
+
+Le document se trouve sur ton espace Jump > Documents. Une fois
+signé, dépose-le au même endroit ou renvoie-le moi par mail.
+
+À très vite,
+Marie`,
   },
   {
     studentEmail: parisStudents[16],
@@ -2718,23 +2805,289 @@ const REMINDERS: ReminderBlueprint[] = [
   },
 ];
 
+// ─── Broadcast blueprints ───
+//
+// Mass campaigns (mail + SMS) targeting talents or their parents. Visible
+// in the Communications timeline on the fiche talent, mixed with the 1:1
+// onboarding reminders above. Covers every UI state we want devs to be
+// able to eyeball: opened, sent-not-opened, failed (with error), pending
+// (queued), SMS variant, parent-side recipient.
+
+type BroadcastRecipientBlueprint = {
+  studentEmail: string;
+  /** Recipient is the parent (parentOfTalentId) rather than the talent. */
+  parentSide?: boolean;
+  status: 'pending' | 'sent' | 'failed';
+  sentDaysOffset?: number;
+  sentHour?: number;
+  openedDaysOffset?: number;
+  openedHour?: number;
+  errorMessage?: string;
+};
+
+type BroadcastBlueprint = {
+  name: string;
+  channel: 'mail' | 'sms';
+  audience: 'talent' | 'parent';
+  campus: 'Paris' | 'Lyon';
+  /** Index into the seeded eventIds list; null = campus-wide, no event link. */
+  eventIndex: number | null;
+  subject: string | null;
+  body: string;
+  createdByStaffKey: string;
+  createdDaysOffset: number;
+  createdHour: number;
+  /** Final aggregate status of the broadcast itself (independent of each
+   * recipient row). `queued` = nothing dispatched yet; `sent` = all done. */
+  status: 'queued' | 'sent' | 'partial_failed';
+  recipients: BroadcastRecipientBlueprint[];
+};
+
+const BROADCASTS: BroadcastBlueprint[] = [
+  // Headline campaign sent at stage kickoff — drives the "opened" + "sent
+  // not opened" variants in the fiche timeline. Event-scoped to the
+  // ongoing Paris stage (eventIds[7]).
+  {
+    name: 'Bienvenue au stage de seconde 🚀',
+    channel: 'mail',
+    audience: 'talent',
+    campus: 'Paris',
+    eventIndex: 7,
+    createdByStaffKey: 'pauline.marchand',
+    createdDaysOffset: -8,
+    createdHour: 8,
+    status: 'sent',
+    subject: 'À demain ! Tout ce qu’il faut savoir pour ton stage',
+    body: `Salut {{prenom}},
+
+Demain, c'est le grand jour : ton stage de seconde commence à Epitech Paris !
+
+📍 Rendez-vous à 9h, 14-16 rue Voltaire, 94270 Le Kremlin-Bicêtre.
+🎒 Apporte-toi de quoi noter et ta carte d'identité.
+💻 Pas besoin d'ordinateur — tout est fourni sur place.
+
+On se voit demain !
+L'équipe Epitech Academy`,
+    recipients: [
+      {
+        studentEmail: parisStudents[6],
+        status: 'sent',
+        sentDaysOffset: -8,
+        sentHour: 8,
+        openedDaysOffset: -7,
+        openedHour: 19,
+      },
+      {
+        studentEmail: parisStudents[14],
+        status: 'sent',
+        sentDaysOffset: -8,
+        sentHour: 8,
+        openedDaysOffset: -7,
+        openedHour: 12,
+      },
+      {
+        studentEmail: parisStudents[16],
+        status: 'sent',
+        sentDaysOffset: -8,
+        sentHour: 8,
+        // No openedAt — surfaces the "Non ouvert" tooltip in the UI.
+      },
+      {
+        studentEmail: parisStudents[7],
+        status: 'sent',
+        sentDaysOffset: -8,
+        sentHour: 8,
+        openedDaysOffset: -6,
+        openedHour: 9,
+      },
+    ],
+  },
+  // Parent-side reminder — exercises audience=parent + parentSide on the
+  // recipient + the "Échec" delivery state.
+  {
+    name: 'Rappel — Signature de la convention',
+    channel: 'mail',
+    audience: 'parent',
+    campus: 'Paris',
+    eventIndex: 7,
+    createdByStaffKey: 'pauline.marchand',
+    createdDaysOffset: -5,
+    createdHour: 10,
+    status: 'partial_failed',
+    subject: 'Convention de stage — à signer avant vendredi',
+    body: `Bonjour,
+
+Le stage de votre enfant approche et nous n'avons pas encore reçu la
+convention signée. Pour pouvoir l'accueillir lundi, nous avons besoin
+du document avant vendredi soir.
+
+Vous le trouverez dans l'espace Jump de votre enfant (rubrique
+Documents). N'hésitez pas à nous écrire en cas de besoin.
+
+Bien cordialement,
+Pauline Marchand — Epitech Academy Paris`,
+    recipients: [
+      {
+        studentEmail: parisStudents[14],
+        parentSide: true,
+        status: 'sent',
+        sentDaysOffset: -5,
+        sentHour: 10,
+        openedDaysOffset: -5,
+        openedHour: 18,
+      },
+      {
+        studentEmail: parisStudents[15],
+        parentSide: true,
+        status: 'sent',
+        sentDaysOffset: -5,
+        sentHour: 10,
+      },
+      {
+        studentEmail: parisStudents[16],
+        parentSide: true,
+        status: 'failed',
+        errorMessage: 'Adresse parent inconnue ou inactive',
+      },
+    ],
+  },
+  // SMS J-1 — exercises the channel switch (MessageSquare icon, no opened
+  // state since SMS has no open tracking).
+  {
+    name: 'Démarrage demain — checklist & adresse',
+    channel: 'sms',
+    audience: 'talent',
+    campus: 'Paris',
+    eventIndex: 7,
+    createdByStaffKey: 'marie.manta',
+    createdDaysOffset: -1,
+    createdHour: 17,
+    status: 'sent',
+    subject: null,
+    body: `Salut {{prenom}}, RDV demain 9h au 14-16 rue Voltaire (Kremlin-Bicêtre). Apporte ta carte d'identité, on s'occupe du reste. — Epitech Academy`,
+    recipients: [
+      {
+        studentEmail: parisStudents[6],
+        status: 'sent',
+        sentDaysOffset: -1,
+        sentHour: 17,
+      },
+      {
+        studentEmail: parisStudents[14],
+        status: 'sent',
+        sentDaysOffset: -1,
+        sentHour: 17,
+      },
+      {
+        studentEmail: parisStudents[16],
+        status: 'sent',
+        sentDaysOffset: -1,
+        sentHour: 17,
+      },
+    ],
+  },
+  // Queued campaign — recipients are still pending (no sentAt yet), so the
+  // timeline falls back to broadcast.createdAt for ordering. Demonstrates
+  // the "En attente" pill.
+  {
+    name: 'Récap de stage — bravo et retours',
+    channel: 'mail',
+    audience: 'talent',
+    campus: 'Paris',
+    eventIndex: 7,
+    createdByStaffKey: 'pauline.marchand',
+    createdDaysOffset: 0,
+    createdHour: 9,
+    status: 'queued',
+    subject: 'Ton stage est fini — un dernier message',
+    body: `Bravo {{prenom}} !
+
+Tu viens de boucler ton stage de seconde à Epitech. On a passé une
+semaine super avec toi.
+
+On t'enverra un récap personnalisé d'ici quelques jours, avec
+quelques pistes pour la suite si la tech t'intéresse.
+
+À très vite,
+L'équipe Epitech Academy`,
+    recipients: [
+      { studentEmail: parisStudents[6], status: 'pending' },
+      { studentEmail: parisStudents[14], status: 'pending' },
+    ],
+  },
+];
+
 // ─── Portfolio items ───
 
+// Portfolio livrables — populated for talents that have already been
+// marked present at a past or ongoing event. New talents (no presence
+// history) stay empty so the "premier livrable" empty state remains
+// reachable in QA.
 const PORTFOLIO: {
   studentEmail: string;
   eventIndex: number;
   url?: string;
   caption: string;
 }[] = [
+  // ── eventIndex 0 — Atelier Cybersécurité (-14d) ──
   {
     studentEmail: parisStudents[0],
-    eventIndex: 2, // stage past
-    url: 'https://codepen.io/example/first-page',
-    caption: 'Ma toute première page web (stage)',
+    eventIndex: 0,
+    caption: 'Affiche cyberhygiène pour ma classe',
   },
   {
+    studentEmail: parisStudents[1],
+    eventIndex: 0,
+    caption: 'Quiz cybersécurité — 9/10',
+  },
+  {
+    studentEmail: parisStudents[2],
+    eventIndex: 0,
+    url: 'https://example.com/phishing-poster',
+    caption: 'Affiche phishing en équipe',
+  },
+  {
+    studentEmail: parisStudents[3],
+    eventIndex: 0,
+    caption: 'Notes — comment fabriquer un mot de passe solide',
+  },
+  {
+    studentEmail: parisStudents[4],
+    eventIndex: 0,
+    url: 'https://example.com/crypto-challenge',
+    caption: 'Défi de cryptographie César résolu',
+  },
+  {
+    studentEmail: parisStudents[5],
+    eventIndex: 0,
+    caption: 'Démo chiffrement César',
+  },
+  {
+    studentEmail: parisStudents[6],
+    eventIndex: 0,
+    caption: 'Quiz cybersécurité complété',
+  },
+  {
+    studentEmail: parisStudents[19],
+    eventIndex: 0,
+    caption: 'Notes sur la cyberhygiène',
+  },
+  {
+    studentEmail: parisStudents[20],
+    eventIndex: 0,
+    caption: "Schéma d'un phishing reconstitué",
+  },
+  {
+    studentEmail: parisStudents[21],
+    eventIndex: 0,
+    url: 'https://example.com/phishing-spotted',
+    caption: 'Site phishing repéré et décortiqué',
+  },
+
+  // ── eventIndex 1 — Atelier Robotique (-7d) ──
+  {
     studentEmail: parisStudents[0],
-    eventIndex: 1, // robotics past
+    eventIndex: 1,
     caption: 'Robot assemblé avec Emma',
   },
   {
@@ -2744,15 +3097,160 @@ const PORTFOLIO: {
   },
   {
     studentEmail: parisStudents[2],
+    eventIndex: 1,
+    caption: 'Robot terminé et fonctionnel',
+  },
+  {
+    studentEmail: parisStudents[3],
+    eventIndex: 1,
+    caption: 'Capteur de distance calibré',
+  },
+  {
+    studentEmail: parisStudents[4],
+    eventIndex: 1,
+    caption: 'Photo de mon robot ramasseur',
+  },
+  {
+    studentEmail: parisStudents[5],
+    eventIndex: 1,
+    caption: 'Robot suiveur de ligne',
+  },
+  {
+    studentEmail: parisStudents[6],
+    eventIndex: 1,
+    caption: 'Programmation moteur — premiers pas',
+  },
+  {
+    studentEmail: parisStudents[7],
+    eventIndex: 1,
+    caption: 'Vidéo du robot en action',
+  },
+  {
+    studentEmail: parisStudents[8],
+    eventIndex: 1,
+    caption: 'Croquis du robot avant assemblage',
+  },
+  {
+    studentEmail: parisStudents[22],
+    eventIndex: 1,
+    caption: "Plan d'assemblage du robot",
+  },
+  {
+    studentEmail: parisStudents[24],
+    eventIndex: 1,
+    caption: 'Mon premier programme robot',
+  },
+
+  // ── eventIndex 2 — Past Stage de seconde (-338d, promotion précédente) ──
+  {
+    studentEmail: parisStudents[0],
+    eventIndex: 2,
+    url: 'https://codepen.io/example/first-page',
+    caption: 'Ma toute première page web (stage)',
+  },
+  {
+    studentEmail: parisStudents[1],
+    eventIndex: 2,
+    url: 'https://codepen.io/example/lucas-site',
+    caption: 'Mon site CSS perso',
+  },
+  {
+    studentEmail: parisStudents[2],
     eventIndex: 2,
     url: 'https://codepen.io/example/css-page',
     caption: 'Ma page CSS colorée',
   },
   {
+    studentEmail: parisStudents[3],
+    eventIndex: 2,
+    caption: 'Modèle IA entraîné sur images de chats',
+  },
+  {
     studentEmail: parisStudents[4],
-    eventIndex: 0, // cyber past
-    url: 'https://example.com/crypto-challenge',
-    caption: 'Défi de cryptographie César résolu',
+    eventIndex: 2,
+    caption: 'Robot soccer du stage',
+  },
+  {
+    studentEmail: parisStudents[5],
+    eventIndex: 2,
+    caption: 'Photo de la démo finale du stage',
+  },
+
+  // ── eventIndex 7 — Ongoing stage (J3 of 14): J1/J2 livrables ──
+  {
+    studentEmail: parisStudents[6],
+    eventIndex: 7,
+    url: 'https://codepen.io/example/chloe-html',
+    caption: 'Page HTML — J1 du stage',
+  },
+  {
+    studentEmail: parisStudents[7],
+    eventIndex: 7,
+    caption: 'CSS J1 — palette pastel',
+  },
+  {
+    studentEmail: parisStudents[8],
+    eventIndex: 7,
+    caption: 'Modèle IA J2 — reconnaissance images',
+  },
+  {
+    studentEmail: parisStudents[9],
+    eventIndex: 7,
+    url: 'https://codepen.io/example/louis-html',
+    caption: 'Site HTML J1',
+  },
+  {
+    studentEmail: parisStudents[10],
+    eventIndex: 7,
+    caption: 'Modèle IA J2 — chiffres manuscrits',
+  },
+  {
+    studentEmail: parisStudents[11],
+    eventIndex: 7,
+    caption: 'Page HTML J1',
+  },
+  {
+    studentEmail: parisStudents[12],
+    eventIndex: 7,
+    caption: 'Modèle IA J2 — entraîné en équipe',
+  },
+  {
+    studentEmail: parisStudents[13],
+    eventIndex: 7,
+    caption: 'CSS J1 — page de présentation',
+  },
+
+  // ── eventIndex 8 — Past Atelier Web Lyon (-10d) ──
+  {
+    studentEmail: lyonStudents[0],
+    eventIndex: 8,
+    url: 'https://codepen.io/example/eliot-html',
+    caption: 'Première page HTML Lyon',
+  },
+  {
+    studentEmail: lyonStudents[1],
+    eventIndex: 8,
+    caption: 'Page CSS avec mes couleurs préférées',
+  },
+  {
+    studentEmail: lyonStudents[2],
+    eventIndex: 8,
+    caption: 'Site portfolio HTML',
+  },
+  {
+    studentEmail: lyonStudents[3],
+    eventIndex: 8,
+    caption: 'Mes premiers tags HTML',
+  },
+  {
+    studentEmail: lyonStudents[10],
+    eventIndex: 8,
+    caption: 'Page web personnelle',
+  },
+  {
+    studentEmail: lyonStudents[11],
+    eventIndex: 8,
+    caption: 'Démo HTML présentée en classe',
   },
 ];
 
@@ -2839,9 +3337,19 @@ async function main() {
   const portfolioCount = await seedPortfolio(talentByEmail, eventIds);
   console.log(`✓  Portfolio (${portfolioCount} items)`);
 
-  // 12. Reminders (Historique des relances)
+  // 12. Reminders (1:1 staff → talent / parent)
   const reminderCount = await seedReminders(staffByKey, talentByEmail);
   console.log(`✓  Reminders (${reminderCount})`);
+
+  // 12b. Broadcasts (mass mail / SMS campaigns) — feed the unified
+  //      communications timeline on the fiche talent.
+  const broadcastRecipientCount = await seedBroadcasts(
+    staffByKey,
+    talentByEmail,
+    campuses,
+    eventIds,
+  );
+  console.log(`✓  Broadcasts (${broadcastRecipientCount} recipient rows)`);
 
   // 13. CMS welcome pages for stage_seconde events
   await seedWelcomePages(eventIds, staffByKey);
@@ -3146,7 +3654,6 @@ async function seedStudents(): Promise<
         phone: s.phone,
         parentPhone: s.parentPhone,
         niveau: s.niveau,
-        niveauDifficulte: s.niveauDifficulte,
         charterAcceptedAt,
         infoValidatedAt,
         techInterestsValidatedAt: fullyOnboarded ? new Date() : null,
@@ -3519,7 +4026,6 @@ async function seedEvents(
             data: {
               participationId: participation.id,
               charteSigned: fullySigned || Math.random() < 0.5,
-              conventionSigned: fullySigned,
               imageRightsSigned: fullySigned || partiallySigned,
             },
           });
@@ -3759,6 +4265,8 @@ async function seedReminders(
       data: {
         talentId: talent.id,
         type: r.type,
+        subject: r.subject ?? null,
+        body: r.body ?? null,
         sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
         sentBy: staff.userId,
       },
@@ -3766,6 +4274,113 @@ async function seedReminders(
     count++;
   }
   return count;
+}
+
+// ─── Broadcasts ───
+
+/**
+ * Seed mass campaigns (mail + SMS) and their per-talent / per-parent
+ * recipient rows. Each broadcast references a `MessageTemplate` (we
+ * create one per channel up-front and reuse it across campaigns — the
+ * snapshot lives on the `Broadcast` row itself, so reusing a template is
+ * realistic and keeps the seed tight). Returns the number of recipient
+ * rows created so `main()` can log it.
+ */
+async function seedBroadcasts(
+  staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
+  talentByEmail: Record<string, { id: string }>,
+  campuses: Record<string, { id: string }>,
+  eventIds: string[],
+): Promise<number> {
+  // Pick a deterministic template author. Same staff member created the
+  // reusable transactional templates, so the broadcast templates feel
+  // consistent in the admin UI.
+  const templateAuthor =
+    staffByKey['pauline.marchand']?.userId ??
+    Object.values(staffByKey)[0]?.userId;
+  if (!templateAuthor) return 0;
+
+  const mailTemplate = await prisma.messageTemplate.create({
+    data: {
+      name: 'Communications stage (mail)',
+      channel: 'mail',
+      subject: 'Communication Epitech Academy',
+      body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+      createdById: templateAuthor,
+    },
+  });
+  const smsTemplate = await prisma.messageTemplate.create({
+    data: {
+      name: 'Communications stage (SMS)',
+      channel: 'sms',
+      subject: null,
+      body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+      createdById: templateAuthor,
+    },
+  });
+
+  let recipientCount = 0;
+
+  for (const bp of BROADCASTS) {
+    const campusId = campuses[bp.campus]?.id;
+    const author = staffByKey[bp.createdByStaffKey];
+    if (!campusId || !author) continue;
+
+    const eventId =
+      bp.eventIndex !== null ? (eventIds[bp.eventIndex] ?? null) : null;
+    const template = bp.channel === 'mail' ? mailTemplate : smsTemplate;
+    const createdAt = dayAt(bp.createdDaysOffset, bp.createdHour, 0);
+
+    const broadcast = await prisma.broadcast.create({
+      data: {
+        name: bp.name,
+        channel: bp.channel,
+        templateId: template.id,
+        campusId,
+        audience: bp.audience,
+        eventId,
+        subjectSnapshot: bp.subject,
+        bodySnapshot: bp.body,
+        status: bp.status,
+        createdById: author.userId,
+        createdAt,
+        updatedAt: createdAt,
+      },
+    });
+
+    for (const rcp of bp.recipients) {
+      const talent = talentByEmail[rcp.studentEmail];
+      if (!talent) continue;
+
+      const recipientEmail = rcp.parentSide
+        ? rcp.studentEmail.replace('@', '+parent@')
+        : rcp.studentEmail;
+
+      await prisma.broadcastRecipient.create({
+        data: {
+          broadcastId: broadcast.id,
+          talentId: rcp.parentSide ? null : talent.id,
+          parentOfTalentId: rcp.parentSide ? talent.id : null,
+          recipientEmail: bp.channel === 'mail' ? recipientEmail : null,
+          recipientPhone: bp.channel === 'sms' ? '+33600000000' : null,
+          status: rcp.status,
+          errorMessage: rcp.errorMessage ?? null,
+          sentAt:
+            rcp.sentDaysOffset !== undefined
+              ? dayAt(rcp.sentDaysOffset, rcp.sentHour ?? 10, 0)
+              : null,
+          openedAt:
+            rcp.openedDaysOffset !== undefined
+              ? dayAt(rcp.openedDaysOffset, rcp.openedHour ?? 10, 0)
+              : null,
+          createdAt,
+        },
+      });
+      recipientCount++;
+    }
+  }
+
+  return recipientCount;
 }
 
 // ─── Email templates + action mappings ───

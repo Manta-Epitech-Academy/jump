@@ -3,7 +3,6 @@
   import Clock from '@lucide/svelte/icons/clock';
   import { Badge } from '$lib/components/ui/badge';
   import * as Card from '$lib/components/ui/card';
-  import { resolve } from '$app/paths';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import PedagoTalentCard from './components/PedagoTalentCard.svelte';
   import StudentTimeline from '$lib/components/students/StudentTimeline.svelte';
@@ -20,10 +19,7 @@
 
 <div class="space-y-6 pb-10">
   <PageBreadcrumb
-    items={[
-      { label: 'Dashboard', href: resolve('/staff/pedago') },
-      { label: `${data.student.nom} ${data.student.prenom}` },
-    ]}
+    items={[{ label: `${data.student.nom} ${data.student.prenom}` }]}
   />
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h1 class="text-3xl font-bold text-epi-blue uppercase">

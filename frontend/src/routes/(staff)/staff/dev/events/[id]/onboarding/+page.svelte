@@ -14,7 +14,9 @@
   import { cn } from '$lib/utils';
   import OnboardingTable from './components/OnboardingTable.svelte';
   import OnboardingHero from './components/OnboardingHero.svelte';
-  import RelanceComposeDialog from '$lib/components/comms/RelanceComposeDialog.svelte';
+  import TalentJourneyExplainer from '$lib/components/dev/TalentJourneyExplainer.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
+  import RelanceComposeDialog from '$lib/components/dev/RelanceComposeDialog.svelte';
   import {
     DOC_FILTER_KEYS,
     DOC_FILTER_LABELS,
@@ -28,7 +30,7 @@
     type RelanceType,
     type RelanceVar,
   } from '$lib/domain/relance';
-  import type { ComposeRecipient } from '$lib/components/comms/RelanceComposeDialog.svelte';
+  import type { ComposeRecipient } from '$lib/components/dev/RelanceComposeDialog.svelte';
   import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
@@ -49,9 +51,6 @@
   let charteCount = $derived(
     participations.filter((p) => p.stageCompliance?.charteSigned).length,
   );
-  let conventionCount = $derived(
-    participations.filter((p) => p.stageCompliance?.conventionSigned).length,
-  );
   let imageCount = $derived(
     participations.filter((p) => p.stageCompliance?.imageRightsSigned).length,
   );
@@ -70,8 +69,6 @@
     if (filter === 'all') return participations;
     if (filter === 'incomplete')
       return participations.filter((p) => countSignedDocs(p) < TOTAL_DOCS);
-    if (filter === 'convention-missing')
-      return participations.filter((p) => !p.stageCompliance?.conventionSigned);
     if (filter === 'charte-missing')
       return participations.filter((p) => !p.stageCompliance?.charteSigned);
     if (filter === 'image-rights-missing')
@@ -107,7 +104,6 @@
       if (index !== -1) {
         const compliance = (participations[index].stageCompliance ??= {
           charteSigned: false,
-          conventionSigned: false,
           imageRightsSigned: false,
           participationId: id,
           createdAt: new Date(),
@@ -115,8 +111,6 @@
         });
         if (docType === 'charte')
           compliance.charteSigned = !compliance.charteSigned;
-        if (docType === 'convention')
-          compliance.conventionSigned = !compliance.conventionSigned;
         if (docType === 'image')
           compliance.imageRightsSigned = !compliance.imageRightsSigned;
       }
@@ -215,15 +209,14 @@
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} — Onboarding</title>
+  <title>{STAGE_SECONDE_LABEL} — Onboarding</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
       {
-        label: data.event.titre,
+        label: STAGE_SECONDE_LABEL,
         href: resolve(`/staff/dev/events/${data.event.id}`),
       },
       { label: 'Onboarding' },
@@ -232,6 +225,8 @@
   <PageHeader title="Onboarding">
     <EventSalesforceButton externalId={data.event.externalId} />
   </PageHeader>
+
+  <TalentJourneyExplainer />
 
   {#if total === 0}
     <p class="text-sm text-muted-foreground">
@@ -268,7 +263,6 @@
       incomplete={incompleteCount}
       none={noneCount}
       {charteCount}
-      {conventionCount}
       {imageCount}
       {pcCount}
       activeFilter={filter}

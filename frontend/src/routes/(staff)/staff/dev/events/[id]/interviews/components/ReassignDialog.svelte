@@ -4,7 +4,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Label } from '$lib/components/ui/label';
   import { TimePicker } from '$lib/components/ui/time-picker';
-  import DatePicker from '$lib/components/DatePicker.svelte';
+  import DatePicker from '$lib/components/dev/DatePicker.svelte';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import { parseDate, type DateValue } from '@internationalized/date';

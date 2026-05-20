@@ -21,9 +21,13 @@
     }) => void;
   } = $props();
 
+  // svelte-ignore state_referenced_locally
   let localPrenom = $state(prenom);
+  // svelte-ignore state_referenced_locally
   let localNom = $state(nom);
+  // svelte-ignore state_referenced_locally
   let localEmail = $state(email);
+  // svelte-ignore state_referenced_locally
   let localPhone = $state(phone);
 
   const canSubmit = $derived(

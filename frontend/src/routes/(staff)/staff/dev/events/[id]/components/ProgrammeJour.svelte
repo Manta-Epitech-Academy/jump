@@ -28,6 +28,8 @@
     title?: string;
     /** Override the empty-state copy. */
     emptyLabel?: string;
+    /** Show the "Planning →" shortcut in the header. Off when the planning page is flag-gated. */
+    showPlanningLink?: boolean;
   };
 
   let {
@@ -36,6 +38,7 @@
     timezone,
     title = 'Programme du jour',
     emptyLabel = 'Pas de créneau planifié aujourd’hui.',
+    showPlanningLink = true,
   }: Props = $props();
 
   const planningHref = $derived(
@@ -78,14 +81,16 @@
       <CalendarDays class="h-5 w-5 text-epi-blue" />
       {title}
     </h3>
-    <Button
-      variant="ghost"
-      size="sm"
-      class="text-[10px] font-bold tracking-widest uppercase"
-      href={planningHref}
-    >
-      Planning <ArrowRight class="ml-1 h-3 w-3" />
-    </Button>
+    {#if showPlanningLink}
+      <Button
+        variant="ghost"
+        size="sm"
+        class="text-[10px] font-bold tracking-widest uppercase"
+        href={planningHref}
+      >
+        Planning <ArrowRight class="ml-1 h-3 w-3" />
+      </Button>
+    {/if}
   </div>
   <Card.Content class="p-0">
     {#if timeSlots.length === 0}

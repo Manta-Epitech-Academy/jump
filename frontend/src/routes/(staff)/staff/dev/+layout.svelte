@@ -38,6 +38,10 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
+  let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
+  let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
+  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
+  let hasPlanning = $derived(featureFlags.has('event_planning'));
   // Peda visiting a single interviews route gets a stripped shell — no
   // sidebar, no command-K, no impersonation, no tickets. Just header + main.
   let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
@@ -127,7 +131,7 @@
       >
         <span class="flex items-center gap-2">
           <Search class="h-4 w-4" />
-          <span class="text-xs font-medium">Rechercher un talent...</span>
+          <span class="text-xs font-medium">Rechercher un stagiaire...</span>
         </span>
         <kbd
           class="pointer-events-none flex h-5 items-center gap-1 rounded border border-sidebar-border bg-white/10 px-1.5 font-mono text-[10px] font-medium select-none"
@@ -150,14 +154,14 @@
         class={navLinkClass(isActive('/staff/dev'))}
       >
         <LayoutDashboard class="h-5 w-5" />
-        <span>Dashboard</span>
+        <span>Tableau de bord</span>
       </a>
       <a
         href={resolve('/staff/dev/students')}
         class={navLinkClass(isActive('/staff/dev/students'))}
       >
         <Users class="h-5 w-5" />
-        <span>Talents</span>
+        <span>Stagiaires</span>
       </a>
       <a
         href={resolve('/staff/dev/events/history')}
@@ -184,13 +188,13 @@
         <span>Vue d'ensemble</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
         )}
       >
-        <CalendarDays class="h-5 w-5" />
-        <span>Planning</span>
+        <ClipboardCheck class="h-5 w-5" />
+        <span>Onboarding</span>
       </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
@@ -201,15 +205,17 @@
         <Users class="h-5 w-5" />
         <span>Inscrits</span>
       </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
-        )}
-      >
-        <ClipboardCheck class="h-5 w-5" />
-        <span>Onboarding</span>
-      </a>
+      {#if hasPlanning}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span>Planning</span>
+        </a>
+      {/if}
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
         class={navLinkClass(
@@ -219,22 +225,26 @@
         <MessageSquare class="h-5 w-5" />
         <span>Entretiens</span>
       </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/team`),
-        )}
-      >
-        <GraduationCap class="h-5 w-5" />
-        <span>Intervenants</span>
-      </a>
-      <a
-        href={resolve('/staff/dev/contenu/welcome')}
-        class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
-      >
-        <FileText class="h-5 w-5" />
-        <span>Page d'accueil</span>
-      </a>
+      {#if hasIntervenants}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/team`),
+          )}
+        >
+          <GraduationCap class="h-5 w-5" />
+          <span>Intervenants</span>
+        </a>
+      {/if}
+      {#if hasWelcomePage}
+        <a
+          href={resolve('/staff/dev/contenu/welcome')}
+          class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+        >
+          <FileText class="h-5 w-5" />
+          <span>Page d'accueil</span>
+        </a>
+      {/if}
     </nav>
   {/if}
 
@@ -258,15 +268,17 @@
       Gestion<span class="text-epi-orange">_</span>
     </div>
     <nav class="space-y-1">
-      <Gated group="devLead" mode="hide">
-        <a
-          href={resolve('/staff/dev/team')}
-          class={navLinkClass(isActive('/staff/dev/team'))}
-        >
-          <UserCog class="h-5 w-5" />
-          <span>Staff du campus</span>
-        </a>
-      </Gated>
+      {#if hasCampusTeam}
+        <Gated group="devLead" mode="hide">
+          <a
+            href={resolve('/staff/dev/team')}
+            class={navLinkClass(isActive('/staff/dev/team'))}
+          >
+            <UserCog class="h-5 w-5" />
+            <span>Staff du campus</span>
+          </a>
+        </Gated>
+      {/if}
       <a
         href={resolve('/staff/dev/sync-errors')}
         class={navLinkClass(isActive('/staff/dev/sync-errors'))}

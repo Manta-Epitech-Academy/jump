@@ -12,8 +12,8 @@
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
+  import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import { cn } from '$lib/utils';
-  import { countSignedDocs, TOTAL_DOCS } from '../progress';
   import type { RelanceType } from '$lib/domain/relance';
   import { track } from '$lib/analytics';
 
@@ -67,11 +67,23 @@
           </Table.Head>
         </Gated>
         <Table.Head class="w-64">Participant</Table.Head>
-        <Table.Head class="text-center">Charte</Table.Head>
-        <Table.Head class="text-center">Convention de stage</Table.Head>
-        <Table.Head class="text-center">Droit à l'image</Table.Head>
+        <Table.Head class="text-center">
+          <span class="inline-flex items-center justify-center gap-1.5">
+            Règlement intérieur
+            <InfoTooltip
+              text="Signé en ligne par le stagiaire depuis son espace personnel, à la dernière étape de son onboarding. Cochez manuellement uniquement en cas de signature papier."
+            />
+          </span>
+        </Table.Head>
+        <Table.Head class="text-center">
+          <span class="inline-flex items-center justify-center gap-1.5">
+            Droit à l'image
+            <InfoTooltip
+              text="Autorisation parentale pour les photos/vidéos du stage. Demandée automatiquement par email aux parents à la création du compte. Cochez manuellement uniquement en cas de retour papier."
+            />
+          </span>
+        </Table.Head>
         <Table.Head class="text-center">Matériel (PC)</Table.Head>
-        <Table.Head class="w-40">Avancement</Table.Head>
         <Gated group="devLead" mode="hide">
           <Table.Head class="text-center">Dernière relance</Table.Head>
           <Table.Head class="w-24 text-center">Actions</Table.Head>
@@ -80,7 +92,6 @@
     </Table.Header>
     <Table.Body>
       {#each participations as p (p.id)}
-        {@const ok = countSignedDocs(p)}
         <Table.Row class="hover:bg-muted/20">
           <Gated group="devLead" mode="hide">
             <Table.Cell>
@@ -96,7 +107,7 @@
             <div class="flex items-center gap-3">
               <TalentAvatar talent={p.talent} size="sm" />
               <a
-                href={resolve(`/staff/dev/students/${p.talent.id}`)}
+                href={`${resolve(`/staff/dev/students/${p.talent.id}`)}?tab=admin`}
                 class="text-sm font-bold transition-colors hover:text-epi-blue hover:underline"
               >
                 <TalentName talent={p.talent} />
@@ -136,46 +147,6 @@
                     )}
                   >
                     {p.stageCompliance?.charteSigned ? 'OK' : 'Manquant'}
-                  </Badge>
-                {/key}
-              </button>
-            </form>
-          </Table.Cell>
-
-          <!-- Convention -->
-          <Table.Cell class="py-4 text-center">
-            <form
-              method="POST"
-              action="?/toggleAdminDoc"
-              use:enhance={optimisticAdminToggle(p.id, 'convention')}
-              onsubmit={() =>
-                track('adm_doc_toggled', { docType: 'convention' })}
-            >
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="docType" value="convention" />
-              <input
-                type="hidden"
-                name="state"
-                value={p.stageCompliance?.conventionSigned?.toString() ||
-                  'false'}
-              />
-              <button
-                type="submit"
-                class="cursor-pointer transition-transform active:scale-90"
-              >
-                {#key p.stageCompliance?.conventionSigned}
-                  <Badge
-                    variant={p.stageCompliance?.conventionSigned
-                      ? 'outline'
-                      : 'secondary'}
-                    class={cn(
-                      'animate-in duration-300 zoom-in',
-                      p.stageCompliance?.conventionSigned
-                        ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
-                        : 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange hover:bg-epi-orange/15',
-                    )}
-                  >
-                    {p.stageCompliance?.conventionSigned ? 'OK' : 'Manquant'}
                   </Badge>
                 {/key}
               </button>
@@ -241,29 +212,6 @@
                 {/key}
               </button>
             </form>
-          </Table.Cell>
-
-          <!-- Avancement -->
-          <Table.Cell class="py-4">
-            <div class="flex items-center gap-2">
-              <div class="flex flex-1 gap-0.5">
-                {#each Array(TOTAL_DOCS) as _, i (i)}
-                  <div
-                    class={cn(
-                      'h-1.5 flex-1 rounded-full',
-                      i < ok
-                        ? 'bg-epi-teal-solid'
-                        : 'bg-muted dark:bg-muted/40',
-                    )}
-                  ></div>
-                {/each}
-              </div>
-              <span
-                class="font-mono text-[11px] font-bold text-muted-foreground tabular-nums"
-              >
-                {ok}/{TOTAL_DOCS}
-              </span>
-            </div>
           </Table.Cell>
 
           <!-- Dernière relance -->

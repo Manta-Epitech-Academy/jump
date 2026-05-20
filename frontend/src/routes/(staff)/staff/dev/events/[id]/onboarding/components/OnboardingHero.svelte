@@ -1,13 +1,10 @@
 <script lang="ts">
   import type { Component } from 'svelte';
   import FileText from '@lucide/svelte/icons/file-text';
-  import ScrollText from '@lucide/svelte/icons/scroll-text';
   import Camera from '@lucide/svelte/icons/camera';
   import Laptop from '@lucide/svelte/icons/laptop';
   import CohortHealthBar from './CohortHealthBar.svelte';
-  import EventKpiTile, {
-    type EventKpiTone,
-  } from '../../components/EventKpiTile.svelte';
+  import KpiTile, { type KpiTone } from '$lib/components/staff/KpiTile.svelte';
   import type { DocFilterKey, OnboardingFilterKey } from '../filters';
 
   let {
@@ -16,7 +13,6 @@
     incomplete,
     none,
     charteCount,
-    conventionCount,
     imageCount,
     pcCount,
     activeFilter,
@@ -27,7 +23,6 @@
     incomplete: number;
     none: number;
     charteCount: number;
-    conventionCount: number;
     imageCount: number;
     pcCount: number;
     activeFilter: OnboardingFilterKey;
@@ -43,20 +38,16 @@
     total?: number;
     progressPct: number;
     sub: string;
-    tone: EventKpiTone;
+    tone: KpiTone;
+    helpText?: string;
   };
 
-  // Tryptique TECH/TOGETHER/TOMORROW + brand blue, one accent per card:
-  //   Charte           → blue   (admin paperwork)
-  //   Convention       → orange (epi-together · parent / collab signature)
-  //   Droit à l'image  → pink   (epi-tomorrow · vision / future-facing rights)
-  //   PC personnel     → teal   (epi-tech · technical readiness)
-  //
-  // The first three are validation docs (signed = good, headline = ok/total).
-  // PC is reframed as "X PC à préparer" — logistics, not a missing doc; a
-  // talent without their own laptop isn't blocked, we just need to plan
-  // for it. The PC card keeps the click-to-filter behaviour (?filter=
-  // pc-missing) so staff can still slice the list to "who needs a PC".
+  // Charte / Droit à l'image are validation docs (signed = good,
+  // headline = ok/total). PC is logistics — "X PC à préparer" — not a
+  // missing doc; a talent without their own laptop isn't blocked, we just
+  // need to plan for it. The PC card keeps the click-to-filter behaviour
+  // (?filter=pc-missing) so staff can still slice the list to "who needs a
+  // PC".
   const docCard = (spec: Omit<CardSpec, 'sub' | 'progressPct'>): CardSpec => {
     const ok = spec.value;
     const t = spec.total ?? total;
@@ -87,19 +78,13 @@
   const cards: CardSpec[] = $derived([
     docCard({
       key: 'charte-missing',
-      label: 'Charte',
+      label: 'Règlement intérieur',
       Icon: FileText,
       value: charteCount,
       total,
       tone: 'blue',
-    }),
-    docCard({
-      key: 'convention-missing',
-      label: 'Convention de stage',
-      Icon: ScrollText,
-      value: conventionCount,
-      total,
-      tone: 'orange',
+      helpText:
+        'Signé en ligne par le stagiaire depuis son espace personnel, à la dernière étape de son onboarding. Cochez manuellement uniquement en cas de signature papier.',
     }),
     docCard({
       key: 'image-rights-missing',
@@ -108,6 +93,8 @@
       value: imageCount,
       total,
       tone: 'pink',
+      helpText:
+        'Autorisation parentale pour les photos/vidéos du stage. Demandée automatiquement par email aux parents à la création du compte. Cochez manuellement uniquement en cas de retour papier.',
     }),
     pcCard,
   ]);
@@ -125,10 +112,11 @@
     <CohortHealthBar {ready} {incomplete} {none} />
   </div>
 
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
     {#each cards as card (card.key)}
-      <EventKpiTile
+      <KpiTile
         label={card.label}
+        helpText={card.helpText}
         value={card.value}
         total={card.total}
         icon={card.Icon}

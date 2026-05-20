@@ -26,12 +26,12 @@
 
 <div class="mx-auto max-w-4xl space-y-6 p-6">
   <div>
-    <h1 class="text-2xl font-bold">Page d'accueil Talents</h1>
+    <h1 class="text-2xl font-bold">Page d'accueil stagiaires</h1>
     <p class="mt-1 text-sm text-muted-foreground">
-      Ce contenu est la première chose que les talents voient en arrivant sur la
-      plateforme. Il s'affiche une seule fois, avant l'accès au tableau de bord.
-      Utilisez-le pour présenter le programme, donner des consignes ou souhaiter
-      la bienvenue.
+      Ce contenu est la première chose que les stagiaires voient en arrivant sur
+      la plateforme. Il s'affiche une seule fois, avant l'accès au tableau de
+      bord. Utilisez-le pour présenter le programme, donner des consignes ou
+      souhaiter la bienvenue.
     </p>
   </div>
 

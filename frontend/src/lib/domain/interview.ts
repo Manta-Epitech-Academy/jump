@@ -45,6 +45,24 @@ export const INTERVIEW_DISPLAY_LABELS: Record<InterviewDisplayStatus, string> =
   };
 
 /**
+ * Chip color classes per display status, mapped onto the Epitech charte
+ * palette (epi-blue / epi-teal-solid / epi-orange). Single source of truth
+ * shared by InterviewHistoryList and InscritCardOngoing — keeps the inscrits
+ * card and the talent fiche visually consistent and on-brand (no off-charte
+ * green / amber / yellow Tailwind utilities).
+ */
+export const INTERVIEW_STATUS_CHIP_CLASS: Record<
+  InterviewDisplayStatus,
+  string
+> = {
+  none: 'border-border bg-muted text-muted-foreground',
+  planned: 'border-epi-blue/40 bg-epi-blue/10 text-epi-blue',
+  overdue: 'border-epi-orange/50 bg-epi-orange/10 text-epi-orange',
+  done: 'border-epi-teal-solid/40 bg-epi-teal-solid/10 text-epi-teal-solid',
+  cancelled: 'border-border bg-muted text-muted-foreground line-through',
+};
+
+/**
  * Fixed slot duration for a single interview (minutes). Drives:
  *   - The conflict window when reassigning (`reassignInterview` action).
  *   - DTEND in the iCalendar invites the email backend emits.

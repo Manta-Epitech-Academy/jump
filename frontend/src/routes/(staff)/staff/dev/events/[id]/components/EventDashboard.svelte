@@ -8,7 +8,7 @@
   import { buttonVariants } from '$lib/components/ui/button';
   import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
   import type { EventAlert } from '$lib/server/services/eventTasks';
-  import EventKpiTile from './EventKpiTile.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
   import { resolve } from '$app/paths';
 
@@ -26,6 +26,8 @@
       bringPc: number;
     };
     alerts: EventAlert[];
+    showIntervenants: boolean;
+    showPlanning: boolean;
     onEditNotes: () => void;
   };
 
@@ -40,6 +42,8 @@
     mantasCount,
     stats,
     alerts,
+    showIntervenants,
+    showPlanning,
     onEditNotes,
   }: Props = $props();
 
@@ -85,26 +89,28 @@
   </PageHero>
 
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-    <EventKpiTile
+    <KpiTile
       label="Inscrits"
       value={stats.total}
       icon={Users}
       tone="blue"
       href={resolve(`/staff/dev/events/${eventId}/inscrits`)}
     />
-    <EventKpiTile
+    <KpiTile
       label="PC à préparer"
       value={stats.total - stats.bringPc}
       icon={Laptop}
       tone="orange"
     />
-    <EventKpiTile
-      label="Intervenants"
-      value={mantasCount}
-      icon={GraduationCap}
-      tone="teal"
-      href={resolve(`/staff/dev/events/${eventId}/team`)}
-    />
+    {#if showIntervenants}
+      <KpiTile
+        label="Intervenants"
+        value={mantasCount}
+        icon={GraduationCap}
+        tone="teal"
+        href={resolve(`/staff/dev/events/${eventId}/team`)}
+      />
+    {/if}
   </div>
 
   <div class="flex flex-wrap gap-2">
@@ -114,18 +120,22 @@
     >
       <Users class="mr-2 h-4 w-4" /> Inscrits
     </a>
-    <a
-      href={resolve(`/staff/dev/events/${eventId}/planning`)}
-      class={buttonVariants({ variant: 'outline', class: 'rounded-sm' })}
-    >
-      <CalendarDays class="mr-2 h-4 w-4" /> Planning
-    </a>
-    <a
-      href={resolve(`/staff/dev/events/${eventId}/team`)}
-      class={buttonVariants({ variant: 'outline', class: 'rounded-sm' })}
-    >
-      <GraduationCap class="mr-2 h-4 w-4" /> Équipe
-    </a>
+    {#if showPlanning}
+      <a
+        href={resolve(`/staff/dev/events/${eventId}/planning`)}
+        class={buttonVariants({ variant: 'outline', class: 'rounded-sm' })}
+      >
+        <CalendarDays class="mr-2 h-4 w-4" /> Planning
+      </a>
+    {/if}
+    {#if showIntervenants}
+      <a
+        href={resolve(`/staff/dev/events/${eventId}/team`)}
+        class={buttonVariants({ variant: 'outline', class: 'rounded-sm' })}
+      >
+        <GraduationCap class="mr-2 h-4 w-4" /> Équipe
+      </a>
+    {/if}
   </div>
 
   <section class="space-y-3">

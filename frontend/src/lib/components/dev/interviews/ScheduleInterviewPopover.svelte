@@ -8,7 +8,7 @@
   import * as Popover from '$lib/components/ui/popover';
   import { Label } from '$lib/components/ui/label';
   import { TimePicker } from '$lib/components/ui/time-picker';
-  import DatePicker from '$lib/components/DatePicker.svelte';
+  import DatePicker from '$lib/components/dev/DatePicker.svelte';
   import { toast } from 'svelte-sonner';
 
   let {

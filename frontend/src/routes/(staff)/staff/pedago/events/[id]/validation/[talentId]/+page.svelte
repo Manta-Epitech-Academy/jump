@@ -42,7 +42,6 @@
 <div class="mx-auto max-w-4xl space-y-6 p-6">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/pedago') },
       {
         label: data.event.titre,
         href: resolve(`/staff/pedago/events/${data.event.id}`),

@@ -109,7 +109,6 @@ async function main() {
       nom: 'Test',
       prenom: 'Talent',
       niveau: '3eme',
-      niveauDifficulte: 'Intermédiaire',
       infoValidatedAt: new Date(),
       rulesSignedAt: null,
       charterAcceptedAt: null,
