@@ -134,7 +134,7 @@ export async function sendRelances(
     };
     const renderedSubject = substituteVariables(subject, ctx);
     const renderedBody = substituteVariables(body, ctx);
-    const html = renderBroadcastMail(renderedBody);
+    const html = renderBroadcastMail(renderedBody, env.ORIGIN ?? '');
 
     const sendResult = await sendEmail({
       from: MAIL_FROM,

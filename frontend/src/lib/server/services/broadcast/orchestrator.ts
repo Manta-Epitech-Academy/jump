@@ -4,6 +4,7 @@ import type {
   BroadcastChannel,
   BroadcastSourceFilter,
 } from '@prisma/client';
+import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import type { BroadcastFilters } from '$lib/domain/broadcasts';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
@@ -273,7 +274,7 @@ function buildMailMessage(
     : '';
   const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
   const html = rewriteHtmlLinks(
-    renderBroadcastMail(bodyWithVars),
+    renderBroadcastMail(bodyWithVars, env.ORIGIN ?? ''),
     recipient.id,
   );
   return { to: recipient.recipientEmail, subject, html };

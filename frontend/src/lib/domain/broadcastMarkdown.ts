@@ -191,16 +191,51 @@ export function renderBroadcastBodyHtml(markdown: string): string {
   return DOMPurify.sanitize(raw, SANITIZE_CONFIG);
 }
 
-const SHELL_OPEN = `<div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; padding: 40px 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 5px solid #00ff97; text-align: left;">`;
-const SHELL_CLOSE = `</div></div>`;
+/**
+ * Where to fetch the Epitech logo from inside the rendered email. Defaults
+ * to a relative path so in-app previews (compose dialog, broadcast detail)
+ * resolve against the current origin; server callers pass `env.ORIGIN` so
+ * recipients' mail clients hit an absolute URL.
+ */
+const DEFAULT_LOGO_PATH = '/email/epitech-logo.png';
 
-export function wrapBroadcastHtml(innerHtml: string): string {
-  return `${SHELL_OPEN}${innerHtml}${SHELL_CLOSE}`;
+function shellOpen(baseUrl: string): string {
+  const logoSrc = `${baseUrl}${DEFAULT_LOGO_PATH}`;
+  return [
+    `<div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;">`,
+    `<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-top: 6px solid #013afb; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: left;">`,
+    `<div style="padding: 32px 32px 0;">`,
+    `<img src="${logoSrc}" alt="Epitech" width="140" style="display: block; height: auto; max-width: 140px; border: 0;" />`,
+    `</div>`,
+    `<div style="padding: 24px 32px 32px;">`,
+  ].join('');
+}
+
+function shellClose(): string {
+  const year = new Date().getFullYear();
+  return [
+    `</div>`,
+    `<div style="border-top: 1px solid #e2e8f0; padding: 20px 32px; background-color: #f8fafc;">`,
+    `<p style="margin: 0; font-size: 11px; line-height: 1.6; color: #64748b; text-align: center;">`,
+    `Epitech &middot; L'&eacute;cole de l'innovation et de l'expertise informatique.<br />`,
+    `&copy; ${year} Epitech &mdash; Groupe IONIS. Tous droits r&eacute;serv&eacute;s.`,
+    `</p>`,
+    `</div>`,
+    `</div>`,
+    `</div>`,
+  ].join('');
+}
+
+export function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
+  return `${shellOpen(baseUrl)}${innerHtml}${shellClose()}`;
 }
 
 /**
- * Render a markdown body into the full branded HTML mail.
+ * Render a markdown body into the full branded HTML mail. Pass `baseUrl` from
+ * the server (e.g. `env.ORIGIN`) so the embedded `<img>` resolves to an
+ * absolute URL in recipients' mail clients; the default empty string is fine
+ * for in-app previews because the static asset is served on the same origin.
  */
-export function renderBroadcastMail(markdown: string): string {
-  return wrapBroadcastHtml(renderBroadcastBodyHtml(markdown));
+export function renderBroadcastMail(markdown: string, baseUrl = ''): string {
+  return wrapBroadcastHtml(renderBroadcastBodyHtml(markdown), baseUrl);
 }
