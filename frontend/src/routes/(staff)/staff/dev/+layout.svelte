@@ -31,6 +31,7 @@
   import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
+  import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -380,9 +381,7 @@
   </div>
 {/snippet}
 
-<div
-  class="flex h-[calc(100dvh-var(--impersonation-banner-h,0px))] w-full overflow-hidden bg-background"
->
+<div class="flex h-dvh w-full overflow-hidden bg-background">
   {#if showFullChrome}
     <aside
       class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
@@ -408,6 +407,7 @@
           </div>
         {/if}
       </Gated>
+      <ImpersonationCard />
       {@render sidebarFooter()}
     </aside>
   {/if}
@@ -490,6 +490,7 @@
             </div>
           </Gated>
         {/if}
+        <ImpersonationCard />
         {@render sidebarFooter()}
       </aside>
     {/if}
