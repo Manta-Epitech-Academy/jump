@@ -29,11 +29,15 @@
   const filteredErrors = $derived(
     data.errors.filter((e) => {
       if (filterCampus !== 'all' && e.campusName !== filterCampus) return false;
-      if (filterType !== 'all' && !e.eventTypes.includes(filterType))
-        return false;
+      if (filterType !== 'all' && e.eventType !== filterType) return false;
       return true;
     }),
   );
+
+  // "Tout résoudre" clears every unresolved row in the DB, not just the ones
+  // on screen — only offer it on the unfiltered view so a narrowed list can't
+  // mislead an admin into a global wipe.
+  const isFiltered = $derived(filterCampus !== 'all' || filterType !== 'all');
 </script>
 
 <svelte:head>
@@ -87,7 +91,7 @@
         </Select.Content>
       </Select.Root>
 
-      {#if data.unresolvedCount > 0}
+      {#if data.unresolvedCount > 0 && !isFiltered}
         <form
           method="POST"
           action="?/resolveAll"

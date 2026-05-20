@@ -28,10 +28,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const campusEvents = await prisma.event.findMany({
     where: { campusId, externalId: { not: null } },
-    select: { externalId: true, titre: true },
+    select: { externalId: true, titre: true, eventType: true },
   });
   const eventMap = new Map(
-    campusEvents.map((e) => [e.externalId!, { titre: e.titre }]),
+    campusEvents.map((e) => [
+      e.externalId!,
+      { titre: e.titre, eventType: e.eventType },
+    ]),
   );
   const eventExtIds = [...eventMap.keys()];
 
@@ -42,9 +45,9 @@ export const load: PageServerLoad = async ({ locals }) => {
       })
     : [];
 
-  // Lookup both colliding talents — for their displayed identity (real
-  // prenom/nom/phone where we have it) and for the stage-vs-coding-club
-  // category derived from their participations.
+  // Lookup both colliding talents for their displayed identity (real
+  // prenom/nom/phone where we have it). The stage-vs-coding-club category is
+  // derived from the colliding event below, not from the talents.
   const extIds = [
     ...new Set(
       errors
@@ -60,9 +63,6 @@ export const load: PageServerLoad = async ({ locals }) => {
           prenom: true,
           nom: true,
           phone: true,
-          participations: {
-            select: { event: { select: { eventType: true } } },
-          },
         },
       })
     : [];
@@ -76,15 +76,11 @@ export const load: PageServerLoad = async ({ locals }) => {
       ? (talentByExtId.get(e.existingExtId) ?? null)
       : null;
 
-    const types = new Set<string>();
-    for (const p of attemptedTalent?.participations ?? [])
-      types.add(p.event.eventType);
-    for (const p of existingTalent?.participations ?? [])
-      types.add(p.event.eventType);
-    const isStage = types.has(EVENT_TYPES.STAGE_SECONDE);
-
     const fallback = splitName(e.talentName);
     const event = e.eventExtId ? eventMap.get(e.eventExtId) : null;
+    // Urgent when the import that collided was a stage de seconde — see
+    // countCampusSyncErrors for why the event, not the talents, is the source.
+    const isStage = event?.eventType === EVENT_TYPES.STAGE_SECONDE;
 
     return {
       id: e.id,
