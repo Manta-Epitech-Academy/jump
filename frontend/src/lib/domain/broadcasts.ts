@@ -1,5 +1,5 @@
 import type { BroadcastAudience, BroadcastChannel } from '@prisma/client';
-import { NIVEAUX, type Niveau } from './niveau';
+import type { Niveau } from './niveau';
 
 export const BROADCAST_CHANNELS = [
   'mail',
@@ -160,9 +160,6 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
 export const BROADCAST_VARIABLE_TOKENS = BROADCAST_VARIABLES.map(
   (v) => v.token,
 );
-
-// Re-exported for back-compat; canonical definition lives in `domain/niveau.ts`.
-export { NIVEAUX, type Niveau };
 
 export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
 export type JumpLevel = (typeof JUMP_LEVELS)[number];
