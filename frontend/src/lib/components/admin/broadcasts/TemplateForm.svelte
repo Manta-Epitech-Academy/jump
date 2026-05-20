@@ -23,10 +23,9 @@
     data: SuperValidated<MessageTemplateForm>;
     submitLabel: string;
     formAction?: string;
-    onDelete?: () => void;
   };
 
-  let { data, submitLabel, formAction, onDelete }: Props = $props();
+  let { data, submitLabel, formAction }: Props = $props();
 
   // svelte-ignore state_referenced_locally
   const { form, errors, enhance, submitting } = superForm(data, {
@@ -154,16 +153,6 @@
 
     <div class="flex items-center gap-3">
       <Button type="submit" disabled={$submitting}>{submitLabel}</Button>
-      {#if onDelete}
-        <Button
-          type="button"
-          variant="destructive"
-          onclick={onDelete}
-          disabled={$submitting}
-        >
-          Supprimer
-        </Button>
-      {/if}
     </div>
   </div>
 
