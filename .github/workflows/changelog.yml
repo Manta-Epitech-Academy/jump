@@ -3,7 +3,7 @@ name: Update Changelog
 on:
   pull_request:
     types: [closed]
-    branches: [dev]
+    branches: [dev_disabled]
 
 concurrency:
   group: changelog
