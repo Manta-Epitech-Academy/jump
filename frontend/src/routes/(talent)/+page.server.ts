@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
-import { getStartOfDay, tallyTopThemesFromActivities } from '$lib/utils';
+import { getStartOfDay } from '$lib/utils';
 import { hasFlag } from '$lib/server/auth/guards';
 import { checkTalentEligibility } from '$lib/server/services/minigameService';
 
@@ -97,9 +97,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         },
       },
     });
-
-    // Tally top themes from completed participations
-    const topThemes = tallyTopThemesFromActivities(allCompleted, 3);
 
     // Derive past participations from the set we already have
     const allPast = allCompleted
@@ -198,8 +195,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       upcomingParticipation,
       pastParticipations: pastPreview,
       totalPastMissions,
-      hasCompletedEvents: allCompleted.length > 0,
-      topThemes,
       todayIsMultiDay,
       upcomingIsMultiDay,
       serverNow: Date.now(),

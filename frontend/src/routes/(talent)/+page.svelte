@@ -6,11 +6,7 @@
   import { fly } from 'svelte/transition';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import {
-    formatDateFr,
-    flattenActivityMissions,
-    THEME_TIER_CEILING,
-  } from '$lib/utils';
+  import { formatDateFr, flattenActivityMissions } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -21,12 +17,9 @@
   import Hourglass from '@lucide/svelte/icons/hourglass';
   import MapPin from '@lucide/svelte/icons/map-pin';
   import Check from '@lucide/svelte/icons/check';
-  import FileDown from '@lucide/svelte/icons/file-down';
-  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import LogOut from '@lucide/svelte/icons/log-out';
   import History from '@lucide/svelte/icons/history';
   import Calendar from '@lucide/svelte/icons/calendar';
-  import Target from '@lucide/svelte/icons/target';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import Laptop from '@lucide/svelte/icons/laptop';
   import Monitor from '@lucide/svelte/icons/monitor';
@@ -99,7 +92,6 @@
   let student = $derived(data.student);
   let participation = $derived(data.participation);
   let upcomingParticipation = $derived(data.upcomingParticipation);
-  let hasCompletedEvents = $derived(data.hasCompletedEvents);
   let todayIsMultiDay = $derived(data.todayIsMultiDay);
   let upcomingIsMultiDay = $derived(data.upcomingIsMultiDay);
 
@@ -137,9 +129,6 @@
   );
   let totalPastMissions = $derived(data.totalPastMissions);
 
-  // RPG Aspect : Top Skills
-  let topThemes = $derived(data.topThemes);
-
   function formatTime(dateString: string | Date | undefined) {
     if (!dateString) return '';
     return new Date(dateString).toLocaleTimeString('fr-FR', {
@@ -156,43 +145,6 @@
     Avancé:
       'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
   };
-
-  // PDF Download Logic
-  let isDownloading = $state(false);
-
-  async function downloadCertificate() {
-    track('certificate_download_clicked');
-    isDownloading = true;
-    try {
-      const res = await fetch(resolve('/api/certificate'));
-      if (!res.ok) throw new Error('Erreur réseau');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-
-      const disposition = res.headers.get('Content-Disposition');
-      let filename = 'Attestation_Jump.pdf';
-      if (disposition && disposition.includes('filename=')) {
-        filename = disposition.split('filename=')[1].replace(/"/g, '');
-      }
-
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      track('certificate_downloaded');
-      toast.success('Attestation téléchargée !');
-      triggerConfetti();
-    } catch (e) {
-      track('certificate_download_failed');
-      toast.error("Erreur lors de la génération de l'attestation.");
-    } finally {
-      isDownloading = false;
-    }
-  }
 </script>
 
 <svelte:head>
@@ -383,74 +335,6 @@
                 {/if}
               </div>
             {/if}
-          {/if}
-
-          <!-- RPG Skill Radar / Top Themes -->
-          {#if topThemes.length > 0}
-            <div
-              class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
-            >
-              <h3
-                class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
-              >
-                <Target class="h-4 w-4 text-epi-teal-solid" /> Spécialités
-              </h3>
-              <div class="flex flex-col gap-3">
-                {#each topThemes as theme}
-                  <div class="space-y-1">
-                    <div
-                      class="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300"
-                    >
-                      <span class="truncate pr-2">{theme.name}</span>
-                      <span class="shrink-0 text-epi-teal-solid"
-                        >{theme.label}</span
-                      >
-                    </div>
-                    <div
-                      class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-                      role="progressbar"
-                      aria-valuenow={Math.min(theme.count, THEME_TIER_CEILING)}
-                      aria-valuemin={0}
-                      aria-valuemax={THEME_TIER_CEILING}
-                      aria-label="{theme.name} : {theme.label}"
-                    >
-                      <div
-                        class="h-full rounded-full bg-epi-teal-solid transition-all duration-1000 ease-out"
-                        style="width: {Math.min(
-                          (theme.count / THEME_TIER_CEILING) * 100,
-                          100,
-                        )}%"
-                      ></div>
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
-
-          <!-- PDF Download Section -->
-          {#if hasCompletedEvents}
-            <div
-              class="mt-4 w-full space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800"
-            >
-              <h3 class="text-xs font-bold text-slate-400 uppercase">
-                Mes Documents
-              </h3>
-              <Button
-                variant="secondary"
-                class="h-auto w-full rounded-xl bg-blue-50/80 py-2.5 text-xs font-bold text-epi-blue transition-colors hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
-                onclick={downloadCertificate}
-                disabled={isDownloading}
-              >
-                {#if isDownloading}
-                  <LoaderCircle class="mr-2 h-4 w-4 shrink-0 animate-spin" />
-                  <span class="truncate">Génération...</span>
-                {:else}
-                  <FileDown class="mr-2 h-4 w-4 shrink-0" />
-                  <span class="truncate">Attestation Parcoursup</span>
-                {/if}
-              </Button>
-            </div>
           {/if}
         </div>
       </div>
