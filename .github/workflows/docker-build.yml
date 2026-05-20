@@ -31,6 +31,7 @@ jobs:
             staging)  echo "tag=staging"  >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true; echo "namespace=jump-stg"  >> "$GITHUB_OUTPUT" ;;
             dev)      echo "tag=dev"      >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true; echo "namespace=jump-dev"  >> "$GITHUB_OUTPUT" ;;
             dev-live) echo "tag=dev-live" >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true; echo "namespace=jump-livedev" >> "$GITHUB_OUTPUT" ;;
+            dev-live2) echo "tag=dev-live2" >> "$GITHUB_OUTPUT"; SHOULD_PUSH=true; echo "namespace=jump-livedev2" >> "$GITHUB_OUTPUT" ;;
             *)        echo "tag=ci"       >> "$GITHUB_OUTPUT" ;;
           esac
           echo "push=$SHOULD_PUSH" >> "$GITHUB_OUTPUT"

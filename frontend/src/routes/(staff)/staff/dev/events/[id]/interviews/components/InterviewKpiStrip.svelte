@@ -1,5 +1,5 @@
 <script lang="ts">
-  import EventKpiTile from '../../components/EventKpiTile.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import Phone from '@lucide/svelte/icons/phone';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
@@ -29,7 +29,7 @@
 </script>
 
 <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-  <EventKpiTile
+  <KpiTile
     label="À contacter"
     value={todo}
     icon={Phone}
@@ -38,7 +38,7 @@
     onclick={onSelect ? () => pick('todo') : undefined}
     pressed={activeFilter === 'todo'}
   />
-  <EventKpiTile
+  <KpiTile
     label="Planifiés"
     value={planned}
     icon={CalendarClock}
@@ -47,14 +47,14 @@
     onclick={onSelect ? () => pick('planned') : undefined}
     pressed={activeFilter === 'planned'}
   />
-  <EventKpiTile
+  <KpiTile
     label="En retard"
     value={overdue}
     icon={AlertTriangle}
     tone={overdue > 0 ? 'pink' : 'neutral'}
     sub={overdue > 0 ? 'Date passée, à clore' : 'Aucun retard'}
   />
-  <EventKpiTile
+  <KpiTile
     label="Terminés"
     value={completed}
     icon={CheckCircle2}

@@ -18,10 +18,9 @@
   const pct = $derived(total === 0 ? 0 : Math.round((doneCount / total) * 100));
   const visible = $derived(hideDone ? items.filter((i) => !i.done) : items);
 
-  const GROUP_ORDER: ChecklistGroup[] = ['team', 'onboarding', 'documents'];
+  const GROUP_ORDER: ChecklistGroup[] = ['team', 'documents'];
   const GROUP_LABELS: Record<ChecklistGroup, string> = {
     team: 'Équipe & planning',
-    onboarding: 'Onboarding plateforme',
     documents: 'Documents administratifs',
   };
 

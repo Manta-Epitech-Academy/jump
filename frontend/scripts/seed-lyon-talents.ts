@@ -92,7 +92,6 @@ const NOMS = [
   'Guerin',
 ];
 const NIVEAUX = ['6eme', '5eme', '4eme', '3eme', '2nde', '1ere', 'Terminale'];
-const DIFFICULTES = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
 
 function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -141,7 +140,6 @@ async function main() {
       parentPrenom: pick(PRENOMS),
       parentNom: nom,
       niveau: pick(NIVEAUX),
-      niveauDifficulte: pick(DIFFICULTES),
       charterAcceptedAt: new Date(),
     };
   });

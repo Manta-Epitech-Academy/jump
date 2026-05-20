@@ -5,7 +5,6 @@
   import Mail from '@lucide/svelte/icons/mail';
   import X from '@lucide/svelte/icons/x';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { Input } from '$lib/components/ui/input';
@@ -64,12 +63,7 @@
 </svelte:head>
 
 <div class="space-y-6 pb-12">
-  <PageBreadcrumb
-    items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
-      { label: 'Staff du campus' },
-    ]}
-  />
+  <PageBreadcrumb items={[{ label: 'Staff du campus' }]} />
   <div class="flex items-end justify-between gap-4">
     <div>
       <h1 class="font-heading text-3xl tracking-wide text-epi-blue uppercase">

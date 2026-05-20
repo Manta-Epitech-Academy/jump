@@ -3,21 +3,18 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import Ellipsis from '@lucide/svelte/icons/ellipsis';
   import Copy from '@lucide/svelte/icons/copy';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
   import Users from '@lucide/svelte/icons/users';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { can } from '$lib/domain/permissions';
 
-  let { event, onDuplicate, onDelete } = $props<{
+  let { event, onDuplicate } = $props<{
     event: { id: string; titre: string; date: Date };
     onDuplicate: (event: { id: string; titre: string; date: Date }) => void;
-    onDelete: (id: string) => void;
   }>();
 
   const role = $derived(page.data.staffProfile?.staffRole);
   const canDuplicate = $derived(can('devLead', role));
-  const canDelete = $derived(can('devLead', role));
 </script>
 
 <DropdownMenu.Root>
@@ -49,17 +46,6 @@
     >
       <Copy class="mr-2 h-4 w-4 text-muted-foreground" />
       Dupliquer
-    </DropdownMenu.Item>
-
-    <DropdownMenu.Separator />
-
-    <DropdownMenu.Item
-      class="cursor-pointer text-destructive"
-      disabled={!canDelete}
-      onclick={() => canDelete && onDelete(event.id)}
-    >
-      <Trash2 class="mr-2 h-4 w-4" />
-      Supprimer
     </DropdownMenu.Item>
   </DropdownMenu.Content>
 </DropdownMenu.Root>

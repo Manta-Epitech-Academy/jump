@@ -119,12 +119,7 @@
 </svelte:head>
 
 <div class="space-y-8">
-  <PageBreadcrumb
-    items={[
-      { label: 'Dashboard', href: resolve('/staff/pedago') },
-      { label: 'Bibliothèque' },
-    ]}
-  />
+  <PageBreadcrumb items={[{ label: 'Bibliothèque' }]} />
   <PageHeader
     title="Bibliothèque"
     subtitle="Sujets, corrections et exercices prêts à être rejoués par la péda et les mantas."

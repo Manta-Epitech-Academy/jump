@@ -7,7 +7,6 @@ const STUDENT_SELECT = {
   nom: true,
   prenom: true,
   niveau: true,
-  niveauDifficulte: true,
   eventsCount: true,
   xp: true,
   level: true,

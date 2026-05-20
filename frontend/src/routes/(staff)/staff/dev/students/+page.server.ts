@@ -70,7 +70,6 @@ export const actions: Actions = {
           nom: form.data.nom,
           prenom: form.data.prenom,
           niveau: form.data.niveau || null,
-          niveauDifficulte: form.data.niveau_difficulte || 'Débutant',
           parentEmail: form.data.parent_email
             ? form.data.parent_email.toLowerCase().trim()
             : null,
@@ -93,39 +92,18 @@ export const actions: Actions = {
         }
       }
 
-      return message(form, 'Talent modifié avec succès !');
+      return message(form, 'Stagiaire modifié avec succès !');
     } catch (err: any) {
       if (err.code === 'P2002') {
         return message(
           form,
-          'Un Talent avec ce nom et cet email existe déjà.',
+          'Un stagiaire avec ce nom et cet email existe déjà.',
           {
             status: 400,
           },
         );
       }
       return message(form, 'Erreur lors de la modification', { status: 500 });
-    }
-  },
-
-  delete: async ({ url, locals }) => {
-    requireStaffGroup(locals, 'devLead');
-    const id = url.searchParams.get('id');
-    if (!id) return fail(400);
-    const db = scopedPrisma(getCampusId(locals));
-
-    try {
-      const profile = await db.talent.findUniqueOrThrow({
-        where: { id },
-      });
-      if (profile.userId) {
-        await prisma.bauth_user.delete({ where: { id: profile.userId } });
-      } else {
-        await db.talent.delete({ where: { id } });
-      }
-      return { success: true };
-    } catch {
-      return fail(500);
     }
   },
 };

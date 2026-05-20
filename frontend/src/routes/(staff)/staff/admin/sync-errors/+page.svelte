@@ -3,15 +3,41 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Check from '@lucide/svelte/icons/check';
   import CheckCheck from '@lucide/svelte/icons/check-check';
+  import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
+  import CloudUpload from '@lucide/svelte/icons/cloud-upload';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
+  import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
   import { formatDateTimeFr } from '$lib/utils';
+  import { salesforceContactUrl } from '$lib/domain/salesforce';
+  import { EVENT_TYPES } from '$lib/domain/event';
   import { toast } from 'svelte-sonner';
   import { track } from '$lib/analytics';
 
   let { data } = $props();
+
+  let filterCampus = $state<string>('all');
+  let filterType = $state<string>('all');
+
+  const eventTypeLabels: Record<string, string> = {
+    [EVENT_TYPES.STAGE_SECONDE]: 'Stage de Seconde',
+    [EVENT_TYPES.CODING_CLUB]: 'Coding Club',
+  };
+
+  const filteredErrors = $derived(
+    data.errors.filter((e) => {
+      if (filterCampus !== 'all' && e.campusName !== filterCampus) return false;
+      if (filterType !== 'all' && e.eventType !== filterType) return false;
+      return true;
+    }),
+  );
+
+  // "Tout résoudre" clears every unresolved row in the DB, not just the ones
+  // on screen — only offer it on the unfiltered view so a narrowed list can't
+  // mislead an admin into a global wipe.
+  const isFiltered = $derived(filterCampus !== 'all' || filterType !== 'all');
 </script>
 
 <svelte:head>
@@ -29,29 +55,66 @@
       </p>
     </div>
 
-    {#if data.unresolvedCount > 0}
-      <form
-        method="POST"
-        action="?/resolveAll"
-        use:enhance={() =>
-          async ({ result, update }) => {
-            if (result.type === 'success') {
-              track('sync_errors_resolved_all', {
-                count: data.unresolvedCount,
-              });
-              toast.success('Toutes les erreurs ont été résolues');
-              await update();
-            } else {
-              toast.error('Une erreur est survenue');
-            }
-          }}
+    <div class="flex flex-wrap items-center gap-3">
+      <Select.Root
+        type="single"
+        value={filterCampus}
+        onValueChange={(v) => (filterCampus = v ?? 'all')}
       >
-        <Button type="submit" variant="outline" class="gap-2">
-          <CheckCheck class="h-4 w-4" />
-          Tout résoudre ({data.unresolvedCount})
-        </Button>
-      </form>
-    {/if}
+        <Select.Trigger class="h-9 min-w-[180px] text-xs">
+          {filterCampus !== 'all' ? filterCampus : 'Tous les campus'}
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item value="all">Tous les campus</Select.Item>
+          {#each data.campusNames as name}
+            <Select.Item value={name}>{name}</Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
+
+      <Select.Root
+        type="single"
+        value={filterType}
+        onValueChange={(v) => (filterType = v ?? 'all')}
+      >
+        <Select.Trigger class="h-9 min-w-[180px] text-xs">
+          {filterType !== 'all'
+            ? eventTypeLabels[filterType]
+            : 'Tous les types'}
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item value="all">Tous les types</Select.Item>
+          <Select.Item value={EVENT_TYPES.STAGE_SECONDE}
+            >Stage de Seconde</Select.Item
+          >
+          <Select.Item value={EVENT_TYPES.CODING_CLUB}>Coding Club</Select.Item>
+        </Select.Content>
+      </Select.Root>
+
+      {#if data.unresolvedCount > 0 && !isFiltered}
+        <form
+          method="POST"
+          action="?/resolveAll"
+          use:enhance={() =>
+            async ({ result, update }) => {
+              if (result.type === 'success') {
+                track('sync_errors_resolved_all', {
+                  count: data.unresolvedCount,
+                });
+                toast.success('Toutes les erreurs ont été résolues');
+                await update();
+              } else {
+                toast.error('Une erreur est survenue');
+              }
+            }}
+        >
+          <Button type="submit" variant="outline" class="gap-2">
+            <CheckCheck class="h-4 w-4" />
+            Tout résoudre ({data.unresolvedCount})
+          </Button>
+        </form>
+      {/if}
+    </div>
   </div>
 
   <Card.Root>
@@ -71,7 +134,7 @@
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {#each data.errors as error}
+          {#each filteredErrors as error}
             <Table.Row class={error.resolved ? 'opacity-50' : ''}>
               <Table.Cell>
                 {#if error.resolved}
@@ -81,12 +144,40 @@
                 {/if}
               </Table.Cell>
               <Table.Cell class="font-mono text-sm">{error.email}</Table.Cell>
-              <Table.Cell class="font-mono text-xs"
-                >{error.attemptedExtId}</Table.Cell
-              >
-              <Table.Cell class="font-mono text-xs"
-                >{error.existingExtId ?? '—'}</Table.Cell
-              >
+              <Table.Cell class="font-mono text-xs">
+                <span class="inline-flex items-center gap-1">
+                  {error.attemptedExtId}
+                  <a
+                    href={salesforceContactUrl(error.attemptedExtId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Ouvrir dans Salesforce"
+                    aria-label="Ouvrir l'extId tenté dans Salesforce"
+                    class="text-muted-foreground hover:text-epi-blue"
+                  >
+                    <CloudUpload class="h-3.5 w-3.5" />
+                  </a>
+                </span>
+              </Table.Cell>
+              <Table.Cell class="font-mono text-xs">
+                {#if error.existingExtId}
+                  <span class="inline-flex items-center gap-1">
+                    {error.existingExtId}
+                    <a
+                      href={salesforceContactUrl(error.existingExtId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Ouvrir dans Salesforce"
+                      aria-label="Ouvrir l'extId existant dans Salesforce"
+                      class="text-muted-foreground hover:text-epi-blue"
+                    >
+                      <CloudUpload class="h-3.5 w-3.5" />
+                    </a>
+                  </span>
+                {:else}
+                  —
+                {/if}
+              </Table.Cell>
               <Table.Cell class="font-bold">{error.talentName}</Table.Cell>
               <Table.Cell>
                 {#if error.eventName}
@@ -106,31 +197,82 @@
               <Table.Cell>{formatDateTimeFr(error.lastOccurredAt)}</Table.Cell>
               <Table.Cell class="text-right">
                 {#if !error.resolved}
-                  <form
-                    method="POST"
-                    action="?/resolve"
-                    use:enhance={() =>
-                      async ({ result, update }) => {
-                        if (result.type === 'success') {
-                          track('sync_error_resolved');
-                          toast.success('Erreur résolue');
-                          await update();
-                        } else {
-                          toast.error('Une erreur est survenue');
-                        }
-                      }}
-                  >
-                    <input type="hidden" name="id" value={error.id} />
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="sm"
-                      class="gap-1"
+                  <div class="flex items-center justify-end gap-1">
+                    {#if error.existingExtId}
+                      <form
+                        method="POST"
+                        action="?/rebind"
+                        use:enhance={({ cancel }) => {
+                          // Migrer extId means flipping the talent's identity
+                          // in our DB — confirm explicitly so an admin doesn't
+                          // misclick from a row that's actually a real email
+                          // collision between two people.
+                          const ok = confirm(
+                            `Migrer le talent "${error.talentName}" (${error.email})\n` +
+                              `  de extId ${error.existingExtId}\n` +
+                              `  vers extId ${error.attemptedExtId} ?\n\n` +
+                              `À utiliser quand Salesforce a régénéré l'ID pour la même personne. Non destructif.`,
+                          );
+                          if (!ok) {
+                            cancel();
+                            return;
+                          }
+                          return async ({ result, update }) => {
+                            if (result.type === 'success') {
+                              track('sync_error_rebound');
+                              toast.success('extId migré, erreur résolue.');
+                              await update();
+                            } else if (result.type === 'failure') {
+                              const data = result.data as
+                                | { rebindError?: string }
+                                | undefined;
+                              toast.error(
+                                data?.rebindError ?? 'Migration impossible.',
+                              );
+                            } else {
+                              toast.error('Une erreur est survenue');
+                            }
+                          };
+                        }}
+                      >
+                        <input type="hidden" name="id" value={error.id} />
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          size="sm"
+                          class="gap-1"
+                        >
+                          <ArrowRightLeft class="h-3 w-3" />
+                          Migrer extId
+                        </Button>
+                      </form>
+                    {/if}
+                    <form
+                      method="POST"
+                      action="?/resolve"
+                      use:enhance={() =>
+                        async ({ result, update }) => {
+                          if (result.type === 'success') {
+                            track('sync_error_resolved');
+                            toast.success('Erreur résolue');
+                            await update();
+                          } else {
+                            toast.error('Une erreur est survenue');
+                          }
+                        }}
                     >
-                      <Check class="h-3 w-3" />
-                      Résoudre
-                    </Button>
-                  </form>
+                      <input type="hidden" name="id" value={error.id} />
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        size="sm"
+                        class="gap-1"
+                      >
+                        <Check class="h-3 w-3" />
+                        Résoudre
+                      </Button>
+                    </form>
+                  </div>
                 {:else}
                   <span class="text-xs text-muted-foreground"
                     >{formatDateTimeFr(error.resolvedAt ?? undefined)}</span

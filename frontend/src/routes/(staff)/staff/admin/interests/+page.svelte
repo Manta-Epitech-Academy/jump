@@ -10,7 +10,7 @@
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import { toast } from 'svelte-sonner';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
 
   let { data } = $props();
 

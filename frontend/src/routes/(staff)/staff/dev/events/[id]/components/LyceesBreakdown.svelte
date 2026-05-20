@@ -52,7 +52,7 @@
           : 0}
         <a
           href={`${inscritsBase}?lycee=${encodeURIComponent(lyc.highSchoolName)}`}
-          title={`Filtrer · ${lyc.count} ${lyc.count > 1 ? 'talents' : 'talent'}`}
+          title={`Filtrer · ${lyc.count} ${lyc.count > 1 ? 'stagiaires' : 'stagiaire'}`}
           class="group block rounded-sm px-3 py-2 transition-colors hover:bg-epi-blue/5"
         >
           <div class="flex items-baseline justify-between gap-3 text-sm">
@@ -92,7 +92,7 @@
               class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold"
             >
               {breakdown.others.count}
-              {breakdown.others.count > 1 ? 'talents' : 'talent'} ·
+              {breakdown.others.count > 1 ? 'stagiaires' : 'stagiaire'} ·
               {breakdown.others.categories}
               {breakdown.others.categories > 1 ? 'lycées' : 'lycée'}
             </span>

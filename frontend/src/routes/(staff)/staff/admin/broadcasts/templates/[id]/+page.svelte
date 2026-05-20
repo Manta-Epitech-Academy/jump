@@ -1,13 +1,19 @@
 <script lang="ts">
-  import TemplateForm from '$lib/components/broadcasts/TemplateForm.svelte';
+  import TemplateForm from '$lib/components/admin/broadcasts/TemplateForm.svelte';
+  import { enhance } from '$app/forms';
 
   let { data, form } = $props();
 </script>
 
 <div class="space-y-4">
-  <header class="flex items-center justify-between">
-    <h2 class="text-lg font-semibold">Modifier le template</h2>
-    <span class="text-xs text-muted-foreground">
+  <header class="flex items-start justify-between gap-4">
+    <div class="space-y-2">
+      <h1 class="text-2xl font-bold tracking-tight">Modifier le template</h1>
+      <p class="text-sm text-muted-foreground">
+        Met à jour le contenu ; les envois déjà partis gardent leur snapshot.
+      </p>
+    </div>
+    <span class="shrink-0 text-xs text-muted-foreground">
       Utilisé dans {data.template._count.broadcasts} envoi(s)
     </span>
   </header>

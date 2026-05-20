@@ -9,18 +9,13 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import InscritFilterBar from './components/InscritFilterBar.svelte';
   import InscritCardPrep from './components/InscritCardPrep.svelte';
   import InscritCardOngoing from './components/InscritCardOngoing.svelte';
   import InscritCardPast from './components/InscritCardPast.svelte';
-  import PrepFilterChips from './components/PrepFilterChips.svelte';
   import { humanizeNiveau } from './components/niveau';
-  import type {
-    FilterKey,
-    OngoingRow,
-    PrepRow,
-    Sort,
-  } from './components/types';
+  import type { OngoingRow, PrepRow, Sort } from './components/types';
 
   let { data }: { data: PageData } = $props();
 
@@ -35,10 +30,6 @@
       else url.searchParams.delete(key);
     }
     goto(url.toString(), { keepFocus: true, noScroll: true });
-  }
-
-  function changeFilter(next: FilterKey) {
-    navigateWithParams({ filter: next === 'all' ? '' : next });
   }
 
   function clearLycee() {
@@ -125,9 +116,7 @@
 
   const variant = $derived(data.variant);
 
-  const totalCount = $derived(
-    variant.kind === 'prep' ? variant.counts.all : variant.rows.length,
-  );
+  const totalCount = $derived(variant.rows.length);
   const presentCount = $derived(
     variant.kind === 'past' || variant.kind === 'ongoing'
       ? variant.rows.filter((r) => r.participation.isPresent).length
@@ -140,21 +129,17 @@
   const clientFiltersApplied = $derived(
     searchQuery.trim().length > 0 || niveauFilter !== 'all',
   );
-  const urlFilterApplied = $derived(
-    variant.kind === 'prep' && variant.filter !== 'all',
-  );
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} — Inscrits</title>
+  <title>{STAGE_SECONDE_LABEL} — Inscrits</title>
 </svelte:head>
 
 <div class="space-y-6 pb-10">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
       {
-        label: data.event.titre,
+        label: STAGE_SECONDE_LABEL,
         href: resolve(`/staff/dev/events/${data.event.id}`),
       },
       { label: 'Inscrits' },
@@ -213,7 +198,7 @@
       <h3
         class="mt-4 text-sm font-bold tracking-widest text-foreground uppercase"
       >
-        Aucun talent inscrit
+        Aucun stagiaire inscrit
       </h3>
       <p class="mt-1 text-xs font-medium text-muted-foreground">
         Importer une cohorte via la page d'import.
@@ -231,7 +216,7 @@
     <p class="text-sm text-muted-foreground">
       <span class="font-bold text-foreground">
         {totalCount}
-        {totalCount > 1 ? 'talents' : 'talent'}
+        {totalCount > 1 ? 'stagiaires' : 'stagiaire'}
       </span>
       {#if variant.kind === 'past'}
         {totalCount > 1 ? 'étaient inscrits' : 'était inscrit'} —
@@ -244,137 +229,57 @@
           </span>
           {absentCount > 1 ? 'absents' : 'absent'}{/if}.
       {:else}
-        {totalCount > 1 ? 'sont attendus' : 'est attendu'}.
+        {totalCount > 1 ? 'sont inscrits' : 'est inscrit'}.
       {/if}
     </p>
 
-    {#if variant.kind === 'prep'}
-      <div class="space-y-3">
-        <InscritFilterBar
-          bind:searchQuery
-          bind:niveauFilter
-          bind:sort
-          availableNiveaux={data.availableNiveaux}
-        />
-        <PrepFilterChips
-          filter={variant.filter}
-          counts={variant.counts}
-          onFilterChange={changeFilter}
-        />
+    <InscritFilterBar
+      bind:searchQuery
+      bind:niveauFilter
+      bind:sort
+      availableNiveaux={data.availableNiveaux}
+    />
+
+    {@const allRows = variant.rows as (PrepRow | OngoingRow)[]}
+    {@const filtered = applySort(
+      applyNiveau(applySearch(allRows, searchQuery), niveauFilter),
+      sort,
+    )}
+    {#if filtered.length === 0}
+      <div
+        class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
+      >
+        <h3
+          class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          Aucun résultat
+        </h3>
+        {#if clientFiltersApplied}
+          <Button
+            variant="outline"
+            size="sm"
+            onclick={resetClientFilters}
+            class="mt-3 rounded-sm"
+          >
+            Réinitialiser les filtres
+          </Button>
+        {/if}
       </div>
-
-      {@const filtered = applySort(
-        applyNiveau(applySearch(variant.rows, searchQuery), niveauFilter),
-        sort,
-      )}
-      {#if filtered.length === 0}
-        <div
-          class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
-        >
-          <h3
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Aucun résultat
-          </h3>
-          {#if clientFiltersApplied || urlFilterApplied}
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={() => {
-                resetClientFilters();
-                changeFilter('all');
-              }}
-              class="mt-3 rounded-sm"
-            >
-              Réinitialiser les filtres
-            </Button>
-          {/if}
-        </div>
-      {:else}
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {#each filtered as row (row.participation.id)}
-            <InscritCardPrep {row} />
-          {/each}
-        </div>
-      {/if}
-    {:else if variant.kind === 'ongoing'}
-      <InscritFilterBar
-        bind:searchQuery
-        bind:niveauFilter
-        bind:sort
-        availableNiveaux={data.availableNiveaux}
-      />
-
-      {@const filtered = applySort(
-        applyNiveau(applySearch(variant.rows, searchQuery), niveauFilter),
-        sort,
-      )}
-      {#if filtered.length === 0}
-        <div
-          class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
-        >
-          <h3
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Aucun résultat
-          </h3>
-          {#if clientFiltersApplied}
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={resetClientFilters}
-              class="mt-3 rounded-sm"
-            >
-              Réinitialiser les filtres
-            </Button>
-          {/if}
-        </div>
-      {:else}
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {#each filtered as row (row.participation.id)}
-            <InscritCardOngoing {row} timezone={data.timezone} />
-          {/each}
-        </div>
-      {/if}
     {:else}
-      <InscritFilterBar
-        bind:searchQuery
-        bind:niveauFilter
-        bind:sort
-        availableNiveaux={data.availableNiveaux}
-      />
-
-      {@const filtered = applySort(
-        applyNiveau(applySearch(variant.rows, searchQuery), niveauFilter),
-        sort,
-      )}
-      {#if filtered.length === 0}
-        <div
-          class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
-        >
-          <h3
-            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-          >
-            Aucun résultat
-          </h3>
-          {#if clientFiltersApplied}
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={resetClientFilters}
-              class="mt-3 rounded-sm"
-            >
-              Réinitialiser les filtres
-            </Button>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {#each filtered as row (row.participation.id)}
+          {#if variant.kind === 'prep'}
+            <InscritCardPrep row={row as PrepRow} timezone={data.timezone} />
+          {:else if variant.kind === 'ongoing'}
+            <InscritCardOngoing
+              row={row as OngoingRow}
+              timezone={data.timezone}
+            />
+          {:else}
+            <InscritCardPast row={row as OngoingRow} timezone={data.timezone} />
           {/if}
-        </div>
-      {:else}
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {#each filtered as row (row.participation.id)}
-            <InscritCardPast {row} timezone={data.timezone} />
-          {/each}
-        </div>
-      {/if}
+        {/each}
+      </div>
     {/if}
   {/if}
 </div>

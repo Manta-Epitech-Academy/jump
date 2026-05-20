@@ -180,7 +180,6 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
-  niveauDifficulte            String?
   level                       String    @default("Novice")
   xp                          Int       @default(0)
   eventsCount                 Int       @default(0)
@@ -447,7 +446,6 @@ model Participation {
 model StageCompliance {
   participationId   String   @id
   charteSigned      Boolean  @default(false)
-  conventionSigned  Boolean  @default(false)
   imageRightsSigned Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

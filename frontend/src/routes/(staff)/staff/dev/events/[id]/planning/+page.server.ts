@@ -11,6 +11,7 @@ import {
 import { applyPlanningTemplateSchema } from '$lib/validation/planningTemplates';
 import { prisma } from '$lib/server/db';
 import { planningActions } from '$lib/server/services/planningActions';
+import { requireFlag } from '$lib/server/auth/guards';
 import {
   getCampusId,
   getCampusTimezone,
@@ -18,6 +19,7 @@ import {
 } from '$lib/server/db/scoped';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
+  requireFlag(locals, 'event_planning');
   const db = scopedPrisma(getCampusId(locals));
 
   let event;
@@ -88,6 +90,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   };
 };
 
-export const actions: Actions = {
-  ...planningActions,
-};
+export const actions: Actions = Object.fromEntries(
+  Object.entries(planningActions).map(([name, fn]) => [
+    name,
+    async (event) => {
+      requireFlag(event.locals, 'event_planning');
+      return fn(event);
+    },
+  ]),
+) as Actions;

@@ -17,33 +17,8 @@ import {
 } from '$lib/domain/eventLifecycle';
 import { getInterviewDisplayStatus } from '$lib/domain/interview';
 import { compareNiveaux } from './components/niveau';
-import {
-  FILTER_KEYS,
-  type FilterCounts,
-  type FilterKey,
-  type OngoingRow,
-  type PrepRow,
-} from './components/types';
-
-function validateFilter(raw: string | null): FilterKey {
-  return (FILTER_KEYS as readonly string[]).includes(raw ?? '')
-    ? (raw as FilterKey)
-    : 'all';
-}
-
-function filterCondition(filter: FilterKey) {
-  if (filter === 'never-logged') return { talent: { lastActiveAt: null } };
-  if (filter === 'profile-incomplete') {
-    return {
-      OR: [
-        { talent: { infoValidatedAt: null } },
-        { talent: { rulesSignedAt: null } },
-        { talent: { charterAcceptedAt: null } },
-      ],
-    };
-  }
-  return null;
-}
+import { computeIsNewTalent } from './components/types';
+import type { OngoingRow, PrepRow } from './components/types';
 
 function originConditions(lyceeName: string | null, interestId: string | null) {
   const conds: object[] = [];
@@ -85,68 +60,44 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   );
 
   if (phase === 'upcoming') {
-    const filter = validateFilter(url.searchParams.get('filter'));
-    const baseAnd: object[] = [{ eventId: event.id }];
-    const filterCond = filterCondition(filter);
-    const scopedAnd = [
-      ...baseAnd,
-      ...(filterCond ? [filterCond] : []),
-      ...originAnd,
-    ];
+    const scopedAnd = [{ eventId: event.id }, ...originAnd];
     const filteredWhere =
       scopedAnd.length === 1 ? scopedAnd[0] : { AND: scopedAnd };
 
-    const [participations, allCount, neverLoggedCount, profileIncompleteCount] =
-      await Promise.all([
-        db.participation.findMany({
-          where: filteredWhere,
+    const participations = await db.participation.findMany({
+      where: filteredWhere,
+      include: {
+        talent: {
           include: {
-            talent: {
-              include: {
-                interests: { include: { interest: true } },
-              },
-            },
+            interests: { include: { interest: true } },
           },
-          orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-        }),
-        db.participation.count({ where: { eventId: event.id } }),
-        db.participation.count({
-          where: { eventId: event.id, talent: { lastActiveAt: null } },
-        }),
-        db.participation.count({
-          where: {
-            eventId: event.id,
-            OR: [
-              { talent: { infoValidatedAt: null } },
-              { talent: { rulesSignedAt: null } },
-              { talent: { charterAcceptedAt: null } },
-            ],
-          },
-        }),
-      ]);
+        },
+      },
+      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    });
 
-    const rows: PrepRow[] = participations.map((p) => ({
-      participation: p,
-      hasAccount: p.talent?.userId != null,
-      hasFirstLogin: p.talent?.lastActiveAt != null,
-      hasCompletedProfile:
-        !!p.talent?.infoValidatedAt &&
-        !!p.talent?.rulesSignedAt &&
-        !!p.talent?.charterAcceptedAt,
-    }));
+    const lastSeenByTalent = await loadLastSeenByTalent(
+      db,
+      participations.map((p) => p.talentId),
+      event.id,
+    );
 
-    const counts: FilterCounts = {
-      all: allCount,
-      neverLogged: neverLoggedCount,
-      profileIncomplete: profileIncompleteCount,
-    };
+    const rows: PrepRow[] = participations.map((p) => {
+      const seen = lastSeenByTalent.get(p.talentId) ?? null;
+      return {
+        participation: p,
+        isNewTalent: computeIsNewTalent(p),
+        lastSeenName: seen?.name ?? null,
+        lastSeenAt: seen?.at ?? null,
+      };
+    });
 
     return {
       event,
       timezone,
       origin,
       availableNiveaux: computeAvailableNiveaux(participations),
-      variant: { kind: 'prep' as const, rows, filter, counts },
+      variant: { kind: 'prep' as const, rows },
     };
   }
 
@@ -204,6 +155,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const last = lastByParticipation.get(p.id) ?? null;
     return {
       participation: p,
+      isNewTalent: computeIsNewTalent(p),
       interviewStatus: getInterviewDisplayStatus(p.interview, bounds),
       interviewDate: p.interview?.date ?? null,
       interviewRecommendation: p.interview?.recommendation ?? null,
@@ -223,6 +175,44 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     },
   };
 };
+
+async function loadLastSeenByTalent(
+  db: ReturnType<typeof scopedPrisma>,
+  talentIds: string[],
+  currentEventId: string,
+): Promise<Map<string, { name: string; at: Date }>> {
+  if (talentIds.length === 0) return new Map();
+  const priorActivities = await db.participationActivity.findMany({
+    where: {
+      isPresent: true,
+      participation: {
+        talentId: { in: talentIds },
+        eventId: { not: currentEventId },
+      },
+    },
+    select: {
+      activity: {
+        select: {
+          nom: true,
+          timeSlot: { select: { startTime: true } },
+        },
+      },
+      participation: { select: { talentId: true } },
+    },
+    orderBy: { activity: { timeSlot: { startTime: 'desc' } } },
+  });
+  const out = new Map<string, { name: string; at: Date }>();
+  for (const pa of priorActivities) {
+    const tid = pa.participation.talentId;
+    if (!out.has(tid)) {
+      out.set(tid, {
+        name: pa.activity.nom,
+        at: pa.activity.timeSlot.startTime,
+      });
+    }
+  }
+  return out;
+}
 
 function computeAvailableNiveaux<
   T extends { talent: { niveau: string | null } | null },

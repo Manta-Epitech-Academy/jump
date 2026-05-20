@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { difficultes } from '$lib/domain/xp';
 
 export const studentSchema = z.object({
   nom: z.string().min(2, 'Le nom doit faire au moins 2 caractères').trim(),
@@ -15,7 +14,6 @@ export const studentSchema = z.object({
       message: 'Veuillez sélectionner un niveau scolaire valide',
     },
   ),
-  niveau_difficulte: z.enum(difficultes).default('Débutant'),
   parent_email: z.email('Email parent invalide').optional().or(z.literal('')),
   parent_phone: z.string().optional(),
   parent_nom: z.string().optional(),

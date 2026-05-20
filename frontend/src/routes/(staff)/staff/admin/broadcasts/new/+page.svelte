@@ -69,6 +69,14 @@
   const tristateValues = ['any', 'yes', 'no'] as const;
 </script>
 
+<header class="space-y-2">
+  <h1 class="text-2xl font-bold tracking-tight">Nouvel envoi</h1>
+  <p class="text-sm text-muted-foreground">
+    Choisis un template, une audience et un campus, puis prévisualise les
+    destinataires avant de lancer.
+  </p>
+</header>
+
 <form
   id="broadcast-form"
   method="POST"

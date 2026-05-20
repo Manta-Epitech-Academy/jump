@@ -88,7 +88,6 @@ export async function applyRouteGuards(
   const pathTalentOnboarding = p('/onboarding');
   const pathTalentOAuth = p('/oauth');
   const pathLogout = p('/logout');
-  const pathPublicShowcase = p('/p/');
   const pathApi = p('/api/');
   const pathStaffDev = p('/staff/dev');
   const pathStaffPedago = p('/staff/pedago');
@@ -111,9 +110,7 @@ export async function applyRouteGuards(
     currentPath.startsWith(`${pathStaffPedago}/`);
 
   const isPublicPath =
-    currentPath.startsWith(pathLogout) ||
-    currentPath.startsWith(pathPublicShowcase) ||
-    currentPath.startsWith(pathApi);
+    currentPath.startsWith(pathLogout) || currentPath.startsWith(pathApi);
 
   // --- Talent Guards ---
   if (isTalentRoute) {

@@ -45,6 +45,14 @@
   }
 </script>
 
+<header class="space-y-2">
+  <h1 class="text-2xl font-bold tracking-tight">Templates</h1>
+  <p class="text-sm text-muted-foreground">
+    Crée et édite les templates réutilisables pour les envois en masse et les
+    mails transactionnels.
+  </p>
+</header>
+
 <div class="flex items-center justify-between">
   <p class="text-sm text-muted-foreground">
     {data.templates.length} template{data.templates.length > 1 ? 's' : ''}

@@ -1,30 +1,25 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import Check from '@lucide/svelte/icons/check';
-  import X from '@lucide/svelte/icons/x';
   import Trophy from '@lucide/svelte/icons/trophy';
+  import History from '@lucide/svelte/icons/history';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import NewTalentBadge from '$lib/components/students/NewTalentBadge.svelte';
-  import { cn } from '$lib/utils';
+  import { formatDateFr } from '$lib/utils';
   import type { PrepRow } from './types';
   import { humanizeNiveau } from './niveau';
 
-  let { row }: { row: PrepRow } = $props();
+  let { row, timezone }: { row: PrepRow; timezone: string } = $props();
 
   const talent = $derived(row.participation.talent);
   const interests = $derived(talent?.interests ?? []);
   const visibleInterests = $derived(interests.slice(0, 3));
   const overflow = $derived(Math.max(0, interests.length - 3));
 
-  const isNewTalent = $derived((talent?.eventsCount ?? 0) === 0);
-
-  type Tile = { label: string; ok: boolean };
-  const tiles = $derived<Tile[]>([
-    { label: 'Compte plateforme', ok: row.hasAccount },
-    { label: '1ère connexion', ok: row.hasFirstLogin },
-    { label: 'Profil complété', ok: row.hasCompletedProfile },
-  ]);
+  const lastSeenLabel = $derived.by(() => {
+    if (!row.lastSeenName || !row.lastSeenAt) return null;
+    return `${row.lastSeenName} · ${formatDateFr(row.lastSeenAt, timezone)}`;
+  });
 </script>
 
 <a
@@ -47,7 +42,7 @@
         >
           <TalentName talent={talent ?? {}} />
         </span>
-        {#if isNewTalent}
+        {#if row.isNewTalent}
           <NewTalentBadge />
         {/if}
       </div>
@@ -97,23 +92,10 @@
     <span>XP</span>
   </div>
 
-  <ul class="space-y-1">
-    {#each tiles as tile (tile.label)}
-      <li
-        class={cn(
-          'flex items-center gap-2 rounded-sm px-2 py-1 text-[11px]',
-          tile.ok
-            ? 'bg-green-50 text-green-700 dark:bg-green-900/15 dark:text-green-300'
-            : 'bg-muted/50 text-muted-foreground',
-        )}
-      >
-        {#if tile.ok}
-          <Check class="h-3 w-3 shrink-0" />
-        {:else}
-          <X class="h-3 w-3 shrink-0 text-destructive/60" />
-        {/if}
-        <span class="font-medium">{tile.label}</span>
-      </li>
-    {/each}
-  </ul>
+  {#if lastSeenLabel}
+    <div class="flex items-center gap-2 text-[11px] text-muted-foreground">
+      <History class="h-3 w-3 shrink-0 text-epi-blue" />
+      <span class="truncate">Vu · {lastSeenLabel}</span>
+    </div>
+  {/if}
 </a>

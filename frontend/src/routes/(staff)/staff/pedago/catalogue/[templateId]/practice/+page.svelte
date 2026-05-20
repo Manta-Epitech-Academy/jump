@@ -19,8 +19,8 @@
     ActivityStructure,
   } from '$lib/server/services/progressService';
 
-  import StaffRoadmapSidebar from '$lib/components/staff-practice/StaffRoadmapSidebar.svelte';
-  import StaffStepValidationBlock from '$lib/components/staff-practice/StaffStepValidationBlock.svelte';
+  import StaffRoadmapSidebar from '$lib/components/pedago/staff-practice/StaffRoadmapSidebar.svelte';
+  import StaffStepValidationBlock from '$lib/components/pedago/staff-practice/StaffStepValidationBlock.svelte';
 
   let { data }: { data: PageData } = $props();
 

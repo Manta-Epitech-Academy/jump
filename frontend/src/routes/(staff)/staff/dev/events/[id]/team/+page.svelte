@@ -6,6 +6,7 @@
   import { Button } from '$lib/components/ui/button';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import Gated from '$lib/components/auth/Gated.svelte';
+  import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import TeamMemberCard from './components/TeamMemberCard.svelte';
   import AddMemberDialog from './components/AddMemberDialog.svelte';
 
@@ -23,15 +24,14 @@
 </script>
 
 <svelte:head>
-  <title>{data.event.titre} — Intervenants</title>
+  <title>{STAGE_SECONDE_LABEL} — Intervenants</title>
 </svelte:head>
 
 <div class="flex h-full flex-col space-y-6 pb-10">
   <PageBreadcrumb
     items={[
-      { label: 'Dashboard', href: resolve('/staff/dev') },
       {
-        label: data.event.titre,
+        label: STAGE_SECONDE_LABEL,
         href: resolve(`/staff/dev/events/${data.event.id}`),
       },
       { label: 'Intervenants' },
@@ -57,7 +57,7 @@
               {data.assigned.length > 1 ? 'personnes' : 'personne'}
             </span>
             qui {data.assigned.length > 1 ? 'accompagneront' : 'accompagnera'} vos
-            talents —
+            stagiaires —
             <span class="font-mono font-bold text-epi-teal-solid">
               {pedaList.length}
             </span>

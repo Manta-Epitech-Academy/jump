@@ -9,7 +9,6 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { enhance as kitEnhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { resolve } from '$app/paths';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import MultiStaffSelect from '$lib/components/events/MultiStaffSelect.svelte';
 
@@ -77,12 +76,7 @@
 
 <div class="mx-auto max-w-5xl space-y-6 pb-12">
   <div class="border-b pb-4">
-    <PageBreadcrumb
-      items={[
-        { label: 'Dashboard', href: resolve('/staff/dev') },
-        { label: 'Importer' },
-      ]}
-    />
+    <PageBreadcrumb items={[{ label: 'Importer' }]} />
     <h1 class="text-3xl font-bold tracking-tight text-epi-blue uppercase">
       Nouvel Événement<span class="text-epi-teal">_</span>
     </h1>
@@ -100,7 +94,7 @@
       </Card.Title>
       <Card.Description class="text-sm font-medium">
         Importez un fichier CSV d'événement Salesforce. Vous pourrez ensuite
-        spécifier si les Talents apportent leur PC.
+        spécifier si les stagiaires apportent leur PC.
       </Card.Description>
     </Card.Header>
     <Card.Content>

@@ -1,46 +1,24 @@
 <script lang="ts">
   import UserPlus from '@lucide/svelte/icons/user-plus';
-  import KeyRound from '@lucide/svelte/icons/key-round';
-  import UserCheck from '@lucide/svelte/icons/user-check';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
   import { resolve } from '$app/paths';
-  import ChecklistPanel from '$lib/components/staff/ChecklistPanel.svelte';
-  import type { ChecklistItem } from '$lib/server/services/eventTasks';
-  import { activityTypes } from '$lib/validation/templates';
   import CountdownHero from './CountdownHero.svelte';
-  import EventKpiTile from './EventKpiTile.svelte';
-  import ProgrammeJour from './ProgrammeJour.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import LyceesBreakdown from './LyceesBreakdown.svelte';
   import InterestsCloud from './InterestsCloud.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
-
-  type ActivityTypeKey = (typeof activityTypes)[number];
+  import TalentJourneyExplainer from '$lib/components/dev/TalentJourneyExplainer.svelte';
 
   type Props = {
     eventId: string;
-    titre: string;
     notes: string | null;
     daysToStart: number;
     openDate: Date;
     timezone: string;
     kpis: {
       total: number;
-      comptesActives: number;
-      profilComplete: number;
       dossiersAdmin: number;
     };
-    checklist: ChecklistItem[];
-    firstDayTimeSlots: {
-      id: string;
-      startTime: Date | string;
-      endTime: Date | string;
-      activity: {
-        id: string;
-        nom: string;
-        activityType: ActivityTypeKey;
-        activityThemes: { theme: { nom: string } }[];
-      } | null;
-    }[];
     lyceesBreakdown: {
       rows: { highSchoolName: string; count: number }[];
       others: { count: number; categories: number } | null;
@@ -59,14 +37,11 @@
 
   let {
     eventId,
-    titre,
     notes,
     daysToStart,
     openDate,
     timezone,
     kpis,
-    checklist,
-    firstDayTimeSlots,
     lyceesBreakdown,
     interestsCloud,
     onEditNotes,
@@ -88,71 +63,35 @@
 </script>
 
 <div class="space-y-6 pb-12">
-  <CountdownHero {titre} {daysToStart} {openDate} {timezone} />
+  <CountdownHero {daysToStart} {openDate} {timezone} />
 
-  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    <EventKpiTile
-      label="Inscrits"
-      value={kpis.total}
-      sub="cohorte confirmée"
-      icon={UserPlus}
-      tone="blue"
-      href={inscritsHref}
-    />
-    <EventKpiTile
-      label="Comptes activés"
-      value={kpis.comptesActives}
-      sub={`${pct(kpis.comptesActives)} % · ${kpis.total - kpis.comptesActives} à relancer`}
-      icon={KeyRound}
-      tone="teal"
-      progress={pct(kpis.comptesActives)}
-      href={`${inscritsHref}?filter=never-logged`}
-    />
-    <EventKpiTile
-      label="Profil complété"
-      value={kpis.profilComplete}
-      sub={`${pct(kpis.profilComplete)} % · onboarding plateforme`}
-      icon={UserCheck}
-      tone="pink"
-      progress={pct(kpis.profilComplete)}
-      href={`${inscritsHref}?filter=profile-incomplete`}
-    />
-    <EventKpiTile
-      label="Dossiers admin OK"
-      value={kpis.dossiersAdmin}
-      sub={`${pct(kpis.dossiersAdmin)} % · 3 documents validés`}
-      icon={ClipboardCheck}
-      tone="orange"
-      progress={pct(kpis.dossiersAdmin)}
-      href={onboardingHref}
-    />
-  </div>
-
-  <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
-    <section class="space-y-2">
-      <div class="flex items-baseline justify-between gap-2">
-        <h2
-          class="font-heading text-2xl tracking-wide text-foreground uppercase"
-        >
-          Checklist d’ouverture
-        </h2>
-      </div>
-      <p
-        class="font-mono text-[10px] font-medium tracking-widest text-muted-foreground uppercase"
-      >
-        Auto-cochée selon Onboarding, Salesforce et l’activité plateforme
-      </p>
-      <div class="pt-2">
-        <ChecklistPanel items={checklist} />
-      </div>
-    </section>
-    <ProgrammeJour
-      {eventId}
-      timeSlots={firstDayTimeSlots}
-      {timezone}
-      title="Programme du J1"
-      emptyLabel="Aucun créneau publié pour le J1. Préparez le planning d’ouverture."
-    />
+  <div class="grid gap-4 lg:grid-cols-3">
+    <div class="lg:col-span-2">
+      <TalentJourneyExplainer />
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:gap-4">
+      <KpiTile
+        label="Inscrits"
+        helpText="Stagiaires inscrits à ce stage. Un compte personnel Jump leur est automatiquement créé."
+        value={kpis.total}
+        sub="cohorte confirmée"
+        icon={UserPlus}
+        tone="blue"
+        align="center"
+        href={inscritsHref}
+      />
+      <KpiTile
+        label="Dossiers administratifs validés"
+        helpText="Stagiaires pour qui les 2 documents administratifs (règlement intérieur, droit à l'image) sont validés dans la page Onboarding. Le matériel PC est suivi à part — c'est une info logistique, pas un document à valider."
+        value={kpis.dossiersAdmin}
+        sub={`${pct(kpis.dossiersAdmin)} % · 2 documents validés`}
+        icon={ClipboardCheck}
+        tone="orange"
+        align="center"
+        progress={pct(kpis.dossiersAdmin)}
+        href={onboardingHref}
+      />
+    </div>
   </div>
 
   {#if hasOriginsData}

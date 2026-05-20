@@ -21,7 +21,7 @@
   import * as Tabs from '$lib/components/ui/tabs';
   import * as Select from '$lib/components/ui/select';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
-  import ConfirmDeleteDialog from '$lib/components/ConfirmDeleteDialog.svelte';
+  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { toast } from 'svelte-sonner';
   import {

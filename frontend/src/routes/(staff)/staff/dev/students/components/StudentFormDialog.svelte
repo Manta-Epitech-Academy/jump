@@ -5,7 +5,6 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import { difficultes } from '$lib/domain/xp';
   import type { StudentForm } from '$lib/validation/students';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { studentSchema } from '$lib/validation/students';
@@ -48,12 +47,12 @@
   <Dialog.Content class="rounded-sm sm:max-w-125">
     <Dialog.Header>
       <Dialog.Title class="text-lg font-bold tracking-tight uppercase"
-        >{isEditing ? 'Modifier' : 'Ajouter'} un Talent</Dialog.Title
+        >{isEditing ? 'Modifier' : 'Ajouter'} un stagiaire</Dialog.Title
       >
       <Dialog.Description class="text-xs font-medium">
         {isEditing
           ? 'Mettez à jour les informations du profil CRM.'
-          : "Créez le profil d'un nouveau Talent."}
+          : "Créez le profil d'un nouveau stagiaire."}
       </Dialog.Description>
     </Dialog.Header>
 
@@ -227,49 +226,22 @@
         >
           Profil Pédagogique
         </h4>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="grid gap-2">
-            <Label for="niveau" class="text-xs">Niveau Scolaire</Label>
-            <Select.Root type="single" bind:value={$form.niveau}>
-              <Select.Trigger class="rounded-sm bg-background">
-                {$form.niveau ? $form.niveau : 'Sélectionner...'}
-              </Select.Trigger>
-              <Select.Content class="rounded-sm">
-                {#each niveaux as niveau}
-                  <Select.Item value={niveau}>{niveau}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <input type="hidden" name="niveau" value={$form.niveau} />
-            {#if $errors.niveau}<span class="text-xs text-destructive"
-                >{$errors.niveau}</span
-              >{/if}
-          </div>
-
-          <div class="grid gap-2">
-            <Label for="niveau_difficulte" class="text-xs"
-              >Niveau Informatique</Label
-            >
-            <Select.Root type="single" bind:value={$form.niveau_difficulte}>
-              <Select.Trigger class="rounded-sm bg-background">
-                {$form.niveau_difficulte ? $form.niveau_difficulte : 'Débutant'}
-              </Select.Trigger>
-              <Select.Content class="rounded-sm">
-                {#each difficultes as diff}
-                  <Select.Item value={diff}>{diff}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            <input
-              type="hidden"
-              name="niveau_difficulte"
-              value={$form.niveau_difficulte}
-            />
-            {#if $errors.niveau_difficulte}<span
-                class="text-xs text-destructive"
-                >{$errors.niveau_difficulte}</span
-              >{/if}
-          </div>
+        <div class="grid gap-2">
+          <Label for="niveau" class="text-xs">Niveau Scolaire</Label>
+          <Select.Root type="single" bind:value={$form.niveau}>
+            <Select.Trigger class="rounded-sm bg-background">
+              {$form.niveau ? $form.niveau : 'Sélectionner...'}
+            </Select.Trigger>
+            <Select.Content class="rounded-sm">
+              {#each niveaux as niveau}
+                <Select.Item value={niveau}>{niveau}</Select.Item>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <input type="hidden" name="niveau" value={$form.niveau} />
+          {#if $errors.niveau}<span class="text-xs text-destructive"
+              >{$errors.niveau}</span
+            >{/if}
         </div>
       </div>
 
@@ -283,7 +255,7 @@
             <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
             Enregistrement...
           {:else}
-            {isEditing ? 'Mettre à jour' : 'Créer le Talent'}
+            {isEditing ? 'Mettre à jour' : 'Créer le stagiaire'}
           {/if}
         </Button>
       </Dialog.Footer>

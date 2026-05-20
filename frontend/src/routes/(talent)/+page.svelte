@@ -5,7 +5,6 @@
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { toast } from 'svelte-sonner';
-  import { page } from '$app/state';
   import { triggerConfetti } from '$lib/actions/confetti';
   import {
     formatDateFr,
@@ -21,8 +20,6 @@
   import Coffee from '@lucide/svelte/icons/coffee';
   import Hourglass from '@lucide/svelte/icons/hourglass';
   import MapPin from '@lucide/svelte/icons/map-pin';
-  import Share2 from '@lucide/svelte/icons/share-2';
-  import ExternalLink from '@lucide/svelte/icons/external-link';
   import Check from '@lucide/svelte/icons/check';
   import FileDown from '@lucide/svelte/icons/file-down';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
@@ -37,12 +34,11 @@
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import Mail from '@lucide/svelte/icons/mail';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import DiscordLinkBanner from '$lib/components/DiscordLinkBanner.svelte';
-  import ProfileCompletionBanner from '$lib/components/ProfileCompletionBanner.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import { onMount, untrack } from 'svelte';
   import { track } from '$lib/analytics';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
 
@@ -107,6 +103,21 @@
   let todayIsMultiDay = $derived(data.todayIsMultiDay);
   let upcomingIsMultiDay = $derived(data.upcomingIsMultiDay);
 
+  function isStageUpcoming(
+    event:
+      | { eventType?: string | null; date?: string | Date | null }
+      | null
+      | undefined,
+  ) {
+    if (!event || event.eventType !== 'stage_seconde' || !event.date)
+      return false;
+    return new Date(event.date) > nowTime;
+  }
+  let hideTodayCalendarLink = $derived(isStageUpcoming(participation?.event));
+  let hideUpcomingCalendarLink = $derived(
+    isStageUpcoming(upcomingParticipation?.event),
+  );
+
   let levelLabel = $derived(
     student?.level === 'Expert'
       ? 'Expert ✦'
@@ -145,24 +156,6 @@
     Avancé:
       'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
   };
-
-  // Sharing Logic
-  let copied = $state(false);
-  let shareUrl = $derived(`${page.url.origin}${resolve(`/p/${student?.id}`)}`);
-
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      copied = true;
-      track('talent_portfolio_link_copied');
-      toast.success('Lien copié dans le presse-papier !');
-      setTimeout(() => {
-        copied = false;
-      }, 2000);
-    } catch (err) {
-      toast.error('Erreur lors de la copie du lien.');
-    }
-  }
 
   // PDF Download Logic
   let isDownloading = $state(false);
@@ -279,21 +272,6 @@
       </div>
     </div>
   </header>
-
-  {#if !student?.discordId}
-    <div
-      class="fixed right-4 bottom-4 left-4 z-50 mx-auto max-w-lg"
-      in:fly={{ y: 20, duration: 300, delay: 150 }}
-    >
-      <DiscordLinkBanner />
-    </div>
-  {/if}
-
-  {#if !student?.phone}
-    <div class="mb-6" in:fly={{ y: -10, duration: 300, delay: 175 }}>
-      <ProfileCompletionBanner />
-    </div>
-  {/if}
 
   <div class="grid gap-6 md:grid-cols-12">
     <!-- LEFT COLUMN: Stats & Profile -->
@@ -450,38 +428,6 @@
             </div>
           {/if}
 
-          <!-- Public Profile Share Section -->
-          <div
-            class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
-          >
-            <h3 class="text-xs font-bold text-slate-400 uppercase">
-              Mon Profil Public
-            </h3>
-            <div class="flex flex-col gap-2">
-              <Button
-                variant="outline"
-                class="w-full justify-between rounded-xl border-slate-200 text-slate-600 dark:border-slate-800 dark:text-slate-300"
-                onclick={copyLink}
-              >
-                <span class="truncate text-xs">{shareUrl}</span>
-                {#if copied}
-                  <Check class="ml-2 h-4 w-4 shrink-0 text-epi-teal-solid" />
-                {:else}
-                  <Share2 class="ml-2 h-4 w-4 shrink-0" />
-                {/if}
-              </Button>
-              <Button
-                variant="ghost"
-                href={resolve(`/p/${student?.id}`)}
-                target="_blank"
-                class="w-full rounded-xl text-xs font-bold text-epi-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"
-              >
-                <ExternalLink class="mr-2 h-4 w-4" />
-                Voir la page
-              </Button>
-            </div>
-          </div>
-
           <!-- PDF Download Section -->
           {#if hasCompletedEvents}
             <div
@@ -534,7 +480,7 @@
               <span class="text-slate-300 dark:text-slate-700">•</span>
               <Clock class="h-4 w-4" />
               <span>{formatTime(participation?.event?.date)}</span>
-              {#if todayIsMultiDay}
+              {#if todayIsMultiDay && !hideTodayCalendarLink}
                 <a
                   href={resolve('/calendar')}
                   class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
@@ -690,7 +636,7 @@
             >
               <CalendarClock class="h-4 w-4" />
               <span>Mission à venir</span>
-              {#if upcomingIsMultiDay}
+              {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
                 <a
                   href={resolve('/calendar')}
                   class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"

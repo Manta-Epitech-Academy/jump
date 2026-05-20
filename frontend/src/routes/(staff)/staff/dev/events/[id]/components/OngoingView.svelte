@@ -2,13 +2,12 @@
   import Users from '@lucide/svelte/icons/users';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { resolve } from '$app/paths';
   import AlertsPanel from '$lib/components/staff/AlertsPanel.svelte';
   import type { EventAlert } from '$lib/server/services/eventTasks';
   import { activityTypes } from '$lib/validation/templates';
   import OngoingHero from './OngoingHero.svelte';
-  import EventKpiTile from './EventKpiTile.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import ProgrammeJour from './ProgrammeJour.svelte';
   import MesProchainsEntretiens from './MesProchainsEntretiens.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
@@ -19,7 +18,6 @@
 
   type Props = {
     eventId: string;
-    titre: string;
     notes: string | null;
     dayN: number;
     totalDays: number;
@@ -30,7 +28,6 @@
       total: number;
       interviewsCompleted: number;
       interviewsTotal: number;
-      conformitePct: number;
       todayPresence: {
         slotName: string;
         present: number;
@@ -67,12 +64,12 @@
       }[];
       others: { count: number; categories: number } | null;
     };
+    showPlanning: boolean;
     onEditNotes: () => void;
   };
 
   let {
     eventId,
-    titre,
     notes,
     dayN,
     totalDays,
@@ -85,6 +82,7 @@
     mesProchainsEntretiens,
     lyceesBreakdown,
     interestsCloud,
+    showPlanning,
     onEditNotes,
   }: Props = $props();
 
@@ -97,8 +95,6 @@
       ? 0
       : Math.round((kpis.interviewsCompleted / kpis.interviewsTotal) * 100),
   );
-
-  const conformitePctRounded = $derived(Math.round(kpis.conformitePct * 100));
 
   const presencePctRounded = $derived(
     kpis.todayPresence && kpis.todayPresence.total > 0
@@ -114,16 +110,13 @@
   const interviewsHref = $derived(
     resolve(`/staff/dev/events/${eventId}/interviews`),
   );
-  const onboardingHref = $derived(
-    resolve(`/staff/dev/events/${eventId}/onboarding`),
-  );
 </script>
 
 <div class="space-y-6 pb-12">
-  <OngoingHero {titre} {dayN} {totalDays} {startDate} {endDate} {timezone} />
+  <OngoingHero {dayN} {totalDays} {startDate} {endDate} {timezone} />
 
-  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    <EventKpiTile
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <KpiTile
       label="Inscrits"
       value={kpis.total}
       sub="cohorte confirmée"
@@ -134,7 +127,7 @@
     {#if kpis.todayPresence}
       {@const present = kpis.todayPresence.present}
       {@const totalPresence = kpis.todayPresence.total}
-      <EventKpiTile
+      <KpiTile
         label="Présents au dernier appel"
         icon={UserCheck}
         tone="teal"
@@ -148,9 +141,9 @@
             >
           </p>
         {/snippet}
-      </EventKpiTile>
+      </KpiTile>
     {:else}
-      <EventKpiTile
+      <KpiTile
         label="Présents aujourd’hui"
         value="—"
         sub="aucun appel terminé"
@@ -158,7 +151,7 @@
         tone="neutral"
       />
     {/if}
-    <EventKpiTile
+    <KpiTile
       label="Entretiens"
       icon={MessageSquare}
       tone="pink"
@@ -174,16 +167,7 @@
           >
         </p>
       {/snippet}
-    </EventKpiTile>
-    <EventKpiTile
-      label="Conformité ADM"
-      value={`${conformitePctRounded} %`}
-      sub="moyenne sur 3 documents"
-      icon={ShieldCheck}
-      tone="orange"
-      progress={conformitePctRounded}
-      href={onboardingHref}
-    />
+    </KpiTile>
   </div>
 
   <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -205,7 +189,12 @@
       </div>
     </section>
     <div class="flex flex-col gap-4">
-      <ProgrammeJour {eventId} {timeSlots} {timezone} />
+      <ProgrammeJour
+        {eventId}
+        {timeSlots}
+        {timezone}
+        showPlanningLink={showPlanning}
+      />
       <MesProchainsEntretiens
         {eventId}
         interviews={mesProchainsEntretiens}

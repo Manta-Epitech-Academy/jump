@@ -16,6 +16,7 @@
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import FileText from '@lucide/svelte/icons/file-text';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -37,6 +38,10 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
+  let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
+  let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
+  let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
+  let hasPlanning = $derived(featureFlags.has('event_planning'));
   // Peda visiting a single interviews route gets a stripped shell — no
   // sidebar, no command-K, no impersonation, no tickets. Just header + main.
   let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
@@ -126,7 +131,7 @@
       >
         <span class="flex items-center gap-2">
           <Search class="h-4 w-4" />
-          <span class="text-xs font-medium">Rechercher un talent...</span>
+          <span class="text-xs font-medium">Rechercher un stagiaire...</span>
         </span>
         <kbd
           class="pointer-events-none flex h-5 items-center gap-1 rounded border border-sidebar-border bg-white/10 px-1.5 font-mono text-[10px] font-medium select-none"
@@ -149,14 +154,14 @@
         class={navLinkClass(isActive('/staff/dev'))}
       >
         <LayoutDashboard class="h-5 w-5" />
-        <span>Dashboard</span>
+        <span>Tableau de bord</span>
       </a>
       <a
         href={resolve('/staff/dev/students')}
         class={navLinkClass(isActive('/staff/dev/students'))}
       >
         <Users class="h-5 w-5" />
-        <span>Talents</span>
+        <span>Stagiaires</span>
       </a>
       <a
         href={resolve('/staff/dev/events/history')}
@@ -183,13 +188,13 @@
         <span>Vue d'ensemble</span>
       </a>
       <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
         class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
         )}
       >
-        <CalendarDays class="h-5 w-5" />
-        <span>Planning</span>
+        <ClipboardCheck class="h-5 w-5" />
+        <span>Onboarding</span>
       </a>
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
@@ -200,15 +205,17 @@
         <Users class="h-5 w-5" />
         <span>Inscrits</span>
       </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
-        )}
-      >
-        <ClipboardCheck class="h-5 w-5" />
-        <span>Onboarding</span>
-      </a>
+      {#if hasPlanning}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span>Planning</span>
+        </a>
+      {/if}
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
         class={navLinkClass(
@@ -218,22 +225,26 @@
         <MessageSquare class="h-5 w-5" />
         <span>Entretiens</span>
       </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/team`),
-        )}
-      >
-        <GraduationCap class="h-5 w-5" />
-        <span>Intervenants</span>
-      </a>
-      <a
-        href={resolve('/staff/dev/contenu/welcome')}
-        class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
-      >
-        <FileText class="h-5 w-5" />
-        <span>Page d'accueil</span>
-      </a>
+      {#if hasIntervenants}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/team`),
+          )}
+        >
+          <GraduationCap class="h-5 w-5" />
+          <span>Intervenants</span>
+        </a>
+      {/if}
+      {#if hasWelcomePage}
+        <a
+          href={resolve('/staff/dev/contenu/welcome')}
+          class={navLinkClass(isActive('/staff/dev/contenu/welcome'))}
+        >
+          <FileText class="h-5 w-5" />
+          <span>Page d'accueil</span>
+        </a>
+      {/if}
     </nav>
   {/if}
 
@@ -252,17 +263,44 @@
     </nav>
   {/if}
 
-  <Gated group="devLead" mode="hide">
+  <Gated group="devMember" mode="hide">
     <div class="sidebar-section-title">
       Gestion<span class="text-epi-orange">_</span>
     </div>
     <nav class="space-y-1">
+      {#if hasCampusTeam}
+        <Gated group="devLead" mode="hide">
+          <a
+            href={resolve('/staff/dev/team')}
+            class={navLinkClass(isActive('/staff/dev/team'))}
+          >
+            <UserCog class="h-5 w-5" />
+            <span>Staff du campus</span>
+          </a>
+        </Gated>
+      {/if}
       <a
-        href={resolve('/staff/dev/team')}
-        class={navLinkClass(isActive('/staff/dev/team'))}
+        href={resolve('/staff/dev/sync-errors')}
+        class={navLinkClass(isActive('/staff/dev/sync-errors'))}
       >
-        <UserCog class="h-5 w-5" />
-        <span>Staff du campus</span>
+        <TriangleAlert class="h-5 w-5 shrink-0" />
+        <span class="flex flex-1 items-center justify-between gap-2">
+          <span class="truncate whitespace-nowrap">Doublons Salesforce</span>
+          {#if data.syncErrorCounts.urgent > 0}
+            <span
+              class="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold whitespace-nowrap text-white"
+            >
+              <TriangleAlert class="h-3 w-3" />
+              {data.syncErrorCounts.total}
+            </span>
+          {:else if data.syncErrorCounts.total > 0}
+            <span
+              class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold whitespace-nowrap text-sidebar-foreground-muted"
+            >
+              {data.syncErrorCounts.total}
+            </span>
+          {/if}
+        </span>
       </a>
     </nav>
   </Gated>
@@ -347,7 +385,7 @@
 >
   {#if showFullChrome}
     <aside
-      class="app-sidebar hidden w-62.5 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+      class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
     >
       <div class="border-b border-sidebar-border">
         {@render sidebarBrand()}

@@ -60,8 +60,8 @@
     <ArrowLeft class="mr-1 h-4 w-4" /> Retour aux envois
   </Button>
 
-  <header class="space-y-1">
-    <h2 class="text-xl font-bold">{data.broadcast.name}</h2>
+  <header class="space-y-2">
+    <h1 class="text-2xl font-bold tracking-tight">{data.broadcast.name}</h1>
     <p class="text-sm text-muted-foreground">
       {BROADCAST_CHANNEL_LABELS[data.broadcast.channel]} · {BROADCAST_AUDIENCE_LABELS[
         data.broadcast.audience

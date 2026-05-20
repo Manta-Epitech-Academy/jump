@@ -18,6 +18,8 @@
     disabled?: boolean;
     /** Tooltip / aria-label when disabled. */
     disabledReason?: string;
+    /** Subject label used in the description ("le talent" / "le stagiaire"). */
+    subjectLabel?: string;
   };
 
   let {
@@ -25,6 +27,7 @@
     talentName,
     disabled = false,
     disabledReason,
+    subjectLabel = 'le talent',
   }: Props = $props();
 
   let open = $state(false);
@@ -98,7 +101,7 @@
     <Dialog.Header>
       <Dialog.Title>Code de connexion — {talentName}</Dialog.Title>
       <Dialog.Description>
-        Génère un code à 6 chiffres que le talent peut saisir sur la page de
+        Génère un code à 6 chiffres que {subjectLabel} peut saisir sur la page de
         connexion. À utiliser uniquement en présentiel.
       </Dialog.Description>
     </Dialog.Header>

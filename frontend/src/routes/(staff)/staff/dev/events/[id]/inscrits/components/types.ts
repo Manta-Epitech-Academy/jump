@@ -1,13 +1,6 @@
 import type { InterviewRecommendation, Prisma } from '@prisma/client';
 import type { InterviewDisplayStatus } from '$lib/domain/interview';
 
-export const FILTER_KEYS = [
-  'all',
-  'never-logged',
-  'profile-incomplete',
-] as const;
-export type FilterKey = (typeof FILTER_KEYS)[number];
-
 export type Sort = 'alpha' | 'xp' | 'events';
 
 type ParticipationPrep = Prisma.ParticipationGetPayload<{
@@ -38,18 +31,16 @@ type ParticipationOngoing = Prisma.ParticipationGetPayload<{
   };
 }>;
 
-type OnboardingState = {
-  hasAccount: boolean;
-  hasFirstLogin: boolean;
-  hasCompletedProfile: boolean;
-};
-
-export type PrepRow = OnboardingState & {
+export type PrepRow = {
   participation: ParticipationPrep;
+  isNewTalent: boolean;
+  lastSeenName: string | null;
+  lastSeenAt: Date | null;
 };
 
 export type OngoingRow = {
   participation: ParticipationOngoing;
+  isNewTalent: boolean;
   interviewStatus: InterviewDisplayStatus;
   interviewDate: Date | null;
   interviewRecommendation: InterviewRecommendation | null;
@@ -57,10 +48,17 @@ export type OngoingRow = {
   lastActivityAt: Date | null;
 };
 
-export type PastRow = OngoingRow;
+/**
+ * "Nouveau" tag = this stage is the talent's first ever at Epitech.
+ * `eventsCount` is bumped on `markPresent`, so we must subtract the
+ * current event's presence to recover the "before this stage" count.
+ */
+export function computeIsNewTalent(p: {
+  isPresent: boolean;
+  talent: { eventsCount: number } | null;
+}): boolean {
+  const count = p.talent?.eventsCount ?? 0;
+  return count - (p.isPresent ? 1 : 0) <= 0;
+}
 
-export type FilterCounts = {
-  all: number;
-  neverLogged: number;
-  profileIncomplete: number;
-};
+export type PastRow = OngoingRow;
