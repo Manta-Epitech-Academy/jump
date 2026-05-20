@@ -36,8 +36,13 @@
   // Access staff campus from page data (via layout.server.ts -> hooks)
   let userCampusName = $derived(page.data.staffProfile?.campus?.name);
 
+  // Functional distinct_id is the StaffProfile.id / Talent.id (cuid, stable
+  // across sessions, decoupled from auth provider). Properties shape per
+  // product spec: account_type, role (staff role only — null for talents),
+  // campus name, email.
   let identityKey = $state<string | null>(null);
   $effect(() => {
+    const user = page.data.user;
     const staff = page.data.staffProfile;
     const talent = page.data.talent;
     let next: {
@@ -48,22 +53,24 @@
       next = {
         id: staff.id,
         data: {
-          kind: 'staff',
-          role: staff.staffRole ?? 'unknown',
-          campusId: staff.campusId ?? null,
+          account_type: 'staff',
+          role: staff.staffRole ?? null,
+          campus: staff.campus?.name ?? null,
+          email: user?.email ?? null,
         },
       };
     } else if (talent) {
       next = {
         id: talent.id,
         data: {
-          kind: 'talent',
-          level: talent.level,
-          xp: talent.xp,
+          account_type: 'talent',
+          role: null,
+          campus: page.data.talentCampusName ?? null,
+          email: user?.email ?? talent.email ?? null,
         },
       };
     }
-    const key = next ? `${next.id}|${next.data.kind}` : null;
+    const key = next ? `${next.id}|${next.data.account_type}` : null;
     if (key === identityKey) return;
     identityKey = key;
     if (next) identify(next.id, next.data);
