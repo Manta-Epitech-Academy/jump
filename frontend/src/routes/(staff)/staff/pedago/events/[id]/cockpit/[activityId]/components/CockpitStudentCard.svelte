@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { niveauLabel } from '$lib/domain/niveau';
   import { enhance } from '$app/forms';
   import * as Avatar from '$lib/components/ui/avatar';
   import { Button, buttonVariants } from '$lib/components/ui/button';
@@ -365,7 +366,7 @@
           <div class="mt-1.5 flex items-center gap-3">
             <span
               class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-              >{participation.talent?.niveau}</span
+              >{niveauLabel(participation.talent?.niveau)}</span
             >
             <form
               method="POST"

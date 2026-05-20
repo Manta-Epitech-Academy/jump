@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
 import { prisma } from '$lib/server/db';
 import { formatDateFr, tallyTopThemesFromActivities } from '$lib/utils';
+import { niveauLabel } from '$lib/domain/niveau';
 
 export const GET: RequestHandler = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorise');
@@ -75,25 +76,11 @@ export const GET: RequestHandler = async ({ locals }) => {
     }
     const activities = [...activityMap.values()].slice(0, 10);
 
-    // 6. Map school level to readable label
-    const niveauLabels: Record<string, string> = {
-      '6eme': '6ème',
-      '5eme': '5ème',
-      '4eme': '4ème',
-      '3eme': '3ème',
-      '2nde': '2nde',
-      '1ere': '1ère',
-      Terminale: 'Terminale',
-      Sup: 'Sup',
-    };
-
-    // 7. Assemble Data
+    // 6. Assemble Data
     const data = {
       studentName: `${locals.talent.prenom} ${locals.talent.nom}`,
       campus: campusName,
-      schoolLevel: locals.talent.niveau
-        ? niveauLabels[locals.talent.niveau] || locals.talent.niveau
-        : '',
+      schoolLevel: niveauLabel(locals.talent.niveau),
       xp: locals.talent.xp || 0,
       hours: participations.length * 3,
       eventsAttended: participations.length,

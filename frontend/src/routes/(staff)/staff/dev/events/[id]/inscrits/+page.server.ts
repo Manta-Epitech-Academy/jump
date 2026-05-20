@@ -16,7 +16,7 @@ import {
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { getInterviewDisplayStatus } from '$lib/domain/interview';
-import { compareNiveaux } from './components/niveau';
+import { compareNiveaux } from '$lib/domain/niveau';
 import { computeIsNewTalent } from './components/types';
 import type { OngoingRow, PrepRow } from './components/types';
 
