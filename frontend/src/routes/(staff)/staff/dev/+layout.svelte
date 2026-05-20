@@ -16,6 +16,7 @@
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import FileText from '@lucide/svelte/icons/file-text';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -262,22 +263,47 @@
     </nav>
   {/if}
 
-  {#if hasCampusTeam}
-    <Gated group="devLead" mode="hide">
-      <div class="sidebar-section-title">
-        Gestion<span class="text-epi-orange">_</span>
-      </div>
-      <nav class="space-y-1">
-        <a
-          href={resolve('/staff/dev/team')}
-          class={navLinkClass(isActive('/staff/dev/team'))}
-        >
-          <UserCog class="h-5 w-5" />
-          <span>Staff du campus</span>
-        </a>
-      </nav>
-    </Gated>
-  {/if}
+  <Gated group="devMember" mode="hide">
+    <div class="sidebar-section-title">
+      Gestion<span class="text-epi-orange">_</span>
+    </div>
+    <nav class="space-y-1">
+      {#if hasCampusTeam}
+        <Gated group="devLead" mode="hide">
+          <a
+            href={resolve('/staff/dev/team')}
+            class={navLinkClass(isActive('/staff/dev/team'))}
+          >
+            <UserCog class="h-5 w-5" />
+            <span>Staff du campus</span>
+          </a>
+        </Gated>
+      {/if}
+      <a
+        href={resolve('/staff/dev/sync-errors')}
+        class={navLinkClass(isActive('/staff/dev/sync-errors'))}
+      >
+        <TriangleAlert class="h-5 w-5 shrink-0" />
+        <span class="flex flex-1 items-center justify-between gap-2">
+          <span class="truncate whitespace-nowrap">Doublons Salesforce</span>
+          {#if data.syncErrorCounts.urgent > 0}
+            <span
+              class="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold whitespace-nowrap text-white"
+            >
+              <TriangleAlert class="h-3 w-3" />
+              {data.syncErrorCounts.total}
+            </span>
+          {:else if data.syncErrorCounts.total > 0}
+            <span
+              class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold whitespace-nowrap text-sidebar-foreground-muted"
+            >
+              {data.syncErrorCounts.total}
+            </span>
+          {/if}
+        </span>
+      </a>
+    </nav>
+  </Gated>
 
   {#if data.ticketsEnabled}
     <div class="sidebar-section-title">
@@ -359,7 +385,7 @@
 >
   {#if showFullChrome}
     <aside
-      class="app-sidebar hidden w-62.5 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+      class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
     >
       <div class="border-b border-sidebar-border">
         {@render sidebarBrand()}
