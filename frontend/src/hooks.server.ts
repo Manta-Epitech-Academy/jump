@@ -73,6 +73,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.featureFlags = new Set();
   event.locals.ticketsEnabled = false;
   event.locals.stagePhaseOverride = null;
+  event.locals.impersonator = null;
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -118,6 +119,37 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     if (event.locals.staffProfile) {
       event.locals.ticketsEnabled = await getTicketsEnabled();
+    }
+
+    // Resolve the real admin behind an impersonated session so analytics can
+    // attribute actions to the actor (not the impersonated user). BetterAuth
+    // stores the admin's user id in `session.impersonatedBy`.
+    const impersonatedById =
+      (event.locals.session as { impersonatedBy?: string | null } | null)
+        ?.impersonatedBy ?? null;
+    if (impersonatedById) {
+      const adminRecord = await prisma.bauth_user.findUnique({
+        where: { id: impersonatedById },
+        select: {
+          email: true,
+          staffProfile: {
+            select: {
+              id: true,
+              staffRole: true,
+              campus: { select: { name: true } },
+            },
+          },
+        },
+      });
+      if (adminRecord) {
+        event.locals.impersonator = {
+          userId: impersonatedById,
+          email: adminRecord.email ?? null,
+          staffProfileId: adminRecord.staffProfile?.id ?? null,
+          staffRole: adminRecord.staffProfile?.staffRole ?? null,
+          campusName: adminRecord.staffProfile?.campus?.name ?? null,
+        };
+      }
     }
 
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);

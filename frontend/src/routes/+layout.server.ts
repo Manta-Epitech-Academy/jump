@@ -22,5 +22,6 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     staffProfile: locals.staffProfile,
     talent: locals.talent,
     talentCampusName,
+    impersonator: locals.impersonator,
   };
 };

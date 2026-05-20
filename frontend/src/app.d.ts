@@ -1,5 +1,5 @@
 import type { User, Session } from '$lib/server/auth';
-import type { StaffProfile, Talent, Campus } from '@prisma/client';
+import type { StaffProfile, Talent, Campus, StaffRole } from '@prisma/client';
 import type { FlagKey } from '$lib/domain/featureFlags';
 import type { StaffGroup } from '$lib/domain/permissions';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
@@ -26,6 +26,20 @@ declare global {
        * event dates. See {@link readDevPhaseOverride}.
        */
       stagePhaseOverride: EventLifecycleStatus | null;
+      /**
+       * The real admin behind an impersonated session. Set only when
+       * `session.impersonatedBy` is present. Lets analytics identify the
+       * actual actor (the admin) rather than the impersonated profile,
+       * so admin debugging/support clicks don't pollute the target
+       * user's funnels.
+       */
+      impersonator: {
+        userId: string;
+        email: string | null;
+        staffProfileId: string | null;
+        staffRole: StaffRole | null;
+        campusName: string | null;
+      } | null;
     }
     // interface PageData {}
     // interface PageState {}
