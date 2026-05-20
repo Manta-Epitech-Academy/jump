@@ -30,13 +30,16 @@ export const FEATURE_FLAGS = {
     label: 'Coding Club',
     description: "Ateliers hebdomadaires tout le reste de l'année.",
   }),
+  // Minigames live in a separate repo (Manta-Epitech-Academy/jump-games).
+  // Integration contract — embed protocol, score/XP callbacks, asset URLs — is
+  // documented there in INTEGRATION.md (formerly MINIGAMES.md):
+  // https://github.com/Manta-Epitech-Academy/jump-games/blob/main/INTEGRATION.md
   minigames: def({
     key: 'minigames',
     kind: 'capability',
     defaultEnabled: false,
     label: 'Mini-jeux',
-    description:
-      'Active les mini-jeux du jour pour les talents (cf. MINIGAMES.md).',
+    description: 'Active les mini-jeux du jour pour les talents.',
   }),
   staff_intervenants: def({
     key: 'staff_intervenants',
