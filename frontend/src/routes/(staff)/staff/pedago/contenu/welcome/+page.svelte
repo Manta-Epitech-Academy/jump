@@ -44,7 +44,17 @@
         return async ({ result, update }) => {
           saving = false;
           if (result.type === 'success') {
-            track('cms_welcome_saved', { space: 'pedago' });
+            track('cms_welcome_saved', {
+              space: 'pedago',
+              bodyLength:
+                content.length < 500
+                  ? '<500'
+                  : content.length < 2000
+                    ? '500-2k'
+                    : content.length < 10000
+                      ? '2k-10k'
+                      : '>10k',
+            });
           }
           await update();
         };

@@ -12,7 +12,7 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import { toast } from 'svelte-sonner';
   import { enhance } from '$app/forms';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
   let { showPortfolio = $bindable(), portfolioItems, eventId } = $props();
 
   let isUploadingPortfolio = $state(false);
@@ -77,8 +77,14 @@
               isUploadingPortfolio = false;
               if (result.type === 'success') {
                 track('portfolio_item_created', {
-                  hasFile: portfolioFile !== null,
-                  hasUrl: portfolioUrl !== '',
+                  kind:
+                    portfolioFile !== null
+                      ? 'file'
+                      : portfolioUrl !== ''
+                        ? 'link'
+                        : 'text',
+                  hasCaption: !!portfolioCaption.trim(),
+                  eventId,
                 });
                 toast.success('Élément ajouté au portfolio !');
                 portfolioFile = null;
@@ -86,7 +92,10 @@
                 portfolioCaption = '';
                 if (fileInputRef) fileInputRef.value = '';
               } else {
-                track('portfolio_item_create_failed');
+                track('portfolio_item_create_failed', {
+                  reason: errReason((result as any).data),
+                  eventId,
+                });
                 toast.error(
                   (result as any).data?.message || "Erreur lors de l'ajout.",
                 );
@@ -246,7 +255,14 @@
                     method="POST"
                     use:enhance={() =>
                       async ({ update }) => {
-                        track('portfolio_item_deleted');
+                        track('portfolio_item_deleted', {
+                          kind: item.filePath
+                            ? 'file'
+                            : item.url
+                              ? 'link'
+                              : 'text',
+                          eventId,
+                        });
                         toast.success('Élément supprimé');
                         await update();
                       }}

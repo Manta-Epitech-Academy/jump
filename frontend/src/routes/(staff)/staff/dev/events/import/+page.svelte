@@ -15,7 +15,7 @@
   import FakeProgressLoader from './components/FakeProgressLoader.svelte';
   import CsvDropzone from './components/CsvDropzone.svelte';
   import CampaignReviewTable from './components/CampaignReviewTable.svelte';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -106,30 +106,64 @@
           enctype="multipart/form-data"
           use:kitEnhance={() => {
             isAnalyzing = true;
+            const startedAt = Date.now();
             track('event_csv_analyze_started');
             startFakeProgress();
             return async ({ result }) => {
               completeProgress(() => {
                 isAnalyzing = false;
+                const durationMs = Date.now() - startedAt;
                 if (result.type === 'success' && result.data) {
                   if (result.data.analysisSuccess) {
-                    track('event_csv_analyzed');
+                    const rows =
+                      (
+                        result.data.analysisData as {
+                          suggestedStatus: string;
+                        }[]
+                      )?.length ?? 0;
+                    const counts = (
+                      result.data.analysisData as { suggestedStatus: string }[]
+                    ).reduce(
+                      (acc, r) => {
+                        acc[r.suggestedStatus] =
+                          (acc[r.suggestedStatus] ?? 0) + 1;
+                        return acc;
+                      },
+                      {} as Record<string, number>,
+                    );
+                    track('event_csv_analyzed', {
+                      rowCount: rows,
+                      newCount: counts.NEW ?? 0,
+                      mergeCount: counts.MERGE ?? 0,
+                      conflictCount: counts.CONFLICT ?? 0,
+                      siblingCount: counts.SIBLING ?? 0,
+                      durationMs,
+                    });
                     analysisResult = result.data;
                   } else {
-                    track('event_csv_analyze_failed');
+                    track('event_csv_analyze_failed', {
+                      reason: errReason(result.data),
+                      durationMs,
+                    });
                     toast.error(
                       (result.data as Record<string, any>).error ||
                         "Erreur d'analyse",
                     );
                   }
                 } else if (result.type === 'failure') {
-                  track('event_csv_analyze_failed');
+                  track('event_csv_analyze_failed', {
+                    reason: errReason(result.data),
+                    durationMs,
+                  });
                   toast.error(
                     (result.data as Record<string, any> | undefined)?.error ||
                       "Erreur d'analyse",
                   );
                 } else {
-                  track('event_csv_analyze_failed');
+                  track('event_csv_analyze_failed', {
+                    reason: 'unknown',
+                    durationMs,
+                  });
                   toast.error("Erreur d'analyse");
                 }
               });
@@ -190,14 +224,21 @@
             method="POST"
             use:kitEnhance={() => {
               isConfirming = true;
-              track('event_csv_import_started');
+              const startedAt = Date.now();
+              const rowCount = analysisResult?.analysisData?.length ?? 0;
+              track('event_csv_import_started', { rowCount });
               startFakeProgress();
               return async ({ result, update }) => {
                 completeProgress(async () => {
+                  const durationMs = Date.now() - startedAt;
                   if (result.type === 'success' || result.type === 'redirect') {
-                    track('event_csv_imported');
+                    track('event_csv_imported', { rowCount, durationMs });
                   } else if (result.type === 'failure') {
-                    track('event_csv_import_failed');
+                    track('event_csv_import_failed', {
+                      rowCount,
+                      durationMs,
+                      reason: errReason(result.data),
+                    });
                   }
                   await update();
                   isConfirming = false;

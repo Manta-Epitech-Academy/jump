@@ -13,7 +13,7 @@
   import { cn } from '$lib/utils';
   import { fly } from 'svelte/transition';
   import { untrack } from 'svelte';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let { data } = $props();
   let step = $state<'email' | 'otp'>('email');
@@ -34,7 +34,7 @@
           $otpForm.email = $emailForm.email.toLowerCase().trim();
           step = 'otp';
         } else if (form.message?.type === 'error') {
-          track('parent_otp_email_failed');
+          track('parent_otp_email_failed', { reason: errReason(form.message) });
         }
       },
     },
@@ -55,7 +55,7 @@
       },
       onUpdated: ({ form }) => {
         if (form.message?.type === 'error') {
-          track('parent_otp_code_failed');
+          track('parent_otp_code_failed', { reason: errReason(form.message) });
         }
       },
     },

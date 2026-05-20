@@ -2,7 +2,7 @@
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import Users from '@lucide/svelte/icons/users';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let {
     nom,
@@ -61,9 +61,12 @@
   use:enhance={() => {
     return async ({ result, update }) => {
       if (result.type === 'redirect' || result.type === 'success') {
-        track('onboarding_info_validated');
+        track('onboarding_info_validated', { step: 'parent' });
       } else if (result.type === 'failure') {
-        track('onboarding_info_validation_failed');
+        track('onboarding_info_validation_failed', {
+          step: 'parent',
+          reason: errReason(result.data),
+        });
       }
       await update();
     };

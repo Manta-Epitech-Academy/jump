@@ -6,7 +6,7 @@
   import type { PageData } from './$types';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { onErrorToast } from '$lib/utils/formErrors';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
   import { STAGE_SECONDE_LABEL, eventTypeHasTheme } from '$lib/domain/event';
 
   import EditEventDialog from './components/EditEventDialog.svelte';
@@ -30,11 +30,18 @@
       resetForm: false,
       onResult: ({ result }) => {
         if (result.type === 'success') {
-          track('event_updated');
+          track('event_updated', {
+            eventId: data.event.id,
+            eventType: data.event.eventType,
+          });
           openEditEvent = false;
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
-          track('event_update_failed');
+          track('event_update_failed', {
+            eventId: data.event.id,
+            eventType: data.event.eventType,
+            reason: errReason(result.data),
+          });
           toast.error(result.data?.form?.message ?? 'Action impossible.');
         }
       },

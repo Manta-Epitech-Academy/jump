@@ -19,7 +19,7 @@
   import { toast } from 'svelte-sonner';
   import { STAFF_ROLES, getStaffRoleLabel } from '$lib/domain/staff';
   import { getInitials } from '$lib/avatar';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -45,7 +45,10 @@
           inviteOpen = false;
           toast.success(result.data?.form?.message || 'Invitation envoyée');
         } else if (result.type === 'failure' && result.data?.form?.message) {
-          track('staff_invitation_failed');
+          track('staff_invitation_failed', {
+            role: $inviteForm.staffRole,
+            reason: errReason(result.data),
+          });
           toast.error(result.data.form.message);
         }
       },
@@ -262,6 +265,7 @@
                       >Admin</Badge
                     >
                   {:else}
+                    {@const fromRole = user.staffProfile?.staffRole ?? null}
                     <form
                       id="role-form-{user.id}"
                       method="POST"
@@ -269,9 +273,13 @@
                       class="flex items-center gap-2"
                       use:enhance={() => {
                         submitting = `role-${user.id}`;
+                        const toRole =
+                          document.querySelector<HTMLInputElement>(
+                            `#role-form-${user.id} input[name="staffRole"]`,
+                          )?.value ?? null;
                         return async ({ update, result }) => {
                           if (result.type === 'success') {
-                            track('staff_role_updated');
+                            track('staff_role_updated', { fromRole, toRole });
                             toast.success('Rôle mis à jour');
                           }
                           await update();
