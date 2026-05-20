@@ -1,5 +1,5 @@
 import type { Actions, PageServerLoad } from './$types';
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
@@ -48,18 +48,5 @@ export const actions: Actions = {
     });
 
     return { form, success: true };
-  },
-
-  delete: async ({ params }) => {
-    const used = await prisma.broadcast.count({
-      where: { templateId: params.id },
-    });
-    if (used > 0) {
-      return fail(400, {
-        deleteError: `Impossible : ${used} envoi(s) utilisent ce template.`,
-      });
-    }
-    await prisma.messageTemplate.delete({ where: { id: params.id } });
-    redirect(303, '/staff/admin/broadcasts/templates');
   },
 };

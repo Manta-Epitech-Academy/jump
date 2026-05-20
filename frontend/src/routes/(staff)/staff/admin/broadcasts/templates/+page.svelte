@@ -1,9 +1,16 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
+  import { enhance } from '$app/forms';
+  import { goto, invalidateAll } from '$app/navigation';
+  import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import Plus from '@lucide/svelte/icons/plus';
   import Mail from '@lucide/svelte/icons/mail';
   import MessageSquare from '@lucide/svelte/icons/message-square';
+  import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
+  import Copy from '@lucide/svelte/icons/copy';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
   import { BROADCAST_CHANNEL_LABELS } from '$lib/domain/broadcasts';
 
   let { data } = $props();
@@ -12,6 +19,30 @@
     dateStyle: 'short',
     timeStyle: 'short',
   });
+
+  // One pair of hidden forms per row (duplicate + delete). Dropdown menu items
+  // call `requestSubmit()` on the right form — keeps the actions native to
+  // SvelteKit / use:enhance so we get redirect + revalidation for free.
+  let duplicateForms = $state<Record<string, HTMLFormElement | undefined>>({});
+  let deleteForms = $state<Record<string, HTMLFormElement | undefined>>({});
+
+  function duplicate(id: string) {
+    duplicateForms[id]?.requestSubmit();
+  }
+
+  function askDelete(id: string, usageCount: number) {
+    const msg =
+      usageCount > 0
+        ? `Impossible : ${usageCount} envoi(s) utilisent ce template.\nSupprime ou archive d'abord les envois liés.`
+        : 'Supprimer ce template ?';
+    if (usageCount > 0) {
+      toast.error(msg);
+      return;
+    }
+    if (confirm(msg)) {
+      deleteForms[id]?.requestSubmit();
+    }
+  }
 </script>
 
 <header class="space-y-2">
@@ -77,13 +108,84 @@
               {formatter.format(t.updatedAt)}
             </td>
             <td class="px-4 py-2 text-right">
-              <Button
-                variant="ghost"
-                size="sm"
-                href={resolve(`/staff/admin/broadcasts/templates/${t.id}`)}
+              <form
+                method="POST"
+                action="?/duplicate"
+                bind:this={duplicateForms[t.id]}
+                use:enhance={() => {
+                  return async ({ result }) => {
+                    if (result.type === 'redirect') {
+                      goto(result.location);
+                    } else if (result.type === 'failure') {
+                      toast.error('Duplication impossible.');
+                    }
+                  };
+                }}
+                class="hidden"
               >
-                Modifier
-              </Button>
+                <input type="hidden" name="id" value={t.id} />
+              </form>
+              <form
+                method="POST"
+                action="?/delete"
+                bind:this={deleteForms[t.id]}
+                use:enhance={() => {
+                  return async ({ result }) => {
+                    if (result.type === 'success') {
+                      toast.success('Template supprimé.');
+                      await invalidateAll();
+                    } else if (result.type === 'failure') {
+                      const data = result.data as
+                        | { deleteError?: string }
+                        | undefined;
+                      toast.error(
+                        data?.deleteError ?? 'Suppression impossible.',
+                      );
+                    }
+                  };
+                }}
+                class="hidden"
+              >
+                <input type="hidden" name="id" value={t.id} />
+              </form>
+
+              <div class="flex items-center justify-end gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  href={resolve(`/staff/admin/broadcasts/templates/${t.id}`)}
+                >
+                  Modifier
+                </Button>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Actions"
+                      >
+                        <MoreHorizontal class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content align="end" class="w-44">
+                    <DropdownMenu.Item onSelect={() => duplicate(t.id)}>
+                      <Copy class="mr-2 h-4 w-4" />
+                      Dupliquer
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Separator />
+                    <DropdownMenu.Item
+                      onSelect={() => askDelete(t.id, t._count.broadcasts)}
+                      class="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <Trash2 class="mr-2 h-4 w-4" />
+                      Supprimer
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </div>
             </td>
           </tr>
         {/each}
