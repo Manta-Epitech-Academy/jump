@@ -3369,15 +3369,7 @@ async function seedWelcomePages(
   const stageEventIndices = [2, 7, 10];
   const updatedBy = Object.values(staffByKey)[0].userId;
 
-  for (const idx of stageEventIndices) {
-    const eventId = eventIds[idx];
-    if (!eventId) continue;
-    await prisma.cmsPage.create({
-      data: {
-        slug: 'welcome',
-        eventId,
-        updatedBy,
-        content: `<h1>Bienvenue à ton stage de seconde !</h1>
+  const content = `<h1>Bienvenue à ton stage de seconde !</h1>
 <p>Tu t'apprêtes à vivre une semaine immersive au cœur du numérique. Pendant ce stage, tu vas :</p>
 <ul>
   <li>Découvrir les métiers de la tech</li>
@@ -3385,56 +3377,64 @@ async function seedWelcomePages(
   <li>Créer ton premier projet</li>
   <li>Rencontrer des professionnels passionnés</li>
 </ul>
-<p>Profite de chaque moment et n'hésite pas à poser des questions. Bonne découverte !</p>`,
-      },
-    });
-  }
+<p>Profite de chaque moment et n'hésite pas à poser des questions. Bonne découverte !</p>`;
+
+  const rows = stageEventIndices.flatMap((idx) => {
+    const eventId = eventIds[idx];
+    if (!eventId) return [];
+    return [{ slug: 'welcome', eventId, updatedBy, content }];
+  });
+  await prisma.cmsPage.createMany({ data: rows });
 }
 
 // ─── Wipe ───
 
 async function wipeAll() {
-  // Children first, parents last
-  await prisma.stageCompliance.deleteMany();
-  await prisma.participationActivity.deleteMany();
-  await prisma.portfolioItem.deleteMany();
-  await prisma.stepsProgress.deleteMany();
-  await prisma.onboardingReminder.deleteMany();
-  // Broadcasts + email-action mappings — dropped before staff so the
-  // `MessageTemplate.createdById` FK doesn't block.
-  await prisma.emailActionMapping.deleteMany();
-  await prisma.broadcastRecipient.deleteMany();
-  await prisma.broadcast.deleteMany();
-  await prisma.messageTemplate.deleteMany();
-  await prisma.participation.deleteMany();
-  await prisma.interview.deleteMany();
-  await prisma.eventManta.deleteMany();
-  await prisma.activityTheme.deleteMany();
-  await prisma.activity.deleteMany();
-  await prisma.timeSlot.deleteMany();
-  await prisma.planning.deleteMany();
-  await prisma.event.deleteMany();
-  await prisma.activityTemplateTheme.deleteMany();
-  await prisma.planningTemplateSlot.deleteMany();
-  await prisma.planningTemplateDay.deleteMany();
-  await prisma.planningTemplate.deleteMany();
-  await prisma.activityTemplate.deleteMany();
-  await prisma.theme.deleteMany();
-  await prisma.talentInterest.deleteMany();
-  await prisma.interest.deleteMany();
-  await prisma.talent.deleteMany();
-  // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
-  // is a required FK with default RESTRICT, so live versions block the delete.
-  await prisma.subjectVersion.deleteMany();
-  await prisma.subject.deleteMany();
-  await prisma.refCompSnapshot.deleteMany();
-  await prisma.staffProfile.deleteMany();
-  await prisma.campus.deleteMany();
-  await prisma.syncError.deleteMany();
-  await prisma.bauth_session.deleteMany();
-  await prisma.bauth_account.deleteMany();
-  await prisma.bauth_verification.deleteMany();
-  await prisma.bauth_user.deleteMany();
+  // One transaction, children first, parents last. Order matters: each
+  // deleteMany must run after the rows referencing it are gone, so the array
+  // order is the FK dependency order — keep it.
+  await prisma.$transaction([
+    prisma.stageCompliance.deleteMany(),
+    prisma.participationActivity.deleteMany(),
+    prisma.portfolioItem.deleteMany(),
+    prisma.stepsProgress.deleteMany(),
+    prisma.onboardingReminder.deleteMany(),
+    // Broadcasts + email-action mappings — dropped before staff so the
+    // `MessageTemplate.createdById` FK doesn't block.
+    prisma.emailActionMapping.deleteMany(),
+    prisma.broadcastRecipient.deleteMany(),
+    prisma.broadcast.deleteMany(),
+    prisma.messageTemplate.deleteMany(),
+    prisma.participation.deleteMany(),
+    prisma.interview.deleteMany(),
+    prisma.eventManta.deleteMany(),
+    prisma.activityTheme.deleteMany(),
+    prisma.activity.deleteMany(),
+    prisma.timeSlot.deleteMany(),
+    prisma.planning.deleteMany(),
+    prisma.event.deleteMany(),
+    prisma.activityTemplateTheme.deleteMany(),
+    prisma.planningTemplateSlot.deleteMany(),
+    prisma.planningTemplateDay.deleteMany(),
+    prisma.planningTemplate.deleteMany(),
+    prisma.activityTemplate.deleteMany(),
+    prisma.theme.deleteMany(),
+    prisma.talentInterest.deleteMany(),
+    prisma.interest.deleteMany(),
+    prisma.talent.deleteMany(),
+    // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
+    // is a required FK with default RESTRICT, so live versions block the delete.
+    prisma.subjectVersion.deleteMany(),
+    prisma.subject.deleteMany(),
+    prisma.refCompSnapshot.deleteMany(),
+    prisma.staffProfile.deleteMany(),
+    prisma.campus.deleteMany(),
+    prisma.syncError.deleteMany(),
+    prisma.bauth_session.deleteMany(),
+    prisma.bauth_account.deleteMany(),
+    prisma.bauth_verification.deleteMany(),
+    prisma.bauth_user.deleteMany(),
+  ]);
 }
 
 // ─── Interests ───
@@ -3481,27 +3481,16 @@ async function seedInterests() {
     { nom: 'Économie / Business', emoji: '💼' },
   ];
 
-  for (let i = 0; i < techItems.length; i++) {
-    await prisma.interest.create({
-      data: {
-        nom: techItems[i].nom,
-        emoji: techItems[i].emoji,
-        kind: 'tech',
+  await prisma.interest.createMany({
+    data: [
+      ...techItems.map((it, i) => ({ ...it, kind: 'tech' as const, order: i })),
+      ...generalItems.map((it, i) => ({
+        ...it,
+        kind: 'general' as const,
         order: i,
-      },
-    });
-  }
-
-  for (let i = 0; i < generalItems.length; i++) {
-    await prisma.interest.create({
-      data: {
-        nom: generalItems[i].nom,
-        emoji: generalItems[i].emoji,
-        kind: 'general',
-        order: i,
-      },
-    });
-  }
+      })),
+    ],
+  });
 }
 
 async function assignTalentInterests() {
@@ -3519,25 +3508,23 @@ async function assignTalentInterests() {
     select: { id: true },
   });
 
-  for (const talent of talents) {
-    // 1-2 tech
+  const rows = talents.flatMap((talent) => {
+    // 1-2 tech, 1-5 general — shuffle-and-slice per talent
     const techCount = 1 + Math.floor(Math.random() * 2);
-    const shuffledTech = [...techIds].sort(() => Math.random() - 0.5);
-    const selectedTech = shuffledTech.slice(0, techCount);
-
-    // 1-5 general
+    const selectedTech = [...techIds]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, techCount);
     const genCount = 1 + Math.floor(Math.random() * 5);
-    const shuffledGen = [...generalIds].sort(() => Math.random() - 0.5);
-    const selectedGen = shuffledGen.slice(0, genCount);
+    const selectedGen = [...generalIds]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, genCount);
+    return [...selectedTech, ...selectedGen].map((interest) => ({
+      talentId: talent.id,
+      interestId: interest.id,
+    }));
+  });
 
-    await prisma.talentInterest.createMany({
-      data: [
-        ...selectedTech.map((t) => ({ talentId: talent.id, interestId: t.id })),
-        ...selectedGen.map((g) => ({ talentId: talent.id, interestId: g.id })),
-      ],
-      skipDuplicates: true,
-    });
-  }
+  await prisma.talentInterest.createMany({ data: rows, skipDuplicates: true });
 }
 
 // ─── Seeders ───
@@ -3546,43 +3533,51 @@ async function seedCampuses(): Promise<
   Record<string, { id: string; name: string }>
 > {
   const names = ['Paris', 'Lyon', 'Marseille'];
+  const created = await prisma.campus.createManyAndReturn({
+    data: names.map((name) => ({ name })),
+    select: { id: true, name: true },
+  });
   const byName: Record<string, { id: string; name: string }> = {};
-  for (const name of names) {
-    const campus = await prisma.campus.create({ data: { name } });
-    byName[name] = { id: campus.id, name: campus.name };
-  }
+  for (const c of created) byName[c.name] = c;
   return byName;
 }
 
 async function seedStaff(
   campuses: Record<string, { id: string }>,
 ): Promise<Record<string, { id: string; userId: string; campusId: string }>> {
+  // Users first, then profiles referencing them. createManyAndReturn doesn't
+  // guarantee row order, so map back by the unique business key (email →
+  // userId, then userId → profile) rather than by index.
+  const users = await prisma.bauth_user.createManyAndReturn({
+    data: STAFF_MEMBERS.map((s) => ({
+      email: s.email,
+      name: s.name,
+      role: 'staff',
+      emailVerified: true,
+      image: s.image,
+    })),
+    select: { id: true, email: true },
+  });
+  const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
+
+  const profiles = await prisma.staffProfile.createManyAndReturn({
+    data: STAFF_MEMBERS.map((s) => ({
+      userId: userIdByEmail.get(s.email)!,
+      campusId: campuses[s.campus].id,
+      staffRole: s.role,
+    })),
+    select: { id: true, userId: true, campusId: true },
+  });
+  const profileByUserId = new Map(profiles.map((p) => [p.userId, p]));
+
   const byKey: Record<
     string,
     { id: string; userId: string; campusId: string }
   > = {};
   for (const s of STAFF_MEMBERS) {
-    const user = await prisma.bauth_user.create({
-      data: {
-        email: s.email,
-        name: s.name,
-        role: 'staff',
-        emailVerified: true,
-        image: s.image,
-      },
-    });
-    const profile = await prisma.staffProfile.create({
-      data: {
-        userId: user.id,
-        campusId: campuses[s.campus].id,
-        staffRole: s.role,
-      },
-    });
-    byKey[s.key] = {
-      id: profile.id,
-      userId: user.id,
-      campusId: profile.campusId!,
-    };
+    const userId = userIdByEmail.get(s.email)!;
+    const profile = profileByUserId.get(userId)!;
+    byKey[s.key] = { id: profile.id, userId, campusId: profile.campusId! };
   }
   return byKey;
 }
@@ -3593,17 +3588,21 @@ async function seedStudents(): Promise<
   const byEmail: Record<string, { id: string; nom: string; prenom: string }> =
     {};
 
-  for (let i = 0; i < STUDENTS.length; i++) {
-    const s = STUDENTS[i];
-    const user = await prisma.bauth_user.create({
-      data: {
-        email: s.email,
-        name: `${s.prenom} ${s.nom}`,
-        role: 'student',
-        emailVerified: true,
-      },
-    });
+  // Users first, then talents referencing them — both batched. Talent rows
+  // map back to their user by email (createManyAndReturn order isn't
+  // guaranteed), which is also the talent's own unique key.
+  const users = await prisma.bauth_user.createManyAndReturn({
+    data: STUDENTS.map((s) => ({
+      email: s.email,
+      name: `${s.prenom} ${s.nom}`,
+      role: 'student',
+      emailVerified: true,
+    })),
+    select: { id: true, email: true },
+  });
+  const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
 
+  const talentData = STUDENTS.map((s, i) => {
     // Connexions plateforme : 10% jamais connecté·e (alerte "Jamais
     // connectés"), le reste avec une dernière activité datée selon la
     // valeur déclarée par StudentDef.
@@ -3645,37 +3644,38 @@ async function seedStudents(): Promise<
     const rulesSignedAt = fullyOnboarded ? new Date() : null;
     const hasParentInfo = fullyOnboarded || s.skipOnboarding === true;
 
-    const talent = await prisma.talent.create({
-      data: {
-        userId: user.id,
-        email: s.email,
-        nom: s.nom,
-        prenom: s.prenom,
-        phone: s.phone,
-        parentPhone: s.parentPhone,
-        niveau: s.niveau,
-        charterAcceptedAt,
-        infoValidatedAt,
-        techInterestsValidatedAt: fullyOnboarded ? new Date() : null,
-        generalInterestsValidatedAt: fullyOnboarded ? new Date() : null,
-        interestsRecapSeenAt: fullyOnboarded ? new Date() : null,
-        rulesSignedAt,
-        highSchoolValidatedAt: fullyOnboarded ? new Date() : null,
-        highSchoolName: fullyOnboarded ? 'Lycée général Victor Hugo' : null,
-        highSchoolCity: fullyOnboarded ? 'Paris' : null,
-        parentNom: hasParentInfo ? 'Martin' : null,
-        parentPrenom: hasParentInfo ? 'Sophie' : null,
-        parentEmail: hasParentInfo ? `parent.${s.email}` : null,
-        lastActiveAt,
-        externalId: mockSalesforceLeadId(i),
-      },
-    });
-
-    byEmail[s.email] = {
-      id: talent.id,
-      nom: talent.nom,
-      prenom: talent.prenom,
+    return {
+      userId: userIdByEmail.get(s.email)!,
+      email: s.email,
+      nom: s.nom,
+      prenom: s.prenom,
+      phone: s.phone,
+      parentPhone: s.parentPhone,
+      niveau: s.niveau,
+      charterAcceptedAt,
+      infoValidatedAt,
+      techInterestsValidatedAt: fullyOnboarded ? new Date() : null,
+      generalInterestsValidatedAt: fullyOnboarded ? new Date() : null,
+      interestsRecapSeenAt: fullyOnboarded ? new Date() : null,
+      rulesSignedAt,
+      highSchoolValidatedAt: fullyOnboarded ? new Date() : null,
+      highSchoolName: fullyOnboarded ? 'Lycée général Victor Hugo' : null,
+      highSchoolCity: fullyOnboarded ? 'Paris' : null,
+      parentNom: hasParentInfo ? 'Martin' : null,
+      parentPrenom: hasParentInfo ? 'Sophie' : null,
+      parentEmail: hasParentInfo ? `parent.${s.email}` : null,
+      lastActiveAt,
+      externalId: mockSalesforceLeadId(i),
     };
+  });
+
+  const talents = await prisma.talent.createManyAndReturn({
+    data: talentData,
+    select: { id: true, email: true, nom: true, prenom: true },
+  });
+  for (const t of talents) {
+    // email is nullable in the schema but always set here — guard for the type.
+    if (t.email) byEmail[t.email] = { id: t.id, nom: t.nom, prenom: t.prenom };
   }
   return byEmail;
 }
@@ -3718,32 +3718,43 @@ async function seedThemes(campuses: Record<string, { id: string }>) {
     'Design & Création',
   ];
 
-  const byKey: Record<string, { id: string }> = {};
-
-  // Official (campus-less) themes
-  for (const nom of themeNames) {
-    const t = await prisma.theme.create({ data: { nom, campusId: null } });
-    byKey[`official:${nom}`] = t;
-  }
-
-  // Campus-scoped themes (Paris: all; Lyon: web/robotics/IA only)
-  for (const nom of themeNames) {
-    const t = await prisma.theme.create({
-      data: { nom, campusId: campuses.Paris.id },
-    });
-    byKey[`Paris:${nom}`] = t;
-  }
-  for (const nom of [
+  const lyonThemes = [
     'Développement Web',
     'Robotique',
     'Intelligence Artificielle',
-  ]) {
-    const t = await prisma.theme.create({
-      data: { nom, campusId: campuses.Lyon.id },
-    });
-    byKey[`Lyon:${nom}`] = t;
-  }
+  ];
 
+  // Official (campus-less), Paris (all), Lyon (web/robotics/IA only) in one
+  // insert. Each row carries the prefix used to rebuild the lookup key, and is
+  // remapped by (campusId, nom) since createManyAndReturn order isn't ordered.
+  const themeData = [
+    ...themeNames.map((nom) => ({ nom, campusId: null, prefix: 'official' })),
+    ...themeNames.map((nom) => ({
+      nom,
+      campusId: campuses.Paris.id,
+      prefix: 'Paris',
+    })),
+    ...lyonThemes.map((nom) => ({
+      nom,
+      campusId: campuses.Lyon.id,
+      prefix: 'Lyon',
+    })),
+  ];
+  const prefixByCampusId = new Map<string | null, string>([
+    [null, 'official'],
+    [campuses.Paris.id, 'Paris'],
+    [campuses.Lyon.id, 'Lyon'],
+  ]);
+
+  const created = await prisma.theme.createManyAndReturn({
+    data: themeData.map(({ nom, campusId }) => ({ nom, campusId })),
+    select: { id: true, nom: true, campusId: true },
+  });
+
+  const byKey: Record<string, { id: string }> = {};
+  for (const t of created) {
+    byKey[`${prefixByCampusId.get(t.campusId)}:${t.nom}`] = { id: t.id };
+  }
   return byKey;
 }
 
@@ -3751,54 +3762,53 @@ async function seedActivityTemplates(
   themesByKey: Record<string, { id: string }>,
   campuses: Record<string, { id: string }>,
 ) {
-  const byName: Record<string, { id: string }> = {};
-  for (const def of activityDefs) {
-    const campusId = def.campus ? (campuses[def.campus]?.id ?? null) : null;
-    const tpl = await prisma.activityTemplate.create({
-      data: {
-        nom: def.nom,
-        description: def.description,
-        difficulte: def.difficulte,
-        activityType: def.activityType,
-        isDynamic: def.isDynamic,
-        contentStructure: def.isDynamic
-          ? (contentStructures[def.nom] ?? undefined)
-          : undefined,
-        content: def.content
-          ? (marked.parse(def.content) as string)
-          : undefined,
-        link: def.link,
-        defaultDuration: def.defaultDuration,
-        campusId,
-        activityTemplateThemes: {
-          create: def.themes
-            .map((themeName) => {
-              const themeId =
-                (def.campus && themesByKey[`${def.campus}:${themeName}`]?.id) ||
-                themesByKey[`official:${themeName}`]?.id;
-              return themeId ? { themeId } : null;
-            })
-            .filter((x): x is NonNullable<typeof x> => x !== null),
+  // Each template carries a nested activityTemplateThemes create, which
+  // createMany can't express — so fire the per-template creates concurrently
+  // instead. The set is small (one row per activityDef), well within the pool.
+  const created = await Promise.all(
+    activityDefs.map((def) => {
+      const campusId = def.campus ? (campuses[def.campus]?.id ?? null) : null;
+      return prisma.activityTemplate.create({
+        data: {
+          nom: def.nom,
+          description: def.description,
+          difficulte: def.difficulte,
+          activityType: def.activityType,
+          isDynamic: def.isDynamic,
+          contentStructure: def.isDynamic
+            ? (contentStructures[def.nom] ?? undefined)
+            : undefined,
+          content: def.content
+            ? (marked.parse(def.content) as string)
+            : undefined,
+          link: def.link,
+          defaultDuration: def.defaultDuration,
+          campusId,
+          activityTemplateThemes: {
+            create: def.themes
+              .map((themeName) => {
+                const themeId =
+                  (def.campus &&
+                    themesByKey[`${def.campus}:${themeName}`]?.id) ||
+                  themesByKey[`official:${themeName}`]?.id;
+                return themeId ? { themeId } : null;
+              })
+              .filter((x): x is NonNullable<typeof x> => x !== null),
+          },
         },
-      },
-    });
-    byName[def.nom] = tpl;
-  }
+        select: { id: true, nom: true },
+      });
+    }),
+  );
+
+  const byName: Record<string, { id: string }> = {};
+  for (const tpl of created) byName[tpl.nom] = { id: tpl.id };
   return byName;
 }
 
 async function seedPlanningTemplate(
   templatesByName: Record<string, { id: string }>,
 ) {
-  const tpl = await prisma.planningTemplate.create({
-    data: {
-      nom: 'Stage de seconde — 5 jours',
-      description:
-        'Modèle de planning sur 5 jours avec accueil/appel + ateliers thématiques par jour.',
-      nbDays: 5,
-    },
-  });
-
   const byDay: [string, string][] = [
     ['Ma première page HTML', 'CSS : Styliser sa page'],
     ['Construis ton robot', 'Capteurs et actionneurs'],
@@ -3807,39 +3817,40 @@ async function seedPlanningTemplate(
     ['Crée ton jeu Scratch', 'Game Design avancé'],
   ];
 
-  for (let i = 0; i < 5; i++) {
-    const day = await prisma.planningTemplateDay.create({
-      data: {
-        planningTemplateId: tpl.id,
-        dayIndex: i,
-        label: `Jour ${i + 1}`,
+  // Whole template (days → appel + atelier slots) as one nested create.
+  await prisma.planningTemplate.create({
+    data: {
+      nom: 'Stage de seconde — 5 jours',
+      description:
+        'Modèle de planning sur 5 jours avec accueil/appel + ateliers thématiques par jour.',
+      nbDays: 5,
+      days: {
+        create: byDay.map((actNames, i) => ({
+          dayIndex: i,
+          label: `Jour ${i + 1}`,
+          slots: {
+            create: [
+              {
+                startTime: '13:00',
+                endTime: '13:30',
+                sortOrder: 0,
+                nom: 'Appel',
+                activityType: 'orga' as ActivityType,
+              },
+              ...actNames.map((actName, j) => ({
+                startTime: '13:45',
+                endTime: '16:30',
+                sortOrder: 1 + j,
+                activityTemplateId: templatesByName[actName]?.id ?? null,
+                nom: templatesByName[actName] ? null : actName,
+                activityType: 'atelier' as ActivityType,
+              })),
+            ],
+          },
+        })),
       },
-    });
-    await prisma.planningTemplateSlot.create({
-      data: {
-        planningTemplateDayId: day.id,
-        startTime: '13:00',
-        endTime: '13:30',
-        sortOrder: 0,
-        nom: 'Appel',
-        activityType: 'orga',
-      },
-    });
-    for (let j = 0; j < byDay[i].length; j++) {
-      const actName = byDay[i][j];
-      await prisma.planningTemplateSlot.create({
-        data: {
-          planningTemplateDayId: day.id,
-          startTime: '13:45',
-          endTime: '16:30',
-          sortOrder: 1 + j,
-          activityTemplateId: templatesByName[actName]?.id ?? null,
-          nom: templatesByName[actName] ? null : actName,
-          activityType: 'atelier',
-        },
-      });
-    }
-  }
+    },
+  });
 }
 
 async function seedEvents(
@@ -3864,6 +3875,62 @@ async function seedEvents(
         ? dayAt(blueprint.daysOffset + blueprint.durationDays - 1, 23, 59)
         : null;
 
+    // Normalise single-day vs multi-day into a loop (empty when no slots/days)
+    const dayList: DayBlueprint[] =
+      blueprint.days ??
+      (blueprint.slots ? [{ dayOffset: 0, slots: blueprint.slots }] : []);
+
+    // Whole planning skeleton — timeSlots → activity → activityThemes — built
+    // as nested-create input so the entire event ships in one round trip.
+    // 1 activity = 1 slot; multi-activity blueprints write as parallel slots
+    // at the same time.
+    const timeSlotData = dayList.flatMap((day) =>
+      day.slots.flatMap((slot) => {
+        const slotStart = dayAt(
+          blueprint.daysOffset + day.dayOffset,
+          slot.startHour,
+          slot.startMinute ?? 0,
+        );
+        const slotEnd = dayAt(
+          blueprint.daysOffset + day.dayOffset,
+          slot.endHour,
+          slot.endMinute ?? 0,
+        );
+        return slot.activities.map((act) => {
+          const blueprintDef = activityDefs.find((d) => d.nom === act.nom);
+          const activityType: ActivityType =
+            act.activityType ?? blueprintDef?.activityType ?? 'atelier';
+          const isDynamic = blueprintDef?.isDynamic ?? false;
+          const themeRows = (blueprintDef?.themes ?? [])
+            .map(
+              (themeName) =>
+                themesByKey[`${blueprint.campus}:${themeName}`]?.id,
+            )
+            .filter((id): id is string => Boolean(id))
+            .map((themeId) => ({ themeId }));
+          return {
+            startTime: slotStart,
+            endTime: slotEnd,
+            activity: {
+              create: {
+                nom: act.nom,
+                description: blueprintDef?.description ?? null,
+                difficulte: blueprintDef?.difficulte ?? null,
+                activityType,
+                isDynamic,
+                contentStructure:
+                  isDynamic && contentStructures[act.nom]
+                    ? contentStructures[act.nom]
+                    : undefined,
+                templateId: templatesByName[act.nom]?.id ?? null,
+                activityThemes: { create: themeRows },
+              },
+            },
+          };
+        });
+      }),
+    );
+
     const event = await prisma.event.create({
       data: {
         titre: blueprint.titre,
@@ -3882,155 +3949,110 @@ async function seedEvents(
             })
             .filter((x): x is NonNullable<typeof x> => x !== null),
         },
-        planning: { create: {} },
+        planning: { create: { timeSlots: { create: timeSlotData } } },
       },
-      include: { planning: true },
+      include: {
+        planning: { include: { timeSlots: { include: { activity: true } } } },
+      },
     });
     eventIds.push(event.id);
 
-    const planning = event.planning!;
-    const activitiesCreated: { id: string; nom: string; type: ActivityType }[] =
-      [];
+    const activitiesCreated = (event.planning?.timeSlots ?? [])
+      .map((ts) => ts.activity)
+      .filter((a): a is NonNullable<typeof a> => a !== null);
 
-    // Normalise single-day vs multi-day into a loop (empty when no slots/days)
-    const dayList: DayBlueprint[] =
-      blueprint.days ??
-      (blueprint.slots ? [{ dayOffset: 0, slots: blueprint.slots }] : []);
-
-    for (const day of dayList) {
-      for (const slot of day.slots) {
-        const slotStart = dayAt(
-          blueprint.daysOffset + day.dayOffset,
-          slot.startHour,
-          slot.startMinute ?? 0,
-        );
-        const slotEnd = dayAt(
-          blueprint.daysOffset + day.dayOffset,
-          slot.endHour,
-          slot.endMinute ?? 0,
-        );
-
-        // 1 activity = 1 slot. Multi-activity blueprints write as parallel slots at same time.
-        for (const act of slot.activities) {
-          const timeSlot = await prisma.timeSlot.create({
-            data: {
-              planningId: planning.id,
-              startTime: slotStart,
-              endTime: slotEnd,
-            },
-          });
-
-          const tpl = templatesByName[act.nom];
-          const blueprintDef = activityDefs.find((d) => d.nom === act.nom);
-          const activityType: ActivityType =
-            act.activityType ?? blueprintDef?.activityType ?? 'atelier';
-          const isDynamic = blueprintDef?.isDynamic ?? false;
-
-          const created = await prisma.activity.create({
-            data: {
-              nom: act.nom,
-              description: blueprintDef?.description ?? null,
-              difficulte: blueprintDef?.difficulte ?? null,
-              activityType,
-              isDynamic,
-              contentStructure:
-                isDynamic && contentStructures[act.nom]
-                  ? contentStructures[act.nom]
-                  : undefined,
-              templateId: tpl?.id ?? null,
-              timeSlotId: timeSlot.id,
-            },
-          });
-
-          for (const themeName of blueprintDef?.themes ?? []) {
-            const themeId = themesByKey[`${blueprint.campus}:${themeName}`]?.id;
-            if (themeId) {
-              await prisma.activityTheme.create({
-                data: { activityId: created.id, themeId },
-              });
-            }
-          }
-
-          activitiesCreated.push({
-            id: created.id,
-            nom: created.nom,
-            type: activityType,
-          });
-        }
-      }
-    }
-
-    // Participations
-    for (let i = 0; i < blueprint.studentEmails.length; i++) {
-      const email = blueprint.studentEmails[i];
-      const talent = talentByEmail[email];
-      if (!talent) continue;
-
-      const isPresent = blueprint.presentEmails
-        ? blueprint.presentEmails.includes(email)
-        : false;
-
-      const verdictEntry = blueprint.verdicts_by_email?.[email];
-      const verdictAuthor = verdictEntry
-        ? staffByKey[verdictEntry.authorKey]
-        : undefined;
-
-      const participation = await prisma.participation.create({
-        data: {
-          talentId: talent.id,
-          eventId: event.id,
-          campusId,
-          isPresent,
+    // Per-student context, derived once and reused across participation,
+    // participationActivity and stageCompliance rows.
+    const students = blueprint.studentEmails
+      .map((email, i) => {
+        const talent = talentByEmail[email];
+        if (!talent) return null;
+        const verdictEntry = blueprint.verdicts_by_email?.[email];
+        const verdictAuthor = verdictEntry
+          ? staffByKey[verdictEntry.authorKey]
+          : undefined;
+        return {
+          email,
+          i,
+          talent,
+          isPresent: blueprint.presentEmails?.includes(email) ?? false,
           delay: blueprint.delays?.[email] ?? 0,
-          bringPc: blueprint.bringPc ? blueprint.bringPc(email, i) : false,
-          camperRating: isPresent ? (blueprint.ratings?.[email] ?? null) : null,
-          camperFeedback: isPresent
-            ? (blueprint.feedback?.[email] ?? null)
-            : null,
-        },
-      });
+          verdictEntry,
+          verdictAuthor,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
 
-      // Cockpit attaches verdicts at the orga (roll-call) slot, so seed
-      // mirrors that on the first orga activity of the event.
-      const verdictTargetId = activitiesCreated.find(
-        (a) => a.type === 'orga',
-      )?.id;
-      for (const activity of activitiesCreated) {
+    // Participations — batched, then mapped back by talentId (unique per
+    // event) to wire up the activity + compliance child rows.
+    const participations = await prisma.participation.createManyAndReturn({
+      data: students.map((s) => ({
+        talentId: s.talent.id,
+        eventId: event.id,
+        campusId,
+        isPresent: s.isPresent,
+        delay: s.delay,
+        bringPc: blueprint.bringPc ? blueprint.bringPc(s.email, s.i) : false,
+        camperRating: s.isPresent
+          ? (blueprint.ratings?.[s.email] ?? null)
+          : null,
+        camperFeedback: s.isPresent
+          ? (blueprint.feedback?.[s.email] ?? null)
+          : null,
+      })),
+      select: { id: true, talentId: true },
+    });
+    const participationIdByTalent = new Map(
+      participations.map((p) => [p.talentId, p.id]),
+    );
+
+    // Cockpit attaches verdicts at the orga (roll-call) slot, so seed mirrors
+    // that on the event's orga activity.
+    const verdictTargetId = activitiesCreated.find(
+      (a) => a.activityType === 'orga',
+    )?.id;
+
+    const participationActivityRows = students.flatMap((s) => {
+      const participationId = participationIdByTalent.get(s.talent.id)!;
+      return activitiesCreated.map((activity) => {
         const isVerdictTarget =
-          verdictEntry && verdictAuthor && activity.id === verdictTargetId;
-        await prisma.participationActivity.create({
-          data: {
-            participationId: participation.id,
-            activityId: activity.id,
-            isPresent,
-            delay: blueprint.delays?.[email] ?? 0,
-            ...(isVerdictTarget
-              ? {
-                  verdict: verdictEntry.verdict,
-                  contextTag: verdictEntry.contextTag ?? null,
-                  verdictAuthorId: verdictAuthor.id,
-                  verdictAt: new Date(),
-                }
-              : {}),
-          },
-        });
-      }
+          s.verdictEntry && s.verdictAuthor && activity.id === verdictTargetId;
+        return {
+          participationId,
+          activityId: activity.id,
+          isPresent: s.isPresent,
+          delay: s.delay,
+          ...(isVerdictTarget
+            ? {
+                verdict: s.verdictEntry!.verdict,
+                contextTag: s.verdictEntry!.contextTag ?? null,
+                verdictAuthorId: s.verdictAuthor!.id,
+                verdictAt: new Date(),
+              }
+            : {}),
+        };
+      });
+    });
+    await prisma.participationActivity.createMany({
+      data: participationActivityRows,
+    });
 
-      // Stage compliance (only for stage_seconde events)
-      if (blueprint.eventType === EVENT_TYPES.STAGE_SECONDE) {
-        const fullySigned = blueprint.stageSigned?.includes(email) ?? false;
+    // Stage compliance (only for stage_seconde events)
+    if (blueprint.eventType === EVENT_TYPES.STAGE_SECONDE) {
+      const complianceRows = students.flatMap((s) => {
+        const fullySigned = blueprint.stageSigned?.includes(s.email) ?? false;
         const partiallySigned =
-          blueprint.stageUnsigned?.includes(email) ?? false;
-        if (fullySigned || partiallySigned) {
-          await prisma.stageCompliance.create({
-            data: {
-              participationId: participation.id,
-              charteSigned: fullySigned || Math.random() < 0.5,
-              imageRightsSigned: fullySigned || partiallySigned,
-            },
-          });
-        }
-      }
+          blueprint.stageUnsigned?.includes(s.email) ?? false;
+        if (!fullySigned && !partiallySigned) return [];
+        return [
+          {
+            participationId: participationIdByTalent.get(s.talent.id)!,
+            charteSigned: fullySigned || Math.random() < 0.5,
+            imageRightsSigned: fullySigned || partiallySigned,
+          },
+        ];
+      });
+      await prisma.stageCompliance.createMany({ data: complianceRows });
     }
   }
 
@@ -4062,81 +4084,84 @@ async function seedStepsProgress(
 
   let alertCount = 0;
   const presentEmails = liveEvent.presentEmails ?? [];
-  for (let i = 0; i < presentEmails.length; i++) {
-    const email = presentEmails[i];
+  const liveRows = presentEmails.flatMap((email, i) => {
     const talent = talentByEmail[email];
-    if (!talent || !firstStep) continue;
-
-    let status: 'active' | 'needs_help' | 'completed';
-    let currentStepId = firstStep;
-    let unlockedStepId = firstStep;
+    if (!talent || !firstStep) return [];
 
     // Distribution on 6 present students: 2 completed, 1 active, 3 needs_help
+    let status: 'active' | 'needs_help' | 'completed';
+    let stepId = firstStep;
     if (i < 2) {
       status = 'completed';
-      currentStepId = lastStep ?? firstStep;
-      unlockedStepId = lastStep ?? firstStep;
+      stepId = lastStep ?? firstStep;
     } else if (i < 3) {
       status = 'active';
-      currentStepId = midStep ?? firstStep;
-      unlockedStepId = midStep ?? firstStep;
+      stepId = midStep ?? firstStep;
     } else {
       status = 'needs_help';
-      currentStepId = midStep ?? firstStep;
-      unlockedStepId = midStep ?? firstStep;
+      stepId = midStep ?? firstStep;
       alertCount++;
     }
 
-    await prisma.stepsProgress.create({
-      data: {
+    return [
+      {
         talentId: talent.id,
         eventId: liveEventId,
         activityId: targetActivity.id,
-        currentStepId,
-        unlockedStepId,
+        currentStepId: stepId,
+        unlockedStepId: stepId,
         status,
-        lastUnlockSource: 'student',
+        lastUnlockSource: 'student' as const,
       },
-    });
-  }
+    ];
+  });
+  await prisma.stepsProgress.createMany({ data: liveRows });
 
-  // Past event completions for XP / progress history
+  // Past event completions for XP / progress history. Fetch every past
+  // event's dynamic activities in one query, then build all rows.
   const pastEvents = EVENTS.filter((e) => e.daysOffset < 0);
-  for (const evt of pastEvents) {
-    const evtId = eventIds[EVENTS.indexOf(evt)];
-    const evtActivities = await prisma.activity.findMany({
-      where: {
-        timeSlot: { planning: { eventId: evtId } },
-        isDynamic: true,
-      },
+  const pastEventIds = pastEvents.map((e) => eventIds[EVENTS.indexOf(e)]);
+  const pastActivities = await prisma.activity.findMany({
+    where: {
+      timeSlot: { planning: { eventId: { in: pastEventIds } } },
+      isDynamic: true,
+    },
+    select: {
+      id: true,
+      nom: true,
+      timeSlot: { select: { planning: { select: { eventId: true } } } },
+    },
+  });
+
+  const pastRows = pastActivities.flatMap((activity) => {
+    const acs = contentStructures[activity.nom];
+    const last = acs?.steps[acs.steps.length - 1]?.id;
+    const evtId = activity.timeSlot.planning.eventId;
+    const evt = pastEvents.find((e) => eventIds[EVENTS.indexOf(e)] === evtId);
+    if (!last || !evt) return [];
+
+    return (evt.presentEmails ?? []).flatMap((email) => {
+      const talent = talentByEmail[email];
+      if (!talent) return [];
+      return [
+        {
+          talentId: talent.id,
+          eventId: evtId,
+          activityId: activity.id,
+          currentStepId: last,
+          unlockedStepId: last,
+          status: 'completed' as const,
+          lastUnlockSource: 'staff' as const,
+        },
+      ];
     });
-
-    for (const activity of evtActivities) {
-      const acs = contentStructures[activity.nom];
-      const last = acs?.steps[acs.steps.length - 1]?.id;
-      if (!last) continue;
-
-      for (const email of evt.presentEmails ?? []) {
-        const talent = talentByEmail[email];
-        if (!talent) continue;
-        await prisma.stepsProgress
-          .create({
-            data: {
-              talentId: talent.id,
-              eventId: evtId,
-              activityId: activity.id,
-              currentStepId: last,
-              unlockedStepId: last,
-              status: 'completed',
-              lastUnlockSource: 'staff',
-            },
-          })
-          .catch(() => {
-            // Unique constraint violation is fine — skip
-          });
-      }
-    }
-  }
+  });
+  // skipDuplicates absorbs the (talentId, activityId) unique collisions the
+  // old per-row .catch() swallowed.
+  await prisma.stepsProgress.createMany({
+    data: pastRows,
+    skipDuplicates: true,
+  });
 
   return alertCount;
 }
@@ -4178,17 +4203,24 @@ async function seedInterviews(
   talentByEmail: Record<string, { id: string }>,
   _campuses: Record<string, { id: string }>,
 ): Promise<number> {
-  // Pre-resolve titre → eventId once so the per-interview lookup stays cheap.
+  // Pre-resolve titre → eventId and (talentId, eventId) → participationId once,
+  // so each interview resolves from memory instead of its own findUnique.
   const events = await prisma.event.findMany({
     select: { id: true, titre: true },
   });
   const eventIdByTitre = new Map(events.map((e) => [e.titre, e.id]));
 
-  let count = 0;
-  for (const iv of INTERVIEWS) {
+  const participations = await prisma.participation.findMany({
+    select: { id: true, talentId: true, eventId: true },
+  });
+  const participationByTalentEvent = new Map(
+    participations.map((p) => [`${p.talentId}_${p.eventId}`, p.id]),
+  );
+
+  const rows = INTERVIEWS.flatMap((iv) => {
     const talent = talentByEmail[iv.studentEmail];
     const staff = staffByKey[iv.staffKey];
-    if (!talent || !staff) continue;
+    if (!talent || !staff) return [];
 
     let participationId: string | null = null;
     if (iv.forEventTitre) {
@@ -4197,23 +4229,20 @@ async function seedInterviews(
         console.warn(
           `⚠ Interview for ${iv.studentEmail} references unknown event "${iv.forEventTitre}"`,
         );
-        continue;
+        return [];
       }
-      const participation = await prisma.participation.findUnique({
-        where: { talentId_eventId: { talentId: talent.id, eventId } },
-        select: { id: true },
-      });
-      if (!participation) {
+      participationId =
+        participationByTalentEvent.get(`${talent.id}_${eventId}`) ?? null;
+      if (!participationId) {
         console.warn(
           `⚠ Interview for ${iv.studentEmail} has no participation in "${iv.forEventTitre}"`,
         );
-        continue;
+        return [];
       }
-      participationId = participation.id;
     }
 
-    await prisma.interview.create({
-      data: {
+    return [
+      {
         talentId: talent.id,
         staffId: staff.id,
         campusId: staff.campusId,
@@ -4224,45 +4253,39 @@ async function seedInterviews(
         globalNote: iv.notes?.globalNote ?? null,
         satisfaction: iv.notes?.satisfaction ?? null,
       },
-    });
-    count++;
-  }
-  return count;
+    ];
+  });
+
+  await prisma.interview.createMany({ data: rows });
+  return rows.length;
 }
 
 async function seedPortfolio(
   talentByEmail: Record<string, { id: string }>,
   eventIds: string[],
 ): Promise<number> {
-  let count = 0;
-  for (const p of PORTFOLIO) {
+  const rows = PORTFOLIO.flatMap((p) => {
     const talent = talentByEmail[p.studentEmail];
     const eventId = eventIds[p.eventIndex];
-    if (!talent || !eventId) continue;
-    await prisma.portfolioItem.create({
-      data: {
-        talentId: talent.id,
-        eventId,
-        url: p.url ?? null,
-        caption: p.caption,
-      },
-    });
-    count++;
-  }
-  return count;
+    if (!talent || !eventId) return [];
+    return [
+      { talentId: talent.id, eventId, url: p.url ?? null, caption: p.caption },
+    ];
+  });
+  await prisma.portfolioItem.createMany({ data: rows });
+  return rows.length;
 }
 
 async function seedReminders(
   staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
   talentByEmail: Record<string, { id: string }>,
 ): Promise<number> {
-  let count = 0;
-  for (const r of REMINDERS) {
+  const rows = REMINDERS.flatMap((r) => {
     const talent = talentByEmail[r.studentEmail];
     const staff = staffByKey[r.staffKey];
-    if (!talent || !staff) continue;
-    await prisma.onboardingReminder.create({
-      data: {
+    if (!talent || !staff) return [];
+    return [
+      {
         talentId: talent.id,
         type: r.type,
         subject: r.subject ?? null,
@@ -4270,10 +4293,10 @@ async function seedReminders(
         sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
         sentBy: staff.userId,
       },
-    });
-    count++;
-  }
-  return count;
+    ];
+  });
+  await prisma.onboardingReminder.createMany({ data: rows });
+  return rows.length;
 }
 
 // ─── Broadcasts ───
@@ -4300,65 +4323,44 @@ async function seedBroadcasts(
     Object.values(staffByKey)[0]?.userId;
   if (!templateAuthor) return 0;
 
-  const mailTemplate = await prisma.messageTemplate.create({
-    data: {
-      name: 'Communications stage (mail)',
-      channel: 'mail',
-      subject: 'Communication Epitech Academy',
-      body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
-      createdById: templateAuthor,
-    },
-  });
-  const smsTemplate = await prisma.messageTemplate.create({
-    data: {
-      name: 'Communications stage (SMS)',
-      channel: 'sms',
-      subject: null,
-      body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
-      createdById: templateAuthor,
-    },
-  });
+  const [mailTemplate, smsTemplate] = await Promise.all([
+    prisma.messageTemplate.create({
+      data: {
+        name: 'Communications stage (mail)',
+        channel: 'mail',
+        subject: 'Communication Epitech Academy',
+        body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+        createdById: templateAuthor,
+      },
+    }),
+    prisma.messageTemplate.create({
+      data: {
+        name: 'Communications stage (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+        createdById: templateAuthor,
+      },
+    }),
+  ]);
 
-  let recipientCount = 0;
-
-  for (const bp of BROADCASTS) {
+  // Each broadcast ships with its recipient rows as one nested create. Skip
+  // blueprints whose campus/author can't resolve, then fire the rest
+  // concurrently.
+  const plans = BROADCASTS.flatMap((bp) => {
     const campusId = campuses[bp.campus]?.id;
     const author = staffByKey[bp.createdByStaffKey];
-    if (!campusId || !author) continue;
+    if (!campusId || !author) return [];
 
-    const eventId =
-      bp.eventIndex !== null ? (eventIds[bp.eventIndex] ?? null) : null;
-    const template = bp.channel === 'mail' ? mailTemplate : smsTemplate;
     const createdAt = dayAt(bp.createdDaysOffset, bp.createdHour, 0);
-
-    const broadcast = await prisma.broadcast.create({
-      data: {
-        name: bp.name,
-        channel: bp.channel,
-        templateId: template.id,
-        campusId,
-        audience: bp.audience,
-        eventId,
-        subjectSnapshot: bp.subject,
-        bodySnapshot: bp.body,
-        status: bp.status,
-        createdById: author.userId,
-        createdAt,
-        updatedAt: createdAt,
-      },
-    });
-
-    for (const rcp of bp.recipients) {
+    const recipients = bp.recipients.flatMap((rcp) => {
       const talent = talentByEmail[rcp.studentEmail];
-      if (!talent) continue;
-
+      if (!talent) return [];
       const recipientEmail = rcp.parentSide
         ? rcp.studentEmail.replace('@', '+parent@')
         : rcp.studentEmail;
-
-      await prisma.broadcastRecipient.create({
-        data: {
-          broadcastId: broadcast.id,
+      return [
+        {
           talentId: rcp.parentSide ? null : talent.id,
           parentOfTalentId: rcp.parentSide ? talent.id : null,
           recipientEmail: bp.channel === 'mail' ? recipientEmail : null,
@@ -4375,12 +4377,36 @@ async function seedBroadcasts(
               : null,
           createdAt,
         },
-      });
-      recipientCount++;
-    }
-  }
+      ];
+    });
 
-  return recipientCount;
+    return [
+      {
+        data: {
+          name: bp.name,
+          channel: bp.channel,
+          templateId: (bp.channel === 'mail' ? mailTemplate : smsTemplate).id,
+          campusId,
+          audience: bp.audience,
+          eventId:
+            bp.eventIndex !== null ? (eventIds[bp.eventIndex] ?? null) : null,
+          subjectSnapshot: bp.subject,
+          bodySnapshot: bp.body,
+          status: bp.status,
+          createdById: author.userId,
+          createdAt,
+          updatedAt: createdAt,
+          recipients: { create: recipients },
+        },
+        recipientCount: recipients.length,
+      },
+    ];
+  });
+
+  await Promise.all(
+    plans.map((p) => prisma.broadcast.create({ data: p.data })),
+  );
+  return plans.reduce((sum, p) => sum + p.recipientCount, 0);
 }
 
 // ─── Email templates + action mappings ───
@@ -4489,24 +4515,25 @@ L'équipe Epitech Academy`,
     },
   ];
 
-  let count = 0;
-  for (const t of templates) {
-    const tpl = await prisma.messageTemplate.create({
-      data: {
-        name: t.name,
-        channel: 'mail',
-        subject: t.subject,
-        body: t.body,
-        createdById,
-      },
-      select: { id: true },
-    });
-    await prisma.emailActionMapping.create({
-      data: { actionKey: t.actionKey, templateId: tpl.id },
-    });
-    count++;
-  }
-  return count;
+  const created = await prisma.messageTemplate.createManyAndReturn({
+    data: templates.map((t) => ({
+      name: t.name,
+      channel: 'mail' as const,
+      subject: t.subject,
+      body: t.body,
+      createdById,
+    })),
+    select: { id: true, name: true },
+  });
+  const templateIdByName = new Map(created.map((t) => [t.name, t.id]));
+
+  await prisma.emailActionMapping.createMany({
+    data: templates.map((t) => ({
+      actionKey: t.actionKey,
+      templateId: templateIdByName.get(t.name)!,
+    })),
+  });
+  return templates.length;
 }
 
 // ─── Helpers ───

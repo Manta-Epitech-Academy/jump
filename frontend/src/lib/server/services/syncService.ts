@@ -5,6 +5,7 @@ import {
   EVENT_TYPE_VALUES,
   type EventType,
 } from '$lib/domain/event';
+import { isNiveau, type Niveau } from '$lib/domain/niveau';
 
 export async function listCampuses() {
   return prisma.campus.findMany({
@@ -134,6 +135,7 @@ export async function syncTalents(
     last_name: string;
     email?: string | null;
     phone?: string | null;
+    class_level?: string | null;
   }[],
 ) {
   const event = await prisma.event.findUnique({
@@ -149,6 +151,10 @@ export async function syncTalents(
   for (const t of talents) {
     const email = t.email?.toLowerCase().trim() || null;
     const phone = t.phone || null;
+    // Drop unknown labels rather than poisoning the column with raw SF values.
+    const niveau: Niveau | null = isNiveau(t.class_level)
+      ? t.class_level
+      : null;
 
     if (!t.external_id || !t.first_name || !t.last_name)
       return {
@@ -174,6 +180,7 @@ export async function syncTalents(
             nom: t.last_name,
             email,
             phone,
+            niveau,
             xp: 0,
             eventsCount: 0,
           },
@@ -207,11 +214,14 @@ export async function syncTalents(
       }
     } else {
       talentId = existing.id;
+      // Only let SF set the level, never wipe a staff-entered one with a blank.
+      const niveauChanged = niveau !== null && existing.niveau !== niveau;
       if (
         existing.prenom !== t.first_name ||
         existing.nom !== t.last_name ||
         existing.email !== email ||
-        existing.phone !== phone
+        existing.phone !== phone ||
+        niveauChanged
       ) {
         try {
           await prisma.talent.update({
@@ -221,6 +231,7 @@ export async function syncTalents(
               nom: t.last_name,
               email,
               phone,
+              ...(niveauChanged ? { niveau } : {}),
             },
           });
           updated++;

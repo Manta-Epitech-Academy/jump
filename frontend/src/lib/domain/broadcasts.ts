@@ -1,4 +1,5 @@
 import type { BroadcastAudience, BroadcastChannel } from '@prisma/client';
+import type { Niveau } from './niveau';
 
 export const BROADCAST_CHANNELS = [
   'mail',
@@ -45,6 +46,7 @@ export type BroadcastVariableKey =
   | 'email'
   | 'phone'
   | 'campus'
+  | 'email_contact_campus'
   | 'event_name'
   | 'fastlogin_link'
   | 'otp_code'
@@ -96,6 +98,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     token: '{{campus}}',
     label: 'Campus du destinataire',
     demo: 'Paris',
+    contextual: false,
+  },
+  {
+    key: 'email_contact_campus',
+    token: '{{EMAIL_CONTACT_CAMPUS}}',
+    label: 'Email de contact du campus du destinataire',
+    demo: 'contact.paris@epitech.eu',
     contextual: false,
   },
   {
@@ -159,18 +168,6 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
 export const BROADCAST_VARIABLE_TOKENS = BROADCAST_VARIABLES.map(
   (v) => v.token,
 );
-
-export const NIVEAUX = [
-  '6eme',
-  '5eme',
-  '4eme',
-  '3eme',
-  '2nde',
-  '1ere',
-  'Terminale',
-  'Sup',
-] as const;
-export type Niveau = (typeof NIVEAUX)[number];
 
 export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
 export type JumpLevel = (typeof JUMP_LEVELS)[number];

@@ -9,7 +9,7 @@
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-  import FingerprintPattern from '@lucide/svelte/icons/fingerprint-pattern';
+  import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import FileText from '@lucide/svelte/icons/file-text';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Heart from '@lucide/svelte/icons/heart';
@@ -238,18 +238,12 @@
         <span class="sr-only">Toggle menu</span>
       </Button>
 
-      <a href={resolve('/staff/admin')} class="flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 items-center justify-center rounded-sm bg-epi-pink text-white shadow-[0_0_10px_rgba(255,30,247,0.4)]"
-        >
-          <FingerprintPattern class="h-5 w-5" />
-        </div>
-        <span
-          class="hidden text-lg font-black tracking-widest text-slate-100 uppercase md:block"
-        >
-          Jump <span class="text-epi-pink">Admin</span>
-        </span>
-      </a>
+      <BrandMark
+        href={resolve('/staff/admin')}
+        sublabel="Admin"
+        accent="pink"
+        orientation="inline"
+      />
     </div>
 
     <div class="flex items-center gap-2">

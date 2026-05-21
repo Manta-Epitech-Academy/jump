@@ -3,10 +3,10 @@ import {
   BROADCAST_AUDIENCES,
   BROADCAST_CHANNELS,
   JUMP_LEVELS,
-  NIVEAUX,
   SMS_MAX_LENGTH,
   estimateSmsLength,
 } from '$lib/domain/broadcasts';
+import { NIVEAUX } from '$lib/domain/niveau';
 
 const tristate = z.enum(['yes', 'no', 'any']);
 

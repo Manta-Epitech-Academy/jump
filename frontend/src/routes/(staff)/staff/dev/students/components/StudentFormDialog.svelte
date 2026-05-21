@@ -8,6 +8,7 @@
   import type { StudentForm } from '$lib/validation/students';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { studentSchema } from '$lib/validation/students';
+  import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
 
   type StudentSuperForm = SuperForm<Infer<typeof studentSchema>>;
 
@@ -30,17 +31,6 @@
     enhance: StudentSuperForm['enhance'];
     action: string;
   } = $props();
-
-  const niveaux = [
-    '6eme',
-    '5eme',
-    '4eme',
-    '3eme',
-    '2nde',
-    '1ere',
-    'Terminale',
-    'Sup',
-  ];
 </script>
 
 <Dialog.Root bind:open>
@@ -230,11 +220,11 @@
           <Label for="niveau" class="text-xs">Niveau Scolaire</Label>
           <Select.Root type="single" bind:value={$form.niveau}>
             <Select.Trigger class="rounded-sm bg-background">
-              {$form.niveau ? $form.niveau : 'Sélectionner...'}
+              {$form.niveau ? niveauLabel($form.niveau) : 'Sélectionner...'}
             </Select.Trigger>
             <Select.Content class="rounded-sm">
-              {#each niveaux as niveau}
-                <Select.Item value={niveau}>{niveau}</Select.Item>
+              {#each NIVEAUX as niveau}
+                <Select.Item value={niveau}>{niveauLabel(niveau)}</Select.Item>
               {/each}
             </Select.Content>
           </Select.Root>

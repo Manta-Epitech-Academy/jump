@@ -19,6 +19,7 @@ import {
 } from '$lib/server/services/broadcast/linkRewriter';
 import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
+import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ url }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
@@ -155,7 +156,10 @@ export const actions: Actions = {
       ? `[TEST] ${substituteVariables(template.subject, ctx)}`
       : '[TEST] Envoi en masse';
     const body = rewriteHtmlLinks(
-      renderBroadcastMail(substituteVariables(template.body, ctx)),
+      renderBroadcastMail(
+        substituteVariables(template.body, ctx),
+        env.ORIGIN ?? '',
+      ),
       'TEST_TRACKING_ID',
     );
 

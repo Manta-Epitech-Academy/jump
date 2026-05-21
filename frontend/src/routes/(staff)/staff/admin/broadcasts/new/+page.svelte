@@ -9,9 +9,9 @@
     BROADCAST_AUDIENCE_LABELS,
     AUDIENCES_REQUIRING_EVENT,
     BROADCAST_CHANNEL_LABELS,
-    NIVEAUX,
     JUMP_LEVELS,
   } from '$lib/domain/broadcasts';
+  import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
 
   let { data, form: actionForm } = $props();
 
@@ -276,7 +276,7 @@
                         };
                       }}
                     />
-                    {n}
+                    {niveauLabel(n)}
                   </label>
                 {/each}
               </div>
