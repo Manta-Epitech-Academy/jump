@@ -4,6 +4,7 @@ import type {
   BroadcastChannel,
   BroadcastSourceFilter,
 } from '@prisma/client';
+import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import type { BroadcastFilters } from '$lib/domain/broadcasts';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
@@ -173,7 +174,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
         staffUser: { select: { name: true } },
         broadcast: {
           select: {
-            campus: { select: { name: true } },
+            campus: { select: { name: true, contactEmail: true } },
           },
         },
       },
@@ -240,7 +241,11 @@ type RecipientWithRelations = Awaited<
           };
         };
         staffUser: { select: { name: true } };
-        broadcast: { select: { campus: { select: { name: true } } } };
+        broadcast: {
+          select: {
+            campus: { select: { name: true; contactEmail: true } };
+          };
+        };
       };
     }>
   >
@@ -273,7 +278,7 @@ function buildMailMessage(
     : '';
   const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
   const html = rewriteHtmlLinks(
-    renderBroadcastMail(bodyWithVars),
+    renderBroadcastMail(bodyWithVars, env.ORIGIN ?? ''),
     recipient.id,
   );
   return { to: recipient.recipientEmail, subject, html };
@@ -490,6 +495,7 @@ function buildContext(
     email: recipient.recipientEmail,
     phone: recipient.recipientPhone,
     campus: recipient.broadcast.campus?.name ?? '',
+    email_contact_campus: recipient.broadcast.campus?.contactEmail ?? null,
     event_name: broadcast.event?.titre ?? null,
     fastlogin_link: personal.fastloginLink,
     otp_code: personal.otpCode,

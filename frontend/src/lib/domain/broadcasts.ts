@@ -46,6 +46,7 @@ export type BroadcastVariableKey =
   | 'email'
   | 'phone'
   | 'campus'
+  | 'email_contact_campus'
   | 'event_name'
   | 'fastlogin_link'
   | 'otp_code'
@@ -97,6 +98,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     token: '{{campus}}',
     label: 'Campus du destinataire',
     demo: 'Paris',
+    contextual: false,
+  },
+  {
+    key: 'email_contact_campus',
+    token: '{{EMAIL_CONTACT_CAMPUS}}',
+    label: 'Email de contact du campus du destinataire',
+    demo: 'contact.paris@epitech.eu',
     contextual: false,
   },
   {
