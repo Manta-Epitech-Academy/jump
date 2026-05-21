@@ -7,7 +7,7 @@
   import NewTalentBadge from '$lib/components/students/NewTalentBadge.svelte';
   import { formatDateFr } from '$lib/utils';
   import type { PrepRow } from './types';
-  import { humanizeNiveau } from './niveau';
+  import { niveauLabel } from '$lib/domain/niveau';
 
   let { row, timezone }: { row: PrepRow; timezone: string } = $props();
 
@@ -54,7 +54,7 @@
             >
               ·
             </span>{/if}
-          {#if talent?.niveau}{humanizeNiveau(talent.niveau)}{/if}
+          {#if talent?.niveau}{niveauLabel(talent.niveau)}{/if}
         </p>
       {/if}
     </div>

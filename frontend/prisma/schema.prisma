@@ -12,7 +12,8 @@ datasource db {
 // This avoids enum mapping issues between Prisma TS names and French display values.
 
 // StudentLevel stored as plain string: "Novice", "Apprentice", "Expert"
-// Niveau stored as plain string: "6eme", "5eme", "4eme", "3eme", "2nde", "1ere", "Terminale", "Sup"
+// Niveau stored as plain string from the canonical catalogue in
+// `src/lib/domain/niveau.ts` (NIVEAUX); values match jump-sf-worker's ClassLevel.
 
 enum StepStatus {
   active

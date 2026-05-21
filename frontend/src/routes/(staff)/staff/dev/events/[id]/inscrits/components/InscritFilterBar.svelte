@@ -4,7 +4,7 @@
   import { Input } from '$lib/components/ui/input';
   import * as Select from '$lib/components/ui/select';
   import { cn } from '$lib/utils';
-  import { humanizeNiveau } from './niveau';
+  import { niveauLabel } from '$lib/domain/niveau';
   import type { Sort } from './types';
 
   let {
@@ -78,7 +78,7 @@
               : 'bg-muted text-muted-foreground hover:bg-muted/70',
           )}
         >
-          {humanizeNiveau(n)}
+          {niveauLabel(n)}
         </button>
       {/each}
     </div>
