@@ -1,4 +1,4 @@
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
@@ -123,11 +123,11 @@ export const actions: Actions = {
     const result = profileSchema.safeParse(raw);
 
     if (!result.success) {
-      return {
+      return fail(400, {
         step: 'profile' as const,
         errors: result.error.flatten().fieldErrors,
         values: raw as Record<string, string>,
-      };
+      });
     }
 
     const now = new Date();
@@ -236,10 +236,10 @@ export const actions: Actions = {
     const result = lyceeSchema.safeParse(raw);
 
     if (!result.success) {
-      return {
+      return fail(400, {
         step: 'profile' as const,
         error: result.error.issues[0]?.message ?? 'Données invalides.',
-      };
+      });
     }
 
     await prisma.talent.update({
@@ -267,10 +267,10 @@ export const actions: Actions = {
     const result = interestsSchema.safeParse(raw);
 
     if (!result.success) {
-      return {
+      return fail(400, {
         step: 'interests' as const,
         error: result.error.issues[0]?.message ?? 'Sélection invalide.',
-      };
+      });
     }
 
     // Verify all IDs exist
@@ -287,16 +287,16 @@ export const actions: Actions = {
     ]);
 
     if (techCount !== result.data.techInterestIds.length) {
-      return {
+      return fail(400, {
         step: 'interests' as const,
         error: "Certains domaines tech sélectionnés n'existent plus.",
-      };
+      });
     }
     if (generalCount !== result.data.generalInterestIds.length) {
-      return {
+      return fail(400, {
         step: 'interests' as const,
         error: "Certains centres d'intérêt sélectionnés n'existent plus.",
-      };
+      });
     }
 
     const now = new Date();
@@ -337,10 +337,10 @@ export const actions: Actions = {
     const result = equipmentSchema.safeParse(raw);
 
     if (!result.success) {
-      return {
+      return fail(400, {
         step: 'equipment' as const,
         error: result.error.issues[0]?.message ?? 'Données invalides.',
-      };
+      });
     }
 
     await prisma.talent.update({
@@ -395,7 +395,10 @@ export const actions: Actions = {
     const city = (formData.get('city') as string)?.trim();
 
     if (!city) {
-      return { step: 'rules' as const, error: 'Veuillez indiquer la ville.' };
+      return fail(400, {
+        step: 'rules' as const,
+        error: 'Veuillez indiquer la ville.',
+      });
     }
 
     const now = new Date();
