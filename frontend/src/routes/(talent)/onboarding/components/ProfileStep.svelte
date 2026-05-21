@@ -1,0 +1,742 @@
+<script lang="ts">
+  import { enhance } from '$app/forms';
+  import { Button } from '$lib/components/ui/button';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import Users from '@lucide/svelte/icons/users';
+  import School from '@lucide/svelte/icons/school';
+  import Search from '@lucide/svelte/icons/search';
+  import PenLine from '@lucide/svelte/icons/pen-line';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import Plus from '@lucide/svelte/icons/plus';
+  import { track } from '$lib/analytics';
+
+  let {
+    profile,
+    errors,
+  }: {
+    profile: {
+      civilite: string;
+      nom: string;
+      prenom: string;
+      email: string;
+      phone: string;
+      parentType: string;
+      parentCivilite: string;
+      parentNom: string;
+      parentPrenom: string;
+      parentEmail: string;
+      parentPhone: string;
+      parent2Type: string;
+      parent2Civilite: string;
+      parent2Nom: string;
+      parent2Prenom: string;
+      parent2Email: string;
+      parent2Phone: string;
+      highSchoolName: string;
+      highSchoolCity: string;
+      highSchoolUai: string;
+    };
+    errors?: Record<string, string[]>;
+  } = $props();
+
+  // --- Lycée autocomplete ---
+  let query = $state(profile.highSchoolName);
+  let selectedNom = $state(profile.highSchoolName);
+  let selectedVille = $state(profile.highSchoolCity);
+  let selectedUai = $state(profile.highSchoolUai);
+  let suggestions = $state<{ uai: string; nom: string; ville: string }[]>([]);
+  let showSuggestions = $state(false);
+  let freeTextMode = $state(false);
+  let loading = $state(false);
+  let noResults = $state(false);
+  let searched = $state(false);
+  let debounceTimer: ReturnType<typeof setTimeout>;
+  let containerEl: HTMLDivElement;
+
+  // --- Parent 2 toggle ---
+  let showParent2 = $state(
+    !!(profile.parent2Nom || profile.parent2Prenom || profile.parent2Email),
+  );
+
+  async function searchLycee(q: string) {
+    if (q.length < 2) {
+      suggestions = [];
+      noResults = false;
+      searched = false;
+      return;
+    }
+    loading = true;
+    noResults = false;
+    try {
+      const res = await fetch(`/api/lycees?q=${encodeURIComponent(q)}`);
+      suggestions = await res.json();
+      showSuggestions = suggestions.length > 0;
+      noResults = suggestions.length === 0;
+      searched = true;
+    } catch {
+      suggestions = [];
+      noResults = true;
+      searched = true;
+    } finally {
+      loading = false;
+    }
+  }
+
+  function handleLyceeInput() {
+    selectedNom = '';
+    selectedVille = '';
+    selectedUai = '';
+    freeTextMode = false;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => searchLycee(query), 300);
+  }
+
+  function selectLycee(s: { uai: string; nom: string; ville: string }) {
+    query = s.nom;
+    selectedNom = s.nom;
+    selectedVille = s.ville;
+    selectedUai = s.uai;
+    showSuggestions = false;
+    freeTextMode = false;
+  }
+
+  function enableFreeText() {
+    freeTextMode = true;
+    showSuggestions = false;
+    selectedNom = query;
+    selectedVille = '';
+    selectedUai = '';
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    if (containerEl && !containerEl.contains(e.target as Node)) {
+      showSuggestions = false;
+    }
+  }
+
+  function fieldErrors(field: string): string[] {
+    return errors?.[field] ?? [];
+  }
+</script>
+
+<svelte:document onclick={handleClickOutside} />
+
+<div class="mb-6 text-center">
+  <div
+    class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
+  >
+    <UserCheck class="h-7 w-7" />
+  </div>
+  <h1
+    class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
+  >
+    Ton profil
+  </h1>
+  <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+    Vérifie et complète tes informations
+  </p>
+</div>
+
+{#if errors}
+  {#each Object.entries(errors) as [, msgs]}
+    {#each msgs as msg}
+      <p
+        class="mb-2 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+      >
+        {msg}
+      </p>
+    {/each}
+  {/each}
+{/if}
+
+<form
+  method="POST"
+  action="?/validateProfile"
+  use:enhance={() => {
+    return async ({ result, update }) => {
+      if (result.type === 'redirect' || result.type === 'success') {
+        track('onboarding_profile_validated');
+      }
+      await update();
+    };
+  }}
+  class="space-y-6"
+>
+  <!-- Hidden fields for lycée -->
+  <input type="hidden" name="highSchoolName" value={selectedNom} />
+  <input type="hidden" name="highSchoolCity" value={selectedVille} />
+  <input type="hidden" name="highSchoolUai" value={selectedUai} />
+
+  <!-- ═══ Section Talent ═══ -->
+  <div class="space-y-3">
+    <h2
+      class="flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+    >
+      <UserCheck class="h-4 w-4" /> Tes informations
+    </h2>
+
+    <!-- Civilité -->
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+        Civilité <span class="text-red-500">*</span>
+      </p>
+      <div class="flex gap-2">
+        {#each [{ value: 'homme', label: 'Homme' }, { value: 'femme', label: 'Femme' }, { value: 'autre', label: 'Autre' }] as opt}
+          <label
+            class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all
+              {profile.civilite === opt.value
+              ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
+              : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+          >
+            <input
+              type="radio"
+              name="civilite"
+              value={opt.value}
+              checked={profile.civilite === opt.value}
+              class="sr-only"
+              onchange={() => (profile.civilite = opt.value)}
+            />
+            {opt.label}
+          </label>
+        {/each}
+      </div>
+    </div>
+
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <label
+        for="prenom"
+        class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      >
+        Prénom <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="prenom"
+        name="prenom"
+        type="text"
+        value={profile.prenom}
+        required
+        class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+      />
+    </div>
+
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <label
+        for="nom"
+        class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      >
+        Nom <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="nom"
+        name="nom"
+        type="text"
+        value={profile.nom}
+        required
+        class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+      />
+    </div>
+
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <label
+        for="email"
+        class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      >
+        Email <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        value={profile.email}
+        required
+        class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+      />
+    </div>
+
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <label
+        for="phone"
+        class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      >
+        Téléphone <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="phone"
+        name="phone"
+        type="tel"
+        value={profile.phone}
+        required
+        class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+      />
+    </div>
+  </div>
+
+  <!-- ═══ Section Parent 1 ═══ -->
+  <div class="space-y-3">
+    <h2
+      class="flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+    >
+      <Users class="h-4 w-4" /> Référent légal
+    </h2>
+
+    <!-- Parent type -->
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+        Lien <span class="text-red-500">*</span>
+      </p>
+      <div class="flex gap-2">
+        {#each [{ value: 'pere', label: 'Père' }, { value: 'mere', label: 'Mère' }, { value: 'referent', label: 'Référent légal' }] as opt}
+          <label
+            class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all
+              {profile.parentType === opt.value
+              ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
+              : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+          >
+            <input
+              type="radio"
+              name="parentType"
+              value={opt.value}
+              checked={profile.parentType === opt.value}
+              class="sr-only"
+              onchange={() => (profile.parentType = opt.value)}
+            />
+            {opt.label}
+          </label>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Parent civilité -->
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+        Civilité <span class="text-red-500">*</span>
+      </p>
+      <div class="flex gap-2">
+        {#each [{ value: 'homme', label: 'Homme' }, { value: 'femme', label: 'Femme' }, { value: 'autre', label: 'Autre' }] as opt}
+          <label
+            class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all
+              {profile.parentCivilite === opt.value
+              ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
+              : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+          >
+            <input
+              type="radio"
+              name="parentCivilite"
+              value={opt.value}
+              checked={profile.parentCivilite === opt.value}
+              class="sr-only"
+              onchange={() => (profile.parentCivilite = opt.value)}
+            />
+            {opt.label}
+          </label>
+        {/each}
+      </div>
+    </div>
+
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <label
+        for="parentPrenom"
+        class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      >
+        Prénom <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="parentPrenom"
+        name="parentPrenom"
+        type="text"
+        value={profile.parentPrenom}
+        required
+        class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+      />
+    </div>
+
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <label
+        for="parentNom"
+        class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      >
+        Nom <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="parentNom"
+        name="parentNom"
+        type="text"
+        value={profile.parentNom}
+        required
+        class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+      />
+    </div>
+
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <label
+        for="parentEmail"
+        class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      >
+        Email <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="parentEmail"
+        name="parentEmail"
+        type="email"
+        value={profile.parentEmail}
+        required
+        class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+      />
+    </div>
+
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <label
+        for="parentPhone"
+        class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+      >
+        Téléphone <span class="text-red-500">*</span>
+      </label>
+      <input
+        id="parentPhone"
+        name="parentPhone"
+        type="tel"
+        value={profile.parentPhone}
+        required
+        class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+      />
+    </div>
+  </div>
+
+  <!-- ═══ Section Parent 2 (collapsible) ═══ -->
+  {#if !showParent2}
+    <button
+      type="button"
+      onclick={() => (showParent2 = true)}
+      class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 px-4 py-3 text-sm font-medium text-slate-400 transition-colors hover:border-slate-300 hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:border-slate-600 dark:hover:text-slate-300"
+    >
+      <Plus class="h-4 w-4" />
+      Ajouter un second parent
+    </button>
+  {:else}
+    <div class="space-y-3">
+      <h2
+        class="flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+      >
+        <Users class="h-4 w-4" /> Second parent
+        <span class="text-xs font-normal text-slate-400 normal-case"
+          >(facultatif)</span
+        >
+      </h2>
+
+      <!-- Parent 2 type -->
+      <div
+        class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+          Lien
+        </p>
+        <div class="flex gap-2">
+          {#each [{ value: 'pere', label: 'Père' }, { value: 'mere', label: 'Mère' }, { value: 'referent', label: 'Référent légal' }] as opt}
+            <label
+              class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all
+                {profile.parent2Type === opt.value
+                ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
+                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+            >
+              <input
+                type="radio"
+                name="parent2Type"
+                value={opt.value}
+                checked={profile.parent2Type === opt.value}
+                class="sr-only"
+                onchange={() => (profile.parent2Type = opt.value)}
+              />
+              {opt.label}
+            </label>
+          {/each}
+        </div>
+      </div>
+
+      <!-- Parent 2 civilité -->
+      <div
+        class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+          Civilité
+        </p>
+        <div class="flex gap-2">
+          {#each [{ value: 'homme', label: 'Homme' }, { value: 'femme', label: 'Femme' }, { value: 'autre', label: 'Autre' }] as opt}
+            <label
+              class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all
+                {profile.parent2Civilite === opt.value
+                ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
+                : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
+            >
+              <input
+                type="radio"
+                name="parent2Civilite"
+                value={opt.value}
+                checked={profile.parent2Civilite === opt.value}
+                class="sr-only"
+                onchange={() => (profile.parent2Civilite = opt.value)}
+              />
+              {opt.label}
+            </label>
+          {/each}
+        </div>
+      </div>
+
+      <div
+        class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <label
+          for="parent2Prenom"
+          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+        >
+          Prénom
+        </label>
+        <input
+          id="parent2Prenom"
+          name="parent2Prenom"
+          type="text"
+          value={profile.parent2Prenom}
+          class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+        />
+      </div>
+
+      <div
+        class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <label
+          for="parent2Nom"
+          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+        >
+          Nom
+        </label>
+        <input
+          id="parent2Nom"
+          name="parent2Nom"
+          type="text"
+          value={profile.parent2Nom}
+          class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+        />
+      </div>
+
+      <div
+        class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <label
+          for="parent2Email"
+          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+        >
+          Email
+        </label>
+        <input
+          id="parent2Email"
+          name="parent2Email"
+          type="email"
+          value={profile.parent2Email}
+          class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+        />
+      </div>
+
+      <div
+        class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <label
+          for="parent2Phone"
+          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+        >
+          Téléphone
+        </label>
+        <input
+          id="parent2Phone"
+          name="parent2Phone"
+          type="tel"
+          value={profile.parent2Phone}
+          class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white"
+        />
+      </div>
+    </div>
+  {/if}
+
+  <!-- ═══ Section Lycée ═══ -->
+  <div class="space-y-3">
+    <h2
+      class="flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+    >
+      <School class="h-4 w-4" /> Ton lycée
+    </h2>
+
+    <div class="relative" bind:this={containerEl}>
+      <div
+        class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <label
+          for="lycee-search"
+          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+        >
+          Nom ou ville <span class="text-red-500">*</span>
+        </label>
+        <div class="relative">
+          {#if loading}
+            <LoaderCircle
+              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
+            />
+          {:else}
+            <Search
+              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+            />
+          {/if}
+          <input
+            id="lycee-search"
+            type="text"
+            placeholder="Rechercher par nom ou ville..."
+            bind:value={query}
+            oninput={handleLyceeInput}
+            onfocus={() => {
+              if (suggestions.length > 0) showSuggestions = true;
+            }}
+            autocomplete="off"
+            class="w-full rounded-lg border border-transparent bg-transparent p-1 pl-9 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+          />
+        </div>
+      </div>
+
+      {#if showSuggestions}
+        <div
+          class="absolute z-10 mt-2 max-h-96 w-full overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-sm dark:border-slate-700/50 dark:bg-slate-900/95"
+        >
+          {#each suggestions as s, i}
+            <button
+              type="button"
+              class="group flex w-full cursor-pointer items-start justify-between gap-4 px-4 py-3.5 text-left text-sm transition-all duration-150 hover:bg-epi-blue/5 hover:pl-5 active:bg-epi-blue/10 dark:hover:bg-epi-blue/10 {i >
+              0
+                ? 'border-t border-slate-100 dark:border-slate-800'
+                : ''}"
+              onclick={() => selectLycee(s)}
+            >
+              <div class="flex items-start gap-3">
+                <School
+                  class="mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-colors group-hover:text-epi-blue"
+                />
+                <span
+                  class="font-bold text-slate-700 transition-colors group-hover:text-epi-blue dark:text-slate-200"
+                  >{s.nom}</span
+                >
+              </div>
+              <span
+                class="shrink-0 text-sm font-semibold text-slate-400 transition-colors group-hover:text-epi-blue/70 dark:text-slate-500"
+                >{s.ville}</span
+              >
+            </button>
+          {/each}
+          <button
+            type="button"
+            class="flex w-full cursor-pointer items-center gap-2 border-t border-slate-100 px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground dark:border-slate-800"
+            onclick={enableFreeText}
+          >
+            <PenLine class="h-4 w-4" />
+            Mon lycée n'est pas dans la liste
+          </button>
+        </div>
+      {:else if noResults && !selectedNom && !freeTextMode}
+        <p class="mt-2 text-sm text-muted-foreground">
+          Aucun lycée trouvé pour cette recherche.
+        </p>
+      {/if}
+    </div>
+
+    {#if selectedNom && !freeTextMode}
+      <div
+        class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <p class="text-sm font-medium text-epi-blue">{selectedNom}</p>
+        {#if selectedVille}
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            {selectedVille}
+          </p>
+        {/if}
+      </div>
+    {/if}
+
+    {#if freeTextMode}
+      <div class="space-y-3">
+        <div
+          class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        >
+          <label
+            for="free-lycee-name"
+            class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+          >
+            Nom de ton lycée <span class="text-red-500">*</span>
+          </label>
+          <input
+            id="free-lycee-name"
+            type="text"
+            placeholder="Lycée Victor Hugo"
+            bind:value={selectedNom}
+            oninput={() => {
+              query = selectedNom;
+            }}
+            class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+          />
+        </div>
+        <div
+          class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        >
+          <label
+            for="free-lycee-city"
+            class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+          >
+            Ville (optionnel)
+          </label>
+          <input
+            id="free-lycee-city"
+            type="text"
+            placeholder="Paris"
+            bind:value={selectedVille}
+            class="w-full rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+          />
+        </div>
+      </div>
+    {/if}
+
+    {#if !freeTextMode && noResults && !selectedNom}
+      <button
+        type="button"
+        class="flex w-full cursor-pointer items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        onclick={enableFreeText}
+      >
+        <PenLine class="h-4 w-4" />
+        Mon lycée n'est pas dans la liste
+      </button>
+    {/if}
+  </div>
+
+  <Button
+    type="submit"
+    disabled={!selectedNom || selectedNom.length < 2}
+    class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+  >
+    Continuer
+  </Button>
+</form>
