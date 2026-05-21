@@ -13,7 +13,7 @@
     INTERVIEW_STATUS_CHIP_CLASS,
   } from '$lib/domain/interview';
   import type { OngoingRow } from './types';
-  import { humanizeNiveau } from './niveau';
+  import { niveauLabel } from '$lib/domain/niveau';
   import RecommendationChip from '../../interviews/components/RecommendationChip.svelte';
 
   let {
@@ -99,7 +99,7 @@
             >
               ·
             </span>{/if}
-          {#if talent?.niveau}{humanizeNiveau(talent.niveau)}{/if}
+          {#if talent?.niveau}{niveauLabel(talent.niveau)}{/if}
         </p>
       {/if}
     </div>

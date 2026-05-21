@@ -24,6 +24,7 @@
   import { getInitials, staffRoleAvatarFallbackClass } from '$lib/avatar';
   import { cn } from '$lib/utils';
   import { EVENT_TYPES } from '$lib/domain/event';
+  import { niveauLabel } from '$lib/domain/niveau';
 
   let { data }: { data: PageData } = $props();
 
@@ -407,7 +408,9 @@
                   <div
                     class="mt-0.5 flex items-center gap-2 text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
                   >
-                    {#if p.talent.niveau}<span>{p.talent.niveau}</span>{/if}
+                    {#if p.talent.niveau}<span
+                        >{niveauLabel(p.talent.niveau)}</span
+                      >{/if}
                     {#if p.talent.eventsCount > 0}
                       <span class="opacity-30">·</span>
                       <span
