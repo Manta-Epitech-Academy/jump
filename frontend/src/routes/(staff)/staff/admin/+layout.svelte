@@ -4,6 +4,7 @@
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import Map from '@lucide/svelte/icons/map';
   import Users from '@lucide/svelte/icons/users';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import Tags from '@lucide/svelte/icons/tags';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Menu from '@lucide/svelte/icons/menu';
@@ -166,6 +167,13 @@
     >
       <Users class="h-4 w-4" />
       <span>Membres & invitations</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/talents')}
+      class={navLinkClass(isActive('/staff/admin/talents'))}
+    >
+      <GraduationCap class="h-4 w-4" />
+      <span>Talents</span>
     </a>
   </nav>
 

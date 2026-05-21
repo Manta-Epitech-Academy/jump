@@ -11,6 +11,7 @@ import {
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
+import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 
 export type OnboardingStep =
   | 'info-validation'
@@ -373,7 +374,7 @@ export const actions: Actions = {
         rulesSignedAt: now,
         rulesFilePath: key,
         charterAcceptedAt: now,
-        xp: { increment: 50 },
+        xp: { increment: WELCOME_XP_BONUS },
       },
     });
 

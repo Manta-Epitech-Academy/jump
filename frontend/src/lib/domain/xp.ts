@@ -1,5 +1,12 @@
 export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
 
+/**
+ * One-off XP granted when a talent finishes onboarding (the "+50 XP" arrival
+ * celebration). Granted in `(talent)/onboarding/+page.server.ts` and refunded
+ * by the admin onboarding-reset in `services/talentAccount.ts`.
+ */
+export const WELCOME_XP_BONUS = 50;
+
 export const DIFFICULTY_XP: Record<string, number> = {
   Débutant: 20,
   Intermédiaire: 45,

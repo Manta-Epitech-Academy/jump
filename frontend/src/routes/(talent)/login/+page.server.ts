@@ -7,6 +7,7 @@ import { camperEmailSchema, camperOtpSchema } from '$lib/validation/auth';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
 import { prisma } from '$lib/server/db';
+import { ensureTalentUser } from '$lib/server/services/talentAccount';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   // If already authenticated as a Student, route directly to the dashboard
@@ -53,20 +54,14 @@ export const actions: Actions = {
     try {
       const normalizedEmail = emailForm.data.email.toLowerCase().trim();
 
-      // Check for a student profile — either linked via bauth_user or unlinked (created by worker)
-      const user = await prisma.bauth_user.findUnique({
+      // A talent profile must exist for this email (linked or seeded). Without
+      // one there's nothing to sign in to.
+      const talent = await prisma.talent.findUnique({
         where: { email: normalizedEmail },
-        include: { talent: true },
+        select: { id: true },
       });
 
-      const hasLinkedProfile = !!user?.talent;
-      const unlinkedProfile = !hasLinkedProfile
-        ? await prisma.talent.findUnique({
-            where: { email: normalizedEmail },
-          })
-        : null;
-
-      if (!hasLinkedProfile && !unlinkedProfile) {
+      if (!talent) {
         return message(
           emailForm,
           {
@@ -77,26 +72,8 @@ export const actions: Actions = {
         );
       }
 
-      // If an unlinked profile exists but no bauth_user, create one and link them
-      if (unlinkedProfile && !user) {
-        const newUser = await prisma.bauth_user.create({
-          data: {
-            email: normalizedEmail,
-            role: 'student',
-            name: `${unlinkedProfile.prenom} ${unlinkedProfile.nom}`,
-          },
-        });
-        await prisma.talent.update({
-          where: { id: unlinkedProfile.id },
-          data: { userId: newUser.id },
-        });
-      } else if (unlinkedProfile && user && !user.talent) {
-        // bauth_user exists but profile is unlinked — link them
-        await prisma.talent.update({
-          where: { id: unlinkedProfile.id },
-          data: { userId: user.id },
-        });
-      }
+      // Bootstrap / link the bauth_user for seeded profiles that never logged in.
+      await ensureTalentUser(talent.id);
 
       // Send OTP via BetterAuth emailOTP plugin
       await auth.api.sendVerificationOTP({

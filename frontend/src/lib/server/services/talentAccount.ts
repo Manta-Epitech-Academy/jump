@@ -1,0 +1,93 @@
+import { prisma } from '$lib/server/db';
+import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+
+/**
+ * Ensure a talent has a linked `bauth_user` and return its id.
+ *
+ * Seeded / Salesforce-imported talents exist as `Talent` rows long before they
+ * ever sign in, so they carry no `bauth_user`. Every flow that needs a real
+ * auth identity for them — OTP login, fastlogin links, admin impersonation —
+ * has to bootstrap that user first. This is the single place that does it:
+ * reuse an existing `bauth_user` with the same email if one is around (e.g.
+ * created by a sibling flow), otherwise create one, then link it back.
+ *
+ * Throws if the talent has neither a linked user nor an email — without an
+ * email BetterAuth has no identifier to hang a sign-in identity off.
+ */
+export async function ensureTalentUser(talentId: string): Promise<string> {
+  const talent = await prisma.talent.findUniqueOrThrow({
+    where: { id: talentId },
+    select: { id: true, userId: true, email: true, prenom: true, nom: true },
+  });
+  if (talent.userId) return talent.userId;
+
+  const email = talent.email?.toLowerCase().trim();
+  if (!email) {
+    throw new Error(
+      "Le talent n'a pas d'adresse email — impossible de créer un compte de connexion.",
+    );
+  }
+
+  const existing = await prisma.bauth_user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  const userId =
+    existing?.id ??
+    (
+      await prisma.bauth_user.create({
+        data: {
+          email,
+          role: 'student',
+          name: `${talent.prenom} ${talent.nom}`,
+        },
+        select: { id: true },
+      })
+    ).id;
+
+  await prisma.talent.update({
+    where: { id: talent.id },
+    data: { userId },
+  });
+  return userId;
+}
+
+/**
+ * Reset a talent to its pre-onboarding state so the whole flow (infos, lycée,
+ * intérêts, règlement, charte) and the arrival celebration can be walked again.
+ * This is a dev/QA affordance behind the admin-only impersonation page.
+ *
+ * Mirrors the inverse of the onboarding writes: nulls every gate timestamp the
+ * guard checks plus `welcomeSeenAt`, and undoes the +50 XP bonus (only if it
+ * was actually granted, never below zero) so a re-run nets back to the same XP
+ * rather than stacking +50 each time.
+ *
+ * Interest selections are intentionally left in place — the interest steps
+ * pre-fill from them, which is the realistic returning-talent experience.
+ */
+export async function resetTalentOnboarding(talentId: string): Promise<void> {
+  const talent = await prisma.talent.findUniqueOrThrow({
+    where: { id: talentId },
+    select: { id: true, xp: true, charterAcceptedAt: true },
+  });
+
+  const refundBonus = talent.charterAcceptedAt != null;
+  const xp = refundBonus
+    ? Math.max(0, talent.xp - WELCOME_XP_BONUS)
+    : talent.xp;
+
+  await prisma.talent.update({
+    where: { id: talent.id },
+    data: {
+      infoValidatedAt: null,
+      highSchoolValidatedAt: null,
+      techInterestsValidatedAt: null,
+      generalInterestsValidatedAt: null,
+      interestsRecapSeenAt: null,
+      rulesSignedAt: null,
+      charterAcceptedAt: null,
+      welcomeSeenAt: null,
+      xp,
+    },
+  });
+}
