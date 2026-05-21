@@ -175,60 +175,57 @@
 {/if}
 
 <div class="flex min-h-screen flex-col">
-  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:py-12">
-    <!-- HEADER: Greeting & Context -->
+  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+    <!-- HEADER: brand + greeting + account controls, all on one row to
+         keep the dashboard within a laptop viewport without scroll. -->
     <header
-      class="mb-6 space-y-6"
+      class="mb-6 flex items-center justify-between gap-3"
       in:fly={{ y: -20, duration: 400, delay: 100 }}
     >
-      <!-- Top bar: Epitech brand + account controls -->
-      <div class="flex items-center justify-between gap-2">
-        <a href={resolve('/')} aria-label="Accueil">
+      <div class="flex min-w-0 items-center gap-3 sm:gap-4">
+        <a href={resolve('/')} aria-label="Accueil" class="shrink-0">
           <img
             src="/EPITECH-LOGO-BLEU-2025.svg"
             alt="Epitech"
-            class="h-9 w-auto dark:brightness-0 dark:invert"
+            class="h-8 w-auto dark:brightness-0 dark:invert"
           />
         </a>
-        <div class="flex items-center gap-1">
-          <ModeToggle />
-          <Button
-            variant="ghost"
-            size="icon"
-            href={resolve('/settings')}
-            class="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-          >
-            <Settings class="h-4 w-4" />
-            <span class="sr-only">Paramètres</span>
-          </Button>
-          <form
-            action="{resolve('/logout')}?type=student"
-            method="POST"
-            onsubmit={() => track('logout', { kind: 'talent' })}
-          >
-            <Button
-              type="submit"
-              variant="ghost"
-              size="icon"
-              class="h-8 w-8 text-slate-400 hover:text-destructive"
-            >
-              <LogOut class="h-4 w-4" />
-              <span class="sr-only">Déconnexion</span>
-            </Button>
-          </form>
-        </div>
-      </div>
-
-      <!-- Greeting -->
-      <div class="text-center sm:text-left">
+        <div
+          class="h-8 w-px shrink-0 bg-slate-200 dark:bg-slate-800"
+          aria-hidden="true"
+        ></div>
         <h1
-          class="font-heading text-3xl tracking-tight text-slate-900 uppercase dark:text-white"
+          class="min-w-0 truncate font-heading text-2xl tracking-tight text-slate-900 uppercase sm:text-3xl dark:text-white"
         >
           Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
         </h1>
-        <p class="font-bold text-slate-500 uppercase">
-          Bienvenue dans ton cockpit.
-        </p>
+      </div>
+      <div class="flex shrink-0 items-center gap-1">
+        <ModeToggle />
+        <Button
+          variant="ghost"
+          size="icon"
+          href={resolve('/settings')}
+          class="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+        >
+          <Settings class="h-4 w-4" />
+          <span class="sr-only">Paramètres</span>
+        </Button>
+        <form
+          action="{resolve('/logout')}?type=student"
+          method="POST"
+          onsubmit={() => track('logout', { kind: 'talent' })}
+        >
+          <Button
+            type="submit"
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8 text-slate-400 hover:text-destructive"
+          >
+            <LogOut class="h-4 w-4" />
+            <span class="sr-only">Déconnexion</span>
+          </Button>
+        </form>
       </div>
     </header>
 
