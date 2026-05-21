@@ -5,7 +5,7 @@ export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
  * celebration). Granted in `(talent)/onboarding/+page.server.ts` and refunded
  * by the admin onboarding-reset in `services/talentAccount.ts`.
  */
-export const WELCOME_XP_BONUS = 50; // will make greater
+export const WELCOME_XP_BONUS = 200; // will make dependent on first onboarders
 
 /**
  * XP granted for finishing the daily minigame. Flat — it rewards showing up and
