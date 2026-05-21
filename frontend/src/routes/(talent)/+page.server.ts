@@ -3,8 +3,8 @@ import { error } from '@sveltejs/kit';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
+import { env } from '$env/dynamic/private';
 import { getStartOfDay } from '$lib/utils';
-import { hasFlag } from '$lib/server/auth/guards';
 import { checkTalentEligibility } from '$lib/server/services/minigameService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
@@ -155,7 +155,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const todayIsMultiDay = isMultiDay(todayParticipation?.event);
     const upcomingIsMultiDay = isMultiDay(upcomingParticipation?.event);
 
-    const minigame = hasFlag(locals, 'minigames')
+    // Minigames are intrinsic but require the games backend to be wired up.
+    // No backend configured → no card (can't play). An absent/already-played
+    // publication is handled downstream by checkTalentEligibility.
+    const minigame = env.JUMP_GAMES_URL
       ? await checkTalentEligibility(studentId)
       : null;
 

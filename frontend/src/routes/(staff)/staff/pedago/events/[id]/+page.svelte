@@ -508,7 +508,7 @@
             </span>
             <ArrowRight class="h-4 w-4 text-muted-foreground" />
           </a>
-          {#if data.featureFlags?.includes('minigames')}
+          {#if data.minigamesAvailable}
             <a
               href={resolve(`/staff/pedago/events/${event.id}/minigames`)}
               class="flex items-center justify-between rounded-sm border bg-card p-3 transition-colors hover:border-epi-blue/50"

@@ -245,6 +245,7 @@ model Campus {
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
   broadcasts        Broadcast[]
+  minigameAttempts  MinigameAttempt[]
 }
 
 model CmsPage {
@@ -1184,7 +1185,8 @@ model MinigameAttempt {
   id            String                @id @default(cuid())
   talentId      String
   publicationId String
-  eventId       String
+  eventId       String?
+  campusId      String?
   status        MinigameAttemptStatus @default(pending)
   score         Int?
   chrono        Int?
@@ -1195,10 +1197,12 @@ model MinigameAttempt {
 
   talent      Talent              @relation(fields: [talentId], references: [id], onDelete: Cascade)
   publication MinigamePublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
-  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event       Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  campus      Campus?             @relation(fields: [campusId], references: [id], onDelete: SetNull)
 
   @@unique([talentId, publicationId])
   @@index([eventId, publicationId])
+  @@index([campusId, publicationId])
   @@index([publicationId])
 }
 
