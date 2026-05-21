@@ -78,40 +78,19 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       orderBy: { event: { date: 'asc' } },
     });
 
-    // Fetch all completed participations to build themes + past preview
-    const allCompleted = await prisma.participation.findMany({
+    // Count past missions (present activities excluding orga, before today).
+    // Only the tally feeds the dashboard now — the history route owns the full
+    // list — so count in SQL rather than fetching every participation to size it.
+    const totalPastMissions = await prisma.participationActivity.count({
       where: {
-        talentId: studentId,
-        isPresent: true,
-      },
-      include: {
-        event: true,
-        activities: {
-          include: {
-            activity: {
-              include: {
-                activityThemes: { include: { theme: true } },
-              },
-            },
-          },
+        participation: {
+          talentId: studentId,
+          isPresent: true,
+          event: { date: { lt: filterDateStartDate } },
         },
+        activity: { activityType: { not: 'orga' } },
       },
     });
-
-    // Derive past participations from the set we already have
-    const allPast = allCompleted
-      .filter((p) => p.event.date < filterDateStartDate)
-      .sort((a, b) => b.event.date.getTime() - a.event.date.getTime());
-
-    const pastPreview = allPast;
-
-    // Count missions (activities excluding orga), not participations
-    const totalPastMissions = allPast.reduce(
-      (sum, p) =>
-        sum +
-        p.activities.filter((pa) => pa.activity.activityType !== 'orga').length,
-      0,
-    );
 
     // If there are multiple event today, grab the first one
     const todayParticipation =
@@ -162,8 +141,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       ? await checkTalentEligibility(studentId)
       : null;
 
-    // Check if a welcome page is available for re-reading
-    let hasWelcomePage = false;
+    // Resolve the welcome message so it can render inline on the dashboard
+    // (clamped preview + dialog), not just behind a link. Only once seen — the
+    // pre-onboarding flow routes to /welcome itself.
+    let welcome: { content: string } | null = null;
     if (locals.talent.welcomeSeenAt) {
       const stageParticipation = await prisma.participation.findFirst({
         where: {
@@ -184,9 +165,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
                 eventId: stageParticipation.event.id,
               },
             },
-            select: { id: true },
+            select: { content: true },
           });
-          hasWelcomePage = !!welcomePage;
+          if (welcomePage?.content) welcome = { content: welcomePage.content };
         }
       }
     }
@@ -196,13 +177,12 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       participation: todayParticipation,
       completedActivityIds: [...completedActivityIds],
       upcomingParticipation,
-      pastParticipations: pastPreview,
       totalPastMissions,
       todayIsMultiDay,
       upcomingIsMultiDay,
       serverNow: Date.now(),
       minigame,
-      hasWelcomePage,
+      welcome,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);

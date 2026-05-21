@@ -6,11 +6,10 @@
   import { fly } from 'svelte/transition';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import { formatDateFr, flattenActivityMissions } from '$lib/utils';
+  import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
-  import BookOpen from '@lucide/svelte/icons/book-open';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import Clock from '@lucide/svelte/icons/clock';
   import Coffee from '@lucide/svelte/icons/coffee';
@@ -19,15 +18,14 @@
   import Check from '@lucide/svelte/icons/check';
   import LogOut from '@lucide/svelte/icons/log-out';
   import History from '@lucide/svelte/icons/history';
-  import Calendar from '@lucide/svelte/icons/calendar';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import Laptop from '@lucide/svelte/icons/laptop';
   import Monitor from '@lucide/svelte/icons/monitor';
   import Settings from '@lucide/svelte/icons/settings';
-  import Mail from '@lucide/svelte/icons/mail';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
-  import MinigameMissionCard from '$lib/components/talent/MinigameMissionCard.svelte';
+  import MinigameStrip from '$lib/components/talent/MinigameStrip.svelte';
+  import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import { onMount, untrack } from 'svelte';
   import { track } from '$lib/analytics';
   import { goto } from '$app/navigation';
@@ -124,13 +122,10 @@
   let timeSlots = $derived(participation?.event?.planning?.timeSlots ?? []);
   let completedActivityIds = $derived(new Set(data.completedActivityIds));
 
-  let previewMissions = $derived(
-    flattenActivityMissions(data.pastParticipations).slice(0, 2),
-  );
   let totalPastMissions = $derived(data.totalPastMissions);
 
-  // The daily minigame is its own "mission" card — shown whenever it's playable
-  // or already played. Independent of any event.
+  // The daily minigame is a strip at the top of the "Mission du jour" card —
+  // shown whenever it's playable or already played. Independent of any event.
   let hasMinigame = $derived(
     !!data.minigame &&
       (data.minigame.ok || data.minigame.reason === 'already_played'),
@@ -172,34 +167,25 @@
 
 <div class="mx-auto max-w-5xl px-4 py-8 pb-20 sm:py-12">
   <!-- HEADER: Greeting & Context -->
-  <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
+  <header class="mb-6" in:fly={{ y: -20, duration: 400, delay: 100 }}>
     <div class="flex items-center gap-2">
       <div
         class="flex flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:text-left"
       >
         <div
-          class="flex h-16 w-16 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
+          class="flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
         >
-          <Rocket class="h-8 w-8" />
+          <Rocket class="h-7 w-7" />
         </div>
         <div class="sm:ml-4">
           <h1
-            class="font-heading text-4xl tracking-tight text-slate-900 uppercase dark:text-white"
+            class="font-heading text-3xl tracking-tight text-slate-900 uppercase dark:text-white"
           >
             Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
           </h1>
           <p class="font-bold text-slate-500 uppercase">
             Bienvenue dans ton cockpit.
           </p>
-          {#if data.hasWelcomePage}
-            <a
-              href={resolve('/welcome')}
-              class="mt-1 inline-flex items-center gap-1 text-sm text-epi-blue hover:underline"
-            >
-              <Mail class="h-3.5 w-3.5" />
-              Revoir le message de bienvenue
-            </a>
-          {/if}
         </div>
       </div>
       <div class="flex items-center gap-1">
@@ -234,7 +220,10 @@
 
   <div class="grid gap-6 md:grid-cols-12">
     <!-- LEFT COLUMN: Stats & Profile -->
-    <div class="md:col-span-4" in:fly={{ x: -20, duration: 400, delay: 200 }}>
+    <div
+      class="space-y-6 md:col-span-4"
+      in:fly={{ x: -20, duration: 400, delay: 200 }}
+    >
       <div
         class="relative overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
       >
@@ -285,6 +274,10 @@
           </div>
         </div>
       </div>
+
+      {#if data.welcome}
+        <NewsFeedCard welcomeContent={data.welcome.content} />
+      {/if}
     </div>
 
     <!-- RIGHT COLUMN: Today's Mission & History -->
@@ -296,16 +289,14 @@
         Mission du jour<span class="text-epi-teal">_</span>
       </h2>
 
-      {#if hasMinigame && data.minigame}
-        <div class="mb-6">
-          <MinigameMissionCard minigame={data.minigame} />
-        </div>
-      {/if}
+      <div
+        class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+      >
+        {#if hasMinigame && data.minigame}
+          <MinigameStrip minigame={data.minigame} />
+        {/if}
 
-      {#if participation}
-        <div
-          class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-        >
+        {#if participation}
           <div
             class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
           >
@@ -459,12 +450,7 @@
               </div>
             {/if}
           </div>
-        </div>
-      {:else if upcomingParticipation}
-        <!-- Upcoming Event -->
-        <div
-          class="flex min-h-62.5 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
-        >
+        {:else if upcomingParticipation}
           <div
             class="border-b border-blue-50 bg-blue-50/50 px-6 py-4 dark:border-blue-900/20 dark:bg-blue-950/20"
           >
@@ -521,78 +507,50 @@
               {/if}
             </div>
           </div>
-        </div>
-      {:else if !hasMinigame}
-        <!-- Nothing today: no event, no upcoming, and no minigame to play -->
-        <div
-          class="flex min-h-62.5 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
-        >
-          <div class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800">
-            <Coffee class="h-8 w-8 text-slate-400" />
-          </div>
-          <h3
-            class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
+        {:else if hasMinigame}
+          <div
+            class="flex flex-col items-center justify-center p-8 text-center"
           >
-            Repos aujourd'hui
-          </h3>
-          <p class="mt-2 max-w-sm text-sm text-slate-500">
-            Aucun atelier n'est planifié pour toi. Profites-en pour te reposer
-            ou revoir tes anciens projets dans ton portfolio !
-          </p>
-        </div>
-      {/if}
-
-      <!-- Past Missions (History) - compact preview -->
-      {#if previewMissions.length > 0}
-        <div class="mt-6 flex items-center justify-between">
-          <h2
-            class="flex items-center gap-2 font-heading text-sm text-slate-800 uppercase dark:text-slate-200"
-          >
-            <History class="h-4 w-4 text-epi-blue" />
-            Missions précédentes<span class="text-epi-teal">_</span>
-          </h2>
-          {#if totalPastMissions > 2}
-            <Button
-              variant="ghost"
-              size="sm"
-              href={resolve('/history')}
-              class="text-xs font-bold text-epi-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"
-            >
-              Voir tout ({totalPastMissions})
-              <ArrowRight class="ml-1 h-3 w-3" />
-            </Button>
-          {/if}
-        </div>
-        <div class="mt-3 grid gap-4 sm:grid-cols-2">
-          {#each previewMissions as mission}
-            <div
-              class="group flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-epi-blue/30 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
-            >
-              <div class="mb-4">
-                <div
-                  class="mb-2 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase"
-                >
-                  <Calendar class="h-3 w-3" />
-                  {formatDateFr(mission.eventDate)}
-                </div>
-                <h3
-                  class="line-clamp-2 font-normal text-slate-900 dark:text-white"
-                >
-                  {mission.activity.nom}
-                </h3>
-              </div>
-              {#if mission.activity.isDynamic}
-                <Button
-                  variant="outline"
-                  href={resolve(`/${mission.activity.id}`)}
-                  class="w-full gap-2 rounded-xl border-slate-200 transition-colors group-hover:border-epi-blue group-hover:bg-epi-blue group-hover:text-white dark:border-slate-800 dark:group-hover:border-epi-blue dark:group-hover:bg-epi-blue dark:group-hover:text-white"
-                >
-                  <BookOpen class="h-4 w-4" /> Revoir la mission
-                </Button>
-              {/if}
+            <div class="mb-3 rounded-full bg-slate-100 p-3 dark:bg-slate-800">
+              <Coffee class="h-6 w-6 text-slate-400" />
             </div>
-          {/each}
-        </div>
+            <p class="max-w-sm text-sm text-slate-500">
+              Pas d'atelier prévu aujourd'hui. Reviens bientôt pour ta prochaine
+              mission !
+            </p>
+          </div>
+        {:else}
+          <div
+            class="flex flex-col items-center justify-center p-8 text-center"
+          >
+            <div
+              class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
+            >
+              <Coffee class="h-8 w-8 text-slate-400" />
+            </div>
+            <h3
+              class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
+            >
+              Repos aujourd'hui
+            </h3>
+            <p class="mt-2 max-w-sm text-sm text-slate-500">
+              Aucun atelier n'est planifié pour toi. Profites-en pour te reposer
+              ou revoir tes anciens projets dans ton portfolio !
+            </p>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Past missions: a slim link, kept out of the action zone -->
+      {#if totalPastMissions > 0}
+        <a
+          href={resolve('/history')}
+          class="mt-4 inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
+        >
+          <History class="h-4 w-4" />
+          Revoir mes missions précédentes ({totalPastMissions})
+          <ArrowRight class="h-3.5 w-3.5" />
+        </a>
       {/if}
     </div>
   </div>
