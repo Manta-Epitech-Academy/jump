@@ -36,7 +36,7 @@
         }}
       >
         <Button type="submit">
-          Accéder au tableau de bord
+          On y va
           <ArrowRight class="ml-2 h-4 w-4" />
         </Button>
       </form>

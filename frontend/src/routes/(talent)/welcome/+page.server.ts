@@ -8,7 +8,6 @@ const SLUG = 'welcome';
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
-  // Resolve the talent's most recent stage_seconde participation
   const stageParticipation = await prisma.participation.findFirst({
     where: {
       talentId: locals.talent.id,
@@ -22,7 +21,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  // Stage is over — no longer accessible
   const stageEnd =
     stageParticipation.event.endDate ?? stageParticipation.event.date;
   if (stageEnd < new Date()) {
@@ -42,8 +40,13 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
+  // Replace CMS variables
+  const cmsContent = page.content
+    .replace(/\{\{PRENOM\}\}/gi, locals.talent.prenom)
+    .replace(/\{\{NOM\}\}/gi, locals.talent.nom);
+
   const alreadySeen = !!locals.talent.welcomeSeenAt;
-  return { cmsContent: page.content, alreadySeen };
+  return { cmsContent, alreadySeen };
 };
 
 export const actions: Actions = {
@@ -55,6 +58,7 @@ export const actions: Actions = {
       data: { welcomeSeenAt: new Date() },
     });
 
-    throw redirect(303, resolve('/'));
+    // Redirect to onboarding instead of home
+    throw redirect(303, resolve('/onboarding'));
   },
 };
