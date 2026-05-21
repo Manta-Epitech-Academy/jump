@@ -204,6 +204,20 @@ model Talent {
   parentPrenom                String?
   parentPhone                 String?
   phone                       String?
+  civilite                    String?
+  parentType                  String?
+  parentCivilite              String?
+  parent2Type                 String?
+  parent2Civilite             String?
+  parent2Nom                  String?
+  parent2Prenom               String?
+  parent2Email                String?
+  parent2Phone                String?
+  highSchoolUai               String?
+  hasLaptop                   Boolean   @default(false)
+  setupDescription            String?
+  equipmentValidatedAt        DateTime?
+  interestsFreeText           String?
   discordId                   String?   @unique
   externalId                  String?   @unique
   lastSyncedAt                DateTime?
