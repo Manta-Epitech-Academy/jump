@@ -28,6 +28,7 @@
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import MinigameCard from '$lib/components/talent/MinigameCard.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
+  import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import { onMount, untrack } from 'svelte';
   import { track } from '$lib/analytics';
   import { page } from '$app/state';
@@ -61,12 +62,29 @@
     return () => clearInterval(i);
   });
 
+  // Shared "+XP" reward celebration: confetti + a floating amount that fades
+  // out. Drives both the onboarding arrival and the minigame reward below.
+  let showXpFloat = $state(false);
+  let floatAmount = $state(0);
+  function celebrateXp(
+    amount: number,
+    timers: ReturnType<typeof setTimeout>[],
+  ) {
+    timers.push(
+      setTimeout(() => {
+        triggerConfetti();
+        floatAmount = amount;
+        showXpFloat = true;
+      }, 300),
+    );
+    timers.push(setTimeout(() => (showXpFloat = false), 2500));
+  }
+
   // Arrival celebration. The `?welcome=1` signal is emitted once — either
   // straight from onboarding (no welcome message) or by /welcome after the
   // message was read (which morphs into the Actualités card as we land here).
   // We celebrate and leave the freshly-docked card highlighted so it's easy to
   // find; the message itself was already read on /welcome, so no modal pops.
-  let showXpFloat = $state(false);
   let welcomeHighlight = $state(false);
   onMount(() => {
     if (!page.url.searchParams.has('welcome')) return;
@@ -75,13 +93,7 @@
     welcomeHighlight = true;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
-    timers.push(
-      setTimeout(() => {
-        triggerConfetti();
-        showXpFloat = true;
-      }, 300),
-    );
-    timers.push(setTimeout(() => (showXpFloat = false), 2500));
+    celebrateXp(50, timers);
     timers.push(
       setTimeout(() => {
         toast('Bienvenue sur Jump !', {
@@ -93,6 +105,31 @@
         });
       }, 1000),
     );
+    return () => timers.forEach(clearTimeout);
+  });
+
+  // Minigame reward celebration. The game-end callback lands server-to-server,
+  // so the browser only learns of the win on the next dashboard visit: the load
+  // surfaces an unseen, XP-earning attempt as `minigameReward`. Celebrate once,
+  // then submit the hidden form to stamp xpSeenAt so it can't replay.
+  let ackForm: HTMLFormElement;
+  onMount(() => {
+    const reward = data.minigameReward;
+    if (!reward) return;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    celebrateXp(reward.xp, timers);
+    timers.push(
+      setTimeout(() => {
+        toast('Défi du jour relevé ! 🎮', {
+          description: `Tu gagnes +${reward.xp} XP pour avoir terminé le mini-jeu du jour. Reviens demain pour un nouveau défi !`,
+          duration: 10000,
+          style:
+            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
+        });
+      }, 1000),
+    );
+    ackForm?.requestSubmit();
     return () => timers.forEach(clearTimeout);
   });
 
@@ -163,16 +200,19 @@
 </svelte:head>
 
 {#if showXpFloat}
-  <div
-    class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
-  >
-    <div
-      class="animate-xp-float text-4xl font-bold text-epi-orange drop-shadow-lg"
-    >
-      +50 XP
-    </div>
-  </div>
+  <XpFloat amount={floatAmount} />
 {/if}
+
+<!-- One-shot: stamps xpSeenAt after the minigame reward float plays. The no-op
+     enhance callback skips the default invalidation so the celebration isn't
+     interrupted mid-animation. -->
+<form
+  bind:this={ackForm}
+  method="POST"
+  action="?/acknowledgeMinigameReward"
+  use:enhance={() => () => {}}
+  class="hidden"
+></form>
 
 <div class="flex min-h-screen flex-col">
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">

@@ -11,6 +11,7 @@ import {
   getCampusLeaderboardPreview,
   getActivePublication,
   getClosestEventForTalent,
+  applyCallback,
 } from '$lib/server/services/minigameService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
@@ -162,6 +163,17 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           }
         : null;
 
+    // A finalized attempt that earned XP the talent hasn't seen celebrated yet:
+    // drives the one-shot "+XP" float, the same as the onboarding arrival. The
+    // float is acknowledged client-side (xpSeenAt) so it fires exactly once,
+    // wherever the talent first lands back on the dashboard after playing.
+    const lastAttempt =
+      minigame && !minigame.ok ? minigame.lastAttempt : undefined;
+    const minigameReward =
+      lastAttempt?.xpAwarded != null && lastAttempt.xpSeenAt == null
+        ? { xp: lastAttempt.xpAwarded }
+        : null;
+
     // The stage welcome message is the seed item of the dashboard's Actualités
     // feed. It shows for the whole stage window — the message permanently lives
     // here, this is its only home (the standalone /welcome page was removed).
@@ -204,6 +216,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       serverNow: Date.now(),
       minigame,
       leaderboard,
+      minigameReward,
       welcome,
     };
   } catch (err) {
@@ -213,6 +226,27 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 };
 
 export const actions: Actions = {
+  /**
+   * Mark the minigame XP celebration as seen, so the "+XP" float fires exactly
+   * once. Triggered client-side right after the float plays. Scoped to the
+   * talent's own unseen-but-awarded attempts (today's, in practice) and
+   * idempotent, so a double-fire or a stale tab is harmless.
+   */
+  acknowledgeMinigameReward: async ({ locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    await prisma.minigameAttempt.updateMany({
+      where: {
+        talentId: locals.talent.id,
+        xpAwarded: { not: null },
+        xpSeenAt: null,
+      },
+      data: { xpSeenAt: new Date() },
+    });
+
+    return { acknowledged: true };
+  },
+
   /**
    * Dev-only shortcut to toggle today's minigame attempt without playing it or
    * editing the DB by hand: finalizes the attempt (→ "déjà joué") if not done,
@@ -233,29 +267,50 @@ export const actions: Actions = {
     const existing = await prisma.minigameAttempt.findUnique({ where });
 
     if (existing && existing.status !== 'pending') {
-      await prisma.minigameAttempt.delete({ where: { id: existing.id } });
+      // Reset: refund any XP this attempt granted before dropping the row, so
+      // repeated dev toggles don't inflate the talent's balance.
+      await prisma.$transaction([
+        ...(existing.xpAwarded
+          ? [
+              prisma.talent.update({
+                where: { id: talentId },
+                data: { xp: { decrement: existing.xpAwarded } },
+              }),
+            ]
+          : []),
+        prisma.minigameAttempt.delete({ where: { id: existing.id } }),
+      ]);
       return { toggled: true, played: false };
     }
 
+    // Play: stand up a pending attempt, then drive the *real* award path so the
+    // dev shortcut and a genuine game-end callback grant XP identically.
     const closest = await getClosestEventForTalent(talentId);
-    const data = {
-      status: 'done' as const,
-      valid: true,
-      score: Math.floor(Math.random() * 1000),
-      chrono: Math.floor(Math.random() * 60_000) + 5_000,
-      finishedAt: new Date(),
-      eventId: closest?.eventId ?? null,
-      campusId: closest?.campusId ?? null,
-    };
+    const score = Math.floor(Math.random() * 1000);
+    const chrono = Math.floor(Math.random() * 60_000) + 5_000;
     await prisma.minigameAttempt.upsert({
       where,
-      update: data,
+      update: {
+        status: 'pending',
+        eventId: closest?.eventId ?? null,
+        campusId: closest?.campusId ?? null,
+      },
       create: {
         talentId,
         publicationId: publication.id,
         jti: `dev-${crypto.randomUUID()}`,
-        ...data,
+        status: 'pending',
+        eventId: closest?.eventId ?? null,
+        campusId: closest?.campusId ?? null,
       },
+    });
+    await applyCallback({
+      playerId: talentId,
+      game: publication.game,
+      level: publication.level,
+      score,
+      chrono,
+      valid: true,
     });
     return { toggled: true, played: true };
   },

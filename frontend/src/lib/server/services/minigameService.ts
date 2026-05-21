@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server/db';
 import { mintGameJwt } from '$lib/server/jwt';
+import { MINIGAME_XP_REWARD } from '$lib/domain/xp';
 import type {
   MinigameAttempt,
   MinigamePublication,
@@ -201,18 +202,34 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
     orderBy: { startedAt: 'desc' },
   });
   if (!attempt) return; // Unknown attempt: silently ignore (idempotent on retry of a deleted attempt).
-  if (attempt.status !== 'pending') return; // Already finalized — idempotent.
+  if (attempt.status !== 'pending') return; // Already finalized — idempotent: never re-pay XP.
 
-  await prisma.minigameAttempt.update({
-    where: { id: attempt.id },
-    data: {
-      status: payload.valid ? 'done' : 'invalid',
-      score: payload.score,
-      chrono: payload.chrono,
-      valid: payload.valid,
-      finishedAt: new Date(),
-    },
-  });
+  // A valid run earns flat XP; the talent sees the "+XP" float on their next
+  // dashboard visit (gated by xpSeenAt). Invalid runs finalize without reward.
+  // Increment + finalize together so the grant and the audit trail can't drift.
+  const xpAwarded = payload.valid ? MINIGAME_XP_REWARD : null;
+
+  await prisma.$transaction([
+    prisma.minigameAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        status: payload.valid ? 'done' : 'invalid',
+        score: payload.score,
+        chrono: payload.chrono,
+        valid: payload.valid,
+        finishedAt: new Date(),
+        xpAwarded,
+      },
+    }),
+    ...(xpAwarded
+      ? [
+          prisma.talent.update({
+            where: { id: attempt.talentId },
+            data: { xp: { increment: xpAwarded } },
+          }),
+        ]
+      : []),
+  ]);
 }
 
 export async function pickNextPublication(): Promise<MinigamePublication | null> {

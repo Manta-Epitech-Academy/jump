@@ -5,7 +5,15 @@ export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
  * celebration). Granted in `(talent)/onboarding/+page.server.ts` and refunded
  * by the admin onboarding-reset in `services/talentAccount.ts`.
  */
-export const WELCOME_XP_BONUS = 50;
+export const WELCOME_XP_BONUS = 50; // will make greater
+
+/**
+ * XP granted for finishing the daily minigame. Flat — it rewards showing up and
+ * completing the challenge, not performance (rank on the leaderboard is the
+ * performance reward). Kept below the activity floor (Débutant = 20) so a
+ * repeatable daily game never out-earns attending a real activity.
+ */
+export const MINIGAME_XP_REWARD = 50;
 
 export const DIFFICULTY_XP: Record<string, number> = {
   Débutant: 20,

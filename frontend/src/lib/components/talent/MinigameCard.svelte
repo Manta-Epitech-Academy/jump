@@ -74,13 +74,20 @@
       <!-- Played: morph into the leaderboard for this game -->
       <div class="p-4">
         {#if lastAttempt && (lastAttempt.score !== null || lastAttempt.chrono !== null)}
-          <p class="px-2 pb-2 text-xs font-bold text-slate-400 uppercase">
-            Ton résultat :
-            {#if lastAttempt.score !== null}{lastAttempt.score} pts{/if}
-            {#if lastAttempt.score !== null && lastAttempt.chrono !== null}·{/if}
-            {#if lastAttempt.chrono !== null}{formatChrono(
-                lastAttempt.chrono,
-              )}{/if}
+          <p
+            class="flex flex-wrap items-center gap-x-2 px-2 pb-2 text-xs font-bold text-slate-400 uppercase"
+          >
+            <span>
+              Ton résultat :
+              {#if lastAttempt.score !== null}{lastAttempt.score} pts{/if}
+              {#if lastAttempt.score !== null && lastAttempt.chrono !== null}·{/if}
+              {#if lastAttempt.chrono !== null}{formatChrono(
+                  lastAttempt.chrono,
+                )}{/if}
+            </span>
+            {#if lastAttempt.xpAwarded}
+              <span class="text-epi-orange">+{lastAttempt.xpAwarded} XP</span>
+            {/if}
           </p>
         {/if}
 
