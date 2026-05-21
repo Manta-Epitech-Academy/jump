@@ -326,6 +326,38 @@ export async function getEventLeaderboard(
   return buildLeaderboard(publicationId, { eventId });
 }
 
+export interface LeaderboardPreview {
+  rows: LeaderboardRow[];
+  /** The talent's own row, set only when they rank *below* the previewed top. */
+  ownRow: LeaderboardRow | null;
+  total: number;
+  scoringType: 'score' | 'chrono';
+}
+
+/**
+ * Compact campus leaderboard for the dashboard: the top `limit` rows plus the
+ * talent's own row pinned when they fall outside that top. Same campus scope
+ * (global fallback) as {@link getCampusLeaderboard}.
+ */
+export async function getCampusLeaderboardPreview(
+  publicationId: string,
+  campusId: string | null,
+  talentId: string,
+  limit = 5,
+): Promise<LeaderboardPreview> {
+  const { rows, scoringType } = await getCampusLeaderboard(
+    publicationId,
+    campusId,
+  );
+  const own = rows.find((r) => r.talentId === talentId) ?? null;
+  return {
+    rows: rows.slice(0, limit),
+    ownRow: own && own.rank > limit ? own : null,
+    total: rows.length,
+    scoringType,
+  };
+}
+
 function weightedPick(candidates: MinigameConfig[]): MinigameConfig {
   const total = candidates.reduce((acc, c) => acc + Math.max(1, c.weight), 0);
   let pick = Math.random() * total;

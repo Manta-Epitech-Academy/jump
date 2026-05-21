@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { dev } from '$app/environment';
+  import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
@@ -24,7 +26,7 @@
   import Settings from '@lucide/svelte/icons/settings';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
-  import MinigameStrip from '$lib/components/talent/MinigameStrip.svelte';
+  import MinigameCard from '$lib/components/talent/MinigameCard.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import { onMount, untrack } from 'svelte';
   import { track } from '$lib/analytics';
@@ -124,8 +126,8 @@
 
   let totalPastMissions = $derived(data.totalPastMissions);
 
-  // The daily minigame is a strip at the top of the "Mission du jour" card —
-  // shown whenever it's playable or already played. Independent of any event.
+  // The daily minigame is its own card (playable or already-played), shown
+  // after the event card. Independent of any event.
   let hasMinigame = $derived(
     !!data.minigame &&
       (data.minigame.ok || data.minigame.reason === 'already_played'),
@@ -289,269 +291,301 @@
         Mission du jour<span class="text-epi-teal">_</span>
       </h2>
 
-      <div
-        class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-      >
-        {#if hasMinigame && data.minigame}
-          <MinigameStrip minigame={data.minigame} />
-        {/if}
-
-        {#if participation}
-          <div
-            class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
-          >
-            <div
-              class="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500 uppercase"
-            >
-              <MapPin class="h-4 w-4 text-epi-blue" />
-              <span>{eventTitle}</span>
-              <span class="text-slate-300 dark:text-slate-700">•</span>
-              <Clock class="h-4 w-4" />
-              <span>{formatTime(participation?.event?.date)}</span>
-              {#if todayIsMultiDay && !hideTodayCalendarLink}
-                <a
-                  href={resolve('/calendar')}
-                  class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
-                >
-                  Voir le calendrier <ArrowRight class="h-3 w-3" />
-                </a>
-              {/if}
-            </div>
-          </div>
-
-          <div class="p-6">
-            {#if timeSlots.length > 0}
-              <!-- Compact Timeline -->
-              <div class="space-y-4">
-                {#each timeSlots as slot (slot.id)}
-                  <div>
-                    <div class="mb-2 flex items-center gap-2">
-                      <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
-                      <span
-                        class="text-[11px] font-bold text-slate-400 uppercase"
-                      >
-                        {formatTime(slot.startTime)} — {formatTime(
-                          slot.endTime,
-                        )}
-                      </span>
-                    </div>
-
-                    <div
-                      class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
-                    >
-                      {#if slot.activity}
-                        {@const activity = slot.activity}
-                        {@const isDone = completedActivityIds.has(activity.id)}
-                        {@const hasStarted =
-                          new Date(slot.startTime).getTime() <=
-                          nowTime.getTime()}
-                        {#if hasStarted}
-                          <a
-                            href={resolve(`/${activity.id}`)}
-                            class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
-                              ? 'bg-epi-teal-solid/10'
-                              : ''}"
-                          >
-                            <Badge
-                              variant="outline"
-                              class="shrink-0 text-[9px] font-bold uppercase"
-                            >
-                              {activityTypeLabels[activity.activityType] ??
-                                activity.activityType}
-                            </Badge>
-                            <span
-                              class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
-                            >
-                              {activity.nom}
-                            </span>
-                            {#if activity.difficulte}
-                              <span
-                                class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                                  activity.difficulte
-                                ] ?? ''}"
-                              >
-                                {activity.difficulte}
-                              </span>
-                            {/if}
-                            {#if isDone}
-                              <Check
-                                class="h-4 w-4 shrink-0 text-epi-teal-solid"
-                              />
-                            {:else}
-                              <ArrowRight
-                                class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
-                              />
-                            {/if}
-                          </a>
-                        {:else}
-                          <button
-                            type="button"
-                            class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left opacity-70 transition-all hover:bg-slate-50 hover:opacity-100 dark:hover:bg-slate-800/50"
-                            aria-label="{activity.nom} — aperçu"
-                            onclick={() => {
-                              previewSlot = {
-                                startTime: slot.startTime,
-                                endTime: slot.endTime,
-                                activity,
-                              };
-                              previewOpen = true;
-                            }}
-                          >
-                            <Badge
-                              variant="outline"
-                              class="shrink-0 text-[9px] font-bold uppercase"
-                            >
-                              {activityTypeLabels[activity.activityType] ??
-                                activity.activityType}
-                            </Badge>
-                            <span
-                              class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
-                            >
-                              {activity.nom}
-                            </span>
-                            {#if activity.difficulte}
-                              <span
-                                class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                                  activity.difficulte
-                                ] ?? ''}"
-                              >
-                                {activity.difficulte}
-                              </span>
-                            {/if}
-                            <span
-                              class="shrink-0 text-[9px] font-bold text-slate-400 uppercase"
-                            >
-                              À venir
-                            </span>
-                          </button>
-                        {/if}
-                      {/if}
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            {:else}
-              <!-- Event exists but no planning/activities yet -->
-              <div
-                class="flex flex-col items-center justify-center py-12 text-center"
+      {#snippet minigameCard()}
+        {#if hasMinigame && data.minigame && student}
+          <div class="relative">
+            <MinigameCard
+              minigame={data.minigame}
+              leaderboard={data.leaderboard}
+              currentTalentId={student.id}
+            />
+            {#if dev}
+              <!-- Dev-only overlay: flips today's attempt; out of flow, stripped in prod -->
+              <form
+                method="POST"
+                action="?/devToggleMinigame"
+                use:enhance
+                class="absolute top-3 right-4"
               >
-                <div
-                  class="mb-4 rounded-full bg-slate-100 p-4 dark:bg-slate-800"
+                <button
+                  type="submit"
+                  title="Dev : basculer l'état du mini-jeu du jour"
+                  class="text-[10px] font-bold tracking-wide text-slate-300 uppercase hover:text-epi-blue dark:text-slate-600"
                 >
-                  <Hourglass class="h-8 w-8 animate-pulse text-epi-blue" />
-                </div>
-                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  Le planning arrive...
-                </h3>
-                <p class="mt-2 max-w-sm text-sm text-slate-500">
-                  Le Manta est en train de préparer ta mission. Patiente
-                  quelques instants, la page se mettra à jour.
-                </p>
-              </div>
+                  {data.minigame.ok ? 'dev: joué' : 'dev: reset'}
+                </button>
+              </form>
             {/if}
           </div>
-        {:else if upcomingParticipation}
+        {/if}
+      {/snippet}
+
+      {#snippet historyLink()}
+        {#if totalPastMissions > 0}
+          <a
+            href={resolve('/history')}
+            class="inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
+          >
+            <History class="h-4 w-4" />
+            Revoir mes missions précédentes ({totalPastMissions})
+            <ArrowRight class="h-3.5 w-3.5" />
+          </a>
+        {/if}
+      {/snippet}
+
+      <div class="space-y-6">
+        {#if participation}
+          <!-- Event day: the IRL activities are primary; minigame comes after -->
           <div
-            class="border-b border-blue-50 bg-blue-50/50 px-6 py-4 dark:border-blue-900/20 dark:bg-blue-950/20"
+            class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
           >
             <div
-              class="flex flex-wrap items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
+              class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
             >
-              <CalendarClock class="h-4 w-4" />
-              <span>Mission à venir</span>
-              {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
-                <a
-                  href={resolve('/calendar')}
-                  class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
-                >
-                  Voir le calendrier <ArrowRight class="h-3 w-3" />
-                </a>
-              {/if}
-            </div>
-          </div>
-          <div
-            class="flex flex-1 flex-col items-center justify-center p-6 text-center"
-          >
-            <div class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20">
-              <Rocket class="h-8 w-8 text-epi-blue" />
-            </div>
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">
-              {upcomingParticipation.event?.titre || 'Atelier Epitech'}
-            </h3>
-            <p class="mt-2 max-w-md text-sm text-slate-500">
-              Ta prochaine session est prévue le <strong
-                class="text-slate-700 dark:text-slate-300"
-                >{formatDateFr(upcomingParticipation.event?.date)}</strong
+              <div
+                class="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500 uppercase"
               >
-              à
-              <strong class="text-slate-700 dark:text-slate-300"
-                >{formatTime(upcomingParticipation.event?.date)}</strong
-              >.
-            </p>
+                <MapPin class="h-4 w-4 text-epi-blue" />
+                <span>{eventTitle}</span>
+                <span class="text-slate-300 dark:text-slate-700">•</span>
+                <Clock class="h-4 w-4" />
+                <span>{formatTime(participation?.event?.date)}</span>
+                {#if todayIsMultiDay && !hideTodayCalendarLink}
+                  <a
+                    href={resolve('/calendar')}
+                    class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
+                  >
+                    Voir le calendrier <ArrowRight class="h-3 w-3" />
+                  </a>
+                {/if}
+              </div>
+            </div>
 
-            <div class="mt-6 flex gap-3">
-              {#if upcomingParticipation.bringPc}
-                <div
-                  class="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
-                >
-                  <Laptop class="h-4 w-4 shrink-0" />
-                  <span>N'oublie pas d'apporter ton PC !</span>
+            <div class="p-6">
+              {#if timeSlots.length > 0}
+                <!-- Compact Timeline -->
+                <div class="space-y-4">
+                  {#each timeSlots as slot (slot.id)}
+                    <div>
+                      <div class="mb-2 flex items-center gap-2">
+                        <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
+                        <span
+                          class="text-[11px] font-bold text-slate-400 uppercase"
+                        >
+                          {formatTime(slot.startTime)} — {formatTime(
+                            slot.endTime,
+                          )}
+                        </span>
+                      </div>
+
+                      <div
+                        class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
+                      >
+                        {#if slot.activity}
+                          {@const activity = slot.activity}
+                          {@const isDone = completedActivityIds.has(
+                            activity.id,
+                          )}
+                          {@const hasStarted =
+                            new Date(slot.startTime).getTime() <=
+                            nowTime.getTime()}
+                          {#if hasStarted}
+                            <a
+                              href={resolve(`/${activity.id}`)}
+                              class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
+                                ? 'bg-epi-teal-solid/10'
+                                : ''}"
+                            >
+                              <Badge
+                                variant="outline"
+                                class="shrink-0 text-[9px] font-bold uppercase"
+                              >
+                                {activityTypeLabels[activity.activityType] ??
+                                  activity.activityType}
+                              </Badge>
+                              <span
+                                class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                              >
+                                {activity.nom}
+                              </span>
+                              {#if activity.difficulte}
+                                <span
+                                  class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
+                                    activity.difficulte
+                                  ] ?? ''}"
+                                >
+                                  {activity.difficulte}
+                                </span>
+                              {/if}
+                              {#if isDone}
+                                <Check
+                                  class="h-4 w-4 shrink-0 text-epi-teal-solid"
+                                />
+                              {:else}
+                                <ArrowRight
+                                  class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
+                                />
+                              {/if}
+                            </a>
+                          {:else}
+                            <button
+                              type="button"
+                              class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left opacity-70 transition-all hover:bg-slate-50 hover:opacity-100 dark:hover:bg-slate-800/50"
+                              aria-label="{activity.nom} — aperçu"
+                              onclick={() => {
+                                previewSlot = {
+                                  startTime: slot.startTime,
+                                  endTime: slot.endTime,
+                                  activity,
+                                };
+                                previewOpen = true;
+                              }}
+                            >
+                              <Badge
+                                variant="outline"
+                                class="shrink-0 text-[9px] font-bold uppercase"
+                              >
+                                {activityTypeLabels[activity.activityType] ??
+                                  activity.activityType}
+                              </Badge>
+                              <span
+                                class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                              >
+                                {activity.nom}
+                              </span>
+                              {#if activity.difficulte}
+                                <span
+                                  class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
+                                    activity.difficulte
+                                  ] ?? ''}"
+                                >
+                                  {activity.difficulte}
+                                </span>
+                              {/if}
+                              <span
+                                class="shrink-0 text-[9px] font-bold text-slate-400 uppercase"
+                              >
+                                À venir
+                              </span>
+                            </button>
+                          {/if}
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
                 </div>
               {:else}
+                <!-- Event exists but no planning/activities yet -->
                 <div
-                  class="flex items-center gap-2 rounded-xl border border-epi-teal-solid/30 bg-epi-teal-solid/10 px-4 py-2 text-sm font-bold text-epi-teal-solid"
+                  class="flex flex-col items-center justify-center py-12 text-center"
                 >
-                  <Monitor class="h-4 w-4 shrink-0" />
-                  <span>Le matériel sera fourni sur place.</span>
+                  <div
+                    class="mb-4 rounded-full bg-slate-100 p-4 dark:bg-slate-800"
+                  >
+                    <Hourglass class="h-8 w-8 animate-pulse text-epi-blue" />
+                  </div>
+                  <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                    Le planning arrive...
+                  </h3>
+                  <p class="mt-2 max-w-sm text-sm text-slate-500">
+                    Le Manta est en train de préparer ta mission. Patiente
+                    quelques instants, la page se mettra à jour.
+                  </p>
                 </div>
               {/if}
             </div>
           </div>
-        {:else if hasMinigame}
-          <div
-            class="flex flex-col items-center justify-center p-8 text-center"
-          >
-            <div class="mb-3 rounded-full bg-slate-100 p-3 dark:bg-slate-800">
-              <Coffee class="h-6 w-6 text-slate-400" />
-            </div>
-            <p class="max-w-sm text-sm text-slate-500">
-              Pas d'atelier prévu aujourd'hui. Reviens bientôt pour ta prochaine
-              mission !
-            </p>
-          </div>
+          {@render historyLink()}
+          {@render minigameCard()}
         {:else}
-          <div
-            class="flex flex-col items-center justify-center p-8 text-center"
-          >
+          <!-- No event today: the daily minigame is the mission, shown first -->
+          {@render minigameCard()}
+          {#if upcomingParticipation}
             <div
-              class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
+              class="flex min-h-62.5 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
             >
-              <Coffee class="h-8 w-8 text-slate-400" />
+              <div
+                class="border-b border-blue-50 bg-blue-50/50 px-6 py-4 dark:border-blue-900/20 dark:bg-blue-950/20"
+              >
+                <div
+                  class="flex flex-wrap items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
+                >
+                  <CalendarClock class="h-4 w-4" />
+                  <span>Mission à venir</span>
+                  {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
+                    <a
+                      href={resolve('/calendar')}
+                      class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
+                    >
+                      Voir le calendrier <ArrowRight class="h-3 w-3" />
+                    </a>
+                  {/if}
+                </div>
+              </div>
+              <div
+                class="flex flex-1 flex-col items-center justify-center p-6 text-center"
+              >
+                <div
+                  class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
+                >
+                  <Rocket class="h-8 w-8 text-epi-blue" />
+                </div>
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white">
+                  {upcomingParticipation.event?.titre || 'Atelier Epitech'}
+                </h3>
+                <p class="mt-2 max-w-md text-sm text-slate-500">
+                  Ta prochaine session est prévue le <strong
+                    class="text-slate-700 dark:text-slate-300"
+                    >{formatDateFr(upcomingParticipation.event?.date)}</strong
+                  >
+                  à
+                  <strong class="text-slate-700 dark:text-slate-300"
+                    >{formatTime(upcomingParticipation.event?.date)}</strong
+                  >.
+                </p>
+
+                <div class="mt-6 flex gap-3">
+                  {#if upcomingParticipation.bringPc}
+                    <div
+                      class="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
+                    >
+                      <Laptop class="h-4 w-4 shrink-0" />
+                      <span>N'oublie pas d'apporter ton PC !</span>
+                    </div>
+                  {:else}
+                    <div
+                      class="flex items-center gap-2 rounded-xl border border-epi-teal-solid/30 bg-epi-teal-solid/10 px-4 py-2 text-sm font-bold text-epi-teal-solid"
+                    >
+                      <Monitor class="h-4 w-4 shrink-0" />
+                      <span>Le matériel sera fourni sur place.</span>
+                    </div>
+                  {/if}
+                </div>
+              </div>
             </div>
-            <h3
-              class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
+          {:else if !hasMinigame}
+            <div
+              class="flex min-h-62.5 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
             >
-              Repos aujourd'hui
-            </h3>
-            <p class="mt-2 max-w-sm text-sm text-slate-500">
-              Aucun atelier n'est planifié pour toi. Profites-en pour te reposer
-              ou revoir tes anciens projets dans ton portfolio !
-            </p>
-          </div>
+              <div
+                class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
+              >
+                <Coffee class="h-8 w-8 text-slate-400" />
+              </div>
+              <h3
+                class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
+              >
+                Repos aujourd'hui
+              </h3>
+              <p class="mt-2 max-w-sm text-sm text-slate-500">
+                Aucun atelier n'est planifié pour toi. Profites-en pour te
+                reposer ou revoir tes anciens projets dans ton portfolio !
+              </p>
+            </div>
+          {/if}
+          {@render historyLink()}
         {/if}
       </div>
-
-      <!-- Past missions: a slim link, kept out of the action zone -->
-      {#if totalPastMissions > 0}
-        <a
-          href={resolve('/history')}
-          class="mt-4 inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
-        >
-          <History class="h-4 w-4" />
-          Revoir mes missions précédentes ({totalPastMissions})
-          <ArrowRight class="h-3.5 w-3.5" />
-        </a>
-      {/if}
     </div>
   </div>
 </div>

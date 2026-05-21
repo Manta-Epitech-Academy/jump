@@ -1,11 +1,17 @@
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { env } from '$env/dynamic/private';
 import { getStartOfDay } from '$lib/utils';
-import { checkTalentEligibility } from '$lib/server/services/minigameService';
+import {
+  checkTalentEligibility,
+  getCampusLeaderboardPreview,
+  getActivePublication,
+  getClosestEventForTalent,
+} from '$lib/server/services/minigameService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -141,6 +147,21 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       ? await checkTalentEligibility(studentId)
       : null;
 
+    // Once the daily game is done, surface a compact campus leaderboard on the
+    // dashboard (the full board keeps its own page). Campus scope comes from
+    // the attempt's snapshot, so this needs no extra event lookup.
+    const leaderboard =
+      minigame && !minigame.ok && minigame.reason === 'already_played'
+        ? {
+            publicationId: minigame.publication!.id,
+            ...(await getCampusLeaderboardPreview(
+              minigame.publication!.id,
+              minigame.lastAttempt?.campusId ?? null,
+              studentId,
+            )),
+          }
+        : null;
+
     // Resolve the welcome message so it can render inline on the dashboard
     // (clamped preview + dialog), not just behind a link. Only once seen — the
     // pre-onboarding flow routes to /welcome itself.
@@ -182,10 +203,60 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       upcomingIsMultiDay,
       serverNow: Date.now(),
       minigame,
+      leaderboard,
       welcome,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
     throw error(500, 'Erreur lors du chargement du dashboard');
   }
+};
+
+export const actions: Actions = {
+  /**
+   * Dev-only shortcut to toggle today's minigame attempt without playing it or
+   * editing the DB by hand: finalizes the attempt (→ "déjà joué") if not done,
+   * or deletes it (→ rejouable) if done. Compiled out of production builds via
+   * the `dev` guard.
+   */
+  devToggleMinigame: async ({ locals }) => {
+    if (!dev) throw error(404, 'Indisponible.');
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const publication = await getActivePublication();
+    if (!publication) return { toggled: false };
+
+    const talentId = locals.talent.id;
+    const where = {
+      talentId_publicationId: { talentId, publicationId: publication.id },
+    };
+    const existing = await prisma.minigameAttempt.findUnique({ where });
+
+    if (existing && existing.status !== 'pending') {
+      await prisma.minigameAttempt.delete({ where: { id: existing.id } });
+      return { toggled: true, played: false };
+    }
+
+    const closest = await getClosestEventForTalent(talentId);
+    const data = {
+      status: 'done' as const,
+      valid: true,
+      score: Math.floor(Math.random() * 1000),
+      chrono: Math.floor(Math.random() * 60_000) + 5_000,
+      finishedAt: new Date(),
+      eventId: closest?.eventId ?? null,
+      campusId: closest?.campusId ?? null,
+    };
+    await prisma.minigameAttempt.upsert({
+      where,
+      update: data,
+      create: {
+        talentId,
+        publicationId: publication.id,
+        jti: `dev-${crypto.randomUUID()}`,
+        ...data,
+      },
+    });
+    return { toggled: true, played: true };
+  },
 };
