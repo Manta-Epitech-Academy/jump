@@ -3664,6 +3664,23 @@ async function seedStudents(): Promise<
       parentNom: hasParentInfo ? 'Martin' : null,
       parentPrenom: hasParentInfo ? 'Sophie' : null,
       parentEmail: hasParentInfo ? `parent.${s.email}` : null,
+      civilite: fullyOnboarded ? (i % 2 === 0 ? 'homme' : 'femme') : null,
+      parentType: hasParentInfo ? (i % 3 === 0 ? 'pere' : 'mere') : null,
+      parentCivilite: hasParentInfo ? (i % 3 === 0 ? 'homme' : 'femme') : null,
+      parent2Type: null,
+      parent2Civilite: null,
+      parent2Nom: null,
+      parent2Prenom: null,
+      parent2Email: null,
+      parent2Phone: null,
+      highSchoolUai: fullyOnboarded ? '0750001A' : null,
+      hasLaptop: fullyOnboarded ? true : false,
+      setupDescription:
+        fullyOnboarded && i % 3 === 0
+          ? 'PC gaming RTX 4070, double écran'
+          : null,
+      equipmentValidatedAt: fullyOnboarded ? new Date() : null,
+      interestsFreeText: null,
       lastActiveAt,
       externalId: mockSalesforceLeadId(i),
     };
