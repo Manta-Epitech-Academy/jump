@@ -98,7 +98,7 @@
           out:exitSlide|local={{ duration: 250 }}
         >
           {#if microStep === 1}
-            <ProfileStep profile={data.profile} errors={form?.errors} />
+            <ProfileStep profile={data.profile!} errors={form?.errors} />
           {:else if microStep === 2}
             <BackButton onclick={goBackServer} />
             <InterestsCombinedStep

@@ -1,20 +1,20 @@
 import { z } from 'zod';
 
 const civiliteEnum = z.enum(['homme', 'femme', 'autre'], {
-  required_error: 'La civilité est requise',
+  message: 'La civilité est requise',
 });
 
 const parentTypeEnum = z.enum(['pere', 'mere', 'referent'], {
-  required_error: 'Le lien de parenté est requis',
+  message: 'Le lien de parenté est requis',
 });
 
 const parent2Schema = z.object({
-  parent2Type: parentTypeEnum.optional().or(z.literal('')),
-  parent2Civilite: civiliteEnum.optional().or(z.literal('')),
-  parent2Nom: z.string().optional().or(z.literal('')),
-  parent2Prenom: z.string().optional().or(z.literal('')),
-  parent2Email: z.string().optional().or(z.literal('')),
-  parent2Phone: z.string().optional().or(z.literal('')),
+  parent2Type: z.string().optional(),
+  parent2Civilite: z.string().optional(),
+  parent2Nom: z.string().optional(),
+  parent2Prenom: z.string().optional(),
+  parent2Email: z.string().optional(),
+  parent2Phone: z.string().optional(),
 });
 
 const profileBaseSchema = z
