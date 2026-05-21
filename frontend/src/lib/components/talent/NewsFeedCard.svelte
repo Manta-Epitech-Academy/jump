@@ -1,6 +1,8 @@
 <script lang="ts">
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
+  import { cn } from '$lib/utils';
+  import WelcomeMessageBody from '$lib/components/talent/WelcomeMessageBody.svelte';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import Mail from '@lucide/svelte/icons/mail';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -9,19 +11,41 @@
   // welcome message; future items (announcements, badges earned, etc.) stack
   // into the same list. The list region is height-bounded + scrollable so the
   // feed grows without pushing page height.
-  let { welcomeContent }: { welcomeContent: string | null } = $props();
+  //
+  // This card is the welcome message's permanent home. On first arrival the
+  // /welcome page morphs into it via the shared `welcome-message`
+  // view-transition-name; `highlight` then flags it fresh (ring + "Nouveau").
+  let {
+    welcomeContent,
+    highlight = false,
+  }: {
+    welcomeContent: string | null;
+    highlight?: boolean;
+  } = $props();
 
-  let welcomeOpen = $state(false);
+  let open = $state(false);
 </script>
 
 <div
-  class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+  style="view-transition-name: welcome-message"
+  class={cn(
+    'overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 transition-shadow dark:bg-slate-900 dark:shadow-none',
+    highlight &&
+      'ring-2 ring-epi-teal/70 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-950',
+  )}
 >
   <div
     class="flex items-center gap-2 border-b border-slate-100 bg-blue-50/50 px-6 py-4 text-xs font-bold text-epi-blue uppercase dark:border-slate-800 dark:bg-blue-950/20"
   >
     <Newspaper class="h-4 w-4" />
     Actualités
+    {#if highlight}
+      <span
+        class="ml-auto rounded-full bg-epi-teal px-2 py-0.5 text-[10px] font-bold text-black"
+      >
+        Nouveau
+      </span>
+    {/if}
   </div>
 
   <div
@@ -38,9 +62,7 @@
 
         <!-- Clamped preview: fades out, full content in the dialog. -->
         <div class="relative max-h-[16rem] overflow-hidden">
-          <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
-            {@html welcomeContent}
-          </div>
+          <WelcomeMessageBody content={welcomeContent} class="prose-sm" />
           <div
             class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white to-transparent dark:from-slate-900"
           ></div>
@@ -48,7 +70,7 @@
 
         <Button
           variant="outline"
-          onclick={() => (welcomeOpen = true)}
+          onclick={() => (open = true)}
           class="mt-4 w-full gap-2 rounded-xl border-slate-200 transition-colors hover:border-epi-blue hover:bg-epi-blue hover:text-white dark:border-slate-800 dark:hover:border-epi-blue dark:hover:bg-epi-blue dark:hover:text-white"
         >
           Lire le message <ArrowRight class="h-4 w-4" />
@@ -59,7 +81,7 @@
 </div>
 
 {#if welcomeContent}
-  <Dialog.Root bind:open={welcomeOpen}>
+  <Dialog.Root bind:open>
     <Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
       <Dialog.Header>
         <Dialog.Title class="flex items-center gap-2">
@@ -67,9 +89,7 @@
           Message de bienvenue
         </Dialog.Title>
       </Dialog.Header>
-      <div class="prose max-w-none prose-slate dark:prose-invert">
-        {@html welcomeContent}
-      </div>
+      <WelcomeMessageBody content={welcomeContent} />
     </Dialog.Content>
   </Dialog.Root>
 {/if}

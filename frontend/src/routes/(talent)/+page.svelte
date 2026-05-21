@@ -30,7 +30,6 @@
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import { onMount, untrack } from 'svelte';
   import { track } from '$lib/analytics';
-  import { goto } from '$app/navigation';
   import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
@@ -62,21 +61,28 @@
     return () => clearInterval(i);
   });
 
-  // Welcome celebration after onboarding completion
+  // Arrival celebration. The `?welcome=1` signal is emitted once — either
+  // straight from onboarding (no welcome message) or by /welcome after the
+  // message was read (which morphs into the Actualités card as we land here).
+  // We celebrate and leave the freshly-docked card highlighted so it's easy to
+  // find; the message itself was already read on /welcome, so no modal pops.
   let showXpFloat = $state(false);
+  let welcomeHighlight = $state(false);
   onMount(() => {
-    if (page.url.searchParams.has('welcome')) {
-      // Clean URL without reloading
-      history.replaceState({}, '', page.url.pathname);
+    if (!page.url.searchParams.has('welcome')) return;
+    // Clean URL without reloading so the celebration can't replay.
+    history.replaceState({}, '', page.url.pathname);
+    welcomeHighlight = true;
 
-      // Sequence: confetti → XP float → toast
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    timers.push(
       setTimeout(() => {
         triggerConfetti();
         showXpFloat = true;
-      }, 300);
-      setTimeout(() => {
-        showXpFloat = false;
-      }, 2500);
+      }, 300),
+    );
+    timers.push(setTimeout(() => (showXpFloat = false), 2500));
+    timers.push(
       setTimeout(() => {
         toast('Bienvenue sur Jump !', {
           description:
@@ -85,8 +91,9 @@
           style:
             'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
         });
-      }, 1000);
-    }
+      }, 1000),
+    );
+    return () => timers.forEach(clearTimeout);
   });
 
   let student = $derived(data.student);
@@ -283,7 +290,10 @@
         </div>
 
         {#if data.welcome}
-          <NewsFeedCard welcomeContent={data.welcome.content} />
+          <NewsFeedCard
+            welcomeContent={data.welcome.content}
+            highlight={welcomeHighlight}
+          />
         {/if}
       </div>
 

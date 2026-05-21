@@ -377,6 +377,9 @@ export const actions: Actions = {
       },
     });
 
+    // Head to the dashboard with the one-shot celebration signal. If a CMS
+    // welcome message exists, the guard intercepts to /welcome first; that page
+    // re-emits `?welcome=1` after the read, so the celebration fires either way.
     throw redirect(303, resolve('/?welcome=1'));
   },
 };

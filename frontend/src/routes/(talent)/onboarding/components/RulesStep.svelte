@@ -5,8 +5,7 @@
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
   import { track } from '$lib/analytics';
-  import { triggerConfetti } from '$lib/actions/confetti';
-  import { fly, fade } from 'svelte/transition';
+  import { fly } from 'svelte/transition';
 
   let { error: formError }: { error?: string } = $props();
 
@@ -59,10 +58,12 @@
           track('rules_signed');
           track('onboarding_completed');
           completed = true;
-          triggerConfetti();
+          // No confetti here — the dashboard arrival owns the celebration
+          // (confetti + XP + welcome message). This screen is just the lead-in
+          // that view-transitions into it. Hold briefly so it's seen.
           setTimeout(() => {
             update();
-          }, 2500);
+          }, 1600);
           return;
         }
         if (result.type === 'failure') {

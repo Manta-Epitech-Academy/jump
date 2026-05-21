@@ -162,11 +162,11 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           }
         : null;
 
-    // Resolve the welcome message so it can render inline on the dashboard
-    // (clamped preview + dialog), not just behind a link. Only once seen — the
-    // pre-onboarding flow routes to /welcome itself.
+    // The stage welcome message is the seed item of the dashboard's Actualités
+    // feed. It shows for the whole stage window — the message permanently lives
+    // here, this is its only home (the standalone /welcome page was removed).
     let welcome: { content: string } | null = null;
-    if (locals.talent.welcomeSeenAt) {
+    {
       const stageParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
