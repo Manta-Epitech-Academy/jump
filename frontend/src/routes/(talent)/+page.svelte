@@ -8,6 +8,7 @@
   import { fly } from 'svelte/transition';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
+  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
   import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
   import Rocket from '@lucide/svelte/icons/rocket';
@@ -93,12 +94,11 @@
     welcomeHighlight = true;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
-    celebrateXp(50, timers);
+    celebrateXp(WELCOME_XP_BONUS, timers);
     timers.push(
       setTimeout(() => {
         toast('Bienvenue sur Jump !', {
-          description:
-            'Tu gagnes +50 XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !',
+          description: `Tu gagnes +${WELCOME_XP_BONUS} XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
           duration: 12000,
           style:
             'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
