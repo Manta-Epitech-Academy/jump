@@ -21,6 +21,7 @@
   import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
+  import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import { track } from '$lib/analytics';
 
   let { children, data } = $props();
@@ -225,9 +226,7 @@
   </div>
 {/snippet}
 
-<div
-  class="flex h-[calc(100dvh-var(--impersonation-banner-h,0px))] w-full overflow-hidden bg-background"
->
+<div class="flex h-dvh w-full overflow-hidden bg-background">
   <aside
     class="app-sidebar hidden w-62.5 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
   >
@@ -237,6 +236,7 @@
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
       {@render navMenu()}
     </div>
+    <ImpersonationCard />
     {@render sidebarFooter()}
   </aside>
 
@@ -291,6 +291,7 @@
         <div class="flex-1 overflow-y-auto px-4 pt-2 pb-4">
           {@render navMenu()}
         </div>
+        <ImpersonationCard />
         {@render sidebarFooter()}
       </aside>
     {/if}

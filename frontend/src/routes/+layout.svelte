@@ -12,7 +12,6 @@
   import { ModeWatcher } from 'mode-watcher';
   import { page } from '$app/state';
   import { dev } from '$app/environment';
-  import ImpersonationBanner from '$lib/components/ImpersonationBanner.svelte';
   import Umami from '$lib/components/Umami.svelte';
   import { identify, reset } from '$lib/analytics';
 
@@ -110,6 +109,5 @@
 
 <div style="display: contents">
   <Toaster richColors position="top-center" />
-  <ImpersonationBanner />
   {@render children()}
 </div>
