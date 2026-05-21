@@ -10,9 +10,10 @@
 
   // Shown to an admin impersonating a talent. The talent portal is a light,
   // sidebar-less layout, so the staff-rail ImpersonationCard doesn't fit here.
-  // Styled as a floating iOS-style notification pill that drops in from the top
+  // Styled as a floating iOS-style notification pill that slides up from the bottom
   // — deliberately rounded/blurred (off-brand vs the square DS) to read as a
-  // transient system overlay, not part of the talent UI. Shares BetterAuth's
+  // transient system overlay, not part of the talent UI. Pinned to the bottom
+  // so it clears the top app bar. Shares BetterAuth's
   // `session.impersonatedBy` signal and stop-impersonating call.
 
   let busy = $state(false);
@@ -44,10 +45,10 @@
 
 {#if isImpersonating}
   <div
-    class="pointer-events-none fixed inset-x-0 top-3 z-[60] flex justify-center px-3"
+    class="pointer-events-none fixed inset-x-0 bottom-3 z-[60] flex justify-center px-3"
   >
     <div
-      in:fly={{ y: -80, duration: 320, opacity: 0 }}
+      in:fly={{ y: 80, duration: 320, opacity: 0 }}
       class="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-black/5 bg-white/85 p-2.5 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/85 dark:ring-white/10"
       role="alert"
     >
