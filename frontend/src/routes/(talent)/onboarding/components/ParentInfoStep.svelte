@@ -3,6 +3,7 @@
   import { Button } from '$lib/components/ui/button';
   import Users from '@lucide/svelte/icons/users';
   import Plus from '@lucide/svelte/icons/plus';
+  import X from '@lucide/svelte/icons/x';
   import { track } from '$lib/analytics';
 
   let {
@@ -135,8 +136,10 @@
   <!-- Hidden chip values -->
   <input type="hidden" name="parentType" value={localParentType} />
   <input type="hidden" name="parentCivilite" value={localParentCivilite} />
-  <input type="hidden" name="parent2Type" value={localP2Type} />
-  <input type="hidden" name="parent2Civilite" value={localP2Civilite} />
+  {#if showParent2}
+    <input type="hidden" name="parent2Type" value={localP2Type} />
+    <input type="hidden" name="parent2Civilite" value={localP2Civilite} />
+  {/if}
 
   <!-- Parent type -->
   <div
@@ -276,14 +279,28 @@
     </button>
   {:else}
     <div class="mt-4 space-y-3">
-      <h2
-        class="flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
-      >
-        <Users class="h-4 w-4" /> Second parent
-        <span class="text-xs font-normal text-slate-400 normal-case"
-          >(facultatif)</span
+      <div class="flex items-center justify-between">
+        <h2
+          class="flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
         >
-      </h2>
+          <Users class="h-4 w-4" /> Second parent
+          <span class="text-xs font-normal text-slate-400 normal-case"
+            >(facultatif)</span
+          >
+        </h2>
+        <button
+          type="button"
+          onclick={() => {
+            showParent2 = false;
+            localP2Type = '';
+            localP2Civilite = '';
+          }}
+          class="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-slate-400 transition-colors hover:text-red-500"
+        >
+          <X class="h-3.5 w-3.5" />
+          Retirer
+        </button>
+      </div>
 
       <div
         class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
