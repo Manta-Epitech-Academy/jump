@@ -174,7 +174,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
         staffUser: { select: { name: true } },
         broadcast: {
           select: {
-            campus: { select: { name: true } },
+            campus: { select: { name: true, contactEmail: true } },
           },
         },
       },
@@ -241,7 +241,11 @@ type RecipientWithRelations = Awaited<
           };
         };
         staffUser: { select: { name: true } };
-        broadcast: { select: { campus: { select: { name: true } } } };
+        broadcast: {
+          select: {
+            campus: { select: { name: true; contactEmail: true } };
+          };
+        };
       };
     }>
   >
@@ -491,6 +495,7 @@ function buildContext(
     email: recipient.recipientEmail,
     phone: recipient.recipientPhone,
     campus: recipient.broadcast.campus?.name ?? '',
+    email_contact_campus: recipient.broadcast.campus?.contactEmail ?? null,
     event_name: broadcast.event?.titre ?? null,
     fastlogin_link: personal.fastloginLink,
     otp_code: personal.otpCode,

@@ -129,6 +129,7 @@
     $form.name = campus.name;
     $form.externalName = campus.externalName ?? '';
     $form.timezone = campus.timezone ?? 'Europe/Paris';
+    $form.contactEmail = campus.contactEmail ?? '';
     $form.flags = (campus.flags ?? []) as FlagKey[];
     isEditing = true;
     editId = campus.id;
@@ -274,6 +275,24 @@
               />
               {#if $errors.externalName}<span class="text-xs text-destructive"
                   >{$errors.externalName}</span
+                >{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Email de contact</Label>
+              <Input
+                type="email"
+                name="contactEmail"
+                bind:value={$form.contactEmail}
+                placeholder="Ex: contact.paris@epitech.eu"
+              />
+              <p class="text-xs text-muted-foreground">
+                Disponible dans les templates via <code
+                  class="rounded bg-muted px-1 py-0.5 text-[10px]"
+                  >{`{{EMAIL_CONTACT_CAMPUS}}`}</code
+                >.
+              </p>
+              {#if $errors.contactEmail}<span class="text-xs text-destructive"
+                  >{$errors.contactEmail}</span
                 >{/if}
             </div>
             <div class="space-y-2">

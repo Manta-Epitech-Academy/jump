@@ -50,6 +50,10 @@ export async function sendRelances(
 ): Promise<SendRelancesResult> {
   const { talentIds, type, subject, body, sentBy, campusId } = input;
   const db = scopedPrisma(campusId);
+  const campus = await prisma.campus.findUnique({
+    where: { id: campusId },
+    select: { contactEmail: true },
+  });
 
   // Gate at the top: no template bound for this action → every recipient
   // bucketed as `noTemplate`. Consistent with the global rule "no template
@@ -131,6 +135,7 @@ export async function sendRelances(
       ...EMPTY_VARIABLE_CONTEXT,
       ...talentVars,
       login_link: loginLink,
+      email_contact_campus: campus?.contactEmail ?? null,
     };
     const renderedSubject = substituteVariables(subject, ctx);
     const renderedBody = substituteVariables(body, ctx);
