@@ -108,8 +108,30 @@
   });
 
   // If server returned validation errors on validateProfile, jump to parent step
+  // and re-populate fields from the submitted values
   $effect(() => {
     if (form?.errors && data.step === 'profile') {
+      if (form.values) {
+        const v = form.values as Record<string, string>;
+        profileFields.parentType = v.parentType ?? profileFields.parentType;
+        profileFields.parentCivilite =
+          v.parentCivilite ?? profileFields.parentCivilite;
+        profileFields.parentNom = v.parentNom ?? profileFields.parentNom;
+        profileFields.parentPrenom =
+          v.parentPrenom ?? profileFields.parentPrenom;
+        profileFields.parentEmail = v.parentEmail ?? profileFields.parentEmail;
+        profileFields.parentPhone = v.parentPhone ?? profileFields.parentPhone;
+        profileFields.parent2Type = v.parent2Type ?? profileFields.parent2Type;
+        profileFields.parent2Civilite =
+          v.parent2Civilite ?? profileFields.parent2Civilite;
+        profileFields.parent2Nom = v.parent2Nom ?? profileFields.parent2Nom;
+        profileFields.parent2Prenom =
+          v.parent2Prenom ?? profileFields.parent2Prenom;
+        profileFields.parent2Email =
+          v.parent2Email ?? profileFields.parent2Email;
+        profileFields.parent2Phone =
+          v.parent2Phone ?? profileFields.parent2Phone;
+      }
       microStep = 2;
     }
   });

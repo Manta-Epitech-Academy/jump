@@ -126,6 +126,7 @@ export const actions: Actions = {
       return {
         step: 'profile' as const,
         errors: result.error.flatten().fieldErrors,
+        values: raw as Record<string, string>,
       };
     }
 
