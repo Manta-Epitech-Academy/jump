@@ -26,6 +26,7 @@
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentFormDialog from './components/StudentFormDialog.svelte';
   import { track } from '$lib/analytics';
+  import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
 
   let { data }: { data: PageData } = $props();
 
@@ -96,17 +97,6 @@
     else url.searchParams.delete('page');
     goto(url.toString());
   }
-
-  const niveaux = [
-    '6eme',
-    '5eme',
-    '4eme',
-    '3eme',
-    '2nde',
-    '1ere',
-    'Terminale',
-    'Sup',
-  ];
 </script>
 
 <svelte:head>
@@ -140,12 +130,14 @@
       >
         <Select.Trigger>
           <Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
-          {selectedLevel === 'all' ? 'Tous les niveaux' : selectedLevel}
+          {selectedLevel === 'all'
+            ? 'Tous les niveaux'
+            : niveauLabel(selectedLevel)}
         </Select.Trigger>
         <Select.Content>
           <Select.Item value="all">Tous les niveaux</Select.Item>
-          {#each niveaux as niveau}<Select.Item value={niveau}
-              >{niveau}</Select.Item
+          {#each NIVEAUX as niveau}<Select.Item value={niveau}
+              >{niveauLabel(niveau)}</Select.Item
             >{/each}
         </Select.Content>
       </Select.Root>
@@ -196,7 +188,7 @@
                   variant="secondary"
                   class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
                 >
-                  {student.niveau}
+                  {niveauLabel(student.niveau)}
                 </Badge>
               </Table.Cell>
               <Table.Cell class="text-right text-muted-foreground">

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { niveauLabel } from '$lib/domain/niveau';
   import type { Snippet } from 'svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
   import * as Card from '$lib/components/ui/card';
@@ -78,7 +79,7 @@
       )}
     >
       <Badge variant="outline" class={cn('px-3 py-0.5', levelBadgeClass)}
-        >{student.niveau}</Badge
+        >{niveauLabel(student.niveau)}</Badge
       >
     </div>
   </Card.Header>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { niveauLabel } from '$lib/domain/niveau';
   import * as Command from '$lib/components/ui/command';
   import { goto } from '$app/navigation';
   import Calendar from '@lucide/svelte/icons/calendar';
@@ -154,7 +155,7 @@
               </div>
               <span
                 class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-                >{student.niveau}</span
+                >{niveauLabel(student.niveau)}</span
               >
             </div>
 

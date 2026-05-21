@@ -86,6 +86,8 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.featureFlags = new Set();
   event.locals.ticketsEnabled = false;
   event.locals.stagePhaseOverride = null;
+  event.locals.impersonator = null;
+  event.locals.talentCampusName = null;
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -114,12 +116,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     let campusId = event.locals.staffProfile?.campusId ?? null;
     if (!campusId && event.locals.talent) {
+      // Talents have no direct Campus relation; their effective campus is the
+      // one from their most recent participation. Resolve it once here and reuse
+      // for both feature-flag scoping (campusId) and analytics (talentCampusName)
+      // so the root layout doesn't have to re-run the same lookup.
       const participation = await prisma.participation.findFirst({
         where: { talentId: event.locals.talent.id },
         orderBy: { event: { date: 'desc' } },
-        select: { campusId: true },
+        select: { campusId: true, campus: { select: { name: true } } },
       });
       campusId = participation?.campusId ?? null;
+      event.locals.talentCampusName = participation?.campus?.name ?? null;
     }
     if (campusId) {
       const overrides = await prisma.campusFeatureFlag.findMany({
@@ -131,6 +138,37 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     if (event.locals.staffProfile) {
       event.locals.ticketsEnabled = await getTicketsEnabled();
+    }
+
+    // Resolve the real admin behind an impersonated session so analytics can
+    // attribute actions to the actor (not the impersonated user). BetterAuth
+    // stores the admin's user id in `session.impersonatedBy`.
+    const impersonatedById =
+      (event.locals.session as { impersonatedBy?: string | null } | null)
+        ?.impersonatedBy ?? null;
+    if (impersonatedById) {
+      const adminRecord = await prisma.bauth_user.findUnique({
+        where: { id: impersonatedById },
+        select: {
+          email: true,
+          staffProfile: {
+            select: {
+              id: true,
+              staffRole: true,
+              campus: { select: { name: true } },
+            },
+          },
+        },
+      });
+      if (adminRecord) {
+        event.locals.impersonator = {
+          userId: impersonatedById,
+          email: adminRecord.email ?? null,
+          staffProfileId: adminRecord.staffProfile?.id ?? null,
+          staffRole: adminRecord.staffProfile?.staffRole ?? null,
+          campusName: adminRecord.staffProfile?.campus?.name ?? null,
+        };
+      }
     }
 
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);

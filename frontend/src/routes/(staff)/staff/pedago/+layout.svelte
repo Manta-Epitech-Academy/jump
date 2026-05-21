@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import LogOut from '@lucide/svelte/icons/log-out';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
@@ -20,6 +21,7 @@
   import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
+  import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
   import { track } from '$lib/analytics';
 
   let { children, data } = $props();
@@ -65,24 +67,12 @@
 </script>
 
 {#snippet sidebarBrand()}
-  <a
+  <BrandMark
     href={resolve('/staff/pedago')}
-    class="flex flex-col gap-0.5 px-4 py-4 text-sidebar-foreground"
-  >
-    <span class="font-heading text-2xl leading-none">Jump</span>
-    <span
-      class="truncate text-xs font-bold tracking-wider text-epi-teal uppercase"
-    >
-      {getStaffRoleLabel(data.staffProfile?.staffRole)}
-    </span>
-    {#if data.staffProfile?.campus?.name}
-      <span
-        class="truncate font-mono text-[10px] tracking-widest text-sidebar-foreground-muted uppercase"
-      >
-        Campus {data.staffProfile.campus.name}
-      </span>
-    {/if}
-  </a>
+    sublabel={getStaffRoleLabel(data.staffProfile?.staffRole)}
+    tagline="Gestion des stages et du coding club"
+    campus={data.staffProfile?.campus?.name}
+  />
 {/snippet}
 
 {#snippet navMenu()}
@@ -236,9 +226,7 @@
   </div>
 {/snippet}
 
-<div
-  class="flex h-[calc(100dvh-var(--impersonation-banner-h,0px))] w-full overflow-hidden bg-background"
->
+<div class="flex h-dvh w-full overflow-hidden bg-background">
   <aside
     class="app-sidebar hidden w-62.5 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
   >
@@ -248,6 +236,7 @@
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
       {@render navMenu()}
     </div>
+    <ImpersonationCard />
     {@render sidebarFooter()}
   </aside>
 
@@ -274,14 +263,12 @@
           />
           <span class="sr-only">Toggle menu</span>
         </Button>
-        <a href={resolve('/staff/pedago')} class="flex items-center gap-2">
-          <span class="font-heading text-xl leading-none">Jump</span>
-          <span
-            class="text-[10px] font-bold tracking-wider text-epi-teal-solid uppercase dark:text-epi-teal"
-          >
-            {getStaffRoleLabel(data.staffProfile?.staffRole)}
-          </span>
-        </a>
+        <BrandMark
+          href={resolve('/staff/pedago')}
+          sublabel={getStaffRoleLabel(data.staffProfile?.staffRole)}
+          tone="auto"
+          orientation="inline"
+        />
       </div>
     </header>
 
@@ -304,6 +291,7 @@
         <div class="flex-1 overflow-y-auto px-4 pt-2 pb-4">
           {@render navMenu()}
         </div>
+        <ImpersonationCard />
         {@render sidebarFooter()}
       </aside>
     {/if}
