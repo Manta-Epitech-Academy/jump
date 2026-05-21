@@ -12,6 +12,7 @@
         `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-30 * u}px);`,
     };
   }
+  import { enhance } from '$app/forms';
   import ProgressBar from './components/ProgressBar.svelte';
   import InterstitialMessage from './components/InterstitialMessage.svelte';
   import StudentInfoStep from './components/StudentInfoStep.svelte';
@@ -19,6 +20,7 @@
   import LyceeStep from './components/LyceeStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
+  import BackButton from './components/BackButton.svelte';
 
   let { data, form } = $props();
 
@@ -57,7 +59,25 @@
   $effect(() => {
     if (data.step !== lastServerStep) {
       lastServerStep = data.step;
-      microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
+
+      if (navigatingBack && data.step === 'info-validation') {
+        // Coming back from lycée: land on ParentInfo (micro 2) with fresh data
+        infoFields = {
+          nom: data.profile?.nom ?? '',
+          prenom: data.profile?.prenom ?? '',
+          email: data.profile?.email ?? '',
+          parentNom: data.profile?.parentNom ?? '',
+          parentPrenom: data.profile?.parentPrenom ?? '',
+          parentEmail: data.profile?.parentEmail ?? '',
+          parentPhone: data.profile?.parentPhone ?? '',
+          phone: data.profile?.phone ?? '',
+        };
+        microStep = 2;
+      } else {
+        microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
+      }
+
+      navigatingBack = false;
     }
   });
 
@@ -101,6 +121,18 @@
     5: 'On y est presque',
   };
 
+  let goBackForm: HTMLFormElement;
+  let navigatingBack = $state(false);
+
+  function goBackClient() {
+    microStep = 1;
+  }
+
+  function goBackServer() {
+    navigatingBack = true;
+    goBackForm.requestSubmit();
+  }
+
   function advanceMicroStep(nextStep: number) {
     const message = INTERSTITIALS[microStep];
     if (message) {
@@ -135,6 +167,15 @@
     class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
   ></div>
 
+  <!-- Hidden form for server-side go-back -->
+  <form
+    bind:this={goBackForm}
+    method="POST"
+    action="?/goBack"
+    use:enhance
+    class="hidden"
+  ></form>
+
   <div class="z-10 w-full max-w-lg">
     {#if interstitial && interstitialDone}
       <InterstitialMessage message={interstitial} ondone={interstitialDone} />
@@ -161,6 +202,7 @@
                 }}
               />
             {:else if microStep === 2}
+              <BackButton onclick={goBackClient} />
               <ParentInfoStep
                 nom={infoFields.nom}
                 prenom={infoFields.prenom}
@@ -173,12 +215,14 @@
                 errors={form?.errors}
               />
             {:else if microStep === 3}
+              <BackButton onclick={goBackServer} />
               <LyceeStep
                 highSchoolName={data.highSchoolName}
                 highSchoolCity={data.highSchoolCity}
                 error={form?.error}
               />
             {:else if microStep === 4}
+              <BackButton onclick={goBackServer} />
               <InterestsStep
                 interests={data.interests ?? []}
                 selectedIds={data.selectedIds ?? []}
@@ -188,6 +232,7 @@
                 actionName="validateTechInterests"
               />
             {:else if microStep === 5}
+              <BackButton onclick={goBackServer} />
               <InterestsStep
                 interests={data.interests ?? []}
                 selectedIds={data.selectedIds ?? []}
@@ -197,6 +242,7 @@
                 actionName="validateGeneralInterests"
               />
             {:else if microStep === 6}
+              <BackButton onclick={goBackServer} />
               <RulesStep error={form?.error} />
             {/if}
           </div>
