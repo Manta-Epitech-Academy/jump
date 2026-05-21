@@ -5,8 +5,21 @@ import { applyRouteGuards } from '$lib/server/auth/guards';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
+import { env } from '$env/dynamic/private';
 
 const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
+
+// Allow the configured jump-games origin to be embedded as an iframe. Deployed
+// hosts already match the `*.epiboost.eu` wildcard below, but a local
+// jump-games (e.g. http://localhost:5174) does not — derive its origin so
+// frame-src follows JUMP_GAMES_URL in every environment.
+const GAMES_FRAME_SRC = (() => {
+  try {
+    return env.JUMP_GAMES_URL ? new URL(env.JUMP_GAMES_URL).origin : '';
+  } catch {
+    return '';
+  }
+})();
 
 // Built manually rather than via `kit.csp` because SvelteKit's auto-CSP
 // injects a per-request nonce in `script-src`, which makes browsers ignore
@@ -21,7 +34,7 @@ const CSP_HEADER = [
   "font-src 'self' https://fonts.gstatic.com",
   `connect-src 'self' https://discord.com ${UMAMI_HOST}`,
   "frame-ancestors 'none'",
-  "frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr",
+  `frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr${GAMES_FRAME_SRC ? ` ${GAMES_FRAME_SRC}` : ''}`,
 ].join('; ');
 
 function setSecurityHeaders(response: Response) {
