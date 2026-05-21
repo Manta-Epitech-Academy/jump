@@ -20,7 +20,7 @@ export const GET: RequestHandler = async ({ url }) => {
   try {
     const params = new URLSearchParams({
       limit: '20',
-      select: 'nom_etablissement,nom_commune',
+      select: 'identifiant_de_l_etablissement,nom_etablissement,nom_commune',
       where: `type_etablissement="Lycée" AND (search(nom_etablissement, '${escaped}') OR search(nom_commune, '${escaped}'))`,
       order_by: 'nom_etablissement',
     });
@@ -30,10 +30,17 @@ export const GET: RequestHandler = async ({ url }) => {
 
     const data = await res.json();
     const results = (data.results ?? [])
-      .map((r: { nom_etablissement: string; nom_commune?: string }) => ({
-        nom: r.nom_etablissement,
-        ville: r.nom_commune ?? '',
-      }))
+      .map(
+        (r: {
+          identifiant_de_l_etablissement?: string;
+          nom_etablissement: string;
+          nom_commune?: string;
+        }) => ({
+          uai: r.identifiant_de_l_etablissement ?? '',
+          nom: r.nom_etablissement,
+          ville: r.nom_commune ?? '',
+        }),
+      )
       .filter(
         (lycee: { nom: string }) =>
           !normalize(lycee.nom).startsWith("section d'enseignement"),
