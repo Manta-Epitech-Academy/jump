@@ -4,6 +4,7 @@ import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import {
   profileSchema,
+  lyceeSchema,
   interestsSchema,
   equipmentSchema,
 } from '$lib/validation/onboarding';
@@ -151,11 +152,7 @@ export const actions: Actions = {
           ? result.data.parent2Email.toLowerCase().trim()
           : null,
         parent2Phone: result.data.parent2Phone || null,
-        highSchoolName: result.data.highSchoolName,
-        highSchoolCity: result.data.highSchoolCity || null,
-        highSchoolUai: result.data.highSchoolUai || null,
         infoValidatedAt: now,
-        highSchoolValidatedAt: now,
       },
     });
 
@@ -226,6 +223,33 @@ export const actions: Actions = {
         console.error('Failed to send parent 2 welcome email:', err),
       );
     }
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  validateLycee: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const formData = await request.formData();
+    const raw = Object.fromEntries(formData);
+    const result = lyceeSchema.safeParse(raw);
+
+    if (!result.success) {
+      return {
+        step: 'profile' as const,
+        error: result.error.issues[0]?.message ?? 'Données invalides.',
+      };
+    }
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: {
+        highSchoolName: result.data.highSchoolName,
+        highSchoolCity: result.data.highSchoolCity || null,
+        highSchoolUai: result.data.highSchoolUai || null,
+        highSchoolValidatedAt: new Date(),
+      },
+    });
 
     throw redirect(303, resolve('/onboarding'));
   },
@@ -339,7 +363,6 @@ export const actions: Actions = {
 
     switch (step) {
       case 'interests':
-        clearFields.infoValidatedAt = null;
         clearFields.highSchoolValidatedAt = null;
         break;
       case 'equipment':

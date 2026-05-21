@@ -39,9 +39,6 @@ const profileBaseSchema = z
       .trim(),
     parentEmail: z.email('Email parent invalide'),
     parentPhone: z.string().min(10, 'Le numéro du parent est requis'),
-    highSchoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
-    highSchoolCity: z.string().optional().or(z.literal('')),
-    highSchoolUai: z.string().optional().or(z.literal('')),
   })
   .merge(parent2Schema);
 
@@ -101,6 +98,12 @@ export const profileSchema = profileBaseSchema
   );
 
 export type ProfileForm = z.infer<typeof profileBaseSchema>;
+
+export const lyceeSchema = z.object({
+  highSchoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
+  highSchoolCity: z.string().optional().or(z.literal('')),
+  highSchoolUai: z.string().optional().or(z.literal('')),
+});
 
 export const interestsSchema = z.object({
   techInterestIds: z
