@@ -3,36 +3,29 @@ import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import {
-  infoValidationSchema,
-  lyceeSchema,
-  techInterestsSchema,
-  generalInterestsSchema,
+  profileSchema,
+  interestsSchema,
+  equipmentSchema,
 } from '$lib/validation/onboarding';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 
-export type OnboardingStep =
-  | 'info-validation'
-  | 'lycee'
-  | 'interests-tech'
-  | 'interests-general'
-  | 'interests-recap'
-  | 'rules';
+export type OnboardingStep = 'profile' | 'interests' | 'equipment' | 'rules';
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
   highSchoolValidatedAt: Date | null;
   techInterestsValidatedAt: Date | null;
   generalInterestsValidatedAt: Date | null;
-  interestsRecapSeenAt: Date | null;
+  equipmentValidatedAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
-  if (!profile.infoValidatedAt) return 'info-validation';
-  if (!profile.highSchoolValidatedAt) return 'lycee';
-  if (!profile.techInterestsValidatedAt) return 'interests-tech';
-  if (!profile.generalInterestsValidatedAt) return 'interests-general';
-  if (!profile.interestsRecapSeenAt) return 'interests-recap';
+  if (!profile.infoValidatedAt || !profile.highSchoolValidatedAt)
+    return 'profile';
+  if (!profile.techInterestsValidatedAt || !profile.generalInterestsValidatedAt)
+    return 'interests';
+  if (!profile.equipmentValidatedAt) return 'equipment';
   if (!profile.rulesSignedAt) return 'rules';
   return null;
 }
@@ -48,139 +41,131 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  if (step === 'info-validation') {
+  if (step === 'profile') {
     const user = locals.user!;
     return {
       step,
       profile: {
+        civilite: locals.talent.civilite ?? '',
         nom: locals.talent.nom,
         prenom: locals.talent.prenom,
         email: user.email,
+        phone: locals.talent.phone ?? '',
+        parentType: locals.talent.parentType ?? '',
+        parentCivilite: locals.talent.parentCivilite ?? '',
         parentNom: locals.talent.parentNom ?? '',
         parentPrenom: locals.talent.parentPrenom ?? '',
         parentEmail: locals.talent.parentEmail ?? '',
         parentPhone: locals.talent.parentPhone ?? '',
-        phone: locals.talent.phone ?? '',
+        parent2Type: locals.talent.parent2Type ?? '',
+        parent2Civilite: locals.talent.parent2Civilite ?? '',
+        parent2Nom: locals.talent.parent2Nom ?? '',
+        parent2Prenom: locals.talent.parent2Prenom ?? '',
+        parent2Email: locals.talent.parent2Email ?? '',
+        parent2Phone: locals.talent.parent2Phone ?? '',
+        highSchoolName: locals.talent.highSchoolName ?? '',
+        highSchoolCity: locals.talent.highSchoolCity ?? '',
+        highSchoolUai: locals.talent.highSchoolUai ?? '',
       },
     };
   }
 
-  if (step === 'lycee') {
-    return {
-      step,
-      highSchoolName: locals.talent.highSchoolName ?? '',
-      highSchoolCity: locals.talent.highSchoolCity ?? '',
-    };
-  }
-
-  if (step === 'interests-tech') {
-    const interests = await prisma.interest.findMany({
-      where: { kind: 'tech' },
-      orderBy: { order: 'asc' },
-    });
-
-    const existing = await prisma.talentInterest.findMany({
-      where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
-      select: { interestId: true },
-    });
-
-    return {
-      step,
-      interests,
-      selectedIds: existing.map((e) => e.interestId),
-    };
-  }
-
-  if (step === 'interests-general') {
-    const interests = await prisma.interest.findMany({
-      where: { kind: 'general' },
-      orderBy: { order: 'asc' },
-    });
-
-    const existing = await prisma.talentInterest.findMany({
-      where: { talentId: locals.talent.id, interest: { kind: 'general' } },
-      select: { interestId: true },
-    });
-
-    // Load tech selections for the recap phrase
-    const techSelections = await prisma.talentInterest.findMany({
-      where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
-      include: { interest: { select: { nom: true, emoji: true } } },
-    });
+  if (step === 'interests') {
+    const [techInterests, generalInterests, existingTech, existingGeneral] =
+      await Promise.all([
+        prisma.interest.findMany({
+          where: { kind: 'tech' },
+          orderBy: { order: 'asc' },
+        }),
+        prisma.interest.findMany({
+          where: { kind: 'general' },
+          orderBy: { order: 'asc' },
+        }),
+        prisma.talentInterest.findMany({
+          where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
+          select: { interestId: true },
+        }),
+        prisma.talentInterest.findMany({
+          where: { talentId: locals.talent.id, interest: { kind: 'general' } },
+          select: { interestId: true },
+        }),
+      ]);
 
     return {
       step,
-      interests,
-      selectedIds: existing.map((e) => e.interestId),
-      techSelections: techSelections.map((t) => ({
-        nom: t.interest.nom,
-        emoji: t.interest.emoji,
-      })),
+      techInterests,
+      generalInterests,
+      selectedTechIds: existingTech.map((e) => e.interestId),
+      selectedGeneralIds: existingGeneral.map((e) => e.interestId),
+      freeText: locals.talent.interestsFreeText ?? '',
     };
   }
 
-  if (step === 'interests-recap') {
-    const allSelections = await prisma.talentInterest.findMany({
-      where: { talentId: locals.talent.id },
-      include: { interest: { select: { nom: true, emoji: true, kind: true } } },
-      orderBy: { interest: { order: 'asc' } },
-    });
-
+  if (step === 'equipment') {
     return {
       step,
-      techSelections: allSelections
-        .filter((s) => s.interest.kind === 'tech')
-        .map((s) => ({ nom: s.interest.nom, emoji: s.interest.emoji })),
-      generalSelections: allSelections
-        .filter((s) => s.interest.kind === 'general')
-        .map((s) => ({ nom: s.interest.nom, emoji: s.interest.emoji })),
+      hasLaptop: locals.talent.hasLaptop,
+      setupDescription: locals.talent.setupDescription ?? '',
     };
   }
 
+  // step === 'rules'
   return { step };
 };
 
 export const actions: Actions = {
-  validateInfo: async ({ request, locals }) => {
-    if (!locals.talent) {
-      throw error(401, 'Non autorisé');
-    }
+  validateProfile: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
 
     const formData = await request.formData();
     const raw = Object.fromEntries(formData);
-    const result = infoValidationSchema.safeParse(raw);
+    const result = profileSchema.safeParse(raw);
 
     if (!result.success) {
       return {
-        step: 'info-validation' as const,
+        step: 'profile' as const,
         errors: result.error.flatten().fieldErrors,
-        values: raw,
       };
     }
+
+    const now = new Date();
 
     await prisma.talent.update({
       where: { id: locals.talent.id },
       data: {
+        civilite: result.data.civilite,
         nom: result.data.nom,
         prenom: result.data.prenom,
+        phone: result.data.phone || null,
+        parentType: result.data.parentType,
+        parentCivilite: result.data.parentCivilite,
         parentNom: result.data.parentNom,
         parentPrenom: result.data.parentPrenom,
         parentEmail: result.data.parentEmail.toLowerCase().trim(),
         parentPhone: result.data.parentPhone || null,
-        phone: result.data.phone || null,
-        infoValidatedAt: new Date(),
+        parent2Type: result.data.parent2Type || null,
+        parent2Civilite: result.data.parent2Civilite || null,
+        parent2Nom: result.data.parent2Nom || null,
+        parent2Prenom: result.data.parent2Prenom || null,
+        parent2Email: result.data.parent2Email
+          ? result.data.parent2Email.toLowerCase().trim()
+          : null,
+        parent2Phone: result.data.parent2Phone || null,
+        highSchoolName: result.data.highSchoolName,
+        highSchoolCity: result.data.highSchoolCity || null,
+        highSchoolUai: result.data.highSchoolUai || null,
+        infoValidatedAt: now,
+        highSchoolValidatedAt: now,
       },
     });
 
+    // Create/update parent 1 bauth_user + send welcome email (fire-and-forget)
     if (result.data.parentEmail) {
       const parentEmail = result.data.parentEmail.toLowerCase().trim();
-
       (async () => {
-        // Upsert parent bauth_user
         let parentUser = await prisma.bauth_user.findUnique({
           where: { email: parentEmail },
         });
-
         if (!parentUser) {
           parentUser = await prisma.bauth_user.create({
             data: {
@@ -198,31 +183,137 @@ export const actions: Actions = {
             },
           });
         }
-
-        // Send welcome email (no OTP — parent will request OTP when they log in)
         await sendParentWelcomeEmail(
           parentEmail,
           result.data.parentNom,
           locals.talent!.prenom,
         );
       })().catch((err) =>
-        console.error('Failed to send parent welcome email:', err),
+        console.error('Failed to send parent 1 welcome email:', err),
+      );
+    }
+
+    // Create/update parent 2 bauth_user + send welcome email (fire-and-forget)
+    if (result.data.parent2Email) {
+      const parent2Email = result.data.parent2Email.toLowerCase().trim();
+      (async () => {
+        let parent2User = await prisma.bauth_user.findUnique({
+          where: { email: parent2Email },
+        });
+        if (!parent2User) {
+          parent2User = await prisma.bauth_user.create({
+            data: {
+              email: parent2Email,
+              name: `${result.data.parent2Prenom} ${result.data.parent2Nom}`,
+              role: 'parent',
+              emailVerified: true,
+            },
+          });
+        } else {
+          await prisma.bauth_user.update({
+            where: { id: parent2User.id },
+            data: {
+              name: `${result.data.parent2Prenom} ${result.data.parent2Nom}`,
+            },
+          });
+        }
+        await sendParentWelcomeEmail(
+          parent2Email,
+          result.data.parent2Nom ?? '',
+          locals.talent!.prenom,
+        );
+      })().catch((err) =>
+        console.error('Failed to send parent 2 welcome email:', err),
       );
     }
 
     throw redirect(303, resolve('/onboarding'));
   },
 
-  validateLycee: async ({ request, locals }) => {
+  validateInterests: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const formData = await request.formData();
+    const raw = {
+      techInterestIds: formData.getAll('techInterestIds'),
+      generalInterestIds: formData.getAll('generalInterestIds'),
+      freeText: formData.get('freeText') as string,
+    };
+    const result = interestsSchema.safeParse(raw);
+
+    if (!result.success) {
+      return {
+        step: 'interests' as const,
+        error: result.error.issues[0]?.message ?? 'Sélection invalide.',
+      };
+    }
+
+    // Verify all IDs exist
+    const [techCount, generalCount] = await Promise.all([
+      prisma.interest.count({
+        where: { id: { in: result.data.techInterestIds }, kind: 'tech' },
+      }),
+      prisma.interest.count({
+        where: {
+          id: { in: result.data.generalInterestIds },
+          kind: 'general',
+        },
+      }),
+    ]);
+
+    if (techCount !== result.data.techInterestIds.length) {
+      return {
+        step: 'interests' as const,
+        error: "Certains domaines tech sélectionnés n'existent plus.",
+      };
+    }
+    if (generalCount !== result.data.generalInterestIds.length) {
+      return {
+        step: 'interests' as const,
+        error: "Certains centres d'intérêt sélectionnés n'existent plus.",
+      };
+    }
+
+    const now = new Date();
+    const allIds = [
+      ...result.data.techInterestIds,
+      ...result.data.generalInterestIds,
+    ];
+
+    await prisma.$transaction([
+      prisma.talentInterest.deleteMany({
+        where: { talentId: locals.talent.id },
+      }),
+      prisma.talentInterest.createMany({
+        data: allIds.map((interestId) => ({
+          talentId: locals.talent!.id,
+          interestId,
+        })),
+      }),
+      prisma.talent.update({
+        where: { id: locals.talent.id },
+        data: {
+          techInterestsValidatedAt: now,
+          generalInterestsValidatedAt: now,
+          interestsRecapSeenAt: now,
+          interestsFreeText: result.data.freeText || null,
+        },
+      }),
+    ]);
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
+  validateEquipment: async ({ request, locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
     const formData = await request.formData();
     const raw = Object.fromEntries(formData);
-    const result = lyceeSchema.safeParse(raw);
+    const result = equipmentSchema.safeParse(raw);
 
     if (!result.success) {
       return {
-        step: 'lycee' as const,
+        step: 'equipment' as const,
         error: result.error.issues[0]?.message ?? 'Données invalides.',
       };
     }
@@ -230,107 +321,42 @@ export const actions: Actions = {
     await prisma.talent.update({
       where: { id: locals.talent.id },
       data: {
-        highSchoolName: result.data.highSchoolName,
-        highSchoolCity: result.data.highSchoolCity || null,
-        highSchoolValidatedAt: new Date(),
+        hasLaptop: result.data.hasLaptop,
+        setupDescription: result.data.setupDescription || null,
+        equipmentValidatedAt: new Date(),
       },
     });
 
     throw redirect(303, resolve('/onboarding'));
   },
 
-  validateTechInterests: async ({ request, locals }) => {
+  goBack: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
-    const formData = await request.formData();
-    const raw = formData.getAll('interestIds');
-    const result = techInterestsSchema.safeParse({ interestIds: raw });
+    const step = getCurrentStep(locals.talent);
 
-    if (!result.success) {
-      return {
-        step: 'interests-tech' as const,
-        error: result.error.issues[0]?.message ?? 'Sélection invalide.',
-      };
+    const clearFields: Record<string, null> = {};
+
+    switch (step) {
+      case 'interests':
+        clearFields.infoValidatedAt = null;
+        clearFields.highSchoolValidatedAt = null;
+        break;
+      case 'equipment':
+        clearFields.techInterestsValidatedAt = null;
+        clearFields.generalInterestsValidatedAt = null;
+        clearFields.interestsRecapSeenAt = null;
+        break;
+      case 'rules':
+        clearFields.equipmentValidatedAt = null;
+        break;
+      default:
+        throw redirect(303, resolve('/onboarding'));
     }
-
-    const count = await prisma.interest.count({
-      where: { id: { in: result.data.interestIds }, kind: 'tech' },
-    });
-    if (count !== result.data.interestIds.length) {
-      return {
-        step: 'interests-tech' as const,
-        error: "Certains domaines sélectionnés n'existent plus.",
-      };
-    }
-
-    await prisma.$transaction([
-      prisma.talentInterest.deleteMany({
-        where: { talentId: locals.talent.id, interest: { kind: 'tech' } },
-      }),
-      prisma.talentInterest.createMany({
-        data: result.data.interestIds.map((interestId) => ({
-          talentId: locals.talent!.id,
-          interestId,
-        })),
-      }),
-      prisma.talent.update({
-        where: { id: locals.talent.id },
-        data: { techInterestsValidatedAt: new Date() },
-      }),
-    ]);
-
-    throw redirect(303, resolve('/onboarding'));
-  },
-
-  validateGeneralInterests: async ({ request, locals }) => {
-    if (!locals.talent) throw error(401, 'Non autorisé');
-
-    const formData = await request.formData();
-    const raw = formData.getAll('interestIds');
-    const result = generalInterestsSchema.safeParse({ interestIds: raw });
-
-    if (!result.success) {
-      return {
-        step: 'interests-general' as const,
-        error: result.error.issues[0]?.message ?? 'Sélection invalide.',
-      };
-    }
-
-    const count = await prisma.interest.count({
-      where: { id: { in: result.data.interestIds }, kind: 'general' },
-    });
-    if (count !== result.data.interestIds.length) {
-      return {
-        step: 'interests-general' as const,
-        error: "Certains centres d'intérêt sélectionnés n'existent plus.",
-      };
-    }
-
-    await prisma.$transaction([
-      prisma.talentInterest.deleteMany({
-        where: { talentId: locals.talent.id, interest: { kind: 'general' } },
-      }),
-      prisma.talentInterest.createMany({
-        data: result.data.interestIds.map((interestId) => ({
-          talentId: locals.talent!.id,
-          interestId,
-        })),
-      }),
-      prisma.talent.update({
-        where: { id: locals.talent.id },
-        data: { generalInterestsValidatedAt: new Date() },
-      }),
-    ]);
-
-    throw redirect(303, resolve('/onboarding'));
-  },
-
-  confirmRecap: async ({ locals }) => {
-    if (!locals.talent) throw error(401, 'Non autorisé');
 
     await prisma.talent.update({
       where: { id: locals.talent.id },
-      data: { interestsRecapSeenAt: new Date() },
+      data: clearFields,
     });
 
     throw redirect(303, resolve('/onboarding'));
@@ -343,14 +369,7 @@ export const actions: Actions = {
 
     const formData = await request.formData();
     const city = (formData.get('city') as string)?.trim();
-    const accepted = formData.get('accepted');
 
-    if (!accepted) {
-      return {
-        step: 'rules' as const,
-        error: 'Vous devez accepter le règlement pour continuer.',
-      };
-    }
     if (!city) {
       return { step: 'rules' as const, error: 'Veuillez indiquer la ville.' };
     }
