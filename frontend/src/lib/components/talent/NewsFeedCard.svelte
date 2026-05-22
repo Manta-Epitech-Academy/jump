@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
+  import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
   import { Button } from '$lib/components/ui/button';
   import { cn } from '$lib/utils';
   import WelcomeMessageBody from '$lib/components/talent/WelcomeMessageBody.svelte';
@@ -85,15 +85,17 @@
 </div>
 
 {#if welcomeContent}
-  <Dialog.Root bind:open>
-    <Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-      <Dialog.Header>
-        <Dialog.Title class="flex items-center gap-2">
+  <ResponsiveDialog.Root bind:open>
+    <ResponsiveDialog.Content class="sm:max-w-2xl">
+      <ResponsiveDialog.Header>
+        <ResponsiveDialog.Title class="flex items-center gap-2">
           <Mail class="h-5 w-5 text-epi-blue" />
           Message de bienvenue
-        </Dialog.Title>
-      </Dialog.Header>
-      <WelcomeMessageBody content={welcomeContent} />
-    </Dialog.Content>
-  </Dialog.Root>
+        </ResponsiveDialog.Title>
+      </ResponsiveDialog.Header>
+      <ResponsiveDialog.Body>
+        <WelcomeMessageBody content={welcomeContent} />
+      </ResponsiveDialog.Body>
+    </ResponsiveDialog.Content>
+  </ResponsiveDialog.Root>
 {/if}
