@@ -271,7 +271,7 @@
 
     {#snippet minigameCard()}
       {#if hasMinigame && data.minigame && student}
-        <div class="relative">
+        <div class="relative order-4">
           <MinigameCard
             minigame={data.minigame}
             leaderboard={data.leaderboard}
@@ -314,13 +314,18 @@
     <div class="grid gap-6 md:grid-cols-12">
       <!-- LEFT COLUMN: profile + day-at-a-glance rail. The day's schedule lives
            here as a compact preview; the full multi-day view stays one click
-           away behind "Voir le calendrier". -->
+           away behind "Voir le calendrier".
+           On mobile the wrapper collapses (display: contents) so its children
+           join the outer grid as siblings and `order-*` can interleave them
+           with the right column — letting Actualités sit right under the
+           profile card. `order` is inert on desktop (block children, not
+           flex/grid items), so the two-column layout is untouched. -->
       <div
-        class="space-y-6 md:col-span-4"
+        class="contents md:col-span-4 md:block md:space-y-6"
         in:fly={{ x: -20, duration: 400, delay: 200 }}
       >
         <div
-          class="relative overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+          class="relative order-1 overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
         >
           <!-- Decorative background blur -->
           <div
@@ -370,14 +375,15 @@
           </div>
         </div>
 
-        <!-- Day at a glance -->
+        <!-- Day at a glance. Heading + preview share order-3 so source order
+             keeps them adjacent below Actualités on mobile. -->
         <h2
-          class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+          class="order-3 mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
         >
           Mission du jour<span class="text-epi-teal">_</span>
         </h2>
 
-        <div class="space-y-6">
+        <div class="order-3 space-y-6">
           {#if participation}
             <!-- Event day: today's planning as a compact preview -->
             <div
@@ -633,16 +639,19 @@
       <!-- RIGHT COLUMN: daily minigame first, then the actualités feed — wider
            and taller now that it owns the main column. -->
       <div
-        class="space-y-6 md:col-span-8"
+        class="contents md:col-span-8 md:block md:space-y-6"
         in:fly={{ x: 20, duration: 400, delay: 300 }}
       >
         {@render minigameCard()}
 
         {#if data.welcome}
-          <NewsFeedCard
-            welcomeContent={data.welcome.content}
-            highlight={welcomeHighlight}
-          />
+          <!-- order-2: sits right under the profile card on mobile -->
+          <div class="order-2">
+            <NewsFeedCard
+              welcomeContent={data.welcome.content}
+              highlight={welcomeHighlight}
+            />
+          </div>
         {/if}
       </div>
     </div>
