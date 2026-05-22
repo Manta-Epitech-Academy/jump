@@ -218,29 +218,31 @@
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <!-- HEADER: brand + greeting + account controls, all on one row to
          keep the dashboard within a laptop viewport without scroll. -->
+    <!-- Header wraps on mobile: logo + controls share the top row, the greeting
+         drops to its own full-width row below so a long name never truncates.
+         From sm up it's a single row (logo · greeting … controls) as before. -->
     <header
-      class="mb-6 flex items-center justify-between gap-3"
+      class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-3 sm:flex-nowrap sm:gap-x-4"
       in:fly={{ y: -20, duration: 400, delay: 100 }}
     >
-      <div class="flex min-w-0 items-center gap-3 sm:gap-4">
-        <a href={resolve('/')} aria-label="Accueil" class="shrink-0">
-          <img
-            src="/EPITECH-LOGO-BLEU-2025.svg"
-            alt="Epitech"
-            class="h-8 w-auto dark:brightness-0 dark:invert"
-          />
-        </a>
-        <div
-          class="h-8 w-px shrink-0 bg-slate-200 dark:bg-slate-800"
-          aria-hidden="true"
-        ></div>
-        <h1
-          class="min-w-0 truncate font-heading text-2xl tracking-tight text-slate-900 uppercase sm:text-3xl dark:text-white"
-        >
-          Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
-        </h1>
-      </div>
-      <div class="flex shrink-0 items-center gap-1">
+      <a href={resolve('/')} aria-label="Accueil" class="shrink-0">
+        <img
+          src="/EPITECH-LOGO-BLEU-2025.svg"
+          alt="Epitech"
+          class="h-8 w-auto dark:brightness-0 dark:invert"
+        />
+      </a>
+      <!-- Separates logo from greeting only when they share a row (sm+). -->
+      <div
+        class="hidden h-8 w-px shrink-0 bg-slate-200 sm:block dark:bg-slate-800"
+        aria-hidden="true"
+      ></div>
+      <h1
+        class="order-last w-full min-w-0 truncate font-heading text-2xl tracking-tight text-slate-900 uppercase sm:order-none sm:w-auto sm:text-3xl dark:text-white"
+      >
+        Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
+      </h1>
+      <div class="ml-auto flex shrink-0 items-center gap-1">
         <ModeToggle />
         <Button
           variant="ghost"
