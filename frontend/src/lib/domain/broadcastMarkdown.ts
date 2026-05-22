@@ -136,13 +136,17 @@ marked.use({
     },
     list(this: any, token: Tokens.List) {
       const tag = token.ordered ? 'ol' : 'ul';
+      // Gmail / Outlook strip the UA default `list-style: disc|decimal`, so
+      // without an explicit declaration the items render bullet-less ("juste
+      // un espace"). Forcing the type + position outside puts the marker back.
+      const listStyle = token.ordered ? 'decimal' : 'disc';
       const body = token.items
         .map((item) => {
           const itemInner = this.parser.parse(item.tokens, !!item.loose);
           return `<li style="margin-bottom: 6px; line-height: 1.6;">${itemInner}</li>`;
         })
         .join('');
-      return `<${tag} style="font-size: 16px; margin: 0 0 18px; padding-left: 24px;">${body}</${tag}>\n`;
+      return `<${tag} style="font-size: 16px; margin: 0 0 18px; padding-left: 24px; list-style-type: ${listStyle}; list-style-position: outside;">${body}</${tag}>\n`;
     },
     hr() {
       return '<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0;" />\n';
