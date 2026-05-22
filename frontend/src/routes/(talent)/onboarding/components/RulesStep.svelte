@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { goto } from '$app/navigation';
   import { Button } from '$lib/components/ui/button';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import { renderMarkdown } from '$lib/markdown';
@@ -60,7 +61,7 @@
           completed = true;
           triggerConfetti();
           setTimeout(() => {
-            update();
+            goto(result.location, { invalidateAll: true });
           }, 2500);
           return;
         }

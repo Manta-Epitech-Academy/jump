@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
   import { Button } from '$lib/components/ui/button';
   import Users from '@lucide/svelte/icons/users';
   import Plus from '@lucide/svelte/icons/plus';
@@ -113,12 +114,15 @@
   action="?/validateProfile"
   use:enhance={() => {
     return async ({ result, update }) => {
-      if (result.type === 'redirect' || result.type === 'success') {
+      if (result.type === 'redirect') {
         track('onboarding_profile_validated');
+        await invalidateAll();
       } else if (result.type === 'failure') {
         track('onboarding_profile_validation_failed');
+        await update();
+      } else {
+        await update();
       }
-      await update();
     };
   }}
   class="mt-6 space-y-3"
