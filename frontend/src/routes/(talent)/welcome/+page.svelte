@@ -27,20 +27,20 @@
     class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
   ></div>
 
-  <!-- Logo top-left -->
-  <div class="relative z-10 p-4">
-    <a href={resolve('/')} aria-label="Accueil">
-      <img
-        src="/EPITECH-LOGO-BLEU-2025.svg"
-        alt="Epitech"
-        class="h-9 w-auto dark:brightness-0 dark:invert"
-      />
-    </a>
-  </div>
-
   <!-- Content centered -->
   <div class="relative z-10 flex flex-1 items-center justify-center p-4">
     <div class="w-full max-w-lg">
+      <!-- Logo -->
+      <div class="mb-6">
+        <a href={resolve('/')} aria-label="Accueil">
+          <img
+            src="/EPITECH-LOGO-BLEU-2025.svg"
+            alt="Epitech"
+            class="h-9 w-auto dark:brightness-0 dark:invert"
+          />
+        </a>
+      </div>
+
       <div class="mb-6 text-center">
         <h1
           class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
