@@ -3,7 +3,8 @@
   import { Button } from '$lib/components/ui/button';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
-  import { track } from '$lib/analytics';
+  import { track, secondsBetween } from '$lib/analytics';
+  const seenAt = Date.now();
 
   let accepted = $state(false);
 </script>
@@ -125,7 +126,7 @@
       use:enhance={() => {
         return async ({ result, update }) => {
           if (result.type === 'redirect' || result.type === 'success') {
-            track('charter_signed');
+            track('charter_signed', { secondsToSign: secondsBetween(seenAt) });
           }
           await update();
         };

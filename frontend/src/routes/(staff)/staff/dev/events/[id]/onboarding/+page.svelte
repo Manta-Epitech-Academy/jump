@@ -198,9 +198,14 @@
 
   async function onSent() {
     if (compose) {
+      const daysBeforeEvent = Math.round(
+        (new Date(data.event.date).getTime() - Date.now()) / 86_400_000,
+      );
       track('adm_reminders_sent', {
         type: compose.type,
-        count: compose.talentIds.length,
+        recipientCount: compose.talentIds.length,
+        eventId: data.event.id,
+        daysBeforeEvent,
       });
     }
     selectedTalentIds = new Set();

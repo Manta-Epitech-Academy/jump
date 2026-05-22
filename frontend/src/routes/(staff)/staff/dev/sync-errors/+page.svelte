@@ -17,7 +17,7 @@
   import { formatDateTimeFr, cn } from '$lib/utils';
   import { salesforceContactUrl } from '$lib/domain/salesforce';
   import { toast } from 'svelte-sonner';
-  import { track } from '$lib/analytics';
+  import { track, daysBetween } from '$lib/analytics';
 
   type Contact = {
     extId: string;
@@ -191,7 +191,12 @@
                 use:enhance={() =>
                   async ({ result, update }) => {
                     if (result.type === 'success') {
-                      track('sync_error_resolved');
+                      track('sync_error_resolved', {
+                        isStage: err.isStage,
+                        occurrenceCount: err.occurrenceCount,
+                        daysOpen: daysBetween(err.createdAt),
+                        surface: 'dev',
+                      });
                       toast.success('Doublon résolu');
                       await update();
                     } else {

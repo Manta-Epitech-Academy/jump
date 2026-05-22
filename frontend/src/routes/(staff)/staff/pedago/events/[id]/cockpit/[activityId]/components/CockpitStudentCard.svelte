@@ -26,6 +26,12 @@
   import BringPcBadge from '$lib/components/events/BringPcBadge.svelte';
   import { resolve } from '$app/paths';
   import { track } from '$lib/analytics';
+  import { page } from '$app/state';
+
+  // Pulled from URL params so callsites don't have to thread eventId /
+  // activityId through every track() — these are stable for the route.
+  const eventId = $derived(page.params.id);
+  const activityId = $derived(page.params.activityId);
 
   let {
     participation,
@@ -236,7 +242,7 @@
               method="POST"
               use:enhance={() =>
                 async ({ update }) => {
-                  track('cockpit_alert_dismissed');
+                  track('cockpit_alert_dismissed', { eventId, activityId });
                   await update();
                 }}
             >
@@ -260,7 +266,11 @@
                 return async ({ result, update }) => {
                   isUnlocking = false;
                   if (result.type === 'success') {
-                    track('cockpit_step_unlocked');
+                    track('cockpit_step_unlocked', {
+                      eventId,
+                      activityId,
+                      stepId: helpStep?.id ?? null,
+                    });
                     triggerXp();
                   }
                   await update();
@@ -375,6 +385,9 @@
               onsubmit={() =>
                 track('cockpit_bring_pc_toggled', {
                   from: participation.bringPc,
+                  newState: !participation.bringPc,
+                  eventId,
+                  activityId,
                 })}
               class="inline"
             >
@@ -399,7 +412,13 @@
         action="?/updateDelay"
         method="POST"
         use:enhance
-        onsubmit={() => track('cockpit_delay_updated', { delay: pendingDelay })}
+        onsubmit={() =>
+          track('cockpit_delay_updated', {
+            delay: pendingDelay,
+            previousDelay: participation.delay ?? 0,
+            eventId,
+            activityId,
+          })}
         class="hidden"
       >
         <input type="hidden" name="id" value={participation.id} />
@@ -415,6 +434,9 @@
           onsubmit={() =>
             track('cockpit_presence_toggled', {
               from: participation.isPresent,
+              newState: !participation.isPresent,
+              eventId,
+              activityId,
             })}
         >
           <input type="hidden" name="id" value={participation.id} />

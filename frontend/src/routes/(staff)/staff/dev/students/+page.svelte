@@ -25,7 +25,7 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentFormDialog from './components/StudentFormDialog.svelte';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
 
   let { data }: { data: PageData } = $props();
@@ -35,11 +35,16 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
-          track(isEditing ? 'student_updated' : 'student_created');
+          track(isEditing ? 'student_updated' : 'student_created', {
+            niveau: $form.niveau ?? null,
+            withParent: !!$form.parent_email || !!$form.parent_nom,
+          });
           open = false;
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
-          track(isEditing ? 'student_update_failed' : 'student_create_failed');
+          track(isEditing ? 'student_update_failed' : 'student_create_failed', {
+            reason: errReason(result),
+          });
           toast.error(result.data?.form.message || 'Erreur de validation');
         }
       },

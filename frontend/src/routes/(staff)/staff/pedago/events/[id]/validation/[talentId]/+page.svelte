@@ -9,6 +9,7 @@
   import { toast } from 'svelte-sonner';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import { track } from '$lib/analytics';
+  import { page } from '$app/state';
 
   let { data, form }: { data: PageData; form: any } = $props();
 
@@ -114,6 +115,10 @@
                     if (result.type === 'success') {
                       track('observable_validated', {
                         observableId: obs.observableId,
+                        observableExternalId: obs.externalId,
+                        skill: obs.skillName,
+                        level: obs.level,
+                        eventId: page.params.id,
                       });
                     }
                     await update();
