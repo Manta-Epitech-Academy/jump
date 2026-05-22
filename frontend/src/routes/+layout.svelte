@@ -85,7 +85,8 @@
           account_type: 'talent',
           role: null,
           campus: page.data.talentCampusName ?? null,
-          email: user?.email ?? talent.email ?? null,
+          // RGPD: talents can be minors — never ship their email to Umami.
+          email: null,
         },
       };
     }

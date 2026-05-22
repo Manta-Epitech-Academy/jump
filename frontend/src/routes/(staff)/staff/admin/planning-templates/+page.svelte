@@ -18,7 +18,7 @@
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { toast } from 'svelte-sonner';
   import { resolve } from '$app/paths';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -31,9 +31,17 @@
             isEditing
               ? 'planning_template_updated'
               : 'planning_template_created',
+            { nbDays: $form.nbDays ?? null },
           );
           open = false;
           toast.success(result.data?.form?.message);
+        } else if (result.type === 'failure') {
+          track(
+            isEditing
+              ? 'planning_template_update_failed'
+              : 'planning_template_create_failed',
+            { reason: errReason(result) },
+          );
         }
       },
     },

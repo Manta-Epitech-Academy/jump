@@ -102,25 +102,42 @@
     if (!previewOpen) previewSlot = null;
   });
 
+  // Offset from "this week"; negative = past weeks, 0 = current, positive = future.
+  function weekOffset(from: Date): number {
+    const ms = from.getTime() - new Date().setHours(0, 0, 0, 0);
+    return Math.round(ms / (7 * 86_400_000));
+  }
+
   function openPreview(slot: Slot) {
-    track('calendar_slot_previewed');
+    const startTime = new Date(slot.startTime).getTime();
+    const daysFromNow = Math.round((startTime - Date.now()) / 86_400_000);
+    track('calendar_slot_previewed', {
+      slotType: (slot as { type?: string }).type ?? null,
+      daysFromNow,
+    });
     previewSlot = slot;
     previewOpen = true;
   }
 
   function prevWeek() {
     if (!canGoPrev) return;
-    track('calendar_week_navigated', { direction: 'prev' });
     const n = new Date(weekStart);
     n.setDate(n.getDate() - 7);
     weekStart = n;
+    track('calendar_week_navigated', {
+      direction: 'prev',
+      currentWeekOffset: weekOffset(weekStart),
+    });
   }
   function nextWeek() {
     if (!canGoNext) return;
-    track('calendar_week_navigated', { direction: 'next' });
     const n = new Date(weekStart);
     n.setDate(n.getDate() + 7);
     weekStart = n;
+    track('calendar_week_navigated', {
+      direction: 'next',
+      currentWeekOffset: weekOffset(weekStart),
+    });
   }
 
   // Build a map day→slots only for slots falling in the visible week.

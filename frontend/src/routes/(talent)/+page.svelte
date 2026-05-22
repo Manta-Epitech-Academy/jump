@@ -29,7 +29,7 @@
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import { onMount, untrack, type Snippet } from 'svelte';
-  import { track } from '$lib/analytics';
+  import { track, secondsBetween } from '$lib/analytics';
   import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
@@ -283,7 +283,13 @@
         <form
           action="{resolve('/logout')}?type=student"
           method="POST"
-          onsubmit={() => track('logout', { kind: 'talent' })}
+          onsubmit={() =>
+            track('logout', {
+              kind: 'talent',
+              sessionDurationSec: secondsBetween(
+                page.data.session?.createdAt as Date | string | undefined,
+              ),
+            })}
         >
           <Button
             type="submit"

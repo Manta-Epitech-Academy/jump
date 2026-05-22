@@ -43,7 +43,12 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   const alreadySeen = !!locals.talent.welcomeSeenAt;
-  return { cmsContent: page.content, alreadySeen };
+  return {
+    cmsContent: page.content,
+    alreadySeen,
+    eventId: stageParticipation.event.id,
+    talentCreatedAt: locals.talent.createdAt.toISOString(),
+  };
 };
 
 export const actions: Actions = {

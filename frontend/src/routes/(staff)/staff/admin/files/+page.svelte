@@ -14,7 +14,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import { track } from '$lib/analytics';
+  import { track, errReason, bucketBytes, daysBetween } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -81,15 +81,22 @@
       enctype="multipart/form-data"
       use:enhance={() => {
         uploading = true;
+        const file = fileInput?.files?.[0] ?? null;
         return async ({ result, update }) => {
           uploading = false;
           if (result.type === 'success') {
-            track('admin_file_uploaded');
+            track('admin_file_uploaded', {
+              sizeBucket: bucketBytes(file?.size ?? null),
+              kind: file?.type ?? 'unknown',
+            });
             toast.success('Fichier uploadé avec succès');
             if (fileInput) fileInput.value = '';
             await update();
           } else if (result.type === 'failure') {
-            track('admin_file_upload_failed');
+            track('admin_file_upload_failed', {
+              reason: errReason(result),
+              sizeBucket: bucketBytes(file?.size ?? null),
+            });
             toast.error(
               (result.data as { message?: string })?.message ||
                 "Erreur lors de l'upload",
@@ -180,14 +187,20 @@
                                 result.type === 'success' &&
                                 result.data?.signedUrl
                               ) {
-                                track('admin_file_downloaded');
+                                track('admin_file_downloaded', {
+                                  sizeBucket: bucketBytes(file.size),
+                                  kind: file.contentType,
+                                });
                                 const a = document.createElement('a');
                                 a.href = result.data.signedUrl as string;
                                 a.download =
                                   (result.data.fileName as string) || '';
                                 a.click();
                               } else {
-                                track('admin_file_download_failed');
+                                track('admin_file_download_failed', {
+                                  reason: errReason(result),
+                                  sizeBucket: bucketBytes(file.size),
+                                });
                                 toast.error('Erreur lors du téléchargement');
                               }
                             };
@@ -236,6 +249,13 @@
     action="?/delete&id={itemToDelete}"
     title="Supprimer le fichier"
     description="Êtes-vous sûr ? Le fichier sera définitivement supprimé."
-    onSuccess={() => track('admin_file_deleted')}
+    onSuccess={() => {
+      const f = data.files.find((x) => x.id === itemToDelete);
+      track('admin_file_deleted', {
+        sizeBucket: f ? bucketBytes(f.size) : null,
+        kind: f?.contentType ?? null,
+        ageDays: f ? daysBetween(f.createdAt) : null,
+      });
+    }}
   />
 </div>

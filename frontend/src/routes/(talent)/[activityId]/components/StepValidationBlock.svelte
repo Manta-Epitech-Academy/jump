@@ -13,7 +13,7 @@
   import { triggerConfetti } from '$lib/actions/confetti';
   import type { ActivityStep } from '$lib/server/services/progressService';
   import type { StepsProgress } from '@prisma/client';
-  import { track } from '$lib/analytics';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
 
   let {
     currentStep,
@@ -34,6 +34,24 @@
     qcmFails: number;
     isValidating: boolean;
   } = $props();
+
+  // Reset timer whenever the current step changes — we measure how long a
+  // talent stares at each step before validating it (QCM/PIN/manual).
+  let stepStartedAt = $state(Date.now());
+  $effect(() => {
+    currentStep.id;
+    stepStartedAt = Date.now();
+  });
+
+  // Common context attached to every step-level event so funnels stay
+  // joinable in Umami without us having to repeat the props at each call.
+  const stepCtx = $derived({
+    stepId: currentStep.id,
+    stepIndex: currentIndex,
+    stepTotal: steps.length,
+    activityId: progress.activityId,
+    eventId: progress.eventId,
+  });
 </script>
 
 <div
@@ -51,7 +69,10 @@
           action="?/changeStep"
           use:enhance={() =>
             async ({ update }) => {
-              track('activity_step_navigate_next');
+              track('activity_step_navigate_next', {
+                ...stepCtx,
+                secondsOnStep: secondsBetween(stepStartedAt),
+              });
               await update();
             }}
         >
@@ -87,15 +108,21 @@
           return async ({ result, update }) => {
             isValidating = false;
             if (result.type === 'success') {
-              track('activity_qcm_passed', { stepId: currentStep.id });
+              track('activity_qcm_passed', {
+                ...stepCtx,
+                attempts: qcmFails + 1,
+                secondsToAnswer: secondsBetween(stepStartedAt),
+              });
               toast.success('Bonne réponse !');
               triggerConfetti();
               qcmFails = 0;
             } else if (result.type === 'failure') {
               qcmFails++;
               track('activity_qcm_failed', {
-                stepId: currentStep.id,
-                fails: qcmFails,
+                ...stepCtx,
+                attempts: qcmFails,
+                reason: errReason(result),
+                secondsToAnswer: secondsBetween(stepStartedAt),
               });
               toast.error(
                 ((result.data as Record<string, unknown>)?.message as string) ||
@@ -189,11 +216,17 @@
             return async ({ result, update }) => {
               isValidating = false;
               if (result.type === 'success') {
-                track('activity_pin_validated', { stepId: currentStep.id });
+                track('activity_pin_validated', {
+                  ...stepCtx,
+                  secondsToValidate: secondsBetween(stepStartedAt),
+                });
                 toast.success('Étape débloquée localement !');
                 if (currentIndex === steps.length - 1) triggerConfetti();
               } else {
-                track('activity_pin_failed', { stepId: currentStep.id });
+                track('activity_pin_failed', {
+                  ...stepCtx,
+                  reason: errReason(result),
+                });
                 toast.error((result as any).data?.message || 'PIN Incorrect');
               }
               await update({ reset: false });
@@ -235,7 +268,11 @@
         use:enhance={() => {
           return async ({ result, update }) => {
             if (result.type === 'success') {
-              track('activity_step_advanced', { stepId: currentStep.id });
+              track('activity_step_advanced', {
+                ...stepCtx,
+                validationMethod: 'auto',
+                secondsOnStep: secondsBetween(stepStartedAt),
+              });
             }
             await update({ reset: false });
           };
