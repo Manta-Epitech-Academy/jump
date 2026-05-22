@@ -1,7 +1,7 @@
 <script lang="ts">
   import { superForm } from 'sveltekit-superforms';
   import * as Card from '$lib/components/ui/card';
-  import Rocket from '@lucide/svelte/icons/rocket';
+  import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
 
   import LoginEmailStep from './components/LoginEmailStep.svelte';
@@ -87,11 +87,11 @@
       <div class="h-1.5 w-full bg-linear-to-r from-epi-blue to-epi-teal"></div>
 
       <Card.Header class="space-y-4 pt-8 pb-4 text-center">
-        <div
-          class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
-        >
-          <Rocket class="h-7 w-7" />
-        </div>
+        <img
+          src="/EPITECH-LOGO-BLEU-2025.svg"
+          alt="Epitech"
+          class="mx-auto h-8 w-auto dark:brightness-0 dark:invert"
+        />
 
         <div class="space-y-1">
           <Card.Title
@@ -103,7 +103,7 @@
             class="text-sm font-bold tracking-tight text-slate-500 uppercase"
           >
             {#if step === 'email'}
-              Prêt pour l'aventure ?
+              Envie de découvrir la tech ?
             {:else}
               Dernière étape !
             {/if}
@@ -134,11 +134,29 @@
       </Card.Content>
     </Card.Root>
 
-    <p
-      class="mt-8 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
+    <div
+      class="mt-8 space-y-2 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
     >
-      Propulsé par Epitech Academy
-    </p>
+      <p>
+        Propulsé par
+        <a
+          href="https://www.epitech.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-epi-blue transition-colors hover:underline"
+        >
+          Epitech
+        </a>
+      </p>
+      <p>
+        <a
+          href={resolve('/staff/login')}
+          class="transition-colors hover:text-slate-600 hover:underline dark:hover:text-slate-300"
+        >
+          Espace staff
+        </a>
+      </p>
+    </div>
   </div>
 </div>
 

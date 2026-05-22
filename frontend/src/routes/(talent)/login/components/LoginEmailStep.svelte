@@ -53,13 +53,13 @@
       <Label
         for="email"
         class="pl-1 text-xs font-black text-slate-500 uppercase"
-        >Ton email Epitech</Label
+        >Ton email personnel</Label
       >
       <Input
         id="email"
         name="email"
         type="email"
-        placeholder="nom.prenom@epitech.eu"
+        placeholder="prenom.nom@email.com"
         bind:value={$emailForm.email}
         class="h-12 rounded-xl border-slate-200 bg-slate-50/50 px-4 text-base focus-visible:ring-epi-blue dark:border-slate-800 dark:bg-slate-950/50"
       />
