@@ -3602,6 +3602,15 @@ async function seedStudents(): Promise<
   });
   const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
 
+  // Students enrolled in the ongoing stage de seconde should NOT have
+  // completed onboarding — they need to go through the full flow for QA.
+  const ongoingStageEmails = new Set([
+    ...parisStudents.slice(0, 10),
+    parisStudents[20],
+    parisStudents[22],
+    parisStudents[27],
+  ]);
+
   const talentData = STUDENTS.map((s, i) => {
     // Connexions plateforme : 10% jamais connecté·e (alerte "Jamais
     // connectés"), le reste avec une dernière activité datée selon la
@@ -3624,13 +3633,15 @@ async function seedStudents(): Promise<
     const onboardingBucket =
       s.skipOnboarding === false
         ? 'none'
-        : neverLogged
+        : ongoingStageEmails.has(s.email)
           ? 'none'
-          : i % 10 < 7
-            ? 'full'
-            : i % 10 < 9
-              ? 'partial'
-              : 'none';
+          : neverLogged
+            ? 'none'
+            : i % 10 < 7
+              ? 'full'
+              : i % 10 < 9
+                ? 'partial'
+                : 'none';
     const fullyOnboarded =
       s.skipOnboarding === true || onboardingBucket === 'full';
     const partiallyOnboarded = onboardingBucket === 'partial';
