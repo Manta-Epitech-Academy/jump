@@ -6,7 +6,9 @@
   import TalentInfoStep from './components/TalentInfoStep.svelte';
   import ParentInfoStep from './components/ParentInfoStep.svelte';
   import LyceeStep from './components/LyceeStep.svelte';
-  import InterestsCombinedStep from './components/InterestsCombinedStep.svelte';
+  import TechInterestsStep from './components/TechInterestsStep.svelte';
+  import GeneralInterestsStep from './components/GeneralInterestsStep.svelte';
+  import InterestsFreeTextStep from './components/InterestsFreeTextStep.svelte';
   import EquipmentStep from './components/EquipmentStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
   import BackButton from './components/BackButton.svelte';
@@ -25,11 +27,14 @@
   let { data, form } = $props();
 
   // Server step → first micro-step mapping
-  // profile has 3 sub-steps: 1=talent, 2=parent, 3=lycée
+  // profile: 1=talent, 2=parent, 3=lycée
+  // interests: 4=tech, 5=general, 6=free text
+  // equipment: 7
+  // rules: 8
   const SERVER_STEP_TO_MICRO: Record<string, number> = {
     interests: 4,
-    equipment: 5,
-    rules: 6,
+    equipment: 7,
+    rules: 8,
   };
 
   function getInitialMicroStep(): number {
@@ -39,7 +44,7 @@
     return SERVER_STEP_TO_MICRO[data.step] ?? 1;
   }
 
-  const TOTAL_MICRO_STEPS = 6;
+  const TOTAL_MICRO_STEPS = 8;
 
   // svelte-ignore state_referenced_locally
   let microStep = $state(getInitialMicroStep());
@@ -47,7 +52,8 @@
   let lastServerStep = $state(data.step);
   // svelte-ignore state_referenced_locally
   let lastInfoValidated = $state(!!data.infoAlreadyValidated);
-  // Accumulated fields for profile sub-steps (talent info → parent info → lycée)
+
+  // Accumulated fields for profile sub-steps
   // svelte-ignore state_referenced_locally
   let profileFields = $state({
     civilite: data.profile?.civilite ?? '',
@@ -72,6 +78,13 @@
     highSchoolUai: data.profile?.highSchoolUai ?? '',
   });
 
+  // Accumulated fields for interests sub-steps
+  let interestFields = $state({
+    techIds: (data.selectedTechIds ?? []) as string[],
+    generalIds: (data.selectedGeneralIds ?? []) as string[],
+    freeText: (data.freeText ?? '') as string,
+  });
+
   let goBackForm: HTMLFormElement;
 
   // Sync microStep when the server state changes (step or sub-step progress)
@@ -85,7 +98,6 @@
       lastInfoValidated = currentInfoValidated;
 
       if (data.step === 'profile') {
-        // Re-populate profileFields from fresh server data
         profileFields = {
           civilite: data.profile?.civilite ?? '',
           nom: data.profile?.nom ?? '',
@@ -108,8 +120,14 @@
           highSchoolCity: data.profile?.highSchoolCity ?? '',
           highSchoolUai: data.profile?.highSchoolUai ?? '',
         };
-        // If info already validated → lycée; otherwise → talent info
         microStep = currentInfoValidated ? 3 : 1;
+      } else if (data.step === 'interests') {
+        interestFields = {
+          techIds: (data.selectedTechIds ?? []) as string[],
+          generalIds: (data.selectedGeneralIds ?? []) as string[],
+          freeText: (data.freeText ?? '') as string,
+        };
+        microStep = 4;
       } else {
         microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
       }
@@ -117,7 +135,6 @@
   });
 
   // If server returned validation errors on validateProfile, jump to parent step
-  // and re-populate fields from the submitted values
   $effect(() => {
     if (form?.errors && data.step === 'profile') {
       if (form.values) {
@@ -153,9 +170,11 @@
     1: 'Tes infos',
     2: 'Ton parent',
     3: 'Ton lycée',
-    4: "Centres d'intérêt",
-    5: 'Ton matériel',
-    6: 'Règlement',
+    4: 'Informatique',
+    5: "Centres d'intérêt",
+    6: 'Encore un truc',
+    7: 'Ton matériel',
+    8: 'Règlement',
   };
   const pageTitle = $derived(TITLES[microStep] ?? 'Onboarding');
 
@@ -258,22 +277,40 @@
             />
           {:else if microStep === 4}
             <BackButton onclick={goBackServer} />
-            <InterestsCombinedStep
-              techInterests={data.techInterests ?? []}
-              generalInterests={data.generalInterests ?? []}
-              selectedTechIds={data.selectedTechIds ?? []}
-              selectedGeneralIds={data.selectedGeneralIds ?? []}
-              freeText={data.freeText ?? ''}
-              error={form?.error}
+            <TechInterestsStep
+              interests={data.techInterests ?? []}
+              selectedIds={interestFields.techIds}
+              onvalidate={(ids) => {
+                interestFields.techIds = ids;
+                microStep = 5;
+              }}
             />
           {:else if microStep === 5}
+            <BackButton onclick={() => goBackClient(4)} />
+            <GeneralInterestsStep
+              interests={data.generalInterests ?? []}
+              selectedIds={interestFields.generalIds}
+              onvalidate={(ids) => {
+                interestFields.generalIds = ids;
+                microStep = 6;
+              }}
+            />
+          {:else if microStep === 6}
+            <BackButton onclick={() => goBackClient(5)} />
+            <InterestsFreeTextStep
+              techInterestIds={interestFields.techIds}
+              generalInterestIds={interestFields.generalIds}
+              freeText={interestFields.freeText}
+              error={form?.error}
+            />
+          {:else if microStep === 7}
             <BackButton onclick={goBackServer} />
             <EquipmentStep
               hasLaptop={data.hasLaptop ?? false}
               setupDescription={data.setupDescription ?? ''}
               error={form?.error}
             />
-          {:else if microStep === 6}
+          {:else if microStep === 8}
             <BackButton onclick={goBackServer} />
             <RulesStep error={form?.error} />
           {/if}
