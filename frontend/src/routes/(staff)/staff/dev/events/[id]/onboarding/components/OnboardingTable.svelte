@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { page } from '$app/state';
   import { Badge } from '$lib/components/ui/badge';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { Button } from '$lib/components/ui/button';
@@ -121,7 +122,12 @@
               method="POST"
               action="?/toggleAdminDoc"
               use:enhance={optimisticAdminToggle(p.id, 'charte')}
-              onsubmit={() => track('adm_doc_toggled', { docType: 'charte' })}
+              onsubmit={() =>
+                track('adm_doc_toggled', {
+                  docType: 'charte',
+                  newState: !p.stageCompliance?.charteSigned,
+                  eventId: page.params.id,
+                })}
             >
               <input type="hidden" name="id" value={p.id} />
               <input type="hidden" name="docType" value="charte" />
@@ -159,7 +165,12 @@
               method="POST"
               action="?/toggleAdminDoc"
               use:enhance={optimisticAdminToggle(p.id, 'image')}
-              onsubmit={() => track('adm_doc_toggled', { docType: 'image' })}
+              onsubmit={() =>
+                track('adm_doc_toggled', {
+                  docType: 'image',
+                  newState: !p.stageCompliance?.imageRightsSigned,
+                  eventId: page.params.id,
+                })}
             >
               <input type="hidden" name="id" value={p.id} />
               <input type="hidden" name="docType" value="image" />

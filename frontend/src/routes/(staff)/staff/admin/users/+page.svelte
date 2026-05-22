@@ -27,7 +27,7 @@
   } from '$lib/domain/staff';
   import { authClient } from '$lib/auth-client';
   import type { StaffRole } from '@prisma/client';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
   let { data } = $props();
 
   let submitting = $state<string | null>(null);
@@ -59,11 +59,17 @@
     {
       onResult: ({ result }) => {
         if (result.type === 'success') {
-          track('admin_invitation_sent', { role: $inviteForm.staffRole });
+          track('admin_invitation_sent', {
+            role: $inviteForm.staffRole,
+            campus: $inviteForm.campusId ?? null,
+          });
           inviteOpen = false;
           toast.success(result.data?.form?.message || 'Invitation envoyée');
         } else if (result.type === 'failure' && result.data?.form?.message) {
-          track('admin_invitation_failed');
+          track('admin_invitation_failed', {
+            role: $inviteForm.staffRole,
+            reason: errReason(result),
+          });
           toast.error(result.data.form.message);
         }
       },
@@ -82,7 +88,11 @@
 
   let impersonating = $state<string | null>(null);
 
-  async function loginAs(userId: string, staffRole: StaffRole | null) {
+  async function loginAs(
+    userId: string,
+    staffRole: StaffRole | null,
+    targetCampus: string | null,
+  ) {
     if (impersonating) return;
     const target = getStaffRoleRedirectPath(staffRole);
     if (!target) {
@@ -93,17 +103,27 @@
     try {
       const { error } = await authClient.admin.impersonateUser({ userId });
       if (error) {
-        track('impersonation_failed');
+        track('impersonation_failed', {
+          reason: errReason(error),
+          targetRole: staffRole ?? 'unknown',
+        });
         toast.error(error.message ?? 'Impersonation refusée.');
         return;
       }
-      track('impersonation_started', { targetRole: staffRole ?? 'unknown' });
+      track('impersonation_started', {
+        targetRole: staffRole ?? 'unknown',
+        targetAccountType: staffRole ? 'staff' : 'talent',
+        targetCampus,
+      });
       // Full-page navigation (not goto) so the new session cookie is read
       // fresh on the next request and route guards re-evaluate.
       window.location.href = resolve(target as any);
     } catch (err) {
       console.error(err);
-      track('impersonation_failed');
+      track('impersonation_failed', {
+        reason: errReason(err),
+        targetRole: staffRole ?? 'unknown',
+      });
       toast.error("Erreur lors de l'impersonation.");
     } finally {
       impersonating = null;
@@ -284,15 +304,27 @@
                 {#if user.staffProfile?.staffRole === 'admin'}
                   <span class="text-sm text-muted-foreground">—</span>
                 {:else}
+                  {@const fromCampus = user.staffProfile?.campus?.name ?? null}
                   <form
                     id="campus-form-{user.id}"
                     method="POST"
                     action="?/updateCampus"
                     use:enhance={() => {
                       submitting = `campus-${user.id}`;
+                      const toCampus =
+                        data.campuses?.find(
+                          (c) =>
+                            c.id ===
+                            (document.querySelector<HTMLInputElement>(
+                              `#campus-form-${user.id} input[name="campusId"]`,
+                            )?.value ?? ''),
+                        )?.name ?? null;
                       return async ({ update, result }) => {
                         if (result.type === 'success') {
-                          track('admin_user_campus_updated');
+                          track('admin_user_campus_updated', {
+                            fromCampus,
+                            toCampus,
+                          });
                           toast.success('Campus mis à jour');
                         }
                         await update();
@@ -331,15 +363,20 @@
                 {/if}
               </Table.Cell>
               <Table.Cell>
+                {@const fromRole = user.staffProfile?.staffRole ?? null}
                 <form
                   id="role-form-{user.id}"
                   method="POST"
                   action="?/updateRole"
                   use:enhance={() => {
                     submitting = `role-${user.id}`;
+                    const toRole =
+                      document.querySelector<HTMLInputElement>(
+                        `#role-form-${user.id} input[name="staffRole"]`,
+                      )?.value ?? null;
                     return async ({ update, result }) => {
                       if (result.type === 'success') {
-                        track('admin_user_role_updated');
+                        track('admin_user_role_updated', { fromRole, toRole });
                         toast.success('Rôle mis à jour');
                       }
                       await update();
@@ -403,6 +440,7 @@
                                 loginAs(
                                   user.id,
                                   user.staffProfile?.staffRole ?? null,
+                                  user.staffProfile?.campus?.name ?? null,
                                 )}
                             >
                               <LogIn class="h-4 w-4" />

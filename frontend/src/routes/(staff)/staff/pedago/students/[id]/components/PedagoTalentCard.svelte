@@ -4,6 +4,7 @@
   import Users from '@lucide/svelte/icons/users';
   import { Badge } from '$lib/components/ui/badge';
   import { Separator } from '$lib/components/ui/separator';
+  import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import StudentIdentityCard from '$lib/components/students/StudentIdentityCard.svelte';
 
   let {
@@ -36,20 +37,26 @@
 {#snippet contact()}
   <div class="flex flex-col gap-2 text-sm text-muted-foreground">
     {#if email}
-      <a
-        href={`mailto:${email}`}
-        class="flex items-center gap-2 transition-colors hover:text-epi-blue"
-      >
-        <Mail class="h-3.5 w-3.5" /><span class="truncate">{email}</span>
-      </a>
+      <div class="flex items-center gap-1">
+        <a
+          href={`mailto:${email}`}
+          class="flex flex-1 items-center gap-2 transition-colors hover:text-epi-blue"
+        >
+          <Mail class="h-3.5 w-3.5" /><span class="truncate">{email}</span>
+        </a>
+        <CopyButton value={email} label="Copier l'email" />
+      </div>
     {/if}
     {#if student.phone}
-      <a
-        href={`tel:${student.phone.replace(/\s+/g, '')}`}
-        class="flex items-center gap-2 transition-colors hover:text-epi-blue"
-      >
-        <Phone class="h-3.5 w-3.5" /><span>{student.phone}</span>
-      </a>
+      <div class="flex items-center gap-1">
+        <a
+          href={`tel:${student.phone.replace(/\s+/g, '')}`}
+          class="flex flex-1 items-center gap-2 transition-colors hover:text-epi-blue"
+        >
+          <Phone class="h-3.5 w-3.5" /><span>{student.phone}</span>
+        </a>
+        <CopyButton value={student.phone} label="Copier le téléphone" />
+      </div>
     {/if}
 
     {#if student.parentEmail || student.parentPhone}
@@ -62,22 +69,34 @@
           ><Users class="h-3 w-3" /> Contact Parent</span
         >
         {#if student.parentEmail}
-          <a
-            href={`mailto:${student.parentEmail}`}
-            class="flex items-center gap-2 text-xs transition-colors hover:text-epi-blue"
-          >
-            <Mail class="h-3 w-3" /><span class="truncate"
-              >{student.parentEmail}</span
+          <div class="flex items-center gap-1">
+            <a
+              href={`mailto:${student.parentEmail}`}
+              class="flex flex-1 items-center gap-2 text-xs transition-colors hover:text-epi-blue"
             >
-          </a>
+              <Mail class="h-3 w-3" /><span class="truncate"
+                >{student.parentEmail}</span
+              >
+            </a>
+            <CopyButton
+              value={student.parentEmail}
+              label="Copier l'email parent"
+            />
+          </div>
         {/if}
         {#if student.parentPhone}
-          <a
-            href={`tel:${student.parentPhone.replace(/\s+/g, '')}`}
-            class="flex items-center gap-2 text-xs transition-colors hover:text-epi-blue"
-          >
-            <Phone class="h-3 w-3" /><span>{student.parentPhone}</span>
-          </a>
+          <div class="flex items-center gap-1">
+            <a
+              href={`tel:${student.parentPhone.replace(/\s+/g, '')}`}
+              class="flex flex-1 items-center gap-2 text-xs transition-colors hover:text-epi-blue"
+            >
+              <Phone class="h-3 w-3" /><span>{student.parentPhone}</span>
+            </a>
+            <CopyButton
+              value={student.parentPhone}
+              label="Copier le téléphone parent"
+            />
+          </div>
         {/if}
       </div>
     {/if}

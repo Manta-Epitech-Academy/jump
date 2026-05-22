@@ -26,7 +26,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { fly, fade } from 'svelte/transition';
-  import { track } from '$lib/analytics';
+  import { track, secondsBetween } from '$lib/analytics';
 
   let { children, data } = $props();
 
@@ -293,7 +293,13 @@
             <form
               action="{resolve('/logout')}?type=admin"
               method="POST"
-              onsubmit={() => track('logout', { kind: 'admin' })}
+              onsubmit={() =>
+                track('logout', {
+                  kind: 'admin',
+                  sessionDurationSec: secondsBetween(
+                    page.data.session?.createdAt as Date | string | undefined,
+                  ),
+                })}
             >
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item
