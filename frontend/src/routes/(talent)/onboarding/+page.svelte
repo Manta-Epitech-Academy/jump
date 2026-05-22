@@ -38,9 +38,7 @@
   };
 
   function getInitialMicroStep(): number {
-    if (data.step === 'profile') {
-      return data.infoAlreadyValidated ? 3 : 1;
-    }
+    if (data.step === 'profile') return 1;
     return SERVER_STEP_TO_MICRO[data.step] ?? 1;
   }
 
