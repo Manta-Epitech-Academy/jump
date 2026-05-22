@@ -69,7 +69,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       name: '',
       templateId: templateIdParam ?? '',
       campusId: '',
-      audience: 'talent' as const,
+      audience: undefined,
       eventId: '',
       sourceBroadcastId: '',
       filters: {},
@@ -168,11 +168,12 @@ export const actions: Actions = {
     const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
     const name = `[${stamp}] ${campus?.name ?? '?'} - ${template?.name ?? '?'}`;
 
+    // superRefine guarantees audience is defined past the form.valid gate.
     const { broadcastId } = await enqueueBroadcast({
       name,
       templateId: form.data.templateId,
       campusId: form.data.campusId,
-      audience: form.data.audience,
+      audience: form.data.audience!,
       eventId: form.data.eventId || null,
       sourceBroadcastId: form.data.sourceBroadcastId || null,
       sourceFilter: form.data.sourceFilter ?? null,

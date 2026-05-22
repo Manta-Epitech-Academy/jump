@@ -1,10 +1,16 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
+  import { page } from '$app/state';
+  import { toast } from 'svelte-sonner';
   import { superForm } from 'sveltekit-superforms';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Dialog from '$lib/components/ui/dialog';
+  import * as Tooltip from '$lib/components/ui/tooltip';
+  import Plus from '@lucide/svelte/icons/plus';
   import {
     BROADCAST_AUDIENCES,
     BROADCAST_AUDIENCE_LABELS,
@@ -20,6 +26,8 @@
 
   let { data, form: actionForm } = $props();
 
+  const DRAFT_KEY = 'broadcast-new-draft-v1';
+
   // svelte-ignore state_referenced_locally
   const { form, errors, enhance, submitting } = superForm(data.form, {
     dataType: 'json',
@@ -29,25 +37,19 @@
     // Don't surface load-time errors (empty required fields) until the
     // user actually tries to submit.
     validationMethod: 'onsubmit',
+    onResult: ({ result }) => {
+      // Enqueue is the only action that redirects — that's our success
+      // signal to drop the draft. testSend stays put with a flash message.
+      if (browser && result.type === 'redirect') {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    },
   });
 
   const selectedTemplate = $derived(
     data.templates.find((t) => t.id === $form.templateId),
   );
-  const selectedCampus = $derived(
-    data.campuses.find((c) => c.id === $form.campusId),
-  );
   const channel = $derived(selectedTemplate?.channel ?? 'mail');
-
-  // UI preview of the auto-generated name; the canonical value is rebuilt
-  // server-side at enqueue time so the timestamp matches the actual send.
-  const generatedName = $derived.by(() => {
-    if (!selectedCampus || !selectedTemplate) return '';
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    return `[${stamp}] ${selectedCampus.name} - ${selectedTemplate.name}`;
-  });
 
   const filteredEvents = $derived(
     data.events.filter((e) =>
@@ -68,6 +70,58 @@
   let testSendOpen = $state(false);
   // svelte-ignore state_referenced_locally
   let testEmail = $state(data.userEmail ?? '');
+
+  // ── Draft auto-save ────────────────────────────────────────────────
+  // localStorage-backed so a half-filled form survives a page reload or
+  // accidental tab close. Cleared on successful enqueue (see onResult
+  // above). URL `?template=` always wins over a saved templateId since
+  // it represents fresh explicit intent.
+  onMount(() => {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw) as Partial<typeof $form>;
+      const urlTemplate = page.url.searchParams.get('template');
+      $form.campusId = draft.campusId ?? '';
+      $form.eventId = draft.eventId ?? '';
+      $form.audience = draft.audience;
+      if (!urlTemplate) $form.templateId = draft.templateId ?? '';
+      $form.sourceBroadcastId = draft.sourceBroadcastId ?? '';
+      $form.sourceFilter = draft.sourceFilter;
+      $form.filters = draft.filters ?? {};
+      toast.info('Brouillon restauré');
+    } catch {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+  });
+
+  $effect(() => {
+    if (!browser) return;
+    // Read fields outside the timeout so the effect re-runs on change.
+    const snapshot = {
+      campusId: $form.campusId,
+      eventId: $form.eventId,
+      audience: $form.audience,
+      templateId: $form.templateId,
+      sourceBroadcastId: $form.sourceBroadcastId,
+      sourceFilter: $form.sourceFilter,
+      filters: $form.filters,
+    };
+    const isEmpty =
+      !snapshot.campusId &&
+      !snapshot.eventId &&
+      !snapshot.audience &&
+      !snapshot.templateId &&
+      !snapshot.sourceBroadcastId;
+    const timer = setTimeout(() => {
+      if (isEmpty) {
+        localStorage.removeItem(DRAFT_KEY);
+      } else {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  });
 
   // ── Live recipient preview ──────────────────────────────────────────
   // POSTs the form to /preview as JSON, debounced. The endpoint short-
@@ -95,7 +149,7 @@
       sourceFilter: $form.sourceFilter,
       filters: $form.filters ?? {},
     };
-    if (!payload.templateId || !payload.campusId) {
+    if (!payload.templateId || !payload.campusId || !payload.audience) {
       preview = null;
       previewError = null;
       return;
@@ -179,8 +233,8 @@
 <header class="space-y-2">
   <h1 class="text-2xl font-bold tracking-tight">Nouvel envoi</h1>
   <p class="text-sm text-muted-foreground">
-    Choisis un template, une audience et un campus, puis prévisualise les
-    destinataires avant de lancer.
+    Renseigne campus, event, audience et template — les destinataires
+    s'affichent en direct à droite.
   </p>
 </header>
 
@@ -191,41 +245,6 @@
   class="grid gap-6 lg:grid-cols-[1fr_320px]"
 >
   <div class="space-y-5">
-    <div class="grid gap-2">
-      <Label>Nom de l'envoi</Label>
-      <p
-        class="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
-      >
-        {#if generatedName}
-          {generatedName}
-        {:else}
-          Auto-généré au moment de l'envoi
-          <span class="text-[10px]">([JJ/MM/AAAA HH:MM] Campus - Template)</span
-          >
-        {/if}
-      </p>
-    </div>
-
-    <div class="grid gap-2">
-      <Label for="templateId">Template</Label>
-      <select
-        id="templateId"
-        name="templateId"
-        bind:value={$form.templateId}
-        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-      >
-        <option value="">— Sélectionner —</option>
-        {#each data.templates as t}
-          <option value={t.id}>
-            [{BROADCAST_CHANNEL_LABELS[t.channel]}] {t.name}
-          </option>
-        {/each}
-      </select>
-      {#if $errors.templateId}
-        <p class="text-xs text-destructive">{$errors.templateId}</p>
-      {/if}
-    </div>
-
     <div class="grid gap-2">
       <Label for="campusId">Campus</Label>
       <select
@@ -279,7 +298,52 @@
           </label>
         {/each}
       </div>
+      {#if $errors.audience}
+        <p class="text-xs text-destructive">{$errors.audience}</p>
+      {/if}
     </fieldset>
+
+    <div class="grid gap-2">
+      <Label for="templateId">Template</Label>
+      <div class="flex items-center gap-2">
+        <select
+          id="templateId"
+          name="templateId"
+          bind:value={$form.templateId}
+          class="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">— Sélectionner —</option>
+          {#each data.templates as t}
+            <option value={t.id}>
+              [{BROADCAST_CHANNEL_LABELS[t.channel]}] {t.name}
+            </option>
+          {/each}
+        </select>
+        <Tooltip.Provider delayDuration={200}>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <Button
+                  {...props}
+                  variant="outline"
+                  size="icon"
+                  href="/staff/admin/broadcasts/templates/new"
+                  target="_blank"
+                  rel="noopener"
+                  aria-label="Créer un template"
+                >
+                  <Plus class="h-4 w-4" />
+                </Button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content>Créer un template (nouvel onglet)</Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      </div>
+      {#if $errors.templateId}
+        <p class="text-xs text-destructive">{$errors.templateId}</p>
+      {/if}
+    </div>
 
     <div class="rounded-md border">
       <button

@@ -82,15 +82,24 @@ export const broadcastSchema = z
       .default(''),
     templateId: z.string().min(1, 'Sélectionne un template'),
     campusId: z.string().min(1, 'Sélectionne un campus'),
-    audience: z.enum(BROADCAST_AUDIENCES, {
-      message: 'Audience invalide',
-    }),
+    // Optional at the schema level so the form can render with nothing
+    // pre-selected; the superRefine below enforces selection at submit.
+    audience: z
+      .enum(BROADCAST_AUDIENCES, { message: 'Audience invalide' })
+      .optional(),
     eventId: z.string().optional().or(z.literal('')),
     sourceBroadcastId: z.string().optional().or(z.literal('')),
     sourceFilter: broadcastSourceFilterSchema.optional(),
     filters: broadcastFiltersSchema.optional(),
   })
   .superRefine((data, ctx) => {
+    if (!data.audience) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Sélectionne une audience',
+        path: ['audience'],
+      });
+    }
     if (data.sourceBroadcastId && !data.sourceFilter) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
