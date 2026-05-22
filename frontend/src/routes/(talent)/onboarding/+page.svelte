@@ -45,6 +45,8 @@
   let microStep = $state(getInitialMicroStep());
   // svelte-ignore state_referenced_locally
   let lastServerStep = $state(data.step);
+  // svelte-ignore state_referenced_locally
+  let lastInfoValidated = $state(!!data.infoAlreadyValidated);
   // Accumulated fields for profile sub-steps (talent info → parent info → lycée)
   // svelte-ignore state_referenced_locally
   let profileFields = $state({
@@ -72,10 +74,15 @@
 
   let goBackForm: HTMLFormElement;
 
-  // Sync microStep when the server step changes (after form POST + redirect)
+  // Sync microStep when the server state changes (step or sub-step progress)
   $effect(() => {
-    if (data.step !== lastServerStep) {
+    const currentInfoValidated = !!data.infoAlreadyValidated;
+    const stepChanged = data.step !== lastServerStep;
+    const infoJustValidated = currentInfoValidated && !lastInfoValidated;
+
+    if (stepChanged || infoJustValidated) {
       lastServerStep = data.step;
+      lastInfoValidated = currentInfoValidated;
 
       if (data.step === 'profile') {
         // Re-populate profileFields from fresh server data
@@ -102,7 +109,7 @@
           highSchoolUai: data.profile?.highSchoolUai ?? '',
         };
         // If info already validated → lycée; otherwise → talent info
-        microStep = data.infoAlreadyValidated ? 3 : 1;
+        microStep = currentInfoValidated ? 3 : 1;
       } else {
         microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
       }
