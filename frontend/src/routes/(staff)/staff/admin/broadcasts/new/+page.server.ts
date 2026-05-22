@@ -4,7 +4,6 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { broadcastSchema } from '$lib/validation/broadcasts';
-import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
 import {
   enqueueBroadcast,
   processBroadcast,
@@ -21,7 +20,7 @@ import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import { env } from '$env/dynamic/private';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
 
   const [templates, campuses] = await Promise.all([
@@ -79,54 +78,26 @@ export const load: PageServerLoad = async ({ url }) => {
     { errors: false },
   );
 
-  return { form, templates, campuses, events, sourceBroadcasts };
+  return {
+    form,
+    templates,
+    campuses,
+    events,
+    sourceBroadcasts,
+    userEmail: locals.user?.email ?? '',
+  };
 };
 
 export const actions: Actions = {
-  preview: async ({ request }) => {
-    const form = await superValidate(request, zod4(broadcastSchema));
-    if (!form.valid) return fail(400, { form });
-
-    const template = await prisma.messageTemplate.findUnique({
-      where: { id: form.data.templateId },
-      select: { channel: true },
-    });
-    if (!template)
-      return fail(400, { form, previewError: 'Template introuvable' });
-
-    const { recipients, excluded } = await resolveRecipients(
-      {
-        campusId: form.data.campusId,
-        audience: form.data.audience,
-        eventId: form.data.eventId || null,
-        filters: form.data.filters ?? null,
-        sourceBroadcastId: form.data.sourceBroadcastId || null,
-        sourceFilter: form.data.sourceFilter ?? null,
-      },
-      template.channel,
-    );
-
-    return {
-      form,
-      preview: {
-        total: recipients.length,
-        excluded,
-        sample: recipients.slice(0, 10).map((r) => ({
-          name: `${r.prenom} ${r.nom}`.trim(),
-          email: r.email,
-          phone: r.phone,
-        })),
-      },
-    };
-  },
-
   testSend: async ({ request, locals }) => {
-    const form = await superValidate(request, zod4(broadcastSchema));
+    const formData = await request.formData();
+    const testEmailRaw = (formData.get('testEmail') as string | null)?.trim();
+    const form = await superValidate(formData, zod4(broadcastSchema));
     if (!form.valid) return fail(400, { form });
-    if (!locals.user?.email) {
-      return message(form, "Tu n'as pas d'email sur ton compte.", {
-        status: 400,
-      });
+
+    const recipientEmail = testEmailRaw || locals.user?.email || '';
+    if (!recipientEmail || !/^\S+@\S+\.\S+$/.test(recipientEmail)) {
+      return message(form, 'Email de test invalide.', { status: 400 });
     }
 
     const template = await prisma.messageTemplate.findUnique({
@@ -165,7 +136,7 @@ export const actions: Actions = {
 
     const result = await sendEmail({
       from: MAIL_FROM,
-      to: locals.user.email,
+      to: recipientEmail,
       subject,
       html: body,
     });
@@ -173,7 +144,7 @@ export const actions: Actions = {
     if (!result.ok) {
       return message(form, `Échec : ${result.message}`, { status: 500 });
     }
-    return message(form, `Test envoyé à ${locals.user.email}.`);
+    return message(form, `Test envoyé à ${recipientEmail}.`);
   },
 
   enqueue: async ({ request, locals }) => {

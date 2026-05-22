@@ -4,22 +4,27 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import * as Dialog from '$lib/components/ui/dialog';
   import {
     BROADCAST_AUDIENCES,
     BROADCAST_AUDIENCE_LABELS,
-    AUDIENCES_REQUIRING_EVENT,
     BROADCAST_CHANNEL_LABELS,
     JUMP_LEVELS,
   } from '$lib/domain/broadcasts';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
+  import {
+    substituteVariables,
+    buildDemoContext,
+  } from '$lib/domain/broadcastVariables';
+  import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 
   let { data, form: actionForm } = $props();
 
   // svelte-ignore state_referenced_locally
   const { form, errors, enhance, submitting } = superForm(data.form, {
     dataType: 'json',
-    // Without this, a successful preview / test-send action wipes the
-    // user's form because superforms resets to the load-time state.
+    // Without this, a successful test-send action wipes the user's form
+    // because superforms resets to the load-time state.
     resetForm: false,
     // Don't surface load-time errors (empty required fields) until the
     // user actually tries to submit.
@@ -43,13 +48,102 @@
     ),
   );
 
-  const needsEvent = $derived(
-    AUDIENCES_REQUIRING_EVENT.includes($form.audience),
-  );
-
   let showFilters = $state(false);
   let showRetarget = $state(false);
   let confirmEnqueueOpen = $state(false);
+  let mailPreviewOpen = $state(false);
+  let testSendOpen = $state(false);
+  // svelte-ignore state_referenced_locally
+  let testEmail = $state(data.userEmail ?? '');
+
+  // ── Live recipient preview ──────────────────────────────────────────
+  // POSTs the form to /preview as JSON, debounced. The endpoint short-
+  // circuits when the form is too incomplete to resolve, so we can fire
+  // freely without filling the panel with errors mid-typing.
+  type PreviewState = {
+    total: number;
+    excluded: { reason: 'no_email' | 'no_phone'; count: number }[];
+    sample: { name: string; email: string | null; phone: string | null }[];
+    incomplete?: boolean;
+  };
+  let preview = $state<PreviewState | null>(null);
+  let previewLoading = $state(false);
+  let previewError = $state<string | null>(null);
+
+  $effect(() => {
+    // Track the fields that actually change the recipient set.
+    const payload = {
+      name: $form.name || 'preview',
+      templateId: $form.templateId,
+      campusId: $form.campusId,
+      audience: $form.audience,
+      eventId: $form.eventId ?? '',
+      sourceBroadcastId: $form.sourceBroadcastId ?? '',
+      sourceFilter: $form.sourceFilter,
+      filters: $form.filters ?? {},
+    };
+    if (!payload.templateId || !payload.campusId) {
+      preview = null;
+      previewError = null;
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      previewLoading = true;
+      previewError = null;
+      try {
+        const res = await fetch('/staff/admin/broadcasts/new/preview', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        preview = (await res.json()) as PreviewState;
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
+        previewError = (err as Error).message;
+        preview = null;
+      } finally {
+        previewLoading = false;
+      }
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  });
+
+  // ── Mail preview (modal) ────────────────────────────────────────────
+  const previewMailHtml = $derived.by(() => {
+    if (!selectedTemplate || selectedTemplate.channel !== 'mail') return '';
+    const event = $form.eventId
+      ? data.events.find((e) => e.id === $form.eventId)
+      : null;
+    const ctx = buildDemoContext(event?.titre ?? null);
+    const body = substituteVariables(selectedTemplate.body, ctx);
+    return renderBroadcastMail(body);
+  });
+  const previewMailSubject = $derived.by(() => {
+    if (!selectedTemplate?.subject) return '';
+    const event = $form.eventId
+      ? data.events.find((e) => e.id === $form.eventId)
+      : null;
+    return substituteVariables(
+      selectedTemplate.subject,
+      buildDemoContext(event?.titre ?? null),
+    );
+  });
+  const previewSmsBody = $derived.by(() => {
+    if (!selectedTemplate || selectedTemplate.channel !== 'sms') return '';
+    const event = $form.eventId
+      ? data.events.find((e) => e.id === $form.eventId)
+      : null;
+    return substituteVariables(
+      selectedTemplate.body,
+      buildDemoContext(event?.titre ?? null),
+    );
+  });
 
   const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
@@ -135,6 +229,24 @@
       {/if}
     </div>
 
+    <div class="grid gap-2">
+      <Label for="eventId">Event (optionnel — vide = tous)</Label>
+      <select
+        id="eventId"
+        name="eventId"
+        bind:value={$form.eventId}
+        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        disabled={!$form.campusId}
+      >
+        <option value="">Tous les events du campus</option>
+        {#each filteredEvents as e}
+          <option value={e.id}>
+            {dateFormatter.format(e.date)} — {e.titre}
+          </option>
+        {/each}
+      </select>
+    </div>
+
     <fieldset class="space-y-2">
       <legend class="text-sm font-medium">Audience</legend>
       <div class="grid grid-cols-3 gap-2">
@@ -153,26 +265,6 @@
         {/each}
       </div>
     </fieldset>
-
-    {#if needsEvent}
-      <div class="grid gap-2">
-        <Label for="eventId">Event (optionnel — vide = tous)</Label>
-        <select
-          id="eventId"
-          name="eventId"
-          bind:value={$form.eventId}
-          class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          disabled={!$form.campusId}
-        >
-          <option value="">Tous les events du campus</option>
-          {#each filteredEvents as e}
-            <option value={e.id}>
-              {dateFormatter.format(e.date)} — {e.titre}
-            </option>
-          {/each}
-        </select>
-      </div>
-    {/if}
 
     <div class="rounded-md border">
       <button
@@ -349,18 +441,21 @@
 
     <div class="flex flex-wrap gap-2 pt-2">
       <Button
-        type="submit"
-        formaction="?/preview"
+        type="button"
         variant="outline"
-        disabled={$submitting}
+        onclick={() => (mailPreviewOpen = true)}
+        disabled={!selectedTemplate}
       >
-        Aperçu destinataires
+        Aperçu envoi
       </Button>
       <Button
-        type="submit"
-        formaction="?/testSend"
+        type="button"
         variant="outline"
-        disabled={$submitting || channel === 'sms'}
+        onclick={() => {
+          testEmail = data.userEmail ?? '';
+          testSendOpen = true;
+        }}
+        disabled={$submitting || channel === 'sms' || !selectedTemplate}
       >
         S'envoyer un test
       </Button>
@@ -376,17 +471,24 @@
 
   <aside class="space-y-4">
     <div class="rounded-lg border bg-muted/30 p-4">
-      <h3
-        class="mb-2 text-xs font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Aperçu
-      </h3>
-      {#if actionForm && 'preview' in actionForm && actionForm.preview}
-        <p class="text-2xl font-bold">{actionForm.preview.total}</p>
+      <div class="mb-2 flex items-center justify-between">
+        <h3
+          class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          Aperçu destinataires
+        </h3>
+        {#if previewLoading}
+          <span class="text-[10px] text-muted-foreground">…</span>
+        {/if}
+      </div>
+      {#if previewError}
+        <p class="text-xs text-destructive">Erreur : {previewError}</p>
+      {:else if preview && !preview.incomplete}
+        <p class="text-2xl font-bold">{preview.total}</p>
         <p class="mb-3 text-xs text-muted-foreground">destinataire(s)</p>
-        {#if actionForm.preview.excluded.length > 0}
+        {#if preview.excluded.length > 0}
           <ul class="mb-3 space-y-0.5 text-xs text-amber-700">
-            {#each actionForm.preview.excluded as ex}
+            {#each preview.excluded as ex}
               <li>
                 {ex.count} exclu(s) :
                 {ex.reason === 'no_email' ? "pas d'email" : 'pas de téléphone'}
@@ -394,10 +496,10 @@
             {/each}
           </ul>
         {/if}
-        {#if actionForm.preview.sample.length > 0}
+        {#if preview.sample.length > 0}
           <p class="mb-1 text-xs font-medium">Échantillon :</p>
           <ul class="space-y-0.5 text-xs text-muted-foreground">
-            {#each actionForm.preview.sample as r}
+            {#each preview.sample as r}
               <li class="truncate">
                 {r.name} <span class="text-[10px]">({r.email ?? r.phone})</span>
               </li>
@@ -406,7 +508,7 @@
         {/if}
       {:else}
         <p class="text-xs text-muted-foreground">
-          Remplis les champs puis clique sur « Aperçu destinataires ».
+          Sélectionne un template et un campus pour voir les destinataires.
         </p>
       {/if}
 
@@ -421,6 +523,75 @@
   </aside>
 </form>
 
+<Dialog.Root bind:open={mailPreviewOpen}>
+  <Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+    <Dialog.Header>
+      <Dialog.Title>Aperçu de l'envoi</Dialog.Title>
+      <Dialog.Description class="text-xs">
+        Rendu avec des données fictives — destinataires réels recevront leurs
+        propres variables substituées.
+      </Dialog.Description>
+    </Dialog.Header>
+    {#if !selectedTemplate}
+      <p class="text-sm text-muted-foreground">Sélectionne un template.</p>
+    {:else if selectedTemplate.channel === 'mail'}
+      {#if previewMailSubject}
+        <p class="text-xs">
+          <span class="font-semibold">Sujet :</span>
+          {previewMailSubject}
+        </p>
+      {/if}
+      <div class="overflow-hidden rounded border">
+        {@html previewMailHtml}
+      </div>
+    {:else}
+      <pre
+        class="rounded border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{previewSmsBody}</pre>
+    {/if}
+  </Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={testSendOpen}>
+  <Dialog.Content class="sm:max-w-md">
+    <Dialog.Header>
+      <Dialog.Title>S'envoyer un test</Dialog.Title>
+      <Dialog.Description class="text-xs">
+        Envoie un email de test avec les variables remplies par des valeurs
+        fictives.
+      </Dialog.Description>
+    </Dialog.Header>
+    <div class="grid gap-2">
+      <Label for="testEmail">Email destinataire</Label>
+      <Input
+        id="testEmail"
+        name="testEmail"
+        form="broadcast-form"
+        type="email"
+        bind:value={testEmail}
+        placeholder="ex: prenom.nom@epitech.eu"
+      />
+    </div>
+    <Dialog.Footer class="mt-4">
+      <Button
+        type="button"
+        variant="outline"
+        onclick={() => (testSendOpen = false)}
+      >
+        Annuler
+      </Button>
+      <Button
+        type="submit"
+        form="broadcast-form"
+        formaction="?/testSend"
+        disabled={$submitting || !testEmail}
+        onclick={() => (testSendOpen = false)}
+      >
+        Envoyer le test
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
 <AlertDialog.Root bind:open={confirmEnqueueOpen}>
   <AlertDialog.Content class="rounded-sm">
     <AlertDialog.Header>
@@ -430,14 +601,12 @@
         Démarrer les envois ?
       </AlertDialog.Title>
       <AlertDialog.Description class="text-sm font-medium">
-        {#if actionForm && 'preview' in actionForm && actionForm.preview}
-          {actionForm.preview.total} message(s) vont être envoyés immédiatement aux
-          destinataires sélectionnés. Cette action est
-          <strong>irréversible</strong>.
+        {#if preview && !preview.incomplete}
+          {preview.total} message(s) vont être envoyés immédiatement aux destinataires
+          sélectionnés. Cette action est <strong>irréversible</strong>.
         {:else}
           Les messages vont être envoyés immédiatement aux destinataires
-          sélectionnés. Cette action est <strong>irréversible</strong>. Lance
-          d'abord un « Aperçu destinataires » si tu veux voir le nombre exact.
+          sélectionnés. Cette action est <strong>irréversible</strong>.
         {/if}
       </AlertDialog.Description>
     </AlertDialog.Header>
