@@ -73,7 +73,7 @@
             {#each data.leaderboard.rows as row (row.talentId)}
               <tr class="border-b border-muted">
                 <td class="py-2 font-bold">{row.rank}</td>
-                <td class="py-2">{row.talentName}</td>
+                <td class="py-2">{row.prenom} {row.nom}</td>
                 {#if data.leaderboard.scoringType === 'score'}
                   <td class="py-2 text-right tabular-nums">
                     {row.score ?? '—'}

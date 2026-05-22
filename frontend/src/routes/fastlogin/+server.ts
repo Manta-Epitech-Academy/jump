@@ -16,6 +16,7 @@ import { resolve } from '$app/paths';
 import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
+import { ensureTalentUser } from '$lib/server/services/talentAccount';
 import { verifyFastloginToken } from '$lib/server/services/broadcast/personalization';
 
 export const GET: RequestHandler = async ({ url, request, cookies }) => {
@@ -45,36 +46,13 @@ export const GET: RequestHandler = async ({ url, request, cookies }) => {
 
   const talent = await prisma.talent.findFirst({
     where: { email },
-    select: { id: true, prenom: true, nom: true, userId: true },
+    select: { id: true },
   });
   if (!talent) throw error(404, 'Profil introuvable.');
 
-  // Bootstrap bauth_user on first fastlogin if the talent was seeded /
-  // imported but never went through `/login` to create one.
-  if (!talent.userId) {
-    const existing = await prisma.bauth_user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-    let userId: string;
-    if (existing) {
-      userId = existing.id;
-    } else {
-      const newUser = await prisma.bauth_user.create({
-        data: {
-          email,
-          role: 'student',
-          name: `${talent.prenom} ${talent.nom}`,
-        },
-        select: { id: true },
-      });
-      userId = newUser.id;
-    }
-    await prisma.talent.update({
-      where: { id: talent.id },
-      data: { userId },
-    });
-  }
+  // Bootstrap / link the bauth_user on first fastlogin if the talent was
+  // seeded or imported but never went through `/login` to create one.
+  await ensureTalentUser(talent.id);
 
   const otp = await auth.api.createVerificationOTP({
     body: { email, type: 'sign-in' },

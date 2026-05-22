@@ -5,11 +5,12 @@
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
   import { track, errReason, secondsBetween } from '$lib/analytics';
-  const seenAt = Date.now();
-  import { triggerConfetti } from '$lib/actions/confetti';
-  import { fly, fade } from 'svelte/transition';
+  import { fly } from 'svelte/transition';
 
   let { error: formError }: { error?: string } = $props();
+
+  // Timestamp when the rules were first shown — feeds the "time to sign" metric.
+  const seenAt = Date.now();
 
   let accepted = $state(false);
   let submitting = $state(false);
@@ -61,10 +62,12 @@
           track('rules_signed', { secondsToSign: seconds });
           track('onboarding_completed', { step: 'rules' });
           completed = true;
-          triggerConfetti();
+          // No confetti here — the dashboard arrival owns the celebration
+          // (confetti + XP + welcome message). This screen is just the lead-in
+          // that view-transitions into it. Hold briefly so it's seen.
           setTimeout(() => {
             update();
-          }, 2500);
+          }, 1600);
           return;
         }
         if (result.type === 'failure') {

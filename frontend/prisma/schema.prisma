@@ -247,6 +247,7 @@ model Campus {
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
   broadcasts        Broadcast[]
+  minigameAttempts  MinigameAttempt[]
 }
 
 model CmsPage {
@@ -1186,7 +1187,8 @@ model MinigameAttempt {
   id            String                @id @default(cuid())
   talentId      String
   publicationId String
-  eventId       String
+  eventId       String?
+  campusId      String?
   status        MinigameAttemptStatus @default(pending)
   score         Int?
   chrono        Int?
@@ -1194,13 +1196,23 @@ model MinigameAttempt {
   startedAt     DateTime              @default(now())
   finishedAt    DateTime?
   jti           String                @unique
+  // XP granted for finishing this attempt (null = none, e.g. an invalid run or
+  // a pre-feature row). Source of truth for the award — set once in the
+  // callback, so a retried callback can't double-pay.
+  xpAwarded     Int?
+  // When the talent saw the "+XP" arrival celebration on the dashboard. Null
+  // while xpAwarded is set ⇒ a fresh win still to be celebrated (mirrors
+  // Talent.welcomeSeenAt). Gates the one-shot float so it can't replay.
+  xpSeenAt      DateTime?
 
   talent      Talent              @relation(fields: [talentId], references: [id], onDelete: Cascade)
   publication MinigamePublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
-  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event       Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  campus      Campus?             @relation(fields: [campusId], references: [id], onDelete: SetNull)
 
   @@unique([talentId, publicationId])
   @@index([eventId, publicationId])
+  @@index([campusId, publicationId])
   @@index([publicationId])
 }
 
