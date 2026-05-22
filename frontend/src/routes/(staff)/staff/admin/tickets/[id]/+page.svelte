@@ -15,7 +15,17 @@
   import { TICKET_CATEGORY_LABELS } from '$lib/domain/tickets';
   import TicketThread from '$lib/components/tickets/TicketThread.svelte';
   import { toast } from 'svelte-sonner';
-  import { track } from '$lib/analytics';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
+
+  function hoursSince(iso: string): number {
+    return Math.max(0, Math.floor((secondsBetween(iso) ?? 0) / 3600));
+  }
+  function daysSince(iso: string): number {
+    return Math.max(0, Math.floor((secondsBetween(iso) ?? 0) / 86400));
+  }
+  function minutesSince(iso: string): number {
+    return Math.max(0, Math.floor((secondsBetween(iso) ?? 0) / 60));
+  }
 
   let { data } = $props();
 
@@ -87,7 +97,10 @@
                 if (result.type === 'success') {
                   track('ticket_status_changed', {
                     side: 'admin',
-                    to: isClosed ? 'open' : 'closed',
+                    fromStatus: data.ticket.status,
+                    toStatus: isClosed ? 'open' : 'closed',
+                    category: data.ticket.category,
+                    ticketAgeDays: daysSince(data.ticket.createdAt),
                   });
                   toast.success(isClosed ? 'Ticket réouvert' : 'Ticket fermé');
                   update();
@@ -121,12 +134,25 @@
           use:enhance={() =>
             ({ result, update }) => {
               if (result.type === 'success') {
-                track('ticket_replied', { side: 'admin' });
+                const lastAuthorMsg = [...data.ticket.messages]
+                  .reverse()
+                  .find((m) => m.side === 'author');
+                track('ticket_replied', {
+                  side: 'admin',
+                  category: data.ticket.category,
+                  ticketAgeHours: hoursSince(data.ticket.createdAt),
+                  responseTimeMin: lastAuthorMsg
+                    ? minutesSince(lastAuthorMsg.createdAt)
+                    : null,
+                });
                 body = '';
                 toast.success('Réponse envoyée');
                 update();
               } else if (result.type === 'failure') {
-                track('ticket_reply_failed', { side: 'admin' });
+                track('ticket_reply_failed', {
+                  side: 'admin',
+                  reason: errReason(result),
+                });
                 toast.error("Échec de l'envoi");
               }
             }}

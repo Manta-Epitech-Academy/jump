@@ -1,10 +1,9 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
+import { superValidate, message, setError } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { broadcastSchema } from '$lib/validation/broadcasts';
-import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
 import {
   enqueueBroadcast,
   processBroadcast,
@@ -13,15 +12,12 @@ import {
   substituteVariables,
   buildDemoContext,
 } from '$lib/domain/broadcastVariables';
-import {
-  rewriteHtmlLinks,
-  rewriteSmsLinks,
-} from '$lib/server/services/broadcast/linkRewriter';
+import { rewriteHtmlLinks } from '$lib/server/services/broadcast/linkRewriter';
 import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import { env } from '$env/dynamic/private';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
 
   const [templates, campuses] = await Promise.all([
@@ -67,10 +63,9 @@ export const load: PageServerLoad = async ({ url }) => {
 
   const form = await superValidate(
     {
-      name: '',
       templateId: templateIdParam ?? '',
       campusId: '',
-      audience: 'talent' as const,
+      audience: undefined,
       eventId: '',
       sourceBroadcastId: '',
       filters: {},
@@ -79,54 +74,30 @@ export const load: PageServerLoad = async ({ url }) => {
     { errors: false },
   );
 
-  return { form, templates, campuses, events, sourceBroadcasts };
+  return {
+    form,
+    templates,
+    campuses,
+    events,
+    sourceBroadcasts,
+    userEmail: locals.user?.email ?? '',
+  };
 };
 
 export const actions: Actions = {
-  preview: async ({ request }) => {
-    const form = await superValidate(request, zod4(broadcastSchema));
-    if (!form.valid) return fail(400, { form });
-
-    const template = await prisma.messageTemplate.findUnique({
-      where: { id: form.data.templateId },
-      select: { channel: true },
-    });
-    if (!template)
-      return fail(400, { form, previewError: 'Template introuvable' });
-
-    const { recipients, excluded } = await resolveRecipients(
-      {
-        campusId: form.data.campusId,
-        audience: form.data.audience,
-        eventId: form.data.eventId || null,
-        filters: form.data.filters ?? null,
-        sourceBroadcastId: form.data.sourceBroadcastId || null,
-        sourceFilter: form.data.sourceFilter ?? null,
-      },
-      template.channel,
-    );
-
-    return {
-      form,
-      preview: {
-        total: recipients.length,
-        excluded,
-        sample: recipients.slice(0, 10).map((r) => ({
-          name: `${r.prenom} ${r.nom}`.trim(),
-          email: r.email,
-          phone: r.phone,
-        })),
-      },
-    };
-  },
-
   testSend: async ({ request, locals }) => {
-    const form = await superValidate(request, zod4(broadcastSchema));
+    const formData = await request.formData();
+    const testEmailRaw = (formData.get('testEmail') as string | null)?.trim();
+    const form = await superValidate(formData, zod4(broadcastSchema));
     if (!form.valid) return fail(400, { form });
-    if (!locals.user?.email) {
-      return message(form, "Tu n'as pas d'email sur ton compte.", {
-        status: 400,
-      });
+
+    const recipientEmail = testEmailRaw || locals.user?.email || '';
+    if (!recipientEmail || !/^\S+@\S+\.\S+$/.test(recipientEmail)) {
+      return message(
+        form,
+        { type: 'error', text: 'Email de test invalide.' },
+        { status: 400 },
+      );
     }
 
     const template = await prisma.messageTemplate.findUnique({
@@ -134,12 +105,19 @@ export const actions: Actions = {
       select: { channel: true, subject: true, body: true },
     });
     if (!template) {
-      return message(form, 'Template introuvable.', { status: 400 });
+      return message(
+        form,
+        { type: 'error', text: 'Template introuvable.' },
+        { status: 400 },
+      );
     }
     if (template.channel === 'sms') {
       return message(
         form,
-        'Test SMS pas encore supporté (pas de provider configuré).',
+        {
+          type: 'error',
+          text: 'Test SMS pas encore supporté (pas de provider configuré).',
+        },
         { status: 400 },
       );
     }
@@ -165,15 +143,22 @@ export const actions: Actions = {
 
     const result = await sendEmail({
       from: MAIL_FROM,
-      to: locals.user.email,
+      to: recipientEmail,
       subject,
       html: body,
     });
 
     if (!result.ok) {
-      return message(form, `Échec : ${result.message}`, { status: 500 });
+      return message(
+        form,
+        { type: 'error', text: `Échec : ${result.message}` },
+        { status: 500 },
+      );
     }
-    return message(form, `Test envoyé à ${locals.user.email}.`);
+    return message(form, {
+      type: 'success',
+      text: `Test envoyé à ${recipientEmail}.`,
+    });
   },
 
   enqueue: async ({ request, locals }) => {
@@ -181,11 +166,35 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
     if (!locals.user) return fail(401, { form });
 
+    // campusId + audience are required to enqueue (but not for test-send or
+    // the live preview), so the requirement is enforced here rather than in
+    // the shared schema.
+    const { campusId, audience, templateId } = form.data;
+    if (!campusId) setError(form, 'campusId', 'Sélectionne un campus');
+    if (!audience) setError(form, 'audience', 'Sélectionne une audience');
+    if (!campusId || !audience) return fail(400, { form });
+
+    // Auto-generate broadcast name: `[DD/MM/YYYY HH:MM] Campus - Template`.
+    const [campus, template] = await Promise.all([
+      prisma.campus.findUnique({
+        where: { id: campusId },
+        select: { name: true },
+      }),
+      prisma.messageTemplate.findUnique({
+        where: { id: templateId },
+        select: { name: true },
+      }),
+    ]);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const name = `[${stamp}] ${campus?.name ?? '?'} - ${template?.name ?? '?'}`;
+
     const { broadcastId } = await enqueueBroadcast({
-      name: form.data.name,
-      templateId: form.data.templateId,
-      campusId: form.data.campusId,
-      audience: form.data.audience,
+      name,
+      templateId,
+      campusId,
+      audience,
       eventId: form.data.eventId || null,
       sourceBroadcastId: form.data.sourceBroadcastId || null,
       sourceFilter: form.data.sourceFilter ?? null,

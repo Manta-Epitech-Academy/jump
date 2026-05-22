@@ -4,12 +4,16 @@
   import { Button } from '$lib/components/ui/button';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { onMount } from 'svelte';
-  import { track } from '$lib/analytics';
+  import { track, daysBetween, secondsBetween } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
+  const seenAt = Date.now();
 
   onMount(() => {
-    track('welcome_seen');
+    track('welcome_seen', {
+      eventId: data.eventId,
+      daysSinceInvite: daysBetween(data.talentCreatedAt),
+    });
   });
 </script>
 
@@ -30,7 +34,11 @@
         action="?/markSeen"
         use:enhance={() => {
           return async ({ update }) => {
-            track('welcome_dismissed');
+            track('welcome_dismissed', {
+              eventId: data.eventId,
+              daysSinceInvite: daysBetween(data.talentCreatedAt),
+              secondsOnPage: secondsBetween(seenAt),
+            });
             await update();
           };
         }}

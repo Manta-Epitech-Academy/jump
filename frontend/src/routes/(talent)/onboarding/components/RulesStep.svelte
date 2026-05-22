@@ -4,7 +4,8 @@
   import BookOpen from '@lucide/svelte/icons/book-open';
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
-  import { track } from '$lib/analytics';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
+  const seenAt = Date.now();
   import { triggerConfetti } from '$lib/actions/confetti';
   import { fly, fade } from 'svelte/transition';
 
@@ -56,8 +57,9 @@
       submitting = true;
       return async ({ result, update }) => {
         if (result.type === 'redirect') {
-          track('rules_signed');
-          track('onboarding_completed');
+          const seconds = secondsBetween(seenAt);
+          track('rules_signed', { secondsToSign: seconds });
+          track('onboarding_completed', { step: 'rules' });
           completed = true;
           triggerConfetti();
           setTimeout(() => {
@@ -66,7 +68,7 @@
           return;
         }
         if (result.type === 'failure') {
-          track('rules_signing_failed');
+          track('rules_signing_failed', { reason: errReason(result) });
         }
         await update();
         submitting = false;

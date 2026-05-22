@@ -14,7 +14,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { toast } from 'svelte-sonner';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -29,6 +29,13 @@
           );
           open = false;
           toast.success(result.data?.form?.message || 'Action réussie');
+        } else if (result.type === 'failure') {
+          track(
+            isEditing
+              ? 'official_theme_update_failed'
+              : 'official_theme_create_failed',
+            { reason: errReason(result) },
+          );
         }
       },
     },

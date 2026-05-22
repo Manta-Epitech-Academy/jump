@@ -36,7 +36,7 @@
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import { onMount, untrack } from 'svelte';
-  import { track } from '$lib/analytics';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
 
@@ -161,11 +161,16 @@
   let isDownloading = $state(false);
 
   async function downloadCertificate() {
-    track('certificate_download_clicked');
+    const ctx = {
+      eventId: participation?.event?.id ?? null,
+      eventType: participation?.event?.eventType ?? null,
+      xpAtDownload: student?.xp ?? null,
+    };
+    track('certificate_download_clicked', ctx);
     isDownloading = true;
     try {
       const res = await fetch(resolve('/api/certificate'));
-      if (!res.ok) throw new Error('Erreur réseau');
+      if (!res.ok) throw new Error(`http_${res.status}`);
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -183,11 +188,11 @@
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      track('certificate_downloaded');
+      track('certificate_downloaded', ctx);
       toast.success('Attestation téléchargée !');
       triggerConfetti();
     } catch (e) {
-      track('certificate_download_failed');
+      track('certificate_download_failed', { ...ctx, reason: errReason(e) });
       toast.error("Erreur lors de la génération de l'attestation.");
     } finally {
       isDownloading = false;
@@ -241,7 +246,13 @@
           <form
             action="{resolve('/logout')}?type=student"
             method="POST"
-            onsubmit={() => track('logout', { kind: 'talent' })}
+            onsubmit={() =>
+              track('logout', {
+                kind: 'talent',
+                sessionDurationSec: secondsBetween(
+                  page.data.session?.createdAt as Date | string | undefined,
+                ),
+              })}
           >
             <Button
               type="submit"

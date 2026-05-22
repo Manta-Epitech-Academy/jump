@@ -17,7 +17,7 @@
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { FEATURE_FLAGS, type FlagKey } from '$lib/domain/featureFlags';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let { data } = $props();
   const flagDefs = Object.values(FEATURE_FLAGS);
@@ -35,7 +35,9 @@
           open = false;
           toast.success(result.data?.form?.message || 'Action réussie');
         } else if (result.type === 'failure') {
-          track(isEditing ? 'campus_update_failed' : 'campus_create_failed');
+          track(isEditing ? 'campus_update_failed' : 'campus_create_failed', {
+            reason: errReason(result),
+          });
         }
       },
     },
