@@ -149,7 +149,7 @@
       sourceFilter: $form.sourceFilter,
       filters: $form.filters ?? {},
     };
-    if (!payload.templateId || !payload.campusId || !payload.audience) {
+    if (!payload.campusId || !payload.audience) {
       preview = null;
       previewError = null;
       return;
@@ -587,7 +587,7 @@
         {/if}
       {:else}
         <p class="text-xs text-muted-foreground">
-          Sélectionne un template et un campus pour voir les destinataires.
+          Sélectionne un campus et une audience pour voir les destinataires.
         </p>
       {/if}
 

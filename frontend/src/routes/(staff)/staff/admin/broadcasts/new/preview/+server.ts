@@ -1,25 +1,45 @@
 import type { RequestHandler } from './$types';
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
-import { broadcastSchema } from '$lib/validation/broadcasts';
+import {
+  broadcastFiltersSchema,
+  broadcastSourceFilterSchema,
+} from '$lib/validation/broadcasts';
+import { BROADCAST_AUDIENCES } from '$lib/domain/broadcasts';
 
 // Live recipient preview for /staff/admin/broadcasts/new. Called from the
-// page on every relevant field change (debounced client-side); short-circuits
-// quickly when the form is too incomplete to resolve. Returns the same
-// `{ total, excluded, sample }` shape the `?/preview` form action emitted.
+// page on every relevant field change (debounced client-side). Looser than
+// the full `broadcastSchema`: `templateId` is optional so users can see the
+// recipient count before they've picked a template — we just fall back to
+// `mail` channel for the email/phone exclusion. `name` is dropped entirely
+// since this endpoint never persists anything.
+const previewSchema = z.object({
+  campusId: z.string().min(1),
+  audience: z.enum(BROADCAST_AUDIENCES),
+  templateId: z.string().optional().or(z.literal('')),
+  eventId: z.string().optional().or(z.literal('')),
+  sourceBroadcastId: z.string().optional().or(z.literal('')),
+  sourceFilter: broadcastSourceFilterSchema.optional(),
+  filters: broadcastFiltersSchema.optional(),
+});
+
 export const POST: RequestHandler = async ({ request }) => {
   const payload = await request.json().catch(() => null);
-  const parsed = broadcastSchema.safeParse(payload);
-  if (!parsed.success || !parsed.data.audience) {
+  const parsed = previewSchema.safeParse(payload);
+  if (!parsed.success) {
     return json({ total: 0, excluded: [], sample: [], incomplete: true });
   }
 
-  const template = await prisma.messageTemplate.findUnique({
-    where: { id: parsed.data.templateId },
-    select: { channel: true },
-  });
-  if (!template) throw error(400, 'Template introuvable');
+  let channel: 'mail' | 'sms' = 'mail';
+  if (parsed.data.templateId) {
+    const template = await prisma.messageTemplate.findUnique({
+      where: { id: parsed.data.templateId },
+      select: { channel: true },
+    });
+    if (template) channel = template.channel;
+  }
 
   const { recipients, excluded } = await resolveRecipients(
     {
@@ -30,7 +50,7 @@ export const POST: RequestHandler = async ({ request }) => {
       sourceBroadcastId: parsed.data.sourceBroadcastId || null,
       sourceFilter: parsed.data.sourceFilter ?? null,
     },
-    template.channel,
+    channel,
   );
 
   return json({
