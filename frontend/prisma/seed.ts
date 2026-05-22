@@ -3369,15 +3369,9 @@ async function seedWelcomePages(
   const stageEventIndices = [2, 7, 10];
   const updatedBy = Object.values(staffByKey)[0].userId;
 
-  const content = `<h1>Bienvenue à ton stage de seconde !</h1>
-<p>Tu t'apprêtes à vivre une semaine immersive au cœur du numérique. Pendant ce stage, tu vas :</p>
-<ul>
-  <li>Découvrir les métiers de la tech</li>
-  <li>Participer à des ateliers pratiques</li>
-  <li>Créer ton premier projet</li>
-  <li>Rencontrer des professionnels passionnés</li>
-</ul>
-<p>Profite de chaque moment et n'hésite pas à poser des questions. Bonne découverte !</p>`;
+  const content = `<h2>Bienvenue, {{PRENOM}}.</h2>
+<p>Tu viens de poser un pied chez <strong>Epitech</strong>. Dans quelques jours, tu rejoindras une promo de stagiaires curieux et motivés comme toi pour découvrir la tech et ce qu'on fait dans une école d'informatique.</p>
+<p>D'ici là, on fait connaissance ? Quelques minutes sur <strong>Jump</strong>, et tout sera prêt.</p>`;
 
   const rows = stageEventIndices.flatMap((idx) => {
     const eventId = eventIds[idx];
