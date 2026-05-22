@@ -3,6 +3,7 @@
   import * as Card from '$lib/components/ui/card';
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
   import LoginEmailStep from './components/LoginEmailStep.svelte';
   import LoginOtpStep from './components/LoginOtpStep.svelte';
@@ -134,10 +135,21 @@
       </Card.Content>
     </Card.Root>
 
-    <div
-      class="mt-8 space-y-2 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
-    >
-      <p>
+    <div class="mt-8 flex flex-col items-center gap-3 text-center">
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        Vous faites partie du staff ?
+        <a
+          href={resolve('/staff/login')}
+          class="group ml-0.5 inline-flex items-center gap-1 font-semibold text-epi-blue transition-colors hover:underline"
+        >
+          Espace staff
+          <ArrowRight
+            class="size-3.5 transition-transform group-hover:translate-x-0.5"
+          />
+        </a>
+      </p>
+
+      <p class="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
         Propulsé par
         <a
           href="https://www.epitech.eu"
@@ -146,14 +158,6 @@
           class="text-epi-blue transition-colors hover:underline"
         >
           Epitech
-        </a>
-      </p>
-      <p>
-        <a
-          href={resolve('/staff/login')}
-          class="transition-colors hover:text-slate-600 hover:underline dark:hover:text-slate-300"
-        >
-          Espace staff
         </a>
       </p>
     </div>
