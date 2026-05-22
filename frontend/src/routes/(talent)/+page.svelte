@@ -196,7 +196,7 @@
 </script>
 
 <svelte:head>
-  <title>Cockpit</title>
+  <title>Tableau de bord</title>
 </svelte:head>
 
 {#if showXpFloat}
@@ -264,7 +264,7 @@
           Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
         </h1>
         <p class="font-bold text-slate-500 uppercase">
-          Bienvenue dans ton cockpit.
+          Bienvenue sur ton tableau de bord.
         </p>
         {#if data.hasWelcomePage}
           <a
