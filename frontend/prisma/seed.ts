@@ -3604,12 +3604,8 @@ async function seedStudents(): Promise<
 
   // Students enrolled in the ongoing stage de seconde should NOT have
   // completed onboarding — they need to go through the full flow for QA.
-  const ongoingStageEmails = new Set([
-    ...parisStudents.slice(0, 10),
-    parisStudents[20],
-    parisStudents[22],
-    parisStudents[27],
-  ]);
+  // Matches event 8 (ONGOING_PARIS_STAGE): parisStudents.slice(6, 18)
+  const ongoingStageEmails = new Set(parisStudents.slice(6, 18));
 
   const talentData = STUDENTS.map((s, i) => {
     // Connexions plateforme : 10% jamais connecté·e (alerte "Jamais
