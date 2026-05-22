@@ -146,7 +146,9 @@
   </div>
 
   <!-- Champ libre -->
-  <div>
+  <div
+    class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+  >
     <label
       for="freeText"
       class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"

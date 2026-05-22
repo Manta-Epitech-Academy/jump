@@ -170,21 +170,7 @@
   {/each}
 {/if}
 
-<form
-  method="POST"
-  action="?/validateProfile"
-  use:enhance={() => {
-    return async ({ result, update }) => {
-      if (result.type === 'redirect') {
-        track('onboarding_profile_validated');
-      } else if (result.type === 'failure') {
-        track('onboarding_profile_validation_failed');
-      }
-      await update();
-    };
-  }}
-  class="space-y-6"
->
+<form method="POST" action="?/validateProfile" use:enhance class="space-y-6">
   <!-- Hidden chip values -->
   <input type="hidden" name="civilite" value={localCivilite} />
   <input type="hidden" name="parentType" value={localParentType} />
@@ -206,7 +192,9 @@
     </h2>
 
     <!-- Civilité -->
-    <div>
+    <div
+      class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
       <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
         Civilité <span class="text-red-500">*</span>
       </p>
@@ -227,7 +215,9 @@
     </div>
 
     <!-- Prénom + Nom on same row -->
-    <div class="grid grid-cols-2 gap-3">
+    <div
+      class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
       <div>
         <label
           for="prenom"
@@ -265,7 +255,9 @@
     </div>
 
     <!-- Email + Téléphone on same row -->
-    <div class="grid grid-cols-2 gap-3">
+    <div
+      class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
       <div>
         <label
           for="email"
@@ -312,7 +304,9 @@
     </h2>
 
     <!-- Type + Civilité on same row -->
-    <div class="grid grid-cols-2 gap-3">
+    <div
+      class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
       <div>
         <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
           Lien <span class="text-red-500">*</span>
@@ -354,7 +348,9 @@
     </div>
 
     <!-- Prénom + Nom -->
-    <div class="grid grid-cols-2 gap-3">
+    <div
+      class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
       <div>
         <label
           for="parentPrenom"
@@ -392,7 +388,9 @@
     </div>
 
     <!-- Email + Téléphone -->
-    <div class="grid grid-cols-2 gap-3">
+    <div
+      class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
       <div>
         <label
           for="parentEmail"
@@ -465,7 +463,9 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div
+        class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
         <div>
           <p
             class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400"
@@ -510,7 +510,9 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div
+        class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
         <div>
           <label
             for="parent2Prenom"
@@ -543,7 +545,9 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div
+        class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
         <div>
           <label
             for="parent2Email"
@@ -587,7 +591,9 @@
     </h2>
 
     <div class="relative" bind:this={containerEl}>
-      <div class="relative">
+      <div
+        class="relative rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
         {#if loading}
           <LoaderCircle
             class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
@@ -664,7 +670,9 @@
     {/if}
 
     {#if freeTextMode}
-      <div class="grid grid-cols-2 gap-3">
+      <div
+        class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
         <div>
           <label
             for="free-lycee-name"
