@@ -196,20 +196,28 @@ export function renderBroadcastBodyHtml(markdown: string): string {
 }
 
 /**
- * Where to fetch the Epitech logo from inside the rendered email. Defaults
- * to a relative path so in-app previews (compose dialog, broadcast detail)
- * resolve against the current origin; server callers pass `env.ORIGIN` so
- * recipients' mail clients hit an absolute URL.
+ * Epitech logo embedded as a `data:` URI so the email is self-contained.
+ * Recipients see the logo without needing to whitelist external images on
+ * their first read — at the cost of a few KB of payload per send.
+ *
+ * Source: optimised from `static/email/epitech-logo.png` (downscaled to
+ * 280×69, 16-color palette via `ffmpeg ... palettegen=max_colors=16`).
+ * 2.6 KB PNG → 3.5 KB base64; displayed at width="140".
+ *
+ * Caveat: Gmail Web rewrites `data:` images through its proxy, which works
+ * but adds a small first-paint delay; Outlook 2007–2010 don't support
+ * `data:` at all and will show the `alt` fallback. Acceptable trade-off for
+ * this audience (Gmail dominant, Apple Mail next).
  */
-const DEFAULT_LOGO_PATH = '/email/epitech-logo.png';
+const EPITECH_LOGO_DATA_URI =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARgAAABFCAMAAACmNwkjAAAACXBIWXMAAAAAAAAAAQCEeRdzAAADAFBMVEUBOfwCPPcLQuITR88ZTb4gUq4lVqApWZUxX4I8Z2dGblBGb05Hb01IcEtLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0JLc0IA/wA9JubLAAABAHRSTlP///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8AU/cHJQAABgRJREFUeJztXIuWoyAMJWj//4NbyAokPIQA2joze+pdz0xXIoQLhCTSAVQRCyoE9wGzm18AcJ1GQNCvdHONH4wTUd9FCcF3emPGgFqYGyZm3W46AViev6PcL8Lx8jCu80qZlZhhYgy4uYTr99ES8FSPFzhuDN1YU5lj5lt52fDUCJkhWYtC/cPK/ClokzOzdiS/DhA2ZY+bGAE3MQJuYgTcxAi4iRFwEyPgJkbAFDGrFWNLVCCUQPSulYpC2ijxASdm48fFSkI7XVbbiHwxa6Yq5ZJu/DNBjFPRuT4I+38hS1HdDkWIWayq6PH8s1Cdw+MlipX9DPRx2qCQ0bYhT8pIBUeIWU1IRmA90FR5s5fBizTRx6bHIfvcqI4V96w0xYqbGy2ePWovY8ZJZkMxqqiBETHLxrtrVQFxkP9EbqNV5mPVqBn9xvi5figCFBArHaEgp1i3XDCWS6xgo7I9BsSs1jeKwjWoHLpjJj6V+tq8dnKiVtUDuWJDvQbEmDkdRWztL2YslmPp85L6fXq8ptAnZqVFgX7aNi6nQ7MgqdnYXVgqdpfueFjY395dsY6qvr3MO+gTEwe7NwpCEXdOra9dSfYAkgVLJY+8RMaaptA1eerBUuL5grAcqwHZ9UG1nzLxAWupDc0Jss2xsGy5US3NoQ/1Gl7L2w99RX5tysHbDMV+1BMkL2mhLlYDmh4Asgi5FcLGpxpJ7Z5q76BLjJvWYbqeaNwAT/UhHjW5/YUUqRyIvYEuMU8g30BcRz0sBtkfOY6xJ0Cb9bnqx5gLIk+9PAC/uc4w0xLpPua0np2OJzFHTLWxzMDbmDlvJ//PjDOC/IgYab6NATGk40EfLcCe8re2+DvQ2RsMy2vpHEDUK03BPjFptz6uA0Tn8BBeQF02PWaoY6f26Ydwv1yWJTF7VbRhCyct5t1hiZbISS8DTLPNgukJE4PQSAs0JZ+FIBGjvQdZdeHFsj5XUl+pCUqMpMiWiraBPbgOtSUHb8KlnTHsnOlJl7QOt5a3Qh3sViBm9fK67oKbzn7SSheJmUjFLsY8vnFwDqcTuMbFMLVb4mzwa0JKLixhT4xLurRocS3rCRuxWCmvpE5sHMg+c/PyEqofvZ2F2XqCYHw+YCNGe+sq6Q8NwnfML2LSxgUTJ/TrZWR8MlW18lafgNnYAAsbG6sbUtczDU1boHu8kG5WLj8VyYDqzBjO0V3Ci2Nio4JmjNsZjWuzsZiW5KNVNoyT17rZjbB/nNEeqEFxSA7OmIbxFeB3EBrLYHxfPq1s62SbTaqgZH1TLmtXcu7YGsTuiy0+Dxh0rKtJOekSS3ivEOY4bdfGu1WVneH929lmqWXO8vlXTMkSnAnIY2PEy9ADmghVoHZCJHNqPVdUWjp4+4bibBZts6voo5EuG+up84BTLVbLAJrzZecRTwWRPV5YuU9lAPyLBRzxQpP0ozFkqf8MMY3ZWNbotfxUBoDdxB4vyQf8MCaPmsXJdU32sIn4dqQnpA1NmaPvZuYxnDF+VBq5x+sQTFZ3MnAI3lvib2ImtXkyH3MO7AYNVgm7S9f4eWr+LcGPUUM9HaShKJ/smPmNtwRpYKwWYp6PrzHNPqUC4X2RazKms1zaRtcpl/fV6hNDuQnHz0/Z32dKAdmOBeGsjfPxLzE0g1e0pCWgsEtcsMLnmjSQosrZFN0hDJaSTqNx6rTDCdj8GEM77eDVyei4Qq/hMZBezuEaarTdR+r7RJUHdlV7G6NdCUHW8aLXgEYjNOdnMWOCapLc+xhu15RLvu6ETg0bztYNu4w+R3uNDhN+DLpMN7ZPB5UHh7poS7XvGp9p7p4bIrklnDZpSYGVtZpQecLBe6mHlQ/6Tm4BWPzq31Uul9E5W5zBuDxFW7J1/HfUbIYpz7frLh3h5cCj036T5JPLlU9pfB+ZF3ATI+AmRsBNjICbGAE3MQJuYgTcxBSQjppdl1v+D1B2viAG8EdfB/wtPMpvMTExS/j7Ma9Ffyc1WzgYwnfObTMxrzXEHNbSoYUvAn0r0Z9aqf7ikAvaXEDLh+S/CvTdnuJvVP0DGKSPEbBAFcAAAAAASUVORK5CYII=';
 
-function shellOpen(baseUrl: string): string {
-  const logoSrc = `${baseUrl}${DEFAULT_LOGO_PATH}`;
+function shellOpen(): string {
   return [
     `<div style="background-color: #f1f5f9; padding: 40px 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; text-align: center;">`,
     `<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-top: 6px solid #013afb; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: left;">`,
     `<div style="padding: 32px 32px 0;">`,
-    `<img src="${logoSrc}" alt="Epitech" width="140" style="display: block; height: auto; max-width: 140px; border: 0;" />`,
+    `<img src="${EPITECH_LOGO_DATA_URI}" alt="Epitech Academy" width="140" style="display: block; height: auto; max-width: 140px; border: 0;" />`,
     `</div>`,
     `<div style="padding: 24px 32px 32px;">`,
   ].join('');
@@ -230,16 +238,23 @@ function shellClose(): string {
   ].join('');
 }
 
-export function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
-  return `${shellOpen(baseUrl)}${innerHtml}${shellClose()}`;
+// `baseUrl` is kept on the signature for API compat — callers still pass
+// `env.ORIGIN`. The logo is now inlined as a data URI so it isn't used here.
+export function wrapBroadcastHtml(
+  innerHtml: string,
+  _baseUrl: string = '',
+): string {
+  return `${shellOpen()}${innerHtml}${shellClose()}`;
 }
 
 /**
- * Render a markdown body into the full branded HTML mail. Pass `baseUrl` from
- * the server (e.g. `env.ORIGIN`) so the embedded `<img>` resolves to an
- * absolute URL in recipients' mail clients; the default empty string is fine
- * for in-app previews because the static asset is served on the same origin.
+ * Render a markdown body into the full branded HTML mail. `baseUrl` is
+ * accepted for API compat with earlier callers (still pass `env.ORIGIN`)
+ * but is no longer used by the shell — the logo is inlined as a data URI.
  */
-export function renderBroadcastMail(markdown: string, baseUrl = ''): string {
-  return wrapBroadcastHtml(renderBroadcastBodyHtml(markdown), baseUrl);
+export function renderBroadcastMail(
+  markdown: string,
+  _baseUrl: string = '',
+): string {
+  return wrapBroadcastHtml(renderBroadcastBodyHtml(markdown));
 }
