@@ -27,20 +27,24 @@
   // Server step → first micro-step mapping
   // profile has 3 sub-steps: 1=talent, 2=parent, 3=lycée
   const SERVER_STEP_TO_MICRO: Record<string, number> = {
-    profile: 1,
     interests: 4,
     equipment: 5,
     rules: 6,
   };
 
+  function getInitialMicroStep(): number {
+    if (data.step === 'profile') {
+      return data.infoAlreadyValidated ? 3 : 1;
+    }
+    return SERVER_STEP_TO_MICRO[data.step] ?? 1;
+  }
+
   const TOTAL_MICRO_STEPS = 6;
 
   // svelte-ignore state_referenced_locally
-  let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
+  let microStep = $state(getInitialMicroStep());
   // svelte-ignore state_referenced_locally
   let lastServerStep = $state(data.step);
-  let navigatingBack = $state(false);
-
   // Accumulated fields for profile sub-steps (talent info → parent info → lycée)
   // svelte-ignore state_referenced_locally
   let profileFields = $state({
@@ -73,8 +77,8 @@
     if (data.step !== lastServerStep) {
       lastServerStep = data.step;
 
-      if (navigatingBack && data.step === 'profile') {
-        // Coming back from interests: land on lycée (micro 3) with fresh data
+      if (data.step === 'profile') {
+        // Re-populate profileFields from fresh server data
         profileFields = {
           civilite: data.profile?.civilite ?? '',
           nom: data.profile?.nom ?? '',
@@ -97,13 +101,11 @@
           highSchoolCity: data.profile?.highSchoolCity ?? '',
           highSchoolUai: data.profile?.highSchoolUai ?? '',
         };
-        // Going back lands on lycée sub-step (info already validated)
-        microStep = 3;
+        // If info already validated → lycée; otherwise → talent info
+        microStep = data.infoAlreadyValidated ? 3 : 1;
       } else {
         microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
       }
-
-      navigatingBack = false;
     }
   });
 
@@ -155,7 +157,6 @@
   }
 
   function goBackServer() {
-    navigatingBack = true;
     goBackForm.requestSubmit();
   }
 </script>

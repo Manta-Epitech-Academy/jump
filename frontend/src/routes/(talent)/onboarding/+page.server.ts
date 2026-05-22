@@ -44,8 +44,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   if (step === 'profile') {
     const user = locals.user!;
+    const infoAlreadyValidated = !!locals.talent.infoValidatedAt;
     return {
       step,
+      infoAlreadyValidated,
       profile: {
         civilite: locals.talent.civilite ?? '',
         nom: locals.talent.nom,
