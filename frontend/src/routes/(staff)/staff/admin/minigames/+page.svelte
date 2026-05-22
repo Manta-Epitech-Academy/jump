@@ -382,7 +382,8 @@
           <Input
             name="game"
             bind:value={$configForm.game}
-            disabled={isEditing}
+            readonly={isEditing}
+            class={isEditing ? 'cursor-not-allowed opacity-60' : ''}
             placeholder="minesweeper"
           />
           {#if $configErrors.game}<span class="text-xs text-destructive"

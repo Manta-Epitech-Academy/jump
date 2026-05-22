@@ -338,6 +338,49 @@ export const actions: Actions = {
     throw redirect(303, resolve('/onboarding'));
   },
 
+  goBack: async ({ locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const step = getCurrentStep(locals.talent);
+
+    const clearFields: Partial<
+      Record<
+        | 'infoValidatedAt'
+        | 'highSchoolValidatedAt'
+        | 'techInterestsValidatedAt'
+        | 'generalInterestsValidatedAt'
+        | 'interestsRecapSeenAt',
+        null
+      >
+    > = {};
+
+    switch (step) {
+      case 'lycee':
+        clearFields.infoValidatedAt = null;
+        break;
+      case 'interests-tech':
+        clearFields.highSchoolValidatedAt = null;
+        break;
+      case 'interests-general':
+        clearFields.techInterestsValidatedAt = null;
+        break;
+      case 'rules':
+        clearFields.generalInterestsValidatedAt = null;
+        clearFields.interestsRecapSeenAt = null;
+        break;
+      default:
+        // info-validation is the first step, no going back
+        throw redirect(303, resolve('/onboarding'));
+    }
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: clearFields,
+    });
+
+    throw redirect(303, resolve('/onboarding'));
+  },
+
   signRules: async ({ request, locals }) => {
     if (!locals.talent) {
       throw error(401, 'Non autorisé');
