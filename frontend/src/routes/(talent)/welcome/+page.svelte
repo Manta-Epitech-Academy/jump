@@ -27,7 +27,17 @@
   ></div>
 
   <div class="z-10 w-full max-w-lg">
-    <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
+    <div class="mb-6 text-center">
+      <h1
+        class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
+      >
+        Bienvenue, {data.prenom}.
+      </h1>
+    </div>
+
+    <div
+      class="prose prose-sm max-w-none text-center prose-slate dark:prose-invert"
+    >
       {@html data.cmsContent}
     </div>
 

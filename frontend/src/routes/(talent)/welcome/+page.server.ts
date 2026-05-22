@@ -46,7 +46,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     .replace(/\{\{NOM\}\}/gi, locals.talent.nom);
 
   const alreadySeen = !!locals.talent.welcomeSeenAt;
-  return { cmsContent, alreadySeen };
+  return { cmsContent, alreadySeen, prenom: locals.talent.prenom };
 };
 
 export const actions: Actions = {
