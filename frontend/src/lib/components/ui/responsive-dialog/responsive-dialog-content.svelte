@@ -19,6 +19,10 @@
   } = $props();
 
   const ctx = useResponsiveDialog();
+
+  // ResponsiveDialog is the talent-space dialog primitive, so its surface
+  // carries the `talent-surface` skin (soft corners, white card, teal ring).
+  // If staff ever adopt it, gate the skin behind a `variant` prop instead.
 </script>
 
 {#if ctx.isDesktop}
@@ -26,14 +30,14 @@
        tall content never exceeds the viewport. The drawer caps its own height
        and scrolls via `Body`, so this stays desktop-only. -->
   <Dialog.Content
-    class={cn('max-h-[85vh] overflow-y-auto', className)}
+    class={cn('talent-surface max-h-[85vh] overflow-y-auto', className)}
     {showCloseButton}
     {...restProps}
   >
     {@render children()}
   </Dialog.Content>
 {:else}
-  <Drawer.Content class={className} {...restProps}>
+  <Drawer.Content class={cn('talent-surface', className)} {...restProps}>
     {@render children()}
   </Drawer.Content>
 {/if}
