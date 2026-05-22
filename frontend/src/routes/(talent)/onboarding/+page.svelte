@@ -4,12 +4,8 @@
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import ProgressBar from './components/ProgressBar.svelte';
-  import TalentInfoStep from './components/TalentInfoStep.svelte';
-  import ParentInfoStep from './components/ParentInfoStep.svelte';
-  import LyceeStep from './components/LyceeStep.svelte';
-  import TechInterestsStep from './components/TechInterestsStep.svelte';
-  import GeneralInterestsStep from './components/GeneralInterestsStep.svelte';
-  import InterestsFreeTextStep from './components/InterestsFreeTextStep.svelte';
+  import ProfileStep from './components/ProfileStep.svelte';
+  import InterestsStep from './components/InterestsStep.svelte';
   import EquipmentStep from './components/EquipmentStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
   import BackButton from './components/BackButton.svelte';
@@ -27,60 +23,19 @@
 
   let { data, form } = $props();
 
-  // Server step → first micro-step mapping
-  // profile: 1=talent, 2=parent, 3=lycée
-  // interests: 4=tech, 5=general, 6=free text
-  // equipment: 7
-  // rules: 8
   const SERVER_STEP_TO_MICRO: Record<string, number> = {
-    interests: 4,
-    equipment: 7,
-    rules: 8,
+    profile: 1,
+    interests: 2,
+    equipment: 3,
+    rules: 4,
   };
 
-  function getInitialMicroStep(): number {
-    if (data.step === 'profile') return 1;
-    return SERVER_STEP_TO_MICRO[data.step] ?? 1;
-  }
-
-  const TOTAL_MICRO_STEPS = 8;
+  const TOTAL_STEPS = 4;
 
   // svelte-ignore state_referenced_locally
-  let microStep = $state(getInitialMicroStep());
+  let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
   // svelte-ignore state_referenced_locally
   let lastServerStep = $state(data.step);
-
-  // Accumulated fields for profile sub-steps
-  // svelte-ignore state_referenced_locally
-  let profileFields = $state({
-    civilite: data.profile?.civilite ?? '',
-    nom: data.profile?.nom ?? '',
-    prenom: data.profile?.prenom ?? '',
-    email: data.profile?.email ?? '',
-    phone: data.profile?.phone ?? '',
-    parentType: data.profile?.parentType ?? '',
-    parentCivilite: data.profile?.parentCivilite ?? '',
-    parentNom: data.profile?.parentNom ?? '',
-    parentPrenom: data.profile?.parentPrenom ?? '',
-    parentEmail: data.profile?.parentEmail ?? '',
-    parentPhone: data.profile?.parentPhone ?? '',
-    parent2Type: data.profile?.parent2Type ?? '',
-    parent2Civilite: data.profile?.parent2Civilite ?? '',
-    parent2Nom: data.profile?.parent2Nom ?? '',
-    parent2Prenom: data.profile?.parent2Prenom ?? '',
-    parent2Email: data.profile?.parent2Email ?? '',
-    parent2Phone: data.profile?.parent2Phone ?? '',
-    highSchoolName: data.profile?.highSchoolName ?? '',
-    highSchoolCity: data.profile?.highSchoolCity ?? '',
-    highSchoolUai: data.profile?.highSchoolUai ?? '',
-  });
-
-  // Accumulated fields for interests sub-steps
-  let interestFields = $state({
-    techIds: (data.selectedTechIds ?? []) as string[],
-    generalIds: (data.selectedGeneralIds ?? []) as string[],
-    freeText: (data.freeText ?? '') as string,
-  });
 
   let goBackForm: HTMLFormElement;
 
@@ -88,91 +43,19 @@
   $effect(() => {
     if (data.step !== lastServerStep) {
       lastServerStep = data.step;
-
-      if (data.step === 'profile') {
-        profileFields = {
-          civilite: data.profile?.civilite ?? '',
-          nom: data.profile?.nom ?? '',
-          prenom: data.profile?.prenom ?? '',
-          email: data.profile?.email ?? '',
-          phone: data.profile?.phone ?? '',
-          parentType: data.profile?.parentType ?? '',
-          parentCivilite: data.profile?.parentCivilite ?? '',
-          parentNom: data.profile?.parentNom ?? '',
-          parentPrenom: data.profile?.parentPrenom ?? '',
-          parentEmail: data.profile?.parentEmail ?? '',
-          parentPhone: data.profile?.parentPhone ?? '',
-          parent2Type: data.profile?.parent2Type ?? '',
-          parent2Civilite: data.profile?.parent2Civilite ?? '',
-          parent2Nom: data.profile?.parent2Nom ?? '',
-          parent2Prenom: data.profile?.parent2Prenom ?? '',
-          parent2Email: data.profile?.parent2Email ?? '',
-          parent2Phone: data.profile?.parent2Phone ?? '',
-          highSchoolName: data.profile?.highSchoolName ?? '',
-          highSchoolCity: data.profile?.highSchoolCity ?? '',
-          highSchoolUai: data.profile?.highSchoolUai ?? '',
-        };
-        microStep = 1;
-      } else if (data.step === 'interests') {
-        interestFields = {
-          techIds: (data.selectedTechIds ?? []) as string[],
-          generalIds: (data.selectedGeneralIds ?? []) as string[],
-          freeText: (data.freeText ?? '') as string,
-        };
-        microStep = 4;
-      } else {
-        microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
-      }
+      microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
     }
   });
 
-  // If server returned validation errors on validateProfile, jump to parent step
-  $effect(() => {
-    if (form?.errors && data.step === 'profile') {
-      if (form.values) {
-        const v = form.values as Record<string, string>;
-        profileFields.parentType = v.parentType ?? profileFields.parentType;
-        profileFields.parentCivilite =
-          v.parentCivilite ?? profileFields.parentCivilite;
-        profileFields.parentNom = v.parentNom ?? profileFields.parentNom;
-        profileFields.parentPrenom =
-          v.parentPrenom ?? profileFields.parentPrenom;
-        profileFields.parentEmail = v.parentEmail ?? profileFields.parentEmail;
-        profileFields.parentPhone = v.parentPhone ?? profileFields.parentPhone;
-        profileFields.parent2Type = v.parent2Type ?? profileFields.parent2Type;
-        profileFields.parent2Civilite =
-          v.parent2Civilite ?? profileFields.parent2Civilite;
-        profileFields.parent2Nom = v.parent2Nom ?? profileFields.parent2Nom;
-        profileFields.parent2Prenom =
-          v.parent2Prenom ?? profileFields.parent2Prenom;
-        profileFields.parent2Email =
-          v.parent2Email ?? profileFields.parent2Email;
-        profileFields.parent2Phone =
-          v.parent2Phone ?? profileFields.parent2Phone;
-      }
-      microStep = 2;
-    }
-  });
-
-  const progress = $derived(
-    Math.round((microStep / TOTAL_MICRO_STEPS) * 90 + 10),
-  );
+  const progress = $derived(Math.round((microStep / TOTAL_STEPS) * 100));
 
   const TITLES: Record<number, string> = {
-    1: 'Tes infos',
-    2: 'Ton parent',
-    3: 'Ton lycée',
-    4: 'Informatique',
-    5: "Centres d'intérêt",
-    6: 'Encore un truc',
-    7: 'Ton matériel',
-    8: 'Règlement',
+    1: 'Ton profil',
+    2: "Centres d'intérêt",
+    3: 'Ton matériel',
+    4: 'Règlement',
   };
   const pageTitle = $derived(TITLES[microStep] ?? 'Onboarding');
-
-  function goBackClient(step: number) {
-    microStep = step;
-  }
 
   function goBackServer() {
     goBackForm.requestSubmit();
@@ -228,96 +111,25 @@
             out:exitSlide|local={{ duration: 250 }}
           >
             {#if microStep === 1}
-              <TalentInfoStep
-                civilite={profileFields.civilite}
-                prenom={profileFields.prenom}
-                nom={profileFields.nom}
-                email={profileFields.email}
-                phone={profileFields.phone}
-                onvalidate={(d) => {
-                  profileFields.civilite = d.civilite;
-                  profileFields.prenom = d.prenom;
-                  profileFields.nom = d.nom;
-                  profileFields.email = d.email;
-                  profileFields.phone = d.phone;
-                  microStep = 2;
-                }}
-              />
+              <ProfileStep profile={data.profile!} errors={form?.errors} />
             {:else if microStep === 2}
-              <BackButton onclick={() => goBackClient(1)} />
-              <ParentInfoStep
-                civilite={profileFields.civilite}
-                nom={profileFields.nom}
-                prenom={profileFields.prenom}
-                email={profileFields.email}
-                phone={profileFields.phone}
-                parentType={profileFields.parentType}
-                parentCivilite={profileFields.parentCivilite}
-                parentNom={profileFields.parentNom}
-                parentPrenom={profileFields.parentPrenom}
-                parentEmail={profileFields.parentEmail}
-                parentPhone={profileFields.parentPhone}
-                parent2Type={profileFields.parent2Type}
-                parent2Civilite={profileFields.parent2Civilite}
-                parent2Nom={profileFields.parent2Nom}
-                parent2Prenom={profileFields.parent2Prenom}
-                parent2Email={profileFields.parent2Email}
-                parent2Phone={profileFields.parent2Phone}
-                highSchoolName={profileFields.highSchoolName}
-                highSchoolCity={profileFields.highSchoolCity}
-                highSchoolUai={profileFields.highSchoolUai}
-                errors={form?.errors}
-                onvalidate={() => {
-                  microStep = 3;
-                }}
+              <BackButton onclick={goBackServer} />
+              <InterestsStep
+                techInterests={data.techInterests ?? []}
+                generalInterests={data.generalInterests ?? []}
+                selectedTechIds={data.selectedTechIds ?? []}
+                selectedGeneralIds={data.selectedGeneralIds ?? []}
+                freeText={data.freeText ?? ''}
+                error={form?.error}
               />
             {:else if microStep === 3}
-              <BackButton onclick={() => goBackClient(2)} />
-              <LyceeStep
-                highSchoolName={data.profile?.highSchoolName ??
-                  profileFields.highSchoolName}
-                highSchoolCity={data.profile?.highSchoolCity ??
-                  profileFields.highSchoolCity}
-                highSchoolUai={data.profile?.highSchoolUai ??
-                  profileFields.highSchoolUai}
-                error={form?.error}
-              />
-            {:else if microStep === 4}
-              <BackButton onclick={goBackServer} />
-              <TechInterestsStep
-                interests={data.techInterests ?? []}
-                selectedIds={interestFields.techIds}
-                onvalidate={(ids) => {
-                  interestFields.techIds = ids;
-                  microStep = 5;
-                }}
-              />
-            {:else if microStep === 5}
-              <BackButton onclick={() => goBackClient(4)} />
-              <GeneralInterestsStep
-                interests={data.generalInterests ?? []}
-                selectedIds={interestFields.generalIds}
-                onvalidate={(ids) => {
-                  interestFields.generalIds = ids;
-                  microStep = 6;
-                }}
-              />
-            {:else if microStep === 6}
-              <BackButton onclick={() => goBackClient(5)} />
-              <InterestsFreeTextStep
-                techInterestIds={interestFields.techIds}
-                generalInterestIds={interestFields.generalIds}
-                freeText={interestFields.freeText}
-                error={form?.error}
-              />
-            {:else if microStep === 7}
               <BackButton onclick={goBackServer} />
               <EquipmentStep
                 hasLaptop={data.hasLaptop ?? false}
                 setupDescription={data.setupDescription ?? ''}
                 error={form?.error}
               />
-            {:else if microStep === 8}
+            {:else if microStep === 4}
               <BackButton onclick={goBackServer} />
               <RulesStep error={form?.error} />
             {/if}
