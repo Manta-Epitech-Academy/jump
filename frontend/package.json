@@ -8,6 +8,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "garage:generate": "bun run scripts/configure-garage.ts",
+    "setup:worktree": "sh scripts/setup-worktree.sh",
     "dev": "bun --bun --env-file=../.env vite dev",
     "build": "bun --bun --env-file=../.env vite build",
     "preview": "bun --bun --env-file=../.env vite preview",

@@ -13,6 +13,7 @@ All commands run from `frontend/` using **Bun**:
 | Task                   | Command               |
 | ---------------------- | --------------------- |
 | Install deps           | `bun install`         |
+| Provision a worktree   | `bun run setup:worktree` |
 | Dev server             | `bun run dev`         |
 | Production build       | `bun run build`       |
 | Type check             | `bun run check`       |
@@ -23,6 +24,8 @@ All commands run from `frontend/` using **Bun**:
 | Prisma Studio          | `bun run db:studio`   |
 
 **Docker** (from repo root): `docker-compose up` starts PostgreSQL + SvelteKit.
+
+**Git worktrees:** a freshly-added worktree has no `.env` (untracked) and no `node_modules`. The `.githooks/post-checkout` hook auto-provisions it on creation — links `.env` from the main checkout and runs `bun install`. If your editor adds worktrees without firing git hooks, run `bun run setup:worktree` once to do the same.
 
 No test framework is configured — there are no automated tests.
 
