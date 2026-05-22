@@ -28,7 +28,7 @@
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
-  import { onMount, untrack } from 'svelte';
+  import { onMount, untrack, type Snippet } from 'svelte';
   import { track } from '$lib/analytics';
   import { page } from '$app/state';
 
@@ -163,6 +163,7 @@
   let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
   let timeSlots = $derived(participation?.event?.planning?.timeSlots ?? []);
+  type TimeSlot = (typeof timeSlots)[number];
   let completedActivityIds = $derived(new Set(data.completedActivityIds));
   let tomorrowPreview = $derived(data.tomorrowPreview);
 
@@ -313,41 +314,45 @@
           {#if minigamePlayed}
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
-              class="flex items-center gap-4 rounded-2xl border border-epi-teal-solid/30 bg-epi-teal-solid/5 p-4 transition-all hover:bg-epi-teal-solid/10 active:scale-[0.99]"
+              class="flex flex-col gap-3 rounded-2xl border border-epi-teal-solid/30 bg-epi-teal-solid/5 p-4 transition-all hover:bg-epi-teal-solid/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
             >
-              <div
-                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-teal-solid/15"
-              >
-                <Gamepad2 class="h-5 w-5 text-epi-teal-solid" />
-              </div>
-              <div class="min-w-0 flex-1">
+              <!-- icon + text stay a row on mobile; `sm:contents` dissolves this
+                   wrapper on desktop so the CTA rejoins them on one line -->
+              <div class="flex items-center gap-4 sm:contents">
                 <div
-                  class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-teal-solid/15"
                 >
-                  <span class="text-epi-teal-solid">Mini-jeu du jour</span>
-                  <span class="text-slate-300 dark:text-slate-700">•</span>
-                  <span class="text-slate-500 capitalize">
-                    {minigamePublication.game} · niveau {minigamePublication.level}
-                  </span>
+                  <Gamepad2 class="h-5 w-5 text-epi-teal-solid" />
                 </div>
-                <p
-                  class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
-                >
-                  Défi relevé !
-                  {#if minigameAttempt && (minigameAttempt.score !== null || minigameAttempt.chrono !== null)}
-                    <span class="font-normal text-slate-500">
-                      {#if minigameAttempt.score !== null}{minigameAttempt.score}
-                        pts{/if}{#if minigameAttempt.score !== null && minigameAttempt.chrono !== null}
-                        ·
-                      {/if}{#if minigameAttempt.chrono !== null}{formatChrono(
-                          minigameAttempt.chrono,
-                        )}{/if}
+                <div class="min-w-0 flex-1">
+                  <div
+                    class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
+                  >
+                    <span class="text-epi-teal-solid">Mini-jeu du jour</span>
+                    <span class="text-slate-300 dark:text-slate-700">•</span>
+                    <span class="text-slate-500 capitalize">
+                      {minigamePublication.game} · niveau {minigamePublication.level}
                     </span>
-                  {/if}
-                </p>
+                  </div>
+                  <p
+                    class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
+                  >
+                    Défi relevé !
+                    {#if minigameAttempt && (minigameAttempt.score !== null || minigameAttempt.chrono !== null)}
+                      <span class="font-normal text-slate-500">
+                        {#if minigameAttempt.score !== null}{minigameAttempt.score}
+                          pts{/if}{#if minigameAttempt.score !== null && minigameAttempt.chrono !== null}
+                          ·
+                        {/if}{#if minigameAttempt.chrono !== null}{formatChrono(
+                            minigameAttempt.chrono,
+                          )}{/if}
+                      </span>
+                    {/if}
+                  </p>
+                </div>
               </div>
               <span
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-epi-teal-solid/15 px-3 py-1.5 text-xs font-bold text-epi-teal-solid uppercase"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-teal-solid/15 px-3 py-1.5 text-xs font-bold text-epi-teal-solid uppercase sm:w-auto"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>
@@ -355,31 +360,33 @@
           {:else}
             <a
               href={resolve(`/minigames/${minigamePublication.id}`)}
-              class="flex items-center gap-4 rounded-2xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-all hover:bg-epi-blue/10 active:scale-[0.99] dark:border-epi-blue/30 dark:bg-epi-blue/10"
+              class="flex flex-col gap-3 rounded-2xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-all hover:bg-epi-blue/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
             >
-              <div
-                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-blue/10 dark:bg-epi-blue/20"
-              >
-                <Gamepad2 class="h-5 w-5 text-epi-blue" />
-              </div>
-              <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-4 sm:contents">
                 <div
-                  class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-blue/10 dark:bg-epi-blue/20"
                 >
-                  <span class="text-epi-blue">Mini-jeu du jour</span>
-                  <span class="text-slate-300 dark:text-slate-700">•</span>
-                  <span class="text-slate-500 capitalize">
-                    {minigamePublication.game} · niveau {minigamePublication.level}
-                  </span>
+                  <Gamepad2 class="h-5 w-5 text-epi-blue" />
                 </div>
-                <p
-                  class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
-                >
-                  Relève le défi du jour et grimpe au classement !
-                </p>
+                <div class="min-w-0 flex-1">
+                  <div
+                    class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
+                  >
+                    <span class="text-epi-blue">Mini-jeu du jour</span>
+                    <span class="text-slate-300 dark:text-slate-700">•</span>
+                    <span class="text-slate-500 capitalize">
+                      {minigamePublication.game} · niveau {minigamePublication.level}
+                    </span>
+                  </div>
+                  <p
+                    class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
+                  >
+                    Relève le défi du jour et grimpe au classement !
+                  </p>
+                </div>
               </div>
               <span
-                class="inline-flex shrink-0 items-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white"
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white sm:w-auto"
               >
                 Jouer <ArrowRight class="h-4 w-4" />
               </span>
@@ -416,6 +423,93 @@
           Revoir mes missions précédentes ({totalPastMissions})
           <ArrowRight class="h-3.5 w-3.5" />
         </a>
+      {/if}
+    {/snippet}
+
+    <!-- Shared body of an activity row: type badge, name, then a right cluster
+         (difficulty + a trailing slot for the status icon/label).
+         On mobile the name drops to its own full-width line (`order-last
+         w-full`) so it never truncates; from sm up it returns inline and
+         truncates as a flex-1 column — matching the header's greeting trick. -->
+    {#snippet activityRowBody(
+      activity: NonNullable<TimeSlot['activity']>,
+      trailing: Snippet,
+    )}
+      <Badge
+        variant="outline"
+        class="order-1 shrink-0 text-[9px] font-bold uppercase"
+      >
+        {activityTypeLabels[activity.activityType] ?? activity.activityType}
+      </Badge>
+      <span
+        class="order-last w-full text-sm font-semibold text-slate-900 sm:order-2 sm:w-auto sm:min-w-0 sm:flex-1 sm:truncate dark:text-white"
+      >
+        {activity.nom}
+      </span>
+      <div
+        class="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-3 sm:ml-0"
+      >
+        {#if activity.difficulte}
+          <span
+            class="rounded-full px-2 py-0.5 text-[9px] font-bold {difficultyColors[
+              activity.difficulte
+            ] ?? ''}"
+          >
+            {activity.difficulte}
+          </span>
+        {/if}
+        {@render trailing()}
+      </div>
+    {/snippet}
+
+    {#snippet activityRow(slot: TimeSlot)}
+      {#if slot.activity}
+        {@const activity = slot.activity}
+        {@const isDone = completedActivityIds.has(activity.id)}
+        {@const hasStarted =
+          new Date(slot.startTime).getTime() <= nowTime.getTime()}
+        {#if hasStarted}
+          {#snippet trailing()}
+            {#if isDone}
+              <Check class="h-4 w-4 shrink-0 text-epi-teal-solid" />
+            {:else}
+              <ArrowRight
+                class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
+              />
+            {/if}
+          {/snippet}
+          <a
+            href={resolve(`/${activity.id}`)}
+            class="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
+              ? 'bg-epi-teal-solid/10'
+              : ''}"
+          >
+            {@render activityRowBody(activity, trailing)}
+          </a>
+        {:else}
+          {#snippet trailing()}
+            <span
+              class="shrink-0 text-[9px] font-bold text-slate-400 uppercase"
+            >
+              À venir
+            </span>
+          {/snippet}
+          <button
+            type="button"
+            class="flex w-full cursor-pointer flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3 py-2.5 text-left opacity-70 transition-all hover:bg-slate-50 hover:opacity-100 dark:hover:bg-slate-800/50"
+            aria-label="{activity.nom} — aperçu"
+            onclick={() => {
+              previewSlot = {
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                activity,
+              };
+              previewOpen = true;
+            }}
+          >
+            {@render activityRowBody(activity, trailing)}
+          </button>
+        {/if}
       {/if}
     {/snippet}
 
@@ -650,93 +744,7 @@
                     <div
                       class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
                     >
-                      {#if slot.activity}
-                        {@const activity = slot.activity}
-                        {@const isDone = completedActivityIds.has(activity.id)}
-                        {@const hasStarted =
-                          new Date(slot.startTime).getTime() <=
-                          nowTime.getTime()}
-                        {#if hasStarted}
-                          <a
-                            href={resolve(`/${activity.id}`)}
-                            class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
-                              ? 'bg-epi-teal-solid/10'
-                              : ''}"
-                          >
-                            <Badge
-                              variant="outline"
-                              class="shrink-0 text-[9px] font-bold uppercase"
-                            >
-                              {activityTypeLabels[activity.activityType] ??
-                                activity.activityType}
-                            </Badge>
-                            <span
-                              class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
-                            >
-                              {activity.nom}
-                            </span>
-                            {#if activity.difficulte}
-                              <span
-                                class="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold {difficultyColors[
-                                  activity.difficulte
-                                ] ?? ''}"
-                              >
-                                {activity.difficulte}
-                              </span>
-                            {/if}
-                            {#if isDone}
-                              <Check
-                                class="h-4 w-4 shrink-0 text-epi-teal-solid"
-                              />
-                            {:else}
-                              <ArrowRight
-                                class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
-                              />
-                            {/if}
-                          </a>
-                        {:else}
-                          <button
-                            type="button"
-                            class="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left opacity-70 transition-all hover:bg-slate-50 hover:opacity-100 dark:hover:bg-slate-800/50"
-                            aria-label="{activity.nom} — aperçu"
-                            onclick={() => {
-                              previewSlot = {
-                                startTime: slot.startTime,
-                                endTime: slot.endTime,
-                                activity,
-                              };
-                              previewOpen = true;
-                            }}
-                          >
-                            <Badge
-                              variant="outline"
-                              class="shrink-0 text-[9px] font-bold uppercase"
-                            >
-                              {activityTypeLabels[activity.activityType] ??
-                                activity.activityType}
-                            </Badge>
-                            <span
-                              class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
-                            >
-                              {activity.nom}
-                            </span>
-                            {#if activity.difficulte}
-                              <span
-                                class="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold {difficultyColors[
-                                  activity.difficulte
-                                ] ?? ''}"
-                              >
-                                {activity.difficulte}
-                              </span>
-                            {/if}
-                            <span
-                              class="shrink-0 text-[9px] font-bold text-slate-400 uppercase"
-                            >
-                              À venir
-                            </span>
-                          </button>
-                        {/if}
-                      {/if}
+                      {@render activityRow(slot)}
                     </div>
                   </div>
                 {/each}
