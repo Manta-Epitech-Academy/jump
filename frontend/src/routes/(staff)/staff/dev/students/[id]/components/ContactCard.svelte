@@ -7,6 +7,7 @@
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Pencil from '@lucide/svelte/icons/pencil';
   import { Separator } from '$lib/components/ui/separator';
+  import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import { salesforceContactUrl } from '$lib/domain/salesforce';
 
@@ -67,13 +68,16 @@
         Élève
       </h4>
       {#if studentEmail}
-        <a
-          href={`mailto:${studentEmail}`}
-          class="group flex items-center gap-2 text-sm transition-colors hover:text-epi-blue"
-        >
-          <Mail class="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span class="truncate">{studentEmail}</span>
-        </a>
+        <div class="flex items-center gap-1">
+          <a
+            href={`mailto:${studentEmail}`}
+            class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
+          >
+            <Mail class="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span class="truncate">{studentEmail}</span>
+          </a>
+          <CopyButton value={studentEmail} label="Copier l'email" />
+        </div>
       {:else}
         <p class="flex items-center gap-2 text-sm text-muted-foreground italic">
           <Mail class="h-4 w-4 shrink-0" />
@@ -81,13 +85,16 @@
         </p>
       {/if}
       {#if student.phone}
-        <a
-          href={`tel:${student.phone.replace(/\s+/g, '')}`}
-          class="group flex items-center gap-2 text-sm transition-colors hover:text-epi-blue"
-        >
-          <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span>{student.phone}</span>
-        </a>
+        <div class="flex items-center gap-1">
+          <a
+            href={`tel:${student.phone.replace(/\s+/g, '')}`}
+            class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
+          >
+            <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span>{student.phone}</span>
+          </a>
+          <CopyButton value={student.phone} label="Copier le téléphone" />
+        </div>
       {:else}
         <p class="flex items-center gap-2 text-sm text-muted-foreground italic">
           <Phone class="h-4 w-4 shrink-0" />
@@ -114,22 +121,34 @@
           <p class="text-sm font-medium">{parentLine}</p>
         {/if}
         {#if student.parentEmail}
-          <a
-            href={`mailto:${student.parentEmail}`}
-            class="group flex items-center gap-2 text-sm transition-colors hover:text-epi-blue"
-          >
-            <Mail class="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span class="truncate">{student.parentEmail}</span>
-          </a>
+          <div class="flex items-center gap-1">
+            <a
+              href={`mailto:${student.parentEmail}`}
+              class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
+            >
+              <Mail class="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span class="truncate">{student.parentEmail}</span>
+            </a>
+            <CopyButton
+              value={student.parentEmail}
+              label="Copier l'email parent"
+            />
+          </div>
         {/if}
         {#if student.parentPhone}
-          <a
-            href={`tel:${student.parentPhone.replace(/\s+/g, '')}`}
-            class="group flex items-center gap-2 text-sm transition-colors hover:text-epi-blue"
-          >
-            <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span>{student.parentPhone}</span>
-          </a>
+          <div class="flex items-center gap-1">
+            <a
+              href={`tel:${student.parentPhone.replace(/\s+/g, '')}`}
+              class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
+            >
+              <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>{student.parentPhone}</span>
+            </a>
+            <CopyButton
+              value={student.parentPhone}
+              label="Copier le téléphone parent"
+            />
+          </div>
         {/if}
       {/if}
     </div>
