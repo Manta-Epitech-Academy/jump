@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 
@@ -32,18 +33,40 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     where: { email },
     select: { id: true },
   });
-  const userId =
-    existing?.id ??
-    (
-      await prisma.bauth_user.create({
-        data: {
-          email,
-          role: 'student',
-          name: `${talent.prenom} ${talent.nom}`,
-        },
-        select: { id: true },
-      })
-    ).id;
+  let userId: string;
+  if (existing) {
+    userId = existing.id;
+  } else {
+    try {
+      userId = (
+        await prisma.bauth_user.create({
+          data: {
+            email,
+            role: 'student',
+            name: `${talent.prenom} ${talent.nom}`,
+          },
+          select: { id: true },
+        })
+      ).id;
+    } catch (err) {
+      // Lost a create race with a sibling flow firing for the same talent at
+      // once (login / fastlogin / impersonate): the email-unique constraint
+      // tripped. The winner's row exists now — adopt it instead of failing.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        userId = (
+          await prisma.bauth_user.findUniqueOrThrow({
+            where: { email },
+            select: { id: true },
+          })
+        ).id;
+      } else {
+        throw err;
+      }
+    }
+  }
 
   await prisma.talent.update({
     where: { id: talent.id },

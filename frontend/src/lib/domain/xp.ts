@@ -1,11 +1,13 @@
 export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
 
 /**
- * One-off XP granted when a talent finishes onboarding (the "+50 XP" arrival
- * celebration). Granted in `(talent)/onboarding/+page.server.ts` and refunded
- * by the admin onboarding-reset in `services/talentAccount.ts`.
+ * One-off XP granted when a talent finishes onboarding (the arrival
+ * celebration shown on the dashboard). Granted in
+ * `(talent)/onboarding/+page.server.ts` and refunded by the admin
+ * onboarding-reset in `services/talentAccount.ts`.
  */
-export const WELCOME_XP_BONUS = 200; // will make dependent on first onboarders
+// TODO: scale this with cohort onboarding order (earlier onboarders earn more).
+export const WELCOME_XP_BONUS = 200;
 
 /**
  * XP granted for finishing the daily minigame. Flat — it rewards showing up and
