@@ -129,6 +129,7 @@
     $form.name = campus.name;
     $form.externalName = campus.externalName ?? '';
     $form.timezone = campus.timezone ?? 'Europe/Paris';
+    $form.contactEmail = campus.contactEmail ?? '';
     $form.flags = (campus.flags ?? []) as FlagKey[];
     isEditing = true;
     editId = campus.id;
@@ -241,7 +242,7 @@
   </div>
 
   <Dialog.Root bind:open>
-    <Dialog.Content class="sm:max-w-md">
+    <Dialog.Content class="sm:max-w-3xl">
       <Dialog.Header>
         <Dialog.Title>{isEditing ? 'Modifier' : 'Nouveau'} Campus</Dialog.Title>
       </Dialog.Header>
@@ -249,107 +250,133 @@
         method="POST"
         action={isEditing ? '?/update' : '?/create'}
         use:enhance
-        class="space-y-4 py-4"
+        class="py-4"
       >
         {#if isEditing}<input type="hidden" name="id" value={editId} />{/if}
-        <div class="space-y-2">
-          <Label>Nom de la ville / campus</Label>
-          <Input name="name" bind:value={$form.name} placeholder="Ex: Paris" />
-          {#if $errors.name}<span class="text-xs text-destructive"
-              >{$errors.name}</span
-            >{/if}
-        </div>
-        <div class="space-y-2">
-          <Label>Nom externe (synchronisation)</Label>
-          <Input
-            name="externalName"
-            bind:value={$form.externalName}
-            placeholder="Ex: paris"
-          />
-          {#if $errors.externalName}<span class="text-xs text-destructive"
-              >{$errors.externalName}</span
-            >{/if}
-        </div>
-        <div class="space-y-2">
-          <Label>Fuseau horaire</Label>
-          <input type="hidden" name="timezone" value={$form.timezone} />
-          <Select.Root
-            type="single"
-            value={$form.timezone}
-            onValueChange={(v) => ($form.timezone = v)}
-          >
-            <Select.Trigger class="w-full">
-              {getTimezoneLabel($form.timezone)}
-            </Select.Trigger>
-            <Select.Content class="max-h-72">
-              {#each timezoneGroups as group}
-                <Select.Group>
-                  <Select.GroupHeading>{group.label}</Select.GroupHeading>
-                  {#each group.zones as tz}
-                    <Select.Item
-                      value={tz.value}
-                      label="{formatUtcOffset(tz.value)} — {tz.cities}"
-                    />
-                  {/each}
-                </Select.Group>
-                <Select.Separator />
-              {/each}
-            </Select.Content>
-          </Select.Root>
-          {#if $errors.timezone}<span class="text-xs text-destructive"
-              >{$errors.timezone}</span
-            >{/if}
-        </div>
-        <fieldset class="space-y-2">
-          <legend class="text-sm font-bold uppercase">
-            Fonctionnalités activées
-          </legend>
-          <div class="space-y-2">
-            {#each flagDefs as flag}
-              <label
-                class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
+        <div class="grid gap-6 md:grid-cols-2">
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <Label>Nom de la ville / campus</Label>
+              <Input
+                name="name"
+                bind:value={$form.name}
+                placeholder="Ex: Paris"
+              />
+              {#if $errors.name}<span class="text-xs text-destructive"
+                  >{$errors.name}</span
+                >{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Nom externe (synchronisation)</Label>
+              <Input
+                name="externalName"
+                bind:value={$form.externalName}
+                placeholder="Ex: paris"
+              />
+              {#if $errors.externalName}<span class="text-xs text-destructive"
+                  >{$errors.externalName}</span
+                >{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Email de contact</Label>
+              <Input
+                type="email"
+                name="contactEmail"
+                bind:value={$form.contactEmail}
+                placeholder="Ex: contact.paris@epitech.eu"
+              />
+              <p class="text-xs text-muted-foreground">
+                Disponible dans les templates via <code
+                  class="rounded bg-muted px-1 py-0.5 text-[10px]"
+                  >{`{{EMAIL_CONTACT_CAMPUS}}`}</code
+                >.
+              </p>
+              {#if $errors.contactEmail}<span class="text-xs text-destructive"
+                  >{$errors.contactEmail}</span
+                >{/if}
+            </div>
+            <div class="space-y-2">
+              <Label>Fuseau horaire</Label>
+              <input type="hidden" name="timezone" value={$form.timezone} />
+              <Select.Root
+                type="single"
+                value={$form.timezone}
+                onValueChange={(v) => ($form.timezone = v)}
               >
-                <Checkbox
-                  name="flags"
-                  value={flag.key}
-                  checked={$form.flags.includes(flag.key as FlagKey)}
-                  onCheckedChange={(v) => {
-                    const key = flag.key as FlagKey;
-                    if (v === true) {
-                      if (!$form.flags.includes(key))
-                        $form.flags = [...$form.flags, key];
-                    } else {
-                      $form.flags = $form.flags.filter((k) => k !== key);
-                    }
-                  }}
-                  class="mt-1"
-                />
-                <div class="flex-1 space-y-1">
-                  <div class="flex items-center gap-2">
-                    <span class="text-sm font-bold">{flag.label}</span>
-                    <Badge
-                      variant={flag.kind === 'rollout'
-                        ? 'outline'
-                        : 'secondary'}
-                      class="text-[10px] uppercase"
-                    >
-                      {flag.kind}
-                    </Badge>
-                  </div>
-                  <p class="text-xs text-muted-foreground">
-                    {flag.description}
-                  </p>
-                  {#if flag.removeBy && flag.removeBy < new Date()}
-                    <p class="text-xs text-destructive">
-                      Flag à supprimer du code (expiré le {flag.removeBy.toLocaleDateString()}).
-                    </p>
-                  {/if}
-                </div>
-              </label>
-            {/each}
+                <Select.Trigger class="w-full">
+                  {getTimezoneLabel($form.timezone)}
+                </Select.Trigger>
+                <Select.Content class="max-h-72">
+                  {#each timezoneGroups as group}
+                    <Select.Group>
+                      <Select.GroupHeading>{group.label}</Select.GroupHeading>
+                      {#each group.zones as tz}
+                        <Select.Item
+                          value={tz.value}
+                          label="{formatUtcOffset(tz.value)} — {tz.cities}"
+                        />
+                      {/each}
+                    </Select.Group>
+                    <Select.Separator />
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+              {#if $errors.timezone}<span class="text-xs text-destructive"
+                  >{$errors.timezone}</span
+                >{/if}
+            </div>
           </div>
-        </fieldset>
-        <Dialog.Footer>
+          <fieldset class="space-y-2">
+            <legend class="text-sm font-bold uppercase">
+              Fonctionnalités activées
+            </legend>
+            <div class="space-y-2">
+              {#each flagDefs as flag}
+                <label
+                  class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
+                >
+                  <Checkbox
+                    name="flags"
+                    value={flag.key}
+                    checked={$form.flags.includes(flag.key as FlagKey)}
+                    onCheckedChange={(v) => {
+                      const key = flag.key as FlagKey;
+                      if (v === true) {
+                        if (!$form.flags.includes(key))
+                          $form.flags = [...$form.flags, key];
+                      } else {
+                        $form.flags = $form.flags.filter((k) => k !== key);
+                      }
+                    }}
+                    class="mt-1"
+                  />
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-bold">{flag.label}</span>
+                      <Badge
+                        variant={flag.kind === 'rollout'
+                          ? 'outline'
+                          : 'secondary'}
+                        class="text-[10px] uppercase"
+                      >
+                        {flag.kind}
+                      </Badge>
+                    </div>
+                    <p class="text-xs text-muted-foreground">
+                      {flag.description}
+                    </p>
+                    {#if flag.removeBy && flag.removeBy < new Date()}
+                      <p class="text-xs text-destructive">
+                        Flag à supprimer du code (expiré le {flag.removeBy.toLocaleDateString()}).
+                      </p>
+                    {/if}
+                  </div>
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+        </div>
+        <Dialog.Footer class="mt-6">
           <Button
             type="submit"
             disabled={$delayed}
