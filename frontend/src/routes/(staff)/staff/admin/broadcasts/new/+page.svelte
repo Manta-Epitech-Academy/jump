@@ -23,13 +23,20 @@
     buildDemoContext,
   } from '$lib/domain/broadcastVariables';
   import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+  import { cn } from '$lib/utils';
 
-  let { data, form: actionForm } = $props();
+  let { data } = $props();
 
   const DRAFT_KEY = 'broadcast-new-draft-v1';
 
   // svelte-ignore state_referenced_locally
-  const { form, errors, enhance, submitting } = superForm(data.form, {
+  const {
+    form,
+    errors,
+    enhance,
+    submitting,
+    message: formMessage,
+  } = superForm(data.form, {
     dataType: 'json',
     // Without this, a successful test-send action wipes the user's form
     // because superforms resets to the load-time state.
@@ -140,7 +147,6 @@
   $effect(() => {
     // Track the fields that actually change the recipient set.
     const payload = {
-      name: $form.name || 'preview',
       templateId: $form.templateId,
       campusId: $form.campusId,
       audience: $form.audience,
@@ -591,11 +597,16 @@
         </p>
       {/if}
 
-      {#if actionForm && 'message' in actionForm && actionForm.message}
+      {#if $formMessage}
         <p
-          class="mt-3 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-700"
+          class={cn(
+            'mt-3 rounded border px-2 py-1 text-xs',
+            $formMessage.type === 'error'
+              ? 'border-destructive/30 bg-destructive/10 text-destructive'
+              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
+          )}
         >
-          {actionForm.message}
+          {$formMessage.text}
         </p>
       {/if}
     </div>

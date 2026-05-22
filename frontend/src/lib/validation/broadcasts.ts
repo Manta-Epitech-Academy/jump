@@ -70,20 +70,17 @@ export const broadcastSourceFilterSchema = z.enum([
   'all',
 ]);
 
+// Structural shape of the broadcast composer form, shared by the page load,
+// the `testSend` action (template-only — no audience/campus needed) and the
+// `enqueue` action. `campusId` and `audience` are required to *enqueue* but
+// not structurally: that rule lives in the enqueue action so test-send and
+// the live preview can reuse this schema without being blocked by it. The
+// broadcast name is generated server-side at enqueue time, so it isn't a
+// field here.
 export const broadcastSchema = z
   .object({
-    // Auto-generated server-side as `[DD/MM/YYYY HH:MM] Campus - Template`.
-    // Kept on the schema for the loaded form snapshot, but optional so the
-    // client can leave it empty.
-    name: z
-      .string()
-      .max(160, 'Le nom ne peut pas dépasser 160 caractères')
-      .optional()
-      .default(''),
     templateId: z.string().min(1, 'Sélectionne un template'),
-    campusId: z.string().min(1, 'Sélectionne un campus'),
-    // Optional at the schema level so the form can render with nothing
-    // pre-selected; the superRefine below enforces selection at submit.
+    campusId: z.string().optional().or(z.literal('')),
     audience: z
       .enum(BROADCAST_AUDIENCES, { message: 'Audience invalide' })
       .optional(),
@@ -93,13 +90,6 @@ export const broadcastSchema = z
     filters: broadcastFiltersSchema.optional(),
   })
   .superRefine((data, ctx) => {
-    if (!data.audience) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Sélectionne une audience',
-        path: ['audience'],
-      });
-    }
     if (data.sourceBroadcastId && !data.sourceFilter) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -111,12 +101,3 @@ export const broadcastSchema = z
   });
 
 export type BroadcastForm = z.infer<typeof broadcastSchema>;
-
-export const testSendSchema = z.object({
-  templateId: z.string().min(1),
-  eventId: z.string().optional().or(z.literal('')),
-  recipientEmail: z.email('Email invalide').optional().or(z.literal('')),
-  recipientPhone: z.string().optional().or(z.literal('')),
-});
-
-export type TestSendForm = z.infer<typeof testSendSchema>;
