@@ -269,8 +269,52 @@
       </div>
     </header>
 
+    {#snippet minigameCard()}
+      {#if hasMinigame && data.minigame && student}
+        <div class="relative">
+          <MinigameCard
+            minigame={data.minigame}
+            leaderboard={data.leaderboard}
+            currentTalentId={student.id}
+          />
+          {#if dev}
+            <!-- Dev-only overlay: flips today's attempt; out of flow, stripped in prod -->
+            <form
+              method="POST"
+              action="?/devToggleMinigame"
+              use:enhance
+              class="absolute top-3 right-4"
+            >
+              <button
+                type="submit"
+                title="Dev : basculer l'état du mini-jeu du jour"
+                class="text-[10px] font-bold tracking-wide text-slate-300 uppercase hover:text-epi-blue dark:text-slate-600"
+              >
+                {data.minigame.ok ? 'dev: joué' : 'dev: reset'}
+              </button>
+            </form>
+          {/if}
+        </div>
+      {/if}
+    {/snippet}
+
+    {#snippet historyLink()}
+      {#if totalPastMissions > 0}
+        <a
+          href={resolve('/history')}
+          class="inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
+        >
+          <History class="h-4 w-4" />
+          Revoir mes missions précédentes ({totalPastMissions})
+          <ArrowRight class="h-3.5 w-3.5" />
+        </a>
+      {/if}
+    {/snippet}
+
     <div class="grid gap-6 md:grid-cols-12">
-      <!-- LEFT COLUMN: Stats & Profile -->
+      <!-- LEFT COLUMN: profile + day-at-a-glance rail. The day's schedule lives
+           here as a compact preview; the full multi-day view stays one click
+           away behind "Voir le calendrier". -->
       <div
         class="space-y-6 md:col-span-4"
         in:fly={{ x: -20, duration: 400, delay: 200 }}
@@ -326,68 +370,16 @@
           </div>
         </div>
 
-        {#if data.welcome}
-          <NewsFeedCard
-            welcomeContent={data.welcome.content}
-            highlight={welcomeHighlight}
-          />
-        {/if}
-      </div>
-
-      <!-- RIGHT COLUMN: Today's Mission & History -->
-      <div class="md:col-span-8" in:fly={{ x: 20, duration: 400, delay: 300 }}>
-        <!-- Today's Mission -->
+        <!-- Day at a glance -->
         <h2
           class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
         >
           Mission du jour<span class="text-epi-teal">_</span>
         </h2>
 
-        {#snippet minigameCard()}
-          {#if hasMinigame && data.minigame && student}
-            <div class="relative">
-              <MinigameCard
-                minigame={data.minigame}
-                leaderboard={data.leaderboard}
-                currentTalentId={student.id}
-              />
-              {#if dev}
-                <!-- Dev-only overlay: flips today's attempt; out of flow, stripped in prod -->
-                <form
-                  method="POST"
-                  action="?/devToggleMinigame"
-                  use:enhance
-                  class="absolute top-3 right-4"
-                >
-                  <button
-                    type="submit"
-                    title="Dev : basculer l'état du mini-jeu du jour"
-                    class="text-[10px] font-bold tracking-wide text-slate-300 uppercase hover:text-epi-blue dark:text-slate-600"
-                  >
-                    {data.minigame.ok ? 'dev: joué' : 'dev: reset'}
-                  </button>
-                </form>
-              {/if}
-            </div>
-          {/if}
-        {/snippet}
-
-        {#snippet historyLink()}
-          {#if totalPastMissions > 0}
-            <a
-              href={resolve('/history')}
-              class="inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
-            >
-              <History class="h-4 w-4" />
-              Revoir mes missions précédentes ({totalPastMissions})
-              <ArrowRight class="h-3.5 w-3.5" />
-            </a>
-          {/if}
-        {/snippet}
-
         <div class="space-y-6">
           {#if participation}
-            <!-- Event day: the IRL activities are primary; minigame comes after -->
+            <!-- Event day: today's planning as a compact preview -->
             <div
               class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
             >
@@ -549,97 +541,109 @@
                 {/if}
               </div>
             </div>
-            {@render historyLink()}
-            {@render minigameCard()}
-          {:else}
-            <!-- No event today: the daily minigame is the mission, shown first -->
-            {@render minigameCard()}
-            {#if upcomingParticipation}
+          {:else if upcomingParticipation}
+            <!-- No event today, but one's coming up -->
+            <div
+              class="flex min-h-62.5 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
+            >
               <div
-                class="flex min-h-62.5 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
+                class="border-b border-blue-50 bg-blue-50/50 px-6 py-4 dark:border-blue-900/20 dark:bg-blue-950/20"
               >
                 <div
-                  class="border-b border-blue-50 bg-blue-50/50 px-6 py-4 dark:border-blue-900/20 dark:bg-blue-950/20"
+                  class="flex flex-wrap items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
                 >
-                  <div
-                    class="flex flex-wrap items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
-                  >
-                    <CalendarClock class="h-4 w-4" />
-                    <span>Mission à venir</span>
-                    {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
-                      <a
-                        href={resolve('/calendar')}
-                        class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
-                      >
-                        Voir le calendrier <ArrowRight class="h-3 w-3" />
-                      </a>
-                    {/if}
-                  </div>
-                </div>
-                <div
-                  class="flex flex-1 flex-col items-center justify-center p-6 text-center"
-                >
-                  <div
-                    class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
-                  >
-                    <Rocket class="h-8 w-8 text-epi-blue" />
-                  </div>
-                  <h3 class="text-xl font-bold text-slate-900 dark:text-white">
-                    {upcomingParticipation.event?.titre || 'Atelier Epitech'}
-                  </h3>
-                  <p class="mt-2 max-w-md text-sm text-slate-500">
-                    Ta prochaine session est prévue le <strong
-                      class="text-slate-700 dark:text-slate-300"
-                      >{formatDateFr(upcomingParticipation.event?.date)}</strong
+                  <CalendarClock class="h-4 w-4" />
+                  <span>Mission à venir</span>
+                  {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
+                    <a
+                      href={resolve('/calendar')}
+                      class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
                     >
-                    à
-                    <strong class="text-slate-700 dark:text-slate-300"
-                      >{formatTime(upcomingParticipation.event?.date)}</strong
-                    >.
-                  </p>
-
-                  <div class="mt-6 flex gap-3">
-                    {#if upcomingParticipation.bringPc}
-                      <div
-                        class="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
-                      >
-                        <Laptop class="h-4 w-4 shrink-0" />
-                        <span>N'oublie pas d'apporter ton PC !</span>
-                      </div>
-                    {:else}
-                      <div
-                        class="flex items-center gap-2 rounded-xl border border-epi-teal-solid/30 bg-epi-teal-solid/10 px-4 py-2 text-sm font-bold text-epi-teal-solid"
-                      >
-                        <Monitor class="h-4 w-4 shrink-0" />
-                        <span>Le matériel sera fourni sur place.</span>
-                      </div>
-                    {/if}
-                  </div>
+                      Voir le calendrier <ArrowRight class="h-3 w-3" />
+                    </a>
+                  {/if}
                 </div>
               </div>
-            {:else if !hasMinigame}
               <div
-                class="flex min-h-62.5 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
+                class="flex flex-1 flex-col items-center justify-center p-6 text-center"
               >
                 <div
-                  class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
+                  class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
                 >
-                  <Coffee class="h-8 w-8 text-slate-400" />
+                  <Rocket class="h-8 w-8 text-epi-blue" />
                 </div>
-                <h3
-                  class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
-                >
-                  Repos aujourd'hui
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white">
+                  {upcomingParticipation.event?.titre || 'Atelier Epitech'}
                 </h3>
-                <p class="mt-2 max-w-sm text-sm text-slate-500">
-                  Aucun atelier n'est planifié pour toi. Profites-en pour te
-                  reposer ou revoir tes anciens projets dans ton portfolio !
+                <p class="mt-2 max-w-md text-sm text-slate-500">
+                  Ta prochaine session est prévue le <strong
+                    class="text-slate-700 dark:text-slate-300"
+                    >{formatDateFr(upcomingParticipation.event?.date)}</strong
+                  >
+                  à
+                  <strong class="text-slate-700 dark:text-slate-300"
+                    >{formatTime(upcomingParticipation.event?.date)}</strong
+                  >.
                 </p>
+
+                <div class="mt-6 flex gap-3">
+                  {#if upcomingParticipation.bringPc}
+                    <div
+                      class="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
+                    >
+                      <Laptop class="h-4 w-4 shrink-0" />
+                      <span>N'oublie pas d'apporter ton PC !</span>
+                    </div>
+                  {:else}
+                    <div
+                      class="flex items-center gap-2 rounded-xl border border-epi-teal-solid/30 bg-epi-teal-solid/10 px-4 py-2 text-sm font-bold text-epi-teal-solid"
+                    >
+                      <Monitor class="h-4 w-4 shrink-0" />
+                      <span>Le matériel sera fourni sur place.</span>
+                    </div>
+                  {/if}
+                </div>
               </div>
-            {/if}
-            {@render historyLink()}
+            </div>
+          {:else}
+            <!-- No event today and none upcoming: rest day -->
+            <div
+              class="flex min-h-62.5 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
+            >
+              <div
+                class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
+              >
+                <Coffee class="h-8 w-8 text-slate-400" />
+              </div>
+              <h3
+                class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
+              >
+                Repos aujourd'hui
+              </h3>
+              <p class="mt-2 max-w-sm text-sm text-slate-500">
+                Aucun atelier n'est planifié pour toi. Profites-en pour te
+                reposer ou revoir tes anciens projets dans ton portfolio !
+              </p>
+            </div>
           {/if}
+          {@render historyLink()}
         </div>
+      </div>
+
+      <!-- RIGHT COLUMN: daily minigame first, then the actualités feed — wider
+           and taller now that it owns the main column. -->
+      <div
+        class="space-y-6 md:col-span-8"
+        in:fly={{ x: 20, duration: 400, delay: 300 }}
+      >
+        {@render minigameCard()}
+
+        {#if data.welcome}
+          <NewsFeedCard
+            welcomeContent={data.welcome.content}
+            highlight={welcomeHighlight}
+          />
+        {/if}
       </div>
     </div>
   </div>

@@ -49,7 +49,7 @@
   </div>
 
   <div
-    class="max-h-[36rem] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800"
+    class="max-h-[40rem] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800"
   >
     {#if welcomeContent}
       <article class="p-6">
@@ -61,7 +61,7 @@
         </div>
 
         <!-- Clamped preview: fades out, full content in the dialog. -->
-        <div class="relative max-h-[16rem] overflow-hidden">
+        <div class="relative max-h-[20rem] overflow-hidden">
           <WelcomeMessageBody content={welcomeContent} class="prose-sm" />
           <div
             class="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white to-transparent dark:from-slate-900"
