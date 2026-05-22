@@ -36,7 +36,7 @@
           toast.success(result.data?.form?.message || 'Action réussie');
         } else if (result.type === 'failure') {
           track(isEditing ? 'campus_update_failed' : 'campus_create_failed', {
-            reason: errReason(result.data),
+            reason: errReason(result),
           });
         }
       },

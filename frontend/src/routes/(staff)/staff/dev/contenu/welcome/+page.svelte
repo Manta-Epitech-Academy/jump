@@ -5,7 +5,7 @@
   import { Button } from '$lib/components/ui/button';
   import Save from '@lucide/svelte/icons/save';
   import CmsEditor from '$lib/components/cms/CmsEditor.svelte';
-  import { track } from '$lib/analytics';
+  import { track, bucketLength } from '$lib/analytics';
 
   let { data, form: actionData }: { data: PageData; form: ActionData } =
     $props();
@@ -46,14 +46,7 @@
           if (result.type === 'success') {
             track('cms_welcome_saved', {
               space: 'dev',
-              bodyLength:
-                content.length < 500
-                  ? '<500'
-                  : content.length < 2000
-                    ? '500-2k'
-                    : content.length < 10000
-                      ? '2k-10k'
-                      : '>10k',
+              bodyLength: bucketLength(content.length),
             });
           }
           await update();

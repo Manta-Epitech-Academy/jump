@@ -142,7 +142,7 @@
                     analysisResult = result.data;
                   } else {
                     track('event_csv_analyze_failed', {
-                      reason: errReason(result.data),
+                      reason: errReason(result),
                       durationMs,
                     });
                     toast.error(
@@ -152,7 +152,7 @@
                   }
                 } else if (result.type === 'failure') {
                   track('event_csv_analyze_failed', {
-                    reason: errReason(result.data),
+                    reason: errReason(result),
                     durationMs,
                   });
                   toast.error(
@@ -237,7 +237,7 @@
                     track('event_csv_import_failed', {
                       rowCount,
                       durationMs,
-                      reason: errReason(result.data),
+                      reason: errReason(result),
                     });
                   }
                   await update();

@@ -114,7 +114,7 @@
               } else if (result.type === 'failure') {
                 track('ticket_reply_failed', {
                   side: 'author',
-                  reason: errReason((result as any).data),
+                  reason: errReason(result),
                 });
                 toast.error("Échec de l'envoi");
               }

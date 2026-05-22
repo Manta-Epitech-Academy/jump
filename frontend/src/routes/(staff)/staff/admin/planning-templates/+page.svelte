@@ -40,7 +40,7 @@
             isEditing
               ? 'planning_template_update_failed'
               : 'planning_template_create_failed',
-            { reason: errReason(result.data) },
+            { reason: errReason(result) },
           );
         }
       },

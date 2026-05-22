@@ -34,7 +34,7 @@
             isEditing
               ? 'official_theme_update_failed'
               : 'official_theme_create_failed',
-            { reason: errReason(result.data) },
+            { reason: errReason(result) },
           );
         }
       },

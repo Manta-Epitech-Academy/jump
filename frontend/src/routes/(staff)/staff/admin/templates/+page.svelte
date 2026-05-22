@@ -56,7 +56,7 @@
               ? 'official_template_update_failed'
               : 'official_template_create_failed',
             {
-              reason: errReason(result.data),
+              reason: errReason(result),
               activityType: $form.activityType,
             },
           );

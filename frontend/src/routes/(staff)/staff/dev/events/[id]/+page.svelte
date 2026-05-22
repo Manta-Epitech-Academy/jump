@@ -40,7 +40,7 @@
           track('event_update_failed', {
             eventId: data.event.id,
             eventType: data.event.eventType,
-            reason: errReason(result.data),
+            reason: errReason(result),
           });
           toast.error(result.data?.form?.message ?? 'Action impossible.');
         }

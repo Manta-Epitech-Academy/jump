@@ -65,7 +65,7 @@
       } else if (result.type === 'failure') {
         track('onboarding_info_validation_failed', {
           step: 'parent',
-          reason: errReason(result.data),
+          reason: errReason(result),
         });
       }
       await update();

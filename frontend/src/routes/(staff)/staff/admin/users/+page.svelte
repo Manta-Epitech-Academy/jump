@@ -68,7 +68,7 @@
         } else if (result.type === 'failure' && result.data?.form?.message) {
           track('admin_invitation_failed', {
             role: $inviteForm.staffRole,
-            reason: errReason(result.data),
+            reason: errReason(result),
           });
           toast.error(result.data.form.message);
         }

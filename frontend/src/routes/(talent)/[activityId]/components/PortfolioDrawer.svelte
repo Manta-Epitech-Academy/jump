@@ -93,7 +93,7 @@
                 if (fileInputRef) fileInputRef.value = '';
               } else {
                 track('portfolio_item_create_failed', {
-                  reason: errReason((result as any).data),
+                  reason: errReason(result),
                   eventId,
                 });
                 toast.error(

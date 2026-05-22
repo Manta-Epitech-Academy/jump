@@ -121,7 +121,7 @@
               track('activity_qcm_failed', {
                 ...stepCtx,
                 attempts: qcmFails,
-                reason: errReason(result.data),
+                reason: errReason(result),
                 secondsToAnswer: secondsBetween(stepStartedAt),
               });
               toast.error(
@@ -225,7 +225,7 @@
               } else {
                 track('activity_pin_failed', {
                   ...stepCtx,
-                  reason: errReason((result as any).data),
+                  reason: errReason(result),
                 });
                 toast.error((result as any).data?.message || 'PIN Incorrect');
               }

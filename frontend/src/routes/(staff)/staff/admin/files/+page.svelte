@@ -94,7 +94,7 @@
             await update();
           } else if (result.type === 'failure') {
             track('admin_file_upload_failed', {
-              reason: errReason(result.data),
+              reason: errReason(result),
               sizeBucket: bucketBytes(file?.size ?? null),
             });
             toast.error(

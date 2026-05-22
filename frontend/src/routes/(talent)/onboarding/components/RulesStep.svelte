@@ -68,7 +68,7 @@
           return;
         }
         if (result.type === 'failure') {
-          track('rules_signing_failed', { reason: errReason(result.data) });
+          track('rules_signing_failed', { reason: errReason(result) });
         }
         await update();
         submitting = false;

@@ -46,7 +46,7 @@
           track('parent_image_rights_signed');
         } else if (result.type === 'failure') {
           track('parent_image_rights_signing_failed', {
-            reason: errReason(result.data),
+            reason: errReason(result),
           });
         }
         await update();

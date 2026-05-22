@@ -43,7 +43,7 @@
           toast.success(result.data?.form.message);
         } else if (result.type === 'failure') {
           track(isEditing ? 'student_update_failed' : 'student_create_failed', {
-            reason: errReason(result.data),
+            reason: errReason(result),
           });
           toast.error(result.data?.form.message || 'Erreur de validation');
         }
