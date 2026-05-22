@@ -11,6 +11,7 @@ import {
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
+import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 
 export type OnboardingStep =
   | 'info-validation'
@@ -416,10 +417,13 @@ export const actions: Actions = {
         rulesSignedAt: now,
         rulesFilePath: key,
         charterAcceptedAt: now,
-        xp: { increment: 50 },
+        xp: { increment: WELCOME_XP_BONUS },
       },
     });
 
+    // Head to the dashboard with the one-shot celebration signal. If a CMS
+    // welcome message exists, the guard intercepts to /welcome first; that page
+    // re-emits `?welcome=1` after the read, so the celebration fires either way.
     throw redirect(303, resolve('/?welcome=1'));
   },
 };

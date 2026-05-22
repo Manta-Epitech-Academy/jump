@@ -323,7 +323,7 @@
 </script>
 
 <svelte:head>
-  <title>Calendrier</title>
+  <title>Planning</title>
 </svelte:head>
 
 <div
@@ -345,7 +345,7 @@
         <h1
           class="font-heading text-2xl tracking-tight text-slate-900 uppercase sm:text-3xl dark:text-white"
         >
-          Calendrier<span class="text-epi-teal">_</span>
+          Planning<span class="text-epi-teal">_</span>
         </h1>
         <p class="mt-1 text-xs font-medium text-slate-500">{event.titre}</p>
       </div>

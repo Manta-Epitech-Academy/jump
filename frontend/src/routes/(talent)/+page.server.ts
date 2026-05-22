@@ -1,11 +1,18 @@
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
+import type { ActivityType } from '@prisma/client';
 import { error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
-import { getStartOfDay, tallyTopThemesFromActivities } from '$lib/utils';
-import { hasFlag } from '$lib/server/auth/guards';
-import { checkTalentEligibility } from '$lib/server/services/minigameService';
+import { env } from '$env/dynamic/private';
+import { getStartOfDay } from '$lib/utils';
+import {
+  checkTalentEligibility,
+  getActivePublication,
+  getClosestEventForTalent,
+  applyCallback,
+} from '$lib/server/services/minigameService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -78,43 +85,19 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       orderBy: { event: { date: 'asc' } },
     });
 
-    // Fetch all completed participations to build themes + past preview
-    const allCompleted = await prisma.participation.findMany({
+    // Count past missions (present activities excluding orga, before today).
+    // Only the tally feeds the dashboard now — the history route owns the full
+    // list — so count in SQL rather than fetching every participation to size it.
+    const totalPastMissions = await prisma.participationActivity.count({
       where: {
-        talentId: studentId,
-        isPresent: true,
-      },
-      include: {
-        event: true,
-        activities: {
-          include: {
-            activity: {
-              include: {
-                activityThemes: { include: { theme: true } },
-              },
-            },
-          },
+        participation: {
+          talentId: studentId,
+          isPresent: true,
+          event: { date: { lt: filterDateStartDate } },
         },
+        activity: { activityType: { not: 'orga' } },
       },
     });
-
-    // Tally top themes from completed participations
-    const topThemes = tallyTopThemesFromActivities(allCompleted, 3);
-
-    // Derive past participations from the set we already have
-    const allPast = allCompleted
-      .filter((p) => p.event.date < filterDateStartDate)
-      .sort((a, b) => b.event.date.getTime() - a.event.date.getTime());
-
-    const pastPreview = allPast;
-
-    // Count missions (activities excluding orga), not participations
-    const totalPastMissions = allPast.reduce(
-      (sum, p) =>
-        sum +
-        p.activities.filter((pa) => pa.activity.activityType !== 'orga').length,
-      0,
-    );
 
     // If there are multiple event today, grab the first one
     const todayParticipation =
@@ -158,13 +141,96 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const todayIsMultiDay = isMultiDay(todayParticipation?.event);
     const upcomingIsMultiDay = isMultiDay(upcomingParticipation?.event);
 
-    const minigame = hasFlag(locals, 'minigames')
+    // For an in-progress multi-day event, preview tomorrow's activities in the
+    // "Planning à venir" rail — but only while tomorrow still falls within the
+    // event span. Tomorrow's slots aren't in the today-scoped query above, so
+    // fetch them on their own.
+    let tomorrowPreview: {
+      date: number;
+      slots: {
+        startTime: Date;
+        endTime: Date;
+        activity: {
+          id: string;
+          nom: string;
+          description: string | null;
+          activityType: ActivityType;
+          difficulte: string | null;
+          isDynamic: boolean;
+        };
+      }[];
+    } | null = null;
+    if (todayParticipation?.event && todayIsMultiDay) {
+      const tomorrow = tzNow.add({ days: 1 });
+      const tomorrowStartDate = tomorrow
+        .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
+        .toDate();
+      const tomorrowEndDate = tomorrow
+        .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
+        .toDate();
+      const eventEnd = todayParticipation.event.endDate;
+      if (eventEnd && new Date(eventEnd) >= tomorrowStartDate) {
+        const slots = await prisma.timeSlot.findMany({
+          where: {
+            planning: { eventId: todayParticipation.event.id },
+            activity: { activityType: { not: 'orga' } },
+            startTime: { gte: tomorrowStartDate, lte: tomorrowEndDate },
+          },
+          include: { activity: true },
+          orderBy: { startTime: 'asc' },
+        });
+        // Carry the full slot + activity so the dashboard can open the same
+        // preview dialog used for not-yet-started activities today.
+        const previewSlots = slots.flatMap((s) =>
+          s.activity
+            ? [
+                {
+                  startTime: s.startTime,
+                  endTime: s.endTime,
+                  activity: {
+                    id: s.activity.id,
+                    nom: s.activity.nom,
+                    description: s.activity.description,
+                    activityType: s.activity.activityType,
+                    difficulte: s.activity.difficulte,
+                    isDynamic: s.activity.isDynamic,
+                  },
+                },
+              ]
+            : [],
+        );
+        if (previewSlots.length > 0) {
+          tomorrowPreview = {
+            date: tomorrowStartDate.getTime(),
+            slots: previewSlots,
+          };
+        }
+      }
+    }
+
+    // Minigames are intrinsic but require the games backend to be wired up.
+    // No backend configured → no card (can't play). An absent/already-played
+    // publication is handled downstream by checkTalentEligibility.
+    const minigame = env.JUMP_GAMES_URL
       ? await checkTalentEligibility(studentId)
       : null;
 
-    // Check if a welcome page is available for re-reading
-    let hasWelcomePage = false;
-    if (locals.talent.welcomeSeenAt) {
+    // A finalized attempt that earned XP the talent hasn't seen celebrated yet:
+    // drives the one-shot "+XP" float, the same as the onboarding arrival. The
+    // float is acknowledged client-side (xpSeenAt) so it fires exactly once,
+    // wherever the talent first lands back on the dashboard after playing.
+    const lastAttempt =
+      minigame && !minigame.ok ? minigame.lastAttempt : undefined;
+    const minigameReward =
+      lastAttempt?.xpAwarded != null && lastAttempt.xpSeenAt == null
+        ? { xp: lastAttempt.xpAwarded }
+        : null;
+
+    // The stage welcome message is the seed item of the dashboard's Actualités
+    // feed. It shows for the whole stage window — the message permanently lives
+    // here, this is its only home (the standalone /welcome page was removed).
+    let welcome: { content: string } | null = null;
+    {
       const stageParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
@@ -184,9 +250,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
                 eventId: stageParticipation.event.id,
               },
             },
-            select: { id: true },
+            select: { content: true },
           });
-          hasWelcomePage = !!welcomePage;
+          if (welcomePage?.content) welcome = { content: welcomePage.content };
         }
       }
     }
@@ -196,18 +262,108 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       participation: todayParticipation,
       completedActivityIds: [...completedActivityIds],
       upcomingParticipation,
-      pastParticipations: pastPreview,
       totalPastMissions,
-      hasCompletedEvents: allCompleted.length > 0,
-      topThemes,
       todayIsMultiDay,
       upcomingIsMultiDay,
+      tomorrowPreview,
       serverNow: Date.now(),
       minigame,
-      hasWelcomePage,
+      minigameReward,
+      welcome,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
     throw error(500, 'Erreur lors du chargement du dashboard');
   }
+};
+
+export const actions: Actions = {
+  /**
+   * Mark the minigame XP celebration as seen, so the "+XP" float fires exactly
+   * once. Triggered client-side right after the float plays. Scoped to the
+   * talent's own unseen-but-awarded attempts (today's, in practice) and
+   * idempotent, so a double-fire or a stale tab is harmless.
+   */
+  acknowledgeMinigameReward: async ({ locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    await prisma.minigameAttempt.updateMany({
+      where: {
+        talentId: locals.talent.id,
+        xpAwarded: { not: null },
+        xpSeenAt: null,
+      },
+      data: { xpSeenAt: new Date() },
+    });
+
+    return { acknowledged: true };
+  },
+
+  /**
+   * Dev-only shortcut to toggle today's minigame attempt without playing it or
+   * editing the DB by hand: finalizes the attempt (→ "déjà joué") if not done,
+   * or deletes it (→ rejouable) if done. Compiled out of production builds via
+   * the `dev` guard.
+   */
+  devToggleMinigame: async ({ locals }) => {
+    if (!dev) throw error(404, 'Indisponible.');
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const publication = await getActivePublication();
+    if (!publication) return { toggled: false };
+
+    const talentId = locals.talent.id;
+    const where = {
+      talentId_publicationId: { talentId, publicationId: publication.id },
+    };
+    const existing = await prisma.minigameAttempt.findUnique({ where });
+
+    if (existing && existing.status !== 'pending') {
+      // Reset: refund any XP this attempt granted before dropping the row, so
+      // repeated dev toggles don't inflate the talent's balance.
+      await prisma.$transaction([
+        ...(existing.xpAwarded
+          ? [
+              prisma.talent.update({
+                where: { id: talentId },
+                data: { xp: { decrement: existing.xpAwarded } },
+              }),
+            ]
+          : []),
+        prisma.minigameAttempt.delete({ where: { id: existing.id } }),
+      ]);
+      return { toggled: true, played: false };
+    }
+
+    // Play: stand up a pending attempt, then drive the *real* award path so the
+    // dev shortcut and a genuine game-end callback grant XP identically.
+    const closest = await getClosestEventForTalent(talentId);
+    const score = Math.floor(Math.random() * 1000);
+    const chrono = Math.floor(Math.random() * 60_000) + 5_000;
+    await prisma.minigameAttempt.upsert({
+      where,
+      update: {
+        status: 'pending',
+        eventId: closest?.eventId ?? null,
+        campusId: closest?.campusId ?? null,
+      },
+      create: {
+        talentId,
+        publicationId: publication.id,
+        jti: `dev-${crypto.randomUUID()}`,
+        status: 'pending',
+        eventId: closest?.eventId ?? null,
+        campusId: closest?.campusId ?? null,
+      },
+    });
+    await applyCallback({
+      playerId: talentId,
+      game: publication.game,
+      level: publication.level,
+      score,
+      chrono,
+      valid: true,
+    });
+    return { toggled: true, played: true };
+  },
 };

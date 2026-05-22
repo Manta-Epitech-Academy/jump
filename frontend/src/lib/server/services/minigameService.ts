@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server/db';
 import { mintGameJwt } from '$lib/server/jwt';
+import { MINIGAME_XP_REWARD } from '$lib/domain/xp';
 import type {
   MinigameAttempt,
   MinigamePublication,
@@ -17,18 +18,22 @@ export interface CallbackPayload {
 }
 
 /**
- * `no_event` is now a true edge case — only fires when the talent has zero
- * `Participation` rows in their entire history. Per-event activation has
- * been removed (admins gate at the campus feature-flag level), so any
- * talent enrolled in *some* event past/present/future is eligible.
+ * Minigames are intrinsic to the platform — eligibility no longer depends on
+ * an event. A talent is eligible as soon as there's an active publication they
+ * haven't played. `eventId`/`campusId` are optional context snapshotted from
+ * the talent's closest event (null when they have no participations at all):
+ * `campusId` scopes the talent-facing leaderboard (global fallback when null),
+ * `eventId` feeds the staff per-event board.
  */
-export type EligibilityReason =
-  | 'no_event'
-  | 'no_publication'
-  | 'already_played';
+export type EligibilityReason = 'no_publication' | 'already_played';
 
 export type EligibilityResult =
-  | { ok: true; eventId: string; publication: MinigamePublication }
+  | {
+      ok: true;
+      eventId: string | null;
+      campusId: string | null;
+      publication: MinigamePublication;
+    }
   | {
       ok: false;
       reason: EligibilityReason;
@@ -42,32 +47,22 @@ export async function getActivePublication(): Promise<MinigamePublication | null
   });
 }
 
-export async function getTalentCampusIds(talentId: string): Promise<string[]> {
-  const rows = await prisma.participation.findMany({
-    where: { talentId },
-    distinct: ['campusId'],
-    select: { campusId: true },
-  });
-  return rows.map((r) => r.campusId);
-}
-
 /**
- * Pick the event "closest" to the talent — used both to tag a new
- * `MinigameAttempt.eventId` and to scope leaderboards.
+ * Pick the event "closest" to the talent — its `eventId` tags a new
+ * `MinigameAttempt` (feeding the staff per-event board) and its `campusId`
+ * scopes the talent-facing leaderboard.
  *
  *   1. An event spanning today (multi-day or single-day): prefer that.
  *   2. Otherwise, the next upcoming event.
  *   3. Otherwise, the most recent past event.
  *
- * Returns `null` only when the talent has zero participations ever — in
- * which case mini-games can't run because `MinigameAttempt.eventId` is
- * NOT NULL.
+ * Returns `null` when the talent has zero participations ever. That's no
+ * longer fatal: `MinigameAttempt.eventId`/`campusId` are nullable, so the
+ * play still mints with null context and the leaderboard falls back to global.
  */
-export async function getClosestEventForTalent(talentId: string): Promise<{
-  participationId: string;
-  eventId: string;
-  campusId: string;
-} | null> {
+export async function getClosestEventForTalent(
+  talentId: string,
+): Promise<{ eventId: string; campusId: string } | null> {
   const now = new Date();
   const startOfDay = new Date(now);
   startOfDay.setHours(0, 0, 0, 0);
@@ -87,15 +82,9 @@ export async function getClosestEventForTalent(talentId: string): Promise<{
       },
     },
     orderBy: { event: { date: 'desc' } },
-    select: { id: true, eventId: true, campusId: true },
+    select: { eventId: true, campusId: true },
   });
-  if (ongoing) {
-    return {
-      participationId: ongoing.id,
-      eventId: ongoing.eventId,
-      campusId: ongoing.campusId,
-    };
-  }
+  if (ongoing) return ongoing;
 
   // 2. Next upcoming event.
   const upcoming = await prisma.participation.findFirst({
@@ -104,42 +93,24 @@ export async function getClosestEventForTalent(talentId: string): Promise<{
       event: { date: { gt: endOfDay } },
     },
     orderBy: { event: { date: 'asc' } },
-    select: { id: true, eventId: true, campusId: true },
+    select: { eventId: true, campusId: true },
   });
-  if (upcoming) {
-    return {
-      participationId: upcoming.id,
-      eventId: upcoming.eventId,
-      campusId: upcoming.campusId,
-    };
-  }
+  if (upcoming) return upcoming;
 
-  // 3. Most recent past event.
-  const past = await prisma.participation.findFirst({
+  // 3. Most recent past event (null when the talent has no participations).
+  return prisma.participation.findFirst({
     where: {
       talentId,
       event: { date: { lt: startOfDay } },
     },
     orderBy: { event: { date: 'desc' } },
-    select: { id: true, eventId: true, campusId: true },
+    select: { eventId: true, campusId: true },
   });
-  if (!past) return null;
-  return {
-    participationId: past.id,
-    eventId: past.eventId,
-    campusId: past.campusId,
-  };
 }
-
-/** @deprecated kept temporarily for back-compat; use `getClosestEventForTalent`. */
-export const getCurrentEventForTalent = getClosestEventForTalent;
 
 export async function checkTalentEligibility(
   talentId: string,
 ): Promise<EligibilityResult> {
-  const closest = await getClosestEventForTalent(talentId);
-  if (!closest) return { ok: false, reason: 'no_event' };
-
   const publication = await getActivePublication();
   if (!publication) return { ok: false, reason: 'no_publication' };
 
@@ -148,7 +119,10 @@ export async function checkTalentEligibility(
       talentId_publicationId: { talentId, publicationId: publication.id },
     },
   });
-  if (existing) {
+  // Only a *finalized* attempt counts as played. A leftover `pending` row
+  // (e.g. the talent opened the play page but never finished, or a stray
+  // mint) is recoverable — they can still play, reusing that row.
+  if (existing && existing.status !== 'pending') {
     return {
       ok: false,
       reason: 'already_played',
@@ -157,7 +131,14 @@ export async function checkTalentEligibility(
     };
   }
 
-  return { ok: true, eventId: closest.eventId, publication };
+  // Optional context — null when the talent has no participations at all.
+  const closest = await getClosestEventForTalent(talentId);
+  return {
+    ok: true,
+    eventId: closest?.eventId ?? null,
+    campusId: closest?.campusId ?? null,
+    publication,
+  };
 }
 
 export interface MintAttemptResult {
@@ -185,11 +166,25 @@ export async function mintAttempt(
     publication.game,
     publication.level,
   );
-  const attempt = await prisma.minigameAttempt.create({
-    data: {
+  // Upsert: reuse a leftover pending row (refreshing token + start time)
+  // rather than colliding with the @@unique([talentId, publicationId]).
+  // A finalized attempt can't reach here — eligibility blocks it above.
+  const attempt = await prisma.minigameAttempt.upsert({
+    where: {
+      talentId_publicationId: { talentId, publicationId: publication.id },
+    },
+    update: {
+      eventId: eligibility.eventId,
+      campusId: eligibility.campusId,
+      jti,
+      status: 'pending',
+      startedAt: new Date(),
+    },
+    create: {
       talentId,
       publicationId: publication.id,
       eventId: eligibility.eventId,
+      campusId: eligibility.campusId,
       jti,
       status: 'pending',
     },
@@ -207,18 +202,34 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
     orderBy: { startedAt: 'desc' },
   });
   if (!attempt) return; // Unknown attempt: silently ignore (idempotent on retry of a deleted attempt).
-  if (attempt.status !== 'pending') return; // Already finalized — idempotent.
+  if (attempt.status !== 'pending') return; // Already finalized — idempotent: never re-pay XP.
 
-  await prisma.minigameAttempt.update({
-    where: { id: attempt.id },
-    data: {
-      status: payload.valid ? 'done' : 'invalid',
-      score: payload.score,
-      chrono: payload.chrono,
-      valid: payload.valid,
-      finishedAt: new Date(),
-    },
-  });
+  // A valid run earns flat XP; the talent sees the "+XP" float on their next
+  // dashboard visit (gated by xpSeenAt). Invalid runs finalize without reward.
+  // Increment + finalize together so the grant and the audit trail can't drift.
+  const xpAwarded = payload.valid ? MINIGAME_XP_REWARD : null;
+
+  await prisma.$transaction([
+    prisma.minigameAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        status: payload.valid ? 'done' : 'invalid',
+        score: payload.score,
+        chrono: payload.chrono,
+        valid: payload.valid,
+        finishedAt: new Date(),
+        xpAwarded,
+      },
+    }),
+    ...(xpAwarded
+      ? [
+          prisma.talent.update({
+            where: { id: attempt.talentId },
+            data: { xp: { increment: xpAwarded } },
+          }),
+        ]
+      : []),
+  ]);
 }
 
 export async function pickNextPublication(): Promise<MinigamePublication | null> {
@@ -262,7 +273,8 @@ export async function forcePublication(
 export interface LeaderboardRow {
   rank: number;
   talentId: string;
-  talentName: string;
+  prenom: string;
+  nom: string;
   score: number | null;
   chrono: number | null;
   finishedAt: Date | null;
@@ -302,7 +314,8 @@ async function buildLeaderboard(
   const rows: LeaderboardRow[] = sorted.map((a, i) => ({
     rank: i + 1,
     talentId: a.talentId,
-    talentName: `${a.talent.prenom} ${a.talent.nom}`.trim(),
+    prenom: a.talent.prenom,
+    nom: a.talent.nom,
     score: a.score,
     chrono: a.chrono,
     finishedAt: a.finishedAt,
@@ -311,11 +324,55 @@ async function buildLeaderboard(
   return { rows, scoringType: publication.config.scoringType };
 }
 
-export async function getLeaderboard(
+/**
+ * Talent-facing leaderboard: scoped to the talent's campus when known, or
+ * global (everyone who played today's publication) when `campusId` is null.
+ */
+export async function getCampusLeaderboard(
+  publicationId: string,
+  campusId: string | null,
+): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
+  return buildLeaderboard(publicationId, campusId ? { campusId } : {});
+}
+
+/** Staff per-event leaderboard: ranks attempts made during a given event. */
+export async function getEventLeaderboard(
   publicationId: string,
   eventId: string,
 ): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
   return buildLeaderboard(publicationId, { eventId });
+}
+
+export interface LeaderboardPreview {
+  rows: LeaderboardRow[];
+  /** The talent's own row, set only when they rank *below* the previewed top. */
+  ownRow: LeaderboardRow | null;
+  total: number;
+  scoringType: 'score' | 'chrono';
+}
+
+/**
+ * Compact campus leaderboard for the dashboard: the top `limit` rows plus the
+ * talent's own row pinned when they fall outside that top. Same campus scope
+ * (global fallback) as {@link getCampusLeaderboard}.
+ */
+export async function getCampusLeaderboardPreview(
+  publicationId: string,
+  campusId: string | null,
+  talentId: string,
+  limit = 5,
+): Promise<LeaderboardPreview> {
+  const { rows, scoringType } = await getCampusLeaderboard(
+    publicationId,
+    campusId,
+  );
+  const own = rows.find((r) => r.talentId === talentId) ?? null;
+  return {
+    rows: rows.slice(0, limit),
+    ownRow: own && own.rank > limit ? own : null,
+    total: rows.length,
+    scoringType,
+  };
 }
 
 function weightedPick(candidates: MinigameConfig[]): MinigameConfig {

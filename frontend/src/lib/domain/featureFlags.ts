@@ -30,14 +30,6 @@ export const FEATURE_FLAGS = {
     label: 'Coding Club',
     description: "Ateliers hebdomadaires tout le reste de l'année.",
   }),
-  minigames: def({
-    key: 'minigames',
-    kind: 'capability',
-    defaultEnabled: false,
-    label: 'Mini-jeux',
-    description:
-      'Active les mini-jeux du jour pour les talents (cf. MINIGAMES.md).',
-  }),
   staff_intervenants: def({
     key: 'staff_intervenants',
     kind: 'rollout',
