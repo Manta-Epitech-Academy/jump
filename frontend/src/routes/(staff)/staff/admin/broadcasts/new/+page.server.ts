@@ -152,8 +152,24 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
     if (!locals.user) return fail(401, { form });
 
+    // Auto-generate broadcast name: `[DD/MM/YYYY HH:MM] Campus - Template`.
+    const [campus, template] = await Promise.all([
+      prisma.campus.findUnique({
+        where: { id: form.data.campusId },
+        select: { name: true },
+      }),
+      prisma.messageTemplate.findUnique({
+        where: { id: form.data.templateId },
+        select: { name: true },
+      }),
+    ]);
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const name = `[${stamp}] ${campus?.name ?? '?'} - ${template?.name ?? '?'}`;
+
     const { broadcastId } = await enqueueBroadcast({
-      name: form.data.name,
+      name,
       templateId: form.data.templateId,
       campusId: form.data.campusId,
       audience: form.data.audience,

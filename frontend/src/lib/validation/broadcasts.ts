@@ -72,10 +72,14 @@ export const broadcastSourceFilterSchema = z.enum([
 
 export const broadcastSchema = z
   .object({
+    // Auto-generated server-side as `[DD/MM/YYYY HH:MM] Campus - Template`.
+    // Kept on the schema for the loaded form snapshot, but optional so the
+    // client can leave it empty.
     name: z
       .string()
-      .min(3, 'Le nom doit faire au moins 3 caractères')
-      .max(120, 'Le nom ne peut pas dépasser 120 caractères'),
+      .max(160, 'Le nom ne peut pas dépasser 160 caractères')
+      .optional()
+      .default(''),
     templateId: z.string().min(1, 'Sélectionne un template'),
     campusId: z.string().min(1, 'Sélectionne un campus'),
     audience: z.enum(BROADCAST_AUDIENCES, {

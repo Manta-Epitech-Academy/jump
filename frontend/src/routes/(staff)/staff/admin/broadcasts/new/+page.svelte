@@ -34,7 +34,20 @@
   const selectedTemplate = $derived(
     data.templates.find((t) => t.id === $form.templateId),
   );
+  const selectedCampus = $derived(
+    data.campuses.find((c) => c.id === $form.campusId),
+  );
   const channel = $derived(selectedTemplate?.channel ?? 'mail');
+
+  // UI preview of the auto-generated name; the canonical value is rebuilt
+  // server-side at enqueue time so the timestamp matches the actual send.
+  const generatedName = $derived.by(() => {
+    if (!selectedCampus || !selectedTemplate) return '';
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    return `[${stamp}] ${selectedCampus.name} - ${selectedTemplate.name}`;
+  });
 
   const filteredEvents = $derived(
     data.events.filter((e) =>
@@ -179,16 +192,18 @@
 >
   <div class="space-y-5">
     <div class="grid gap-2">
-      <Label for="name">Nom de l'envoi</Label>
-      <Input
-        id="name"
-        name="name"
-        bind:value={$form.name}
-        placeholder="Mail invitation Coding Club avril"
-      />
-      {#if $errors.name}
-        <p class="text-xs text-destructive">{$errors.name}</p>
-      {/if}
+      <Label>Nom de l'envoi</Label>
+      <p
+        class="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
+      >
+        {#if generatedName}
+          {generatedName}
+        {:else}
+          Auto-généré au moment de l'envoi
+          <span class="text-[10px]">([JJ/MM/AAAA HH:MM] Campus - Template)</span
+          >
+        {/if}
+      </p>
     </div>
 
     <div class="grid gap-2">
