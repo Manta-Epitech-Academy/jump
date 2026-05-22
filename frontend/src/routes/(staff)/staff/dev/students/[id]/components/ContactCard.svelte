@@ -6,6 +6,7 @@
   import Cloud from '@lucide/svelte/icons/cloud';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Pencil from '@lucide/svelte/icons/pencil';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import { Separator } from '$lib/components/ui/separator';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
@@ -177,6 +178,9 @@
           <span class="font-mono text-xs"
             >Salesforce · {student.externalId}</span
           >
+          <ExternalLink
+            class="h-3 w-3 shrink-0 text-muted-foreground transition-colors group-hover:text-epi-blue"
+          />
         </a>
       {/if}
       {#if student.discordId}
