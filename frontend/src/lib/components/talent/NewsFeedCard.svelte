@@ -35,10 +35,14 @@
   )}
 >
   <div
-    class="flex items-center gap-2 border-b border-slate-100 bg-blue-50/50 px-6 py-4 text-xs font-bold text-epi-blue uppercase dark:border-slate-800 dark:bg-blue-950/20"
+    class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
   >
-    <Newspaper class="h-4 w-4" />
-    Actualités
+    <Newspaper class="h-4 w-4 shrink-0 text-epi-blue" />
+    <h2
+      class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
+    >
+      Actualités<span class="text-epi-teal">_</span>
+    </h2>
     {#if highlight}
       <span
         class="ml-auto rounded-full bg-epi-teal px-2 py-0.5 text-[10px] font-bold text-black"

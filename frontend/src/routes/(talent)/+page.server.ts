@@ -1,4 +1,5 @@
 import type { Actions, PageServerLoad } from './$types';
+import type { ActivityType } from '@prisma/client';
 import { error } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { now } from '@internationalized/date';
@@ -8,7 +9,6 @@ import { env } from '$env/dynamic/private';
 import { getStartOfDay } from '$lib/utils';
 import {
   checkTalentEligibility,
-  getCampusLeaderboardPreview,
   getActivePublication,
   getClosestEventForTalent,
   applyCallback,
@@ -141,27 +141,79 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const todayIsMultiDay = isMultiDay(todayParticipation?.event);
     const upcomingIsMultiDay = isMultiDay(upcomingParticipation?.event);
 
+    // For an in-progress multi-day event, preview tomorrow's activities in the
+    // "Planning à venir" rail — but only while tomorrow still falls within the
+    // event span. Tomorrow's slots aren't in the today-scoped query above, so
+    // fetch them on their own.
+    let tomorrowPreview: {
+      date: number;
+      slots: {
+        startTime: Date;
+        endTime: Date;
+        activity: {
+          id: string;
+          nom: string;
+          description: string | null;
+          activityType: ActivityType;
+          difficulte: string | null;
+          isDynamic: boolean;
+        };
+      }[];
+    } | null = null;
+    if (todayParticipation?.event && todayIsMultiDay) {
+      const tomorrow = tzNow.add({ days: 1 });
+      const tomorrowStartDate = tomorrow
+        .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
+        .toDate();
+      const tomorrowEndDate = tomorrow
+        .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
+        .toDate();
+      const eventEnd = todayParticipation.event.endDate;
+      if (eventEnd && new Date(eventEnd) >= tomorrowStartDate) {
+        const slots = await prisma.timeSlot.findMany({
+          where: {
+            planning: { eventId: todayParticipation.event.id },
+            activity: { activityType: { not: 'orga' } },
+            startTime: { gte: tomorrowStartDate, lte: tomorrowEndDate },
+          },
+          include: { activity: true },
+          orderBy: { startTime: 'asc' },
+        });
+        // Carry the full slot + activity so the dashboard can open the same
+        // preview dialog used for not-yet-started activities today.
+        const previewSlots = slots.flatMap((s) =>
+          s.activity
+            ? [
+                {
+                  startTime: s.startTime,
+                  endTime: s.endTime,
+                  activity: {
+                    id: s.activity.id,
+                    nom: s.activity.nom,
+                    description: s.activity.description,
+                    activityType: s.activity.activityType,
+                    difficulte: s.activity.difficulte,
+                    isDynamic: s.activity.isDynamic,
+                  },
+                },
+              ]
+            : [],
+        );
+        if (previewSlots.length > 0) {
+          tomorrowPreview = {
+            date: tomorrowStartDate.getTime(),
+            slots: previewSlots,
+          };
+        }
+      }
+    }
+
     // Minigames are intrinsic but require the games backend to be wired up.
     // No backend configured → no card (can't play). An absent/already-played
     // publication is handled downstream by checkTalentEligibility.
     const minigame = env.JUMP_GAMES_URL
       ? await checkTalentEligibility(studentId)
       : null;
-
-    // Once the daily game is done, surface a compact campus leaderboard on the
-    // dashboard (the full board keeps its own page). Campus scope comes from
-    // the attempt's snapshot, so this needs no extra event lookup.
-    const leaderboard =
-      minigame && !minigame.ok && minigame.reason === 'already_played'
-        ? {
-            publicationId: minigame.publication!.id,
-            ...(await getCampusLeaderboardPreview(
-              minigame.publication!.id,
-              minigame.lastAttempt?.campusId ?? null,
-              studentId,
-            )),
-          }
-        : null;
 
     // A finalized attempt that earned XP the talent hasn't seen celebrated yet:
     // drives the one-shot "+XP" float, the same as the onboarding arrival. The
@@ -213,9 +265,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       totalPastMissions,
       todayIsMultiDay,
       upcomingIsMultiDay,
+      tomorrowPreview,
       serverNow: Date.now(),
       minigame,
-      leaderboard,
       minigameReward,
       welcome,
     };
