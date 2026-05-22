@@ -227,7 +227,7 @@ export const actions: Actions = {
       );
     }
 
-    throw redirect(303, resolve('/onboarding'));
+    return { success: true };
   },
 
   validateLycee: async ({ request, locals }) => {

@@ -48,8 +48,6 @@
   let microStep = $state(getInitialMicroStep());
   // svelte-ignore state_referenced_locally
   let lastServerStep = $state(data.step);
-  // svelte-ignore state_referenced_locally
-  let lastInfoValidated = $state(!!data.infoAlreadyValidated);
 
   // Accumulated fields for profile sub-steps
   // svelte-ignore state_referenced_locally
@@ -85,15 +83,10 @@
 
   let goBackForm: HTMLFormElement;
 
-  // Sync microStep when the server state changes (step or sub-step progress)
+  // Sync microStep when the server step changes (after form POST + redirect)
   $effect(() => {
-    const currentInfoValidated = !!data.infoAlreadyValidated;
-    const stepChanged = data.step !== lastServerStep;
-    const infoJustValidated = currentInfoValidated && !lastInfoValidated;
-
-    if (stepChanged || infoJustValidated) {
+    if (data.step !== lastServerStep) {
       lastServerStep = data.step;
-      lastInfoValidated = currentInfoValidated;
 
       if (data.step === 'profile') {
         profileFields = {
@@ -118,7 +111,7 @@
           highSchoolCity: data.profile?.highSchoolCity ?? '',
           highSchoolUai: data.profile?.highSchoolUai ?? '',
         };
-        microStep = currentInfoValidated ? 3 : 1;
+        microStep = 1;
       } else if (data.step === 'interests') {
         interestFields = {
           techIds: (data.selectedTechIds ?? []) as string[],
@@ -261,6 +254,9 @@
               highSchoolCity={profileFields.highSchoolCity}
               highSchoolUai={profileFields.highSchoolUai}
               errors={form?.errors}
+              onvalidate={() => {
+                microStep = 3;
+              }}
             />
           {:else if microStep === 3}
             <BackButton onclick={() => goBackClient(2)} />

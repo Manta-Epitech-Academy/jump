@@ -1,6 +1,5 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
   import { Button } from '$lib/components/ui/button';
   import Users from '@lucide/svelte/icons/users';
   import Plus from '@lucide/svelte/icons/plus';
@@ -33,6 +32,7 @@
     highSchoolCity = '',
     highSchoolUai = '',
     errors,
+    onvalidate,
   }: {
     civilite: string;
     nom: string;
@@ -55,6 +55,7 @@
     highSchoolCity?: string;
     highSchoolUai?: string;
     errors?: Record<string, string[]>;
+    onvalidate: () => void;
   } = $props();
 
   // svelte-ignore state_referenced_locally
@@ -114,15 +115,15 @@
   action="?/validateProfile"
   use:enhance={() => {
     return async ({ result, update }) => {
-      if (result.type === 'redirect') {
+      if (result.type === 'success') {
         track('onboarding_profile_validated');
-        await invalidateAll();
-      } else if (result.type === 'failure') {
-        track('onboarding_profile_validation_failed');
-        await update();
-      } else {
-        await update();
+        onvalidate();
+        return;
       }
+      if (result.type === 'failure') {
+        track('onboarding_profile_validation_failed');
+      }
+      await update();
     };
   }}
   class="mt-6 space-y-3"
