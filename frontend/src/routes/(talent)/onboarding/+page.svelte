@@ -2,6 +2,7 @@
   import { fly } from 'svelte/transition';
   import type { TransitionConfig } from 'svelte/transition';
   import { enhance } from '$app/forms';
+  import { resolve } from '$app/paths';
   import ProgressBar from './components/ProgressBar.svelte';
   import TalentInfoStep from './components/TalentInfoStep.svelte';
   import ParentInfoStep from './components/ParentInfoStep.svelte';
@@ -185,7 +186,7 @@
 <ProgressBar {progress} />
 
 <div
-  class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"
+  class="relative flex min-h-screen w-full flex-col overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-slate-950"
 >
   <div
     class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
@@ -197,6 +198,17 @@
     class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
   ></div>
 
+  <!-- Logo top-left -->
+  <div class="relative z-10 p-4">
+    <a href={resolve('/')} aria-label="Accueil">
+      <img
+        src="/EPITECH-LOGO-BLEU-2025.svg"
+        alt="Epitech"
+        class="h-9 w-auto dark:brightness-0 dark:invert"
+      />
+    </a>
+  </div>
+
   <!-- Hidden form for server-side go-back -->
   <form
     bind:this={goBackForm}
@@ -206,116 +218,120 @@
     class="hidden"
   ></form>
 
-  <div class="z-10 w-full max-w-lg">
-    <div class="relative">
-      {#key microStep}
-        <div
-          class="w-full"
-          in:fly|local={{ x: 30, duration: 300, delay: 280 }}
-          out:exitSlide|local={{ duration: 250 }}
-        >
-          {#if microStep === 1}
-            <TalentInfoStep
-              civilite={profileFields.civilite}
-              prenom={profileFields.prenom}
-              nom={profileFields.nom}
-              email={profileFields.email}
-              phone={profileFields.phone}
-              onvalidate={(d) => {
-                profileFields.civilite = d.civilite;
-                profileFields.prenom = d.prenom;
-                profileFields.nom = d.nom;
-                profileFields.email = d.email;
-                profileFields.phone = d.phone;
-                microStep = 2;
-              }}
-            />
-          {:else if microStep === 2}
-            <BackButton onclick={() => goBackClient(1)} />
-            <ParentInfoStep
-              civilite={profileFields.civilite}
-              nom={profileFields.nom}
-              prenom={profileFields.prenom}
-              email={profileFields.email}
-              phone={profileFields.phone}
-              parentType={profileFields.parentType}
-              parentCivilite={profileFields.parentCivilite}
-              parentNom={profileFields.parentNom}
-              parentPrenom={profileFields.parentPrenom}
-              parentEmail={profileFields.parentEmail}
-              parentPhone={profileFields.parentPhone}
-              parent2Type={profileFields.parent2Type}
-              parent2Civilite={profileFields.parent2Civilite}
-              parent2Nom={profileFields.parent2Nom}
-              parent2Prenom={profileFields.parent2Prenom}
-              parent2Email={profileFields.parent2Email}
-              parent2Phone={profileFields.parent2Phone}
-              highSchoolName={profileFields.highSchoolName}
-              highSchoolCity={profileFields.highSchoolCity}
-              highSchoolUai={profileFields.highSchoolUai}
-              errors={form?.errors}
-              onvalidate={() => {
-                microStep = 3;
-              }}
-            />
-          {:else if microStep === 3}
-            <BackButton onclick={() => goBackClient(2)} />
-            <LyceeStep
-              highSchoolName={data.profile?.highSchoolName ??
-                profileFields.highSchoolName}
-              highSchoolCity={data.profile?.highSchoolCity ??
-                profileFields.highSchoolCity}
-              highSchoolUai={data.profile?.highSchoolUai ??
-                profileFields.highSchoolUai}
-              error={form?.error}
-            />
-          {:else if microStep === 4}
-            <BackButton onclick={goBackServer} />
-            <TechInterestsStep
-              interests={data.techInterests ?? []}
-              selectedIds={interestFields.techIds}
-              onvalidate={(ids) => {
-                interestFields.techIds = ids;
-                microStep = 5;
-              }}
-            />
-          {:else if microStep === 5}
-            <BackButton onclick={() => goBackClient(4)} />
-            <GeneralInterestsStep
-              interests={data.generalInterests ?? []}
-              selectedIds={interestFields.generalIds}
-              onvalidate={(ids) => {
-                interestFields.generalIds = ids;
-                microStep = 6;
-              }}
-            />
-          {:else if microStep === 6}
-            <BackButton onclick={() => goBackClient(5)} />
-            <InterestsFreeTextStep
-              techInterestIds={interestFields.techIds}
-              generalInterestIds={interestFields.generalIds}
-              freeText={interestFields.freeText}
-              error={form?.error}
-            />
-          {:else if microStep === 7}
-            <BackButton onclick={goBackServer} />
-            <EquipmentStep
-              hasLaptop={data.hasLaptop ?? false}
-              setupDescription={data.setupDescription ?? ''}
-              error={form?.error}
-            />
-          {:else if microStep === 8}
-            <BackButton onclick={goBackServer} />
-            <RulesStep error={form?.error} />
-          {/if}
-        </div>
-      {/key}
+  <div class="relative z-10 flex flex-1 items-center justify-center p-4">
+    <div class="w-full max-w-lg">
+      <div class="relative">
+        {#key microStep}
+          <div
+            class="w-full"
+            in:fly|local={{ x: 30, duration: 300, delay: 280 }}
+            out:exitSlide|local={{ duration: 250 }}
+          >
+            {#if microStep === 1}
+              <TalentInfoStep
+                civilite={profileFields.civilite}
+                prenom={profileFields.prenom}
+                nom={profileFields.nom}
+                email={profileFields.email}
+                phone={profileFields.phone}
+                onvalidate={(d) => {
+                  profileFields.civilite = d.civilite;
+                  profileFields.prenom = d.prenom;
+                  profileFields.nom = d.nom;
+                  profileFields.email = d.email;
+                  profileFields.phone = d.phone;
+                  microStep = 2;
+                }}
+              />
+            {:else if microStep === 2}
+              <BackButton onclick={() => goBackClient(1)} />
+              <ParentInfoStep
+                civilite={profileFields.civilite}
+                nom={profileFields.nom}
+                prenom={profileFields.prenom}
+                email={profileFields.email}
+                phone={profileFields.phone}
+                parentType={profileFields.parentType}
+                parentCivilite={profileFields.parentCivilite}
+                parentNom={profileFields.parentNom}
+                parentPrenom={profileFields.parentPrenom}
+                parentEmail={profileFields.parentEmail}
+                parentPhone={profileFields.parentPhone}
+                parent2Type={profileFields.parent2Type}
+                parent2Civilite={profileFields.parent2Civilite}
+                parent2Nom={profileFields.parent2Nom}
+                parent2Prenom={profileFields.parent2Prenom}
+                parent2Email={profileFields.parent2Email}
+                parent2Phone={profileFields.parent2Phone}
+                highSchoolName={profileFields.highSchoolName}
+                highSchoolCity={profileFields.highSchoolCity}
+                highSchoolUai={profileFields.highSchoolUai}
+                errors={form?.errors}
+                onvalidate={() => {
+                  microStep = 3;
+                }}
+              />
+            {:else if microStep === 3}
+              <BackButton onclick={() => goBackClient(2)} />
+              <LyceeStep
+                highSchoolName={data.profile?.highSchoolName ??
+                  profileFields.highSchoolName}
+                highSchoolCity={data.profile?.highSchoolCity ??
+                  profileFields.highSchoolCity}
+                highSchoolUai={data.profile?.highSchoolUai ??
+                  profileFields.highSchoolUai}
+                error={form?.error}
+              />
+            {:else if microStep === 4}
+              <BackButton onclick={goBackServer} />
+              <TechInterestsStep
+                interests={data.techInterests ?? []}
+                selectedIds={interestFields.techIds}
+                onvalidate={(ids) => {
+                  interestFields.techIds = ids;
+                  microStep = 5;
+                }}
+              />
+            {:else if microStep === 5}
+              <BackButton onclick={() => goBackClient(4)} />
+              <GeneralInterestsStep
+                interests={data.generalInterests ?? []}
+                selectedIds={interestFields.generalIds}
+                onvalidate={(ids) => {
+                  interestFields.generalIds = ids;
+                  microStep = 6;
+                }}
+              />
+            {:else if microStep === 6}
+              <BackButton onclick={() => goBackClient(5)} />
+              <InterestsFreeTextStep
+                techInterestIds={interestFields.techIds}
+                generalInterestIds={interestFields.generalIds}
+                freeText={interestFields.freeText}
+                error={form?.error}
+              />
+            {:else if microStep === 7}
+              <BackButton onclick={goBackServer} />
+              <EquipmentStep
+                hasLaptop={data.hasLaptop ?? false}
+                setupDescription={data.setupDescription ?? ''}
+                error={form?.error}
+              />
+            {:else if microStep === 8}
+              <BackButton onclick={goBackServer} />
+              <RulesStep error={form?.error} />
+            {/if}
+          </div>
+        {/key}
+      </div>
     </div>
-
-    <p
-      class="mt-8 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
-    >
-      Propuls&eacute; par Epitech Academy
-    </p>
   </div>
+
+  <!-- Footer -->
+  <footer
+    class="relative z-10 px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
+  >
+    <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
+    plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
+  </footer>
 </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
+  import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { onMount } from 'svelte';
@@ -14,7 +15,7 @@
 </script>
 
 <div
-  class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"
+  class="relative flex min-h-screen w-full flex-col overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-slate-950"
 >
   <div
     class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
@@ -26,53 +27,69 @@
     class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
   ></div>
 
-  <div class="z-10 w-full max-w-lg">
-    <div class="mb-6 text-center">
-      <h1
-        class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
-      >
-        Bienvenue, {data.prenom}.
-      </h1>
-    </div>
+  <!-- Logo top-left -->
+  <div class="relative z-10 p-4">
+    <a href={resolve('/')} aria-label="Accueil">
+      <img
+        src="/EPITECH-LOGO-BLEU-2025.svg"
+        alt="Epitech"
+        class="h-9 w-auto dark:brightness-0 dark:invert"
+      />
+    </a>
+  </div>
 
-    <div
-      class="prose prose-sm max-w-none text-center prose-slate dark:prose-invert"
-    >
-      {@html data.cmsContent}
-    </div>
-
-    <div class="mt-8 flex justify-center">
-      {#if data.alreadySeen}
-        <Button href="/">
-          Retour au tableau de bord
-          <ArrowRight class="ml-2 h-4 w-4" />
-        </Button>
-      {:else}
-        <form
-          method="POST"
-          action="?/markSeen"
-          use:enhance={() => {
-            return async ({ update }) => {
-              track('welcome_dismissed');
-              await update();
-            };
-          }}
+  <!-- Content centered -->
+  <div class="relative z-10 flex flex-1 items-center justify-center p-4">
+    <div class="w-full max-w-lg">
+      <div class="mb-6 text-center">
+        <h1
+          class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
         >
-          <Button
-            type="submit"
-            class="h-auto rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
-          >
-            On y va
+          Bienvenue, {data.prenom}.
+        </h1>
+      </div>
+
+      <div
+        class="prose prose-sm max-w-none text-center prose-slate dark:prose-invert"
+      >
+        {@html data.cmsContent}
+      </div>
+
+      <div class="mt-8 flex justify-center">
+        {#if data.alreadySeen}
+          <Button href="/">
+            Retour au tableau de bord
             <ArrowRight class="ml-2 h-4 w-4" />
           </Button>
-        </form>
-      {/if}
+        {:else}
+          <form
+            method="POST"
+            action="?/markSeen"
+            use:enhance={() => {
+              return async ({ update }) => {
+                track('welcome_dismissed');
+                await update();
+              };
+            }}
+          >
+            <Button
+              type="submit"
+              class="h-auto rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+            >
+              On y va
+              <ArrowRight class="ml-2 h-4 w-4" />
+            </Button>
+          </form>
+        {/if}
+      </div>
     </div>
-
-    <p
-      class="mt-8 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
-    >
-      Propuls&eacute; par Epitech Academy
-    </p>
   </div>
+
+  <!-- Footer -->
+  <footer
+    class="relative z-10 px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
+  >
+    <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
+    plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
+  </footer>
 </div>
