@@ -13,7 +13,7 @@
   let submitting = $state(false);
   let city = $state('');
   let completed = $state(false);
-  let scrolledEnough = $state(false);
+  let signed = $state(false);
 
   // Remove the "Fait à" placeholder line — it's rendered as inline inputs below
   const contentWithoutSignature = reglementMd.replace(
@@ -21,12 +21,6 @@
     '',
   );
   const renderedContent = renderMarkdown(contentWithoutSignature);
-
-  function handleScroll(e: Event) {
-    const el = e.target as HTMLElement;
-    const ratio = (el.scrollTop + el.clientHeight) / el.scrollHeight;
-    if (ratio >= 0.9) scrolledEnough = true;
-  }
 </script>
 
 {#if !completed}
@@ -78,46 +72,49 @@
       };
     }}
   >
-    <div
-      class="max-h-[50vh] overflow-y-auto rounded-2xl border-none bg-white/70 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
-      onscroll={handleScroll}
-    >
-      <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
-        {@html renderedContent}
+    <!-- Document content — displayed directly in the page, no container box -->
+    <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
+      {@html renderedContent}
 
-        <p class="mt-6 text-sm">
-          <strong>Fait à</strong>
-          <input
-            name="city"
-            type="text"
-            bind:value={city}
-            placeholder="__________________"
-            required
-            class="inline-block w-40 border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
-          /><strong
-            >, le {new Date().toLocaleDateString('fr-FR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            })}</strong
-          >
-        </p>
-      </div>
+      <p class="mt-6 text-sm">
+        <strong>Fait à</strong>
+        <input
+          name="city"
+          type="text"
+          bind:value={city}
+          placeholder="__________________"
+          required
+          class="inline-block w-40 border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
+        /><strong
+          >, le {new Date().toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          })}</strong
+        >
+      </p>
     </div>
 
-    {#if !scrolledEnough}
-      <p class="mt-3 text-center text-xs text-slate-400 dark:text-slate-500">
-        Lis le règlement jusqu'en bas pour pouvoir signer
-      </p>
-    {/if}
+    <div class="mt-8 space-y-4">
+      <label
+        class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      >
+        <input
+          type="checkbox"
+          bind:checked={signed}
+          class="h-5 w-5 shrink-0 rounded border-slate-300 text-epi-teal accent-epi-teal focus:ring-epi-teal"
+        />
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+          Je signe le règlement intérieur
+        </span>
+      </label>
 
-    <div class="mt-6">
       <Button
         type="submit"
-        disabled={!scrolledEnough || !city.trim() || submitting}
+        disabled={!signed || !city.trim() || submitting}
         class="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
       >
-        Je signe le règlement intérieur
+        Continuer
       </Button>
     </div>
   </form>
