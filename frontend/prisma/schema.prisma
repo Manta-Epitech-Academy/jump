@@ -181,7 +181,6 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
-  level                       String    @default("Novice")
   xp                          Int       @default(0)
   eventsCount                 Int       @default(0)
   charterAcceptedAt           DateTime?
@@ -223,8 +222,11 @@ model Talent {
   reminders          OnboardingReminder[]
   minigameAttempts   MinigameAttempt[]
   interests          TalentInterest[]
+  xpGrants           XpGrant[]
   broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
   broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
+
+  @@index([xp])
 }
 
 // ─── Domain Tables ───
@@ -247,6 +249,7 @@ model Campus {
   featureFlags      CampusFeatureFlag[]
   broadcasts        Broadcast[]
   minigameAttempts  MinigameAttempt[]
+  xpGrants          XpGrant[]
 }
 
 model CmsPage {
@@ -1213,5 +1216,41 @@ model MinigameAttempt {
   @@index([eventId, publicationId])
   @@index([campusId, publicationId])
   @@index([publicationId])
+}
+
+// Append-only XP ledger. One row per granting fact, so a talent's balance is
+// always explainable ("which event gave how much"). Talent.xp is a cached
+// projection = SUM(amount), recomputed transactionally on every write — see
+// services/xpService.ts. Grants are upserted on (source, sourceId) and deleted
+// on reversal (unmark presence, remove participation, onboarding/dev reset), so
+// there is never a clamped Math.max() refund to drift out of sync.
+model XpGrant {
+  id        String        @id @default(cuid())
+  talentId  String
+  campusId  String?
+  source    XpGrantSource
+  // Stable dedupe key per source: onboarding→talentId, minigame→attemptId,
+  // activity_presence→participationId, admin_adjustment→null (never deduped:
+  // Postgres treats NULLs as distinct under the unique index).
+  sourceId  String?
+  amount    Int
+  note      String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  talent Talent  @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  campus Campus? @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  @@unique([source, sourceId])
+  @@index([talentId])
+  @@index([campusId])
+  @@index([source])
+}
+
+enum XpGrantSource {
+  onboarding
+  minigame
+  activity_presence
+  admin_adjustment
 }
 

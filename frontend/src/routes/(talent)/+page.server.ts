@@ -5,6 +5,7 @@ import { dev } from '$app/environment';
 import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
+import { revokeXp } from '$lib/server/services/xpService';
 import { env } from '$env/dynamic/private';
 import { getStartOfDay } from '$lib/utils';
 import {
@@ -319,19 +320,17 @@ export const actions: Actions = {
     const existing = await prisma.minigameAttempt.findUnique({ where });
 
     if (existing && existing.status !== 'pending') {
-      // Reset: refund any XP this attempt granted before dropping the row, so
-      // repeated dev toggles don't inflate the talent's balance.
-      await prisma.$transaction([
-        ...(existing.xpAwarded
-          ? [
-              prisma.talent.update({
-                where: { id: talentId },
-                data: { xp: { decrement: existing.xpAwarded } },
-              }),
-            ]
-          : []),
-        prisma.minigameAttempt.delete({ where: { id: existing.id } }),
-      ]);
+      // Reset: revoke this attempt's ledger grant before dropping the row, so
+      // repeated dev toggles don't inflate the talent's balance. Revoke first —
+      // the grant keys on the attempt id, which the delete would take away.
+      await prisma.$transaction(async (tx) => {
+        await revokeXp(tx, {
+          talentId,
+          source: 'minigame',
+          sourceId: existing.id,
+        });
+        await tx.minigameAttempt.delete({ where: { id: existing.id } });
+      });
       return { toggled: true, played: false };
     }
 

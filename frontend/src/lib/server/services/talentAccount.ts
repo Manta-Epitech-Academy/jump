@@ -1,5 +1,5 @@
 import { prisma } from '$lib/server/db';
-import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+import { revokeXp } from '$lib/server/services/xpService';
 
 /**
  * Ensure a talent has a linked `bauth_user` and return its id.
@@ -58,36 +58,30 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * This is a dev/QA affordance behind the admin-only impersonation page.
  *
  * Mirrors the inverse of the onboarding writes: nulls every gate timestamp the
- * guard checks plus `welcomeSeenAt`, and undoes the +50 XP bonus (only if it
- * was actually granted, never below zero) so a re-run nets back to the same XP
- * rather than stacking +50 each time.
+ * guard checks plus `welcomeSeenAt`, and revokes the onboarding XP grant so a
+ * re-run nets back to the same XP rather than stacking the bonus each time.
  *
  * Interest selections are intentionally left in place — the interest steps
  * pre-fill from them, which is the realistic returning-talent experience.
  */
 export async function resetTalentOnboarding(talentId: string): Promise<void> {
-  const talent = await prisma.talent.findUniqueOrThrow({
-    where: { id: talentId },
-    select: { id: true, xp: true, charterAcceptedAt: true },
-  });
-
-  const refundBonus = talent.charterAcceptedAt != null;
-  const xp = refundBonus
-    ? Math.max(0, talent.xp - WELCOME_XP_BONUS)
-    : talent.xp;
-
-  await prisma.talent.update({
-    where: { id: talent.id },
-    data: {
-      infoValidatedAt: null,
-      highSchoolValidatedAt: null,
-      techInterestsValidatedAt: null,
-      generalInterestsValidatedAt: null,
-      interestsRecapSeenAt: null,
-      rulesSignedAt: null,
-      charterAcceptedAt: null,
-      welcomeSeenAt: null,
-      xp,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.talent.update({
+      where: { id: talentId },
+      data: {
+        infoValidatedAt: null,
+        highSchoolValidatedAt: null,
+        techInterestsValidatedAt: null,
+        generalInterestsValidatedAt: null,
+        interestsRecapSeenAt: null,
+        rulesSignedAt: null,
+        charterAcceptedAt: null,
+        welcomeSeenAt: null,
+      },
+    });
+    // Idempotent: drops the onboarding grant if present, no-op otherwise — so a
+    // re-run nets back to the same XP rather than stacking the bonus, and the
+    // old `charterAcceptedAt` guard is no longer needed.
+    await revokeXp(tx, { talentId, source: 'onboarding', sourceId: talentId });
   });
 }

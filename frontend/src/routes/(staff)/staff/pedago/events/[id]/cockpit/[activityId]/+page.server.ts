@@ -3,6 +3,11 @@ import { error, fail } from '@sveltejs/kit';
 import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { prisma } from '$lib/server/db';
 import {
+  grantXp,
+  revokeXp,
+  recomputeEventsCount,
+} from '$lib/server/services/xpService';
+import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
@@ -128,28 +133,31 @@ async function syncEventPresence(
   });
 
   if (presenceChanged) {
+    // Campus is authorized by the scoped `db` read above; the ledger writes go
+    // through base `prisma` in one transaction so the grant/revoke and both
+    // cached projections (xp, eventsCount) commit atomically.
     const xpValue = getTotalXp(
       getXpEligibleActivities(participation.activities),
     );
 
-    if (presentInAny) {
-      await db.talent.update({
-        where: { id: participation.talentId },
-        data: { xp: { increment: xpValue }, eventsCount: { increment: 1 } },
-      });
-    } else {
-      const profile = await db.talent.findUniqueOrThrow({
-        where: { id: participation.talentId },
-        select: { xp: true, eventsCount: true },
-      });
-      await db.talent.update({
-        where: { id: participation.talentId },
-        data: {
-          xp: Math.max(0, profile.xp - xpValue),
-          eventsCount: Math.max(0, profile.eventsCount - 1),
-        },
-      });
-    }
+    await prisma.$transaction(async (tx) => {
+      if (presentInAny) {
+        await grantXp(tx, {
+          talentId: participation.talentId,
+          source: 'activity_presence',
+          sourceId: participation.id,
+          amount: xpValue,
+          campusId: participation.campusId,
+        });
+      } else {
+        await revokeXp(tx, {
+          talentId: participation.talentId,
+          source: 'activity_presence',
+          sourceId: participation.id,
+        });
+      }
+      await recomputeEventsCount(tx, participation.talentId);
+    });
   }
 }
 

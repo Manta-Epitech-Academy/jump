@@ -1,5 +1,6 @@
 import type { BroadcastAudience, BroadcastChannel } from '@prisma/client';
 import type { Niveau } from './niveau';
+import { JUMP_LEVELS, type JumpLevel } from './xp';
 
 export const BROADCAST_CHANNELS = [
   'mail',
@@ -161,8 +162,9 @@ export const BROADCAST_VARIABLE_TOKENS = BROADCAST_VARIABLES.map(
   (v) => v.token,
 );
 
-export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
-export type JumpLevel = (typeof JUMP_LEVELS)[number];
+// Canonical level catalogue lives in domain/xp.ts (derived from XP_LEVEL_TIERS),
+// re-exported here so broadcast filter consumers keep their import path.
+export { JUMP_LEVELS, type JumpLevel };
 
 export type TristateFilter = 'yes' | 'no' | 'any';
 

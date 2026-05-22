@@ -22,6 +22,60 @@ export const DIFFICULTY_XP: Record<string, number> = {
 };
 
 /**
+ * Talent level tiers, derived purely from XP. Single source of truth — the
+ * `Talent.level` column was dropped (it was never written and always read
+ * 'Novice'). `JUMP_LEVELS` (used by the broadcast audience filter) and
+ * `computeLevel` both flow from here so display, filtering, and DB stay
+ * consistent. `maxExclusive: null` marks the open-ended top tier.
+ */
+export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
+export type JumpLevel = (typeof JUMP_LEVELS)[number];
+
+export const XP_LEVEL_TIERS: {
+  level: JumpLevel;
+  min: number;
+  maxExclusive: number | null;
+}[] = [
+  { level: 'Novice', min: 0, maxExclusive: 200 },
+  { level: 'Apprentice', min: 200, maxExclusive: 500 },
+  { level: 'Expert', min: 500, maxExclusive: null },
+];
+
+/**
+ * Maps an XP total to its level tier. The only place levels are decided.
+ */
+export function computeLevel(xp: number): JumpLevel {
+  if (xp >= 500) return 'Expert';
+  if (xp >= 200) return 'Apprentice';
+  return 'Novice';
+}
+
+/** French display labels for the talent-facing UI. */
+export const LEVEL_LABELS_FR: Record<JumpLevel, string> = {
+  Novice: 'Novice',
+  Apprentice: 'Apprenti',
+  Expert: 'Expert ✦',
+};
+
+/** Convenience: the French label for a given XP total. */
+export function levelLabelFr(xp: number): string {
+  return LEVEL_LABELS_FR[computeLevel(xp)];
+}
+
+/**
+ * Resolves a level name back to its XP bounds — used by the broadcast filter to
+ * translate a chosen tier into an `xp` range query now that `level` is no
+ * longer a column. Falls back to the first tier for unknown names.
+ */
+export function xpRangeForLevel(level: string): {
+  min: number;
+  maxExclusive: number | null;
+} {
+  const tier = XP_LEVEL_TIERS.find((t) => t.level === level);
+  return tier ?? XP_LEVEL_TIERS[0];
+}
+
+/**
  * Calculates how much XP an activity is worth based on its difficulty.
  */
 export function getActivityXpValue(difficulte: string): number {

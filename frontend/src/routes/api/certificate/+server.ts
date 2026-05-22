@@ -4,6 +4,7 @@ import { generateCertificatePDF } from '$lib/server/services/diplomaGenerator';
 import { prisma } from '$lib/server/db';
 import { formatDateFr, tallyTopThemesFromActivities } from '$lib/utils';
 import { niveauLabel } from '$lib/domain/niveau';
+import { computeLevel } from '$lib/domain/xp';
 
 export const GET: RequestHandler = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorise');
@@ -85,7 +86,7 @@ export const GET: RequestHandler = async ({ locals }) => {
       hours: participations.length * 3,
       eventsAttended: participations.length,
       activitiesCompleted: activityMap.size,
-      level: locals.talent.level || 'Novice',
+      level: computeLevel(locals.talent.xp),
       topThemes,
       activities,
       todayDate: formatDateFr(new Date(), campusTimezone),

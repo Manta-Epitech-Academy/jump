@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { computeLevel } from '$lib/domain/xp';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
 import {
@@ -87,7 +88,6 @@ export const load: PageServerLoad = async ({ url }) => {
         email: true,
         niveau: true,
         userId: true,
-        level: true,
         xp: true,
         eventsCount: true,
         lastActiveAt: true,
@@ -123,7 +123,7 @@ export const load: PageServerLoad = async ({ url }) => {
     email: t.email,
     niveau: t.niveau,
     userId: t.userId,
-    level: t.level,
+    level: computeLevel(t.xp),
     xp: t.xp,
     eventsCount: t.eventsCount,
     lastActiveAt: t.lastActiveAt,
