@@ -1,6 +1,7 @@
 import { prisma } from '$lib/server/db';
 import { mintGameJwt } from '$lib/server/jwt';
 import { MINIGAME_XP_REWARD } from '$lib/domain/xp';
+import { grantXp } from '$lib/server/services/xpService';
 import type {
   MinigameAttempt,
   MinigamePublication,
@@ -209,8 +210,8 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
   // Increment + finalize together so the grant and the audit trail can't drift.
   const xpAwarded = payload.valid ? MINIGAME_XP_REWARD : null;
 
-  await prisma.$transaction([
-    prisma.minigameAttempt.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.minigameAttempt.update({
       where: { id: attempt.id },
       data: {
         status: payload.valid ? 'done' : 'invalid',
@@ -220,16 +221,17 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
         finishedAt: new Date(),
         xpAwarded,
       },
-    }),
-    ...(xpAwarded
-      ? [
-          prisma.talent.update({
-            where: { id: attempt.talentId },
-            data: { xp: { increment: xpAwarded } },
-          }),
-        ]
-      : []),
-  ]);
+    });
+    if (xpAwarded) {
+      await grantXp(tx, {
+        talentId: attempt.talentId,
+        source: 'minigame',
+        sourceId: attempt.id,
+        amount: xpAwarded,
+        campusId: attempt.campusId,
+      });
+    }
+  });
 }
 
 export async function pickNextPublication(): Promise<MinigamePublication | null> {

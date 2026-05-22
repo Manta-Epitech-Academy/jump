@@ -137,9 +137,20 @@ Prisma schema at `frontend/prisma/schema.prisma`. Key models:
 
 Data is campus-scoped. Themes tag activities across days without creating extra hierarchy.
 
+### Data modeling: facts as rows, state as projection
+
+Several domain tables are append-only fact/log records — `MinigameAttempt`, `TalentQuizAttempt`, `TalentObservableState`, `BroadcastRecipient`, `OnboardingReminder`, `XpGrant`. Current values that derive from them are **cached projections** recomputed transactionally on each write, not independently mutated (e.g. `Talent.xp` = `SUM(XpGrant.amount)`).
+
+When persisting a new domain fact, follow this shape rather than a mutable counter or a `Json` blob: the fact gets a row, and any aggregate is a projection refreshed in the same transaction. A bare counter is lossy — you can't explain, audit, or timestamp the value, and ad-hoc `Math.max(0, x - n)` adjustments drift. The XP ledger is the reference implementation (see below).
+
 ### XP System
 
-Activity difficulty determines XP: Débutant=20, Intermédiaire=45, Avancé=75. Student levels: Novice, Apprentice, Expert. Logic in `src/lib/domain/xp.ts`.
+XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (unique on `(source, sourceId)`; sources: `onboarding`, `minigame`, `activity_presence`, `admin_adjustment`). `Talent.xp` = `SUM(amount)` and `Talent.eventsCount` = present-participation count, both cached projections.
+
+- **Never mutate `Talent.xp` directly.** Go through `src/lib/server/services/xpService.ts` (`grantXp` / `revokeXp` / `recomputeTalentXp` / `recomputeEventsCount`), each taking a `Prisma.TransactionClient`. Mark-present upserts a grant; unmark/remove/reset deletes it.
+- Activity difficulty → XP: Débutant=20, Intermédiaire=45, Avancé=75 (`src/lib/domain/xp.ts`).
+- **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` / `levelLabelFr(xp)` (tiers: Novice 0–199, Apprentice 200–499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; the broadcast filter maps a tier to an `xp` range.
+- Backfill/repair: `scripts/backfill-xp-ledger.ts` (idempotent, `--dry-run`).
 
 ### Key Server Services (`src/lib/server/`)
 

@@ -2,6 +2,7 @@
   import { Separator } from '$lib/components/ui/separator';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import { formatDateFr } from '$lib/utils';
+  import { computeLevel } from '$lib/domain/xp';
   import { relativeFr } from './TalentStatStrip.svelte';
 
   /**
@@ -15,7 +16,6 @@
       infoValidatedAt: Date | null;
       lastActiveAt: Date | null;
       xp: number;
-      level: string | null;
       eventsCount: number;
     };
     firstLoginAt: Date | null;
@@ -23,6 +23,8 @@
   };
 
   let { student, firstLoginAt, timezone }: Props = $props();
+
+  const level = $derived(computeLevel(student.xp));
 
   const lastActiveRelative = $derived(relativeFr(student.lastActiveAt));
 </script>
@@ -101,12 +103,10 @@
         <dd class="mt-1 flex items-baseline gap-2">
           <span class="font-heading text-2xl text-epi-orange">{student.xp}</span
           >
-          {#if student.level}
-            <span
-              class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-              >{student.level}</span
-            >
-          {/if}
+          <span
+            class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+            >{level}</span
+          >
         </dd>
       </div>
       <div>

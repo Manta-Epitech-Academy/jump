@@ -8,7 +8,7 @@
   import { fly } from 'svelte/transition';
   import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+  import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
   import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
   import { EVENT_TYPE_LABELS, type EventType } from '$lib/domain/event';
@@ -152,13 +152,7 @@
     isStageUpcoming(upcomingParticipation?.event),
   );
 
-  let levelLabel = $derived(
-    student?.level === 'Expert'
-      ? 'Expert ✦'
-      : student?.level === 'Apprentice'
-        ? 'Apprenti'
-        : 'Novice',
-  );
+  let levelLabel = $derived(levelLabelFr(student?.xp ?? 0));
 
   let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
