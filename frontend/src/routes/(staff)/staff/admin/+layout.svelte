@@ -95,7 +95,7 @@
       class={navLinkClass(isActive('/staff/admin/sf-conflicts'))}
     >
       <GitCompareArrows class="h-4 w-4" />
-      <span>Conflits Salesforce</span>
+      <span>Divergences Salesforce</span>
     </a>
     <a
       href={resolve('/staff/admin/tickets')}
