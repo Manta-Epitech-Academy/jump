@@ -181,7 +181,6 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
-  level                       String    @default("Novice")
   xp                          Int       @default(0)
   eventsCount                 Int       @default(0)
   charterAcceptedAt           DateTime?
@@ -237,8 +236,11 @@ model Talent {
   reminders          OnboardingReminder[]
   minigameAttempts   MinigameAttempt[]
   interests          TalentInterest[]
+  xpGrants           XpGrant[]
   broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
   broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
+
+  @@index([xp])
 }
 
 // ─── Domain Tables ───
@@ -261,6 +263,8 @@ model Campus {
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
   broadcasts        Broadcast[]
+  minigameAttempts  MinigameAttempt[]
+  xpGrants          XpGrant[]
 }
 
 model CmsPage {
@@ -1200,7 +1204,8 @@ model MinigameAttempt {
   id            String                @id @default(cuid())
   talentId      String
   publicationId String
-  eventId       String
+  eventId       String?
+  campusId      String?
   status        MinigameAttemptStatus @default(pending)
   score         Int?
   chrono        Int?
@@ -1208,13 +1213,59 @@ model MinigameAttempt {
   startedAt     DateTime              @default(now())
   finishedAt    DateTime?
   jti           String                @unique
+  // XP granted for finishing this attempt (null = none, e.g. an invalid run or
+  // a pre-feature row). Source of truth for the award — set once in the
+  // callback, so a retried callback can't double-pay.
+  xpAwarded     Int?
+  // When the talent saw the "+XP" arrival celebration on the dashboard. Null
+  // while xpAwarded is set ⇒ a fresh win still to be celebrated (mirrors
+  // Talent.welcomeSeenAt). Gates the one-shot float so it can't replay.
+  xpSeenAt      DateTime?
 
   talent      Talent              @relation(fields: [talentId], references: [id], onDelete: Cascade)
   publication MinigamePublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
-  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event       Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  campus      Campus?             @relation(fields: [campusId], references: [id], onDelete: SetNull)
 
   @@unique([talentId, publicationId])
   @@index([eventId, publicationId])
+  @@index([campusId, publicationId])
   @@index([publicationId])
+}
+
+// Append-only XP ledger. One row per granting fact, so a talent's balance is
+// always explainable ("which event gave how much"). Talent.xp is a cached
+// projection = SUM(amount), recomputed transactionally on every write — see
+// services/xpService.ts. Grants are upserted on (source, sourceId) and deleted
+// on reversal (unmark presence, remove participation, onboarding/dev reset), so
+// there is never a clamped Math.max() refund to drift out of sync.
+model XpGrant {
+  id        String        @id @default(cuid())
+  talentId  String
+  campusId  String?
+  source    XpGrantSource
+  // Stable dedupe key per source: onboarding→talentId, minigame→attemptId,
+  // activity_presence→participationId, admin_adjustment→null (never deduped:
+  // Postgres treats NULLs as distinct under the unique index).
+  sourceId  String?
+  amount    Int
+  note      String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  talent Talent  @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  campus Campus? @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  @@unique([source, sourceId])
+  @@index([talentId])
+  @@index([campusId])
+  @@index([source])
+}
+
+enum XpGrantSource {
+  onboarding
+  minigame
+  activity_presence
+  admin_adjustment
 }
 

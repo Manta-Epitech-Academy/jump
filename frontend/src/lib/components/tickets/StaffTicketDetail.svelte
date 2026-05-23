@@ -13,7 +13,14 @@
   import { TICKET_CATEGORY_LABELS } from '$lib/domain/tickets';
   import TicketThread from '$lib/components/tickets/TicketThread.svelte';
   import { toast } from 'svelte-sonner';
-  import { track } from '$lib/analytics';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
+
+  function hoursSince(iso: string): number {
+    return Math.max(0, Math.floor((secondsBetween(iso) ?? 0) / 3600));
+  }
+  function minutesSince(iso: string): number {
+    return Math.max(0, Math.floor((secondsBetween(iso) ?? 0) / 60));
+  }
 
   type Message = {
     id: string;
@@ -90,12 +97,25 @@
           use:enhance={() =>
             ({ result, update }) => {
               if (result.type === 'success') {
-                track('ticket_replied', { side: 'author' });
+                const lastAdminMsg = [...ticket.messages]
+                  .reverse()
+                  .find((m) => m.side === 'admin');
+                track('ticket_replied', {
+                  side: 'author',
+                  category: ticket.category,
+                  ticketAgeHours: hoursSince(ticket.createdAt),
+                  responseTimeMin: lastAdminMsg
+                    ? minutesSince(lastAdminMsg.createdAt)
+                    : null,
+                });
                 body = '';
                 toast.success('Message envoyé');
                 update();
               } else if (result.type === 'failure') {
-                track('ticket_reply_failed', { side: 'author' });
+                track('ticket_reply_failed', {
+                  side: 'author',
+                  reason: errReason(result),
+                });
                 toast.error("Échec de l'envoi");
               }
             }}

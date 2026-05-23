@@ -30,7 +30,7 @@
     activityTypes,
     activityTypeLabels,
   } from '$lib/validation/templates';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -43,6 +43,10 @@
             isEditing
               ? 'official_template_updated'
               : 'official_template_created',
+            {
+              activityType: $form.activityType,
+              difficulty: $form.difficulte || null,
+            },
           );
           open = false;
           toast.success(result.data?.form?.message);
@@ -51,6 +55,10 @@
             isEditing
               ? 'official_template_update_failed'
               : 'official_template_create_failed',
+            {
+              reason: errReason(result),
+              activityType: $form.activityType,
+            },
           );
         }
       },

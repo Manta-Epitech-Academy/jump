@@ -131,6 +131,25 @@
   --sidebar-hover: rgba(255, 255, 255, 0.06);
 }
 
+/* Talent ("camper") surface skin.
+   Dialogs and drawers portal to <body>, escaping `.camper-layout`, so they
+   never inherit the talent slate palette — they fall back to the staff tokens
+   (2px corners, gray-0 panel, blue focus ring) and read as off-theme against
+   the soft, white-card talent UI. This class re-skins the semantic tokens on
+   the surface element itself (CSS vars cascade to the element regardless of
+   portal location) so the base Dialog/Drawer match talent cards: soft corners,
+   white card surface, teal focus ring. Opt in via `class` on any portaled
+   talent surface. */
+.talent-surface {
+  --radius: 0.75rem;
+  --background: var(--card);
+  --border: var(--color-gray-2);
+  --ring: var(--epi-teal-solid);
+}
+.dark .talent-surface {
+  --border: var(--color-dark-5);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -407,6 +426,19 @@
 
 .animate-xp-float {
   animation: xp-float 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --- View transitions --- */
+@media (prefers-reduced-motion: no-preference) {
+  /* The welcome message has one `view-transition-name` shared between the
+     /welcome page (full, card-shaped) and the dashboard's Actualités card. On
+     "Accéder au tableau de bord" the browser morphs one into the other, so the
+     message visibly travels into its permanent home. Slow it slightly and ease
+     it so the travel reads as deliberate rather than a snap. */
+  ::view-transition-group(welcome-message) {
+    animation-duration: 500ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
 /* --- Focus Mode Kiosk Overrides --- */

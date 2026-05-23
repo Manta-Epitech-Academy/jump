@@ -5,9 +5,12 @@
   import BookOpen from '@lucide/svelte/icons/book-open';
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
-  import { track } from '$lib/analytics';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
 
   let { error: formError }: { error?: string } = $props();
+
+  // Timestamp when the rules were first shown — feeds the "time to sign" metric.
+  const seenAt = Date.now();
 
   let submitting = $state(false);
   let city = $state('');
@@ -52,13 +55,13 @@
     submitting = true;
     return async ({ result, update }) => {
       if (result.type === 'redirect') {
-        track('rules_signed');
-        track('onboarding_completed');
+        track('rules_signed', { secondsToSign: secondsBetween(seenAt) });
+        track('onboarding_completed', { step: 'rules' });
         goto(result.location, { invalidateAll: true });
         return;
       }
       if (result.type === 'failure') {
-        track('rules_signing_failed');
+        track('rules_signing_failed', { reason: errReason(result) });
       }
       await update();
       submitting = false;

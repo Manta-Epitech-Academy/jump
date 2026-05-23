@@ -87,6 +87,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       email: e.email,
       message: e.message,
       occurrenceCount: e.occurrenceCount,
+      createdAt: e.createdAt.toISOString(),
       lastOccurredAt: e.lastOccurredAt.toISOString(),
       eventName: event?.titre ?? null,
       isStage,

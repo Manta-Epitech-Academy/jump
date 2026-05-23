@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { prisma } from '$lib/server/db';
+import { revokeXp, recomputeEventsCount } from '$lib/server/services/xpService';
 import {
   getCampusId,
   getCampusTimezone,
@@ -242,25 +242,23 @@ export const actions: Actions = {
     try {
       const p = await db.participation.findFirstOrThrow({
         where: { id, eventId: params.id },
-        include: { activities: { include: { activity: true } } },
+        select: { id: true, talentId: true, isPresent: true },
       });
 
-      if (p.isPresent) {
-        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
-        const profile = await prisma.talent.findUniqueOrThrow({
-          where: { id: p.talentId },
-          select: { xp: true, eventsCount: true },
-        });
-        await prisma.talent.update({
-          where: { id: p.talentId },
-          data: {
-            xp: Math.max(0, profile.xp - xpValue),
-            eventsCount: Math.max(0, profile.eventsCount - 1),
-          },
-        });
-      }
-
-      await prisma.participation.delete({ where: { id } });
+      // Campus is authorized by the scoped `db` read above. Revoke the presence
+      // grant (keyed on the participation id) before deleting the row, then
+      // refresh the cached event count — all atomic.
+      await prisma.$transaction(async (tx) => {
+        if (p.isPresent) {
+          await revokeXp(tx, {
+            talentId: p.talentId,
+            source: 'activity_presence',
+            sourceId: p.id,
+          });
+        }
+        await tx.participation.delete({ where: { id } });
+        await recomputeEventsCount(tx, p.talentId);
+      });
       return { success: true };
     } catch {
       return fail(500);

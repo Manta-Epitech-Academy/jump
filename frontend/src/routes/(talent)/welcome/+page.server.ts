@@ -46,7 +46,13 @@ export const load: PageServerLoad = async ({ locals }) => {
     .replace(/\{\{NOM\}\}/gi, locals.talent.nom);
 
   const alreadySeen = !!locals.talent.welcomeSeenAt;
-  return { cmsContent, alreadySeen, prenom: locals.talent.prenom };
+  return {
+    cmsContent,
+    alreadySeen,
+    prenom: locals.talent.prenom,
+    eventId: stageParticipation.event.id,
+    talentCreatedAt: locals.talent.createdAt.toISOString(),
+  };
 };
 
 export const actions: Actions = {
@@ -58,7 +64,9 @@ export const actions: Actions = {
       data: { welcomeSeenAt: new Date() },
     });
 
-    // Redirect to onboarding instead of home
+    // The message has been read here; welcome runs before onboarding, so hand
+    // off to the onboarding flow. The dashboard celebration fires later, once
+    // onboarding completes and redirects with `?welcome=1`.
     throw redirect(303, resolve('/onboarding'));
   },
 };

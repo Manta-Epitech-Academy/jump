@@ -125,7 +125,9 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Welcome guard: redirect to /welcome BEFORE onboarding (first visit only)
+    // Welcome guard: redirect to /welcome BEFORE onboarding (first visit only).
+    // The staff message gets read in full, then markSeen hands off to
+    // onboarding. Once seen, this short-circuits before the query below.
     if (
       event.locals.talent &&
       !event.locals.talent.welcomeSeenAt &&

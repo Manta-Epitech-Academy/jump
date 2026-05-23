@@ -1,7 +1,13 @@
 import type { PageServerLoad, Actions } from './$types';
+import type { Prisma } from '@prisma/client';
 import { error, fail } from '@sveltejs/kit';
 import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { prisma } from '$lib/server/db';
+import {
+  grantXp,
+  revokeXp,
+  recomputeEventsCount,
+} from '$lib/server/services/xpService';
 import {
   getCampusId,
   getCampusTimezone,
@@ -100,11 +106,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   };
 };
 
+/**
+ * Recomputes a participation's presence/delay from its orga activities and syncs
+ * the XP ledger + cached projections to match. Runs entirely on the caller's
+ * transaction client, so the presence row and the ledger commit atomically —
+ * there is no window where `isPresent` is flipped without its matching grant.
+ * Campus authorization is the caller's responsibility (a scoped read in front of
+ * the transaction).
+ */
 async function syncEventPresence(
+  tx: Prisma.TransactionClient,
   participationId: string,
-  db: ReturnType<typeof scopedPrisma>,
 ) {
-  const participation = await db.participation.findUniqueOrThrow({
+  const participation = await tx.participation.findUniqueOrThrow({
     where: { id: participationId },
     include: { activities: { include: { activity: true } } },
   });
@@ -122,35 +136,30 @@ async function syncEventPresence(
   const delayChanged = (participation.delay ?? 0) !== maxDelay;
   if (!presenceChanged && !delayChanged) return;
 
-  await db.participation.update({
+  await tx.participation.update({
     where: { id: participationId },
     data: { isPresent: presentInAny, delay: maxDelay },
   });
 
-  if (presenceChanged) {
-    const xpValue = getTotalXp(
-      getXpEligibleActivities(participation.activities),
-    );
+  if (!presenceChanged) return;
 
-    if (presentInAny) {
-      await db.talent.update({
-        where: { id: participation.talentId },
-        data: { xp: { increment: xpValue }, eventsCount: { increment: 1 } },
-      });
-    } else {
-      const profile = await db.talent.findUniqueOrThrow({
-        where: { id: participation.talentId },
-        select: { xp: true, eventsCount: true },
-      });
-      await db.talent.update({
-        where: { id: participation.talentId },
-        data: {
-          xp: Math.max(0, profile.xp - xpValue),
-          eventsCount: Math.max(0, profile.eventsCount - 1),
-        },
-      });
-    }
+  const xpValue = getTotalXp(getXpEligibleActivities(participation.activities));
+  if (presentInAny) {
+    await grantXp(tx, {
+      talentId: participation.talentId,
+      source: 'activity_presence',
+      sourceId: participation.id,
+      amount: xpValue,
+      campusId: participation.campusId,
+    });
+  } else {
+    await revokeXp(tx, {
+      talentId: participation.talentId,
+      source: 'activity_presence',
+      sourceId: participation.id,
+    });
   }
+  await recomputeEventsCount(tx, participation.talentId);
 }
 
 export const actions: Actions = {
@@ -163,19 +172,31 @@ export const actions: Actions = {
 
     try {
       const isNowPresent = !currentState;
-      await db.participationActivity.update({
-        where: {
-          participationId_activityId: {
-            participationId: id,
-            activityId: params.activityId,
-          },
-        },
-        data: {
-          isPresent: isNowPresent,
-          ...(isNowPresent ? {} : { delay: 0 }),
-        },
+      // Authorize the participation's campus once via the scoped client (throws
+      // 403 cross-campus), then run every write — the activity toggle, the
+      // recomputed participation presence, and the XP ledger — in one
+      // transaction so a mid-flight failure can't leave presence flipped
+      // without its matching grant.
+      await db.participation.findUniqueOrThrow({
+        where: { id },
+        select: { id: true },
       });
-      await syncEventPresence(id, db);
+
+      await prisma.$transaction(async (tx) => {
+        await tx.participationActivity.update({
+          where: {
+            participationId_activityId: {
+              participationId: id,
+              activityId: params.activityId,
+            },
+          },
+          data: {
+            isPresent: isNowPresent,
+            ...(isNowPresent ? {} : { delay: 0 }),
+          },
+        });
+        await syncEventPresence(tx, id);
+      });
       return { success: true };
     } catch (err) {
       console.error('togglePresent failed', err);
@@ -193,16 +214,23 @@ export const actions: Actions = {
     const db = scopedPrisma(getCampusId(locals));
 
     try {
-      await db.participationActivity.update({
-        where: {
-          participationId_activityId: {
-            participationId: id,
-            activityId: params.activityId,
-          },
-        },
-        data: { delay, isPresent: true },
+      await db.participation.findUniqueOrThrow({
+        where: { id },
+        select: { id: true },
       });
-      await syncEventPresence(id, db);
+
+      await prisma.$transaction(async (tx) => {
+        await tx.participationActivity.update({
+          where: {
+            participationId_activityId: {
+              participationId: id,
+              activityId: params.activityId,
+            },
+          },
+          data: { delay, isPresent: true },
+        });
+        await syncEventPresence(tx, id);
+      });
       return { success: true };
     } catch (err) {
       console.error('updateDelay failed', err);

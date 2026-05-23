@@ -12,7 +12,7 @@
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import { track } from '$lib/analytics';
+  import { track, daysBetween } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -166,7 +166,11 @@
         method="POST"
         use:enhance={() => {
           deleting = true;
-          track('account_deletion_requested');
+          track('account_deletion_requested', {
+            accountAgeDays: daysBetween(student?.createdAt),
+            lastActiveDaysAgo: daysBetween(student?.lastActiveAt),
+            participationsCount: data.participationsCount ?? null,
+          });
           return async ({ update }) => {
             await update();
             deleting = false;

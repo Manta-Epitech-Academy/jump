@@ -39,6 +39,8 @@
           track('manta_signal_toggled', {
             from: previousStatus,
             to: progress.status,
+            activityId: progress.activityId,
+            eventId: progress.eventId,
           });
           mantaCooldown = true;
           setTimeout(() => (mantaCooldown = false), 5000);

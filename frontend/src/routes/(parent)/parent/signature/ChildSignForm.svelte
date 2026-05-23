@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   interface Props {
     child: { id: string; prenom: string; nom: string };
@@ -45,7 +45,9 @@
         if (result.type === 'success' || result.type === 'redirect') {
           track('parent_image_rights_signed');
         } else if (result.type === 'failure') {
-          track('parent_image_rights_signing_failed');
+          track('parent_image_rights_signing_failed', {
+            reason: errReason(result),
+          });
         }
         await update();
         submitting = false;

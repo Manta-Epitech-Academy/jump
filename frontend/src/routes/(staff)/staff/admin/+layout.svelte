@@ -4,6 +4,7 @@
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import Map from '@lucide/svelte/icons/map';
   import Users from '@lucide/svelte/icons/users';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import Tags from '@lucide/svelte/icons/tags';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Menu from '@lucide/svelte/icons/menu';
@@ -25,7 +26,7 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { fly, fade } from 'svelte/transition';
-  import { track } from '$lib/analytics';
+  import { track, secondsBetween } from '$lib/analytics';
 
   let { children, data } = $props();
 
@@ -167,6 +168,13 @@
       <Users class="h-4 w-4" />
       <span>Membres & invitations</span>
     </a>
+    <a
+      href={resolve('/staff/admin/talents')}
+      class={navLinkClass(isActive('/staff/admin/talents'))}
+    >
+      <GraduationCap class="h-4 w-4" />
+      <span>Talents</span>
+    </a>
   </nav>
 
   <div
@@ -285,7 +293,13 @@
             <form
               action="{resolve('/logout')}?type=admin"
               method="POST"
-              onsubmit={() => track('logout', { kind: 'admin' })}
+              onsubmit={() =>
+                track('logout', {
+                  kind: 'admin',
+                  sessionDurationSec: secondsBetween(
+                    page.data.session?.createdAt as Date | string | undefined,
+                  ),
+                })}
             >
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item
