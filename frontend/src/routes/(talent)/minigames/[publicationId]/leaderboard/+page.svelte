@@ -11,6 +11,12 @@
     if (ms === null) return '—';
     return `${(ms / 1000).toFixed(1)}s`;
   }
+
+  // Minors are involved — show first name + last initial only.
+  function displayName(prenom: string, nom: string): string {
+    const initial = nom.trim().charAt(0).toUpperCase();
+    return initial ? `${prenom} ${initial}.` : prenom;
+  }
 </script>
 
 <div class="mx-auto max-w-3xl space-y-4 p-4 md:p-6">
@@ -28,7 +34,9 @@
           {data.publication.game} · niveau {data.publication.level}
         </h1>
         <p class="text-xs text-slate-500 dark:text-slate-400">
-          Classement de ton campus
+          {data.campusName
+            ? `Classement de ${data.campusName}`
+            : 'Classement général'}
         </p>
       </div>
     </div>
@@ -66,7 +74,7 @@
                 {row.rank}
               </td>
               <td class="py-2 text-slate-700 dark:text-slate-300">
-                {row.talentName}
+                {displayName(row.prenom, row.nom)}
                 {#if row.talentId === data.currentTalentId}
                   <span class="ml-1 text-xs text-epi-orange">(toi)</span>
                 {/if}

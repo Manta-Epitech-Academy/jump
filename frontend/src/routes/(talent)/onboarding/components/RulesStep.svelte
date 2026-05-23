@@ -4,11 +4,13 @@
   import BookOpen from '@lucide/svelte/icons/book-open';
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
-  import { track } from '$lib/analytics';
-  import { triggerConfetti } from '$lib/actions/confetti';
-  import { fly, fade } from 'svelte/transition';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
+  import { fly } from 'svelte/transition';
 
   let { error: formError }: { error?: string } = $props();
+
+  // Timestamp when the rules were first shown — feeds the "time to sign" metric.
+  const seenAt = Date.now();
 
   let accepted = $state(false);
   let submitting = $state(false);
@@ -56,17 +58,20 @@
       submitting = true;
       return async ({ result, update }) => {
         if (result.type === 'redirect') {
-          track('rules_signed');
-          track('onboarding_completed');
+          const seconds = secondsBetween(seenAt);
+          track('rules_signed', { secondsToSign: seconds });
+          track('onboarding_completed', { step: 'rules' });
           completed = true;
-          triggerConfetti();
+          // No confetti here — the dashboard arrival owns the celebration
+          // (confetti + XP + welcome message). This screen is just the lead-in
+          // that view-transitions into it. Hold briefly so it's seen.
           setTimeout(() => {
             update();
-          }, 2500);
+          }, 1600);
           return;
         }
         if (result.type === 'failure') {
-          track('rules_signing_failed');
+          track('rules_signing_failed', { reason: errReason(result) });
         }
         await update();
         submitting = false;

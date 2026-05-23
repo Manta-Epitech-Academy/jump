@@ -9,7 +9,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw error(401, 'Non autorisé');
   }
 
-  return { talent: locals.talent };
+  const participationsCount = await prisma.participation.count({
+    where: { talentId: locals.talent.id },
+  });
+
+  return { talent: locals.talent, participationsCount };
 };
 
 export const actions: Actions = {

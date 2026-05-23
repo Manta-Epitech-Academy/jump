@@ -21,7 +21,7 @@
   import MantaSignalButton from './components/MantaSignalButton.svelte';
   import type { ActivityStep } from '$lib/server/services/progressService';
   import { onMount } from 'svelte';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
@@ -92,8 +92,10 @@
   onMount(() => {
     track('activity_opened', {
       activityId: data.activity.id,
-      type: data.activity.activityType,
+      activityType: data.activity.activityType,
+      difficulty: data.activity.niveauDifficulte ?? null,
       isDynamic: data.activity.isDynamic,
+      eventId: data.eventId,
     });
   });
 </script>
@@ -301,10 +303,18 @@
                     if (result.type === 'success') {
                       track('activity_feedback_submitted', {
                         rating: feedbackRating ?? null,
+                        hasComment: !!feedbackText.trim(),
+                        activityId: data.activity.id,
+                        activityType: data.activity.activityType,
+                        eventId: data.eventId,
                       });
                       toast.success('Feedback envoyé !');
                     } else {
-                      track('activity_feedback_failed');
+                      track('activity_feedback_failed', {
+                        reason: errReason(result),
+                        activityId: data.activity.id,
+                        eventId: data.eventId,
+                      });
                       toast.error("Erreur lors de l'envoi du feedback");
                     }
                     await update();

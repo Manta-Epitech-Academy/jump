@@ -15,6 +15,15 @@ export const EVENT_TYPE_VALUES = Object.values(EVENT_TYPES) as EventType[];
 export const STAGE_SECONDE_LABEL = 'Stage de Seconde';
 
 /**
+ * Human label per event type, for talent-facing copy where the per-event
+ * `titre` (which carries cohort dates/suffixes) would be noise.
+ */
+export const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  [EVENT_TYPES.STAGE_SECONDE]: STAGE_SECONDE_LABEL,
+  [EVENT_TYPES.CODING_CLUB]: 'Coding Club',
+};
+
+/**
  * Whether an event type carries a transversal theme. Allow-list: a stage
  * cohort has no single theme (activities span many), only year-round
  * coding-club sessions do. New event types default to no-theme until they

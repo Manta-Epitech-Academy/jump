@@ -11,6 +11,8 @@ import {
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
+import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+import { grantXp } from '$lib/server/services/xpService';
 
 export type OnboardingStep =
   | 'info-validation'
@@ -410,16 +412,26 @@ export const actions: Actions = {
     const key = `documents/${locals.talent.id}/rules-${now.getTime()}.pdf`;
     await storage.save(key, pdf);
 
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: {
-        rulesSignedAt: now,
-        rulesFilePath: key,
-        charterAcceptedAt: now,
-        xp: { increment: 50 },
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: locals.talent!.id },
+        data: {
+          rulesSignedAt: now,
+          rulesFilePath: key,
+          charterAcceptedAt: now,
+        },
+      });
+      await grantXp(tx, {
+        talentId: locals.talent!.id,
+        source: 'onboarding',
+        sourceId: locals.talent!.id,
+        amount: WELCOME_XP_BONUS,
+      });
     });
 
+    // Head to the dashboard with the one-shot celebration signal. If a CMS
+    // welcome message exists, the guard intercepts to /welcome first; that page
+    // re-emits `?welcome=1` after the read, so the celebration fires either way.
     throw redirect(303, resolve('/?welcome=1'));
   },
 };

@@ -7,11 +7,15 @@
 
   import LoginEmailStep from './components/LoginEmailStep.svelte';
   import LoginOtpStep from './components/LoginOtpStep.svelte';
-  import { track } from '$lib/analytics';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
 
   let { data } = $props();
 
   let step = $state<'email' | 'otp'>('email');
+  // Track funnel timings so we can spot OTP latency or repeated retries.
+  let otpEmailSentAt = $state<number | null>(null);
+  let emailAttempts = $state(0);
+  let codeAttempts = $state(0);
 
   const {
     form: emailForm,
@@ -25,11 +29,15 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.valid && form.message?.type === 'success') {
-          track('talent_otp_email_submitted');
+          otpEmailSentAt = Date.now();
+          track('talent_otp_email_submitted', { attempt: ++emailAttempts });
           $otpForm.email = $emailForm.email.toLowerCase().trim();
           step = 'otp';
         } else if (form.message?.type === 'error') {
-          track('talent_otp_email_failed');
+          track('talent_otp_email_failed', {
+            attempt: ++emailAttempts,
+            reason: errReason(form.message),
+          });
         }
       },
     },
@@ -47,11 +55,18 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.message?.type === 'error') {
-          track('talent_otp_code_failed');
+          track('talent_otp_code_failed', {
+            attempt: codeAttempts,
+            reason: errReason(form.message),
+            secondsSinceEmail: secondsBetween(otpEmailSentAt),
+          });
         }
       },
       onSubmit: () => {
-        track('talent_otp_code_submitted');
+        track('talent_otp_code_submitted', {
+          attempt: ++codeAttempts,
+          secondsSinceEmail: secondsBetween(otpEmailSentAt),
+        });
       },
     },
   );

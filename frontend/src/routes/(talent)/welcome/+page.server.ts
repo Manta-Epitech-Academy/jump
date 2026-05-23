@@ -43,7 +43,12 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   const alreadySeen = !!locals.talent.welcomeSeenAt;
-  return { cmsContent: page.content, alreadySeen };
+  return {
+    cmsContent: page.content,
+    alreadySeen,
+    eventId: stageParticipation.event.id,
+    talentCreatedAt: locals.talent.createdAt.toISOString(),
+  };
 };
 
 export const actions: Actions = {
@@ -55,6 +60,9 @@ export const actions: Actions = {
       data: { welcomeSeenAt: new Date() },
     });
 
-    throw redirect(303, resolve('/'));
+    // The message has been read here; hand off to the dashboard with the
+    // one-shot celebration signal. The card there shares this card's
+    // `view-transition-name`, so the message morphs into its permanent home.
+    throw redirect(303, resolve('/?welcome=1'));
   },
 };

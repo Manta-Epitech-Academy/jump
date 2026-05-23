@@ -169,7 +169,11 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Welcome guard: redirect to /welcome on first visit (not yet seen)
+    // Welcome guard: first visit after signing the rules (not yet seen), route
+    // through /welcome so the staff message gets read in full. From there it
+    // morphs into the dashboard's Actualités card (its permanent home) and the
+    // arrival celebration fires. Once seen, this short-circuits before the
+    // query below.
     if (
       event.locals.talent &&
       event.locals.talent.charterAcceptedAt &&

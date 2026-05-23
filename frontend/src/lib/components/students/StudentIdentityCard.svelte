@@ -1,5 +1,6 @@
 <script lang="ts">
   import { niveauLabel } from '$lib/domain/niveau';
+  import { computeLevel, levelLabelFr } from '$lib/domain/xp';
   import type { Snippet } from 'svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
   import * as Card from '$lib/components/ui/card';
@@ -105,12 +106,12 @@
           variant="outline"
           class={cn(
             'mt-2 mb-2 px-4 py-1 text-xs font-black tracking-widest uppercase shadow-sm dark:shadow-none',
-            student.xp >= 500
+            computeLevel(student.xp) === 'Expert'
               ? 'shiny-badge border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
               : 'border-border text-muted-foreground',
           )}
         >
-          {student.xp >= 500 ? 'Expert ✦' : 'Novice'}
+          {levelLabelFr(student.xp)}
         </Badge>
         <span
           class="text-4xl font-black tracking-tighter text-foreground italic"
