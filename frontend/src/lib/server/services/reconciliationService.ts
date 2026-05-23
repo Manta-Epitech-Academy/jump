@@ -190,56 +190,21 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
 }
 
 /**
- * Resolution is per field, never per talent: the diff list is field-grained (and
- * so is the CSV export), so siding with one source on one field must not silently
- * rewrite the others — including ones that never surfaced (e.g. a
- * `civilite='autre'` the diff deliberately hides). Each call touches exactly the
- * one column the reviewer acted on.
+ * There is deliberately no "keep Jump" / accept action. Jump is already
+ * authoritative (optimistic model): the talent's value shows everywhere that
+ * matters, so siding with Jump is the default, not a click. A diff is a *to-do
+ * to fix Salesforce*, not a decision pending in Jump — it stays listed (and in
+ * the CSV) until Salesforce actually carries the value, at which point the next
+ * sync re-aligns the mirror and the row clears on its own. Realigning the mirror
+ * by hand here would only drop the row from the export *before* the value
+ * reached Salesforce — i.e. lose exactly the data the export exists to push.
+ *
+ * The one manual action is the reverse: deciding Salesforce is right after all.
+ * Resolution is per field, never per talent (the diff list and the CSV are both
+ * field-grained), so it touches exactly the one column the reviewer acted on and
+ * never the others — including ones that never surfaced (e.g. a `civilite='autre'`
+ * the diff deliberately hides).
  */
-
-/**
- * Accept the Jump side for one field: realign the mirror to the talent's
- * confirmed value, so that diff clears. Use after the value has been (or will be)
- * pushed to Salesforce — the next sync that brings the same value is then a
- * no-op; until then the mirror is intentionally ahead of SF. For a `missing`
- * field this is how the reviewer marks "pushed to Salesforce".
- */
-export async function acceptJumpField(
-  talentId: string,
-  field: DiffField,
-): Promise<void> {
-  const t = await prisma.talent.findUniqueOrThrow({
-    where: { id: talentId },
-    select: {
-      nom: true,
-      prenom: true,
-      phone: true,
-      civilite: true,
-      schoolId: true,
-    },
-  });
-
-  const data: Prisma.TalentSfImportUncheckedUpdateInput = {};
-  switch (field) {
-    case 'nom':
-      data.nom = t.nom;
-      break;
-    case 'prenom':
-      data.prenom = t.prenom;
-      break;
-    case 'phone':
-      data.phone = t.phone;
-      break;
-    case 'civilite':
-      data.civilite = t.civilite;
-      break;
-    case 'school':
-      data.sfSchoolId = t.schoolId;
-      break;
-  }
-
-  await prisma.talentSfImport.update({ where: { talentId }, data });
-}
 
 /**
  * Side with Salesforce for one field: overwrite the talent's confirmed value with

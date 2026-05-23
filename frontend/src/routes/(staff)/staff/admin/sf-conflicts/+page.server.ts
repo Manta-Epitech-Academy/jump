@@ -2,7 +2,6 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
   listSalesforceDiffs,
-  acceptJumpField,
   adoptSalesforceField,
   isDiffField,
 } from '$lib/server/services/reconciliationService';
@@ -27,19 +26,11 @@ function readTarget(data: FormData) {
 }
 
 export const actions: Actions = {
-  // Keep the talent-confirmed value for this field; realign the SF mirror so the
-  // diff clears (the value is pushed to Salesforce by hand, via the CSV export,
-  // before or after).
-  acceptJump: async ({ request, locals }) => {
-    if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
-    const target = readTarget(await request.formData());
-    if (!target) return fail(400);
-    await acceptJumpField(target.talentId, target.field);
-    return { success: true };
-  },
-
-  // Side with Salesforce for this field: overwrite the talent's value with the
-  // SF claim. Only meaningful for a `conflict` (SF has a value to adopt).
+  // The only manual resolution: decide Salesforce is right and overwrite the
+  // talent's value with the SF claim. Jump winning is the default (no action) —
+  // the diff stays listed, and in the CSV export, until Salesforce carries the
+  // value and the next sync clears it. Only offered for a `conflict` (SF has a
+  // value to adopt; a `missing` field has nothing).
   adoptSf: async ({ request, locals }) => {
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
     const target = readTarget(await request.formData());
