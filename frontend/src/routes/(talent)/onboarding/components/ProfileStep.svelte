@@ -12,6 +12,7 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Plus from '@lucide/svelte/icons/plus';
   import X from '@lucide/svelte/icons/x';
+  import { CIVILITE_OPTIONS, PARENT_TYPE_OPTIONS } from '$lib/domain/profile';
 
   let {
     profile,
@@ -135,18 +136,6 @@
     suggestions = [];
     searched = false;
   }
-
-  const CIVILITE_OPTIONS = [
-    { value: 'homme', label: 'Homme' },
-    { value: 'femme', label: 'Femme' },
-    { value: 'autre', label: 'Autre' },
-  ];
-
-  const PARENT_TYPE_OPTIONS = [
-    { value: 'pere', label: 'Père' },
-    { value: 'mere', label: 'Mère' },
-    { value: 'referent', label: 'Référent légal' },
-  ];
 </script>
 
 <div class="mb-6 text-center">

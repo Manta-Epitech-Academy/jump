@@ -1,16 +1,18 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { civiliteLabel, parentTypeLabel } from '$lib/domain/profile';
 
 /**
  * Diff between the talent's confirmed profile (Jump truth, on `Talent`) and what
  * Salesforce last claimed (the `TalentSfImport` mirror).
  *
  * This is a *diff*, not an accusation: a field surfaces in two flavours.
- *  - `conflict` — both sides assert a value and they disagree. Actionable: keep
- *    Jump (realign the mirror) or adopt Salesforce (overwrite the talent).
+ *  - `conflict` — both sides assert a value and they disagree. The one manual
+ *    action is adopting Salesforce (overwrite the talent); keeping Jump is the
+ *    default and needs no click (see the `adoptSalesforceField` block below).
  *  - `missing`  — Jump has a confirmed value Salesforce lacks. There is nothing
- *    to adopt (SF is empty); the only move is to push Jump's value to SF, which
- *    "keep Jump" records by moving the mirror optimistically ahead.
+ *    to adopt (SF is empty); the value reaches SF only via the CSV export, and
+ *    the row clears once the next sync sees SF carry it.
  *
  * A field is only ever compared once the talent has *confirmed* it (the relevant
  * `*ValidatedAt` is set): before that the sync freely re-seeds `Talent`, so there
@@ -254,15 +256,52 @@ export async function adoptSalesforceField(
 /**
  * Enrichment Salesforce can't hold. The worker payload carries no parent
  * contacts, so they are never a diff to reconcile — but they are exactly the data
- * Jump collects at onboarding that the SF team would want backfilled. Surfaced
- * only in the CSV export, one labelled row per non-empty field, gated on the
- * talent having confirmed their info section.
+ * Jump collects at onboarding that the SF team would want backfilled. Scope is
+ * deliberately the parent *contact record* only (lien, civilité, name, email,
+ * phone for each parent): contact-shaped data with an obvious SF home. Equipment,
+ * interests and image-rights are also Jump-only but are operational/pedagogical —
+ * SF has neither a column nor a use for them, so listing them as "à transmettre"
+ * would mislead. Surfaced in the on-screen list and the CSV export alike, one
+ * labelled row per non-empty field, gated on a confirmed info section. Coded
+ * values (lien, civilité) are rendered through their canonical labels so the
+ * export reads in French, not enum strings.
  */
-export const ENRICHMENT_FIELDS = [
+type EnrichmentFieldDef = {
+  key:
+    | 'parentType'
+    | 'parentCivilite'
+    | 'parentNom'
+    | 'parentPrenom'
+    | 'parentEmail'
+    | 'parentPhone'
+    | 'parent2Type'
+    | 'parent2Civilite'
+    | 'parent2Nom'
+    | 'parent2Prenom'
+    | 'parent2Email'
+    | 'parent2Phone';
+  label: string;
+  /** Maps a stored enum string to its French label; identity for free text. */
+  format?: (value: string) => string;
+};
+
+export const ENRICHMENT_FIELDS: readonly EnrichmentFieldDef[] = [
+  { key: 'parentType', label: 'Parent 1 — Lien', format: parentTypeLabel },
+  {
+    key: 'parentCivilite',
+    label: 'Parent 1 — Civilité',
+    format: civiliteLabel,
+  },
   { key: 'parentNom', label: 'Parent 1 — Nom' },
   { key: 'parentPrenom', label: 'Parent 1 — Prénom' },
   { key: 'parentEmail', label: 'Parent 1 — Email' },
   { key: 'parentPhone', label: 'Parent 1 — Téléphone' },
+  { key: 'parent2Type', label: 'Parent 2 — Lien', format: parentTypeLabel },
+  {
+    key: 'parent2Civilite',
+    label: 'Parent 2 — Civilité',
+    format: civiliteLabel,
+  },
   { key: 'parent2Nom', label: 'Parent 2 — Nom' },
   { key: 'parent2Prenom', label: 'Parent 2 — Prénom' },
   { key: 'parent2Email', label: 'Parent 2 — Email' },
@@ -285,10 +324,14 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
       nom: true,
       prenom: true,
       email: true,
+      parentType: true,
+      parentCivilite: true,
       parentNom: true,
       parentPrenom: true,
       parentEmail: true,
       parentPhone: true,
+      parent2Type: true,
+      parent2Civilite: true,
       parent2Nom: true,
       parent2Prenom: true,
       parent2Email: true,
@@ -299,10 +342,10 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
 
   const out: TalentEnrichment[] = [];
   for (const t of talents) {
-    const fields = ENRICHMENT_FIELDS.map(({ key, label }) => ({
-      label,
-      value: (t[key] ?? '').trim(),
-    })).filter((f) => f.value);
+    const fields = ENRICHMENT_FIELDS.map(({ key, label, format }) => {
+      const raw = (t[key] ?? '').trim();
+      return { label, value: format ? format(raw) : raw };
+    }).filter((f) => f.value);
     if (fields.length > 0) {
       out.push({
         externalId: t.externalId,

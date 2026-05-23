@@ -11,6 +11,7 @@
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { toast } from 'svelte-sonner';
   import { cn } from '$lib/utils';
+  import { civiliteLabel } from '$lib/domain/profile';
   import type { DiffField } from '$lib/server/services/reconciliationService';
 
   let { data } = $props();
@@ -27,15 +28,9 @@
     school: 'Lycée',
   };
 
-  const CIVILITE_LABELS: Record<string, string> = {
-    homme: 'Homme',
-    femme: 'Femme',
-    autre: 'Autre',
-  };
-
   function displayValue(field: DiffField, value: string | null): string {
     if (!value) return '—';
-    if (field === 'civilite') return CIVILITE_LABELS[value] ?? value;
+    if (field === 'civilite') return civiliteLabel(value);
     return value;
   }
 
@@ -197,7 +192,7 @@
     >
       <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
         <Collapsible.Trigger
-          class="flex w-full items-center justify-between gap-3 px-5 py-3 text-left"
+          class="flex w-full cursor-pointer items-center justify-between gap-3 px-5 py-3 text-left"
         >
           <div>
             <p class="font-medium">Données absentes de Salesforce</p>
