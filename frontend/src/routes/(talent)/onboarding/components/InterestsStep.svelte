@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
   import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
   import { Button } from '$lib/components/ui/button';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
@@ -83,7 +84,20 @@
   </p>
 {/if}
 
-<form method="POST" action="?/validateInterests" use:enhance class="space-y-6">
+<form
+  method="POST"
+  action="?/validateInterests"
+  use:enhance={() => {
+    return async ({ result, update }) => {
+      if (result.type === 'success') {
+        await invalidateAll();
+        return;
+      }
+      await update();
+    };
+  }}
+  class="space-y-6"
+>
   {#each [...techSelected] as id}
     <input type="hidden" name="techInterestIds" value={id} />
   {/each}

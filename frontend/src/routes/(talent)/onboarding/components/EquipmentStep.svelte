@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
   import { Button } from '$lib/components/ui/button';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { Label } from '$lib/components/ui/label';
@@ -44,7 +45,20 @@
   </p>
 {/if}
 
-<form method="POST" action="?/validateEquipment" use:enhance class="space-y-4">
+<form
+  method="POST"
+  action="?/validateEquipment"
+  use:enhance={() => {
+    return async ({ result, update }) => {
+      if (result.type === 'success') {
+        await invalidateAll();
+        return;
+      }
+      await update();
+    };
+  }}
+  class="space-y-4"
+>
   <input type="hidden" name="hasLaptop" value={checked ? 'true' : 'false'} />
 
   <label

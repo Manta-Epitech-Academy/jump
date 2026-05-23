@@ -2,6 +2,7 @@
   import { fly } from 'svelte/transition';
   import type { TransitionConfig } from 'svelte/transition';
   import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import ProgressBar from './components/ProgressBar.svelte';
   import ProfileStep from './components/ProfileStep.svelte';
@@ -86,7 +87,15 @@
     bind:this={goBackForm}
     method="POST"
     action="?/goBack"
-    use:enhance
+    use:enhance={() => {
+      return async ({ result, update }) => {
+        if (result.type === 'success') {
+          await invalidateAll();
+          return;
+        }
+        await update();
+      };
+    }}
     class="hidden"
   ></form>
 

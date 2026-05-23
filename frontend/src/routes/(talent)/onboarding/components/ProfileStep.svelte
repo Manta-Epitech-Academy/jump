@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
   import * as Command from '$lib/components/ui/command';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -166,7 +167,23 @@
   {/each}
 {/if}
 
-<form method="POST" action="?/validateProfile" use:enhance class="space-y-6">
+<form
+  method="POST"
+  action="?/validateProfile"
+  use:enhance={() => {
+    return async ({ result, update }) => {
+      // Success advances the server step; invalidateAll reruns load so data.step
+      // updates and the page moves to the next micro-step. (A redirect to the same
+      // URL wouldn't re-render under enhance.)
+      if (result.type === 'success') {
+        await invalidateAll();
+        return;
+      }
+      await update();
+    };
+  }}
+  class="space-y-6"
+>
   <!-- Hidden chip values -->
   <input type="hidden" name="civilite" value={localCivilite} />
   <input type="hidden" name="parentType" value={localParentType} />

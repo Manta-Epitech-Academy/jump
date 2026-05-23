@@ -245,7 +245,10 @@ export const actions: Actions = {
       );
     }
 
-    throw redirect(303, resolve('/onboarding'));
+    // No redirect: a redirect to the same /onboarding URL doesn't re-render
+    // under use:enhance (the client never picks up the advanced step). The form's
+    // enhance callback calls invalidateAll() on success to rerun load instead.
+    return { success: true };
   },
 
   validateInterests: async ({ request, locals }) => {
@@ -319,7 +322,7 @@ export const actions: Actions = {
       }),
     ]);
 
-    throw redirect(303, resolve('/onboarding'));
+    return { success: true };
   },
 
   validateEquipment: async ({ request, locals }) => {
@@ -345,7 +348,7 @@ export const actions: Actions = {
       },
     });
 
-    throw redirect(303, resolve('/onboarding'));
+    return { success: true };
   },
 
   goBack: async ({ locals }) => {
@@ -369,7 +372,7 @@ export const actions: Actions = {
         clearFields.equipmentValidatedAt = null;
         break;
       default:
-        throw redirect(303, resolve('/onboarding'));
+        return { success: true };
     }
 
     await prisma.talent.update({
@@ -377,7 +380,7 @@ export const actions: Actions = {
       data: clearFields,
     });
 
-    throw redirect(303, resolve('/onboarding'));
+    return { success: true };
   },
 
   signRules: async ({ request, locals }) => {
