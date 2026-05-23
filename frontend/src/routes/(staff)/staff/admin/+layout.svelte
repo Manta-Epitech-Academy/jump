@@ -15,6 +15,7 @@
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
@@ -88,6 +89,13 @@
     >
       <TriangleAlert class="h-4 w-4" />
       <span>Erreurs de Sync</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/sf-conflicts')}
+      class={navLinkClass(isActive('/staff/admin/sf-conflicts'))}
+    >
+      <GitCompareArrows class="h-4 w-4" />
+      <span>Conflits Salesforce</span>
     </a>
     <a
       href={resolve('/staff/admin/tickets')}

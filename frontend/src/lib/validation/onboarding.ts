@@ -39,9 +39,12 @@ const profileBaseSchema = z
       .trim(),
     parentEmail: z.email('Email parent invalide'),
     parentPhone: z.string().min(10, 'Le numéro du parent est requis'),
-    highSchoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
-    highSchoolCity: z.string().optional().or(z.literal('')),
-    highSchoolUai: z.string().optional().or(z.literal('')),
+    // School is identified by its national UAI when picked from the annuaire;
+    // `schoolName`/`schoolCity` carry the display values (and are the only signal
+    // for the free-text fallback, when no UAI is available).
+    schoolUai: z.string().optional().or(z.literal('')),
+    schoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
+    schoolCity: z.string().optional().or(z.literal('')),
   })
   .merge(parent2Schema);
 

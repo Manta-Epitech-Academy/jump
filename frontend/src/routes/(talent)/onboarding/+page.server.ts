@@ -12,6 +12,7 @@ import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
+import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 
 export type OnboardingStep = 'profile' | 'interests' | 'equipment' | 'rules';
 
@@ -45,6 +46,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   if (step === 'profile') {
     const user = locals.user!;
+    // Pre-fill the lycée from the talent's current School (seeded from Salesforce
+    // before onboarding), falling back to the free-text name when there's no UAI.
+    const school = locals.talent.schoolId
+      ? await prisma.school.findUnique({
+          where: { id: locals.talent.schoolId },
+          select: { uai: true, name: true, city: true },
+        })
+      : null;
     return {
       step,
       profile: {
@@ -65,9 +74,9 @@ export const load: PageServerLoad = async ({ locals }) => {
         parent2Prenom: locals.talent.parent2Prenom ?? '',
         parent2Email: locals.talent.parent2Email ?? '',
         parent2Phone: locals.talent.parent2Phone ?? '',
-        highSchoolName: locals.talent.highSchoolName ?? '',
-        highSchoolCity: locals.talent.highSchoolCity ?? '',
-        highSchoolUai: locals.talent.highSchoolUai ?? '',
+        schoolUai: school?.uai ?? '',
+        schoolName: school?.name ?? locals.talent.highSchoolNameManual ?? '',
+        schoolCity: school?.city ?? '',
       },
     };
   }
@@ -133,6 +142,13 @@ export const actions: Actions = {
 
     const now = new Date();
 
+    // A UAI resolves to a canonical School (lazy-created); without one we keep the
+    // typed name in the free-text fallback. This is the talent's confirmed lycée
+    // (Jump truth) — the optimistic write that may later diverge from Salesforce.
+    const schoolId = result.data.schoolUai
+      ? await resolveSchoolByUai(result.data.schoolUai, result.data.schoolName)
+      : null;
+
     await prisma.talent.update({
       where: { id: locals.talent.id },
       data: {
@@ -154,9 +170,8 @@ export const actions: Actions = {
           ? result.data.parent2Email.toLowerCase().trim()
           : null,
         parent2Phone: result.data.parent2Phone || null,
-        highSchoolName: result.data.highSchoolName,
-        highSchoolCity: result.data.highSchoolCity || null,
-        highSchoolUai: result.data.highSchoolUai || null,
+        schoolId,
+        highSchoolNameManual: schoolId ? null : result.data.schoolName,
         infoValidatedAt: now,
         highSchoolValidatedAt: now,
       },

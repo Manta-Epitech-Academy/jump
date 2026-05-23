@@ -5,6 +5,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import {
   PrismaClient,
+  Prisma,
   type ActivityType,
   type ParticipationVerdict,
   type ParticipationContextTag,
@@ -29,11 +30,8 @@ const XP_MAP: Record<string, number> = {
   Avancé: 75,
 };
 
-function levelFromXp(xp: number): string {
-  if (xp >= 200) return 'Expert';
-  if (xp >= 80) return 'Apprentice';
-  return 'Novice';
-}
+// Onboarding arrival bonus — mirrors WELCOME_XP_BONUS in src/lib/domain/xp.ts.
+const WELCOME_XP_BONUS = 200;
 
 // ─── Time helpers (anchored to run-time `today`) ───
 
@@ -3600,7 +3598,42 @@ async function seedStudents(): Promise<
   // Matches event 8 (ONGOING_PARIS_STAGE): parisStudents.slice(6, 18)
   const ongoingStageEmails = new Set(parisStudents.slice(6, 18));
 
-  const talentData = STUDENTS.map((s, i) => {
+  // Canonical schools for seeded talents. Onboarded talents are linked to Victor
+  // Hugo; the alt school + a few perturbed SF mirrors below produce realistic
+  // reconciliation conflicts on /staff/admin/sf-conflicts.
+  const victorHugo = await prisma.school.upsert({
+    where: { uai: '0750001A' },
+    update: {},
+    create: {
+      uai: '0750001A',
+      name: 'Lycée général Victor Hugo',
+      city: 'Paris',
+      resolvedAt: new Date(),
+    },
+    select: { id: true },
+  });
+  const altSchool = await prisma.school.upsert({
+    where: { uai: '0750002B' },
+    update: {},
+    create: {
+      uai: '0750002B',
+      name: 'Lycée Jean Moulin',
+      city: 'Paris',
+      resolvedAt: new Date(),
+    },
+    select: { id: true },
+  });
+
+  // Two independent axes, mirroring production:
+  //  1. What Salesforce populated at lead creation (school, civilité) — present
+  //     for most leads, absent for some. The worker seeds these onto Talent
+  //     BEFORE onboarding, so even pending talents already carry SF data.
+  //  2. Whether the talent has since confirmed (and possibly changed) it via
+  //     onboarding.
+  // The TalentSfImport mirror always holds the SF claim; a few confirmed talents
+  // diverge from it (and some fill in what SF lacked) to populate the
+  // reconciliation page realistically.
+  const seeded = STUDENTS.map((s, i) => {
     // Connexions plateforme : 10% jamais connecté·e (alerte "Jamais
     // connectés"), le reste avec une dernière activité datée selon la
     // valeur déclarée par StudentDef.
@@ -3639,12 +3672,36 @@ async function seedStudents(): Promise<
       : s.charterSigned && !neverLogged
         ? new Date()
         : null;
-    const infoValidatedAt =
-      fullyOnboarded || partiallyOnboarded ? new Date() : null;
+    // Profil confirmé ⇒ infoValidatedAt ; lycée confirmé ⇒ highSchoolValidatedAt.
+    const profileConfirmed = fullyOnboarded || partiallyOnboarded;
+    const schoolConfirmed = fullyOnboarded;
+    const infoValidatedAt = profileConfirmed ? new Date() : null;
     const rulesSignedAt = fullyOnboarded ? new Date() : null;
     const hasParentInfo = fullyOnboarded || s.skipOnboarding === true;
 
-    return {
+    // ── Axis 1: what Salesforce sent (independent of onboarding) ──
+    // ~90% of leads carry a gender, ~80% a school; the rest SF never populated.
+    const sfCivilite = i % 10 === 0 ? null : i % 2 === 0 ? 'homme' : 'femme';
+    const sfSchoolId = i % 5 === 0 ? null : victorHugo.id;
+
+    // ── Demo divergences (only meaningful once the talent has confirmed) ──
+    const schoolDiverges =
+      schoolConfirmed && sfSchoolId !== null && i % 12 === 0;
+    const phoneDiverges = profileConfirmed && i % 12 === 7;
+
+    // ── Talent (Jump truth) ──
+    // Pending: keep the SF seed. Confirmed: the talent's confirmed value — may
+    // differ from SF (divergence) or fill in what SF lacked.
+    const civilite =
+      sfCivilite ??
+      (profileConfirmed ? (i % 2 === 0 ? 'homme' : 'femme') : null);
+    const schoolId = schoolConfirmed
+      ? schoolDiverges
+        ? altSchool.id
+        : (sfSchoolId ?? victorHugo.id)
+      : sfSchoolId;
+
+    const talent = {
       userId: userIdByEmail.get(s.email)!,
       email: s.email,
       nom: s.nom,
@@ -3658,13 +3715,12 @@ async function seedStudents(): Promise<
       generalInterestsValidatedAt: fullyOnboarded ? new Date() : null,
       interestsRecapSeenAt: fullyOnboarded ? new Date() : null,
       rulesSignedAt,
-      highSchoolValidatedAt: fullyOnboarded ? new Date() : null,
-      highSchoolName: fullyOnboarded ? 'Lycée général Victor Hugo' : null,
-      highSchoolCity: fullyOnboarded ? 'Paris' : null,
+      highSchoolValidatedAt: schoolConfirmed ? new Date() : null,
+      schoolId,
       parentNom: hasParentInfo ? 'Martin' : null,
       parentPrenom: hasParentInfo ? 'Sophie' : null,
       parentEmail: hasParentInfo ? `parent.${s.email}` : null,
-      civilite: fullyOnboarded ? (i % 2 === 0 ? 'homme' : 'femme') : null,
+      civilite,
       parentType: hasParentInfo ? (i % 3 === 0 ? 'pere' : 'mere') : null,
       parentCivilite: hasParentInfo ? (i % 3 === 0 ? 'homme' : 'femme') : null,
       parent2Type: null,
@@ -3673,7 +3729,6 @@ async function seedStudents(): Promise<
       parent2Prenom: null,
       parent2Email: null,
       parent2Phone: null,
-      highSchoolUai: fullyOnboarded ? '0750001A' : null,
       hasLaptop: fullyOnboarded ? true : false,
       setupDescription:
         fullyOnboarded && i % 3 === 0
@@ -3684,7 +3739,18 @@ async function seedStudents(): Promise<
       lastActiveAt,
       externalId: mockSalesforceLeadId(i),
     };
+
+    // ── Salesforce mirror (the SF claim, as the worker would have written it) ──
+    const sf = {
+      phone: phoneDiverges ? '+33 6 99 99 99 99' : s.phone,
+      civilite: sfCivilite,
+      schoolId: sfSchoolId,
+    };
+
+    return { talent, sf };
   });
+
+  const talentData = seeded.map((x) => x.talent);
 
   const talents = await prisma.talent.createManyAndReturn({
     data: talentData,
@@ -3694,6 +3760,30 @@ async function seedStudents(): Promise<
     // email is nullable in the schema but always set here — guard for the type.
     if (t.email) byEmail[t.email] = { id: t.id, nom: t.nom, prenom: t.prenom };
   }
+
+  // SF mirror per talent — every seeded talent is an SF lead, so each gets one.
+  // It holds what SF sent (null where SF had nothing); a few confirmed talents'
+  // values diverge from it, surfacing on the reconciliation page.
+  const talentIdByEmail = new Map(talents.map((t) => [t.email, t.id]));
+  const sfImportData = seeded
+    .map((x) => {
+      const talentId = x.talent.email
+        ? talentIdByEmail.get(x.talent.email)
+        : undefined;
+      if (!talentId) return null;
+      return {
+        talentId,
+        nom: x.talent.nom,
+        prenom: x.talent.prenom,
+        phone: x.sf.phone,
+        civilite: x.sf.civilite,
+        niveau: x.talent.niveau,
+        sfSchoolId: x.sf.schoolId,
+      };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+  await prisma.talentSfImport.createMany({ data: sfImportData });
+
   return byEmail;
 }
 
@@ -4184,35 +4274,82 @@ async function seedStepsProgress(
 }
 
 async function recomputeXp(): Promise<number> {
-  const participations = await prisma.participation.findMany({
-    where: { isPresent: true },
-    include: { activities: { include: { activity: true } } },
-  });
+  // Rebuild the XP ledger the way the app does (XpGrant rows), then set the
+  // cached projections (Talent.xp / eventsCount) to match — so seeded talents
+  // stay consistent with the ledger and survive any later recompute
+  // (mark-present, onboarding reset) instead of getting zeroed.
+  const [participations, onboarded] = await Promise.all([
+    prisma.participation.findMany({
+      where: { isPresent: true },
+      select: {
+        id: true,
+        talentId: true,
+        campusId: true,
+        activities: {
+          select: {
+            isPresent: true,
+            activity: { select: { activityType: true, difficulte: true } },
+          },
+        },
+      },
+    }),
+    // Onboarding bonus mirrors the real grant: every talent who signed the rules.
+    prisma.talent.findMany({
+      where: { rulesSignedAt: { not: null } },
+      select: { id: true },
+    }),
+  ]);
 
-  const totals: Record<string, { xp: number; events: number }> = {};
+  const grants: Prisma.XpGrantCreateManyInput[] = [];
+  const xpByTalent: Record<string, number> = {};
+  const eventsByTalent: Record<string, number> = {};
+
+  for (const t of onboarded) {
+    grants.push({
+      talentId: t.id,
+      source: 'onboarding',
+      sourceId: t.id,
+      amount: WELCOME_XP_BONUS,
+    });
+    xpByTalent[t.id] = (xpByTalent[t.id] ?? 0) + WELCOME_XP_BONUS;
+  }
+
   for (const p of participations) {
-    if (!totals[p.talentId]) totals[p.talentId] = { xp: 0, events: 0 };
-    totals[p.talentId].events++;
-    for (const pa of p.activities) {
-      if (!pa.isPresent || pa.activity.activityType === 'orga') continue;
-      totals[p.talentId].xp += XP_MAP[pa.activity.difficulte ?? ''] ?? 10;
+    eventsByTalent[p.talentId] = (eventsByTalent[p.talentId] ?? 0) + 1;
+    // One activity_presence grant per participation (keyed on participationId),
+    // amount = sum of its present, non-orga activities — same as the cockpit.
+    const amount = p.activities.reduce((sum, pa) => {
+      if (!pa.isPresent || pa.activity.activityType === 'orga') return sum;
+      return sum + (XP_MAP[pa.activity.difficulte ?? ''] ?? 0);
+    }, 0);
+    if (amount > 0) {
+      grants.push({
+        talentId: p.talentId,
+        source: 'activity_presence',
+        sourceId: p.id,
+        amount,
+        campusId: p.campusId,
+      });
+      xpByTalent[p.talentId] = (xpByTalent[p.talentId] ?? 0) + amount;
     }
   }
 
+  await prisma.xpGrant.createMany({ data: grants, skipDuplicates: true });
+
+  const talentIds = new Set([
+    ...Object.keys(xpByTalent),
+    ...Object.keys(eventsByTalent),
+  ]);
   await Promise.all(
-    Object.entries(totals).map(([talentId, t]) =>
+    [...talentIds].map((id) =>
       prisma.talent.update({
-        where: { id: talentId },
-        data: {
-          xp: t.xp,
-          eventsCount: t.events,
-          level: levelFromXp(t.xp),
-        },
+        where: { id },
+        data: { xp: xpByTalent[id] ?? 0, eventsCount: eventsByTalent[id] ?? 0 },
       }),
     ),
   );
 
-  return Object.keys(totals).length;
+  return talentIds.size;
 }
 
 async function seedInterviews(
