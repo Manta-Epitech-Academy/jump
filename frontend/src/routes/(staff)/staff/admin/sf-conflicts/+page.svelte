@@ -4,7 +4,6 @@
   import * as Card from '$lib/components/ui/card';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { Button, buttonVariants } from '$lib/components/ui/button';
-  import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
   import Download from '@lucide/svelte/icons/download';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
@@ -65,36 +64,35 @@
   }
 </script>
 
-<div class="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
-  <div class="flex flex-wrap items-end justify-between gap-4">
-    <div class="flex items-center gap-3">
-      <GitCompareArrows class="h-6 w-6 text-epi-blue" />
-      <div>
-        <h1
-          class="font-heading text-2xl tracking-wide text-foreground uppercase"
-        >
-          Divergences Salesforce
-        </h1>
-        <p class="text-sm text-muted-foreground">
-          {data.totalFields}
-          {data.totalFields > 1 ? 'écarts' : 'écart'} sur
-          {data.totalTalents}
-          {data.totalTalents > 1 ? 'talents' : 'talent'} — entre l'info confirmée
-          par le talent (qui fait foi) et ce que Salesforce envoie. Exportez le CSV
-          pour pousser ces corrections, et les données absentes de Salesforce (contacts
-          parents), via le script externe. Chaque écart reste listé tant que Salesforce
-          ne porte pas la valeur : le prochain sync le solde tout seul.
-        </p>
-      </div>
+<div class="space-y-6">
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <h1 class="font-heading text-3xl tracking-wide uppercase">
+        Divergences Salesforce
+      </h1>
+      <p class="text-sm font-bold text-muted-foreground uppercase">
+        {data.totalFields}
+        {data.totalFields > 1 ? 'écarts' : 'écart'} sur
+        {data.totalTalents}
+        {data.totalTalents > 1 ? 'talents' : 'talent'}
+      </p>
     </div>
     <a
       href={resolve('/staff/admin/sf-conflicts/export')}
-      class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+      class={buttonVariants({ variant: 'outline' })}
       download
     >
-      <Download class="h-4 w-4" /> Exporter CSV
+      <Download class="mr-2 h-4 w-4" /> Exporter CSV
     </a>
   </div>
+
+  <p class="max-w-3xl text-sm text-muted-foreground">
+    Écarts entre l'info confirmée par le talent (qui fait foi) et ce que
+    Salesforce envoie. Exportez le CSV pour pousser ces corrections, et les
+    données absentes de Salesforce (contacts parents), via le script externe.
+    Chaque écart reste listé tant que Salesforce ne porte pas la valeur : le
+    prochain sync le solde tout seul.
+  </p>
 
   {#if data.diffs.length === 0}
     <Card.Root class="rounded-sm">
