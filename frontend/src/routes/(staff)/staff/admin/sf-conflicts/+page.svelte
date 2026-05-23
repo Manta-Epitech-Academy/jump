@@ -3,14 +3,21 @@
   import { resolve } from '$app/paths';
   import * as Card from '$lib/components/ui/card';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import * as Collapsible from '$lib/components/ui/collapsible';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import Download from '@lucide/svelte/icons/download';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { toast } from 'svelte-sonner';
+  import { cn } from '$lib/utils';
   import type { DiffField } from '$lib/server/services/reconciliationService';
 
   let { data } = $props();
+
+  // Enrichment is informational (no per-field action — it only rides the CSV),
+  // so it folds away to keep the actionable diffs front. Open it on demand.
+  let enrichmentOpen = $state(false);
 
   const FIELD_LABELS: Record<DiffField, string> = {
     nom: 'Nom',
@@ -177,6 +184,61 @@
         </Card.Content>
       </Card.Root>
     {/each}
+  {/if}
+
+  {#if data.enrichment.length > 0}
+    <!-- Data Salesforce has no column for (parent contacts): never a diff, no
+         per-field action — it only rides the CSV. Shown here so the page mirrors
+         the export instead of the CSV carrying rows the reviewer never saw.
+         Folded by default to keep the actionable diffs above it in focus. -->
+    <Collapsible.Root
+      open={enrichmentOpen}
+      onOpenChange={(v) => (enrichmentOpen = v)}
+    >
+      <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+        <Collapsible.Trigger
+          class="flex w-full items-center justify-between gap-3 px-5 py-3 text-left"
+        >
+          <div>
+            <p class="font-medium">Données absentes de Salesforce</p>
+            <p class="text-xs text-muted-foreground">
+              Contacts parents collectés à l'onboarding · {data.totalEnrichmentFields}
+              {data.totalEnrichmentFields > 1 ? 'champs' : 'champ'} sur
+              {data.totalEnrichmentTalents}
+              {data.totalEnrichmentTalents > 1 ? 'talents' : 'talent'} · à transmettre
+              via le CSV
+            </p>
+          </div>
+          <ChevronDown
+            class={cn(
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+              enrichmentOpen ? 'rotate-180' : '',
+            )}
+          />
+        </Collapsible.Trigger>
+        <Collapsible.Content>
+          <div class="border-t">
+            {#each data.enrichment as t (t.externalId ?? t.email ?? `${t.nom}-${t.prenom}`)}
+              <div class="border-b px-5 py-3 last:border-0">
+                <p class="text-sm font-medium">{t.prenom} {t.nom}</p>
+                <p class="mb-2 text-xs text-muted-foreground">
+                  {t.email ?? '—'}
+                  {#if t.externalId}· SF {t.externalId}{/if}
+                </p>
+                <dl class="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                  {#each t.fields as f (f.label)}
+                    <div class="flex justify-between gap-3 text-sm">
+                      <dt class="text-muted-foreground">{f.label}</dt>
+                      <dd class="text-right">{f.value}</dd>
+                    </div>
+                  {/each}
+                </dl>
+              </div>
+            {/each}
+          </div>
+        </Collapsible.Content>
+      </Card.Root>
+    </Collapsible.Root>
   {/if}
 </div>
 

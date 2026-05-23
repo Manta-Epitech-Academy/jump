@@ -2,16 +2,27 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
   listSalesforceDiffs,
+  listSalesforceEnrichment,
   adoptSalesforceField,
   isDiffField,
 } from '$lib/server/services/reconciliationService';
 
 export const load: PageServerLoad = async () => {
-  const diffs = await listSalesforceDiffs();
+  // Diffs are actionable (Salesforce disagrees / lacks a mirrored field);
+  // enrichment is data Salesforce has no column for at all (parent contacts).
+  // Both ride the CSV, so the page surfaces both — the page must show whatever
+  // the export will contain, or the CSV holds rows the reviewer never saw.
+  const [diffs, enrichment] = await Promise.all([
+    listSalesforceDiffs(),
+    listSalesforceEnrichment(),
+  ]);
   return {
     diffs,
+    enrichment,
     totalTalents: diffs.length,
     totalFields: diffs.reduce((n, d) => n + d.diffs.length, 0),
+    totalEnrichmentTalents: enrichment.length,
+    totalEnrichmentFields: enrichment.reduce((n, e) => n + e.fields.length, 0),
   };
 };
 
