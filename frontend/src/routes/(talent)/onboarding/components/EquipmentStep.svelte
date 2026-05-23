@@ -1,6 +1,9 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
+  import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Label } from '$lib/components/ui/label';
+  import { Textarea } from '$lib/components/ui/textarea';
   import Laptop from '@lucide/svelte/icons/laptop';
 
   let {
@@ -47,10 +50,9 @@
   <label
     class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-4 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
-    <input
-      type="checkbox"
+    <Checkbox
       bind:checked
-      class="h-5 w-5 shrink-0 rounded border-slate-300 text-epi-teal accent-epi-teal focus:ring-epi-teal"
+      class="size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
     />
     <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
       Je possède un laptop qui fonctionne pour réaliser mon stage.
@@ -60,22 +62,22 @@
   <div
     class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
-    <label
+    <Label
       for="setupDescription"
       class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
     >
       Tu as un setup particulier à la maison ? Décris-nous ta configuration : PC
       fixe, GPU, écrans, casque VR, etc.
-    </label>
-    <textarea
+    </Label>
+    <Textarea
       id="setupDescription"
       name="setupDescription"
-      rows="4"
-      maxlength="1000"
+      rows={4}
+      maxlength={1000}
       value={setupDescription}
       placeholder="Mon PC gaming, mes écrans, ma config..."
-      class="w-full resize-none rounded-lg border border-transparent bg-transparent p-1 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
-    ></textarea>
+      class="resize-none border-transparent bg-transparent p-1 text-slate-900 placeholder:text-slate-300 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:text-white dark:placeholder:text-slate-600"
+    />
   </div>
 
   <Button

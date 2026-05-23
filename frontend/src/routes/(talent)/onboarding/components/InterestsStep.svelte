@@ -2,6 +2,8 @@
   import { fly } from 'svelte/transition';
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
+  import { Label } from '$lib/components/ui/label';
+  import { Textarea } from '$lib/components/ui/textarea';
   import Code from '@lucide/svelte/icons/code';
   import Sparkles from '@lucide/svelte/icons/sparkles';
 
@@ -149,21 +151,21 @@
   <div
     class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
-    <label
+    <Label
       for="freeText"
       class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
     >
       Autre chose à nous dire sur tes centres d'intérêt ?
-    </label>
-    <textarea
+    </Label>
+    <Textarea
       id="freeText"
       name="freeText"
-      rows="3"
-      maxlength="500"
+      rows={3}
+      maxlength={500}
       value={freeText}
       placeholder="Raconte-nous..."
-      class="w-full resize-none rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
-    ></textarea>
+      class="resize-none rounded-lg border-slate-200 bg-white/70 text-slate-900 placeholder:text-slate-300 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+    />
   </div>
 
   <Button

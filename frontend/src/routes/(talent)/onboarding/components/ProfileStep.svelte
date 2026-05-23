@@ -1,6 +1,8 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import Users from '@lucide/svelte/icons/users';
   import School from '@lucide/svelte/icons/school';
@@ -9,7 +11,6 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Plus from '@lucide/svelte/icons/plus';
   import X from '@lucide/svelte/icons/x';
-  import { track } from '$lib/analytics';
 
   let {
     profile,
@@ -39,6 +40,12 @@
     };
     errors?: Record<string, string[]>;
   } = $props();
+
+  // Shared glass-style overrides so the shadcn Input/Label keep the onboarding look.
+  const fieldInput =
+    'rounded-lg border-slate-200 bg-white/70 text-slate-900 placeholder:text-slate-300 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600';
+  const fieldLabel =
+    'mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400';
 
   // Local state for chips
   // svelte-ignore state_referenced_locally
@@ -233,37 +240,31 @@
       class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <div>
-        <label
-          for="prenom"
-          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-        >
+        <Label for="prenom" class={fieldLabel}>
           Prénom <span class="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="prenom"
           name="prenom"
           type="text"
           value={profile.prenom}
           placeholder="Jean"
           required
-          class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+          class={fieldInput}
         />
       </div>
       <div>
-        <label
-          for="nom"
-          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-        >
+        <Label for="nom" class={fieldLabel}>
           Nom <span class="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="nom"
           name="nom"
           type="text"
           value={profile.nom}
           placeholder="Dupont"
           required
-          class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+          class={fieldInput}
         />
       </div>
     </div>
@@ -273,37 +274,31 @@
       class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <div>
-        <label
-          for="email"
-          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-        >
+        <Label for="email" class={fieldLabel}>
           Email <span class="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="email"
           name="email"
           type="email"
           value={profile.email}
           placeholder="jean.dupont@mail.com"
           required
-          class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+          class={fieldInput}
         />
       </div>
       <div>
-        <label
-          for="phone"
-          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-        >
+        <Label for="phone" class={fieldLabel}>
           Téléphone <span class="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="phone"
           name="phone"
           type="tel"
           value={profile.phone}
           placeholder="06 98 76 54 32"
           required
-          class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+          class={fieldInput}
         />
       </div>
     </div>
@@ -366,37 +361,31 @@
       class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <div>
-        <label
-          for="parentPrenom"
-          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-        >
+        <Label for="parentPrenom" class={fieldLabel}>
           Prénom <span class="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="parentPrenom"
           name="parentPrenom"
           type="text"
           value={profile.parentPrenom}
           placeholder="Marie"
           required
-          class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+          class={fieldInput}
         />
       </div>
       <div>
-        <label
-          for="parentNom"
-          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-        >
+        <Label for="parentNom" class={fieldLabel}>
           Nom <span class="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="parentNom"
           name="parentNom"
           type="text"
           value={profile.parentNom}
           placeholder="Dupont"
           required
-          class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+          class={fieldInput}
         />
       </div>
     </div>
@@ -406,37 +395,31 @@
       class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <div>
-        <label
-          for="parentEmail"
-          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-        >
+        <Label for="parentEmail" class={fieldLabel}>
           Email <span class="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="parentEmail"
           name="parentEmail"
           type="email"
           value={profile.parentEmail}
           placeholder="parent@mail.com"
           required
-          class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+          class={fieldInput}
         />
       </div>
       <div>
-        <label
-          for="parentPhone"
-          class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-        >
+        <Label for="parentPhone" class={fieldLabel}>
           Téléphone <span class="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="parentPhone"
           name="parentPhone"
           type="tel"
           value={profile.parentPhone}
           placeholder="06 12 34 56 78"
           required
-          class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+          class={fieldInput}
         />
       </div>
     </div>
@@ -528,33 +511,25 @@
         class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >
         <div>
-          <label
-            for="parent2Prenom"
-            class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-            >Prénom</label
-          >
-          <input
+          <Label for="parent2Prenom" class={fieldLabel}>Prénom</Label>
+          <Input
             id="parent2Prenom"
             name="parent2Prenom"
             type="text"
             value={profile.parent2Prenom}
             placeholder="Sophie"
-            class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+            class={fieldInput}
           />
         </div>
         <div>
-          <label
-            for="parent2Nom"
-            class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-            >Nom</label
-          >
-          <input
+          <Label for="parent2Nom" class={fieldLabel}>Nom</Label>
+          <Input
             id="parent2Nom"
             name="parent2Nom"
             type="text"
             value={profile.parent2Nom}
             placeholder="Dupont"
-            class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+            class={fieldInput}
           />
         </div>
       </div>
@@ -563,33 +538,25 @@
         class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >
         <div>
-          <label
-            for="parent2Email"
-            class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-            >Email</label
-          >
-          <input
+          <Label for="parent2Email" class={fieldLabel}>Email</Label>
+          <Input
             id="parent2Email"
             name="parent2Email"
             type="email"
             value={profile.parent2Email}
             placeholder="parent2@mail.com"
-            class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+            class={fieldInput}
           />
         </div>
         <div>
-          <label
-            for="parent2Phone"
-            class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-            >Téléphone</label
-          >
-          <input
+          <Label for="parent2Phone" class={fieldLabel}>Téléphone</Label>
+          <Input
             id="parent2Phone"
             name="parent2Phone"
             type="tel"
             value={profile.parent2Phone}
             placeholder="06 98 76 54 32"
-            class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+            class={fieldInput}
           />
         </div>
       </div>
@@ -635,14 +602,14 @@
         >
           {#if loading}
             <LoaderCircle
-              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
+              class="absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2 animate-spin text-epi-blue"
             />
           {:else}
             <Search
-              class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+              class="absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
             />
           {/if}
-          <input
+          <Input
             id="lycee-search"
             type="text"
             placeholder="Rechercher par nom ou ville..."
@@ -652,7 +619,7 @@
               if (suggestions.length > 0) showSuggestions = true;
             }}
             autocomplete="off"
-            class="w-full rounded-lg border border-slate-200 bg-white/70 py-2 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+            class="{fieldInput} pr-3 pl-9"
           />
         </div>
 
@@ -702,13 +669,10 @@
           class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
         >
           <div>
-            <label
-              for="free-lycee-name"
-              class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-            >
+            <Label for="free-lycee-name" class={fieldLabel}>
               Nom du lycée <span class="text-red-500">*</span>
-            </label>
-            <input
+            </Label>
+            <Input
               id="free-lycee-name"
               type="text"
               placeholder="Lycée Victor Hugo"
@@ -716,21 +680,19 @@
               oninput={() => {
                 query = selectedNom;
               }}
-              class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+              class={fieldInput}
             />
           </div>
           <div>
-            <label
-              for="free-lycee-city"
-              class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
-              >Ville (optionnel)</label
-            >
-            <input
+            <Label for="free-lycee-city" class={fieldLabel}>
+              Ville (optionnel)
+            </Label>
+            <Input
               id="free-lycee-city"
               type="text"
               placeholder="Paris"
               bind:value={selectedVille}
-              class="w-full rounded-lg border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+              class={fieldInput}
             />
           </div>
         </div>

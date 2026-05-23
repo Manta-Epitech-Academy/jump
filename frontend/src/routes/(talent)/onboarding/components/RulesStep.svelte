@@ -2,6 +2,7 @@
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
   import { Button } from '$lib/components/ui/button';
+  import { Checkbox } from '$lib/components/ui/checkbox';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
@@ -95,10 +96,9 @@
     <label
       class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
-      <input
-        type="checkbox"
+      <Checkbox
         bind:checked={signed}
-        class="h-5 w-5 shrink-0 rounded border-slate-300 text-epi-teal accent-epi-teal focus:ring-epi-teal"
+        class="size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
         Je signe le règlement intérieur
