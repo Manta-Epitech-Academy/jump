@@ -1,15 +1,15 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import * as Command from '$lib/components/ui/command';
-  import * as Popover from '$lib/components/ui/popover';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import Users from '@lucide/svelte/icons/users';
   import School from '@lucide/svelte/icons/school';
+  import Search from '@lucide/svelte/icons/search';
   import PenLine from '@lucide/svelte/icons/pen-line';
-  import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Plus from '@lucide/svelte/icons/plus';
   import X from '@lucide/svelte/icons/x';
 
@@ -67,23 +67,27 @@
   );
 
   // Lycée — pre-filled from the talent's current school (seeded from Salesforce).
-  // A combobox: the trigger shows the current pick, the popover searches the annuaire.
-  let query = $state('');
+  // Starts as a confirmation card; "changer" reveals the inline annuaire search.
+  // svelte-ignore state_referenced_locally
+  let query = $state(profile.schoolName);
   // svelte-ignore state_referenced_locally
   let selectedNom = $state(profile.schoolName);
   // svelte-ignore state_referenced_locally
   let selectedVille = $state(profile.schoolCity);
   // svelte-ignore state_referenced_locally
   let selectedUai = $state(profile.schoolUai);
+  // svelte-ignore state_referenced_locally
+  let changing = $state(!profile.schoolName);
   let suggestions = $state<{ uai: string; nom: string; ville: string }[]>([]);
-  let open = $state(false);
   let freeTextMode = $state(false);
   let loading = $state(false);
+  let searched = $state(false);
   let debounceTimer: ReturnType<typeof setTimeout>;
 
   async function searchLycee(q: string) {
     if (q.length < 2) {
       suggestions = [];
+      searched = false;
       return;
     }
     loading = true;
@@ -94,38 +98,42 @@
       suggestions = [];
     } finally {
       loading = false;
+      searched = true;
     }
   }
 
   function handleLyceeInput() {
+    searched = false;
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => searchLycee(query), 300);
   }
 
   function selectLycee(s: { uai: string; nom: string; ville: string }) {
+    query = s.nom;
     selectedNom = s.nom;
     selectedVille = s.ville;
     selectedUai = s.uai;
     freeTextMode = false;
-    open = false;
+    changing = false;
   }
 
   // Lycée absent from the annuaire → fall back to manual name/city entry,
   // pre-filling the name with whatever was typed.
   function enableFreeText() {
     freeTextMode = true;
-    open = false;
+    changing = false;
     selectedNom = query;
     selectedVille = '';
     selectedUai = '';
   }
 
-  // Reset the search each time the popover opens for a clean lookup.
-  function onOpenChange(next: boolean) {
-    if (next) {
-      query = '';
-      suggestions = [];
-    }
+  // Reveal the inline search from the confirmation card (or the free-text fields).
+  function startChanging() {
+    changing = true;
+    freeTextMode = false;
+    query = '';
+    suggestions = [];
+    searched = false;
   }
 
   const CIVILITE_OPTIONS = [
@@ -549,86 +557,8 @@
       <School class="h-4 w-4" /> Ton lycée
     </h2>
 
-    <Popover.Root bind:open {onOpenChange}>
-      <Popover.Trigger>
-        {#snippet child({ props })}
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            class="h-auto w-full justify-between rounded-xl border-epi-blue/20 bg-epi-blue/5 px-4 py-3 font-normal hover:bg-epi-blue/10"
-            {...props}
-          >
-            <span class="flex min-w-0 items-start gap-3 text-left">
-              <School class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
-              {#if selectedNom}
-                <span class="min-w-0">
-                  <span class="block truncate text-sm font-medium text-epi-blue"
-                    >{selectedNom}</span
-                  >
-                  {#if selectedVille}
-                    <span
-                      class="block text-xs text-slate-500 dark:text-slate-400"
-                      >{selectedVille}</span
-                    >
-                  {/if}
-                </span>
-              {:else}
-                <span class="text-sm text-muted-foreground"
-                  >Rechercher ton lycée...</span
-                >
-              {/if}
-            </span>
-            <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        {/snippet}
-      </Popover.Trigger>
-      <Popover.Content
-        class="w-[--bits-popover-anchor-width] p-0"
-        align="start"
-      >
-        <Command.Root shouldFilter={false}>
-          <Command.Input
-            placeholder="Rechercher par nom ou ville..."
-            bind:value={query}
-            oninput={handleLyceeInput}
-          />
-          <Command.List>
-            {#if loading}
-              <p class="py-6 text-center text-sm text-muted-foreground">
-                Recherche…
-              </p>
-            {:else if query.length < 2}
-              <p class="py-6 text-center text-sm text-muted-foreground">
-                Tape au moins 2 caractères.
-              </p>
-            {:else if suggestions.length === 0}
-              <p class="py-6 text-center text-sm text-muted-foreground">
-                Aucun lycée trouvé.
-              </p>
-            {/if}
-
-            {#each suggestions as s (s.uai)}
-              <Command.Item value={s.uai} onSelect={() => selectLycee(s)}>
-                <School class="h-4 w-4 shrink-0 text-slate-400" />
-                <span class="font-medium">{s.nom}</span>
-                <span class="ml-auto text-xs text-muted-foreground"
-                  >{s.ville}</span
-                >
-              </Command.Item>
-            {/each}
-
-            <Command.Separator />
-            <Command.Item value="__free-text__" onSelect={enableFreeText}>
-              <PenLine class="h-4 w-4 text-muted-foreground" />
-              Mon lycée n'est pas dans la liste
-            </Command.Item>
-          </Command.List>
-        </Command.Root>
-      </Popover.Content>
-    </Popover.Root>
-
     {#if freeTextMode}
+      <!-- Lycée hors annuaire : saisie manuelle -->
       <div
         class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >
@@ -657,6 +587,97 @@
           />
         </div>
       </div>
+      <button
+        type="button"
+        onclick={startChanging}
+        class="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-500 transition-colors hover:text-epi-blue dark:text-slate-400"
+      >
+        <Search class="h-3.5 w-3.5" /> Rechercher dans l'annuaire
+      </button>
+    {:else if !changing}
+      <!-- Pre-filled lycée: confirm in one tap, or reveal the search to change it. -->
+      <div
+        class="flex items-center justify-between gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 px-4 py-3"
+      >
+        <div class="flex items-start gap-3">
+          <School class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
+          <div>
+            <p class="text-sm font-medium text-epi-blue">{selectedNom}</p>
+            {#if selectedVille}
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                {selectedVille}
+              </p>
+            {/if}
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick={startChanging}
+          class="shrink-0 cursor-pointer text-xs font-medium text-slate-500 underline-offset-2 transition-colors hover:text-epi-blue hover:underline dark:text-slate-400"
+        >
+          Ce n'est pas ton lycée ?
+        </button>
+      </div>
+    {:else}
+      <!-- Inline annuaire search. Rendered in normal flow (not absolute) so the
+           list grows the page instead of being clipped; Command.List caps its
+           own height and scrolls internally. -->
+      <Command.Root
+        shouldFilter={false}
+        class="overflow-hidden rounded-xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80"
+      >
+        <Command.Input
+          placeholder="Rechercher par nom ou ville..."
+          bind:value={query}
+          oninput={handleLyceeInput}
+          class="text-slate-900 placeholder:text-slate-300 dark:text-white dark:placeholder:text-slate-600"
+        />
+        <Command.List class="max-h-72">
+          {#if loading}
+            <div
+              class="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"
+            >
+              <LoaderCircle class="h-4 w-4 animate-spin text-epi-blue" /> Recherche…
+            </div>
+          {:else if query.length < 2}
+            <p class="py-6 text-center text-sm text-muted-foreground">
+              Tape au moins 2 caractères.
+            </p>
+          {:else if searched && suggestions.length === 0}
+            <p class="py-6 text-center text-sm text-muted-foreground">
+              Aucun lycée trouvé.
+            </p>
+          {/if}
+
+          {#each suggestions as s (s.uai)}
+            <Command.Item
+              value={s.uai}
+              onSelect={() => selectLycee(s)}
+              class="group cursor-pointer gap-3 rounded-none border-t border-slate-100 px-4 py-3 transition-all first:border-t-0 hover:bg-epi-blue/5 hover:pl-5 aria-selected:bg-epi-blue/5 dark:border-slate-800 dark:hover:bg-epi-blue/10 dark:aria-selected:bg-epi-blue/10"
+            >
+              <School
+                class="h-4 w-4 shrink-0 text-slate-400 transition-colors group-hover:text-epi-blue"
+              />
+              <span
+                class="font-bold text-slate-700 transition-colors group-hover:text-epi-blue dark:text-slate-200"
+                >{s.nom}</span
+              >
+              <span
+                class="ml-auto shrink-0 text-sm font-semibold text-slate-400 transition-colors group-hover:text-epi-blue/70 dark:text-slate-500"
+                >{s.ville}</span
+              >
+            </Command.Item>
+          {/each}
+        </Command.List>
+      </Command.Root>
+
+      <button
+        type="button"
+        onclick={enableFreeText}
+        class="flex cursor-pointer items-center gap-2 px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <PenLine class="h-4 w-4" /> Mon lycée n'est pas dans la liste
+      </button>
     {/if}
   </div>
 
