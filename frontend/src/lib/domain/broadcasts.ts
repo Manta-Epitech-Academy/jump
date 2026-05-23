@@ -50,6 +50,7 @@ export type BroadcastVariableKey =
   | 'email_contact_campus'
   | 'event_name'
   | 'fastlogin_link'
+  | 'parent_fastlogin_link'
   | 'otp_code'
   | 'parent_prenom'
   | 'parent_nom'
@@ -120,6 +121,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     token: '{{fastlogin_link}}',
     label: 'Lien de connexion magique unique (par destinataire)',
     demo: 'https://jump.epiboost.fr/fastlogin?token=DEMO',
+    contextual: true,
+  },
+  {
+    key: 'parent_fastlogin_link',
+    token: '{{parent_fastlogin_link}}',
+    label: "Lien de connexion magique du parent (s'ouvre sur l'espace parent)",
+    demo: 'https://jump.epiboost.fr/parent/fastlogin?token=DEMO',
     contextual: true,
   },
   {

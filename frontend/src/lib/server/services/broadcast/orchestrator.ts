@@ -20,6 +20,8 @@ import type { SendOutcome } from './providers/types';
 import {
   mintFastloginToken,
   buildFastloginLink,
+  mintParentFastloginToken,
+  buildParentFastloginLink,
   mintTalentOtp,
 } from './personalization';
 
@@ -162,9 +164,19 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
       },
       take: PAGE,
       include: {
-        talent: { select: { id: true, email: true, prenom: true, nom: true } },
+        talent: {
+          select: {
+            id: true,
+            email: true,
+            parentEmail: true,
+            prenom: true,
+            nom: true,
+          },
+        },
         parentOf: {
           select: {
+            id: true,
+            parentEmail: true,
             parentPrenom: true,
             parentNom: true,
             prenom: true,
@@ -230,10 +242,18 @@ type RecipientWithRelations = Awaited<
     typeof prisma.broadcastRecipient.findMany<{
       include: {
         talent: {
-          select: { id: true; email: true; prenom: true; nom: true };
+          select: {
+            id: true;
+            email: true;
+            parentEmail: true;
+            prenom: true;
+            nom: true;
+          };
         };
         parentOf: {
           select: {
+            id: true;
+            parentEmail: true;
             parentPrenom: true;
             parentNom: true;
             prenom: true;
@@ -269,7 +289,7 @@ type BroadcastForSend = {
 function buildMailMessage(
   recipient: RecipientWithRelations,
   broadcast: BroadcastForSend,
-  personal: { fastloginLink: string | null; otpCode: string | null },
+  personal: Personalization,
 ): { to: string; subject: string; html: string } | null {
   if (!recipient.recipientEmail) return null;
   const ctx = buildContext(recipient, broadcast, personal);
@@ -296,6 +316,7 @@ async function sendMailBatch(
 ): Promise<SendOutcome[]> {
   const needs = {
     fastlogin: templateUses(broadcast, 'fastlogin_link'),
+    parentFastlogin: templateUses(broadcast, 'parent_fastlogin_link'),
     otp: templateUses(broadcast, 'otp_code'),
   };
   // Mint per-recipient secrets concurrently — JWT signing is in-memory,
@@ -364,6 +385,7 @@ async function sendSmsSerial(
 ): Promise<SendOutcome[]> {
   const needs = {
     fastlogin: templateUses(broadcast, 'fastlogin_link'),
+    parentFastlogin: templateUses(broadcast, 'parent_fastlogin_link'),
     otp: templateUses(broadcast, 'otp_code'),
   };
   const outcomeById = new Map<string, SendOutcome>();
@@ -467,7 +489,7 @@ async function persistOutcomes(
 function buildContext(
   recipient: RecipientWithRelations,
   broadcast: BroadcastForSend,
-  personal: { fastloginLink: string | null; otpCode: string | null },
+  personal: Personalization,
 ): VariableContext {
   let prenom = '';
   let nom = '';
@@ -498,6 +520,7 @@ function buildContext(
     email_contact_campus: recipient.broadcast.campus?.contactEmail ?? null,
     event_name: broadcast.event?.titre ?? null,
     fastlogin_link: personal.fastloginLink,
+    parent_fastlogin_link: personal.parentFastloginLink,
     otp_code: personal.otpCode,
     parent_prenom: isParentRecipient
       ? (recipient.parentOf?.parentPrenom ?? null)
@@ -514,14 +537,14 @@ function buildContext(
 }
 
 /**
- * Whether the template references `{{fastlogin_link}}` / `{{otp_code}}`.
- * Used to skip the cost of minting secrets we'd never inject — JWT signing
- * is cheap, but `mintTalentOtp` writes a row to `bauth_verification` per
- * call which adds up at 200 recipients.
+ * Whether the template references `{{fastlogin_link}}` / `{{otp_code}}` /
+ * `{{parent_fastlogin_link}}`. Used to skip the cost of minting secrets we'd
+ * never inject — JWT signing is cheap, but `mintTalentOtp` writes a row to
+ * `bauth_verification` per call which adds up at 200 recipients.
  */
 function templateUses(
   broadcast: BroadcastForSend,
-  token: 'fastlogin_link' | 'otp_code',
+  token: 'fastlogin_link' | 'parent_fastlogin_link' | 'otp_code',
 ): boolean {
   const needle = `{{${token}}}`;
   return (
@@ -558,48 +581,84 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+type Personalization = {
+  fastloginLink: string | null;
+  parentFastloginLink: string | null;
+  otpCode: string | null;
+};
+const EMPTY_PERSONALIZATION: Personalization = {
+  fastloginLink: null,
+  parentFastloginLink: null,
+  otpCode: null,
+};
+
 /**
- * Mint per-recipient secrets up-front. Only talents get them; parents and
- * staff have null and the template-side substitution renders empty.
- * Failures are isolated (we don't tank a 200-recipient batch because one
- * OTP write hit a transient DB error) — that recipient just gets a null
- * for the failed variable.
+ * Mint per-recipient secrets up-front. Talent secrets (`fastloginLink`,
+ * `otpCode`) only mint when the recipient is a talent. The parent variant
+ * mints whenever a parent email is reachable from the row — either via
+ * `talent.parentEmail` (audience=talent) or directly via the parent
+ * recipient (audience=parent). Failures are isolated so one bad mint
+ * doesn't tank a 200-recipient batch.
  */
 async function buildPersonalization(
   recipient: RecipientWithRelations,
   broadcast: BroadcastForSend,
-  needs: { fastlogin: boolean; otp: boolean },
-): Promise<{ fastloginLink: string | null; otpCode: string | null }> {
+  needs: { fastlogin: boolean; parentFastlogin: boolean; otp: boolean },
+): Promise<Personalization> {
+  // Resolve identities once. The talent block is for talent-only secrets;
+  // the parent block reuses talent.parentEmail (audience=talent) or the
+  // parent recipient's own email (audience=parent).
   const talent = recipient.talent;
-  if (!talent) return { fastloginLink: null, otpCode: null };
-  const email = talent.email ?? recipient.recipientEmail;
-  if (!email) return { fastloginLink: null, otpCode: null };
+  const parentOf = recipient.parentOf;
+  const talentEmail = talent?.email ?? recipient.recipientEmail ?? null;
+  const talentIdForParent = talent?.id ?? parentOf?.id ?? null;
+  const parentEmail =
+    talent?.parentEmail ??
+    parentOf?.parentEmail ??
+    (parentOf ? recipient.recipientEmail : null);
 
-  const [fastloginLink, otpCode] = await Promise.all([
-    needs.fastlogin
+  if (!talent && !parentEmail) return EMPTY_PERSONALIZATION;
+
+  const [fastloginLink, parentFastloginLink, otpCode] = await Promise.all([
+    needs.fastlogin && talent && talentEmail
       ? mintFastloginToken({
-          email,
+          email: talentEmail,
           talentId: talent.id,
           recipientId: recipient.id,
         })
           .then(buildFastloginLink)
           .catch((err) => {
             console.error(
-              `[broadcast] fastlogin mint failed for ${email}:`,
+              `[broadcast] fastlogin mint failed for ${talentEmail}:`,
               err,
             );
             return null;
           })
       : Promise.resolve(null),
-    needs.otp
-      ? mintTalentOtp(email).catch((err) => {
-          console.error(`[broadcast] otp mint failed for ${email}:`, err);
+    needs.parentFastlogin && parentEmail && talentIdForParent
+      ? mintParentFastloginToken({
+          email: parentEmail,
+          talentId: talentIdForParent,
+          recipientId: recipient.id,
+        })
+          .then(buildParentFastloginLink)
+          .catch((err) => {
+            console.error(
+              `[broadcast] parent fastlogin mint failed for ${parentEmail}:`,
+              err,
+            );
+            return null;
+          })
+      : Promise.resolve(null),
+    needs.otp && talentEmail
+      ? mintTalentOtp(talentEmail).catch((err) => {
+          console.error(`[broadcast] otp mint failed for ${talentEmail}:`, err);
           return null;
         })
       : Promise.resolve(null),
   ]);
 
-  return { fastloginLink, otpCode };
+  return { fastloginLink, parentFastloginLink, otpCode };
 }
 
 /**
