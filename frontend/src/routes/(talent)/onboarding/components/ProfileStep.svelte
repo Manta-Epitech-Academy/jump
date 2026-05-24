@@ -156,18 +156,6 @@
   </p>
 </div>
 
-{#if errors}
-  {#each Object.entries(errors) as [, msgs]}
-    {#each msgs as msg}
-      <p
-        class="mb-2 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
-      >
-        {msg}
-      </p>
-    {/each}
-  {/each}
-{/if}
-
 <form
   method="POST"
   action="?/validateProfile"
@@ -226,6 +214,9 @@
           </button>
         {/each}
       </div>
+      {#if errors?.civilite}<span class="mt-1 text-xs text-destructive"
+          >{errors.civilite[0]}</span
+        >{/if}
     </div>
 
     <!-- Prénom + Nom on same row -->
@@ -245,6 +236,9 @@
           required
           class={fieldInput}
         />
+        {#if errors?.prenom}<span class="text-xs text-destructive"
+            >{errors.prenom[0]}</span
+          >{/if}
       </div>
       <div>
         <Label for="nom" class={fieldLabel}>
@@ -259,6 +253,9 @@
           required
           class={fieldInput}
         />
+        {#if errors?.nom}<span class="text-xs text-destructive"
+            >{errors.nom[0]}</span
+          >{/if}
       </div>
     </div>
 
@@ -279,6 +276,9 @@
           required
           class={fieldInput}
         />
+        {#if errors?.email}<span class="text-xs text-destructive"
+            >{errors.email[0]}</span
+          >{/if}
       </div>
       <div>
         <Label for="phone" class={fieldLabel}>
@@ -291,6 +291,9 @@
           required
           class={fieldInput}
         />
+        {#if errors?.phone}<span class="text-xs text-destructive"
+            >{errors.phone[0]}</span
+          >{/if}
       </div>
     </div>
   </div>
@@ -325,6 +328,9 @@
             </button>
           {/each}
         </div>
+        {#if errors?.parentType}<span class="mt-1 text-xs text-destructive"
+            >{errors.parentType[0]}</span
+          >{/if}
       </div>
       <div>
         <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -344,6 +350,9 @@
             </button>
           {/each}
         </div>
+        {#if errors?.parentCivilite}<span class="mt-1 text-xs text-destructive"
+            >{errors.parentCivilite[0]}</span
+          >{/if}
       </div>
     </div>
 
@@ -364,6 +373,9 @@
           required
           class={fieldInput}
         />
+        {#if errors?.parentPrenom}<span class="text-xs text-destructive"
+            >{errors.parentPrenom[0]}</span
+          >{/if}
       </div>
       <div>
         <Label for="parentNom" class={fieldLabel}>
@@ -378,6 +390,9 @@
           required
           class={fieldInput}
         />
+        {#if errors?.parentNom}<span class="text-xs text-destructive"
+            >{errors.parentNom[0]}</span
+          >{/if}
       </div>
     </div>
 
@@ -398,6 +413,9 @@
           required
           class={fieldInput}
         />
+        {#if errors?.parentEmail}<span class="text-xs text-destructive"
+            >{errors.parentEmail[0]}</span
+          >{/if}
       </div>
       <div>
         <Label for="parentPhone" class={fieldLabel}>
@@ -410,6 +428,9 @@
           required
           class={fieldInput}
         />
+        {#if errors?.parentPhone}<span class="text-xs text-destructive"
+            >{errors.parentPhone[0]}</span
+          >{/if}
       </div>
     </div>
   </div>
@@ -509,6 +530,9 @@
             placeholder="Sophie"
             class={fieldInput}
           />
+          {#if errors?.parent2Prenom}<span class="text-xs text-destructive"
+              >{errors.parent2Prenom[0]}</span
+            >{/if}
         </div>
         <div>
           <Label for="parent2Nom" class={fieldLabel}>Nom</Label>
@@ -520,6 +544,9 @@
             placeholder="Dupont"
             class={fieldInput}
           />
+          {#if errors?.parent2Nom}<span class="text-xs text-destructive"
+              >{errors.parent2Nom[0]}</span
+            >{/if}
         </div>
       </div>
 
@@ -536,6 +563,9 @@
             placeholder="parent2@mail.com"
             class={fieldInput}
           />
+          {#if errors?.parent2Email}<span class="text-xs text-destructive"
+              >{errors.parent2Email[0]}</span
+            >{/if}
         </div>
         <div>
           <Label for="parent2Phone" class={fieldLabel}>Téléphone</Label>
@@ -545,6 +575,9 @@
             placeholder="6 12 34 56 78"
             class={fieldInput}
           />
+          {#if errors?.parent2Phone}<span class="text-xs text-destructive"
+              >{errors.parent2Phone[0]}</span
+            >{/if}
         </div>
       </div>
     </div>
@@ -574,6 +607,9 @@
             bind:value={selectedNom}
             class={fieldInput}
           />
+          {#if errors?.schoolName}<span class="text-xs text-destructive"
+              >{errors.schoolName[0]}</span
+            >{/if}
         </div>
         <div>
           <Label for="free-lycee-city" class={fieldLabel}>
