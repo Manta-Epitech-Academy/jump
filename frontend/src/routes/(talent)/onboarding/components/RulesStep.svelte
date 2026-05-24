@@ -72,24 +72,30 @@
   <!-- Document content — displayed directly in the page, no container box -->
   <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
     {@html renderedContent}
+  </div>
 
-    <p class="mt-6 text-sm">
-      <strong>Fait à</strong>
-      <input
-        name="city"
-        type="text"
-        bind:value={city}
-        placeholder="__________________"
-        required
-        class="inline-block w-40 border-0 border-b border-slate-300 bg-transparent px-1 text-center text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue focus:ring-0 dark:text-white dark:placeholder:text-slate-600"
-      /><strong
-        >, le {new Date().toLocaleDateString('fr-FR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        })}</strong
-      >
-    </p>
+  <!-- Signature — card glass visible pour ne pas passer inaperçu -->
+  <div
+    class="mt-6 flex items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+  >
+    <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+      >Fait à</span
+    >
+    <input
+      name="city"
+      type="text"
+      bind:value={city}
+      placeholder="Ville"
+      required
+      class="w-40 rounded-lg border border-slate-200 bg-white/70 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+    />
+    <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+      >, le {new Date().toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })}</span
+    >
   </div>
 
   <div class="mt-8 space-y-4">
