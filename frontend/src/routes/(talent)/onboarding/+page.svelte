@@ -8,6 +8,7 @@
   import ProfileStep from './components/ProfileStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
   import EquipmentStep from './components/EquipmentStep.svelte';
+  import CharterStep from './components/CharterStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
   import BackButton from './components/BackButton.svelte';
 
@@ -32,9 +33,10 @@
     profile: { index: 1, title: 'Ton profil' },
     interests: { index: 2, title: "Centres d'intérêt" },
     equipment: { index: 3, title: 'Ton matériel' },
-    rules: { index: 4, title: 'Règlement' },
+    charter: { index: 4, title: 'Charte RGPD' },
+    rules: { index: 5, title: 'Règlement' },
   };
-  const TOTAL_STEPS = 4;
+  const TOTAL_STEPS = 5;
 
   let goBackForm: HTMLFormElement;
 
@@ -122,6 +124,9 @@
                 setupDescription={data.setupDescription ?? ''}
                 error={form?.error}
               />
+            {:else if data.step === 'charter'}
+              <BackButton onclick={goBackServer} />
+              <CharterStep error={form?.error} />
             {:else if data.step === 'rules'}
               <BackButton onclick={goBackServer} />
               <RulesStep error={form?.error} />

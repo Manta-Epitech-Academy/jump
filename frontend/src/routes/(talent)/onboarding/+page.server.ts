@@ -14,7 +14,12 @@ import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 
-export type OnboardingStep = 'profile' | 'interests' | 'equipment' | 'rules';
+export type OnboardingStep =
+  | 'profile'
+  | 'interests'
+  | 'equipment'
+  | 'charter'
+  | 'rules';
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
@@ -22,6 +27,7 @@ function getCurrentStep(profile: {
   techInterestsValidatedAt: Date | null;
   generalInterestsValidatedAt: Date | null;
   equipmentValidatedAt: Date | null;
+  charterAcceptedAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
   if (!profile.infoValidatedAt || !profile.highSchoolValidatedAt)
@@ -29,6 +35,7 @@ function getCurrentStep(profile: {
   if (!profile.techInterestsValidatedAt || !profile.generalInterestsValidatedAt)
     return 'interests';
   if (!profile.equipmentValidatedAt) return 'equipment';
+  if (!profile.charterAcceptedAt) return 'charter';
   if (!profile.rulesSignedAt) return 'rules';
   return null;
 }
@@ -368,8 +375,11 @@ export const actions: Actions = {
         clearFields.generalInterestsValidatedAt = null;
         clearFields.interestsRecapSeenAt = null;
         break;
-      case 'rules':
+      case 'charter':
         clearFields.equipmentValidatedAt = null;
+        break;
+      case 'rules':
+        clearFields.charterAcceptedAt = null;
         break;
       default:
         return { success: true };
@@ -378,6 +388,17 @@ export const actions: Actions = {
     await prisma.talent.update({
       where: { id: locals.talent.id },
       data: clearFields,
+    });
+
+    return { success: true };
+  },
+
+  acceptCharter: async ({ locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: { charterAcceptedAt: new Date() },
     });
 
     return { success: true };
@@ -416,7 +437,6 @@ export const actions: Actions = {
         data: {
           rulesSignedAt: now,
           rulesFilePath: key,
-          charterAcceptedAt: now,
         },
       });
       await grantXp(tx, {
