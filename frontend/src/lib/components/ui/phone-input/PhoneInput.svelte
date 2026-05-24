@@ -66,7 +66,7 @@
       {countryEntry.label}
     </Select.Trigger>
     <Select.Content
-      class="max-h-[280px] overflow-hidden rounded-xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80"
+      class="max-h-[280px] overflow-y-auto rounded-xl border border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-track]:bg-transparent"
     >
       {#each COUNTRIES as entry (entry.code)}
         <Select.Item
