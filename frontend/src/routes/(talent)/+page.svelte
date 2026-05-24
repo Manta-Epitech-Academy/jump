@@ -24,6 +24,7 @@
   import History from '@lucide/svelte/icons/history';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import Settings from '@lucide/svelte/icons/settings';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
@@ -257,11 +258,7 @@
       in:fly={{ y: -20, duration: 400, delay: 100 }}
     >
       <a href={resolve('/')} aria-label="Accueil" class="shrink-0">
-        <img
-          src="/EPITECH-LOGO-BLEU-2025.svg"
-          alt="Epitech"
-          class="h-8 w-auto dark:brightness-0 dark:invert"
-        />
+        <EpitechLogo class="h-8 w-auto" />
       </a>
       <!-- Separates logo from greeting only when they share a row (sm+). -->
       <div

@@ -9,6 +9,7 @@
   import Lock from '@lucide/svelte/icons/lock';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { authClient } from '$lib/auth-client';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import { resolve } from '$app/paths';
   import { track } from '$lib/analytics';
 
@@ -49,13 +50,9 @@
       ></div>
     </div>
 
-    <!-- Logo (recolored to white via filter from the single brand asset) -->
+    <!-- Always-dark brand panel → white logo. -->
     <div class="relative z-10">
-      <img
-        src="/EPITECH-LOGO-BLEU-2025.svg"
-        alt="Epitech"
-        class="h-8 w-auto brightness-0 invert"
-      />
+      <EpitechLogo tone="dark" class="h-8 w-auto" />
     </div>
 
     <!-- Baseline + keywords -->
@@ -87,11 +84,7 @@
       <!-- Header -->
       <header class="space-y-5">
         <!-- Compact logo — mobile only (the brand panel carries it on desktop) -->
-        <img
-          src="/EPITECH-LOGO-BLEU-2025.svg"
-          alt="Epitech"
-          class="h-7 w-auto lg:hidden dark:brightness-0 dark:invert"
-        />
+        <EpitechLogo class="h-7 w-auto lg:hidden" />
         <div class="space-y-2">
           <h2 class="font-heading text-3xl tracking-wide">
             Jump<span class="text-epi-teal">_</span>

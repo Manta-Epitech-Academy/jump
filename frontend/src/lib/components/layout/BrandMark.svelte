@@ -1,5 +1,6 @@
 <script lang="ts">
   import { cn } from '$lib/utils';
+  import EpitechLogo from './EpitechLogo.svelte';
 
   type Props = {
     /** Resolved link target (e.g. resolve('/staff/dev')). */
@@ -33,10 +34,6 @@
     class: className,
   }: Props = $props();
 
-  // The brand asset is solid Epitech blue; recolor with filters per chrome tone.
-  const logoTone = $derived(
-    tone === 'dark' ? 'brightness-0 invert' : 'dark:brightness-0 dark:invert',
-  );
   const textTone = $derived(tone === 'dark' ? 'text-white' : 'text-foreground');
   // Neon green is unreadable on the light mobile bar — fall back to the solid
   // teal there and only go neon on dark.
@@ -51,11 +48,7 @@
 
 {#if orientation === 'stacked'}
   <a {href} class={cn('flex flex-col gap-4 px-4 py-4', textTone, className)}>
-    <img
-      src="/EPITECH-LOGO-BLEU-2025.svg"
-      alt="Epitech"
-      class={cn('h-7 w-auto self-start', logoTone)}
-    />
+    <EpitechLogo {tone} class="h-7 w-auto self-start" />
     <div class="flex flex-col gap-1.5">
       <span class="flex items-baseline gap-2">
         <span class="font-heading text-sm leading-none">
@@ -88,11 +81,7 @@
   </a>
 {:else}
   <a {href} class={cn('flex items-center gap-2.5', textTone, className)}>
-    <img
-      src="/EPITECH-LOGO-BLEU-2025.svg"
-      alt="Epitech"
-      class={cn('h-6 w-auto shrink-0', logoTone)}
-    />
+    <EpitechLogo {tone} class="h-6 w-auto shrink-0" />
     <span class="font-heading text-base leading-none">
       Jump<span class={accentTone}>_</span>
     </span>

@@ -5,6 +5,7 @@
   import { untrack } from 'svelte';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import LoginEmailStep from './components/LoginEmailStep.svelte';
   import LoginOtpStep from './components/LoginOtpStep.svelte';
   import { track, errReason, secondsBetween } from '$lib/analytics';
@@ -103,11 +104,7 @@
       <div class="h-1.5 w-full bg-linear-to-r from-epi-blue to-epi-teal"></div>
 
       <Card.Header class="space-y-4 pt-8 pb-4 text-center">
-        <img
-          src="/EPITECH-LOGO-BLEU-2025.svg"
-          alt="Epitech"
-          class="mx-auto h-8 w-auto dark:brightness-0 dark:invert"
-        />
+        <EpitechLogo class="mx-auto h-8 w-auto" />
 
         <div class="space-y-1">
           <Card.Title
