@@ -24,39 +24,23 @@
 
   let { data, form } = $props();
 
-  const SERVER_STEP_TO_MICRO: Record<string, number> = {
-    profile: 1,
-    interests: 2,
-    equipment: 3,
-    rules: 4,
+  // The server (`getCurrentStep` in load) is the single source of truth for the
+  // step. Render directly off `data.step` — keying the view on it means each step
+  // component is created/destroyed in lockstep with its own data shape, so a step
+  // never re-renders against the next step's payload (which omits its props).
+  const STEP_INFO: Record<string, { index: number; title: string }> = {
+    profile: { index: 1, title: 'Ton profil' },
+    interests: { index: 2, title: "Centres d'intérêt" },
+    equipment: { index: 3, title: 'Ton matériel' },
+    rules: { index: 4, title: 'Règlement' },
   };
-
   const TOTAL_STEPS = 4;
-
-  // svelte-ignore state_referenced_locally
-  let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
-  // svelte-ignore state_referenced_locally
-  let lastServerStep = $state(data.step);
 
   let goBackForm: HTMLFormElement;
 
-  // Sync microStep when the server step changes (after form POST + redirect)
-  $effect(() => {
-    if (data.step !== lastServerStep) {
-      lastServerStep = data.step;
-      microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
-    }
-  });
-
-  const progress = $derived(Math.round((microStep / TOTAL_STEPS) * 100));
-
-  const TITLES: Record<number, string> = {
-    1: 'Ton profil',
-    2: "Centres d'intérêt",
-    3: 'Ton matériel',
-    4: 'Règlement',
-  };
-  const pageTitle = $derived(TITLES[microStep] ?? 'Onboarding');
+  const stepIndex = $derived(STEP_INFO[data.step]?.index ?? 1);
+  const progress = $derived(Math.round((stepIndex / TOTAL_STEPS) * 100));
+  const pageTitle = $derived(STEP_INFO[data.step]?.title ?? 'Onboarding');
 
   function goBackServer() {
     goBackForm.requestSubmit();
@@ -113,15 +97,15 @@
       </div>
 
       <div class="relative">
-        {#key microStep}
+        {#key data.step}
           <div
             class="w-full"
             in:fly|local={{ x: 30, duration: 300, delay: 280 }}
             out:exitSlide|local={{ duration: 250 }}
           >
-            {#if microStep === 1}
-              <ProfileStep profile={data.profile!} errors={form?.errors} />
-            {:else if microStep === 2}
+            {#if data.step === 'profile' && data.profile}
+              <ProfileStep profile={data.profile} errors={form?.errors} />
+            {:else if data.step === 'interests'}
               <BackButton onclick={goBackServer} />
               <InterestsStep
                 techInterests={data.techInterests ?? []}
@@ -131,14 +115,14 @@
                 freeText={data.freeText ?? ''}
                 error={form?.error}
               />
-            {:else if microStep === 3}
+            {:else if data.step === 'equipment'}
               <BackButton onclick={goBackServer} />
               <EquipmentStep
                 hasLaptop={data.hasLaptop ?? false}
                 setupDescription={data.setupDescription ?? ''}
                 error={form?.error}
               />
-            {:else if microStep === 4}
+            {:else if data.step === 'rules'}
               <BackButton onclick={goBackServer} />
               <RulesStep error={form?.error} />
             {/if}

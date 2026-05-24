@@ -173,7 +173,7 @@
   use:enhance={() => {
     return async ({ result, update }) => {
       // Success advances the server step; invalidateAll reruns load so data.step
-      // updates and the page moves to the next micro-step. (A redirect to the same
+      // updates and the page moves to the next step. (A redirect to the same
       // URL wouldn't re-render under enhance.)
       if (result.type === 'success') {
         await invalidateAll();
