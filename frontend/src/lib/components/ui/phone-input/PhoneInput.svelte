@@ -66,7 +66,7 @@
       {countryEntry.label}
     </Select.Trigger>
     <Select.Content
-      class="rounded-xl border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80"
+      class="max-h-[280px] rounded-xl border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80"
     >
       {#each COUNTRIES as entry (entry.code)}
         <Select.Item
