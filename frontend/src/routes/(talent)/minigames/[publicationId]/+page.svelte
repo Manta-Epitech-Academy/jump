@@ -36,7 +36,7 @@
     >
       <iframe
         src={iframeSrc}
-        title="Mini-jeu"
+        title="Entraînement"
         sandbox="allow-scripts allow-same-origin"
         referrerpolicy="no-referrer"
         allow="fullscreen"

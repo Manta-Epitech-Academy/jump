@@ -120,7 +120,7 @@
     timers.push(
       setTimeout(() => {
         toast('Défi du jour relevé ! 🎮', {
-          description: `Tu gagnes +${reward.xp} XP pour avoir terminé le mini-jeu du jour. Reviens demain pour un nouveau défi !`,
+          description: `Tu gagnes +${reward.xp} XP pour avoir terminé ton entraînement du jour. Reviens demain pour un nouveau défi !`,
           duration: 10000,
           style:
             'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
@@ -191,6 +191,10 @@
   let minigameAttempt = $derived(
     data.minigame && !data.minigame.ok ? data.minigame.lastAttempt : null,
   );
+  // Student-facing name for the daily minigame: the PO frames it as brain
+  // training, not a "mini-jeu". Defined once so the played/unplayed branches
+  // can't drift.
+  const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
 
   function formatTime(dateString: string | Date | undefined) {
     if (!dateString) return '';
@@ -328,7 +332,9 @@
                   <div
                     class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
                   >
-                    <span class="text-epi-teal-solid">Mini-jeu du jour</span>
+                    <span class="text-epi-teal-solid"
+                      >{DAILY_TRAINING_LABEL}</span
+                    >
                     <span class="text-slate-300 dark:text-slate-700">•</span>
                     <span class="text-slate-500 capitalize">
                       {minigamePublication.game} · niveau {minigamePublication.level}
@@ -372,7 +378,7 @@
                   <div
                     class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
                   >
-                    <span class="text-epi-blue">Mini-jeu du jour</span>
+                    <span class="text-epi-blue">{DAILY_TRAINING_LABEL}</span>
                     <span class="text-slate-300 dark:text-slate-700">•</span>
                     <span class="text-slate-500 capitalize">
                       {minigamePublication.game} · niveau {minigamePublication.level}
@@ -402,7 +408,7 @@
             >
               <button
                 type="submit"
-                title="Dev : basculer l'état du mini-jeu du jour"
+                title="Dev : basculer l'état de l'entraînement du jour"
                 class="text-[10px] font-bold tracking-wide text-slate-300 uppercase hover:text-epi-blue dark:text-slate-600"
               >
                 {minigamePlayed ? 'dev: reset' : 'dev: joué'}
