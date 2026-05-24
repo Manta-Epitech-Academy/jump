@@ -45,17 +45,42 @@
     techSelected.size >= 1 && generalSelected.size >= 1,
   );
 
+  // Track insertion order so we can evict the most-recently added entry
+  // when the user picks a new one at the limit.
+  let techOrder = $state<string[]>([...selectedTechIds]);
+  let generalOrder = $state<string[]>([...selectedGeneralIds]);
+
   function toggleTech(id: string) {
     const next = new Set(techSelected);
-    if (next.has(id)) next.delete(id);
-    else if (next.size < 2) next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+      techOrder = techOrder.filter((x) => x !== id);
+    } else {
+      if (next.size >= 2) {
+        const evict = techOrder[techOrder.length - 1];
+        next.delete(evict);
+        techOrder = techOrder.filter((x) => x !== evict);
+      }
+      next.add(id);
+      techOrder = [...techOrder, id];
+    }
     techSelected = next;
   }
 
   function toggleGeneral(id: string) {
     const next = new Set(generalSelected);
-    if (next.has(id)) next.delete(id);
-    else if (next.size < 3) next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+      generalOrder = generalOrder.filter((x) => x !== id);
+    } else {
+      if (next.size >= 3) {
+        const evict = generalOrder[generalOrder.length - 1];
+        next.delete(evict);
+        generalOrder = generalOrder.filter((x) => x !== evict);
+      }
+      next.add(id);
+      generalOrder = [...generalOrder, id];
+    }
     generalSelected = next;
   }
 </script>
