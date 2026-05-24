@@ -60,7 +60,7 @@
 <div class="flex gap-2">
   <Select.Root type="single" bind:value={selectedCountry}>
     <Select.Trigger
-      class="h-9 w-[100px] shrink-0 rounded-lg border {className}"
+      class="h-9 w-[100px] shrink-0 rounded-lg border border-slate-200 bg-white/70 text-slate-900 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white"
     >
       {countryEntry.label}
     </Select.Trigger>
