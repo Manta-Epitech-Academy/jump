@@ -16,14 +16,10 @@ export const load: PageServerLoad = async () => {
     listSalesforceDiffs(),
     listSalesforceEnrichment(),
   ]);
-  return {
-    diffs,
-    enrichment,
-    totalTalents: diffs.length,
-    totalFields: diffs.reduce((n, d) => n + d.diffs.length, 0),
-    totalEnrichmentTalents: enrichment.length,
-    totalEnrichmentFields: enrichment.reduce((n, e) => n + e.fields.length, 0),
-  };
+  // The page is purely presentational: it splits these two domain lists into
+  // the two workflows it shows (conflicts to arbitrate vs. data to push to SF)
+  // and derives every count from them, so the load returns the lists raw.
+  return { diffs, enrichment };
 };
 
 // Resolution is per (talent, field): a single diff row, never the whole talent.

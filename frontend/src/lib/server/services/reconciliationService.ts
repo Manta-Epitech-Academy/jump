@@ -1,6 +1,18 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { civiliteLabel, parentTypeLabel } from '$lib/domain/profile';
+import type { DiffField } from '$lib/domain/reconciliation';
+
+// The field catalogue (DIFF_FIELDS, DiffField, isDiffField, FIELD_LABELS) is
+// pure domain data and lives in `$lib/domain/reconciliation` so the client page
+// can import it too. Re-exported here for the server-side callers that reach
+// for it alongside the reconciliation queries below.
+export {
+  DIFF_FIELDS,
+  isDiffField,
+  FIELD_LABELS,
+  type DiffField,
+} from '$lib/domain/reconciliation';
 
 /**
  * Diff between the talent's confirmed profile (Jump truth, on `Talent`) and what
@@ -24,19 +36,6 @@ import { civiliteLabel, parentTypeLabel } from '$lib/domain/profile';
  * in this list. They live in the CSV export as enrichment to backfill into SF;
  * see `listSalesforceEnrichment`.
  */
-
-export const DIFF_FIELDS = [
-  'nom',
-  'prenom',
-  'phone',
-  'civilite',
-  'school',
-] as const;
-export type DiffField = (typeof DIFF_FIELDS)[number];
-
-export function isDiffField(value: unknown): value is DiffField {
-  return (DIFF_FIELDS as readonly unknown[]).includes(value);
-}
 
 export type DiffKind = 'conflict' | 'missing';
 
@@ -309,6 +308,7 @@ export const ENRICHMENT_FIELDS: readonly EnrichmentFieldDef[] = [
 ] as const;
 
 export interface TalentEnrichment {
+  talentId: string;
   externalId: string | null;
   nom: string;
   prenom: string;
@@ -320,6 +320,7 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
   const talents = await prisma.talent.findMany({
     where: { infoValidatedAt: { not: null } },
     select: {
+      id: true,
       externalId: true,
       nom: true,
       prenom: true,
@@ -348,6 +349,7 @@ export async function listSalesforceEnrichment(): Promise<TalentEnrichment[]> {
     }).filter((f) => f.value);
     if (fields.length > 0) {
       out.push({
+        talentId: t.id,
         externalId: t.externalId,
         nom: t.nom,
         prenom: t.prenom,

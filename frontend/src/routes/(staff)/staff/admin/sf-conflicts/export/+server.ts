@@ -2,16 +2,8 @@ import type { RequestHandler } from './$types';
 import {
   listSalesforceDiffs,
   listSalesforceEnrichment,
-  type DiffField,
 } from '$lib/server/services/reconciliationService';
-
-const FIELD_LABELS: Record<DiffField, string> = {
-  nom: 'Nom',
-  prenom: 'Prénom',
-  phone: 'Téléphone',
-  civilite: 'Civilité',
-  school: 'Lycée',
-};
+import { FIELD_LABELS } from '$lib/domain/reconciliation';
 
 function csvCell(value: string | null): string {
   return `"${(value ?? '').replace(/"/g, '""')}"`;

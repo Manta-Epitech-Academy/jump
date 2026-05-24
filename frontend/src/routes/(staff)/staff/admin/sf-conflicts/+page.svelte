@@ -2,31 +2,23 @@
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import * as Card from '$lib/components/ui/card';
+  import * as Table from '$lib/components/ui/table';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import * as Collapsible from '$lib/components/ui/collapsible';
+  import { Badge } from '$lib/components/ui/badge';
+  import { Input } from '$lib/components/ui/input';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import Download from '@lucide/svelte/icons/download';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
+  import CloudUpload from '@lucide/svelte/icons/cloud-upload';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import Search from '@lucide/svelte/icons/search';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import { toast } from 'svelte-sonner';
-  import { cn } from '$lib/utils';
   import { civiliteLabel } from '$lib/domain/profile';
-  import type { DiffField } from '$lib/server/services/reconciliationService';
+  import { salesforceContactUrl } from '$lib/domain/salesforce';
+  import { FIELD_LABELS, type DiffField } from '$lib/domain/reconciliation';
 
   let { data } = $props();
-
-  // Enrichment is informational (no per-field action — it only rides the CSV),
-  // so it folds away to keep the actionable diffs front. Open it on demand.
-  let enrichmentOpen = $state(false);
-
-  const FIELD_LABELS: Record<DiffField, string> = {
-    nom: 'Nom',
-    prenom: 'Prénom',
-    phone: 'Téléphone',
-    civilite: 'Civilité',
-    school: 'Lycée',
-  };
 
   function displayValue(field: DiffField, value: string | null): string {
     if (!value) return '—';
@@ -34,206 +26,372 @@
     return value;
   }
 
-  // Adopting Salesforce overwrites a talent-confirmed value with no trivial undo,
-  // so it is gated behind a confirm dialog. One dialog, driven by the row the
-  // reviewer clicked.
-  let adoptOpen = $state(false);
-  let adopting = $state(false);
-  let adoptTarget = $state<{
+  // ── Search ──────────────────────────────────────────────────────────────
+  // At cohort scale (~200 talents) the reviewer needs to land on one person
+  // fast. One box filters both sections by name or email.
+  let query = $state('');
+  const needle = $derived(query.trim().toLowerCase());
+  const matches = (prenom: string, nom: string, email: string | null) =>
+    needle === '' ||
+    `${prenom} ${nom} ${email ?? ''}`.toLowerCase().includes(needle);
+
+  // ── Two workflows, derived from the two domain lists ──────────────────────
+  // A `conflict` is a *decision*: Salesforce disagrees with a talent-confirmed
+  // value, so an admin either adopts SF or leaves Jump's value standing. These
+  // are the only actionable rows, flattened one-per-(talent, field).
+  type ConflictRow = {
     talentId: string;
+    prenom: string;
+    nom: string;
+    email: string | null;
+    externalId: string | null;
     field: DiffField;
-    fieldLabel: string;
-    talentName: string;
     jump: string;
     sf: string;
-  } | null>(null);
+  };
 
-  function askAdopt(
-    talent: { talentId: string; prenom: string; nom: string },
-    field: DiffField,
-    jump: string | null,
-    sf: string | null,
-  ) {
-    adoptTarget = {
-      talentId: talent.talentId,
-      field,
-      fieldLabel: FIELD_LABELS[field],
-      talentName: `${talent.prenom} ${talent.nom}`,
-      jump: displayValue(field, jump),
-      sf: displayValue(field, sf),
+  const conflicts = $derived<ConflictRow[]>(
+    data.diffs.flatMap((t) =>
+      t.diffs
+        .filter((d) => d.kind === 'conflict')
+        .map((d) => ({
+          talentId: t.talentId,
+          prenom: t.prenom,
+          nom: t.nom,
+          email: t.email,
+          externalId: t.externalId,
+          field: d.field,
+          jump: displayValue(d.field, d.jump),
+          sf: displayValue(d.field, d.sf),
+        })),
+    ),
+  );
+  const visibleConflicts = $derived(
+    conflicts.filter((c) => matches(c.prenom, c.nom, c.email)),
+  );
+
+  // Everything else Jump holds that Salesforce should receive: `missing` diffs
+  // (a confirmed field SF lacks — clears itself on the next sync once pushed)
+  // and parent contacts (SF has no column for them at all). The reviewer's task
+  // for both is identical — export the CSV — so they merge into one block per
+  // talent, each item tagged with how it will eventually clear.
+  type PushItem = {
+    label: string;
+    value: string;
+    // 'field' re-syncs away once SF carries it; 'parent' never auto-clears.
+    origin: 'field' | 'parent';
+  };
+  type PushGroup = {
+    talentId: string;
+    prenom: string;
+    nom: string;
+    email: string | null;
+    externalId: string | null;
+    items: PushItem[];
+  };
+
+  const pushGroups = $derived.by<PushGroup[]>(() => {
+    const map = new Map<string, PushGroup>();
+    const ensure = (t: {
+      talentId: string;
+      prenom: string;
+      nom: string;
+      email: string | null;
+      externalId: string | null;
+    }) => {
+      let g = map.get(t.talentId);
+      if (!g) {
+        g = { ...t, items: [] };
+        map.set(t.talentId, g);
+      }
+      return g;
     };
+
+    for (const t of data.diffs)
+      for (const d of t.diffs)
+        if (d.kind === 'missing')
+          ensure(t).items.push({
+            label: FIELD_LABELS[d.field],
+            value: displayValue(d.field, d.jump),
+            origin: 'field',
+          });
+
+    for (const t of data.enrichment)
+      for (const f of t.fields)
+        ensure(t).items.push({
+          label: f.label,
+          value: f.value,
+          origin: 'parent',
+        });
+
+    return [...map.values()].sort(
+      (a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom),
+    );
+  });
+  const visiblePushGroups = $derived(
+    pushGroups.filter((g) => matches(g.prenom, g.nom, g.email)),
+  );
+
+  // ── Counts for the header (always reflect the full data, not the search) ──
+  const conflictCount = $derived(conflicts.length);
+  const pushFieldCount = $derived(
+    pushGroups.reduce((n, g) => n + g.items.length, 0),
+  );
+  const talentCount = $derived(
+    new Set([
+      ...conflicts.map((c) => c.talentId),
+      ...pushGroups.map((g) => g.talentId),
+    ]).size,
+  );
+  const hasData = $derived(conflictCount > 0 || pushFieldCount > 0);
+
+  // ── Adopt-Salesforce confirm ──────────────────────────────────────────────
+  // Adopting SF overwrites a talent-confirmed value with no trivial undo, so it
+  // is gated behind a confirm dialog driven by the row the reviewer clicked.
+  let adoptOpen = $state(false);
+  let adopting = $state(false);
+  let adoptTarget = $state<ConflictRow | null>(null);
+
+  function askAdopt(c: ConflictRow) {
+    adoptTarget = c;
     adoptOpen = true;
   }
 </script>
 
+<svelte:head>
+  <title>Divergences Salesforce</title>
+</svelte:head>
+
 <div class="space-y-6">
-  <div class="flex items-center justify-between gap-4">
-    <div>
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="space-y-1">
       <h1 class="font-heading text-3xl tracking-wide uppercase">
-        Divergences Salesforce
+        Divergences Salesforce<span class="text-epi-teal">_</span>
       </h1>
-      <p class="text-sm font-bold text-muted-foreground uppercase">
-        {data.totalFields}
-        {data.totalFields > 1 ? 'écarts' : 'écart'} sur
-        {data.totalTalents}
-        {data.totalTalents > 1 ? 'talents' : 'talent'}
+      <p
+        class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+      >
+        <span class="font-mono text-xs">
+          {talentCount}
+          {talentCount > 1 ? 'talents' : 'talent'} concerné{talentCount > 1
+            ? 's'
+            : ''}
+        </span>
+        {#if conflictCount > 0}
+          <Badge variant="outline" class="border-epi-orange/40 text-epi-orange">
+            {conflictCount}
+            {conflictCount > 1 ? 'conflits' : 'conflit'}
+          </Badge>
+        {/if}
+        {#if pushFieldCount > 0}
+          <Badge variant="secondary">
+            {pushFieldCount}
+            {pushFieldCount > 1 ? 'champs' : 'champ'} à transmettre
+          </Badge>
+        {/if}
       </p>
     </div>
-    <a
-      href={resolve('/staff/admin/sf-conflicts/export')}
-      class={buttonVariants({ variant: 'outline' })}
-      download
-    >
-      <Download class="mr-2 h-4 w-4" /> Exporter CSV
-    </a>
+    {#if hasData}
+      <a
+        href={resolve('/staff/admin/sf-conflicts/export')}
+        class={buttonVariants({ variant: 'outline' })}
+        download
+      >
+        <Download class="mr-2 h-4 w-4" /> Exporter CSV
+      </a>
+    {/if}
   </div>
 
   <p class="max-w-3xl text-sm text-muted-foreground">
-    Écarts entre l'info confirmée par le talent (qui fait foi) et ce que
-    Salesforce envoie. Exportez le CSV pour pousser ces corrections, et les
-    données absentes de Salesforce (contacts parents), via le script externe.
-    Chaque écart reste listé tant que Salesforce ne porte pas la valeur : le
-    prochain sync le solde tout seul.
+    L'info confirmée par le talent fait foi. Un <strong>conflit</strong> demande
+    un arbitrage : adopter Salesforce ou laisser la valeur du talent (par
+    défaut). Le reste se <strong>transmet</strong> à Salesforce via le CSV ; chaque
+    écart reste listé jusqu'à ce que Salesforce porte la valeur — le prochain sync
+    le solde tout seul.
   </p>
 
-  {#if data.diffs.length === 0}
-    <Card.Root class="rounded-sm">
-      <Card.Content class="py-12 text-center text-sm text-muted-foreground">
-        Aucune divergence : tout ce que les talents ont confirmé concorde avec
-        Salesforce.
+  {#if !hasData}
+    <Card.Root>
+      <Card.Content class="py-16 text-center">
+        <CheckCheck class="mx-auto mb-3 h-8 w-8 text-epi-teal-solid" />
+        <p class="text-sm font-medium">Aucune divergence.</p>
+        <p class="text-sm text-muted-foreground">
+          Tout ce que les talents ont confirmé concorde avec Salesforce.
+        </p>
       </Card.Content>
     </Card.Root>
   {:else}
-    {#each data.diffs as t (t.talentId)}
-      <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
-        <div
-          class="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-5 py-3"
-        >
-          <div>
-            <p class="font-medium">{t.prenom} {t.nom}</p>
-            <p class="text-xs text-muted-foreground">
-              {t.email ?? '—'}
-              {#if t.externalId}· SF {t.externalId}{/if}
-            </p>
-          </div>
-        </div>
-        <Card.Content class="p-0">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b text-left text-xs text-muted-foreground">
-                <th class="px-5 py-2 font-medium">Champ</th>
-                <th class="px-5 py-2 font-medium">Jump (confirmé)</th>
-                <th class="px-5 py-2 font-medium">Salesforce</th>
-                <th class="px-5 py-2 text-right font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each t.diffs as d (d.field)}
-                <tr class="border-b last:border-0">
-                  <td class="px-5 py-2.5 align-middle">
-                    <span class="font-medium">{FIELD_LABELS[d.field]}</span>
-                    {#if d.kind === 'missing'}
-                      <span
-                        class="ml-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                        title="Salesforce n'a pas cette donnée — à transmettre"
-                      >
-                        absente de SF
-                      </span>
-                    {/if}
-                  </td>
-                  <td class="px-5 py-2.5 align-middle text-epi-blue">
-                    {displayValue(d.field, d.jump)}
-                  </td>
-                  <td class="px-5 py-2.5 align-middle text-muted-foreground">
-                    {displayValue(d.field, d.sf)}
-                  </td>
-                  <!-- Jump wins by default (optimistic) — there is no "keep Jump"
-                       action: the value already stands, and the row must remain in
-                       the CSV until Salesforce is actually updated. The only manual
-                       move is siding with Salesforce, and only for a conflict (a
-                       missing field has nothing to adopt). It writes this one
-                       column, never the rest of the talent. -->
-                  <td class="px-5 py-2.5 align-middle">
-                    <div class="flex items-center justify-end">
-                      {#if d.kind === 'conflict'}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          class="gap-1.5 text-muted-foreground"
-                          title="Salesforce a raison : écraser la valeur du talent"
-                          onclick={() => askAdopt(t, d.field, d.jump, d.sf)}
-                        >
-                          <CloudDownload class="h-3.5 w-3.5" /> Adopter Salesforce
-                        </Button>
-                      {:else}
-                        <span class="text-xs text-muted-foreground">
-                          via export CSV
-                        </span>
-                      {/if}
-                    </div>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </Card.Content>
-      </Card.Root>
-    {/each}
-  {/if}
+    <div class="relative max-w-sm">
+      <Search
+        class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+      />
+      <Input
+        bind:value={query}
+        placeholder="Rechercher un talent (nom, email)…"
+        class="pl-9"
+      />
+    </div>
 
-  {#if data.enrichment.length > 0}
-    <!-- Data Salesforce has no column for (parent contacts): never a diff, no
-         per-field action — it only rides the CSV. Shown here so the page mirrors
-         the export instead of the CSV carrying rows the reviewer never saw.
-         Folded by default to keep the actionable diffs above it in focus. -->
-    <Collapsible.Root
-      open={enrichmentOpen}
-      onOpenChange={(v) => (enrichmentOpen = v)}
-    >
-      <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
-        <Collapsible.Trigger
-          class="flex w-full cursor-pointer items-center justify-between gap-3 px-5 py-3 text-left"
-        >
-          <div>
-            <p class="font-medium">Données absentes de Salesforce</p>
-            <p class="text-xs text-muted-foreground">
-              Contacts parents collectés à l'onboarding · {data.totalEnrichmentFields}
-              {data.totalEnrichmentFields > 1 ? 'champs' : 'champ'} sur
-              {data.totalEnrichmentTalents}
-              {data.totalEnrichmentTalents > 1 ? 'talents' : 'talent'} · à transmettre
-              via le CSV
-            </p>
-          </div>
-          <ChevronDown
-            class={cn(
-              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-              enrichmentOpen ? 'rotate-180' : '',
-            )}
-          />
-        </Collapsible.Trigger>
-        <Collapsible.Content>
-          <div class="border-t">
-            {#each data.enrichment as t (t.externalId ?? t.email ?? `${t.nom}-${t.prenom}`)}
-              <div class="border-b px-5 py-3 last:border-0">
-                <p class="text-sm font-medium">{t.prenom} {t.nom}</p>
-                <p class="mb-2 text-xs text-muted-foreground">
-                  {t.email ?? '—'}
-                  {#if t.externalId}· SF {t.externalId}{/if}
-                </p>
-                <dl class="grid gap-x-6 gap-y-1 sm:grid-cols-2">
-                  {#each t.fields as f (f.label)}
-                    <div class="flex justify-between gap-3 text-sm">
-                      <dt class="text-muted-foreground">{f.label}</dt>
-                      <dd class="text-right">{f.value}</dd>
+    <!-- ── Conflicts: the actionable section ─────────────────────────────── -->
+    <section class="space-y-3">
+      <h2 class="font-heading text-lg tracking-wide uppercase">
+        Conflits à arbitrer
+        <span class="ml-1 font-mono text-sm text-muted-foreground">
+          {conflictCount}
+        </span>
+      </h2>
+
+      {#if conflictCount === 0}
+        <Card.Root>
+          <Card.Content class="py-8 text-center text-sm text-muted-foreground">
+            Aucun conflit : Salesforce ne contredit aucune valeur confirmée.
+          </Card.Content>
+        </Card.Root>
+      {:else}
+        <Card.Root>
+          <Card.Content class="p-0">
+            <Table.Root>
+              <Table.Header>
+                <Table.Row>
+                  <Table.Head>Talent</Table.Head>
+                  <Table.Head>Champ</Table.Head>
+                  <Table.Head>Jump (confirmé)</Table.Head>
+                  <Table.Head>Salesforce</Table.Head>
+                  <Table.Head class="text-right">Action</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {#each visibleConflicts as c (c.talentId + c.field)}
+                  <Table.Row>
+                    <Table.Cell>
+                      <div class="font-medium">{c.prenom} {c.nom}</div>
+                      <div
+                        class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
+                      >
+                        {c.email ?? '—'}
+                        {#if c.externalId}
+                          <a
+                            href={salesforceContactUrl(c.externalId)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Ouvrir dans Salesforce"
+                            aria-label="Ouvrir le contact dans Salesforce"
+                            class="hover:text-epi-blue"
+                          >
+                            <CloudUpload class="h-3.5 w-3.5" />
+                          </a>
+                        {/if}
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell class="font-medium">
+                      {FIELD_LABELS[c.field]}
+                    </Table.Cell>
+                    <Table.Cell class="font-medium text-epi-blue">
+                      {c.jump}
+                    </Table.Cell>
+                    <Table.Cell class="text-muted-foreground">
+                      {c.sf}
+                    </Table.Cell>
+                    <Table.Cell class="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="gap-1.5 text-muted-foreground"
+                        title="Salesforce a raison : écraser la valeur du talent"
+                        onclick={() => askAdopt(c)}
+                      >
+                        <CloudDownload class="h-3.5 w-3.5" /> Adopter Salesforce
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                {:else}
+                  <Table.Row>
+                    <Table.Cell
+                      colspan={5}
+                      class="py-8 text-center text-sm text-muted-foreground"
+                    >
+                      Aucun conflit pour « {query} ».
+                    </Table.Cell>
+                  </Table.Row>
+                {/each}
+              </Table.Body>
+            </Table.Root>
+          </Card.Content>
+        </Card.Root>
+      {/if}
+    </section>
+
+    <!-- ── To push: read-only, rides the CSV ─────────────────────────────── -->
+    {#if pushFieldCount > 0}
+      <section class="space-y-3">
+        <div>
+          <h2 class="font-heading text-lg tracking-wide uppercase">
+            À transmettre vers Salesforce
+            <span class="ml-1 font-mono text-sm text-muted-foreground">
+              {pushFieldCount}
+            </span>
+          </h2>
+          <p class="font-mono text-xs tracking-wide text-muted-foreground">
+            &lt; poussé via l'export CSV — aucune action ici /&gt;
+          </p>
+        </div>
+
+        <Card.Root>
+          <Card.Content class="p-0">
+            {#each visiblePushGroups as g (g.talentId)}
+              <div class="border-b px-5 py-4 last:border-0">
+                <div class="mb-3 flex items-center gap-2">
+                  <span class="font-medium">{g.prenom} {g.nom}</span>
+                  <span
+                    class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
+                  >
+                    {g.email ?? '—'}
+                    {#if g.externalId}
+                      <a
+                        href={salesforceContactUrl(g.externalId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Ouvrir dans Salesforce"
+                        aria-label="Ouvrir le contact dans Salesforce"
+                        class="hover:text-epi-blue"
+                      >
+                        <CloudUpload class="h-3.5 w-3.5" />
+                      </a>
+                    {/if}
+                  </span>
+                </div>
+                <dl class="grid gap-x-8 gap-y-2 sm:grid-cols-2">
+                  {#each g.items as item (item.label)}
+                    <div class="flex items-baseline justify-between gap-3">
+                      <dt
+                        class="flex items-center gap-1.5 text-sm text-muted-foreground"
+                      >
+                        {item.label}
+                        {#if item.origin === 'parent'}
+                          <span
+                            class="rounded-full bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground"
+                            title="Salesforce n'a pas de champ pour cette donnée"
+                          >
+                            hors SF
+                          </span>
+                        {/if}
+                      </dt>
+                      <dd class="text-right text-sm font-medium">
+                        {item.value}
+                      </dd>
                     </div>
                   {/each}
                 </dl>
               </div>
+            {:else}
+              <div class="py-8 text-center text-sm text-muted-foreground">
+                Aucune donnée à transmettre pour « {query} ».
+              </div>
             {/each}
-          </div>
-        </Collapsible.Content>
-      </Card.Root>
-    </Collapsible.Root>
+          </Card.Content>
+        </Card.Root>
+      </section>
+    {/if}
   {/if}
 </div>
 
@@ -244,10 +402,12 @@
         Adopter la valeur Salesforce
       </AlertDialog.Title>
       <AlertDialog.Description>
-        La valeur <strong>{adoptTarget?.fieldLabel}</strong> confirmée par
-        <strong>{adoptTarget?.talentName}</strong> (« {adoptTarget?.jump} ») sera
-        remplacée par celle de Salesforce (« {adoptTarget?.sf} »). Action immédiate
-        sur des données réelles, sans annulation directe.
+        La valeur
+        <strong>{adoptTarget ? FIELD_LABELS[adoptTarget.field] : ''}</strong>
+        confirmée par
+        <strong>{adoptTarget?.prenom} {adoptTarget?.nom}</strong>
+        (« {adoptTarget?.jump} ») sera remplacée par celle de Salesforce (« {adoptTarget?.sf}
+        »). Action immédiate sur des données réelles, sans annulation directe.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
