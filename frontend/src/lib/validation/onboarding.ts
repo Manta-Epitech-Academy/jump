@@ -1,3 +1,4 @@
+import { isValidPhoneNumber } from 'libphonenumber-js';
 import { z } from 'zod';
 
 const civiliteEnum = z.enum(['homme', 'femme', 'autre'], {
@@ -8,13 +9,27 @@ const parentTypeEnum = z.enum(['pere', 'mere', 'referent'], {
   message: 'Le lien de parenté est requis',
 });
 
+const phoneSchema = z
+  .string()
+  .min(1, 'Le numéro de téléphone est requis')
+  .refine((val) => isValidPhoneNumber(val), {
+    message: 'Numéro de téléphone invalide',
+  });
+
+const optionalPhoneSchema = z
+  .string()
+  .optional()
+  .refine((val) => !val || val === '' || isValidPhoneNumber(val), {
+    message: 'Numéro de téléphone invalide',
+  });
+
 const parent2Schema = z.object({
   parent2Type: z.string().optional(),
   parent2Civilite: z.string().optional(),
   parent2Nom: z.string().optional(),
   parent2Prenom: z.string().optional(),
   parent2Email: z.string().optional(),
-  parent2Phone: z.string().optional(),
+  parent2Phone: optionalPhoneSchema,
 });
 
 const profileBaseSchema = z
@@ -26,7 +41,7 @@ const profileBaseSchema = z
       .min(2, 'Le prénom doit faire au moins 2 caractères')
       .trim(),
     email: z.email('Email invalide'),
-    phone: z.string().min(10, 'Ton numéro est requis'),
+    phone: phoneSchema,
     parentType: parentTypeEnum,
     parentCivilite: civiliteEnum,
     parentNom: z
@@ -38,7 +53,7 @@ const profileBaseSchema = z
       .min(2, 'Le prénom du parent doit faire au moins 2 caractères')
       .trim(),
     parentEmail: z.email('Email parent invalide'),
-    parentPhone: z.string().min(10, 'Le numéro du parent est requis'),
+    parentPhone: phoneSchema,
     // School is identified by its national UAI when picked from the annuaire;
     // `schoolName`/`schoolCity` carry the display values (and are the only signal
     // for the free-text fallback, when no UAI is available).
