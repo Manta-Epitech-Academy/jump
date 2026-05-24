@@ -1,8 +1,11 @@
 <script lang="ts">
   import { parsePhoneNumber } from 'libphonenumber-js';
   import type { CountryCode } from 'libphonenumber-js';
-  import * as Select from '$lib/components/ui/select';
+  import * as Popover from '$lib/components/ui/popover';
+  import * as Command from '$lib/components/ui/command';
+  import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { COUNTRIES, DEFAULT_COUNTRY } from './countries';
 
   let {
@@ -36,9 +39,11 @@
     return { country: DEFAULT_COUNTRY, local: e164 };
   }
 
+  // svelte-ignore state_referenced_locally
   const initial = parseInitial(value);
   let selectedCountry = $state<string>(initial.country);
   let localNumber = $state(initial.local);
+  let open = $state(false);
 
   // Derived: the matching entry from the countries list
   let countryEntry = $derived(
@@ -55,23 +60,47 @@
       : cleaned;
     return `${countryEntry.dialCode}${withoutLeadingZero}`;
   });
+
+  function selectCountry(code: string) {
+    selectedCountry = code;
+    open = false;
+  }
 </script>
 
 <div class="flex gap-2">
-  <Select.Root type="single" bind:value={selectedCountry}>
-    <Select.Trigger
-      class="h-9 w-[100px] shrink-0 rounded-lg border border-slate-200 bg-white/70 text-slate-900 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white"
-    >
-      {countryEntry.label}
-    </Select.Trigger>
-    <Select.Content class="max-h-[280px]">
-      {#each COUNTRIES as entry (entry.code)}
-        <Select.Item value={entry.code} label={entry.label}>
-          {entry.label}
-        </Select.Item>
-      {/each}
-    </Select.Content>
-  </Select.Root>
+  <Popover.Root bind:open>
+    <Popover.Trigger>
+      {#snippet child({ props })}
+        <Button
+          {...props}
+          variant="outline"
+          class="h-9 w-[100px] shrink-0 justify-between rounded-lg border border-slate-200 bg-white/70 text-slate-900 hover:bg-white/90 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:hover:bg-slate-800/90"
+        >
+          {countryEntry.label}
+          <ChevronDown class="ml-1 size-3.5 opacity-50" />
+        </Button>
+      {/snippet}
+    </Popover.Trigger>
+    <Popover.Content class="w-[220px] p-0" align="start">
+      <Command.Root class="rounded-lg">
+        <Command.Input placeholder="Rechercher un pays..." />
+        <Command.List class="max-h-[240px]">
+          <Command.Empty>Aucun pays trouvé.</Command.Empty>
+          {#each COUNTRIES as entry (entry.code)}
+            <Command.Item
+              value="{entry.code} {entry.dialCode}"
+              onSelect={() => selectCountry(entry.code)}
+              class="cursor-pointer"
+            >
+              <span class="mr-1.5">{entry.flag}</span>
+              <span class="text-xs text-muted-foreground">{entry.code}</span>
+              <span class="ml-auto font-mono text-sm">{entry.dialCode}</span>
+            </Command.Item>
+          {/each}
+        </Command.List>
+      </Command.Root>
+    </Popover.Content>
+  </Popover.Root>
 
   <Input
     type="tel"
