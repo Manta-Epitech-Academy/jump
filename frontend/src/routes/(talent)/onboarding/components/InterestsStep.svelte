@@ -47,7 +47,9 @@
 
   // Track insertion order so we can evict the most-recently added entry
   // when the user picks a new one at the limit.
+  // svelte-ignore state_referenced_locally
   let techOrder = $state<string[]>([...selectedTechIds]);
+  // svelte-ignore state_referenced_locally
   let generalOrder = $state<string[]>([...selectedGeneralIds]);
 
   function toggleTech(id: string) {

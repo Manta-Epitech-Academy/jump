@@ -69,10 +69,10 @@
         <Button
           {...props}
           variant="outline"
-          class="h-9 w-[100px] shrink-0 rounded-lg border border-slate-200 bg-white/70 text-slate-900 hover:bg-white/90 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:hover:bg-slate-800/90"
+          class="h-9 w-[106px] shrink-0 justify-between gap-1 rounded-lg border border-slate-200 bg-white/70 px-3 whitespace-nowrap text-slate-900 hover:bg-white/90 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:hover:bg-slate-800/90"
         >
-          {countryEntry.label}
-          <ChevronDown class="ml-1 size-3.5 opacity-50" />
+          <span class="truncate">{countryEntry.label}</span>
+          <ChevronDown class="size-3.5 shrink-0 opacity-50" />
         </Button>
       {/snippet}
     </Popover.Trigger>
