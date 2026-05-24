@@ -49,10 +49,17 @@ export const load: PageServerLoad = async () => {
 
   // Config rows whose slug is no longer in the catalogue (game removed from
   // jump-games). They can't rotate; surface them so an admin can clean up.
+  // Only meaningful when the catalogue actually loaded: an unreachable
+  // jump-games yields an empty catalogue, which must not be misread as "every
+  // game was removed" — that would invite deleting live rotation config during
+  // a transient outage.
+  const catalogAvailable = catalog.length > 0;
   const catalogNames = new Set(catalog.map((g) => g.name));
-  const orphans = configs
-    .filter((c) => !catalogNames.has(c.game))
-    .map((c) => ({ game: c.game, enabled: c.enabled, weight: c.weight }));
+  const orphans = catalogAvailable
+    ? configs
+        .filter((c) => !catalogNames.has(c.game))
+        .map((c) => ({ game: c.game, enabled: c.enabled, weight: c.weight }))
+    : [];
 
   const publications = await prisma.minigamePublication.findMany({
     orderBy: { publishedAt: 'desc' },
@@ -98,7 +105,7 @@ export const load: PageServerLoad = async () => {
   return {
     games,
     orphans,
-    catalogAvailable: catalog.length > 0,
+    catalogAvailable,
     publications: publicationStats,
     active,
     configForm,

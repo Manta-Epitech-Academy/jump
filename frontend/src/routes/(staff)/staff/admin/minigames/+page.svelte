@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import type { AdminGame } from './+page.server';
   import { untrack } from 'svelte';
+  import { enhance } from '$app/forms';
   import { superForm } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
   import Pencil from '@lucide/svelte/icons/pencil';
@@ -272,7 +273,11 @@
               <form
                 method="POST"
                 action="?/removeGame&game={o.game}"
-                use:forceEnhance
+                use:enhance={() =>
+                  async ({ result, update }) => {
+                    await update();
+                    if (result.type === 'success') toast.success('Jeu retiré.');
+                  }}
               >
                 <Button
                   type="submit"
