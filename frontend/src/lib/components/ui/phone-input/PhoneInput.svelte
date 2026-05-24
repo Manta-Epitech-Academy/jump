@@ -90,9 +90,7 @@
               : ''}"
             onclick={() => selectCountry(entry.code)}
           >
-            <span>{entry.flag}</span>
-            <span class="text-xs text-muted-foreground">{entry.code}</span>
-            <span class="ml-auto font-mono text-sm">{entry.dialCode}</span>
+            {entry.label}
           </button>
         {/each}
       </div>
