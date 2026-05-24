@@ -1,33 +1,55 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import type { AdminGame } from './+page.server';
   import { untrack } from 'svelte';
   import { superForm } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
-  import Plus from '@lucide/svelte/icons/plus';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import Zap from '@lucide/svelte/icons/zap';
   import FlaskConical from '@lucide/svelte/icons/flask-conical';
+  import Dices from '@lucide/svelte/icons/dices';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Timer from '@lucide/svelte/icons/timer';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import { Checkbox } from '$lib/components/ui/checkbox';
+  import { Switch } from '$lib/components/ui/switch';
   import { Badge } from '$lib/components/ui/badge';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
-  import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import { cn } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
 
-  // ── Game config form ─────────────────────────
+  const DIFFICULTY: Record<
+    AdminGame['difficulty'],
+    { label: string; class: string }
+  > = {
+    easy: {
+      label: 'Facile',
+      class:
+        'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+    },
+    medium: {
+      label: 'Moyen',
+      class:
+        'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+    },
+    hard: {
+      label: 'Difficile',
+      class: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+    },
+  };
+
+  // ── Game config dialog (rotation + weight for one catalogue game) ──
   const {
     form: configForm,
-    errors: configErrors,
     enhance: configEnhance,
     delayed: configDelayed,
-    reset: configReset,
   } = superForm(
     untrack(() => data.configForm),
     {
@@ -35,44 +57,25 @@
         if (result.type === 'success') {
           configOpen = false;
           toast.success(result.data?.form?.message || 'Enregistré');
+        } else if (result.type === 'failure') {
+          toast.error(result.data?.form?.message || 'Erreur');
         }
       },
     },
   );
 
   let configOpen = $state(false);
-  let isEditing = $state(false);
-  let deleteOpen = $state(false);
-  let toDelete = $state<string | null>(null);
+  let editing = $state<AdminGame | null>(null);
 
-  function openCreate() {
-    configReset();
-    $configForm.game = '';
-    $configForm.levelCount = 0;
-    $configForm.weight = 1;
-    $configForm.scoringType = 'score';
-    $configForm.enabled = true;
-    isEditing = false;
+  function openConfig(g: AdminGame) {
+    editing = g;
+    $configForm.game = g.name;
+    $configForm.weight = g.weight;
+    $configForm.enabled = g.enabled;
     configOpen = true;
   }
 
-  function openEdit(c: PageData['configs'][number]) {
-    configReset();
-    $configForm.game = c.game;
-    $configForm.levelCount = c.levelCount;
-    $configForm.weight = c.weight;
-    $configForm.scoringType = c.scoringType;
-    $configForm.enabled = c.enabled;
-    isEditing = true;
-    configOpen = true;
-  }
-
-  function confirmDelete(game: string) {
-    toDelete = game;
-    deleteOpen = true;
-  }
-
-  // ── Force publication form ───────────────────
+  // ── Force publication ──
   const {
     form: forceForm,
     errors: forceErrors,
@@ -91,24 +94,40 @@
     },
   );
 
-  function formatChrono(ms: number | null): string {
-    if (ms === null) return '—';
-    return `${(ms / 1000).toFixed(1)}s`;
+  const publishable = $derived(data.games.filter((g) => g.levelCount > 0));
+  const forceGame = $derived(
+    publishable.find((g) => g.name === $forceForm.game) ?? null,
+  );
+
+  function onForceGameChange(name: string) {
+    $forceForm.game = name;
+    $forceForm.level = 1; // reset into the new game's valid range
+  }
+  function randomForceLevel() {
+    if (forceGame)
+      $forceForm.level = Math.floor(Math.random() * forceGame.levelCount) + 1;
   }
 
-  function formatScore(s: number | null): string {
-    if (s === null) return '—';
-    return Math.round(s).toString();
-  }
-
-  // ── Test form ────────────────────────────────
+  // ── Test a level ──
   let testGame = $state('');
   let testLevel = $state(1);
+  const testMeta = $derived(
+    data.games.find((g) => g.name === testGame) ?? null,
+  );
   const testHref = $derived(
-    testGame
+    testGame &&
+      testLevel >= 1 &&
+      (!testMeta || testLevel <= testMeta.levelCount)
       ? `/staff/admin/minigames/test?game=${encodeURIComponent(testGame)}&level=${testLevel}`
       : '',
   );
+
+  function formatChrono(ms: number | null): string {
+    return ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`;
+  }
+  function formatScore(s: number | null): string {
+    return s === null ? '—' : Math.round(s).toString();
+  }
 </script>
 
 <svelte:head>
@@ -122,7 +141,7 @@
         Mini-<span class="text-epi-pink">jeux</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
-        Configurer les jeux et publications
+        Rotation et publications du jeu du jour
       </p>
     </div>
     {#if data.active}
@@ -132,8 +151,8 @@
         >
           Publication active
         </div>
-        <div class="text-sm font-bold capitalize">
-          {data.active.game} · niveau {data.active.level}
+        <div class="text-sm font-bold">
+          {data.active.gameName} · niveau {data.active.level}
         </div>
       </div>
     {:else}
@@ -141,72 +160,134 @@
     {/if}
   </div>
 
-  <!-- ── Jeux ── -->
-  <section class="space-y-3">
-    <div class="flex items-center justify-between">
-      <h2 class="flex items-center gap-2 text-lg font-bold uppercase">
-        <Gamepad2 class="h-5 w-5" /> Jeux configurés
-      </h2>
-      <Button
-        onclick={openCreate}
-        class="bg-epi-pink text-white hover:bg-epi-pink/90"
-      >
-        <Plus class="mr-2 h-4 w-4" /> Ajouter un jeu
-      </Button>
+  {#if !data.catalogAvailable}
+    <div
+      class="flex items-start gap-3 rounded-sm border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40"
+    >
+      <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+      <div>
+        <p class="font-bold">Catalogue des jeux indisponible</p>
+        <p class="text-muted-foreground">
+          Impossible de joindre <code>jump-games</code> (vérifie
+          <code>JUMP_GAMES_URL</code>). La rotation et les publications sont en
+          pause tant que le catalogue n'est pas accessible.
+        </p>
+      </div>
     </div>
-    <div class="rounded-sm border bg-card shadow-sm">
-      <Table.Root>
-        <Table.Header>
-          <Table.Row>
-            <Table.Head>Jeu</Table.Head>
-            <Table.Head>Niveaux</Table.Head>
-            <Table.Head>Poids</Table.Head>
-            <Table.Head>Tri</Table.Head>
-            <Table.Head>Statut</Table.Head>
-            <Table.Head class="text-right">Actions</Table.Head>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {#each data.configs as c (c.game)}
-            <Table.Row>
-              <Table.Cell class="font-bold capitalize">{c.game}</Table.Cell>
-              <Table.Cell>{c.levelCount}</Table.Cell>
-              <Table.Cell>{c.weight}</Table.Cell>
-              <Table.Cell class="uppercase">{c.scoringType}</Table.Cell>
-              <Table.Cell>
-                {#if c.enabled}
-                  <Badge variant="secondary">Actif</Badge>
-                {:else}
-                  <Badge variant="outline">Désactivé</Badge>
+  {/if}
+
+  <!-- ── Catalogue ── -->
+  <section class="space-y-3">
+    <h2 class="flex items-center gap-2 text-lg font-bold uppercase">
+      <Gamepad2 class="h-5 w-5" /> Catalogue
+    </h2>
+    {#if data.games.length === 0}
+      <div
+        class="rounded-sm border bg-card p-6 text-center text-sm text-muted-foreground"
+      >
+        Aucun jeu dans le catalogue.
+      </div>
+    {:else}
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {#each data.games as g (g.name)}
+          <div
+            class={cn(
+              'flex flex-col gap-3 rounded-sm border bg-card p-4 transition-colors',
+              g.enabled ? 'border-epi-pink/40' : 'opacity-80',
+            )}
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="truncate text-base font-bold">{g.displayName}</div>
+                <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                  <span
+                    class={cn(
+                      'rounded-full px-2 py-0.5 text-[10px] font-black uppercase',
+                      DIFFICULTY[g.difficulty].class,
+                    )}
+                  >
+                    {DIFFICULTY[g.difficulty].label}
+                  </span>
+                  <Badge variant="outline" class="gap-1 text-[10px]">
+                    {#if g.scoringType === 'score'}
+                      <Trophy class="h-3 w-3" /> Score
+                    {:else}
+                      <Timer class="h-3 w-3" /> Chrono
+                    {/if}
+                  </Badge>
+                </div>
+              </div>
+              {#if g.enabled}
+                <Badge variant="secondary" class="shrink-0">En rotation</Badge>
+              {:else}
+                <Badge variant="outline" class="shrink-0">Hors rotation</Badge>
+              {/if}
+            </div>
+
+            <p class="line-clamp-2 text-xs text-muted-foreground">
+              {g.description}
+            </p>
+
+            <div
+              class="mt-auto flex items-center justify-between border-t pt-3 text-xs"
+            >
+              <div class="flex gap-3 text-muted-foreground">
+                <span
+                  ><strong class="text-foreground">{g.levelCount}</strong> niveaux</span
+                >
+                {#if g.enabled}
+                  <span
+                    >poids <strong class="text-foreground">×{g.weight}</strong
+                    ></span
+                  >
                 {/if}
-              </Table.Cell>
-              <Table.Cell class="text-right">
-                <Button variant="ghost" size="icon" onclick={() => openEdit(c)}>
-                  <Pencil class="h-4 w-4" />
-                </Button>
+              </div>
+              <Button variant="ghost" size="sm" onclick={() => openConfig(g)}>
+                <Pencil class="mr-1.5 h-3.5 w-3.5" /> Configurer
+              </Button>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    {#if data.orphans.length > 0}
+      <div
+        class="rounded-sm border border-amber-300 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/30"
+      >
+        <p class="mb-2 flex items-center gap-2 text-sm font-bold">
+          <TriangleAlert class="h-4 w-4 text-amber-600" /> Jeux absents du catalogue
+        </p>
+        <p class="mb-3 text-xs text-muted-foreground">
+          Ces réglages pointent vers des jeux qui ne sont plus exposés par
+          <code>jump-games</code>. Ils ne peuvent plus tourner — tu peux les
+          retirer.
+        </p>
+        <div class="space-y-2">
+          {#each data.orphans as o (o.game)}
+            <div
+              class="flex items-center justify-between rounded-sm border bg-card px-3 py-2 text-sm"
+            >
+              <span class="font-mono">{o.game}</span>
+              <form
+                method="POST"
+                action="?/removeGame&game={o.game}"
+                use:forceEnhance
+              >
                 <Button
+                  type="submit"
                   variant="ghost"
                   size="icon"
                   class="text-destructive"
-                  onclick={() => confirmDelete(c.game)}
                 >
                   <Trash2 class="h-4 w-4" />
                 </Button>
-              </Table.Cell>
-            </Table.Row>
-          {:else}
-            <Table.Row>
-              <Table.Cell
-                colspan={6}
-                class="py-6 text-center text-sm text-muted-foreground"
-              >
-                Aucun jeu configuré.
-              </Table.Cell>
-            </Table.Row>
+              </form>
+            </div>
           {/each}
-        </Table.Body>
-      </Table.Root>
-    </div>
+        </div>
+      </div>
+    {/if}
   </section>
 
   <!-- ── Forcer publication ── -->
@@ -227,31 +308,49 @@
           <Select.Root
             type="single"
             value={$forceForm.game}
-            onValueChange={(v) => ($forceForm.game = v ?? '')}
+            onValueChange={(v) => onForceGameChange(v ?? '')}
           >
-            <Select.Trigger class="min-w-[200px]">
-              {$forceForm.game || 'Choisir un jeu'}
+            <Select.Trigger class="min-w-[220px]">
+              {forceGame?.displayName ?? 'Choisir un jeu'}
             </Select.Trigger>
             <Select.Content>
-              {#each data.configs.filter((c) => c.enabled && c.levelCount > 0) as c}
-                <Select.Item value={c.game} label={c.game} />
+              {#each publishable as g (g.name)}
+                <Select.Item value={g.name} label={g.displayName} />
               {/each}
             </Select.Content>
           </Select.Root>
         </div>
         <div class="space-y-1">
           <Label>Niveau</Label>
-          <Input
-            name="level"
-            type="number"
-            min="1"
-            class="w-24"
-            bind:value={$forceForm.level}
-          />
+          <div class="flex items-center gap-2">
+            <Input
+              name="level"
+              type="number"
+              min="1"
+              max={forceGame?.levelCount}
+              class="w-24"
+              bind:value={$forceForm.level}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              title="Niveau aléatoire"
+              disabled={!forceGame}
+              onclick={randomForceLevel}
+            >
+              <Dices class="h-4 w-4" />
+            </Button>
+          </div>
+          {#if forceGame}
+            <p class="text-[11px] text-muted-foreground">
+              1–{forceGame.levelCount}
+            </p>
+          {/if}
         </div>
         <Button
           type="submit"
-          disabled={$forceDelayed}
+          disabled={$forceDelayed || !forceGame}
           class="bg-epi-pink text-white"
         >
           {$forceDelayed ? '...' : 'Publier'}
@@ -282,25 +381,39 @@
           <Select.Root
             type="single"
             value={testGame}
-            onValueChange={(v) => (testGame = v ?? '')}
+            onValueChange={(v) => {
+              testGame = v ?? '';
+              testLevel = 1;
+            }}
           >
-            <Select.Trigger class="min-w-[200px]">
-              {testGame || 'Choisir un jeu'}
+            <Select.Trigger class="min-w-[220px]">
+              {testMeta?.displayName ?? 'Choisir un jeu'}
             </Select.Trigger>
             <Select.Content>
-              {#each data.configs as c}
-                <Select.Item value={c.game} label={c.game} />
+              {#each data.games as g (g.name)}
+                <Select.Item value={g.name} label={g.displayName} />
               {/each}
             </Select.Content>
           </Select.Root>
         </div>
         <div class="space-y-1">
           <Label>Niveau</Label>
-          <Input type="number" min="1" class="w-24" bind:value={testLevel} />
+          <Input
+            type="number"
+            min="1"
+            max={testMeta?.levelCount}
+            class="w-24"
+            bind:value={testLevel}
+          />
+          {#if testMeta}
+            <p class="text-[11px] text-muted-foreground">
+              1–{testMeta.levelCount}
+            </p>
+          {/if}
         </div>
         <Button
           href={testHref || undefined}
-          disabled={!testGame || testLevel < 1}
+          disabled={!testHref}
           class="bg-epi-pink text-white"
         >
           Tester
@@ -331,7 +444,7 @@
               <Table.Cell class="text-xs text-muted-foreground">
                 {new Date(p.publishedAt).toLocaleString('fr-FR')}
               </Table.Cell>
-              <Table.Cell class="font-bold capitalize">{p.game}</Table.Cell>
+              <Table.Cell class="font-bold">{p.gameName}</Table.Cell>
               <Table.Cell>{p.level}</Table.Cell>
               <Table.Cell>
                 {#if p.forcedById}
@@ -343,9 +456,9 @@
               <Table.Cell class="text-right tabular-nums"
                 >{p.attemptsCount}</Table.Cell
               >
-              <Table.Cell class="text-right tabular-nums"
-                >{formatScore(p.avgScore)}</Table.Cell
-              >
+              <Table.Cell class="text-right tabular-nums">
+                {p.scoringType === 'score' ? formatScore(p.avgScore) : '—'}
+              </Table.Cell>
               <Table.Cell class="text-right tabular-nums"
                 >{formatChrono(p.avgChrono)}</Table.Cell
               >
@@ -365,91 +478,51 @@
     </div>
   </section>
 
-  <!-- ── Dialog jeu ── -->
+  <!-- ── Dialog config ── -->
   <Dialog.Root bind:open={configOpen}>
     <Dialog.Content class="sm:max-w-md">
       <Dialog.Header>
-        <Dialog.Title>{isEditing ? 'Modifier' : 'Nouveau'} jeu</Dialog.Title>
+        <Dialog.Title>{editing?.displayName ?? 'Jeu'}</Dialog.Title>
+        <Dialog.Description>
+          {editing?.levelCount} niveaux ·
+          {editing?.scoringType === 'score'
+            ? 'classement au score'
+            : 'classement au chrono'}
+        </Dialog.Description>
       </Dialog.Header>
       <form
         method="POST"
-        action="?/upsertGame"
+        action="?/saveGame"
         use:configEnhance
-        class="space-y-4 py-4"
+        class="space-y-4 py-2"
       >
-        <div class="space-y-2">
-          <Label>Identifiant (game)</Label>
-          <Input
-            name="game"
-            bind:value={$configForm.game}
-            readonly={isEditing}
-            class={isEditing ? 'cursor-not-allowed opacity-60' : ''}
-            placeholder="minesweeper"
-          />
-          {#if $configErrors.game}<span class="text-xs text-destructive"
-              >{$configErrors.game}</span
-            >{/if}
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-2">
-            <Label>Nombre de niveaux</Label>
-            <Input
-              name="levelCount"
-              type="number"
-              min="0"
-              bind:value={$configForm.levelCount}
-            />
-            {#if $configErrors.levelCount}<span class="text-xs text-destructive"
-                >{$configErrors.levelCount}</span
-              >{/if}
-          </div>
-          <div class="space-y-2">
-            <Label>Poids</Label>
-            <Input
-              name="weight"
-              type="number"
-              min="1"
-              bind:value={$configForm.weight}
-            />
-            {#if $configErrors.weight}<span class="text-xs text-destructive"
-                >{$configErrors.weight}</span
-              >{/if}
-          </div>
-        </div>
-        <div class="space-y-2">
-          <Label>Type de tri</Label>
-          <input
-            type="hidden"
-            name="scoringType"
-            value={$configForm.scoringType}
-          />
-          <Select.Root
-            type="single"
-            value={$configForm.scoringType}
-            onValueChange={(v) =>
-              ($configForm.scoringType = (v as 'score' | 'chrono') ?? 'score')}
-          >
-            <Select.Trigger class="w-full">
-              {$configForm.scoringType === 'score'
-                ? 'Score (desc)'
-                : 'Chrono (asc)'}
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value="score" label="Score (desc)" />
-              <Select.Item value="chrono" label="Chrono (asc)" />
-            </Select.Content>
-          </Select.Root>
-        </div>
+        <input type="hidden" name="game" value={$configForm.game} />
+
         <label
-          class="flex cursor-pointer items-center gap-3 rounded-sm border bg-card p-3"
+          class="flex cursor-pointer items-center justify-between rounded-sm border bg-card p-3"
         >
-          <Checkbox
-            name="enabled"
-            checked={$configForm.enabled}
-            onCheckedChange={(v) => ($configForm.enabled = v === true)}
-          />
-          <span class="text-sm font-bold">Activé</span>
+          <div>
+            <span class="text-sm font-bold">En rotation</span>
+            <p class="text-xs text-muted-foreground">
+              Inclure ce jeu dans le tirage quotidien.
+            </p>
+          </div>
+          <Switch name="enabled" bind:checked={$configForm.enabled} />
         </label>
+
+        <div class="space-y-2">
+          <Label>Poids du tirage</Label>
+          <Input
+            name="weight"
+            type="number"
+            min="1"
+            bind:value={$configForm.weight}
+          />
+          <p class="text-xs text-muted-foreground">
+            Plus le poids est élevé, plus le jeu sort souvent.
+          </p>
+        </div>
+
         <Dialog.Footer>
           <Button
             type="submit"
@@ -462,11 +535,4 @@
       </form>
     </Dialog.Content>
   </Dialog.Root>
-
-  <ConfirmDeleteDialog
-    bind:open={deleteOpen}
-    action="?/deleteGame&game={toDelete}"
-    title="Supprimer ce jeu"
-    description="Êtes-vous sûr ? Impossible si des publications l'utilisent."
-  />
 </div>

@@ -1160,26 +1160,35 @@ enum MinigameAttemptStatus {
   invalid
 }
 
+// Host-side curation of the game catalogue: which games (by slug) are in the
+// daily rotation and with what weight. Everything *about* a game — its display
+// name, level count, scoring mode — is owned by jump-games and read live from
+// its `GET /api/games` catalogue (src/lib/server/services/minigameCatalog.ts),
+// never duplicated here. A game is in rotation iff it has a row with
+// enabled = true; no row means "not curated yet" (off).
 model MinigameConfig {
-  game        String          @id
-  levelCount  Int             @default(0)
-  weight      Int             @default(1)
-  scoringType MinigameScoring @default(score)
-  enabled     Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-
-  publications MinigamePublication[]
+  game      String   @id // jump-games catalogue slug
+  weight    Int      @default(1)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// A daily publication is an append-only fact: it records *what was published*.
+// `gameName` and `scoringType` are snapshotted from the catalogue at publish
+// time so historical leaderboards stay correct (and renderable) even if the
+// game is later renamed or removed from jump-games. `game` is the slug, kept
+// as a plain string (no FK) so a publication outlives any config/catalogue
+// churn.
 model MinigamePublication {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   game        String
+  gameName    String
   level       Int
-  publishedAt DateTime @default(now())
+  scoringType MinigameScoring
+  publishedAt DateTime        @default(now())
   forcedById  String?
 
-  config   MinigameConfig    @relation(fields: [game], references: [game])
   attempts MinigameAttempt[]
 
   @@index([publishedAt])

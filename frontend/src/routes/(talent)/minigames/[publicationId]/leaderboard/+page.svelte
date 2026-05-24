@@ -30,8 +30,8 @@
     <div class="mb-4 flex items-center gap-3">
       <Trophy class="h-6 w-6 text-epi-orange" />
       <div>
-        <h1 class="text-xl font-bold capitalize">
-          {data.publication.game} · niveau {data.publication.level}
+        <h1 class="text-xl font-bold">
+          {data.publication.gameName} · niveau {data.publication.level}
         </h1>
         <p class="text-xs text-slate-500 dark:text-slate-400">
           {data.campusName

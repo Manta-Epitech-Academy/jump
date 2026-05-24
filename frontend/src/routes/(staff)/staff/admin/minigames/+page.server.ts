@@ -8,14 +8,51 @@ import {
   getActivePublication,
 } from '$lib/server/services/minigameService';
 import {
+  getGameCatalog,
+  getCatalogGame,
+  scoringTypeFor,
+  type CatalogGame,
+} from '$lib/server/services/minigameCatalog';
+import {
   forcePublicationSchema,
   gameConfigSchema,
 } from '$lib/validation/minigames';
 
-export const load: PageServerLoad = async ({ locals }) => {
-  const configs = await prisma.minigameConfig.findMany({
-    orderBy: { game: 'asc' },
-  });
+/** A catalogue game merged with its host-side rotation curation. */
+export interface AdminGame extends CatalogGame {
+  scoringType: 'score' | 'chrono';
+  enabled: boolean;
+  weight: number;
+  /** A config row exists for this game (it has been curated at least once). */
+  curated: boolean;
+}
+
+export const load: PageServerLoad = async () => {
+  const [catalog, configs] = await Promise.all([
+    getGameCatalog(),
+    prisma.minigameConfig.findMany(),
+  ]);
+  const configByGame = new Map(configs.map((c) => [c.game, c]));
+
+  const games: AdminGame[] = catalog
+    .map((g) => {
+      const cfg = configByGame.get(g.name);
+      return {
+        ...g,
+        scoringType: scoringTypeFor(g),
+        enabled: cfg?.enabled ?? false,
+        weight: cfg?.weight ?? 1,
+        curated: !!cfg,
+      };
+    })
+    .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+
+  // Config rows whose slug is no longer in the catalogue (game removed from
+  // jump-games). They can't rotate; surface them so an admin can clean up.
+  const catalogNames = new Set(catalog.map((g) => g.name));
+  const orphans = configs
+    .filter((c) => !catalogNames.has(c.game))
+    .map((c) => ({ game: c.game, enabled: c.enabled, weight: c.weight }));
 
   const publications = await prisma.minigamePublication.findMany({
     orderBy: { publishedAt: 'desc' },
@@ -42,7 +79,9 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {
       id: p.id,
       game: p.game,
+      gameName: p.gameName,
       level: p.level,
+      scoringType: p.scoringType,
       publishedAt: p.publishedAt,
       forcedById: p.forcedById,
       attemptsCount: count,
@@ -57,7 +96,9 @@ export const load: PageServerLoad = async ({ locals }) => {
   const forceForm = await superValidate(zod4(forcePublicationSchema));
 
   return {
-    configs,
+    games,
+    orphans,
+    catalogAvailable: catalog.length > 0,
     publications: publicationStats,
     active,
     configForm,
@@ -66,35 +107,36 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  upsertGame: async ({ request, locals }) => {
+  // Curate rotation for a single catalogue game: on/off + weight.
+  saveGame: async ({ request }) => {
     const form = await superValidate(request, zod4(gameConfigSchema));
     if (!form.valid) return fail(400, { configForm: form });
 
+    const game = await getCatalogGame(form.data.game);
+    if (!game) {
+      return message(form, 'Jeu absent du catalogue.', { status: 400 });
+    }
+
     await prisma.minigameConfig.upsert({
       where: { game: form.data.game },
-      create: form.data,
-      update: {
-        levelCount: form.data.levelCount,
+      create: {
+        game: form.data.game,
         weight: form.data.weight,
-        scoringType: form.data.scoringType,
         enabled: form.data.enabled,
       },
+      update: { weight: form.data.weight, enabled: form.data.enabled },
     });
 
     return message(form, 'Jeu enregistré.');
   },
 
-  deleteGame: async ({ url, locals }) => {
+  // Remove a stale config row (only ever an orphan — catalogue games are
+  // toggled off, not deleted). Publications are self-contained, so this is
+  // always safe.
+  removeGame: async ({ url }) => {
     const game = url.searchParams.get('game');
     if (!game) return fail(400);
-
-    const used = await prisma.minigamePublication.count({ where: { game } });
-    if (used > 0) {
-      return fail(400, {
-        deleteError: `Impossible : ${used} publications utilisent ce jeu.`,
-      });
-    }
-    await prisma.minigameConfig.delete({ where: { game } });
+    await prisma.minigameConfig.deleteMany({ where: { game } });
     return { success: true };
   },
 
@@ -102,23 +144,23 @@ export const actions: Actions = {
     const form = await superValidate(request, zod4(forcePublicationSchema));
     if (!form.valid) return fail(400, { forceForm: form });
 
-    const config = await prisma.minigameConfig.findUnique({
-      where: { game: form.data.game },
-    });
-    if (!config) {
-      return message(form, 'Jeu inconnu.', { status: 400 });
+    const game = await getCatalogGame(form.data.game);
+    if (!game) {
+      return message(form, 'Jeu absent du catalogue.', { status: 400 });
     }
-    if (form.data.level < 1 || form.data.level > config.levelCount) {
-      return message(form, `Niveau hors plage (1–${config.levelCount}).`, {
+    if (form.data.level < 1 || form.data.level > game.levelCount) {
+      return message(form, `Niveau hors plage (1–${game.levelCount}).`, {
         status: 400,
       });
     }
 
-    await forcePublication(
-      form.data.game,
-      form.data.level,
-      locals.user?.id ?? null,
-    );
+    await forcePublication({
+      game: game.name,
+      gameName: game.displayName,
+      level: form.data.level,
+      scoringType: scoringTypeFor(game),
+      forcedById: locals.user?.id ?? null,
+    });
     return message(form, 'Publication forcée créée.');
   },
 };
