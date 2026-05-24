@@ -5,6 +5,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { PhoneInput } from '$lib/components/ui/phone-input';
   import UserCheck from '@lucide/svelte/icons/user-check';
   import Users from '@lucide/svelte/icons/users';
   import School from '@lucide/svelte/icons/school';
@@ -283,12 +284,10 @@
         <Label for="phone" class={fieldLabel}>
           Téléphone <span class="text-red-500">*</span>
         </Label>
-        <Input
-          id="phone"
+        <PhoneInput
           name="phone"
-          type="tel"
           value={profile.phone}
-          placeholder="06 98 76 54 32"
+          placeholder="6 12 34 56 78"
           required
           class={fieldInput}
         />
@@ -404,12 +403,10 @@
         <Label for="parentPhone" class={fieldLabel}>
           Téléphone <span class="text-red-500">*</span>
         </Label>
-        <Input
-          id="parentPhone"
+        <PhoneInput
           name="parentPhone"
-          type="tel"
           value={profile.parentPhone}
-          placeholder="06 12 34 56 78"
+          placeholder="6 12 34 56 78"
           required
           class={fieldInput}
         />
@@ -542,12 +539,10 @@
         </div>
         <div>
           <Label for="parent2Phone" class={fieldLabel}>Téléphone</Label>
-          <Input
-            id="parent2Phone"
+          <PhoneInput
             name="parent2Phone"
-            type="tel"
             value={profile.parent2Phone}
-            placeholder="06 98 76 54 32"
+            placeholder="6 12 34 56 78"
             class={fieldInput}
           />
         </div>
