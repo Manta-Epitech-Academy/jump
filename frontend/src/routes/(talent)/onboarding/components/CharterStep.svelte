@@ -1,3 +1,4 @@
+<!-- frontend/src/routes/(talent)/onboarding/components/CharterStep.svelte -->
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
@@ -22,10 +23,10 @@
   <h1
     class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
   >
-    Charte de Protection des Données
+    Sécurité des Données
   </h1>
   <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-    Avant de continuer, prends connaissance de ces informations.
+    Avant de commencer, prenons un instant pour tes données.
   </p>
 </div>
 
@@ -61,13 +62,13 @@
     <p>
       Ton nom, prénom, et ta progression pédagogique : étapes complétées,
       compétences validées, points d'expérience (XP), badges obtenus, et les
-      créations que tu ajoutes à ton portfolio.
+      créations de ton portfolio.
     </p>
 
     <h2>Pourquoi ?</h2>
     <p>
-      Pour suivre ta progression pendant les ateliers, générer tes
-      certifications, et te permettre de partager ton portfolio.
+      Pour suivre ta progression, générer tes certifications, et te permettre de
+      partager ton portfolio.
     </p>
 
     <h2>Combien de temps ?</h2>
@@ -79,7 +80,8 @@
     <h2>Tes droits</h2>
     <p>
       Tu peux à tout moment consulter, modifier ou supprimer tes données depuis
-      ton cockpit. Tu peux aussi demander la suppression complète de ton compte.
+      ton espace personnel. Tu peux aussi demander la suppression complète de
+      ton compte.
     </p>
 
     <h2>Où sont stockées tes données ?</h2>
@@ -95,10 +97,12 @@
         class="size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
-        J'ai lu et j'accepte les conditions ci-dessus
+        Je suis prêt(e) à coder en toute sécurité 🛡️
       </span>
     </label>
 
-    <ContinueButton {submitting} disabled={!accepted} />
+    <ContinueButton {submitting} disabled={!accepted}>
+      Étape suivante
+    </ContinueButton>
   </div>
 </form>

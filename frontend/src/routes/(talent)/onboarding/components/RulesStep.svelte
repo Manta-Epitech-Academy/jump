@@ -1,3 +1,4 @@
+<!-- frontend/src/routes/(talent)/onboarding/components/RulesStep.svelte -->
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
@@ -11,15 +12,11 @@
   import ContinueButton from './ContinueButton.svelte';
 
   let { error: formError }: { error?: string } = $props();
-
-  // Timestamp when the rules were first shown — feeds the "time to sign" metric.
   const seenAt = Date.now();
-
   let submitting = $state(false);
   let city = $state('');
   let signed = $state(false);
 
-  // Remove the "Fait à" placeholder line — it's rendered as inline inputs below
   const contentWithoutSignature = reglementMd.replace(
     /\n\*\*Fait à \{\{city\}\}.*$/m,
     '',
@@ -39,7 +36,7 @@
     Règlement Intérieur
   </h1>
   <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-    Prends connaissance du règlement avant de continuer.
+    Dernière étape pour finaliser ton inscription.
   </p>
 </div>
 
@@ -71,12 +68,10 @@
     };
   }}
 >
-  <!-- Document content — displayed directly in the page, no container box -->
   <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
     {@html renderedContent}
   </div>
 
-  <!-- Signature — card glass visible pour ne pas passer inaperçu -->
   <div
     class="mt-6 flex items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
@@ -109,7 +104,7 @@
         class="size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
-        Je signe le règlement intérieur
+        Je m'engage à respecter le règlement
       </span>
     </label>
 
@@ -117,10 +112,11 @@
       class="flex items-center justify-center gap-2 rounded-xl bg-epi-teal/10 px-4 py-2.5 text-center text-sm font-medium text-epi-teal-solid dark:text-epi-teal"
     >
       <Sparkles class="h-4 w-4 shrink-0" />
-      Signe pour finaliser ton inscription et gagner {WELCOME_XP_BONUS} XP de bienvenue
-      !
+      Dernière étape pour gagner tes {WELCOME_XP_BONUS} XP de bienvenue !
     </div>
 
-    <ContinueButton {submitting} disabled={!signed || !city.trim()} />
+    <ContinueButton {submitting} disabled={!signed || !city.trim()}>
+      Signer et obtenir mes {WELCOME_XP_BONUS} XP ✨
+    </ContinueButton>
   </div>
 </form>

@@ -192,6 +192,8 @@ model Talent {
   imageRightsSignerName       String?
   infoValidatedAt             DateTime?
   highSchoolValidatedAt       DateTime?
+  parentsValidatedAt          DateTime?
+  processingCompletedAt       DateTime?
   schoolId                    String?
   // Free-text fallback used only when the talent's lycée has no UAI (so no
   // canonical `School` row exists). When `schoolId` is set this stays null.
@@ -1316,4 +1318,3 @@ enum XpGrantSource {
   activity_presence
   admin_adjustment
 }
-

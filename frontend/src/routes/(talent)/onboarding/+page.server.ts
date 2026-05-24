@@ -3,7 +3,9 @@ import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import {
-  profileSchema,
+  identitySchema,
+  schoolSchema,
+  parentsSchema,
   interestsSchema,
   equipmentSchema,
 } from '$lib/validation/onboarding';
@@ -15,26 +17,33 @@ import { grantXp } from '$lib/server/services/xpService';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 
 export type OnboardingStep =
-  | 'profile'
+  | 'identity'
+  | 'school'
+  | 'parents'
   | 'interests'
   | 'equipment'
+  | 'processing'
   | 'charter'
   | 'rules';
 
 function getCurrentStep(profile: {
   infoValidatedAt: Date | null;
   highSchoolValidatedAt: Date | null;
+  parentsValidatedAt: Date | null;
   techInterestsValidatedAt: Date | null;
   generalInterestsValidatedAt: Date | null;
   equipmentValidatedAt: Date | null;
+  processingCompletedAt: Date | null;
   charterAcceptedAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
-  if (!profile.infoValidatedAt || !profile.highSchoolValidatedAt)
-    return 'profile';
+  if (!profile.infoValidatedAt) return 'identity';
+  if (!profile.highSchoolValidatedAt) return 'school';
+  if (!profile.parentsValidatedAt) return 'parents';
   if (!profile.techInterestsValidatedAt || !profile.generalInterestsValidatedAt)
     return 'interests';
   if (!profile.equipmentValidatedAt) return 'equipment';
+  if (!profile.processingCompletedAt) return 'processing';
   if (!profile.charterAcceptedAt) return 'charter';
   if (!profile.rulesSignedAt) return 'rules';
   return null;
@@ -51,7 +60,10 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  if (step === 'profile') {
+  // The three personal steps (identity / school / parents) share one combined
+  // profile payload: each renders a slice of it, so the load shape stays unified
+  // and the Svelte props stay simple.
+  if (step === 'identity' || step === 'school' || step === 'parents') {
     const user = locals.user!;
     // Pre-fill the lycée from the talent's current School (seeded from Salesforce
     // before onboarding), falling back to the free-text name when there's no UAI.
@@ -61,6 +73,7 @@ export const load: PageServerLoad = async ({ locals }) => {
           select: { uai: true, name: true, city: true },
         })
       : null;
+
     return {
       step,
       profile: {
@@ -130,27 +143,53 @@ export const load: PageServerLoad = async ({ locals }) => {
     };
   }
 
-  // step === 'rules'
   return { step };
 };
 
 export const actions: Actions = {
-  validateProfile: async ({ request, locals }) => {
+  validateIdentity: async ({ request, locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
     const formData = await request.formData();
     const raw = Object.fromEntries(formData);
-    const result = profileSchema.safeParse(raw);
+    const result = identitySchema.safeParse(raw);
 
     if (!result.success) {
       return fail(400, {
-        step: 'profile' as const,
+        step: 'identity' as const,
         errors: result.error.flatten().fieldErrors,
         values: raw as Record<string, string>,
       });
     }
 
-    const now = new Date();
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: {
+        civilite: result.data.civilite,
+        nom: result.data.nom,
+        prenom: result.data.prenom,
+        phone: result.data.phone || null,
+        infoValidatedAt: new Date(),
+      },
+    });
+
+    return { success: true };
+  },
+
+  validateSchool: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const formData = await request.formData();
+    const raw = Object.fromEntries(formData);
+    const result = schoolSchema.safeParse(raw);
+
+    if (!result.success) {
+      return fail(400, {
+        step: 'school' as const,
+        errors: result.error.flatten().fieldErrors,
+        values: raw as Record<string, string>,
+      });
+    }
 
     // A UAI resolves to a canonical School (lazy-created); without one we keep the
     // typed name in the free-text fallback. This is the talent's confirmed lycée
@@ -162,10 +201,40 @@ export const actions: Actions = {
     await prisma.talent.update({
       where: { id: locals.talent.id },
       data: {
-        civilite: result.data.civilite,
-        nom: result.data.nom,
-        prenom: result.data.prenom,
-        phone: result.data.phone || null,
+        schoolId,
+        highSchoolNameManual: schoolId ? null : result.data.schoolName,
+        highSchoolValidatedAt: new Date(),
+      },
+    });
+
+    return { success: true };
+  },
+
+  validateParents: async ({ request, locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    const formData = await request.formData();
+    const raw = Object.fromEntries(formData);
+
+    // Identity is already persisted by this step, so the parent-vs-student
+    // cross-field checks compare against the talent's confirmed email/phone,
+    // injected here rather than re-submitted by the form.
+    raw.studentEmail = locals.user!.email;
+    raw.studentPhone = locals.talent.phone || '';
+
+    const result = parentsSchema.safeParse(raw);
+
+    if (!result.success) {
+      return fail(400, {
+        step: 'parents' as const,
+        errors: result.error.flatten().fieldErrors,
+        values: raw as Record<string, string>,
+      });
+    }
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: {
         parentType: result.data.parentType,
         parentCivilite: result.data.parentCivilite,
         parentNom: result.data.parentNom,
@@ -180,10 +249,7 @@ export const actions: Actions = {
           ? result.data.parent2Email.toLowerCase().trim()
           : null,
         parent2Phone: result.data.parent2Phone || null,
-        schoolId,
-        highSchoolNameManual: schoolId ? null : result.data.schoolName,
-        infoValidatedAt: now,
-        highSchoolValidatedAt: now,
+        parentsValidatedAt: new Date(),
       },
     });
 
@@ -279,16 +345,12 @@ export const actions: Actions = {
       });
     }
 
-    // Verify all IDs exist
     const [techCount, generalCount] = await Promise.all([
       prisma.interest.count({
         where: { id: { in: result.data.techInterestIds }, kind: 'tech' },
       }),
       prisma.interest.count({
-        where: {
-          id: { in: result.data.generalInterestIds },
-          kind: 'general',
-        },
+        where: { id: { in: result.data.generalInterestIds }, kind: 'general' },
       }),
     ]);
 
@@ -361,24 +423,48 @@ export const actions: Actions = {
     return { success: true };
   },
 
+  advanceProcessing: async ({ locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+
+    await prisma.talent.update({
+      where: { id: locals.talent.id },
+      data: { processingCompletedAt: new Date() },
+    });
+
+    return { success: true };
+  },
+
   goBack: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
     const step = getCurrentStep(locals.talent);
-
     const clearFields: Record<string, null> = {};
 
     switch (step) {
-      case 'interests':
+      case 'school':
         clearFields.infoValidatedAt = null;
+        break;
+      case 'parents':
         clearFields.highSchoolValidatedAt = null;
+        break;
+      case 'interests':
+        clearFields.parentsValidatedAt = null;
         break;
       case 'equipment':
         clearFields.techInterestsValidatedAt = null;
         clearFields.generalInterestsValidatedAt = null;
         clearFields.interestsRecapSeenAt = null;
         break;
+      case 'processing':
+        clearFields.equipmentValidatedAt = null;
+        break;
       case 'charter':
+        // `processing` is a non-navigable auto-advancing interstitial (it
+        // re-submits itself on mount), so it can't be a back target — landing on
+        // it just replays the animation and bounces straight back to charter.
+        // Rewind past it to the last real input step (equipment), clearing both
+        // gates so the timestamp chain stays monotonic.
+        clearFields.processingCompletedAt = null;
         clearFields.equipmentValidatedAt = null;
         break;
       case 'rules':

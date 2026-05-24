@@ -5,9 +5,12 @@
   import { invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
   import ProgressBar from './components/ProgressBar.svelte';
-  import ProfileStep from './components/ProfileStep.svelte';
+  import IdentityStep from './components/IdentityStep.svelte';
+  import SchoolStep from './components/SchoolStep.svelte';
+  import ParentsStep from './components/ParentsStep.svelte';
   import InterestsStep from './components/InterestsStep.svelte';
   import EquipmentStep from './components/EquipmentStep.svelte';
+  import ProcessingStep from './components/ProcessingStep.svelte';
   import CharterStep from './components/CharterStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
   import BackButton from './components/BackButton.svelte';
@@ -31,13 +34,16 @@
   // component is created/destroyed in lockstep with its own data shape, so a step
   // never re-renders against the next step's payload (which omits its props).
   const STEP_INFO: Record<string, { index: number; title: string }> = {
-    profile: { index: 1, title: 'Ton profil' },
-    interests: { index: 2, title: "Centres d'intérêt" },
-    equipment: { index: 3, title: 'Ton matériel' },
-    charter: { index: 4, title: 'Charte RGPD' },
-    rules: { index: 5, title: 'Règlement' },
+    identity: { index: 1, title: 'Qui es-tu ?' },
+    school: { index: 2, title: "D'où viens-tu ?" },
+    parents: { index: 3, title: "Contacts d'urgence" },
+    interests: { index: 4, title: "Centres d'intérêt" },
+    equipment: { index: 5, title: 'Ton matériel' },
+    processing: { index: 6, title: 'Génération...' },
+    charter: { index: 7, title: 'Sécurité' },
+    rules: { index: 8, title: 'Dernière étape' },
   };
-  const TOTAL_STEPS = 5;
+  const TOTAL_STEPS = 8;
 
   let goBackForm: HTMLFormElement;
 
@@ -93,7 +99,6 @@
 
   <div class="relative z-10 flex flex-1 items-center justify-center p-4">
     <div class="w-full max-w-lg">
-      <!-- Logo + step counter -->
       <div class="mb-6 flex items-center justify-between">
         <a href={resolve('/')} aria-label="Accueil">
           <img
@@ -116,8 +121,14 @@
             in:fly|local={{ x: 30, duration: 250, delay: 180 }}
             out:exitSlide|local={{ duration: 180 }}
           >
-            {#if data.step === 'profile' && data.profile}
-              <ProfileStep profile={data.profile} errors={form?.errors} />
+            {#if data.step === 'identity'}
+              <IdentityStep profile={data.profile} errors={form?.errors} />
+            {:else if data.step === 'school'}
+              <BackButton onclick={goBackServer} />
+              <SchoolStep profile={data.profile} errors={form?.errors} />
+            {:else if data.step === 'parents'}
+              <BackButton onclick={goBackServer} />
+              <ParentsStep profile={data.profile} errors={form?.errors} />
             {:else if data.step === 'interests'}
               <BackButton onclick={goBackServer} />
               <InterestsStep
@@ -136,6 +147,8 @@
                 setupDescription={data.setupDescription ?? ''}
                 error={form?.error}
               />
+            {:else if data.step === 'processing'}
+              <ProcessingStep />
             {:else if data.step === 'charter'}
               <BackButton onclick={goBackServer} />
               <CharterStep error={form?.error} />
@@ -147,16 +160,17 @@
         {/key}
       </div>
 
-      <p
-        class="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400 dark:text-slate-500"
-      >
-        <Check class="h-3.5 w-3.5 text-epi-teal-solid dark:text-epi-teal" />
-        Chaque étape validée est enregistrée — tu peux reprendre plus tard.
-      </p>
+      {#if data.step !== 'processing'}
+        <p
+          class="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400 dark:text-slate-500"
+        >
+          <Check class="h-3.5 w-3.5 text-epi-teal-solid dark:text-epi-teal" />
+          Chaque étape validée est enregistrée — tu peux reprendre plus tard.
+        </p>
+      {/if}
     </div>
   </div>
 
-  <!-- Footer -->
   <footer
     class="relative z-10 px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
   >

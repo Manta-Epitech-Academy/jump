@@ -32,16 +32,37 @@ const parent2Schema = z.object({
   parent2Phone: optionalPhoneSchema,
 });
 
-const profileBaseSchema = z
+// --- Étape 1 : Identité ---
+// Email is intentionally absent: it's the talent's account/login identity
+// (OTP), owned by `bauth_user` and immutable from onboarding. The step shows it
+// read-only for trust; it's never submitted or persisted here.
+export const identitySchema = z.object({
+  civilite: civiliteEnum,
+  nom: z.string().min(2, 'Le nom doit faire au moins 2 caractères').trim(),
+  prenom: z
+    .string()
+    .min(2, 'Le prénom doit faire au moins 2 caractères')
+    .trim(),
+  phone: phoneSchema,
+});
+
+// --- Étape 2 : Lycée ---
+export const schoolSchema = z.object({
+  // School is identified by its national UAI when picked from the annuaire;
+  // `schoolName`/`schoolCity` carry the display values (and are the only signal
+  // for the free-text fallback, when no UAI is available).
+  schoolUai: z.string().optional().or(z.literal('')),
+  schoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
+  schoolCity: z.string().optional().or(z.literal('')),
+});
+
+// --- Étape 3 : Référents ---
+export const parentsSchema = z
   .object({
-    civilite: civiliteEnum,
-    nom: z.string().min(2, 'Le nom doit faire au moins 2 caractères').trim(),
-    prenom: z
-      .string()
-      .min(2, 'Le prénom doit faire au moins 2 caractères')
-      .trim(),
-    email: z.email('Email invalide'),
-    phone: phoneSchema,
+    // studentEmail / studentPhone are injected server-side from the talent's
+    // already-confirmed identity — they only feed the parent-vs-student checks.
+    studentEmail: z.email(),
+    studentPhone: optionalPhoneSchema,
     parentType: parentTypeEnum,
     parentCivilite: civiliteEnum,
     parentNom: z
@@ -54,24 +75,20 @@ const profileBaseSchema = z
       .trim(),
     parentEmail: z.email('Email parent invalide'),
     parentPhone: phoneSchema,
-    // School is identified by its national UAI when picked from the annuaire;
-    // `schoolName`/`schoolCity` carry the display values (and are the only signal
-    // for the free-text fallback, when no UAI is available).
-    schoolUai: z.string().optional().or(z.literal('')),
-    schoolName: z.string().min(2, 'Le nom du lycée est requis').trim(),
-    schoolCity: z.string().optional().or(z.literal('')),
   })
-  .merge(parent2Schema);
-
-export const profileSchema = profileBaseSchema
-  .refine((data) => data.email !== data.parentEmail, {
+  .merge(parent2Schema)
+  .refine((data) => data.studentEmail !== data.parentEmail, {
     message: "L'email du parent doit être différent de celui de l'enfant",
     path: ['parentEmail'],
   })
-  .refine((data) => data.phone !== data.parentPhone, {
-    message: "Le téléphone du parent doit être différent de celui de l'enfant",
-    path: ['parentPhone'],
-  })
+  .refine(
+    (data) => !data.studentPhone || data.studentPhone !== data.parentPhone,
+    {
+      message:
+        "Le téléphone du parent doit être différent de celui de l'enfant",
+      path: ['parentPhone'],
+    },
+  )
   .refine(
     (data) => {
       const hasAny = data.parent2Nom || data.parent2Prenom || data.parent2Email;
@@ -98,7 +115,7 @@ export const profileSchema = profileBaseSchema
   .refine(
     (data) => {
       if (!data.parent2Email || data.parent2Email === '') return true;
-      return data.parent2Email !== data.email;
+      return data.parent2Email !== data.studentEmail;
     },
     {
       message:
@@ -118,8 +135,11 @@ export const profileSchema = profileBaseSchema
     },
   );
 
-export type ProfileForm = z.infer<typeof profileBaseSchema>;
+export type IdentityForm = z.infer<typeof identitySchema>;
+export type SchoolForm = z.infer<typeof schoolSchema>;
+export type ParentsForm = z.infer<typeof parentsSchema>;
 
+// --- Étape 4 & 5 : Intérêts et Matériel ---
 export const interestsSchema = z.object({
   techInterestIds: z
     .array(z.string().cuid())
