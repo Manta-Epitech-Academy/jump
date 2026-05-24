@@ -66,7 +66,7 @@
       {countryEntry.label}
     </Select.Trigger>
     <Select.Content
-      class="max-h-[280px] overflow-y-scroll rounded-xl border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80"
+      class="phone-country-dropdown max-h-[280px] overflow-y-scroll rounded-xl border-slate-200 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80"
     >
       {#each COUNTRIES as entry (entry.code)}
         <Select.Item
@@ -90,3 +90,26 @@
 
   <input type="hidden" {name} value={e164Value} />
 </div>
+
+<style>
+  :global(.phone-country-dropdown) {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+  }
+  :global(.phone-country-dropdown::-webkit-scrollbar) {
+    width: 6px;
+  }
+  :global(.phone-country-dropdown::-webkit-scrollbar-track) {
+    background: transparent;
+  }
+  :global(.phone-country-dropdown::-webkit-scrollbar-thumb) {
+    background-color: rgb(203 213 225);
+    border-radius: 9999px;
+  }
+  :global(.dark .phone-country-dropdown) {
+    scrollbar-color: rgb(71 85 105) transparent;
+  }
+  :global(.dark .phone-country-dropdown::-webkit-scrollbar-thumb) {
+    background-color: rgb(71 85 105);
+  }
+</style>
