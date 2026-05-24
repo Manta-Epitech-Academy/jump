@@ -2,7 +2,6 @@
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
   import * as Command from '$lib/components/ui/command';
-  import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { PhoneInput } from '$lib/components/ui/phone-input';
@@ -15,6 +14,7 @@
   import Plus from '@lucide/svelte/icons/plus';
   import X from '@lucide/svelte/icons/x';
   import { CIVILITE_OPTIONS, PARENT_TYPE_OPTIONS } from '$lib/domain/profile';
+  import ContinueButton from './ContinueButton.svelte';
 
   let {
     profile,
@@ -44,6 +44,24 @@
     };
     errors?: Record<string, string[]>;
   } = $props();
+
+  let submitting = $state(false);
+  let formEl: HTMLFormElement | undefined;
+
+  // This form is long (student + two referents + lycée), so a validation error
+  // can land well below the fold and read as "nothing happened" after submit.
+  // When the server returns errors, bring the first one into view. Error spans
+  // all carry .text-destructive and sit next to their field, so the first match
+  // in document order is the topmost failing field.
+  $effect(() => {
+    if (errors && Object.keys(errors).length > 0) {
+      requestAnimationFrame(() => {
+        formEl
+          ?.querySelector('.text-destructive')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  });
 
   // Shared glass-style overrides so the shadcn Input/Label keep the onboarding look.
   const fieldInput =
@@ -159,7 +177,9 @@
 <form
   method="POST"
   action="?/validateProfile"
+  bind:this={formEl}
   use:enhance={() => {
+    submitting = true;
     return async ({ result, update }) => {
       // Success advances the server step; invalidateAll reruns load so data.step
       // updates and the page moves to the next step. (A redirect to the same
@@ -169,6 +189,7 @@
         return;
       }
       await update();
+      submitting = false;
     };
   }}
   class="space-y-6"
@@ -718,11 +739,9 @@
     {/if}
   </div>
 
-  <Button
-    type="submit"
+  <ContinueButton
+    {submitting}
     disabled={!selectedNom || selectedNom.length < 2}
-    class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
-  >
-    Continuer
-  </Button>
+    class="mt-4"
+  />
 </form>

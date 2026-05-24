@@ -11,6 +11,7 @@
   import CharterStep from './components/CharterStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
   import BackButton from './components/BackButton.svelte';
+  import Check from '@lucide/svelte/icons/check';
 
   function exitSlide(
     _node: Element,
@@ -41,7 +42,12 @@
   let goBackForm: HTMLFormElement;
 
   const stepIndex = $derived(STEP_INFO[data.step]?.index ?? 1);
-  const progress = $derived(Math.round((stepIndex / TOTAL_STEPS) * 100));
+  // Treat the current step as half-done so the bar advances each step yet never
+  // reads 100% until the final redirect away — being *on* the last step isn't
+  // "finished". (stepIndex/TOTAL hit 100% on the rules step before signing.)
+  const progress = $derived(
+    Math.round(((stepIndex - 0.5) / TOTAL_STEPS) * 100),
+  );
   const pageTitle = $derived(STEP_INFO[data.step]?.title ?? 'Onboarding');
 
   function goBackServer() {
@@ -87,8 +93,8 @@
 
   <div class="relative z-10 flex flex-1 items-center justify-center p-4">
     <div class="w-full max-w-lg">
-      <!-- Logo -->
-      <div class="mb-6">
+      <!-- Logo + step counter -->
+      <div class="mb-6 flex items-center justify-between">
         <a href={resolve('/')} aria-label="Accueil">
           <img
             src="/EPITECH-LOGO-BLEU-2025.svg"
@@ -96,14 +102,19 @@
             class="h-9 w-auto dark:brightness-0 dark:invert"
           />
         </a>
+        <span
+          class="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-slate-500 shadow-sm backdrop-blur-xl dark:bg-slate-900/80 dark:text-slate-400"
+        >
+          Étape {stepIndex} / {TOTAL_STEPS}
+        </span>
       </div>
 
       <div class="relative">
         {#key data.step}
           <div
             class="w-full"
-            in:fly|local={{ x: 30, duration: 300, delay: 280 }}
-            out:exitSlide|local={{ duration: 250 }}
+            in:fly|local={{ x: 30, duration: 250, delay: 180 }}
+            out:exitSlide|local={{ duration: 180 }}
           >
             {#if data.step === 'profile' && data.profile}
               <ProfileStep profile={data.profile} errors={form?.errors} />
@@ -115,6 +126,7 @@
                 selectedTechIds={data.selectedTechIds ?? []}
                 selectedGeneralIds={data.selectedGeneralIds ?? []}
                 freeText={data.freeText ?? ''}
+                shuffleSeed={data.shuffleSeed ?? ''}
                 error={form?.error}
               />
             {:else if data.step === 'equipment'}
@@ -134,6 +146,13 @@
           </div>
         {/key}
       </div>
+
+      <p
+        class="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400 dark:text-slate-500"
+      >
+        <Check class="h-3.5 w-3.5 text-epi-teal-solid dark:text-epi-teal" />
+        Chaque étape validée est enregistrée — tu peux reprendre plus tard.
+      </p>
     </div>
   </div>
 

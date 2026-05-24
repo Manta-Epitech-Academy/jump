@@ -116,6 +116,9 @@ export const load: PageServerLoad = async ({ locals }) => {
       selectedTechIds: existingTech.map((e) => e.interestId),
       selectedGeneralIds: existingGeneral.map((e) => e.interestId),
       freeText: locals.talent.interestsFreeText ?? '',
+      // Seeds a per-talent stable shuffle: chip order varies across the cohort
+      // (anti-bias) but stays put across reloads for one student.
+      shuffleSeed: locals.talent.id,
     };
   }
 

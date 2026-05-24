@@ -1,12 +1,14 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
-  import { Button } from '$lib/components/ui/button';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import BookOpen from '@lucide/svelte/icons/book-open';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
   import { track, errReason, secondsBetween } from '$lib/analytics';
+  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+  import ContinueButton from './ContinueButton.svelte';
 
   let { error: formError }: { error?: string } = $props();
 
@@ -111,12 +113,14 @@
       </span>
     </label>
 
-    <Button
-      type="submit"
-      disabled={!signed || !city.trim() || submitting}
-      class="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+    <div
+      class="flex items-center justify-center gap-2 rounded-xl bg-epi-teal/10 px-4 py-2.5 text-center text-sm font-medium text-epi-teal-solid dark:text-epi-teal"
     >
-      Continuer
-    </Button>
+      <Sparkles class="h-4 w-4 shrink-0" />
+      Signe pour finaliser ton inscription et gagner {WELCOME_XP_BONUS} XP de bienvenue
+      !
+    </div>
+
+    <ContinueButton {submitting} disabled={!signed || !city.trim()} />
   </div>
 </form>

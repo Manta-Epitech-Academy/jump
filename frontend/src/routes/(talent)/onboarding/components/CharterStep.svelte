@@ -1,10 +1,10 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
-  import { Button } from '$lib/components/ui/button';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { track, errReason, secondsBetween } from '$lib/analytics';
+  import ContinueButton from './ContinueButton.svelte';
 
   let { error: formError }: { error?: string } = $props();
 
@@ -99,12 +99,6 @@
       </span>
     </label>
 
-    <Button
-      type="submit"
-      disabled={!accepted || submitting}
-      class="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
-    >
-      Continuer
-    </Button>
+    <ContinueButton {submitting} disabled={!accepted} />
   </div>
 </form>

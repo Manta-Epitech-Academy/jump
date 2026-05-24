@@ -2,11 +2,14 @@
   import { fly } from 'svelte/transition';
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
-  import { Button } from '$lib/components/ui/button';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import Code from '@lucide/svelte/icons/code';
   import Sparkles from '@lucide/svelte/icons/sparkles';
+  import ContinueButton from './ContinueButton.svelte';
+
+  const TECH_MAX = 2;
+  const GENERAL_MAX = 3;
 
   let {
     techInterests,
@@ -14,6 +17,7 @@
     selectedTechIds = [],
     selectedGeneralIds = [],
     freeText = '',
+    shuffleSeed = '',
     error,
   }: {
     techInterests: { id: string; nom: string; emoji: string | null }[];
@@ -21,20 +25,34 @@
     selectedTechIds?: string[];
     selectedGeneralIds?: string[];
     freeText?: string;
+    shuffleSeed?: string;
     error?: string;
   } = $props();
 
-  function shuffle<T>(arr: T[]): T[] {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
+  // FNV-1a hash → a deterministic ordering key per (seed, id). Ordering by it
+  // gives a shuffle that's stable for one student across reloads (same seed) yet
+  // differs across the cohort, so the chip layout stops jumping on refresh while
+  // still avoiding a fixed first-listed bias.
+  function hashStr(s: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
     }
-    return a;
+    return h >>> 0;
   }
 
-  const shuffledTech = $derived.by(() => shuffle(techInterests));
-  const shuffledGeneral = $derived.by(() => shuffle(generalInterests));
+  function seededShuffle<T extends { id: string }>(
+    arr: T[],
+    seed: string,
+  ): T[] {
+    return [...arr].sort((a, b) => hashStr(seed + a.id) - hashStr(seed + b.id));
+  }
+
+  const shuffledTech = $derived(seededShuffle(techInterests, shuffleSeed));
+  const shuffledGeneral = $derived(
+    seededShuffle(generalInterests, shuffleSeed),
+  );
 
   // svelte-ignore state_referenced_locally
   let techSelected = $state(new Set<string>(selectedTechIds));
@@ -44,45 +62,25 @@
   const canSubmit = $derived(
     techSelected.size >= 1 && generalSelected.size >= 1,
   );
+  const techFull = $derived(techSelected.size >= TECH_MAX);
+  const generalFull = $derived(generalSelected.size >= GENERAL_MAX);
 
-  // Track insertion order so we can evict the most-recently added entry
-  // when the user picks a new one at the limit.
-  // svelte-ignore state_referenced_locally
-  let techOrder = $state<string[]>([...selectedTechIds]);
-  // svelte-ignore state_referenced_locally
-  let generalOrder = $state<string[]>([...selectedGeneralIds]);
+  let submitting = $state(false);
 
+  // Toggle a chip, capping the selection at its max. At the limit, unselected
+  // chips are disabled (see markup) rather than silently evicting an earlier
+  // pick — the limit stays visible and the user explicitly deselects to swap.
   function toggleTech(id: string) {
     const next = new Set(techSelected);
-    if (next.has(id)) {
-      next.delete(id);
-      techOrder = techOrder.filter((x) => x !== id);
-    } else {
-      if (next.size >= 2) {
-        const evict = techOrder[techOrder.length - 1];
-        next.delete(evict);
-        techOrder = techOrder.filter((x) => x !== evict);
-      }
-      next.add(id);
-      techOrder = [...techOrder, id];
-    }
+    if (next.has(id)) next.delete(id);
+    else if (next.size < TECH_MAX) next.add(id);
     techSelected = next;
   }
 
   function toggleGeneral(id: string) {
     const next = new Set(generalSelected);
-    if (next.has(id)) {
-      next.delete(id);
-      generalOrder = generalOrder.filter((x) => x !== id);
-    } else {
-      if (next.size >= 3) {
-        const evict = generalOrder[generalOrder.length - 1];
-        next.delete(evict);
-        generalOrder = generalOrder.filter((x) => x !== evict);
-      }
-      next.add(id);
-      generalOrder = [...generalOrder, id];
-    }
+    if (next.has(id)) next.delete(id);
+    else if (next.size < GENERAL_MAX) next.add(id);
     generalSelected = next;
   }
 </script>
@@ -115,12 +113,14 @@
   method="POST"
   action="?/validateInterests"
   use:enhance={() => {
+    submitting = true;
     return async ({ result, update }) => {
       if (result.type === 'success') {
         await invalidateAll();
         return;
       }
       await update();
+      submitting = false;
     };
   }}
   class="space-y-6"
@@ -138,7 +138,10 @@
       class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
     >
       <Code class="h-4 w-4" /> Côté tech
-      <span class="text-xs font-normal text-slate-400 normal-case">(2 max)</span
+      <span
+        class="text-xs font-normal normal-case {techFull
+          ? 'text-epi-blue'
+          : 'text-slate-400'}">{techSelected.size}/{TECH_MAX}</span
       >
     </h2>
     <div class="flex flex-wrap gap-2">
@@ -148,7 +151,8 @@
           type="button"
           in:fly={{ y: 15, duration: 300, delay: index * 50 }}
           onclick={() => toggleTech(interest.id)}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
+          disabled={!isSelected && techFull}
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
             {isSelected
             ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
             : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
@@ -166,7 +170,10 @@
       class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
     >
       <Sparkles class="h-4 w-4" /> Côté perso
-      <span class="text-xs font-normal text-slate-400 normal-case">(3 max)</span
+      <span
+        class="text-xs font-normal normal-case {generalFull
+          ? 'text-epi-blue'
+          : 'text-slate-400'}">{generalSelected.size}/{GENERAL_MAX}</span
       >
     </h2>
     <div class="flex flex-wrap gap-2">
@@ -176,7 +183,8 @@
           type="button"
           in:fly={{ y: 15, duration: 300, delay: index * 50 }}
           onclick={() => toggleGeneral(interest.id)}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
+          disabled={!isSelected && generalFull}
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
             {isSelected
             ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
             : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
@@ -209,11 +217,5 @@
     />
   </div>
 
-  <Button
-    type="submit"
-    disabled={!canSubmit}
-    class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
-  >
-    Continuer
-  </Button>
+  <ContinueButton {submitting} disabled={!canSubmit} class="mt-4" />
 </form>

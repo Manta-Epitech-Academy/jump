@@ -1,11 +1,11 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
-  import { Button } from '$lib/components/ui/button';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import Laptop from '@lucide/svelte/icons/laptop';
+  import ContinueButton from './ContinueButton.svelte';
 
   let {
     hasLaptop = false,
@@ -19,6 +19,7 @@
 
   // svelte-ignore state_referenced_locally
   let checked = $state(hasLaptop);
+  let submitting = $state(false);
 </script>
 
 <div class="mb-6 text-center">
@@ -49,12 +50,14 @@
   method="POST"
   action="?/validateEquipment"
   use:enhance={() => {
+    submitting = true;
     return async ({ result, update }) => {
       if (result.type === 'success') {
         await invalidateAll();
         return;
       }
       await update();
+      submitting = false;
     };
   }}
   class="space-y-4"
@@ -94,10 +97,5 @@
     />
   </div>
 
-  <Button
-    type="submit"
-    class="mt-4 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
-  >
-    Continuer
-  </Button>
+  <ContinueButton {submitting} class="mt-4" />
 </form>
