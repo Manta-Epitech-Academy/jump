@@ -56,71 +56,34 @@
     };
   }}
 >
-  <div
-    class="max-h-[50vh] overflow-y-auto rounded-2xl border-none bg-white/70 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
-  >
-    <div
-      class="space-y-5 text-sm leading-relaxed text-slate-700 dark:text-slate-300"
-    >
-      <section>
-        <h2
-          class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
-        >
-          Quelles données collectons-nous ?
-        </h2>
-        <p>
-          Ton nom, prénom, et ta progression pédagogique : étapes complétées,
-          compétences validées, points d'expérience (XP), badges obtenus, et les
-          créations que tu ajoutes à ton portfolio.
-        </p>
-      </section>
+  <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
+    <h2>Quelles données collectons-nous ?</h2>
+    <p>
+      Ton nom, prénom, et ta progression pédagogique : étapes complétées,
+      compétences validées, points d'expérience (XP), badges obtenus, et les
+      créations que tu ajoutes à ton portfolio.
+    </p>
 
-      <section>
-        <h2
-          class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
-        >
-          Pourquoi ?
-        </h2>
-        <p>
-          Pour suivre ta progression pendant les ateliers, générer tes
-          certifications, et te permettre de partager ton portfolio.
-        </p>
-      </section>
+    <h2>Pourquoi ?</h2>
+    <p>
+      Pour suivre ta progression pendant les ateliers, générer tes
+      certifications, et te permettre de partager ton portfolio.
+    </p>
 
-      <section>
-        <h2
-          class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
-        >
-          Combien de temps ?
-        </h2>
-        <p>
-          Tes données sont conservées 6 mois après ta dernière activité sur la
-          plateforme. Passé ce délai, elles sont automatiquement anonymisées.
-        </p>
-      </section>
+    <h2>Combien de temps ?</h2>
+    <p>
+      Tes données sont conservées 6 mois après ta dernière activité sur la
+      plateforme. Passé ce délai, elles sont automatiquement anonymisées.
+    </p>
 
-      <section>
-        <h2
-          class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
-        >
-          Tes droits
-        </h2>
-        <p>
-          Tu peux à tout moment consulter, modifier ou supprimer tes données
-          depuis ton cockpit. Tu peux aussi demander la suppression complète de
-          ton compte.
-        </p>
-      </section>
+    <h2>Tes droits</h2>
+    <p>
+      Tu peux à tout moment consulter, modifier ou supprimer tes données depuis
+      ton cockpit. Tu peux aussi demander la suppression complète de ton compte.
+    </p>
 
-      <section>
-        <h2
-          class="mb-1.5 text-base font-semibold text-slate-900 dark:text-white"
-        >
-          Où sont stockées tes données ?
-        </h2>
-        <p>Sur un serveur situé en France, géré par l'équipe Epitech.</p>
-      </section>
-    </div>
+    <h2>Où sont stockées tes données ?</h2>
+    <p>Sur un serveur situé en France, géré par l'équipe Epitech.</p>
   </div>
 
   <div class="mt-6 space-y-4">
