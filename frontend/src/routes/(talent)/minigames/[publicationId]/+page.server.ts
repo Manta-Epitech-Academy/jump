@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const jumpGamesUrl = env.JUMP_GAMES_URL;
   if (!jumpGamesUrl) {
     console.error('[minigames] JUMP_GAMES_URL not configured.');
-    throw error(503, 'Mini-jeux temporairement indisponibles.');
+    throw error(503, 'Entraînements temporairement indisponibles.');
   }
 
   const eligibility = await checkTalentEligibility(locals.talent.id);
@@ -39,7 +39,7 @@ export const actions: Actions = {
   play: async ({ locals, params }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
     if (!env.JUMP_GAMES_URL) {
-      throw error(503, 'Mini-jeux temporairement indisponibles.');
+      throw error(503, 'Entraînements temporairement indisponibles.');
     }
 
     const result = await mintAttempt(locals.talent.id, params.publicationId);

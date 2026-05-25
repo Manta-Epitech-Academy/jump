@@ -277,7 +277,7 @@
                   href={resolve('/')}
                   class="rounded-xl bg-epi-blue font-bold text-white shadow-lg hover:bg-epi-blue/90"
                 >
-                  Retourner au Cockpit
+                  Retourner au tableau de bord
                 </Button>
                 <Button
                   size="lg"

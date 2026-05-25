@@ -100,7 +100,7 @@
           </h2>
           <p>
             Tu peux &agrave; tout moment consulter, modifier ou supprimer tes
-            donn&eacute;es depuis ton cockpit. Tu peux aussi demander la
+            donn&eacute;es depuis ton tableau de bord. Tu peux aussi demander la
             suppression compl&egrave;te de ton compte.
           </p>
         </section>
