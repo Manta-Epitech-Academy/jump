@@ -10,8 +10,6 @@ import {
   equipmentSchema,
   rulesSchema,
 } from '$lib/validation/onboarding';
-import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
-import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
@@ -498,7 +496,10 @@ export const actions: Actions = {
     const talentId = locals.talent.id;
     const studentName = `${locals.talent.prenom} ${locals.talent.nom}`;
 
-    // Set timestamps and grant XP immediately so the user isn't blocked.
+    // Set timestamps, grant XP, and enqueue the PDF job atomically.
+    // PDF generation + S3 upload run out-of-band in a cron-driven worker
+    // (see /api/jobs/onboarding-pdfs) so the redirect isn't blocked by
+    // Puppeteer/S3 latency.
     await prisma.$transaction(async (tx) => {
       await tx.talent.update({
         where: { id: talentId },
@@ -513,26 +514,14 @@ export const actions: Actions = {
         sourceId: talentId,
         amount: WELCOME_XP_BONUS,
       });
+      await tx.onboardingPdfJob.create({
+        data: {
+          talentId,
+          documentType: 'rules',
+          payload: { studentName, city, signedAt: now.toISOString() },
+        },
+      });
     });
-
-    // Generate PDF + upload to S3 in background (fire-and-forget)
-    (async () => {
-      const storage = getStorage();
-      const pdf = await generateOnboardingPDF({
-        type: 'rules',
-        studentName,
-        signedAt: now,
-        city,
-      });
-      const key = `documents/${talentId}/rules-${now.getTime()}.pdf`;
-      await storage.save(key, pdf);
-      await prisma.talent.update({
-        where: { id: talentId },
-        data: { rulesFilePath: key },
-      });
-    })().catch((err) =>
-      console.error('Failed to generate/upload rules PDF:', err),
-    );
 
     // Head to the dashboard with the one-shot celebration signal. If a CMS
     // welcome message exists, the guard intercepts to /welcome first; that page
