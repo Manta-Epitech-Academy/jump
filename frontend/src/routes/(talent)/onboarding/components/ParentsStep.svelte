@@ -107,7 +107,7 @@
   <!-- Parent 1 -->
   <div class="space-y-3">
     <div
-      class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="grid grid-cols-1 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl sm:grid-cols-2 dark:bg-slate-900/80"
     >
       <div>
         <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -134,7 +134,7 @@
         <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
           Civilité <span class="text-red-500">*</span>
         </p>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           {#each CIVILITE_OPTIONS as opt}
             <button
               type="button"
@@ -235,7 +235,7 @@
     <button
       type="button"
       onclick={() => (showParent2 = true)}
-      class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 px-4 py-3 text-sm font-medium text-slate-400 transition-colors hover:border-slate-300 hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:border-slate-600 dark:hover:text-slate-300"
+      class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-epi-blue/30 bg-epi-blue/5 px-4 py-4 text-sm font-semibold text-epi-blue transition-colors hover:border-epi-blue/50 hover:bg-epi-blue/10 dark:border-epi-blue/40 dark:bg-epi-blue/10 dark:hover:border-epi-blue/60 dark:hover:bg-epi-blue/20"
     >
       <Plus class="h-4 w-4" /> Ajouter un second parent
     </button>
@@ -263,7 +263,7 @@
         </button>
       </div>
       <div
-        class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="grid grid-cols-1 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl sm:grid-cols-2 dark:bg-slate-900/80"
       >
         <div>
           <p
