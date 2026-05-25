@@ -8,6 +8,7 @@ import {
   parentsSchema,
   interestsSchema,
   equipmentSchema,
+  rulesSchema,
 } from '$lib/validation/onboarding';
 import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
@@ -482,15 +483,17 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const city = (formData.get('city') as string)?.trim();
+    const raw = Object.fromEntries(formData);
+    const result = rulesSchema.safeParse(raw);
 
-    if (!city) {
+    if (!result.success) {
       return fail(400, {
         step: 'rules' as const,
-        error: 'Veuillez indiquer la ville.',
+        error: result.error.issues[0]?.message ?? 'Données invalides.',
       });
     }
 
+    const { city } = result.data;
     const now = new Date();
     const talentId = locals.talent.id;
     const studentName = `${locals.talent.prenom} ${locals.talent.nom}`;

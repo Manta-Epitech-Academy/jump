@@ -16,6 +16,12 @@
 const API_URL =
   'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-annuaire-education/records';
 
+// Both lookups sit in a latency-sensitive path — the type-ahead picker and, via
+// the school resolver, the onboarding submit and the worker sync. Cap the wait
+// so an unresponsive gov API degrades to the fallback (the catch blocks below)
+// instead of holding the request open for undici's multi-minute default.
+const ANNUAIRE_TIMEOUT_MS = 5000;
+
 export interface AnnuaireLycee {
   uai: string;
   nom: string;
@@ -48,7 +54,9 @@ export async function searchAnnuaire(q: string): Promise<AnnuaireLycee[]> {
       order_by: 'nom_etablissement',
     });
 
-    const res = await fetch(`${API_URL}?${params}`);
+    const res = await fetch(`${API_URL}?${params}`, {
+      signal: AbortSignal.timeout(ANNUAIRE_TIMEOUT_MS),
+    });
     if (!res.ok) return [];
 
     const data = await res.json();
@@ -90,7 +98,9 @@ export async function fetchSchoolByUai(
       where: `identifiant_de_l_etablissement="${escaped}"`,
     });
 
-    const res = await fetch(`${API_URL}?${params}`);
+    const res = await fetch(`${API_URL}?${params}`, {
+      signal: AbortSignal.timeout(ANNUAIRE_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
 
     const data = await res.json();

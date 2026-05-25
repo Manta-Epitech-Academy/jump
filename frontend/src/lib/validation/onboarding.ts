@@ -16,6 +16,19 @@ const phoneSchema = z
     message: 'Numéro de téléphone invalide',
   });
 
+// A Bits UI `<Checkbox name=… value="true" />` follows native checkbox submit
+// semantics: it sends `"true"` when checked and omits the field entirely when
+// unchecked. Parse that explicitly — never `z.coerce.boolean()`, which maps any
+// non-empty string (including the literal `"false"`) to `true`.
+const checkboxBool = z
+  .literal('true')
+  .optional()
+  .transform((v) => v === 'true');
+
+// A consent box that must be ticked: the field is absent until checked, so a
+// plain required literal rejects an unchecked box with the given message.
+const requiredConsent = (message: string) => z.literal('true', { message });
+
 const optionalPhoneSchema = z
   .string()
   .optional()
@@ -157,10 +170,23 @@ export const interestsSchema = z.object({
 });
 
 export const equipmentSchema = z.object({
-  hasLaptop: z.coerce.boolean(),
+  hasLaptop: checkboxBool,
   setupDescription: z
     .string()
     .max(1000, 'Maximum 1000 caractères')
     .optional()
     .or(z.literal('')),
+});
+
+// --- Étape 7 : Règlement intérieur & confidentialité ---
+// Both consents are legally load-bearing (RGPD, minors), so they are enforced
+// server-side here, not merely by the disabled submit button on the client.
+export const rulesSchema = z.object({
+  city: z.string().trim().min(1, 'Veuillez indiquer la ville.'),
+  acceptedCharter: requiredConsent(
+    'Vous devez accepter la politique de confidentialité pour continuer.',
+  ),
+  acceptedRules: requiredConsent(
+    'Vous devez accepter le règlement intérieur pour continuer.',
+  ),
 });

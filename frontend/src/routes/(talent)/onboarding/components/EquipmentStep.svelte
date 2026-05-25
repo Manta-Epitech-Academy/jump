@@ -59,13 +59,13 @@
   }}
   class="space-y-4"
 >
-  <input type="hidden" name="hasLaptop" value={checked ? 'true' : 'false'} />
-
   <label
     class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-4 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
     <Checkbox
       bind:checked
+      name="hasLaptop"
+      value="true"
       class="size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
     />
     <span class="text-sm font-medium text-slate-700 dark:text-slate-300">

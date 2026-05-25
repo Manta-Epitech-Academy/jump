@@ -94,9 +94,12 @@ export async function resetTalentOnboarding(talentId: string): Promise<void> {
       data: {
         infoValidatedAt: null,
         highSchoolValidatedAt: null,
+        parentsValidatedAt: null,
         techInterestsValidatedAt: null,
         generalInterestsValidatedAt: null,
         interestsRecapSeenAt: null,
+        equipmentValidatedAt: null,
+        processingCompletedAt: null,
         rulesSignedAt: null,
         charterAcceptedAt: null,
         welcomeSeenAt: null,
