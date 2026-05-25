@@ -96,9 +96,6 @@
   >
     Tes centres d'intérêt
   </h1>
-  <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-    Dis-nous ce qui te passionne
-  </p>
 </div>
 
 {#if error}

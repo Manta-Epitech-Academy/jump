@@ -25,9 +25,6 @@
   >
     Sécurité des Données
   </h1>
-  <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-    Avant de commencer, prenons un instant pour tes données.
-  </p>
 </div>
 
 {#if formError}

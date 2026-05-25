@@ -33,9 +33,6 @@
   >
     Ton matériel
   </h1>
-  <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-    Parle-nous de ta config
-  </p>
 </div>
 
 {#if error}
