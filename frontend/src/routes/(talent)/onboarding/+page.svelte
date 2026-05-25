@@ -11,7 +11,6 @@
   import InterestsStep from './components/InterestsStep.svelte';
   import EquipmentStep from './components/EquipmentStep.svelte';
   import ProcessingStep from './components/ProcessingStep.svelte';
-  import CharterStep from './components/CharterStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import { Button } from '$lib/components/ui/button';
@@ -36,10 +35,9 @@
     interests: { index: 4, title: "Centres d'intérêt" },
     equipment: { index: 5, title: 'Ton matériel' },
     processing: { index: 6, title: 'Génération...' },
-    charter: { index: 7, title: 'Sécurité' },
-    rules: { index: 8, title: 'Dernière étape' },
+    rules: { index: 7, title: 'Dernière étape' },
   };
-  const TOTAL_STEPS = 8;
+  const TOTAL_STEPS = 7;
 
   let goBackForm: HTMLFormElement;
 
@@ -173,8 +171,6 @@
               />
             {:else if data.step === 'processing'}
               <ProcessingStep />
-            {:else if data.step === 'charter'}
-              <CharterStep error={form?.error} />
             {:else if data.step === 'rules'}
               <RulesStep error={form?.error} />
             {/if}

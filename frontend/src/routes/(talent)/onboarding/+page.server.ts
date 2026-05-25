@@ -23,7 +23,6 @@ export type OnboardingStep =
   | 'interests'
   | 'equipment'
   | 'processing'
-  | 'charter'
   | 'rules';
 
 function getCurrentStep(profile: {
@@ -34,7 +33,6 @@ function getCurrentStep(profile: {
   generalInterestsValidatedAt: Date | null;
   equipmentValidatedAt: Date | null;
   processingCompletedAt: Date | null;
-  charterAcceptedAt: Date | null;
   rulesSignedAt: Date | null;
 }): OnboardingStep | null {
   if (!profile.infoValidatedAt) return 'identity';
@@ -44,7 +42,6 @@ function getCurrentStep(profile: {
     return 'interests';
   if (!profile.equipmentValidatedAt) return 'equipment';
   if (!profile.processingCompletedAt) return 'processing';
-  if (!profile.charterAcceptedAt) return 'charter';
   if (!profile.rulesSignedAt) return 'rules';
   return null;
 }
@@ -458,17 +455,14 @@ export const actions: Actions = {
       case 'processing':
         clearFields.equipmentValidatedAt = null;
         break;
-      case 'charter':
+      case 'rules':
         // `processing` is a non-navigable auto-advancing interstitial (it
         // re-submits itself on mount), so it can't be a back target — landing on
-        // it just replays the animation and bounces straight back to charter.
+        // it just replays the animation and bounces straight back to rules.
         // Rewind past it to the last real input step (equipment), clearing both
         // gates so the timestamp chain stays monotonic.
         clearFields.processingCompletedAt = null;
         clearFields.equipmentValidatedAt = null;
-        break;
-      case 'rules':
-        clearFields.charterAcceptedAt = null;
         break;
       default:
         return { success: true };
@@ -477,17 +471,6 @@ export const actions: Actions = {
     await prisma.talent.update({
       where: { id: locals.talent.id },
       data: clearFields,
-    });
-
-    return { success: true };
-  },
-
-  acceptCharter: async ({ locals }) => {
-    if (!locals.talent) throw error(401, 'Non autorisé');
-
-    await prisma.talent.update({
-      where: { id: locals.talent.id },
-      data: { charterAcceptedAt: new Date() },
     });
 
     return { success: true };
@@ -526,6 +509,7 @@ export const actions: Actions = {
         data: {
           rulesSignedAt: now,
           rulesFilePath: key,
+          charterAcceptedAt: now,
         },
       });
       await grantXp(tx, {

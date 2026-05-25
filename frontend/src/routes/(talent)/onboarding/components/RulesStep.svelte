@@ -1,12 +1,9 @@
-<!-- frontend/src/routes/(talent)/onboarding/components/RulesStep.svelte -->
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { renderMarkdown } from '$lib/markdown';
-  import reglementMd from '$lib/content/reglement-interieur.md?raw';
   import { track, errReason, secondsBetween } from '$lib/analytics';
   import { WELCOME_XP_BONUS } from '$lib/domain/xp';
   import ContinueButton from './ContinueButton.svelte';
@@ -15,13 +12,8 @@
   const seenAt = Date.now();
   let submitting = $state(false);
   let city = $state('');
-  let signed = $state(false);
-
-  const contentWithoutSignature = reglementMd.replace(
-    /\n\*\*Fait à \{\{city\}\}.*$/m,
-    '',
-  );
-  const renderedContent = renderMarkdown(contentWithoutSignature);
+  let acceptedRules = $state(false);
+  let acceptedCharter = $state(false);
 </script>
 
 <div class="mb-6 text-center">
@@ -33,7 +25,7 @@
   <h1
     class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
   >
-    Règlement Intérieur
+    Dernière étape
   </h1>
 </div>
 
@@ -65,10 +57,92 @@
     };
   }}
 >
+  <!-- ═══ Règlement intérieur ═══ -->
   <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
-    {@html renderedContent}
+    <h2>Règlement intérieur — stagiaires Epitech</h2>
+    <p>
+      En tant qu'entreprise d'accueil et école d'enseignement supérieur, Epitech
+      dispose d'un règlement intérieur garantissant un cadre respectueux et
+      propice à l'apprentissage. Tout manquement entraîne la rupture immédiate
+      de la convention de stage.
+    </p>
+
+    <h3>Présence et ponctualité</h3>
+    <p>
+      La présence sur le campus est obligatoire de 10h à 17h, hors pause
+      méridienne (12h30–13h30), pendant laquelle les stagiaires ne sont plus
+      sous la responsabilité d'Epitech. Toute absence ou retard doit être
+      justifié par écrit par les responsables légaux avant 10h30. Un stagiaire
+      arrivant plus de 15 minutes après le début d'une activité est considéré
+      absent ; en deçà, il peut être redirigé vers une autre salle si son
+      arrivée perturbe la session. Aucune sortie n'est autorisée en dehors de la
+      pause méridienne, sauf demande justifiée auprès de la direction.
+    </p>
+
+    <h3>Comportement et respect d'autrui</h3>
+    <p>
+      Les stagiaires adoptent une tenue, un langage et un comportement
+      respectueux envers leurs pairs et les encadrants. Tout propos injurieux ou
+      comportement violent est strictement proscrit. Chacun fait preuve de
+      neutralité religieuse et politique, et d'une attitude tolérante. Il est
+      interdit de crier ou courir dans l'établissement. Les couvre-chefs sont
+      interdits ; le voile religieux couvrant les cheveux est toléré s'il reste
+      discret.
+    </p>
+
+    <h3>Matériel et responsabilité</h3>
+    <p>
+      Chaque stagiaire est responsable de son propre matériel : Epitech n'assure
+      aucun prêt et ne pourra être tenue responsable en cas de casse ou de vol.
+      Tout oubli de matériel informatique est considéré comme une absence, et
+      toute détérioration est à la charge du stagiaire et de ses responsables
+      légaux. L'usage du téléphone portable est interdit en salle d'activité,
+      sauf autorisation d'un encadrant.
+    </p>
+
+    <h3>Travail et sécurité</h3>
+    <p>
+      Les consignes de sécurité et règles d'évacuation doivent être respectées
+      en toute circonstance. Le travail en groupe se fait sans perturber les
+      autres, et les salles doivent être laissées propres après chaque activité.
+      Les stagiaires respectent les règles de confidentialité, de protection des
+      données personnelles, ainsi que les droits d'auteur et la propriété
+      intellectuelle (documents, images, musiques, usage d'internet et des
+      réseaux sociaux). Il est interdit d'apporter boisson ou nourriture dans
+      certaines salles (amphithéâtre, Lab', etc.).
+    </p>
+
+    <h3>Obligations du stagiaire</h3>
+    <p>
+      Les stagiaires s'engagent à participer activement aux activités proposées
+      (conférences, ateliers, soutenances, jurys) et à remplir le questionnaire
+      d'évaluation en fin de stage, dans le cadre de la démarche d'amélioration
+      continue d'Epitech. Ils veillent également à utiliser le nom complet et le
+      logo officiels de l'école dans tous leurs documents (convention, CV,
+      présentations).
+    </p>
   </div>
 
+  <!-- ═══ Sécurité des données (police réduite) ═══ -->
+  <div class="mt-8">
+    <h2
+      class="mb-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+    >
+      Sécurité des données
+    </h2>
+    <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+      On collecte ton nom, ton prénom et ta progression pédagogique (étapes
+      complétées, compétences validées, XP, badges, créations de ton portfolio)
+      pour suivre ton parcours, générer tes certifications et te permettre de
+      partager ton portfolio. Ces données sont conservées 6 mois après ta
+      dernière activité, puis automatiquement anonymisées. Tu peux à tout moment
+      les consulter, les modifier ou les supprimer depuis ton espace personnel,
+      et demander la suppression complète de ton compte. Tout est stocké en
+      France, sur un serveur géré par l'équipe Epitech.
+    </p>
+  </div>
+
+  <!-- ═══ Signature ═══ -->
   <div
     class="mt-6 flex items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
@@ -92,16 +166,30 @@
     >
   </div>
 
-  <div class="mt-8 space-y-4">
+  <!-- ═══ Checkboxes ═══ -->
+  <div class="mt-6 space-y-3">
     <label
-      class="flex cursor-pointer items-center gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="flex cursor-pointer items-start gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <Checkbox
-        bind:checked={signed}
-        class="size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
+        bind:checked={acceptedCharter}
+        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
-        Je m'engage à respecter le règlement
+        J'ai lu et j'accepte la politique de confidentialité d'Epitech Academy
+        concernant la collecte et le traitement de mes données personnelles.
+      </span>
+    </label>
+
+    <label
+      class="flex cursor-pointer items-start gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <Checkbox
+        bind:checked={acceptedRules}
+        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
+      />
+      <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        Je m'engage à respecter le règlement intérieur d'Epitech.
       </span>
     </label>
 
@@ -112,8 +200,11 @@
       Dernière étape pour gagner tes {WELCOME_XP_BONUS} XP de bienvenue !
     </div>
 
-    <ContinueButton {submitting} disabled={!signed || !city.trim()}>
-      Signer et obtenir mes {WELCOME_XP_BONUS} XP ✨
+    <ContinueButton
+      {submitting}
+      disabled={!acceptedRules || !acceptedCharter || !city.trim()}
+    >
+      Signer et obtenir mes {WELCOME_XP_BONUS} XP
     </ContinueButton>
   </div>
 </form>
