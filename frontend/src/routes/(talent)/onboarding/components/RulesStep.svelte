@@ -204,7 +204,7 @@
       {submitting}
       disabled={!acceptedRules || !acceptedCharter || !city.trim()}
     >
-      Signer et obtenir mes {WELCOME_XP_BONUS} XP
+      Signer et aller sur le cockpit
     </ContinueButton>
   </div>
 </form>
