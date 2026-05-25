@@ -3485,6 +3485,9 @@ async function seedInterests() {
 }
 
 async function assignTalentInterests() {
+  // TalentInterest rows are written by the (atomic) interests step, which
+  // validates tech and general together — so any talent past that step has both
+  // kinds, never tech alone. Gate on `techInterestsValidatedAt` and seed both.
   const talents = await prisma.talent.findMany({
     where: { techInterestsValidatedAt: { not: null } },
     select: { id: true },
@@ -3500,15 +3503,15 @@ async function assignTalentInterests() {
   });
 
   const rows = talents.flatMap((talent) => {
-    // 1-2 tech, 1-5 general — shuffle-and-slice per talent
+    // 1-2 tech, 1-5 general — shuffle-and-slice per talent (validation schema:
+    // tech 1-2, general 1-5).
     const techCount = 1 + Math.floor(Math.random() * 2);
     const selectedTech = [...techIds]
       .sort(() => Math.random() - 0.5)
       .slice(0, techCount);
-    const genCount = 1 + Math.floor(Math.random() * 5);
     const selectedGen = [...generalIds]
       .sort(() => Math.random() - 0.5)
-      .slice(0, genCount);
+      .slice(0, 1 + Math.floor(Math.random() * 5));
     return [...selectedTech, ...selectedGen].map((interest) => ({
       talentId: talent.id,
       interestId: interest.id,
@@ -3573,17 +3576,77 @@ async function seedStaff(
   return byKey;
 }
 
+/**
+ * The talent admissions/onboarding funnel, as a single per-student state. It
+ * drives BOTH whether a `bauth_user` exists and how far onboarding got, so the
+ * two axes the admin talents list reads — account (`never`) vs onboarding
+ * progress (`pending`/`active`) — stay consistent:
+ *
+ *   - `imported`    → SF lead, no account yet (`userId = null`, status `never`);
+ *                     impersonation bootstraps the account on the fly.
+ *   - `fresh`       → logged in once, onboarding untouched (status `pending`,
+ *                     "Non démarré").
+ *   - `in-progress` → account, stalled mid-funnel at a varied step.
+ *   - `onboarded`   → account, all 7 steps done (status `active`).
+ *
+ * Skewed early on purpose: a freshly-imported cohort is mostly leads with no
+ * account or a fresh login, which is also the most useful state to exercise
+ * (impersonate → walk the full parcours). `skipOnboarding` fixtures pin the
+ * extremes so there are always ready-to-test accounts.
+ */
+type StudentLifecycle = 'imported' | 'fresh' | 'in-progress' | 'onboarded';
+
+function studentLifecycle(s: StudentDef, i: number): StudentLifecycle {
+  if (s.skipOnboarding === true) return 'onboarded';
+  if (s.skipOnboarding === false) return 'fresh';
+  const bucket = i % 20;
+  if (bucket < 7) return 'imported'; // ~35%
+  if (bucket < 14) return 'fresh'; // ~35%
+  if (bucket < 17) return 'in-progress'; // ~15%
+  return 'onboarded'; // ~15%
+}
+
+// The canonical onboarding ladder has 7 gated steps (identity → school →
+// parents → interests → equipment → processing → rules) — see
+// ONBOARDING_STEP_ORDER in src/lib/domain/talentOnboarding.ts. Seeded onboarding
+// is a monotonic prefix of that ladder, so a partial talent is byte-identical to
+// a real one who stopped at the same point.
+const ONBOARDING_FULL_STEPS = 7;
+
+function onboardingStepsFor(lifecycle: StudentLifecycle, i: number): number {
+  switch (lifecycle) {
+    case 'onboarded':
+      return ONBOARDING_FULL_STEPS;
+    case 'in-progress':
+      return 1 + (i % 6); // 1..6 — stalls spread across the funnel
+    default:
+      return 0; // imported & fresh — nothing done
+  }
+}
+
 async function seedStudents(): Promise<
   Record<string, { id: string; nom: string; prenom: string }>
 > {
   const byEmail: Record<string, { id: string; nom: string; prenom: string }> =
     {};
 
-  // Users first, then talents referencing them — both batched. Talent rows
-  // map back to their user by email (createManyAndReturn order isn't
-  // guaranteed), which is also the talent's own unique key.
+  // Students enrolled in the ongoing stage de seconde must NOT be pre-onboarded
+  // — QA needs to walk the full parcours live — so force them to `fresh`
+  // (account, nothing done) regardless of bucket. Matches event 8
+  // (ONGOING_PARIS_STAGE): parisStudents.slice(6, 18).
+  const ongoingStageEmails = new Set(parisStudents.slice(6, 18));
+  const lifecycles = STUDENTS.map(
+    (s, i): StudentLifecycle =>
+      ongoingStageEmails.has(s.email) ? 'fresh' : studentLifecycle(s, i),
+  );
+
+  // Accounts only for students who've logged in at least once — `imported`
+  // leads stay account-less (their talent row carries `userId = null`). Users
+  // first, then talents referencing them; both batched. Talent rows map back to
+  // their user by email (createManyAndReturn order isn't guaranteed), which is
+  // also the talent's own unique key.
   const users = await prisma.bauth_user.createManyAndReturn({
-    data: STUDENTS.map((s) => ({
+    data: STUDENTS.filter((_, i) => lifecycles[i] !== 'imported').map((s) => ({
       email: s.email,
       name: `${s.prenom} ${s.nom}`,
       role: 'student',
@@ -3592,11 +3655,6 @@ async function seedStudents(): Promise<
     select: { id: true, email: true },
   });
   const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
-
-  // Students enrolled in the ongoing stage de seconde should NOT have
-  // completed onboarding — they need to go through the full flow for QA.
-  // Matches event 8 (ONGOING_PARIS_STAGE): parisStudents.slice(6, 18)
-  const ongoingStageEmails = new Set(parisStudents.slice(6, 18));
 
   // Canonical schools for seeded talents. Onboarded talents are linked to Victor
   // Hugo; the alt school + a few perturbed SF mirrors below produce realistic
@@ -3624,60 +3682,42 @@ async function seedStudents(): Promise<
     select: { id: true },
   });
 
-  // Two independent axes, mirroring production:
+  // Each seeded talent carries two independent axes, mirroring production:
   //  1. What Salesforce populated at lead creation (school, civilité) — present
   //     for most leads, absent for some. The worker seeds these onto Talent
   //     BEFORE onboarding, so even pending talents already carry SF data.
-  //  2. Whether the talent has since confirmed (and possibly changed) it via
-  //     onboarding.
+  //  2. How far the talent's own onboarding got (the monotonic step prefix),
+  //     which may confirm — and possibly change — what SF sent.
   // The TalentSfImport mirror always holds the SF claim; a few confirmed talents
   // diverge from it (and some fill in what SF lacked) to populate the
   // reconciliation page realistically.
   const seeded = STUDENTS.map((s, i) => {
-    // Connexions plateforme : 10% jamais connecté·e (alerte "Jamais
-    // connectés"), le reste avec une dernière activité datée selon la
-    // valeur déclarée par StudentDef.
-    const neverLogged = i % 10 === 9;
+    const lifecycle = lifecycles[i];
+    const hasAccount = lifecycle !== 'imported';
+
+    // No account → never logged in. Otherwise dated per StudentDef.
     const lastActiveAt =
-      neverLogged || s.lastActiveDaysAgo === null
+      !hasAccount || s.lastActiveDaysAgo === null
         ? null
         : new Date(now.getTime() - s.lastActiveDaysAgo * 86400000);
 
-    // Onboarding plateforme — distribution réaliste pour la KPI "Profil
-    // complété" (gate du dashboard talent : infoValidatedAt + rulesSignedAt
-    // + charterAcceptedAt tous non-null) :
-    //   - skipOnboarding === true       → tout signé (override explicite)
-    //   - 70% des autres                → tout signé
-    //   - 20%                           → infoValidatedAt uniquement (en
-    //                                     cours d'onboarding)
-    //   - 10% (incluant neverLogged)    → rien signé (bloqués avant le
-    //                                     dashboard)
-    const onboardingBucket =
-      s.skipOnboarding === false
-        ? 'none'
-        : ongoingStageEmails.has(s.email)
-          ? 'none'
-          : neverLogged
-            ? 'none'
-            : i % 10 < 7
-              ? 'full'
-              : i % 10 < 9
-                ? 'partial'
-                : 'none';
-    const fullyOnboarded =
-      s.skipOnboarding === true || onboardingBucket === 'full';
-    const partiallyOnboarded = onboardingBucket === 'partial';
-    const charterAcceptedAt = fullyOnboarded
-      ? new Date()
-      : s.charterSigned && !neverLogged
-        ? new Date()
-        : null;
-    // Profil confirmé ⇒ infoValidatedAt ; lycée confirmé ⇒ highSchoolValidatedAt.
-    const profileConfirmed = fullyOnboarded || partiallyOnboarded;
-    const schoolConfirmed = fullyOnboarded;
-    const infoValidatedAt = profileConfirmed ? new Date() : null;
-    const rulesSignedAt = fullyOnboarded ? new Date() : null;
-    const hasParentInfo = fullyOnboarded || s.skipOnboarding === true;
+    // Onboarding is a monotonic PREFIX of the canonical 7-step ladder, in the
+    // wizard's own order: identity → school → parents → interests → equipment →
+    // processing → rules. Each step posts its own timestamp(s); the interests
+    // step is atomic (tech + general + recap land together, as the reworked
+    // wizard writes them), so there is no tech-without-general state — exactly
+    // what the real flow can produce. `charterAcceptedAt` lands with
+    // `rulesSignedAt` at the final step.
+    const onboardingSteps = onboardingStepsFor(lifecycle, i);
+    const ts = new Date();
+    const profileConfirmed = onboardingSteps >= 1; // identity
+    const schoolConfirmed = onboardingSteps >= 2; // school
+    const parentsConfirmed = onboardingSteps >= 3; // parents
+    const interestsConfirmed = onboardingSteps >= 4; // interests (atomic)
+    const equipmentConfirmed = onboardingSteps >= 5; // equipment
+    const processingConfirmed = onboardingSteps >= 6; // processing (PDF gen)
+    const fullyOnboarded = onboardingSteps >= 7; // rules + charter
+    const hasParentInfo = parentsConfirmed;
 
     // ── Axis 1: what Salesforce sent (independent of onboarding) ──
     // ~90% of leads carry a gender, ~80% a school; the rest SF never populated.
@@ -3690,8 +3730,8 @@ async function seedStudents(): Promise<
     const phoneDiverges = profileConfirmed && i % 12 === 7;
 
     // ── Talent (Jump truth) ──
-    // Pending: keep the SF seed. Confirmed: the talent's confirmed value — may
-    // differ from SF (divergence) or fill in what SF lacked.
+    // Pending: keep the SF seed. Confirmed: the talent's own value — may differ
+    // from SF (divergence) or fill in what SF lacked.
     const civilite =
       sfCivilite ??
       (profileConfirmed ? (i % 2 === 0 ? 'homme' : 'femme') : null);
@@ -3702,20 +3742,22 @@ async function seedStudents(): Promise<
       : sfSchoolId;
 
     const talent = {
-      userId: userIdByEmail.get(s.email)!,
+      userId: hasAccount ? (userIdByEmail.get(s.email) ?? null) : null,
       email: s.email,
       nom: s.nom,
       prenom: s.prenom,
       phone: s.phone,
       parentPhone: s.parentPhone,
       niveau: s.niveau,
-      charterAcceptedAt,
-      infoValidatedAt,
-      techInterestsValidatedAt: fullyOnboarded ? new Date() : null,
-      generalInterestsValidatedAt: fullyOnboarded ? new Date() : null,
-      interestsRecapSeenAt: fullyOnboarded ? new Date() : null,
-      rulesSignedAt,
-      highSchoolValidatedAt: schoolConfirmed ? new Date() : null,
+      infoValidatedAt: profileConfirmed ? ts : null,
+      highSchoolValidatedAt: schoolConfirmed ? ts : null,
+      parentsValidatedAt: parentsConfirmed ? ts : null,
+      techInterestsValidatedAt: interestsConfirmed ? ts : null,
+      generalInterestsValidatedAt: interestsConfirmed ? ts : null,
+      interestsRecapSeenAt: interestsConfirmed ? ts : null,
+      processingCompletedAt: processingConfirmed ? ts : null,
+      rulesSignedAt: fullyOnboarded ? ts : null,
+      charterAcceptedAt: fullyOnboarded ? ts : null,
       schoolId,
       parentNom: hasParentInfo ? 'Martin' : null,
       parentPrenom: hasParentInfo ? 'Sophie' : null,
@@ -3729,12 +3771,12 @@ async function seedStudents(): Promise<
       parent2Prenom: null,
       parent2Email: null,
       parent2Phone: null,
-      hasLaptop: fullyOnboarded ? true : false,
+      hasLaptop: equipmentConfirmed,
       setupDescription:
-        fullyOnboarded && i % 3 === 0
+        equipmentConfirmed && i % 3 === 0
           ? 'PC gaming RTX 4070, double écran'
           : null,
-      equipmentValidatedAt: fullyOnboarded ? new Date() : null,
+      equipmentValidatedAt: equipmentConfirmed ? ts : null,
       interestsFreeText: null,
       lastActiveAt,
       externalId: mockSalesforceLeadId(i),
@@ -4277,7 +4319,13 @@ async function recomputeXp(): Promise<number> {
   // Rebuild the XP ledger the way the app does (XpGrant rows), then set the
   // cached projections (Talent.xp / eventsCount) to match — so seeded talents
   // stay consistent with the ledger and survive any later recompute
-  // (mark-present, onboarding reset) instead of getting zeroed.
+  // (mark-present, onboarding reset) instead of getting zeroed. Two grant
+  // sources, mirroring production:
+  //   - `onboarding`        → WELCOME_XP_BONUS, one per talent who signed rules.
+  //   - `activity_presence` → one per present participation; amount = sum of
+  //     present non-orga difficulties, or a 20-XP base when present with no
+  //     eligible activity (matches getTotalXp on an empty list — so a staff
+  //     mark-present recompute reproduces this number instead of changing it).
   const [participations, onboarded] = await Promise.all([
     prisma.participation.findMany({
       where: { isPresent: true },
@@ -4293,7 +4341,6 @@ async function recomputeXp(): Promise<number> {
         },
       },
     }),
-    // Onboarding bonus mirrors the real grant: every talent who signed the rules.
     prisma.talent.findMany({
       where: { rulesSignedAt: { not: null } },
       select: { id: true },
@@ -4316,22 +4363,23 @@ async function recomputeXp(): Promise<number> {
 
   for (const p of participations) {
     eventsByTalent[p.talentId] = (eventsByTalent[p.talentId] ?? 0) + 1;
-    // One activity_presence grant per participation (keyed on participationId),
-    // amount = sum of its present, non-orga activities — same as the cockpit.
-    const amount = p.activities.reduce((sum, pa) => {
-      if (!pa.isPresent || pa.activity.activityType === 'orga') return sum;
-      return sum + (XP_MAP[pa.activity.difficulte ?? ''] ?? 0);
-    }, 0);
-    if (amount > 0) {
-      grants.push({
-        talentId: p.talentId,
-        source: 'activity_presence',
-        sourceId: p.id,
-        amount,
-        campusId: p.campusId,
-      });
-      xpByTalent[p.talentId] = (xpByTalent[p.talentId] ?? 0) + amount;
-    }
+    const eligible = p.activities.filter(
+      (pa) => pa.isPresent && pa.activity.activityType !== 'orga',
+    );
+    const amount = eligible.length
+      ? eligible.reduce(
+          (sum, pa) => sum + (XP_MAP[pa.activity.difficulte ?? ''] ?? 20),
+          0,
+        )
+      : 20; // base attendance XP (matches getTotalXp on an empty list)
+    grants.push({
+      talentId: p.talentId,
+      source: 'activity_presence',
+      sourceId: p.id,
+      amount,
+      campusId: p.campusId,
+    });
+    xpByTalent[p.talentId] = (xpByTalent[p.talentId] ?? 0) + amount;
   }
 
   await prisma.xpGrant.createMany({ data: grants, skipDuplicates: true });

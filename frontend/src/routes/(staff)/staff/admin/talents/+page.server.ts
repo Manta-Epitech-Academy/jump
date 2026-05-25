@@ -9,6 +9,13 @@ import {
   ensureTalentUser,
   resetTalentOnboarding,
 } from '$lib/server/services/talentAccount';
+import {
+  deriveOnboardingStatus,
+  describeOnboardingProgress,
+  ONBOARDING_STEP_LABELS,
+  type OnboardingStepFields,
+  type TalentOnboardingFields,
+} from '$lib/domain/talentOnboarding';
 
 const PER_PAGE = 50;
 
@@ -21,26 +28,26 @@ type AccountFilter = 'all' | 'active' | 'pending';
  * action there mutates the real profile). Mirrors the guard's checks in
  * `guards.ts`.
  */
-function onboardingStatus(t: {
-  userId: string | null;
-  charterAcceptedAt: Date | null;
-  rulesSignedAt: Date | null;
-  infoValidatedAt: Date | null;
-  highSchoolValidatedAt: Date | null;
-  techInterestsValidatedAt: Date | null;
-  generalInterestsValidatedAt: Date | null;
-  interestsRecapSeenAt: Date | null;
-}): 'never' | 'pending' | 'active' {
+function onboardingStatus(
+  t: TalentOnboardingFields & { userId: string | null },
+): 'never' | 'pending' | 'active' {
   if (!t.userId) return 'never';
-  const complete =
-    t.infoValidatedAt &&
-    t.highSchoolValidatedAt &&
-    t.techInterestsValidatedAt &&
-    t.generalInterestsValidatedAt &&
-    t.interestsRecapSeenAt &&
-    t.rulesSignedAt &&
-    t.charterAcceptedAt;
-  return complete ? 'active' : 'pending';
+  // Complete = the whole step ladder cleared AND charter accepted (the charter
+  // is signed alongside the rules step, but kept explicit to mirror guards.ts).
+  return deriveOnboardingStatus(t) === 'done' ? 'active' : 'pending';
+}
+
+/**
+ * Human label for where a `pending` talent will resume — what the admin walks
+ * into on impersonation. "Non démarré" when the account exists but no step is
+ * done; "N/total · <étape>" mid-flow. `null` for `never`/`active`.
+ */
+function onboardingStepLabel(t: OnboardingStepFields): string | null {
+  const { step, completed, total, phase } = describeOnboardingProgress(t);
+  if (phase === 'complete') return null;
+  if (phase === 'not-started') return 'Non démarré';
+  // in-progress: step is the one they're currently on (completed + 1 of total).
+  return `${completed + 1}/${total} · ${ONBOARDING_STEP_LABELS[step!]}`;
 }
 
 // Admin is campus-agnostic (no staffProfile.campusId), so the talent directory
@@ -92,12 +99,14 @@ export const load: PageServerLoad = async ({ url }) => {
         eventsCount: true,
         lastActiveAt: true,
         charterAcceptedAt: true,
-        rulesSignedAt: true,
         infoValidatedAt: true,
         highSchoolValidatedAt: true,
+        parentsValidatedAt: true,
         techInterestsValidatedAt: true,
         generalInterestsValidatedAt: true,
-        interestsRecapSeenAt: true,
+        equipmentValidatedAt: true,
+        processingCompletedAt: true,
+        rulesSignedAt: true,
         // Effective campus = most-recent participation's campus, matching the
         // resolution in hooks.server.ts that scopes `locals.featureFlags`.
         participations: {
@@ -116,20 +125,26 @@ export const load: PageServerLoad = async ({ url }) => {
     }),
   ]);
 
-  const talents = rows.map(({ charterAcceptedAt, participations, ...t }) => ({
-    id: t.id,
-    nom: t.nom,
-    prenom: t.prenom,
-    email: t.email,
-    niveau: t.niveau,
-    userId: t.userId,
-    level: computeLevel(t.xp),
-    xp: t.xp,
-    eventsCount: t.eventsCount,
-    lastActiveAt: t.lastActiveAt,
-    campus: participations[0]?.campus?.name ?? null,
-    status: onboardingStatus({ ...t, charterAcceptedAt }),
-  }));
+  const talents = rows.map(({ charterAcceptedAt, participations, ...t }) => {
+    const status = onboardingStatus({ ...t, charterAcceptedAt });
+    return {
+      id: t.id,
+      nom: t.nom,
+      prenom: t.prenom,
+      email: t.email,
+      niveau: t.niveau,
+      userId: t.userId,
+      level: computeLevel(t.xp),
+      xp: t.xp,
+      eventsCount: t.eventsCount,
+      lastActiveAt: t.lastActiveAt,
+      campus: participations[0]?.campus?.name ?? null,
+      status,
+      // Only meaningful mid-journey: shown next to the "Onboarding" badge so the
+      // admin sees where impersonation will drop them.
+      onboardingStep: status === 'pending' ? onboardingStepLabel(t) : null,
+    };
+  });
 
   return {
     talents,
