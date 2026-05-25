@@ -225,8 +225,48 @@ model Talent {
   xpGrants           XpGrant[]
   broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
   broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
+  deletionRequests   TalentDeletionRequest[]
 
   @@index([xp])
+}
+
+// RGPD erasure as a fact log, not an instant destructive action. A talent's
+// "delete my account" no longer wipes rows on the spot — it appends a pending
+// request here. Staff fulfil it (→ anonymisation, the real erasure mechanism)
+// or reject it; the talent can withdraw their own pending request. Each
+// transition is a status on the same row, so the request doubles as the audit
+// trail of *when* and *by whom* an account was erased. See xpService for the
+// same facts-as-rows shape.
+enum TalentDeletionRequestStatus {
+  pending
+  fulfilled
+  rejected
+  cancelled
+}
+
+model TalentDeletionRequest {
+  id             String                      @id @default(cuid())
+  talentId       String
+  status         TalentDeletionRequestStatus @default(pending)
+  // Optional free-text the talent leaves when asking ("I'm leaving school"…).
+  reason         String?
+  requestedAt    DateTime                    @default(now())
+  // Set on any terminal transition (fulfilled / rejected / cancelled).
+  resolvedAt     DateTime?
+  // bauth_user.id of the admin who fulfilled/rejected; null for self-withdrawal.
+  resolvedBy     String?
+  // Staff note on a rejection. Shown to the talent as the official reason
+  // (RGPD art. 12(4): the data subject must be told why erasure was declined),
+  // so it's written for them, not as an internal shorthand.
+  resolutionNote String?
+  // When the talent dismissed the rejection notice in their settings. Until
+  // set, the notice keeps showing; re-requesting (a new row) also clears it.
+  acknowledgedAt DateTime?
+
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([status, requestedAt])
+  @@index([talentId])
 }
 
 // ─── Domain Tables ───

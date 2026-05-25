@@ -59,6 +59,20 @@ export const EMAIL_ACTIONS = {
       "Envoyé par le staff dev pour pousser un parent à signer le droit à l'image. Brouillon éditable avant envoi.",
     variables: ['parent_prenom', 'parent_nom', 'child_prenom', 'login_link'],
   },
+  account_deletion_refused: {
+    key: 'account_deletion_refused',
+    label: 'Suppression de compte — refus',
+    description:
+      "Envoyé au talent quand l'équipe refuse sa demande de suppression de compte. RGPD art. 12(4) : le corps DOIT donner le motif ({{deletion_reason}}) et rappeler le droit de réclamation auprès de la CNIL (cnil.fr).",
+    variables: ['prenom', 'deletion_reason'],
+  },
+  account_deletion_done: {
+    key: 'account_deletion_done',
+    label: 'Suppression de compte — confirmation',
+    description:
+      "Envoyé au talent au moment où l'équipe procède à l'effacement de son compte (anonymisation). Dernier message possible : son adresse est effacée juste après.",
+    variables: ['prenom'],
+  },
 } as const satisfies Record<string, EmailAction>;
 
 export type EmailActionKey = keyof typeof EMAIL_ACTIONS;

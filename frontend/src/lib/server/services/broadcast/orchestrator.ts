@@ -531,6 +531,8 @@ function buildContext(
       : null,
     child_nom: isParentRecipient ? (recipient.parentOf?.nom ?? null) : null,
     login_link: null,
+    // Only set on account-deletion refusal mails, never in broadcasts.
+    deletion_reason: null,
   };
 }
 

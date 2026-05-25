@@ -4,6 +4,7 @@
   import { Checkbox } from '$lib/components/ui/checkbox';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { track, secondsBetween } from '$lib/analytics';
+  import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
   const seenAt = Date.now();
 
   let accepted = $state(false);
@@ -86,9 +87,9 @@
             Combien de temps ?
           </h2>
           <p>
-            Tes donn&eacute;es sont conserv&eacute;es 6 mois apr&egrave;s ta
-            derni&egrave;re activit&eacute; sur la plateforme. Pass&eacute; ce
-            d&eacute;lai, elles sont automatiquement anonymis&eacute;es.
+            Tes donn&eacute;es sont conserv&eacute;es {DATA_RETENTION_MONTHS} mois
+            apr&egrave;s ta derni&egrave;re activit&eacute; sur la plateforme. Pass&eacute;
+            ce d&eacute;lai, elles sont automatiquement anonymis&eacute;es.
           </p>
         </section>
 
