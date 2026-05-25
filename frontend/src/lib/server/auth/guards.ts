@@ -94,6 +94,7 @@ export async function applyRouteGuards(
 
   const pathTalentWelcome = p('/welcome');
   const pathParentLogin = p('/parent/login');
+  const pathParentFastlogin = p('/parent/fastlogin');
   const pathParentRoot = p('/parent');
   const pathParentSignature = p('/parent/signature');
 
@@ -291,7 +292,12 @@ export async function applyRouteGuards(
 
   // --- Parent Guards ---
   if (isParentRoute) {
-    const isParentPublic = currentPath === pathParentLogin;
+    // `/parent/fastlogin` forges the session itself (magic-link token), so it
+    // must be reachable without one — same exemption as `/parent/login`.
+    // Without this the guard bounces the unauthenticated clicker to login and
+    // the endpoint never runs.
+    const isParentPublic =
+      currentPath === pathParentLogin || currentPath === pathParentFastlogin;
 
     if (
       !isParentPublic &&
