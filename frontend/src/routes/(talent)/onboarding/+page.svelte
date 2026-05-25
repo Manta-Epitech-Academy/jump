@@ -99,7 +99,7 @@
 
   <div class="relative z-10 flex flex-1 items-center justify-center p-4">
     <div class="w-full max-w-lg">
-      <div class="mb-6 flex items-center justify-between">
+      <div class="mb-6">
         <a href={resolve('/')} aria-label="Accueil">
           <img
             src="/EPITECH-LOGO-BLEU-2025.svg"
@@ -107,11 +107,6 @@
             class="h-9 w-auto dark:brightness-0 dark:invert"
           />
         </a>
-        <span
-          class="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-slate-500 shadow-sm backdrop-blur-xl dark:bg-slate-900/80 dark:text-slate-400"
-        >
-          Étape {stepIndex} / {TOTAL_STEPS}
-        </span>
       </div>
 
       <div class="relative">
