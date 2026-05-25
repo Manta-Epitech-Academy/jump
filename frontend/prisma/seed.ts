@@ -4493,7 +4493,7 @@ L'équipe Epitech Academy`,
 
 Ton inscription sur Jump n'est pas encore terminée. Il ne te reste que quelques étapes pour accéder à ton espace.
 
-:button[Finaliser mon inscription]({{login_link}})
+:button[Finaliser mon inscription]({{fastlogin_link}})
 
 À très vite,
 L'équipe Epitech Academy`,
