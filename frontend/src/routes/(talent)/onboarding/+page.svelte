@@ -99,41 +99,31 @@
     <div
       class="mx-auto flex w-full max-w-lg items-center justify-between px-4 py-3"
     >
-      <!-- Left: back button or logo -->
-      {#if showBack}
-        <Button
-          variant="ghost"
-          onclick={goBackServer}
-          class="h-auto gap-1.5 px-2 py-1 text-sm font-medium text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-        >
-          <ArrowLeft class="h-4 w-4" />
-          Retour
-        </Button>
-      {:else}
-        <a href={resolve('/')} aria-label="Accueil">
-          <img
-            src="/EPITECH-LOGO-BLEU-2025.svg"
-            alt="Epitech"
-            class="h-7 w-auto dark:brightness-0 dark:invert"
-          />
-        </a>
-      {/if}
+      <!-- Left: logo (always visible, fixed position) -->
+      <a href={resolve('/')} aria-label="Accueil">
+        <img
+          src="/EPITECH-LOGO-BLEU-2025.svg"
+          alt="Epitech"
+          class="h-7 w-auto dark:brightness-0 dark:invert"
+        />
+      </a>
 
-      <!-- Center: logo when back is shown -->
-      {#if showBack}
-        <a href={resolve('/')} aria-label="Accueil">
-          <img
-            src="/EPITECH-LOGO-BLEU-2025.svg"
-            alt="Epitech"
-            class="h-7 w-auto dark:brightness-0 dark:invert"
-          />
-        </a>
-      {/if}
-
-      <!-- Right: step counter -->
-      <span class="text-xs font-semibold text-slate-400 dark:text-slate-500">
-        Étape {stepIndex}/{TOTAL_STEPS}
-      </span>
+      <!-- Right: back button + step counter -->
+      <div class="flex items-center gap-3">
+        {#if showBack}
+          <Button
+            variant="ghost"
+            onclick={goBackServer}
+            class="h-auto gap-1 px-2 py-1 text-xs font-medium text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          >
+            <ArrowLeft class="h-3.5 w-3.5" />
+            Retour
+          </Button>
+        {/if}
+        <span class="text-xs font-semibold text-slate-400 dark:text-slate-500">
+          {stepIndex}/{TOTAL_STEPS}
+        </span>
+      </div>
     </div>
   </header>
 
