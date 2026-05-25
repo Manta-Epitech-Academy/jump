@@ -1,4 +1,5 @@
 import { fail } from '@sveltejs/kit';
+import type { Prisma } from '@prisma/client';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
@@ -6,11 +7,55 @@ import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobServic
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
 
-export const load: PageServerLoad = async () => {
-  const [jobs, counts] = await Promise.all([
+const PAGE_SIZE = 100;
+const STATUS_FILTERS = ['all', 'active', 'success', 'error'] as const;
+type StatusFilter = (typeof STATUS_FILTERS)[number];
+const DOCUMENT_TYPES = ['rules', 'charter', 'image-rights'] as const;
+
+// `active` collapses the two transient states into the one the admin thinks of
+// as "in flight"; the others map 1:1 to a status.
+const STATUS_FILTER_WHERE: Record<
+  Exclude<StatusFilter, 'all'>,
+  Prisma.OnboardingPdfJobWhereInput['status']
+> = {
+  active: { in: ['pending', 'processing'] },
+  success: 'success',
+  error: 'error',
+};
+
+export const load: PageServerLoad = async ({ url, depends }) => {
+  // Tagged so the client can poll just this query (invalidate) for a live feed
+  // without re-running every load on the layout.
+  depends('admin:onboarding-pdfs');
+
+  const status: StatusFilter = STATUS_FILTERS.includes(
+    url.searchParams.get('status') as StatusFilter,
+  )
+    ? (url.searchParams.get('status') as StatusFilter)
+    : 'all';
+  const typeParam = url.searchParams.get('type') ?? 'all';
+  const type = (DOCUMENT_TYPES as readonly string[]).includes(typeParam)
+    ? typeParam
+    : 'all';
+  const q = (url.searchParams.get('q') ?? '').trim();
+
+  const where: Prisma.OnboardingPdfJobWhereInput = {};
+  if (status !== 'all') where.status = STATUS_FILTER_WHERE[status];
+  if (type !== 'all') where.documentType = type;
+  if (q) {
+    where.talent = {
+      OR: [
+        { prenom: { contains: q, mode: 'insensitive' } },
+        { nom: { contains: q, mode: 'insensitive' } },
+      ],
+    };
+  }
+
+  const [jobs, counts, matchCount] = await Promise.all([
     prisma.onboardingPdfJob.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: PAGE_SIZE,
       include: {
         talent: { select: { id: true, prenom: true, nom: true } },
       },
@@ -19,6 +64,7 @@ export const load: PageServerLoad = async () => {
       by: ['status'],
       _count: { _all: true },
     }),
+    prisma.onboardingPdfJob.count({ where }),
   ]);
 
   const countByStatus: Record<JobStatus, number> = {
@@ -34,7 +80,10 @@ export const load: PageServerLoad = async () => {
   }
 
   return {
+    filters: { status, type, q },
     errorCount: countByStatus.error,
+    matchCount,
+    truncated: matchCount > PAGE_SIZE,
     jobs: jobs.map((j) => ({
       id: j.id,
       documentType: j.documentType,
