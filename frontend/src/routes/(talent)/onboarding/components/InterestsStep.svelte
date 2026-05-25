@@ -149,7 +149,7 @@
           in:fly={{ y: 15, duration: 300, delay: index * 50 }}
           onclick={() => toggleTech(interest.id)}
           disabled={!isSelected && techFull}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-none border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
             {isSelected
             ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
             : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
@@ -181,7 +181,7 @@
           in:fly={{ y: 15, duration: 300, delay: index * 50 }}
           onclick={() => toggleGeneral(interest.id)}
           disabled={!isSelected && generalFull}
-          class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
             {isSelected
             ? 'border-purple-500 bg-purple-500/10 text-purple-600 shadow-sm dark:bg-purple-500/20 dark:text-purple-400'
             : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
