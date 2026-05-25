@@ -3,7 +3,10 @@ import type { Prisma } from '@prisma/client';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
-import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
+import {
+  isOnboardingPdfJobRetryable,
+  runOnboardingPdfJob,
+} from '$lib/server/services/onboardingPdfJobService';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
 
@@ -88,6 +91,7 @@ export const load: PageServerLoad = async ({ url, depends }) => {
       id: j.id,
       documentType: j.documentType,
       status: j.status,
+      retryable: isOnboardingPdfJobRetryable(j),
       filePath: j.filePath,
       errorMessage: j.errorMessage,
       createdAt: j.createdAt.toISOString(),

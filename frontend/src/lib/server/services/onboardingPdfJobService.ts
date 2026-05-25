@@ -65,20 +65,27 @@ export function enqueueOnboardingPdfJob(
  * and overwrites the same signature-timestamp-keyed S3 object.
  */
 export async function runOnboardingPdfJob(jobId: string): Promise<void> {
-  // Claim: flip a not-yet-succeeded row to `processing`. A zero count means the
-  // job already succeeded (or was deleted) — nothing left to do.
-  const claimed = await prisma.onboardingPdfJob.updateMany({
-    where: { id: jobId, status: { not: 'success' } },
-    data: { status: 'processing', errorMessage: null, processedAt: null },
-  });
-  if (claimed.count === 0) return;
-
-  const job = await prisma.onboardingPdfJob.findUnique({
-    where: { id: jobId },
-  });
-  if (!job) return;
-
+  // Invariant: this never rejects. Callers fire it as `void runOnboardingPdfJob(id)`
+  // with no `.catch`, so a leaked rejection would become an unhandledRejection and
+  // (Node ≥ 15) take down the whole server for a background PDF task. The two failure
+  // domains are handled differently: a *generation* failure is recorded on the row so
+  // the admin can see and retry it; an *infra* failure around the claim itself (DB
+  // unreachable) leaves nothing to write to, so it's only logged and the row is left
+  // in place for a later manual retry.
+  let job: OnboardingPdfJob | null = null;
   try {
+    // Claim: flip a not-yet-succeeded row to `processing`. A zero count means the
+    // job already succeeded (or was deleted) — nothing left to do. `updatedAt` is
+    // bumped here, which is what marks "processing since" for stranded detection.
+    const claimed = await prisma.onboardingPdfJob.updateMany({
+      where: { id: jobId, status: { not: 'success' } },
+      data: { status: 'processing', errorMessage: null, processedAt: null },
+    });
+    if (claimed.count === 0) return;
+
+    job = await prisma.onboardingPdfJob.findUnique({ where: { id: jobId } });
+    if (!job) return;
+
     const payload = payloadSchema.parse(job.payload);
     const documentType = job.documentType as OnboardingPdfDocumentType;
 
@@ -113,10 +120,55 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     ]);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await prisma.onboardingPdfJob.update({
-      where: { id: jobId },
-      data: { status: 'error', errorMessage: message, processedAt: new Date() },
-    });
     console.error(`[onboarding-pdf-job] ${jobId} failed:`, err);
+    // Record the failure only if the claim succeeded — otherwise we have no row we
+    // own. Guard the write itself so a secondary DB failure can't re-leak.
+    if (job) {
+      await prisma.onboardingPdfJob
+        .update({
+          where: { id: jobId },
+          data: {
+            status: 'error',
+            errorMessage: message,
+            processedAt: new Date(),
+          },
+        })
+        .catch((e) =>
+          console.error(`[onboarding-pdf-job] ${jobId} error-write failed:`, e),
+        );
+    }
+  }
+}
+
+/**
+ * A `processing` row whose last state change predates this window is treated as
+ * crash-stranded rather than legitimately in-flight, and re-exposed for retry.
+ *
+ * Generation itself is seconds, but a whole cohort signing at once queues jobs
+ * behind the browser pool (cap 5) — a job can sit in `processing` for a few
+ * minutes simply waiting for a slot. The window is deliberately generous so a
+ * queued job is never mistaken for a dead one; on the off chance a still-queued
+ * job is retried anyway, {@link runOnboardingPdfJob} is idempotent (same
+ * signature-keyed S3 object), so the worst case is one wasted generation.
+ */
+export const STRANDED_AFTER_MS = 5 * 60_000;
+
+/**
+ * Whether the admin page should offer a manual "Relancer" for a job. `error` and
+ * `pending` always; `processing` only once {@link STRANDED_AFTER_MS} has elapsed
+ * since its last state change (`updatedAt`); `success` never.
+ */
+export function isOnboardingPdfJobRetryable(job: {
+  status: string;
+  updatedAt: Date;
+}): boolean {
+  switch (job.status) {
+    case 'error':
+    case 'pending':
+      return true;
+    case 'processing':
+      return Date.now() - job.updatedAt.getTime() >= STRANDED_AFTER_MS;
+    default:
+      return false;
   }
 }

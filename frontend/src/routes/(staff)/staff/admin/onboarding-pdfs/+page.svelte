@@ -315,7 +315,7 @@
                   variant={statusVariant(job.status)}
                   class="gap-1 rounded-sm font-mono text-[0.7rem] tracking-wide uppercase"
                 >
-                  {#if job.status === 'processing'}
+                  {#if job.status === 'processing' && !job.retryable}
                     <LoaderCircle class="h-3 w-3 animate-spin" />
                   {/if}
                   {statusLabels[job.status] ?? job.status}
@@ -368,7 +368,7 @@
                 {/if}
               </Table.Cell>
               <Table.Cell class="text-right">
-                {#if job.status !== 'success' && job.status !== 'processing'}
+                {#if job.retryable}
                   <form
                     method="POST"
                     action="?/retry"
