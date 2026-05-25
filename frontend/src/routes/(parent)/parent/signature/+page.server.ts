@@ -2,8 +2,10 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
-import { getStorage } from '$lib/server/infra/storage';
+import {
+  enqueueOnboardingPdfJob,
+  runOnboardingPdfJob,
+} from '$lib/server/services/onboardingPdfJobService';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -82,29 +84,35 @@ export const actions: Actions = {
     }
 
     const now = new Date();
-    const storage = getStorage();
     const studentName = `${profile.prenom} ${profile.nom}`;
 
-    const pdf = await generateOnboardingPDF({
-      type: 'image-rights',
-      studentName,
-      signerName,
-      relationship,
-      city,
-      signedAt: now,
+    // Record the signature + enqueue the PDF job atomically. The image-rights
+    // file path is filled in by the background worker; the signed-at timestamp
+    // is set now, so the `remaining` count below already excludes this child.
+    const job = await prisma.$transaction(async (tx) => {
+      await tx.talent.update({
+        where: { id: profile.id },
+        data: {
+          imageRightsSignedAt: now,
+          imageRightsSignerName: signerName,
+        },
+      });
+      return enqueueOnboardingPdfJob(tx, {
+        talentId: profile.id,
+        documentType: 'image-rights',
+        payload: {
+          studentName,
+          signerName,
+          relationship,
+          city,
+          signedAt: now.toISOString(),
+        },
+      });
     });
 
-    const key = `documents/${profile.id}/image-rights-${now.getTime()}.pdf`;
-    await storage.save(key, pdf);
-
-    await prisma.talent.update({
-      where: { id: profile.id },
-      data: {
-        imageRightsSignedAt: now,
-        imageRightsSignerName: signerName,
-        imageRightsFilePath: key,
-      },
-    });
+    // Generate the PDF in the background — NOT awaited, so the parent isn't
+    // blocked. Failures are visible/re-runnable at /staff/admin/onboarding-pdfs.
+    void runOnboardingPdfJob(job.id);
 
     // Check if more children need signing
     const remaining = await prisma.talent.count({

@@ -1060,15 +1060,16 @@ model OnboardingReminder {
   @@index([talentId])
 }
 
-/// Async task for generating an onboarding PDF (charter/rules/image-rights)
-/// and uploading it to S3. Created when the talent signs; drained by a cron
-/// every minute. No auto-retry: a failed job stays in "error" with the
-/// captured message so admins can inspect it.
+/// Tracking record for generating an onboarding PDF (charter/rules/image-rights)
+/// and uploading it to S3. Created in the same transaction as the signature,
+/// then generated in the background immediately after (see runOnboardingPdfJob)
+/// so the signer isn't blocked. No auto-retry: a failed job stays in "error"
+/// with the captured message, re-runnable from /staff/admin/onboarding-pdfs.
 model OnboardingPdfJob {
   id           String    @id @default(cuid())
   talentId     String
   documentType String // "charter" | "rules" | "image-rights"
-  status       String    @default("pending") // "pending" | "success" | "error"
+  status       String    @default("pending") // "pending" | "processing" | "success" | "error"
   filePath     String? // S3 key, set on success
   errorMessage String? // captured on failure
   payload      Json // snapshot of generator inputs (studentName, city, signedAt, etc.)

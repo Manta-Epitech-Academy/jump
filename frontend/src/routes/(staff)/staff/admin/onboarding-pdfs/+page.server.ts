@@ -1,6 +1,9 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
+import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
+
+type JobStatus = 'pending' | 'processing' | 'success' | 'error';
 
 export const load: PageServerLoad = async () => {
   const [jobs, counts] = await Promise.all([
@@ -17,25 +20,20 @@ export const load: PageServerLoad = async () => {
     }),
   ]);
 
-  const countByStatus = {
+  const countByStatus: Record<JobStatus, number> = {
     pending: 0,
+    processing: 0,
     success: 0,
     error: 0,
-  } as Record<'pending' | 'success' | 'error', number>;
+  };
   for (const row of counts) {
-    if (
-      row.status === 'pending' ||
-      row.status === 'success' ||
-      row.status === 'error'
-    ) {
-      countByStatus[row.status] = row._count._all;
+    if (row.status in countByStatus) {
+      countByStatus[row.status as JobStatus] = row._count._all;
     }
   }
 
-  const errorCount = countByStatus.error;
-
   return {
-    errorCount,
+    errorCount: countByStatus.error,
     jobs: jobs.map((j) => ({
       id: j.id,
       documentType: j.documentType,
@@ -55,30 +53,34 @@ export const load: PageServerLoad = async () => {
   };
 };
 
-// Re-queue an errored job for the next cron tick. Limited to status='error'
-// so the action can't yank a successful job back into pending (which would
-// duplicate the S3 file on the next run).
+// Re-runs the background generation for a job. The runner claims any
+// not-yet-succeeded row, so this recovers both `error` jobs and ones stranded
+// in `pending`/`processing` by a crash. Fire-and-forget — the page reloads to
+// show the job back in `processing`, then `success` on the next refresh.
 export const actions: Actions = {
   retry: async ({ request }) => {
     const formData = await request.formData();
     const id = formData.get('id');
     if (typeof id !== 'string' || !id) return fail(400);
 
-    const updated = await prisma.onboardingPdfJob.updateMany({
-      where: { id, status: 'error' },
-      data: { status: 'pending', errorMessage: null, processedAt: null },
+    const job = await prisma.onboardingPdfJob.findUnique({
+      where: { id },
+      select: { status: true },
     });
-    if (updated.count === 0)
-      return fail(409, { message: 'Job introuvable ou non-errored.' });
+    if (!job) return fail(404, { message: 'Job introuvable.' });
+    if (job.status === 'success')
+      return fail(409, { message: 'Ce job a déjà réussi.' });
 
+    void runOnboardingPdfJob(id);
     return { success: true };
   },
 
   retryAll: async () => {
-    const updated = await prisma.onboardingPdfJob.updateMany({
+    const failed = await prisma.onboardingPdfJob.findMany({
       where: { status: 'error' },
-      data: { status: 'pending', errorMessage: null, processedAt: null },
+      select: { id: true },
     });
-    return { success: true, count: updated.count };
+    for (const { id } of failed) void runOnboardingPdfJob(id);
+    return { success: true, count: failed.length };
   },
 };

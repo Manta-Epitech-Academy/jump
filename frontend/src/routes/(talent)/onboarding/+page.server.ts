@@ -14,6 +14,10 @@ import { sendParentWelcomeEmail } from '$lib/server/otp';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
+import {
+  enqueueOnboardingPdfJob,
+  runOnboardingPdfJob,
+} from '$lib/server/services/onboardingPdfJobService';
 
 export type OnboardingStep =
   | 'identity'
@@ -496,11 +500,9 @@ export const actions: Actions = {
     const talentId = locals.talent.id;
     const studentName = `${locals.talent.prenom} ${locals.talent.nom}`;
 
-    // Set timestamps, grant XP, and enqueue the PDF job atomically.
-    // PDF generation + S3 upload run out-of-band in a cron-driven worker
-    // (see /api/jobs/onboarding-pdfs) so the redirect isn't blocked by
-    // Puppeteer/S3 latency.
-    await prisma.$transaction(async (tx) => {
+    // Set timestamps, grant XP, and enqueue the PDF job atomically — all fast
+    // DB writes, so the redirect below is instant.
+    const job = await prisma.$transaction(async (tx) => {
       await tx.talent.update({
         where: { id: talentId },
         data: {
@@ -514,14 +516,17 @@ export const actions: Actions = {
         sourceId: talentId,
         amount: WELCOME_XP_BONUS,
       });
-      await tx.onboardingPdfJob.create({
-        data: {
-          talentId,
-          documentType: 'rules',
-          payload: { studentName, city, signedAt: now.toISOString() },
-        },
+      return enqueueOnboardingPdfJob(tx, {
+        talentId,
+        documentType: 'rules',
+        payload: { studentName, city, signedAt: now.toISOString() },
       });
     });
+
+    // Generate the PDF + upload to S3 in the background — NOT awaited, so the
+    // student reaches the dashboard immediately and the file lands a few seconds
+    // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
+    void runOnboardingPdfJob(job.id);
 
     // Head to the dashboard with the one-shot celebration signal. If a CMS
     // welcome message exists, the guard intercepts to /welcome first; that page

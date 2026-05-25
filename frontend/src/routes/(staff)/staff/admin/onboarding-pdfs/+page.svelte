@@ -19,6 +19,7 @@
 
   const statusLabels: Record<string, string> = {
     pending: 'En attente',
+    processing: 'En cours',
     success: 'Succès',
     error: 'Erreur',
   };
@@ -28,8 +29,13 @@
   ): 'default' | 'secondary' | 'destructive' | 'outline' {
     if (status === 'success') return 'secondary';
     if (status === 'error') return 'destructive';
+    if (status === 'processing') return 'default';
     return 'outline';
   }
+
+  const inFlight = $derived(
+    data.countByStatus.pending + data.countByStatus.processing,
+  );
 </script>
 
 <svelte:head>
@@ -43,7 +49,7 @@
         Génération PDF <span class="text-epi-pink">Onboarding</span>
       </h1>
       <p class="text-sm font-bold text-muted-foreground uppercase">
-        File d'attente du worker (traitée toutes les minutes)
+        Générés en arrière-plan dès la signature
       </p>
     </div>
 
@@ -55,7 +61,7 @@
           async ({ result, update }) => {
             if (result.type === 'success') {
               toast.success(
-                `${data.errorCount} job${data.errorCount > 1 ? 's' : ''} remis en attente`,
+                `${data.errorCount} génération${data.errorCount > 1 ? 's' : ''} relancée${data.errorCount > 1 ? 's' : ''}`,
               );
               await update();
             } else {
@@ -65,7 +71,7 @@
       >
         <Button type="submit" variant="outline" class="gap-2">
           <RotateCcw class="h-4 w-4" />
-          Tout remettre en attente ({data.errorCount})
+          Tout relancer ({data.errorCount})
         </Button>
       </form>
     {/if}
@@ -74,11 +80,11 @@
   <div class="grid gap-4 md:grid-cols-3">
     <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
       <Card.Header class="pb-2">
-        <Card.Title class="text-sm font-bold uppercase">En attente</Card.Title>
+        <Card.Title class="text-sm font-bold uppercase">En cours</Card.Title>
       </Card.Header>
       <Card.Content>
-        <div class="text-2xl font-black">{data.countByStatus.pending}</div>
-        <p class="text-xs text-muted-foreground">À traiter au prochain tick</p>
+        <div class="text-2xl font-black">{inFlight}</div>
+        <p class="text-xs text-muted-foreground">Génération en arrière-plan</p>
       </Card.Content>
     </Card.Root>
 
@@ -98,7 +104,7 @@
       </Card.Header>
       <Card.Content>
         <div class="text-2xl font-black">{data.countByStatus.error}</div>
-        <p class="text-xs text-muted-foreground">Échecs (pas de retry auto)</p>
+        <p class="text-xs text-muted-foreground">Échecs — relançables</p>
       </Card.Content>
     </Card.Root>
   </div>
@@ -157,14 +163,14 @@
                 {/if}
               </Table.Cell>
               <Table.Cell class="text-right">
-                {#if job.status === 'error'}
+                {#if job.status !== 'success' && job.status !== 'processing'}
                   <form
                     method="POST"
                     action="?/retry"
                     use:enhance={() =>
                       async ({ result, update }) => {
                         if (result.type === 'success') {
-                          toast.success('Job remis en attente');
+                          toast.success('Génération relancée');
                           await update();
                         } else {
                           toast.error('Une erreur est survenue');
@@ -179,7 +185,7 @@
                       class="gap-1.5"
                     >
                       <RotateCcw class="h-3.5 w-3.5" />
-                      Réessayer
+                      Relancer
                     </Button>
                   </form>
                 {/if}
