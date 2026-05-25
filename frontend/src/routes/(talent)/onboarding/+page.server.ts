@@ -492,33 +492,44 @@ export const actions: Actions = {
     }
 
     const now = new Date();
-    const storage = getStorage();
-    const pdf = await generateOnboardingPDF({
-      type: 'rules',
-      studentName: `${locals.talent.prenom} ${locals.talent.nom}`,
-      signedAt: now,
-      city,
-    });
+    const talentId = locals.talent.id;
+    const studentName = `${locals.talent.prenom} ${locals.talent.nom}`;
 
-    const key = `documents/${locals.talent.id}/rules-${now.getTime()}.pdf`;
-    await storage.save(key, pdf);
-
+    // Set timestamps and grant XP immediately so the user isn't blocked.
     await prisma.$transaction(async (tx) => {
       await tx.talent.update({
-        where: { id: locals.talent!.id },
+        where: { id: talentId },
         data: {
           rulesSignedAt: now,
-          rulesFilePath: key,
           charterAcceptedAt: now,
         },
       });
       await grantXp(tx, {
-        talentId: locals.talent!.id,
+        talentId,
         source: 'onboarding',
-        sourceId: locals.talent!.id,
+        sourceId: talentId,
         amount: WELCOME_XP_BONUS,
       });
     });
+
+    // Generate PDF + upload to S3 in background (fire-and-forget)
+    (async () => {
+      const storage = getStorage();
+      const pdf = await generateOnboardingPDF({
+        type: 'rules',
+        studentName,
+        signedAt: now,
+        city,
+      });
+      const key = `documents/${talentId}/rules-${now.getTime()}.pdf`;
+      await storage.save(key, pdf);
+      await prisma.talent.update({
+        where: { id: talentId },
+        data: { rulesFilePath: key },
+      });
+    })().catch((err) =>
+      console.error('Failed to generate/upload rules PDF:', err),
+    );
 
     // Head to the dashboard with the one-shot celebration signal. If a CMS
     // welcome message exists, the guard intercepts to /welcome first; that page
