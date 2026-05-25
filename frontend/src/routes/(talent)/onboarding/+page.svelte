@@ -148,11 +148,20 @@
             out:exitSlide|local={{ duration: 180 }}
           >
             {#if data.step === 'identity'}
-              <IdentityStep profile={data.profile} errors={form?.errors} />
+              <IdentityStep
+                profile={data.profile}
+                errors={form?.step === 'identity' ? form?.errors : undefined}
+              />
             {:else if data.step === 'school'}
-              <SchoolStep profile={data.profile} errors={form?.errors} />
+              <SchoolStep
+                profile={data.profile}
+                errors={form?.step === 'school' ? form?.errors : undefined}
+              />
             {:else if data.step === 'parents'}
-              <ParentsStep profile={data.profile} errors={form?.errors} />
+              <ParentsStep
+                profile={data.profile}
+                errors={form?.step === 'parents' ? form?.errors : undefined}
+              />
             {:else if data.step === 'interests'}
               <InterestsStep
                 techInterests={data.techInterests ?? []}
@@ -161,18 +170,20 @@
                 selectedGeneralIds={data.selectedGeneralIds ?? []}
                 freeText={data.freeText ?? ''}
                 shuffleSeed={data.shuffleSeed ?? ''}
-                error={form?.error}
+                error={form?.step === 'interests' ? form?.error : undefined}
               />
             {:else if data.step === 'equipment'}
               <EquipmentStep
                 hasLaptop={data.hasLaptop ?? false}
                 setupDescription={data.setupDescription ?? ''}
-                error={form?.error}
+                error={form?.step === 'equipment' ? form?.error : undefined}
               />
             {:else if data.step === 'processing'}
               <ProcessingStep />
             {:else if data.step === 'rules'}
-              <RulesStep error={form?.error} />
+              <RulesStep
+                error={form?.step === 'rules' ? form?.error : undefined}
+              />
             {/if}
           </div>
         {/key}
