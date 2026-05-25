@@ -90,7 +90,7 @@
       maxlength={1000}
       value={setupDescription}
       placeholder="Mon PC gaming, mes écrans, ma config..."
-      class="resize-none rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+      class="resize-none rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
     />
   </div>
 
