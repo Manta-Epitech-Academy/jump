@@ -201,11 +201,13 @@ export const actions: Actions = {
           });
         }
 
-        // Send welcome email (no OTP — parent will request OTP when they log in)
+        // Welcome email carries a passwordless magic link into the parent
+        // space — the bauth_user just created above lets it resolve.
         await sendParentWelcomeEmail(
           parentEmail,
           result.data.parentNom,
           locals.talent!.prenom,
+          locals.talent!.id,
         );
       })().catch((err) =>
         console.error('Failed to send parent welcome email:', err),

@@ -4478,7 +4478,7 @@ Votre enfant **{{child_prenom}}** vient de s'inscrire à un stage **Epitech Acad
 
 En tant que responsable légal, nous avons besoin de votre **autorisation pour le droit à l'image** avant le début du stage. Cela ne prend qu'une minute.
 
-:button[Signer le droit à l'image]({{login_link}})
+:button[Signer le droit à l'image]({{parent_fastlogin_link}})
 
 Cet espace vous permet également de suivre la progression de {{child_prenom}} et de consulter le programme des activités.
 
@@ -4508,7 +4508,7 @@ Nous n'avons pas encore reçu votre autorisation pour le droit à l'image de **{
 
 Cette signature est nécessaire avant le début du stage et ne prend qu'une minute.
 
-:button[Signer le droit à l'image]({{login_link}})
+:button[Signer le droit à l'image]({{parent_fastlogin_link}})
 
 À très vite,
 L'équipe Epitech Academy`,
