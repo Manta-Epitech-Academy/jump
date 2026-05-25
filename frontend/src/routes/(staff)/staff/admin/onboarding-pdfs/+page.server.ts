@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
+import { getStorage } from '$lib/server/infra/storage';
 import { runOnboardingPdfJob } from '$lib/server/services/onboardingPdfJobService';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
@@ -82,5 +83,27 @@ export const actions: Actions = {
     });
     for (const { id } of failed) void runOnboardingPdfJob(id);
     return { success: true, count: failed.length };
+  },
+
+  // Mints a short-lived signed URL for a generated PDF so the admin can open it.
+  view: async ({ request }) => {
+    const formData = await request.formData();
+    const id = formData.get('id');
+    if (typeof id !== 'string' || !id) return fail(400);
+
+    const job = await prisma.onboardingPdfJob.findUnique({
+      where: { id },
+      select: { filePath: true },
+    });
+    if (!job?.filePath)
+      return fail(404, { message: 'Aucun fichier pour ce job.' });
+
+    try {
+      const url = await getStorage().getDownloadUrl(job.filePath);
+      return { url };
+    } catch (err) {
+      console.error('[onboarding-pdf-job] signed URL failed:', err);
+      return fail(500, { message: 'Erreur lors de la génération du lien.' });
+    }
   },
 };

@@ -1,5 +1,6 @@
 <script lang="ts">
   import FileText from '@lucide/svelte/icons/file-text';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import { enhance } from '$app/forms';
   import { Badge } from '$lib/components/ui/badge';
@@ -155,9 +156,34 @@
                     {job.errorMessage}
                   </span>
                 {:else if job.status === 'success' && job.filePath}
-                  <span class="font-mono text-xs text-muted-foreground">
-                    {job.filePath}
-                  </span>
+                  <form
+                    method="POST"
+                    action="?/view"
+                    class="inline"
+                    use:enhance={() =>
+                      async ({ result }) => {
+                        if (result.type === 'success' && result.data?.url) {
+                          window.open(
+                            result.data.url as string,
+                            '_blank',
+                            'noopener',
+                          );
+                        } else {
+                          toast.error("Impossible d'ouvrir le PDF");
+                        }
+                      }}
+                  >
+                    <input type="hidden" name="id" value={job.id} />
+                    <Button
+                      type="submit"
+                      variant="link"
+                      size="sm"
+                      class="h-auto gap-1.5 p-0 text-xs"
+                    >
+                      <ExternalLink class="h-3.5 w-3.5" />
+                      Voir le PDF
+                    </Button>
+                  </form>
                 {:else}
                   <span class="text-xs text-muted-foreground">—</span>
                 {/if}
