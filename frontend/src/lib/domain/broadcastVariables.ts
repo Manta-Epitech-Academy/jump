@@ -19,6 +19,7 @@ export interface VariableContext {
   child_prenom: string | null;
   child_nom: string | null;
   login_link: string | null;
+  deletion_reason: string | null;
 }
 
 /**
@@ -42,6 +43,7 @@ export const EMPTY_VARIABLE_CONTEXT: VariableContext = {
   child_prenom: null,
   child_nom: null,
   login_link: null,
+  deletion_reason: null,
 };
 
 export function buildDemoContext(eventName?: string | null): VariableContext {

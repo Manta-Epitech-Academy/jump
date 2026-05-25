@@ -1,6 +1,7 @@
 import type { TalentDeletionRequest } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { anonymizeTalent } from '$lib/server/services/anonymizationService';
+import { sendActionEmail } from '$lib/server/email/actionMail';
 
 /**
  * Account deletion as a request workflow rather than an instant wipe.
@@ -103,7 +104,9 @@ export async function fulfillTalentDeletion(
   requestId: string,
   adminUserId: string,
 ): Promise<boolean> {
-  return prisma.$transaction(async (tx) => {
+  // Capture the talent's contact details inside the transaction, *before*
+  // anonymisation scrubs them — this is the last moment we can reach them.
+  const contact = await prisma.$transaction(async (tx) => {
     const claimed = await tx.talentDeletionRequest.updateMany({
       where: { id: requestId, status: 'pending' },
       data: {
@@ -112,15 +115,31 @@ export async function fulfillTalentDeletion(
         resolvedBy: adminUserId,
       },
     });
-    if (claimed.count === 0) return false;
+    if (claimed.count === 0) return null;
 
     const request = await tx.talentDeletionRequest.findUniqueOrThrow({
       where: { id: requestId },
-      select: { talentId: true },
+      select: {
+        talentId: true,
+        talent: { select: { email: true, prenom: true } },
+      },
     });
     await anonymizeTalent(tx, request.talentId);
-    return true;
+    return request.talent;
   });
+
+  if (!contact) return false;
+
+  // Confirm the erasure out-of-band, after the transaction commits — never run
+  // an external API call inside a DB transaction. Best-effort: the account is
+  // already erased, so a mail failure must not undo it (sendActionEmail logs
+  // and returns rather than throwing).
+  if (contact.email) {
+    await sendActionEmail('account_deletion_done', contact.email, {
+      prenom: contact.prenom,
+    });
+  }
+  return true;
 }
 
 /**
@@ -134,14 +153,29 @@ export async function rejectTalentDeletion(
   adminUserId: string,
   note?: string | null,
 ): Promise<boolean> {
+  const reason = note?.trim() || null;
   const { count } = await prisma.talentDeletionRequest.updateMany({
     where: { id: requestId, status: 'pending' },
     data: {
       status: 'rejected',
       resolvedAt: new Date(),
       resolvedBy: adminUserId,
-      resolutionNote: note?.trim() || null,
+      resolutionNote: reason,
     },
   });
-  return count > 0;
+  if (count === 0) return false;
+
+  // Inform the talent "without delay" (RGPD art. 12(4)) — the in-app notice
+  // alone only reaches them if they happen to log back in. Best-effort send.
+  const request = await prisma.talentDeletionRequest.findUnique({
+    where: { id: requestId },
+    select: { talent: { select: { email: true, prenom: true } } },
+  });
+  if (request?.talent.email) {
+    await sendActionEmail('account_deletion_refused', request.talent.email, {
+      prenom: request.talent.prenom,
+      deletion_reason: reason ?? '',
+    });
+  }
+  return true;
 }

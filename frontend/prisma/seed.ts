@@ -4513,6 +4513,35 @@ Cette signature est nécessaire avant le début du stage et ne prend qu'une minu
 À très vite,
 L'équipe Epitech Academy`,
     },
+    {
+      actionKey: 'account_deletion_refused',
+      name: 'Suppression de compte — refus (par défaut)',
+      subject: 'Ta demande de suppression de compte',
+      body: `Salut **{{prenom}}**,
+
+Nous avons bien reçu ta demande de suppression de ton compte Jump, mais nous ne pouvons pas y donner suite pour le moment.
+
+**Motif :** {{deletion_reason}}
+
+Tu peux refaire une demande plus tard, ou répondre à cet email si tu as des questions.
+
+Si tu n'es pas d'accord, tu peux aussi introduire une réclamation auprès de la CNIL : [cnil.fr](https://www.cnil.fr/fr/plaintes).
+
+L'équipe Epitech Academy`,
+    },
+    {
+      actionKey: 'account_deletion_done',
+      name: 'Suppression de compte — confirmation (par défaut)',
+      subject: 'Ton compte Jump a été supprimé',
+      body: `Salut **{{prenom}}**,
+
+Comme tu l'avais demandé, ton compte Jump a été supprimé et tes données personnelles ont été définitivement anonymisées.
+
+Tu n'as plus accès à la plateforme. Si tu souhaites revenir un jour, il te faudra créer un nouveau compte.
+
+Merci d'avoir fait partie de l'aventure.
+L'équipe Epitech Academy`,
+    },
   ];
 
   const created = await prisma.messageTemplate.createManyAndReturn({

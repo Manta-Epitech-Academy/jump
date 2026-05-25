@@ -34,6 +34,7 @@ export async function anonymizeTalent(
     data: {
       nom: 'Anonymisé',
       prenom: 'Anonymisé',
+      email: null,
       externalId: null,
       phone: null,
       parentPhone: null,

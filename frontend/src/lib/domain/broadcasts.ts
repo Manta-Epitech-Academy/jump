@@ -56,7 +56,8 @@ export type BroadcastVariableKey =
   | 'parent_nom'
   | 'child_prenom'
   | 'child_nom'
-  | 'login_link';
+  | 'login_link'
+  | 'deletion_reason';
 
 export interface BroadcastVariable {
   key: BroadcastVariableKey;
@@ -170,6 +171,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     token: '{{login_link}}',
     label: "Lien de connexion vers l'espace concerné",
     demo: 'https://jump.epiboost.fr/parent/login',
+    contextual: true,
+  },
+  {
+    key: 'deletion_reason',
+    token: '{{deletion_reason}}',
+    label: "Motif du refus d'une demande de suppression de compte",
+    demo: 'Ton compte reste nécessaire pour le stage de seconde en cours.',
     contextual: true,
   },
 ] as const;
