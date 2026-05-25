@@ -13,8 +13,8 @@
   import ProcessingStep from './components/ProcessingStep.svelte';
   import CharterStep from './components/CharterStep.svelte';
   import RulesStep from './components/RulesStep.svelte';
-  import BackButton from './components/BackButton.svelte';
-  import Check from '@lucide/svelte/icons/check';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import { Button } from '$lib/components/ui/button';
 
   function exitSlide(
     _node: Element,
@@ -29,10 +29,6 @@
 
   let { data, form } = $props();
 
-  // The server (`getCurrentStep` in load) is the single source of truth for the
-  // step. Render directly off `data.step` — keying the view on it means each step
-  // component is created/destroyed in lockstep with its own data shape, so a step
-  // never re-renders against the next step's payload (which omits its props).
   const STEP_INFO: Record<string, { index: number; title: string }> = {
     identity: { index: 1, title: 'Qui es-tu ?' },
     school: { index: 2, title: "D'où viens-tu ?" },
@@ -48,13 +44,13 @@
   let goBackForm: HTMLFormElement;
 
   const stepIndex = $derived(STEP_INFO[data.step]?.index ?? 1);
-  // Treat the current step as half-done so the bar advances each step yet never
-  // reads 100% until the final redirect away — being *on* the last step isn't
-  // "finished". (stepIndex/TOTAL hit 100% on the rules step before signing.)
   const progress = $derived(
     Math.round(((stepIndex - 0.5) / TOTAL_STEPS) * 100),
   );
   const pageTitle = $derived(STEP_INFO[data.step]?.title ?? 'Onboarding');
+  const showBack = $derived(
+    data.step !== 'identity' && data.step !== 'processing',
+  );
 
   function goBackServer() {
     goBackForm.requestSubmit();
@@ -65,11 +61,10 @@
   <title>{pageTitle} — Bienvenue</title>
 </svelte:head>
 
-<ProgressBar {progress} />
-
 <div
-  class="relative flex min-h-screen w-full flex-col overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-slate-950"
+  class="relative flex h-screen w-full flex-col overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-slate-950"
 >
+  <!-- Background decorations -->
   <div
     class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
   ></div>
@@ -97,21 +92,56 @@
     class="hidden"
   ></form>
 
-  <!-- Logo fixé en haut, hors du flux centré -->
-  <div class="relative z-10 px-4 pt-6">
-    <div class="mx-auto w-full max-w-lg">
-      <a href={resolve('/')} aria-label="Accueil">
-        <img
-          src="/EPITECH-LOGO-BLEU-2025.svg"
-          alt="Epitech"
-          class="h-9 w-auto dark:brightness-0 dark:invert"
-        />
-      </a>
-    </div>
-  </div>
+  <ProgressBar {progress} />
 
-  <div class="relative z-10 flex flex-1 items-center justify-center p-4">
-    <div class="w-full max-w-lg">
+  <!-- ═══ Header sticky ═══ -->
+  <header
+    class="relative z-10 shrink-0 border-b border-slate-200/50 bg-slate-50/80 backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-950/80"
+  >
+    <div
+      class="mx-auto flex w-full max-w-lg items-center justify-between px-4 py-3"
+    >
+      <!-- Left: back button or logo -->
+      {#if showBack}
+        <Button
+          variant="ghost"
+          onclick={goBackServer}
+          class="h-auto gap-1.5 px-2 py-1 text-sm font-medium text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+        >
+          <ArrowLeft class="h-4 w-4" />
+          Retour
+        </Button>
+      {:else}
+        <a href={resolve('/')} aria-label="Accueil">
+          <img
+            src="/EPITECH-LOGO-BLEU-2025.svg"
+            alt="Epitech"
+            class="h-7 w-auto dark:brightness-0 dark:invert"
+          />
+        </a>
+      {/if}
+
+      <!-- Center: logo when back is shown -->
+      {#if showBack}
+        <a href={resolve('/')} aria-label="Accueil">
+          <img
+            src="/EPITECH-LOGO-BLEU-2025.svg"
+            alt="Epitech"
+            class="h-7 w-auto dark:brightness-0 dark:invert"
+          />
+        </a>
+      {/if}
+
+      <!-- Right: step counter -->
+      <span class="text-xs font-semibold text-slate-400 dark:text-slate-500">
+        Étape {stepIndex}/{TOTAL_STEPS}
+      </span>
+    </div>
+  </header>
+
+  <!-- ═══ Scrollable content ═══ -->
+  <main class="relative z-10 flex-1 overflow-y-auto">
+    <div class="mx-auto w-full max-w-lg px-4 py-8">
       <div class="relative">
         {#key data.step}
           <div
@@ -122,13 +152,10 @@
             {#if data.step === 'identity'}
               <IdentityStep profile={data.profile} errors={form?.errors} />
             {:else if data.step === 'school'}
-              <BackButton onclick={goBackServer} />
               <SchoolStep profile={data.profile} errors={form?.errors} />
             {:else if data.step === 'parents'}
-              <BackButton onclick={goBackServer} />
               <ParentsStep profile={data.profile} errors={form?.errors} />
             {:else if data.step === 'interests'}
-              <BackButton onclick={goBackServer} />
               <InterestsStep
                 techInterests={data.techInterests ?? []}
                 generalInterests={data.generalInterests ?? []}
@@ -139,7 +166,6 @@
                 error={form?.error}
               />
             {:else if data.step === 'equipment'}
-              <BackButton onclick={goBackServer} />
               <EquipmentStep
                 hasLaptop={data.hasLaptop ?? false}
                 setupDescription={data.setupDescription ?? ''}
@@ -148,29 +174,19 @@
             {:else if data.step === 'processing'}
               <ProcessingStep />
             {:else if data.step === 'charter'}
-              <BackButton onclick={goBackServer} />
               <CharterStep error={form?.error} />
             {:else if data.step === 'rules'}
-              <BackButton onclick={goBackServer} />
               <RulesStep error={form?.error} />
             {/if}
           </div>
         {/key}
       </div>
-
-      {#if data.step !== 'processing'}
-        <p
-          class="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400 dark:text-slate-500"
-        >
-          <Check class="h-3.5 w-3.5 text-epi-teal-solid dark:text-epi-teal" />
-          Chaque étape validée est enregistrée — tu peux reprendre plus tard.
-        </p>
-      {/if}
     </div>
-  </div>
+  </main>
 
+  <!-- ═══ Footer sticky ═══ -->
   <footer
-    class="relative z-10 px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
+    class="relative z-10 shrink-0 border-t border-slate-200/50 bg-slate-50/80 px-4 py-4 text-center text-xs text-slate-400 backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-950/80 dark:text-slate-500"
   >
     <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
     plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
