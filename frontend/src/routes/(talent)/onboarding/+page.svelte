@@ -28,22 +28,27 @@
 
   let { data, form } = $props();
 
-  const STEP_INFO: Record<string, { index: number; title: string }> = {
-    identity: { index: 1, title: 'Qui es-tu ?' },
-    school: { index: 2, title: "D'où viens-tu ?" },
-    parents: { index: 3, title: "Contacts d'urgence" },
-    interests: { index: 4, title: "Centres d'intérêt" },
-    equipment: { index: 5, title: 'Ton matériel' },
-    processing: { index: 6, title: 'Génération...' },
-    rules: { index: 7, title: 'Dernière étape' },
+  const STEP_INFO: Record<
+    string,
+    { index: number; display: number; title: string }
+  > = {
+    identity: { index: 1, display: 1, title: 'Qui es-tu ?' },
+    school: { index: 2, display: 1, title: "D'où viens-tu ?" },
+    parents: { index: 3, display: 1, title: "Contacts d'urgence" },
+    interests: { index: 4, display: 2, title: "Centres d'intérêt" },
+    equipment: { index: 5, display: 3, title: 'Ton matériel' },
+    processing: { index: 6, display: 4, title: 'Génération...' },
+    rules: { index: 7, display: 4, title: 'Dernière étape' },
   };
-  const TOTAL_STEPS = 7;
+  const TOTAL_INTERNAL = 7;
+  const TOTAL_DISPLAY = 4;
 
   let goBackForm: HTMLFormElement;
 
   const stepIndex = $derived(STEP_INFO[data.step]?.index ?? 1);
+  const displayStep = $derived(STEP_INFO[data.step]?.display ?? 1);
   const progress = $derived(
-    Math.round(((stepIndex - 0.5) / TOTAL_STEPS) * 100),
+    Math.round(((stepIndex - 0.5) / TOTAL_INTERNAL) * 100),
   );
   const pageTitle = $derived(STEP_INFO[data.step]?.title ?? 'Onboarding');
   const showBack = $derived(
@@ -121,7 +126,7 @@
           </Button>
         {/if}
         <span class="text-xs font-semibold text-slate-400 dark:text-slate-500">
-          {stepIndex}/{TOTAL_STEPS}
+          {displayStep}/{TOTAL_DISPLAY}
         </span>
       </div>
     </div>
