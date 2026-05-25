@@ -5,6 +5,7 @@
   import Map from '@lucide/svelte/icons/map';
   import Users from '@lucide/svelte/icons/users';
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import UserX from '@lucide/svelte/icons/user-x';
   import Tags from '@lucide/svelte/icons/tags';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Menu from '@lucide/svelte/icons/menu';
@@ -174,6 +175,22 @@
     >
       <GraduationCap class="h-4 w-4" />
       <span>Talents</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/account-deletions')}
+      class={navLinkClass(isActive('/staff/admin/account-deletions'))}
+    >
+      <UserX class="h-4 w-4" />
+      <span class="flex flex-1 items-center justify-between">
+        <span>Suppressions</span>
+        {#if data.deletionRequestsPending > 0}
+          <span
+            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
+          >
+            {data.deletionRequestsPending}
+          </span>
+        {/if}
+      </span>
     </a>
   </nav>
 
