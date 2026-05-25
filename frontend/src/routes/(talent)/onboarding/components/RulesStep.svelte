@@ -193,18 +193,12 @@
       </span>
     </label>
 
-    <div
-      class="flex items-center justify-center gap-2 rounded-xl bg-epi-teal/10 px-4 py-2.5 text-center text-sm font-medium text-epi-teal-solid dark:text-epi-teal"
-    >
-      <Sparkles class="h-4 w-4 shrink-0" />
-      Dernière étape pour gagner tes {WELCOME_XP_BONUS} XP de bienvenue !
-    </div>
-
     <ContinueButton
       {submitting}
       disabled={!acceptedRules || !acceptedCharter || !city.trim()}
     >
-      Signer et aller sur le cockpit
+      <Sparkles class="h-4 w-4 shrink-0" />
+      Signer et obtenir mes {WELCOME_XP_BONUS} XP de bienvenue
     </ContinueButton>
   </div>
 </form>
