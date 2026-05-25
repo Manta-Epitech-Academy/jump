@@ -126,58 +126,11 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Onboarding guard: redirect if info or rules not signed yet
-    if (event.locals.talent) {
-      const needsOnboarding =
-        !event.locals.talent.infoValidatedAt ||
-        !event.locals.talent.highSchoolValidatedAt ||
-        !event.locals.talent.techInterestsValidatedAt ||
-        !event.locals.talent.generalInterestsValidatedAt ||
-        !event.locals.talent.interestsRecapSeenAt ||
-        !event.locals.talent.rulesSignedAt;
-
-      if (
-        needsOnboarding &&
-        !currentPath.startsWith(pathTalentOnboarding) &&
-        currentPath !== pathTalentLogin
-      ) {
-        return Response.redirect(
-          new URL(pathTalentOnboarding, event.url).href,
-          303,
-        );
-      }
-
-      // Already completed: prevent going back to onboarding
-      if (!needsOnboarding && currentPath.startsWith(pathTalentOnboarding)) {
-        return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
-      }
-    }
-
-    // Charter guard (onboarding sets charterAcceptedAt on completion)
+    // Welcome guard: redirect to /welcome BEFORE onboarding (first visit only).
+    // The staff message gets read in full, then markSeen hands off to
+    // onboarding. Once seen, this short-circuits before the query below.
     if (
       event.locals.talent &&
-      !event.locals.talent.charterAcceptedAt &&
-      currentPath !== pathTalentCharter &&
-      !currentPath.startsWith(pathTalentOnboarding) &&
-      currentPath !== pathTalentLogin
-    ) {
-      return Response.redirect(new URL(pathTalentCharter, event.url).href, 303);
-    }
-    if (
-      event.locals.talent?.charterAcceptedAt &&
-      currentPath === pathTalentCharter
-    ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
-    }
-
-    // Welcome guard: first visit after signing the rules (not yet seen), route
-    // through /welcome so the staff message gets read in full. From there it
-    // morphs into the dashboard's Actualités card (its permanent home) and the
-    // arrival celebration fires. Once seen, this short-circuits before the
-    // query below.
-    if (
-      event.locals.talent &&
-      event.locals.talent.charterAcceptedAt &&
       !event.locals.talent.welcomeSeenAt &&
       currentPath !== pathTalentWelcome &&
       !currentPath.startsWith(pathTalentOnboarding) &&
@@ -211,6 +164,52 @@ export async function applyRouteGuards(
           }
         }
       }
+    }
+
+    // Onboarding guard: redirect if profile/interests/equipment/rules not done
+    if (event.locals.talent) {
+      const needsOnboarding =
+        !event.locals.talent.infoValidatedAt ||
+        !event.locals.talent.highSchoolValidatedAt ||
+        !event.locals.talent.techInterestsValidatedAt ||
+        !event.locals.talent.generalInterestsValidatedAt ||
+        !event.locals.talent.equipmentValidatedAt ||
+        !event.locals.talent.rulesSignedAt;
+
+      if (
+        needsOnboarding &&
+        !currentPath.startsWith(pathTalentOnboarding) &&
+        currentPath !== pathTalentWelcome &&
+        currentPath !== pathTalentLogin
+      ) {
+        return Response.redirect(
+          new URL(pathTalentOnboarding, event.url).href,
+          303,
+        );
+      }
+
+      // Already completed: prevent going back to onboarding
+      if (!needsOnboarding && currentPath.startsWith(pathTalentOnboarding)) {
+        return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      }
+    }
+
+    // Charter guard (onboarding sets charterAcceptedAt on completion)
+    if (
+      event.locals.talent &&
+      !event.locals.talent.charterAcceptedAt &&
+      currentPath !== pathTalentCharter &&
+      !currentPath.startsWith(pathTalentOnboarding) &&
+      currentPath !== pathTalentWelcome &&
+      currentPath !== pathTalentLogin
+    ) {
+      return Response.redirect(new URL(pathTalentCharter, event.url).href, 303);
+    }
+    if (
+      event.locals.talent?.charterAcceptedAt &&
+      currentPath === pathTalentCharter
+    ) {
+      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
   }
 

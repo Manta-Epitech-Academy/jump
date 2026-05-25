@@ -150,6 +150,16 @@
   --border: var(--color-dark-5);
 }
 
+/* The talent surface uses soft, rounded corners throughout (rounded-xl cards,
+   pill chips). The shared shadcn primitives default to the staff 2px --radius,
+   which leaves bare inputs/textareas reading square against that round skin.
+   Re-skin --radius on the talent root so the radius scale (rounded-sm/md/lg,
+   all aliased to --radius) matches — staff keep their dense 2px corners since
+   this is scoped to .camper-layout. Same mechanism as .talent-surface above. */
+.camper-layout {
+  --radius: 0.75rem;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

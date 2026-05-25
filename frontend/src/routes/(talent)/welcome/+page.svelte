@@ -1,10 +1,9 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
+  import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
-  import WelcomeMessageBody from '$lib/components/talent/WelcomeMessageBody.svelte';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import Mail from '@lucide/svelte/icons/mail';
   import { onMount } from 'svelte';
   import { track, daysBetween, secondsBetween } from '$lib/analytics';
 
@@ -19,51 +18,86 @@
   });
 </script>
 
-<div class="mx-auto max-w-2xl px-4 py-12">
-  <!-- Shape-congruent with the dashboard's Actualités card so the shared
-       `welcome-message` view-transition morphs cleanly: on "Accéder", this card
-       travels into the feed instead of vanishing. -->
+<div
+  class="relative flex min-h-screen w-full flex-col overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-slate-950"
+>
   <div
-    style="view-transition-name: welcome-message"
-    class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-  >
-    <div
-      class="flex items-center gap-2 border-b border-slate-100 bg-blue-50/50 px-6 py-4 text-xs font-bold text-epi-blue uppercase dark:border-slate-800 dark:bg-blue-950/20"
-    >
-      <Mail class="h-4 w-4" />
-      Message de bienvenue
-    </div>
-    <div class="p-6">
-      <WelcomeMessageBody content={data.cmsContent} />
+    class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
+  ></div>
+  <div
+    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-teal/10 blur-[100px] dark:bg-epi-teal/20"
+  ></div>
+  <div
+    class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
+  ></div>
+
+  <!-- Content centered -->
+  <div class="relative z-10 flex flex-1 items-center justify-center p-4">
+    <div class="w-full max-w-lg">
+      <!-- Logo -->
+      <div class="mb-6">
+        <a href={resolve('/')} aria-label="Accueil">
+          <img
+            src="/EPITECH-LOGO-BLEU-2025.svg"
+            alt="Epitech"
+            class="h-9 w-auto dark:brightness-0 dark:invert"
+          />
+        </a>
+      </div>
+
+      <div class="mb-6 text-center">
+        <h1
+          class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
+        >
+          Bienvenue, {data.prenom}.
+        </h1>
+      </div>
+
+      <div
+        class="prose prose-sm max-w-none text-center prose-slate dark:prose-invert"
+      >
+        {@html data.cmsContent}
+      </div>
+
+      <div class="mt-8 flex justify-center">
+        {#if data.alreadySeen}
+          <Button href="/">
+            Retour au tableau de bord
+            <ArrowRight class="ml-2 h-4 w-4" />
+          </Button>
+        {:else}
+          <form
+            method="POST"
+            action="?/markSeen"
+            use:enhance={() => {
+              return async ({ update }) => {
+                track('welcome_dismissed', {
+                  eventId: data.eventId,
+                  daysSinceInvite: daysBetween(data.talentCreatedAt),
+                  secondsOnPage: secondsBetween(seenAt),
+                });
+                await update();
+              };
+            }}
+          >
+            <Button
+              type="submit"
+              class="h-auto rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+            >
+              On y va
+              <ArrowRight class="ml-2 h-4 w-4" />
+            </Button>
+          </form>
+        {/if}
+      </div>
     </div>
   </div>
 
-  <div class="mt-8 flex justify-center">
-    {#if data.alreadySeen}
-      <Button href="/">
-        Retour au tableau de bord
-        <ArrowRight class="ml-2 h-4 w-4" />
-      </Button>
-    {:else}
-      <form
-        method="POST"
-        action="?/markSeen"
-        use:enhance={() => {
-          return async ({ update }) => {
-            track('welcome_dismissed', {
-              eventId: data.eventId,
-              daysSinceInvite: daysBetween(data.talentCreatedAt),
-              secondsOnPage: secondsBetween(seenAt),
-            });
-            await update();
-          };
-        }}
-      >
-        <Button type="submit">
-          Accéder au tableau de bord
-          <ArrowRight class="ml-2 h-4 w-4" />
-        </Button>
-      </form>
-    {/if}
-  </div>
+  <!-- Footer -->
+  <footer
+    class="relative z-10 px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
+  >
+    <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
+    plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
+  </footer>
 </div>

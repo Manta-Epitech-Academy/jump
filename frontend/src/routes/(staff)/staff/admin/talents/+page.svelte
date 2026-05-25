@@ -22,6 +22,7 @@
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
+  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
   import { track } from '$lib/analytics';
 
   let { data } = $props();
@@ -415,10 +416,11 @@
         Réinitialiser l'onboarding
       </AlertDialog.Title>
       <AlertDialog.Description>
-        <strong>{resetTarget?.name}</strong> repassera par tout le parcours d'onboarding
-        (infos, lycée, intérêts, règlement, charte) et la célébration d'arrivée à
-        sa prochaine connexion. Le bonus de +50 XP d'arrivée est annulé pour éviter
-        le cumul. Action immédiate sur des données réelles.
+        <strong>{resetTarget?.name}</strong> repassera par tout le parcours
+        d'onboarding (infos, lycée, intérêts, règlement, charte) et la
+        célébration d'arrivée à sa prochaine connexion. Le bonus de +{WELCOME_XP_BONUS}
+        XP d'arrivée est annulé pour éviter le cumul. Action immédiate sur des données
+        réelles.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
