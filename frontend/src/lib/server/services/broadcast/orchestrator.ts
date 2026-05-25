@@ -22,7 +22,7 @@ import {
   buildFastloginLink,
   mintParentFastloginToken,
   buildParentFastloginLink,
-  mintTalentOtp,
+  mintSigninOtp,
 } from './personalization';
 
 export interface EnqueueBroadcastInput {
@@ -168,7 +168,6 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
           select: {
             id: true,
             email: true,
-            parentEmail: true,
             prenom: true,
             nom: true,
           },
@@ -245,7 +244,6 @@ type RecipientWithRelations = Awaited<
           select: {
             id: true;
             email: true;
-            parentEmail: true;
             prenom: true;
             nom: true;
           };
@@ -539,7 +537,7 @@ function buildContext(
 /**
  * Whether the template references `{{fastlogin_link}}` / `{{otp_code}}` /
  * `{{parent_fastlogin_link}}`. Used to skip the cost of minting secrets we'd
- * never inject — JWT signing is cheap, but `mintTalentOtp` writes a row to
+ * never inject — JWT signing is cheap, but `mintSigninOtp` writes a row to
  * `bauth_verification` per call which adds up at 200 recipients.
  */
 function templateUses(
@@ -593,31 +591,41 @@ const EMPTY_PERSONALIZATION: Personalization = {
 };
 
 /**
- * Mint per-recipient secrets up-front. Talent secrets (`fastloginLink`,
- * `otpCode`) only mint when the recipient is a talent. The parent variant
- * mints whenever a parent email is reachable from the row — either via
- * `talent.parentEmail` (audience=talent) or directly via the parent
- * recipient (audience=parent). Failures are isolated so one bad mint
- * doesn't tank a 200-recipient batch.
+ * Mint per-recipient login secrets up-front, each scoped to the recipient's
+ * *own* account. A recipient is exactly one of talent / parent / staff (see
+ * `resolveRecipients`):
+ *
+ *   - talent → `fastloginLink` (talent magic link) + `otpCode`
+ *   - parent → `parentFastloginLink` (parent magic link) + `otpCode`
+ *   - staff  → nothing (they log in via Microsoft OAuth)
+ *
+ * The two link kinds are deliberately never crossed. Minting a parent link
+ * for a talent recipient would drop a live parent session into the student's
+ * own inbox, letting them sign in as their parent and self-sign image-rights
+ * consent — so the parent link only mints when the recipient *is* the parent.
+ *
+ * Failures are isolated so one bad mint doesn't tank a 200-recipient batch —
+ * that recipient just gets a null for the failed variable.
  */
 async function buildPersonalization(
   recipient: RecipientWithRelations,
   broadcast: BroadcastForSend,
   needs: { fastlogin: boolean; parentFastlogin: boolean; otp: boolean },
 ): Promise<Personalization> {
-  // Resolve identities once. The talent block is for talent-only secrets;
-  // the parent block reuses talent.parentEmail (audience=talent) or the
-  // parent recipient's own email (audience=parent).
   const talent = recipient.talent;
   const parentOf = recipient.parentOf;
-  const talentEmail = talent?.email ?? recipient.recipientEmail ?? null;
-  const talentIdForParent = talent?.id ?? parentOf?.id ?? null;
-  const parentEmail =
-    talent?.parentEmail ??
-    parentOf?.parentEmail ??
-    (parentOf ? recipient.recipientEmail : null);
 
-  if (!talent && !parentEmail) return EMPTY_PERSONALIZATION;
+  // The email of whichever account this mail signs into. Falls back to the
+  // stored recipient address (set from the same source at resolve time).
+  const talentEmail = talent
+    ? (talent.email ?? recipient.recipientEmail)
+    : null;
+  const parentEmail = parentOf
+    ? (parentOf.parentEmail ?? recipient.recipientEmail)
+    : null;
+  const ownEmail = talentEmail ?? parentEmail;
+
+  if (!ownEmail) return EMPTY_PERSONALIZATION; // staff, or no usable address
 
   const [fastloginLink, parentFastloginLink, otpCode] = await Promise.all([
     needs.fastlogin && talent && talentEmail
@@ -627,38 +635,34 @@ async function buildPersonalization(
           recipientId: recipient.id,
         })
           .then(buildFastloginLink)
-          .catch((err) => {
-            console.error(
-              `[broadcast] fastlogin mint failed for ${talentEmail}:`,
-              err,
-            );
-            return null;
-          })
+          .catch(logMintFailure('fastlogin', talentEmail))
       : Promise.resolve(null),
-    needs.parentFastlogin && parentEmail && talentIdForParent
+    needs.parentFastlogin && parentOf && parentEmail
       ? mintParentFastloginToken({
           email: parentEmail,
-          talentId: talentIdForParent,
+          talentId: parentOf.id,
           recipientId: recipient.id,
         })
           .then(buildParentFastloginLink)
-          .catch((err) => {
-            console.error(
-              `[broadcast] parent fastlogin mint failed for ${parentEmail}:`,
-              err,
-            );
-            return null;
-          })
+          .catch(logMintFailure('parent fastlogin', parentEmail))
       : Promise.resolve(null),
-    needs.otp && talentEmail
-      ? mintTalentOtp(talentEmail).catch((err) => {
-          console.error(`[broadcast] otp mint failed for ${talentEmail}:`, err);
-          return null;
-        })
+    needs.otp
+      ? mintSigninOtp(ownEmail).catch(logMintFailure('otp', ownEmail))
       : Promise.resolve(null),
   ]);
 
   return { fastloginLink, parentFastloginLink, otpCode };
+}
+
+/**
+ * Swallow a per-recipient mint failure: log it with context and resolve to
+ * null so the batch carries on and that recipient's variable renders empty.
+ */
+function logMintFailure(kind: string, email: string) {
+  return (err: unknown): null => {
+    console.error(`[broadcast] ${kind} mint failed for ${email}:`, err);
+    return null;
+  };
 }
 
 /**

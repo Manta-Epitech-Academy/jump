@@ -96,8 +96,8 @@ export function buildFastloginLink(token: string): string {
  * vice versa) fails verification.
  *
  * `email` is the parent's address — the bauth_user lookup at the route
- * filters by `role: 'parent'` to refuse mismatched users. `talentId` lets
- * the route surface which kid the parent is logging in for.
+ * filters by `role: 'parent'` to refuse mismatched users. `talentId` is
+ * carried for diagnostics only; the session is keyed off the parent email.
  */
 export async function mintParentFastloginToken(
   payload: FastloginPayload,
@@ -147,13 +147,15 @@ export function buildParentFastloginLink(token: string): string {
 /**
  * Mint a sign-in OTP for the given email through BetterAuth. The OTP is
  * stored in `bauth_verification` exactly as if the user had requested it
- * from `/login`, so `/login`'s verify step accepts it as-is.
+ * themselves, so the matching login page accepts it as-is — `/login` for a
+ * talent, `/parent/login` for a parent (both drive BetterAuth's `sign-in`
+ * email OTP, keyed off the address).
  *
  * Inherits the plugin's `expiresIn` (10 min). Callers should be aware that
  * a broadcast sent days before the action will expire by the time the
- * recipient reads it — `fastlogin_link` is the right tool for that.
+ * recipient reads it — the fastlogin links are the right tool for that.
  */
-export async function mintTalentOtp(email: string): Promise<string> {
+export async function mintSigninOtp(email: string): Promise<string> {
   return await auth.api.createVerificationOTP({
     body: { email, type: 'sign-in' },
   });
