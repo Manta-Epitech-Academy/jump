@@ -330,8 +330,8 @@
                   >
                     <span class="text-epi-teal-solid">Mini-jeu du jour</span>
                     <span class="text-slate-300 dark:text-slate-700">•</span>
-                    <span class="text-slate-500 capitalize">
-                      {minigamePublication.game} · niveau {minigamePublication.level}
+                    <span class="text-slate-500">
+                      {minigamePublication.gameName} · niveau {minigamePublication.level}
                     </span>
                   </div>
                   <p
@@ -374,8 +374,8 @@
                   >
                     <span class="text-epi-blue">Mini-jeu du jour</span>
                     <span class="text-slate-300 dark:text-slate-700">•</span>
-                    <span class="text-slate-500 capitalize">
-                      {minigamePublication.game} · niveau {minigamePublication.level}
+                    <span class="text-slate-500">
+                      {minigamePublication.gameName} · niveau {minigamePublication.level}
                     </span>
                   </div>
                   <p

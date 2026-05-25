@@ -2,10 +2,16 @@ import { prisma } from '$lib/server/db';
 import { mintGameJwt } from '$lib/server/jwt';
 import { MINIGAME_XP_REWARD } from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
+import {
+  getGameCatalog,
+  scoringTypeFor,
+  type CatalogGame,
+} from '$lib/server/services/minigameCatalog';
 import type {
   MinigameAttempt,
   MinigamePublication,
   MinigameConfig,
+  MinigameScoring,
   Prisma,
 } from '@prisma/client';
 
@@ -234,41 +240,79 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
   });
 }
 
+/** An enabled config paired with its live catalogue entry. */
+interface RotationCandidate {
+  config: MinigameConfig;
+  game: CatalogGame;
+}
+
 export async function pickNextPublication(): Promise<MinigamePublication | null> {
+  const catalog = await getGameCatalog();
+  if (catalog.length === 0) {
+    console.warn(
+      '[minigames] Catalogue unavailable or empty — skipping publication.',
+    );
+    return null;
+  }
+  const byName = new Map(catalog.map((g) => [g.name, g]));
+
   const configs = await prisma.minigameConfig.findMany({
-    where: { enabled: true, levelCount: { gt: 0 } },
+    where: { enabled: true },
   });
-  if (configs.length === 0) {
+  // A config is only a rotation candidate if it still maps to a catalogue game
+  // that has at least one level (a slug removed from jump-games is skipped).
+  const candidates: RotationCandidate[] = configs
+    .map((config) => ({ config, game: byName.get(config.game) }))
+    .filter((c): c is RotationCandidate => !!c.game && c.game.levelCount > 0);
+  if (candidates.length === 0) {
     console.warn('[minigames] No eligible game config — skipping publication.');
     return null;
   }
 
   const active = await getActivePublication();
-  const candidates = active
-    ? configs.filter((c) => c.game !== active.game)
-    : configs;
-  if (candidates.length === 0) {
+  const pool = active
+    ? candidates.filter((c) => c.config.game !== active.game)
+    : candidates;
+  if (pool.length === 0) {
     console.warn(
       '[minigames] All games excluded by current publication — skipping.',
     );
     return null;
   }
 
-  const game = weightedPick(candidates);
-  const level = Math.floor(Math.random() * game.levelCount) + 1;
+  const pick = weightedPick(pool);
+  const level = Math.floor(Math.random() * pick.game.levelCount) + 1;
 
   return prisma.minigamePublication.create({
-    data: { game: game.game, level },
+    data: {
+      game: pick.game.name,
+      gameName: pick.game.displayName,
+      level,
+      scoringType: scoringTypeFor(pick.game),
+    },
   });
 }
 
-export async function forcePublication(
-  game: string,
-  level: number,
-  forcedById: string | null,
-): Promise<MinigamePublication> {
+/**
+ * Publish a specific game/level on demand. The caller (admin) has already
+ * validated `game` against the catalogue, so the resolved snapshot is passed
+ * in — keeping this a pure write and avoiding a second catalogue fetch.
+ */
+export async function forcePublication(input: {
+  game: string;
+  gameName: string;
+  level: number;
+  scoringType: MinigameScoring;
+  forcedById: string | null;
+}): Promise<MinigamePublication> {
   return prisma.minigamePublication.create({
-    data: { game, level, forcedById },
+    data: {
+      game: input.game,
+      gameName: input.gameName,
+      level: input.level,
+      scoringType: input.scoringType,
+      forcedById: input.forcedById,
+    },
   });
 }
 
@@ -288,9 +332,8 @@ async function buildLeaderboard(
 ): Promise<{ rows: LeaderboardRow[]; scoringType: 'score' | 'chrono' }> {
   const publication = await prisma.minigamePublication.findUnique({
     where: { id: publicationId },
-    include: { config: true },
   });
-  if (!publication) return { rows: [], scoringType: 'score' };
+  if (!publication) return { rows: [], scoringType: 'chrono' };
 
   const attempts = await prisma.minigameAttempt.findMany({
     where: {
@@ -305,7 +348,7 @@ async function buildLeaderboard(
   });
 
   const sorted = [...attempts].sort((a, b) => {
-    if (publication.config.scoringType === 'score') {
+    if (publication.scoringType === 'score') {
       const scoreDiff = (b.score ?? -Infinity) - (a.score ?? -Infinity);
       if (scoreDiff !== 0) return scoreDiff;
       return (a.chrono ?? Infinity) - (b.chrono ?? Infinity);
@@ -323,7 +366,7 @@ async function buildLeaderboard(
     finishedAt: a.finishedAt,
   }));
 
-  return { rows, scoringType: publication.config.scoringType };
+  return { rows, scoringType: publication.scoringType };
 }
 
 /**
@@ -377,11 +420,14 @@ export async function getCampusLeaderboardPreview(
   };
 }
 
-function weightedPick(candidates: MinigameConfig[]): MinigameConfig {
-  const total = candidates.reduce((acc, c) => acc + Math.max(1, c.weight), 0);
+function weightedPick(candidates: RotationCandidate[]): RotationCandidate {
+  const total = candidates.reduce(
+    (acc, c) => acc + Math.max(1, c.config.weight),
+    0,
+  );
   let pick = Math.random() * total;
   for (const c of candidates) {
-    pick -= Math.max(1, c.weight);
+    pick -= Math.max(1, c.config.weight);
     if (pick <= 0) return c;
   }
   return candidates[candidates.length - 1];

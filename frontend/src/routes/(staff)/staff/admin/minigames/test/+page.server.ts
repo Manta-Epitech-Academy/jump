@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { prisma } from '$lib/server/db';
 import { mintGameJwt } from '$lib/server/jwt';
+import { getCatalogGame } from '$lib/server/services/minigameCatalog';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) throw error(401, 'Non autorisé');
@@ -22,8 +22,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     throw error(400, 'Niveau invalide.');
   }
 
-  const config = await prisma.minigameConfig.findUnique({ where: { game } });
-  if (!config) throw error(404, 'Jeu inconnu.');
+  const catalogGame = await getCatalogGame(game);
+  if (!catalogGame) throw error(404, 'Jeu inconnu.');
+  if (level > catalogGame.levelCount) {
+    throw error(400, `Niveau hors plage (1–${catalogGame.levelCount}).`);
+  }
 
   const jumpGamesUrl = env.JUMP_GAMES_URL;
   if (!jumpGamesUrl) throw error(503, 'JUMP_GAMES_URL non configuré.');
@@ -31,5 +34,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const playerId = `admin-test-${locals.user.id}`;
   const { token } = await mintGameJwt(playerId, game, level);
 
-  return { token, jumpGamesUrl, game, level };
+  return {
+    token,
+    jumpGamesUrl,
+    game,
+    gameName: catalogGame.displayName,
+    level,
+  };
 };
