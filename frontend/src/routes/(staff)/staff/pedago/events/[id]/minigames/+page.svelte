@@ -50,9 +50,7 @@
       </p>
     {:else}
       <p class="mb-3 text-sm text-muted-foreground">
-        Publication active : <span class="capitalize"
-          >{data.publication.game}</span
-        >
+        Publication active : <span>{data.publication.gameName}</span>
         · niveau {data.publication.level}
       </p>
       {#if data.leaderboard.rows.length === 0}

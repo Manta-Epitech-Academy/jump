@@ -50,12 +50,14 @@ export type BroadcastVariableKey =
   | 'email_contact_campus'
   | 'event_name'
   | 'fastlogin_link'
+  | 'parent_fastlogin_link'
   | 'otp_code'
   | 'parent_prenom'
   | 'parent_nom'
   | 'child_prenom'
   | 'child_nom'
-  | 'login_link';
+  | 'login_link'
+  | 'deletion_reason';
 
 export interface BroadcastVariable {
   key: BroadcastVariableKey;
@@ -123,6 +125,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     contextual: true,
   },
   {
+    key: 'parent_fastlogin_link',
+    token: '{{parent_fastlogin_link}}',
+    label: "Lien de connexion magique du parent (s'ouvre sur l'espace parent)",
+    demo: 'https://jump.epiboost.fr/parent/fastlogin?token=DEMO',
+    contextual: true,
+  },
+  {
     key: 'otp_code',
     token: '{{otp_code}}',
     label: 'Code OTP à usage unique (par destinataire)',
@@ -162,6 +171,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     token: '{{login_link}}',
     label: "Lien de connexion vers l'espace concerné",
     demo: 'https://jump.epiboost.fr/parent/login',
+    contextual: true,
+  },
+  {
+    key: 'deletion_reason',
+    token: '{{deletion_reason}}',
+    label: "Motif du refus d'une demande de suppression de compte",
+    demo: 'Ton compte reste nécessaire pour le stage de seconde en cours.',
     contextual: true,
   },
 ] as const;

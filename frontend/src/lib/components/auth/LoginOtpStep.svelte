@@ -140,9 +140,9 @@
         class="h-12 w-full rounded-xl bg-epi-teal text-base font-bold text-slate-950 shadow-md transition-all hover:bg-epi-teal/90 active:scale-[0.98] disabled:opacity-50"
       >
         {#if $otpDelayed}
-          Lancement...
+          Connexion...
         {:else}
-          <Lock class="mr-2 h-4 w-4" /> Entrer dans le Cockpit
+          <Lock class="mr-2 h-4 w-4" /> Se connecter
         {/if}
       </Button>
 

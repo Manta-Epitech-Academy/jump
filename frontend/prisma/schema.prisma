@@ -244,6 +244,7 @@ model Talent {
   sfImport           TalentSfImport?
   broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
   broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
+  deletionRequests   TalentDeletionRequest[]
 
   @@index([xp])
   @@index([schoolId])
@@ -291,6 +292,45 @@ model TalentSfImport {
   sfSchool School? @relation(fields: [sfSchoolId], references: [id], onDelete: SetNull)
 
   @@index([sfSchoolId])
+}
+
+// RGPD erasure as a fact log, not an instant destructive action. A talent's
+// "delete my account" no longer wipes rows on the spot — it appends a pending
+// request here. Staff fulfil it (→ anonymisation, the real erasure mechanism)
+// or reject it; the talent can withdraw their own pending request. Each
+// transition is a status on the same row, so the request doubles as the audit
+// trail of *when* and *by whom* an account was erased. See xpService for the
+// same facts-as-rows shape.
+enum TalentDeletionRequestStatus {
+  pending
+  fulfilled
+  rejected
+  cancelled
+}
+
+model TalentDeletionRequest {
+  id             String                      @id @default(cuid())
+  talentId       String
+  status         TalentDeletionRequestStatus @default(pending)
+  // Optional free-text the talent leaves when asking ("I'm leaving school"…).
+  reason         String?
+  requestedAt    DateTime                    @default(now())
+  // Set on any terminal transition (fulfilled / rejected / cancelled).
+  resolvedAt     DateTime?
+  // bauth_user.id of the admin who fulfilled/rejected; null for self-withdrawal.
+  resolvedBy     String?
+  // Staff note on a rejection. Shown to the talent as the official reason
+  // (RGPD art. 12(4): the data subject must be told why erasure was declined),
+  // so it's written for them, not as an internal shorthand.
+  resolutionNote String?
+  // When the talent dismissed the rejection notice in their settings. Until
+  // set, the notice keeps showing; re-requesting (a new row) also clears it.
+  acknowledgedAt DateTime?
+
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([status, requestedAt])
+  @@index([talentId])
 }
 
 // ─── Domain Tables ───
@@ -1224,26 +1264,35 @@ enum MinigameAttemptStatus {
   invalid
 }
 
+// Host-side curation of the game catalogue: which games (by slug) are in the
+// daily rotation and with what weight. Everything *about* a game — its display
+// name, level count, scoring mode — is owned by jump-games and read live from
+// its `GET /api/games` catalogue (src/lib/server/services/minigameCatalog.ts),
+// never duplicated here. A game is in rotation iff it has a row with
+// enabled = true; no row means "not curated yet" (off).
 model MinigameConfig {
-  game        String          @id
-  levelCount  Int             @default(0)
-  weight      Int             @default(1)
-  scoringType MinigameScoring @default(score)
-  enabled     Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-
-  publications MinigamePublication[]
+  game      String   @id // jump-games catalogue slug
+  weight    Int      @default(1)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// A daily publication is an append-only fact: it records *what was published*.
+// `gameName` and `scoringType` are snapshotted from the catalogue at publish
+// time so historical leaderboards stay correct (and renderable) even if the
+// game is later renamed or removed from jump-games. `game` is the slug, kept
+// as a plain string (no FK) so a publication outlives any config/catalogue
+// churn.
 model MinigamePublication {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   game        String
+  gameName    String
   level       Int
-  publishedAt DateTime @default(now())
+  scoringType MinigameScoring
+  publishedAt DateTime        @default(now())
   forcedById  String?
 
-  config   MinigameConfig    @relation(fields: [game], references: [game])
   attempts MinigameAttempt[]
 
   @@index([publishedAt])

@@ -338,7 +338,7 @@
       href={resolve('/')}
       class="mb-3 -ml-2 text-xs font-bold text-slate-500 uppercase"
     >
-      <ArrowLeft class="mr-1 h-3.5 w-3.5" /> Retour au cockpit
+      <ArrowLeft class="mr-1 h-3.5 w-3.5" /> Retour au tableau de bord
     </Button>
     <div class="flex items-end justify-between gap-4">
       <div>

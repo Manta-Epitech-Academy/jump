@@ -1,24 +1,17 @@
 import { z } from 'zod';
 
-export const SCORING_TYPES = ['score', 'chrono'] as const;
-
+// A game's slug, level count and scoring mode are owned by the jump-games
+// catalogue, never entered by hand. The admin form only curates rotation, so
+// it carries the chosen slug plus the two host-side decisions: weight + on/off.
+// `game` is validated against the live catalogue in the action, not here.
 export const gameConfigSchema = z.object({
   game: z
     .string()
-    .min(1, 'Identifiant requis')
+    .min(1, 'Jeu requis')
     .max(50)
-    .regex(
-      /^[a-z0-9_-]+$/,
-      'Lettres minuscules, chiffres, tiret et underscore uniquement',
-    ),
-  levelCount: z.coerce.number().int().min(0, 'Doit être ≥ 0'),
+    .regex(/^[a-z0-9_-]+$/, 'Slug invalide'),
   weight: z.coerce.number().int().min(1, 'Doit être ≥ 1'),
-  scoringType: z.enum(SCORING_TYPES),
   enabled: z.boolean().default(true),
-});
-
-export const gameConfigUpdateSchema = gameConfigSchema.extend({
-  game: z.string().min(1),
 });
 
 export const forcePublicationSchema = z.object({

@@ -24,8 +24,8 @@
     <Button variant="ghost" href={resolve('/')}>
       <ArrowLeft class="mr-2 h-4 w-4" /> Retour
     </Button>
-    <h1 class="text-lg font-bold capitalize">
-      {data.publication.game} · niveau {data.publication.level}
+    <h1 class="text-lg font-bold">
+      {data.publication.gameName} · niveau {data.publication.level}
     </h1>
     <div class="w-24"></div>
   </div>
@@ -36,7 +36,7 @@
     >
       <iframe
         src={iframeSrc}
-        title="Mini-jeu"
+        title="Entraînement"
         sandbox="allow-scripts allow-same-origin"
         referrerpolicy="no-referrer"
         allow="fullscreen"

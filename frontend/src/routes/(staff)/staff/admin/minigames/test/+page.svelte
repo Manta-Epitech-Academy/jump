@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-  <title>Test mini-jeu — {data.game} · {data.level}</title>
+  <title>Test mini-jeu — {data.gameName} · {data.level}</title>
 </svelte:head>
 
 <div class="space-y-4">
@@ -23,7 +23,7 @@
     </Button>
     <div class="flex items-center gap-2 text-sm font-bold uppercase">
       <FlaskConical class="h-4 w-4 text-epi-pink" />
-      Mode test · <span class="capitalize">{data.game}</span> · niveau {data.level}
+      Mode test · <span>{data.gameName}</span> · niveau {data.level}
     </div>
     <div class="w-24"></div>
   </div>
