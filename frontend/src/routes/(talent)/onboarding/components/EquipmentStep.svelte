@@ -74,7 +74,7 @@
   </label>
 
   <div
-    class="rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    class="rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
     <Label
       for="setupDescription"

@@ -48,7 +48,7 @@
   );
 
   const fieldInput =
-    'rounded-lg border-slate-200 bg-white/70 text-slate-900 placeholder:text-slate-300 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600';
+    'rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600';
   const fieldLabel =
     'mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400';
 
@@ -107,7 +107,7 @@
   <!-- Parent 1 -->
   <div class="space-y-3">
     <div
-      class="grid grid-cols-1 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl sm:grid-cols-2 dark:bg-slate-900/80"
+      class="grid grid-cols-1 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl sm:grid-cols-2 dark:bg-slate-900/80"
     >
       <div>
         <p class="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -154,7 +154,7 @@
     </div>
 
     <div
-      class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <div>
         <Label for="parentPrenom" class={fieldLabel}
@@ -193,7 +193,7 @@
     </div>
 
     <div
-      class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <div>
         <Label for="parentEmail" class={fieldLabel}
@@ -263,7 +263,7 @@
         </button>
       </div>
       <div
-        class="grid grid-cols-1 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl sm:grid-cols-2 dark:bg-slate-900/80"
+        class="grid grid-cols-1 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl sm:grid-cols-2 dark:bg-slate-900/80"
       >
         <div>
           <p
@@ -307,7 +307,7 @@
         </div>
       </div>
       <div
-        class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >
         <div>
           <Label for="parent2Prenom" class={fieldLabel}>Prénom</Label>
@@ -333,7 +333,7 @@
         </div>
       </div>
       <div
-        class="grid grid-cols-2 gap-3 rounded-xl bg-white/70 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >
         <div>
           <Label for="parent2Email" class={fieldLabel}>Email</Label>
