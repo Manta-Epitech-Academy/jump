@@ -1,0 +1,15 @@
+-- AlterTable
+ALTER TABLE "Talent" ADD COLUMN     "civilite" TEXT,
+ADD COLUMN     "equipmentValidatedAt" TIMESTAMP(3),
+ADD COLUMN     "hasLaptop" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "highSchoolUai" TEXT,
+ADD COLUMN     "interestsFreeText" TEXT,
+ADD COLUMN     "parent2Civilite" TEXT,
+ADD COLUMN     "parent2Email" TEXT,
+ADD COLUMN     "parent2Nom" TEXT,
+ADD COLUMN     "parent2Phone" TEXT,
+ADD COLUMN     "parent2Prenom" TEXT,
+ADD COLUMN     "parent2Type" TEXT,
+ADD COLUMN     "parentCivilite" TEXT,
+ADD COLUMN     "parentType" TEXT,
+ADD COLUMN     "setupDescription" TEXT;

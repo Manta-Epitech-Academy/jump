@@ -58,7 +58,7 @@
         t?.email,
         t?.parentEmail,
         niveauLabel(t?.niveau),
-        t?.highSchoolName,
+        t?.school?.name,
         interests,
       ]
         .filter(Boolean)

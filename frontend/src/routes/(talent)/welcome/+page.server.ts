@@ -8,7 +8,6 @@ const SLUG = 'welcome';
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
-  // Resolve the talent's most recent stage_seconde participation
   const stageParticipation = await prisma.participation.findFirst({
     where: {
       talentId: locals.talent.id,
@@ -22,7 +21,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  // Stage is over — no longer accessible
   const stageEnd =
     stageParticipation.event.endDate ?? stageParticipation.event.date;
   if (stageEnd < new Date()) {
@@ -42,10 +40,16 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
+  // Replace CMS variables
+  const cmsContent = page.content
+    .replace(/\{\{PRENOM\}\}/gi, locals.talent.prenom)
+    .replace(/\{\{NOM\}\}/gi, locals.talent.nom);
+
   const alreadySeen = !!locals.talent.welcomeSeenAt;
   return {
-    cmsContent: page.content,
+    cmsContent,
     alreadySeen,
+    prenom: locals.talent.prenom,
     eventId: stageParticipation.event.id,
     talentCreatedAt: locals.talent.createdAt.toISOString(),
   };
@@ -60,9 +64,9 @@ export const actions: Actions = {
       data: { welcomeSeenAt: new Date() },
     });
 
-    // The message has been read here; hand off to the dashboard with the
-    // one-shot celebration signal. The card there shares this card's
-    // `view-transition-name`, so the message morphs into its permanent home.
-    throw redirect(303, resolve('/?welcome=1'));
+    // The message has been read here; welcome runs before onboarding, so hand
+    // off to the onboarding flow. The dashboard celebration fires later, once
+    // onboarding completes and redirects with `?welcome=1`.
+    throw redirect(303, resolve('/onboarding'));
   },
 };

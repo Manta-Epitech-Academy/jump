@@ -191,9 +191,13 @@ model Talent {
   imageRightsSignedAt         DateTime?
   imageRightsSignerName       String?
   infoValidatedAt             DateTime?
-  highSchoolName              String?
-  highSchoolCity              String?
   highSchoolValidatedAt       DateTime?
+  parentsValidatedAt          DateTime?
+  processingCompletedAt       DateTime?
+  schoolId                    String?
+  // Free-text fallback used only when the talent's lycée has no UAI (so no
+  // canonical `School` row exists). When `schoolId` is set this stays null.
+  highSchoolNameManual        String?
   charterFilePath             String?
   rulesFilePath               String?
   imageRightsFilePath         String?
@@ -203,6 +207,19 @@ model Talent {
   parentPrenom                String?
   parentPhone                 String?
   phone                       String?
+  civilite                    String?
+  parentType                  String?
+  parentCivilite              String?
+  parent2Type                 String?
+  parent2Civilite             String?
+  parent2Nom                  String?
+  parent2Prenom               String?
+  parent2Email                String?
+  parent2Phone                String?
+  hasLaptop                   Boolean   @default(false)
+  setupDescription            String?
+  equipmentValidatedAt        DateTime?
+  interestsFreeText           String?
   discordId                   String?   @unique
   externalId                  String?   @unique
   lastSyncedAt                DateTime?
@@ -223,11 +240,58 @@ model Talent {
   minigameAttempts   MinigameAttempt[]
   interests          TalentInterest[]
   xpGrants           XpGrant[]
+  school             School?                 @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  sfImport           TalentSfImport?
   broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
   broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
   deletionRequests   TalentDeletionRequest[]
 
   @@index([xp])
+  @@index([schoolId])
+}
+
+/// Canonical high-school directory, keyed by the national UAI (RNE) code.
+/// Rows are created lazily the first time a UAI is seen — Salesforce sync or a
+/// talent picking from the annuaire — then enriched from the official
+/// éducation-nationale annuaire. Only schools actually attended by a talent ever
+/// land here, never the full ~69k national dataset.
+model School {
+  id         String    @id @default(cuid())
+  uai        String    @unique
+  name       String
+  city       String?
+  postalCode String?
+  inseeCode  String?
+  /// null = created from a fallback name (annuaire lookup pending or failed); a
+  /// backfill pass fills name/city/codes once the annuaire resolves the UAI.
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  talents     Talent[]
+  sfClaimedBy TalentSfImport[]
+}
+
+/// 1:1 mirror of what Salesforce last claimed for a talent — the anti-corruption
+/// boundary. Upserted by the worker sync (only when the inbound payload differs),
+/// never written by onboarding. Reconciliation compares this against the `Talent`
+/// row: a divergence on a talent-confirmed field is a conflict. School is compared
+/// by FK (`sfSchoolId` vs `Talent.schoolId`), scalars value-by-value. `niveau` is
+/// kept for a faithful snapshot but is SF-owned, never reconciled.
+model TalentSfImport {
+  talentId   String   @id
+  nom        String?
+  prenom     String?
+  phone      String?
+  civilite   String?
+  niveau     String?
+  sfSchoolId String?
+  syncedAt   DateTime @updatedAt
+
+  talent   Talent  @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  sfSchool School? @relation(fields: [sfSchoolId], references: [id], onDelete: SetNull)
+
+  @@index([sfSchoolId])
 }
 
 // RGPD erasure as a fact log, not an instant destructive action. A talent's
@@ -1303,4 +1367,3 @@ enum XpGrantSource {
   activity_presence
   admin_adjustment
 }
-

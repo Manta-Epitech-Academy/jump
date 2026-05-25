@@ -20,9 +20,9 @@ import { compareNiveaux } from '$lib/domain/niveau';
 import { computeIsNewTalent } from './components/types';
 import type { OngoingRow, PrepRow } from './components/types';
 
-function originConditions(lyceeName: string | null, interestId: string | null) {
+function originConditions(schoolId: string | null, interestId: string | null) {
   const conds: object[] = [];
-  if (lyceeName) conds.push({ talent: { highSchoolName: lyceeName } });
+  if (schoolId) conds.push({ talent: { schoolId } });
   if (interestId)
     conds.push({ talent: { interests: { some: { interestId } } } });
   return conds;
@@ -38,11 +38,18 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     getEventStatus(event, bounds),
     locals.stagePhaseOverride,
   );
-  const lyceeName = url.searchParams.get('lycee');
+  // The `lycee` filter param carries a canonical School id; resolve it to a name
+  // for the origin chip and filter participations on the talent's schoolId.
+  const schoolId = url.searchParams.get('lycee');
   const interestId = url.searchParams.get('interest');
 
-  const [activeLycee, activeInterest] = await Promise.all([
-    lyceeName ? Promise.resolve({ nom: lyceeName }) : Promise.resolve(null),
+  const [activeSchool, activeInterest] = await Promise.all([
+    schoolId
+      ? prisma.school.findUnique({
+          where: { id: schoolId },
+          select: { name: true },
+        })
+      : Promise.resolve(null),
     interestId
       ? db.interest.findUnique({
           where: { id: interestId },
@@ -51,11 +58,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       : Promise.resolve(null),
   ]);
   const origin = {
-    lycee: activeLycee,
+    lycee: activeSchool ? { nom: activeSchool.name } : null,
     interest: activeInterest,
   };
   const originAnd = originConditions(
-    activeLycee?.nom ?? null,
+    activeSchool ? schoolId : null,
     activeInterest?.id ?? null,
   );
 
@@ -70,6 +77,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         talent: {
           include: {
             interests: { include: { interest: true } },
+            school: { select: { id: true, name: true, city: true } },
           },
         },
       },
@@ -111,6 +119,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       talent: {
         include: {
           interests: { include: { interest: true } },
+          school: { select: { id: true, name: true, city: true } },
         },
       },
       interview: {
