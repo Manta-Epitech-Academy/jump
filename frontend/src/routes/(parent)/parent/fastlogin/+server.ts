@@ -10,9 +10,9 @@
 import type { RequestHandler } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
-import { forwardAuthCookies } from '$lib/server/auth/cookies';
+import { establishOtpSession } from '$lib/server/auth/otpSession';
+import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { verifyParentFastloginToken } from '$lib/server/services/broadcast/personalization';
 
 export const GET: RequestHandler = async ({ url, request, cookies }) => {
@@ -28,15 +28,8 @@ export const GET: RequestHandler = async ({ url, request, cookies }) => {
 
   // Belt-and-braces tracking: if the link wasn't wrapped in `<a>` (plain
   // text in some clients) the `tracking_id` hook never fires, so mark the
-  // recipient open directly from the JWT. Idempotent via `openedAt: null`.
-  if (payload.recipientId) {
-    prisma.broadcastRecipient
-      .updateMany({
-        where: { id: payload.recipientId, openedAt: null },
-        data: { openedAt: new Date() },
-      })
-      .catch(() => {});
-  }
+  // recipient open directly from the JWT.
+  if (payload.recipientId) markRecipientOpened(payload.recipientId);
 
   const email = payload.email.toLowerCase().trim();
 
@@ -51,18 +44,6 @@ export const GET: RequestHandler = async ({ url, request, cookies }) => {
     throw error(404, 'Compte parent introuvable.');
   }
 
-  const otp = await auth.api.createVerificationOTP({
-    body: { email, type: 'sign-in' },
-  });
-  const authResponse = await auth.api.signInEmailOTP({
-    body: { email, otp },
-    asResponse: true,
-    headers: request.headers,
-  });
-  if (!authResponse.ok) {
-    throw error(500, "Échec de l'authentification.");
-  }
-
-  forwardAuthCookies(authResponse, cookies);
+  await establishOtpSession({ email, request, cookies });
   throw redirect(303, resolve('/parent'));
 };

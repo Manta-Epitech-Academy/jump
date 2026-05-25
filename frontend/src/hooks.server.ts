@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
+import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
@@ -60,15 +61,7 @@ const TRACKING_ID_RE = /^[a-z0-9]{20,40}$/i;
 function recordOpenIfTracked(event: Parameters<Handle>[0]['event']) {
   const trackingId = event.url.searchParams.get('tracking_id');
   if (!trackingId || !TRACKING_ID_RE.test(trackingId)) return;
-  // Fire-and-forget. `updateMany` silently no-ops if the id is unknown.
-  // `openedAt: null` in the filter makes the first hit win, idempotent
-  // on subsequent clicks.
-  prisma.broadcastRecipient
-    .updateMany({
-      where: { id: trackingId, openedAt: null },
-      data: { openedAt: new Date() },
-    })
-    .catch(() => {});
+  markRecipientOpened(trackingId);
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
