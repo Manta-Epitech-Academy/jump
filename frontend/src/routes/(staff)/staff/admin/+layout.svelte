@@ -13,6 +13,7 @@
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import FileText from '@lucide/svelte/icons/file-text';
+  import FileCog from '@lucide/svelte/icons/file-cog';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -97,6 +98,13 @@
     >
       <GitCompareArrows class="h-4 w-4" />
       <span>Divergences Salesforce</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/onboarding-pdfs')}
+      class={navLinkClass(isActive('/staff/admin/onboarding-pdfs'))}
+    >
+      <FileCog class="h-4 w-4" />
+      <span>Génération PDF onboarding</span>
     </a>
     <a
       href={resolve('/staff/admin/tickets')}
