@@ -5,6 +5,7 @@ import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
 import type { FlagKey } from '$lib/domain/featureFlags';
+import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 
 function forbidGroup(group: StaffGroup): never {
   throw error(403, {
@@ -166,15 +167,12 @@ export async function applyRouteGuards(
       }
     }
 
-    // Onboarding guard: redirect if profile/interests/equipment/rules not done
+    // Onboarding guard: redirect until every step of the canonical ladder is
+    // done. `getOnboardingStep` is the single source of truth shared with the
+    // wizard's resume logic and the admin progress label — so a step added there
+    // is gated here automatically, with no parallel field list to keep in sync.
     if (event.locals.talent) {
-      const needsOnboarding =
-        !event.locals.talent.infoValidatedAt ||
-        !event.locals.talent.highSchoolValidatedAt ||
-        !event.locals.talent.techInterestsValidatedAt ||
-        !event.locals.talent.generalInterestsValidatedAt ||
-        !event.locals.talent.equipmentValidatedAt ||
-        !event.locals.talent.rulesSignedAt;
+      const needsOnboarding = getOnboardingStep(event.locals.talent) !== null;
 
       if (
         needsOnboarding &&
