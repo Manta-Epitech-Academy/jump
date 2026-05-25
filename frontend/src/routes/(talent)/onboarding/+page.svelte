@@ -97,18 +97,21 @@
     class="hidden"
   ></form>
 
+  <!-- Logo fixé en haut, hors du flux centré -->
+  <div class="relative z-10 px-4 pt-6">
+    <div class="mx-auto w-full max-w-lg">
+      <a href={resolve('/')} aria-label="Accueil">
+        <img
+          src="/EPITECH-LOGO-BLEU-2025.svg"
+          alt="Epitech"
+          class="h-9 w-auto dark:brightness-0 dark:invert"
+        />
+      </a>
+    </div>
+  </div>
+
   <div class="relative z-10 flex flex-1 items-center justify-center p-4">
     <div class="w-full max-w-lg">
-      <div class="mb-6">
-        <a href={resolve('/')} aria-label="Accueil">
-          <img
-            src="/EPITECH-LOGO-BLEU-2025.svg"
-            alt="Epitech"
-            class="h-9 w-auto dark:brightness-0 dark:invert"
-          />
-        </a>
-      </div>
-
       <div class="relative">
         {#key data.step}
           <div
