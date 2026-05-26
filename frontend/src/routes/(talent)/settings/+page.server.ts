@@ -7,6 +7,10 @@ import {
   getLatestDeletionRequest,
   requestTalentDeletion,
 } from '$lib/server/services/talentDeletionService';
+import {
+  TALENT_VIEWABLE_DOCUMENTS,
+  projectTalentDocument,
+} from '$lib/server/services/onboardingDocuments';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {
@@ -43,7 +47,24 @@ export const load: PageServerLoad = async ({ locals }) => {
     };
   }
 
-  return { talent: locals.talent, participationsCount, deletion };
+  // Signed onboarding documents the talent can review. Only the ones actually
+  // signed are surfaced; `signerName` is set for the image-rights authorisation,
+  // which a legal guardian signs on the talent's behalf.
+  const documents = TALENT_VIEWABLE_DOCUMENTS.map((type) =>
+    projectTalentDocument(locals.talent!, type),
+  )
+    .filter(
+      (doc): doc is typeof doc & { signedAt: Date } => doc.signedAt !== null,
+    )
+    .map((doc) => ({
+      ...doc,
+      signerName:
+        doc.type === 'image-rights'
+          ? locals.talent!.imageRightsSignerName
+          : null,
+    }));
+
+  return { talent: locals.talent, participationsCount, deletion, documents };
 };
 
 export const actions: Actions = {
