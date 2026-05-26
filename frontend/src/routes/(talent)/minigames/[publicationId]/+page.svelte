@@ -5,9 +5,9 @@
   import { resolve } from '$app/paths';
   import { onMount, untrack } from 'svelte';
   import { mode } from 'mode-watcher';
-  import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import { triggerConfetti, triggerSideCannons } from '$lib/actions/confetti';
+  import { minigameRewardToast } from '$lib/components/talent/rewardToast';
   import { MINIGAME_XP_REWARD } from '$lib/domain/xp';
   import TalentChromeHeader from '$lib/components/talent/TalentChromeHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
@@ -80,14 +80,7 @@
       setTimeout(() => triggerSideCannons(), LEAD_IN + 850),
     );
     celebrationTimers.push(
-      setTimeout(() => {
-        toast('Défi du jour relevé ! 🎮', {
-          description: `+${MINIGAME_XP_REWARD} XP pour ton entraînement du jour. Reviens demain pour un nouveau défi !`,
-          duration: 8000,
-          style:
-            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
-        });
-      }, LEAD_IN + 1400),
+      setTimeout(() => minigameRewardToast(MINIGAME_XP_REWARD), LEAD_IN + 1400),
     );
     celebrationTimers.push(
       setTimeout(() => (showXpFloat = false), LEAD_IN + 2600),

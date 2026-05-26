@@ -6,8 +6,11 @@
   import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
-  import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
+  import {
+    rewardToast,
+    minigameRewardToast,
+  } from '$lib/components/talent/rewardToast';
   import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
   import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
@@ -97,12 +100,11 @@
     celebrateXp(WELCOME_XP_BONUS, timers);
     timers.push(
       setTimeout(() => {
-        toast('Bienvenue sur Jump !', {
-          description: `Tu gagnes +${WELCOME_XP_BONUS} XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
-          duration: 12000,
-          style:
-            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
-        });
+        rewardToast(
+          'Bienvenue sur Jump !',
+          `Tu gagnes +${WELCOME_XP_BONUS} XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
+          12000,
+        );
       }, 1000),
     );
     return () => timers.forEach(clearTimeout);
@@ -119,16 +121,7 @@
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     celebrateXp(reward.xp, timers);
-    timers.push(
-      setTimeout(() => {
-        toast('Défi du jour relevé ! 🎮', {
-          description: `Tu gagnes +${reward.xp} XP pour avoir terminé ton entraînement du jour. Reviens demain pour un nouveau défi !`,
-          duration: 10000,
-          style:
-            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
-        });
-      }, 1000),
-    );
+    timers.push(setTimeout(() => minigameRewardToast(reward.xp), 1000));
     ackForm?.requestSubmit();
     return () => timers.forEach(clearTimeout);
   });
