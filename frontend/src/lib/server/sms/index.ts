@@ -14,7 +14,7 @@
 import { smsProviderKind } from './config';
 import { brevoSmsProvider } from './providers/brevo';
 import { nullSmsProvider } from './providers/null';
-import { parseDevRecipient, applyDevRedirect } from './dev-redirect';
+import { parseDevRecipients, applyDevRedirect } from './dev-redirect';
 import { toBrevoRecipient } from '$lib/domain/phone';
 import type { SmsMessage, SmsProvider, SendSmsResult } from './types';
 
@@ -25,14 +25,21 @@ const provider: SmsProvider =
   smsProviderKind === 'brevo' ? brevoSmsProvider : nullSmsProvider;
 
 export async function sendSms(payload: SmsMessage): Promise<SendSmsResult> {
-  // Normalize the dev override the same way real recipients are normalized
-  // (see the broadcast adapter / relance service) so `SMS_DEV_RECIPIENTS`
-  // accepts any French-entered shape (+33…, 06…, 0033…). Fall back to the
-  // raw value if it can't be parsed, letting the provider surface the error.
-  const rawDev = parseDevRecipient();
-  const devRecipient = rawDev ? (toBrevoRecipient(rawDev) ?? rawDev) : null;
-  const final = devRecipient
-    ? applyDevRedirect(payload, devRecipient)
-    : payload;
-  return provider.send(final);
+  const devRecipients = parseDevRecipients();
+
+  // Production path: a single SMS to the real recipient (one Brevo call).
+  if (!devRecipients) return provider.send(payload);
+
+  // Dev override: fan out one copy per debug number (parity with
+  // EMAIL_DEV_RECIPIENTS). Each number is normalized like a real recipient,
+  // falling back to the raw value so an unparseable entry surfaces as a
+  // provider error rather than silently vanishing. Collapse the sends into a
+  // single result the caller can branch on: the first failure if any copy
+  // failed, otherwise the first success (so a logged "sent" reflects reality).
+  const results = await Promise.all(
+    devRecipients.map((raw) =>
+      provider.send(applyDevRedirect(payload, toBrevoRecipient(raw) ?? raw)),
+    ),
+  );
+  return results.find((r) => !r.ok) ?? results[0];
 }
