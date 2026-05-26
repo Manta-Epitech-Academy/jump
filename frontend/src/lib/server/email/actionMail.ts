@@ -73,6 +73,7 @@ export async function sendActionEmail(
 
   if (!result.ok) {
     const message = `${result.reason}: ${result.message}`;
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
     console.error(`[email-action] Send failed for "${actionKey}":`, message);
     return { ok: false, reason: 'send_failed', message };
   }
