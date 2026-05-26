@@ -11,6 +11,9 @@
   import Mail from '@lucide/svelte/icons/mail';
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Loader from '@lucide/svelte/icons/loader';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { track, daysBetween } from '$lib/analytics';
   import { toast } from 'svelte-sonner';
@@ -20,6 +23,7 @@
 
   let student = $derived(data.talent);
   let deletion = $derived(data.deletion);
+  let documents = $derived(data.documents);
   let deleteDialogOpen = $state(false);
   let requesting = $state(false);
   let cancelling = $state(false);
@@ -125,6 +129,64 @@
           <ModeToggle />
         </div>
       </div>
+
+      <!-- Signed documents -->
+      {#if documents.length > 0}
+        <div
+          class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        >
+          <h2
+            class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+          >
+            Mes documents
+          </h2>
+          <ul class="space-y-3">
+            {#each documents as doc (doc.type)}
+              <li class="flex items-center gap-3">
+                <div
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
+                >
+                  <FileText class="h-4 w-4 text-epi-teal" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p
+                    class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
+                  >
+                    {doc.label}
+                  </p>
+                  <p class="text-[10px] font-bold text-slate-400 uppercase">
+                    {#if doc.signerName}
+                      Signé par {doc.signerName} le {formatDateFr(doc.signedAt)}
+                    {:else}
+                      Signé le {formatDateFr(doc.signedAt)}
+                    {/if}
+                  </p>
+                </div>
+                {#if doc.ready}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    href={resolve(`/settings/documents/${doc.type}`)}
+                    target="_blank"
+                    rel="noopener"
+                    class="h-9 shrink-0 rounded-xl text-xs font-bold"
+                  >
+                    <ExternalLink class="mr-1 h-3.5 w-3.5" />
+                    Voir
+                  </Button>
+                {:else}
+                  <span
+                    class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-slate-400 uppercase"
+                  >
+                    <Loader class="h-3.5 w-3.5 animate-spin" />
+                    Génération…
+                  </span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
 
       <!-- Danger Zone -->
       {#if deletion?.status === 'pending'}

@@ -3,17 +3,12 @@ import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { generateOnboardingPDF } from './onboardingDocumentGenerator';
 import { getStorage } from '$lib/server/infra/storage';
+import {
+  ONBOARDING_DOCUMENTS,
+  type OnboardingDocumentType,
+} from './onboardingDocuments';
 
-export type OnboardingPdfDocumentType = 'charter' | 'rules' | 'image-rights';
-
-const FILE_PATH_FIELD: Record<
-  OnboardingPdfDocumentType,
-  'charterFilePath' | 'rulesFilePath' | 'imageRightsFilePath'
-> = {
-  charter: 'charterFilePath',
-  rules: 'rulesFilePath',
-  'image-rights': 'imageRightsFilePath',
-};
+export type OnboardingPdfDocumentType = OnboardingDocumentType;
 
 // Snapshot of the generator inputs, frozen at signature time. Parsed (not
 // cast) on read so a malformed payload surfaces as a clean job error instead
@@ -102,7 +97,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     const key = `documents/${job.talentId}/${documentType}-${new Date(payload.signedAt).getTime()}.pdf`;
     await storage.save(key, pdf);
 
-    const filePathField = FILE_PATH_FIELD[documentType];
+    const filePathField = ONBOARDING_DOCUMENTS[documentType].filePathField;
     await prisma.$transaction([
       prisma.talent.update({
         where: { id: job.talentId },
