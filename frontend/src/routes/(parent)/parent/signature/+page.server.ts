@@ -123,7 +123,7 @@ export const actions: Actions = {
     });
 
     if (remaining === 0) {
-      throw redirect(303, resolve('/parent'));
+      throw redirect(303, resolve('/parent/merci'));
     }
 
     // Stay on page for remaining children

@@ -110,9 +110,9 @@ export const actions: Actions = {
     });
 
     if (unsignedCount > 0) {
-      throw redirect(303, resolve('/parent/signature'));
+      throw redirect(303, resolve('/parent/welcome'));
     }
 
-    throw redirect(303, resolve('/parent'));
+    throw redirect(303, resolve('/parent/merci'));
   },
 };

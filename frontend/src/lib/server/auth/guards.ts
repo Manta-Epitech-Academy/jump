@@ -97,7 +97,9 @@ export async function applyRouteGuards(
   const pathParentLogin = p('/parent/login');
   const pathParentFastlogin = p('/parent/fastlogin');
   const pathParentRoot = p('/parent');
+  const pathParentWelcome = p('/parent/welcome');
   const pathParentSignature = p('/parent/signature');
+  const pathParentMerci = p('/parent/merci');
 
   const isTalentRoute = routeId.startsWith('/(talent)');
   const isStaffRoute = routeId.startsWith('/(staff)');
@@ -306,42 +308,39 @@ export async function applyRouteGuards(
       event.locals.user?.role === 'parent' &&
       currentPath === pathParentLogin
     ) {
-      return Response.redirect(new URL(pathParentRoot, event.url).href, 303);
+      return Response.redirect(new URL(pathParentWelcome, event.url).href, 303);
     }
 
-    // Image rights guard: block dashboard until all children have signed
-    if (
-      event.locals.user?.role === 'parent' &&
-      !isParentPublic &&
-      currentPath !== pathParentSignature
-    ) {
+    // Parent flow: welcome → signature → merci
+    // Authenticated parents who haven't signed yet go through welcome → signature.
+    // Once all children are signed, they land on /parent/merci (no dashboard in this release).
+    if (event.locals.user?.role === 'parent' && !isParentPublic) {
       const unsignedCount = await prisma.talent.count({
         where: {
           parentEmail: event.locals.user.email,
           imageRightsSignedAt: null,
         },
       });
+
       if (unsignedCount > 0) {
-        return Response.redirect(
-          new URL(pathParentSignature, event.url).href,
-          303,
-        );
-      }
-    }
-
-    // Already signed all: prevent going back to signature page
-    if (
-      event.locals.user?.role === 'parent' &&
-      currentPath === pathParentSignature
-    ) {
-      const unsignedCount = await prisma.talent.count({
-        where: {
-          parentEmail: event.locals.user.email,
-          imageRightsSignedAt: null,
-        },
-      });
-      if (unsignedCount === 0) {
-        return Response.redirect(new URL(pathParentRoot, event.url).href, 303);
+        // Still need to sign — only allow welcome and signature pages
+        if (
+          currentPath !== pathParentWelcome &&
+          currentPath !== pathParentSignature
+        ) {
+          return Response.redirect(
+            new URL(pathParentWelcome, event.url).href,
+            303,
+          );
+        }
+      } else {
+        // All signed — always land on merci (no dashboard in this release)
+        if (currentPath !== pathParentMerci) {
+          return Response.redirect(
+            new URL(pathParentMerci, event.url).href,
+            303,
+          );
+        }
       }
     }
   }
