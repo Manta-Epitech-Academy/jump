@@ -510,9 +510,9 @@ export const actions: Actions = {
     // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
     void runOnboardingPdfJob(job.id);
 
-    // Head to the dashboard with the one-shot celebration signal. If a CMS
-    // welcome message exists, the guard intercepts to /welcome first; that page
-    // re-emits `?welcome=1` after the read, so the celebration fires either way.
+    // Head to the dashboard with the one-shot arrival-celebration signal. The
+    // welcome splash already ran before onboarding (so `welcomeSeenAt` is set),
+    // which means the welcome guard won't re-intercept this redirect.
     throw redirect(303, resolve('/?welcome=1'));
   },
 };

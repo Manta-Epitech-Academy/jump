@@ -469,19 +469,6 @@
   animation: xp-float 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* --- View transitions --- */
-@media (prefers-reduced-motion: no-preference) {
-  /* The welcome message has one `view-transition-name` shared between the
-     /welcome page (full, card-shaped) and the dashboard's Actualités card. On
-     "Accéder au tableau de bord" the browser morphs one into the other, so the
-     message visibly travels into its permanent home. Slow it slightly and ease
-     it so the travel reads as deliberate rather than a snap. */
-  ::view-transition-group(welcome-message) {
-    animation-duration: 500ms;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  }
-}
-
 /* --- Focus Mode Kiosk Overrides --- */
 html.focus-mode header,
 html.focus-mode aside {

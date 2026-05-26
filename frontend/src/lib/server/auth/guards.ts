@@ -128,9 +128,11 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Welcome guard: redirect to /welcome BEFORE onboarding (first visit only).
-    // The staff message gets read in full, then markSeen hands off to
-    // onboarding. Once seen, this short-circuits before the query below.
+    // Welcome guard: first-time stage talents see the welcome splash before
+    // onboarding. `markSeen` sets `welcomeSeenAt` and hands off to onboarding,
+    // so this short-circuits on every later request. The splash content is
+    // fixed and owned by the page itself — it is NOT gated on the CMS `welcome`
+    // row, which now feeds only the dashboard's Actualités card.
     if (
       event.locals.talent &&
       !event.locals.talent.welcomeSeenAt &&
@@ -144,26 +146,16 @@ export async function applyRouteGuards(
           event: { eventType: 'stage_seconde' },
         },
         orderBy: { event: { date: 'desc' } },
-        select: { event: { select: { id: true, endDate: true, date: true } } },
+        select: { event: { select: { endDate: true, date: true } } },
       });
       if (stageParticipation) {
         const stageEnd =
           stageParticipation.event.endDate ?? stageParticipation.event.date;
         if (stageEnd >= new Date()) {
-          const welcomePage = await prisma.cmsPage.findUnique({
-            where: {
-              slug_eventId: {
-                slug: 'welcome',
-                eventId: stageParticipation.event.id,
-              },
-            },
-          });
-          if (welcomePage?.content) {
-            return Response.redirect(
-              new URL(pathTalentWelcome, event.url).href,
-              303,
-            );
-          }
+          return Response.redirect(
+            new URL(pathTalentWelcome, event.url).href,
+            303,
+          );
         }
       }
     }
