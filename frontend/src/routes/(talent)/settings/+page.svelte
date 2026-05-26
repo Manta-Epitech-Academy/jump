@@ -146,7 +146,7 @@
                 <div
                   class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
                 >
-                  <FileText class="h-4 w-4 text-epi-teal" />
+                  <FileText class="h-4 w-4 text-epi-teal-solid" />
                 </div>
                 <div class="min-w-0 flex-1">
                   <p
