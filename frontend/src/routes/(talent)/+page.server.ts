@@ -230,9 +230,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         ? { xp: lastAttempt.xpAwarded }
         : null;
 
-    // The stage welcome message is the seed item of the dashboard's Actualités
-    // feed. It shows for the whole stage window — the message permanently lives
-    // here, this is its only home (the standalone /welcome page was removed).
+    // The staff-authored CMS welcome message seeds the dashboard's Actualités
+    // feed and shows for the whole stage window — this card is its only home.
+    // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
+    // own copy and does not read this row.
     let welcome: { content: string } | null = null;
     {
       const stageParticipation = await prisma.participation.findFirst({
