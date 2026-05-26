@@ -4562,6 +4562,43 @@ async function seedBroadcasts(
     }),
   ]);
 
+  // Project-relevant SMS templates for the broadcast catalogue (pickable in
+  // /broadcasts/new). Kept ASCII so they stay single-segment GSM-7, and
+  // link-free — an SMS points the recipient back to their inbox / espace Jump
+  // rather than carrying a tappable URL. Variables match BROADCAST_VARIABLES.
+  await prisma.messageTemplate.createMany({
+    data: [
+      {
+        name: 'Rappel J-1 — stage de seconde (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: "Salut {{prenom}} ! Ton stage Epitech commence demain a 9h. Pense a ta piece d'identite et de quoi noter. A demain !",
+        createdById: templateAuthor,
+      },
+      {
+        name: 'Relance — consulte ta boîte mail (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: "Salut {{prenom}}, un email Jump (Epitech) t'attend pour finaliser ton inscription. Pense a verifier tes spams.",
+        createdById: templateAuthor,
+      },
+      {
+        name: "Relance parent — droit à l'image (SMS)",
+        channel: 'sms',
+        subject: null,
+        body: "Bonjour, pensez a signer le droit a l'image de {{child_prenom}} : un email Epitech vous attend dans votre boite mail.",
+        createdById: templateAuthor,
+      },
+      {
+        name: 'Coding Club — prochaine séance (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: 'Salut {{prenom}} ! Prochaine seance du Coding Club Epitech ce mercredi a 14h. On compte sur toi, a la prochaine !',
+        createdById: templateAuthor,
+      },
+    ],
+  });
+
   // Each broadcast ships with its recipient rows as one nested create. Skip
   // blueprints whose campus/author can't resolve, then fire the rest
   // concurrently.
