@@ -12,9 +12,14 @@ import {
   substituteVariables,
   buildDemoContext,
 } from '$lib/domain/broadcastVariables';
-import { rewriteHtmlLinks } from '$lib/server/services/broadcast/linkRewriter';
+import {
+  rewriteHtmlLinks,
+  rewriteSmsLinks,
+} from '$lib/server/services/broadcast/linkRewriter';
 import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
+import { sendSms, isSmsEnabled } from '$lib/server/sms';
+import { toBrevoRecipient } from '$lib/domain/phone';
 import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -81,24 +86,15 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     events,
     sourceBroadcasts,
     userEmail: locals.user?.email ?? '',
+    smsEnabled: isSmsEnabled(),
   };
 };
 
 export const actions: Actions = {
   testSend: async ({ request, locals }) => {
     const formData = await request.formData();
-    const testEmailRaw = (formData.get('testEmail') as string | null)?.trim();
     const form = await superValidate(formData, zod4(broadcastSchema));
     if (!form.valid) return fail(400, { form });
-
-    const recipientEmail = testEmailRaw || locals.user?.email || '';
-    if (!recipientEmail || !/^\S+@\S+\.\S+$/.test(recipientEmail)) {
-      return message(
-        form,
-        { type: 'error', text: 'Email de test invalide.' },
-        { status: 400 },
-      );
-    }
 
     const template = await prisma.messageTemplate.findUnique({
       where: { id: form.data.templateId },
@@ -111,16 +107,6 @@ export const actions: Actions = {
         { status: 400 },
       );
     }
-    if (template.channel === 'sms') {
-      return message(
-        form,
-        {
-          type: 'error',
-          text: 'Test SMS pas encore supporté (pas de provider configuré).',
-        },
-        { status: 400 },
-      );
-    }
 
     const event = form.data.eventId
       ? await prisma.event.findUnique({
@@ -128,8 +114,50 @@ export const actions: Actions = {
           select: { titre: true },
         })
       : null;
-
     const ctx = buildDemoContext(event?.titre);
+
+    // SMS test: normalize the test number the same way real recipients are,
+    // render the body with demo vars (links tracked exactly like a real send),
+    // and ship it through the shared SMS façade. SMS_DEV_RECIPIENTS still
+    // applies, so a configured dev env reroutes the test too.
+    if (template.channel === 'sms') {
+      const testPhoneRaw = (formData.get('testPhone') as string | null)?.trim();
+      const recipient = toBrevoRecipient(testPhoneRaw);
+      if (!recipient) {
+        return message(
+          form,
+          { type: 'error', text: 'Numéro de test invalide.' },
+          { status: 400 },
+        );
+      }
+      const body = rewriteSmsLinks(
+        substituteVariables(template.body, ctx),
+        'TEST_TRACKING_ID',
+      );
+      const result = await sendSms({ to: recipient, body });
+      if (!result.ok) {
+        return message(
+          form,
+          { type: 'error', text: `Échec : ${result.message}` },
+          { status: 500 },
+        );
+      }
+      return message(form, {
+        type: 'success',
+        text: `Test SMS envoyé à ${testPhoneRaw}.`,
+      });
+    }
+
+    // Mail test.
+    const testEmailRaw = (formData.get('testEmail') as string | null)?.trim();
+    const recipientEmail = testEmailRaw || locals.user?.email || '';
+    if (!recipientEmail || !/^\S+@\S+\.\S+$/.test(recipientEmail)) {
+      return message(
+        form,
+        { type: 'error', text: 'Email de test invalide.' },
+        { status: 400 },
+      );
+    }
     const subject = template.subject
       ? `[TEST] ${substituteVariables(template.subject, ctx)}`
       : '[TEST] Envoi en masse';
@@ -140,14 +168,12 @@ export const actions: Actions = {
       ),
       'TEST_TRACKING_ID',
     );
-
     const result = await sendEmail({
       from: MAIL_FROM,
       to: recipientEmail,
       subject,
       html: body,
     });
-
     if (!result.ok) {
       return message(
         form,
