@@ -15,46 +15,23 @@ import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import {
+  getOnboardingStep,
+  type OnboardingStep,
+} from '$lib/domain/talentOnboarding';
+import {
   enqueueOnboardingPdfJob,
   runOnboardingPdfJob,
 } from '$lib/server/services/onboardingPdfJobService';
 
-export type OnboardingStep =
-  | 'identity'
-  | 'school'
-  | 'parents'
-  | 'interests'
-  | 'equipment'
-  | 'processing'
-  | 'rules';
-
-function getCurrentStep(profile: {
-  infoValidatedAt: Date | null;
-  highSchoolValidatedAt: Date | null;
-  parentsValidatedAt: Date | null;
-  techInterestsValidatedAt: Date | null;
-  generalInterestsValidatedAt: Date | null;
-  equipmentValidatedAt: Date | null;
-  processingCompletedAt: Date | null;
-  rulesSignedAt: Date | null;
-}): OnboardingStep | null {
-  if (!profile.infoValidatedAt) return 'identity';
-  if (!profile.highSchoolValidatedAt) return 'school';
-  if (!profile.parentsValidatedAt) return 'parents';
-  if (!profile.techInterestsValidatedAt || !profile.generalInterestsValidatedAt)
-    return 'interests';
-  if (!profile.equipmentValidatedAt) return 'equipment';
-  if (!profile.processingCompletedAt) return 'processing';
-  if (!profile.rulesSignedAt) return 'rules';
-  return null;
-}
+// Re-exported for the `./$types`-typed action handlers that key off the step.
+export type { OnboardingStep };
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
-  const step = getCurrentStep(locals.talent);
+  const step = getOnboardingStep(locals.talent);
 
   if (!step) {
     throw redirect(303, resolve('/'));
@@ -442,7 +419,7 @@ export const actions: Actions = {
   goBack: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
 
-    const step = getCurrentStep(locals.talent);
+    const step = getOnboardingStep(locals.talent);
     const clearFields: Record<string, null> = {};
 
     switch (step) {

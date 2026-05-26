@@ -266,13 +266,20 @@
                 </span>
               </Table.Cell>
               <Table.Cell>
-                <span
-                  class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS[
-                    talent.status
-                  ].class}"
-                >
-                  {STATUS[talent.status].label}
-                </span>
+                <div class="flex flex-col items-start gap-0.5">
+                  <span
+                    class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS[
+                      talent.status
+                    ].class}"
+                  >
+                    {STATUS[talent.status].label}
+                  </span>
+                  {#if talent.onboardingStep}
+                    <span class="text-[10px] text-muted-foreground">
+                      {talent.onboardingStep}
+                    </span>
+                  {/if}
+                </div>
               </Table.Cell>
               <Table.Cell class="text-sm text-muted-foreground">
                 {lastActiveLabel(talent.lastActiveAt)}
