@@ -77,7 +77,7 @@
         <button
           type="button"
           onclick={() => (localCivilite = opt.value)}
-          class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all {localCivilite ===
+          class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localCivilite ===
           opt.value
             ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
             : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
@@ -130,8 +130,11 @@
     </div>
   </div>
 
+  <!-- Email + phone stack vertically: the country selector + grouped number
+       ("06 12 34 56 78") need the card's full width, and a half-width grid cell
+       clipped the value and forced horizontal scrolling. -->
   <div
-    class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    class="space-y-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
     <div>
       <Label for="email" class={fieldLabel}>Email</Label>
@@ -160,7 +163,7 @@
       <PhoneInput
         name="phone"
         value={profile?.phone || ''}
-        placeholder="6 12 34 56 78"
+        placeholder="06 12 34 56 78"
         required
         class={fieldInput}
       />
