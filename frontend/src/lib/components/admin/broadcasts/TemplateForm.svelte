@@ -6,6 +6,7 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
+  import * as Select from '$lib/components/ui/select';
   import VariablesPanel from './VariablesPanel.svelte';
   import {
     BROADCAST_CHANNELS,
@@ -121,16 +122,23 @@
 
     <div class="grid gap-2">
       <Label for="channel">Canal</Label>
-      <select
-        id="channel"
-        name="channel"
-        bind:value={$form.channel}
-        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+      <Select.Root
+        type="single"
+        value={$form.channel}
+        onValueChange={(v) =>
+          ($form.channel = v as (typeof BROADCAST_CHANNELS)[number])}
       >
-        {#each BROADCAST_CHANNELS as channel}
-          <option value={channel}>{BROADCAST_CHANNEL_LABELS[channel]}</option>
-        {/each}
-      </select>
+        <Select.Trigger id="channel" class="w-full">
+          {BROADCAST_CHANNEL_LABELS[$form.channel]}
+        </Select.Trigger>
+        <Select.Content>
+          {#each BROADCAST_CHANNELS as channel (channel)}
+            <Select.Item value={channel}>
+              {BROADCAST_CHANNEL_LABELS[channel]}
+            </Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
       {#if $errors.channel}
         <p class="text-xs text-destructive">{$errors.channel}</p>
       {/if}

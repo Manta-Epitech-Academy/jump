@@ -7,6 +7,10 @@
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { Checkbox } from '$lib/components/ui/checkbox';
+  import * as Select from '$lib/components/ui/select';
+  import * as RadioGroup from '$lib/components/ui/radio-group';
+  import * as Collapsible from '$lib/components/ui/collapsible';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -235,6 +239,10 @@
     ['hasFutureEvent', 'Event à venir'],
   ];
   const tristateValues = ['any', 'yes', 'no'] as const;
+
+  // shadcn Select can't carry an empty-string item value, so the "all events"
+  // / "no source" options use a sentinel that maps back to '' on the form.
+  const NONE = '__none__';
 </script>
 
 <header class="space-y-2">
@@ -254,17 +262,21 @@
   <div class="space-y-5">
     <div class="grid gap-2">
       <Label for="campusId">Campus</Label>
-      <select
-        id="campusId"
-        name="campusId"
-        bind:value={$form.campusId}
-        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+      <Select.Root
+        type="single"
+        value={$form.campusId}
+        onValueChange={(v) => ($form.campusId = v ?? '')}
       >
-        <option value="">— Sélectionner —</option>
-        {#each data.campuses as c}
-          <option value={c.id}>{c.name}</option>
-        {/each}
-      </select>
+        <Select.Trigger id="campusId" class="w-full">
+          {data.campuses.find((c) => c.id === $form.campusId)?.name ??
+            '— Sélectionner —'}
+        </Select.Trigger>
+        <Select.Content>
+          {#each data.campuses as c (c.id)}
+            <Select.Item value={c.id}>{c.name}</Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
       {#if $errors.campusId}
         <p class="text-xs text-destructive">{$errors.campusId}</p>
       {/if}
@@ -272,39 +284,52 @@
 
     <div class="grid gap-2">
       <Label for="eventId">Event (optionnel — vide = tous)</Label>
-      <select
-        id="eventId"
-        name="eventId"
-        bind:value={$form.eventId}
-        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+      <Select.Root
+        type="single"
+        value={$form.eventId || NONE}
+        onValueChange={(v) => ($form.eventId = v === NONE ? '' : (v ?? ''))}
         disabled={!$form.campusId}
       >
-        <option value="">Tous les events du campus</option>
-        {#each filteredEvents as e}
-          <option value={e.id}>
-            {dateFormatter.format(e.date)} — {e.titre}
-          </option>
-        {/each}
-      </select>
+        <Select.Trigger id="eventId" class="w-full">
+          <span class="truncate">
+            {#if $form.eventId}
+              {@const e = filteredEvents.find((ev) => ev.id === $form.eventId)}
+              {e
+                ? `${dateFormatter.format(e.date)} — ${e.titre}`
+                : 'Tous les events du campus'}
+            {:else}
+              Tous les events du campus
+            {/if}
+          </span>
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item value={NONE}>Tous les events du campus</Select.Item>
+          {#each filteredEvents as e (e.id)}
+            <Select.Item value={e.id}>
+              {dateFormatter.format(e.date)} — {e.titre}
+            </Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
     </div>
 
     <fieldset class="space-y-2">
       <legend class="text-sm font-medium">Audience</legend>
-      <div class="grid grid-cols-3 gap-2">
-        {#each BROADCAST_AUDIENCES as a}
-          <label
-            class="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+      <RadioGroup.Root
+        value={$form.audience ?? ''}
+        onValueChange={(v) =>
+          ($form.audience = v as (typeof BROADCAST_AUDIENCES)[number])}
+        class="grid grid-cols-3 gap-2"
+      >
+        {#each BROADCAST_AUDIENCES as a (a)}
+          <Label
+            class="cursor-pointer rounded-md border px-3 py-2 font-normal hover:bg-accent"
           >
-            <input
-              type="radio"
-              name="audience"
-              value={a}
-              bind:group={$form.audience}
-            />
+            <RadioGroup.Item value={a} />
             {BROADCAST_AUDIENCE_LABELS[a]}
-          </label>
+          </Label>
         {/each}
-      </div>
+      </RadioGroup.Root>
       {#if $errors.audience}
         <p class="text-xs text-destructive">{$errors.audience}</p>
       {/if}
@@ -313,19 +338,29 @@
     <div class="grid gap-2">
       <Label for="templateId">Template</Label>
       <div class="flex items-center gap-2">
-        <select
-          id="templateId"
-          name="templateId"
-          bind:value={$form.templateId}
-          class="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+        <Select.Root
+          type="single"
+          value={$form.templateId}
+          onValueChange={(v) => ($form.templateId = v ?? '')}
         >
-          <option value="">— Sélectionner —</option>
-          {#each data.templates as t}
-            <option value={t.id}>
-              [{BROADCAST_CHANNEL_LABELS[t.channel]}] {t.name}
-            </option>
-          {/each}
-        </select>
+          <Select.Trigger id="templateId" class="flex-1">
+            <span class="truncate">
+              {#if selectedTemplate}
+                [{BROADCAST_CHANNEL_LABELS[selectedTemplate.channel]}]
+                {selectedTemplate.name}
+              {:else}
+                — Sélectionner —
+              {/if}
+            </span>
+          </Select.Trigger>
+          <Select.Content>
+            {#each data.templates as t (t.id)}
+              <Select.Item value={t.id}>
+                [{BROADCAST_CHANNEL_LABELS[t.channel]}] {t.name}
+              </Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
         <Tooltip.Provider delayDuration={200}>
           <Tooltip.Root>
             <Tooltip.Trigger>
@@ -352,178 +387,174 @@
       {/if}
     </div>
 
-    <div class="rounded-md border">
-      <button
-        type="button"
-        onclick={() => (showRetarget = !showRetarget)}
+    <Collapsible.Root
+      open={showRetarget}
+      onOpenChange={(o) => (showRetarget = o)}
+      class="rounded-md border"
+    >
+      <Collapsible.Trigger
         class="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50"
       >
         <span>Repartir d'un envoi passé (retargeting)</span>
         <span class="text-xs text-muted-foreground"
           >{showRetarget ? '−' : '+'}</span
         >
-      </button>
-      {#if showRetarget}
-        <div class="space-y-3 border-t p-3">
-          <div class="grid gap-2">
-            <Label for="sourceBroadcastId">Envoi source</Label>
-            <select
-              id="sourceBroadcastId"
-              name="sourceBroadcastId"
-              bind:value={$form.sourceBroadcastId}
-              class="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Aucun</option>
-              {#each filteredSources as b}
-                <option value={b.id}>
+      </Collapsible.Trigger>
+      <Collapsible.Content class="space-y-3 border-t p-3">
+        <div class="grid gap-2">
+          <Label for="sourceBroadcastId">Envoi source</Label>
+          <Select.Root
+            type="single"
+            value={$form.sourceBroadcastId || NONE}
+            onValueChange={(v) =>
+              ($form.sourceBroadcastId = v === NONE ? '' : (v ?? ''))}
+          >
+            <Select.Trigger id="sourceBroadcastId" class="w-full">
+              <span class="truncate">
+                {#if $form.sourceBroadcastId}
+                  {@const b = filteredSources.find(
+                    (s) => s.id === $form.sourceBroadcastId,
+                  )}
+                  {b
+                    ? `${dateFormatter.format(b.createdAt)} — ${b.name}`
+                    : 'Aucun'}
+                {:else}
+                  Aucun
+                {/if}
+              </span>
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value={NONE}>Aucun</Select.Item>
+              {#each filteredSources as b (b.id)}
+                <Select.Item value={b.id}>
                   {dateFormatter.format(b.createdAt)} — {b.name}
-                </option>
+                </Select.Item>
               {/each}
-            </select>
-          </div>
-          {#if $form.sourceBroadcastId}
-            <div class="grid gap-2">
-              <Label>Filtrer les destinataires sources</Label>
-              <div class="flex gap-2 text-sm">
-                <label class="flex cursor-pointer items-center gap-1">
-                  <input
-                    type="radio"
-                    name="sourceFilter"
-                    value="all"
-                    bind:group={$form.sourceFilter}
-                  /> Tous
-                </label>
-                <label class="flex cursor-pointer items-center gap-1">
-                  <input
-                    type="radio"
-                    name="sourceFilter"
-                    value="opened"
-                    bind:group={$form.sourceFilter}
-                  /> Ouverts
-                </label>
-                <label class="flex cursor-pointer items-center gap-1">
-                  <input
-                    type="radio"
-                    name="sourceFilter"
-                    value="not_opened"
-                    bind:group={$form.sourceFilter}
-                  /> Non ouverts
-                </label>
-              </div>
-              {#if $errors.sourceFilter}
-                <p class="text-xs text-destructive">{$errors.sourceFilter}</p>
-              {/if}
-              <p class="text-xs text-muted-foreground">
-                « Ouvert » = a cliqué sur ≥ 1 lien tracké de l'envoi source.
-              </p>
-            </div>
-          {/if}
+            </Select.Content>
+          </Select.Root>
         </div>
-      {/if}
-    </div>
+        {#if $form.sourceBroadcastId}
+          <div class="grid gap-2">
+            <Label>Filtrer les destinataires sources</Label>
+            <RadioGroup.Root
+              value={$form.sourceFilter ?? ''}
+              onValueChange={(v) =>
+                ($form.sourceFilter = v as typeof $form.sourceFilter)}
+              class="flex flex-row gap-3 text-sm"
+            >
+              <Label class="cursor-pointer gap-1.5 font-normal">
+                <RadioGroup.Item value="all" /> Tous
+              </Label>
+              <Label class="cursor-pointer gap-1.5 font-normal">
+                <RadioGroup.Item value="opened" /> Ouverts
+              </Label>
+              <Label class="cursor-pointer gap-1.5 font-normal">
+                <RadioGroup.Item value="not_opened" /> Non ouverts
+              </Label>
+            </RadioGroup.Root>
+            {#if $errors.sourceFilter}
+              <p class="text-xs text-destructive">{$errors.sourceFilter}</p>
+            {/if}
+            <p class="text-xs text-muted-foreground">
+              « Ouvert » = a cliqué sur ≥ 1 lien tracké de l'envoi source.
+            </p>
+          </div>
+        {/if}
+      </Collapsible.Content>
+    </Collapsible.Root>
 
-    <div class="rounded-md border">
-      <button
-        type="button"
-        onclick={() => (showFilters = !showFilters)}
+    <Collapsible.Root
+      open={showFilters}
+      onOpenChange={(o) => (showFilters = o)}
+      class="rounded-md border"
+    >
+      <Collapsible.Trigger
         class="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50"
       >
         <span>Filtres avancés</span>
         <span class="text-xs text-muted-foreground"
           >{showFilters ? '−' : '+'}</span
         >
-      </button>
-      {#if showFilters}
-        <div class="space-y-3 border-t p-3 text-sm">
-          {#if $form.audience === 'talent' || $form.audience === 'parent'}
-            <div class="grid gap-2">
-              <Label>Niveau scolaire</Label>
-              <div class="flex flex-wrap gap-2">
-                {#each NIVEAUX as n}
-                  <label class="flex cursor-pointer items-center gap-1 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={$form.filters?.niveau?.includes(n) ?? false}
-                      onchange={(e) => {
-                        const cur = new Set($form.filters?.niveau ?? []);
-                        if (e.currentTarget.checked) cur.add(n);
-                        else cur.delete(n);
-                        $form.filters = {
-                          ...($form.filters ?? {}),
-                          niveau: [...cur],
-                        };
-                      }}
-                    />
-                    {niveauLabel(n)}
-                  </label>
-                {/each}
-              </div>
+      </Collapsible.Trigger>
+      <Collapsible.Content class="space-y-3 border-t p-3 text-sm">
+        {#if $form.audience === 'talent' || $form.audience === 'parent'}
+          <div class="grid gap-2">
+            <Label>Niveau scolaire</Label>
+            <div class="flex flex-wrap gap-3">
+              {#each NIVEAUX as n}
+                <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={$form.filters?.niveau?.includes(n) ?? false}
+                    onCheckedChange={(checked) => {
+                      const cur = new Set($form.filters?.niveau ?? []);
+                      if (checked) cur.add(n);
+                      else cur.delete(n);
+                      $form.filters = {
+                        ...($form.filters ?? {}),
+                        niveau: [...cur],
+                      };
+                    }}
+                  />
+                  {niveauLabel(n)}
+                </label>
+              {/each}
             </div>
+          </div>
 
-            <div class="grid gap-2">
-              <Label>Niveau Jump</Label>
-              <div class="flex gap-2">
-                {#each JUMP_LEVELS as lvl}
-                  <label class="flex cursor-pointer items-center gap-1 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={$form.filters?.jumpLevel?.includes(lvl) ?? false}
-                      onchange={(e) => {
-                        const cur = new Set($form.filters?.jumpLevel ?? []);
-                        if (e.currentTarget.checked) cur.add(lvl);
-                        else cur.delete(lvl);
-                        $form.filters = {
-                          ...($form.filters ?? {}),
-                          jumpLevel: [...cur],
-                        };
-                      }}
-                    />
-                    {lvl}
-                  </label>
-                {/each}
-              </div>
+          <div class="grid gap-2">
+            <Label>Niveau Jump</Label>
+            <div class="flex flex-wrap gap-3">
+              {#each JUMP_LEVELS as lvl}
+                <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={$form.filters?.jumpLevel?.includes(lvl) ?? false}
+                    onCheckedChange={(checked) => {
+                      const cur = new Set($form.filters?.jumpLevel ?? []);
+                      if (checked) cur.add(lvl);
+                      else cur.delete(lvl);
+                      $form.filters = {
+                        ...($form.filters ?? {}),
+                        jumpLevel: [...cur],
+                      };
+                    }}
+                  />
+                  {lvl}
+                </label>
+              {/each}
             </div>
+          </div>
 
-            {#each tristateFilters as entry (entry[0])}
-              {@const k = entry[0]}
-              {@const label = entry[1]}
-              <div class="grid gap-1">
-                <Label class="text-xs">{label}</Label>
-                <div class="flex gap-2">
-                  {#each tristateValues as v (v)}
-                    <label
-                      class="flex cursor-pointer items-center gap-1 text-xs"
-                    >
-                      <input
-                        type="radio"
-                        name={k}
-                        value={v}
-                        checked={($form.filters?.[k] ?? 'any') === v}
-                        onchange={() => {
-                          $form.filters = {
-                            ...($form.filters ?? {}),
-                            [k]: v === 'any' ? undefined : v,
-                          };
-                        }}
-                      />
-                      {v === 'any'
-                        ? 'Indifférent'
-                        : v === 'yes'
-                          ? 'Oui'
-                          : 'Non'}
-                    </label>
-                  {/each}
-                </div>
-              </div>
-            {/each}
-          {:else}
-            <p class="text-xs text-muted-foreground">
-              Pas de filtres avancés pour cette audience.
-            </p>
-          {/if}
-        </div>
-      {/if}
-    </div>
+          {#each tristateFilters as entry (entry[0])}
+            {@const k = entry[0]}
+            {@const label = entry[1]}
+            <div class="grid gap-1">
+              <Label class="text-xs">{label}</Label>
+              <RadioGroup.Root
+                value={$form.filters?.[k] ?? 'any'}
+                onValueChange={(v) => {
+                  $form.filters = {
+                    ...($form.filters ?? {}),
+                    [k]: v === 'any' ? undefined : (v as 'yes' | 'no'),
+                  };
+                }}
+                class="flex flex-row gap-3"
+              >
+                {#each tristateValues as v (v)}
+                  <Label class="cursor-pointer gap-1.5 text-xs font-normal">
+                    <RadioGroup.Item value={v} />
+                    {v === 'any' ? 'Indifférent' : v === 'yes' ? 'Oui' : 'Non'}
+                  </Label>
+                {/each}
+              </RadioGroup.Root>
+            </div>
+          {/each}
+        {:else}
+          <p class="text-xs text-muted-foreground">
+            Pas de filtres avancés pour cette audience.
+          </p>
+        {/if}
+      </Collapsible.Content>
+    </Collapsible.Root>
 
     <div class="flex flex-wrap gap-2 pt-2">
       <Button
