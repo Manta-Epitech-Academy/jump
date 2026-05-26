@@ -3,6 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
+import { stageWindowEnd } from '$lib/domain/event';
 
 const SLUG = 'welcome';
 
@@ -33,7 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   const { event } = stageParticipation;
-  const stageEnd = event.endDate ?? event.date;
+  const stageEnd = stageWindowEnd(event.date, event.endDate);
   if (stageEnd < new Date()) {
     throw redirect(303, resolve('/'));
   }

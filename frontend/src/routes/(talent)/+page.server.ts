@@ -15,6 +15,7 @@ import {
   applyCallback,
 } from '$lib/server/services/minigameService';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
+import { stageWindowEnd } from '$lib/domain/event';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -253,7 +254,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       });
       if (stageParticipation) {
         const { event } = stageParticipation;
-        const stageEnd = event.endDate ?? event.date;
+        const stageEnd = stageWindowEnd(event.date, event.endDate);
         if (stageEnd >= new Date()) {
           const welcomePage = await prisma.cmsPage.findUnique({
             where: { slug_eventId: { slug: 'welcome', eventId: event.id } },

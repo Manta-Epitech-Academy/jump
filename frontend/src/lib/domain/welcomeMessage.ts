@@ -25,8 +25,6 @@ export type WelcomeVariable = {
   label: string;
   /** FR tooltip explaining what the token resolves to. */
   description: string;
-  /** Placeholder shown in the admin preview when no real value applies. */
-  sample: string;
   resolve: (ctx: WelcomeMessageContext) => string;
 };
 
@@ -37,35 +35,30 @@ export const WELCOME_VARIABLES: readonly WelcomeVariable[] = [
     token: '{{PRENOM}}',
     label: 'Prénom',
     description: 'Prénom du talent',
-    sample: 'Marie',
     resolve: (c) => c.prenom,
   },
   {
     token: '{{NOM}}',
     label: 'Nom',
     description: 'Nom du talent',
-    sample: 'Dupont',
     resolve: (c) => c.nom,
   },
   {
     token: '{{CAMPUS}}',
     label: 'Campus',
     description: 'Nom du campus du talent',
-    sample: 'Paris',
     resolve: (c) => c.campusName,
   },
   {
     token: '{{EMAIL_CAMPUS}}',
     label: 'Email campus',
     description: 'Adresse de contact du campus',
-    sample: 'contact@epitech.eu',
     resolve: (c) => c.campusContactEmail ?? '',
   },
   {
     token: '{{STAGE}}',
     label: 'Stage',
     description: 'Nom du stage en cours',
-    sample: 'Stage de seconde',
     resolve: (c) => c.stageName,
   },
 ] as const;
@@ -105,7 +98,7 @@ export function renderWelcomeMessage(
   return out;
 }
 
-/** Context built purely from `WELCOME_VARIABLES.sample`, for the admin preview. */
+/** Placeholder context for the admin preview when no real talent applies. */
 export function sampleWelcomeContext(): WelcomeMessageContext {
   return {
     prenom: 'Marie',

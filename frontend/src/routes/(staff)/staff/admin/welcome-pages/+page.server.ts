@@ -1,26 +1,18 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { EVENT_TYPES } from '$lib/domain/event';
+import { EVENT_TYPES, stageWindowEnd } from '$lib/domain/event';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import DOMPurify from 'isomorphic-dompurify';
 
 const SLUG = 'welcome';
 const WELCOME_FLAG = 'staff_welcome_page' as const;
-const STAGE_DEFAULT_DURATION_DAYS = 14;
 
 type StageStatus = 'ongoing' | 'upcoming' | 'past';
 
-function endOf(date: Date, endDate: Date | null): Date {
-  if (endDate) return endDate;
-  const out = new Date(date);
-  out.setDate(out.getDate() + STAGE_DEFAULT_DURATION_DAYS);
-  return out;
-}
-
 function statusOf(date: Date, endDate: Date | null, now: Date): StageStatus {
   if (date.getTime() > now.getTime()) return 'upcoming';
-  if (endOf(date, endDate).getTime() < now.getTime()) return 'past';
+  if (stageWindowEnd(date, endDate).getTime() < now.getTime()) return 'past';
   return 'ongoing';
 }
 
@@ -80,7 +72,7 @@ export const load: PageServerLoad = async ({ url }) => {
           id: ev.id,
           titre: ev.titre,
           date: ev.date.toISOString(),
-          endDate: (ev.endDate ?? endOf(ev.date, ev.endDate)).toISOString(),
+          endDate: stageWindowEnd(ev.date, ev.endDate).toISOString(),
           status,
           hasContent,
           updatedAt: page?.updatedAt.toISOString() ?? null,
