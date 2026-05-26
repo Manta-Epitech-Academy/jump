@@ -57,7 +57,9 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
       : 0;
 
   const syncErrorCounts =
-    !isInterviewerOnly && staffProfile?.campusId
+    !isInterviewerOnly &&
+    staffProfile?.campusId &&
+    hasFlag(locals, 'staff_sync_errors')
       ? await countCampusSyncErrors(staffProfile.campusId)
       : { total: 0, urgent: 0 };
 
