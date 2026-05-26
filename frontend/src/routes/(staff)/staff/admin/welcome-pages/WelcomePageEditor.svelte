@@ -97,10 +97,10 @@
   <Tabs.Root value="edit" class="w-full">
     <div class="border-b border-border px-4 py-2">
       <Tabs.List>
-        <Tabs.Trigger value="edit">
+        <Tabs.Trigger value="edit" class="cursor-pointer">
           <Pencil class="mr-1.5 h-3.5 w-3.5" /> Éditer
         </Tabs.Trigger>
-        <Tabs.Trigger value="preview">
+        <Tabs.Trigger value="preview" class="cursor-pointer">
           <Eye class="mr-1.5 h-3.5 w-3.5" /> Aperçu talent
         </Tabs.Trigger>
       </Tabs.List>
