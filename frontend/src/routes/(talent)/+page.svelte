@@ -28,6 +28,7 @@
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
+  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import { onMount, untrack, type Snippet } from 'svelte';
   import { track, secondsBetween } from '$lib/analytics';
@@ -810,12 +811,7 @@
   </div>
 
   <!-- Footer: what Jump is — pinned to the bottom of the page -->
-  <footer
-    class="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
-  >
-    <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
-    plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
-  </footer>
+  <TalentFooter />
 </div>
 
 <ActivitySummaryDialog bind:open={previewOpen} slot={previewSlot} />

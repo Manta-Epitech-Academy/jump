@@ -13,6 +13,7 @@ import {
   getActivePublication,
   getClosestEventForTalent,
   applyCallback,
+  markMinigameRewardsSeen,
 } from '$lib/server/services/minigameService';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
@@ -287,16 +288,7 @@ export const actions: Actions = {
    */
   acknowledgeMinigameReward: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
-
-    await prisma.minigameAttempt.updateMany({
-      where: {
-        talentId: locals.talent.id,
-        xpAwarded: { not: null },
-        xpSeenAt: null,
-      },
-      data: { xpSeenAt: new Date() },
-    });
-
+    await markMinigameRewardsSeen(locals.talent.id);
     return { acknowledged: true };
   },
 

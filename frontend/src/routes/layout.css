@@ -445,28 +445,31 @@
   }
 }
 
-/* --- Manta +10 XP Animation --- */
+/* --- "+N XP" reward float (onboarding arrival + daily minigame) --- */
 @keyframes xp-float {
   0% {
     opacity: 0;
-    transform: translateY(0) scale(0.8);
+    transform: translateY(24px) scale(0.5);
   }
-  20% {
+  12% {
     opacity: 1;
-    transform: translateY(-20px) scale(1.2);
+    transform: translateY(0) scale(1.25); /* pop in with overshoot */
   }
-  80% {
+  24% {
+    transform: translateY(0) scale(1); /* settle */
+  }
+  70% {
     opacity: 1;
-    transform: translateY(-40px) scale(1);
+    transform: translateY(-12px) scale(1); /* gentle hover */
   }
   100% {
     opacity: 0;
-    transform: translateY(-60px) scale(1);
+    transform: translateY(-56px) scale(0.92); /* float away */
   }
 }
 
 .animate-xp-float {
-  animation: xp-float 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: xp-float 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* --- View transitions --- */
