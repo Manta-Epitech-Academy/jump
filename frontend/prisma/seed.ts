@@ -3367,8 +3367,19 @@ async function seedWelcomePages(
   const stageEventIndices = [2, 7, 10];
   const updatedBy = Object.values(staffByKey)[0].userId;
 
-  const content = `<p>Tu viens de poser un pied chez <strong>Epitech</strong>. Dans quelques jours, tu rejoindras une promo de stagiaires curieux et motivés comme toi pour découvrir la tech et ce qu'on fait dans une école d'informatique.</p>
-<p>D'ici là, on fait connaissance ? Quelques minutes sur <strong>Jump</strong>, et tout sera prêt.</p>`;
+  const content = `<h2>Bienvenue sur Jump ! 🚀</h2>
+<p>Salut, et <strong>bienvenue dans l'aventure !</strong> Tu viens de rejoindre Jump, la plateforme de ton stage de seconde à Epitech. Pendant ces quelques jours, découvre l'univers du <strong>code</strong>, de la <strong>tech</strong> et de la <strong>création numérique</strong> en <em>construisant</em> tes propres projets.</p>
+<h3>Ce qui t'attend</h3>
+<ul>
+  <li>🧩 <strong>Des ateliers concrets :</strong> tu vas coder, créer, recommencer — c'est comme ça qu'on apprend.</li>
+  <li>🏆 <strong>Des XP et des niveaux :</strong> gagne de l'expérience à chaque activité pour grimper de Novice à <em>Expert</em> !</li>
+  <li>🎮 <strong>Un mini-jeu par jour :</strong> un défi quotidien pour des XP bonus.</li>
+  <li>💼 <strong>Ton portfolio :</strong> repars avec une vraie trace de ce que tu as accompli.</li>
+</ul>
+<img src="https://placehold.co/600x400/blue/white?text=Photo%20du%20campus" alt="Bannière bleue: Photo du campus à venir" />
+<h3>Comment ça marche</h3>
+<p>Chaque jour, retrouve ta <strong>mission du jour</strong> sur ton tableau de bord. Clique, suis les étapes, et gagne tes XP. Si tu bloques, <strong>pas de panique</strong> — les Mantas (tes encadrants) sont là pour t'aider.</p>
+<blockquote><p>« Ne cherche pas à tout réussir du premier coup. Le code, c'est essayer, se tromper, et recommencer. »</p></blockquote>`;
 
   const rows = stageEventIndices.flatMap((idx) => {
     const eventId = eventIds[idx];
