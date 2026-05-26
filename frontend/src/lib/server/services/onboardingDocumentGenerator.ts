@@ -62,6 +62,7 @@ export async function generateOnboardingPDF(data: {
     onboardingTemplate,
     {
       data: {
+        type: data.type,
         title: ONBOARDING_DOCUMENTS[data.type].label,
         documentContent,
         studentName: data.studentName,
