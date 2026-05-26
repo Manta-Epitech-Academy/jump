@@ -48,8 +48,8 @@
 <header class="space-y-2">
   <h1 class="text-2xl font-bold tracking-tight">Templates</h1>
   <p class="text-sm text-muted-foreground">
-    Crée et édite les templates réutilisables pour les envois en masse et les
-    mails transactionnels.
+    Crée et édite les templates réutilisables (mail / SMS) pour les envois en
+    masse et les messages transactionnels.
   </p>
 </header>
 

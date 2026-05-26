@@ -9,7 +9,7 @@
     <h1 class="text-2xl font-bold tracking-tight">Nouveau template</h1>
     <p class="text-sm text-muted-foreground">
       Définis le canal et le contenu de ce template ; il pourra ensuite servir
-      pour un envoi en masse ou un mail transactionnel.
+      pour un envoi en masse ou un message transactionnel.
     </p>
   </header>
   <TemplateForm
