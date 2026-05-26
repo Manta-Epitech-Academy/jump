@@ -3,11 +3,14 @@
   import Funnel from '@lucide/svelte/icons/funnel';
   import LogIn from '@lucide/svelte/icons/log-in';
   import Users from '@lucide/svelte/icons/users';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import UserX from '@lucide/svelte/icons/user-x';
   import Zap from '@lucide/svelte/icons/zap';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Badge } from '$lib/components/ui/badge';
@@ -80,6 +83,40 @@
     goto(url.toString(), { keepFocus: true });
   }
 
+  // The overview tiles double as the `account` filter — the summary you read
+  // and the control you click are the same object, mirroring the onboarding-PDF
+  // cockpit. Each tile maps 1:1 to an `account` filter value, so clicking one
+  // scopes the table below; this replaces the separate "Comptes" dropdown.
+  const cards = [
+    {
+      key: 'all',
+      label: 'Tous',
+      caption: 'Tous les talents',
+      tone: 'neutral',
+      Icon: Users,
+    },
+    {
+      key: 'active',
+      label: 'Comptes actifs',
+      caption: 'Au moins une connexion',
+      tone: 'teal',
+      Icon: UserCheck,
+    },
+    {
+      key: 'pending',
+      label: 'Jamais connectés',
+      caption: 'Aucun compte créé',
+      tone: 'orange',
+      Icon: UserX,
+    },
+  ] as const;
+
+  function cardValue(key: string): number {
+    if (key === 'active') return data.stats.active;
+    if (key === 'pending') return data.stats.pending;
+    return data.stats.total;
+  }
+
   function handleSearchInput(e: Event) {
     const value = (e.target as HTMLInputElement).value;
     searchQuery = value;
@@ -109,17 +146,18 @@
     </p>
   </div>
 
-  <!-- Overview tiles -->
-  <div class="grid grid-cols-3 gap-3">
-    {#each [{ label: 'Talents', value: data.stats.total, accent: 'text-foreground' }, { label: 'Comptes actifs', value: data.stats.active, accent: 'text-epi-teal-solid' }, { label: 'Jamais connectés', value: data.stats.pending, accent: 'text-muted-foreground' }] as tile}
-      <div class="rounded-sm border bg-card p-4 shadow-sm">
-        <p
-          class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          {tile.label}
-        </p>
-        <p class="font-heading text-3xl {tile.accent}">{tile.value}</p>
-      </div>
+  <!-- Overview tiles = account filter toggles -->
+  <div class="grid gap-3 sm:grid-cols-3">
+    {#each cards as card (card.key)}
+      <KpiTile
+        label={card.label}
+        value={cardValue(card.key)}
+        sub={card.caption}
+        icon={card.Icon}
+        tone={card.tone}
+        onclick={() => navigateWithParams({ account: card.key })}
+        pressed={data.filters.account === card.key}
+      />
     {/each}
   </div>
 
@@ -153,28 +191,6 @@
           {#each NIVEAUX as n}
             <Select.Item value={n}>{niveauLabel(n)}</Select.Item>
           {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    <div class="w-44">
-      <Select.Root
-        type="single"
-        value={data.filters.account}
-        onValueChange={(v) =>
-          navigateWithParams({ account: v === 'all' ? '' : v })}
-      >
-        <Select.Trigger class="rounded-sm">
-          {data.filters.account === 'active'
-            ? 'Comptes actifs'
-            : data.filters.account === 'pending'
-              ? 'Jamais connectés'
-              : 'Tous les comptes'}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value="all">Tous les comptes</Select.Item>
-          <Select.Item value="active">Comptes actifs</Select.Item>
-          <Select.Item value="pending">Jamais connectés</Select.Item>
         </Select.Content>
       </Select.Root>
     </div>
