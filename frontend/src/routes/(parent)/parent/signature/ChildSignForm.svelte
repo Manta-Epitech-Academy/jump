@@ -157,7 +157,7 @@
         <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
         Signature en cours...
       {:else}
-        Signer pour {child.prenom}
+        Signer
       {/if}
     </Button>
   </form>

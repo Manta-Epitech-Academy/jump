@@ -42,8 +42,8 @@
             Plus rien à faire de votre côté : <strong>{data.childPrenom}</strong
             >
             est attendu(e) sur notre campus de
-            <strong>{data.campusName}</strong>. Nos équipes ont hâte de
-            l'accueillir.
+            <strong>{data.campusName}</strong> du 15 au 26 juin. Nos équipes ont hâte
+            de l'accueillir.
           </p>
 
           {#if data.contactEmail}
