@@ -277,10 +277,14 @@ export const actions: Actions = {
             },
           });
         }
+
+        // Welcome email carries a passwordless magic link into the parent
+        // space — the bauth_user just created above lets it resolve.
         await sendParentWelcomeEmail(
           parentEmail,
           result.data.parentNom,
           locals.talent!.prenom,
+          locals.talent!.id,
         );
       })().catch((err) =>
         console.error('Failed to send parent 1 welcome email:', err),
@@ -315,6 +319,7 @@ export const actions: Actions = {
           parent2Email,
           result.data.parent2Nom ?? '',
           locals.talent!.prenom,
+          locals.talent!.id,
         );
       })().catch((err) =>
         console.error('Failed to send parent 2 welcome email:', err),

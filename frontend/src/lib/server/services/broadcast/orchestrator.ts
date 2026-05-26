@@ -22,8 +22,8 @@ import {
   buildFastloginLink,
   mintParentFastloginToken,
   buildParentFastloginLink,
-  mintSigninOtp,
-} from './personalization';
+} from '$lib/server/auth/fastloginToken';
+import { mintSigninOtp } from './personalization';
 
 export interface EnqueueBroadcastInput {
   name: string;

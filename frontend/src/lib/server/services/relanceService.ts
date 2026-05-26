@@ -16,6 +16,12 @@ import {
 } from '$lib/domain/broadcastVariables';
 import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
+import {
+  mintFastloginToken,
+  buildFastloginLink,
+  mintParentFastloginToken,
+  buildParentFastloginLink,
+} from '$lib/server/auth/fastloginToken';
 
 function loginLinkFor(type: RelanceType): string {
   const path = type === 'student' ? '/onboarding' : '/parent/login';
@@ -131,10 +137,33 @@ export async function sendRelances(
 
     const recipient = type === 'student' ? studentEmail! : talent.parentEmail!;
     const talentVars = formatTalentVars(talent);
+    // Both relance kinds mint a passwordless magic link so the recipient skips
+    // the OTP step. Student: `/fastlogin` signs them in, and the talent guard
+    // bounces an unfinished onboarding straight to `/onboarding` (a relance is
+    // never sent to a talent who already completed it). Parent: `/parent/fastlogin`
+    // resolves the account created when the talent finished onboarding.
+    // {{login_link}} stays in the context as a fallback for either audience.
+    const fastloginLink =
+      type === 'student'
+        ? buildFastloginLink(
+            await mintFastloginToken({ email: recipient, talentId: talent.id }),
+          )
+        : null;
+    const parentFastloginLink =
+      type === 'parent'
+        ? buildParentFastloginLink(
+            await mintParentFastloginToken({
+              email: recipient,
+              talentId: talent.id,
+            }),
+          )
+        : null;
     const ctx: VariableContext = {
       ...EMPTY_VARIABLE_CONTEXT,
       ...talentVars,
       login_link: loginLink,
+      fastlogin_link: fastloginLink,
+      parent_fastlogin_link: parentFastloginLink,
       email_contact_campus: campus?.contactEmail ?? null,
     };
     const renderedSubject = substituteVariables(subject, ctx);

@@ -11,6 +11,10 @@
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 import { sendActionEmail } from '$lib/server/email/actionMail';
+import {
+  mintParentFastloginToken,
+  buildParentFastloginLink,
+} from '$lib/server/auth/fastloginToken';
 
 export async function sendOtpEmail(
   email: string,
@@ -27,13 +31,21 @@ export async function sendParentWelcomeEmail(
   email: string,
   parentName: string,
   childName: string,
+  talentId: string,
 ): Promise<void> {
   const displayName =
     parentName.charAt(0).toUpperCase() + parentName.slice(1).toLowerCase();
+  // Passwordless magic link straight into the parent space (image-rights
+  // signature). The parent `bauth_user` is provisioned right before this
+  // send, so `/parent/fastlogin` resolves it without bootstrapping.
+  const token = await mintParentFastloginToken({ email, talentId });
+  const parentFastloginLink = buildParentFastloginLink(token);
+  // Manual OTP page kept as a fallback for templates still on {{login_link}}.
   const loginUrl = `${env.ORIGIN}${base}/parent/login`;
   await sendActionEmail('parent_welcome', email, {
     parent_prenom: displayName,
     child_prenom: childName,
+    parent_fastlogin_link: parentFastloginLink,
     login_link: loginUrl,
   });
 }
