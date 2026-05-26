@@ -124,6 +124,9 @@
     </div>
 
     <!-- Checkbox -->
+    {#if accepted}
+      <input type="hidden" name="accepted" value="on" />
+    {/if}
     <label
       class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
