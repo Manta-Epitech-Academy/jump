@@ -76,6 +76,7 @@ function tokenPattern(token: string): RegExp {
   // Escape regex-significant chars (the braces) and match case-insensitively,
   // preserving the leniency the original `/\{\{PRENOM\}\}/gi` substitution had.
   const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
   return new RegExp(escaped, 'gi');
 }
 
