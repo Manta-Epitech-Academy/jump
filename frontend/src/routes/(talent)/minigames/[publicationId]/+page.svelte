@@ -28,7 +28,11 @@
     if (!form?.token) return null;
     const base = data.jumpGamesUrl.replace(/\/$/, '');
     const theme = untrack(() => mode.current ?? 'light');
-    return `${base}/?token=${encodeURIComponent(form.token)}&theme=${theme}`;
+    // Pass the XP at stake so the game can show the reward up front (consigne)
+    // and during play — Jump owns the amount, the game just displays it. This is
+    // the anticipation/incentive layer; the actual grant still happens
+    // server-to-server on finish, never from this number.
+    return `${base}/?token=${encodeURIComponent(form.token)}&theme=${theme}&reward=${MINIGAME_XP_REWARD}`;
   });
 
   let iframeEl = $state<HTMLIFrameElement>();
