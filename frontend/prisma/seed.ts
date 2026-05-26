@@ -5,6 +5,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import {
   PrismaClient,
+  Prisma,
   type ActivityType,
   type ParticipationVerdict,
   type ParticipationContextTag,
@@ -29,11 +30,8 @@ const XP_MAP: Record<string, number> = {
   Avancé: 75,
 };
 
-function levelFromXp(xp: number): string {
-  if (xp >= 200) return 'Expert';
-  if (xp >= 80) return 'Apprentice';
-  return 'Novice';
-}
+// Onboarding arrival bonus — mirrors WELCOME_XP_BONUS in src/lib/domain/xp.ts.
+const WELCOME_XP_BONUS = 200;
 
 // ─── Time helpers (anchored to run-time `today`) ───
 
@@ -2666,12 +2664,15 @@ const INTERVIEWS: InterviewBlueprint[] = [
 type ReminderBlueprint = {
   studentEmail: string;
   type: 'student' | 'parent';
+  // 'email' is the primary nudge; 'sms' is the link-free escalation. Defaults
+  // to 'email' when omitted.
+  channel?: 'email' | 'sms';
   staffKey: string;
   daysOffset: number; // negative = past
   hour?: number;
   // Optional archived copy of what was sent. When absent the fiche shows the
   // "contenu non archivé" placeholder — keep a few that way so devs see both
-  // states in the timeline.
+  // states in the timeline. SMS reminders carry no subject.
   subject?: string;
   body?: string;
 };
@@ -2802,6 +2803,18 @@ Marie`,
     staffKey: 'sarah.moreau',
     daysOffset: -3,
     hour: 11,
+  },
+  // SMS escalation — the email relances to parisStudents[14] above went
+  // unanswered, so Pauline escalates with a link-free text pointing back to
+  // the inbox. Drives the "Relance · SMS" badge in the fiche timeline.
+  {
+    studentEmail: parisStudents[14],
+    type: 'student',
+    channel: 'sms',
+    staffKey: 'pauline.marchand',
+    daysOffset: -1,
+    hour: 10,
+    body: "Salut, plus que 5 jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail. - Epitech Paris",
   },
 ];
 
@@ -3369,72 +3382,76 @@ async function seedWelcomePages(
   const stageEventIndices = [2, 7, 10];
   const updatedBy = Object.values(staffByKey)[0].userId;
 
-  for (const idx of stageEventIndices) {
-    const eventId = eventIds[idx];
-    if (!eventId) continue;
-    await prisma.cmsPage.create({
-      data: {
-        slug: 'welcome',
-        eventId,
-        updatedBy,
-        content: `<h1>Bienvenue à ton stage de seconde !</h1>
-<p>Tu t'apprêtes à vivre une semaine immersive au cœur du numérique. Pendant ce stage, tu vas :</p>
+  const content = `<h2>Bienvenue sur Jump ! 🚀</h2>
+<p>Salut, et <strong>bienvenue dans l'aventure !</strong> Tu viens de rejoindre Jump, la plateforme de ton stage de seconde à Epitech. Pendant ces quelques jours, découvre l'univers du <strong>code</strong>, de la <strong>tech</strong> et de la <strong>création numérique</strong> en <em>construisant</em> tes propres projets.</p>
+<h3>Ce qui t'attend</h3>
 <ul>
-  <li>Découvrir les métiers de la tech</li>
-  <li>Participer à des ateliers pratiques</li>
-  <li>Créer ton premier projet</li>
-  <li>Rencontrer des professionnels passionnés</li>
+  <li>🧩 <strong>Des ateliers concrets :</strong> tu vas coder, créer, recommencer — c'est comme ça qu'on apprend.</li>
+  <li>🏆 <strong>Des XP et des niveaux :</strong> gagne de l'expérience à chaque activité pour grimper de Novice à <em>Expert</em> !</li>
+  <li>🎮 <strong>Un mini-jeu par jour :</strong> un défi quotidien pour des XP bonus.</li>
+  <li>💼 <strong>Ton portfolio :</strong> repars avec une vraie trace de ce que tu as accompli.</li>
 </ul>
-<p>Profite de chaque moment et n'hésite pas à poser des questions. Bonne découverte !</p>`,
-      },
-    });
-  }
+<img src="https://placehold.co/600x400/blue/white?text=Photo%20du%20campus" alt="Bannière bleue: Photo du campus à venir" />
+<h3>Comment ça marche</h3>
+<p>Chaque jour, retrouve ta <strong>mission du jour</strong> sur ton tableau de bord. Clique, suis les étapes, et gagne tes XP. Si tu bloques, <strong>pas de panique</strong> — les Mantas (tes encadrants) sont là pour t'aider.</p>
+<blockquote><p>« Ne cherche pas à tout réussir du premier coup. Le code, c'est essayer, se tromper, et recommencer. »</p></blockquote>`;
+
+  const rows = stageEventIndices.flatMap((idx) => {
+    const eventId = eventIds[idx];
+    if (!eventId) return [];
+    return [{ slug: 'welcome', eventId, updatedBy, content }];
+  });
+  await prisma.cmsPage.createMany({ data: rows });
 }
 
 // ─── Wipe ───
 
 async function wipeAll() {
-  // Children first, parents last
-  await prisma.stageCompliance.deleteMany();
-  await prisma.participationActivity.deleteMany();
-  await prisma.portfolioItem.deleteMany();
-  await prisma.stepsProgress.deleteMany();
-  await prisma.onboardingReminder.deleteMany();
-  // Broadcasts + email-action mappings — dropped before staff so the
-  // `MessageTemplate.createdById` FK doesn't block.
-  await prisma.emailActionMapping.deleteMany();
-  await prisma.broadcastRecipient.deleteMany();
-  await prisma.broadcast.deleteMany();
-  await prisma.messageTemplate.deleteMany();
-  await prisma.participation.deleteMany();
-  await prisma.interview.deleteMany();
-  await prisma.eventManta.deleteMany();
-  await prisma.activityTheme.deleteMany();
-  await prisma.activity.deleteMany();
-  await prisma.timeSlot.deleteMany();
-  await prisma.planning.deleteMany();
-  await prisma.event.deleteMany();
-  await prisma.activityTemplateTheme.deleteMany();
-  await prisma.planningTemplateSlot.deleteMany();
-  await prisma.planningTemplateDay.deleteMany();
-  await prisma.planningTemplate.deleteMany();
-  await prisma.activityTemplate.deleteMany();
-  await prisma.theme.deleteMany();
-  await prisma.talentInterest.deleteMany();
-  await prisma.interest.deleteMany();
-  await prisma.talent.deleteMany();
-  // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
-  // is a required FK with default RESTRICT, so live versions block the delete.
-  await prisma.subjectVersion.deleteMany();
-  await prisma.subject.deleteMany();
-  await prisma.refCompSnapshot.deleteMany();
-  await prisma.staffProfile.deleteMany();
-  await prisma.campus.deleteMany();
-  await prisma.syncError.deleteMany();
-  await prisma.bauth_session.deleteMany();
-  await prisma.bauth_account.deleteMany();
-  await prisma.bauth_verification.deleteMany();
-  await prisma.bauth_user.deleteMany();
+  // One transaction, children first, parents last. Order matters: each
+  // deleteMany must run after the rows referencing it are gone, so the array
+  // order is the FK dependency order — keep it.
+  await prisma.$transaction([
+    prisma.stageCompliance.deleteMany(),
+    prisma.participationActivity.deleteMany(),
+    prisma.portfolioItem.deleteMany(),
+    prisma.stepsProgress.deleteMany(),
+    prisma.onboardingReminder.deleteMany(),
+    // Broadcasts + email-action mappings — dropped before staff so the
+    // `MessageTemplate.createdById` FK doesn't block.
+    prisma.emailActionMapping.deleteMany(),
+    prisma.broadcastRecipient.deleteMany(),
+    prisma.broadcast.deleteMany(),
+    prisma.messageTemplate.deleteMany(),
+    prisma.participation.deleteMany(),
+    prisma.interview.deleteMany(),
+    prisma.eventManta.deleteMany(),
+    prisma.activityTheme.deleteMany(),
+    prisma.activity.deleteMany(),
+    prisma.timeSlot.deleteMany(),
+    prisma.planning.deleteMany(),
+    prisma.event.deleteMany(),
+    prisma.activityTemplateTheme.deleteMany(),
+    prisma.planningTemplateSlot.deleteMany(),
+    prisma.planningTemplateDay.deleteMany(),
+    prisma.planningTemplate.deleteMany(),
+    prisma.activityTemplate.deleteMany(),
+    prisma.theme.deleteMany(),
+    prisma.talentInterest.deleteMany(),
+    prisma.interest.deleteMany(),
+    prisma.talent.deleteMany(),
+    // Subject hierarchy must drop before StaffProfile: SubjectVersion.importedBy
+    // is a required FK with default RESTRICT, so live versions block the delete.
+    prisma.subjectVersion.deleteMany(),
+    prisma.subject.deleteMany(),
+    prisma.refCompSnapshot.deleteMany(),
+    prisma.staffProfile.deleteMany(),
+    prisma.campus.deleteMany(),
+    prisma.syncError.deleteMany(),
+    prisma.bauth_session.deleteMany(),
+    prisma.bauth_account.deleteMany(),
+    prisma.bauth_verification.deleteMany(),
+    prisma.bauth_user.deleteMany(),
+  ]);
 }
 
 // ─── Interests ───
@@ -3481,30 +3498,22 @@ async function seedInterests() {
     { nom: 'Économie / Business', emoji: '💼' },
   ];
 
-  for (let i = 0; i < techItems.length; i++) {
-    await prisma.interest.create({
-      data: {
-        nom: techItems[i].nom,
-        emoji: techItems[i].emoji,
-        kind: 'tech',
+  await prisma.interest.createMany({
+    data: [
+      ...techItems.map((it, i) => ({ ...it, kind: 'tech' as const, order: i })),
+      ...generalItems.map((it, i) => ({
+        ...it,
+        kind: 'general' as const,
         order: i,
-      },
-    });
-  }
-
-  for (let i = 0; i < generalItems.length; i++) {
-    await prisma.interest.create({
-      data: {
-        nom: generalItems[i].nom,
-        emoji: generalItems[i].emoji,
-        kind: 'general',
-        order: i,
-      },
-    });
-  }
+      })),
+    ],
+  });
 }
 
 async function assignTalentInterests() {
+  // TalentInterest rows are written by the (atomic) interests step, which
+  // validates tech and general together — so any talent past that step has both
+  // kinds, never tech alone. Gate on `techInterestsValidatedAt` and seed both.
   const talents = await prisma.talent.findMany({
     where: { techInterestsValidatedAt: { not: null } },
     select: { id: true },
@@ -3519,25 +3528,23 @@ async function assignTalentInterests() {
     select: { id: true },
   });
 
-  for (const talent of talents) {
-    // 1-2 tech
+  const rows = talents.flatMap((talent) => {
+    // 1-2 tech, 1-5 general — shuffle-and-slice per talent (validation schema:
+    // tech 1-2, general 1-5).
     const techCount = 1 + Math.floor(Math.random() * 2);
-    const shuffledTech = [...techIds].sort(() => Math.random() - 0.5);
-    const selectedTech = shuffledTech.slice(0, techCount);
+    const selectedTech = [...techIds]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, techCount);
+    const selectedGen = [...generalIds]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 1 + Math.floor(Math.random() * 5));
+    return [...selectedTech, ...selectedGen].map((interest) => ({
+      talentId: talent.id,
+      interestId: interest.id,
+    }));
+  });
 
-    // 1-5 general
-    const genCount = 1 + Math.floor(Math.random() * 5);
-    const shuffledGen = [...generalIds].sort(() => Math.random() - 0.5);
-    const selectedGen = shuffledGen.slice(0, genCount);
-
-    await prisma.talentInterest.createMany({
-      data: [
-        ...selectedTech.map((t) => ({ talentId: talent.id, interestId: t.id })),
-        ...selectedGen.map((g) => ({ talentId: talent.id, interestId: g.id })),
-      ],
-      skipDuplicates: true,
-    });
-  }
+  await prisma.talentInterest.createMany({ data: rows, skipDuplicates: true });
 }
 
 // ─── Seeders ───
@@ -3546,45 +3553,101 @@ async function seedCampuses(): Promise<
   Record<string, { id: string; name: string }>
 > {
   const names = ['Paris', 'Lyon', 'Marseille'];
+  const created = await prisma.campus.createManyAndReturn({
+    data: names.map((name) => ({ name })),
+    select: { id: true, name: true },
+  });
   const byName: Record<string, { id: string; name: string }> = {};
-  for (const name of names) {
-    const campus = await prisma.campus.create({ data: { name } });
-    byName[name] = { id: campus.id, name: campus.name };
-  }
+  for (const c of created) byName[c.name] = c;
   return byName;
 }
 
 async function seedStaff(
   campuses: Record<string, { id: string }>,
 ): Promise<Record<string, { id: string; userId: string; campusId: string }>> {
+  // Users first, then profiles referencing them. createManyAndReturn doesn't
+  // guarantee row order, so map back by the unique business key (email →
+  // userId, then userId → profile) rather than by index.
+  const users = await prisma.bauth_user.createManyAndReturn({
+    data: STAFF_MEMBERS.map((s) => ({
+      email: s.email,
+      name: s.name,
+      role: 'staff',
+      emailVerified: true,
+      image: s.image,
+    })),
+    select: { id: true, email: true },
+  });
+  const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
+
+  const profiles = await prisma.staffProfile.createManyAndReturn({
+    data: STAFF_MEMBERS.map((s) => ({
+      userId: userIdByEmail.get(s.email)!,
+      campusId: campuses[s.campus].id,
+      staffRole: s.role,
+    })),
+    select: { id: true, userId: true, campusId: true },
+  });
+  const profileByUserId = new Map(profiles.map((p) => [p.userId, p]));
+
   const byKey: Record<
     string,
     { id: string; userId: string; campusId: string }
   > = {};
   for (const s of STAFF_MEMBERS) {
-    const user = await prisma.bauth_user.create({
-      data: {
-        email: s.email,
-        name: s.name,
-        role: 'staff',
-        emailVerified: true,
-        image: s.image,
-      },
-    });
-    const profile = await prisma.staffProfile.create({
-      data: {
-        userId: user.id,
-        campusId: campuses[s.campus].id,
-        staffRole: s.role,
-      },
-    });
-    byKey[s.key] = {
-      id: profile.id,
-      userId: user.id,
-      campusId: profile.campusId!,
-    };
+    const userId = userIdByEmail.get(s.email)!;
+    const profile = profileByUserId.get(userId)!;
+    byKey[s.key] = { id: profile.id, userId, campusId: profile.campusId! };
   }
   return byKey;
+}
+
+/**
+ * The talent admissions/onboarding funnel, as a single per-student state. It
+ * drives BOTH whether a `bauth_user` exists and how far onboarding got, so the
+ * two axes the admin talents list reads — account (`never`) vs onboarding
+ * progress (`pending`/`active`) — stay consistent:
+ *
+ *   - `imported`    → SF lead, no account yet (`userId = null`, status `never`);
+ *                     impersonation bootstraps the account on the fly.
+ *   - `fresh`       → logged in once, onboarding untouched (status `pending`,
+ *                     "Non démarré").
+ *   - `in-progress` → account, stalled mid-funnel at a varied step.
+ *   - `onboarded`   → account, all 7 steps done (status `active`).
+ *
+ * Skewed early on purpose: a freshly-imported cohort is mostly leads with no
+ * account or a fresh login, which is also the most useful state to exercise
+ * (impersonate → walk the full parcours). `skipOnboarding` fixtures pin the
+ * extremes so there are always ready-to-test accounts.
+ */
+type StudentLifecycle = 'imported' | 'fresh' | 'in-progress' | 'onboarded';
+
+function studentLifecycle(s: StudentDef, i: number): StudentLifecycle {
+  if (s.skipOnboarding === true) return 'onboarded';
+  if (s.skipOnboarding === false) return 'fresh';
+  const bucket = i % 20;
+  if (bucket < 7) return 'imported'; // ~35%
+  if (bucket < 14) return 'fresh'; // ~35%
+  if (bucket < 17) return 'in-progress'; // ~15%
+  return 'onboarded'; // ~15%
+}
+
+// The canonical onboarding ladder has 7 gated steps (identity → school →
+// parents → interests → equipment → processing → rules) — see
+// ONBOARDING_STEP_ORDER in src/lib/domain/talentOnboarding.ts. Seeded onboarding
+// is a monotonic prefix of that ladder, so a partial talent is byte-identical to
+// a real one who stopped at the same point.
+const ONBOARDING_FULL_STEPS = 7;
+
+function onboardingStepsFor(lifecycle: StudentLifecycle, i: number): number {
+  switch (lifecycle) {
+    case 'onboarded':
+      return ONBOARDING_FULL_STEPS;
+    case 'in-progress':
+      return 1 + (i % 6); // 1..6 — stalls spread across the funnel
+    default:
+      return 0; // imported & fresh — nothing done
+  }
 }
 
 async function seedStudents(): Promise<
@@ -3593,90 +3656,202 @@ async function seedStudents(): Promise<
   const byEmail: Record<string, { id: string; nom: string; prenom: string }> =
     {};
 
-  for (let i = 0; i < STUDENTS.length; i++) {
-    const s = STUDENTS[i];
-    const user = await prisma.bauth_user.create({
-      data: {
-        email: s.email,
-        name: `${s.prenom} ${s.nom}`,
-        role: 'student',
-        emailVerified: true,
-      },
-    });
+  // Students enrolled in the ongoing stage de seconde must NOT be pre-onboarded
+  // — QA needs to walk the full parcours live — so force them to `fresh`
+  // (account, nothing done) regardless of bucket. Matches event 8
+  // (ONGOING_PARIS_STAGE): parisStudents.slice(6, 18).
+  const ongoingStageEmails = new Set(parisStudents.slice(6, 18));
+  const lifecycles = STUDENTS.map(
+    (s, i): StudentLifecycle =>
+      ongoingStageEmails.has(s.email) ? 'fresh' : studentLifecycle(s, i),
+  );
 
-    // Connexions plateforme : 10% jamais connecté·e (alerte "Jamais
-    // connectés"), le reste avec une dernière activité datée selon la
-    // valeur déclarée par StudentDef.
-    const neverLogged = i % 10 === 9;
+  // Accounts only for students who've logged in at least once — `imported`
+  // leads stay account-less (their talent row carries `userId = null`). Users
+  // first, then talents referencing them; both batched. Talent rows map back to
+  // their user by email (createManyAndReturn order isn't guaranteed), which is
+  // also the talent's own unique key.
+  const users = await prisma.bauth_user.createManyAndReturn({
+    data: STUDENTS.filter((_, i) => lifecycles[i] !== 'imported').map((s) => ({
+      email: s.email,
+      name: `${s.prenom} ${s.nom}`,
+      role: 'student',
+      emailVerified: true,
+    })),
+    select: { id: true, email: true },
+  });
+  const userIdByEmail = new Map(users.map((u) => [u.email, u.id]));
+
+  // Canonical schools for seeded talents. Onboarded talents are linked to Victor
+  // Hugo; the alt school + a few perturbed SF mirrors below produce realistic
+  // reconciliation conflicts on /staff/admin/sf-conflicts.
+  const victorHugo = await prisma.school.upsert({
+    where: { uai: '0750001A' },
+    update: {},
+    create: {
+      uai: '0750001A',
+      name: 'Lycée général Victor Hugo',
+      city: 'Paris',
+      resolvedAt: new Date(),
+    },
+    select: { id: true },
+  });
+  const altSchool = await prisma.school.upsert({
+    where: { uai: '0750002B' },
+    update: {},
+    create: {
+      uai: '0750002B',
+      name: 'Lycée Jean Moulin',
+      city: 'Paris',
+      resolvedAt: new Date(),
+    },
+    select: { id: true },
+  });
+
+  // Each seeded talent carries two independent axes, mirroring production:
+  //  1. What Salesforce populated at lead creation (school, civilité) — present
+  //     for most leads, absent for some. The worker seeds these onto Talent
+  //     BEFORE onboarding, so even pending talents already carry SF data.
+  //  2. How far the talent's own onboarding got (the monotonic step prefix),
+  //     which may confirm — and possibly change — what SF sent.
+  // The TalentSfImport mirror always holds the SF claim; a few confirmed talents
+  // diverge from it (and some fill in what SF lacked) to populate the
+  // reconciliation page realistically.
+  const seeded = STUDENTS.map((s, i) => {
+    const lifecycle = lifecycles[i];
+    const hasAccount = lifecycle !== 'imported';
+
+    // No account → never logged in. Otherwise dated per StudentDef.
     const lastActiveAt =
-      neverLogged || s.lastActiveDaysAgo === null
+      !hasAccount || s.lastActiveDaysAgo === null
         ? null
         : new Date(now.getTime() - s.lastActiveDaysAgo * 86400000);
 
-    // Onboarding plateforme — distribution réaliste pour la KPI "Profil
-    // complété" (gate du dashboard talent : infoValidatedAt + rulesSignedAt
-    // + charterAcceptedAt tous non-null) :
-    //   - skipOnboarding === true       → tout signé (override explicite)
-    //   - 70% des autres                → tout signé
-    //   - 20%                           → infoValidatedAt uniquement (en
-    //                                     cours d'onboarding)
-    //   - 10% (incluant neverLogged)    → rien signé (bloqués avant le
-    //                                     dashboard)
-    const onboardingBucket =
-      s.skipOnboarding === false
-        ? 'none'
-        : neverLogged
-          ? 'none'
-          : i % 10 < 7
-            ? 'full'
-            : i % 10 < 9
-              ? 'partial'
-              : 'none';
-    const fullyOnboarded =
-      s.skipOnboarding === true || onboardingBucket === 'full';
-    const partiallyOnboarded = onboardingBucket === 'partial';
-    const charterAcceptedAt = fullyOnboarded
-      ? new Date()
-      : s.charterSigned && !neverLogged
-        ? new Date()
-        : null;
-    const infoValidatedAt =
-      fullyOnboarded || partiallyOnboarded ? new Date() : null;
-    const rulesSignedAt = fullyOnboarded ? new Date() : null;
-    const hasParentInfo = fullyOnboarded || s.skipOnboarding === true;
+    // Onboarding is a monotonic PREFIX of the canonical 7-step ladder, in the
+    // wizard's own order: identity → school → parents → interests → equipment →
+    // processing → rules. Each step posts its own timestamp(s); the interests
+    // step is atomic (tech + general + recap land together, as the reworked
+    // wizard writes them), so there is no tech-without-general state — exactly
+    // what the real flow can produce. `charterAcceptedAt` lands with
+    // `rulesSignedAt` at the final step.
+    const onboardingSteps = onboardingStepsFor(lifecycle, i);
+    const ts = new Date();
+    const profileConfirmed = onboardingSteps >= 1; // identity
+    const schoolConfirmed = onboardingSteps >= 2; // school
+    const parentsConfirmed = onboardingSteps >= 3; // parents
+    const interestsConfirmed = onboardingSteps >= 4; // interests (atomic)
+    const equipmentConfirmed = onboardingSteps >= 5; // equipment
+    const processingConfirmed = onboardingSteps >= 6; // processing (PDF gen)
+    const fullyOnboarded = onboardingSteps >= 7; // rules + charter
+    const hasParentInfo = parentsConfirmed;
 
-    const talent = await prisma.talent.create({
-      data: {
-        userId: user.id,
-        email: s.email,
-        nom: s.nom,
-        prenom: s.prenom,
-        phone: s.phone,
-        parentPhone: s.parentPhone,
-        niveau: s.niveau,
-        charterAcceptedAt,
-        infoValidatedAt,
-        techInterestsValidatedAt: fullyOnboarded ? new Date() : null,
-        generalInterestsValidatedAt: fullyOnboarded ? new Date() : null,
-        interestsRecapSeenAt: fullyOnboarded ? new Date() : null,
-        rulesSignedAt,
-        highSchoolValidatedAt: fullyOnboarded ? new Date() : null,
-        highSchoolName: fullyOnboarded ? 'Lycée général Victor Hugo' : null,
-        highSchoolCity: fullyOnboarded ? 'Paris' : null,
-        parentNom: hasParentInfo ? 'Martin' : null,
-        parentPrenom: hasParentInfo ? 'Sophie' : null,
-        parentEmail: hasParentInfo ? `parent.${s.email}` : null,
-        lastActiveAt,
-        externalId: mockSalesforceLeadId(i),
-      },
-    });
+    // ── Axis 1: what Salesforce sent (independent of onboarding) ──
+    // ~90% of leads carry a gender, ~80% a school; the rest SF never populated.
+    const sfCivilite = i % 10 === 0 ? null : i % 2 === 0 ? 'homme' : 'femme';
+    const sfSchoolId = i % 5 === 0 ? null : victorHugo.id;
 
-    byEmail[s.email] = {
-      id: talent.id,
-      nom: talent.nom,
-      prenom: talent.prenom,
+    // ── Demo divergences (only meaningful once the talent has confirmed) ──
+    const schoolDiverges =
+      schoolConfirmed && sfSchoolId !== null && i % 12 === 0;
+    const phoneDiverges = profileConfirmed && i % 12 === 7;
+
+    // ── Talent (Jump truth) ──
+    // Pending: keep the SF seed. Confirmed: the talent's own value — may differ
+    // from SF (divergence) or fill in what SF lacked.
+    const civilite =
+      sfCivilite ??
+      (profileConfirmed ? (i % 2 === 0 ? 'homme' : 'femme') : null);
+    const schoolId = schoolConfirmed
+      ? schoolDiverges
+        ? altSchool.id
+        : (sfSchoolId ?? victorHugo.id)
+      : sfSchoolId;
+
+    const talent = {
+      userId: hasAccount ? (userIdByEmail.get(s.email) ?? null) : null,
+      email: s.email,
+      nom: s.nom,
+      prenom: s.prenom,
+      phone: s.phone,
+      parentPhone: s.parentPhone,
+      niveau: s.niveau,
+      infoValidatedAt: profileConfirmed ? ts : null,
+      highSchoolValidatedAt: schoolConfirmed ? ts : null,
+      parentsValidatedAt: parentsConfirmed ? ts : null,
+      techInterestsValidatedAt: interestsConfirmed ? ts : null,
+      generalInterestsValidatedAt: interestsConfirmed ? ts : null,
+      interestsRecapSeenAt: interestsConfirmed ? ts : null,
+      processingCompletedAt: processingConfirmed ? ts : null,
+      rulesSignedAt: fullyOnboarded ? ts : null,
+      charterAcceptedAt: fullyOnboarded ? ts : null,
+      schoolId,
+      parentNom: hasParentInfo ? 'Martin' : null,
+      parentPrenom: hasParentInfo ? 'Sophie' : null,
+      parentEmail: hasParentInfo ? `parent.${s.email}` : null,
+      civilite,
+      parentType: hasParentInfo ? (i % 3 === 0 ? 'pere' : 'mere') : null,
+      parentCivilite: hasParentInfo ? (i % 3 === 0 ? 'homme' : 'femme') : null,
+      parent2Type: null,
+      parent2Civilite: null,
+      parent2Nom: null,
+      parent2Prenom: null,
+      parent2Email: null,
+      parent2Phone: null,
+      hasLaptop: equipmentConfirmed,
+      setupDescription:
+        equipmentConfirmed && i % 3 === 0
+          ? 'PC gaming RTX 4070, double écran'
+          : null,
+      equipmentValidatedAt: equipmentConfirmed ? ts : null,
+      interestsFreeText: null,
+      lastActiveAt,
+      externalId: mockSalesforceLeadId(i),
     };
+
+    // ── Salesforce mirror (the SF claim, as the worker would have written it) ──
+    const sf = {
+      phone: phoneDiverges ? '+33 6 99 99 99 99' : s.phone,
+      civilite: sfCivilite,
+      schoolId: sfSchoolId,
+    };
+
+    return { talent, sf };
+  });
+
+  const talentData = seeded.map((x) => x.talent);
+
+  const talents = await prisma.talent.createManyAndReturn({
+    data: talentData,
+    select: { id: true, email: true, nom: true, prenom: true },
+  });
+  for (const t of talents) {
+    // email is nullable in the schema but always set here — guard for the type.
+    if (t.email) byEmail[t.email] = { id: t.id, nom: t.nom, prenom: t.prenom };
   }
+
+  // SF mirror per talent — every seeded talent is an SF lead, so each gets one.
+  // It holds what SF sent (null where SF had nothing); a few confirmed talents'
+  // values diverge from it, surfacing on the reconciliation page.
+  const talentIdByEmail = new Map(talents.map((t) => [t.email, t.id]));
+  const sfImportData = seeded
+    .map((x) => {
+      const talentId = x.talent.email
+        ? talentIdByEmail.get(x.talent.email)
+        : undefined;
+      if (!talentId) return null;
+      return {
+        talentId,
+        nom: x.talent.nom,
+        prenom: x.talent.prenom,
+        phone: x.sf.phone,
+        civilite: x.sf.civilite,
+        niveau: x.talent.niveau,
+        sfSchoolId: x.sf.schoolId,
+      };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+  await prisma.talentSfImport.createMany({ data: sfImportData });
+
   return byEmail;
 }
 
@@ -3718,32 +3893,43 @@ async function seedThemes(campuses: Record<string, { id: string }>) {
     'Design & Création',
   ];
 
-  const byKey: Record<string, { id: string }> = {};
-
-  // Official (campus-less) themes
-  for (const nom of themeNames) {
-    const t = await prisma.theme.create({ data: { nom, campusId: null } });
-    byKey[`official:${nom}`] = t;
-  }
-
-  // Campus-scoped themes (Paris: all; Lyon: web/robotics/IA only)
-  for (const nom of themeNames) {
-    const t = await prisma.theme.create({
-      data: { nom, campusId: campuses.Paris.id },
-    });
-    byKey[`Paris:${nom}`] = t;
-  }
-  for (const nom of [
+  const lyonThemes = [
     'Développement Web',
     'Robotique',
     'Intelligence Artificielle',
-  ]) {
-    const t = await prisma.theme.create({
-      data: { nom, campusId: campuses.Lyon.id },
-    });
-    byKey[`Lyon:${nom}`] = t;
-  }
+  ];
 
+  // Official (campus-less), Paris (all), Lyon (web/robotics/IA only) in one
+  // insert. Each row carries the prefix used to rebuild the lookup key, and is
+  // remapped by (campusId, nom) since createManyAndReturn order isn't ordered.
+  const themeData = [
+    ...themeNames.map((nom) => ({ nom, campusId: null, prefix: 'official' })),
+    ...themeNames.map((nom) => ({
+      nom,
+      campusId: campuses.Paris.id,
+      prefix: 'Paris',
+    })),
+    ...lyonThemes.map((nom) => ({
+      nom,
+      campusId: campuses.Lyon.id,
+      prefix: 'Lyon',
+    })),
+  ];
+  const prefixByCampusId = new Map<string | null, string>([
+    [null, 'official'],
+    [campuses.Paris.id, 'Paris'],
+    [campuses.Lyon.id, 'Lyon'],
+  ]);
+
+  const created = await prisma.theme.createManyAndReturn({
+    data: themeData.map(({ nom, campusId }) => ({ nom, campusId })),
+    select: { id: true, nom: true, campusId: true },
+  });
+
+  const byKey: Record<string, { id: string }> = {};
+  for (const t of created) {
+    byKey[`${prefixByCampusId.get(t.campusId)}:${t.nom}`] = { id: t.id };
+  }
   return byKey;
 }
 
@@ -3751,54 +3937,53 @@ async function seedActivityTemplates(
   themesByKey: Record<string, { id: string }>,
   campuses: Record<string, { id: string }>,
 ) {
-  const byName: Record<string, { id: string }> = {};
-  for (const def of activityDefs) {
-    const campusId = def.campus ? (campuses[def.campus]?.id ?? null) : null;
-    const tpl = await prisma.activityTemplate.create({
-      data: {
-        nom: def.nom,
-        description: def.description,
-        difficulte: def.difficulte,
-        activityType: def.activityType,
-        isDynamic: def.isDynamic,
-        contentStructure: def.isDynamic
-          ? (contentStructures[def.nom] ?? undefined)
-          : undefined,
-        content: def.content
-          ? (marked.parse(def.content) as string)
-          : undefined,
-        link: def.link,
-        defaultDuration: def.defaultDuration,
-        campusId,
-        activityTemplateThemes: {
-          create: def.themes
-            .map((themeName) => {
-              const themeId =
-                (def.campus && themesByKey[`${def.campus}:${themeName}`]?.id) ||
-                themesByKey[`official:${themeName}`]?.id;
-              return themeId ? { themeId } : null;
-            })
-            .filter((x): x is NonNullable<typeof x> => x !== null),
+  // Each template carries a nested activityTemplateThemes create, which
+  // createMany can't express — so fire the per-template creates concurrently
+  // instead. The set is small (one row per activityDef), well within the pool.
+  const created = await Promise.all(
+    activityDefs.map((def) => {
+      const campusId = def.campus ? (campuses[def.campus]?.id ?? null) : null;
+      return prisma.activityTemplate.create({
+        data: {
+          nom: def.nom,
+          description: def.description,
+          difficulte: def.difficulte,
+          activityType: def.activityType,
+          isDynamic: def.isDynamic,
+          contentStructure: def.isDynamic
+            ? (contentStructures[def.nom] ?? undefined)
+            : undefined,
+          content: def.content
+            ? (marked.parse(def.content) as string)
+            : undefined,
+          link: def.link,
+          defaultDuration: def.defaultDuration,
+          campusId,
+          activityTemplateThemes: {
+            create: def.themes
+              .map((themeName) => {
+                const themeId =
+                  (def.campus &&
+                    themesByKey[`${def.campus}:${themeName}`]?.id) ||
+                  themesByKey[`official:${themeName}`]?.id;
+                return themeId ? { themeId } : null;
+              })
+              .filter((x): x is NonNullable<typeof x> => x !== null),
+          },
         },
-      },
-    });
-    byName[def.nom] = tpl;
-  }
+        select: { id: true, nom: true },
+      });
+    }),
+  );
+
+  const byName: Record<string, { id: string }> = {};
+  for (const tpl of created) byName[tpl.nom] = { id: tpl.id };
   return byName;
 }
 
 async function seedPlanningTemplate(
   templatesByName: Record<string, { id: string }>,
 ) {
-  const tpl = await prisma.planningTemplate.create({
-    data: {
-      nom: 'Stage de seconde — 5 jours',
-      description:
-        'Modèle de planning sur 5 jours avec accueil/appel + ateliers thématiques par jour.',
-      nbDays: 5,
-    },
-  });
-
   const byDay: [string, string][] = [
     ['Ma première page HTML', 'CSS : Styliser sa page'],
     ['Construis ton robot', 'Capteurs et actionneurs'],
@@ -3807,39 +3992,40 @@ async function seedPlanningTemplate(
     ['Crée ton jeu Scratch', 'Game Design avancé'],
   ];
 
-  for (let i = 0; i < 5; i++) {
-    const day = await prisma.planningTemplateDay.create({
-      data: {
-        planningTemplateId: tpl.id,
-        dayIndex: i,
-        label: `Jour ${i + 1}`,
+  // Whole template (days → appel + atelier slots) as one nested create.
+  await prisma.planningTemplate.create({
+    data: {
+      nom: 'Stage de seconde — 5 jours',
+      description:
+        'Modèle de planning sur 5 jours avec accueil/appel + ateliers thématiques par jour.',
+      nbDays: 5,
+      days: {
+        create: byDay.map((actNames, i) => ({
+          dayIndex: i,
+          label: `Jour ${i + 1}`,
+          slots: {
+            create: [
+              {
+                startTime: '13:00',
+                endTime: '13:30',
+                sortOrder: 0,
+                nom: 'Appel',
+                activityType: 'orga' as ActivityType,
+              },
+              ...actNames.map((actName, j) => ({
+                startTime: '13:45',
+                endTime: '16:30',
+                sortOrder: 1 + j,
+                activityTemplateId: templatesByName[actName]?.id ?? null,
+                nom: templatesByName[actName] ? null : actName,
+                activityType: 'atelier' as ActivityType,
+              })),
+            ],
+          },
+        })),
       },
-    });
-    await prisma.planningTemplateSlot.create({
-      data: {
-        planningTemplateDayId: day.id,
-        startTime: '13:00',
-        endTime: '13:30',
-        sortOrder: 0,
-        nom: 'Appel',
-        activityType: 'orga',
-      },
-    });
-    for (let j = 0; j < byDay[i].length; j++) {
-      const actName = byDay[i][j];
-      await prisma.planningTemplateSlot.create({
-        data: {
-          planningTemplateDayId: day.id,
-          startTime: '13:45',
-          endTime: '16:30',
-          sortOrder: 1 + j,
-          activityTemplateId: templatesByName[actName]?.id ?? null,
-          nom: templatesByName[actName] ? null : actName,
-          activityType: 'atelier',
-        },
-      });
-    }
-  }
+    },
+  });
 }
 
 async function seedEvents(
@@ -3864,6 +4050,62 @@ async function seedEvents(
         ? dayAt(blueprint.daysOffset + blueprint.durationDays - 1, 23, 59)
         : null;
 
+    // Normalise single-day vs multi-day into a loop (empty when no slots/days)
+    const dayList: DayBlueprint[] =
+      blueprint.days ??
+      (blueprint.slots ? [{ dayOffset: 0, slots: blueprint.slots }] : []);
+
+    // Whole planning skeleton — timeSlots → activity → activityThemes — built
+    // as nested-create input so the entire event ships in one round trip.
+    // 1 activity = 1 slot; multi-activity blueprints write as parallel slots
+    // at the same time.
+    const timeSlotData = dayList.flatMap((day) =>
+      day.slots.flatMap((slot) => {
+        const slotStart = dayAt(
+          blueprint.daysOffset + day.dayOffset,
+          slot.startHour,
+          slot.startMinute ?? 0,
+        );
+        const slotEnd = dayAt(
+          blueprint.daysOffset + day.dayOffset,
+          slot.endHour,
+          slot.endMinute ?? 0,
+        );
+        return slot.activities.map((act) => {
+          const blueprintDef = activityDefs.find((d) => d.nom === act.nom);
+          const activityType: ActivityType =
+            act.activityType ?? blueprintDef?.activityType ?? 'atelier';
+          const isDynamic = blueprintDef?.isDynamic ?? false;
+          const themeRows = (blueprintDef?.themes ?? [])
+            .map(
+              (themeName) =>
+                themesByKey[`${blueprint.campus}:${themeName}`]?.id,
+            )
+            .filter((id): id is string => Boolean(id))
+            .map((themeId) => ({ themeId }));
+          return {
+            startTime: slotStart,
+            endTime: slotEnd,
+            activity: {
+              create: {
+                nom: act.nom,
+                description: blueprintDef?.description ?? null,
+                difficulte: blueprintDef?.difficulte ?? null,
+                activityType,
+                isDynamic,
+                contentStructure:
+                  isDynamic && contentStructures[act.nom]
+                    ? contentStructures[act.nom]
+                    : undefined,
+                templateId: templatesByName[act.nom]?.id ?? null,
+                activityThemes: { create: themeRows },
+              },
+            },
+          };
+        });
+      }),
+    );
+
     const event = await prisma.event.create({
       data: {
         titre: blueprint.titre,
@@ -3882,155 +4124,110 @@ async function seedEvents(
             })
             .filter((x): x is NonNullable<typeof x> => x !== null),
         },
-        planning: { create: {} },
+        planning: { create: { timeSlots: { create: timeSlotData } } },
       },
-      include: { planning: true },
+      include: {
+        planning: { include: { timeSlots: { include: { activity: true } } } },
+      },
     });
     eventIds.push(event.id);
 
-    const planning = event.planning!;
-    const activitiesCreated: { id: string; nom: string; type: ActivityType }[] =
-      [];
+    const activitiesCreated = (event.planning?.timeSlots ?? [])
+      .map((ts) => ts.activity)
+      .filter((a): a is NonNullable<typeof a> => a !== null);
 
-    // Normalise single-day vs multi-day into a loop (empty when no slots/days)
-    const dayList: DayBlueprint[] =
-      blueprint.days ??
-      (blueprint.slots ? [{ dayOffset: 0, slots: blueprint.slots }] : []);
-
-    for (const day of dayList) {
-      for (const slot of day.slots) {
-        const slotStart = dayAt(
-          blueprint.daysOffset + day.dayOffset,
-          slot.startHour,
-          slot.startMinute ?? 0,
-        );
-        const slotEnd = dayAt(
-          blueprint.daysOffset + day.dayOffset,
-          slot.endHour,
-          slot.endMinute ?? 0,
-        );
-
-        // 1 activity = 1 slot. Multi-activity blueprints write as parallel slots at same time.
-        for (const act of slot.activities) {
-          const timeSlot = await prisma.timeSlot.create({
-            data: {
-              planningId: planning.id,
-              startTime: slotStart,
-              endTime: slotEnd,
-            },
-          });
-
-          const tpl = templatesByName[act.nom];
-          const blueprintDef = activityDefs.find((d) => d.nom === act.nom);
-          const activityType: ActivityType =
-            act.activityType ?? blueprintDef?.activityType ?? 'atelier';
-          const isDynamic = blueprintDef?.isDynamic ?? false;
-
-          const created = await prisma.activity.create({
-            data: {
-              nom: act.nom,
-              description: blueprintDef?.description ?? null,
-              difficulte: blueprintDef?.difficulte ?? null,
-              activityType,
-              isDynamic,
-              contentStructure:
-                isDynamic && contentStructures[act.nom]
-                  ? contentStructures[act.nom]
-                  : undefined,
-              templateId: tpl?.id ?? null,
-              timeSlotId: timeSlot.id,
-            },
-          });
-
-          for (const themeName of blueprintDef?.themes ?? []) {
-            const themeId = themesByKey[`${blueprint.campus}:${themeName}`]?.id;
-            if (themeId) {
-              await prisma.activityTheme.create({
-                data: { activityId: created.id, themeId },
-              });
-            }
-          }
-
-          activitiesCreated.push({
-            id: created.id,
-            nom: created.nom,
-            type: activityType,
-          });
-        }
-      }
-    }
-
-    // Participations
-    for (let i = 0; i < blueprint.studentEmails.length; i++) {
-      const email = blueprint.studentEmails[i];
-      const talent = talentByEmail[email];
-      if (!talent) continue;
-
-      const isPresent = blueprint.presentEmails
-        ? blueprint.presentEmails.includes(email)
-        : false;
-
-      const verdictEntry = blueprint.verdicts_by_email?.[email];
-      const verdictAuthor = verdictEntry
-        ? staffByKey[verdictEntry.authorKey]
-        : undefined;
-
-      const participation = await prisma.participation.create({
-        data: {
-          talentId: talent.id,
-          eventId: event.id,
-          campusId,
-          isPresent,
+    // Per-student context, derived once and reused across participation,
+    // participationActivity and stageCompliance rows.
+    const students = blueprint.studentEmails
+      .map((email, i) => {
+        const talent = talentByEmail[email];
+        if (!talent) return null;
+        const verdictEntry = blueprint.verdicts_by_email?.[email];
+        const verdictAuthor = verdictEntry
+          ? staffByKey[verdictEntry.authorKey]
+          : undefined;
+        return {
+          email,
+          i,
+          talent,
+          isPresent: blueprint.presentEmails?.includes(email) ?? false,
           delay: blueprint.delays?.[email] ?? 0,
-          bringPc: blueprint.bringPc ? blueprint.bringPc(email, i) : false,
-          camperRating: isPresent ? (blueprint.ratings?.[email] ?? null) : null,
-          camperFeedback: isPresent
-            ? (blueprint.feedback?.[email] ?? null)
-            : null,
-        },
-      });
+          verdictEntry,
+          verdictAuthor,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
 
-      // Cockpit attaches verdicts at the orga (roll-call) slot, so seed
-      // mirrors that on the first orga activity of the event.
-      const verdictTargetId = activitiesCreated.find(
-        (a) => a.type === 'orga',
-      )?.id;
-      for (const activity of activitiesCreated) {
+    // Participations — batched, then mapped back by talentId (unique per
+    // event) to wire up the activity + compliance child rows.
+    const participations = await prisma.participation.createManyAndReturn({
+      data: students.map((s) => ({
+        talentId: s.talent.id,
+        eventId: event.id,
+        campusId,
+        isPresent: s.isPresent,
+        delay: s.delay,
+        bringPc: blueprint.bringPc ? blueprint.bringPc(s.email, s.i) : false,
+        camperRating: s.isPresent
+          ? (blueprint.ratings?.[s.email] ?? null)
+          : null,
+        camperFeedback: s.isPresent
+          ? (blueprint.feedback?.[s.email] ?? null)
+          : null,
+      })),
+      select: { id: true, talentId: true },
+    });
+    const participationIdByTalent = new Map(
+      participations.map((p) => [p.talentId, p.id]),
+    );
+
+    // Cockpit attaches verdicts at the orga (roll-call) slot, so seed mirrors
+    // that on the event's orga activity.
+    const verdictTargetId = activitiesCreated.find(
+      (a) => a.activityType === 'orga',
+    )?.id;
+
+    const participationActivityRows = students.flatMap((s) => {
+      const participationId = participationIdByTalent.get(s.talent.id)!;
+      return activitiesCreated.map((activity) => {
         const isVerdictTarget =
-          verdictEntry && verdictAuthor && activity.id === verdictTargetId;
-        await prisma.participationActivity.create({
-          data: {
-            participationId: participation.id,
-            activityId: activity.id,
-            isPresent,
-            delay: blueprint.delays?.[email] ?? 0,
-            ...(isVerdictTarget
-              ? {
-                  verdict: verdictEntry.verdict,
-                  contextTag: verdictEntry.contextTag ?? null,
-                  verdictAuthorId: verdictAuthor.id,
-                  verdictAt: new Date(),
-                }
-              : {}),
-          },
-        });
-      }
+          s.verdictEntry && s.verdictAuthor && activity.id === verdictTargetId;
+        return {
+          participationId,
+          activityId: activity.id,
+          isPresent: s.isPresent,
+          delay: s.delay,
+          ...(isVerdictTarget
+            ? {
+                verdict: s.verdictEntry!.verdict,
+                contextTag: s.verdictEntry!.contextTag ?? null,
+                verdictAuthorId: s.verdictAuthor!.id,
+                verdictAt: new Date(),
+              }
+            : {}),
+        };
+      });
+    });
+    await prisma.participationActivity.createMany({
+      data: participationActivityRows,
+    });
 
-      // Stage compliance (only for stage_seconde events)
-      if (blueprint.eventType === EVENT_TYPES.STAGE_SECONDE) {
-        const fullySigned = blueprint.stageSigned?.includes(email) ?? false;
+    // Stage compliance (only for stage_seconde events)
+    if (blueprint.eventType === EVENT_TYPES.STAGE_SECONDE) {
+      const complianceRows = students.flatMap((s) => {
+        const fullySigned = blueprint.stageSigned?.includes(s.email) ?? false;
         const partiallySigned =
-          blueprint.stageUnsigned?.includes(email) ?? false;
-        if (fullySigned || partiallySigned) {
-          await prisma.stageCompliance.create({
-            data: {
-              participationId: participation.id,
-              charteSigned: fullySigned || Math.random() < 0.5,
-              imageRightsSigned: fullySigned || partiallySigned,
-            },
-          });
-        }
-      }
+          blueprint.stageUnsigned?.includes(s.email) ?? false;
+        if (!fullySigned && !partiallySigned) return [];
+        return [
+          {
+            participationId: participationIdByTalent.get(s.talent.id)!,
+            charteSigned: fullySigned || Math.random() < 0.5,
+            imageRightsSigned: fullySigned || partiallySigned,
+          },
+        ];
+      });
+      await prisma.stageCompliance.createMany({ data: complianceRows });
     }
   }
 
@@ -4062,115 +4259,171 @@ async function seedStepsProgress(
 
   let alertCount = 0;
   const presentEmails = liveEvent.presentEmails ?? [];
-  for (let i = 0; i < presentEmails.length; i++) {
-    const email = presentEmails[i];
+  const liveRows = presentEmails.flatMap((email, i) => {
     const talent = talentByEmail[email];
-    if (!talent || !firstStep) continue;
-
-    let status: 'active' | 'needs_help' | 'completed';
-    let currentStepId = firstStep;
-    let unlockedStepId = firstStep;
+    if (!talent || !firstStep) return [];
 
     // Distribution on 6 present students: 2 completed, 1 active, 3 needs_help
+    let status: 'active' | 'needs_help' | 'completed';
+    let stepId = firstStep;
     if (i < 2) {
       status = 'completed';
-      currentStepId = lastStep ?? firstStep;
-      unlockedStepId = lastStep ?? firstStep;
+      stepId = lastStep ?? firstStep;
     } else if (i < 3) {
       status = 'active';
-      currentStepId = midStep ?? firstStep;
-      unlockedStepId = midStep ?? firstStep;
+      stepId = midStep ?? firstStep;
     } else {
       status = 'needs_help';
-      currentStepId = midStep ?? firstStep;
-      unlockedStepId = midStep ?? firstStep;
+      stepId = midStep ?? firstStep;
       alertCount++;
     }
 
-    await prisma.stepsProgress.create({
-      data: {
+    return [
+      {
         talentId: talent.id,
         eventId: liveEventId,
         activityId: targetActivity.id,
-        currentStepId,
-        unlockedStepId,
+        currentStepId: stepId,
+        unlockedStepId: stepId,
         status,
-        lastUnlockSource: 'student',
+        lastUnlockSource: 'student' as const,
       },
-    });
-  }
+    ];
+  });
+  await prisma.stepsProgress.createMany({ data: liveRows });
 
-  // Past event completions for XP / progress history
+  // Past event completions for XP / progress history. Fetch every past
+  // event's dynamic activities in one query, then build all rows.
   const pastEvents = EVENTS.filter((e) => e.daysOffset < 0);
-  for (const evt of pastEvents) {
-    const evtId = eventIds[EVENTS.indexOf(evt)];
-    const evtActivities = await prisma.activity.findMany({
-      where: {
-        timeSlot: { planning: { eventId: evtId } },
-        isDynamic: true,
-      },
+  const pastEventIds = pastEvents.map((e) => eventIds[EVENTS.indexOf(e)]);
+  const pastActivities = await prisma.activity.findMany({
+    where: {
+      timeSlot: { planning: { eventId: { in: pastEventIds } } },
+      isDynamic: true,
+    },
+    select: {
+      id: true,
+      nom: true,
+      timeSlot: { select: { planning: { select: { eventId: true } } } },
+    },
+  });
+
+  const pastRows = pastActivities.flatMap((activity) => {
+    const acs = contentStructures[activity.nom];
+    const last = acs?.steps[acs.steps.length - 1]?.id;
+    const evtId = activity.timeSlot.planning.eventId;
+    const evt = pastEvents.find((e) => eventIds[EVENTS.indexOf(e)] === evtId);
+    if (!last || !evt) return [];
+
+    return (evt.presentEmails ?? []).flatMap((email) => {
+      const talent = talentByEmail[email];
+      if (!talent) return [];
+      return [
+        {
+          talentId: talent.id,
+          eventId: evtId,
+          activityId: activity.id,
+          currentStepId: last,
+          unlockedStepId: last,
+          status: 'completed' as const,
+          lastUnlockSource: 'staff' as const,
+        },
+      ];
     });
-
-    for (const activity of evtActivities) {
-      const acs = contentStructures[activity.nom];
-      const last = acs?.steps[acs.steps.length - 1]?.id;
-      if (!last) continue;
-
-      for (const email of evt.presentEmails ?? []) {
-        const talent = talentByEmail[email];
-        if (!talent) continue;
-        await prisma.stepsProgress
-          .create({
-            data: {
-              talentId: talent.id,
-              eventId: evtId,
-              activityId: activity.id,
-              currentStepId: last,
-              unlockedStepId: last,
-              status: 'completed',
-              lastUnlockSource: 'staff',
-            },
-          })
-          .catch(() => {
-            // Unique constraint violation is fine — skip
-          });
-      }
-    }
-  }
+  });
+  // skipDuplicates absorbs the (talentId, activityId) unique collisions the
+  // old per-row .catch() swallowed.
+  await prisma.stepsProgress.createMany({
+    data: pastRows,
+    skipDuplicates: true,
+  });
 
   return alertCount;
 }
 
 async function recomputeXp(): Promise<number> {
-  const participations = await prisma.participation.findMany({
-    where: { isPresent: true },
-    include: { activities: { include: { activity: true } } },
-  });
+  // Rebuild the XP ledger the way the app does (XpGrant rows), then set the
+  // cached projections (Talent.xp / eventsCount) to match — so seeded talents
+  // stay consistent with the ledger and survive any later recompute
+  // (mark-present, onboarding reset) instead of getting zeroed. Two grant
+  // sources, mirroring production:
+  //   - `onboarding`        → WELCOME_XP_BONUS, one per talent who signed rules.
+  //   - `activity_presence` → one per present participation; amount = sum of
+  //     present non-orga difficulties, or a 20-XP base when present with no
+  //     eligible activity (matches getTotalXp on an empty list — so a staff
+  //     mark-present recompute reproduces this number instead of changing it).
+  const [participations, onboarded] = await Promise.all([
+    prisma.participation.findMany({
+      where: { isPresent: true },
+      select: {
+        id: true,
+        talentId: true,
+        campusId: true,
+        activities: {
+          select: {
+            isPresent: true,
+            activity: { select: { activityType: true, difficulte: true } },
+          },
+        },
+      },
+    }),
+    prisma.talent.findMany({
+      where: { rulesSignedAt: { not: null } },
+      select: { id: true },
+    }),
+  ]);
 
-  const totals: Record<string, { xp: number; events: number }> = {};
-  for (const p of participations) {
-    if (!totals[p.talentId]) totals[p.talentId] = { xp: 0, events: 0 };
-    totals[p.talentId].events++;
-    for (const pa of p.activities) {
-      if (!pa.isPresent || pa.activity.activityType === 'orga') continue;
-      totals[p.talentId].xp += XP_MAP[pa.activity.difficulte ?? ''] ?? 10;
-    }
+  const grants: Prisma.XpGrantCreateManyInput[] = [];
+  const xpByTalent: Record<string, number> = {};
+  const eventsByTalent: Record<string, number> = {};
+
+  for (const t of onboarded) {
+    grants.push({
+      talentId: t.id,
+      source: 'onboarding',
+      sourceId: t.id,
+      amount: WELCOME_XP_BONUS,
+    });
+    xpByTalent[t.id] = (xpByTalent[t.id] ?? 0) + WELCOME_XP_BONUS;
   }
 
+  for (const p of participations) {
+    eventsByTalent[p.talentId] = (eventsByTalent[p.talentId] ?? 0) + 1;
+    const eligible = p.activities.filter(
+      (pa) => pa.isPresent && pa.activity.activityType !== 'orga',
+    );
+    const amount = eligible.length
+      ? eligible.reduce(
+          (sum, pa) => sum + (XP_MAP[pa.activity.difficulte ?? ''] ?? 20),
+          0,
+        )
+      : 20; // base attendance XP (matches getTotalXp on an empty list)
+    grants.push({
+      talentId: p.talentId,
+      source: 'activity_presence',
+      sourceId: p.id,
+      amount,
+      campusId: p.campusId,
+    });
+    xpByTalent[p.talentId] = (xpByTalent[p.talentId] ?? 0) + amount;
+  }
+
+  await prisma.xpGrant.createMany({ data: grants, skipDuplicates: true });
+
+  const talentIds = new Set([
+    ...Object.keys(xpByTalent),
+    ...Object.keys(eventsByTalent),
+  ]);
   await Promise.all(
-    Object.entries(totals).map(([talentId, t]) =>
+    [...talentIds].map((id) =>
       prisma.talent.update({
-        where: { id: talentId },
-        data: {
-          xp: t.xp,
-          eventsCount: t.events,
-          level: levelFromXp(t.xp),
-        },
+        where: { id },
+        data: { xp: xpByTalent[id] ?? 0, eventsCount: eventsByTalent[id] ?? 0 },
       }),
     ),
   );
 
-  return Object.keys(totals).length;
+  return talentIds.size;
 }
 
 async function seedInterviews(
@@ -4178,17 +4431,24 @@ async function seedInterviews(
   talentByEmail: Record<string, { id: string }>,
   _campuses: Record<string, { id: string }>,
 ): Promise<number> {
-  // Pre-resolve titre → eventId once so the per-interview lookup stays cheap.
+  // Pre-resolve titre → eventId and (talentId, eventId) → participationId once,
+  // so each interview resolves from memory instead of its own findUnique.
   const events = await prisma.event.findMany({
     select: { id: true, titre: true },
   });
   const eventIdByTitre = new Map(events.map((e) => [e.titre, e.id]));
 
-  let count = 0;
-  for (const iv of INTERVIEWS) {
+  const participations = await prisma.participation.findMany({
+    select: { id: true, talentId: true, eventId: true },
+  });
+  const participationByTalentEvent = new Map(
+    participations.map((p) => [`${p.talentId}_${p.eventId}`, p.id]),
+  );
+
+  const rows = INTERVIEWS.flatMap((iv) => {
     const talent = talentByEmail[iv.studentEmail];
     const staff = staffByKey[iv.staffKey];
-    if (!talent || !staff) continue;
+    if (!talent || !staff) return [];
 
     let participationId: string | null = null;
     if (iv.forEventTitre) {
@@ -4197,23 +4457,20 @@ async function seedInterviews(
         console.warn(
           `⚠ Interview for ${iv.studentEmail} references unknown event "${iv.forEventTitre}"`,
         );
-        continue;
+        return [];
       }
-      const participation = await prisma.participation.findUnique({
-        where: { talentId_eventId: { talentId: talent.id, eventId } },
-        select: { id: true },
-      });
-      if (!participation) {
+      participationId =
+        participationByTalentEvent.get(`${talent.id}_${eventId}`) ?? null;
+      if (!participationId) {
         console.warn(
           `⚠ Interview for ${iv.studentEmail} has no participation in "${iv.forEventTitre}"`,
         );
-        continue;
+        return [];
       }
-      participationId = participation.id;
     }
 
-    await prisma.interview.create({
-      data: {
+    return [
+      {
         talentId: talent.id,
         staffId: staff.id,
         campusId: staff.campusId,
@@ -4224,56 +4481,51 @@ async function seedInterviews(
         globalNote: iv.notes?.globalNote ?? null,
         satisfaction: iv.notes?.satisfaction ?? null,
       },
-    });
-    count++;
-  }
-  return count;
+    ];
+  });
+
+  await prisma.interview.createMany({ data: rows });
+  return rows.length;
 }
 
 async function seedPortfolio(
   talentByEmail: Record<string, { id: string }>,
   eventIds: string[],
 ): Promise<number> {
-  let count = 0;
-  for (const p of PORTFOLIO) {
+  const rows = PORTFOLIO.flatMap((p) => {
     const talent = talentByEmail[p.studentEmail];
     const eventId = eventIds[p.eventIndex];
-    if (!talent || !eventId) continue;
-    await prisma.portfolioItem.create({
-      data: {
-        talentId: talent.id,
-        eventId,
-        url: p.url ?? null,
-        caption: p.caption,
-      },
-    });
-    count++;
-  }
-  return count;
+    if (!talent || !eventId) return [];
+    return [
+      { talentId: talent.id, eventId, url: p.url ?? null, caption: p.caption },
+    ];
+  });
+  await prisma.portfolioItem.createMany({ data: rows });
+  return rows.length;
 }
 
 async function seedReminders(
   staffByKey: Record<string, { id: string; userId: string; campusId: string }>,
   talentByEmail: Record<string, { id: string }>,
 ): Promise<number> {
-  let count = 0;
-  for (const r of REMINDERS) {
+  const rows = REMINDERS.flatMap((r) => {
     const talent = talentByEmail[r.studentEmail];
     const staff = staffByKey[r.staffKey];
-    if (!talent || !staff) continue;
-    await prisma.onboardingReminder.create({
-      data: {
+    if (!talent || !staff) return [];
+    return [
+      {
         talentId: talent.id,
         type: r.type,
+        channel: r.channel ?? 'email',
         subject: r.subject ?? null,
         body: r.body ?? null,
         sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
         sentBy: staff.userId,
       },
-    });
-    count++;
-  }
-  return count;
+    ];
+  });
+  await prisma.onboardingReminder.createMany({ data: rows });
+  return rows.length;
 }
 
 // ─── Broadcasts ───
@@ -4300,65 +4552,82 @@ async function seedBroadcasts(
     Object.values(staffByKey)[0]?.userId;
   if (!templateAuthor) return 0;
 
-  const mailTemplate = await prisma.messageTemplate.create({
-    data: {
-      name: 'Communications stage (mail)',
-      channel: 'mail',
-      subject: 'Communication Epitech Academy',
-      body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
-      createdById: templateAuthor,
-    },
-  });
-  const smsTemplate = await prisma.messageTemplate.create({
-    data: {
-      name: 'Communications stage (SMS)',
-      channel: 'sms',
-      subject: null,
-      body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
-      createdById: templateAuthor,
-    },
+  const [mailTemplate, smsTemplate] = await Promise.all([
+    prisma.messageTemplate.create({
+      data: {
+        name: 'Communications stage (mail)',
+        channel: 'mail',
+        subject: 'Communication Epitech Academy',
+        body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+        createdById: templateAuthor,
+      },
+    }),
+    prisma.messageTemplate.create({
+      data: {
+        name: 'Communications stage (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: 'Snapshot par défaut — chaque diffusion injecte son propre contenu.',
+        createdById: templateAuthor,
+      },
+    }),
+  ]);
+
+  // Project-relevant SMS templates for the broadcast catalogue (pickable in
+  // /broadcasts/new). Link-free — an SMS points the recipient back to their
+  // inbox ({{email}}) rather than carrying a tappable URL. `{X}` (days until
+  // the stage) has no variable, so it stays a literal fill-in. Variables match
+  // BROADCAST_VARIABLES.
+  await prisma.messageTemplate.createMany({
+    data: [
+      {
+        name: 'Relance inscription — talent (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: "Salut {{prenom}}, plus que {X} jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail sur {{email}}. - Epitech {{campus}}",
+        createdById: templateAuthor,
+      },
+      {
+        name: "Relance parent — droit à l'image (SMS)",
+        channel: 'sms',
+        subject: null,
+        body: "Bonjour, votre signature est attendue pour finaliser l'inscription de {{child_prenom}} au stage de seconde à Epitech. Mail envoyé sur {{email}}. - Epitech {{campus}}",
+        createdById: templateAuthor,
+      },
+      {
+        name: 'Rappel J-1 — stage de seconde (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: "Salut {{prenom}} ! Ton stage Epitech commence demain à 9h. Pense à ta pièce d'identité et de quoi noter. À demain !",
+        createdById: templateAuthor,
+      },
+      {
+        name: 'Coding Club — prochaine séance (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: 'Salut {{prenom}} ! Prochaine séance du Coding Club Epitech ce mercredi à 14h. On compte sur toi, à la prochaine !',
+        createdById: templateAuthor,
+      },
+    ],
   });
 
-  let recipientCount = 0;
-
-  for (const bp of BROADCASTS) {
+  // Each broadcast ships with its recipient rows as one nested create. Skip
+  // blueprints whose campus/author can't resolve, then fire the rest
+  // concurrently.
+  const plans = BROADCASTS.flatMap((bp) => {
     const campusId = campuses[bp.campus]?.id;
     const author = staffByKey[bp.createdByStaffKey];
-    if (!campusId || !author) continue;
+    if (!campusId || !author) return [];
 
-    const eventId =
-      bp.eventIndex !== null ? (eventIds[bp.eventIndex] ?? null) : null;
-    const template = bp.channel === 'mail' ? mailTemplate : smsTemplate;
     const createdAt = dayAt(bp.createdDaysOffset, bp.createdHour, 0);
-
-    const broadcast = await prisma.broadcast.create({
-      data: {
-        name: bp.name,
-        channel: bp.channel,
-        templateId: template.id,
-        campusId,
-        audience: bp.audience,
-        eventId,
-        subjectSnapshot: bp.subject,
-        bodySnapshot: bp.body,
-        status: bp.status,
-        createdById: author.userId,
-        createdAt,
-        updatedAt: createdAt,
-      },
-    });
-
-    for (const rcp of bp.recipients) {
+    const recipients = bp.recipients.flatMap((rcp) => {
       const talent = talentByEmail[rcp.studentEmail];
-      if (!talent) continue;
-
+      if (!talent) return [];
       const recipientEmail = rcp.parentSide
         ? rcp.studentEmail.replace('@', '+parent@')
         : rcp.studentEmail;
-
-      await prisma.broadcastRecipient.create({
-        data: {
-          broadcastId: broadcast.id,
+      return [
+        {
           talentId: rcp.parentSide ? null : talent.id,
           parentOfTalentId: rcp.parentSide ? talent.id : null,
           recipientEmail: bp.channel === 'mail' ? recipientEmail : null,
@@ -4375,12 +4644,36 @@ async function seedBroadcasts(
               : null,
           createdAt,
         },
-      });
-      recipientCount++;
-    }
-  }
+      ];
+    });
 
-  return recipientCount;
+    return [
+      {
+        data: {
+          name: bp.name,
+          channel: bp.channel,
+          templateId: (bp.channel === 'mail' ? mailTemplate : smsTemplate).id,
+          campusId,
+          audience: bp.audience,
+          eventId:
+            bp.eventIndex !== null ? (eventIds[bp.eventIndex] ?? null) : null,
+          subjectSnapshot: bp.subject,
+          bodySnapshot: bp.body,
+          status: bp.status,
+          createdById: author.userId,
+          createdAt,
+          updatedAt: createdAt,
+          recipients: { create: recipients },
+        },
+        recipientCount: recipients.length,
+      },
+    ];
+  });
+
+  await Promise.all(
+    plans.map((p) => prisma.broadcast.create({ data: p.data })),
+  );
+  return plans.reduce((sum, p) => sum + p.recipientCount, 0);
 }
 
 // ─── Email templates + action mappings ───
@@ -4445,68 +4738,110 @@ L'équipe Epitech Academy`,
       actionKey: 'parent_welcome',
       name: 'Bienvenue parent (par défaut)',
       subject:
-        '{{child_prenom}} participe à Epitech Academy — votre accès parent',
-      body: `Bonjour **{{parent_prenom}}**,
+        'Stage de seconde de {{child_prenom}} à Epitech : une dernière étape de votre côté',
+      body: `Bonjour,
 
-Votre enfant **{{child_prenom}}** vient de s'inscrire à un stage **Epitech Academy**. Nous sommes ravis de l'accueillir !
+{{child_prenom}} vient de finaliser son inscription au stage de seconde à Epitech, qui se déroulera du 15 au 27 juin, sur notre campus de {{campus}}.
 
-En tant que responsable légal, nous avons besoin de votre **autorisation pour le droit à l'image** avant le début du stage. Cela ne prend qu'une minute.
+Pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour pouvoir utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre accord explicite.
 
-:button[Signer le droit à l'image]({{login_link}})
+Vous pouvez **signer électroniquement le droit à l'image** en moins de 2 minutes via le lien ci-dessous. Vous restez bien sûr libre d'accepter ou de refuser.
 
-Cet espace vous permet également de suivre la progression de {{child_prenom}} et de consulter le programme des activités.
+:button[Signer le droit à l'image]({{parent_fastlogin_link}})
 
-À très vite,
-L'équipe Epitech Academy`,
+Le lien vous connecte directement à votre espace, sans mot de passe à créer.
+
+Si vous avez la moindre question, n'hésitez pas à nous écrire à {{email_contact_campus}}, nous vous répondons rapidement.
+
+Bien cordialement,
+L'équipe Epitech {{campus}}`,
     },
     {
       actionKey: 'relance_student',
       name: 'Relance — étudiant (par défaut)',
-      subject: 'Finalise ton inscription sur Jump',
-      body: `Salut {{prenom}} !
+      subject:
+        'J-{X}, {{prenom}} : dernière étape pour finaliser ton inscription au stage à Epitech.',
+      body: `Salut {{prenom}},
 
-Ton inscription sur Jump n'est pas encore terminée. Il ne te reste que quelques étapes pour accéder à ton espace.
+Petit rappel : ton stage à Epitech démarre dans {X} jours, et ton inscription n'est pas encore finalisée. Il te reste 5 minutes à passer sur Jump pour boucler tout ça.
 
-:button[Finaliser mon inscription]({{login_link}})
+:button[Finalise ton inscription]({{fastlogin_link}})
+
+Une question ? Un blocage ? Écris-nous à {{email_contact_campus}}, on te répond rapidement.
 
 À très vite,
-L'équipe Epitech Academy`,
+L'équipe Epitech {{campus}}`,
     },
     {
       actionKey: 'relance_parent',
       name: 'Relance — parent (par défaut)',
-      subject: "Rappel : signez le droit à l'image de {{child_prenom}}",
-      body: `Bonjour {{parent_prenom}},
+      subject:
+        'Rappel : votre signature pour le stage à Epitech de {{child_prenom}}',
+      body: `Bonjour,
 
-Nous n'avons pas encore reçu votre autorisation pour le droit à l'image de **{{child_prenom}}** dans le cadre de son stage Epitech Academy.
+Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre signature électronique du droit à l'image est encore attendue.
 
-Cette signature est nécessaire avant le début du stage et ne prend qu'une minute.
+Cela vous prendra moins de 2 minutes.
 
-:button[Signer le droit à l'image]({{login_link}})
+:button[Accéder à la signature]({{parent_fastlogin_link}})
 
-À très vite,
+Le lien vous connecte directement à votre espace, sans mot de passe à créer.
+
+Une question ? Écrivez-nous à {{email_contact_campus}}, on vous répond rapidement.
+
+Bien cordialement,
+L'équipe Epitech {{campus}}`,
+    },
+    {
+      actionKey: 'account_deletion_refused',
+      name: 'Suppression de compte — refus (par défaut)',
+      subject: 'Ta demande de suppression de compte',
+      body: `Salut **{{prenom}}**,
+
+Nous avons bien reçu ta demande de suppression de ton compte Jump, mais nous ne pouvons pas y donner suite pour le moment.
+
+**Motif :** {{deletion_reason}}
+
+Tu peux refaire une demande plus tard, ou répondre à cet email si tu as des questions.
+
+Si tu n'es pas d'accord, tu peux aussi introduire une réclamation auprès de la CNIL : [cnil.fr](https://www.cnil.fr/fr/plaintes).
+
+L'équipe Epitech Academy`,
+    },
+    {
+      actionKey: 'account_deletion_done',
+      name: 'Suppression de compte — confirmation (par défaut)',
+      subject: 'Ton compte Jump a été supprimé',
+      body: `Salut **{{prenom}}**,
+
+Comme tu l'avais demandé, ton compte Jump a été supprimé et tes données personnelles ont été définitivement anonymisées.
+
+Tu n'as plus accès à la plateforme. Si tu souhaites revenir un jour, il te faudra créer un nouveau compte.
+
+Merci d'avoir fait partie de l'aventure.
 L'équipe Epitech Academy`,
     },
   ];
 
-  let count = 0;
-  for (const t of templates) {
-    const tpl = await prisma.messageTemplate.create({
-      data: {
-        name: t.name,
-        channel: 'mail',
-        subject: t.subject,
-        body: t.body,
-        createdById,
-      },
-      select: { id: true },
-    });
-    await prisma.emailActionMapping.create({
-      data: { actionKey: t.actionKey, templateId: tpl.id },
-    });
-    count++;
-  }
-  return count;
+  const created = await prisma.messageTemplate.createManyAndReturn({
+    data: templates.map((t) => ({
+      name: t.name,
+      channel: 'mail' as const,
+      subject: t.subject,
+      body: t.body,
+      createdById,
+    })),
+    select: { id: true, name: true },
+  });
+  const templateIdByName = new Map(created.map((t) => [t.name, t.id]));
+
+  await prisma.emailActionMapping.createMany({
+    data: templates.map((t) => ({
+      actionKey: t.actionKey,
+      templateId: templateIdByName.get(t.name)!,
+    })),
+  });
+  return templates.length;
 }
 
 // ─── Helpers ───

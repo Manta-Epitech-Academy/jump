@@ -3,7 +3,9 @@
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
   import Link from '@tiptap/extension-link';
+  import Image from '@tiptap/extension-image';
   import Placeholder from '@tiptap/extension-placeholder';
+  import { Markdown } from 'tiptap-markdown';
   import Bold from '@lucide/svelte/icons/bold';
   import Italic from '@lucide/svelte/icons/italic';
   import Strikethrough from '@lucide/svelte/icons/strikethrough';
@@ -19,6 +21,7 @@
   import Redo from '@lucide/svelte/icons/redo';
   import LinkIcon from '@lucide/svelte/icons/link';
   import Unlink from '@lucide/svelte/icons/unlink';
+  import ImageIcon from '@lucide/svelte/icons/image';
 
   type Props = {
     content: string;
@@ -30,6 +33,15 @@
 
   let element: HTMLDivElement;
   let editor: Editor | undefined = $state();
+
+  /**
+   * Insert raw text at the cursor. Exposed as a component method (`bind:this`)
+   * for callers that offer template-variable buttons — e.g. the admin
+   * welcome-page editor inserting `{{PRENOM}}` (see `domain/welcomeMessage.ts`).
+   */
+  export function insertText(text: string) {
+    editor?.chain().focus().insertContent(text).run();
+  }
 
   onMount(() => {
     editor = new Editor({
@@ -43,7 +55,12 @@
           HTMLAttributes: { rel: 'noopener noreferrer nofollow' },
           validate: (href) => /^(https?|mailto|tel):/i.test(href),
         }),
+        Image.configure({ HTMLAttributes: { class: 'rounded-lg' } }),
         Placeholder.configure({ placeholder }),
+        // Lets referent devs paste a ready-made Markdown brief and have it
+        // become rich text (headings, lists, images…) they can tweak before
+        // saving. We still persist HTML via getHTML(); Markdown is input-only.
+        Markdown.configure({ transformPastedText: true }),
       ],
       content,
       editorProps: {
@@ -75,6 +92,14 @@
       return;
     }
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  }
+
+  function setImage() {
+    if (!editor) return;
+    const url = window.prompt("URL de l'image :");
+    if (!url) return;
+    const alt = window.prompt('Texte alternatif (description) :') ?? '';
+    editor.chain().focus().setImage({ src: url, alt }).run();
   }
 
   type ToolbarAction = {
@@ -172,6 +197,12 @@
               icon: Unlink,
               label: 'Retirer le lien',
               action: () => editor!.chain().focus().unsetLink().run(),
+            },
+            {
+              icon: ImageIcon,
+              label: 'Image',
+              action: setImage,
+              isActive: () => editor!.isActive('image'),
             },
           ],
           [

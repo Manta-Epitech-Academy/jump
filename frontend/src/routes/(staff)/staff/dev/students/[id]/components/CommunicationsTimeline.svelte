@@ -98,12 +98,23 @@
               <span
                 class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-epi-blue text-white"
               >
-                <Send class="h-3.5 w-3.5" />
+                {#if item.channel === 'sms'}
+                  <MessageSquare class="h-3.5 w-3.5" />
+                {:else}
+                  <Send class="h-3.5 w-3.5" />
+                {/if}
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <p class="text-sm font-bold">
                     {REMINDER_LABEL[item.audience]}
+                    {#if item.channel === 'sms'}
+                      <span
+                        class="ml-1 rounded-sm bg-epi-blue/10 px-1.5 py-0.5 align-middle font-mono text-[10px] font-bold tracking-widest text-epi-blue uppercase"
+                      >
+                        SMS
+                      </span>
+                    {/if}
                   </p>
                   <span class="text-[11px] text-muted-foreground">
                     {formatDateFr(item.sentAt, timezone)}

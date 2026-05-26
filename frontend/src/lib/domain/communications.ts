@@ -17,6 +17,8 @@ type CommunicationBase = {
 
 export type ReminderCommunication = CommunicationBase & {
   kind: 'reminder';
+  /** 'email' is the primary nudge; 'sms' is the link-free escalation. */
+  channel: 'email' | 'sms';
   subject: string | null;
   body: string | null;
   sender: { name: string | null; email: string | null } | null;

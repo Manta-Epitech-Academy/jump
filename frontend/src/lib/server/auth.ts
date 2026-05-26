@@ -58,6 +58,12 @@ export const auth = betterAuth({
       },
       otpLength: 6,
       expiresIn: 600,
+      // Resending within the 10-min window re-sends the SAME code and refreshes
+      // its expiry (until allowedAttempts is hit), instead of rotating a new one.
+      // Avoids the "two emails, which code works?" confusion for students/parents.
+      // Requires a retrievable OTP — works because storage is plaintext (default);
+      // switching `storeOTP` to 'hashed' would silently fall back to rotate.
+      resendStrategy: 'reuse',
     }),
   ],
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { niveauLabel } from '$lib/domain/niveau';
   import type { PageData } from './$types';
   import Award from '@lucide/svelte/icons/award';
   import Download from '@lucide/svelte/icons/download';
@@ -122,7 +123,7 @@
               <Badge
                 variant="outline"
                 class="text-[10px] tracking-widest uppercase"
-                >{p.talent.niveau}</Badge
+                >{niveauLabel(p.talent.niveau)}</Badge
               >
             </Table.Cell>
             <Table.Cell class="text-right">

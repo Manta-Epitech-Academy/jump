@@ -14,6 +14,13 @@ const campusSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').trim(),
   externalName: z.string().trim().nullable().default(null),
   timezone: z.string().min(1).default('Europe/Paris'),
+  contactEmail: z
+    .string()
+    .trim()
+    .email('Email invalide')
+    .or(z.literal(''))
+    .nullable()
+    .default(null),
   flags: z.array(z.enum(FLAG_KEYS as [FlagKey, ...FlagKey[]])).default([]),
 });
 
@@ -82,6 +89,7 @@ export const load: PageServerLoad = async () => {
     name: c.name,
     externalName: c.externalName,
     timezone: c.timezone,
+    contactEmail: c.contactEmail,
     flags: computeEffectiveFlags(c.featureFlags),
   }));
 
@@ -101,6 +109,7 @@ export const actions: Actions = {
           name: form.data.name,
           externalName: form.data.externalName || null,
           timezone: form.data.timezone,
+          contactEmail: form.data.contactEmail || null,
         },
       });
       await syncCampusFlags(created.id, form.data.flags as FlagKey[]);
@@ -127,6 +136,7 @@ export const actions: Actions = {
           name: form.data.name,
           externalName: form.data.externalName || null,
           timezone: form.data.timezone,
+          contactEmail: form.data.contactEmail || null,
         },
       });
       await syncCampusFlags(id, form.data.flags as FlagKey[]);

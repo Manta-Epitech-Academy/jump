@@ -9,7 +9,6 @@ const STUDENT_SELECT = {
   niveau: true,
   eventsCount: true,
   xp: true,
-  level: true,
   badges: true,
 } as const;
 

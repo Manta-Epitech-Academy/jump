@@ -11,14 +11,23 @@
   import Mail from '@lucide/svelte/icons/mail';
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Loader from '@lucide/svelte/icons/loader';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import { track } from '$lib/analytics';
+  import { track, daysBetween } from '$lib/analytics';
+  import { toast } from 'svelte-sonner';
+  import { formatDateFr } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
 
   let student = $derived(data.talent);
+  let deletion = $derived(data.deletion);
+  let documents = $derived(data.documents);
   let deleteDialogOpen = $state(false);
-  let deleting = $state(false);
+  let requesting = $state(false);
+  let cancelling = $state(false);
+  let acknowledging = $state(false);
 </script>
 
 <svelte:head>
@@ -121,17 +130,187 @@
         </div>
       </div>
 
-      <!-- Danger Zone -->
-      <div class="pt-2 text-center">
-        <Button
-          variant="link"
-          size="sm"
-          onclick={() => (deleteDialogOpen = true)}
-          class="h-auto p-0 text-[11px] font-normal text-slate-400 decoration-dotted underline-offset-4 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400"
+      <!-- Signed documents -->
+      {#if documents.length > 0}
+        <div
+          class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
         >
-          Supprimer mon compte
-        </Button>
-      </div>
+          <h2
+            class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+          >
+            Mes documents
+          </h2>
+          <ul class="space-y-3">
+            {#each documents as doc (doc.type)}
+              <li class="flex items-center gap-3">
+                <div
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
+                >
+                  <FileText class="h-4 w-4 text-epi-teal-solid" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p
+                    class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
+                  >
+                    {doc.label}
+                  </p>
+                  <p class="text-[10px] font-bold text-slate-400 uppercase">
+                    {#if doc.signerName}
+                      Signé par {doc.signerName} le {formatDateFr(doc.signedAt)}
+                    {:else}
+                      Signé le {formatDateFr(doc.signedAt)}
+                    {/if}
+                  </p>
+                </div>
+                {#if doc.ready}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    href={resolve(`/settings/documents/${doc.type}`)}
+                    target="_blank"
+                    rel="noopener"
+                    class="h-9 shrink-0 rounded-xl text-xs font-bold"
+                  >
+                    <ExternalLink class="mr-1 h-3.5 w-3.5" />
+                    Voir
+                  </Button>
+                {:else}
+                  <span
+                    class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-slate-400 uppercase"
+                  >
+                    <Loader class="h-3.5 w-3.5 animate-spin" />
+                    Génération…
+                  </span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
+
+      <!-- Danger Zone -->
+      {#if deletion?.status === 'pending'}
+        <div
+          class="rounded-3xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/40 dark:bg-amber-950/20"
+        >
+          <h2 class="mb-1 text-sm font-bold text-amber-700 dark:text-amber-400">
+            Demande de suppression en cours
+          </h2>
+          <p
+            class="text-xs leading-relaxed text-amber-700/80 dark:text-amber-400/70"
+          >
+            Ta demande du {formatDateFr(deletion.at)} a été transmise à l'équipe.
+            Ton compte reste actif tant qu'elle n'a pas été traitée. Tu peux l'annuler
+            tant que ce n'est pas fait.
+          </p>
+          <form
+            action="?/cancelDeletion"
+            method="POST"
+            use:enhance={() => {
+              cancelling = true;
+              return async ({ result, update }) => {
+                await update();
+                cancelling = false;
+                if (result.type === 'success') {
+                  toast.success('Demande de suppression annulée.');
+                }
+              };
+            }}
+          >
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              disabled={cancelling}
+              class="mt-3 h-9 rounded-xl border-amber-300 bg-transparent text-xs font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/40"
+            >
+              {cancelling ? 'Annulation…' : 'Annuler ma demande'}
+            </Button>
+          </form>
+        </div>
+      {:else if deletion?.status === 'rejected'}
+        <div
+          class="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/40"
+        >
+          <h2 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-300">
+            Demande de suppression refusée
+          </h2>
+          <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            Ta demande du {formatDateFr(deletion.at)} n'a pas été acceptée par l'équipe.
+          </p>
+          {#if deletion.note}
+            <blockquote
+              class="mt-2 border-l-2 border-slate-300 pl-3 text-xs leading-relaxed text-slate-700 dark:border-slate-700 dark:text-slate-300"
+            >
+              {deletion.note}
+            </blockquote>
+          {/if}
+          <p
+            class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400"
+          >
+            Tu peux refaire une demande ou contacter l'équipe pour en savoir
+            plus.
+          </p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <form
+              action="?/requestDeletion"
+              method="POST"
+              use:enhance={() => {
+                requesting = true;
+                return async ({ result, update }) => {
+                  await update();
+                  requesting = false;
+                  if (result.type === 'success') {
+                    toast.success('Nouvelle demande transmise à l’équipe.');
+                  }
+                };
+              }}
+            >
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                disabled={requesting}
+                class="h-9 rounded-xl text-xs font-bold"
+              >
+                {requesting ? 'Envoi…' : 'Faire une nouvelle demande'}
+              </Button>
+            </form>
+            <form
+              action="?/acknowledgeRejection"
+              method="POST"
+              use:enhance={() => {
+                acknowledging = true;
+                return async ({ update }) => {
+                  await update();
+                  acknowledging = false;
+                };
+              }}
+            >
+              <Button
+                type="submit"
+                variant="ghost"
+                size="sm"
+                disabled={acknowledging}
+                class="h-9 rounded-xl text-xs font-bold text-slate-500"
+              >
+                {acknowledging ? '…' : 'J’ai compris'}
+              </Button>
+            </form>
+          </div>
+        </div>
+      {:else}
+        <div class="pt-2 text-center">
+          <Button
+            variant="link"
+            size="sm"
+            onclick={() => (deleteDialogOpen = true)}
+            class="h-auto p-0 text-[11px] font-normal text-slate-400 decoration-dotted underline-offset-4 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400"
+          >
+            Supprimer mon compte
+          </Button>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
@@ -154,34 +333,45 @@
       <AlertDialog.Description
         class="mt-3 text-sm leading-relaxed text-slate-500"
       >
-        Cette action est <strong class="text-slate-700 dark:text-slate-300"
-          >définitive et irréversible</strong
-        >. Ton profil, tes participations, ta progression et ton portfolio
-        seront supprimés de manière permanente.
+        Ta demande sera transmise à l'équipe. Ton compte
+        <strong class="text-slate-700 dark:text-slate-300">reste actif</strong>
+        jusqu'à son traitement, puis ton profil, tes participations, ta progression
+        et ton portfolio seront
+        <strong class="text-slate-700 dark:text-slate-300"
+          >définitivement anonymisés</strong
+        >. Tu pourras annuler tant que la demande n'a pas été traitée.
       </AlertDialog.Description>
     </div>
     <div class="mt-6 flex flex-col gap-3">
       <form
-        action="?/deleteAccount"
+        action="?/requestDeletion"
         method="POST"
         use:enhance={() => {
-          deleting = true;
-          track('account_deletion_requested');
-          return async ({ update }) => {
+          requesting = true;
+          track('account_deletion_requested', {
+            accountAgeDays: daysBetween(student?.createdAt),
+            lastActiveDaysAgo: daysBetween(student?.lastActiveAt),
+            participationsCount: data.participationsCount ?? null,
+          });
+          return async ({ result, update }) => {
             await update();
-            deleting = false;
+            requesting = false;
+            deleteDialogOpen = false;
+            if (result.type === 'success') {
+              toast.success('Demande de suppression transmise à l’équipe.');
+            }
           };
         }}
       >
         <Button
           type="submit"
-          disabled={deleting}
+          disabled={requesting}
           class="h-12 w-full rounded-2xl bg-red-500 tracking-normal text-white normal-case shadow-lg shadow-red-500/20 transition-all hover:scale-[1.02] hover:bg-red-600 active:scale-[0.98]"
         >
-          {#if deleting}
-            Suppression en cours…
+          {#if requesting}
+            Envoi en cours…
           {:else}
-            Supprimer définitivement
+            Demander la suppression
           {/if}
         </Button>
       </form>

@@ -34,11 +34,14 @@ export async function generateTalentOtp(
       "Le talent n'a pas de compte utilisateur lié — impossible de générer un code de connexion.",
     );
   }
-  // BetterAuth's `createVerificationOTP` does NOT clear an existing row before
-  // inserting (unlike `sendVerificationOTP` which handles resend). Since
-  // `bauth_verification.identifier` is `@unique`, a second mint for the same
-  // email/type would hit a P2002. Format mirrors `toOTPIdentifier` in
-  // better-auth/plugins/email-otp/utils.mjs: `${type}-otp-${email}`.
+  // `createVerificationOTP` does a bare insert with no pre-delete (unlike
+  // `sendVerificationOTP`, which resolves resends). The identifier is no longer
+  // `@unique`, so a stale row no longer 500s the mint — but BetterAuth resolves
+  // a code by newest `createdAt`, so a lingering row would still sit in the
+  // table until it expires (~10 min). Prune first so this staff-read-aloud code
+  // is the only live row for the address. Format mirrors `toOTPIdentifier` in
+  // better-auth/plugins/email-otp/utils.mjs: `${type}-otp-${email}` (email
+  // lowercased to match BetterAuth's own normalisation).
   const identifier = `sign-in-otp-${email.toLowerCase()}`;
   await prisma.bauth_verification.deleteMany({ where: { identifier } });
   const otp = await auth.api.createVerificationOTP({

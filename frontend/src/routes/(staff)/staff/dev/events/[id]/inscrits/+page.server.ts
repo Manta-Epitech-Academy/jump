@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { prisma } from '$lib/server/db';
+import { revokeXp, recomputeEventsCount } from '$lib/server/services/xpService';
 import {
   getCampusId,
   getCampusTimezone,
@@ -16,13 +16,13 @@ import {
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { getInterviewDisplayStatus } from '$lib/domain/interview';
-import { compareNiveaux } from './components/niveau';
+import { compareNiveaux } from '$lib/domain/niveau';
 import { computeIsNewTalent } from './components/types';
 import type { OngoingRow, PrepRow } from './components/types';
 
-function originConditions(lyceeName: string | null, interestId: string | null) {
+function originConditions(schoolId: string | null, interestId: string | null) {
   const conds: object[] = [];
-  if (lyceeName) conds.push({ talent: { highSchoolName: lyceeName } });
+  if (schoolId) conds.push({ talent: { schoolId } });
   if (interestId)
     conds.push({ talent: { interests: { some: { interestId } } } });
   return conds;
@@ -38,11 +38,18 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     getEventStatus(event, bounds),
     locals.stagePhaseOverride,
   );
-  const lyceeName = url.searchParams.get('lycee');
+  // The `lycee` filter param carries a canonical School id; resolve it to a name
+  // for the origin chip and filter participations on the talent's schoolId.
+  const schoolId = url.searchParams.get('lycee');
   const interestId = url.searchParams.get('interest');
 
-  const [activeLycee, activeInterest] = await Promise.all([
-    lyceeName ? Promise.resolve({ nom: lyceeName }) : Promise.resolve(null),
+  const [activeSchool, activeInterest] = await Promise.all([
+    schoolId
+      ? prisma.school.findUnique({
+          where: { id: schoolId },
+          select: { name: true },
+        })
+      : Promise.resolve(null),
     interestId
       ? db.interest.findUnique({
           where: { id: interestId },
@@ -51,11 +58,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       : Promise.resolve(null),
   ]);
   const origin = {
-    lycee: activeLycee,
+    lycee: activeSchool ? { nom: activeSchool.name } : null,
     interest: activeInterest,
   };
   const originAnd = originConditions(
-    activeLycee?.nom ?? null,
+    activeSchool ? schoolId : null,
     activeInterest?.id ?? null,
   );
 
@@ -70,6 +77,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         talent: {
           include: {
             interests: { include: { interest: true } },
+            school: { select: { id: true, name: true, city: true } },
           },
         },
       },
@@ -111,6 +119,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       talent: {
         include: {
           interests: { include: { interest: true } },
+          school: { select: { id: true, name: true, city: true } },
         },
       },
       interview: {
@@ -242,25 +251,23 @@ export const actions: Actions = {
     try {
       const p = await db.participation.findFirstOrThrow({
         where: { id, eventId: params.id },
-        include: { activities: { include: { activity: true } } },
+        select: { id: true, talentId: true, isPresent: true },
       });
 
-      if (p.isPresent) {
-        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
-        const profile = await prisma.talent.findUniqueOrThrow({
-          where: { id: p.talentId },
-          select: { xp: true, eventsCount: true },
-        });
-        await prisma.talent.update({
-          where: { id: p.talentId },
-          data: {
-            xp: Math.max(0, profile.xp - xpValue),
-            eventsCount: Math.max(0, profile.eventsCount - 1),
-          },
-        });
-      }
-
-      await prisma.participation.delete({ where: { id } });
+      // Campus is authorized by the scoped `db` read above. Revoke the presence
+      // grant (keyed on the participation id) before deleting the row, then
+      // refresh the cached event count — all atomic.
+      await prisma.$transaction(async (tx) => {
+        if (p.isPresent) {
+          await revokeXp(tx, {
+            talentId: p.talentId,
+            source: 'activity_presence',
+            sourceId: p.id,
+          });
+        }
+        await tx.participation.delete({ where: { id } });
+        await recomputeEventsCount(tx, p.talentId);
+      });
       return { success: true };
     } catch {
       return fail(500);

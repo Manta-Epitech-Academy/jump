@@ -5,14 +5,12 @@ import { epitechLogoSvg } from '../templates/epitechLogo';
 import onboardingTemplate from '../templates/onboarding-document.html?raw';
 import reglementMd from '$lib/content/reglement-interieur.md?raw';
 import droitImageMd from '$lib/content/droit-image.md?raw';
+import {
+  ONBOARDING_DOCUMENTS,
+  type OnboardingDocumentType,
+} from './onboardingDocuments';
 
-type DocumentType = 'charter' | 'rules' | 'image-rights';
-
-const TITLES: Record<DocumentType, string> = {
-  charter: 'Charte Informatique et Éthique',
-  rules: 'Règlement Intérieur',
-  'image-rights': "Autorisation de Droit à l'Image",
-};
+type DocumentType = OnboardingDocumentType;
 
 function buildImageRightsHtml(
   signerName: string,
@@ -64,7 +62,7 @@ export async function generateOnboardingPDF(data: {
     onboardingTemplate,
     {
       data: {
-        title: TITLES[data.type],
+        title: ONBOARDING_DOCUMENTS[data.type].label,
         documentContent,
         studentName: data.studentName,
         signerName: data.signerName ?? null,

@@ -4,28 +4,33 @@
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
   import Map from '@lucide/svelte/icons/map';
   import Users from '@lucide/svelte/icons/users';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import UserX from '@lucide/svelte/icons/user-x';
   import Tags from '@lucide/svelte/icons/tags';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
-  import FingerprintPattern from '@lucide/svelte/icons/fingerprint-pattern';
+  import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import FileText from '@lucide/svelte/icons/file-text';
+  import FileCog from '@lucide/svelte/icons/file-cog';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import Send from '@lucide/svelte/icons/send';
   import Mails from '@lucide/svelte/icons/mails';
   import MailCog from '@lucide/svelte/icons/mail-warning';
+  import DoorOpen from '@lucide/svelte/icons/door-open';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { fly, fade } from 'svelte/transition';
-  import { track } from '$lib/analytics';
+  import { track, secondsBetween } from '$lib/analytics';
 
   let { children, data } = $props();
 
@@ -89,6 +94,20 @@
       <span>Erreurs de Sync</span>
     </a>
     <a
+      href={resolve('/staff/admin/sf-conflicts')}
+      class={navLinkClass(isActive('/staff/admin/sf-conflicts'))}
+    >
+      <GitCompareArrows class="h-4 w-4" />
+      <span>Divergences Salesforce</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/onboarding-pdfs')}
+      class={navLinkClass(isActive('/staff/admin/onboarding-pdfs'))}
+    >
+      <FileCog class="h-4 w-4" />
+      <span>Génération PDF onboarding</span>
+    </a>
+    <a
       href={resolve('/staff/admin/tickets')}
       class={navLinkClass(isActive('/staff/admin/tickets'))}
     >
@@ -145,6 +164,13 @@
       <MailCog class="h-4 w-4" />
       <span>Mails transactionnels</span>
     </a>
+    <a
+      href={resolve('/staff/admin/welcome-pages')}
+      class={navLinkClass(isActive('/staff/admin/welcome-pages'))}
+    >
+      <DoorOpen class="h-4 w-4" />
+      <span>Pages d'accueil</span>
+    </a>
   </nav>
 
   <div
@@ -166,6 +192,29 @@
     >
       <Users class="h-4 w-4" />
       <span>Membres & invitations</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/talents')}
+      class={navLinkClass(isActive('/staff/admin/talents'))}
+    >
+      <GraduationCap class="h-4 w-4" />
+      <span>Talents</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/account-deletions')}
+      class={navLinkClass(isActive('/staff/admin/account-deletions'))}
+    >
+      <UserX class="h-4 w-4" />
+      <span class="flex flex-1 items-center justify-between">
+        <span>Suppressions</span>
+        {#if data.deletionRequestsPending > 0}
+          <span
+            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-epi-pink px-1.5 text-[10px] font-bold text-white"
+          >
+            {data.deletionRequestsPending}
+          </span>
+        {/if}
+      </span>
     </a>
   </nav>
 
@@ -238,18 +287,12 @@
         <span class="sr-only">Toggle menu</span>
       </Button>
 
-      <a href={resolve('/staff/admin')} class="flex items-center gap-3">
-        <div
-          class="flex h-8 w-8 items-center justify-center rounded-sm bg-epi-pink text-white shadow-[0_0_10px_rgba(255,30,247,0.4)]"
-        >
-          <FingerprintPattern class="h-5 w-5" />
-        </div>
-        <span
-          class="hidden text-lg font-black tracking-widest text-slate-100 uppercase md:block"
-        >
-          Jump <span class="text-epi-pink">Admin</span>
-        </span>
-      </a>
+      <BrandMark
+        href={resolve('/staff/admin')}
+        sublabel="Admin"
+        accent="pink"
+        orientation="inline"
+      />
     </div>
 
     <div class="flex items-center gap-2">
@@ -291,7 +334,13 @@
             <form
               action="{resolve('/logout')}?type=admin"
               method="POST"
-              onsubmit={() => track('logout', { kind: 'admin' })}
+              onsubmit={() =>
+                track('logout', {
+                  kind: 'admin',
+                  sessionDurationSec: secondsBetween(
+                    page.data.session?.createdAt as Date | string | undefined,
+                  ),
+                })}
             >
               <button type="submit" class="w-full cursor-pointer">
                 <DropdownMenu.Item

@@ -25,6 +25,7 @@ import { buildBadgeCtx, computeBadges } from '$lib/domain/badges';
 import { groupParticipations } from '$lib/domain/talentTimeline';
 import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
 import { generateTalentOtp } from '$lib/server/services/talentOtp';
+import { isSmsEnabled } from '$lib/server/sms';
 import type { Communication } from '$lib/domain/communications';
 
 const TAB_KEYS = ['pedago', 'admin'] as const;
@@ -61,6 +62,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           include: {
             user: true,
             interests: { include: { interest: true } },
+            school: { select: { name: true } },
             interviews: {
               where: { campusId },
               include: {
@@ -103,6 +105,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           select: {
             id: true,
             type: true,
+            channel: true,
             subject: true,
             body: true,
             sentAt: true,
@@ -149,6 +152,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       id: r.id,
       sentAt: r.sentAt,
       audience: r.type as 'student' | 'parent',
+      channel: r.channel as 'email' | 'sms',
       subject: r.subject,
       body: r.body,
       sender: senderById.get(r.sentBy) ?? null,
@@ -292,6 +296,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       form,
       relanceForm,
       relanceDefaults,
+      smsEnabled: isSmsEnabled(),
+      // Campus-scoped relance variables ({{campus}}, {{email_contact_campus}})
+      // the server substitutes at send time — surfaced so the compose preview
+      // renders them instead of leaving raw tokens. Already on locals, no query.
+      campus: {
+        name: locals.staffProfile?.campus?.name ?? '',
+        contactEmail: locals.staffProfile?.campus?.contactEmail ?? null,
+      },
       tab,
       timezone,
     };
@@ -379,6 +391,7 @@ export const actions: Actions = {
     const result = await sendRelances({
       talentIds: [params.id],
       type: form.data.type,
+      channel: form.data.channel,
       subject: form.data.subject,
       body: form.data.body,
       sentBy: locals.user!.id,

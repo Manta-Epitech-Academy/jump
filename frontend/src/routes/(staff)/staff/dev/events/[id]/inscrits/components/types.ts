@@ -8,6 +8,7 @@ type ParticipationPrep = Prisma.ParticipationGetPayload<{
     talent: {
       include: {
         interests: { include: { interest: true } };
+        school: { select: { id: true; name: true; city: true } };
       };
     };
   };
@@ -18,6 +19,7 @@ type ParticipationOngoing = Prisma.ParticipationGetPayload<{
     talent: {
       include: {
         interests: { include: { interest: true } };
+        school: { select: { id: true; name: true; city: true } };
       };
     };
     interview: {

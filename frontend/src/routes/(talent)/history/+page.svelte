@@ -26,7 +26,7 @@
       class="mb-4 gap-2 text-sm font-bold text-slate-500 hover:text-epi-blue"
     >
       <ArrowLeft class="h-4 w-4" />
-      Retour au cockpit
+      Retour au tableau de bord
     </Button>
     <h1
       class="flex items-center gap-3 font-heading text-3xl tracking-tight text-slate-900 uppercase dark:text-white"

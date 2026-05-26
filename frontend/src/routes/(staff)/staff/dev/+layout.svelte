@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import LogOut from '@lucide/svelte/icons/log-out';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import Users from '@lucide/svelte/icons/users';
@@ -23,7 +24,7 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
-  import { track } from '$lib/analytics';
+  import { track, secondsBetween } from '$lib/analytics';
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
@@ -31,6 +32,7 @@
   import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
+  import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
 
   let { children, data } = $props();
   let user = $derived(data.user as any);
@@ -42,6 +44,7 @@
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
   let hasPlanning = $derived(featureFlags.has('event_planning'));
+  let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
   // Peda visiting a single interviews route gets a stripped shell — no
   // sidebar, no command-K, no impersonation, no tickets. Just header + main.
   let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
@@ -102,24 +105,12 @@
 </script>
 
 {#snippet sidebarBrand()}
-  <a
+  <BrandMark
     href={resolve('/staff/dev')}
-    class="flex flex-col gap-0.5 px-4 py-4 text-sidebar-foreground"
-  >
-    <span class="font-heading text-2xl leading-none">Jump</span>
-    <span
-      class="truncate text-xs font-bold tracking-wider text-epi-teal uppercase"
-    >
-      {getStaffRoleLabel(data.staffProfile?.staffRole)}
-    </span>
-    {#if data.staffProfile?.campus?.name}
-      <span
-        class="truncate font-mono text-[10px] tracking-widest text-sidebar-foreground-muted uppercase"
-      >
-        Campus {data.staffProfile.campus.name}
-      </span>
-    {/if}
-  </a>
+    sublabel={getStaffRoleLabel(data.staffProfile?.staffRole)}
+    tagline="Gestion des stages et du coding club"
+    campus={data.staffProfile?.campus?.name}
+  />
 {/snippet}
 
 {#snippet sidebarSearch()}
@@ -279,29 +270,31 @@
           </a>
         </Gated>
       {/if}
-      <a
-        href={resolve('/staff/dev/sync-errors')}
-        class={navLinkClass(isActive('/staff/dev/sync-errors'))}
-      >
-        <TriangleAlert class="h-5 w-5 shrink-0" />
-        <span class="flex flex-1 items-center justify-between gap-2">
-          <span class="truncate whitespace-nowrap">Doublons Salesforce</span>
-          {#if data.syncErrorCounts.urgent > 0}
-            <span
-              class="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold whitespace-nowrap text-white"
-            >
-              <TriangleAlert class="h-3 w-3" />
-              {data.syncErrorCounts.total}
-            </span>
-          {:else if data.syncErrorCounts.total > 0}
-            <span
-              class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold whitespace-nowrap text-sidebar-foreground-muted"
-            >
-              {data.syncErrorCounts.total}
-            </span>
-          {/if}
-        </span>
-      </a>
+      {#if hasSyncErrors}
+        <a
+          href={resolve('/staff/dev/sync-errors')}
+          class={navLinkClass(isActive('/staff/dev/sync-errors'))}
+        >
+          <TriangleAlert class="h-5 w-5 shrink-0" />
+          <span class="flex flex-1 items-center justify-between gap-2">
+            <span class="truncate whitespace-nowrap">Doublons Salesforce</span>
+            {#if data.syncErrorCounts.urgent > 0}
+              <span
+                class="inline-flex h-5 shrink-0 items-center justify-center gap-1 rounded-full bg-destructive px-1.5 text-[10px] font-bold whitespace-nowrap text-white"
+              >
+                <TriangleAlert class="h-3 w-3" />
+                {data.syncErrorCounts.total}
+              </span>
+            {:else if data.syncErrorCounts.total > 0}
+              <span
+                class="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold whitespace-nowrap text-sidebar-foreground-muted"
+              >
+                {data.syncErrorCounts.total}
+              </span>
+            {/if}
+          </span>
+        </a>
+      {/if}
     </nav>
   </Gated>
 
@@ -365,7 +358,13 @@
           <form
             action={resolve('/logout')}
             method="POST"
-            onsubmit={() => track('logout', { kind: 'dev' })}
+            onsubmit={() =>
+              track('logout', {
+                kind: 'dev',
+                sessionDurationSec: secondsBetween(
+                  page.data.session?.createdAt as Date | string | undefined,
+                ),
+              })}
           >
             <button type="submit" class="w-full cursor-pointer">
               <DropdownMenu.Item class="cursor-pointer text-destructive"
@@ -380,9 +379,7 @@
   </div>
 {/snippet}
 
-<div
-  class="flex h-[calc(100dvh-var(--impersonation-banner-h,0px))] w-full overflow-hidden bg-background"
->
+<div class="flex h-dvh w-full overflow-hidden bg-background">
   {#if showFullChrome}
     <aside
       class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
@@ -408,6 +405,7 @@
           </div>
         {/if}
       </Gated>
+      <ImpersonationCard />
       {@render sidebarFooter()}
     </aside>
   {/if}
@@ -436,14 +434,12 @@
             />
             <span class="sr-only">Toggle menu</span>
           </Button>
-          <a href={resolve('/staff/dev')} class="flex items-center gap-2">
-            <span class="font-heading text-xl leading-none">Jump</span>
-            <span
-              class="text-[10px] font-bold tracking-wider text-epi-teal-solid uppercase dark:text-epi-teal"
-            >
-              {getStaffRoleLabel(data.staffProfile?.staffRole)}
-            </span>
-          </a>
+          <BrandMark
+            href={resolve('/staff/dev')}
+            sublabel={getStaffRoleLabel(data.staffProfile?.staffRole)}
+            tone="auto"
+            orientation="inline"
+          />
         </div>
         {#if hasCodingClub}
           <Button
@@ -490,6 +486,7 @@
             </div>
           </Gated>
         {/if}
+        <ImpersonationCard />
         {@render sidebarFooter()}
       </aside>
     {/if}

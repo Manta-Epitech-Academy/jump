@@ -30,14 +30,6 @@ export const FEATURE_FLAGS = {
     label: 'Coding Club',
     description: "Ateliers hebdomadaires tout le reste de l'année.",
   }),
-  minigames: def({
-    key: 'minigames',
-    kind: 'capability',
-    defaultEnabled: false,
-    label: 'Mini-jeux',
-    description:
-      'Active les mini-jeux du jour pour les talents (cf. MINIGAMES.md).',
-  }),
   staff_intervenants: def({
     key: 'staff_intervenants',
     kind: 'rollout',
@@ -72,6 +64,15 @@ export const FEATURE_FLAGS = {
     label: 'Planning par événement (dev)',
     description:
       'Édition du planning détaillé (créneaux, activités) côté dev (/staff/dev/events/[id]/planning). Pedago conserve son propre planning.',
+    removeBy: new Date('2026-07-15'),
+  }),
+  staff_sync_errors: def({
+    key: 'staff_sync_errors',
+    kind: 'rollout',
+    defaultEnabled: false,
+    label: 'Doublons Salesforce',
+    description:
+      'Résolution des doublons de synchronisation Salesforce côté dev (/staff/dev/sync-errors).',
     removeBy: new Date('2026-07-15'),
   }),
 };

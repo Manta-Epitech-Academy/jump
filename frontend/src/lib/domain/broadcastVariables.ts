@@ -9,14 +9,17 @@ export interface VariableContext {
   email: string | null;
   phone: string | null;
   campus: string;
+  email_contact_campus: string | null;
   event_name: string | null;
   fastlogin_link: string | null;
+  parent_fastlogin_link: string | null;
   otp_code: string | null;
   parent_prenom: string | null;
   parent_nom: string | null;
   child_prenom: string | null;
   child_nom: string | null;
   login_link: string | null;
+  deletion_reason: string | null;
 }
 
 /**
@@ -30,14 +33,17 @@ export const EMPTY_VARIABLE_CONTEXT: VariableContext = {
   email: null,
   phone: null,
   campus: '',
+  email_contact_campus: null,
   event_name: null,
   fastlogin_link: null,
+  parent_fastlogin_link: null,
   otp_code: null,
   parent_prenom: null,
   parent_nom: null,
   child_prenom: null,
   child_nom: null,
   login_link: null,
+  deletion_reason: null,
 };
 
 export function buildDemoContext(eventName?: string | null): VariableContext {

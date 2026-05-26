@@ -1,4 +1,6 @@
 import type { BroadcastAudience, BroadcastChannel } from '@prisma/client';
+import type { Niveau } from './niveau';
+import { JUMP_LEVELS, type JumpLevel } from './xp';
 
 export const BROADCAST_CHANNELS = [
   'mail',
@@ -45,14 +47,17 @@ export type BroadcastVariableKey =
   | 'email'
   | 'phone'
   | 'campus'
+  | 'email_contact_campus'
   | 'event_name'
   | 'fastlogin_link'
+  | 'parent_fastlogin_link'
   | 'otp_code'
   | 'parent_prenom'
   | 'parent_nom'
   | 'child_prenom'
   | 'child_nom'
-  | 'login_link';
+  | 'login_link'
+  | 'deletion_reason';
 
 export interface BroadcastVariable {
   key: BroadcastVariableKey;
@@ -99,6 +104,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     contextual: false,
   },
   {
+    key: 'email_contact_campus',
+    token: '{{EMAIL_CONTACT_CAMPUS}}',
+    label: 'Email de contact du campus du destinataire',
+    demo: 'contact.paris@epitech.eu',
+    contextual: false,
+  },
+  {
     key: 'event_name',
     token: '{{event_name}}',
     label: "Nom de l'event lié à l'envoi",
@@ -110,6 +122,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     token: '{{fastlogin_link}}',
     label: 'Lien de connexion magique unique (par destinataire)',
     demo: 'https://jump.epiboost.fr/fastlogin?token=DEMO',
+    contextual: true,
+  },
+  {
+    key: 'parent_fastlogin_link',
+    token: '{{parent_fastlogin_link}}',
+    label: "Lien de connexion magique du parent (s'ouvre sur l'espace parent)",
+    demo: 'https://jump.epiboost.fr/parent/fastlogin?token=DEMO',
     contextual: true,
   },
   {
@@ -154,26 +173,22 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     demo: 'https://jump.epiboost.fr/parent/login',
     contextual: true,
   },
+  {
+    key: 'deletion_reason',
+    token: '{{deletion_reason}}',
+    label: "Motif du refus d'une demande de suppression de compte",
+    demo: 'Ton compte reste nécessaire pour le stage de seconde en cours.',
+    contextual: true,
+  },
 ] as const;
 
 export const BROADCAST_VARIABLE_TOKENS = BROADCAST_VARIABLES.map(
   (v) => v.token,
 );
 
-export const NIVEAUX = [
-  '6eme',
-  '5eme',
-  '4eme',
-  '3eme',
-  '2nde',
-  '1ere',
-  'Terminale',
-  'Sup',
-] as const;
-export type Niveau = (typeof NIVEAUX)[number];
-
-export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
-export type JumpLevel = (typeof JUMP_LEVELS)[number];
+// Canonical level catalogue lives in domain/xp.ts (derived from XP_LEVEL_TIERS),
+// re-exported here so broadcast filter consumers keep their import path.
+export { JUMP_LEVELS, type JumpLevel };
 
 export type TristateFilter = 'yes' | 'no' | 'any';
 

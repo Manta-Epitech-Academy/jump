@@ -4,12 +4,17 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { messageTemplateSchema } from '$lib/validation/broadcasts';
+import { isSmsEnabled } from '$lib/server/sms';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
   const form = await superValidate(zod4(messageTemplateSchema), {
     errors: false,
   });
-  return { form };
+  return {
+    form,
+    smsEnabled: isSmsEnabled(),
+    userEmail: locals.user?.email ?? '',
+  };
 };
 
 export const actions: Actions = {

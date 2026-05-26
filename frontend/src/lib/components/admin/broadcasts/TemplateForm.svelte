@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
+  import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -23,9 +24,19 @@
     data: SuperValidated<MessageTemplateForm>;
     submitLabel: string;
     formAction?: string;
+    /** Whether the Brevo SMS backend is configured (gates the SMS test). */
+    smsEnabled?: boolean;
+    /** Sender's address, prefilled as the default mail test recipient. */
+    userEmail?: string;
   };
 
-  let { data, submitLabel, formAction }: Props = $props();
+  let {
+    data,
+    submitLabel,
+    formAction,
+    smsEnabled = false,
+    userEmail = '',
+  }: Props = $props();
 
   // svelte-ignore state_referenced_locally
   const { form, errors, enhance, submitting } = superForm(data, {
@@ -33,6 +44,44 @@
     resetForm: false,
     validationMethod: 'onsubmit',
   });
+
+  // ── Test send ───────────────────────────────────────────────────────
+  // Ships the *in-progress* draft (no save needed) to one recipient via the
+  // /templates/test endpoint, rendered with demo variables. The field is an
+  // email or a phone depending on the channel.
+  // svelte-ignore state_referenced_locally
+  let testRecipient = $state(userEmail);
+  let testing = $state(false);
+  const smsBlocked = $derived($form.channel === 'sms' && !smsEnabled);
+  const testDisabled = $derived(
+    testing ||
+      smsBlocked ||
+      !($form.body ?? '').trim() ||
+      !testRecipient.trim(),
+  );
+
+  async function sendTest() {
+    testing = true;
+    try {
+      const res = await fetch('/staff/admin/broadcasts/templates/test', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          channel: $form.channel,
+          subject: $form.subject ?? null,
+          body: $form.body ?? '',
+          to: testRecipient.trim(),
+        }),
+      });
+      const result = (await res.json()) as { ok: boolean; message?: string };
+      if (result.ok) toast.success(`Test envoyé à ${testRecipient.trim()}.`);
+      else toast.error(result.message ?? "Échec de l'envoi.");
+    } catch {
+      toast.error('Erreur réseau.');
+    } finally {
+      testing = false;
+    }
+  }
 
   function insertVariable(token: string) {
     $form.body = ($form.body ?? '') + token;
@@ -150,6 +199,42 @@
         {/if}
       </div>
     </details>
+
+    <div class="space-y-2 rounded-md border bg-muted/20 p-3">
+      <Label for="testRecipient" class="text-sm font-medium">
+        S'envoyer un test
+      </Label>
+      <p class="text-xs text-muted-foreground">
+        Envoie ce brouillon (variables remplies par des valeurs fictives) à un
+        {$form.channel === 'sms' ? 'numéro' : 'email'}, sans enregistrer le
+        template.
+      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        <Input
+          id="testRecipient"
+          type={$form.channel === 'sms' ? 'tel' : 'email'}
+          bind:value={testRecipient}
+          disabled={smsBlocked}
+          placeholder={$form.channel === 'sms'
+            ? 'ex : +33 6 12 34 56 78'
+            : 'ex : prenom.nom@epitech.eu'}
+          class="max-w-xs"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onclick={sendTest}
+          disabled={testDisabled}
+        >
+          {testing ? 'Envoi…' : 'Envoyer le test'}
+        </Button>
+      </div>
+      {#if smsBlocked}
+        <p class="text-xs text-destructive">
+          SMS non configuré (<code>SMS_PROVIDER</code>) — test indisponible.
+        </p>
+      {/if}
+    </div>
 
     <div class="flex items-center gap-3">
       <Button type="submit" disabled={$submitting}>{submitLabel}</Button>

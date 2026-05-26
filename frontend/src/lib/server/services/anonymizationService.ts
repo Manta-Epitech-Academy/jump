@@ -1,5 +1,69 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
+
+/**
+ * The single GDPR-erasure primitive. Clears a talent's PII in place rather than
+ * deleting rows: name/contact fields are nulled or replaced with placeholders,
+ * the linked auth identity is scrubbed and its sessions/accounts dropped, and
+ * portfolio content (which can embed PII) is removed. We deliberately keep
+ * `xp`, `level` and `eventsCount` so aggregate stats survive the erasure.
+ *
+ * This is the *real* deletion mechanism behind both entry points:
+ *   - the daily inactivity sweep (`anonymizeInactiveStudents`), and
+ *   - a talent's own deletion request once staff fulfil it
+ *     (`talentDeletionService.fulfillTalentDeletion`).
+ *
+ * Idempotent: re-running on an already-anonymised talent is a harmless no-op
+ * write. Takes a transaction client so callers can bundle it with their own
+ * bookkeeping (e.g. flipping a deletion request to `fulfilled`) atomically.
+ */
+export async function anonymizeTalent(
+  tx: Prisma.TransactionClient,
+  talentId: string,
+): Promise<void> {
+  const talent = await tx.talent.findUnique({
+    where: { id: talentId },
+    select: { userId: true },
+  });
+  if (!talent) return;
+
+  // 1. Clear all PII fields on the Talent (keep xp / level / eventsCount).
+  await tx.talent.update({
+    where: { id: talentId },
+    data: {
+      nom: 'Anonymisé',
+      prenom: 'Anonymisé',
+      email: null,
+      externalId: null,
+      phone: null,
+      parentPhone: null,
+      parentEmail: null,
+      niveau: null,
+      badges: Prisma.DbNull,
+      lastSyncedAt: null,
+      charterAcceptedAt: null,
+    },
+  });
+
+  // 2. Scrub the linked BetterAuth user and revoke its access — only if linked.
+  if (talent.userId) {
+    await tx.bauth_user.update({
+      where: { id: talent.userId },
+      data: {
+        name: 'Utilisateur Anonymisé',
+        image: null,
+        email: `anonymized-${talentId}@jump.internal`,
+      },
+    });
+
+    await tx.bauth_session.deleteMany({ where: { userId: talent.userId } });
+    await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
+  }
+
+  // 3. Delete portfolio items (student-created content with potential PII).
+  await tx.portfolioItem.deleteMany({ where: { talentId } });
+}
 
 export const AnonymizationService = {
   /**
@@ -8,18 +72,18 @@ export const AnonymizationService = {
    * replaced with placeholders while keeping anonymous activity records.
    */
   async anonymizeInactiveStudents() {
-    const eighteenMonthsAgo = new Date();
-    eighteenMonthsAgo.setMonth(eighteenMonthsAgo.getMonth() - 18);
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - DATA_RETENTION_MONTHS);
 
-    // Find all students who haven't been active for 18 months
-    // We also check for students who were never active but created 18+ months ago
+    // Find students inactive past the disclosed retention period (see
+    // DATA_RETENTION_MONTHS), plus those never active but created before it.
     const inactiveStudents = await prisma.talent.findMany({
       where: {
         OR: [
-          { lastActiveAt: { lt: eighteenMonthsAgo } },
+          { lastActiveAt: { lt: cutoff } },
           {
             lastActiveAt: null,
-            createdAt: { lt: eighteenMonthsAgo },
+            createdAt: { lt: cutoff },
           },
         ],
         // Don't anonymize already anonymized profiles
@@ -28,10 +92,7 @@ export const AnonymizationService = {
           prenom: 'Anonymisé',
         },
       },
-      select: {
-        id: true,
-        userId: true,
-      },
+      select: { id: true },
     });
 
     if (inactiveStudents.length === 0) {
@@ -40,53 +101,10 @@ export const AnonymizationService = {
 
     let count = 0;
 
-    // Use a transaction for each student to ensure consistency
+    // One transaction per student so a single failure can't roll back the batch.
     for (const student of inactiveStudents) {
       try {
-        await prisma.$transaction(async (tx) => {
-          // 1. Update Talent — clear all PII fields
-          await tx.talent.update({
-            where: { id: student.id },
-            data: {
-              nom: 'Anonymisé',
-              prenom: 'Anonymisé',
-              externalId: null,
-              phone: null,
-              parentPhone: null,
-              parentEmail: null,
-              niveau: null,
-              badges: Prisma.DbNull,
-              lastSyncedAt: null,
-              charterAcceptedAt: null,
-              // We keep xp, level, and eventsCount for aggregate stats
-            },
-          });
-
-          // 2. Update User (BetterAuth table) — only if linked
-          if (student.userId) {
-            await tx.bauth_user.update({
-              where: { id: student.userId },
-              data: {
-                name: 'Utilisateur Anonymisé',
-                image: null,
-                email: `anonymized-${student.id}@jump.internal`,
-              },
-            });
-
-            // 3. Clear sessions and auth accounts
-            await tx.bauth_session.deleteMany({
-              where: { userId: student.userId },
-            });
-            await tx.bauth_account.deleteMany({
-              where: { userId: student.userId },
-            });
-          }
-
-          // 4. Delete portfolio items (student-created content with potential PII)
-          await tx.portfolioItem.deleteMany({
-            where: { talentId: student.id },
-          });
-        });
+        await prisma.$transaction((tx) => anonymizeTalent(tx, student.id));
         count++;
       } catch (e) {
         console.error(`Failed to anonymize student ${student.id}:`, e);

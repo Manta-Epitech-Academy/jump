@@ -5,6 +5,7 @@ import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
 import type { FlagKey } from '$lib/domain/featureFlags';
+import { getOnboardingStep } from '$lib/domain/talentOnboarding';
 
 function forbidGroup(group: StaffGroup): never {
   throw error(403, {
@@ -94,8 +95,10 @@ export async function applyRouteGuards(
 
   const pathTalentWelcome = p('/welcome');
   const pathParentLogin = p('/parent/login');
-  const pathParentRoot = p('/parent');
+  const pathParentFastlogin = p('/parent/fastlogin');
+  const pathParentWelcome = p('/parent/welcome');
   const pathParentSignature = p('/parent/signature');
+  const pathParentMerci = p('/parent/merci');
 
   const isTalentRoute = routeId.startsWith('/(talent)');
   const isStaffRoute = routeId.startsWith('/(staff)');
@@ -125,19 +128,49 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
     }
 
-    // Onboarding guard: redirect if info or rules not signed yet
+    // Welcome guard: first-time stage talents see the welcome splash before
+    // onboarding. `markSeen` sets `welcomeSeenAt` and hands off to onboarding,
+    // so this short-circuits on every later request. The splash content is
+    // fixed and owned by the page itself — it is NOT gated on the CMS `welcome`
+    // row, which now feeds only the dashboard's Actualités card.
+    if (
+      event.locals.talent &&
+      !event.locals.talent.welcomeSeenAt &&
+      currentPath !== pathTalentWelcome &&
+      !currentPath.startsWith(pathTalentOnboarding) &&
+      currentPath !== pathTalentLogin
+    ) {
+      const stageParticipation = await prisma.participation.findFirst({
+        where: {
+          talentId: event.locals.talent.id,
+          event: { eventType: 'stage_seconde' },
+        },
+        orderBy: { event: { date: 'desc' } },
+        select: { event: { select: { endDate: true, date: true } } },
+      });
+      if (stageParticipation) {
+        const stageEnd =
+          stageParticipation.event.endDate ?? stageParticipation.event.date;
+        if (stageEnd >= new Date()) {
+          return Response.redirect(
+            new URL(pathTalentWelcome, event.url).href,
+            303,
+          );
+        }
+      }
+    }
+
+    // Onboarding guard: redirect until every step of the canonical ladder is
+    // done. `getOnboardingStep` is the single source of truth shared with the
+    // wizard's resume logic and the admin progress label — so a step added there
+    // is gated here automatically, with no parallel field list to keep in sync.
     if (event.locals.talent) {
-      const needsOnboarding =
-        !event.locals.talent.infoValidatedAt ||
-        !event.locals.talent.highSchoolValidatedAt ||
-        !event.locals.talent.techInterestsValidatedAt ||
-        !event.locals.talent.generalInterestsValidatedAt ||
-        !event.locals.talent.interestsRecapSeenAt ||
-        !event.locals.talent.rulesSignedAt;
+      const needsOnboarding = getOnboardingStep(event.locals.talent) !== null;
 
       if (
         needsOnboarding &&
         !currentPath.startsWith(pathTalentOnboarding) &&
+        currentPath !== pathTalentWelcome &&
         currentPath !== pathTalentLogin
       ) {
         return Response.redirect(
@@ -158,6 +191,7 @@ export async function applyRouteGuards(
       !event.locals.talent.charterAcceptedAt &&
       currentPath !== pathTalentCharter &&
       !currentPath.startsWith(pathTalentOnboarding) &&
+      currentPath !== pathTalentWelcome &&
       currentPath !== pathTalentLogin
     ) {
       return Response.redirect(new URL(pathTalentCharter, event.url).href, 303);
@@ -167,45 +201,6 @@ export async function applyRouteGuards(
       currentPath === pathTalentCharter
     ) {
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
-    }
-
-    // Welcome guard: redirect to /welcome on first visit (not yet seen)
-    if (
-      event.locals.talent &&
-      event.locals.talent.charterAcceptedAt &&
-      !event.locals.talent.welcomeSeenAt &&
-      currentPath !== pathTalentWelcome &&
-      !currentPath.startsWith(pathTalentOnboarding) &&
-      currentPath !== pathTalentLogin
-    ) {
-      const stageParticipation = await prisma.participation.findFirst({
-        where: {
-          talentId: event.locals.talent.id,
-          event: { eventType: 'stage_seconde' },
-        },
-        orderBy: { event: { date: 'desc' } },
-        select: { event: { select: { id: true, endDate: true, date: true } } },
-      });
-      if (stageParticipation) {
-        const stageEnd =
-          stageParticipation.event.endDate ?? stageParticipation.event.date;
-        if (stageEnd >= new Date()) {
-          const welcomePage = await prisma.cmsPage.findUnique({
-            where: {
-              slug_eventId: {
-                slug: 'welcome',
-                eventId: stageParticipation.event.id,
-              },
-            },
-          });
-          if (welcomePage?.content) {
-            return Response.redirect(
-              new URL(pathTalentWelcome, event.url).href,
-              303,
-            );
-          }
-        }
-      }
     }
   }
 
@@ -287,7 +282,12 @@ export async function applyRouteGuards(
 
   // --- Parent Guards ---
   if (isParentRoute) {
-    const isParentPublic = currentPath === pathParentLogin;
+    // `/parent/fastlogin` forges the session itself (magic-link token), so it
+    // must be reachable without one — same exemption as `/parent/login`.
+    // Without this the guard bounces the unauthenticated clicker to login and
+    // the endpoint never runs.
+    const isParentPublic =
+      currentPath === pathParentLogin || currentPath === pathParentFastlogin;
 
     if (
       !isParentPublic &&
@@ -299,42 +299,39 @@ export async function applyRouteGuards(
       event.locals.user?.role === 'parent' &&
       currentPath === pathParentLogin
     ) {
-      return Response.redirect(new URL(pathParentRoot, event.url).href, 303);
+      return Response.redirect(new URL(pathParentWelcome, event.url).href, 303);
     }
 
-    // Image rights guard: block dashboard until all children have signed
-    if (
-      event.locals.user?.role === 'parent' &&
-      !isParentPublic &&
-      currentPath !== pathParentSignature
-    ) {
+    // Parent flow: welcome → signature → merci
+    // Authenticated parents who haven't signed yet go through welcome → signature.
+    // Once all children are signed, they land on /parent/merci (no dashboard in this release).
+    if (event.locals.user?.role === 'parent' && !isParentPublic) {
       const unsignedCount = await prisma.talent.count({
         where: {
           parentEmail: event.locals.user.email,
           imageRightsSignedAt: null,
         },
       });
+
       if (unsignedCount > 0) {
-        return Response.redirect(
-          new URL(pathParentSignature, event.url).href,
-          303,
-        );
-      }
-    }
-
-    // Already signed all: prevent going back to signature page
-    if (
-      event.locals.user?.role === 'parent' &&
-      currentPath === pathParentSignature
-    ) {
-      const unsignedCount = await prisma.talent.count({
-        where: {
-          parentEmail: event.locals.user.email,
-          imageRightsSignedAt: null,
-        },
-      });
-      if (unsignedCount === 0) {
-        return Response.redirect(new URL(pathParentRoot, event.url).href, 303);
+        // Still need to sign — only allow welcome and signature pages
+        if (
+          currentPath !== pathParentWelcome &&
+          currentPath !== pathParentSignature
+        ) {
+          return Response.redirect(
+            new URL(pathParentWelcome, event.url).href,
+            303,
+          );
+        }
+      } else {
+        // All signed — always land on merci (no dashboard in this release)
+        if (currentPath !== pathParentMerci) {
+          return Response.redirect(
+            new URL(pathParentMerci, event.url).href,
+            303,
+          );
+        }
       }
     }
   }

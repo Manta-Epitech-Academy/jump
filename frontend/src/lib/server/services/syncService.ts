@@ -5,6 +5,37 @@ import {
   EVENT_TYPE_VALUES,
   type EventType,
 } from '$lib/domain/event';
+import { isNiveau, type Niveau } from '$lib/domain/niveau';
+import { resolveSchoolByUai } from '$lib/server/services/schoolService';
+
+// Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
+// the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
+function mapGender(gender: string | null | undefined): string | null {
+  if (gender === 'm') return 'homme';
+  if (gender === 'f') return 'femme';
+  return null;
+}
+
+// Resolve every distinct SF-claimed UAI to a canonical School id once, up front.
+// A cohort of ~200 talents shares far fewer schools, so this runs the lazy
+// create/enrich (and its annuaire lookup) a single time per school instead of
+// once per talent — and never re-hits the annuaire for a UAI twice in one sync.
+async function resolveSchools(
+  talents: { school?: string | null; school_uai?: string | null }[],
+): Promise<Map<string, string | null>> {
+  // First non-empty SF-sent name per UAI is the annuaire-down fallback.
+  const fallbackByUai = new Map<string, string | null>();
+  for (const t of talents) {
+    const uai = t.school_uai?.trim();
+    if (uai && !fallbackByUai.has(uai))
+      fallbackByUai.set(uai, t.school ?? null);
+  }
+  const idByUai = new Map<string, string | null>();
+  for (const [uai, fallback] of fallbackByUai) {
+    idByUai.set(uai, await resolveSchoolByUai(uai, fallback));
+  }
+  return idByUai;
+}
 
 export async function listCampuses() {
   return prisma.campus.findMany({
@@ -134,6 +165,10 @@ export async function syncTalents(
     last_name: string;
     email?: string | null;
     phone?: string | null;
+    gender?: string | null;
+    school?: string | null;
+    school_uai?: string | null;
+    class_level?: string | null;
   }[],
 ) {
   const event = await prisma.event.findUnique({
@@ -146,23 +181,59 @@ export async function syncTalents(
   let skipped = 0;
   const syncedTalentIds: string[] = [];
 
-  for (const t of talents) {
-    const email = t.email?.toLowerCase().trim() || null;
-    const phone = t.phone || null;
+  // Canonical School per distinct UAI, resolved once for the whole batch.
+  const schoolIdByUai = await resolveSchools(talents);
 
+  for (const t of talents) {
     if (!t.external_id || !t.first_name || !t.last_name)
       return {
         error:
           'Each talent must have external_id, first_name and last_name' as const,
       };
 
+    const email = t.email?.toLowerCase().trim() || null;
+    const phone = t.phone || null;
+    // Drop unknown labels rather than poisoning the column with raw SF values.
+    const niveau: Niveau | null = isNiveau(t.class_level)
+      ? t.class_level
+      : null;
+    const civilite = mapGender(t.gender);
+    // Canonical School for the SF-claimed lycée, resolved once for the batch above.
+    const uai = t.school_uai?.trim();
+    const sfSchoolId = uai ? (schoolIdByUai.get(uai) ?? null) : null;
+
     const existing = await prisma.talent.findUnique({
       where: { externalId: t.external_id },
+      select: {
+        id: true,
+        prenom: true,
+        nom: true,
+        email: true,
+        phone: true,
+        civilite: true,
+        niveau: true,
+        schoolId: true,
+        infoValidatedAt: true,
+        highSchoolValidatedAt: true,
+        sfImport: {
+          select: {
+            nom: true,
+            prenom: true,
+            phone: true,
+            civilite: true,
+            niveau: true,
+            sfSchoolId: true,
+          },
+        },
+      },
     });
 
     let talentId: string;
 
     if (!existing) {
+      // First sight: seed the Talent (Jump truth starts equal to SF) and create
+      // its SF mirror in one shot. Before any onboarding confirmation, SF is the
+      // only source, so seed and mirror are identical.
       try {
         console.log(
           `Creating new talent: Name: ${t.first_name} ${t.last_name}, Email: ${email}, Phone: ${phone} ExId: ${t.external_id}`,
@@ -174,8 +245,21 @@ export async function syncTalents(
             nom: t.last_name,
             email,
             phone,
+            niveau,
+            civilite,
+            schoolId: sfSchoolId,
             xp: 0,
             eventsCount: 0,
+            sfImport: {
+              create: {
+                nom: t.last_name,
+                prenom: t.first_name,
+                phone,
+                civilite,
+                niveau,
+                sfSchoolId,
+              },
+            },
           },
         });
         talentId = talent.id;
@@ -207,23 +291,68 @@ export async function syncTalents(
       }
     } else {
       talentId = existing.id;
-      if (
-        existing.prenom !== t.first_name ||
-        existing.nom !== t.last_name ||
-        existing.email !== email ||
-        existing.phone !== phone
-      ) {
+
+      // 1. Refresh the SF mirror to the latest claim. Skip the write when the
+      //    payload is identical to the stored mirror — on the steady state
+      //    (200 talents, ~0 changes / 30 min) this means near-zero writes.
+      const m = existing.sfImport;
+      const mirrorChanged =
+        !m ||
+        m.nom !== t.last_name ||
+        m.prenom !== t.first_name ||
+        m.phone !== phone ||
+        m.civilite !== civilite ||
+        m.niveau !== niveau ||
+        m.sfSchoolId !== sfSchoolId;
+      if (mirrorChanged) {
+        await prisma.talentSfImport.upsert({
+          where: { talentId },
+          create: {
+            talentId,
+            nom: t.last_name,
+            prenom: t.first_name,
+            phone,
+            civilite,
+            niveau,
+            sfSchoolId,
+          },
+          update: {
+            nom: t.last_name,
+            prenom: t.first_name,
+            phone,
+            civilite,
+            niveau,
+            sfSchoolId,
+          },
+        });
+      }
+
+      // 2. Patch the Talent row under the no-clobber rule: SF only re-seeds a
+      //    field while the talent hasn't confirmed it. Once confirmed, SF stops
+      //    touching it and a divergence is left to surface as a conflict.
+      const patch: Prisma.TalentUncheckedUpdateInput = {};
+      // email is the auth identity (not talent-editable) → always synced.
+      if (existing.email !== email) patch.email = email;
+      // niveau is SF-owned (onboarding never sets it) → always synced, but never
+      // wiped by a blank/unknown SF value.
+      if (niveau !== null && existing.niveau !== niveau) patch.niveau = niveau;
+      if (!existing.infoValidatedAt) {
+        if (existing.prenom !== t.first_name) patch.prenom = t.first_name;
+        if (existing.nom !== t.last_name) patch.nom = t.last_name;
+        if (existing.phone !== phone) patch.phone = phone;
+        if (existing.civilite !== civilite) patch.civilite = civilite;
+      }
+      if (!existing.highSchoolValidatedAt && existing.schoolId !== sfSchoolId) {
+        patch.schoolId = sfSchoolId;
+      }
+
+      const hasPatch = Object.keys(patch).length > 0;
+      if (hasPatch) {
         try {
           await prisma.talent.update({
             where: { externalId: t.external_id },
-            data: {
-              prenom: t.first_name,
-              nom: t.last_name,
-              email,
-              phone,
-            },
+            data: patch,
           });
-          updated++;
         } catch (err) {
           if (
             err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -249,6 +378,7 @@ export async function syncTalents(
           throw err;
         }
       }
+      if (mirrorChanged || hasPatch) updated++;
     }
 
     await prisma.participation.upsert({

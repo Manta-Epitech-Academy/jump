@@ -1,34 +1,46 @@
-import { env } from '$env/dynamic/private';
+import { sendSms, type SendSmsFailure } from '$lib/server/sms';
+import { toBrevoRecipient } from '$lib/domain/phone';
 import type { SmsProvider, SendOutcome } from './types';
 
 /**
- * Logs the SMS but doesn't actually send. Used as the default until a real
- * provider (Twilio, OVH, etc.) is wired. Reports a non-retryable failure so
- * the orchestrator marks recipients as `failed` with a clear reason — the
- * admin UI then surfaces "0 envoyés / N échecs" instead of a false success
- * that hides an unconfigured prod deployment.
+ * Adapts the provider-agnostic SMS façade (`$lib/server/sms`) into the
+ * broadcast orchestrator's `SmsProvider`/`SendOutcome` contract — the SMS
+ * twin of `./mail.ts`. Transport, dev-redirect and Brevo wiring all live in
+ * the façade; this file only translates the result shape and retry semantics.
  */
-export const nullSmsProvider: SmsProvider = {
+
+/**
+ * Network errors are always transient (transport threw before a response).
+ * API errors are transient only on 429 (rate limit) or 5xx; other 4xx
+ * (bad number, unconfigured, insufficient credits) are permanent. Unknown
+ * status → non-retryable, to avoid burning SMS credits on hopeless inputs.
+ */
+function isRetryableFailure(failure: SendSmsFailure): boolean {
+  if (failure.reason === 'network_error') return true;
+  const code = failure.statusCode;
+  if (typeof code !== 'number') return false;
+  return code === 429 || (code >= 500 && code < 600);
+}
+
+export const transactionalSmsProvider: SmsProvider = {
   async sendSms({ to, body }): Promise<SendOutcome> {
-    console.log(`[sms:null] to=${to} body=${body.slice(0, 60)}...`);
+    // Recipients carry the raw, French-entered phone; the façade expects an
+    // already-normalized number. An unparseable value can never succeed —
+    // fail it permanently rather than handing Brevo a number it rejects.
+    const recipient = toBrevoRecipient(to);
+    if (!recipient) {
+      return { ok: false, message: 'invalid phone number', retryable: false };
+    }
+    const result = await sendSms({ to: recipient, body });
+    if (result.ok) return { ok: true, providerMessageId: result.id };
     return {
       ok: false,
-      message: 'SMS provider not configured (SMS_PROVIDER=null)',
-      retryable: false,
+      message: `${result.reason}: ${result.message}`,
+      retryable: isRetryableFailure(result),
     };
   },
 };
 
 export function getSmsProvider(): SmsProvider {
-  const kind = (env.SMS_PROVIDER ?? 'null').toLowerCase();
-  switch (kind) {
-    case 'null':
-    case '':
-      return nullSmsProvider;
-    default:
-      // Unknown provider name: fail loud so we don't silently lose messages.
-      throw new Error(
-        `SMS_PROVIDER="${kind}" is not implemented yet. Set SMS_PROVIDER=null or wire a real provider.`,
-      );
-  }
+  return transactionalSmsProvider;
 }
