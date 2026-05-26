@@ -48,13 +48,12 @@
           Avant cela, une étape côté famille : votre réponse au droit à l'image.
         </p>
 
-        <a href={resolve('/parent/signature')}>
-          <Button
-            class="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
-          >
-            Donner ma réponse
-          </Button>
-        </a>
+        <Button
+          href={resolve('/parent/signature')}
+          class="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+        >
+          Donner ma réponse
+        </Button>
       </div>
     </div>
   </main>

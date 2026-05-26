@@ -96,7 +96,6 @@ export async function applyRouteGuards(
   const pathTalentWelcome = p('/welcome');
   const pathParentLogin = p('/parent/login');
   const pathParentFastlogin = p('/parent/fastlogin');
-  const pathParentRoot = p('/parent');
   const pathParentWelcome = p('/parent/welcome');
   const pathParentSignature = p('/parent/signature');
   const pathParentMerci = p('/parent/merci');

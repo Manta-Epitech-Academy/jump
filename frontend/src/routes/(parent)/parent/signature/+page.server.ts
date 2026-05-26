@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   });
 
   if (unsignedChildren.length === 0) {
-    throw redirect(303, resolve('/parent'));
+    throw redirect(303, resolve('/parent/merci'));
   }
 
   return {
