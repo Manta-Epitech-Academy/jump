@@ -2,6 +2,7 @@
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import { Checkbox } from '$lib/components/ui/checkbox';
+  import * as Select from '$lib/components/ui/select';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { track, errReason } from '$lib/analytics';
 
@@ -81,19 +82,25 @@
           class="inline-block w-44 rounded-lg border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
         />
         agissant en qualité de
-        <select
-          name="relationship"
-          bind:value={relationship}
-          required
-          class="inline-block w-auto rounded-lg border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-        >
-          <option value="" disabled class="text-slate-400">(choisir)</option>
-          <option value="mère">mère</option>
-          <option value="père">père</option>
-          <option value="tuteur légal">tuteur légal</option>
-          <option value="tutrice légale">tutrice légale</option>
-        </select>, autorise <strong>Epitech</strong> à utiliser l'image de mon
-        enfant
+        <input type="hidden" name="relationship" value={relationship} />
+        <Select.Root type="single" bind:value={relationship}>
+          <Select.Trigger
+            class="inline-flex h-auto w-auto gap-1 rounded-lg border-slate-300 bg-white px-2 py-1 align-middle text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          >
+            {#if relationship}
+              {relationship}
+            {:else}
+              <span class="text-slate-400">(choisir)</span>
+            {/if}
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Item value="mère" label="mère" />
+            <Select.Item value="père" label="père" />
+            <Select.Item value="tuteur légal" label="tuteur légal" />
+            <Select.Item value="tutrice légale" label="tutrice légale" />
+          </Select.Content>
+        </Select.Root>, autorise <strong>Epitech</strong> à utiliser l'image de
+        mon enfant
         <strong>{child.prenom} {child.nom}</strong> dans le cadre du stage de seconde.
       </p>
       {@html droitImageBody}
