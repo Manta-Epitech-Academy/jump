@@ -32,29 +32,40 @@
         <div
           class="space-y-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
         >
-          <p>
-            Votre accord pour le droit à l'image de <strong
-              >{data.childPrenom}</strong
-            > vient d'être enregistré.
-          </p>
-
-          <p>
-            Plus rien à faire de votre côté : <strong>{data.childPrenom}</strong
-            >
-            est attendu(e) sur notre campus de
-            <strong>{data.campusName}</strong> du 15 au 26 juin. Nos équipes ont hâte
-            de l'accueillir.
-          </p>
-
-          {#if data.contactEmail}
+          {#if data.childPrenom}
             <p>
-              Si vous avez la moindre question d'ici là, écrivez-nous à
-              <a
-                href="mailto:{data.contactEmail}"
-                class="font-semibold text-epi-blue hover:underline"
-                >{data.contactEmail}</a
-              >.
+              Votre accord pour le droit à l'image de <strong
+                >{data.childPrenom}</strong
+              > vient d'être enregistré.
             </p>
+
+            <p>
+              Plus rien à faire de votre côté : <strong
+                >{data.childPrenom}</strong
+              >
+              est attendu(e) sur notre campus de
+              <strong>{data.campusName}</strong> du 15 au 26 juin. Nos équipes ont
+              hâte de l'accueillir.
+            </p>
+
+            {#if data.contactEmail}
+              <p>
+                Si vous avez la moindre question d'ici là, écrivez-nous à
+                <a
+                  href="mailto:{data.contactEmail}"
+                  class="font-semibold text-epi-blue hover:underline"
+                  >{data.contactEmail}</a
+                >.
+              </p>
+            {/if}
+          {:else}
+            <p>
+              Le droit à l'image de votre enfant est pris en charge par le
+              parent référent. <strong>Aucune action n'est requise</strong> de votre
+              part.
+            </p>
+
+            <p>Nos équipes ont hâte de l'accueillir.</p>
           {/if}
 
           <p class="pt-2 font-medium text-slate-700 dark:text-slate-200">

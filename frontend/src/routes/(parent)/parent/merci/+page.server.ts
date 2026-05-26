@@ -8,30 +8,38 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw error(401, 'Non autorisé');
   }
 
-  // If there are still unsigned children, send back to signature
+  const parentEmail = locals.user.email;
+
+  // Defensive mirror of the route guard: a parent with children still to sign
+  // belongs on the signature step, not the thank-you page.
   const unsignedCount = await prisma.talent.count({
-    where: {
-      parentEmail: locals.user.email,
-      imageRightsSignedAt: null,
-    },
+    where: { parentEmail, imageRightsSignedAt: null },
   });
 
   if (unsignedCount > 0) {
     throw redirect(303, resolve('/parent/signature'));
   }
 
-  // Get the most recently signed child + their campus info
+  // Personalise the acknowledgement from the most recently signed child.
   const child = await prisma.talent.findFirst({
-    where: { parentEmail: locals.user.email },
+    where: { parentEmail },
     orderBy: { imageRightsSignedAt: 'desc' },
     select: { prenom: true, id: true },
   });
 
+  // No child resolves under this address — e.g. a second legal guardian, whose
+  // children are tracked under the primary parent's email. There is nothing to
+  // confirm, so render a neutral acknowledgement. Redirecting away here would
+  // loop: the guard sends every signed-up parent straight back to /parent/merci.
   if (!child) {
-    throw redirect(303, resolve('/parent/login'));
+    return {
+      childPrenom: null,
+      campusName: '',
+      contactEmail: '',
+    };
   }
 
-  // Find the campus via the child's participation
+  // Campus comes from the child's most recent participation.
   const participation = await prisma.participation.findFirst({
     where: { talentId: child.id },
     orderBy: { event: { date: 'desc' } },
