@@ -12,21 +12,37 @@ export type RelanceChannel = 'email' | 'sms';
 // Aligned with broadcast / email-action variable names so admin-bound
 // templates use the same tokens everywhere. Migrated from the legacy
 // `prenomParent`/`nomParent`/`childName` set; `formatTalentVars` populates
-// these via the canonical Talent → context mapping below.
-export const RELANCE_VARS_STUDENT = ['prenom', 'nom', 'login_link'] as const;
+// the talent-derived tokens, the server adds the campus-scoped ones
+// (`campus`, `email_contact_campus`) — both of which the default bodies use,
+// so they belong here too (chips + preview, not just the server context).
+export const RELANCE_VARS_STUDENT = [
+  'prenom',
+  'nom',
+  'campus',
+  'email_contact_campus',
+  'login_link',
+] as const;
 export const RELANCE_VARS_PARENT = [
   'parent_prenom',
   'parent_nom',
   'child_prenom',
   'child_nom',
+  'campus',
+  'email_contact_campus',
   'login_link',
 ] as const;
 
 // SMS escalation carries no action link (the recipient is sent back to their
-// inbox), so the only useful tokens are who it's for and which mailbox to
-// check. `{{email}}` is the recipient's own mailbox, named per the spec.
-export const RELANCE_SMS_VARS_STUDENT = ['prenom', 'email'] as const;
-export const RELANCE_SMS_VARS_PARENT = ['child_prenom', 'email'] as const;
+// inbox), so the only useful tokens are who it's for, which mailbox to check,
+// and the campus the message signs off as. `{{email}}` is the recipient's own
+// mailbox, named per the spec; `{{campus}}` is the "- Epitech {{campus}}"
+// sign-off in the default body.
+export const RELANCE_SMS_VARS_STUDENT = ['prenom', 'email', 'campus'] as const;
+export const RELANCE_SMS_VARS_PARENT = [
+  'child_prenom',
+  'email',
+  'campus',
+] as const;
 
 export type StudentRelanceVar = (typeof RELANCE_VARS_STUDENT)[number];
 export type ParentRelanceVar = (typeof RELANCE_VARS_PARENT)[number];

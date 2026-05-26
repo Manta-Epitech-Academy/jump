@@ -192,7 +192,12 @@
       state.type === 'student'
         ? (first.email ?? first.user?.email ?? '')
         : (first.parentEmail ?? '');
-    return { ...formatTalentVars(first), email: mailbox };
+    return {
+      ...formatTalentVars(first),
+      email: mailbox,
+      campus: data.campus.name,
+      email_contact_campus: data.campus.contactEmail ?? '',
+    };
   }
 
   function toggleAllTalents() {

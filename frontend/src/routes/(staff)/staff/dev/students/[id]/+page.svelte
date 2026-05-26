@@ -179,7 +179,12 @@
         composeType === 'parent'
           ? (t.parentEmail ?? '')
           : (t.user?.email ?? t.email ?? '');
-      return { ...formatTalentVars(t), email: mailbox };
+      return {
+        ...formatTalentVars(t),
+        email: mailbox,
+        campus: data.campus.name,
+        email_contact_campus: data.campus.contactEmail ?? '',
+      };
     },
   );
 

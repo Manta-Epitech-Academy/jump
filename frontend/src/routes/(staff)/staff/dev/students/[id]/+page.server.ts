@@ -297,6 +297,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       relanceForm,
       relanceDefaults,
       smsEnabled: isSmsEnabled(),
+      // Campus-scoped relance variables ({{campus}}, {{email_contact_campus}})
+      // the server substitutes at send time — surfaced so the compose preview
+      // renders them instead of leaving raw tokens. Already on locals, no query.
+      campus: {
+        name: locals.staffProfile?.campus?.name ?? '',
+        contactEmail: locals.staffProfile?.campus?.contactEmail ?? null,
+      },
       tab,
       timezone,
     };
