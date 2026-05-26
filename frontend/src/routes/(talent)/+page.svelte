@@ -423,7 +423,7 @@
           class="order-3 inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
         >
           <History class="h-4 w-4" />
-          Revoir mes missions précédentes ({totalPastMissions})
+          Voir mes missions précédentes ({totalPastMissions})
           <ArrowRight class="h-3.5 w-3.5" />
         </a>
       {/if}

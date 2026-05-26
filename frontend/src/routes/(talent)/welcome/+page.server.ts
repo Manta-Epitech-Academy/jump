@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 
 const SLUG = 'welcome';
 
@@ -14,43 +15,52 @@ export const load: PageServerLoad = async ({ locals }) => {
       event: { eventType: 'stage_seconde' },
     },
     orderBy: { event: { date: 'desc' } },
-    select: { event: { select: { id: true, endDate: true, date: true } } },
+    select: {
+      event: {
+        select: {
+          id: true,
+          titre: true,
+          endDate: true,
+          date: true,
+          campus: { select: { name: true, contactEmail: true } },
+        },
+      },
+    },
   });
 
   if (!stageParticipation) {
     throw redirect(303, resolve('/'));
   }
 
-  const stageEnd =
-    stageParticipation.event.endDate ?? stageParticipation.event.date;
+  const { event } = stageParticipation;
+  const stageEnd = event.endDate ?? event.date;
   if (stageEnd < new Date()) {
     throw redirect(303, resolve('/'));
   }
 
   const page = await prisma.cmsPage.findUnique({
-    where: {
-      slug_eventId: {
-        slug: SLUG,
-        eventId: stageParticipation.event.id,
-      },
-    },
+    where: { slug_eventId: { slug: SLUG, eventId: event.id } },
   });
 
   if (!page?.content) {
     throw redirect(303, resolve('/'));
   }
 
-  // Replace CMS variables
-  const cmsContent = page.content
-    .replace(/\{\{PRENOM\}\}/gi, locals.talent.prenom)
-    .replace(/\{\{NOM\}\}/gi, locals.talent.nom);
+  // Shared renderer keeps token substitution identical to the dashboard feed.
+  const cmsContent = renderWelcomeMessage(page.content, {
+    prenom: locals.talent.prenom,
+    nom: locals.talent.nom,
+    campusName: event.campus.name,
+    campusContactEmail: event.campus.contactEmail,
+    stageName: event.titre,
+  });
 
   const alreadySeen = !!locals.talent.welcomeSeenAt;
   return {
     cmsContent,
     alreadySeen,
     prenom: locals.talent.prenom,
-    eventId: stageParticipation.event.id,
+    eventId: event.id,
     talentCreatedAt: locals.talent.createdAt.toISOString(),
   };
 };
