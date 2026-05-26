@@ -24,6 +24,7 @@
   import Send from '@lucide/svelte/icons/send';
   import Mails from '@lucide/svelte/icons/mails';
   import MailCog from '@lucide/svelte/icons/mail-warning';
+  import DoorOpen from '@lucide/svelte/icons/door-open';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -162,6 +163,13 @@
     >
       <MailCog class="h-4 w-4" />
       <span>Mails transactionnels</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/welcome-pages')}
+      class={navLinkClass(isActive('/staff/admin/welcome-pages'))}
+    >
+      <DoorOpen class="h-4 w-4" />
+      <span>Pages d'accueil</span>
     </a>
   </nav>
 

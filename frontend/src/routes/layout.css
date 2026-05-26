@@ -445,41 +445,31 @@
   }
 }
 
-/* --- Manta +10 XP Animation --- */
+/* --- "+N XP" reward float (onboarding arrival + daily minigame) --- */
 @keyframes xp-float {
   0% {
     opacity: 0;
-    transform: translateY(0) scale(0.8);
+    transform: translateY(24px) scale(0.5);
   }
-  20% {
+  12% {
     opacity: 1;
-    transform: translateY(-20px) scale(1.2);
+    transform: translateY(0) scale(1.25); /* pop in with overshoot */
   }
-  80% {
+  24% {
+    transform: translateY(0) scale(1); /* settle */
+  }
+  70% {
     opacity: 1;
-    transform: translateY(-40px) scale(1);
+    transform: translateY(-12px) scale(1); /* gentle hover */
   }
   100% {
     opacity: 0;
-    transform: translateY(-60px) scale(1);
+    transform: translateY(-56px) scale(0.92); /* float away */
   }
 }
 
 .animate-xp-float {
-  animation: xp-float 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-/* --- View transitions --- */
-@media (prefers-reduced-motion: no-preference) {
-  /* The welcome message has one `view-transition-name` shared between the
-     /welcome page (full, card-shaped) and the dashboard's Actualités card. On
-     "Accéder au tableau de bord" the browser morphs one into the other, so the
-     message visibly travels into its permanent home. Slow it slightly and ease
-     it so the travel reads as deliberate rather than a snap. */
-  ::view-transition-group(welcome-message) {
-    animation-duration: 500ms;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  }
+  animation: xp-float 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* --- Focus Mode Kiosk Overrides --- */

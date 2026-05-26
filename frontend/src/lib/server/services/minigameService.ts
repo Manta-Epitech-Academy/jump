@@ -240,6 +240,19 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
   });
 }
 
+/**
+ * Stamp `xpSeenAt` on the talent's awarded-but-unseen attempts so the "+XP"
+ * float fires exactly once — whether it played on the daily-training page (right
+ * after the win) or on the next dashboard visit. Idempotent: a double-fire or a
+ * stale tab is harmless.
+ */
+export async function markMinigameRewardsSeen(talentId: string): Promise<void> {
+  await prisma.minigameAttempt.updateMany({
+    where: { talentId, xpAwarded: { not: null }, xpSeenAt: null },
+    data: { xpSeenAt: new Date() },
+  });
+}
+
 /** An enabled config paired with its live catalogue entry. */
 interface RotationCandidate {
   config: MinigameConfig;
@@ -270,9 +283,19 @@ export async function pickNextPublication(): Promise<MinigamePublication | null>
   }
 
   const active = await getActivePublication();
-  const pool = active
+  let pool = active
     ? candidates.filter((c) => c.config.game !== active.game)
     : candidates;
+
+  // The inaugural publication is a newcomer's very first daily challenge, so it
+  // must never open on a `hard` game (e.g. the Démineur — deductive and fiddly
+  // on touch). Once a publication exists, the normal weighted rotation resumes
+  // and every enabled game is back in play.
+  if (!active) {
+    const approachable = pool.filter((c) => c.game.difficulty !== 'hard');
+    if (approachable.length > 0) pool = approachable;
+  }
+
   if (pool.length === 0) {
     console.warn(
       '[minigames] All games excluded by current publication — skipping.',

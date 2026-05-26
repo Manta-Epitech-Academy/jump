@@ -130,11 +130,16 @@ model bauth_account {
 
 model bauth_verification {
   id         String   @id @default(cuid())
-  identifier String   @unique
+  identifier String
   value      String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  // NOT @unique: BetterAuth keeps multiple/overlapping verification rows per
+  // identifier (e.g. concurrent OTP requests). A unique constraint made
+  // `createVerificationOTP` (fastlogin path) 500 on a pre-existing row.
+  @@index([identifier])
 }
 
 // ─── Domain Profiles ───

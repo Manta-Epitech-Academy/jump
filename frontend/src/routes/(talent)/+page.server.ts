@@ -13,7 +13,10 @@ import {
   getActivePublication,
   getClosestEventForTalent,
   applyCallback,
+  markMinigameRewardsSeen,
 } from '$lib/server/services/minigameService';
+import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
+import { stageWindowEnd } from '$lib/domain/event';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -227,9 +230,10 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         ? { xp: lastAttempt.xpAwarded }
         : null;
 
-    // The stage welcome message is the seed item of the dashboard's Actualités
-    // feed. It shows for the whole stage window — the message permanently lives
-    // here, this is its only home (the standalone /welcome page was removed).
+    // The staff-authored CMS welcome message seeds the dashboard's Actualités
+    // feed and shows for the whole stage window — this card is its only home.
+    // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
+    // own copy and does not read this row.
     let welcome: { content: string } | null = null;
     {
       const stageParticipation = await prisma.participation.findFirst({
@@ -238,22 +242,37 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           event: { eventType: 'stage_seconde' },
         },
         orderBy: { event: { date: 'desc' } },
-        select: { event: { select: { id: true, endDate: true, date: true } } },
+        select: {
+          event: {
+            select: {
+              id: true,
+              titre: true,
+              endDate: true,
+              date: true,
+              campus: { select: { name: true, contactEmail: true } },
+            },
+          },
+        },
       });
       if (stageParticipation) {
-        const stageEnd =
-          stageParticipation.event.endDate ?? stageParticipation.event.date;
+        const { event } = stageParticipation;
+        const stageEnd = stageWindowEnd(event.date, event.endDate);
         if (stageEnd >= new Date()) {
           const welcomePage = await prisma.cmsPage.findUnique({
-            where: {
-              slug_eventId: {
-                slug: 'welcome',
-                eventId: stageParticipation.event.id,
-              },
-            },
+            where: { slug_eventId: { slug: 'welcome', eventId: event.id } },
             select: { content: true },
           });
-          if (welcomePage?.content) welcome = { content: welcomePage.content };
+          if (welcomePage?.content) {
+            welcome = {
+              content: renderWelcomeMessage(welcomePage.content, {
+                prenom: locals.talent.prenom,
+                nom: locals.talent.nom,
+                campusName: event.campus.name,
+                campusContactEmail: event.campus.contactEmail,
+                stageName: event.titre,
+              }),
+            };
+          }
         }
       }
     }
@@ -287,16 +306,7 @@ export const actions: Actions = {
    */
   acknowledgeMinigameReward: async ({ locals }) => {
     if (!locals.talent) throw error(401, 'Non autorisé');
-
-    await prisma.minigameAttempt.updateMany({
-      where: {
-        talentId: locals.talent.id,
-        xpAwarded: { not: null },
-        xpSeenAt: null,
-      },
-      data: { xpSeenAt: new Date() },
-    });
-
+    await markMinigameRewardsSeen(locals.talent.id);
     return { acknowledged: true };
   },
 
