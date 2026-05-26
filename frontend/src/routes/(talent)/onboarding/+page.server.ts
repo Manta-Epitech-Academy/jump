@@ -10,8 +10,6 @@ import {
   equipmentSchema,
   rulesSchema,
 } from '$lib/validation/onboarding';
-import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
-import { getStorage } from '$lib/server/infra/storage';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
@@ -20,6 +18,10 @@ import {
   getOnboardingStep,
   type OnboardingStep,
 } from '$lib/domain/talentOnboarding';
+import {
+  enqueueOnboardingPdfJob,
+  runOnboardingPdfJob,
+} from '$lib/server/services/onboardingPdfJobService';
 
 // Re-exported for the `./$types`-typed action handlers that key off the step.
 export type { OnboardingStep };
@@ -252,10 +254,14 @@ export const actions: Actions = {
             },
           });
         }
+
+        // Welcome email carries a passwordless magic link into the parent
+        // space — the bauth_user just created above lets it resolve.
         await sendParentWelcomeEmail(
           parentEmail,
           result.data.parentNom,
           locals.talent!.prenom,
+          locals.talent!.id,
         );
       })().catch((err) =>
         console.error('Failed to send parent 1 welcome email:', err),
@@ -290,6 +296,7 @@ export const actions: Actions = {
           parent2Email,
           result.data.parent2Nom ?? '',
           locals.talent!.prenom,
+          locals.talent!.id,
         );
       })().catch((err) =>
         console.error('Failed to send parent 2 welcome email:', err),
@@ -475,8 +482,9 @@ export const actions: Actions = {
     const talentId = locals.talent.id;
     const studentName = `${locals.talent.prenom} ${locals.talent.nom}`;
 
-    // Set timestamps and grant XP immediately so the user isn't blocked.
-    await prisma.$transaction(async (tx) => {
+    // Set timestamps, grant XP, and enqueue the PDF job atomically — all fast
+    // DB writes, so the redirect below is instant.
+    const job = await prisma.$transaction(async (tx) => {
       await tx.talent.update({
         where: { id: talentId },
         data: {
@@ -490,26 +498,17 @@ export const actions: Actions = {
         sourceId: talentId,
         amount: WELCOME_XP_BONUS,
       });
+      return enqueueOnboardingPdfJob(tx, {
+        talentId,
+        documentType: 'rules',
+        payload: { studentName, city, signedAt: now.toISOString() },
+      });
     });
 
-    // Generate PDF + upload to S3 in background (fire-and-forget)
-    (async () => {
-      const storage = getStorage();
-      const pdf = await generateOnboardingPDF({
-        type: 'rules',
-        studentName,
-        signedAt: now,
-        city,
-      });
-      const key = `documents/${talentId}/rules-${now.getTime()}.pdf`;
-      await storage.save(key, pdf);
-      await prisma.talent.update({
-        where: { id: talentId },
-        data: { rulesFilePath: key },
-      });
-    })().catch((err) =>
-      console.error('Failed to generate/upload rules PDF:', err),
-    );
+    // Generate the PDF + upload to S3 in the background — NOT awaited, so the
+    // student reaches the dashboard immediately and the file lands a few seconds
+    // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
+    void runOnboardingPdfJob(job.id);
 
     // Head to the dashboard with the one-shot celebration signal. If a CMS
     // welcome message exists, the guard intercepts to /welcome first; that page

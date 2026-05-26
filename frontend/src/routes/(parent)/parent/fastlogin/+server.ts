@@ -13,7 +13,7 @@ import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { establishOtpSession } from '$lib/server/auth/otpSession';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
-import { verifyParentFastloginToken } from '$lib/server/services/broadcast/personalization';
+import { verifyParentFastloginToken } from '$lib/server/auth/fastloginToken';
 
 export const GET: RequestHandler = async ({ url, request, cookies }) => {
   const token = url.searchParams.get('token');
