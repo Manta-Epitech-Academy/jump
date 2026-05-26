@@ -246,7 +246,7 @@ Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/
 | `null` (default) | No provider wired. Sends fail loud and non-retryably, so an unconfigured prod surfaces "0 envoyés / N échecs" instead of a silent success. The relance UI disables the SMS channel and explains why. |
 | `brevo`         | Brevo (ex-Sendinblue) transactional SMS via REST (fetch, no SDK). Requires `BREVO_API_KEY`. `SMS_SENDER` is the alphanumeric sender shown on the handset (Brevo caps it at 11 chars; default `Epitech`). |
 
-`SMS_DEV_RECIPIENTS` reroutes all outbound SMS to a debug number (first entry), applied in the façade before the provider sees the payload. **Recipients are minors (RGPD) — set this in every non-prod environment so a real number is never texted.**
+`SMS_DEV_RECIPIENTS` reroutes all outbound SMS to debug numbers (comma-separated; every listed number gets a copy, mirroring `EMAIL_DEV_RECIPIENTS`), applied in the façade before the provider sees the payload. **Recipients are minors (RGPD) — set this in every non-prod environment so a real number is never texted.**
 
 **SMS escalation (relances).** `email` is the primary onboarding nudge; `sms` is the escalation. The SMS carries **no action link** — it names the recipient's own mailbox (`{{email}}`) and tells them to check it. A talent is only SMS-eligible once an **email** relance has already been sent (`noPriorEmail` skip otherwise) and a usable phone exists (`noPhone` skip). Each channel has its own cooldown track. The body is a fixed default (`RELANCE_SMS_DEFAULTS`, editable in the compose dialog), not an admin `EmailActionMapping` template. Phone numbers are normalized to Brevo's format by `$lib/domain/phone` → `toBrevoRecipient`.
 

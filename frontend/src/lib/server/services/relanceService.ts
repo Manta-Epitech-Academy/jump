@@ -88,7 +88,7 @@ export async function sendRelances(
   const db = scopedPrisma(campusId);
   const campus = await prisma.campus.findUnique({
     where: { id: campusId },
-    select: { contactEmail: true },
+    select: { name: true, contactEmail: true },
   });
 
   // Email relances draw their draft from an admin-bound template, so a missing
@@ -185,6 +185,8 @@ export async function sendRelances(
         ...EMPTY_VARIABLE_CONTEXT,
         ...talentVars,
         email: mailbox,
+        campus: campus?.name ?? '',
+        email_contact_campus: campus?.contactEmail ?? null,
       };
       // No link rewrite: the SMS deliberately carries no action link.
       const renderedBody = substituteVariables(body, ctx);
@@ -247,6 +249,7 @@ export async function sendRelances(
       ...EMPTY_VARIABLE_CONTEXT,
       ...talentVars,
       email: recipient,
+      campus: campus?.name ?? '',
       login_link: loginLink,
       fastlogin_link: fastloginLink,
       parent_fastlogin_link: parentFastloginLink,
