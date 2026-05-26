@@ -3775,6 +3775,12 @@ async function seedStudents(): Promise<
       phone: s.phone,
       parentPhone: s.parentPhone,
       niveau: s.niveau,
+      // Welcome strictly precedes onboarding: "On y va" stamps welcomeSeenAt
+      // and hands off to step 1. So anyone who has cleared a single step has
+      // necessarily passed the gate. Leaving it null on an onboarded talent is
+      // a state the real flow can't produce — it would re-trap them on
+      // /welcome at next login (seed bug, not a runtime one).
+      welcomeSeenAt: profileConfirmed ? ts : null,
       infoValidatedAt: profileConfirmed ? ts : null,
       highSchoolValidatedAt: schoolConfirmed ? ts : null,
       parentsValidatedAt: parentsConfirmed ? ts : null,
