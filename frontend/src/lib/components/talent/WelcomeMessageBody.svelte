@@ -1,7 +1,8 @@
 <script lang="ts">
-  // Single source of truth for rendering the stage welcome message (CMS HTML).
-  // Used by the dedicated /welcome page, the Actualités card preview, and the
-  // card's full dialog — so prose styling stays in sync across all three.
+  // Single source of truth for rendering the CMS welcome message (HTML) on the
+  // dashboard: the Actualités card preview and the card's full dialog — so
+  // prose styling stays in sync across both. (The /welcome splash is a separate
+  // fixed greeting and does not render through here.)
   import { cn } from '$lib/utils';
 
   let { content, class: className }: { content: string; class?: string } =

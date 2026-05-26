@@ -10,7 +10,8 @@ import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (locals.user?.role === 'parent') {
-    throw redirect(303, resolve('/parent'));
+    // Canonical flow entry; the guard re-routes to welcome/merci as needed.
+    throw redirect(303, resolve('/parent/welcome'));
   }
 
   const emailForm = await superValidate(zod4(camperEmailSchema));
@@ -110,9 +111,9 @@ export const actions: Actions = {
     });
 
     if (unsignedCount > 0) {
-      throw redirect(303, resolve('/parent/signature'));
+      throw redirect(303, resolve('/parent/welcome'));
     }
 
-    throw redirect(303, resolve('/parent'));
+    throw redirect(303, resolve('/parent/merci'));
   },
 };

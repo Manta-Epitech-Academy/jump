@@ -12,9 +12,8 @@
   // into the same list. The list region is height-bounded + scrollable so the
   // feed grows without pushing page height.
   //
-  // This card is the welcome message's permanent home. On first arrival the
-  // /welcome page morphs into it via the shared `welcome-message`
-  // view-transition-name; `highlight` then flags it fresh (ring + "Nouveau").
+  // This card is the welcome message's permanent home. `highlight` flags it
+  // fresh (ring + "Nouveau") on first arrival from onboarding.
   let {
     welcomeContent,
     highlight = false,
@@ -27,7 +26,6 @@
 </script>
 
 <div
-  style="view-transition-name: welcome-message"
   class={cn(
     'overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 transition-shadow dark:bg-slate-900 dark:shadow-none',
     highlight &&

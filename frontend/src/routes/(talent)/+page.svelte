@@ -84,11 +84,10 @@
     timers.push(setTimeout(() => (showXpFloat = false), 2500));
   }
 
-  // Arrival celebration. The `?welcome=1` signal is emitted once — either
-  // straight from onboarding (no welcome message) or by /welcome after the
-  // message was read (which morphs into the Actualités card as we land here).
-  // We celebrate and leave the freshly-docked card highlighted so it's easy to
-  // find; the message itself was already read on /welcome, so no modal pops.
+  // Arrival celebration. Onboarding completion redirects here with the one-shot
+  // `?welcome=1` signal; we fire the celebration and leave the Actualités card
+  // highlighted so it's easy to find. No modal pops — the card surfaces the
+  // welcome message inline (the /welcome splash earlier is a separate greeting).
   let welcomeHighlight = $state(false);
   onMount(() => {
     if (!page.url.searchParams.has('welcome')) return;

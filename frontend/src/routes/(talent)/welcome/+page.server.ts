@@ -2,10 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import { stageWindowEnd } from '$lib/domain/event';
-
-const SLUG = 'welcome';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
@@ -39,26 +36,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  const page = await prisma.cmsPage.findUnique({
-    where: { slug_eventId: { slug: SLUG, eventId: event.id } },
-  });
-
-  if (!page?.content) {
-    throw redirect(303, resolve('/'));
-  }
-
-  // Shared renderer keeps token substitution identical to the dashboard feed.
-  const cmsContent = renderWelcomeMessage(page.content, {
-    prenom: locals.talent.prenom,
-    nom: locals.talent.nom,
-    campusName: event.campus.name,
-    campusContactEmail: event.campus.contactEmail,
-    stageName: event.titre,
-  });
-
   const alreadySeen = !!locals.talent.welcomeSeenAt;
   return {
-    cmsContent,
     alreadySeen,
     prenom: locals.talent.prenom,
     eventId: event.id,
