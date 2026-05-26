@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
+import { stageWindowEnd } from '$lib/domain/event';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
@@ -12,15 +13,25 @@ export const load: PageServerLoad = async ({ locals }) => {
       event: { eventType: 'stage_seconde' },
     },
     orderBy: { event: { date: 'desc' } },
-    select: { event: { select: { id: true, endDate: true, date: true } } },
+    select: {
+      event: {
+        select: {
+          id: true,
+          titre: true,
+          endDate: true,
+          date: true,
+          campus: { select: { name: true, contactEmail: true } },
+        },
+      },
+    },
   });
 
   if (!stageParticipation) {
     throw redirect(303, resolve('/'));
   }
 
-  const stageEnd =
-    stageParticipation.event.endDate ?? stageParticipation.event.date;
+  const { event } = stageParticipation;
+  const stageEnd = stageWindowEnd(event.date, event.endDate);
   if (stageEnd < new Date()) {
     throw redirect(303, resolve('/'));
   }
@@ -29,7 +40,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   return {
     alreadySeen,
     prenom: locals.talent.prenom,
-    eventId: stageParticipation.event.id,
+    eventId: event.id,
     talentCreatedAt: locals.talent.createdAt.toISOString(),
   };
 };

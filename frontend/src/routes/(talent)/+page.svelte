@@ -6,8 +6,11 @@
   import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
-  import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
+  import {
+    rewardToast,
+    minigameRewardToast,
+  } from '$lib/components/talent/rewardToast';
   import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
   import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
@@ -28,6 +31,7 @@
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
+  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import { onMount, untrack, type Snippet } from 'svelte';
   import { track, secondsBetween } from '$lib/analytics';
@@ -95,12 +99,11 @@
     celebrateXp(WELCOME_XP_BONUS, timers);
     timers.push(
       setTimeout(() => {
-        toast('Bienvenue sur Jump !', {
-          description: `Tu gagnes +${WELCOME_XP_BONUS} XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
-          duration: 12000,
-          style:
-            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
-        });
+        rewardToast(
+          'Bienvenue sur Jump !',
+          `Tu gagnes +${WELCOME_XP_BONUS} XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
+          12000,
+        );
       }, 1000),
     );
     return () => timers.forEach(clearTimeout);
@@ -117,16 +120,7 @@
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     celebrateXp(reward.xp, timers);
-    timers.push(
-      setTimeout(() => {
-        toast('Défi du jour relevé ! 🎮', {
-          description: `Tu gagnes +${reward.xp} XP pour avoir terminé ton entraînement du jour. Reviens demain pour un nouveau défi !`,
-          duration: 10000,
-          style:
-            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
-        });
-      }, 1000),
-    );
+    timers.push(setTimeout(() => minigameRewardToast(reward.xp), 1000));
     ackForm?.requestSubmit();
     return () => timers.forEach(clearTimeout);
   });
@@ -422,7 +416,7 @@
           class="order-3 inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
         >
           <History class="h-4 w-4" />
-          Revoir mes missions précédentes ({totalPastMissions})
+          Voir mes missions précédentes ({totalPastMissions})
           <ArrowRight class="h-3.5 w-3.5" />
         </a>
       {/if}
@@ -809,12 +803,7 @@
   </div>
 
   <!-- Footer: what Jump is — pinned to the bottom of the page -->
-  <footer
-    class="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
-  >
-    <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
-    plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
-  </footer>
+  <TalentFooter />
 </div>
 
 <ActivitySummaryDialog bind:open={previewOpen} slot={previewSlot} />

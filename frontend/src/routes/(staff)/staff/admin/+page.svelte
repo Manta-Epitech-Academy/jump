@@ -100,18 +100,28 @@
       </Card.Root>
     </a>
 
-    <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
-      <Card.Header
-        class="flex flex-row items-center justify-between space-y-0 pb-2"
+    <a
+      href={resolve('/staff/admin/talents')}
+      class="block transition-all hover:-translate-y-1"
+    >
+      <Card.Root
+        class="h-full border-t-4 border-t-epi-pink shadow-sm hover:border-epi-pink/80"
       >
-        <Card.Title class="text-sm font-bold uppercase">Talents</Card.Title>
-        <GraduationCap class="h-4 w-4 text-muted-foreground" />
-      </Card.Header>
-      <Card.Content>
-        <div class="text-2xl font-black">{data.stats.students}</div>
-        <p class="text-xs text-muted-foreground">Inscrits en base</p>
-      </Card.Content>
-    </Card.Root>
+        <Card.Header
+          class="flex flex-row items-center justify-between space-y-0 pb-2"
+        >
+          <Card.Title
+            class="text-sm font-bold uppercase transition-colors hover:text-epi-pink"
+            >Talents</Card.Title
+          >
+          <GraduationCap class="h-4 w-4 text-muted-foreground" />
+        </Card.Header>
+        <Card.Content>
+          <div class="text-2xl font-black">{data.stats.students}</div>
+          <p class="text-xs text-muted-foreground">Inscrits en base</p>
+        </Card.Content>
+      </Card.Root>
+    </a>
 
     <Card.Root class="border-t-4 border-t-epi-pink shadow-sm">
       <Card.Header

@@ -4,6 +4,7 @@ import { env } from '$env/dynamic/private';
 import {
   checkTalentEligibility,
   mintAttempt,
+  markMinigameRewardsSeen,
 } from '$lib/server/services/minigameService';
 
 /**
@@ -51,5 +52,17 @@ export const actions: Actions = {
     }
 
     return { token: result.result.token };
+  },
+
+  /**
+   * Stamp the XP celebration as seen. Called client-side the moment the game
+   * reports a valid finish (the float plays here, not on the next dashboard
+   * visit). Idempotent and scoped to the talent's own unseen-but-awarded
+   * attempts, so the dashboard fallback stays safe if they leave mid-animation.
+   */
+  acknowledgeMinigameReward: async ({ locals }) => {
+    if (!locals.talent) throw error(401, 'Non autorisé');
+    await markMinigameRewardsSeen(locals.talent.id);
+    return { acknowledged: true };
   },
 };
