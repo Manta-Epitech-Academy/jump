@@ -3,8 +3,6 @@ import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 
-const SLUG = 'welcome';
-
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
@@ -27,27 +25,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  const page = await prisma.cmsPage.findUnique({
-    where: {
-      slug_eventId: {
-        slug: SLUG,
-        eventId: stageParticipation.event.id,
-      },
-    },
-  });
-
-  if (!page?.content) {
-    throw redirect(303, resolve('/'));
-  }
-
-  // Replace CMS variables
-  const cmsContent = page.content
-    .replace(/\{\{PRENOM\}\}/gi, locals.talent.prenom)
-    .replace(/\{\{NOM\}\}/gi, locals.talent.nom);
-
   const alreadySeen = !!locals.talent.welcomeSeenAt;
   return {
-    cmsContent,
     alreadySeen,
     prenom: locals.talent.prenom,
     eventId: stageParticipation.event.id,
