@@ -30,5 +30,7 @@
     data={data.form}
     submitLabel="Enregistrer"
     formAction="?/update"
+    smsEnabled={data.smsEnabled}
+    userEmail={data.userEmail}
   />
 </div>

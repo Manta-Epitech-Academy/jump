@@ -77,6 +77,7 @@
   let testSendOpen = $state(false);
   // svelte-ignore state_referenced_locally
   let testEmail = $state(data.userEmail ?? '');
+  let testPhone = $state('');
 
   // ── Draft auto-save ────────────────────────────────────────────────
   // localStorage-backed so a half-filled form survives a page reload or
@@ -540,7 +541,7 @@
           testEmail = data.userEmail ?? '';
           testSendOpen = true;
         }}
-        disabled={$submitting || channel === 'sms' || !selectedTemplate}
+        disabled={$submitting || !selectedTemplate}
       >
         S'envoyer un test
       </Button>
@@ -644,23 +645,53 @@
 <Dialog.Root bind:open={testSendOpen}>
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
-      <Dialog.Title>S'envoyer un test</Dialog.Title>
+      <Dialog.Title>
+        {channel === 'sms' ? "S'envoyer un test SMS" : "S'envoyer un test"}
+      </Dialog.Title>
       <Dialog.Description class="text-xs">
-        Envoie un email de test avec les variables remplies par des valeurs
-        fictives.
+        {#if channel === 'sms'}
+          Envoie un SMS de test avec les variables remplies par des valeurs
+          fictives.
+        {:else}
+          Envoie un email de test avec les variables remplies par des valeurs
+          fictives.
+        {/if}
       </Dialog.Description>
     </Dialog.Header>
-    <div class="grid gap-2">
-      <Label for="testEmail">Email destinataire</Label>
-      <Input
-        id="testEmail"
-        name="testEmail"
-        form="broadcast-form"
-        type="email"
-        bind:value={testEmail}
-        placeholder="ex: prenom.nom@epitech.eu"
-      />
-    </div>
+    {#if channel === 'sms'}
+      {#if !data.smsEnabled}
+        <p
+          class="rounded border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive"
+        >
+          SMS non configuré (<code>SMS_PROVIDER</code>). Renseigne le
+          fournisseur Brevo côté serveur pour envoyer un test.
+        </p>
+      {/if}
+      <div class="grid gap-2">
+        <Label for="testPhone">Numéro destinataire</Label>
+        <Input
+          id="testPhone"
+          name="testPhone"
+          form="broadcast-form"
+          type="tel"
+          bind:value={testPhone}
+          placeholder="ex: +33 6 12 34 56 78"
+          disabled={!data.smsEnabled}
+        />
+      </div>
+    {:else}
+      <div class="grid gap-2">
+        <Label for="testEmail">Email destinataire</Label>
+        <Input
+          id="testEmail"
+          name="testEmail"
+          form="broadcast-form"
+          type="email"
+          bind:value={testEmail}
+          placeholder="ex: prenom.nom@epitech.eu"
+        />
+      </div>
+    {/if}
     <Dialog.Footer class="mt-4">
       <Button
         type="button"
@@ -673,7 +704,8 @@
         type="submit"
         form="broadcast-form"
         formaction="?/testSend"
-        disabled={$submitting || !testEmail}
+        disabled={$submitting ||
+          (channel === 'sms' ? !testPhone || !data.smsEnabled : !testEmail)}
         onclick={() => (testSendOpen = false)}
       >
         Envoyer le test

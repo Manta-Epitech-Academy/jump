@@ -8,14 +8,8 @@ import {
   enqueueBroadcast,
   processBroadcast,
 } from '$lib/server/services/broadcast/orchestrator';
-import {
-  substituteVariables,
-  buildDemoContext,
-} from '$lib/domain/broadcastVariables';
-import { rewriteHtmlLinks } from '$lib/server/services/broadcast/linkRewriter';
-import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
-import { sendEmail, MAIL_FROM } from '$lib/server/email';
-import { env } from '$env/dynamic/private';
+import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
+import { isSmsEnabled } from '$lib/server/sms';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
@@ -81,24 +75,15 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     events,
     sourceBroadcasts,
     userEmail: locals.user?.email ?? '',
+    smsEnabled: isSmsEnabled(),
   };
 };
 
 export const actions: Actions = {
   testSend: async ({ request, locals }) => {
     const formData = await request.formData();
-    const testEmailRaw = (formData.get('testEmail') as string | null)?.trim();
     const form = await superValidate(formData, zod4(broadcastSchema));
     if (!form.valid) return fail(400, { form });
-
-    const recipientEmail = testEmailRaw || locals.user?.email || '';
-    if (!recipientEmail || !/^\S+@\S+\.\S+$/.test(recipientEmail)) {
-      return message(
-        form,
-        { type: 'error', text: 'Email de test invalide.' },
-        { status: 400 },
-      );
-    }
 
     const template = await prisma.messageTemplate.findUnique({
       where: { id: form.data.templateId },
@@ -111,16 +96,6 @@ export const actions: Actions = {
         { status: 400 },
       );
     }
-    if (template.channel === 'sms') {
-      return message(
-        form,
-        {
-          type: 'error',
-          text: 'Test SMS pas encore supporté (pas de provider configuré).',
-        },
-        { status: 400 },
-      );
-    }
 
     const event = form.data.eventId
       ? await prisma.event.findUnique({
@@ -129,35 +104,36 @@ export const actions: Actions = {
         })
       : null;
 
-    const ctx = buildDemoContext(event?.titre);
-    const subject = template.subject
-      ? `[TEST] ${substituteVariables(template.subject, ctx)}`
-      : '[TEST] Envoi en masse';
-    const body = rewriteHtmlLinks(
-      renderBroadcastMail(
-        substituteVariables(template.body, ctx),
-        env.ORIGIN ?? '',
-      ),
-      'TEST_TRACKING_ID',
-    );
+    // Pick the recipient field by channel; mail falls back to the sender's
+    // own address. SMS_DEV_RECIPIENTS still applies inside the façade, so a
+    // configured dev env reroutes the test too.
+    const to =
+      template.channel === 'sms'
+        ? ((formData.get('testPhone') as string | null)?.trim() ?? '')
+        : (formData.get('testEmail') as string | null)?.trim() ||
+          locals.user?.email ||
+          '';
 
-    const result = await sendEmail({
-      from: MAIL_FROM,
-      to: recipientEmail,
-      subject,
-      html: body,
+    const result = await sendTestMessage({
+      channel: template.channel,
+      subject: template.subject,
+      body: template.body,
+      to,
+      eventName: event?.titre,
     });
-
     if (!result.ok) {
       return message(
         form,
         { type: 'error', text: `Échec : ${result.message}` },
-        { status: 500 },
+        { status: 400 },
       );
     }
     return message(form, {
       type: 'success',
-      text: `Test envoyé à ${recipientEmail}.`,
+      text:
+        template.channel === 'sms'
+          ? `Test SMS envoyé à ${to}.`
+          : `Test envoyé à ${to}.`,
     });
   },
 

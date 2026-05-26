@@ -148,18 +148,44 @@
     if (!composeType) return [];
     const t = data.student;
     const vars = formatTalentVars(t);
-    const willSkip = classifyRelanceSkip({
-      type: composeType,
-      talent: { ...t, email: t.user?.email ?? t.email },
-      lastReminderAt: data.reminders.find((r) => r.audience === composeType)
-        ?.sentAt,
-    });
+    const elig = { ...t, email: t.user?.email ?? t.email };
+    const rem = data.reminders.filter((r) => r.audience === composeType);
+    const lastEmailAt = rem.find((r) => r.channel === 'email')?.sentAt;
+    const lastSmsAt = rem.find((r) => r.channel === 'sms')?.sentAt;
+    const hasPriorEmail = rem.some((r) => r.channel === 'email');
+    const willSkip = {
+      email: classifyRelanceSkip({
+        type: composeType,
+        channel: 'email',
+        talent: elig,
+        lastReminderAt: lastEmailAt,
+      }),
+      sms: classifyRelanceSkip({
+        type: composeType,
+        channel: 'sms',
+        talent: elig,
+        lastReminderAt: lastSmsAt,
+        hasPriorEmail,
+      }),
+    };
     const label = `${vars.nom} ${vars.prenom}`.trim();
     return [{ id: t.id, label, willSkip }];
   });
 
   const composePreviewVars = $derived.by<Partial<Record<RelanceVar, string>>>(
-    () => formatTalentVars(data.student),
+    () => {
+      const t = data.student;
+      const mailbox =
+        composeType === 'parent'
+          ? (t.parentEmail ?? '')
+          : (t.user?.email ?? t.email ?? '');
+      return {
+        ...formatTalentVars(t),
+        email: mailbox,
+        campus: data.campus.name,
+        email_contact_campus: data.campus.contactEmail ?? '',
+      };
+    },
   );
 
   async function onRelanceSent() {
@@ -408,6 +434,7 @@
       initialForm={data.relanceForm}
       defaultTemplate={data.relanceDefaults[composeType].template}
       hasMapping={data.relanceDefaults[composeType].hasMapping}
+      smsEnabled={data.smsEnabled}
       previewVars={composePreviewVars}
       onSent={onRelanceSent}
     />

@@ -2664,12 +2664,15 @@ const INTERVIEWS: InterviewBlueprint[] = [
 type ReminderBlueprint = {
   studentEmail: string;
   type: 'student' | 'parent';
+  // 'email' is the primary nudge; 'sms' is the link-free escalation. Defaults
+  // to 'email' when omitted.
+  channel?: 'email' | 'sms';
   staffKey: string;
   daysOffset: number; // negative = past
   hour?: number;
   // Optional archived copy of what was sent. When absent the fiche shows the
   // "contenu non archivé" placeholder — keep a few that way so devs see both
-  // states in the timeline.
+  // states in the timeline. SMS reminders carry no subject.
   subject?: string;
   body?: string;
 };
@@ -2800,6 +2803,18 @@ Marie`,
     staffKey: 'sarah.moreau',
     daysOffset: -3,
     hour: 11,
+  },
+  // SMS escalation — the email relances to parisStudents[14] above went
+  // unanswered, so Pauline escalates with a link-free text pointing back to
+  // the inbox. Drives the "Relance · SMS" badge in the fiche timeline.
+  {
+    studentEmail: parisStudents[14],
+    type: 'student',
+    channel: 'sms',
+    staffKey: 'pauline.marchand',
+    daysOffset: -1,
+    hour: 10,
+    body: "Salut, plus que 5 jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail. - Epitech Paris",
   },
 ];
 
@@ -4501,6 +4516,7 @@ async function seedReminders(
       {
         talentId: talent.id,
         type: r.type,
+        channel: r.channel ?? 'email',
         subject: r.subject ?? null,
         body: r.body ?? null,
         sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),
@@ -4556,6 +4572,44 @@ async function seedBroadcasts(
       },
     }),
   ]);
+
+  // Project-relevant SMS templates for the broadcast catalogue (pickable in
+  // /broadcasts/new). Link-free — an SMS points the recipient back to their
+  // inbox ({{email}}) rather than carrying a tappable URL. `{X}` (days until
+  // the stage) has no variable, so it stays a literal fill-in. Variables match
+  // BROADCAST_VARIABLES.
+  await prisma.messageTemplate.createMany({
+    data: [
+      {
+        name: 'Relance inscription — talent (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: "Salut {{prenom}}, plus que {X} jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail sur {{email}}. - Epitech {{campus}}",
+        createdById: templateAuthor,
+      },
+      {
+        name: "Relance parent — droit à l'image (SMS)",
+        channel: 'sms',
+        subject: null,
+        body: "Bonjour, votre signature est attendue pour finaliser l'inscription de {{child_prenom}} au stage de seconde à Epitech. Mail envoyé sur {{email}}. - Epitech {{campus}}",
+        createdById: templateAuthor,
+      },
+      {
+        name: 'Rappel J-1 — stage de seconde (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: "Salut {{prenom}} ! Ton stage Epitech commence demain à 9h. Pense à ta pièce d'identité et de quoi noter. À demain !",
+        createdById: templateAuthor,
+      },
+      {
+        name: 'Coding Club — prochaine séance (SMS)',
+        channel: 'sms',
+        subject: null,
+        body: 'Salut {{prenom}} ! Prochaine séance du Coding Club Epitech ce mercredi à 14h. On compte sur toi, à la prochaine !',
+        createdById: templateAuthor,
+      },
+    ],
+  });
 
   // Each broadcast ships with its recipient rows as one nested create. Skip
   // blueprints whose campus/author can't resolve, then fire the rest
@@ -4684,47 +4738,59 @@ L'équipe Epitech Academy`,
       actionKey: 'parent_welcome',
       name: 'Bienvenue parent (par défaut)',
       subject:
-        '{{child_prenom}} participe à Epitech Academy — votre accès parent',
-      body: `Bonjour **{{parent_prenom}}**,
+        'Stage de seconde de {{child_prenom}} à Epitech : une dernière étape de votre côté',
+      body: `Bonjour,
 
-Votre enfant **{{child_prenom}}** vient de s'inscrire à un stage **Epitech Academy**. Nous sommes ravis de l'accueillir !
+{{child_prenom}} vient de finaliser son inscription au stage de seconde à Epitech, qui se déroulera du 15 au 27 juin, sur notre campus de {{campus}}.
 
-En tant que responsable légal, nous avons besoin de votre **autorisation pour le droit à l'image** avant le début du stage. Cela ne prend qu'une minute.
+Pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour pouvoir utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre accord explicite.
+
+Vous pouvez **signer électroniquement le droit à l'image** en moins de 2 minutes via le lien ci-dessous. Vous restez bien sûr libre d'accepter ou de refuser.
 
 :button[Signer le droit à l'image]({{parent_fastlogin_link}})
 
-Cet espace vous permet également de suivre la progression de {{child_prenom}} et de consulter le programme des activités.
+Le lien vous connecte directement à votre espace, sans mot de passe à créer.
 
-À très vite,
-L'équipe Epitech Academy`,
+Si vous avez la moindre question, n'hésitez pas à nous écrire à {{email_contact_campus}}, nous vous répondons rapidement.
+
+Bien cordialement,
+L'équipe Epitech {{campus}}`,
     },
     {
       actionKey: 'relance_student',
       name: 'Relance — étudiant (par défaut)',
-      subject: 'Finalise ton inscription sur Jump',
-      body: `Salut {{prenom}} !
+      subject:
+        'J-{X}, {{prenom}} : dernière étape pour finaliser ton inscription au stage à Epitech.',
+      body: `Salut {{prenom}},
 
-Ton inscription sur Jump n'est pas encore terminée. Il ne te reste que quelques étapes pour accéder à ton espace.
+Petit rappel : ton stage à Epitech démarre dans {X} jours, et ton inscription n'est pas encore finalisée. Il te reste 5 minutes à passer sur Jump pour boucler tout ça.
 
-:button[Finaliser mon inscription]({{fastlogin_link}})
+:button[Finalise ton inscription]({{fastlogin_link}})
+
+Une question ? Un blocage ? Écris-nous à {{email_contact_campus}}, on te répond rapidement.
 
 À très vite,
-L'équipe Epitech Academy`,
+L'équipe Epitech {{campus}}`,
     },
     {
       actionKey: 'relance_parent',
       name: 'Relance — parent (par défaut)',
-      subject: "Rappel : signez le droit à l'image de {{child_prenom}}",
-      body: `Bonjour {{parent_prenom}},
+      subject:
+        'Rappel : votre signature pour le stage à Epitech de {{child_prenom}}',
+      body: `Bonjour,
 
-Nous n'avons pas encore reçu votre autorisation pour le droit à l'image de **{{child_prenom}}** dans le cadre de son stage Epitech Academy.
+Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre signature électronique du droit à l'image est encore attendue.
 
-Cette signature est nécessaire avant le début du stage et ne prend qu'une minute.
+Cela vous prendra moins de 2 minutes.
 
-:button[Signer le droit à l'image]({{parent_fastlogin_link}})
+:button[Accéder à la signature]({{parent_fastlogin_link}})
 
-À très vite,
-L'équipe Epitech Academy`,
+Le lien vous connecte directement à votre espace, sans mot de passe à créer.
+
+Une question ? Écrivez-nous à {{email_contact_campus}}, on vous répond rapidement.
+
+Bien cordialement,
+L'équipe Epitech {{campus}}`,
     },
     {
       actionKey: 'account_deletion_refused',

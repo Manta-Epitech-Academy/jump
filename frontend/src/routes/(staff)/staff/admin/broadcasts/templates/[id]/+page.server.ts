@@ -4,8 +4,9 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { messageTemplateSchema } from '$lib/validation/broadcasts';
+import { isSmsEnabled } from '$lib/server/sms';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
   const template = await prisma.messageTemplate.findUnique({
     where: { id: params.id },
     select: {
@@ -29,7 +30,12 @@ export const load: PageServerLoad = async ({ params }) => {
     zod4(messageTemplateSchema),
   );
 
-  return { template, form };
+  return {
+    template,
+    form,
+    smsEnabled: isSmsEnabled(),
+    userEmail: locals.user?.email ?? '',
+  };
 };
 
 export const actions: Actions = {
