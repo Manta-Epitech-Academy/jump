@@ -66,6 +66,15 @@ export const FEATURE_FLAGS = {
       'Édition du planning détaillé (créneaux, activités) côté dev (/staff/dev/events/[id]/planning). Pedago conserve son propre planning.',
     removeBy: new Date('2026-07-15'),
   }),
+  staff_sync_errors: def({
+    key: 'staff_sync_errors',
+    kind: 'rollout',
+    defaultEnabled: false,
+    label: 'Doublons Salesforce',
+    description:
+      'Résolution des doublons de synchronisation Salesforce côté dev (/staff/dev/sync-errors).',
+    removeBy: new Date('2026-07-15'),
+  }),
 };
 
 export type FlagKey = keyof typeof FEATURE_FLAGS;
