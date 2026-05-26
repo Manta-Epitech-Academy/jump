@@ -1,4 +1,13 @@
+import { toBrevoRecipient } from './phone';
+
 export type RelanceType = 'student' | 'parent';
+
+/**
+ * Relance channel. `email` is the primary nudge; `sms` is the escalation step
+ * — a short, link-free text that points the recipient back to their mailbox
+ * once an email relance has gone unanswered.
+ */
+export type RelanceChannel = 'email' | 'sms';
 
 // Aligned with broadcast / email-action variable names so admin-bound
 // templates use the same tokens everywhere. Migrated from the legacy
@@ -13,15 +22,36 @@ export const RELANCE_VARS_PARENT = [
   'login_link',
 ] as const;
 
+// SMS escalation carries no action link (the recipient is sent back to their
+// inbox), so the only useful tokens are who it's for and which mailbox to
+// check. `{{email}}` is the recipient's own mailbox, named per the spec.
+export const RELANCE_SMS_VARS_STUDENT = ['prenom', 'email'] as const;
+export const RELANCE_SMS_VARS_PARENT = ['child_prenom', 'email'] as const;
+
 export type StudentRelanceVar = (typeof RELANCE_VARS_STUDENT)[number];
 export type ParentRelanceVar = (typeof RELANCE_VARS_PARENT)[number];
-export type RelanceVar = StudentRelanceVar | ParentRelanceVar;
+export type RelanceVar = StudentRelanceVar | ParentRelanceVar | 'email';
 
-export function relanceVarsFor(type: RelanceType): readonly RelanceVar[] {
+export function relanceVarsFor(
+  type: RelanceType,
+  channel: RelanceChannel = 'email',
+): readonly RelanceVar[] {
+  if (channel === 'sms') {
+    return type === 'student'
+      ? RELANCE_SMS_VARS_STUDENT
+      : RELANCE_SMS_VARS_PARENT;
+  }
   return type === 'student' ? RELANCE_VARS_STUDENT : RELANCE_VARS_PARENT;
 }
 
-/** Cooldown between two relances of the same type for the same talent. */
+/**
+ * Max length of an SMS relance body. Two GSM-7 segments (~306 chars) is plenty
+ * for "check your inbox" and keeps the per-message credit cost predictable;
+ * the compose dialog surfaces a live segment count against this cap.
+ */
+export const RELANCE_SMS_BODY_MAX = 306;
+
+/** Cooldown between two relances of the same type+channel for the same talent. */
 export const COOLDOWN_DAYS = 3;
 export const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
 
@@ -93,10 +123,15 @@ export function relanceGreeting(
 
 /**
  * Reasons a single recipient can be skipped *before* attempting to send.
- * The server adds a fourth bucket ('error') for transport failures, which
- * are not predictable client-side.
+ * The server adds an 'error' bucket for transport failures, which are not
+ * predictable client-side. `noPhone` / `noPriorEmail` are SMS-channel only.
  */
-export type RelanceSkipReason = 'cooldown' | 'completed' | 'noEmail';
+export type RelanceSkipReason =
+  | 'cooldown'
+  | 'completed'
+  | 'noEmail'
+  | 'noPhone'
+  | 'noPriorEmail';
 
 export const RELANCE_SKIP_LABELS: Record<
   RelanceSkipReason | 'error' | 'noTemplate',
@@ -105,6 +140,8 @@ export const RELANCE_SKIP_LABELS: Record<
   cooldown: 'cooldown',
   completed: 'onboarding complet',
   noEmail: 'email manquant',
+  noPhone: 'téléphone manquant',
+  noPriorEmail: 'aucune relance email préalable',
   error: 'erreur',
   noTemplate: 'template non configuré',
 };
@@ -113,6 +150,8 @@ export const RELANCE_SKIP_LABELS: Record<
 export type TalentEligibilityFields = {
   email?: string | null;
   parentEmail?: string | null;
+  phone?: string | null;
+  parentPhone?: string | null;
   infoValidatedAt?: Date | string | null;
   rulesSignedAt?: Date | string | null;
   charterAcceptedAt?: Date | string | null;
@@ -121,9 +160,19 @@ export type TalentEligibilityFields = {
 
 export type ClassifyRelanceInput = {
   type: RelanceType;
+  /** Defaults to 'email' for back-compat with the original call sites. */
+  channel?: RelanceChannel;
   talent: TalentEligibilityFields;
-  /** Most recent matching-type reminder, or null/undefined if none. */
+  /**
+   * Most recent reminder matching this type+channel, or null/undefined if
+   * none. Drives the cooldown — each channel has its own track.
+   */
   lastReminderAt: Date | string | null | undefined;
+  /**
+   * Whether an email relance of this type has ever been sent. SMS only — the
+   * escalation requires a prior email nudge so we don't open on a text.
+   */
+  hasPriorEmail?: boolean;
   /** Override "now" for tests / SSR; defaults to current time. */
   now?: number;
 };
@@ -131,13 +180,21 @@ export type ClassifyRelanceInput = {
 /**
  * Decides whether a talent should be skipped, returning the dominant reason
  * or `undefined` if eligible. Order matches the server's send loop so the
- * dialog's preview agrees with what the action will actually count:
- * cooldown → completed → noEmail.
+ * dialog's preview agrees with what the action counts:
+ *   email → cooldown → completed → noEmail
+ *   sms   → cooldown → completed → noPhone → noPriorEmail
  */
 export function classifyRelanceSkip(
   input: ClassifyRelanceInput,
 ): RelanceSkipReason | undefined {
-  const { type, talent, lastReminderAt, now = Date.now() } = input;
+  const {
+    type,
+    channel = 'email',
+    talent,
+    lastReminderAt,
+    hasPriorEmail,
+    now = Date.now(),
+  } = input;
 
   if (lastReminderAt) {
     const ts =
@@ -154,6 +211,14 @@ export function classifyRelanceSkip(
         talent.charterAcceptedAt
       : talent.imageRightsSignedAt;
   if (complete) return 'completed';
+
+  if (channel === 'sms') {
+    const rawPhone = type === 'student' ? talent.phone : talent.parentPhone;
+    if (!toBrevoRecipient(rawPhone)) return 'noPhone';
+    // SMS is an escalation, never first contact: require a prior email relance.
+    if (!hasPriorEmail) return 'noPriorEmail';
+    return undefined;
+  }
 
   const recipient = type === 'student' ? talent.email : talent.parentEmail;
   if (!recipient) return 'noEmail';

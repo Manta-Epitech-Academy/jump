@@ -13,6 +13,7 @@ import {
   formatRelanceMessage,
 } from '$lib/server/services/relanceService';
 import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
+import { isSmsEnabled } from '$lib/server/sms';
 import { ONBOARDING_FILTER_KEYS, type OnboardingFilterKey } from './filters';
 
 function validateFilter(raw: string | null): OnboardingFilterKey {
@@ -37,10 +38,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
           // the relance dialog preview agrees with what the send action
           // will actually do.
           user: { select: { email: true } },
+          // Both channels, all of this type: the dialog derives the per-channel
+          // cooldown (latest of the active channel) and the SMS escalation gate
+          // (whether any email relance already went out) from these rows.
           reminders: {
             orderBy: { sentAt: 'desc' },
-            take: 1,
-            select: { sentAt: true, type: true },
+            select: { sentAt: true, type: true, channel: true },
           },
         },
       },
@@ -52,7 +55,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const relanceForm = await superValidate(zod4(sendRelanceSchema));
   const relanceDefaults = await loadAllRelanceDefaults();
 
-  return { event, participations, relanceForm, relanceDefaults, filter };
+  return {
+    event,
+    participations,
+    relanceForm,
+    relanceDefaults,
+    smsEnabled: isSmsEnabled(),
+    filter,
+  };
 };
 
 // Maps form-side doc type identifiers to their Prisma column.

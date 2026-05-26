@@ -2664,12 +2664,15 @@ const INTERVIEWS: InterviewBlueprint[] = [
 type ReminderBlueprint = {
   studentEmail: string;
   type: 'student' | 'parent';
+  // 'email' is the primary nudge; 'sms' is the link-free escalation. Defaults
+  // to 'email' when omitted.
+  channel?: 'email' | 'sms';
   staffKey: string;
   daysOffset: number; // negative = past
   hour?: number;
   // Optional archived copy of what was sent. When absent the fiche shows the
   // "contenu non archivé" placeholder — keep a few that way so devs see both
-  // states in the timeline.
+  // states in the timeline. SMS reminders carry no subject.
   subject?: string;
   body?: string;
 };
@@ -2800,6 +2803,18 @@ Marie`,
     staffKey: 'sarah.moreau',
     daysOffset: -3,
     hour: 11,
+  },
+  // SMS escalation — the email relances to parisStudents[14] above went
+  // unanswered, so Pauline escalates with a link-free text pointing back to
+  // the inbox. Drives the "Relance · SMS" badge in the fiche timeline.
+  {
+    studentEmail: parisStudents[14],
+    type: 'student',
+    channel: 'sms',
+    staffKey: 'pauline.marchand',
+    daysOffset: -1,
+    hour: 10,
+    body: "Salut ! Un email Jump (Epitech) t'attend sur ta boite mail pour finaliser ton inscription. Pense a verifier tes spams.",
   },
 ];
 
@@ -4490,6 +4505,7 @@ async function seedReminders(
       {
         talentId: talent.id,
         type: r.type,
+        channel: r.channel ?? 'email',
         subject: r.subject ?? null,
         body: r.body ?? null,
         sentAt: dayAt(r.daysOffset, r.hour ?? 10, 0),

@@ -224,7 +224,7 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 
 ## Environment Variables
 
-See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`, `CRON_SECRET`, `WORKER_API_TOKEN`, `INTERVIEW_SYNC_MODE`, `MAIL_PROVIDER`, `MAIL_FROM`.
+See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`, `CRON_SECRET`, `WORKER_API_TOKEN`, `INTERVIEW_SYNC_MODE`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`).
 
 ### `MAIL_PROVIDER`
 
@@ -236,6 +236,19 @@ Picks the transactional mail backend. Lives behind a façade in `$lib/server/ema
 | `mailjet`          | Send via Mailjet's REST v3.1 Send API (fetch, no SDK). Batch cap = 50/call (provider chunks transparently). |
 
 `MAIL_FROM` is the sender address used regardless of provider; `RESEND_FROM_EMAIL` is kept as a fallback alias during the migration. `EMAIL_DEV_RECIPIENTS` redirects all outbound mail to a debug address — applied in the façade *before* the provider sees the payload, so it works uniformly.
+
+### `SMS_PROVIDER`
+
+Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/` (mirrors `$lib/server/email/`) — flipping the env swaps the active provider with no code change. Powers the **SMS escalation** step of onboarding relances and the SMS broadcast channel.
+
+| Value           | Behavior                                                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `null` (default) | No provider wired. Sends fail loud and non-retryably, so an unconfigured prod surfaces "0 envoyés / N échecs" instead of a silent success. The relance UI disables the SMS channel and explains why. |
+| `brevo`         | Brevo (ex-Sendinblue) transactional SMS via REST (fetch, no SDK). Requires `BREVO_API_KEY`. `SMS_SENDER` is the alphanumeric sender shown on the handset (Brevo caps it at 11 chars; default `Epitech`). |
+
+`SMS_DEV_RECIPIENTS` reroutes all outbound SMS to a debug number (first entry), applied in the façade before the provider sees the payload. **Recipients are minors (RGPD) — set this in every non-prod environment so a real number is never texted.**
+
+**SMS escalation (relances).** `email` is the primary onboarding nudge; `sms` is the escalation. The SMS carries **no action link** — it names the recipient's own mailbox (`{{email}}`) and tells them to check it. A talent is only SMS-eligible once an **email** relance has already been sent (`noPriorEmail` skip otherwise) and a usable phone exists (`noPhone` skip). Each channel has its own cooldown track. The body is a fixed default (`RELANCE_SMS_DEFAULTS`, editable in the compose dialog), not an admin `EmailActionMapping` template. Phone numbers are normalized to Brevo's format by `$lib/domain/phone` → `toBrevoRecipient`.
 
 ### `INTERVIEW_SYNC_MODE`
 

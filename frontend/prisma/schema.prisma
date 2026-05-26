@@ -1055,7 +1055,8 @@ model OnboardingReminder {
   id       String   @id @default(cuid())
   talentId String
   type     String // "student" | "parent"
-  subject  String? // captured at send time, for audit + comm history
+  channel  String   @default("email") // "email" | "sms" — SMS is the escalation step
+  subject  String? // captured at send time (email only — SMS has no subject)
   body     String? // captured at send time, for audit + comm history
   sentAt   DateTime @default(now())
   sentBy   String // staff userId

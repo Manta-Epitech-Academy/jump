@@ -154,13 +154,28 @@
     const lookup = new Map(participations.map((p) => [p.talent.id, p]));
     return state.talentIds.map((id) => {
       const t = lookup.get(id)?.talent;
-      if (!t) return { id, label: id };
+      if (!t) return { id, label: id, willSkip: {} };
       const vars = formatTalentVars(t);
-      const willSkip = classifyRelanceSkip({
-        type: state.type,
-        talent: { ...t, email: t.email ?? t.user?.email ?? null },
-        lastReminderAt: t.reminders?.[0]?.sentAt,
-      });
+      const elig = { ...t, email: t.email ?? t.user?.email ?? null };
+      const rem = (t.reminders ?? []).filter((r) => r.type === state.type);
+      const lastEmailAt = rem.find((r) => r.channel === 'email')?.sentAt;
+      const lastSmsAt = rem.find((r) => r.channel === 'sms')?.sentAt;
+      const hasPriorEmail = rem.some((r) => r.channel === 'email');
+      const willSkip = {
+        email: classifyRelanceSkip({
+          type: state.type,
+          channel: 'email',
+          talent: elig,
+          lastReminderAt: lastEmailAt,
+        }),
+        sms: classifyRelanceSkip({
+          type: state.type,
+          channel: 'sms',
+          talent: elig,
+          lastReminderAt: lastSmsAt,
+          hasPriorEmail,
+        }),
+      };
       const label = `${vars.nom} ${vars.prenom}`.trim();
       return { id, label, willSkip };
     });
@@ -172,7 +187,12 @@
     const first = participations.find(
       (p) => p.talent.id === state.talentIds[0],
     )?.talent;
-    return first ? formatTalentVars(first) : {};
+    if (!first) return {};
+    const mailbox =
+      state.type === 'student'
+        ? (first.email ?? first.user?.email ?? '')
+        : (first.parentEmail ?? '');
+    return { ...formatTalentVars(first), email: mailbox };
   }
 
   function toggleAllTalents() {
@@ -393,6 +413,7 @@
     initialForm={data.relanceForm}
     defaultTemplate={data.relanceDefaults[compose.type].template}
     hasMapping={data.relanceDefaults[compose.type].hasMapping}
+    smsEnabled={data.smsEnabled}
     previewVars={buildPreviewVars(compose)}
     {onSent}
   />
