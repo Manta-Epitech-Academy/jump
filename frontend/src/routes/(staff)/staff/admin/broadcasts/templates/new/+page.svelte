@@ -12,5 +12,10 @@
       pour un envoi en masse ou un mail transactionnel.
     </p>
   </header>
-  <TemplateForm data={data.form} submitLabel="Créer" />
+  <TemplateForm
+    data={data.form}
+    submitLabel="Créer"
+    smsEnabled={data.smsEnabled}
+    userEmail={data.userEmail}
+  />
 </div>

@@ -8,19 +8,8 @@ import {
   enqueueBroadcast,
   processBroadcast,
 } from '$lib/server/services/broadcast/orchestrator';
-import {
-  substituteVariables,
-  buildDemoContext,
-} from '$lib/domain/broadcastVariables';
-import {
-  rewriteHtmlLinks,
-  rewriteSmsLinks,
-} from '$lib/server/services/broadcast/linkRewriter';
-import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
-import { sendEmail, MAIL_FROM } from '$lib/server/email';
-import { sendSms, isSmsEnabled } from '$lib/server/sms';
-import { toBrevoRecipient } from '$lib/domain/phone';
-import { env } from '$env/dynamic/private';
+import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
+import { isSmsEnabled } from '$lib/server/sms';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
@@ -114,76 +103,37 @@ export const actions: Actions = {
           select: { titre: true },
         })
       : null;
-    const ctx = buildDemoContext(event?.titre);
 
-    // SMS test: normalize the test number the same way real recipients are,
-    // render the body with demo vars (links tracked exactly like a real send),
-    // and ship it through the shared SMS façade. SMS_DEV_RECIPIENTS still
-    // applies, so a configured dev env reroutes the test too.
-    if (template.channel === 'sms') {
-      const testPhoneRaw = (formData.get('testPhone') as string | null)?.trim();
-      const recipient = toBrevoRecipient(testPhoneRaw);
-      if (!recipient) {
-        return message(
-          form,
-          { type: 'error', text: 'Numéro de test invalide.' },
-          { status: 400 },
-        );
-      }
-      const body = rewriteSmsLinks(
-        substituteVariables(template.body, ctx),
-        'TEST_TRACKING_ID',
-      );
-      const result = await sendSms({ to: recipient, body });
-      if (!result.ok) {
-        return message(
-          form,
-          { type: 'error', text: `Échec : ${result.message}` },
-          { status: 500 },
-        );
-      }
-      return message(form, {
-        type: 'success',
-        text: `Test SMS envoyé à ${testPhoneRaw}.`,
-      });
-    }
+    // Pick the recipient field by channel; mail falls back to the sender's
+    // own address. SMS_DEV_RECIPIENTS still applies inside the façade, so a
+    // configured dev env reroutes the test too.
+    const to =
+      template.channel === 'sms'
+        ? ((formData.get('testPhone') as string | null)?.trim() ?? '')
+        : (formData.get('testEmail') as string | null)?.trim() ||
+          locals.user?.email ||
+          '';
 
-    // Mail test.
-    const testEmailRaw = (formData.get('testEmail') as string | null)?.trim();
-    const recipientEmail = testEmailRaw || locals.user?.email || '';
-    if (!recipientEmail || !/^\S+@\S+\.\S+$/.test(recipientEmail)) {
-      return message(
-        form,
-        { type: 'error', text: 'Email de test invalide.' },
-        { status: 400 },
-      );
-    }
-    const subject = template.subject
-      ? `[TEST] ${substituteVariables(template.subject, ctx)}`
-      : '[TEST] Envoi en masse';
-    const body = rewriteHtmlLinks(
-      renderBroadcastMail(
-        substituteVariables(template.body, ctx),
-        env.ORIGIN ?? '',
-      ),
-      'TEST_TRACKING_ID',
-    );
-    const result = await sendEmail({
-      from: MAIL_FROM,
-      to: recipientEmail,
-      subject,
-      html: body,
+    const result = await sendTestMessage({
+      channel: template.channel,
+      subject: template.subject,
+      body: template.body,
+      to,
+      eventName: event?.titre,
     });
     if (!result.ok) {
       return message(
         form,
         { type: 'error', text: `Échec : ${result.message}` },
-        { status: 500 },
+        { status: 400 },
       );
     }
     return message(form, {
       type: 'success',
-      text: `Test envoyé à ${recipientEmail}.`,
+      text:
+        template.channel === 'sms'
+          ? `Test SMS envoyé à ${to}.`
+          : `Test envoyé à ${to}.`,
     });
   },
 
