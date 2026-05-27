@@ -3554,7 +3554,12 @@ async function seedCampuses(): Promise<
 > {
   const names = ['Paris', 'Lyon', 'Marseille'];
   const created = await prisma.campus.createManyAndReturn({
-    data: names.map((name) => ({ name })),
+    // contactEmail feeds the {{EMAIL_CONTACT_CAMPUS}} broadcast variable; seed it
+    // so dev broadcasts don't render an empty token.
+    data: names.map((name) => ({
+      name,
+      contactEmail: `contact.${name.toLowerCase()}@epitech.eu`,
+    })),
     select: { id: true, name: true },
   });
   const byName: Record<string, { id: string; name: string }> = {};
