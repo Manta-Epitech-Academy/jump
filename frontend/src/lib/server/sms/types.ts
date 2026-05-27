@@ -34,6 +34,22 @@ export type SendSmsFailure = {
 
 export type SendSmsResult = { ok: true; id: string } | SendSmsFailure;
 
+/**
+ * Per-send dev-redirect destination control, mirroring the mail façade
+ * (`$lib/server/email/types.ts → DevRedirectControl`). Consulted ONLY when the
+ * env gate (`SMS_DEV_RECIPIENTS`) is active — a no-op in prod.
+ *
+ *   - omitted   → redirect to the env list (default; system / automatic sends)
+ *   - string[]  → redirect to these numbers instead
+ *   - 'bypass'  → no redirect; reach the real recipient. Single, explicit,
+ *                 human-typed test-send only — never a cohort send.
+ */
+export type DevRedirectControl = readonly string[] | 'bypass';
+
+export interface SendOptions {
+  devRedirect?: DevRedirectControl;
+}
+
 export interface SmsProvider {
   readonly name: 'brevo' | 'null';
   send(payload: SmsMessage): Promise<SendSmsResult>;

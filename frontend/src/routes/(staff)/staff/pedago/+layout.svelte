@@ -1,6 +1,7 @@
 <script lang="ts">
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import LogOut from '@lucide/svelte/icons/log-out';
+  import Settings from '@lucide/svelte/icons/settings';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
@@ -208,6 +209,11 @@
         <DropdownMenu.Content align="end" side="top" class="w-48 rounded-sm">
           <DropdownMenu.Label>Mon Profil Pédago</DropdownMenu.Label>
           <DropdownMenu.Separator />
+          <a href={resolve('/staff/settings')}>
+            <DropdownMenu.Item class="cursor-pointer"
+              ><Settings class="mr-2 h-4 w-4" /> Paramètres</DropdownMenu.Item
+            >
+          </a>
           <form
             action={resolve('/logout')}
             method="POST"

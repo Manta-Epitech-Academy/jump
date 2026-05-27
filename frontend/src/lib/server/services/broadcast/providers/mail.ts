@@ -5,7 +5,12 @@ import {
   MAIL_FROM,
   type SendEmailFailure,
 } from '$lib/server/email';
-import type { MailMessage, MailProvider, SendOutcome } from './types';
+import type {
+  BroadcastSendOptions,
+  MailMessage,
+  MailProvider,
+  SendOutcome,
+} from './types';
 
 /**
  * Network errors are always transient (the transport threw before getting
@@ -31,11 +36,19 @@ function toOutcome(result: Awaited<ReturnType<typeof sendEmail>>): SendOutcome {
 }
 
 export const transactionalMailProvider: MailProvider = {
-  async sendMail({ to, subject, html }): Promise<SendOutcome> {
-    return toOutcome(await sendEmail({ from: MAIL_FROM, to, subject, html }));
+  async sendMail({ to, subject, html }, opts): Promise<SendOutcome> {
+    return toOutcome(
+      await sendEmail(
+        { from: MAIL_FROM, to, subject, html },
+        { devRedirect: opts?.devRedirectTo },
+      ),
+    );
   },
 
-  async sendMailBatch(messages: MailMessage[]): Promise<SendOutcome[]> {
+  async sendMailBatch(
+    messages: MailMessage[],
+    opts?: BroadcastSendOptions,
+  ): Promise<SendOutcome[]> {
     if (messages.length === 0) return [];
     const outcomes: SendOutcome[] = [];
     // Active provider caps batches at MAIL_BATCH_MAX (Resend=100, Mailjet=50);
@@ -50,6 +63,7 @@ export const transactionalMailProvider: MailProvider = {
           subject: m.subject,
           html: m.html,
         })),
+        { devRedirect: opts?.devRedirectTo },
       );
       for (const r of results) outcomes.push(toOutcome(r));
     }

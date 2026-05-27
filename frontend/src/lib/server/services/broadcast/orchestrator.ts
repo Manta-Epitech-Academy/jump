@@ -24,6 +24,7 @@ import {
   buildParentFastloginLink,
 } from '$lib/server/auth/fastloginToken';
 import { mintSigninOtp } from './personalization';
+import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 
 export interface EnqueueBroadcastInput {
   name: string;
@@ -145,6 +146,17 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
       bodySnapshot: true,
       eventId: true,
       event: { select: { titre: true } },
+      // The staff member who enqueued this broadcast. On dev/staging their
+      // configured dev-redirect inbox (or login email) is where trapped mail
+      // copies land (see `sendMailBatch`), so each tester only sees their own
+      // broadcasts. Resolved from the row, not the request context, because the
+      // send can run in the worker after the request that enqueued it is gone.
+      createdBy: {
+        select: {
+          email: true,
+          staffProfile: { select: { devRedirectEmails: true } },
+        },
+      },
     },
   });
 
@@ -276,6 +288,10 @@ type BroadcastForSend = {
   bodySnapshot: string;
   eventId: string | null;
   event: { titre: string } | null;
+  createdBy: {
+    email: string;
+    staffProfile: { devRedirectEmails: string[] } | null;
+  };
 };
 
 /**
@@ -352,6 +368,17 @@ async function sendMailBatch(
     try {
       providerOutcomes = await getMailProvider().sendMailBatch(
         sendable.map((s) => s.msg),
+        // On a trapped env, route copies to the broadcast's creator instead of
+        // the shared debug list; a no-op in prod. Prefer their configured
+        // dev-redirect inbox, falling back to their login email. SMS has no
+        // equivalent — staff accounts carry no phone, so `sendSmsSerial` keeps
+        // the env-list trap.
+        {
+          devRedirectTo: staffBulkDevRedirectEmails(
+            broadcast.createdBy.staffProfile?.devRedirectEmails,
+            broadcast.createdBy.email,
+          ),
+        },
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

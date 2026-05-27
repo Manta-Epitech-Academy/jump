@@ -235,7 +235,18 @@ Picks the transactional mail backend. Lives behind a façade in `$lib/server/ema
 | `resend` (default) | Send via the official Resend SDK. Batch cap = 100/call.                                                 |
 | `mailjet`          | Send via Mailjet's REST v3.1 Send API (fetch, no SDK). Batch cap = 50/call (provider chunks transparently). |
 
-`MAIL_FROM` is the sender address used regardless of provider; `RESEND_FROM_EMAIL` is kept as a fallback alias during the migration. `EMAIL_DEV_RECIPIENTS` redirects all outbound mail to a debug address — applied in the façade *before* the provider sees the payload, so it works uniformly.
+`MAIL_FROM` is the sender address used regardless of provider; `RESEND_FROM_EMAIL` is kept as a fallback alias during the migration.
+
+**Dev-redirect (`EMAIL_DEV_RECIPIENTS` / `SMS_DEV_RECIPIENTS`).** Two concerns kept apart in `$lib/server/{email,sms}/dev-redirect.ts`: the **gate** (env var non-empty = "not prod", outbound is trapped — immutable from the running app so it can never start mailing/texting minors) and the **destination** (where a trapped copy lands). `resolveDevRecipients` only decides a destination once the gate is active, so it can never misroute a real prod send. The destination, in priority order:
+
+1. **`'bypass'`** (per-send `SendOptions.devRedirect`) → the real recipient. Reserved for a single, explicit, human-typed **test-send** (the "Tester" button) — how staff send themselves a real preview from dev/staging without a redeploy.
+2. **Armed real sends** (`$lib/server/armRealSends.ts`) → the real recipient. A lead/admin (`realSendArmers`) can deliberately **arm** real sends from `/staff/settings`; while armed, every send *their own session* drives bypasses the trap. It's the gun safety: per-user (a signed cookie bound to their id — never affects another session or a background cron, which carry no cookie), auto-expiring (15 min, then re-engages), role-gated, and loud (a red banner shows on every page via the root layout, with a disarm button). The env gate stays the structural floor precisely because a DB-stored flag would ride a `pg_dump` from prod into staging; an env var and a per-session cookie don't.
+3. **`string[]`** (per-send) → those addresses. Bulk broadcasts pass their **creator**'s configured list (or login email), resolved from the row so a worker-run send still lands with the right tester. (Bulk SMS has no such route — staff accounts carry no phone — so it falls through to the per-staff/env list.)
+4. **The acting staff member's personal list** — each staff member sets their own dev-redirect emails + phones at **`/staff/settings`** (`StaffProfile.devRedirect{Emails,Phones}`, linked from the user menu in every staff space). With no explicit control, the trap routes to the list of the human driving the request (`requestContext.ts` `AsyncLocalStorage`, captured in `hooks.server.ts`): the **impersonator** when staff impersonate someone (the real admin), otherwise the logged-in staff member. So on a shared dev env each tester only receives their own traffic, on addresses they actually read — a mate testing talent onboarding (by impersonating a talent) gets the parent / image-rights mail in *his own* inbox, the PO sets his number once and receives the SMS escalation, and no one needs to be in the env list. This is the **only** per-tester route for SMS (staff accounts carry no phone, so there's no login-phone fallback).
+5. **The acting human's login email** (mail only) — a reasonable default when a staff member hasn't configured a personal list.
+6. **The env list** — last resort, for sends with no request actor (cron relances, anonymization, logged-out OTP).
+
+`SendOptions.devRedirect` is applied in the façade before the provider sees the payload, so it works uniformly across mail backends. **Recipients are minors (RGPD) — set both vars in every non-prod environment so a real address/number is never reached.**
 
 ### `SMS_PROVIDER`
 
@@ -246,7 +257,7 @@ Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/
 | `null` (default) | No provider wired. Sends fail loud and non-retryably, so an unconfigured prod surfaces "0 envoyés / N échecs" instead of a silent success. The relance UI disables the SMS channel and explains why. |
 | `brevo`         | Brevo (ex-Sendinblue) transactional SMS via REST (fetch, no SDK). Requires `BREVO_API_KEY`. `SMS_SENDER` is the alphanumeric sender shown on the handset (Brevo caps it at 11 chars; default `Epitech`). |
 
-`SMS_DEV_RECIPIENTS` reroutes all outbound SMS to debug numbers (comma-separated; every listed number gets a copy, mirroring `EMAIL_DEV_RECIPIENTS`), applied in the façade before the provider sees the payload. **Recipients are minors (RGPD) — set this in every non-prod environment so a real number is never texted.**
+`SMS_DEV_RECIPIENTS` is the SMS gate + debug list (comma-separated; every listed number gets a copy), mirroring `EMAIL_DEV_RECIPIENTS` — see the dev-redirect note above for the gate/destination split shared by both channels.
 
 **SMS escalation (relances).** `email` is the primary onboarding nudge; `sms` is the escalation. The SMS carries **no action link** — it names the recipient's own mailbox (`{{email}}`) and tells them to check it. A talent is only SMS-eligible once an **email** relance has already been sent (`noPriorEmail` skip otherwise) and a usable phone exists (`noPhone` skip). Each channel has its own cooldown track. The body is a fixed default (`RELANCE_SMS_DEFAULTS`, editable in the compose dialog), not an admin `EmailActionMapping` template. Phone numbers are normalized to Brevo's format by `$lib/domain/phone` → `toBrevoRecipient`.
 

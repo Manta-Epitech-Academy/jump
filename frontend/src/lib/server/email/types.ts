@@ -43,6 +43,23 @@ export type SendEmailFailure = {
 
 export type SendEmailResult = { ok: true; id: string } | SendEmailFailure;
 
+/**
+ * Per-send dev-redirect destination control. Consulted ONLY when the env gate
+ * (`EMAIL_DEV_RECIPIENTS`) is active — a no-op in prod, so it can never
+ * misroute a real send. See `./dev-redirect.ts → resolveDevRecipients`.
+ *
+ *   - omitted   → redirect to the env list (default; system / automatic sends)
+ *   - string[]  → redirect to these addresses instead (e.g. the staff member
+ *                 who triggered a bulk send, so copies land in their own inbox)
+ *   - 'bypass'  → no redirect; reach the real recipient. Reserve for a single,
+ *                 explicit, human-typed test-send — never a cohort send.
+ */
+export type DevRedirectControl = readonly string[] | 'bypass';
+
+export interface SendOptions {
+  devRedirect?: DevRedirectControl;
+}
+
 export interface MailProvider {
   readonly name: 'resend' | 'mailjet';
   /** Max messages per batch call. Caller chunks before sending. */

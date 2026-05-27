@@ -14,18 +14,32 @@
 import { smsProviderKind } from './config';
 import { brevoSmsProvider } from './providers/brevo';
 import { nullSmsProvider } from './providers/null';
-import { parseDevRecipients, applyDevRedirect } from './dev-redirect';
+import { resolveDevRecipients, applyDevRedirect } from './dev-redirect';
 import { toBrevoRecipient } from '$lib/domain/phone';
-import type { SmsMessage, SmsProvider, SendSmsResult } from './types';
+import type {
+  SmsMessage,
+  SmsProvider,
+  SendSmsResult,
+  SendOptions,
+} from './types';
 
-export type { SmsMessage, SendSmsResult, SendSmsFailure } from './types';
+export type {
+  SmsMessage,
+  SendSmsResult,
+  SendSmsFailure,
+  SendOptions,
+  DevRedirectControl,
+} from './types';
 export { isSmsEnabled, smsProviderKind, SMS_SENDER } from './config';
 
 const provider: SmsProvider =
   smsProviderKind === 'brevo' ? brevoSmsProvider : nullSmsProvider;
 
-export async function sendSms(payload: SmsMessage): Promise<SendSmsResult> {
-  const devRecipients = parseDevRecipients();
+export async function sendSms(
+  payload: SmsMessage,
+  opts?: SendOptions,
+): Promise<SendSmsResult> {
+  const devRecipients = resolveDevRecipients(opts?.devRedirect);
 
   // Production path: a single SMS to the real recipient (one Brevo call).
   if (!devRecipients) return provider.send(payload);

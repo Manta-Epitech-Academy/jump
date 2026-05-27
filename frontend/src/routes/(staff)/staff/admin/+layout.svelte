@@ -8,6 +8,7 @@
   import UserX from '@lucide/svelte/icons/user-x';
   import Tags from '@lucide/svelte/icons/tags';
   import LogOut from '@lucide/svelte/icons/log-out';
+  import Settings from '@lucide/svelte/icons/settings';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
@@ -331,6 +332,12 @@
               >Session Globale</DropdownMenu.Label
             >
             <DropdownMenu.Separator />
+            <a href={resolve('/staff/settings')}>
+              <DropdownMenu.Item class="cursor-pointer">
+                <Settings class="mr-2 h-4 w-4" />
+                Paramètres
+              </DropdownMenu.Item>
+            </a>
             <form
               action="{resolve('/logout')}?type=admin"
               method="POST"

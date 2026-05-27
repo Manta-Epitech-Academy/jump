@@ -150,6 +150,14 @@ model StaffProfile {
   campusId  String?
   staffRole StaffRole?
   discordId String?    @unique
+  // Personal dev-redirect destinations: on a trapped (non-prod) env, mail/SMS
+  // attributed to this staff member (sends they trigger, or talents they
+  // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
+  // list, so each tester only receives their own traffic. Empty = fall back to
+  // the env list. Inert in prod (the env gate is off). See
+  // `$lib/server/{email,sms}/dev-redirect.ts`.
+  devRedirectEmails String[] @default([])
+  devRedirectPhones String[] @default([])
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 

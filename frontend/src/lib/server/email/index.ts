@@ -8,20 +8,29 @@
  *
  * The `EMAIL_DEV_RECIPIENTS` redirect (see `./dev-redirect.ts`) is applied
  * here, before the provider sees the payload, so the dev-trap works
- * uniformly regardless of which backend is active.
+ * uniformly regardless of which backend is active. Each send may steer the
+ * trap's destination via `SendOptions.devRedirect` (the trap itself stays
+ * env-gated — see `resolveDevRecipients`).
  */
 
 import { mailProviderKind } from './config';
 import { resendProvider } from './providers/resend';
 import { mailjetProvider } from './providers/mailjet';
-import { parseDevRecipients, applyDevRedirect } from './dev-redirect';
-import type { MailMessage, MailProvider, SendEmailResult } from './types';
+import { resolveDevRecipients, applyDevRedirect } from './dev-redirect';
+import type {
+  MailMessage,
+  MailProvider,
+  SendEmailResult,
+  SendOptions,
+} from './types';
 
 export type {
   MailAttachment,
   MailMessage,
   SendEmailFailure,
   SendEmailResult,
+  SendOptions,
+  DevRedirectControl,
 } from './types';
 export { MAIL_FROM, mailProviderKind } from './config';
 
@@ -36,8 +45,9 @@ export const MAIL_BATCH_MAX = provider.batchMax;
 
 export async function sendEmail(
   payload: MailMessage,
+  opts?: SendOptions,
 ): Promise<SendEmailResult> {
-  const devRecipients = parseDevRecipients();
+  const devRecipients = resolveDevRecipients(opts?.devRedirect);
   const final = devRecipients
     ? applyDevRedirect(payload, devRecipients)
     : payload;
@@ -46,6 +56,7 @@ export async function sendEmail(
 
 export async function sendEmailBatch(
   payloads: MailMessage[],
+  opts?: SendOptions,
 ): Promise<SendEmailResult[]> {
   if (payloads.length === 0) return [];
   if (payloads.length > MAIL_BATCH_MAX) {
@@ -53,7 +64,7 @@ export async function sendEmailBatch(
       `sendEmailBatch: ${payloads.length} > batch cap of ${MAIL_BATCH_MAX} (provider: ${provider.name})`,
     );
   }
-  const devRecipients = parseDevRecipients();
+  const devRecipients = resolveDevRecipients(opts?.devRedirect);
   const finalPayloads = devRecipients
     ? payloads.map((p) => applyDevRedirect(p, devRecipients))
     : payloads;
@@ -66,8 +77,11 @@ export async function sendEmailBatch(
  * from the onboarding flow). Keeps per-callsite ergonomics while
  * preserving the failure signal.
  */
-export async function sendEmailOrThrow(payload: MailMessage): Promise<string> {
-  const result = await sendEmail(payload);
+export async function sendEmailOrThrow(
+  payload: MailMessage,
+  opts?: SendOptions,
+): Promise<string> {
+  const result = await sendEmail(payload, opts);
   if (!result.ok) {
     throw new Error(`Mail ${result.reason}: ${result.message}`);
   }

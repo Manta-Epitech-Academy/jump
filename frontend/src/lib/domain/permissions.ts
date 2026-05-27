@@ -38,6 +38,10 @@ export const STAFF_GROUPS = {
   // Roles a superdev may invite / assign on their campus. Excludes `admin`
   // (admin role is provisioned manually, not self-replicating).
   campusManageable: ['superdev', 'dev', 'peda', 'manta'],
+  // Roles allowed to arm "real sends" on a trapped (dev/staging) env — lifting
+  // the mail/SMS redirect to reach real recipients. Dangerous (recipients are
+  // minors), so restricted to space leads + admin. See `$lib/server/armRealSends`.
+  realSendArmers: ['superdev', 'peda', 'admin'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type StaffGroup = keyof typeof STAFF_GROUPS;
@@ -75,6 +79,10 @@ const STAFF_GROUP_DESCRIPTIONS: Record<StaffGroup, StaffGroupDescription> = {
   campusManageable: {
     label: 'Membre staff',
     contact: 'un responsable de votre campus',
+  },
+  realSendArmers: {
+    label: "Responsable d'espace ou admin",
+    contact: 'un superdev, un référent péda ou un admin',
   },
 };
 
