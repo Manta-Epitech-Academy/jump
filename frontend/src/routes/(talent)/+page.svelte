@@ -104,9 +104,8 @@
     timers.push(
       setTimeout(() => {
         rewardToast(
-          'Bienvenue sur Jump !',
-          `Tu gagnes +${WELCOME_XP_BONUS} XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
-          12000,
+          'Bienvenue sur Jump ! 🎉',
+          `Tu gagnes +${WELCOME_XP_BONUS} XP pour ton arrivée. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
         );
       }, 1000),
     );

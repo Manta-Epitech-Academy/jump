@@ -7,14 +7,15 @@ import { toast } from 'svelte-sonner';
 const REWARD_TOAST_STYLE =
   'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);';
 
-export function rewardToast(
-  title: string,
-  description: string,
-  durationMs = 10000,
-) {
+// 6s dwell: long enough to read a motivating line, short enough not to read as
+// stuck. The old 12s looked infinite; svelte-sonner's 4s default is too brief to
+// land an XP-incentive message before it vanishes.
+const REWARD_TOAST_DURATION_MS = 6000;
+
+export function rewardToast(title: string, description: string) {
   toast(title, {
     description,
-    duration: durationMs,
+    duration: REWARD_TOAST_DURATION_MS,
     style: REWARD_TOAST_STYLE,
   });
 }
@@ -25,6 +26,6 @@ export function rewardToast(
 export function minigameRewardToast(xp: number) {
   rewardToast(
     'Défi du jour relevé ! 🎮',
-    `Tu gagnes +${xp} XP pour avoir terminé ton entraînement du jour. Reviens demain pour un nouveau défi !`,
+    `Tu gagnes +${xp} XP pour ton entraînement du jour. Reviens demain pour un nouveau défi !`,
   );
 }
