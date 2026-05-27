@@ -40,11 +40,6 @@ export const AUDIENCES_REQUIRING_EVENT: readonly BroadcastAudience[] = [
   'manta',
 ];
 
-export const SMS_MAX_LENGTH = 160;
-// Approximate cost of `&tracking_id=<cuid>` once injected.
-// cuid is ~25 chars + `&tracking_id=` is 13 chars = 38. Round up.
-export const SMS_TRACKING_ID_OVERHEAD = 40;
-
 export type BroadcastVariableKey =
   | 'prenom'
   | 'nom'
@@ -214,10 +209,4 @@ export interface BroadcastFilters {
   jumpLevel?: JumpLevel[];
   hasPastEvent?: TristateFilter;
   hasFutureEvent?: TristateFilter;
-}
-
-export function estimateSmsLength(body: string): number {
-  const urlRegex = /\bhttps?:\/\/[^\s<>"')]+/gi;
-  const urlCount = body.match(urlRegex)?.length ?? 0;
-  return body.length + urlCount * SMS_TRACKING_ID_OVERHEAD;
 }

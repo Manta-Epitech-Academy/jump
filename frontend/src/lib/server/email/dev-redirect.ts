@@ -4,21 +4,20 @@ import {
   currentArmedRealSends,
   currentDevRedirectEmails,
 } from '$lib/server/requestContext';
+import { outboundTrapped, type OutboundRouting } from '$lib/server/outbound';
 import type { DevRedirectControl, MailMessage } from './types';
 
 /**
- * Dev-redirect splits into two concerns that used to be conflated in one env
- * var:
+ * Dev-redirect splits into two concerns:
  *
  *   1. THE GATE — "is this environment allowed to reach real recipients?"
- *      Owned by `EMAIL_DEV_RECIPIENTS`: any non-empty value means "not prod",
- *      so outbound mail is trapped. This stays env-only and immutable from the
- *      running app — the app can never clear it and start mailing minors (RGPD).
+ *      Owned by `OUTBOUND_MODE` (see `$lib/server/outbound`), shared with SMS,
+ *      fail-safe and env-only. Not this file's concern beyond consulting it.
  *
- *   2. THE DESTINATION — "when trapped, where does the copy land?"
- *      Per-send, via `DevRedirectControl` (see `resolveDevRecipients`). Only
- *      ever consulted once the gate is active, so it can never misroute a real
- *      prod send.
+ *   2. THE DESTINATION — "when trapped, where does the copy land?" Resolved
+ *      here, per-send, via `DevRedirectControl` (see `resolveMailRouting`).
+ *      `EMAIL_DEV_RECIPIENTS` is the *fallback* destination for sends with no
+ *      better target (headless cron / logged-out OTP) — no longer the gate.
  *
  * The intended recipient is prepended to the subject so the developer can tell
  * who would have received it in prod.
@@ -33,48 +32,51 @@ export function parseDevRecipients(): string[] | null {
   return list.length > 0 ? list : null;
 }
 
-/** The gate: is this environment trapping outbound mail? Drives the dev banner. */
-export function devRedirectActive(): boolean {
-  return parseDevRecipients() !== null;
-}
-
 /**
  * Resolve where one send should actually go, given its per-send control.
- * Returns `null` = no redirect, deliver to the real recipient. That happens in
- * exactly two cases:
  *
+ * `{ kind: 'real' }` (deliver to the real recipient) in exactly these cases:
  *   - the gate is off (prod) — `control` is ignored entirely, so a stray
  *     `'bypass'` or override can never escape a real send to debug addresses;
  *   - the gate is on but `control === 'bypass'` — the explicit single-recipient
- *     test-send escape (the human typed the address, so honour it).
- *
- * Otherwise, in priority order:
+ *     test-send escape (the human typed the address, so honour it);
  *   - armed real sends (`armRealSends.ts`) — the acting human has deliberately
- *     lifted the trap for their session, so deliver for real;
- *   - a non-empty `string[]` control overrides the destination (e.g. a bulk
- *     broadcast routes its copies to the staff member who triggered it);
+ *     lifted the trap for their session.
+ *
+ * Otherwise it's `{ kind: 'redirect', to }`, in destination priority order:
+ *   - a non-empty `string[]` control (e.g. a bulk broadcast routes its copies to
+ *     the staff member who triggered it);
  *   - the acting staff member's personal `devRedirectEmails` (configured by
  *     admins in the settings dialog) — so a tester on a shared dev env only
- *     receives their own traffic and to an address they actually read (an admin
- *     testing talent onboarding gets the parent mail in his own inbox);
+ *     receives their own traffic, at an address they actually read;
  *   - the acting human's login email — a reasonable default when they haven't
  *     configured a personal list;
- *   - the shared env list — last resort, for sends with no request actor
- *     (cron, worker, logged-out OTP) or no staff identity behind them.
+ *   - the `EMAIL_DEV_RECIPIENTS` fallback — for sends with no request actor
+ *     (cron, worker, logged-out OTP).
+ *
+ * If trapped and *none* of those resolve a destination, it's `{ kind: 'drop' }`:
+ * the send is suppressed rather than leaked to the real recipient (fail-closed).
  */
-export function resolveDevRecipients(
+export function resolveMailRouting(
   control?: DevRedirectControl,
-): string[] | null {
-  const envList = parseDevRecipients();
-  if (!envList) return null; // gate off: prod, deliver for real
-  if (control === 'bypass') return null; // explicit single-send escape
-  if (currentArmedRealSends()) return null; // human armed real sends this session
-  if (Array.isArray(control) && control.length > 0) return [...control];
+): OutboundRouting {
+  if (!outboundTrapped()) return { kind: 'real' }; // prod
+  if (control === 'bypass') return { kind: 'real' }; // explicit single-send escape
+  if (currentArmedRealSends()) return { kind: 'real' }; // armed this session
+  if (Array.isArray(control) && control.length > 0) {
+    return { kind: 'redirect', to: [...control] };
+  }
   const personal = currentDevRedirectEmails();
-  if (personal.length > 0) return [...personal]; // tester's configured inbox
+  if (personal.length > 0) return { kind: 'redirect', to: [...personal] }; // tester's inbox
   const actor = currentActorEmail();
-  if (actor) return [actor]; // reasonable default: whoever caused the send
-  return envList; // headless send: shared safety net
+  if (actor) return { kind: 'redirect', to: [actor] }; // whoever caused the send
+  const envList = parseDevRecipients();
+  if (envList) return { kind: 'redirect', to: envList }; // headless fallback
+  return {
+    kind: 'drop',
+    reason:
+      'outbound trapped (OUTBOUND_MODE != real) but no dev mail destination resolved — set EMAIL_DEV_RECIPIENTS or a personal redirect list',
+  };
 }
 
 /**
@@ -83,7 +85,7 @@ export function resolveDevRecipients(
  * their login email as the fallback when they haven't set one. Returns `[]`
  * only when neither is known.
  *
- * Unlike `resolveDevRecipients`, this reads an explicit staff record rather
+ * Unlike `resolveMailRouting`, this reads an explicit staff record rather
  * than the ambient request context — a broadcast send runs in the worker, long
  * after the enqueuing request is gone, so it must resolve the destination from
  * the persisted creator row. Single source of truth for two callers that must

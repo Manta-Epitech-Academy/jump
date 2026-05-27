@@ -22,8 +22,11 @@ export type SendSmsFailure = {
    * `api_error`: the provider rejected the request — permanent (bad number,
    * unconfigured) or transient (rate limit, 5xx); inspect `statusCode`.
    * `network_error`: fetch threw before a response. Always transient.
+   * `dev_redirect_dropped`: the env is trapped (`OUTBOUND_MODE != real`) but no
+   * dev destination resolved, so the SMS was suppressed rather than texted to a
+   * real number. Permanent; the provider was never called.
    */
-  reason: 'api_error' | 'network_error';
+  reason: 'api_error' | 'network_error' | 'dev_redirect_dropped';
   message: string;
   /**
    * HTTP status when `reason === 'api_error'`. `null`/`undefined` for network
@@ -37,7 +40,7 @@ export type SendSmsResult = { ok: true; id: string } | SendSmsFailure;
 /**
  * Per-send dev-redirect destination control, mirroring the mail façade
  * (`$lib/server/email/types.ts → DevRedirectControl`). Consulted ONLY when the
- * env gate (`SMS_DEV_RECIPIENTS`) is active — a no-op in prod.
+ * gate (`OUTBOUND_MODE != real`) traps outbound — a no-op in prod.
  *
  *   - omitted   → redirect to the env list (default; system / automatic sends)
  *   - string[]  → redirect to these numbers instead

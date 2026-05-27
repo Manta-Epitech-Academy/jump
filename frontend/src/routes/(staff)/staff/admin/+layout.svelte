@@ -367,8 +367,7 @@
         <StaffSettingsDialog
           bind:open={settingsOpen}
           form={data.settingsForm}
-          emailTrapActive={data.emailTrapActive}
-          smsTrapActive={data.smsTrapActive}
+          outboundTrapped={data.outboundTrapped}
           canArmRealSends={data.canArmRealSends}
           armedRealSends={data.armedRealSends}
           armedRealSendsUntil={data.armedRealSendsUntil}

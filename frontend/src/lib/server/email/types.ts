@@ -30,8 +30,12 @@ export type SendEmailFailure = {
    * `statusCode` to decide.
    * `network_error`: the SDK / fetch threw before getting a response.
    * Always transient; a retry may succeed.
+   * `dev_redirect_dropped`: the env is trapped (`OUTBOUND_MODE != real`) but no
+   * dev destination resolved, so the send was suppressed rather than leaked to
+   * the real recipient. Permanent — retrying won't help; configure a redirect
+   * destination. The provider was never called.
    */
-  reason: 'api_error' | 'network_error';
+  reason: 'api_error' | 'network_error' | 'dev_redirect_dropped';
   message: string;
   /**
    * HTTP status from the provider when `reason === 'api_error'`. `null` /
@@ -44,9 +48,9 @@ export type SendEmailFailure = {
 export type SendEmailResult = { ok: true; id: string } | SendEmailFailure;
 
 /**
- * Per-send dev-redirect destination control. Consulted ONLY when the env gate
- * (`EMAIL_DEV_RECIPIENTS`) is active — a no-op in prod, so it can never
- * misroute a real send. See `./dev-redirect.ts → resolveDevRecipients`.
+ * Per-send dev-redirect destination control. Consulted ONLY when the gate
+ * (`OUTBOUND_MODE != real`) traps outbound — a no-op in prod, so it can never
+ * misroute a real send. See `./dev-redirect.ts → resolveMailRouting`.
  *
  *   - omitted   → redirect to the env list (default; system / automatic sends)
  *   - string[]  → redirect to these addresses instead (e.g. the staff member

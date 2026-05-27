@@ -13,8 +13,7 @@
   type Props = {
     open?: boolean;
     form: SuperValidated<Infer<typeof staffDevRedirectSchema>>;
-    emailTrapActive: boolean;
-    smsTrapActive: boolean;
+    outboundTrapped: boolean;
     canArmRealSends: boolean;
     armedRealSends: boolean;
     // Serialized to a string across the load boundary; accept the raw shapes too.
@@ -24,8 +23,7 @@
   let {
     open = $bindable(false),
     form: formData,
-    emailTrapActive,
-    smsTrapActive,
+    outboundTrapped,
     canArmRealSends,
     armedRealSends,
     armedRealSendsUntil,
@@ -58,8 +56,6 @@
     },
   });
 
-  const anyTrap = $derived(emailTrapActive || smsTrapActive);
-
   const armedUntilLabel = $derived(
     armedRealSendsUntil
       ? new Date(armedRealSendsUntil).toLocaleTimeString('fr-FR', {
@@ -84,7 +80,7 @@
     </Dialog.Header>
 
     <div class="space-y-6">
-      {#if !anyTrap}
+      {#if !outboundTrapped}
         <div
           class="flex items-start gap-2 rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground"
         >
@@ -113,8 +109,9 @@
             aria-invalid={$errors.devRedirectEmails ? 'true' : undefined}
           />
           <p class="text-xs text-muted-foreground">
-            Une adresse par ligne. Vide → repli sur la liste
-            <code>EMAIL_DEV_RECIPIENTS</code> partagée.
+            Une adresse par ligne. Si vous n'en renseignez aucune, les emails de
+            test qui vous sont attribués partent vers une boîte de test partagée
+            par défaut.
           </p>
           {#if $errors.devRedirectEmails}
             <p class="text-sm text-destructive">{$errors.devRedirectEmails}</p>
@@ -132,10 +129,9 @@
             aria-invalid={$errors.devRedirectPhones ? 'true' : undefined}
           />
           <p class="text-xs text-muted-foreground">
-            Un numéro par ligne. Vide → repli sur la liste
-            <code>SMS_DEV_RECIPIENTS</code> partagée (les comptes staff n'ont pas
-            de téléphone, donc un SMS ne vous parvient qu'une fois votre numéro renseigné
-            ici).
+            Un numéro par ligne. Renseignez le vôtre pour recevoir vous-même les
+            SMS de test : sans cela, ils partent vers un numéro de test partagé
+            par défaut.
           </p>
           {#if $errors.devRedirectPhones}
             <p class="text-sm text-destructive">{$errors.devRedirectPhones}</p>

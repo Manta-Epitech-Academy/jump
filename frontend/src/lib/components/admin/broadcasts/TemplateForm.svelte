@@ -11,9 +11,14 @@
   import {
     BROADCAST_CHANNELS,
     BROADCAST_CHANNEL_LABELS,
-    SMS_MAX_LENGTH,
-    estimateSmsLength,
   } from '$lib/domain/broadcasts';
+  import {
+    SMS_SINGLE_SEGMENT_CHARS,
+    SMS_BROADCAST_MAX_CHARS,
+    SMS_MAX_SEGMENTS,
+    estimateSmsLength,
+    smsSegments,
+  } from '$lib/domain/sms';
   import {
     substituteVariables,
     buildDemoContext,
@@ -102,7 +107,11 @@
   const smsLength = $derived(
     $form.channel === 'sms' ? estimateSmsLength($form.body ?? '') : 0,
   );
-  const smsOverLimit = $derived(smsLength > SMS_MAX_LENGTH);
+  const smsSegmentCount = $derived(smsSegments(smsLength));
+  // Multipart (>1 SMS) is allowed — it just costs more, so we warn. Over the
+  // segment ceiling, the template can't be saved (see messageTemplateSchema).
+  const smsMultipart = $derived(smsSegmentCount > 1);
+  const smsOverCeiling = $derived(smsLength > SMS_BROADCAST_MAX_CHARS);
 </script>
 
 <form
@@ -164,11 +173,13 @@
         <Label for="body">Corps</Label>
         {#if $form.channel === 'sms'}
           <span
-            class="text-xs {smsOverLimit
+            class="text-xs {smsOverCeiling
               ? 'font-semibold text-destructive'
-              : 'text-muted-foreground'}"
+              : smsMultipart
+                ? 'font-medium text-amber-600 dark:text-amber-500'
+                : 'text-muted-foreground'}"
           >
-            ~{smsLength} / {SMS_MAX_LENGTH} car. (liens trackés inclus)
+            {smsLength} caractères · ≈ {smsSegmentCount} SMS
           </span>
         {/if}
       </div>
@@ -180,10 +191,33 @@
         class={$form.channel === 'mail' ? 'font-mono text-sm' : ''}
         placeholder={$form.channel === 'mail'
           ? 'Markdown. Titres avec #, gras **texte**, listes -, etc.\nPour un bouton centré : :button[Mon libellé](https://...)\nVariables {{prenom}}, {{event_name}}… (panneau à droite).'
-          : 'Texte simple. 160 caractères max après ajout des liens trackés.'}
+          : 'Idéalement court : un seul SMS = 160 caractères.'}
       />
       {#if $errors.body}
         <p class="text-xs text-destructive">{$errors.body}</p>
+      {/if}
+      {#if $form.channel === 'sms'}
+        {#if smsOverCeiling}
+          <p class="text-xs font-medium text-destructive">
+            Trop long : {SMS_MAX_SEGMENTS} SMS maximum par destinataire. Vous ne pourrez
+            pas enregistrer ce modèle tant qu'il dépasse — raccourcissez le texte
+            (ou retirez un lien).
+          </p>
+        {:else if smsMultipart}
+          <p class="text-xs font-medium text-amber-600 dark:text-amber-500">
+            Plus de {SMS_SINGLE_SEGMENT_CHARS} caractères : ce message partira en
+            {smsSegmentCount}
+            SMS par destinataire, et sera donc facturé {smsSegmentCount} fois par
+            personne.
+          </p>
+        {:else}
+          <p class="text-xs text-muted-foreground">
+            Un SMS fait {SMS_SINGLE_SEGMENT_CHARS} caractères. Au-delà, le message
+            est découpé en plusieurs SMS (facturés séparément). Chaque lien compte
+            pour plus de caractères qu'à l'écran : il est rallongé automatiquement
+            pour mesurer les clics.
+          </p>
+        {/if}
       {/if}
     </div>
 

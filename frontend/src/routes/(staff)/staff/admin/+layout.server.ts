@@ -6,8 +6,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { countUnreadForAdmin } from '$lib/server/services/tickets';
 import { staffDevRedirectSchema } from '$lib/validation/staffSettings';
-import { devRedirectActive as emailTrapActive } from '$lib/server/email/dev-redirect';
-import { devRedirectActive as smsTrapActive } from '$lib/server/sms/dev-redirect';
+import { outboundTrapped } from '$lib/server/outbound';
 import { canArmRealSends } from '$lib/server/armRealSends';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
@@ -39,8 +38,7 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     // dev-redirect controls are admin-only, so they live in the admin layout
     // (there is no standalone /staff/settings page).
     settingsForm,
-    emailTrapActive: emailTrapActive(),
-    smsTrapActive: smsTrapActive(),
+    outboundTrapped: outboundTrapped(),
     canArmRealSends: canArmRealSends(locals),
     armedRealSends: locals.armedRealSends,
     armedRealSendsUntil: locals.armedRealSendsUntil,

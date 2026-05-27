@@ -2,8 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { RequestEvent } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { can } from '$lib/domain/permissions';
-import { devRedirectActive as emailTrapActive } from '$lib/server/email/dev-redirect';
-import { devRedirectActive as smsTrapActive } from '$lib/server/sms/dev-redirect';
+import { outboundTrapped } from '$lib/server/outbound';
 
 /**
  * "Real sends" arming — the gun safety for outbound on a trapped env.
@@ -68,11 +67,6 @@ function parseArmCookie(raw: string | undefined): ParsedArm | null {
   return { expiresAt, userId };
 }
 
-/** Whether outbound is trapped at all (either channel). Inert otherwise. */
-export function trapActive(): boolean {
-  return emailTrapActive() || smsTrapActive();
-}
-
 /** Effective staff role of the human driving the request (impersonator wins). */
 function effectiveStaffRole(locals: App.Locals) {
   return (
@@ -97,7 +91,7 @@ export function effectiveUserId(locals: App.Locals): string | null {
 
 /** May the current human arm real sends? Only on a trapped env, leads + admin. */
 export function canArmRealSends(locals: App.Locals): boolean {
-  return trapActive() && can('realSendArmers', effectiveStaffRole(locals));
+  return outboundTrapped() && can('realSendArmers', effectiveStaffRole(locals));
 }
 
 /**
@@ -111,7 +105,7 @@ export function readArmedState(event: RequestEvent): {
   armed: boolean;
   until: Date | null;
 } {
-  if (!trapActive()) return { armed: false, until: null };
+  if (!outboundTrapped()) return { armed: false, until: null };
   const parsed = parseArmCookie(event.cookies.get(ARM_REAL_SENDS_COOKIE));
   const humanId = effectiveUserId(event.locals);
   if (!parsed || !humanId || parsed.userId !== humanId) {

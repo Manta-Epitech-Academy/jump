@@ -38,9 +38,10 @@
           Mode dev — envois redirigés
         </p>
         <p>
-          Les <strong>envois groupés et automatiques</strong> sont piégés, jamais
-          vers les vrais destinataires. Le destinataire prévu est ajouté en tête de
-          chaque message pour l'identifier.
+          Les <strong>envois groupés et automatiques</strong> ne partent jamais
+          vers les vrais destinataires : ils sont <strong>redirigés</strong> vers
+          une adresse de test. Le destinataire prévu est indiqué en tête de chaque
+          message pour l'identifier.
         </p>
         <p>
           Les <strong>envois de test</strong> (bouton « Tester ») atteignent l'adresse
@@ -52,18 +53,28 @@
               <span class="font-semibold"
                 >{BROADCAST_CHANNEL_LABELS[redirect.channel]}</span
               >
-              — envois groupés
-              {#if redirect.scope === 'self'}
-                vers <strong>votre boîte</strong> :
+              {#if redirect.status === 'dropped'}
+                — envois groupés <strong>abandonnés</strong> : aucune destination
+                de test configurée, rien ne sera envoyé.
               {:else}
-                vers :
+                — envois groupés
+                {#if redirect.scope === 'self'}
+                  vers
+                  <strong
+                    >{redirect.channel === 'sms'
+                      ? 'votre numéro'
+                      : 'votre boîte'}</strong
+                  > :
+                {:else}
+                  vers :
+                {/if}
+                <span class="font-mono">{redirect.recipients.join(', ')}</span>
+                (préfixe
+                <code
+                  class="rounded bg-amber-200/60 px-1 font-mono dark:bg-amber-900/60"
+                  >{redirect.prefixExample}</code
+                >)
               {/if}
-              <span class="font-mono">{redirect.recipients.join(', ')}</span>
-              (préfixe
-              <code
-                class="rounded bg-amber-200/60 px-1 font-mono dark:bg-amber-900/60"
-                >{redirect.prefixExample}</code
-              >)
             </li>
           {/each}
         </ul>
