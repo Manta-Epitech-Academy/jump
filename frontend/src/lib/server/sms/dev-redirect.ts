@@ -39,13 +39,13 @@ export function devRedirectActive(): boolean {
  * real send) or `control === 'bypass'` (the explicit single-recipient
  * test-send escape). Otherwise, in priority order: armed real sends
  * (`armRealSends.ts`); a non-empty `string[]` control; the acting staff
- * member's personal `devRedirectPhones` (configured at /staff/settings, so each
- * tester gets SMS on their own handset); else the shared env list. See the mail
- * twin for the rationale.
+ * member's personal `devRedirectPhones` (configured by admins in the settings
+ * dialog, so each tester gets SMS on their own handset); else the shared env
+ * list. See the mail twin for the rationale.
  *
  * Note there's no login-phone fallback as mail has a login-email one — staff
  * accounts carry no phone, so an SMS only reaches a tester once they've added
- * their number at /staff/settings; until then it falls back to the env list.
+ * their number in the settings dialog; until then it falls back to the env list.
  */
 export function resolveDevRecipients(
   control?: DevRedirectControl,

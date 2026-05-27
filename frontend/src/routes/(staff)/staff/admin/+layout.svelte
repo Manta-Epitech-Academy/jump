@@ -30,12 +30,14 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
   import { fly, fade } from 'svelte/transition';
   import { track, secondsBetween } from '$lib/analytics';
 
   let { children, data } = $props();
 
   let mobileMenuOpen = $state(false);
+  let settingsOpen = $state(false);
 
   // Close the mobile menu on page navigation
   $effect(() => {
@@ -332,12 +334,13 @@
               >Session Globale</DropdownMenu.Label
             >
             <DropdownMenu.Separator />
-            <a href={resolve('/staff/settings')}>
-              <DropdownMenu.Item class="cursor-pointer">
-                <Settings class="mr-2 h-4 w-4" />
-                Paramètres
-              </DropdownMenu.Item>
-            </a>
+            <DropdownMenu.Item
+              class="cursor-pointer"
+              onSelect={() => (settingsOpen = true)}
+            >
+              <Settings class="mr-2 h-4 w-4" />
+              Paramètres
+            </DropdownMenu.Item>
             <form
               action="{resolve('/logout')}?type=admin"
               method="POST"
@@ -360,6 +363,16 @@
             </form>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
+
+        <StaffSettingsDialog
+          bind:open={settingsOpen}
+          form={data.settingsForm}
+          emailTrapActive={data.emailTrapActive}
+          smsTrapActive={data.smsTrapActive}
+          canArmRealSends={data.canArmRealSends}
+          armedRealSends={data.armedRealSends}
+          armedRealSendsUntil={data.armedRealSendsUntil}
+        />
       </div>
     </div>
   </header>

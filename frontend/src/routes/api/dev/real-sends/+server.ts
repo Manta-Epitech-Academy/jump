@@ -52,14 +52,14 @@ export const POST: RequestHandler = async ({
   }
 
   // Return to the submitting page, same-origin only (no open redirect).
-  let back = '/staff/settings';
+  let back = '/staff/admin';
   const ref = request.headers.get('referer');
   if (ref) {
     try {
       const u = new URL(ref);
       if (u.origin === url.origin) back = u.pathname + u.search;
     } catch {
-      // ignore a malformed referer, fall back to settings
+      // ignore a malformed referer, fall back to the admin space
     }
   }
   throw redirect(303, back);

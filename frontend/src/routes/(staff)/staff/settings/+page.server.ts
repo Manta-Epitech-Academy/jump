@@ -1,5 +1,5 @@
 import type { Actions, PageServerLoad } from './$types';
-import { fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { superValidate, message, setError } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
@@ -7,45 +7,25 @@ import {
   staffDevRedirectSchema,
   splitDevRedirectEntries,
 } from '$lib/validation/staffSettings';
-import { devRedirectActive as emailTrapActive } from '$lib/server/email/dev-redirect';
-import { devRedirectActive as smsTrapActive } from '$lib/server/sms/dev-redirect';
-import { canArmRealSends } from '$lib/server/armRealSends';
 import { toBrevoRecipient } from '$lib/domain/phone';
-import { getStaffRoleRedirectPath } from '$lib/domain/staff';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
-export const load: PageServerLoad = async ({ locals }) => {
-  const staff = locals.staffProfile;
-  if (!staff) throw redirect(303, '/staff/login');
-
-  const form = await superValidate(
-    {
-      devRedirectEmails: staff.devRedirectEmails.join('\n'),
-      devRedirectPhones: staff.devRedirectPhones.join('\n'),
-    },
-    zod4(staffDevRedirectSchema),
-  );
-
-  return {
-    form,
-    // The dev banner only matters where outbound is trapped. We still let staff
-    // edit their lists in prod (harmless, inert), but explain they do nothing.
-    emailTrapActive: emailTrapActive(),
-    smsTrapActive: smsTrapActive(),
-    // "Real sends" arming: who may, and the current state (mirrors locals so the
-    // section reflects an arm/disarm done from the global banner too).
-    canArmRealSends: canArmRealSends(locals),
-    armedRealSends: locals.armedRealSends,
-    armedRealSendsUntil: locals.armedRealSendsUntil,
-    backPath: getStaffRoleRedirectPath(staff.staffRole) ?? '/staff/login',
-  };
+// This route is action-only: the settings UI is a dialog rendered by the admin
+// layout (the dev-redirect controls are admin-only). A direct GET has no page
+// to render, so bounce it to the admin space.
+export const load: PageServerLoad = async () => {
+  throw redirect(303, '/staff/admin');
 };
 
 export const actions: Actions = {
   default: async ({ request, locals }) => {
     const staff = locals.staffProfile;
     if (!staff) throw redirect(303, '/staff/login');
+    // Dev-redirect lists are an admin-only control; non-admins have no way to
+    // reach this dialog, but guard the action too so the route can't be posted
+    // to directly.
+    if (staff.staffRole !== 'admin') throw error(403, 'Action réservée.');
 
     const form = await superValidate(request, zod4(staffDevRedirectSchema));
     if (!form.valid) return fail(400, { form });

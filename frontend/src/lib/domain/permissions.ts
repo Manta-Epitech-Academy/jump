@@ -40,8 +40,9 @@ export const STAFF_GROUPS = {
   campusManageable: ['superdev', 'dev', 'peda', 'manta'],
   // Roles allowed to arm "real sends" on a trapped (dev/staging) env — lifting
   // the mail/SMS redirect to reach real recipients. Dangerous (recipients are
-  // minors), so restricted to space leads + admin. See `$lib/server/armRealSends`.
-  realSendArmers: ['superdev', 'peda', 'admin'],
+  // minors), so restricted to admin only — the dev-redirect controls live in
+  // the admin space. See `$lib/server/armRealSends`.
+  realSendArmers: ['admin'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type StaffGroup = keyof typeof STAFF_GROUPS;
@@ -81,8 +82,8 @@ const STAFF_GROUP_DESCRIPTIONS: Record<StaffGroup, StaffGroupDescription> = {
     contact: 'un responsable de votre campus',
   },
   realSendArmers: {
-    label: "Responsable d'espace ou admin",
-    contact: 'un superdev, un référent péda ou un admin',
+    label: 'Admin',
+    contact: 'un admin',
   },
 };
 

@@ -53,10 +53,10 @@ export function devRedirectActive(): boolean {
  *     lifted the trap for their session, so deliver for real;
  *   - a non-empty `string[]` control overrides the destination (e.g. a bulk
  *     broadcast routes its copies to the staff member who triggered it);
- *   - the acting staff member's personal `devRedirectEmails` (configured at
- *     /staff/settings) — so a tester on a shared dev env only receives their
- *     own traffic and to an address they actually read (a mate testing talent
- *     onboarding gets the parent mail in his own inbox, not everyone's);
+ *   - the acting staff member's personal `devRedirectEmails` (configured by
+ *     admins in the settings dialog) — so a tester on a shared dev env only
+ *     receives their own traffic and to an address they actually read (an admin
+ *     testing talent onboarding gets the parent mail in his own inbox);
  *   - the acting human's login email — a reasonable default when they haven't
  *     configured a personal list;
  *   - the shared env list — last resort, for sends with no request actor
