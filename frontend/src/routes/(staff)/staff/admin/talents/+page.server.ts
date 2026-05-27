@@ -3,6 +3,11 @@ import { fail, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { computeLevel } from '$lib/domain/xp';
+import {
+  EVENT_TYPES,
+  EVENT_TYPE_VALUES,
+  type EventType,
+} from '$lib/domain/event';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
 import {
@@ -58,6 +63,13 @@ export const load: PageServerLoad = async ({ url }) => {
   const niveau = url.searchParams.get('niveau') || '';
   const account = (url.searchParams.get('account') || 'all') as AccountFilter;
   const campus = url.searchParams.get('campus') || '';
+  // Talents have no "type" column — they're a stagiaire/coding-clubber by virtue
+  // of the events they attended. Validate against the canonical list so a junk
+  // ?type= silently degrades to "all" rather than matching zero rows.
+  const typeParam = url.searchParams.get('type') || '';
+  const type = (EVENT_TYPE_VALUES as string[]).includes(typeParam)
+    ? (typeParam as EventType)
+    : '';
 
   const where: import('@prisma/client').Prisma.TalentWhereInput = {};
   if (search) {
@@ -73,57 +85,76 @@ export const load: PageServerLoad = async ({ url }) => {
   if (niveau) where.niveau = niveau;
   if (account === 'active') where.userId = { not: null };
   else if (account === 'pending') where.userId = null;
-  // A talent's campus isn't a column — it's wherever they last participated.
-  // `some` matches any campus they've attended, which is the useful net for
-  // "find me someone tied to campus X" even if their most-recent (effective)
-  // campus differs.
-  if (campus) where.participations = { some: { campusId: campus } };
+  // Campus and type both narrow the same relation, so build one `some` filter
+  // and let them AND together — "a stagiaire *at* campus X" means one
+  // participation that is both, not two separate matches. A talent's campus
+  // isn't a column: `some` matches any campus they've attended, the useful net
+  // for "find me someone tied to campus X" even if their effective campus
+  // differs. Likewise a stagiaire is anyone with ≥1 stage-seconde participation.
+  if (campus || type) {
+    const participation: import('@prisma/client').Prisma.ParticipationWhereInput =
+      {};
+    if (campus) participation.campusId = campus;
+    if (type) participation.event = { eventType: type };
+    where.participations = { some: participation };
+  }
 
-  const [rows, totalItems, totalAll, activeAll, campuses] = await Promise.all([
-    prisma.talent.findMany({
-      where,
-      orderBy: [
-        { lastActiveAt: { sort: 'desc', nulls: 'last' } },
-        { nom: 'asc' },
-      ],
-      skip: (page - 1) * PER_PAGE,
-      take: PER_PAGE,
-      select: {
-        id: true,
-        nom: true,
-        prenom: true,
-        email: true,
-        niveau: true,
-        userId: true,
-        xp: true,
-        eventsCount: true,
-        lastActiveAt: true,
-        charterAcceptedAt: true,
-        infoValidatedAt: true,
-        highSchoolValidatedAt: true,
-        parentsValidatedAt: true,
-        techInterestsValidatedAt: true,
-        generalInterestsValidatedAt: true,
-        equipmentValidatedAt: true,
-        processingCompletedAt: true,
-        rulesSignedAt: true,
-        // Effective campus = most-recent participation's campus, matching the
-        // resolution in hooks.server.ts that scopes `locals.featureFlags`.
-        participations: {
-          take: 1,
-          orderBy: { event: { date: 'desc' } },
-          select: { campus: { select: { name: true } } },
+  const [rows, totalItems, totalAll, activeAll, stagiairesAll, campuses] =
+    await Promise.all([
+      prisma.talent.findMany({
+        where,
+        orderBy: [
+          { lastActiveAt: { sort: 'desc', nulls: 'last' } },
+          { nom: 'asc' },
+        ],
+        skip: (page - 1) * PER_PAGE,
+        take: PER_PAGE,
+        select: {
+          id: true,
+          nom: true,
+          prenom: true,
+          email: true,
+          niveau: true,
+          userId: true,
+          xp: true,
+          eventsCount: true,
+          lastActiveAt: true,
+          charterAcceptedAt: true,
+          infoValidatedAt: true,
+          highSchoolValidatedAt: true,
+          parentsValidatedAt: true,
+          techInterestsValidatedAt: true,
+          generalInterestsValidatedAt: true,
+          equipmentValidatedAt: true,
+          processingCompletedAt: true,
+          rulesSignedAt: true,
+          // Effective campus = most-recent participation's campus, matching the
+          // resolution in hooks.server.ts that scopes `locals.featureFlags`.
+          participations: {
+            take: 1,
+            orderBy: { event: { date: 'desc' } },
+            select: { campus: { select: { name: true } } },
+          },
         },
-      },
-    }),
-    prisma.talent.count({ where }),
-    prisma.talent.count(),
-    prisma.talent.count({ where: { userId: { not: null } } }),
-    prisma.campus.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
-    }),
-  ]);
+      }),
+      prisma.talent.count({ where }),
+      prisma.talent.count(),
+      prisma.talent.count({ where: { userId: { not: null } } }),
+      // Headline metric for the stage-de-seconde release window: how many talents
+      // have ≥1 stage participation. Unfiltered (ignores the active `where`) so the
+      // tile always shows the full population, like `totalAll`/`activeAll`.
+      prisma.talent.count({
+        where: {
+          participations: {
+            some: { event: { eventType: EVENT_TYPES.STAGE_SECONDE } },
+          },
+        },
+      }),
+      prisma.campus.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true },
+      }),
+    ]);
 
   const talents = rows.map(({ charterAcceptedAt, participations, ...t }) => {
     const status = onboardingStatus({ ...t, charterAcceptedAt });
@@ -152,11 +183,12 @@ export const load: PageServerLoad = async ({ url }) => {
     totalPages: Math.ceil(totalItems / PER_PAGE),
     totalItems,
     currentPage: page,
-    filters: { q: search, niveau, account, campus },
+    filters: { q: search, niveau, account, campus, type },
     stats: {
       total: totalAll,
       active: activeAll,
       pending: totalAll - activeAll,
+      stagiaires: stagiairesAll,
     },
   };
 };
