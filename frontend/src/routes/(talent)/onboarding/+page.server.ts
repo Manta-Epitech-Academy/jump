@@ -276,51 +276,30 @@ export const actions: Actions = {
       },
     });
 
-    // Provision the parent bauth_user(s) + send the welcome email
-    // (fire-and-forget). Addresses already welcomed before this submit are
-    // skipped, and the two parent slots are deduped by address — so neither a
-    // re-submit / back-and-forth nor entering the same email for both parents
-    // can send the welcome twice.
-    const alreadyWelcomed = new Set(
-      [locals.talent.parentEmail, locals.talent.parent2Email]
-        .filter((e): e is string => !!e)
-        .map((e) => e.toLowerCase().trim()),
-    );
-    const parents: ParentContact[] = [
+    // Provision the parent-1 bauth_user + send the welcome email
+    // (fire-and-forget). A re-submit / back-and-forth doesn't re-send: the
+    // address is skipped when it was already stored on the talent before this
+    // submit. Parent 2 is persisted above as onboarding-collected data only — no
+    // account, no email, no portal access (the whole parent flow is parent-1).
+    const parentEmail = result.data.parentEmail.toLowerCase().trim();
+    const alreadyWelcomed =
+      (locals.talent.parentEmail ?? '').toLowerCase().trim() === parentEmail;
+
+    void provisionParentAccount(
       {
-        email: result.data.parentEmail.toLowerCase().trim(),
+        email: parentEmail,
         prenom: result.data.parentPrenom,
         nom: result.data.parentNom,
       },
-      ...(result.data.parent2Email
-        ? [
-            {
-              email: result.data.parent2Email.toLowerCase().trim(),
-              prenom: result.data.parent2Prenom ?? '',
-              nom: result.data.parent2Nom ?? '',
-            },
-          ]
-        : []),
-    ];
-
-    const childPrenom = locals.talent.prenom;
-    const talentId = locals.talent.id;
-    const seen = new Set<string>();
-    for (const parent of parents) {
-      if (!parent.email || seen.has(parent.email)) continue;
-      seen.add(parent.email);
-      void provisionParentAccount(
-        parent,
-        childPrenom,
-        talentId,
-        alreadyWelcomed.has(parent.email),
-      ).catch((err) =>
-        console.error(
-          `Failed to provision parent account for ${parent.email}:`,
-          err,
-        ),
-      );
-    }
+      locals.talent.prenom,
+      locals.talent.id,
+      alreadyWelcomed,
+    ).catch((err) =>
+      console.error(
+        `Failed to provision parent account for ${parentEmail}:`,
+        err,
+      ),
+    );
 
     // No redirect: a redirect to the same /onboarding URL doesn't re-render
     // under use:enhance (the client never picks up the advanced step). The form's
