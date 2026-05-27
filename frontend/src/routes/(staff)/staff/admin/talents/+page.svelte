@@ -103,7 +103,7 @@
     {
       label: 'Stagiaires',
       value: data.stats.stagiaires,
-      sub: '≥ 1 stage de seconde',
+      sub: 'Stage de seconde · cette année',
       tone: 'pink',
       Icon: GraduationCap,
     },

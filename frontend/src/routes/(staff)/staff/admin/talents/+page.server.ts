@@ -27,6 +27,28 @@ const PER_PAGE = 50;
 type AccountFilter = 'all' | 'active' | 'pending';
 
 /**
+ * "Stagiaire" = this year's cohort, not anyone who ever attended a stage. The
+ * stage de seconde runs once a year, so the population the admin tracks —
+ * arriving for the upcoming stage, currently in it, or recently finished — is
+ * exactly the stage-seconde events dated in the current calendar year. A bare
+ * "≥1 stage participation ever" kept every past cohort in the count forever.
+ *
+ * Calendar-year bounds in UTC are exact enough: a stage never starts on Jan 1,
+ * so no event sits on the boundary where the campus timezone could shift it
+ * into the adjacent year.
+ */
+function stageSecondeThisYearEventFilter(): import('@prisma/client').Prisma.EventWhereInput {
+  const year = new Date().getUTCFullYear();
+  return {
+    eventType: EVENT_TYPES.STAGE_SECONDE,
+    date: {
+      gte: new Date(Date.UTC(year, 0, 1)),
+      lt: new Date(Date.UTC(year + 1, 0, 1)),
+    },
+  };
+}
+
+/**
  * An impersonated talent lands wherever the talent route-guards send them, so
  * surfacing onboarding state up front tells the admin what they'll walk into:
  * a `pending` talent will be funnelled through onboarding/charter (and any
@@ -90,12 +112,17 @@ export const load: PageServerLoad = async ({ url }) => {
   // participation that is both, not two separate matches. A talent's campus
   // isn't a column: `some` matches any campus they've attended, the useful net
   // for "find me someone tied to campus X" even if their effective campus
-  // differs. Likewise a stagiaire is anyone with ≥1 stage-seconde participation.
+  // differs. The stage-seconde filter is scoped to this year's cohort (see
+  // stageSecondeThisYearEventFilter); coding-club, being year-round, is not.
   if (campus || type) {
     const participation: import('@prisma/client').Prisma.ParticipationWhereInput =
       {};
     if (campus) participation.campusId = campus;
-    if (type) participation.event = { eventType: type };
+    if (type === EVENT_TYPES.STAGE_SECONDE) {
+      participation.event = stageSecondeThisYearEventFilter();
+    } else if (type) {
+      participation.event = { eventType: type };
+    }
     where.participations = { some: participation };
   }
 
@@ -140,13 +167,13 @@ export const load: PageServerLoad = async ({ url }) => {
       prisma.talent.count({ where }),
       prisma.talent.count(),
       prisma.talent.count({ where: { userId: { not: null } } }),
-      // Headline metric for the stage-de-seconde release window: how many talents
-      // have ≥1 stage participation. Unfiltered (ignores the active `where`) so the
-      // tile always shows the full population, like `totalAll`/`activeAll`.
+      // Headline metric: how many talents are in this year's stage cohort.
+      // Unfiltered (ignores the active `where`) so the tile always shows the
+      // full population, like `totalAll`/`activeAll`.
       prisma.talent.count({
         where: {
           participations: {
-            some: { event: { eventType: EVENT_TYPES.STAGE_SECONDE } },
+            some: { event: stageSecondeThisYearEventFilter() },
           },
         },
       }),
