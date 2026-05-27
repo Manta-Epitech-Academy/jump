@@ -492,12 +492,18 @@ model ActivityTheme {
 }
 
 model Event {
-  id         String    @id @default(cuid())
-  titre      String
-  date       DateTime
-  endDate    DateTime?
-  eventType  String    @default("coding_club")
-  campusId   String
+  id    String   @id @default(cuid())
+  titre String
+  date  DateTime
+  // Salesforce gives us the calendar day (`date`/`endDate`) but never a
+  // start time, so the time-of-day is Jump-owned: wall-clock minutes from
+  // local midnight (0–1439), `null` until staff set it. Kept separate from
+  // `date` precisely so the SF sync — which rewrites `date` — can never
+  // clobber it. Compose with the campus timezone for a real instant.
+  startMinutes Int?
+  endDate      DateTime?
+  eventType    String    @default("coding_club")
+  campusId     String
   themeId    String?
   pin        String?
   notes      String?

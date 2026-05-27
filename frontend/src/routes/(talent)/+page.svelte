@@ -14,7 +14,11 @@
   import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
   import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
-  import { EVENT_TYPE_LABELS, type EventType } from '$lib/domain/event';
+  import {
+    EVENT_TYPE_LABELS,
+    minutesToHHMM,
+    type EventType,
+  } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -165,6 +169,15 @@
           upcomingParticipation.event?.titre ??
           'Atelier Epitech')
       : '',
+  );
+
+  // Wall-clock start time of the next session ("10:00"), shown only once a dev
+  // has *confirmed* it (`startMinutes` set). We deliberately don't fall back to
+  // the type default here: a confidently-wrong hour is worse for a student than
+  // none, so until it's confirmed the talent sees the date alone (never the SF
+  // `date`'s meaningless midnight). Staff see the default + a nag meanwhile.
+  let upcomingStartTime = $derived(
+    minutesToHHMM(upcomingParticipation?.event?.startMinutes),
   );
 
   let totalPastMissions = $derived(data.totalPastMissions);
@@ -658,11 +671,10 @@
                   {/if}
                   <strong class="text-slate-700 dark:text-slate-300"
                     >{formatDateLong(upcomingParticipation.event?.date)}</strong
-                  >
-                  à
-                  <strong class="text-slate-700 dark:text-slate-300"
-                    >{formatTime(upcomingParticipation.event?.date)}</strong
-                  >.
+                  >{#if upcomingStartTime}{' '}à{' '}<strong
+                      class="text-slate-700 dark:text-slate-300"
+                      >{upcomingStartTime}</strong
+                    >{/if}.
                 </p>
 
                 {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}

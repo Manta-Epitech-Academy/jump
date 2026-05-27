@@ -1,5 +1,6 @@
 <script lang="ts">
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
+  import Clock from '@lucide/svelte/icons/clock';
   import Tag from '@lucide/svelte/icons/tag';
   import Users from '@lucide/svelte/icons/users';
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
@@ -10,6 +11,7 @@
   import type { EventAlert } from '$lib/server/services/eventTasks';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
+  import StartTimeInline from './StartTimeInline.svelte';
   import { resolve } from '$app/paths';
 
   type Props = {
@@ -19,6 +21,12 @@
     endDate: Date | null;
     notes: string | null;
     timezone: string;
+    eventType: string;
+    startMinutes: number | null;
+    // Arrival time is a pre-event concern: show + edit it unless the event has
+    // already passed, and only auto-prompt the lead while it's still upcoming.
+    showStartTime: boolean;
+    promptStartTime: boolean;
     themeName?: string | null;
     mantasCount: number;
     stats: {
@@ -38,6 +46,10 @@
     endDate,
     notes,
     timezone,
+    eventType,
+    startMinutes,
+    showStartTime,
+    promptStartTime,
     themeName,
     mantasCount,
     stats,
@@ -72,6 +84,16 @@
         <CalendarDays class="h-3.5 w-3.5" />
         {dateLabel()}
       </span>
+      {#if showStartTime}
+        <span class="inline-flex items-center gap-1.5">
+          <Clock class="h-3.5 w-3.5" />
+          <StartTimeInline
+            {eventType}
+            {startMinutes}
+            promptWhenUnset={promptStartTime}
+          />
+        </span>
+      {/if}
       {#if themeName}
         <span class="inline-flex items-center gap-1.5 text-epi-teal">
           <Tag class="h-3.5 w-3.5" />
