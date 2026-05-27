@@ -9,14 +9,22 @@ import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
  * portfolio content (which can embed PII) is removed. We deliberately keep
  * `xp`, `level` and `eventsCount` so aggregate stats survive the erasure.
  *
+ * Parents are data subjects too: their identity lives both as columns on the
+ * Talent (both guardian slots) and as a `bauth_user` (role `parent`) minted at
+ * onboarding so they can sign image rights. Both are erased here. The parent
+ * account is shared across siblings (it is keyed by email and reused), so its
+ * `bauth_user` is only scrubbed once no *other* talent still references that
+ * email — otherwise a sibling's parent would lose their login.
+ *
  * This is the *real* deletion mechanism behind both entry points:
  *   - the daily inactivity sweep (`anonymizeInactiveStudents`), and
  *   - a talent's own deletion request once staff fulfil it
  *     (`talentDeletionService.fulfillTalentDeletion`).
  *
  * Idempotent: re-running on an already-anonymised talent is a harmless no-op
- * write. Takes a transaction client so callers can bundle it with their own
- * bookkeeping (e.g. flipping a deletion request to `fulfilled`) atomically.
+ * write (its parent emails are already null, so nothing is re-resolved). Takes
+ * a transaction client so callers can bundle it with their own bookkeeping
+ * (e.g. flipping a deletion request to `fulfilled`) atomically.
  */
 export async function anonymizeTalent(
   tx: Prisma.TransactionClient,
@@ -24,11 +32,18 @@ export async function anonymizeTalent(
 ): Promise<void> {
   const talent = await tx.talent.findUnique({
     where: { id: talentId },
-    select: { userId: true },
+    select: { userId: true, parentEmail: true, parent2Email: true },
   });
   if (!talent) return;
 
-  // 1. Clear all PII fields on the Talent (keep xp / level / eventsCount).
+  // Captured before the update below nulls them, so we can scrub the matching
+  // parent accounts afterwards (step 4).
+  const parentEmails = [talent.parentEmail, talent.parent2Email].filter(
+    (e): e is string => !!e,
+  );
+
+  // 1. Clear all PII fields on the Talent (keep xp / level / eventsCount),
+  //    including both parent/guardian slots.
   await tx.talent.update({
     where: { id: talentId },
     data: {
@@ -37,12 +52,24 @@ export async function anonymizeTalent(
       email: null,
       externalId: null,
       phone: null,
-      parentPhone: null,
-      parentEmail: null,
       niveau: null,
       badges: Prisma.DbNull,
       lastSyncedAt: null,
       charterAcceptedAt: null,
+      // Guardian 1
+      parentType: null,
+      parentCivilite: null,
+      parentNom: null,
+      parentPrenom: null,
+      parentEmail: null,
+      parentPhone: null,
+      // Guardian 2
+      parent2Type: null,
+      parent2Civilite: null,
+      parent2Nom: null,
+      parent2Prenom: null,
+      parent2Email: null,
+      parent2Phone: null,
     },
   });
 
@@ -63,6 +90,33 @@ export async function anonymizeTalent(
 
   // 3. Delete portfolio items (student-created content with potential PII).
   await tx.portfolioItem.deleteMany({ where: { talentId } });
+
+  // 4. Scrub the parent `bauth_user`(s) — but only those no other talent still
+  //    references, so a shared parent (siblings) keeps their account. Already-
+  //    anonymised siblings have null parent emails, so they never count here.
+  for (const email of new Set(parentEmails)) {
+    const stillReferenced = await tx.talent.count({
+      where: {
+        id: { not: talentId },
+        OR: [{ parentEmail: email }, { parent2Email: email }],
+      },
+    });
+    if (stillReferenced > 0) continue;
+
+    const parentUser = await tx.bauth_user.findUnique({ where: { email } });
+    if (!parentUser || parentUser.role !== 'parent') continue;
+
+    await tx.bauth_user.update({
+      where: { id: parentUser.id },
+      data: {
+        name: 'Parent Anonymisé',
+        image: null,
+        email: `anonymized-parent-${parentUser.id}@jump.internal`,
+      },
+    });
+    await tx.bauth_session.deleteMany({ where: { userId: parentUser.id } });
+    await tx.bauth_account.deleteMany({ where: { userId: parentUser.id } });
+  }
 }
 
 export const AnonymizationService = {
