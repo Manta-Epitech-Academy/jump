@@ -37,16 +37,40 @@ export async function anonymizeTalent(
       email: null,
       externalId: null,
       phone: null,
+      civilite: null,
       parentPhone: null,
       parentEmail: null,
+      parentNom: null,
+      parentPrenom: null,
+      parentCivilite: null,
+      parentType: null,
+      parent2Nom: null,
+      parent2Prenom: null,
+      parent2Email: null,
+      parent2Phone: null,
+      parent2Civilite: null,
+      parent2Type: null,
+      highSchoolNameManual: null,
+      schoolId: null,
+      interestsFreeText: null,
+      setupDescription: null,
+      imageRightsSignerName: null,
+      discordId: null,
       niveau: null,
       badges: Prisma.DbNull,
       lastSyncedAt: null,
       charterAcceptedAt: null,
+      infoValidatedAt: null,
+      highSchoolValidatedAt: null,
+      parentsValidatedAt: null,
     },
   });
 
-  // 2. Scrub the linked BetterAuth user and revoke its access — only if linked.
+  // 2. Delete associated PII records (Salesforce mirror, interests).
+  await tx.talentSfImport.deleteMany({ where: { talentId } });
+  await tx.talentInterest.deleteMany({ where: { talentId } });
+
+  // 3. Scrub the linked BetterAuth user and revoke its access — only if linked.
   if (talent.userId) {
     await tx.bauth_user.update({
       where: { id: talent.userId },
@@ -61,7 +85,7 @@ export async function anonymizeTalent(
     await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
   }
 
-  // 3. Delete portfolio items (student-created content with potential PII).
+  // 4. Delete portfolio items (student-created content with potential PII).
   await tx.portfolioItem.deleteMany({ where: { talentId } });
 }
 

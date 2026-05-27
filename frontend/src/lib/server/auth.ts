@@ -42,7 +42,7 @@ export const auth = betterAuth({
 
   plugins: [
     admin({
-      impersonationSessionDuration: 60 * 60,
+      impersonationSessionDuration: 30 * 60,
     }),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {

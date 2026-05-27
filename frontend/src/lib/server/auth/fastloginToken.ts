@@ -18,7 +18,7 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 
-const FASTLOGIN_TTL_SECONDS = 60 * 60 * 24 * 60; // 2 months
+const FASTLOGIN_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const ISSUER = 'jump';
 const AUDIENCE = 'jump:fastlogin';
 const PARENT_AUDIENCE = 'jump:parent_fastlogin';

@@ -3,10 +3,15 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { listCampuses } from '$lib/server/services/syncService';
 import { recordSync } from '$lib/server/infra/syncStatus';
+import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
 
 export const GET: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  if (!env.WORKER_API_TOKEN || token !== env.WORKER_API_TOKEN)
+  if (
+    !env.WORKER_API_TOKEN ||
+    !token ||
+    !safeTokenEquals(token, env.WORKER_API_TOKEN)
+  )
     throw error(401, 'Unauthorized: Invalid or missing token');
 
   const campuses = await listCampuses();

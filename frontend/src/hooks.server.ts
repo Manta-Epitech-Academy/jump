@@ -36,6 +36,9 @@ const CSP_HEADER = [
   `connect-src 'self' https://discord.com ${UMAMI_HOST}`,
   "frame-ancestors 'none'",
   `frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr${GAMES_FRAME_SRC ? ` ${GAMES_FRAME_SRC}` : ''}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
 ].join('; ');
 
 function setSecurityHeaders(response: Response) {
@@ -179,7 +182,9 @@ export const handle: Handle = async ({ event, resolve }) => {
             where: { id: event.locals.talent.id },
             data: { lastActiveAt: now },
           })
-          .catch(() => {});
+          .catch((e) =>
+            console.warn('[lastActiveAt] update failed:', e.message),
+          );
         event.locals.talent.lastActiveAt = now;
       }
     }
