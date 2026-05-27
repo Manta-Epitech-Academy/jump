@@ -81,8 +81,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Pinned rulesets only — no `--config auto`. `auto` resolves rules from
+      # the registry at run time (and sends telemetry), which makes a blocking
+      # `--error` gate non-deterministic: a new community rule could fail an
+      # unrelated PR with no diff change, defeating the pinned image above.
       - name: Run Semgrep
-        run: semgrep scan --config auto --config p/owasp-top-ten --config p/typescript --config p/security-audit --error --sarif --output semgrep-results.sarif frontend/src/
+        run: semgrep scan --config p/owasp-top-ten --config p/typescript --config p/security-audit --error --sarif --output semgrep-results.sarif frontend/src/
 
       - name: Upload SARIF
         if: always()
@@ -143,8 +147,12 @@ jobs:
       - name: Build app
         run: bun run build
 
+      # `bun run start` runs the adapter-node build (./build/index.js), which
+      # honors PORT + ORIGIN — that's the production surface we want ZAP to hit.
+      # `bun run preview` (vite preview) ignores PORT and binds 4173, so the
+      # wait loop below would never see the app.
       - name: Start app
-        run: bun run preview &
+        run: bun run start &
         env:
           PORT: 3030
 
