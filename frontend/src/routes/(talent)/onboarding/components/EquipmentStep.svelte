@@ -35,6 +35,14 @@
   </h1>
 </div>
 
+<img
+  src="/onboarding-setup.jpg"
+  alt="Un chat installé devant un setup gaming"
+  loading="lazy"
+  decoding="async"
+  class="mx-auto mb-6 w-full max-w-xs rounded-2xl shadow-md"
+/>
+
 {#if error}
   <p
     class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"

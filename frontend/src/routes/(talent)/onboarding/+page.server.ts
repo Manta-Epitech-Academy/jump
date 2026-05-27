@@ -26,6 +26,52 @@ import {
 // Re-exported for the `./$types`-typed action handlers that key off the step.
 export type { OnboardingStep };
 
+type ParentContact = { email: string; prenom: string; nom: string };
+
+/**
+ * Provision (or refresh) a parent's `bauth_user` and, the first time we see the
+ * address for this talent, send the welcome email. `alreadyWelcomed` is true
+ * when the address was already stored on the talent before this submit — that
+ * covers plain re-submits and the back-and-forth case (going back from the
+ * interests step clears `parentsValidatedAt` but leaves the parent email
+ * untouched), which is what was sending the welcome twice.
+ *
+ * The bauth_user upsert always runs so a corrected name still propagates; only
+ * the email send is gated.
+ */
+async function provisionParentAccount(
+  parent: ParentContact,
+  childPrenom: string,
+  talentId: string,
+  alreadyWelcomed: boolean,
+): Promise<void> {
+  const name = `${parent.prenom} ${parent.nom}`.trim();
+  const existing = await prisma.bauth_user.findUnique({
+    where: { email: parent.email },
+  });
+  if (!existing) {
+    await prisma.bauth_user.create({
+      data: { email: parent.email, name, role: 'parent', emailVerified: true },
+    });
+  } else {
+    await prisma.bauth_user.update({
+      where: { id: existing.id },
+      data: { name },
+    });
+  }
+
+  // Welcome carries a passwordless magic link into the parent space; the
+  // bauth_user provisioned just above lets /parent/fastlogin resolve it.
+  if (!alreadyWelcomed) {
+    await sendParentWelcomeEmail(
+      parent.email,
+      parent.nom,
+      childPrenom,
+      talentId,
+    );
+  }
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
@@ -230,76 +276,49 @@ export const actions: Actions = {
       },
     });
 
-    // Create/update parent 1 bauth_user + send welcome email (fire-and-forget)
-    if (result.data.parentEmail) {
-      const parentEmail = result.data.parentEmail.toLowerCase().trim();
-      (async () => {
-        let parentUser = await prisma.bauth_user.findUnique({
-          where: { email: parentEmail },
-        });
-        if (!parentUser) {
-          parentUser = await prisma.bauth_user.create({
-            data: {
-              email: parentEmail,
-              name: `${result.data.parentPrenom} ${result.data.parentNom}`,
-              role: 'parent',
-              emailVerified: true,
+    // Provision the parent bauth_user(s) + send the welcome email
+    // (fire-and-forget). Addresses already welcomed before this submit are
+    // skipped, and the two parent slots are deduped by address — so neither a
+    // re-submit / back-and-forth nor entering the same email for both parents
+    // can send the welcome twice.
+    const alreadyWelcomed = new Set(
+      [locals.talent.parentEmail, locals.talent.parent2Email]
+        .filter((e): e is string => !!e)
+        .map((e) => e.toLowerCase().trim()),
+    );
+    const parents: ParentContact[] = [
+      {
+        email: result.data.parentEmail.toLowerCase().trim(),
+        prenom: result.data.parentPrenom,
+        nom: result.data.parentNom,
+      },
+      ...(result.data.parent2Email
+        ? [
+            {
+              email: result.data.parent2Email.toLowerCase().trim(),
+              prenom: result.data.parent2Prenom ?? '',
+              nom: result.data.parent2Nom ?? '',
             },
-          });
-        } else {
-          await prisma.bauth_user.update({
-            where: { id: parentUser.id },
-            data: {
-              name: `${result.data.parentPrenom} ${result.data.parentNom}`,
-            },
-          });
-        }
+          ]
+        : []),
+    ];
 
-        // Welcome email carries a passwordless magic link into the parent
-        // space — the bauth_user just created above lets it resolve.
-        await sendParentWelcomeEmail(
-          parentEmail,
-          result.data.parentNom,
-          locals.talent!.prenom,
-          locals.talent!.id,
-        );
-      })().catch((err) =>
-        console.error('Failed to send parent 1 welcome email:', err),
-      );
-    }
-
-    // Create/update parent 2 bauth_user + send welcome email (fire-and-forget)
-    if (result.data.parent2Email) {
-      const parent2Email = result.data.parent2Email.toLowerCase().trim();
-      (async () => {
-        let parent2User = await prisma.bauth_user.findUnique({
-          where: { email: parent2Email },
-        });
-        if (!parent2User) {
-          parent2User = await prisma.bauth_user.create({
-            data: {
-              email: parent2Email,
-              name: `${result.data.parent2Prenom} ${result.data.parent2Nom}`,
-              role: 'parent',
-              emailVerified: true,
-            },
-          });
-        } else {
-          await prisma.bauth_user.update({
-            where: { id: parent2User.id },
-            data: {
-              name: `${result.data.parent2Prenom} ${result.data.parent2Nom}`,
-            },
-          });
-        }
-        await sendParentWelcomeEmail(
-          parent2Email,
-          result.data.parent2Nom ?? '',
-          locals.talent!.prenom,
-          locals.talent!.id,
-        );
-      })().catch((err) =>
-        console.error('Failed to send parent 2 welcome email:', err),
+    const childPrenom = locals.talent.prenom;
+    const talentId = locals.talent.id;
+    const seen = new Set<string>();
+    for (const parent of parents) {
+      if (!parent.email || seen.has(parent.email)) continue;
+      seen.add(parent.email);
+      void provisionParentAccount(
+        parent,
+        childPrenom,
+        talentId,
+        alreadyWelcomed.has(parent.email),
+      ).catch((err) =>
+        console.error(
+          `Failed to provision parent account for ${parent.email}:`,
+          err,
+        ),
       );
     }
 
