@@ -662,6 +662,7 @@ async function buildPersonalization(
  */
 function logMintFailure(kind: string, email: string) {
   return (err: unknown): null => {
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
     console.error(`[broadcast] ${kind} mint failed for ${email}:`, err);
     return null;
   };

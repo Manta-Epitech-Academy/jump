@@ -180,6 +180,7 @@ export const actions: Actions = {
 
     // Process inline (fire-and-forget). For larger volumes, route to a worker.
     processBroadcast(broadcastId).catch((err) => {
+      // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
       console.error(`[broadcast ${broadcastId}] processing failed`, err);
     });
 

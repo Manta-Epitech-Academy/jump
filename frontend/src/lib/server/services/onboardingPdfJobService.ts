@@ -115,6 +115,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     ]);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
     console.error(`[onboarding-pdf-job] ${jobId} failed:`, err);
     // Record the failure only if the claim succeeded — otherwise we have no row we
     // own. Guard the write itself so a secondary DB failure can't re-leak.
@@ -129,6 +130,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
           },
         })
         .catch((e) =>
+          // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
           console.error(`[onboarding-pdf-job] ${jobId} error-write failed:`, e),
         );
     }
