@@ -1,6 +1,10 @@
 import type { BroadcastAudience, BroadcastChannel } from '@prisma/client';
 import type { Niveau } from './niveau';
 import { JUMP_LEVELS, type JumpLevel } from './xp';
+import {
+  IMAGE_RIGHTS_STATUS_LABELS,
+  type ImageRightsStatus,
+} from './imageRights';
 
 export const BROADCAST_CHANNELS = [
   'mail',
@@ -192,10 +196,21 @@ export { JUMP_LEVELS, type JumpLevel };
 
 export type TristateFilter = 'yes' | 'no' | 'any';
 
+// Image rights is no longer a yes/no flag: a refusal is its own audience (e.g.
+// "warn the photographer", or exclude from photo-driven comms). Modelled as a
+// multi-select over the three states, like `niveau`/`jumpLevel`.
+export const IMAGE_RIGHTS_FILTER_OPTIONS = [
+  'accepted',
+  'refused',
+  'undecided',
+] as const satisfies readonly ImageRightsStatus[];
+
+export const IMAGE_RIGHTS_FILTER_LABELS = IMAGE_RIGHTS_STATUS_LABELS;
+
 export interface BroadcastFilters {
   niveau?: Niveau[];
   charterSigned?: TristateFilter;
-  imageRightsSigned?: TristateFilter;
+  imageRights?: ImageRightsStatus[];
   jumpLevel?: JumpLevel[];
   hasPastEvent?: TristateFilter;
   hasFutureEvent?: TristateFilter;

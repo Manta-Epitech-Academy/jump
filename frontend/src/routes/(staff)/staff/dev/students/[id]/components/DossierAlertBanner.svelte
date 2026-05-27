@@ -15,24 +15,26 @@
       id: string;
       stageCompliance: {
         charteSigned: boolean;
-        imageRightsSigned: boolean;
       } | null;
     }[];
+    /**
+     * Whether the guardian has made an image-rights decision (authorized *or*
+     * refused). Talent-level, so it's the same across every participation; a
+     * settled decision — even a refusal — is "done" for dossier readiness.
+     */
+    imageRightsDecided: boolean;
   };
 
-  let { activeStageParticipations }: Props = $props();
+  let { activeStageParticipations, imageRightsDecided }: Props = $props();
 
   const state = $derived.by(() => {
     if (activeStageParticipations.length === 0) return null;
     const total = activeStageParticipations.length;
     const ready = activeStageParticipations.filter(
-      (p) =>
-        p.stageCompliance?.charteSigned && p.stageCompliance?.imageRightsSigned,
+      (p) => p.stageCompliance?.charteSigned && imageRightsDecided,
     ).length;
     const blocked = activeStageParticipations.filter(
-      (p) =>
-        !p.stageCompliance?.charteSigned &&
-        !p.stageCompliance?.imageRightsSigned,
+      (p) => !p.stageCompliance?.charteSigned && !imageRightsDecided,
     ).length;
     if (ready === total) return 'complete' as const;
     if (blocked === total) return 'blocked' as const;
@@ -42,8 +44,7 @@
   const counts = $derived.by(() => {
     const total = activeStageParticipations.length;
     const ready = activeStageParticipations.filter(
-      (p) =>
-        p.stageCompliance?.charteSigned && p.stageCompliance?.imageRightsSigned,
+      (p) => p.stageCompliance?.charteSigned && imageRightsDecided,
     ).length;
     return { total, ready };
   });

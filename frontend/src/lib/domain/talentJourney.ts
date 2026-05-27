@@ -56,9 +56,9 @@ export const TALENT_JOURNEY_STEPS: TalentJourneyStep[] = [
   },
   {
     key: 'droit-image',
-    title: "Signature du droit à l'image",
+    title: "Droit à l'image",
     description:
-      "Les référents légaux du stagiaire reçoivent un mail avec un lien de connexion automatique vers la plateforme. Ils se connectent et signent en ligne le droit à l'image, autorisant Epitech à utiliser les photos et vidéos prises pendant le stage.",
+      "Les référents légaux du stagiaire reçoivent un mail avec un lien de connexion automatique vers la plateforme. Ils se connectent et renseignent en ligne leur décision sur le droit à l'image — autoriser ou refuser l'utilisation par Epitech des photos et vidéos prises pendant le stage.",
     actor: 'parent',
     actorLabel: 'Les référents légaux (parents)',
     icon: Camera,

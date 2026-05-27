@@ -6,6 +6,10 @@
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import { formatDateFr, cn } from '$lib/utils';
   import type { Component } from 'svelte';
+  import {
+    IMAGE_RIGHTS_STATUS_LABELS,
+    type ImageRightsDecision,
+  } from '$lib/domain/imageRights';
 
   /**
    * Per-document compliance breakdown for the talent's most-recent active
@@ -23,22 +27,26 @@
       id: string;
       stageCompliance: {
         charteSigned: boolean;
-        imageRightsSigned: boolean;
         updatedAt: Date | string;
       } | null;
       event: { id: string; titre: string; date: Date | string };
     };
+    /** Guardian's image-rights decision (talent-level): null = undecided. */
+    imageRightsDecision: ImageRightsDecision | null;
     timezone: string;
   };
 
-  let { participation, timezone }: Props = $props();
+  let { participation, imageRightsDecision, timezone }: Props = $props();
 
   type DocRow = {
     key: 'charte' | 'image';
     label: string;
     description: string;
     icon: Component<{ class?: string }>;
+    /** Whether the document is resolved (signed, or a decision was made). */
     signed: boolean;
+    /** Image only: the actual decision, to show "Autorisé" vs "Refusé". */
+    decision?: ImageRightsDecision | null;
   };
 
   const sc = $derived(participation.stageCompliance);
@@ -55,9 +63,10 @@
     {
       key: 'image',
       label: "Droit à l'image",
-      description: 'Autorisation parentale photos / vidéos.',
+      description: 'Décision du représentant légal (autorisation ou refus).',
       icon: Camera,
-      signed: !!sc?.imageRightsSigned,
+      signed: imageRightsDecision !== null,
+      decision: imageRightsDecision,
     },
   ]);
 
@@ -115,25 +124,40 @@
               {row.description}
             </td>
             <td class="px-3 py-3">
-              <span
-                class={cn(
-                  'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase',
-                  row.signed
-                    ? 'border border-epi-teal-solid/40 bg-epi-teal-solid/10 text-epi-teal-solid'
-                    : 'border border-destructive/40 bg-destructive/10 text-destructive',
-                )}
-              >
-                {#if row.signed}
-                  <Check class="h-3 w-3" />
-                  Validé
-                {:else}
+              {#if row.key === 'image' && row.decision === 'refused'}
+                <!-- A refusal is a settled decision, not a missing doc — but it
+                     must read distinctly so staff know not to photograph. -->
+                <span
+                  class="inline-flex items-center gap-1 rounded-sm border border-epi-orange/40 bg-epi-orange/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest text-epi-orange uppercase"
+                >
                   <X class="h-3 w-3" />
-                  Manquant
-                {/if}
-              </span>
+                  {IMAGE_RIGHTS_STATUS_LABELS.refused}
+                </span>
+              {:else}
+                <span
+                  class={cn(
+                    'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase',
+                    row.signed
+                      ? 'border border-epi-teal-solid/40 bg-epi-teal-solid/10 text-epi-teal-solid'
+                      : 'border border-destructive/40 bg-destructive/10 text-destructive',
+                  )}
+                >
+                  {#if row.signed}
+                    <Check class="h-3 w-3" />
+                    {row.key === 'image'
+                      ? IMAGE_RIGHTS_STATUS_LABELS.accepted
+                      : 'Validé'}
+                  {:else}
+                    <X class="h-3 w-3" />
+                    {row.key === 'image'
+                      ? IMAGE_RIGHTS_STATUS_LABELS.undecided
+                      : 'Manquant'}
+                  {/if}
+                </span>
+              {/if}
             </td>
             <td class="px-3 py-3 font-mono text-xs">
-              {#if row.signed && signedAt}
+              {#if row.key === 'charte' && row.signed && signedAt}
                 {formatDateFr(signedAt, timezone)}
               {:else}
                 <span class="text-muted-foreground">—</span>

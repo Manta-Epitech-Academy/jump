@@ -4220,20 +4220,42 @@ async function seedEvents(
 
     // Stage compliance (only for stage_seconde events)
     if (blueprint.eventType === EVENT_TYPES.STAGE_SECONDE) {
-      const complianceRows = students.flatMap((s) => {
+      const complianceRows: {
+        participationId: string;
+        charteSigned: boolean;
+      }[] = [];
+      // Image rights are a talent-level decision now: collect the ids of those
+      // who authorized vs refused so we can apply them in two bulk updates.
+      const acceptedTalentIds: string[] = [];
+      const refusedTalentIds: string[] = [];
+      for (const s of students) {
         const fullySigned = blueprint.stageSigned?.includes(s.email) ?? false;
         const partiallySigned =
           blueprint.stageUnsigned?.includes(s.email) ?? false;
-        if (!fullySigned && !partiallySigned) return [];
-        return [
-          {
-            participationId: participationIdByTalent.get(s.talent.id)!,
-            charteSigned: fullySigned || Math.random() < 0.5,
-            imageRightsSigned: fullySigned || partiallySigned,
-          },
-        ];
-      });
+        if (!fullySigned && !partiallySigned) continue;
+        complianceRows.push({
+          participationId: participationIdByTalent.get(s.talent.id)!,
+          charteSigned: fullySigned || Math.random() < 0.5,
+        });
+        // Most guardians authorize; ~10% refuse — enough to exercise the
+        // refusal paths (staff badge, broadcast filter, "do not photograph").
+        if (Math.random() < 0.1) refusedTalentIds.push(s.talent.id);
+        else acceptedTalentIds.push(s.talent.id);
+      }
       await prisma.stageCompliance.createMany({ data: complianceRows });
+      const now = new Date();
+      if (acceptedTalentIds.length > 0) {
+        await prisma.talent.updateMany({
+          where: { id: { in: acceptedTalentIds } },
+          data: { imageRightsDecision: 'accepted', imageRightsDecidedAt: now },
+        });
+      }
+      if (refusedTalentIds.length > 0) {
+        await prisma.talent.updateMany({
+          where: { id: { in: refusedTalentIds } },
+          data: { imageRightsDecision: 'refused', imageRightsDecidedAt: now },
+        });
+      }
     }
   }
 
@@ -4597,7 +4619,7 @@ async function seedBroadcasts(
         name: "Relance parent — droit à l'image (SMS)",
         channel: 'sms',
         subject: null,
-        body: "Bonjour, votre signature est attendue pour finaliser l'inscription de {{child_prenom}} au stage de seconde à Epitech. Mail envoyé sur {{email}}. - Epitech {{campus}}",
+        body: "Bonjour, votre décision sur le droit à l'image est attendue pour finaliser l'inscription de {{child_prenom}} au stage de seconde à Epitech. Mail envoyé sur {{email}}. - Epitech {{campus}}",
         createdById: templateAuthor,
       },
       {
@@ -4749,11 +4771,11 @@ L'équipe Epitech Academy`,
 
 {{child_prenom}} vient de finaliser son inscription au stage de seconde à Epitech, qui se déroulera du 15 au 27 juin, sur notre campus de {{campus}}.
 
-Pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour pouvoir utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre accord explicite.
+Pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour savoir si nous pouvons utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre décision.
 
-Vous pouvez **signer électroniquement le droit à l'image** en moins de 2 minutes via le lien ci-dessous. Vous restez bien sûr libre d'accepter ou de refuser.
+Vous pouvez **renseigner le droit à l'image** en moins de 2 minutes via le lien ci-dessous. Vous êtes bien sûr libre d'accepter ou de refuser.
 
-:button[Signer le droit à l'image]({{parent_fastlogin_link}})
+:button[Renseigner le droit à l'image]({{parent_fastlogin_link}})
 
 Le lien vous connecte directement à votre espace, sans mot de passe à créer.
 
@@ -4782,14 +4804,14 @@ L'équipe Epitech {{campus}}`,
       actionKey: 'relance_parent',
       name: 'Relance — parent (par défaut)',
       subject:
-        'Rappel : votre signature pour le stage à Epitech de {{child_prenom}}',
+        "Rappel : votre décision sur le droit à l'image de {{child_prenom}} pour le stage à Epitech",
       body: `Bonjour,
 
-Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre signature électronique du droit à l'image est encore attendue.
+Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre décision concernant le droit à l'image est encore attendue.
 
 Cela vous prendra moins de 2 minutes.
 
-:button[Accéder à la signature]({{parent_fastlogin_link}})
+:button[Renseigner le droit à l'image]({{parent_fastlogin_link}})
 
 Le lien vous connecte directement à votre espace, sans mot de passe à créer.
 

@@ -18,7 +18,7 @@ interface OnboardingDocumentDescriptor {
   /** Talent column holding the S3 key of the generated PDF. */
   filePathField: 'charterFilePath' | 'rulesFilePath' | 'imageRightsFilePath';
   /** Talent column timestamping the signature this document attests. */
-  signedAtField: 'charterAcceptedAt' | 'rulesSignedAt' | 'imageRightsSignedAt';
+  signedAtField: 'charterAcceptedAt' | 'rulesSignedAt' | 'imageRightsDecidedAt';
 }
 
 export const ONBOARDING_DOCUMENTS: Record<
@@ -35,10 +35,12 @@ export const ONBOARDING_DOCUMENTS: Record<
     filePathField: 'rulesFilePath',
     signedAtField: 'rulesSignedAt',
   },
+  // Neutral label: the same document type backs both an authorization and a
+  // refusal. The PDF generator picks the decision-specific title and body.
   'image-rights': {
-    label: "Autorisation de Droit à l'Image",
+    label: "Droit à l'Image",
     filePathField: 'imageRightsFilePath',
-    signedAtField: 'imageRightsSignedAt',
+    signedAtField: 'imageRightsDecidedAt',
   },
 };
 

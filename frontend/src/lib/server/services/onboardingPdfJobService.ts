@@ -18,6 +18,9 @@ const payloadSchema = z.object({
   city: z.string().optional(),
   signerName: z.string().optional(),
   relationship: z.string().optional(),
+  // image-rights only: which way the guardian decided. Optional for back-compat
+  // with rows enqueued before refusal existed (the generator defaults to accept).
+  decision: z.enum(['accepted', 'refused']).optional(),
   signedAt: z.string(),
 });
 export type OnboardingPdfJobPayload = z.infer<typeof payloadSchema>;
@@ -86,6 +89,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
 
     const pdf = await generateOnboardingPDF({
       type: documentType,
+      decision: payload.decision,
       studentName: payload.studentName,
       signerName: payload.signerName,
       relationship: payload.relationship,

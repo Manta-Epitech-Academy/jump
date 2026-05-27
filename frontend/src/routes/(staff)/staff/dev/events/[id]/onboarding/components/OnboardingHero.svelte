@@ -94,7 +94,7 @@
       total,
       tone: 'pink',
       helpText:
-        'Autorisation parentale pour les photos/vidéos du stage. Demandée automatiquement par email aux parents à la création du compte. Cochez manuellement uniquement en cas de retour papier.',
+        "Décision du représentant légal (autorisation ou refus) prise en ligne depuis l'espace parent, sollicitée automatiquement par email. Le compteur additionne les décisions prises ; un refus compte comme une décision.",
     }),
     pcCard,
   ]);

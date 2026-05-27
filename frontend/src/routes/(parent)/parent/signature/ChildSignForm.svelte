@@ -1,27 +1,33 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { Checkbox } from '$lib/components/ui/checkbox';
   import * as Select from '$lib/components/ui/select';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import Check from '@lucide/svelte/icons/check';
+  import X from '@lucide/svelte/icons/x';
+  import { cn } from '$lib/utils';
   import { track, errReason } from '$lib/analytics';
+  import type { ImageRightsDecision } from '$lib/domain/imageRights';
 
   interface Props {
     child: { id: string; prenom: string; nom: string };
+    /** Legal body shown once the guardian chooses to authorize. */
     droitImageBody: string;
+    /** Legal body shown once the guardian chooses to refuse. */
+    droitImageRefusalBody: string;
     error?: string;
   }
 
-  let { child, droitImageBody, error }: Props = $props();
+  let { child, droitImageBody, droitImageRefusalBody, error }: Props = $props();
 
   let signerName = $state('');
   let relationship = $state('');
   let city = $state('');
-  let accepted = $state(false);
+  let decision = $state<ImageRightsDecision | ''>('');
   let submitting = $state(false);
 
-  const canSign = $derived(
-    accepted &&
+  const canSubmit = $derived(
+    decision !== '' &&
       signerName.trim().length >= 2 &&
       relationship !== '' &&
       city.trim().length >= 1 &&
@@ -42,14 +48,14 @@
 
   <form
     method="POST"
-    action="?/sign"
+    action="?/decide"
     use:enhance={() => {
       submitting = true;
       return async ({ result, update }) => {
         if (result.type === 'success' || result.type === 'redirect') {
-          track('parent_image_rights_signed');
+          track('parent_image_rights_decided', { decision });
         } else if (result.type === 'failure') {
-          track('parent_image_rights_signing_failed', {
+          track('parent_image_rights_decision_failed', {
             reason: errReason(result),
           });
         }
@@ -60,6 +66,7 @@
     class="space-y-4"
   >
     <input type="hidden" name="talentId" value={child.id} />
+    <input type="hidden" name="decision" value={decision} />
 
     {#if error}
       <p
@@ -69,7 +76,7 @@
       </p>
     {/if}
 
-    <!-- Document content -->
+    <!-- Declaration -->
     <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
       <p>
         Je soussigné(e), Mme/Mr
@@ -99,14 +106,76 @@
             <Select.Item value="tuteur légal" label="tuteur légal" />
             <Select.Item value="tutrice légale" label="tutrice légale" />
           </Select.Content>
-        </Select.Root>, autorise <strong>Epitech</strong> à utiliser l'image de
-        mon enfant
-        <strong>{child.prenom} {child.nom}</strong> dans le cadre du stage de seconde.
+        </Select.Root>, concernant l'utilisation par <strong>Epitech</strong> de
+        l'image de mon enfant
+        <strong>{child.prenom} {child.nom}</strong> dans le cadre du stage de seconde
+        :
       </p>
-      {@html droitImageBody}
     </div>
 
-    <!-- Signature — card glass -->
+    <!-- Decision: authorize or refuse -->
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <button
+        type="button"
+        onclick={() => (decision = 'accepted')}
+        aria-pressed={decision === 'accepted'}
+        class={cn(
+          'flex items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-sm backdrop-blur-xl transition-all',
+          decision === 'accepted'
+            ? 'border-epi-teal bg-epi-teal/10 ring-1 ring-epi-teal'
+            : 'border-slate-200/60 bg-white/80 hover:border-epi-teal/50 dark:bg-slate-900/80',
+        )}
+      >
+        <span
+          class={cn(
+            'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
+            decision === 'accepted'
+              ? 'border-epi-teal bg-epi-teal text-black'
+              : 'border-slate-300 dark:border-slate-600',
+          )}
+        >
+          {#if decision === 'accepted'}<Check class="size-3.5" />{/if}
+        </span>
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+          J'autorise l'utilisation de l'image de mon enfant
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onclick={() => (decision = 'refused')}
+        aria-pressed={decision === 'refused'}
+        class={cn(
+          'flex items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-sm backdrop-blur-xl transition-all',
+          decision === 'refused'
+            ? 'border-red-400 bg-red-50 ring-1 ring-red-400 dark:bg-red-900/20'
+            : 'border-slate-200/60 bg-white/80 hover:border-red-300 dark:bg-slate-900/80',
+        )}
+      >
+        <span
+          class={cn(
+            'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
+            decision === 'refused'
+              ? 'border-red-500 bg-red-500 text-white'
+              : 'border-slate-300 dark:border-slate-600',
+          )}
+        >
+          {#if decision === 'refused'}<X class="size-3.5" />{/if}
+        </span>
+        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+          Je refuse l'utilisation de l'image de mon enfant
+        </span>
+      </button>
+    </div>
+
+    <!-- Legal note for the chosen decision -->
+    {#if decision}
+      <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
+        {@html decision === 'refused' ? droitImageRefusalBody : droitImageBody}
+      </div>
+    {/if}
+
+    <!-- Place + date -->
     <div
       class="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
@@ -130,34 +199,24 @@
       >
     </div>
 
-    <!-- Checkbox -->
-    {#if accepted}
-      <input type="hidden" name="accepted" value="on" />
-    {/if}
-    <label
-      class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
-    >
-      <Checkbox
-        bind:checked={accepted}
-        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
-      />
-      <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
-        En tant que représentant légal, j'autorise l'utilisation de l'image de
-        mon enfant
-      </span>
-    </label>
-
     <!-- Submit -->
     <Button
       type="submit"
-      disabled={!canSign}
-      class="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110 disabled:opacity-50"
+      disabled={!canSubmit}
+      class={cn(
+        'h-auto w-full rounded-2xl px-6 py-3 shadow-lg transition-all duration-200 disabled:opacity-50',
+        decision === 'refused'
+          ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-500 hover:brightness-110'
+          : 'bg-epi-teal text-black shadow-epi-teal/20 hover:bg-epi-teal hover:brightness-110',
+      )}
     >
       {#if submitting}
         <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-        Signature en cours...
+        Enregistrement en cours...
+      {:else if decision === 'refused'}
+        Enregistrer mon refus
       {:else}
-        Signer
+        Signer l'autorisation
       {/if}
     </Button>
   </form>

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   BROADCAST_AUDIENCES,
   BROADCAST_CHANNELS,
+  IMAGE_RIGHTS_FILTER_OPTIONS,
   JUMP_LEVELS,
   SMS_MAX_LENGTH,
   estimateSmsLength,
@@ -14,7 +15,7 @@ export const broadcastFiltersSchema = z
   .object({
     niveau: z.array(z.enum(NIVEAUX)).optional(),
     charterSigned: tristate.optional(),
-    imageRightsSigned: tristate.optional(),
+    imageRights: z.array(z.enum(IMAGE_RIGHTS_FILTER_OPTIONS)).optional(),
     jumpLevel: z.array(z.enum(JUMP_LEVELS)).optional(),
     hasPastEvent: tristate.optional(),
     hasFutureEvent: tristate.optional(),

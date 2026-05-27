@@ -3,11 +3,13 @@
   import CheckCircle from '@lucide/svelte/icons/check-circle';
   import { renderMarkdown } from '$lib/markdown';
   import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
+  import droitImageRefusalBodyMd from '$lib/content/droit-image-refusal-body.md?raw';
   import { fly } from 'svelte/transition';
   import ParentFlowShell from '$lib/components/parent/ParentFlowShell.svelte';
   import ChildSignForm from './ChildSignForm.svelte';
 
   const droitImageBody = renderMarkdown(droitImageBodyMd);
+  const droitImageRefusalBody = renderMarkdown(droitImageRefusalBodyMd);
 
   let { data, form } = $props();
 </script>
@@ -44,8 +46,12 @@
             class="h-5 w-5 shrink-0 text-green-600 dark:text-green-400"
           />
           <p class="text-sm text-green-700 dark:text-green-300">
-            L'autorisation pour <strong>{form.success}</strong> a été signée avec
-            succès.
+            {#if form.decision === 'refused'}
+              Le refus pour <strong>{form.success}</strong> a bien été enregistré.
+            {:else}
+              L'autorisation pour <strong>{form.success}</strong> a été signée avec
+              succès.
+            {/if}
           </p>
         </div>
       {/if}
@@ -64,6 +70,7 @@
         <ChildSignForm
           {child}
           {droitImageBody}
+          {droitImageRefusalBody}
           error={form?.talentId === child.id ? form.error : undefined}
         />
       {/each}

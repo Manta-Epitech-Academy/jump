@@ -20,6 +20,8 @@
     BROADCAST_AUDIENCE_LABELS,
     BROADCAST_CHANNEL_LABELS,
     JUMP_LEVELS,
+    IMAGE_RIGHTS_FILTER_OPTIONS,
+    IMAGE_RIGHTS_FILTER_LABELS,
   } from '$lib/domain/broadcasts';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
   import {
@@ -227,14 +229,9 @@
     dateStyle: 'short',
   });
 
-  type TristateKey =
-    | 'charterSigned'
-    | 'imageRightsSigned'
-    | 'hasPastEvent'
-    | 'hasFutureEvent';
+  type TristateKey = 'charterSigned' | 'hasPastEvent' | 'hasFutureEvent';
   const tristateFilters: Array<[TristateKey, string]> = [
     ['charterSigned', 'Charte signée'],
-    ['imageRightsSigned', "Droit à l'image"],
     ['hasPastEvent', 'A déjà participé'],
     ['hasFutureEvent', 'Event à venir'],
   ];
@@ -519,6 +516,30 @@
                     }}
                   />
                   {lvl}
+                </label>
+              {/each}
+            </div>
+          </div>
+
+          <div class="grid gap-2">
+            <Label>Droit à l'image</Label>
+            <div class="flex flex-wrap gap-3">
+              {#each IMAGE_RIGHTS_FILTER_OPTIONS as status (status)}
+                <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={$form.filters?.imageRights?.includes(status) ??
+                      false}
+                    onCheckedChange={(checked) => {
+                      const cur = new Set($form.filters?.imageRights ?? []);
+                      if (checked) cur.add(status);
+                      else cur.delete(status);
+                      $form.filters = {
+                        ...($form.filters ?? {}),
+                        imageRights: [...cur],
+                      };
+                    }}
+                  />
+                  {IMAGE_RIGHTS_FILTER_LABELS[status]}
                 </label>
               {/each}
             </div>

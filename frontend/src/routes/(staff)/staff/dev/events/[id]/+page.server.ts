@@ -162,10 +162,9 @@ async function loadStagePrep(ctx: LoaderCtx) {
       db.participation.count({
         where: {
           eventId: event.id,
-          stageCompliance: {
-            charteSigned: true,
-            imageRightsSigned: true,
-          },
+          stageCompliance: { charteSigned: true },
+          // Image rights are resolved once the guardian has decided either way.
+          talent: { imageRightsDecidedAt: { not: null } },
         },
       }),
       loadLyceesBreakdown(db, event.id),
@@ -320,7 +319,7 @@ async function loadStagePast({ db, event }: LoaderCtx) {
       db.participation.count({
         where: {
           eventId: event.id,
-          stageCompliance: { imageRightsSigned: true },
+          talent: { imageRightsDecidedAt: { not: null } },
         },
       }),
       db.participation.count({
