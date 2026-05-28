@@ -203,7 +203,27 @@ model Talent {
   rulesSignedAt               DateTime?
   imageRightsDecision         ImageRightsDecision?
   imageRightsDecidedAt        DateTime?
-  imageRightsSignerName       String?
+  // Guardian's typed legal name at the moment of the image-rights decision,
+  // captured as prénom + nom to mirror the talent's own identity columns
+  // (`prenom` / `nom`) — a single free-text field invited "first name only" /
+  // "last name only" entries that read asymmetrically on the signed PDF.
+  imageRightsSignerPrenom     String?
+  imageRightsSignerNom        String?
+  // Talent's place-of-signature, captured by the onboarding `signRules` form.
+  // Lives on the row (not just in the PDF job payload) so the règlement PDF can
+  // be regenerated from DB state alone when the guardian co-signs later.
+  rulesSignedCity             String?
+  // Guardian's online co-signature of the règlement intérieur. The talent signs
+  // it during onboarding (`rulesSignedAt`); for a minor the legal guardian
+  // co-signs it from the parent flow. The règlement PDF (`rulesFilePath`) is a
+  // single shared artifact carrying both signature blocks; the worker
+  // regenerates it from DB state every time either signer commits. Signer name
+  // is split into prénom + nom for the same reason as image-rights above.
+  parentRulesSignedAt         DateTime?
+  parentRulesSignerPrenom     String?
+  parentRulesSignerNom        String?
+  parentRulesRelationship     String?
+  parentRulesSignedCity       String?
   infoValidatedAt             DateTime?
   highSchoolValidatedAt       DateTime?
   parentsValidatedAt          DateTime?

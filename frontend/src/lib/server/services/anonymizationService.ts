@@ -8,16 +8,17 @@ import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
  * deleting rows: name/contact fields are nulled or replaced with placeholders,
  * the linked auth identity is scrubbed and its sessions/accounts dropped,
  * portfolio content (which can embed PII) is removed, and the generated
- * onboarding PDFs (charte / règlement / droit à l'image — each embeds the
- * student's and guardian's names and a signature) are deleted from object
- * storage, not merely dereferenced. We deliberately keep `xp` and `eventsCount`
- * so aggregate stats survive the erasure.
+ * onboarding PDFs (charte / règlement student / règlement parent / droit à
+ * l'image — each embeds the student's and guardian's names and a signature)
+ * are deleted from object storage, not merely dereferenced. We deliberately
+ * keep `xp` and `eventsCount` so aggregate stats survive the erasure.
  *
  * Parents are data subjects too: their identity lives both as columns on the
  * Talent (both guardian slots, plus the guardian's typed signer name on the
- * image-rights decision) and as a `bauth_user` (role `parent`) minted at
- * onboarding so they can sign image rights. Both are erased here. The parent
- * account is shared across siblings (it is keyed by email and reused), so its
+ * image-rights decision and on the règlement co-signature) and as a
+ * `bauth_user` (role `parent`) minted at onboarding so they can sign image
+ * rights and co-sign the règlement. Both are erased here. The parent account
+ * is shared across siblings (it is keyed by email and reused), so its
  * `bauth_user` is only scrubbed once no *other* talent still references that
  * email — otherwise a sibling's parent would lose their login.
  *
@@ -88,7 +89,20 @@ export async function anonymizeTalent(
       // deleted post-commit by the caller (keys returned below).
       imageRightsDecision: null,
       imageRightsDecidedAt: null,
-      imageRightsSignerName: null,
+      imageRightsSignerPrenom: null,
+      imageRightsSignerNom: null,
+      // Règlement guardian co-signature: same shape as image-rights — the
+      // guardian's typed name + relationship + city are PII, the timestamp moves
+      // with them, and the shared règlement PDF (deleted post-commit via the
+      // keys returned below) embeds both names + signatures. See
+      // `parentRulesService.recordParentRulesSignature`.
+      parentRulesSignedAt: null,
+      parentRulesSignerPrenom: null,
+      parentRulesSignerNom: null,
+      parentRulesRelationship: null,
+      parentRulesSignedCity: null,
+      // Talent's own règlement signature place — PII like the guardian's.
+      rulesSignedCity: null,
       charterFilePath: null,
       rulesFilePath: null,
       imageRightsFilePath: null,

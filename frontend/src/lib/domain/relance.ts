@@ -171,6 +171,7 @@ export type TalentEligibilityFields = {
   infoValidatedAt?: Date | string | null;
   rulesSignedAt?: Date | string | null;
   charterAcceptedAt?: Date | string | null;
+  parentRulesSignedAt?: Date | string | null;
   imageRightsDecidedAt?: Date | string | null;
 };
 
@@ -220,14 +221,15 @@ export function classifyRelanceSkip(
     if (now - ts < COOLDOWN_MS) return 'cooldown';
   }
 
-  // Parent relances chase a *decision*, not an acceptance: a guardian who
-  // refused has acted and must not be nagged further.
+  // Parent relances chase two acts per child — co-signing the règlement and an
+  // image-rights *decision* (a refusal counts: the guardian acted and must not
+  // be nagged further). The chase stops only once both are settled.
   const complete =
     type === 'student'
       ? talent.infoValidatedAt &&
         talent.rulesSignedAt &&
         talent.charterAcceptedAt
-      : talent.imageRightsDecidedAt;
+      : talent.parentRulesSignedAt && talent.imageRightsDecidedAt;
   if (complete) return 'completed';
 
   if (channel === 'sms') {

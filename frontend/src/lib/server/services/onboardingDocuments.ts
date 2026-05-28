@@ -30,6 +30,10 @@ export const ONBOARDING_DOCUMENTS: Record<
     filePathField: 'charterFilePath',
     signedAtField: 'charterAcceptedAt',
   },
+  // Shared règlement intérieur PDF — single artifact carrying the student's
+  // signature block and (for minors) the legal guardian's co-signature block.
+  // The worker regenerates it whenever either signer commits, reading both
+  // signature columns from Talent so the file always reflects current state.
   rules: {
     label: 'Règlement Intérieur',
     filePathField: 'rulesFilePath',

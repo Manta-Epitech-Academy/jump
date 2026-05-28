@@ -122,45 +122,68 @@
 
           <!-- Charte -->
           <Table.Cell class="py-4 text-center">
-            <form
-              method="POST"
-              action="?/toggleAdminDoc"
-              use:enhance={optimisticAdminToggle(p.id)}
-              onsubmit={() =>
-                track('adm_doc_toggled', {
-                  docType: 'charte',
-                  newState: !p.stageCompliance?.charteSigned,
-                  eventId: page.params.id,
-                })}
-            >
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="docType" value="charte" />
-              <input
-                type="hidden"
-                name="state"
-                value={p.stageCompliance?.charteSigned?.toString() || 'false'}
-              />
-              <button
-                type="submit"
-                class="cursor-pointer transition-transform active:scale-90"
+            {#if p.talent.parentRulesSignedAt}
+              <!-- Guardian co-signed online — the canonical règlement proof.
+                   Read-only: there's nothing for staff to toggle when an
+                   authoritative timestamped signature already exists. -->
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    <Badge
+                      variant="outline"
+                      class="border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid"
+                    >
+                      OK (en ligne)
+                    </Badge>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>
+                    Signé en ligne par le représentant légal.
+                  </Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            {:else}
+              <!-- Offline-fallback toggle: staff attests they verified the
+                   signature outside the platform (paper, in-person, etc). -->
+              <form
+                method="POST"
+                action="?/toggleAdminDoc"
+                use:enhance={optimisticAdminToggle(p.id)}
+                onsubmit={() =>
+                  track('adm_doc_toggled', {
+                    docType: 'charte',
+                    newState: !p.stageCompliance?.charteSigned,
+                    eventId: page.params.id,
+                  })}
               >
-                {#key p.stageCompliance?.charteSigned}
-                  <Badge
-                    variant={p.stageCompliance?.charteSigned
-                      ? 'outline'
-                      : 'secondary'}
-                    class={cn(
-                      'animate-in duration-300 zoom-in',
-                      p.stageCompliance?.charteSigned
-                        ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
-                        : 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange hover:bg-epi-orange/15',
-                    )}
-                  >
-                    {p.stageCompliance?.charteSigned ? 'OK' : 'Manquant'}
-                  </Badge>
-                {/key}
-              </button>
-            </form>
+                <input type="hidden" name="id" value={p.id} />
+                <input type="hidden" name="docType" value="charte" />
+                <input
+                  type="hidden"
+                  name="state"
+                  value={p.stageCompliance?.charteSigned?.toString() || 'false'}
+                />
+                <button
+                  type="submit"
+                  class="cursor-pointer transition-transform active:scale-90"
+                >
+                  {#key p.stageCompliance?.charteSigned}
+                    <Badge
+                      variant={p.stageCompliance?.charteSigned
+                        ? 'outline'
+                        : 'secondary'}
+                      class={cn(
+                        'animate-in duration-300 zoom-in',
+                        p.stageCompliance?.charteSigned
+                          ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
+                          : 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange hover:bg-epi-orange/15',
+                      )}
+                    >
+                      {p.stageCompliance?.charteSigned ? 'OK' : 'Manquant'}
+                    </Badge>
+                  {/key}
+                </button>
+              </form>
+            {/if}
           </Table.Cell>
 
           <!-- Droit à l'image — read-only reflection of the parent's decision -->

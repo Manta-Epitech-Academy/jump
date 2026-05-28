@@ -21,11 +21,13 @@ export async function recordImageRightsDecision(args: {
   talentId: string;
   studentName: string;
   decision: ImageRightsDecision;
-  signerName: string;
+  signerPrenom: string;
+  signerNom: string;
   relationship: string;
   city: string;
 }): Promise<void> {
   const now = new Date();
+  const signerName = `${args.signerPrenom} ${args.signerNom}`;
 
   const job = await prisma.$transaction(async (tx) => {
     await tx.talent.update({
@@ -33,7 +35,8 @@ export async function recordImageRightsDecision(args: {
       data: {
         imageRightsDecision: args.decision,
         imageRightsDecidedAt: now,
-        imageRightsSignerName: args.signerName,
+        imageRightsSignerPrenom: args.signerPrenom,
+        imageRightsSignerNom: args.signerNom,
         // Drop the prior PDF: a switched decision makes it legally wrong. The
         // worker writes the fresh key (timestamped `now`) when it completes.
         imageRightsFilePath: null,
@@ -44,7 +47,7 @@ export async function recordImageRightsDecision(args: {
       documentType: 'image-rights',
       payload: {
         studentName: args.studentName,
-        signerName: args.signerName,
+        signerName,
         relationship: args.relationship,
         city: args.city,
         decision: args.decision,

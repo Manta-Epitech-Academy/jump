@@ -23,7 +23,13 @@
     type DocFilterKey,
     type OnboardingFilterKey,
   } from './filters';
-  import { countSignedDocs, isReady, TOTAL_DOCS } from './progress';
+  import {
+    countSignedDocs,
+    isImageRightsCompliant,
+    isReady,
+    isRulesCompliant,
+    TOTAL_DOCS,
+  } from './progress';
   import {
     classifyRelanceSkip,
     formatTalentVars,
@@ -48,11 +54,9 @@
   let incompleteCount = $derived(total - ready - noneCount);
   let toComplete = $derived(total - ready);
 
-  let charteCount = $derived(
-    participations.filter((p) => p.stageCompliance?.charteSigned).length,
-  );
+  let charteCount = $derived(participations.filter(isRulesCompliant).length);
   let imageCount = $derived(
-    participations.filter((p) => p.talent.imageRightsDecision !== null).length,
+    participations.filter(isImageRightsCompliant).length,
   );
   let pcCount = $derived(participations.filter((p) => p.bringPc).length);
 
@@ -70,11 +74,9 @@
     if (filter === 'incomplete')
       return participations.filter((p) => countSignedDocs(p) < TOTAL_DOCS);
     if (filter === 'charte-missing')
-      return participations.filter((p) => !p.stageCompliance?.charteSigned);
+      return participations.filter((p) => !isRulesCompliant(p));
     if (filter === 'image-rights-missing')
-      return participations.filter(
-        (p) => p.talent.imageRightsDecision === null,
-      );
+      return participations.filter((p) => !isImageRightsCompliant(p));
     if (filter === 'pc-missing')
       return participations.filter((p) => !p.bringPc);
     return participations;

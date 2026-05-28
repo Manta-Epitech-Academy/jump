@@ -3,6 +3,7 @@
   import AlertCircle from '@lucide/svelte/icons/alert-circle';
   import XCircle from '@lucide/svelte/icons/x-circle';
   import { cn } from '$lib/utils';
+  import { isRulesCompliant } from '$lib/domain/stageCompliance';
 
   /**
    * One-line banner summarising dossier compliance across the talent's active
@@ -23,18 +24,34 @@
      * settled decision — even a refusal — is "done" for dossier readiness.
      */
     imageRightsDecided: boolean;
+    /**
+     * Timestamp of the guardian's online co-signature of the règlement
+     * intérieur (talent-level). Canonical "rules compliant" signal; satisfies
+     * the gate regardless of the per-participation `charteSigned` toggle.
+     */
+    parentRulesSignedAt: Date | string | null;
   };
 
-  let { activeStageParticipations, imageRightsDecided }: Props = $props();
+  let {
+    activeStageParticipations,
+    imageRightsDecided,
+    parentRulesSignedAt,
+  }: Props = $props();
+
+  // Talent-level signal (`parentRulesSignedAt`) is hoisted from the
+  // participations list because every row here belongs to the same talent;
+  // the per-event `charteSigned` toggle still varies per row.
+  const rulesOk = (p: { stageCompliance: { charteSigned: boolean } | null }) =>
+    isRulesCompliant(parentRulesSignedAt, p.stageCompliance?.charteSigned);
 
   const state = $derived.by(() => {
     if (activeStageParticipations.length === 0) return null;
     const total = activeStageParticipations.length;
     const ready = activeStageParticipations.filter(
-      (p) => p.stageCompliance?.charteSigned && imageRightsDecided,
+      (p) => rulesOk(p) && imageRightsDecided,
     ).length;
     const blocked = activeStageParticipations.filter(
-      (p) => !p.stageCompliance?.charteSigned && !imageRightsDecided,
+      (p) => !rulesOk(p) && !imageRightsDecided,
     ).length;
     if (ready === total) return 'complete' as const;
     if (blocked === total) return 'blocked' as const;
@@ -44,7 +61,7 @@
   const counts = $derived.by(() => {
     const total = activeStageParticipations.length;
     const ready = activeStageParticipations.filter(
-      (p) => p.stageCompliance?.charteSigned && imageRightsDecided,
+      (p) => rulesOk(p) && imageRightsDecided,
     ).length;
     return { total, ready };
   });

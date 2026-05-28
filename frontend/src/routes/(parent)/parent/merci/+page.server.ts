@@ -10,12 +10,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const parentEmail = locals.user.email;
 
-  // Defensive mirror of the route guard: a parent with a child still awaiting a
-  // decision belongs on the signature step, not the thank-you page.
+  // Defensive mirror of the route guard: a parent with anything still pending
+  // belongs back in the flow, not on the thank-you page. Règlement first, then
+  // image rights — matching the welcome → règlement → droit-image order.
+  const unsignedRules = await prisma.talent.count({
+    where: { parentEmail, parentRulesSignedAt: null },
+  });
+  if (unsignedRules > 0) {
+    throw redirect(303, resolve('/parent/reglement'));
+  }
+
   const undecidedCount = await prisma.talent.count({
     where: { parentEmail, imageRightsDecidedAt: null },
   });
-
   if (undecidedCount > 0) {
     throw redirect(303, resolve('/parent/signature'));
   }
