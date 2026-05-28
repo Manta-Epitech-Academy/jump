@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
+import { clearOnboardingTimestamps } from '$lib/domain/talentOnboarding';
 
 /**
  * The single GDPR-erasure primitive. Clears a talent's PII in place rather than
@@ -68,11 +69,14 @@ export async function anonymizeTalent(
     talent.imageRightsFilePath,
   ].filter((k): k is string => !!k);
 
-  // 1. Clear all PII fields on the Talent (keep xp / level / eventsCount),
-  //    including both parent/guardian slots.
+  // 1. Clear all PII fields on the Talent (keep xp / eventsCount), including
+  //    both parent/guardian slots and every onboarding-state timestamp (those
+  //    are behavioural metadata about a real person's progression — the
+  //    anonymised row must not carry a timeline).
   await tx.talent.update({
     where: { id: talentId },
     data: {
+      ...clearOnboardingTimestamps(),
       nom: 'Anonymisé',
       prenom: 'Anonymisé',
       email: null,
@@ -111,10 +115,6 @@ export async function anonymizeTalent(
       niveau: null,
       badges: Prisma.DbNull,
       lastSyncedAt: null,
-      charterAcceptedAt: null,
-      infoValidatedAt: null,
-      highSchoolValidatedAt: null,
-      parentsValidatedAt: null,
     },
   });
 
@@ -140,7 +140,7 @@ export async function anonymizeTalent(
   // 4. Delete portfolio items (student-created content with potential PII).
   await tx.portfolioItem.deleteMany({ where: { talentId } });
 
-  // 4. Scrub the parent `bauth_user`(s) — but only those no other talent still
+  // 5. Scrub the parent `bauth_user`(s) — but only those no other talent still
   //    references, so a shared parent (siblings) keeps their account. Already-
   //    anonymised siblings have null parent emails, so they never count here.
   for (const email of new Set(parentEmails)) {

@@ -6,7 +6,10 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { camperEmailSchema, camperOtpSchema } from '$lib/validation/auth';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
-import { checkRateLimit } from '$lib/server/auth/rateLimiter';
+import {
+  checkRateLimit,
+  recordFailedAttempt,
+} from '$lib/server/auth/rateLimiter';
 import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -77,7 +80,8 @@ export const actions: Actions = {
       return fail(400, { otpForm });
     }
 
-    const rateLimit = checkRateLimit(getClientAddress());
+    const ip = getClientAddress();
+    const rateLimit = checkRateLimit(ip);
     if (!rateLimit.allowed) {
       return message(
         otpForm,
@@ -107,6 +111,7 @@ export const actions: Actions = {
 
       forwardAuthCookies(authResponse, cookies);
     } catch (err) {
+      recordFailedAttempt(ip);
       console.error('[parent verifyOtp] Error:', err);
       return message(
         otpForm,

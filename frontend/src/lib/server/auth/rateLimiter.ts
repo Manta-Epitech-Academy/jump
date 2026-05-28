@@ -1,7 +1,11 @@
 /**
  * In-memory rate limiter for the email-OTP verify actions (talent + parent
- * login). Tracks attempts by client IP; allows MAX_ATTEMPTS per WINDOW_MS
- * sliding window; expired entries are garbage-collected every CLEANUP_INTERVAL_MS.
+ * login). Counts *failed* attempts by client IP; once MAX_ATTEMPTS land
+ * inside a WINDOW_MS sliding window the IP is blocked until the oldest
+ * recorded failure ages out. Successful sign-ins do not consume the budget,
+ * so a stage_seconde cohort or sibling-household NAT cannot lock itself out
+ * by simply logging in correctly. Expired entries are garbage-collected
+ * every CLEANUP_INTERVAL_MS.
  *
  * CWE-307 mitigation; users include minors (RGPD).
  *
@@ -9,6 +13,16 @@
  * HMAC-signed JWT is unguessable and verified before any DB hit, so an
  * IP-keyed bucket would only DoS legitimate cohorts opening a broadcast
  * from a shared NAT (a school's wifi, siblings at home).
+ *
+ * Two-step call pattern at every site:
+ *
+ *   1. `checkRateLimit(ip)` *before* attempting the OTP verify — this is a
+ *      pure read of the current failure count, it does NOT itself record an
+ *      attempt. Bail with 429 if `!allowed`.
+ *   2. On a failed verify (bad code, exception from BetterAuth, anything
+ *      that's not a clean sign-in), call `recordFailedAttempt(ip)` so the
+ *      next request from the same IP moves closer to the limit. On success,
+ *      record nothing.
  *
  * Deploy contract:
  *
@@ -54,20 +68,25 @@ setInterval(() => {
   }
 }, CLEANUP_INTERVAL_MS).unref();
 
+/**
+ * Pure read of the current failure count for `ip`. Does not record anything;
+ * call {@link recordFailedAttempt} *after* a verify actually fails. Side
+ * effect kept to expired-entry pruning so a long-stale record can't return
+ * `!allowed` after every recorded failure has aged out.
+ */
 export function checkRateLimit(ip: string): {
   allowed: boolean;
   retryAfterSeconds?: number;
 } {
-  const now = Date.now();
   const record = attempts.get(ip);
+  if (!record) return { allowed: true };
 
-  if (!record) {
-    attempts.set(ip, { timestamps: [now] });
+  const now = Date.now();
+  record.timestamps = record.timestamps.filter((t) => now - t < WINDOW_MS);
+  if (record.timestamps.length === 0) {
+    attempts.delete(ip);
     return { allowed: true };
   }
-
-  // Prune timestamps outside the current window
-  record.timestamps = record.timestamps.filter((t) => now - t < WINDOW_MS);
 
   if (record.timestamps.length >= MAX_ATTEMPTS) {
     const oldest = record.timestamps[0]!;
@@ -75,6 +94,20 @@ export function checkRateLimit(ip: string): {
     return { allowed: false, retryAfterSeconds };
   }
 
-  record.timestamps.push(now);
   return { allowed: true };
+}
+
+/**
+ * Record a failed OTP verify from `ip`. Call from the failure branch of the
+ * verify handler — not on success, and not before the verify runs.
+ */
+export function recordFailedAttempt(ip: string): void {
+  const now = Date.now();
+  const record = attempts.get(ip);
+  if (!record) {
+    attempts.set(ip, { timestamps: [now] });
+    return;
+  }
+  record.timestamps = record.timestamps.filter((t) => now - t < WINDOW_MS);
+  record.timestamps.push(now);
 }

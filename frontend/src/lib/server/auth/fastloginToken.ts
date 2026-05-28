@@ -23,7 +23,7 @@
  *     opening a broadcast from a shared NAT (school wifi, sibling
  *     households).
  *
- *   - Known replay gap: 7-day TTL, no `jti` / replay store. A holder of
+ *   - Known replay gap: 30-day TTL, no `jti` / replay store. A holder of
  *     one valid link can call their fastlogin route repeatedly and
  *     accumulate `bauth_session` rows for the talent / parent the token
  *     was minted for. There is no escalation, the holder already has
@@ -41,7 +41,14 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 
-const FASTLOGIN_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+// 30 days: long enough to cover the full onboarding relance cadence
+// (T+0 / T+7 / T+14 / T+21 emails) with slack, so the first email's link
+// still works when the last reminder lands. Shorter values frustrated parents
+// who get the image-rights email, set it aside, and come back weeks later.
+// TTL is a stale-link hygiene call, not a security floor — the token only
+// grants what an OTP to the same mailbox would, and OTP requests carry no
+// such limit.
+const FASTLOGIN_TTL_SECONDS = 60 * 60 * 24 * 30;
 const ISSUER = 'jump';
 const AUDIENCE = 'jump:fastlogin';
 const PARENT_AUDIENCE = 'jump:parent_fastlogin';

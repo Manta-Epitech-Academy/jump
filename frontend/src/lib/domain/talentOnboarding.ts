@@ -100,6 +100,52 @@ export function deriveOnboardingStatus(
     : 'not-ready';
 }
 
+/**
+ * Every Talent column that records "this onboarding-state event happened at T",
+ * in the order a talent crosses them. Owns the canonical reset semantics: any
+ * code that brings a talent back to a pre-onboarding state (admin reset, RGPD
+ * anonymisation) must clear all of these together via `clearOnboardingTimestamps()`,
+ * so adding a new gate timestamp to the schema lights up both paths.
+ *
+ * Includes more than the 8 step gates in `OnboardingStepFields`:
+ *   - `welcomeSeenAt` is the pre-step splash ack (guarded in `guards.ts`).
+ *   - `interestsRecapSeenAt` is the post-interests view ack (not a gate, but
+ *     behavioural metadata the anonymised row must not carry).
+ *   - `charterAcceptedAt` is separate from the steps but part of
+ *     `TalentOnboardingFields` and the dashboard guard.
+ */
+export const ONBOARDING_TIMESTAMP_FIELDS = [
+  'welcomeSeenAt',
+  'infoValidatedAt',
+  'highSchoolValidatedAt',
+  'parentsValidatedAt',
+  'techInterestsValidatedAt',
+  'generalInterestsValidatedAt',
+  'interestsRecapSeenAt',
+  'equipmentValidatedAt',
+  'processingCompletedAt',
+  'rulesSignedAt',
+  'charterAcceptedAt',
+] as const;
+
+export type OnboardingTimestampField =
+  (typeof ONBOARDING_TIMESTAMP_FIELDS)[number];
+
+/**
+ * `{ field: null }` patch covering every {@link ONBOARDING_TIMESTAMP_FIELDS},
+ * meant to be spread into a `talent.update` `data` object. Centralised so a new
+ * timestamp added to the schema only has to land in `ONBOARDING_TIMESTAMP_FIELDS`
+ * for both reset paths to pick it up.
+ */
+export function clearOnboardingTimestamps(): Record<
+  OnboardingTimestampField,
+  null
+> {
+  return Object.fromEntries(
+    ONBOARDING_TIMESTAMP_FIELDS.map((f) => [f, null]),
+  ) as Record<OnboardingTimestampField, null>;
+}
+
 export type OnboardingPhase = 'not-started' | 'in-progress' | 'complete';
 
 export type OnboardingProgress = {
