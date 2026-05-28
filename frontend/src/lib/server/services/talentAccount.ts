@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { revokeXp } from '$lib/server/services/xpService';
+import { clearOnboardingTimestamps } from '$lib/domain/talentOnboarding';
 
 /**
  * Ensure a talent has a linked `bauth_user` and return its id.
@@ -91,19 +92,7 @@ export async function resetTalentOnboarding(talentId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await tx.talent.update({
       where: { id: talentId },
-      data: {
-        infoValidatedAt: null,
-        highSchoolValidatedAt: null,
-        parentsValidatedAt: null,
-        techInterestsValidatedAt: null,
-        generalInterestsValidatedAt: null,
-        interestsRecapSeenAt: null,
-        equipmentValidatedAt: null,
-        processingCompletedAt: null,
-        rulesSignedAt: null,
-        charterAcceptedAt: null,
-        welcomeSeenAt: null,
-      },
+      data: clearOnboardingTimestamps(),
     });
     // Idempotent: drops the onboarding grant if present, no-op otherwise — so a
     // re-run nets back to the same XP rather than stacking the bonus, and the

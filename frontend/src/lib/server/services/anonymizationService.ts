@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
+import { clearOnboardingTimestamps } from '$lib/domain/talentOnboarding';
 
 /**
  * The single GDPR-erasure primitive. Clears a talent's PII in place rather than
@@ -68,20 +69,25 @@ export async function anonymizeTalent(
     talent.imageRightsFilePath,
   ].filter((k): k is string => !!k);
 
-  // 1. Clear all PII fields on the Talent (keep xp / level / eventsCount),
-  //    including both parent/guardian slots.
+  // 1. Clear all PII fields on the Talent (keep xp / eventsCount), including
+  //    both parent/guardian slots and every onboarding-state timestamp (those
+  //    are behavioural metadata about a real person's progression — the
+  //    anonymised row must not carry a timeline).
   await tx.talent.update({
     where: { id: talentId },
     data: {
+      ...clearOnboardingTimestamps(),
       nom: 'Anonymisé',
       prenom: 'Anonymisé',
       email: null,
       externalId: null,
       phone: null,
-      niveau: null,
-      badges: Prisma.DbNull,
-      lastSyncedAt: null,
-      charterAcceptedAt: null,
+      civilite: null,
+      highSchoolNameManual: null,
+      schoolId: null,
+      interestsFreeText: null,
+      setupDescription: null,
+      discordId: null,
       // Image-rights decision: the guardian's typed signer name is their PII,
       // and decision/decidedAt move with it (the trio is one signed fact — see
       // domain/imageRights). Sever the PDF references too; the objects are
@@ -106,10 +112,17 @@ export async function anonymizeTalent(
       parent2Prenom: null,
       parent2Email: null,
       parent2Phone: null,
+      niveau: null,
+      badges: Prisma.DbNull,
+      lastSyncedAt: null,
     },
   });
 
-  // 2. Scrub the linked BetterAuth user and revoke its access — only if linked.
+  // 2. Delete associated PII records (Salesforce mirror, interests).
+  await tx.talentSfImport.deleteMany({ where: { talentId } });
+  await tx.talentInterest.deleteMany({ where: { talentId } });
+
+  // 3. Scrub the linked BetterAuth user and revoke its access — only if linked.
   if (talent.userId) {
     await tx.bauth_user.update({
       where: { id: talent.userId },
@@ -124,10 +137,10 @@ export async function anonymizeTalent(
     await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
   }
 
-  // 3. Delete portfolio items (student-created content with potential PII).
+  // 4. Delete portfolio items (student-created content with potential PII).
   await tx.portfolioItem.deleteMany({ where: { talentId } });
 
-  // 4. Scrub the parent `bauth_user`(s) — but only those no other talent still
+  // 5. Scrub the parent `bauth_user`(s) — but only those no other talent still
   //    references, so a shared parent (siblings) keeps their account. Already-
   //    anonymised siblings have null parent emails, so they never count here.
   for (const email of new Set(parentEmails)) {

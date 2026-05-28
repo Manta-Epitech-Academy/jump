@@ -19,6 +19,8 @@ import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { ensureTalentUser } from '$lib/server/services/talentAccount';
 import { verifyFastloginToken } from '$lib/server/auth/fastloginToken';
 
+// No rate-limit on purpose; security model + known replay gap documented
+// in `$lib/server/auth/fastloginToken`.
 export const GET: RequestHandler = async ({ url, request, cookies }) => {
   const token = url.searchParams.get('token');
   if (!token) throw error(400, 'Missing token');

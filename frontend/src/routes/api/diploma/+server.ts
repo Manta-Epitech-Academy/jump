@@ -32,6 +32,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       throw error(404, 'Participation introuvable.');
     }
 
+    if (
+      locals.staffProfile.staffRole !== 'admin' &&
+      participation.event.campusId !== locals.staffProfile.campusId
+    ) {
+      throw error(403, 'Acces refuse : campus different.');
+    }
+
     const student = participation.talent;
     const event = participation.event;
     const activity = participation.activities?.find(

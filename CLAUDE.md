@@ -104,7 +104,7 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 | Readonly banner   | Whole-page readonly context (e.g. manta on planning)         |
 | Redirect / 403    | Direct URL access to lead-only routes (via STAFF_ROLE_GATES) |
 
-Never inline a `['superdev']` array at a call site. If the group you need doesn't exist, add it to `STAFF_GROUPS`.
+Never inline a `['superdev']` array at a call site.
 
 ### Feature Flags
 
@@ -117,7 +117,7 @@ Per-campus feature toggles defined in `src/lib/domain/featureFlags.ts`. Each fla
 - **Event types:** `EVENT_TYPE_TO_FLAG` maps `EventType` → `FlagKey`. Creating/listing events of a type requires the flag.
 - **Admin UI:** `/staff/admin/campuses` toggles overrides per campus.
 
-Do not hardcode flag strings — import from `FEATURE_FLAGS` or use the `FlagKey` type.
+Don't hardcode flag strings.
 
 ### Route Groups
 
@@ -162,7 +162,7 @@ Model relationships and entities by their real shape. These are deliberate calls
 
 XP follows the ledger pattern above. Each granting fact is one `XpGrant` row (unique on `(source, sourceId)`; sources: `onboarding`, `minigame`, `activity_presence`, `admin_adjustment`). `Talent.xp` = `SUM(amount)` and `Talent.eventsCount` = present-participation count, both cached projections.
 
-- **Never mutate `Talent.xp` directly.** Go through `src/lib/server/services/xpService.ts` (`grantXp` / `revokeXp` / `recomputeTalentXp` / `recomputeEventsCount`), each taking a `Prisma.TransactionClient`. Mark-present upserts a grant; unmark/remove/reset deletes it.
+- **Never mutate `Talent.xp` directly.** It's a cached projection of `XpGrant`; go through `xpService` so the recompute stays atomic.
 - Activity difficulty → XP: Débutant=20, Intermédiaire=45, Avancé=75 (`src/lib/domain/xp.ts`).
 - **Level is derived, not stored** (`Talent.level` was dropped). Use `computeLevel(xp)` / `levelLabelFr(xp)` (tiers: Novice 0–199, Apprentice 200–499, Expert 500+). `JUMP_LEVELS` is canonical in `domain/xp.ts`; the broadcast filter maps a tier to an `xp` range.
 - Backfill/repair: `scripts/backfill-xp-ledger.ts` (idempotent, `--dry-run`).
@@ -203,8 +203,8 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 - **Language:** All UI text and user-facing strings are in **French**. Code identifiers (functions, variables) are in English.
 - **Forms:** Use sveltekit-superforms with Zod validation. Never use raw `<form>` handling.
 - **DB access:** Import `prisma` from `$lib/server/db`. Never pass the Prisma client as a function parameter — it's a singleton. Always scope queries by `campusId` for staff/student data.
-- **Auth checks:** Always go through `locals.user` / `locals.staffProfile` / `locals.talent` set in hooks. Never call BetterAuth directly in page server loads.
-- **Styling:** Tailwind utility classes only. Use `cn()` from `$lib/utils` for conditional classes. No inline styles.
+- **Auth checks:** Don't call BetterAuth directly in page server loads; `hooks.server.ts` already hydrates `locals.{user, staffProfile, talent}`.
+- **Styling:** Tailwind utility classes only, no inline styles.
 - **Component naming:** PascalCase, domain-scoped in subfolders (`components/events/`, `components/students/`).
 - **Lucide icons:** Always import per-icon, never the barrel. Barrel imports drag every icon through Vite's dev resolver and tank cold-start (~9s → ~3s on this codebase). If you slip, run `bun scripts/codemod-lucide-imports.ts` to auto-rewrite.
 
@@ -221,6 +221,7 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 - **RGPD:** Some users are minors. The charter must be signed before accessing the app. Anonymization job available via `POST /api/jobs/anonymize` with `Authorization: Bearer <CRON_SECRET>`. Never store personal data unnecessarily.
 - **Salesforce:** `Event.externalId` optionally links events to Salesforce campaigns.
 - **Scale:** typical stage de seconde event = ~200 students. Cohort-wide views (origin breakdowns, interest distributions, attendance lists) hit this volume — keep it in mind when designing layouts and queries.
+- **Stateless pods:** SvelteKit pods scale horizontally on kube. Don't put source-of-truth state in process memory; each replica would carry its own and a pod restart would wipe it.
 
 ## Environment Variables
 

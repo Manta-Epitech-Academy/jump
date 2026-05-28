@@ -44,8 +44,9 @@ function normalize(str: string): string {
 export async function searchAnnuaire(q: string): Promise<AnnuaireLycee[]> {
   const query = q.trim();
   if (query.length < 2) return [];
+  if (query.length > 100) return [];
 
-  const escaped = query.replace(/'/g, "\\'");
+  const escaped = query.replace(/'/g, "''");
   try {
     const params = new URLSearchParams({
       limit: '20',
@@ -88,8 +89,9 @@ export async function fetchSchoolByUai(
 ): Promise<AnnuaireSchool | null> {
   const code = uai.trim();
   if (!code) return null;
+  if (!/^[0-9]{7}[A-Z]$/.test(code)) return null;
 
-  const escaped = code.replace(/'/g, "\\'");
+  const escaped = code.replace(/"/g, '""');
   try {
     const params = new URLSearchParams({
       limit: '1',

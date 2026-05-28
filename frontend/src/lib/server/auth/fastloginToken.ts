@@ -2,23 +2,52 @@
  * Signed magic-link tokens for passwordless sign-in.
  *
  *   - talent (`/fastlogin`): verifies the JWT and creates a BetterAuth
- *     session for the talent — same end-state as completing the OTP flow
+ *     session for the talent, same end-state as completing the OTP flow
  *     at `/login`.
  *   - parent (`/parent/fastlogin`): same idea for the parent of a talent,
  *     signed with a separate audience claim and consumed by the parent
  *     route, which signs in the `bauth_user` with `role: 'parent'`.
  *
  * Kept free of any `$lib/server/auth` import on purpose: BetterAuth's OTP
- * callback imports `otp.ts`, which mints parent links here — routing the
+ * callback imports `otp.ts`, which mints parent links here, so routing the
  * token helpers through `auth` would close an import cycle. Only `mintSigninOtp`
  * (in `broadcast/personalization.ts`) needs the BetterAuth instance.
+ *
+ * Security model:
+ *
+ *   - HS256 signed with the 256-bit `BETTER_AUTH_SECRET`, so brute-forcing
+ *     a valid token is infeasible. The consuming routes (`/fastlogin`,
+ *     `/parent/fastlogin`) deliberately skip the email-keyed rate-limiter
+ *     that guards `/login` OTP request + verify: against an unguessable
+ *     token an attempt bucket adds nothing, and `/fastlogin` is the
+ *     canonical path 200 students take on the same school NAT.
+ *
+ *   - Known replay gap: 30-day TTL, no `jti` / replay store. A holder of
+ *     one valid link can call their fastlogin route repeatedly and
+ *     accumulate `bauth_session` rows for the talent / parent the token
+ *     was minted for. There is no escalation, the holder already has
+ *     full session-create power via that token, only DB bloat on the one
+ *     user. Acceptable today; the fix when it stops being acceptable is
+ *     to mint with `setJti(crypto.randomUUID())` and gate consumption on
+ *     a `FastloginTokenUse(jti UNIQUE, consumedAt)` table, with the
+ *     check + insert in one transaction. One-shot would break legitimate
+ *     multi-device clicks, so the table should record uses and the route
+ *     should cap per-jti uses (e.g. 20) rather than reject after the
+ *     first.
  */
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { env } from '$env/dynamic/private';
 import { base } from '$app/paths';
 
-const FASTLOGIN_TTL_SECONDS = 60 * 60 * 24 * 60; // 2 months
+// 30 days: long enough to cover the full onboarding relance cadence
+// (T+0 / T+7 / T+14 / T+21 emails) with slack, so the first email's link
+// still works when the last reminder lands. Shorter values frustrated parents
+// who get the image-rights email, set it aside, and come back weeks later.
+// TTL is a stale-link hygiene call, not a security floor — the token only
+// grants what an OTP to the same mailbox would, and OTP requests carry no
+// such limit.
+const FASTLOGIN_TTL_SECONDS = 60 * 60 * 24 * 30;
 const ISSUER = 'jump';
 const AUDIENCE = 'jump:fastlogin';
 const PARENT_AUDIENCE = 'jump:parent_fastlogin';

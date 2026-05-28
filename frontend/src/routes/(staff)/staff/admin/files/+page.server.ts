@@ -33,7 +33,8 @@ export const actions: Actions = {
       return fail(400, { message: 'Le fichier dépasse la limite de 50 Mo.' });
     }
 
-    const s3Key = `admin/${Date.now()}-${file.name}`;
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200);
+    const s3Key = `admin/${Date.now()}-${safeName}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
     try {
@@ -74,7 +75,8 @@ export const actions: Actions = {
     }
   },
 
-  download: async ({ url }) => {
+  download: async ({ url, locals }) => {
+    if (!locals.staffProfile) return fail(403, { message: 'Acces refuse.' });
     const id = url.searchParams.get('id');
     if (!id) return fail(400);
 
