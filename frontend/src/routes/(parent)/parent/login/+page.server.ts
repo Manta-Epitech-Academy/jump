@@ -115,15 +115,15 @@ export const actions: Actions = {
       );
     }
 
-    // Check if image rights need signing before going to dashboard
-    const unsignedCount = await prisma.talent.count({
+    // Route to the decision flow if any child still awaits a decision.
+    const undecidedCount = await prisma.talent.count({
       where: {
         parentEmail: normalizedEmail,
-        imageRightsSignedAt: null,
+        imageRightsDecidedAt: null,
       },
     });
 
-    if (unsignedCount > 0) {
+    if (undecidedCount > 0) {
       throw redirect(303, resolve('/parent/welcome'));
     }
 

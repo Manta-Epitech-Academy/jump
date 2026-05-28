@@ -7,6 +7,14 @@ import { stageWindowEnd } from '$lib/domain/event';
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
+  // /welcome is a one-shot gate before onboarding, not a destination. Once
+  // seen, the route guard stops redirecting here, so the only way back is a
+  // bookmark/refresh/back-button — send those home rather than re-showing the
+  // splash. Cheaper than the stage query below, so check it first.
+  if (locals.talent.welcomeSeenAt) {
+    throw redirect(303, resolve('/'));
+  }
+
   const stageParticipation = await prisma.participation.findFirst({
     where: {
       talentId: locals.talent.id,
@@ -36,9 +44,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
-  const alreadySeen = !!locals.talent.welcomeSeenAt;
   return {
-    alreadySeen,
     prenom: locals.talent.prenom,
     eventId: event.id,
     talentCreatedAt: locals.talent.createdAt.toISOString(),

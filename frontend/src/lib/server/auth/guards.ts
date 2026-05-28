@@ -303,18 +303,19 @@ export async function applyRouteGuards(
     }
 
     // Parent flow: welcome → signature → merci
-    // Authenticated parents who haven't signed yet go through welcome → signature.
-    // Once all children are signed, they land on /parent/merci (no dashboard in this release).
+    // Parents with a child still awaiting a decision go through welcome → signature.
+    // Once every child has a settled decision (authorized *or* refused), they
+    // land on /parent/merci (no dashboard in this release).
     if (event.locals.user?.role === 'parent' && !isParentPublic) {
-      const unsignedCount = await prisma.talent.count({
+      const undecidedCount = await prisma.talent.count({
         where: {
           parentEmail: event.locals.user.email,
-          imageRightsSignedAt: null,
+          imageRightsDecidedAt: null,
         },
       });
 
-      if (unsignedCount > 0) {
-        // Still need to sign — only allow welcome and signature pages
+      if (undecidedCount > 0) {
+        // Still awaiting a decision — only allow welcome and signature pages
         if (
           currentPath !== pathParentWelcome &&
           currentPath !== pathParentSignature

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { parsePhoneNumber } from 'libphonenumber-js';
+  import { AsYouType, parsePhoneNumber } from 'libphonenumber-js';
   import type { CountryCode } from 'libphonenumber-js';
   import * as Popover from '$lib/components/ui/popover';
   import { Button } from '$lib/components/ui/button';
@@ -28,7 +28,9 @@
       if (parsed) {
         return {
           country: (parsed.country ?? DEFAULT_COUNTRY) as CountryCode,
-          local: parsed.nationalNumber,
+          // Nationally formatted (e.g. "06 12 34 56 78") so AsYouType has the
+          // national prefix it needs to group digits on first render.
+          local: parsed.formatNational(),
         };
       }
     } catch {
@@ -40,7 +42,12 @@
   // svelte-ignore state_referenced_locally
   const initial = parseInitial(value);
   let selectedCountry = $state<string>(initial.country);
-  let localNumber = $state(initial.local);
+  // `phoneText` is the *displayed* value: digits grouped per the selected
+  // country (e.g. "6 12 34 56 78"). The separators are cosmetic — `e164Value`
+  // strips them, so the DB only ever sees a clean E.164 number.
+  let phoneText = $state(
+    new AsYouType(initial.country as CountryCode).input(initial.local),
+  );
   let open = $state(false);
 
   let countryEntry = $derived(
@@ -48,7 +55,7 @@
   );
 
   let e164Value = $derived.by(() => {
-    const cleaned = localNumber.replace(/[\s.\-()]/g, '');
+    const cleaned = phoneText.replace(/[\s.\-()]/g, '');
     if (!cleaned) return '';
     const withoutLeadingZero = cleaned.startsWith('0')
       ? cleaned.slice(1)
@@ -56,8 +63,28 @@
     return `${countryEntry.dialCode}${withoutLeadingZero}`;
   });
 
+  function reformat(input: string): string {
+    return new AsYouType(selectedCountry as CountryCode).input(input);
+  }
+
+  function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
+    const incoming = e.currentTarget.value;
+    const incomingDigits = incoming.replace(/\D/g, '');
+    const currentDigits = phoneText.replace(/\D/g, '');
+    // Backspacing over an auto-inserted separator leaves the digits unchanged
+    // but shortens the text; drop the trailing digit so deletion makes progress
+    // instead of AsYouType re-inserting the space and trapping the caret.
+    const digits =
+      incoming.length < phoneText.length && incomingDigits === currentDigits
+        ? incomingDigits.slice(0, -1)
+        : incomingDigits;
+    phoneText = reformat(digits);
+  }
+
   function selectCountry(code: string) {
     selectedCountry = code;
+    // Re-group the existing digits under the newly selected country's pattern.
+    phoneText = reformat(phoneText);
     open = false;
   }
 </script>
@@ -97,12 +124,16 @@
     </Popover.Content>
   </Popover.Root>
 
+  <!-- Cap the width so a phone number fills the field instead of floating in a
+       stretched box; `flex-1` still lets it shrink on narrow screens. -->
   <Input
     type="tel"
-    bind:value={localNumber}
+    inputmode="tel"
+    value={phoneText}
+    oninput={handleInput}
     {placeholder}
     {required}
-    class="flex-1 {className}"
+    class="max-w-48 flex-1 {className}"
   />
 
   <input type="hidden" {name} value={e164Value} />

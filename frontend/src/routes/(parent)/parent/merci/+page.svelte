@@ -34,9 +34,15 @@
         >
           {#if data.childPrenom}
             <p>
-              Votre accord pour le droit à l'image de <strong
-                >{data.childPrenom}</strong
-              > vient d'être enregistré.
+              {#if data.childDecision === 'refused'}
+                Votre refus concernant le droit à l'image de <strong
+                  >{data.childPrenom}</strong
+                > vient d'être enregistré.
+              {:else}
+                Votre accord pour le droit à l'image de <strong
+                  >{data.childPrenom}</strong
+                > vient d'être enregistré.
+              {/if}
             </p>
 
             <p>

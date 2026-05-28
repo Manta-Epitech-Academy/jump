@@ -3,11 +3,19 @@
   import Funnel from '@lucide/svelte/icons/funnel';
   import LogIn from '@lucide/svelte/icons/log-in';
   import Users from '@lucide/svelte/icons/users';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import UserX from '@lucide/svelte/icons/user-x';
+  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import FilterX from '@lucide/svelte/icons/filter-x';
   import Zap from '@lucide/svelte/icons/zap';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import SegmentedFilter, {
+    type SegmentOption,
+  } from '$lib/components/staff/SegmentedFilter.svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Badge } from '$lib/components/ui/badge';
@@ -22,6 +30,7 @@
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
+  import { EVENT_TYPES, EVENT_TYPE_LABELS } from '$lib/domain/event';
   import { WELCOME_XP_BONUS } from '$lib/domain/xp';
   import { track } from '$lib/analytics';
 
@@ -80,6 +89,75 @@
     goto(url.toString(), { keepFocus: true });
   }
 
+  // Overview metrics — read-only. These report the full population (not the
+  // filtered result), so they're a stable "lay of the land" the admin watches;
+  // narrowing the table happens in the toolbar below, never by clicking a tile.
+  const overview = $derived([
+    {
+      label: 'Total',
+      value: data.stats.total,
+      sub: 'Tous les talents',
+      tone: 'neutral',
+      Icon: Users,
+    },
+    {
+      label: 'Stagiaires',
+      value: data.stats.stagiaires,
+      sub: 'Stage de seconde · cette année',
+      tone: 'pink',
+      Icon: GraduationCap,
+    },
+    {
+      label: 'Comptes actifs',
+      value: data.stats.active,
+      sub: 'Au moins une connexion',
+      tone: 'teal',
+      Icon: UserCheck,
+    },
+    {
+      label: 'Jamais connectés',
+      value: data.stats.pending,
+      sub: 'Aucun compte créé',
+      tone: 'orange',
+      Icon: UserX,
+    },
+  ] as const);
+
+  // Two independent filter dimensions, each a one-click segmented radio. They
+  // compose freely (e.g. "stagiaires" + "jamais connectés") because they write
+  // separate URL params — the whole point of splitting them off the tiles.
+  const typeOptions: SegmentOption[] = [
+    { value: 'all', label: 'Tous' },
+    {
+      value: EVENT_TYPES.STAGE_SECONDE,
+      label: EVENT_TYPE_LABELS[EVENT_TYPES.STAGE_SECONDE],
+    },
+    {
+      value: EVENT_TYPES.CODING_CLUB,
+      label: EVENT_TYPE_LABELS[EVENT_TYPES.CODING_CLUB],
+    },
+  ];
+  const statutOptions: SegmentOption[] = [
+    { value: 'all', label: 'Tous' },
+    { value: 'active', label: 'Actifs' },
+    { value: 'pending', label: 'Jamais connectés' },
+  ];
+
+  // `account` defaults to 'all' server-side; the others are empty when inactive.
+  const hasActiveFilters = $derived(
+    Boolean(
+      data.filters.q ||
+      data.filters.type ||
+      data.filters.niveau ||
+      data.filters.campus,
+    ) || data.filters.account !== 'all',
+  );
+
+  function resetFilters() {
+    searchQuery = '';
+    goto(page.url.pathname, { keepFocus: true });
+  }
+
   function handleSearchInput(e: Event) {
     const value = (e.target as HTMLInputElement).value;
     searchQuery = value;
@@ -109,22 +187,23 @@
     </p>
   </div>
 
-  <!-- Overview tiles -->
-  <div class="grid grid-cols-3 gap-3">
-    {#each [{ label: 'Talents', value: data.stats.total, accent: 'text-foreground' }, { label: 'Comptes actifs', value: data.stats.active, accent: 'text-epi-teal-solid' }, { label: 'Jamais connectés', value: data.stats.pending, accent: 'text-muted-foreground' }] as tile}
-      <div class="rounded-sm border bg-card p-4 shadow-sm">
-        <p
-          class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          {tile.label}
-        </p>
-        <p class="font-heading text-3xl {tile.accent}">{tile.value}</p>
-      </div>
+  <!-- Overview metrics — read-only, full population. -->
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    {#each overview as metric (metric.label)}
+      <KpiTile
+        label={metric.label}
+        value={metric.value}
+        sub={metric.sub}
+        icon={metric.Icon}
+        tone={metric.tone}
+      />
     {/each}
   </div>
 
-  <!-- Filter bar -->
-  <div class="flex flex-wrap items-center gap-2">
+  <!-- Filter toolbar — the single control surface. Type and Statut are
+       independent segmented radios that compose; niveau/campus stay dropdowns
+       (too many options for a segmented control). -->
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
     <div class="relative w-full max-w-72">
       <Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
       <Input
@@ -132,6 +211,34 @@
         class="rounded-sm pl-9"
         value={searchQuery}
         oninput={handleSearchInput}
+      />
+    </div>
+
+    <div class="flex items-center gap-2">
+      <span
+        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+      >
+        Type
+      </span>
+      <SegmentedFilter
+        ariaLabel="Filtrer par type d'événement"
+        options={typeOptions}
+        value={data.filters.type || 'all'}
+        onChange={(v) => navigateWithParams({ type: v === 'all' ? '' : v })}
+      />
+    </div>
+
+    <div class="flex items-center gap-2">
+      <span
+        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+      >
+        Statut
+      </span>
+      <SegmentedFilter
+        ariaLabel="Filtrer par statut de compte"
+        options={statutOptions}
+        value={data.filters.account}
+        onChange={(v) => navigateWithParams({ account: v === 'all' ? '' : v })}
       />
     </div>
 
@@ -160,28 +267,6 @@
     <div class="w-44">
       <Select.Root
         type="single"
-        value={data.filters.account}
-        onValueChange={(v) =>
-          navigateWithParams({ account: v === 'all' ? '' : v })}
-      >
-        <Select.Trigger class="rounded-sm">
-          {data.filters.account === 'active'
-            ? 'Comptes actifs'
-            : data.filters.account === 'pending'
-              ? 'Jamais connectés'
-              : 'Tous les comptes'}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value="all">Tous les comptes</Select.Item>
-          <Select.Item value="active">Comptes actifs</Select.Item>
-          <Select.Item value="pending">Jamais connectés</Select.Item>
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    <div class="w-44">
-      <Select.Root
-        type="single"
         value={data.filters.campus || 'all'}
         onValueChange={(v) =>
           navigateWithParams({ campus: v === 'all' ? '' : v })}
@@ -198,7 +283,30 @@
         </Select.Content>
       </Select.Root>
     </div>
+
+    {#if hasActiveFilters}
+      <Button
+        variant="ghost"
+        size="sm"
+        onclick={resetFilters}
+        class="text-muted-foreground hover:text-foreground"
+      >
+        <FilterX class="mr-1.5 h-4 w-4" />
+        Réinitialiser
+      </Button>
+    {/if}
   </div>
+
+  <!-- Filtered result count, distinct from the full-population overview above. -->
+  <p class="-mt-2 text-xs text-muted-foreground">
+    <span class="font-bold text-foreground">{data.totalItems}</span>
+    talent{data.totalItems > 1 ? 's' : ''}
+    {hasActiveFilters
+      ? data.totalItems > 1
+        ? 'correspondent aux filtres'
+        : 'correspond aux filtres'
+      : 'au total'}
+  </p>
 
   {#if data.talents.length > 0}
     <div class="rounded-sm border bg-card shadow-sm">
@@ -378,10 +486,7 @@
     </div>
 
     {#if data.totalPages > 1}
-      <div class="flex items-center justify-between">
-        <p class="text-sm text-muted-foreground">
-          {data.totalItems} talent{data.totalItems > 1 ? 's' : ''}
-        </p>
+      <div class="flex items-center justify-end">
         <div class="flex items-center gap-1">
           <Button
             variant="outline"

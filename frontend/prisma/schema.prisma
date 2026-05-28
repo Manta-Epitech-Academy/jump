@@ -150,6 +150,14 @@ model StaffProfile {
   campusId  String?
   staffRole StaffRole?
   discordId String?    @unique
+  // Personal dev-redirect destinations: on a trapped (non-prod) env, mail/SMS
+  // attributed to this staff member (sends they trigger, or talents they
+  // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
+  // list, so each tester only receives their own traffic. Empty = fall back to
+  // the env list. Inert in prod (the env gate is off). See
+  // `$lib/server/{email,sms}/dev-redirect.ts`.
+  devRedirectEmails String[] @default([])
+  devRedirectPhones String[] @default([])
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -193,7 +201,8 @@ model Talent {
   generalInterestsValidatedAt DateTime?
   interestsRecapSeenAt        DateTime?
   rulesSignedAt               DateTime?
-  imageRightsSignedAt         DateTime?
+  imageRightsDecision         ImageRightsDecision?
+  imageRightsDecidedAt        DateTime?
   imageRightsSignerName       String?
   infoValidatedAt             DateTime?
   highSchoolValidatedAt       DateTime?
@@ -312,6 +321,14 @@ enum TalentDeletionRequestStatus {
   fulfilled
   rejected
   cancelled
+}
+
+/// The legal guardian's image-rights decision for their child. `null` on Talent
+/// means undecided (still to be chased); a non-null value is a settled decision
+/// — `refused` is as final as `accepted`, it just means "do not photograph".
+enum ImageRightsDecision {
+  accepted
+  refused
 }
 
 model TalentDeletionRequest {
@@ -492,12 +509,18 @@ model ActivityTheme {
 }
 
 model Event {
-  id         String    @id @default(cuid())
-  titre      String
-  date       DateTime
-  endDate    DateTime?
-  eventType  String    @default("coding_club")
-  campusId   String
+  id    String   @id @default(cuid())
+  titre String
+  date  DateTime
+  // Salesforce gives us the calendar day (`date`/`endDate`) but never a
+  // start time, so the time-of-day is Jump-owned: wall-clock minutes from
+  // local midnight (0–1439), `null` until staff set it. Kept separate from
+  // `date` precisely so the SF sync — which rewrites `date` — can never
+  // clobber it. Compose with the campus timezone for a real instant.
+  startMinutes Int?
+  endDate      DateTime?
+  eventType    String    @default("coding_club")
+  campusId     String
   themeId    String?
   pin        String?
   notes      String?
@@ -560,11 +583,10 @@ model Participation {
 }
 
 model StageCompliance {
-  participationId   String   @id
-  charteSigned      Boolean  @default(false)
-  imageRightsSigned Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  participationId String   @id
+  charteSigned    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
 }

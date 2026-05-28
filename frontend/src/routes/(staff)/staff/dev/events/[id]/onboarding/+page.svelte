@@ -52,7 +52,7 @@
     participations.filter((p) => p.stageCompliance?.charteSigned).length,
   );
   let imageCount = $derived(
-    participations.filter((p) => p.stageCompliance?.imageRightsSigned).length,
+    participations.filter((p) => p.talent.imageRightsDecision !== null).length,
   );
   let pcCount = $derived(participations.filter((p) => p.bringPc).length);
 
@@ -73,7 +73,7 @@
       return participations.filter((p) => !p.stageCompliance?.charteSigned);
     if (filter === 'image-rights-missing')
       return participations.filter(
-        (p) => !p.stageCompliance?.imageRightsSigned,
+        (p) => p.talent.imageRightsDecision === null,
       );
     if (filter === 'pc-missing')
       return participations.filter((p) => !p.bringPc);
@@ -97,22 +97,20 @@
     changeFilter(filter === key ? 'all' : key);
   }
 
-  // Optimistic toggles
-  const optimisticAdminToggle = (id: string, docType: string) => {
+  // Optimistic toggle — charte only. Image rights are no longer staff-toggled:
+  // they reflect the guardian's authoritative online decision (read-only badge
+  // in the table).
+  const optimisticAdminToggle = (id: string) => {
     return () => {
       const index = participations.findIndex((p) => p.id === id);
       if (index !== -1) {
         const compliance = (participations[index].stageCompliance ??= {
           charteSigned: false,
-          imageRightsSigned: false,
           participationId: id,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-        if (docType === 'charte')
-          compliance.charteSigned = !compliance.charteSigned;
-        if (docType === 'image')
-          compliance.imageRightsSigned = !compliance.imageRightsSigned;
+        compliance.charteSigned = !compliance.charteSigned;
       }
       return async ({ update }: { update: () => Promise<void> }) => {
         await update();

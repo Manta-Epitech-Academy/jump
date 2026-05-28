@@ -9,5 +9,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     // Resolved in hooks.server.ts alongside the feature-flag campus scope.
     talentCampusName: locals.talentCampusName,
     impersonator: locals.impersonator,
+    // Drives the global "real sends armed" banner (dev/staging only).
+    armedRealSends: locals.armedRealSends,
+    armedRealSendsUntil: locals.armedRealSendsUntil,
   };
 };

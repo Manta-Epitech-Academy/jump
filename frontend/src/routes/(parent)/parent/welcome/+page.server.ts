@@ -8,12 +8,13 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw error(401, 'Non autorisé');
   }
 
-  // Find the first unsigned child to personalize the welcome message.
-  // If all children are already signed, skip to the thank-you page.
+  // Find the first child still awaiting a decision to personalize the welcome
+  // message. If every child has a settled decision (authorized *or* refused),
+  // skip to the thank-you page.
   const child = await prisma.talent.findFirst({
     where: {
       parentEmail: locals.user.email,
-      imageRightsSignedAt: null,
+      imageRightsDecidedAt: null,
     },
     select: { prenom: true },
   });

@@ -23,7 +23,7 @@ function isRetryableFailure(failure: SendSmsFailure): boolean {
 }
 
 export const transactionalSmsProvider: SmsProvider = {
-  async sendSms({ to, body }): Promise<SendOutcome> {
+  async sendSms({ to, body }, opts): Promise<SendOutcome> {
     // Recipients carry the raw, French-entered phone; the façade expects an
     // already-normalized number. An unparseable value can never succeed —
     // fail it permanently rather than handing Brevo a number it rejects.
@@ -31,7 +31,10 @@ export const transactionalSmsProvider: SmsProvider = {
     if (!recipient) {
       return { ok: false, message: 'invalid phone number', retryable: false };
     }
-    const result = await sendSms({ to: recipient, body });
+    const result = await sendSms(
+      { to: recipient, body },
+      { devRedirect: opts?.devRedirectTo },
+    );
     if (result.ok) return { ok: true, providerMessageId: result.id };
     return {
       ok: false,

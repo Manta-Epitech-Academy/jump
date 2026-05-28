@@ -8,6 +8,7 @@
   import CircleAlert from '@lucide/svelte/icons/circle-alert';
   import Lock from '@lucide/svelte/icons/lock';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { authClient } from '$lib/auth-client';
   import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import LoginBrandPanel from '$lib/components/layout/LoginBrandPanel.svelte';
@@ -128,17 +129,32 @@
       </div>
 
       <!-- Footer -->
-      <p class="text-center text-xs text-muted-foreground">
-        Propulsé par
-        <a
-          href="https://www.epitech.eu"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="font-bold text-epi-blue transition-colors hover:underline"
-        >
-          Epitech
-        </a>
-      </p>
+      <div class="space-y-3 text-center">
+        <p class="text-sm text-muted-foreground">
+          Vous êtes étudiant ?
+          <a
+            href={resolve('/login')}
+            class="group ml-0.5 inline-flex items-center gap-1 font-semibold text-epi-blue transition-colors hover:underline"
+          >
+            Espace talent
+            <ArrowRight
+              class="size-3.5 transition-transform group-hover:translate-x-0.5"
+            />
+          </a>
+        </p>
+
+        <p class="text-xs text-muted-foreground">
+          Propulsé par
+          <a
+            href="https://www.epitech.eu"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-bold text-epi-blue transition-colors hover:underline"
+          >
+            Epitech
+          </a>
+        </p>
+      </div>
     </div>
   </main>
 </div>

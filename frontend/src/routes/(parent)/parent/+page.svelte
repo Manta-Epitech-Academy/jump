@@ -6,6 +6,7 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import FileCheck from '@lucide/svelte/icons/file-check';
   import FilePen from '@lucide/svelte/icons/file-pen';
+  import X from '@lucide/svelte/icons/x';
   import Settings from '@lucide/svelte/icons/settings';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
@@ -134,13 +135,21 @@
               <div
                 class="mt-4 border-t border-slate-100 pt-3 dark:border-slate-800"
               >
-                {#if child.imageRightsSigned}
+                {#if child.imageRightsStatus === 'accepted'}
                   <Badge
                     variant="secondary"
                     class="gap-1.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
                   >
                     <FileCheck class="h-3 w-3" />
-                    Droit à l'image signé
+                    Droit à l'image autorisé
+                  </Badge>
+                {:else if child.imageRightsStatus === 'refused'}
+                  <Badge
+                    variant="secondary"
+                    class="gap-1.5 bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                  >
+                    <X class="h-3 w-3" />
+                    Droit à l'image refusé
                   </Badge>
                 {:else}
                   <Badge
@@ -148,7 +157,7 @@
                     class="gap-1.5 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
                   >
                     <FilePen class="h-3 w-3" />
-                    Droit à l'image à signer
+                    Droit à l'image à renseigner
                   </Badge>
                 {/if}
               </div>

@@ -198,9 +198,17 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   }
   if (f.charterSigned === 'yes') and.push({ charterAcceptedAt: { not: null } });
   if (f.charterSigned === 'no') and.push({ charterAcceptedAt: null });
-  if (f.imageRightsSigned === 'yes')
-    and.push({ imageRightsSignedAt: { not: null } });
-  if (f.imageRightsSigned === 'no') and.push({ imageRightsSignedAt: null });
+  // Image rights: OR the selected states. `undecided` is the absence of a
+  // decision; `accepted`/`refused` match the stored enum directly.
+  if (f.imageRights?.length) {
+    and.push({
+      OR: f.imageRights.map((status) =>
+        status === 'undecided'
+          ? { imageRightsDecidedAt: null }
+          : { imageRightsDecision: status },
+      ),
+    });
+  }
 
   const now = new Date();
   if (f.hasPastEvent === 'yes')

@@ -2,14 +2,20 @@
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { onMount } from 'svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
+  import StartTimeInline from './StartTimeInline.svelte';
 
   type Props = {
     daysToStart: number;
     openDate: Date;
+    eventType: string;
+    /** Raw confirmed start; null = unconfirmed → the inline control shows the
+     * type default tinted as a nag, and prompts the lead to confirm it. */
+    startMinutes: number | null;
     timezone: string;
   };
 
-  let { daysToStart, openDate, timezone }: Props = $props();
+  let { daysToStart, openDate, eventType, startMinutes, timezone }: Props =
+    $props();
 
   let now = $state(Date.now());
 
@@ -32,14 +38,6 @@
       day: 'numeric',
       month: 'long',
       year: 'numeric',
-      timeZone: timezone,
-    }),
-  );
-
-  const openTimeLabel = $derived(
-    openDate.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
       timeZone: timezone,
     }),
   );
@@ -69,7 +67,7 @@
       </h1>
       <p class="mt-2 text-sm font-medium text-blue-100">
         Ouverture le <span class="text-epi-teal">{openDateLabel}</span> à
-        <span class="text-epi-teal">{openTimeLabel}</span>
+        <StartTimeInline {eventType} {startMinutes} promptWhenUnset />
       </p>
       <p
         class="mt-5 max-w-2xl text-sm leading-relaxed font-medium text-blue-100"

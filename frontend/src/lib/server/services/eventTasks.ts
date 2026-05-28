@@ -165,13 +165,12 @@ async function loadEventFacts(
         ],
       },
     }),
+    // Chase a *decision*, not an acceptance: a refusal is settled and drops
+    // out. The decision is talent-level (the guardian's online choice).
     db.participation.count({
       where: {
         eventId: event.id,
-        OR: [
-          { stageCompliance: null },
-          { stageCompliance: { imageRightsSigned: false } },
-        ],
+        talent: { imageRightsDecidedAt: null },
       },
     }),
     db.participation.count({
