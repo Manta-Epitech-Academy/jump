@@ -66,13 +66,11 @@
         </p>
       {/if}
 
-      <!-- Règlement text (shared by all children) -->
-      <div
-        class="mb-6 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-4 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
-      >
-        <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
-          {@html reglementBody}
-        </div>
+      <!-- Règlement text (shared by all children). No wrapper card on purpose,
+           matching the talent's RulesStep: the body reads as the document
+           itself, not a boxed widget on the page. -->
+      <div class="prose prose-sm mb-6 max-w-none prose-slate dark:prose-invert">
+        {@html reglementBody}
       </div>
 
       <!-- ═══ Sécurité des données ═══
