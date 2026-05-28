@@ -8,6 +8,7 @@
   import UserX from '@lucide/svelte/icons/user-x';
   import Tags from '@lucide/svelte/icons/tags';
   import LogOut from '@lucide/svelte/icons/log-out';
+  import Settings from '@lucide/svelte/icons/settings';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
@@ -29,12 +30,14 @@
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import * as Avatar from '$lib/components/ui/avatar';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
+  import StaffSettingsDialog from '$lib/components/layout/StaffSettingsDialog.svelte';
   import { fly, fade } from 'svelte/transition';
   import { track, secondsBetween } from '$lib/analytics';
 
   let { children, data } = $props();
 
   let mobileMenuOpen = $state(false);
+  let settingsOpen = $state(false);
 
   // Close the mobile menu on page navigation
   $effect(() => {
@@ -331,6 +334,13 @@
               >Session Globale</DropdownMenu.Label
             >
             <DropdownMenu.Separator />
+            <DropdownMenu.Item
+              class="cursor-pointer"
+              onSelect={() => (settingsOpen = true)}
+            >
+              <Settings class="mr-2 h-4 w-4" />
+              Paramètres
+            </DropdownMenu.Item>
             <form
               action="{resolve('/logout')}?type=admin"
               method="POST"
@@ -353,6 +363,15 @@
             </form>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
+
+        <StaffSettingsDialog
+          bind:open={settingsOpen}
+          form={data.settingsForm}
+          outboundTrapped={data.outboundTrapped}
+          canArmRealSends={data.canArmRealSends}
+          armedRealSends={data.armedRealSends}
+          armedRealSendsUntil={data.armedRealSendsUntil}
+        />
       </div>
     </div>
   </header>

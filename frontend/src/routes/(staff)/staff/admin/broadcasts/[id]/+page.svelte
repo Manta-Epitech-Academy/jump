@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { Button } from '$lib/components/ui/button';
+  import * as Table from '$lib/components/ui/table';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import {
     BROADCAST_AUDIENCE_LABELS,
@@ -53,6 +54,8 @@
     if (r.staffUser) return 'staff';
     return 'talent';
   }
+
+  const th = 'text-xs uppercase';
 </script>
 
 <div class="space-y-4">
@@ -170,41 +173,41 @@
   </div>
 
   <div class="overflow-hidden rounded-lg border">
-    <table class="w-full text-sm">
-      <thead class="border-b bg-muted/50 text-left text-xs uppercase">
-        <tr>
-          <th class="px-4 py-2">Destinataire</th>
-          <th class="px-4 py-2">Rôle</th>
-          <th class="px-4 py-2">Contact</th>
-          <th class="px-4 py-2">Statut</th>
-          <th class="px-4 py-2">Envoyé</th>
-          <th class="px-4 py-2">Ouvert</th>
-          <th class="px-4 py-2">Erreur</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table.Root>
+      <Table.Header class="bg-muted/50">
+        <Table.Row>
+          <Table.Head class={th}>Destinataire</Table.Head>
+          <Table.Head class={th}>Rôle</Table.Head>
+          <Table.Head class={th}>Contact</Table.Head>
+          <Table.Head class={th}>Statut</Table.Head>
+          <Table.Head class={th}>Envoyé</Table.Head>
+          <Table.Head class={th}>Ouvert</Table.Head>
+          <Table.Head class={th}>Erreur</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
         {#each data.recipients as r (r.id)}
-          <tr class="border-b last:border-b-0 hover:bg-muted/30">
-            <td class="px-4 py-2 font-medium">{recipientName(r)}</td>
-            <td class="px-4 py-2 text-xs text-muted-foreground"
-              >{recipientRole(r)}</td
+          <Table.Row class="hover:bg-muted/30">
+            <Table.Cell class="font-medium">{recipientName(r)}</Table.Cell>
+            <Table.Cell class="text-xs text-muted-foreground"
+              >{recipientRole(r)}</Table.Cell
             >
-            <td class="px-4 py-2 text-xs text-muted-foreground">
+            <Table.Cell class="text-xs text-muted-foreground">
               {r.recipientEmail ?? r.recipientPhone ?? '—'}
-            </td>
-            <td class="px-4 py-2 text-xs">{r.status}</td>
-            <td class="px-4 py-2 text-xs text-muted-foreground">
+            </Table.Cell>
+            <Table.Cell class="text-xs">{r.status}</Table.Cell>
+            <Table.Cell class="text-xs text-muted-foreground">
               {r.sentAt ? formatter.format(r.sentAt) : '—'}
-            </td>
-            <td class="px-4 py-2 text-xs text-muted-foreground">
+            </Table.Cell>
+            <Table.Cell class="text-xs text-muted-foreground">
               {r.openedAt ? formatter.format(r.openedAt) : '—'}
-            </td>
-            <td class="px-4 py-2 text-xs text-destructive">
+            </Table.Cell>
+            <Table.Cell class="text-xs text-destructive">
               {r.errorMessage ?? ''}
-            </td>
-          </tr>
+            </Table.Cell>
+          </Table.Row>
         {/each}
-      </tbody>
-    </table>
+      </Table.Body>
+    </Table.Root>
   </div>
 </div>

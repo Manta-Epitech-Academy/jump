@@ -17,6 +17,7 @@
   import FileCheck from '@lucide/svelte/icons/file-check';
   import { Badge } from '$lib/components/ui/badge';
   import { formatDateFr } from '$lib/utils';
+  import { minutesToHHMM } from '$lib/domain/event';
   import { getInitials } from '$lib/avatar';
   import { resolve } from '$app/paths';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
@@ -25,14 +26,6 @@
   import EventActionManager from '$lib/components/events/EventActionManager.svelte';
 
   let { data } = $props();
-
-  function formatTime(date: Date): string {
-    return date.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: data.timezone,
-    });
-  }
 
   let actionManager: ReturnType<typeof EventActionManager>;
 </script>
@@ -84,9 +77,11 @@
                   <span class="text-sm font-medium"
                     >{formatDateFr(event.date, data.timezone)}</span
                   >
-                  <span class="text-xs font-medium text-muted-foreground"
-                    >{formatTime(event.date)}</span
-                  >
+                  {#if minutesToHHMM(event.startMinutes)}
+                    <span class="text-xs font-medium text-muted-foreground"
+                      >{minutesToHHMM(event.startMinutes)}</span
+                    >
+                  {/if}
                 </div>
               </TableCell>
               <TableCell class="hidden md:table-cell">

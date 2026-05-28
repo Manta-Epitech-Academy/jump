@@ -2,10 +2,15 @@ import { z } from 'zod';
 import {
   BROADCAST_AUDIENCES,
   BROADCAST_CHANNELS,
+  IMAGE_RIGHTS_FILTER_OPTIONS,
   JUMP_LEVELS,
-  SMS_MAX_LENGTH,
-  estimateSmsLength,
 } from '$lib/domain/broadcasts';
+import {
+  SMS_BROADCAST_MAX_CHARS,
+  SMS_MAX_SEGMENTS,
+  estimateSmsLength,
+  smsSegments,
+} from '$lib/domain/sms';
 import { NIVEAUX } from '$lib/domain/niveau';
 
 const tristate = z.enum(['yes', 'no', 'any']);
@@ -14,7 +19,7 @@ export const broadcastFiltersSchema = z
   .object({
     niveau: z.array(z.enum(NIVEAUX)).optional(),
     charterSigned: tristate.optional(),
-    imageRightsSigned: tristate.optional(),
+    imageRights: z.array(z.enum(IMAGE_RIGHTS_FILTER_OPTIONS)).optional(),
     jumpLevel: z.array(z.enum(JUMP_LEVELS)).optional(),
     hasPastEvent: tristate.optional(),
     hasFutureEvent: tristate.optional(),
@@ -52,10 +57,10 @@ export const messageTemplateSchema = z
     }
     if (data.channel === 'sms') {
       const estimated = estimateSmsLength(data.body);
-      if (estimated > SMS_MAX_LENGTH) {
+      if (estimated > SMS_BROADCAST_MAX_CHARS) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Le SMS dépasse ${SMS_MAX_LENGTH} caractères une fois les liens trackés (estimation : ${estimated})`,
+          message: `Message trop long : ${SMS_MAX_SEGMENTS} SMS maximum (~${SMS_BROADCAST_MAX_CHARS} caractères, liens compris ; ici ~${estimated} = ${smsSegments(estimated)} SMS). Raccourcissez le texte.`,
           path: ['body'],
         });
       }

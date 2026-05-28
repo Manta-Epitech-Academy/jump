@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
+  import * as Table from '$lib/components/ui/table';
   import Plus from '@lucide/svelte/icons/plus';
   import Mail from '@lucide/svelte/icons/mail';
   import MessageSquare from '@lucide/svelte/icons/message-square';
@@ -29,6 +30,8 @@
     partial_failed: 'bg-amber-200 text-amber-800',
     failed: 'bg-red-200 text-red-800',
   };
+
+  const th = 'text-xs uppercase';
 </script>
 
 <header class="space-y-2">
@@ -56,25 +59,25 @@
   </div>
 {:else}
   <div class="overflow-hidden rounded-lg border">
-    <table class="w-full text-sm">
-      <thead class="border-b bg-muted/50 text-left text-xs uppercase">
-        <tr>
-          <th class="px-4 py-2">Nom</th>
-          <th class="px-4 py-2">Canal</th>
-          <th class="px-4 py-2">Campus</th>
-          <th class="px-4 py-2">Event</th>
-          <th class="px-4 py-2">Statut</th>
-          <th class="px-4 py-2">Progression</th>
-          <th class="px-4 py-2">Date</th>
-          <th class="px-4 py-2"></th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table.Root>
+      <Table.Header class="bg-muted/50">
+        <Table.Row>
+          <Table.Head class={th}>Nom</Table.Head>
+          <Table.Head class={th}>Canal</Table.Head>
+          <Table.Head class={th}>Campus</Table.Head>
+          <Table.Head class={th}>Event</Table.Head>
+          <Table.Head class={th}>Statut</Table.Head>
+          <Table.Head class={th}>Progression</Table.Head>
+          <Table.Head class={th}>Date</Table.Head>
+          <Table.Head class={th}></Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
         {#each data.broadcasts as b (b.id)}
           {@const total = b._count.recipients}
-          <tr class="border-b last:border-b-0 hover:bg-muted/30">
-            <td class="px-4 py-2 font-medium">{b.name}</td>
-            <td class="px-4 py-2">
+          <Table.Row class="hover:bg-muted/30">
+            <Table.Cell class="font-medium">{b.name}</Table.Cell>
+            <Table.Cell>
               <span class="inline-flex items-center gap-1">
                 {#if b.channel === 'mail'}
                   <Mail class="h-3.5 w-3.5" />
@@ -83,12 +86,14 @@
                 {/if}
                 {BROADCAST_CHANNEL_LABELS[b.channel]}
               </span>
-            </td>
-            <td class="px-4 py-2 text-muted-foreground">{b.campus.name}</td>
-            <td class="px-4 py-2 text-muted-foreground"
-              >{b.event?.titre ?? '—'}</td
+            </Table.Cell>
+            <Table.Cell class="text-muted-foreground"
+              >{b.campus.name}</Table.Cell
             >
-            <td class="px-4 py-2">
+            <Table.Cell class="text-muted-foreground"
+              >{b.event?.titre ?? '—'}</Table.Cell
+            >
+            <Table.Cell>
               <span
                 class="rounded px-2 py-0.5 text-xs font-medium {STATUS_STYLE[
                   b.status
@@ -96,8 +101,8 @@
               >
                 {STATUS_LABEL[b.status]}
               </span>
-            </td>
-            <td class="px-4 py-2 text-xs text-muted-foreground">
+            </Table.Cell>
+            <Table.Cell class="text-xs text-muted-foreground">
               {b.progress.sent}/{total} envoyés
               {#if b.progress.failed > 0}
                 <span class="text-destructive">· {b.progress.failed} échec</span
@@ -106,11 +111,11 @@
               {#if b.progress.opened > 0}
                 <span>· {b.progress.opened} ouvert</span>
               {/if}
-            </td>
-            <td class="px-4 py-2 text-muted-foreground">
+            </Table.Cell>
+            <Table.Cell class="text-muted-foreground">
               {formatter.format(b.createdAt)}
-            </td>
-            <td class="px-4 py-2 text-right">
+            </Table.Cell>
+            <Table.Cell class="text-right">
               <Button
                 variant="ghost"
                 size="sm"
@@ -118,10 +123,10 @@
               >
                 Détail
               </Button>
-            </td>
-          </tr>
+            </Table.Cell>
+          </Table.Row>
         {/each}
-      </tbody>
-    </table>
+      </Table.Body>
+    </Table.Root>
   </div>
 {/if}

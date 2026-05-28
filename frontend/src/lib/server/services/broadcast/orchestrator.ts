@@ -24,6 +24,8 @@ import {
   buildParentFastloginLink,
 } from '$lib/server/auth/fastloginToken';
 import { mintSigninOtp } from './personalization';
+import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
+import { staffBulkDevRedirectPhones } from '$lib/server/sms/dev-redirect';
 
 export interface EnqueueBroadcastInput {
   name: string;
@@ -145,6 +147,19 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
       bodySnapshot: true,
       eventId: true,
       event: { select: { titre: true } },
+      // The staff member who enqueued this broadcast. On dev/staging their
+      // configured dev-redirect inbox (or login email) is where trapped mail
+      // copies land (see `sendMailBatch`), so each tester only sees their own
+      // broadcasts. Resolved from the row, not the request context, because the
+      // send can run in the worker after the request that enqueued it is gone.
+      createdBy: {
+        select: {
+          email: true,
+          staffProfile: {
+            select: { devRedirectEmails: true, devRedirectPhones: true },
+          },
+        },
+      },
     },
   });
 
@@ -276,6 +291,13 @@ type BroadcastForSend = {
   bodySnapshot: string;
   eventId: string | null;
   event: { titre: string } | null;
+  createdBy: {
+    email: string;
+    staffProfile: {
+      devRedirectEmails: string[];
+      devRedirectPhones: string[];
+    } | null;
+  };
 };
 
 /**
@@ -352,6 +374,17 @@ async function sendMailBatch(
     try {
       providerOutcomes = await getMailProvider().sendMailBatch(
         sendable.map((s) => s.msg),
+        // On a trapped env, route copies to the broadcast's creator instead of
+        // the shared debug list; a no-op in prod. Prefer their configured
+        // dev-redirect inbox, falling back to their login email. `sendSmsSerial`
+        // does the same with the creator's configured phones (no login-phone
+        // fallback — staff accounts carry no login phone).
+        {
+          devRedirectTo: staffBulkDevRedirectEmails(
+            broadcast.createdBy.staffProfile?.devRedirectEmails,
+            broadcast.createdBy.email,
+          ),
+        },
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -401,10 +434,22 @@ async function sendSmsSerial(
       const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
       const body = rewriteSmsLinks(bodyWithVars, recipient.id);
       try {
-        outcome = await getSmsProvider().sendSms({
-          to: recipient.recipientPhone,
-          body,
-        });
+        outcome = await getSmsProvider().sendSms(
+          {
+            to: recipient.recipientPhone,
+            body,
+          },
+          // Mirror the mail path: on a trapped env route copies to the
+          // creator's configured phones (resolved from the row, since this can
+          // run in the worker). No login-phone fallback — an unconfigured
+          // creator yields `[]`, so the façade falls back to SMS_DEV_RECIPIENTS
+          // or drops. A no-op in prod.
+          {
+            devRedirectTo: staffBulkDevRedirectPhones(
+              broadcast.createdBy.staffProfile?.devRedirectPhones,
+            ),
+          },
+        );
       } catch (err) {
         outcome = {
           ok: false,

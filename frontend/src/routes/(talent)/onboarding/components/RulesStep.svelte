@@ -59,7 +59,7 @@
 >
   <!-- ═══ Règlement intérieur ═══ -->
   <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
-    <h2>Règlement intérieur — stagiaires Epitech</h2>
+    <h2>Règlement intérieur - stagiaires Epitech</h2>
     <p>
       En tant qu'entreprise d'accueil et école d'enseignement supérieur, Epitech
       dispose d'un règlement intérieur garantissant un cadre respectueux et
@@ -178,7 +178,7 @@
         class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
-        J'ai lu et j'accepte la politique de confidentialité d'Epitech Academy
+        J'ai lu et j'accepte la politique de confidentialité d'Epitech
         concernant la collecte et le traitement de mes données personnelles.
       </span>
     </label>

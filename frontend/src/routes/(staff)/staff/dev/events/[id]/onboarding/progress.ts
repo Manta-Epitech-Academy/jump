@@ -1,9 +1,17 @@
+import type { ImageRightsDecision } from '$lib/domain/imageRights';
+
 export type ParticipationProgress = {
   bringPc: boolean;
   stageCompliance: {
     charteSigned: boolean;
-    imageRightsSigned: boolean;
   } | null;
+  // Image rights live on the talent (the guardian's authoritative online
+  // decision), not on the per-participation compliance row. A settled decision
+  // — `accepted` *or* `refused` — counts as done; only an absent decision is a
+  // gap to chase.
+  talent: {
+    imageRightsDecision: ImageRightsDecision | null;
+  };
 };
 
 /**
@@ -17,7 +25,7 @@ export const TOTAL_DOCS = 2;
 export function countSignedDocs(p: ParticipationProgress): number {
   return (
     (p.stageCompliance?.charteSigned ? 1 : 0) +
-    (p.stageCompliance?.imageRightsSigned ? 1 : 0)
+    (p.talent.imageRightsDecision !== null ? 1 : 0)
   );
 }
 

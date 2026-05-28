@@ -17,8 +17,15 @@
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
+  import { renderMarkdown } from '$lib/markdown';
+  import droitImageBodyMd from '$lib/content/droit-image-body.md?raw';
+  import droitImageRefusalBodyMd from '$lib/content/droit-image-refusal-body.md?raw';
+  import ChildSignForm from '../../signature/ChildSignForm.svelte';
 
-  let { data } = $props();
+  let { data, form } = $props();
+
+  const droitImageBody = renderMarkdown(droitImageBodyMd);
+  const droitImageRefusalBody = renderMarkdown(droitImageRefusalBodyMd);
 
   const activityTypeLabels: Record<string, string> = {
     atelier: 'Atelier',
@@ -114,47 +121,83 @@
   </header>
 
   <div class="space-y-6">
-    <!-- Image rights banner -->
-    {#if !data.child.imageRightsSigned}
-      <div
-        class="overflow-hidden rounded-3xl border border-amber-200 bg-amber-50 shadow-lg shadow-amber-100/50 dark:border-amber-900/30 dark:bg-amber-950/20 dark:shadow-none"
-        in:fly={{ y: 20, duration: 400, delay: 200 }}
-      >
-        <div class="flex items-center justify-between p-6">
-          <div class="flex items-center gap-4">
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-900/30"
-            >
-              <FilePen class="h-6 w-6 text-amber-600" />
-            </div>
-            <div>
-              <p class="font-bold text-amber-800 dark:text-amber-300">
-                Droit à l'image non signé
-              </p>
-              <p class="text-sm text-amber-600 dark:text-amber-400">
-                La signature est requise pour continuer
-              </p>
+    <!-- Image rights: status + editable decision (revocable "à tout moment") -->
+    <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
+      {#if data.child.imageRightsStatus === 'undecided'}
+        <div
+          class="overflow-hidden rounded-3xl border border-amber-200 bg-amber-50 shadow-lg shadow-amber-100/50 dark:border-amber-900/30 dark:bg-amber-950/20 dark:shadow-none"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3 p-6">
+            <div class="flex items-center gap-4">
+              <div
+                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-900/30"
+              >
+                <FilePen class="h-6 w-6 text-amber-600" />
+              </div>
+              <div>
+                <p class="font-bold text-amber-800 dark:text-amber-300">
+                  Droit à l'image à renseigner
+                </p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">
+                  Indiquez si vous autorisez ou refusez l'utilisation de l'image
+                  de votre enfant.
+                </p>
+              </div>
             </div>
           </div>
-          <a
-            href={resolve('/parent/signature')}
-            class="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-amber-600/20 transition-all hover:bg-amber-700 active:scale-[0.98]"
-          >
-            Signer maintenant
-          </a>
+          <div class="border-t border-amber-200 p-6 dark:border-amber-900/30">
+            <ChildSignForm
+              child={data.child}
+              {droitImageBody}
+              {droitImageRefusalBody}
+              error={form?.error}
+            />
+          </div>
         </div>
-      </div>
-    {:else}
-      <div in:fly={{ y: 20, duration: 400, delay: 200 }}>
-        <Badge
-          variant="secondary"
-          class="gap-1.5 bg-emerald-50 px-3 py-1.5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-        >
-          <FileCheck class="h-3.5 w-3.5" />
-          Droit à l'image signé
-        </Badge>
-      </div>
-    {/if}
+      {:else}
+        <Collapsible.Root>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            {#if data.child.imageRightsStatus === 'accepted'}
+              <Badge
+                variant="secondary"
+                class="gap-1.5 bg-emerald-50 px-3 py-1.5 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+              >
+                <FileCheck class="h-3.5 w-3.5" />
+                Droit à l'image autorisé
+              </Badge>
+            {:else}
+              <Badge
+                variant="secondary"
+                class="gap-1.5 bg-red-50 px-3 py-1.5 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+              >
+                <X class="h-3.5 w-3.5" />
+                Droit à l'image refusé
+              </Badge>
+            {/if}
+            <Collapsible.Trigger
+              class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-epi-blue transition-colors hover:bg-epi-blue/10"
+            >
+              Modifier ma décision
+              <ChevronDown
+                class="h-4 w-4 transition-transform [[data-state=open]_&]:rotate-180"
+              />
+            </Collapsible.Trigger>
+          </div>
+          <Collapsible.Content>
+            <div
+              class="mt-4 rounded-3xl border border-slate-200/60 bg-white/60 p-6 dark:border-slate-800 dark:bg-slate-900/60"
+            >
+              <ChildSignForm
+                child={data.child}
+                {droitImageBody}
+                {droitImageRefusalBody}
+                error={form?.error}
+              />
+            </div>
+          </Collapsible.Content>
+        </Collapsible.Root>
+      {/if}
+    </div>
 
     <!-- Today's planning -->
     {#if data.todayPlanning}

@@ -6,22 +6,31 @@
  *   - resend  (default) → `./providers/resend.ts` (SDK)
  *   - mailjet           → `./providers/mailjet.ts` (REST via fetch)
  *
- * The `EMAIL_DEV_RECIPIENTS` redirect (see `./dev-redirect.ts`) is applied
- * here, before the provider sees the payload, so the dev-trap works
- * uniformly regardless of which backend is active.
+ * The dev-redirect (see `./dev-redirect.ts`) is applied here, before the
+ * provider sees the payload, so the dev-trap works uniformly regardless of
+ * which backend is active. Each send may steer the trap's destination via
+ * `SendOptions.devRedirect`; the trap itself is gated by `OUTBOUND_MODE`
+ * (`$lib/server/outbound`) — see `resolveMailRouting`.
  */
 
 import { mailProviderKind } from './config';
 import { resendProvider } from './providers/resend';
 import { mailjetProvider } from './providers/mailjet';
-import { parseDevRecipients, applyDevRedirect } from './dev-redirect';
-import type { MailMessage, MailProvider, SendEmailResult } from './types';
+import { resolveMailRouting, applyDevRedirect } from './dev-redirect';
+import type {
+  MailMessage,
+  MailProvider,
+  SendEmailResult,
+  SendOptions,
+} from './types';
 
 export type {
   MailAttachment,
   MailMessage,
   SendEmailFailure,
   SendEmailResult,
+  SendOptions,
+  DevRedirectControl,
 } from './types';
 export { MAIL_FROM, mailProviderKind } from './config';
 
@@ -34,18 +43,29 @@ const provider: MailProvider =
  */
 export const MAIL_BATCH_MAX = provider.batchMax;
 
+/** A trapped send with no safe destination — suppressed, surfaced as a loud
+ * permanent failure (see `OutboundRouting`'s `drop`). The provider is never
+ * called, so no real recipient is ever reached. */
+function droppedResult(reason: string): SendEmailResult {
+  return { ok: false, reason: 'dev_redirect_dropped', message: reason };
+}
+
 export async function sendEmail(
   payload: MailMessage,
+  opts?: SendOptions,
 ): Promise<SendEmailResult> {
-  const devRecipients = parseDevRecipients();
-  const final = devRecipients
-    ? applyDevRedirect(payload, devRecipients)
-    : payload;
+  const routing = resolveMailRouting(opts?.devRedirect);
+  if (routing.kind === 'drop') return droppedResult(routing.reason);
+  const final =
+    routing.kind === 'redirect'
+      ? applyDevRedirect(payload, routing.to)
+      : payload;
   return provider.send(final);
 }
 
 export async function sendEmailBatch(
   payloads: MailMessage[],
+  opts?: SendOptions,
 ): Promise<SendEmailResult[]> {
   if (payloads.length === 0) return [];
   if (payloads.length > MAIL_BATCH_MAX) {
@@ -53,10 +73,15 @@ export async function sendEmailBatch(
       `sendEmailBatch: ${payloads.length} > batch cap of ${MAIL_BATCH_MAX} (provider: ${provider.name})`,
     );
   }
-  const devRecipients = parseDevRecipients();
-  const finalPayloads = devRecipients
-    ? payloads.map((p) => applyDevRedirect(p, devRecipients))
-    : payloads;
+  const routing = resolveMailRouting(opts?.devRedirect);
+  if (routing.kind === 'drop') {
+    // One dropped outcome per payload, aligned by index like the provider would.
+    return payloads.map(() => droppedResult(routing.reason));
+  }
+  const finalPayloads =
+    routing.kind === 'redirect'
+      ? payloads.map((p) => applyDevRedirect(p, routing.to))
+      : payloads;
   return provider.sendBatch(finalPayloads);
 }
 
@@ -66,8 +91,11 @@ export async function sendEmailBatch(
  * from the onboarding flow). Keeps per-callsite ergonomics while
  * preserving the failure signal.
  */
-export async function sendEmailOrThrow(payload: MailMessage): Promise<string> {
-  const result = await sendEmail(payload);
+export async function sendEmailOrThrow(
+  payload: MailMessage,
+  opts?: SendOptions,
+): Promise<string> {
+  const result = await sendEmail(payload, opts);
   if (!result.ok) {
     throw new Error(`Mail ${result.reason}: ${result.message}`);
   }

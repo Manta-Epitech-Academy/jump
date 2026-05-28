@@ -1,0 +1,1 @@
+Je comprends qu'aucune photographie ni vidéo identifiant mon enfant ne sera diffusée par **Epitech** dans le cadre du stage de seconde, et que je peux à tout moment revenir sur ce choix en adressant une demande écrite à **Epitech**.

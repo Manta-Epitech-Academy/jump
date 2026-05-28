@@ -6,6 +6,8 @@ import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
+import { runWithRequestContext } from '$lib/server/requestContext';
+import { readArmedState } from '$lib/server/armRealSends';
 import { env } from '$env/dynamic/private';
 
 const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
@@ -81,6 +83,8 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.stagePhaseOverride = null;
   event.locals.impersonator = null;
   event.locals.talentCampusName = null;
+  event.locals.armedRealSends = false;
+  event.locals.armedRealSendsUntil = null;
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -149,6 +153,8 @@ export const handle: Handle = async ({ event, resolve }) => {
               id: true,
               staffRole: true,
               campus: { select: { name: true } },
+              devRedirectEmails: true,
+              devRedirectPhones: true,
             },
           },
         },
@@ -160,6 +166,8 @@ export const handle: Handle = async ({ event, resolve }) => {
           staffProfileId: adminRecord.staffProfile?.id ?? null,
           staffRole: adminRecord.staffProfile?.staffRole ?? null,
           campusName: adminRecord.staffProfile?.campus?.name ?? null,
+          devRedirectEmails: adminRecord.staffProfile?.devRedirectEmails ?? [],
+          devRedirectPhones: adminRecord.staffProfile?.devRedirectPhones ?? [],
         };
       }
     }
@@ -192,7 +200,35 @@ export const handle: Handle = async ({ event, resolve }) => {
     return guardResponse;
   }
 
-  const response = await resolve(event);
+  // Run the route (loads + actions) inside a request context carrying the
+  // acting human's email, so the dev-redirect trap can route trapped mail to
+  // whoever drove the request rather than the shared env list. Captured here,
+  // after `locals.user` is hydrated; inherited by fire-and-forget sends the
+  // route schedules (e.g. the onboarding parent-welcome mail).
+  //
+  // Prefer the impersonator: when staff impersonate a talent to test the
+  // onboarding flow, the *real* human is the admin behind the session, and
+  // their `@epitech.eu` address is a real mailbox — whereas the impersonated
+  // talent's email is often a seeded placeholder no one can receive. So the
+  // designed "experience it as a talent" path (impersonation) traps mail to
+  // the tester regardless of the talent's email. The same human owns the
+  // personal dev-redirect lists the trap prefers over the env fallback.
+  const actingStaff = event.locals.impersonator ?? event.locals.staffProfile;
+  // Armed real sends: a deliberate, signed, auto-expiring per-user override
+  // that lifts the dev-redirect trap for the human's own session.
+  const armed = readArmedState(event);
+  event.locals.armedRealSends = armed.armed;
+  event.locals.armedRealSendsUntil = armed.until;
+  const response = await runWithRequestContext(
+    {
+      actorEmail:
+        event.locals.impersonator?.email ?? event.locals.user?.email ?? null,
+      devRedirectEmails: actingStaff?.devRedirectEmails ?? [],
+      devRedirectPhones: actingStaff?.devRedirectPhones ?? [],
+      armedRealSends: armed.armed,
+    },
+    () => resolve(event),
+  );
   setSecurityHeaders(response);
 
   return response;

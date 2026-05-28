@@ -32,6 +32,7 @@
     RELANCE_SMS_DEFAULTS,
     type RelanceTemplate,
   } from '$lib/domain/relanceTemplates';
+  import { smsSegments } from '$lib/domain/sms';
   import {
     RELANCE_BODY_MAX,
     RELANCE_SUBJECT_MAX,
@@ -138,16 +139,9 @@
       .filter(Boolean),
   );
 
-  // Rough GSM-7 segment estimate: a single SMS holds 160 chars, multi-part
-  // messages 153 each. Accented chars would force UCS-2 (70/segment) but the
-  // default body is ASCII; staff see the count drift if they paste accents.
-  const smsSegments = $derived(
-    body.length === 0
-      ? 0
-      : body.length <= 160
-        ? 1
-        : Math.ceil(body.length / 153),
-  );
+  // Segment count via the shared SMS sizer (relance bodies are link-free, so
+  // the estimate is just the length). Single source with the broadcast editor.
+  const smsSegmentCount = $derived(smsSegments(body.length));
 
   const channelBlocked = $derived(isSms ? !smsEnabled : !hasMapping);
 
@@ -372,7 +366,7 @@
                     : 'text-muted-foreground',
                 )}
               >
-                {body.length}/{RELANCE_SMS_BODY_MAX} · {smsSegments} SMS
+                {body.length}/{RELANCE_SMS_BODY_MAX} caractères
               </span>
             {/if}
           </div>
@@ -386,6 +380,13 @@
             required
             class="min-h-32 rounded-sm font-mono text-xs leading-relaxed"
           />
+          {#if isSms && smsSegmentCount > 1}
+            <p class="text-[10px] text-amber-600 dark:text-amber-500">
+              Plus de 160 caractères : ce message arrivera découpé en {smsSegmentCount}
+              SMS sur le téléphone du destinataire, et compte pour {smsSegmentCount}
+              envois.
+            </p>
+          {/if}
           <div
             class="flex flex-wrap items-center gap-1 font-mono text-[10px] text-muted-foreground"
           >

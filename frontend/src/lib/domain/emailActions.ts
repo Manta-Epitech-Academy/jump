@@ -61,7 +61,7 @@ export const EMAIL_ACTIONS = {
     key: 'relance_parent',
     label: 'Relance — parent',
     description:
-      "Envoyé par le staff dev pour pousser un parent à signer le droit à l'image. Brouillon éditable avant envoi. Préférez {{parent_fastlogin_link}} (connexion sans code) ; {{login_link}} reste un repli.",
+      "Envoyé par le staff dev pour pousser un parent à renseigner le droit à l'image (autorisation ou refus). Brouillon éditable avant envoi. Préférez {{parent_fastlogin_link}} (connexion sans code) ; {{login_link}} reste un repli.",
     variables: [
       'parent_prenom',
       'parent_nom',

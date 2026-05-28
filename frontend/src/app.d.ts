@@ -46,7 +46,18 @@ declare global {
         staffProfileId: string | null;
         staffRole: StaffRole | null;
         campusName: string | null;
+        /** The impersonator's own dev-redirect lists (see StaffProfile). */
+        devRedirectEmails: string[];
+        devRedirectPhones: string[];
       } | null;
+      /**
+       * Whether the current user has armed "real sends" on a trapped env (see
+       * `$lib/server/armRealSends`). Drives the global red banner; the trap
+       * itself reads it via the request context.
+       */
+      armedRealSends: boolean;
+      /** When the current arm auto-disarms, or null if not armed. */
+      armedRealSendsUntil: Date | null;
     }
     // interface PageData {}
     // interface PageState {}
