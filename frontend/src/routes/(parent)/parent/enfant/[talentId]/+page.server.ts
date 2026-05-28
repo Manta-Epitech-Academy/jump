@@ -29,6 +29,10 @@ export const load: PageServerLoad = async ({ locals, params, cookies }) => {
       nom: true,
       parentEmail: true,
       imageRightsDecision: true,
+      // Pre-fill the signer-name inputs from what the talent entered during
+      // onboarding — same rationale as `/parent/signature` and `/parent/reglement`.
+      parentPrenom: true,
+      parentNom: true,
     },
   });
 
@@ -208,7 +212,8 @@ export const actions: Actions = {
     }
 
     const formData = await request.formData();
-    const signerName = (formData.get('signerName') as string)?.trim();
+    const signerPrenom = (formData.get('signerPrenom') as string)?.trim();
+    const signerNom = (formData.get('signerNom') as string)?.trim();
     const relationship = (formData.get('relationship') as string)?.trim();
     const city = (formData.get('city') as string)?.trim();
     const decision = formData.get('decision');
@@ -227,8 +232,11 @@ export const actions: Actions = {
         error: "Veuillez choisir d'autoriser ou de refuser le droit à l'image.",
       };
     }
-    if (!signerName || signerName.length < 2) {
-      return { error: 'Veuillez entrer votre nom complet.' };
+    if (!signerPrenom || signerPrenom.length < 1) {
+      return { error: 'Veuillez entrer votre prénom.' };
+    }
+    if (!signerNom || signerNom.length < 1) {
+      return { error: 'Veuillez entrer votre nom.' };
     }
     if (!relationship) {
       return { error: 'Veuillez indiquer votre qualité (mère, père, tuteur).' };
@@ -241,7 +249,8 @@ export const actions: Actions = {
       talentId: child.id,
       studentName: `${child.prenom} ${child.nom}`,
       decision,
-      signerName,
+      signerPrenom,
+      signerNom,
       relationship,
       city,
     });

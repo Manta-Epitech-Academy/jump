@@ -127,6 +127,7 @@ export async function sendRelances(
       infoValidatedAt: true,
       rulesSignedAt: true,
       charterAcceptedAt: true,
+      parentRulesSignedAt: true,
       imageRightsDecidedAt: true,
       // Fall back to the auth email when talent.email is unset — student
       // pages surface user.email as the canonical contact, and skipping

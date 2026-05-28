@@ -48,21 +48,43 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   // Signed onboarding documents the talent can review. Only the ones actually
-  // signed are surfaced; `signerName` is set for the image-rights authorisation,
-  // which a legal guardian signs on the talent's behalf.
+  // signed surface here; `signerName` carries a legal guardian's name for
+  // image-rights (which they alone decide), and `coSigner` carries the same for
+  // the règlement (which the guardian co-signs on top of the talent's own
+  // signature — both signature events live on the single shared PDF).
   const documents = TALENT_VIEWABLE_DOCUMENTS.map((type) =>
     projectTalentDocument(locals.talent!, type),
   )
     .filter(
       (doc): doc is typeof doc & { signedAt: Date } => doc.signedAt !== null,
     )
-    .map((doc) => ({
-      ...doc,
-      signerName:
-        doc.type === 'image-rights'
-          ? locals.talent!.imageRightsSignerName
-          : null,
-    }));
+    .map((doc) => {
+      if (doc.type === 'image-rights') {
+        const prenom = locals.talent!.imageRightsSignerPrenom;
+        const nom = locals.talent!.imageRightsSignerNom;
+        return {
+          ...doc,
+          signerName: prenom && nom ? `${prenom} ${nom}` : (nom ?? prenom),
+          coSigner: null as { name: string; signedAt: Date } | null,
+        };
+      }
+      if (doc.type === 'rules') {
+        const parentSignedAt = locals.talent!.parentRulesSignedAt;
+        const prenom = locals.talent!.parentRulesSignerPrenom;
+        const nom = locals.talent!.parentRulesSignerNom;
+        const parentSignerName =
+          prenom && nom ? `${prenom} ${nom}` : (nom ?? prenom);
+        return {
+          ...doc,
+          signerName: null,
+          coSigner:
+            parentSignedAt && parentSignerName
+              ? { name: parentSignerName, signedAt: parentSignedAt }
+              : null,
+        };
+      }
+      return { ...doc, signerName: null, coSigner: null };
+    });
 
   return { talent: locals.talent, participationsCount, deletion, documents };
 };

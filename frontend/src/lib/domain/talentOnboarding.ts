@@ -9,11 +9,12 @@
  * gates on the whole ladder being complete plus the charter being accepted.
  *
  * "Platform onboarding" (login → fill profile → sign règlement online) overlaps
- * too much with the staff-validated paper docs to be a useful *cohort* metric —
- * `stageCompliance.charteSigned` already covers that artifact. The signal stays
- * interesting on a *single* talent (did this person make it past the welcome
- * email, and where would impersonation drop me?), which is what this module is
- * scoped to.
+ * too much with the règlement-compliance signals to be a useful *cohort* metric
+ * — the guardian's `parentRulesSignedAt` (canonical online co-signature) and
+ * the per-event `stageCompliance.charteSigned` (offline-fallback staff toggle)
+ * already cover that artifact. The signal stays interesting on a *single*
+ * talent (did this person make it past the welcome email, and where would
+ * impersonation drop me?), which is what this module is scoped to.
  */
 
 export type OnboardingStep =

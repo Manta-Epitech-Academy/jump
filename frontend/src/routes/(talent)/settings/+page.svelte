@@ -150,7 +150,7 @@
                 </div>
                 <div class="min-w-0 flex-1">
                   <p
-                    class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
+                    class="text-sm leading-tight font-bold text-slate-800 dark:text-slate-200"
                   >
                     {doc.label}
                   </p>
@@ -161,6 +161,13 @@
                       Signé le {formatDateFr(doc.signedAt)}
                     {/if}
                   </p>
+                  {#if doc.coSigner}
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">
+                      Co-signé par {doc.coSigner.name} le {formatDateFr(
+                        doc.coSigner.signedAt,
+                      )}
+                    </p>
+                  {/if}
                 </div>
                 {#if doc.ready}
                   <Button

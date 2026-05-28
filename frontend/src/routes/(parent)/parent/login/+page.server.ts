@@ -132,15 +132,16 @@ export const actions: Actions = {
       );
     }
 
-    // Route to the decision flow if any child still awaits a decision.
-    const undecidedCount = await prisma.talent.count({
+    // Route into the flow if any child still has something pending — the
+    // règlement intérieur to co-sign or an image-rights decision to make.
+    const pendingCount = await prisma.talent.count({
       where: {
         parentEmail: normalizedEmail,
-        imageRightsDecidedAt: null,
+        OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }],
       },
     });
 
-    if (undecidedCount > 0) {
+    if (pendingCount > 0) {
       throw redirect(303, resolve('/parent/welcome'));
     }
 

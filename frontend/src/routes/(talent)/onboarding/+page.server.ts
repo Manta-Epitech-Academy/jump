@@ -487,6 +487,7 @@ export const actions: Actions = {
         where: { id: talentId },
         data: {
           rulesSignedAt: now,
+          rulesSignedCity: city,
           charterAcceptedAt: now,
         },
       });

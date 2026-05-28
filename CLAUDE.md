@@ -216,6 +216,8 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
   import { Trash2 } from "@lucide/svelte";
   ```
 
+- **Prose punctuation:** Never write em-dashes (`—`, U+2014) or en-dashes (`–`, U+2013) in any prose Claude generates. This covers code comments, commit messages, PR descriptions, chat responses, and documentation. Use a regular hyphen `-`, a comma, a colon, parentheses, or two sentences instead. Reason: em-dashes are a tell of AI-generated text and we want our writing to read as human. Pre-existing em-dashes in this file and in unrelated prose are not in scope to retrofit; the rule is forward-looking.
+
 ## Constraints
 
 - **RGPD:** Some users are minors. The charter must be signed before accessing the app. Anonymization job available via `POST /api/jobs/anonymize` with `Authorization: Bearer <CRON_SECRET>`. Never store personal data unnecessarily.

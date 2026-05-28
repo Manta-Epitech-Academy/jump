@@ -161,13 +161,16 @@
         >Téléphone <span class="text-red-500">*</span></Label
       >
       <PhoneInput
+        id="phone"
         name="phone"
         value={profile?.phone || ''}
         placeholder="06 12 34 56 78"
         required
+        error={!!errors?.phone}
+        aria-describedby={errors?.phone ? 'phone-error' : undefined}
         class={fieldInput}
       />
-      {#if errors?.phone}<span class="text-xs text-destructive"
+      {#if errors?.phone}<span id="phone-error" class="text-xs text-destructive"
           >{errors.phone[0]}</span
         >{/if}
     </div>

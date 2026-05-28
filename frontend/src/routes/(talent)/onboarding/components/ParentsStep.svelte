@@ -218,14 +218,20 @@
           >Téléphone <span class="text-red-500">*</span></Label
         >
         <PhoneInput
+          id="parentPhone"
           name="parentPhone"
           value={profile?.parentPhone || ''}
           placeholder="06 12 34 56 78"
           required
+          error={!!errors?.parentPhone}
+          aria-describedby={errors?.parentPhone
+            ? 'parentPhone-error'
+            : undefined}
           class={fieldInput}
         />
-        {#if errors?.parentPhone}<span class="text-xs text-destructive"
-            >{errors.parentPhone[0]}</span
+        {#if errors?.parentPhone}<span
+            id="parentPhone-error"
+            class="text-xs text-destructive">{errors.parentPhone[0]}</span
           >{/if}
       </div>
     </div>
@@ -351,11 +357,20 @@
         <div>
           <Label for="parent2Phone" class={fieldLabel}>Téléphone</Label>
           <PhoneInput
+            id="parent2Phone"
             name="parent2Phone"
             value={profile?.parent2Phone || ''}
             placeholder="06 12 34 56 78"
+            error={!!errors?.parent2Phone}
+            aria-describedby={errors?.parent2Phone
+              ? 'parent2Phone-error'
+              : undefined}
             class={fieldInput}
           />
+          {#if errors?.parent2Phone}<span
+              id="parent2Phone-error"
+              class="text-xs text-destructive">{errors.parent2Phone[0]}</span
+            >{/if}
         </div>
       </div>
     </div>

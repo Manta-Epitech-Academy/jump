@@ -1,0 +1,214 @@
+<script lang="ts">
+  import { untrack, type Snippet } from 'svelte';
+  import type { ActionResult } from '@sveltejs/kit';
+  import { enhance } from '$app/forms';
+  import { Button } from '$lib/components/ui/button';
+  import * as Select from '$lib/components/ui/select';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+
+  // Shared signature shell for the parent flow's two co-signed acts: the
+  // règlement intérieur (single accept) and the droit-à-l'image decision
+  // (accept *or* refuse). Both surface the same legal frame — "Je soussigné(e),
+  // … agissant en qualité de …, Fait à …, le …" plus a per-child signer
+  // identity — and differ only in how the declaration sentence ends and which
+  // decision artifact the parent ticks. Callers inject those two pieces as
+  // snippets along with the form action, submit visuals, and analytics hook,
+  // so each act keeps its own colour-coded button without the shell knowing
+  // about decisions.
+
+  interface Props {
+    child: {
+      id: string;
+      prenom: string;
+      nom: string;
+      /**
+       * Talent-entered guardian identity from onboarding — used to pre-fill the
+       * signer fields below. The guardian can still override (e.g. their legal
+       * name differs from what the talent typed in casually).
+       */
+      parentPrenom?: string | null;
+      parentNom?: string | null;
+    };
+    /** Form action target, e.g. `?/sign` or `?/decide`. */
+    action: string;
+    /** Inline form error to surface above the declaration. */
+    error?: string;
+    /**
+     * Caller-owned extra validation gate, AND-ed with the shell's own check on
+     * signer prénom + nom + relationship + city (e.g. the accept checkbox for
+     * rules, a settled decision for image-rights).
+     */
+    extraValid: boolean;
+    /**
+     * Inline tail of the "Je soussigné(e)…" sentence, rendered immediately
+     * after the relationship select. Each act terminates the sentence
+     * differently — image: "concernant l'utilisation…" / rules: "reconnais
+     * avoir pris connaissance…".
+     */
+    declarationTail: Snippet;
+    /**
+     * Decision artifact rendered between the declaration and the place+date
+     * row — the rules accept checkbox, or the image accept/refuse buttons +
+     * legal body. Caller also owns any extra hidden inputs (e.g. `decision`):
+     * a `<input type="hidden">` rendered inside this snippet lands inside the
+     * <form> and is submitted with the rest.
+     */
+    artifact?: Snippet;
+    /** Tailwind classes for the submit button — caller controls colour. */
+    submitClass: string;
+    /** Idle label of the submit button. A spinner replaces it while submitting. */
+    submitLabel: Snippet;
+    /** Notified with the action result so callers can fire analytics. */
+    onResult?: (result: ActionResult) => void;
+  }
+
+  let {
+    child,
+    action,
+    error,
+    extraValid,
+    declarationTail,
+    artifact,
+    submitClass,
+    submitLabel,
+    onResult,
+  }: Props = $props();
+
+  // Pre-fill from the talent-entered guardian identity; the parent can edit if
+  // their legal name differs. Structured as prénom + nom so the signed PDF
+  // reads symmetrically with the talent's own signature. `untrack` makes the
+  // initial-value capture explicit — once the form mounts, the parent's edits
+  // own the state, not later changes to the `child` prop.
+  let signerPrenom = $state(untrack(() => child.parentPrenom ?? ''));
+  let signerNom = $state(untrack(() => child.parentNom ?? ''));
+  let relationship = $state('');
+  let city = $state('');
+  let submitting = $state(false);
+
+  const canSubmit = $derived(
+    extraValid &&
+      signerPrenom.trim().length >= 1 &&
+      signerNom.trim().length >= 1 &&
+      relationship !== '' &&
+      city.trim().length >= 1 &&
+      !submitting,
+  );
+
+  const today = new Date().toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+</script>
+
+<div class="mb-6 space-y-4">
+  <!-- Child name header -->
+  <div
+    class="rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+  >
+    <h2 class="text-base font-bold text-slate-900 dark:text-white">
+      {child.prenom}
+      {child.nom}
+    </h2>
+  </div>
+
+  <form
+    method="POST"
+    {action}
+    use:enhance={() => {
+      submitting = true;
+      return async ({ result, update }) => {
+        onResult?.(result);
+        await update();
+        submitting = false;
+      };
+    }}
+    class="space-y-4"
+  >
+    <input type="hidden" name="talentId" value={child.id} />
+
+    {#if error}
+      <p
+        class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-900/30 dark:text-red-400"
+      >
+        {error}
+      </p>
+    {/if}
+
+    <!-- Declaration -->
+    <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
+      <p>
+        Je soussigné(e), Mme/Mr
+        <input
+          name="signerPrenom"
+          type="text"
+          bind:value={signerPrenom}
+          placeholder="Prénom"
+          required
+          autocomplete="given-name"
+          class="inline-block w-32 rounded-lg border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+        />
+        <input
+          name="signerNom"
+          type="text"
+          bind:value={signerNom}
+          placeholder="Nom"
+          required
+          autocomplete="family-name"
+          class="inline-block w-32 rounded-lg border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+        />
+        agissant en qualité de
+        <input type="hidden" name="relationship" value={relationship} />
+        <Select.Root type="single" bind:value={relationship}>
+          <Select.Trigger
+            class="inline-flex h-auto w-auto gap-1 rounded-lg border-slate-300 bg-white px-2 py-1 align-middle text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          >
+            {#if relationship}
+              {relationship}
+            {:else}
+              <span class="text-slate-400">(choisir)</span>
+            {/if}
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Item value="mère" label="mère" />
+            <Select.Item value="père" label="père" />
+            <Select.Item value="tuteur légal" label="tuteur légal" />
+            <Select.Item value="tutrice légale" label="tutrice légale" />
+          </Select.Content>
+        </Select.Root>{@render declarationTail()}
+      </p>
+    </div>
+
+    {#if artifact}{@render artifact()}{/if}
+
+    <!-- Place + date -->
+    <div
+      class="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+        >Fait à</span
+      >
+      <input
+        name="city"
+        type="text"
+        bind:value={city}
+        placeholder="Ville"
+        required
+        class="w-40 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+      />
+      <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+        >, le {today}</span
+      >
+    </div>
+
+    <!-- Submit -->
+    <Button type="submit" disabled={!canSubmit} class={submitClass}>
+      {#if submitting}
+        <LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+        Enregistrement en cours...
+      {:else}
+        {@render submitLabel()}
+      {/if}
+    </Button>
+  </form>
+</div>

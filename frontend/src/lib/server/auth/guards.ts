@@ -97,6 +97,7 @@ export async function applyRouteGuards(
   const pathParentLogin = p('/parent/login');
   const pathParentFastlogin = p('/parent/fastlogin');
   const pathParentWelcome = p('/parent/welcome');
+  const pathParentReglement = p('/parent/reglement');
   const pathParentSignature = p('/parent/signature');
   const pathParentMerci = p('/parent/merci');
 
@@ -302,22 +303,25 @@ export async function applyRouteGuards(
       return Response.redirect(new URL(pathParentWelcome, event.url).href, 303);
     }
 
-    // Parent flow: welcome → signature → merci
-    // Parents with a child still awaiting a decision go through welcome → signature.
-    // Once every child has a settled decision (authorized *or* refused), they
-    // land on /parent/merci (no dashboard in this release).
+    // Parent flow: welcome → règlement → droit-image → merci
+    // The guardian has two legal acts per child — co-signing the règlement
+    // intérieur and deciding image rights. A child is "pending" until both are
+    // settled (a refusal counts as a settled image-rights decision). While any
+    // child is pending the parent stays inside the flow pages, which order the
+    // steps themselves and skip whatever is already done. Once nothing is
+    // pending they land on /parent/merci (no dashboard in this release).
     if (event.locals.user?.role === 'parent' && !isParentPublic) {
-      const undecidedCount = await prisma.talent.count({
+      const pendingCount = await prisma.talent.count({
         where: {
           parentEmail: event.locals.user.email,
-          imageRightsDecidedAt: null,
+          OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }],
         },
       });
 
-      if (undecidedCount > 0) {
-        // Still awaiting a decision — only allow welcome and signature pages
+      if (pendingCount > 0) {
         if (
           currentPath !== pathParentWelcome &&
+          currentPath !== pathParentReglement &&
           currentPath !== pathParentSignature
         ) {
           return Response.redirect(

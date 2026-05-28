@@ -68,6 +68,9 @@
         margin-top: 56px;
         text-align: right;
       }
+      .signature + .signature {
+        margin-top: 32px;
+      }
       .signature-label {
         font-size: 13px;
         color: #64748b;
@@ -79,6 +82,11 @@
         line-height: 1.1;
         color: #0f172a;
         margin: 4px 0 0 0;
+      }
+      .signature-meta {
+        font-size: 12px;
+        color: #64748b;
+        margin: 6px 0 0 0;
       }
     </style>
   </head>
@@ -93,11 +101,27 @@
     <!-- nosemgrep: javascript.express.security.audit.xss.ejs.explicit-unescape.template-explicit-unescape -->
     <div class="content"><%- data.documentContent %></div>
 
-    <% if (data.type === 'rules') { %>
+    <% if (data.type === 'rules') { %> <% if (data.rules && data.rules.talent) {
+    %>
     <div class="signature">
       <p class="signature-label">Lu et approuvé — Signature du stagiaire</p>
       <p class="signature-name"><%= data.studentName %></p>
+      <p class="signature-meta">
+        Fait à <%= data.rules.talent.city %>, le <%= data.rules.talent.date %>
+      </p>
     </div>
-    <% } %>
+    <% } %> <% if (data.rules && data.rules.parent) { %>
+    <div class="signature">
+      <p class="signature-label">
+        Lu et approuvé — Le représentant légal<% if
+        (data.rules.parent.relationship) { %> (<%=
+        data.rules.parent.relationship %>)<% } %> de <%= data.studentName %>
+      </p>
+      <p class="signature-name"><%= data.rules.parent.signerName %></p>
+      <p class="signature-meta">
+        Fait à <%= data.rules.parent.city %>, le <%= data.rules.parent.date %>
+      </p>
+    </div>
+    <% } %> <% } %>
   </body>
 </html>

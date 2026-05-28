@@ -27,6 +27,10 @@ import {
 import { stageEndOrDefault } from '$lib/server/services/stageContext';
 import { deriveEventAlerts } from '$lib/server/services/eventTasks';
 import { getEventOrgaSlotsWithCounts } from '$lib/domain/presences';
+import {
+  imageRightsCompliantWhere,
+  rulesCompliantWhere,
+} from '$lib/server/db/stageCompliance';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -159,12 +163,12 @@ async function loadStagePrep(ctx: LoaderCtx) {
       db.participation.count({ where: { eventId: event.id } }),
       // Validation funnel only — bringing a PC is logistics (we just plan
       // the laptops), not a doc to validate.
+      // "Dossier admin" = both gates green: règlement OR offline-fallback,
+      // AND image-rights decided (refusal counts as decided).
       db.participation.count({
         where: {
           eventId: event.id,
-          stageCompliance: { charteSigned: true },
-          // Image rights are resolved once the guardian has decided either way.
-          talent: { imageRightsDecidedAt: { not: null } },
+          AND: [rulesCompliantWhere, imageRightsCompliantWhere],
         },
       }),
       loadLyceesBreakdown(db, event.id),
@@ -311,16 +315,10 @@ async function loadStagePast({ db, event }: LoaderCtx) {
         where: { participation: { eventId: event.id }, status: 'completed' },
       }),
       db.participation.count({
-        where: {
-          eventId: event.id,
-          stageCompliance: { charteSigned: true },
-        },
+        where: { eventId: event.id, ...rulesCompliantWhere },
       }),
       db.participation.count({
-        where: {
-          eventId: event.id,
-          talent: { imageRightsDecidedAt: { not: null } },
-        },
+        where: { eventId: event.id, ...imageRightsCompliantWhere },
       }),
       db.participation.count({
         where: { eventId: event.id, bringPc: true },
