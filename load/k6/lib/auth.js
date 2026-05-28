@@ -44,3 +44,22 @@ export function requireEnv() {
   if (!secret) fail('Missing env LOAD_TEST_SECRET');
   return { baseUrl, secret };
 }
+
+/**
+ * POST a form-urlencoded body to a SvelteKit action.
+ *
+ * SvelteKit's CSRF guard (`@sveltejs/kit/src/runtime/server/respond.js`,
+ * gated by `if (!DEV)`) rejects form POSTs whose `Origin` header doesn't
+ * match `url.origin` with a 403. k6 doesn't set `Origin` by default, so
+ * every form POST passes in `bun run dev` and fails in any prod build
+ * (preprod included). Set it here so callers don't have to remember.
+ */
+export function formPost(baseUrl, path, body, params = {}) {
+  return http.post(`${baseUrl}${path}`, body, {
+    ...params,
+    headers: {
+      Origin: baseUrl,
+      ...(params.headers || {}),
+    },
+  });
+}

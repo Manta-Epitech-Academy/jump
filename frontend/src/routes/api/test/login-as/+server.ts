@@ -20,7 +20,11 @@ import { prisma } from '$lib/server/db';
  *   - 404 unless `LOAD_TEST_SECRET` is set server-side. Keep out of prod.
  *   - Bearer must match that secret.
  */
-const SESSION_COOKIE_NAME = 'better-auth.session_token';
+// BetterAuth prefixes the cookie with `__Secure-` whenever it issues secure
+// cookies (https origin or production). Mirror that here, otherwise on
+// preprod (https) we'd write `better-auth.session_token` while `getSession()`
+// reads `__Secure-better-auth.session_token` — silent auth miss.
+const SESSION_COOKIE_BASENAME = 'better-auth.session_token';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function signCookieValue(value: string, secret: string): string {
@@ -65,9 +69,13 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const cookieValue = signCookieValue(sessionToken, authSecret);
   const url = new URL(request.url);
-  const secureAttr = url.protocol === 'https:' ? '; Secure' : '';
+  const isHttps = url.protocol === 'https:';
+  const cookieName = isHttps
+    ? `__Secure-${SESSION_COOKIE_BASENAME}`
+    : SESSION_COOKIE_BASENAME;
+  const secureAttr = isHttps ? '; Secure' : '';
   const setCookie =
-    `${SESSION_COOKIE_NAME}=${cookieValue}; Path=/; HttpOnly; SameSite=Lax; ` +
+    `${cookieName}=${cookieValue}; Path=/; HttpOnly; SameSite=Lax; ` +
     `Max-Age=${SESSION_TTL_MS / 1000}${secureAttr}`;
 
   return new Response(

@@ -1,6 +1,5 @@
-import http from 'k6/http';
 import { check, fail } from 'k6';
-import { loginAs, requireEnv } from '../lib/auth.js';
+import { formPost, loginAs, requireEnv } from '../lib/auth.js';
 import { data } from '../lib/manifest.js';
 
 // Signature burst: N seeded "load-test" talents POST signRules at the same
@@ -49,19 +48,22 @@ export function setup() {
 }
 
 export default function (ctx) {
-  // Each iteration claims one unique talent so signRules doesn't 400 on a
-  // second attempt (rulesSignedAt would already be set).
+  // Spread iterations across the seeded pool. Re-signing the same talent
+  // isn't a hard error (signRules has no "already signed" guard — it just
+  // overwrites rulesSignedAt and enqueues another OnboardingPdfJob row),
+  // but spreading keeps the workload representative of distinct users.
   const idx = (__VU - 1) * 1000 + __ITER;
   const talent = ctx.pool[idx % ctx.pool.length];
 
   loginAs(baseUrl, secret, { email: talent.email });
 
   // signRules action — SvelteKit form action via ?/signRules. Body is
-  // x-www-form-urlencoded and includes the `city` field expected by the
-  // rulesSchema.
-  const res = http.post(
-    `${baseUrl}/onboarding?/signRules`,
-    { city: 'Paris' },
+  // x-www-form-urlencoded; rulesSchema requires `city` plus both consents
+  // as `z.literal('true')` (RGPD enforcement, see validation/onboarding.ts).
+  const res = formPost(
+    baseUrl,
+    '/onboarding?/signRules',
+    { city: 'Paris', acceptedCharter: 'true', acceptedRules: 'true' },
     {
       redirects: 0, // we expect a 303 to /?welcome=1 — don't follow it
       tags: { endpoint: 'sign' },

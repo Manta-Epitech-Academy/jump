@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, sleep, group, fail } from 'k6';
-import { loginAs, requireEnv } from '../lib/auth.js';
+import { formPost, loginAs, requireEnv } from '../lib/auth.js';
 import { data, pick } from '../lib/manifest.js';
 
 // Mixed workload: closest thing to "real concurrent traffic" — talents
@@ -121,8 +121,9 @@ export function cockpitToggle(ctx) {
   loginAs(baseUrl, secret, { email: staff.email });
 
   const state = __ITER % 2 === 0 ? 'true' : 'false';
-  const r = http.post(
-    `${baseUrl}/staff/pedago/events/${target.eventId}/cockpit/${target.activityId}?/togglePresent`,
+  const r = formPost(
+    baseUrl,
+    `/staff/pedago/events/${target.eventId}/cockpit/${target.activityId}?/togglePresent`,
     { id: target.participationId, state },
     {
       redirects: 0,

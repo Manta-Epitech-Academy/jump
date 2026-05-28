@@ -1,6 +1,5 @@
-import http from 'k6/http';
 import { check, fail } from 'k6';
-import { loginAs, requireEnv } from '../lib/auth.js';
+import { formPost, loginAs, requireEnv } from '../lib/auth.js';
 import { data, pick } from '../lib/manifest.js';
 
 // Cockpit mark-present: pedago staff toggling ParticipationActivity.isPresent
@@ -60,8 +59,9 @@ export default function (ctx) {
   // Toggle alternates between true/false on consecutive iterations so the
   // ledger writes flip both directions over time.
   const state = __ITER % 2 === 0 ? 'true' : 'false';
-  const res = http.post(
-    `${baseUrl}/staff/pedago/events/${target.eventId}/cockpit/${target.activityId}?/togglePresent`,
+  const res = formPost(
+    baseUrl,
+    `/staff/pedago/events/${target.eventId}/cockpit/${target.activityId}?/togglePresent`,
     { id: target.participationId, state },
     {
       redirects: 0,
