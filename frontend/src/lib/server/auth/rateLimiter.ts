@@ -98,22 +98,19 @@ export async function checkRateLimit(
   const cutoff = new Date(Date.now() - windowMs);
   const normalized = normalize(email);
 
-  const count = await prisma.otpAttempt.count({
-    where: { bucket, email: normalized, createdAt: { gt: cutoff } },
-  });
-  if (count < max) return { allowed: true };
-
-  // Cap hit: locate the oldest in-window row to compute retry-after. A separate
-  // query (vs. `findMany`) so we don't pull all 5+ rows when we only need one.
-  const oldest = await prisma.otpAttempt.findFirst({
+  // One read covers both questions: is the count at the cap, and (if so) when
+  // does the oldest in-window attempt age out? `take: max` caps the scan; we
+  // never need more than that to answer either question.
+  const attempts = await prisma.otpAttempt.findMany({
     where: { bucket, email: normalized, createdAt: { gt: cutoff } },
     orderBy: { createdAt: 'asc' },
+    take: max,
     select: { createdAt: true },
   });
-  if (!oldest) return { allowed: true }; // raced with the sweep; treat as cleared
+  if (attempts.length < max) return { allowed: true };
 
   const retryAfterSeconds = Math.ceil(
-    (oldest.createdAt.getTime() + windowMs - Date.now()) / 1000,
+    (attempts[0]!.createdAt.getTime() + windowMs - Date.now()) / 1000,
   );
   return { allowed: false, retryAfterSeconds };
 }
