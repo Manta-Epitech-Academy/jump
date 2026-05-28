@@ -17,11 +17,10 @@
  *
  *   - HS256 signed with the 256-bit `BETTER_AUTH_SECRET`, so brute-forcing
  *     a valid token is infeasible. The consuming routes (`/fastlogin`,
- *     `/parent/fastlogin`) deliberately skip the IP-keyed rate-limiter
- *     that guards `/login` OTP verify: against an unguessable token an
- *     IP bucket adds nothing, and it would lock out legitimate cohorts
- *     opening a broadcast from a shared NAT (school wifi, sibling
- *     households).
+ *     `/parent/fastlogin`) deliberately skip the email-keyed rate-limiter
+ *     that guards `/login` OTP request + verify: against an unguessable
+ *     token an attempt bucket adds nothing, and `/fastlogin` is the
+ *     canonical path 200 students take on the same school NAT.
  *
  *   - Known replay gap: 30-day TTL, no `jti` / replay store. A holder of
  *     one valid link can call their fastlogin route repeatedly and

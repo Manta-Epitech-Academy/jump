@@ -1,113 +1,142 @@
 /**
- * In-memory rate limiter for the email-OTP verify actions (talent + parent
- * login). Counts *failed* attempts by client IP; once MAX_ATTEMPTS land
- * inside a WINDOW_MS sliding window the IP is blocked until the oldest
- * recorded failure ages out. Successful sign-ins do not consume the budget,
- * so a stage_seconde cohort or sibling-household NAT cannot lock itself out
- * by simply logging in correctly. Expired entries are garbage-collected
- * every CLEANUP_INTERVAL_MS.
+ * In-memory rate limiter for OTP login (talent + parent). Keyed on the *email*
+ * under attack, not on the requester's IP — the credential is what an attacker
+ * is brute-forcing or mail-bombing, and per-IP keying punishes 199 innocent
+ * neighbours when a stage_seconde cohort shares a school's NAT. Email keying
+ * naturally tolerates cohorts (200 students = 200 separate buckets) AND catches
+ * the real attack shape (one email sprayed from many IPs).
  *
- * CWE-307 mitigation; users include minors (RGPD).
+ * CWE-307 / CWE-799 mitigation; users include minors (RGPD).
  *
- * Scope: OTP verify only. Fastlogin routes deliberately skip this; their
- * HMAC-signed JWT is unguessable and verified before any DB hit, so an
- * IP-keyed bucket would only DoS legitimate cohorts opening a broadcast
- * from a shared NAT (a school's wifi, siblings at home).
+ * Two buckets per email, distinct threat models:
  *
- * Two-step call pattern at every site:
+ *   - `request`: caps OTP **send** calls (mailbomb + Resend cost). 3 per 10min
+ *     means the worst case for one mailbox is 18 messages per hour.
+ *   - `verify`: caps **failed** OTP verifies (code brute-force). 5 per 10min
+ *     keeps the 10^6 keyspace at ~380 years to exhaust for one email.
  *
- *   1. `checkRateLimit(ip)` *before* attempting the OTP verify — this is a
- *      pure read of the current failure count, it does NOT itself record an
- *      attempt. Bail with 429 if `!allowed`.
- *   2. On a failed verify (bad code, exception from BetterAuth, anything
- *      that's not a clean sign-in), call `recordFailedAttempt(ip)` so the
- *      next request from the same IP moves closer to the limit. On success,
- *      record nothing.
+ * A combined bucket would have to pick a wonky shared cap that punishes neither
+ * threat well; the two are kept separate for that reason.
  *
- * Deploy contract:
+ * Call pattern (both endpoints, both routes):
  *
- *   1. Behind a reverse proxy, set ADDRESS_HEADER (and XFF_DEPTH if more
- *      than one hop) on the adapter-node process. Without it,
- *      getClientAddress() returns the proxy's TCP peer and every request
- *      shares one global bucket: one curious user trips the limit for
- *      everyone. See .env.example for the per-deploy guidance.
+ *   1. `checkRateLimit(bucket, email)` BEFORE the work — pure read of the
+ *      current count, also prunes aged-out entries. Bail with 429 if blocked.
+ *   2. Run the work. `recordAttempt(bucket, email)` only when the attempt was
+ *      "real":
+ *        - `request`: after the OTP was actually sent (no record on lookup-404
+ *          or provider error; only successful sends cost real money / fill
+ *          mailboxes).
+ *        - `verify`: in the catch branch of the verify call (clean sign-ins
+ *          don't consume budget — same reason as the cohort case).
  *
- *      Caveat for future call sites: once ADDRESS_HEADER is set in prod,
- *      adapter-node THROWS on any request that doesn't carry that header.
- *      Today the only callers of getClientAddress() are the two OTP-verify
- *      form actions, both reachable only through the proxy. Adding a new
- *      getClientAddress() call from a route that can be hit directly
- *      (a Docker healthcheck on sveltekit, an in-container fetch, a
- *      cron-driven probe) would 500 in prod.
+ * Deploy notes:
  *
- *   2. The Map lives in the process. A single-pod deployment (current
- *      docker-compose shape) means the configured budget IS the budget.
- *      Horizontal scaling would give each replica its own bucket, so the
- *      effective limit becomes MAX_ATTEMPTS x N replicas; move to a shared
- *      store (Redis, Postgres) before scaling out.
+ *   - **Single source of truth for the OTP path.** BetterAuth's emailOTP plugin
+ *     ships its own per-IP limiter (3 req / 60s on `/sign-in/email-otp` by
+ *     default), which would lock out 197 of 200 cohort members regardless of
+ *     anything we do here. `auth.ts` relaxes that override (`rateLimit: { max:
+ *     100, window: 60 }`) so this module owns OTP policy.
+ *   - **Map lives in the process.** Single-pod deploy (current docker-compose
+ *     shape) means the configured budget IS the budget. Horizontal scaling
+ *     would give each replica its own bucket, so the effective limit becomes
+ *     max x N replicas; move to a shared store (Redis, Postgres) before
+ *     scaling out.
  */
 
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+export type OtpAttemptBucket = 'request' | 'verify';
 
-interface AttemptRecord {
-  timestamps: number[];
+interface BucketConfig {
+  max: number;
+  windowMs: number;
 }
 
-const attempts = new Map<string, AttemptRecord>();
+const BUCKETS: Record<OtpAttemptBucket, BucketConfig> = {
+  request: { max: 3, windowMs: 10 * 60 * 1000 },
+  verify: { max: 5, windowMs: 10 * 60 * 1000 },
+};
 
-// Auto-clean expired entries
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
+// Key shape: `${bucket}:${normalizedEmail}`. Composite is simpler than nesting
+// and keeps cleanup a single pass over one map.
+const attempts = new Map<string, number[]>();
+
+function normalize(email: string): string {
+  return email.toLowerCase().trim();
+}
+
+function keyFor(bucket: OtpAttemptBucket, email: string): string {
+  return `${bucket}:${normalize(email)}`;
+}
+
+function windowOf(key: string): number | null {
+  const bucket = key.split(':', 1)[0] as OtpAttemptBucket;
+  return BUCKETS[bucket]?.windowMs ?? null;
+}
+
 setInterval(() => {
   const now = Date.now();
-  for (const [ip, record] of attempts) {
-    record.timestamps = record.timestamps.filter((t) => now - t < WINDOW_MS);
-    if (record.timestamps.length === 0) {
-      attempts.delete(ip);
+  for (const [key, timestamps] of attempts) {
+    const window = windowOf(key);
+    if (window === null) {
+      attempts.delete(key);
+      continue;
     }
+    const fresh = timestamps.filter((t) => now - t < window);
+    if (fresh.length === 0) attempts.delete(key);
+    else if (fresh.length !== timestamps.length) attempts.set(key, fresh);
   }
 }, CLEANUP_INTERVAL_MS).unref();
 
 /**
- * Pure read of the current failure count for `ip`. Does not record anything;
- * call {@link recordFailedAttempt} *after* a verify actually fails. Side
- * effect kept to expired-entry pruning so a long-stale record can't return
- * `!allowed` after every recorded failure has aged out.
+ * Pure read of the current attempt count for `(bucket, email)`. Prunes
+ * aged-out entries so a long-stale record can't return `!allowed` after every
+ * recorded attempt has expired. Does not itself record an attempt — call
+ * {@link recordAttempt} after a real one.
  */
-export function checkRateLimit(ip: string): {
-  allowed: boolean;
-  retryAfterSeconds?: number;
-} {
-  const record = attempts.get(ip);
-  if (!record) return { allowed: true };
+export function checkRateLimit(
+  bucket: OtpAttemptBucket,
+  email: string,
+): { allowed: boolean; retryAfterSeconds?: number } {
+  const { max, windowMs } = BUCKETS[bucket];
+  const key = keyFor(bucket, email);
+  const timestamps = attempts.get(key);
+  if (!timestamps) return { allowed: true };
 
   const now = Date.now();
-  record.timestamps = record.timestamps.filter((t) => now - t < WINDOW_MS);
-  if (record.timestamps.length === 0) {
-    attempts.delete(ip);
+  const fresh = timestamps.filter((t) => now - t < windowMs);
+  if (fresh.length === 0) {
+    attempts.delete(key);
     return { allowed: true };
   }
+  if (fresh.length !== timestamps.length) attempts.set(key, fresh);
 
-  if (record.timestamps.length >= MAX_ATTEMPTS) {
-    const oldest = record.timestamps[0]!;
-    const retryAfterSeconds = Math.ceil((oldest + WINDOW_MS - now) / 1000);
-    return { allowed: false, retryAfterSeconds };
+  if (fresh.length >= max) {
+    const oldest = fresh[0]!;
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.ceil((oldest + windowMs - now) / 1000),
+    };
   }
-
   return { allowed: true };
 }
 
 /**
- * Record a failed OTP verify from `ip`. Call from the failure branch of the
- * verify handler — not on success, and not before the verify runs.
+ * Record one attempt against `(bucket, email)`. Call from the appropriate
+ * branch of the handler (see file-level doc): post-send for `request`, catch
+ * branch for `verify`.
  */
-export function recordFailedAttempt(ip: string): void {
+export function recordAttempt(bucket: OtpAttemptBucket, email: string): void {
+  const { windowMs } = BUCKETS[bucket];
+  const key = keyFor(bucket, email);
   const now = Date.now();
-  const record = attempts.get(ip);
-  if (!record) {
-    attempts.set(ip, { timestamps: [now] });
+  const timestamps = attempts.get(key);
+  if (!timestamps) {
+    attempts.set(key, [now]);
     return;
   }
-  record.timestamps = record.timestamps.filter((t) => now - t < WINDOW_MS);
-  record.timestamps.push(now);
+  const fresh = timestamps.filter((t) => now - t < windowMs);
+  fresh.push(now);
+  attempts.set(key, fresh);
 }

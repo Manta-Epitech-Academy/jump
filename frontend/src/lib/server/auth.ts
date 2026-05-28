@@ -64,6 +64,13 @@ export const auth = betterAuth({
       // Requires a retrievable OTP — works because storage is plaintext (default);
       // switching `storeOTP` to 'hashed' would silently fall back to rotate.
       resendStrategy: 'reuse',
+      // Relax the plugin's per-IP override (defaults: 3 req / 60s on
+      // `/sign-in/email-otp` and friends). With a stage_seconde cohort on a
+      // school's NAT, the default would 429 students 4..200 in the same
+      // minute regardless of correctness. Domain-aware policy lives in
+      // `$lib/server/auth/rateLimiter` (email-keyed); this stays as a sane
+      // per-IP backstop only.
+      rateLimit: { window: 60, max: 100 },
     }),
   ],
 
