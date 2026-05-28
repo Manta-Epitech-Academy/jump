@@ -4826,7 +4826,7 @@ L'équipe Epitech Academy`,
       actionKey: 'parent_welcome',
       name: 'Bienvenue parent (par défaut)',
       subject:
-        'Stage de seconde de {{child_prenom}} à Epitech : finaliser le dossier de votre côté',
+        'Stage de seconde de {{child_prenom}} à Epitech : une dernière étape de votre côté',
       body: `Bonjour,
 
 {{child_prenom}} vient de finaliser son inscription au stage de seconde à Epitech, qui se déroulera du 15 au 27 juin, sur notre campus de {{campus}}.
@@ -4835,7 +4835,7 @@ Pour finaliser le dossier, votre **co-signature du règlement intérieur** est a
 
 Par ailleurs, pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour savoir si nous pouvons utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre **décision sur le droit à l'image**. Vous êtes bien sûr libre d'accepter ou de refuser.
 
-L'ensemble vous prendra moins de 3 minutes via le lien ci-dessous.
+L'ensemble vous prendra moins de 2 minutes via le lien ci-dessous.
 
 :button[Finaliser le dossier de {{child_prenom}}]({{parent_fastlogin_link}})
 
@@ -4871,7 +4871,7 @@ L'équipe Epitech {{campus}}`,
 
 Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre **co-signature du règlement intérieur** et votre **décision sur le droit à l'image** sont encore attendues.
 
-Cela vous prendra moins de 3 minutes.
+Cela vous prendra moins de 2 minutes.
 
 :button[Finaliser le dossier de {{child_prenom}}]({{parent_fastlogin_link}})
 

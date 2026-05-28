@@ -158,11 +158,13 @@ L'équipe Epitech Academy`,
 
 {{child_prenom}} vient de finaliser son inscription au stage de seconde à Epitech, qui se déroulera du 15 au 27 juin, sur notre campus de {{campus}}.
 
-Pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour savoir si nous pouvons utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre décision.
+Pour finaliser le dossier, votre **co-signature du règlement intérieur** est attendue : elle accompagne celle de {{child_prenom}}, qui s'engage à respecter le cadre du stage.
 
-Vous pouvez **renseigner le droit à l'image** en moins de 2 minutes via le lien ci-dessous. Vous êtes bien sûr libre d'accepter ou de refuser.
+Par ailleurs, pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour savoir si nous pouvons utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre **décision sur le droit à l'image**. Vous êtes bien sûr libre d'accepter ou de refuser.
 
-:button[Renseigner le droit à l'image]({{parent_fastlogin_link}})
+L'ensemble vous prendra moins de 2 minutes via le lien ci-dessous.
+
+:button[Finaliser le dossier de {{child_prenom}}]({{parent_fastlogin_link}})
 
 Le lien vous connecte directement à votre espace, sans mot de passe à créer.
 
@@ -191,14 +193,14 @@ L'équipe Epitech {{campus}}`,
       actionKey: 'relance_parent',
       name: 'Relance — parent (par défaut)',
       subject:
-        "Rappel : votre décision sur le droit à l'image de {{child_prenom}} pour le stage à Epitech",
+        'Rappel : finaliser le dossier de {{child_prenom}} pour le stage à Epitech',
       body: `Bonjour,
 
-Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre décision concernant le droit à l'image est encore attendue.
+Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre **co-signature du règlement intérieur** et votre **décision sur le droit à l'image** sont encore attendues.
 
 Cela vous prendra moins de 2 minutes.
 
-:button[Renseigner le droit à l'image]({{parent_fastlogin_link}})
+:button[Finaliser le dossier de {{child_prenom}}]({{parent_fastlogin_link}})
 
 Le lien vous connecte directement à votre espace, sans mot de passe à créer.
 
