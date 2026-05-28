@@ -18,6 +18,9 @@ const payloadSchema = z.object({
   city: z.string().optional(),
   signerName: z.string().optional(),
   relationship: z.string().optional(),
+  // image-rights only: which way the guardian decided. Optional for back-compat
+  // with rows enqueued before refusal existed (the generator defaults to accept).
+  decision: z.enum(['accepted', 'refused']).optional(),
   signedAt: z.string(),
 });
 export type OnboardingPdfJobPayload = z.infer<typeof payloadSchema>;
@@ -84,17 +87,73 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     const payload = payloadSchema.parse(job.payload);
     const documentType = job.documentType as OnboardingPdfDocumentType;
 
-    const pdf = await generateOnboardingPDF({
-      type: documentType,
-      studentName: payload.studentName,
-      signerName: payload.signerName,
-      relationship: payload.relationship,
-      city: payload.city,
-      signedAt: new Date(payload.signedAt),
-    });
+    // `rules` is a shared multi-signer artifact (student + guardian co-sign the
+    // same règlement). The worker reads the talent's current signature columns
+    // and renders whichever blocks exist, so re-enqueueing on either signature
+    // produces a PDF that reflects the latest state of both. Image-rights stays
+    // payload-driven (single signer, snapshot at signature time).
+    let pdf: Uint8Array<ArrayBuffer>;
+    if (documentType === 'rules') {
+      const talent = await prisma.talent.findUniqueOrThrow({
+        where: { id: job.talentId },
+        select: {
+          prenom: true,
+          nom: true,
+          rulesSignedAt: true,
+          rulesSignedCity: true,
+          parentRulesSignedAt: true,
+          parentRulesSignerPrenom: true,
+          parentRulesSignerNom: true,
+          parentRulesRelationship: true,
+          parentRulesSignedCity: true,
+        },
+      });
+      const parentSignerFull =
+        talent.parentRulesSignerPrenom && talent.parentRulesSignerNom
+          ? `${talent.parentRulesSignerPrenom} ${talent.parentRulesSignerNom}`
+          : null;
+      pdf = await generateOnboardingPDF({
+        type: documentType,
+        studentName: `${talent.prenom} ${talent.nom}`,
+        rules: {
+          talent:
+            talent.rulesSignedAt && talent.rulesSignedCity
+              ? {
+                  city: talent.rulesSignedCity,
+                  signedAt: talent.rulesSignedAt,
+                }
+              : undefined,
+          parent:
+            talent.parentRulesSignedAt &&
+            parentSignerFull &&
+            talent.parentRulesRelationship &&
+            talent.parentRulesSignedCity
+              ? {
+                  signerName: parentSignerFull,
+                  relationship: talent.parentRulesRelationship,
+                  city: talent.parentRulesSignedCity,
+                  signedAt: talent.parentRulesSignedAt,
+                }
+              : undefined,
+        },
+      });
+    } else {
+      pdf = await generateOnboardingPDF({
+        type: documentType,
+        decision: payload.decision,
+        studentName: payload.studentName,
+        signerName: payload.signerName,
+        relationship: payload.relationship,
+        city: payload.city,
+        signedAt: new Date(payload.signedAt),
+      });
+    }
 
     const storage = getStorage();
-    const key = `documents/${job.talentId}/${documentType}-${new Date(payload.signedAt).getTime()}.pdf`;
+    // Stable, unsalted key: regenerations overwrite the same object instead of
+    // accumulating timestamp-keyed orphans in S3. The signature timestamps live
+    // on the talent row — the bucket is just the current rendered artifact.
+    const key = `documents/${job.talentId}/${documentType}.pdf`;
     await storage.save(key, pdf);
 
     const filePathField = ONBOARDING_DOCUMENTS[documentType].filePathField;
@@ -115,6 +174,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     ]);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
     console.error(`[onboarding-pdf-job] ${jobId} failed:`, err);
     // Record the failure only if the claim succeeded — otherwise we have no row we
     // own. Guard the write itself so a secondary DB failure can't re-leak.
@@ -129,6 +189,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
           },
         })
         .catch((e) =>
+          // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
           console.error(`[onboarding-pdf-job] ${jobId} error-write failed:`, e),
         );
     }

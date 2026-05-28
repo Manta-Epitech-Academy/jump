@@ -85,6 +85,8 @@
       notes={data.event.notes}
       daysToStart={data.prep.daysToStart}
       openDate={new Date(data.prep.openDate)}
+      eventType={data.event.eventType}
+      startMinutes={data.event.startMinutes}
       timezone={data.timezone}
       kpis={data.prep.kpis}
       lyceesBreakdown={data.prep.lyceesBreakdown}
@@ -127,6 +129,10 @@
       endDate={eventEndDate}
       notes={data.event.notes}
       timezone={data.timezone}
+      eventType={data.event.eventType}
+      startMinutes={data.event.startMinutes}
+      showStartTime={data.status !== 'past'}
+      promptStartTime={data.status === 'upcoming'}
       themeName={data.event.theme?.nom ?? null}
       mantasCount={data.event.mantas.length}
       stats={data.legacy.stats}

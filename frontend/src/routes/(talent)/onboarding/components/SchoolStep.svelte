@@ -164,28 +164,34 @@
         <Search class="h-3.5 w-3.5" /> Rechercher dans l'annuaire
       </button>
     {:else if !changing}
-      <div
-        class="flex items-center justify-between gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 px-4 py-3"
+      <!-- Whole recap is the change target: in this state "Changer" is the only
+           action, and tapping the selected value to re-edit it is the instinct
+           users reach for. Re-opening keeps the current selection, so an
+           accidental tap loses nothing. One interactive element, so the
+           "Changer" cue is a span, not a nested button. -->
+      <button
+        type="button"
+        onclick={startChanging}
+        class="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-epi-blue/20 bg-epi-blue/5 px-4 py-3 text-left transition-colors hover:border-epi-blue/40 hover:bg-epi-blue/10"
       >
-        <div class="flex items-start gap-3">
+        <span class="flex items-start gap-3">
           <School class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
-          <div>
-            <p class="text-sm font-medium text-epi-blue">{selectedNom}</p>
-            {#if selectedVille}<p
-                class="text-xs text-slate-500 dark:text-slate-400"
-              >
-                {selectedVille}
-              </p>{/if}
-          </div>
-        </div>
-        <button
-          type="button"
-          onclick={startChanging}
-          class="shrink-0 cursor-pointer text-xs font-medium text-slate-500 underline-offset-2 transition-colors hover:text-epi-blue hover:underline dark:text-slate-400"
+          <span class="block">
+            <span class="block text-sm font-medium text-epi-blue"
+              >{selectedNom}</span
+            >
+            {#if selectedVille}<span
+                class="block text-xs text-slate-500 dark:text-slate-400"
+                >{selectedVille}</span
+              >{/if}
+          </span>
+        </span>
+        <span
+          class="shrink-0 text-xs font-medium text-slate-500 underline-offset-2 transition-colors group-hover:text-epi-blue group-hover:underline dark:text-slate-400"
         >
           Changer
-        </button>
-      </div>
+        </span>
+      </button>
     {:else}
       <Command.Root
         shouldFilter={false}

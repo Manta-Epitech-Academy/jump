@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { prisma } from '$lib/server/db';
 import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
@@ -25,7 +25,8 @@ const previewSchema = z.object({
   filters: broadcastFiltersSchema.optional(),
 });
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+  if (!locals.staffProfile) throw error(403, 'Acces refuse.');
   const payload = await request.json().catch(() => null);
   const parsed = previewSchema.safeParse(payload);
   if (!parsed.success) {

@@ -14,6 +14,7 @@
   import RulesStep from './components/RulesStep.svelte';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import { Button } from '$lib/components/ui/button';
+  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
 
   function exitSlide(
     _node: Element,
@@ -186,11 +187,6 @@
     </div>
   </main>
 
-  <!-- ═══ Footer sticky ═══ -->
-  <footer
-    class="relative z-10 shrink-0 border-t border-slate-300/50 bg-slate-100/80 px-4 py-4 text-center text-xs text-slate-400 backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-950/80 dark:text-slate-500"
-  >
-    <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
-    plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
-  </footer>
+  <!-- ═══ Footer ═══ -->
+  <TalentFooter class="relative z-10 shrink-0" />
 </div>

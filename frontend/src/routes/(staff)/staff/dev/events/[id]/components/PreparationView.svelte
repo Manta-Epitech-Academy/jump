@@ -14,6 +14,9 @@
     notes: string | null;
     daysToStart: number;
     openDate: Date;
+    eventType: string;
+    /** Raw confirmed start (null = unconfirmed → hero shows the type default). */
+    startMinutes: number | null;
     timezone: string;
     kpis: {
       total: number;
@@ -40,6 +43,8 @@
     notes,
     daysToStart,
     openDate,
+    eventType,
+    startMinutes,
     timezone,
     kpis,
     lyceesBreakdown,
@@ -63,7 +68,13 @@
 </script>
 
 <div class="space-y-6 pb-12">
-  <CountdownHero {daysToStart} {openDate} {timezone} />
+  <CountdownHero
+    {daysToStart}
+    {openDate}
+    {eventType}
+    {startMinutes}
+    {timezone}
+  />
 
   <div class="grid gap-4 lg:grid-cols-3">
     <div class="lg:col-span-2">

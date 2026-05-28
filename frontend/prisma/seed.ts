@@ -9,6 +9,7 @@ import {
   type ActivityType,
   type ParticipationVerdict,
   type ParticipationContextTag,
+  type ImageRightsDecision,
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { marked } from 'marked';
@@ -3298,7 +3299,8 @@ async function main() {
   const talentByEmail = await seedStudents();
   console.log(`✓  Students (${Object.keys(talentByEmail).length})`);
 
-  // 3b. Parent account (links to first child for portal testing)
+  // 3b. Parent accounts (one per distinct parentEmail; Alice→Sophie is the
+  // human-recognisable test pair)
   const parentEmail = await seedParents(talentByEmail);
   console.log(`✓  Parent (${parentEmail})`);
 
@@ -3554,7 +3556,12 @@ async function seedCampuses(): Promise<
 > {
   const names = ['Paris', 'Lyon', 'Marseille'];
   const created = await prisma.campus.createManyAndReturn({
-    data: names.map((name) => ({ name })),
+    // contactEmail feeds the {{EMAIL_CONTACT_CAMPUS}} broadcast variable; seed it
+    // so dev broadcasts don't render an empty token.
+    data: names.map((name) => ({
+      name,
+      contactEmail: `contact.${name.toLowerCase()}@epitech.eu`,
+    })),
     select: { id: true, name: true },
   });
   const byName: Record<string, { id: string; name: string }> = {};
@@ -3666,6 +3673,16 @@ async function seedStudents(): Promise<
       ongoingStageEmails.has(s.email) ? 'fresh' : studentLifecycle(s, i),
   );
 
+  // Talents deliberately routed to a different School than Salesforce claims, so
+  // /staff/admin/sf-conflicts shows a real school *conflict* (not just a
+  // "missing"). Anchored by email rather than a modulus: a divergence only
+  // surfaces once the talent has confirmed the school step, so the anchor must
+  // be a fully-onboarded talent (here, eliot via `skipOnboarding`). The other
+  // half — SF must itself assert a school, else the row downgrades to *missing*
+  // and the alternate School is left an orphan — is guaranteed below, where
+  // these emails are forced to carry an `sfSchoolId`.
+  const schoolConflictEmails = new Set(['eliot.amanieu@epitech.eu']);
+
   // Accounts only for students who've logged in at least once — `imported`
   // leads stay account-less (their talent row carries `userId = null`). Users
   // first, then talents referencing them; both batched. Talent rows map back to
@@ -3747,12 +3764,22 @@ async function seedStudents(): Promise<
 
     // ── Axis 1: what Salesforce sent (independent of onboarding) ──
     // ~90% of leads carry a gender, ~80% a school; the rest SF never populated.
+    // Conflict anchors are forced to carry an SF school: a divergence is only a
+    // *conflict* (not a downgraded *missing*) when SF asserts a school too, and
+    // that side is otherwise index-derived — so pinning the talent by email
+    // isn't enough on its own.
     const sfCivilite = i % 10 === 0 ? null : i % 2 === 0 ? 'homme' : 'femme';
-    const sfSchoolId = i % 5 === 0 ? null : victorHugo.id;
+    const sfSchoolId = schoolConflictEmails.has(s.email)
+      ? victorHugo.id
+      : i % 5 === 0
+        ? null
+        : victorHugo.id;
 
     // ── Demo divergences (only meaningful once the talent has confirmed) ──
     const schoolDiverges =
-      schoolConfirmed && sfSchoolId !== null && i % 12 === 0;
+      schoolConfirmed &&
+      sfSchoolId !== null &&
+      schoolConflictEmails.has(s.email);
     const phoneDiverges = profileConfirmed && i % 12 === 7;
 
     // ── Talent (Jump truth) ──
@@ -3767,6 +3794,27 @@ async function seedStudents(): Promise<
         : (sfSchoolId ?? victorHugo.id)
       : sfSchoolId;
 
+    // ── Image-rights decision (parent-driven, strictly downstream of the
+    // parents step) ──
+    // The parent_welcome mail — the only path to a decision — is sent when the
+    // talent completes the parents step (provisionParentAccount). So a decision
+    // can exist ONLY once parentsConfirmed; before that the field stays null
+    // ('undecided'), exactly as the real flow leaves it (and why an ongoing,
+    // not-yet-onboarded cohort lands their parents on /parent/signature, not
+    // straight to /parent/merci). Of the parents who were mailed, a
+    // deterministic ~25% haven't answered yet — these feed the image-rights
+    // relances ("dossiers en attente") — and of those who did, a minority
+    // refuse, enough to exercise the refusal paths (staff badge, broadcast
+    // filter, "ne pas photographier", PDF).
+    const parentMailed = parentsConfirmed;
+    const parentAnswered = parentMailed && i % 4 !== 0;
+    const parentRefused = parentAnswered && i % 5 === 2;
+    const imageRightsDecision: ImageRightsDecision | null = parentAnswered
+      ? parentRefused
+        ? 'refused'
+        : 'accepted'
+      : null;
+
     const talent = {
       userId: hasAccount ? (userIdByEmail.get(s.email) ?? null) : null,
       email: s.email,
@@ -3775,6 +3823,12 @@ async function seedStudents(): Promise<
       phone: s.phone,
       parentPhone: s.parentPhone,
       niveau: s.niveau,
+      // Welcome strictly precedes onboarding: "On y va" stamps welcomeSeenAt
+      // and hands off to step 1. So anyone who has cleared a single step has
+      // necessarily passed the gate. Leaving it null on an onboarded talent is
+      // a state the real flow can't produce — it would re-trap them on
+      // /welcome at next login (seed bug, not a runtime one).
+      welcomeSeenAt: profileConfirmed ? ts : null,
       infoValidatedAt: profileConfirmed ? ts : null,
       highSchoolValidatedAt: schoolConfirmed ? ts : null,
       parentsValidatedAt: parentsConfirmed ? ts : null,
@@ -3791,6 +3845,16 @@ async function seedStudents(): Promise<
       civilite,
       parentType: hasParentInfo ? (i % 3 === 0 ? 'pere' : 'mere') : null,
       parentCivilite: hasParentInfo ? (i % 3 === 0 ? 'homme' : 'femme') : null,
+      imageRightsDecision,
+      imageRightsDecidedAt: imageRightsDecision ? ts : null,
+      imageRightsSignerPrenom: imageRightsDecision ? 'Sophie' : null,
+      imageRightsSignerNom: imageRightsDecision ? 'Martin' : null,
+      // Règlement intérieur precedes droit-à-l'image in the parent flow, so a
+      // guardian who reached an image-rights decision necessarily co-signed the
+      // règlement first (runtime invariant: image decided ⟹ règlement co-signed).
+      parentRulesSignedAt: imageRightsDecision ? ts : null,
+      parentRulesSignerPrenom: imageRightsDecision ? 'Sophie' : null,
+      parentRulesSignerNom: imageRightsDecision ? 'Martin' : null,
       parent2Type: null,
       parent2Civilite: null,
       parent2Nom: null,
@@ -3858,29 +3922,49 @@ async function seedStudents(): Promise<
 async function seedParents(
   talentByEmail: Record<string, { id: string; nom: string; prenom: string }>,
 ): Promise<string> {
-  const parentEmail = 'sophie.martin@mail.com';
-  await prisma.bauth_user.create({
-    data: {
-      email: parentEmail,
-      name: 'Sophie Martin',
-      role: 'parent',
-      emailVerified: true,
-    },
-  });
-
+  // Promote one seeded talent to a real, human-recognisable parent so the parent
+  // flow has an obvious test pair (Alice → Sophie Martin).
+  const realParentEmail = 'sophie.martin@mail.com';
   const child = talentByEmail['alice.martin@mail.com'];
   if (child) {
     await prisma.talent.update({
       where: { id: child.id },
       data: {
-        parentEmail,
+        parentEmail: realParentEmail,
         parentNom: 'Martin',
         parentPrenom: 'Sophie',
       },
     });
   }
 
-  return parentEmail;
+  // In prod the parent's bauth_user is created in the SAME action that writes
+  // Talent.parentEmail (provisionParentAccount, called from the onboarding
+  // parents step). So a non-null parentEmail always implies a matching
+  // role:'parent' account — without it /parent/login and /parent/fastlogin
+  // reject the address ("Aucun compte parent trouvé") and the magic link in the
+  // image-rights mail can never resolve. Mirror that here: provision an account
+  // for every distinct parentEmail a talent carries, not just Sophie's.
+  const withParent = await prisma.talent.findMany({
+    where: { parentEmail: { not: null } },
+    select: { parentEmail: true, parentNom: true, parentPrenom: true },
+  });
+  const nameByEmail = new Map<string, string>();
+  for (const t of withParent) {
+    if (!t.parentEmail) continue;
+    const name = `${t.parentPrenom ?? ''} ${t.parentNom ?? ''}`.trim();
+    nameByEmail.set(t.parentEmail, name || t.parentEmail);
+  }
+  await prisma.bauth_user.createMany({
+    data: [...nameByEmail].map(([email, name]) => ({
+      email,
+      name,
+      role: 'parent',
+      emailVerified: true,
+    })),
+    skipDuplicates: true,
+  });
+
+  return realParentEmail;
 }
 
 async function seedThemes(campuses: Record<string, { id: string }>) {
@@ -4212,21 +4296,25 @@ async function seedEvents(
       data: participationActivityRows,
     });
 
-    // Stage compliance (only for stage_seconde events)
+    // Stage compliance (only for stage_seconde events). This row tracks the
+    // event-scoped charte; the image-rights decision is a talent-level fact
+    // seeded with the onboarding ladder (see seedStudents), because the parent
+    // mail that drives it fires at the parents step — independent of any event.
     if (blueprint.eventType === EVENT_TYPES.STAGE_SECONDE) {
-      const complianceRows = students.flatMap((s) => {
+      const complianceRows: {
+        participationId: string;
+        charteSigned: boolean;
+      }[] = [];
+      for (const s of students) {
         const fullySigned = blueprint.stageSigned?.includes(s.email) ?? false;
         const partiallySigned =
           blueprint.stageUnsigned?.includes(s.email) ?? false;
-        if (!fullySigned && !partiallySigned) return [];
-        return [
-          {
-            participationId: participationIdByTalent.get(s.talent.id)!,
-            charteSigned: fullySigned || Math.random() < 0.5,
-            imageRightsSigned: fullySigned || partiallySigned,
-          },
-        ];
-      });
+        if (!fullySigned && !partiallySigned) continue;
+        complianceRows.push({
+          participationId: participationIdByTalent.get(s.talent.id)!,
+          charteSigned: fullySigned || Math.random() < 0.5,
+        });
+      }
       await prisma.stageCompliance.createMany({ data: complianceRows });
     }
   }
@@ -4588,10 +4676,10 @@ async function seedBroadcasts(
         createdById: templateAuthor,
       },
       {
-        name: "Relance parent — droit à l'image (SMS)",
+        name: "Relance parent — règlement & droit à l'image (SMS)",
         channel: 'sms',
         subject: null,
-        body: "Bonjour, votre signature est attendue pour finaliser l'inscription de {{child_prenom}} au stage de seconde à Epitech. Mail envoyé sur {{email}}. - Epitech {{campus}}",
+        body: "Bonjour, votre signature du règlement intérieur et votre décision sur le droit à l'image sont attendues pour finaliser l'inscription de {{child_prenom}} au stage de seconde à Epitech. Mail envoyé sur {{email}}. - Epitech {{campus}}",
         createdById: templateAuthor,
       },
       {
@@ -4743,11 +4831,13 @@ L'équipe Epitech Academy`,
 
 {{child_prenom}} vient de finaliser son inscription au stage de seconde à Epitech, qui se déroulera du 15 au 27 juin, sur notre campus de {{campus}}.
 
-Pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour pouvoir utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre accord explicite.
+Pour finaliser le dossier, votre **co-signature du règlement intérieur** est attendue : elle accompagne celle de {{child_prenom}}, qui s'engage à respecter le cadre du stage.
 
-Vous pouvez **signer électroniquement le droit à l'image** en moins de 2 minutes via le lien ci-dessous. Vous restez bien sûr libre d'accepter ou de refuser.
+Par ailleurs, pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour savoir si nous pouvons utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre **décision sur le droit à l'image**. Vous êtes bien sûr libre d'accepter ou de refuser.
 
-:button[Signer le droit à l'image]({{parent_fastlogin_link}})
+L'ensemble vous prendra moins de 2 minutes via le lien ci-dessous.
+
+:button[Finaliser le dossier de {{child_prenom}}]({{parent_fastlogin_link}})
 
 Le lien vous connecte directement à votre espace, sans mot de passe à créer.
 
@@ -4776,14 +4866,14 @@ L'équipe Epitech {{campus}}`,
       actionKey: 'relance_parent',
       name: 'Relance — parent (par défaut)',
       subject:
-        'Rappel : votre signature pour le stage à Epitech de {{child_prenom}}',
+        'Rappel : finaliser le dossier de {{child_prenom}} pour le stage à Epitech',
       body: `Bonjour,
 
-Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre signature électronique du droit à l'image est encore attendue.
+Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre **co-signature du règlement intérieur** et votre **décision sur le droit à l'image** sont encore attendues.
 
 Cela vous prendra moins de 2 minutes.
 
-:button[Accéder à la signature]({{parent_fastlogin_link}})
+:button[Finaliser le dossier de {{child_prenom}}]({{parent_fastlogin_link}})
 
 Le lien vous connecte directement à votre espace, sans mot de passe à créer.
 

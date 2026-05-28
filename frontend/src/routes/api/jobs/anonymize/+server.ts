@@ -2,13 +2,14 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { AnonymizationService } from '$lib/server/services/anonymizationService';
 import { env } from '$env/dynamic/private';
+import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
 
 export const POST: RequestHandler = async ({ request }) => {
   // 1. Security Check: Compare the provided token with the secret env var
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
   const cronSecret = env.CRON_SECRET;
 
-  if (!cronSecret || token !== cronSecret) {
+  if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
     throw error(401, 'Unauthorized: Invalid or missing token');
   }
 

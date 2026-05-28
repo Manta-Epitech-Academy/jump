@@ -30,9 +30,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
       throw error(importErrorToHttpStatus(err.kind), err.message);
     }
     console.error('[Subject resync] failed:', err);
-    throw error(
-      500,
-      err instanceof Error ? err.message : 'Internal Server Error',
-    );
+    throw error(500, 'Internal Server Error');
   }
 };

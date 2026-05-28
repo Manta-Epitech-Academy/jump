@@ -1,11 +1,30 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
+  import { toast } from 'svelte-sonner';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import CheckCircle2 from '@lucide/svelte/icons/circle-check-big';
   import { Button } from '$lib/components/ui/button';
+  import * as Select from '$lib/components/ui/select';
+  import * as Table from '$lib/components/ui/table';
 
   let { data } = $props();
+
+  // Plain (non-superForm) POST: the shadcn Select doesn't emit a native form
+  // control, so each row carries a controlled value mirrored into a hidden
+  // input for submission. Seeded from the saved mapping. `''` = no template.
+  // svelte-ignore state_referenced_locally
+  let selectedTemplate = $state<Record<string, string>>(
+    Object.fromEntries(
+      data.rows.map(({ action, mapping }) => [
+        action.key,
+        mapping?.templateId ?? '',
+      ]),
+    ),
+  );
+  const NONE = '__none__';
+
+  const th = 'text-xs uppercase';
 </script>
 
 <div class="space-y-6">
@@ -51,28 +70,30 @@
   {/if}
 
   <div class="overflow-hidden rounded-lg border">
-    <table class="w-full text-sm">
-      <thead class="border-b bg-muted/50 text-left text-xs uppercase">
-        <tr>
-          <th class="px-4 py-3">Action</th>
-          <th class="px-4 py-3">Description</th>
-          <th class="px-4 py-3">Variables</th>
-          <th class="px-4 py-3">Template lié</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table.Root>
+      <Table.Header class="bg-muted/50">
+        <Table.Row>
+          <Table.Head class={th}>Action</Table.Head>
+          <Table.Head class={th}>Description</Table.Head>
+          <Table.Head class={th}>Variables</Table.Head>
+          <Table.Head class={th}>Template lié</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
         {#each data.rows as { action, mapping } (action.key)}
-          <tr class="border-b last:border-b-0">
-            <td class="px-4 py-3 align-top">
+          <Table.Row>
+            <Table.Cell class="align-top">
               <div class="font-medium">{action.label}</div>
               <code class="mt-1 inline-block text-[10px] text-muted-foreground"
                 >{action.key}</code
               >
-            </td>
-            <td class="px-4 py-3 align-top text-xs text-muted-foreground">
+            </Table.Cell>
+            <Table.Cell
+              class="align-top text-xs whitespace-normal text-muted-foreground"
+            >
               {action.description}
-            </td>
-            <td class="px-4 py-3 align-top">
+            </Table.Cell>
+            <Table.Cell class="align-top">
               <div class="flex flex-wrap gap-1">
                 {#each action.variables as v (v)}
                   <code
@@ -81,29 +102,52 @@
                   >
                 {/each}
               </div>
-            </td>
-            <td class="px-4 py-3 align-top">
+            </Table.Cell>
+            <Table.Cell class="align-top">
               <form
                 method="POST"
                 action="?/save"
-                use:enhance
+                use:enhance={() =>
+                  async ({ result, update }) => {
+                    if (result.type === 'success') {
+                      toast.success(`« ${action.label} » enregistré.`);
+                      await update();
+                    } else {
+                      toast.error(
+                        (result.type === 'failure' &&
+                          (result.data?.error as string)) ||
+                          "Échec de l'enregistrement.",
+                      );
+                    }
+                  }}
                 class="flex items-center gap-2"
               >
                 <input type="hidden" name="actionKey" value={action.key} />
-                <select
+                <input
+                  type="hidden"
                   name="templateId"
-                  class="h-9 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                  value={selectedTemplate[action.key]}
+                />
+                <Select.Root
+                  type="single"
+                  value={selectedTemplate[action.key] || NONE}
+                  onValueChange={(v) =>
+                    (selectedTemplate[action.key] = v === NONE ? '' : v)}
                 >
-                  <option value="">— Aucun (email ignoré) —</option>
-                  {#each data.templates as t (t.id)}
-                    <option
-                      value={t.id}
-                      selected={mapping?.templateId === t.id}
-                    >
-                      {t.name}
-                    </option>
-                  {/each}
-                </select>
+                  <Select.Trigger class="h-9 flex-1">
+                    {data.templates.find(
+                      (t) => t.id === selectedTemplate[action.key],
+                    )?.name ?? '— Aucun (email ignoré) —'}
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value={NONE}>
+                      — Aucun (email ignoré) —
+                    </Select.Item>
+                    {#each data.templates as t (t.id)}
+                      <Select.Item value={t.id}>{t.name}</Select.Item>
+                    {/each}
+                  </Select.Content>
+                </Select.Root>
                 <Button type="submit" size="sm" class="rounded-sm">
                   Enregistrer
                 </Button>
@@ -113,10 +157,10 @@
                   Non configuré — emails ignorés
                 </p>
               {/if}
-            </td>
-          </tr>
+            </Table.Cell>
+          </Table.Row>
         {/each}
-      </tbody>
-    </table>
+      </Table.Body>
+    </Table.Root>
   </div>
 </div>

@@ -16,6 +16,10 @@
   import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import { cn } from '$lib/utils';
   import type { RelanceType } from '$lib/domain/relance';
+  import { IMAGE_RIGHTS_STATUS_LABELS } from '$lib/domain/imageRights';
+  import Check from '@lucide/svelte/icons/check';
+  import X from '@lucide/svelte/icons/x';
+  import Clock from '@lucide/svelte/icons/clock';
   import { track } from '$lib/analytics';
 
   let {
@@ -28,7 +32,7 @@
     onRowRelance,
   }: {
     participations: any[];
-    optimisticAdminToggle: (id: string, docType: string) => any;
+    optimisticAdminToggle: (id: string) => any;
     optimisticPcToggle: (id: string) => any;
     selectedTalentIds?: Set<string>;
     onToggleTalent: (talentId: string) => void;
@@ -80,7 +84,7 @@
           <span class="inline-flex items-center justify-center gap-1.5">
             Droit à l'image
             <InfoTooltip
-              text="Autorisation parentale pour les photos/vidéos du stage. Demandée automatiquement par email aux parents à la création du compte. Cochez manuellement uniquement en cas de retour papier."
+              text="Décision du représentant légal (autorisation ou refus), prise en ligne depuis l'espace parent. Lecture seule : reflète le choix enregistré par le parent."
             />
           </span>
         </Table.Head>
@@ -118,89 +122,97 @@
 
           <!-- Charte -->
           <Table.Cell class="py-4 text-center">
-            <form
-              method="POST"
-              action="?/toggleAdminDoc"
-              use:enhance={optimisticAdminToggle(p.id, 'charte')}
-              onsubmit={() =>
-                track('adm_doc_toggled', {
-                  docType: 'charte',
-                  newState: !p.stageCompliance?.charteSigned,
-                  eventId: page.params.id,
-                })}
-            >
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="docType" value="charte" />
-              <input
-                type="hidden"
-                name="state"
-                value={p.stageCompliance?.charteSigned?.toString() || 'false'}
-              />
-              <button
-                type="submit"
-                class="cursor-pointer transition-transform active:scale-90"
+            {#if p.talent.parentRulesSignedAt}
+              <!-- Guardian co-signed online — the canonical règlement proof.
+                   Read-only: there's nothing for staff to toggle when an
+                   authoritative timestamped signature already exists. -->
+              <Tooltip.Provider>
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    <Badge
+                      variant="outline"
+                      class="border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid"
+                    >
+                      OK (en ligne)
+                    </Badge>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>
+                    Signé en ligne par le représentant légal.
+                  </Tooltip.Content>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            {:else}
+              <!-- Offline-fallback toggle: staff attests they verified the
+                   signature outside the platform (paper, in-person, etc). -->
+              <form
+                method="POST"
+                action="?/toggleAdminDoc"
+                use:enhance={optimisticAdminToggle(p.id)}
+                onsubmit={() =>
+                  track('adm_doc_toggled', {
+                    docType: 'charte',
+                    newState: !p.stageCompliance?.charteSigned,
+                    eventId: page.params.id,
+                  })}
               >
-                {#key p.stageCompliance?.charteSigned}
-                  <Badge
-                    variant={p.stageCompliance?.charteSigned
-                      ? 'outline'
-                      : 'secondary'}
-                    class={cn(
-                      'animate-in duration-300 zoom-in',
-                      p.stageCompliance?.charteSigned
-                        ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
-                        : 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange hover:bg-epi-orange/15',
-                    )}
-                  >
-                    {p.stageCompliance?.charteSigned ? 'OK' : 'Manquant'}
-                  </Badge>
-                {/key}
-              </button>
-            </form>
+                <input type="hidden" name="id" value={p.id} />
+                <input type="hidden" name="docType" value="charte" />
+                <input
+                  type="hidden"
+                  name="state"
+                  value={p.stageCompliance?.charteSigned?.toString() || 'false'}
+                />
+                <button
+                  type="submit"
+                  class="cursor-pointer transition-transform active:scale-90"
+                >
+                  {#key p.stageCompliance?.charteSigned}
+                    <Badge
+                      variant={p.stageCompliance?.charteSigned
+                        ? 'outline'
+                        : 'secondary'}
+                      class={cn(
+                        'animate-in duration-300 zoom-in',
+                        p.stageCompliance?.charteSigned
+                          ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
+                          : 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange hover:bg-epi-orange/15',
+                      )}
+                    >
+                      {p.stageCompliance?.charteSigned ? 'OK' : 'Manquant'}
+                    </Badge>
+                  {/key}
+                </button>
+              </form>
+            {/if}
           </Table.Cell>
 
-          <!-- Droit Image -->
+          <!-- Droit à l'image — read-only reflection of the parent's decision -->
           <Table.Cell class="py-4 text-center">
-            <form
-              method="POST"
-              action="?/toggleAdminDoc"
-              use:enhance={optimisticAdminToggle(p.id, 'image')}
-              onsubmit={() =>
-                track('adm_doc_toggled', {
-                  docType: 'image',
-                  newState: !p.stageCompliance?.imageRightsSigned,
-                  eventId: page.params.id,
-                })}
-            >
-              <input type="hidden" name="id" value={p.id} />
-              <input type="hidden" name="docType" value="image" />
-              <input
-                type="hidden"
-                name="state"
-                value={p.stageCompliance?.imageRightsSigned?.toString() ||
-                  'false'}
-              />
-              <button
-                type="submit"
-                class="cursor-pointer transition-transform active:scale-90"
+            {#if p.talent.imageRightsDecision === 'accepted'}
+              <Badge
+                variant="outline"
+                class="border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid"
               >
-                {#key p.stageCompliance?.imageRightsSigned}
-                  <Badge
-                    variant={p.stageCompliance?.imageRightsSigned
-                      ? 'outline'
-                      : 'secondary'}
-                    class={cn(
-                      'animate-in duration-300 zoom-in',
-                      p.stageCompliance?.imageRightsSigned
-                        ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
-                        : 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange hover:bg-epi-orange/15',
-                    )}
-                  >
-                    {p.stageCompliance?.imageRightsSigned ? 'OK' : 'Manquant'}
-                  </Badge>
-                {/key}
-              </button>
-            </form>
+                <Check class="mr-1 h-3 w-3" />
+                {IMAGE_RIGHTS_STATUS_LABELS.accepted}
+              </Badge>
+            {:else if p.talent.imageRightsDecision === 'refused'}
+              <Badge
+                variant="outline"
+                class="border-red-400/40 bg-red-500/10 text-red-600 dark:text-red-400"
+              >
+                <X class="mr-1 h-3 w-3" />
+                {IMAGE_RIGHTS_STATUS_LABELS.refused}
+              </Badge>
+            {:else}
+              <Badge
+                variant="secondary"
+                class="border-epi-orange/30 bg-epi-orange/10 text-epi-orange"
+              >
+                <Clock class="mr-1 h-3 w-3" />
+                {IMAGE_RIGHTS_STATUS_LABELS.undecided}
+              </Badge>
+            {/if}
           </Table.Cell>
 
           <!-- Bring PC -->

@@ -59,7 +59,12 @@ export const actions: Actions = {
     let newEventId = '';
     try {
       const campusId = getCampusId(locals);
-      const importList = JSON.parse(rawData) as ImportAction[];
+      let importList: ImportAction[];
+      try {
+        importList = JSON.parse(rawData) as ImportAction[];
+      } catch {
+        return fail(400, { error: 'Donnees invalides.' });
+      }
       newEventId = await importCampaignData(
         importList,
         eventName,

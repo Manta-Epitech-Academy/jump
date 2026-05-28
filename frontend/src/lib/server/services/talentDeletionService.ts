@@ -1,6 +1,9 @@
 import type { TalentDeletionRequest } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { anonymizeTalent } from '$lib/server/services/anonymizationService';
+import {
+  anonymizeTalent,
+  deleteAnonymizedDocuments,
+} from '$lib/server/services/anonymizationService';
 import { sendActionEmail } from '$lib/server/email/actionMail';
 
 /**
@@ -106,7 +109,7 @@ export async function fulfillTalentDeletion(
 ): Promise<boolean> {
   // Capture the talent's contact details inside the transaction, *before*
   // anonymisation scrubs them — this is the last moment we can reach them.
-  const contact = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const claimed = await tx.talentDeletionRequest.updateMany({
       where: { id: requestId, status: 'pending' },
       data: {
@@ -124,19 +127,20 @@ export async function fulfillTalentDeletion(
         talent: { select: { email: true, prenom: true } },
       },
     });
-    await anonymizeTalent(tx, request.talentId);
-    return request.talent;
+    const documentKeys = await anonymizeTalent(tx, request.talentId);
+    return { contact: request.talent, documentKeys };
   });
 
-  if (!contact) return false;
+  if (!result) return false;
 
-  // Confirm the erasure out-of-band, after the transaction commits — never run
-  // an external API call inside a DB transaction. Best-effort: the account is
-  // already erased, so a mail failure must not undo it (sendActionEmail logs
-  // and returns rather than throwing).
-  if (contact.email) {
-    await sendActionEmail('account_deletion_done', contact.email, {
-      prenom: contact.prenom,
+  // Out-of-band, after the transaction commits — never run external calls
+  // inside a DB transaction. Both are best-effort: the account is already
+  // erased, so neither a storage nor a mail failure may undo it (one logs, the
+  // other returns rather than throwing).
+  await deleteAnonymizedDocuments(result.documentKeys);
+  if (result.contact.email) {
+    await sendActionEmail('account_deletion_done', result.contact.email, {
+      prenom: result.contact.prenom,
     });
   }
   return true;

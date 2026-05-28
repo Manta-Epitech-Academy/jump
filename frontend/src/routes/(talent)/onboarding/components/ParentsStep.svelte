@@ -118,7 +118,7 @@
             <button
               type="button"
               onclick={() => (localParentType = opt.value)}
-              class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all {localParentType ===
+              class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localParentType ===
               opt.value
                 ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
                 : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
@@ -139,7 +139,7 @@
             <button
               type="button"
               onclick={() => (localParentCivilite = opt.value)}
-              class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all {localParentCivilite ===
+              class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localParentCivilite ===
               opt.value
                 ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
                 : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
@@ -192,8 +192,9 @@
       </div>
     </div>
 
+    <!-- Stacked so the phone field gets full width — see IdentityStep. -->
     <div
-      class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="space-y-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <div>
         <Label for="parentEmail" class={fieldLabel}
@@ -217,14 +218,20 @@
           >Téléphone <span class="text-red-500">*</span></Label
         >
         <PhoneInput
+          id="parentPhone"
           name="parentPhone"
           value={profile?.parentPhone || ''}
-          placeholder="6 12 34 56 78"
+          placeholder="06 12 34 56 78"
           required
+          error={!!errors?.parentPhone}
+          aria-describedby={errors?.parentPhone
+            ? 'parentPhone-error'
+            : undefined}
           class={fieldInput}
         />
-        {#if errors?.parentPhone}<span class="text-xs text-destructive"
-            >{errors.parentPhone[0]}</span
+        {#if errors?.parentPhone}<span
+            id="parentPhone-error"
+            class="text-xs text-destructive">{errors.parentPhone[0]}</span
           >{/if}
       </div>
     </div>
@@ -276,7 +283,7 @@
               <button
                 type="button"
                 onclick={() => (localP2Type = opt.value)}
-                class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all {localP2Type ===
+                class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localP2Type ===
                 opt.value
                   ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
                   : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
@@ -296,7 +303,7 @@
               <button
                 type="button"
                 onclick={() => (localP2Civilite = opt.value)}
-                class="inline-flex cursor-pointer items-center rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all {localP2Civilite ===
+                class="inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-sm font-medium transition-all {localP2Civilite ===
                 opt.value
                   ? 'border-epi-blue bg-epi-blue/10 text-epi-blue'
                   : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-300'}"
@@ -332,8 +339,9 @@
           />
         </div>
       </div>
+      <!-- Stacked so the phone field gets full width — see IdentityStep. -->
       <div
-        class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+        class="space-y-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
       >
         <div>
           <Label for="parent2Email" class={fieldLabel}>Email</Label>
@@ -349,11 +357,20 @@
         <div>
           <Label for="parent2Phone" class={fieldLabel}>Téléphone</Label>
           <PhoneInput
+            id="parent2Phone"
             name="parent2Phone"
             value={profile?.parent2Phone || ''}
-            placeholder="6 12 34 56 78"
+            placeholder="06 12 34 56 78"
+            error={!!errors?.parent2Phone}
+            aria-describedby={errors?.parent2Phone
+              ? 'parent2Phone-error'
+              : undefined}
             class={fieldInput}
           />
+          {#if errors?.parent2Phone}<span
+              id="parent2Phone-error"
+              class="text-xs text-destructive">{errors.parent2Phone[0]}</span
+            >{/if}
         </div>
       </div>
     </div>

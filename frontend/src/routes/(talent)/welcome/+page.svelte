@@ -3,6 +3,8 @@
   import { enhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
+  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { onMount } from 'svelte';
   import { track, daysBetween, secondsBetween } from '$lib/analytics';
@@ -31,20 +33,20 @@
     class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
   ></div>
 
+  <!-- Header — logo lives in the top bar, matching the onboarding pages -->
+  <header
+    class="relative z-10 shrink-0 border-b border-slate-300/50 bg-slate-100/80 backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-950/80"
+  >
+    <div class="mx-auto flex w-full max-w-lg items-center px-4 py-3">
+      <a href={resolve('/')} aria-label="Accueil">
+        <EpitechLogo class="h-7 w-auto" />
+      </a>
+    </div>
+  </header>
+
   <!-- Content centered -->
   <div class="relative z-10 flex flex-1 items-center justify-center p-4">
     <div class="w-full max-w-lg">
-      <!-- Logo -->
-      <div class="mb-6">
-        <a href={resolve('/')} aria-label="Accueil">
-          <img
-            src="/EPITECH-LOGO-BLEU-2025.svg"
-            alt="Epitech"
-            class="h-9 w-auto dark:brightness-0 dark:invert"
-          />
-        </a>
-      </div>
-
       <div class="mb-6 text-center">
         <h1
           class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
@@ -69,44 +71,32 @@
       </div>
 
       <div class="mt-8 flex justify-center">
-        {#if data.alreadySeen}
-          <Button href="/">
-            Retour au tableau de bord
+        <form
+          method="POST"
+          action="?/markSeen"
+          use:enhance={() => {
+            return async ({ update }) => {
+              track('welcome_dismissed', {
+                eventId: data.eventId,
+                daysSinceInvite: daysBetween(data.talentCreatedAt),
+                secondsOnPage: secondsBetween(seenAt),
+              });
+              await update();
+            };
+          }}
+        >
+          <Button
+            type="submit"
+            class="h-auto rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+          >
+            On y va
             <ArrowRight class="ml-2 h-4 w-4" />
           </Button>
-        {:else}
-          <form
-            method="POST"
-            action="?/markSeen"
-            use:enhance={() => {
-              return async ({ update }) => {
-                track('welcome_dismissed', {
-                  eventId: data.eventId,
-                  daysSinceInvite: daysBetween(data.talentCreatedAt),
-                  secondsOnPage: secondsBetween(seenAt),
-                });
-                await update();
-              };
-            }}
-          >
-            <Button
-              type="submit"
-              class="h-auto rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
-            >
-              On y va
-              <ArrowRight class="ml-2 h-4 w-4" />
-            </Button>
-          </form>
-        {/if}
+        </form>
       </div>
     </div>
   </div>
 
   <!-- Footer -->
-  <footer
-    class="relative z-10 px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400"
-  >
-    <span class="font-heading tracking-wide text-epi-blue">Jump</span>, la
-    plateforme qui t'accompagne lors de tes stages et coding clubs à Epitech.
-  </footer>
+  <TalentFooter class="relative z-10" />
 </div>

@@ -45,11 +45,12 @@
         <p
           class="mb-8 text-sm leading-relaxed text-slate-600 dark:text-slate-300"
         >
-          Avant cela, une étape côté famille : votre réponse au droit à l'image.
+          Avant cela, deux étapes côté famille : la signature du règlement
+          intérieur, puis votre réponse au droit à l'image.
         </p>
 
         <Button
-          href={resolve('/parent/signature')}
+          href={resolve('/parent/reglement')}
           class="h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
         >
           Continuer

@@ -268,7 +268,7 @@
     <EmptyState
       icon={Users}
       title="Salle de classe vide"
-      description="Aucun stagiaire ne correspond à cette recherche.<br/>Ils sont peut-être partis à la cafétéria ?"
+      description="Aucun stagiaire ne correspond à cette recherche. Ils sont peut-être partis à la cafétéria ?"
     />
   {/if}
 </div>

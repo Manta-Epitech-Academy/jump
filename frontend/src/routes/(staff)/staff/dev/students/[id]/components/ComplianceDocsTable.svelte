@@ -6,6 +6,14 @@
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import { formatDateFr, cn } from '$lib/utils';
   import type { Component } from 'svelte';
+  import {
+    IMAGE_RIGHTS_STATUS_LABELS,
+    type ImageRightsDecision,
+  } from '$lib/domain/imageRights';
+  import {
+    isImageRightsCompliant,
+    isRulesCompliant,
+  } from '$lib/domain/stageCompliance';
 
   /**
    * Per-document compliance breakdown for the talent's most-recent active
@@ -13,6 +21,11 @@
    * structure, scoped to Jump's two-doc reality (règlement intérieur + droit
    * à l'image — the PC is logistics, tracked on the per-event onboarding
    * page, not a doc to sign).
+   *
+   * The règlement is "compliant" via either of two signals — the guardian's
+   * online co-signature (canonical) or the staff offline-fallback toggle on
+   * the per-event compliance row. The single row here surfaces whichever one
+   * landed, matching the cohort funnel's `isRulesCompliant` predicate.
    *
    * Compliance is stage-specific by nature (non-stage events don't need
    * signed docs), so older stages' historical compliance is intentionally
@@ -23,41 +36,72 @@
       id: string;
       stageCompliance: {
         charteSigned: boolean;
-        imageRightsSigned: boolean;
         updatedAt: Date | string;
       } | null;
       event: { id: string; titre: string; date: Date | string };
     };
+    /** Guardian's image-rights decision (talent-level): null = undecided. */
+    imageRightsDecision: ImageRightsDecision | null;
+    /** When the guardian co-signed the règlement online (talent-level). */
+    parentRulesSignedAt: Date | string | null;
+    parentRulesSignerName: string | null;
     timezone: string;
   };
 
-  let { participation, timezone }: Props = $props();
+  let {
+    participation,
+    imageRightsDecision,
+    parentRulesSignedAt,
+    parentRulesSignerName,
+    timezone,
+  }: Props = $props();
 
   type DocRow = {
     key: 'charte' | 'image';
     label: string;
     description: string;
     icon: Component<{ class?: string }>;
+    /** Whether the document is resolved (signed, or a decision was made). */
     signed: boolean;
+    /** When it was signed, for the "Signé le" column (null = not shown). */
+    signedAt?: Date | string | null;
+    /** Image only: the actual decision, to show "Autorisé" vs "Refusé". */
+    decision?: ImageRightsDecision | null;
   };
 
   const sc = $derived(participation.stageCompliance);
-  const signedAt = $derived(sc?.updatedAt ?? null);
+
+  // Description tracks *which* signal validated the règlement, so staff can see
+  // at a glance whether the guardian signed in-platform or whether a staff
+  // member toggled the offline fallback.
+  const charteDescription = $derived.by(() => {
+    if (parentRulesSignedAt) {
+      return parentRulesSignerName
+        ? `Co-signé en ligne par ${parentRulesSignerName}.`
+        : 'Co-signé en ligne par le représentant légal.';
+    }
+    if (sc?.charteSigned) return 'Validé par le staff (signature offline).';
+    return 'Signature du représentant légal en attente.';
+  });
 
   const rows = $derived<DocRow[]>([
     {
       key: 'charte',
       label: 'Règlement intérieur',
-      description: 'Charte signée en ligne par le stagiaire.',
+      description: charteDescription,
       icon: FileSignature,
-      signed: !!sc?.charteSigned,
+      // Either signal counts as done. The online co-signature is canonical,
+      // so its timestamp wins for "Signé le" when both are present.
+      signed: isRulesCompliant(parentRulesSignedAt, sc?.charteSigned),
+      signedAt: parentRulesSignedAt ?? sc?.updatedAt ?? null,
     },
     {
       key: 'image',
       label: "Droit à l'image",
-      description: 'Autorisation parentale photos / vidéos.',
+      description: 'Décision du représentant légal (autorisation ou refus).',
       icon: Camera,
-      signed: !!sc?.imageRightsSigned,
+      signed: isImageRightsCompliant(imageRightsDecision),
+      decision: imageRightsDecision,
     },
   ]);
 
@@ -115,26 +159,41 @@
               {row.description}
             </td>
             <td class="px-3 py-3">
-              <span
-                class={cn(
-                  'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase',
-                  row.signed
-                    ? 'border border-epi-teal-solid/40 bg-epi-teal-solid/10 text-epi-teal-solid'
-                    : 'border border-destructive/40 bg-destructive/10 text-destructive',
-                )}
-              >
-                {#if row.signed}
-                  <Check class="h-3 w-3" />
-                  Validé
-                {:else}
+              {#if row.key === 'image' && row.decision === 'refused'}
+                <!-- A refusal is a settled decision, not a missing doc — but it
+                     must read distinctly so staff know not to photograph. -->
+                <span
+                  class="inline-flex items-center gap-1 rounded-sm border border-epi-orange/40 bg-epi-orange/10 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest text-epi-orange uppercase"
+                >
                   <X class="h-3 w-3" />
-                  Manquant
-                {/if}
-              </span>
+                  {IMAGE_RIGHTS_STATUS_LABELS.refused}
+                </span>
+              {:else}
+                <span
+                  class={cn(
+                    'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase',
+                    row.signed
+                      ? 'border border-epi-teal-solid/40 bg-epi-teal-solid/10 text-epi-teal-solid'
+                      : 'border border-destructive/40 bg-destructive/10 text-destructive',
+                  )}
+                >
+                  {#if row.signed}
+                    <Check class="h-3 w-3" />
+                    {row.key === 'image'
+                      ? IMAGE_RIGHTS_STATUS_LABELS.accepted
+                      : 'Validé'}
+                  {:else}
+                    <X class="h-3 w-3" />
+                    {row.key === 'image'
+                      ? IMAGE_RIGHTS_STATUS_LABELS.undecided
+                      : 'Manquant'}
+                  {/if}
+                </span>
+              {/if}
             </td>
             <td class="px-3 py-3 font-mono text-xs">
-              {#if row.signed && signedAt}
-                {formatDateFr(signedAt, timezone)}
+              {#if row.signed && row.signedAt}
+                {formatDateFr(row.signedAt, timezone)}
               {:else}
                 <span class="text-muted-foreground">—</span>
               {/if}

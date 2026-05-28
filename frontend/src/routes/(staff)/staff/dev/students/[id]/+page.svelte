@@ -334,6 +334,8 @@
     <Tabs.Content value="admin" class="space-y-6">
       <DossierAlertBanner
         activeStageParticipations={data.activeStageParticipations}
+        imageRightsDecided={data.student.imageRightsDecision !== null}
+        parentRulesSignedAt={data.student.parentRulesSignedAt}
       />
 
       <Gated group="devLead" mode="hide">
@@ -370,6 +372,13 @@
         {#if primaryComplianceParticipation}
           <ComplianceDocsTable
             participation={primaryComplianceParticipation}
+            imageRightsDecision={data.student.imageRightsDecision}
+            parentRulesSignedAt={data.student.parentRulesSignedAt}
+            parentRulesSignerName={data.student.parentRulesSignerPrenom &&
+            data.student.parentRulesSignerNom
+              ? `${data.student.parentRulesSignerPrenom} ${data.student.parentRulesSignerNom}`
+              : (data.student.parentRulesSignerNom ??
+                data.student.parentRulesSignerPrenom)}
             timezone={data.timezone}
           />
         {/if}

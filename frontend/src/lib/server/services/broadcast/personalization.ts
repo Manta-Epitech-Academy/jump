@@ -1,7 +1,7 @@
 /**
  * Per-recipient secrets that get baked into broadcast templates:
  *
- *   - `fastlogin_link`: signed magic link valid 2 months. The `/fastlogin`
+ *   - `fastlogin_link`: signed magic link valid 30 days. The `/fastlogin`
  *     route verifies the JWT and creates a BetterAuth session for the
  *     talent — same end-state as completing the OTP flow at `/login`.
  *   - `parent_fastlogin_link`: same idea for the parent of a talent. Signed

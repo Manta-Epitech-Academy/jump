@@ -46,7 +46,11 @@
   }: { event: SelectedStage; initialContent: string } = $props();
 
   let editorRef = $state<CmsEditor>();
+  // Intentional one-time snapshot (see remount note above); not meant to track
+  // later prop changes.
+  // svelte-ignore state_referenced_locally
   let content = $state(initialContent);
+  // svelte-ignore state_referenced_locally
   let savedContent = $state(initialContent);
   let saving = $state(false);
 

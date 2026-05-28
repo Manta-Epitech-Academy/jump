@@ -150,6 +150,14 @@ model StaffProfile {
   campusId  String?
   staffRole StaffRole?
   discordId String?    @unique
+  // Personal dev-redirect destinations: on a trapped (non-prod) env, mail/SMS
+  // attributed to this staff member (sends they trigger, or talents they
+  // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
+  // list, so each tester only receives their own traffic. Empty = fall back to
+  // the env list. Inert in prod (the env gate is off). See
+  // `$lib/server/{email,sms}/dev-redirect.ts`.
+  devRedirectEmails String[] @default([])
+  devRedirectPhones String[] @default([])
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -193,8 +201,29 @@ model Talent {
   generalInterestsValidatedAt DateTime?
   interestsRecapSeenAt        DateTime?
   rulesSignedAt               DateTime?
-  imageRightsSignedAt         DateTime?
-  imageRightsSignerName       String?
+  imageRightsDecision         ImageRightsDecision?
+  imageRightsDecidedAt        DateTime?
+  // Guardian's typed legal name at the moment of the image-rights decision,
+  // captured as prénom + nom to mirror the talent's own identity columns
+  // (`prenom` / `nom`) — a single free-text field invited "first name only" /
+  // "last name only" entries that read asymmetrically on the signed PDF.
+  imageRightsSignerPrenom     String?
+  imageRightsSignerNom        String?
+  // Talent's place-of-signature, captured by the onboarding `signRules` form.
+  // Lives on the row (not just in the PDF job payload) so the règlement PDF can
+  // be regenerated from DB state alone when the guardian co-signs later.
+  rulesSignedCity             String?
+  // Guardian's online co-signature of the règlement intérieur. The talent signs
+  // it during onboarding (`rulesSignedAt`); for a minor the legal guardian
+  // co-signs it from the parent flow. The règlement PDF (`rulesFilePath`) is a
+  // single shared artifact carrying both signature blocks; the worker
+  // regenerates it from DB state every time either signer commits. Signer name
+  // is split into prénom + nom for the same reason as image-rights above.
+  parentRulesSignedAt         DateTime?
+  parentRulesSignerPrenom     String?
+  parentRulesSignerNom        String?
+  parentRulesRelationship     String?
+  parentRulesSignedCity       String?
   infoValidatedAt             DateTime?
   highSchoolValidatedAt       DateTime?
   parentsValidatedAt          DateTime?
@@ -312,6 +341,14 @@ enum TalentDeletionRequestStatus {
   fulfilled
   rejected
   cancelled
+}
+
+/// The legal guardian's image-rights decision for their child. `null` on Talent
+/// means undecided (still to be chased); a non-null value is a settled decision
+/// — `refused` is as final as `accepted`, it just means "do not photograph".
+enum ImageRightsDecision {
+  accepted
+  refused
 }
 
 model TalentDeletionRequest {
@@ -492,12 +529,18 @@ model ActivityTheme {
 }
 
 model Event {
-  id         String    @id @default(cuid())
-  titre      String
-  date       DateTime
-  endDate    DateTime?
-  eventType  String    @default("coding_club")
-  campusId   String
+  id    String   @id @default(cuid())
+  titre String
+  date  DateTime
+  // Salesforce gives us the calendar day (`date`/`endDate`) but never a
+  // start time, so the time-of-day is Jump-owned: wall-clock minutes from
+  // local midnight (0–1439), `null` until staff set it. Kept separate from
+  // `date` precisely so the SF sync — which rewrites `date` — can never
+  // clobber it. Compose with the campus timezone for a real instant.
+  startMinutes Int?
+  endDate      DateTime?
+  eventType    String    @default("coding_club")
+  campusId     String
   themeId    String?
   pin        String?
   notes      String?
@@ -560,11 +603,10 @@ model Participation {
 }
 
 model StageCompliance {
-  participationId   String   @id
-  charteSigned      Boolean  @default(false)
-  imageRightsSigned Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  participationId String   @id
+  charteSigned    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
 }
@@ -1396,4 +1438,23 @@ enum XpGrantSource {
   minigame
   activity_presence
   admin_adjustment
+}
+
+/// Append-only ledger of OTP login attempts, consumed by
+/// `$lib/server/auth/rateLimiter` to cap brute-force on `verify` and mailbomb
+/// on `request`. One row per attempt; the limiter counts rows inside the
+/// bucket's window for its check. Lives in Postgres (not in-process memory)
+/// so horizontally-scaled SvelteKit pods share one ledger and a pod restart
+/// cannot reset an attacker's budget. `bucket` is kept as a `String` rather
+/// than a Prisma enum because the vocabulary lives in code
+/// (`OtpAttemptBucket` in `rateLimiter.ts`); adding a new bucket should not
+/// require a schema migration.
+model OtpAttempt {
+  id        String   @id @default(cuid())
+  bucket    String
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([bucket, email, createdAt])
+  @@index([createdAt])
 }

@@ -3,6 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { getParentLastName } from '$lib/domain/parent';
+import { imageRightsStatus } from '$lib/domain/imageRights';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
@@ -17,7 +18,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       id: true,
       prenom: true,
       nom: true,
-      imageRightsSignedAt: true,
+      imageRightsDecision: true,
       _count: {
         select: { participations: true },
       },
@@ -47,7 +48,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         id: child.id,
         prenom: child.prenom,
         nom: child.nom,
-        imageRightsSigned: !!child.imageRightsSignedAt,
+        imageRightsStatus: imageRightsStatus(child),
         eventsCount: child._count.participations,
         upcomingEvent: upcomingParticipation?.event ?? null,
       };

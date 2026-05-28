@@ -201,7 +201,7 @@
       for="freeText"
       class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
     >
-      Autre chose à nous dire sur tes centres d'intérêt ?
+      Et sinon, qu'est-ce qui te fait vibrer en ce moment ?
     </Label>
     <Textarea
       id="freeText"
@@ -209,7 +209,7 @@
       rows={3}
       maxlength={500}
       value={freeText}
-      placeholder="Raconte-nous..."
+      placeholder="Une série, un sport, un projet, n'importe quoi…"
       class="resize-none rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
     />
   </div>

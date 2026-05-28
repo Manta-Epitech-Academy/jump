@@ -6,7 +6,14 @@
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { track, errReason, secondsBetween } from '$lib/analytics';
   import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+  import { renderMarkdown } from '$lib/markdown';
+  import reglementMd from '$lib/content/reglement-interieur.md?raw';
   import ContinueButton from './ContinueButton.svelte';
+
+  // Single source of truth for the règlement body — same text the PDF embeds
+  // and the parent reads on /parent/reglement. Inline paraphrases would let
+  // the student agree to text A while signing PDF text B.
+  const reglementBody = renderMarkdown(reglementMd);
 
   let { error: formError }: { error?: string } = $props();
   const seenAt = Date.now();
@@ -59,68 +66,7 @@
 >
   <!-- ═══ Règlement intérieur ═══ -->
   <div class="prose prose-sm max-w-none prose-slate dark:prose-invert">
-    <h2>Règlement intérieur — stagiaires Epitech</h2>
-    <p>
-      En tant qu'entreprise d'accueil et école d'enseignement supérieur, Epitech
-      dispose d'un règlement intérieur garantissant un cadre respectueux et
-      propice à l'apprentissage. Tout manquement entraîne la rupture immédiate
-      de la convention de stage.
-    </p>
-
-    <h3>Présence et ponctualité</h3>
-    <p>
-      La présence sur le campus est obligatoire de 10h à 17h, hors pause
-      méridienne (12h30–13h30), pendant laquelle les stagiaires ne sont plus
-      sous la responsabilité d'Epitech. Toute absence ou retard doit être
-      justifié par écrit par les responsables légaux avant 10h30. Un stagiaire
-      arrivant plus de 15 minutes après le début d'une activité est considéré
-      absent ; en deçà, il peut être redirigé vers une autre salle si son
-      arrivée perturbe la session. Aucune sortie n'est autorisée en dehors de la
-      pause méridienne, sauf demande justifiée auprès de la direction.
-    </p>
-
-    <h3>Comportement et respect d'autrui</h3>
-    <p>
-      Les stagiaires adoptent une tenue, un langage et un comportement
-      respectueux envers leurs pairs et les encadrants. Tout propos injurieux ou
-      comportement violent est strictement proscrit. Chacun fait preuve de
-      neutralité religieuse et politique, et d'une attitude tolérante. Il est
-      interdit de crier ou courir dans l'établissement. Les couvre-chefs sont
-      interdits ; le voile religieux couvrant les cheveux est toléré s'il reste
-      discret.
-    </p>
-
-    <h3>Matériel et responsabilité</h3>
-    <p>
-      Chaque stagiaire est responsable de son propre matériel : Epitech n'assure
-      aucun prêt et ne pourra être tenue responsable en cas de casse ou de vol.
-      Tout oubli de matériel informatique est considéré comme une absence, et
-      toute détérioration est à la charge du stagiaire et de ses responsables
-      légaux. L'usage du téléphone portable est interdit en salle d'activité,
-      sauf autorisation d'un encadrant.
-    </p>
-
-    <h3>Travail et sécurité</h3>
-    <p>
-      Les consignes de sécurité et règles d'évacuation doivent être respectées
-      en toute circonstance. Le travail en groupe se fait sans perturber les
-      autres, et les salles doivent être laissées propres après chaque activité.
-      Les stagiaires respectent les règles de confidentialité, de protection des
-      données personnelles, ainsi que les droits d'auteur et la propriété
-      intellectuelle (documents, images, musiques, usage d'internet et des
-      réseaux sociaux). Il est interdit d'apporter boisson ou nourriture dans
-      certaines salles (amphithéâtre, Lab', etc.).
-    </p>
-
-    <h3>Obligations du stagiaire</h3>
-    <p>
-      Les stagiaires s'engagent à participer activement aux activités proposées
-      (conférences, ateliers, soutenances, jurys) et à remplir le questionnaire
-      d'évaluation en fin de stage, dans le cadre de la démarche d'amélioration
-      continue d'Epitech. Ils veillent également à utiliser le nom complet et le
-      logo officiels de l'école dans tous leurs documents (convention, CV,
-      présentations).
-    </p>
+    {@html reglementBody}
   </div>
 
   <!-- ═══ Sécurité des données (police réduite) ═══ -->
@@ -178,7 +124,7 @@
         class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
       />
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
-        J'ai lu et j'accepte la politique de confidentialité d'Epitech Academy
+        J'ai lu et j'accepte la politique de confidentialité d'Epitech
         concernant la collecte et le traitement de mes données personnelles.
       </span>
     </label>

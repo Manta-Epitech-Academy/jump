@@ -32,9 +32,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       throw error(importErrorToHttpStatus(err.kind), err.message);
     }
     console.error('[Subject import] failed:', err);
-    throw error(
-      500,
-      err instanceof Error ? err.message : 'Internal Server Error',
-    );
+    throw error(500, 'Internal Server Error');
   }
 };

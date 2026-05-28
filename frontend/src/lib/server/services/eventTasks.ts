@@ -1,6 +1,10 @@
 import type { ScopedPrismaClient } from '$lib/server/db/scoped';
 import type { LifecycleBounds } from '$lib/domain/eventLifecycle';
 import { EVENT_TYPES } from '$lib/domain/event';
+import {
+  imageRightsPendingWhere,
+  rulesPendingWhere,
+} from '$lib/server/db/stageCompliance';
 
 /**
  * Single source of truth for event-state items derived from DB facts.
@@ -157,22 +161,12 @@ async function loadEventFacts(
     overdueInterviews,
   ] = await Promise.all([
     db.participation.count({
-      where: {
-        eventId: event.id,
-        OR: [
-          { stageCompliance: null },
-          { stageCompliance: { charteSigned: false } },
-        ],
-      },
+      where: { eventId: event.id, ...rulesPendingWhere },
     }),
+    // Chase a *decision*, not an acceptance: a refusal is settled and drops
+    // out. The decision is talent-level (the guardian's online choice).
     db.participation.count({
-      where: {
-        eventId: event.id,
-        OR: [
-          { stageCompliance: null },
-          { stageCompliance: { imageRightsSigned: false } },
-        ],
-      },
+      where: { eventId: event.id, ...imageRightsPendingWhere },
     }),
     db.participation.count({
       where: { eventId: event.id, bringPc: false },

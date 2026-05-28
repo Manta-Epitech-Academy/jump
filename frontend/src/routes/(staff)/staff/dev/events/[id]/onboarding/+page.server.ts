@@ -72,10 +72,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   };
 };
 
-// Maps form-side doc type identifiers to their Prisma column.
+// Maps form-side doc type identifiers to their Prisma column. Image rights are
+// no longer staff-toggled — they reflect the guardian's online decision — so
+// only the charte (paper signature fallback) remains togglable here.
 const DOC_TYPE_FIELDS = {
   charte: 'charteSigned',
-  image: 'imageRightsSigned',
 } as const;
 type DocType = keyof typeof DOC_TYPE_FIELDS;
 

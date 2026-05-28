@@ -6,6 +6,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { camperEmailSchema, camperOtpSchema } from '$lib/validation/auth';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
+import { checkRateLimit, recordAttempt } from '$lib/server/auth/rateLimiter';
 import { prisma } from '$lib/server/db';
 import { ensureTalentUser } from '$lib/server/services/talentAccount';
 
@@ -51,9 +52,21 @@ export const actions: Actions = {
       return fail(400, { emailForm });
     }
 
-    try {
-      const normalizedEmail = emailForm.data.email.toLowerCase().trim();
+    const normalizedEmail = emailForm.data.email.toLowerCase().trim();
 
+    const requestLimit = await checkRateLimit('request', normalizedEmail);
+    if (!requestLimit.allowed) {
+      return message(
+        emailForm,
+        {
+          type: 'error',
+          text: `Trop de demandes. Réessayez dans ${requestLimit.retryAfterSeconds} secondes.`,
+        },
+        { status: 429 },
+      );
+    }
+
+    try {
       // A talent profile must exist for this email (linked or seeded). Without
       // one there's nothing to sign in to.
       const talent = await prisma.talent.findUnique({
@@ -79,6 +92,10 @@ export const actions: Actions = {
       await auth.api.sendVerificationOTP({
         body: { email: normalizedEmail, type: 'sign-in' },
       });
+
+      // Only count a real send: a lookup-404 or provider error costs nothing
+      // and shouldn't burn budget for the legitimate user behind the typo.
+      await recordAttempt('request', normalizedEmail);
 
       return message(emailForm, {
         type: 'success',
@@ -106,6 +123,20 @@ export const actions: Actions = {
       return fail(400, { otpForm });
     }
 
+    const normalizedEmail = otpForm.data.email.toLowerCase().trim();
+
+    const verifyLimit = await checkRateLimit('verify', normalizedEmail);
+    if (!verifyLimit.allowed) {
+      return message(
+        otpForm,
+        {
+          type: 'error',
+          text: `Trop de tentatives. Réessayez dans ${verifyLimit.retryAfterSeconds} secondes.`,
+        },
+        { status: 429 },
+      );
+    }
+
     try {
       // Sign in via BetterAuth emailOTP plugin as a Response object
       const authResponse = await auth.api.signInEmailOTP({
@@ -123,6 +154,7 @@ export const actions: Actions = {
 
       forwardAuthCookies(authResponse, cookies);
     } catch (err) {
+      await recordAttempt('verify', normalizedEmail);
       console.error('[verifyOtp] OTP Verify Error:', err);
       return message(
         otpForm,
