@@ -1,10 +1,36 @@
 /**
- * In-memory rate limiter for OTP verification and fastlogin endpoints.
+ * In-memory rate limiter for the email-OTP verify actions (talent + parent
+ * login). Tracks attempts by client IP; allows MAX_ATTEMPTS per WINDOW_MS
+ * sliding window; expired entries are garbage-collected every CLEANUP_INTERVAL_MS.
  *
- * Tracks attempts by IP address. Allows max 5 attempts per 10-minute
- * sliding window. Expired entries are garbage-collected every 5 minutes.
+ * CWE-307 mitigation; users include minors (RGPD).
  *
- * CWE-307 mitigation — users include minors (RGPD).
+ * Scope: OTP verify only. Fastlogin routes deliberately skip this; their
+ * HMAC-signed JWT is unguessable and verified before any DB hit, so an
+ * IP-keyed bucket would only DoS legitimate cohorts opening a broadcast
+ * from a shared NAT (a school's wifi, siblings at home).
+ *
+ * Deploy contract:
+ *
+ *   1. Behind a reverse proxy, set ADDRESS_HEADER (and XFF_DEPTH if more
+ *      than one hop) on the adapter-node process. Without it,
+ *      getClientAddress() returns the proxy's TCP peer and every request
+ *      shares one global bucket: one curious user trips the limit for
+ *      everyone. See .env.example for the per-deploy guidance.
+ *
+ *      Caveat for future call sites: once ADDRESS_HEADER is set in prod,
+ *      adapter-node THROWS on any request that doesn't carry that header.
+ *      Today the only callers of getClientAddress() are the two OTP-verify
+ *      form actions, both reachable only through the proxy. Adding a new
+ *      getClientAddress() call from a route that can be hit directly
+ *      (a Docker healthcheck on sveltekit, an in-container fetch, a
+ *      cron-driven probe) would 500 in prod.
+ *
+ *   2. The Map lives in the process. A single-pod deployment (current
+ *      docker-compose shape) means the configured budget IS the budget.
+ *      Horizontal scaling would give each replica its own bucket, so the
+ *      effective limit becomes MAX_ATTEMPTS x N replicas; move to a shared
+ *      store (Redis, Postgres) before scaling out.
  */
 
 const MAX_ATTEMPTS = 5;

@@ -2,16 +2,39 @@
  * Signed magic-link tokens for passwordless sign-in.
  *
  *   - talent (`/fastlogin`): verifies the JWT and creates a BetterAuth
- *     session for the talent — same end-state as completing the OTP flow
+ *     session for the talent, same end-state as completing the OTP flow
  *     at `/login`.
  *   - parent (`/parent/fastlogin`): same idea for the parent of a talent,
  *     signed with a separate audience claim and consumed by the parent
  *     route, which signs in the `bauth_user` with `role: 'parent'`.
  *
  * Kept free of any `$lib/server/auth` import on purpose: BetterAuth's OTP
- * callback imports `otp.ts`, which mints parent links here — routing the
+ * callback imports `otp.ts`, which mints parent links here, so routing the
  * token helpers through `auth` would close an import cycle. Only `mintSigninOtp`
  * (in `broadcast/personalization.ts`) needs the BetterAuth instance.
+ *
+ * Security model:
+ *
+ *   - HS256 signed with the 256-bit `BETTER_AUTH_SECRET`, so brute-forcing
+ *     a valid token is infeasible. The consuming routes (`/fastlogin`,
+ *     `/parent/fastlogin`) deliberately skip the IP-keyed rate-limiter
+ *     that guards `/login` OTP verify: against an unguessable token an
+ *     IP bucket adds nothing, and it would lock out legitimate cohorts
+ *     opening a broadcast from a shared NAT (school wifi, sibling
+ *     households).
+ *
+ *   - Known replay gap: 7-day TTL, no `jti` / replay store. A holder of
+ *     one valid link can call their fastlogin route repeatedly and
+ *     accumulate `bauth_session` rows for the talent / parent the token
+ *     was minted for. There is no escalation, the holder already has
+ *     full session-create power via that token, only DB bloat on the one
+ *     user. Acceptable today; the fix when it stops being acceptable is
+ *     to mint with `setJti(crypto.randomUUID())` and gate consumption on
+ *     a `FastloginTokenUse(jti UNIQUE, consumedAt)` table, with the
+ *     check + insert in one transaction. One-shot would break legitimate
+ *     multi-device clicks, so the table should record uses and the route
+ *     should cap per-jti uses (e.g. 20) rather than reject after the
+ *     first.
  */
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';

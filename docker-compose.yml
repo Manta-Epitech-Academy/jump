@@ -50,6 +50,11 @@ services:
       - ORIGIN=${ORIGIN}
       - DATABASE_URL=postgresql://jump:${POSTGRES_PASSWORD}@postgres:5432/jump
       - HOST_HEADER=x-forwarded-host
+      # ADDRESS_HEADER + XFF_DEPTH come from .env, not hardcoded here: they
+      # vary per deploy (no proxy locally, single proxy in staging, chained
+      # proxies in prod). adapter-node throws when ADDRESS_HEADER names a
+      # header the request doesn't carry, so a hardcode would 500 every
+      # direct-to-container hit. See .env.example.
       - S3_ENDPOINT=http://garage:3900
       - S3_PUBLIC_ENDPOINT=${S3_PUBLIC_ENDPOINT}
       - S3_REGION=${S3_REGION}

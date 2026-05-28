@@ -10,23 +10,14 @@
 import type { RequestHandler } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { checkRateLimit } from '$lib/server/auth/rateLimiter';
 import { prisma } from '$lib/server/db';
 import { establishOtpSession } from '$lib/server/auth/otpSession';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { verifyParentFastloginToken } from '$lib/server/auth/fastloginToken';
 
-export const GET: RequestHandler = async ({
-  url,
-  request,
-  cookies,
-  getClientAddress,
-}) => {
-  const rateLimit = checkRateLimit(getClientAddress());
-  if (!rateLimit.allowed) {
-    throw error(429, 'Trop de tentatives.');
-  }
-
+// No rate-limit on purpose; security model + known replay gap documented
+// in `$lib/server/auth/fastloginToken`.
+export const GET: RequestHandler = async ({ url, request, cookies }) => {
   const token = url.searchParams.get('token');
   if (!token) throw error(400, 'Missing token');
 
