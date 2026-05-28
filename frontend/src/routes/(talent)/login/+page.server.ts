@@ -54,7 +54,7 @@ export const actions: Actions = {
 
     const normalizedEmail = emailForm.data.email.toLowerCase().trim();
 
-    const requestLimit = checkRateLimit('request', normalizedEmail);
+    const requestLimit = await checkRateLimit('request', normalizedEmail);
     if (!requestLimit.allowed) {
       return message(
         emailForm,
@@ -95,7 +95,7 @@ export const actions: Actions = {
 
       // Only count a real send: a lookup-404 or provider error costs nothing
       // and shouldn't burn budget for the legitimate user behind the typo.
-      recordAttempt('request', normalizedEmail);
+      await recordAttempt('request', normalizedEmail);
 
       return message(emailForm, {
         type: 'success',
@@ -125,7 +125,7 @@ export const actions: Actions = {
 
     const normalizedEmail = otpForm.data.email.toLowerCase().trim();
 
-    const verifyLimit = checkRateLimit('verify', normalizedEmail);
+    const verifyLimit = await checkRateLimit('verify', normalizedEmail);
     if (!verifyLimit.allowed) {
       return message(
         otpForm,
@@ -154,7 +154,7 @@ export const actions: Actions = {
 
       forwardAuthCookies(authResponse, cookies);
     } catch (err) {
-      recordAttempt('verify', normalizedEmail);
+      await recordAttempt('verify', normalizedEmail);
       console.error('[verifyOtp] OTP Verify Error:', err);
       return message(
         otpForm,
