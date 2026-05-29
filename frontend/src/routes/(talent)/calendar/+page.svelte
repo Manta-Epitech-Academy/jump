@@ -326,9 +326,7 @@
   <title>Planning</title>
 </svelte:head>
 
-<div
-  class="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
->
+<div class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
   <header
     class="shrink-0 border-b border-slate-200 bg-white px-4 py-4 md:px-8 dark:border-slate-800 dark:bg-slate-900"
   >

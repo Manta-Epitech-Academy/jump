@@ -107,7 +107,7 @@
 {#if !isDynamic}
   <!-- ═══ STATIC ACTIVITY PAGE ═══ -->
   <div
-    class="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
+    class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
   >
     <header
       class="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:px-6 dark:border-slate-800 dark:bg-slate-900"
@@ -164,7 +164,7 @@
 {:else}
   <!-- ═══ DYNAMIC ACTIVITY PAGE (steps/missions) ═══ -->
   <div
-    class="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
+    class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
   >
     <header
       class="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:px-6 dark:border-slate-800 dark:bg-slate-900"

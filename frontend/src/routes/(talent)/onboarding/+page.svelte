@@ -66,7 +66,7 @@
 </svelte:head>
 
 <div
-  class="relative flex h-screen w-full flex-col overflow-hidden bg-slate-100 transition-colors duration-500 dark:bg-slate-950"
+  class="relative flex h-dvh w-full flex-col overflow-hidden bg-slate-100 transition-colors duration-500 dark:bg-slate-950"
 >
   <!-- Background decorations -->
   <div
