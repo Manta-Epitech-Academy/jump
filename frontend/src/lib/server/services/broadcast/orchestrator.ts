@@ -25,6 +25,7 @@ import {
   buildParentFastloginLink,
 } from '$lib/server/auth/fastloginToken';
 import { mintSigninOtp } from './personalization';
+import { loadBroadcastTemplate } from './templates';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { staffBulkDevRedirectPhones } from '$lib/server/sms/dev-redirect';
 
@@ -51,14 +52,22 @@ export interface EnqueueResult {
  * edits to the template don't rewrite history.
  *
  * No messages are sent here — call `processBroadcast()` after.
+ *
+ * The template is resolved through `loadBroadcastTemplate`, so a transactional
+ * one (an OTP/relance template wired to an action) is rejected here, not just
+ * hidden from the composer picker. Without that backstop a crafted request or a
+ * `?template=` deep link could enqueue an `{{otp_code}}` template and mail a live
+ * login code to every recipient.
  */
 export async function enqueueBroadcast(
   input: EnqueueBroadcastInput,
 ): Promise<EnqueueResult> {
-  const template = await prisma.messageTemplate.findUniqueOrThrow({
-    where: { id: input.templateId },
-    select: { channel: true, subject: true, body: true },
-  });
+  const template = await loadBroadcastTemplate(input.templateId);
+  if (!template) {
+    throw new Error(
+      `Template ${input.templateId} is not broadcastable (unknown or transactional)`,
+    );
+  }
 
   const { recipients } = await resolveRecipients(
     {
