@@ -110,31 +110,34 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const ongoingAnd = [{ eventId: event.id }, ...originAnd];
   const ongoingWhere =
     ongoingAnd.length === 1 ? ongoingAnd[0] : { AND: ongoingAnd };
-  const participations = await db.participation.findMany({
-    where: ongoingWhere,
-    select: ONGOING_PARTICIPATION_SELECT,
-    orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-  });
-
-  const lastActivities = await db.participationActivity.findMany({
-    where: {
-      participation: { eventId: event.id },
-      isPresent: true,
-    },
-    include: {
-      activity: {
-        select: {
-          nom: true,
-          timeSlot: { select: { startTime: true } },
+  // The latest-activity lookup filters by the event, not by the loaded rows, so
+  // it runs alongside the participation read rather than waiting on it.
+  const [participations, lastActivities] = await Promise.all([
+    db.participation.findMany({
+      where: ongoingWhere,
+      select: ONGOING_PARTICIPATION_SELECT,
+      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    }),
+    db.participationActivity.findMany({
+      where: {
+        participation: { eventId: event.id },
+        isPresent: true,
+      },
+      include: {
+        activity: {
+          select: {
+            nom: true,
+            timeSlot: { select: { startTime: true } },
+          },
         },
       },
-    },
-    orderBy: [
-      { participationId: 'asc' },
-      { activity: { timeSlot: { startTime: 'desc' } } },
-    ],
-    distinct: ['participationId'],
-  });
+      orderBy: [
+        { participationId: 'asc' },
+        { activity: { timeSlot: { startTime: 'desc' } } },
+      ],
+      distinct: ['participationId'],
+    }),
+  ]);
   const lastByParticipation = new Map(
     lastActivities.map((pa) => [
       pa.participationId,

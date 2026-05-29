@@ -28,24 +28,22 @@ function validateFilter(raw: string | null): OnboardingFilterKey {
 }
 
 /**
- * Latest `sentAt` per (talent, audience type, channel), folded into a compact
- * `ReminderSummary` keyed by talentId. One `groupBy` over the event's talents
+ * Latest `sentAt` per (talent, audience type, channel) for the event's cohort,
+ * folded into a compact `ReminderSummary` keyed by talentId. One `groupBy`
  * replaces the per-row `reminders[]` array we used to ship to the client.
- * `talentIds` is already campus-scoped (it comes from the scoped participation
- * read), so the unscoped reminder table is safe to query here.
+ * Scoped by the event relation (the event is already campus-bound), so it does
+ * not depend on the loaded participation rows and runs in parallel with them.
  */
 async function loadReminderSummaries(
-  talentIds: string[],
+  eventId: string,
 ): Promise<Map<string, ReminderSummary>> {
-  const byTalent = new Map<string, ReminderSummary>();
-  if (talentIds.length === 0) return byTalent;
-
   const grouped = await prisma.onboardingReminder.groupBy({
     by: ['talentId', 'type', 'channel'],
-    where: { talentId: { in: talentIds } },
+    where: { talent: { participations: { some: { eventId } } } },
     _max: { sentAt: true },
   });
 
+  const byTalent = new Map<string, ReminderSummary>();
   for (const g of grouped) {
     const type = g.type as RelanceType;
     const channel = g.channel as RelanceChannel;
@@ -64,59 +62,63 @@ async function loadReminderSummaries(
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   requireFlag(locals, 'stage_seconde');
   const campusId = getCampusId(locals);
-  const event = await loadStageOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
   const filter = validateFilter(url.searchParams.get('filter'));
 
-  const rows = await db.participation.findMany({
-    where: { eventId: event.id },
-    select: {
-      id: true,
-      talentId: true,
-      bringPc: true,
-      stageCompliance: { select: { charteSigned: true } },
-      talent: {
-        select: {
-          id: true,
-          nom: true,
-          prenom: true,
-          parentNom: true,
-          parentPrenom: true,
-          email: true,
-          parentEmail: true,
-          phone: true,
-          parentPhone: true,
-          // Compliance signals: the table badges read these and the relance
-          // dialog's `classifyRelanceSkip` derives the "completed" skip from them.
-          parentRulesSignedAt: true,
-          imageRightsDecision: true,
-          imageRightsDecidedAt: true,
-          infoValidatedAt: true,
-          rulesSignedAt: true,
-          charterAcceptedAt: true,
-          // Mirrors the server's `user.email ?? talent.email` fallback so the
-          // relance dialog preview agrees with what the send action will do.
-          user: { select: { email: true } },
+  // The event guard, the empty relance form, and the admin-bound templates are
+  // mutually independent, so resolve them together rather than in a chain.
+  const [event, relanceForm, relanceDefaults] = await Promise.all([
+    loadStageOr404(params.id, campusId),
+    superValidate(zod4(sendRelanceSchema)),
+    loadAllRelanceDefaults(),
+  ]);
+
+  // Cohort rows and the compact reminder history both key off the event alone.
+  // The summary replaces an unbounded per-row `reminders[]` array; it feeds the
+  // table's "Dernière relance" column and the relance dialog's per-channel
+  // cooldown / SMS-escalation gate. Run them in parallel.
+  const [rows, summaryByTalent] = await Promise.all([
+    db.participation.findMany({
+      where: { eventId: event.id },
+      select: {
+        id: true,
+        talentId: true,
+        bringPc: true,
+        stageCompliance: { select: { charteSigned: true } },
+        talent: {
+          select: {
+            id: true,
+            nom: true,
+            prenom: true,
+            parentNom: true,
+            parentPrenom: true,
+            email: true,
+            parentEmail: true,
+            phone: true,
+            parentPhone: true,
+            // Compliance signals: the table badges read these and the relance
+            // dialog's `classifyRelanceSkip` derives the "completed" skip from them.
+            parentRulesSignedAt: true,
+            imageRightsDecision: true,
+            imageRightsDecidedAt: true,
+            infoValidatedAt: true,
+            rulesSignedAt: true,
+            charterAcceptedAt: true,
+            // Mirrors the server's `user.email ?? talent.email` fallback so the
+            // relance dialog preview agrees with what the send action will do.
+            user: { select: { email: true } },
+          },
         },
       },
-    },
-    orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-  });
+      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    }),
+    loadReminderSummaries(event.id),
+  ]);
 
-  // Compact reminder history in a single aggregate instead of an unbounded
-  // `reminders[]` array per row. The table's "Dernière relance" column and the
-  // relance dialog's per-channel cooldown / SMS-escalation gate only need the
-  // latest `sentAt` for each (audience type, channel) cell.
-  const summaryByTalent = await loadReminderSummaries(
-    rows.map((p) => p.talentId),
-  );
   const participations = rows.map((p) => ({
     ...p,
     reminderSummary: summaryByTalent.get(p.talentId) ?? emptyReminderSummary(),
   }));
-
-  const relanceForm = await superValidate(zod4(sendRelanceSchema));
-  const relanceDefaults = await loadAllRelanceDefaults();
 
   return {
     event,
