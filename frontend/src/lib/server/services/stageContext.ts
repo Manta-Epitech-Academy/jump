@@ -114,10 +114,52 @@ export async function resolveStageContext(
     realStatus: 'upcoming',
     startDate: nextUpcoming.date,
     endDate,
-    startsInDays: Math.ceil(
-      (nextUpcoming.date.getTime() - now.getTime()) / MS_PER_DAY,
-    ),
+    startsInDays: daysUntil(nextUpcoming.date, now),
   };
+}
+
+/**
+ * Whole days from `now` to `date`, clamped at 0 (a date today or in the past
+ * reads "0", never negative). Calendar-day-naive by design: it rounds the raw
+ * span up, matching `startsInDays` and the "J-X" countdown shown across the
+ * dev workspace — not a timezone-aware day-boundary count. Single producer for
+ * the `{{jours_restants}}` relance/broadcast variable so every surface agrees.
+ */
+export function daysUntil(date: Date, now: Date = new Date()): number {
+  return Math.max(0, Math.ceil((date.getTime() - now.getTime()) / MS_PER_DAY));
+}
+
+/**
+ * Days until the talent's soonest stage de seconde that hasn't ended yet, or
+ * null when they have none. Drives `{{jours_restants}}` on the student fiche,
+ * where (unlike the event onboarding page) the relevant stage isn't pinned by
+ * the URL. Shared by the page load (preview) and the send action so both show
+ * the same number. Candidate filter mirrors `resolveStageContext`: multi-day
+ * stages still running, plus single-day ones within their default duration.
+ */
+export async function daysUntilTalentStage(
+  db: ScopedPrismaClient,
+  talentId: string,
+  now: Date = new Date(),
+): Promise<number | null> {
+  const next = await db.participation.findFirst({
+    where: {
+      talentId,
+      event: {
+        eventType: EVENT_TYPES.STAGE_SECONDE,
+        OR: [
+          { endDate: { gte: now } },
+          {
+            endDate: null,
+            date: { gte: addDays(now, -STAGE_DEFAULT_DURATION_DAYS) },
+          },
+        ],
+      },
+    },
+    orderBy: { event: { date: 'asc' } },
+    select: { event: { select: { date: true } } },
+  });
+  return next ? daysUntil(next.event.date, now) : null;
 }
 
 function addDays(d: Date, days: number): Date {
