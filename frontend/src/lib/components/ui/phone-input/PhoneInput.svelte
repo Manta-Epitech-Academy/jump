@@ -23,22 +23,37 @@
 
   let {
     name,
-    value = '',
+    value = $bindable(''),
     placeholder = '',
     required = false,
+    disabled = false,
     error = false,
     id,
+    form,
     'aria-describedby': ariaDescribedBy,
     class: className = '',
+    triggerClass = '',
+    popoverClass = '',
   }: {
-    name: string;
+    /** Field name for the hidden input that carries the E.164 value. Omit for
+     * controls read straight off `bind:value` (e.g. a one-shot test send). */
+    name?: string;
+    /** Two-way bindable: seeds the field, then reflects the canonical E.164. */
     value?: string;
     placeholder?: string;
     required?: boolean;
+    disabled?: boolean;
     error?: boolean;
     id?: string;
+    /** Associates the hidden input with a form elsewhere in the DOM. */
+    form?: string;
     'aria-describedby'?: string;
+    /** Classes for the number Input (the visible text field). */
     class?: string;
+    /** Classes for the country-selector trigger button. */
+    triggerClass?: string;
+    /** Classes for the country-list popover panel. */
+    popoverClass?: string;
   } = $props();
 
   // The field shows the number grouped the way the user would write it
@@ -159,6 +174,15 @@
     return trimmed ? `${countryEntry.dialCode}${trimmed}` : '';
   });
 
+  // Reflect the canonical value back through `bind:value` so a superforms
+  // store (or any local state) stays in sync as the user types, mirroring the
+  // hidden input. One-way callers (value={...} without bind) are unaffected:
+  // the write simply stays local. parseInitial reads `value` once at setup and
+  // never reactively re-reads it, so this never feeds back into a re-parse.
+  $effect(() => {
+    value = e164Value;
+  });
+
   let isValid = $derived.by(() => {
     if (!phoneText) return false;
     try {
@@ -277,13 +301,13 @@
           <Button
             {...props}
             variant="outline"
+            {disabled}
             title={countryEntry.name}
             aria-label="Indicatif pays ({countryEntry.name})"
             class={cn(
-              'h-9 w-[112px] shrink-0 justify-between gap-1 rounded-lg border bg-white/70 px-3 whitespace-nowrap text-slate-900 hover:bg-white/90 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:bg-slate-900/80 dark:text-white dark:hover:bg-slate-800/90',
-              error
-                ? 'border-destructive/60'
-                : 'border-slate-200 dark:border-slate-700',
+              'h-9 w-[112px] shrink-0 justify-between gap-1 px-3 whitespace-nowrap',
+              triggerClass,
+              error && 'border-destructive/60',
             )}
           >
             <span class="truncate">
@@ -295,7 +319,10 @@
         {/snippet}
       </Popover.Trigger>
       <Popover.Content
-        class="w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white/80 p-0 shadow-lg backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80"
+        class={cn(
+          'w-[min(320px,calc(100vw-2rem))] overflow-hidden p-0',
+          popoverClass,
+        )}
         align="start"
       >
         <Command.Root>
@@ -318,7 +345,7 @@
                     {entry.dialCode}
                   </span>
                   {#if entry.code === selectedCountry}
-                    <Check class="ml-1 size-4 text-epi-blue" />
+                    <Check class="ml-1 size-4 text-primary" />
                   {/if}
                 </Command.Item>
               {/each}
@@ -337,7 +364,7 @@
                     {entry.dialCode}
                   </span>
                   {#if entry.code === selectedCountry}
-                    <Check class="ml-1 size-4 text-epi-blue" />
+                    <Check class="ml-1 size-4 text-primary" />
                   {/if}
                 </Command.Item>
               {/each}
@@ -357,6 +384,7 @@
         autocapitalize="off"
         autocorrect="off"
         spellcheck={false}
+        {disabled}
         value={phoneText}
         oninput={handleInput}
         {placeholder}
@@ -372,12 +400,14 @@
       {#if isValid}
         <CircleCheck
           aria-hidden="true"
-          class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-epi-blue"
+          class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-primary"
         />
       {/if}
     </div>
 
-    <input type="hidden" {name} value={e164Value} />
+    {#if name}
+      <input type="hidden" {name} {form} value={e164Value} />
+    {/if}
   </div>
   <span class="sr-only" aria-live="polite">
     {isValid ? `Numéro valide pour ${countryEntry.name}` : ''}

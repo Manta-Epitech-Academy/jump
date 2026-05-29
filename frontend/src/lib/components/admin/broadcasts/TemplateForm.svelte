@@ -4,6 +4,7 @@
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
+  import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as Select from '$lib/components/ui/select';
@@ -252,16 +253,24 @@
         template.
       </p>
       <div class="flex flex-wrap items-center gap-2">
-        <Input
-          id="testRecipient"
-          type={$form.channel === 'sms' ? 'tel' : 'email'}
-          bind:value={testRecipient}
-          disabled={smsBlocked}
-          placeholder={$form.channel === 'sms'
-            ? 'ex : +33 6 12 34 56 78'
-            : 'ex : prenom.nom@epitech.eu'}
-          class="max-w-xs"
-        />
+        {#if $form.channel === 'sms'}
+          <div class="w-full max-w-xs">
+            <PhoneInput
+              id="testRecipient"
+              bind:value={testRecipient}
+              disabled={smsBlocked}
+              placeholder="06 12 34 56 78"
+            />
+          </div>
+        {:else}
+          <Input
+            id="testRecipient"
+            type="email"
+            bind:value={testRecipient}
+            placeholder="ex : prenom.nom@epitech.eu"
+            class="max-w-xs"
+          />
+        {/if}
         <Button
           type="button"
           variant="outline"

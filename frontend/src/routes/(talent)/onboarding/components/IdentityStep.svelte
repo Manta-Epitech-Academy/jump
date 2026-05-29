@@ -31,6 +31,10 @@
 
   const fieldInput =
     'rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600';
+  // Glass skin for the PhoneInput chrome so the country selector and its
+  // dropdown match the talent fields; the component itself ships theme-neutral.
+  const fieldPopover =
+    'rounded-xl border border-slate-200 bg-white/80 shadow-lg backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/80';
   const fieldLabel =
     'mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400';
 </script>
@@ -169,6 +173,8 @@
         error={!!errors?.phone}
         aria-describedby={errors?.phone ? 'phone-error' : undefined}
         class={fieldInput}
+        triggerClass={fieldInput}
+        popoverClass={fieldPopover}
       />
       {#if errors?.phone}<span id="phone-error" class="text-xs text-destructive"
           >{errors.phone[0]}</span

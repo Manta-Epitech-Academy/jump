@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
+  import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
@@ -120,13 +121,14 @@
                 >(optionnel)</span
               ></Label
             >
-            <Input
+            <PhoneInput
               id="phone"
               name="phone"
-              type="tel"
               bind:value={$form.phone}
-              placeholder="06..."
+              placeholder="06 12 34 56 78"
+              error={!!$errors.phone}
               class="rounded-sm bg-background"
+              triggerClass="rounded-sm bg-background"
             />
             {#if $errors.phone}<span class="text-xs text-destructive"
                 >{$errors.phone}</span
@@ -194,13 +196,14 @@
                 >(optionnel)</span
               ></Label
             >
-            <Input
+            <PhoneInput
               id="parent_phone"
               name="parent_phone"
-              type="tel"
               bind:value={$form.parent_phone}
-              placeholder="06..."
+              placeholder="06 12 34 56 78"
+              error={!!$errors.parent_phone}
               class="rounded-sm bg-background"
+              triggerClass="rounded-sm bg-background"
             />
             {#if $errors.parent_phone}<span class="text-xs text-destructive"
                 >{$errors.parent_phone}</span
