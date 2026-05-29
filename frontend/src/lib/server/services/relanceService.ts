@@ -45,6 +45,14 @@ export type SendRelancesInput = {
   body: string;
   sentBy: string;
   campusId: string;
+  /**
+   * Days until the stage this relance is about — the `{{jours_restants}}`
+   * token ("J-X" / "dans X jours"). Resolved by the caller from the in-scope
+   * event (the event onboarding page) or the talent's soonest upcoming stage
+   * (the fiche). `null`/omitted renders the token empty, like any unset
+   * contextual variable.
+   */
+  joursRestants?: number | null;
 };
 
 /** Server-side skip buckets — predictable reasons + transport / config. */
@@ -85,6 +93,10 @@ export async function sendRelances(
   input: SendRelancesInput,
 ): Promise<SendRelancesResult> {
   const { talentIds, type, channel, subject, body, sentBy, campusId } = input;
+  // Same countdown for every recipient of this send — resolved once by the
+  // caller, stringified here for the {{jours_restants}} token.
+  const joursRestants =
+    input.joursRestants != null ? String(input.joursRestants) : null;
   const db = scopedPrisma(campusId);
   const campus = await prisma.campus.findUnique({
     where: { id: campusId },
@@ -188,6 +200,7 @@ export async function sendRelances(
         email: mailbox,
         campus: campus?.name ?? '',
         email_contact_campus: campus?.contactEmail ?? null,
+        jours_restants: joursRestants,
       };
       // No link rewrite: the SMS deliberately carries no action link.
       const renderedBody = substituteVariables(body, ctx);
@@ -255,6 +268,7 @@ export async function sendRelances(
       fastlogin_link: fastloginLink,
       parent_fastlogin_link: parentFastloginLink,
       email_contact_campus: campus?.contactEmail ?? null,
+      jours_restants: joursRestants,
     };
     const renderedSubject = substituteVariables(subject, ctx);
     const renderedBody = substituteVariables(body, ctx);

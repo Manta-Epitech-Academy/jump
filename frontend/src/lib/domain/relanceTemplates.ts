@@ -17,12 +17,12 @@ export type RelanceTemplate = {
  * Default body for an SMS relance, per recipient type. SMS escalation is
  * fixed-shape (no admin template, no EmailActionMapping): a short, link-free
  * nudge that points back to the mailbox ({{email}}) — the SMS must never
- * carry an action link. `{X}` (days until the stage) has no variable in the
- * system, so it stays a literal fill-in the staff edits in the compose dialog.
+ * carry an action link. `{{jours_restants}}` (days until the stage) is resolved
+ * by the send action from the in-scope event, like every other token.
  */
 export const RELANCE_SMS_DEFAULTS: Record<RelanceType, string> = {
   student:
-    "Salut {{prenom}}, plus que {X} jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail sur {{email}}. - Epitech {{campus}}",
+    "Salut {{prenom}}, plus que {{jours_restants}} jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail sur {{email}}. - Epitech {{campus}}",
   parent:
     "Bonjour, votre signature est attendue pour finaliser l'inscription de {{child_prenom}} au stage de seconde à Epitech. Mail envoyé sur {{email}}. - Epitech {{campus}}",
 };

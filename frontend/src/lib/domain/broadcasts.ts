@@ -48,6 +48,7 @@ export type BroadcastVariableKey =
   | 'campus'
   | 'email_contact_campus'
   | 'event_name'
+  | 'jours_restants'
   | 'fastlogin_link'
   | 'parent_fastlogin_link'
   | 'otp_code'
@@ -114,6 +115,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     token: '{{event_name}}',
     label: "Nom de l'event lié à l'envoi",
     demo: 'Coding Club n°4',
+    contextual: true,
+  },
+  {
+    key: 'jours_restants',
+    token: '{{jours_restants}}',
+    label: 'Jours avant le début du stage (J-X)',
+    demo: '5',
     contextual: true,
   },
   {

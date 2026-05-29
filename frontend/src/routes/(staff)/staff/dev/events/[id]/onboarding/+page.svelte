@@ -197,6 +197,9 @@
       email: mailbox,
       campus: data.campus.name,
       email_contact_campus: data.campus.contactEmail ?? '',
+      ...(data.joursRestants != null
+        ? { jours_restants: String(data.joursRestants) }
+        : {}),
     };
   }
 

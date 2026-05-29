@@ -9,6 +9,10 @@ import {
   processBroadcast,
 } from '$lib/server/services/broadcast/orchestrator';
 import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
+import {
+  BROADCASTABLE_TEMPLATE_WHERE,
+  loadBroadcastTemplate,
+} from '$lib/server/services/broadcast/templates';
 import { isSmsEnabled } from '$lib/server/sms';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -16,6 +20,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
   const [templates, campuses] = await Promise.all([
     prisma.messageTemplate.findMany({
+      // Only broadcast-purposed templates (see BROADCASTABLE_TEMPLATE_WHERE).
+      // Transactional ones stay editable via the templates list (email-actions
+      // links to manage them), just not pickable here; the send paths enforce
+      // the same rule so hiding the option is not the only line of defence.
+      where: BROADCASTABLE_TEMPLATE_WHERE,
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true,
@@ -85,14 +94,11 @@ export const actions: Actions = {
     const form = await superValidate(formData, zod4(broadcastSchema));
     if (!form.valid) return fail(400, { form });
 
-    const template = await prisma.messageTemplate.findUnique({
-      where: { id: form.data.templateId },
-      select: { channel: true, subject: true, body: true },
-    });
+    const template = await loadBroadcastTemplate(form.data.templateId);
     if (!template) {
       return message(
         form,
-        { type: 'error', text: 'Template introuvable.' },
+        { type: 'error', text: 'Template introuvable ou non diffusable.' },
         { status: 400 },
       );
     }
@@ -152,20 +158,27 @@ export const actions: Actions = {
     if (!campusId || !audience) return fail(400, { form });
 
     // Auto-generate broadcast name: `[DD/MM/YYYY HH:MM] Campus - Template`.
+    // Resolve the template through the broadcastable guard so a transactional
+    // id (e.g. a `?template=` deep link the picker would have hidden) surfaces a
+    // clean form error here rather than throwing in `enqueueBroadcast`.
     const [campus, template] = await Promise.all([
       prisma.campus.findUnique({
         where: { id: campusId },
         select: { name: true },
       }),
-      prisma.messageTemplate.findUnique({
-        where: { id: templateId },
-        select: { name: true },
-      }),
+      loadBroadcastTemplate(templateId),
     ]);
+    if (!template) {
+      return message(
+        form,
+        { type: 'error', text: 'Template introuvable ou non diffusable.' },
+        { status: 400 },
+      );
+    }
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    const name = `[${stamp}] ${campus?.name ?? '?'} - ${template?.name ?? '?'}`;
+    const name = `[${stamp}] ${campus?.name ?? '?'} - ${template.name}`;
 
     const { broadcastId } = await enqueueBroadcast({
       name,

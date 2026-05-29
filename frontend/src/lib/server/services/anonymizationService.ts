@@ -2,7 +2,10 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
-import { clearOnboardingTimestamps } from '$lib/domain/talentOnboarding';
+import {
+  clearOnboardingTimestamps,
+  clearTalentOnboardingArtifacts,
+} from '$lib/domain/talentOnboarding';
 
 /**
  * The single GDPR-erasure primitive. Clears a talent's PII in place rather than
@@ -107,10 +110,13 @@ export async function anonymizeTalent(
       parentRulesSignerNom: null,
       parentRulesRelationship: null,
       parentRulesSignedCity: null,
-      // Talent's own règlement signature place — PII like the guardian's.
-      rulesSignedCity: null,
-      charterFilePath: null,
-      rulesFilePath: null,
+      // Talent-owned onboarding signature artifacts (charte / règlement PDF
+      // keys + the talent's place-of-signature). Shared with the admin reset via
+      // the canonical list so a new artifact scrubs on both paths; the PDF keys
+      // were captured above for post-commit S3 deletion.
+      ...clearTalentOnboardingArtifacts(),
+      // Image-rights PDF key — parent-decided, so not part of the talent ladder;
+      // captured above for deletion alongside the others.
       imageRightsFilePath: null,
       // Guardian 1
       parentType: null,
