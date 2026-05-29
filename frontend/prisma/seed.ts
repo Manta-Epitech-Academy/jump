@@ -1,3 +1,14 @@
+/**
+ * Database seed.
+ *
+ * STANDALONE RULE: this file must depend only on `node:*`, npm packages, and
+ * `@prisma/client` — never on `$lib`/`src`. `prisma db seed` runs in deploy and
+ * migration environments where the SvelteKit `src/` tree isn't packaged (and the
+ * `$lib` alias doesn't resolve outside Vite). Any domain logic needed here is
+ * re-stated locally and tagged "mirrors src/lib/domain/…" so it stays in sync by
+ * inspection — see `XP_MAP`, `WELCOME_XP_BONUS`, `toStoredPhone` below.
+ */
+
 import path from 'node:path';
 import dotenv from 'dotenv';
 
@@ -13,6 +24,20 @@ import {
 } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { marked } from 'marked';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+
+// Mirrors normalizePhoneToE164 in src/lib/domain/phone.ts (see STANDALONE RULE).
+// Phones are written below in a readable spaced form ("+33 6 12 34 56 01"), but
+// runtime never stores that shape: onboarding submits canonical E.164 and the SF
+// sync normalizes on ingest. Collapse the seed values to the same canonical form
+// so the seeded data matches what prod persists (and the reconciliation demo
+// compares like with like). Falls back to the raw string if a literal ever fails
+// to parse, so a typo surfaces rather than silently becoming null.
+const toStoredPhone = (raw: string): string => {
+  const parsed =
+    parsePhoneNumberFromString(raw) ?? parsePhoneNumberFromString(raw, 'FR');
+  return parsed?.isValid() ? parsed.number : raw;
+};
 
 const EVENT_TYPES = {
   CODING_CLUB: 'coding_club',
@@ -3820,8 +3845,8 @@ async function seedStudents(): Promise<
       email: s.email,
       nom: s.nom,
       prenom: s.prenom,
-      phone: s.phone,
-      parentPhone: s.parentPhone,
+      phone: toStoredPhone(s.phone),
+      parentPhone: toStoredPhone(s.parentPhone),
       niveau: s.niveau,
       // Welcome strictly precedes onboarding: "On y va" stamps welcomeSeenAt
       // and hands off to step 1. So anyone who has cleared a single step has
@@ -3874,7 +3899,7 @@ async function seedStudents(): Promise<
 
     // ── Salesforce mirror (the SF claim, as the worker would have written it) ──
     const sf = {
-      phone: phoneDiverges ? '+33 6 99 99 99 99' : s.phone,
+      phone: toStoredPhone(phoneDiverges ? '+33 6 99 99 99 99' : s.phone),
       civilite: sfCivilite,
       schoolId: sfSchoolId,
     };

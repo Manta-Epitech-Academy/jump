@@ -4,6 +4,7 @@
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
+  import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as Select from '$lib/components/ui/select';
@@ -53,10 +54,17 @@
 
   // ── Test send ───────────────────────────────────────────────────────
   // Ships the *in-progress* draft (no save needed) to one recipient via the
-  // /templates/test endpoint, rendered with demo variables. The field is an
-  // email or a phone depending on the channel.
+  // /templates/test endpoint, rendered with demo variables. The recipient is
+  // an email or a phone depending on the channel, so each channel keeps its
+  // own field: a single shared variable would let one channel's value (the
+  // email, or the E.164 phone PhoneInput writes back) leak into the other's
+  // input when the user toggles channel.
   // svelte-ignore state_referenced_locally
-  let testRecipient = $state(userEmail);
+  let testEmail = $state(userEmail);
+  let testPhone = $state('');
+  const testRecipient = $derived(
+    $form.channel === 'sms' ? testPhone : testEmail,
+  );
   let testing = $state(false);
   const smsBlocked = $derived($form.channel === 'sms' && !smsEnabled);
   const testDisabled = $derived(
@@ -252,16 +260,24 @@
         template.
       </p>
       <div class="flex flex-wrap items-center gap-2">
-        <Input
-          id="testRecipient"
-          type={$form.channel === 'sms' ? 'tel' : 'email'}
-          bind:value={testRecipient}
-          disabled={smsBlocked}
-          placeholder={$form.channel === 'sms'
-            ? 'ex : +33 6 12 34 56 78'
-            : 'ex : prenom.nom@epitech.eu'}
-          class="max-w-xs"
-        />
+        {#if $form.channel === 'sms'}
+          <div class="w-full max-w-xs">
+            <PhoneInput
+              id="testRecipient"
+              bind:value={testPhone}
+              disabled={smsBlocked}
+              placeholder="06 12 34 56 78"
+            />
+          </div>
+        {:else}
+          <Input
+            id="testRecipient"
+            type="email"
+            bind:value={testEmail}
+            placeholder="ex : prenom.nom@epitech.eu"
+            class="max-w-xs"
+          />
+        {/if}
         <Button
           type="button"
           variant="outline"

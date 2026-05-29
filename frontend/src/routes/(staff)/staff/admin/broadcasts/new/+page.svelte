@@ -6,6 +6,7 @@
   import { superForm } from 'sveltekit-superforms';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
+  import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
   import { Label } from '$lib/components/ui/label';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import * as Select from '$lib/components/ui/select';
@@ -721,13 +722,12 @@
       {/if}
       <div class="grid gap-2">
         <Label for="testPhone">Numéro destinataire</Label>
-        <Input
+        <PhoneInput
           id="testPhone"
           name="testPhone"
           form="broadcast-form"
-          type="tel"
           bind:value={testPhone}
-          placeholder="ex: +33 6 12 34 56 78"
+          placeholder="06 12 34 56 78"
           disabled={!data.smsEnabled}
         />
       </div>

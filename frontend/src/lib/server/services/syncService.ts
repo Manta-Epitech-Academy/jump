@@ -6,6 +6,7 @@ import {
   type EventType,
 } from '$lib/domain/event';
 import { isNiveau, type Niveau } from '$lib/domain/niveau';
+import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
@@ -192,7 +193,10 @@ export async function syncTalents(
       };
 
     const email = t.email?.toLowerCase().trim() || null;
-    const phone = t.phone || null;
+    // Store SF's phone in canonical E.164 so a bare "765719823" and a full
+    // "+33765719823" land identically on both Talent and the mirror; keep the
+    // raw value when it doesn't parse rather than drop it.
+    const phone = normalizePhoneToE164(t.phone) ?? (t.phone?.trim() || null);
     // Drop unknown labels rather than poisoning the column with raw SF values.
     const niveau: Niveau | null = isNiveau(t.class_level)
       ? t.class_level
