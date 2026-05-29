@@ -54,10 +54,17 @@
 
   // ── Test send ───────────────────────────────────────────────────────
   // Ships the *in-progress* draft (no save needed) to one recipient via the
-  // /templates/test endpoint, rendered with demo variables. The field is an
-  // email or a phone depending on the channel.
+  // /templates/test endpoint, rendered with demo variables. The recipient is
+  // an email or a phone depending on the channel, so each channel keeps its
+  // own field: a single shared variable would let one channel's value (the
+  // email, or the E.164 phone PhoneInput writes back) leak into the other's
+  // input when the user toggles channel.
   // svelte-ignore state_referenced_locally
-  let testRecipient = $state(userEmail);
+  let testEmail = $state(userEmail);
+  let testPhone = $state('');
+  const testRecipient = $derived(
+    $form.channel === 'sms' ? testPhone : testEmail,
+  );
   let testing = $state(false);
   const smsBlocked = $derived($form.channel === 'sms' && !smsEnabled);
   const testDisabled = $derived(
@@ -257,7 +264,7 @@
           <div class="w-full max-w-xs">
             <PhoneInput
               id="testRecipient"
-              bind:value={testRecipient}
+              bind:value={testPhone}
               disabled={smsBlocked}
               placeholder="06 12 34 56 78"
             />
@@ -266,7 +273,7 @@
           <Input
             id="testRecipient"
             type="email"
-            bind:value={testRecipient}
+            bind:value={testEmail}
             placeholder="ex : prenom.nom@epitech.eu"
             class="max-w-xs"
           />
