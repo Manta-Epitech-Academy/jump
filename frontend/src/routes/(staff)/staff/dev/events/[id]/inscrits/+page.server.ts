@@ -17,7 +17,11 @@ import {
 } from '$lib/domain/eventLifecycle';
 import { getInterviewDisplayStatus } from '$lib/domain/interview';
 import { compareNiveaux } from '$lib/domain/niveau';
-import { computeIsNewTalent } from './components/types';
+import {
+  computeIsNewTalent,
+  ONGOING_PARTICIPATION_SELECT,
+  PREP_PARTICIPATION_SELECT,
+} from './components/types';
 import type { OngoingRow, PrepRow } from './components/types';
 
 function originConditions(schoolId: string | null, interestId: string | null) {
@@ -73,14 +77,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const participations = await db.participation.findMany({
       where: filteredWhere,
-      include: {
-        talent: {
-          include: {
-            interests: { include: { interest: true } },
-            school: { select: { id: true, name: true, city: true } },
-          },
-        },
-      },
+      select: PREP_PARTICIPATION_SELECT,
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     });
 
@@ -115,22 +112,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     ongoingAnd.length === 1 ? ongoingAnd[0] : { AND: ongoingAnd };
   const participations = await db.participation.findMany({
     where: ongoingWhere,
-    include: {
-      talent: {
-        include: {
-          interests: { include: { interest: true } },
-          school: { select: { id: true, name: true, city: true } },
-        },
-      },
-      interview: {
-        select: {
-          id: true,
-          status: true,
-          date: true,
-          recommendation: true,
-        },
-      },
-    },
+    select: ONGOING_PARTICIPATION_SELECT,
     orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
 
@@ -191,33 +173,40 @@ async function loadLastSeenByTalent(
   currentEventId: string,
 ): Promise<Map<string, { name: string; at: Date }>> {
   if (talentIds.length === 0) return new Map();
-  const priorActivities = await db.participationActivity.findMany({
+  // Each prior participation carries only its single latest present activity
+  // (bounded by how many past events a talent attended), then we keep the most
+  // recent across a talent's participations. This avoids pulling every
+  // historical activity row just to dedupe one value per talent in JS.
+  const priors = await db.participation.findMany({
     where: {
-      isPresent: true,
-      participation: {
-        talentId: { in: talentIds },
-        eventId: { not: currentEventId },
-      },
+      talentId: { in: talentIds },
+      eventId: { not: currentEventId },
     },
     select: {
-      activity: {
+      talentId: true,
+      activities: {
+        where: { isPresent: true },
+        orderBy: { activity: { timeSlot: { startTime: 'desc' } } },
+        take: 1,
         select: {
-          nom: true,
-          timeSlot: { select: { startTime: true } },
+          activity: {
+            select: {
+              nom: true,
+              timeSlot: { select: { startTime: true } },
+            },
+          },
         },
       },
-      participation: { select: { talentId: true } },
     },
-    orderBy: { activity: { timeSlot: { startTime: 'desc' } } },
   });
   const out = new Map<string, { name: string; at: Date }>();
-  for (const pa of priorActivities) {
-    const tid = pa.participation.talentId;
-    if (!out.has(tid)) {
-      out.set(tid, {
-        name: pa.activity.nom,
-        at: pa.activity.timeSlot.startTime,
-      });
+  for (const p of priors) {
+    const activity = p.activities[0]?.activity;
+    if (!activity) continue;
+    const at = activity.timeSlot.startTime;
+    const existing = out.get(p.talentId);
+    if (!existing || at.getTime() > existing.at.getTime()) {
+      out.set(p.talentId, { name: activity.nom, at });
     }
   }
   return out;

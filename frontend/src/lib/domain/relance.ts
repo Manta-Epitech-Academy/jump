@@ -259,3 +259,52 @@ export function classifyRelanceSkip(
 
   return undefined;
 }
+
+/**
+ * Compact per-talent view of the onboarding-reminder history: the latest
+ * `sentAt` for each (audience type, channel) cell, or null when none was ever
+ * sent. Replaces shipping the full `reminders[]` array to the client — these
+ * four timestamps are everything the "Dernière relance" column and the relance
+ * dialog's per-channel cooldown / SMS-escalation gate actually read.
+ *
+ * `hasPriorEmail` (the SMS gate) is just `<type>.email !== null`, so it isn't a
+ * separate field — derive it via `reminderFor(summary, type, 'email')`.
+ */
+export type ReminderSummary = {
+  student: { email: Date | null; sms: Date | null };
+  parent: { email: Date | null; sms: Date | null };
+};
+
+/** Empty summary — no reminder ever sent to this talent. */
+export function emptyReminderSummary(): ReminderSummary {
+  return {
+    student: { email: null, sms: null },
+    parent: { email: null, sms: null },
+  };
+}
+
+/** Latest reminder timestamp for one (type, channel) cell, or null. */
+export function reminderFor(
+  summary: ReminderSummary | null | undefined,
+  type: RelanceType,
+  channel: RelanceChannel,
+): Date | null {
+  return summary?.[type]?.[channel] ?? null;
+}
+
+/**
+ * Most recent reminder across every cell — drives the table's "Dernière
+ * relance" column, which is audience- and channel-agnostic.
+ */
+export function latestReminderAt(
+  summary: ReminderSummary | null | undefined,
+): Date | null {
+  if (!summary) return null;
+  let latest: Date | null = null;
+  for (const audience of [summary.student, summary.parent]) {
+    for (const at of [audience.email, audience.sms]) {
+      if (at && (!latest || at.getTime() > latest.getTime())) latest = at;
+    }
+  }
+  return latest;
+}

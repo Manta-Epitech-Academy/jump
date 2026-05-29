@@ -14,12 +14,51 @@ import {
 } from '$lib/server/services/relanceService';
 import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
 import { isSmsEnabled } from '$lib/server/sms';
+import {
+  emptyReminderSummary,
+  type ReminderSummary,
+} from '$lib/domain/relance';
+import type { RelanceChannel, RelanceType } from '$lib/domain/relance';
 import { ONBOARDING_FILTER_KEYS, type OnboardingFilterKey } from './filters';
 
 function validateFilter(raw: string | null): OnboardingFilterKey {
   return (ONBOARDING_FILTER_KEYS as readonly string[]).includes(raw ?? '')
     ? (raw as OnboardingFilterKey)
     : 'all';
+}
+
+/**
+ * Latest `sentAt` per (talent, audience type, channel), folded into a compact
+ * `ReminderSummary` keyed by talentId. One `groupBy` over the event's talents
+ * replaces the per-row `reminders[]` array we used to ship to the client.
+ * `talentIds` is already campus-scoped (it comes from the scoped participation
+ * read), so the unscoped reminder table is safe to query here.
+ */
+async function loadReminderSummaries(
+  talentIds: string[],
+): Promise<Map<string, ReminderSummary>> {
+  const byTalent = new Map<string, ReminderSummary>();
+  if (talentIds.length === 0) return byTalent;
+
+  const grouped = await prisma.onboardingReminder.groupBy({
+    by: ['talentId', 'type', 'channel'],
+    where: { talentId: { in: talentIds } },
+    _max: { sentAt: true },
+  });
+
+  for (const g of grouped) {
+    const type = g.type as RelanceType;
+    const channel = g.channel as RelanceChannel;
+    if (type !== 'student' && type !== 'parent') continue;
+    if (channel !== 'email' && channel !== 'sms') continue;
+    let summary = byTalent.get(g.talentId);
+    if (!summary) {
+      summary = emptyReminderSummary();
+      byTalent.set(g.talentId, summary);
+    }
+    summary[type][channel] = g._max.sentAt;
+  }
+  return byTalent;
 }
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -29,28 +68,52 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const db = scopedPrisma(campusId);
   const filter = validateFilter(url.searchParams.get('filter'));
 
-  const participations = await db.participation.findMany({
+  const rows = await db.participation.findMany({
     where: { eventId: event.id },
-    include: {
+    select: {
+      id: true,
+      talentId: true,
+      bringPc: true,
+      stageCompliance: { select: { charteSigned: true } },
       talent: {
-        include: {
-          // Mirrors the server's `user.email ?? talent.email` fallback so
-          // the relance dialog preview agrees with what the send action
-          // will actually do.
+        select: {
+          id: true,
+          nom: true,
+          prenom: true,
+          parentNom: true,
+          parentPrenom: true,
+          email: true,
+          parentEmail: true,
+          phone: true,
+          parentPhone: true,
+          // Compliance signals: the table badges read these and the relance
+          // dialog's `classifyRelanceSkip` derives the "completed" skip from them.
+          parentRulesSignedAt: true,
+          imageRightsDecision: true,
+          imageRightsDecidedAt: true,
+          infoValidatedAt: true,
+          rulesSignedAt: true,
+          charterAcceptedAt: true,
+          // Mirrors the server's `user.email ?? talent.email` fallback so the
+          // relance dialog preview agrees with what the send action will do.
           user: { select: { email: true } },
-          // Both channels, all of this type: the dialog derives the per-channel
-          // cooldown (latest of the active channel) and the SMS escalation gate
-          // (whether any email relance already went out) from these rows.
-          reminders: {
-            orderBy: { sentAt: 'desc' },
-            select: { sentAt: true, type: true, channel: true },
-          },
         },
       },
-      stageCompliance: true,
     },
     orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
   });
+
+  // Compact reminder history in a single aggregate instead of an unbounded
+  // `reminders[]` array per row. The table's "Dernière relance" column and the
+  // relance dialog's per-channel cooldown / SMS-escalation gate only need the
+  // latest `sentAt` for each (audience type, channel) cell.
+  const summaryByTalent = await loadReminderSummaries(
+    rows.map((p) => p.talentId),
+  );
+  const participations = rows.map((p) => ({
+    ...p,
+    reminderSummary: summaryByTalent.get(p.talentId) ?? emptyReminderSummary(),
+  }));
 
   const relanceForm = await superValidate(zod4(sendRelanceSchema));
   const relanceDefaults = await loadAllRelanceDefaults();
