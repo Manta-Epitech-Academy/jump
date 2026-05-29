@@ -4,8 +4,11 @@
   import { resolve } from '$app/paths';
   import TalentChromeHeader from '$lib/components/talent/TalentChromeHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
+  import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
+  import Crown from '@lucide/svelte/icons/crown';
   import Home from '@lucide/svelte/icons/home';
+  import { MINIGAME_RANK_BONUS_LIMIT, minigameRankBonus } from '$lib/domain/xp';
 
   let { data }: { data: PageData } = $props();
 
@@ -19,6 +22,13 @@
       : 'Classé au temps : le plus rapide en haut.',
   );
 
+  // The podium prizes by position, read straight from the XP tiers so the copy
+  // can't drift from what's actually paid. We state the rule (not a per-row
+  // amount) because the bonus is locked in the moment a talent finishes: the
+  // board can move under them afterwards without changing what they already
+  // earned, so a fixed per-row "+X" would lie.
+  const prizeRule = `1er +${minigameRankBonus(1)} · 2e +${minigameRankBonus(2)} · 3e +${minigameRankBonus(3)} XP`;
+
   function formatChrono(ms: number | null): string {
     if (ms === null) return '—';
     return `${(ms / 1000).toFixed(1)}s`;
@@ -29,7 +39,20 @@
     const initial = nom.trim().charAt(0).toUpperCase();
     return initial ? `${prenom} ${initial}.` : prenom;
   }
+
+  // Gold / silver / bronze tint for the three podium positions; everyone else
+  // stays neutral. A cue to the current standing only, never a bonus claim.
+  function rankColor(rank: number): string {
+    if (rank === 1) return 'text-amber-500';
+    if (rank === 2) return 'text-slate-400 dark:text-slate-300';
+    if (rank === 3) return 'text-amber-700 dark:text-amber-600';
+    return 'text-slate-700 dark:text-slate-300';
+  }
 </script>
+
+<!-- The podium float plays here too, so a player who taps "Voir le classement"
+     after a game gets the bonus celebration without first going to the dashboard. -->
+<MinigameRewardCelebration rankReward={data.minigameRankReward} />
 
 <div class="flex min-h-screen flex-col">
   <div class="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:py-8">
@@ -53,9 +76,18 @@
       </div>
 
       <p
-        class="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400"
+        class="mb-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400"
       >
         {rankingRule}
+      </p>
+
+      <p
+        class="mb-4 flex items-center gap-1.5 px-1 text-xs font-medium text-epi-orange"
+      >
+        <Crown class="h-3.5 w-3.5 shrink-0" />
+        Le top {MINIGAME_RANK_BONUS_LIMIT} de ton campus gagne un bonus XP dès la
+        fin de sa partie ({prizeRule}). Ton bonus dépend de ton classement quand
+        tu joues, et tu le gardes même si d'autres te dépassent ensuite.
       </p>
 
       {#if data.rows.length === 0}
@@ -91,8 +123,22 @@
                 class:bg-orange-50={row.talentId === data.currentTalentId}
                 class:dark:bg-orange-950={row.talentId === data.currentTalentId}
               >
-                <td class="py-2 font-bold text-slate-700 dark:text-slate-300">
-                  {row.rank}
+                <td class="py-2 font-bold {rankColor(row.rank)}">
+                  <span class="inline-flex items-center gap-1.5">
+                    {row.rank}
+                    {#if row.talentId === data.currentTalentId && row.rankXpAwarded}
+                      <!-- Only the connected talent's row shows an amount, and it's
+                           the bonus they actually locked in (rankXpAwarded), not a
+                           guess from the current rank. -->
+                      <span
+                        class="inline-flex items-center gap-0.5 rounded-full bg-epi-orange/10 px-1.5 py-0.5 text-[10px] font-semibold text-epi-orange"
+                        title="Bonus XP que tu as gagné en jouant"
+                      >
+                        <Crown class="h-3 w-3" />
+                        +{row.rankXpAwarded}
+                      </span>
+                    {/if}
+                  </span>
                 </td>
                 <td class="py-2 text-slate-700 dark:text-slate-300">
                   {displayName(row.prenom, row.nom)}

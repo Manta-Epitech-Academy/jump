@@ -4,18 +4,65 @@ export const difficultes = ['Débutant', 'Intermédiaire', 'Avancé'] as const;
  * One-off XP granted when a talent finishes onboarding (the arrival
  * celebration shown on the dashboard). Granted in
  * `(talent)/onboarding/+page.server.ts` and refunded by the admin
- * onboarding-reset in `services/talentAccount.ts`.
+ * onboarding-reset in `services/talentAccount.ts`. The base; earliest finishers
+ * earn an additional `onboardingEarlyBirdBonus` on top (see below).
  */
-// TODO: scale this with cohort onboarding order (earlier onboarders earn more).
 export const WELCOME_XP_BONUS = 200;
 
 /**
  * XP granted for finishing the daily minigame. Flat — it rewards showing up and
- * completing the challenge, not performance (rank on the leaderboard is the
- * performance reward). Kept below the activity floor (Débutant = 20) so a
- * repeatable daily game never out-earns attending a real activity.
+ * completing the challenge, not performance (placing on the board is the
+ * performance reward, see `minigameRankBonus`). Kept below the top activity tier
+ * (Avancé = 75) so a repeatable daily game never out-earns the most demanding
+ * real activity.
  */
 export const MINIGAME_XP_REWARD = 50;
+
+/**
+ * How many earliest onboarding completers, PER CAMPUS, earn an early-bird bonus.
+ * Per-campus (not a global N) so a small campus (~26 students, La Reunion) isn't
+ * shut out by a large one (200+) whose students simply finish first in absolute
+ * terms. The position is the talent's 0-based rank among completers in their own
+ * campus at sign-time; cohort size is never needed.
+ */
+export const ONBOARDING_EARLY_BIRD_LIMIT = 10;
+
+/**
+ * Additive bonus (on top of {@link WELCOME_XP_BONUS}) for a 0-based onboarding
+ * completion position within the campus. Decaying tiers, as multiples of the
+ * base so the UI can read it as "x2" / "x1.5":
+ *   position 0     → +200 (x2, the very first finisher)
+ *   position 1..2  → +100 (x1.5)
+ *   position 3..9  → +50
+ *   position ≥ 10  → 0 (caller skips the grant)
+ * Decay rewards genuine pioneers most without making the 10th slot worthless.
+ */
+export function onboardingEarlyBirdBonus(position: number): number {
+  if (position < 0 || position >= ONBOARDING_EARLY_BIRD_LIMIT) return 0;
+  if (position === 0) return WELCOME_XP_BONUS;
+  if (position <= 2) return Math.round(WELCOME_XP_BONUS / 2);
+  return Math.round(WELCOME_XP_BONUS / 4);
+}
+
+/**
+ * How many top finishers, PER CAMPUS bucket, earn a daily-leaderboard rank
+ * bonus. Same per-campus fairness rationale as the early-bird limit.
+ */
+export const MINIGAME_RANK_BONUS_LIMIT = 3;
+
+/**
+ * Additive bonus (on top of {@link MINIGAME_XP_REWARD}) for a 1-based rank on the
+ * campus board, ranked the moment the talent finishes. Podium-shaped, as
+ * multiples of the base:
+ *   rank 1 → +100 (x3)   rank 2 → +50 (x2)   rank 3 → +25 (x1.5)   else → 0
+ * Steep enough that the top spot is clearly worth chasing day to day.
+ */
+export function minigameRankBonus(rank: number): number {
+  if (rank < 1 || rank > MINIGAME_RANK_BONUS_LIMIT) return 0;
+  if (rank === 1) return MINIGAME_XP_REWARD * 2;
+  if (rank === 2) return MINIGAME_XP_REWARD;
+  return Math.round(MINIGAME_XP_REWARD / 2);
+}
 
 export const DIFFICULTY_XP: Record<string, number> = {
   Débutant: 20,

@@ -29,3 +29,13 @@ export function minigameRewardToast(xp: number) {
     `Tu gagnes +${xp} XP pour ton entraînement du jour. Reviens demain pour un nouveau défi !`,
   );
 }
+
+// The rank bonus is granted at finish based on the talent's place on the campus
+// board; the play page floats only the base finish reward, so this podium float
+// fires on the next dashboard visit. It nudges a replay to defend the spot.
+export function minigameRankRewardToast(xp: number) {
+  rewardToast(
+    'Sur le podium ! 🏆',
+    `Tu gagnes +${xp} XP bonus pour ton classement. Rejoue pour rester en haut !`,
+  );
+}

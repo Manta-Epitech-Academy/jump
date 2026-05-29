@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import {
   getClosestEventForTalent,
   getCampusLeaderboard,
+  getUnseenMinigameRankReward,
 } from '$lib/server/services/minigameService';
 import { prisma } from '$lib/server/db';
 
@@ -34,11 +35,19 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     campusId,
   );
 
+  // If the player just earned a rank bonus and hasn't seen its float yet, it
+  // plays here too (not only on the dashboard) so the celebration lands on
+  // whichever page they open first after a game.
+  const minigameRankReward = await getUnseenMinigameRankReward(
+    locals.talent.id,
+  );
+
   return {
     publication,
     rows,
     scoringType,
     currentTalentId: locals.talent.id,
     campusName: campus?.name ?? null,
+    minigameRankReward,
   };
 };
