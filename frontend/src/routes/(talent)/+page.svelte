@@ -7,7 +7,7 @@
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import { rewardToast } from '$lib/components/talent/rewardToast';
+  import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
   import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
   import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
@@ -71,6 +71,7 @@
   // "+XP" reward celebration: confetti + a floating amount that fades out.
   // Drives the onboarding arrival below; the minigame finish/rank floats live in
   // MinigameRewardCelebration (shared with the leaderboard).
+  const XP_FLOAT_DURATION_MS = 2500;
   let showXpFloat = $state(false);
   let floatAmount = $state(0);
   function celebrateXp(
@@ -84,7 +85,7 @@
         showXpFloat = true;
       }, 300),
     );
-    timers.push(setTimeout(() => (showXpFloat = false), 2500));
+    timers.push(setTimeout(() => (showXpFloat = false), XP_FLOAT_DURATION_MS));
   }
 
   // Arrival celebration. Onboarding completion redirects here with the one-shot
@@ -106,20 +107,14 @@
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     celebrateXp(totalXp, timers);
+    // Hold the toast until the XP float has faded, so the welcome message lands
+    // on a calm page (after the first "stunned" beat) instead of competing with
+    // the confetti and the floating number for attention.
     timers.push(
-      setTimeout(() => {
-        if (earlyBirdBonus > 0) {
-          rewardToast(
-            'Bienvenue sur Jump ! 🎉',
-            `Tu fais partie des premiers de ton campus : +${totalXp} XP de bienvenue, dont +${earlyBirdBonus} XP de bonus pour ta rapidité !`,
-          );
-        } else {
-          rewardToast(
-            'Bienvenue sur Jump ! 🎉',
-            `Tu gagnes +${totalXp} XP pour ton arrivée. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
-          );
-        }
-      }, 1000),
+      setTimeout(
+        () => welcomeRewardToast(totalXp, earlyBirdBonus),
+        XP_FLOAT_DURATION_MS + 400,
+      ),
     );
     return () => timers.forEach(clearTimeout);
   });
