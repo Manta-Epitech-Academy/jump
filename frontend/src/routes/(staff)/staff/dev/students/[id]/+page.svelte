@@ -240,30 +240,16 @@
         <Sparkles
           class="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]/tab:text-epi-blue"
         />
-        <span class="flex flex-col items-start gap-0.5">
-          <span class="text-sm font-bold tracking-wide uppercase"
-            >Stagiaire</span
-          >
-          <span
-            class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-          >
-            Profil &amp; parcours
-          </span>
-        </span>
+        <span class="text-sm font-bold tracking-wide uppercase"
+          >Pédagogique</span
+        >
       </Tabs.Trigger>
       <Tabs.Trigger value="admin" class={triggerClass}>
         <FileText
           class="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]/tab:text-epi-blue"
         />
-        <span class="flex flex-col items-start gap-0.5">
-          <span class="text-sm font-bold tracking-wide uppercase">
-            Administratif
-          </span>
-          <span
-            class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-          >
-            Dossier &amp; communications
-          </span>
+        <span class="text-sm font-bold tracking-wide uppercase">
+          Administratif
         </span>
       </Tabs.Trigger>
     </Tabs.List>
