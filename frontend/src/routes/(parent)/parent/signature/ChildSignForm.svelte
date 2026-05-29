@@ -7,7 +7,15 @@
   import type { ImageRightsDecision } from '$lib/domain/imageRights';
 
   interface Props {
-    child: { id: string; prenom: string; nom: string };
+    child: {
+      id: string;
+      prenom: string;
+      nom: string;
+      parentPrenom?: string | null;
+      parentNom?: string | null;
+      parentType?: string | null;
+      parentCivilite?: string | null;
+    };
     /** Legal body shown once the guardian chooses to authorize. */
     droitImageBody: string;
     /** Legal body shown once the guardian chooses to refuse. */
@@ -19,13 +27,15 @@
 
   let decision = $state<ImageRightsDecision | ''>('');
 
-  // Submit colour tracks the chosen branch: teal for an authorization, red for
-  // a refusal — same visual contract as the radio buttons above.
+  // A refusal is a legitimate, unpressured choice, so both branches carry equal
+  // brand weight — never red, never a greyed-out "lesser" state. Authorize uses
+  // the brand teal, refuse the brand blue: two distinct but equally vivid
+  // options, told apart by colour + icon + label rather than by valence.
   const submitClass = $derived(
     cn(
       'h-auto w-full rounded-2xl px-6 py-3 shadow-lg transition-all duration-200 disabled:opacity-50',
       decision === 'refused'
-        ? 'bg-red-500 text-white shadow-red-500/20 hover:bg-red-500 hover:brightness-110'
+        ? 'bg-epi-blue text-white shadow-epi-blue/20 hover:bg-epi-blue hover:brightness-110'
         : 'bg-epi-teal text-black shadow-epi-teal/20 hover:bg-epi-teal hover:brightness-110',
     ),
   );
@@ -91,15 +101,15 @@
         class={cn(
           'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-left shadow-sm backdrop-blur-xl transition-all',
           decision === 'refused'
-            ? 'border-red-400 bg-red-50 ring-1 ring-red-400 dark:bg-red-900/20'
-            : 'border-slate-200/60 bg-white/80 hover:border-red-300 dark:bg-slate-900/80',
+            ? 'border-epi-blue bg-epi-blue/10 ring-1 ring-epi-blue'
+            : 'border-slate-200/60 bg-white/80 hover:border-epi-blue/50 dark:bg-slate-900/80',
         )}
       >
         <span
           class={cn(
             'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
             decision === 'refused'
-              ? 'border-red-500 bg-red-500 text-white'
+              ? 'border-epi-blue bg-epi-blue text-white'
               : 'border-slate-300 dark:border-slate-600',
           )}
         >

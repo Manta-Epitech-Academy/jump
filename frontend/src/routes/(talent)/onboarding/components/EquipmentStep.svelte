@@ -69,6 +69,7 @@
       class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
     >
       <Laptop class="h-4 w-4" /> Ton équipement
+      <span class="text-red-500">*</span>
     </h2>
     <label
       class={cn(
@@ -102,8 +103,9 @@
     </label>
   </div>
 
-  <!-- Ton setup — optional flavour. Clearly secondary: tagged optionnel, with
-       the fun illustration as the card's banner instead of a floating island. -->
+  <!-- Ton setup — optional flavour. Clearly secondary: tagged optionnel. The
+       illustration is a small centred wink (gif-sized), not a full-bleed banner
+       that would steal focus from the actual question. -->
   <div>
     <h2
       class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
@@ -114,16 +116,16 @@
       >
     </h2>
     <div
-      class="overflow-hidden rounded-xl border border-slate-200/60 bg-white/80 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+      class="rounded-xl border border-slate-200/60 bg-white/80 p-4 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
       <img
         src="/onboarding-setup.jpg"
         alt="Un chat installé devant un setup gaming"
         loading="lazy"
         decoding="async"
-        class="h-62 w-full object-cover object-[center_60%]"
+        class="mx-auto mb-3 h-42 w-auto rounded-lg object-cover"
       />
-      <div class="px-4 py-3">
+      <div>
         <Label
           for="setupDescription"
           class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
@@ -144,5 +146,12 @@
     </div>
   </div>
 
-  <ContinueButton {submitting} class="mt-4" />
+  <div class="space-y-3">
+    {#if !checked}
+      <p class="text-center text-xs text-slate-500 dark:text-slate-400">
+        Coche « Je possède un laptop qui fonctionne… » pour continuer.
+      </p>
+    {/if}
+    <ContinueButton {submitting} disabled={!checked} />
+  </div>
 </form>
