@@ -108,7 +108,14 @@ export async function resetTalentOnboarding(talentId: string): Promise<void> {
     });
     // Idempotent: drops the onboarding grant if present, no-op otherwise — so a
     // re-run nets back to the same XP rather than stacking the bonus, and the
-    // old `charterAcceptedAt` guard is no longer needed.
+    // old `charterAcceptedAt` guard is no longer needed. The early-bird bonus
+    // (granted to the earliest finishers) is reverted alongside it so a reset +
+    // re-onboard re-derives position cleanly instead of leaving a stale bonus.
     await revokeXp(tx, { talentId, source: 'onboarding', sourceId: talentId });
+    await revokeXp(tx, {
+      talentId,
+      source: 'onboarding_early_bird',
+      sourceId: talentId,
+    });
   });
 }

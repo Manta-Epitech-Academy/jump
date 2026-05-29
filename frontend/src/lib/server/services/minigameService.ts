@@ -1,6 +1,6 @@
 import { prisma } from '$lib/server/db';
 import { mintGameJwt } from '$lib/server/jwt';
-import { MINIGAME_XP_REWARD } from '$lib/domain/xp';
+import { MINIGAME_XP_REWARD, minigameRankBonus } from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
 import {
   getGameCatalog,
@@ -200,20 +200,24 @@ export async function mintAttempt(
 }
 
 export async function applyCallback(payload: CallbackPayload): Promise<void> {
-  // Find the active pending attempt for this (talent, game, level).
+  // Find the active pending attempt for this (talent, game, level). The
+  // publication's scoringType rides along so the rank bonus below ranks this run
+  // the same way the board displays it.
   const attempt = await prisma.minigameAttempt.findFirst({
     where: {
       talentId: payload.playerId,
       publication: { game: payload.game, level: payload.level },
     },
     orderBy: { startedAt: 'desc' },
+    include: { publication: { select: { scoringType: true } } },
   });
   if (!attempt) return; // Unknown attempt: silently ignore (idempotent on retry of a deleted attempt).
   if (attempt.status !== 'pending') return; // Already finalized — idempotent: never re-pay XP.
 
-  // A valid run earns flat XP; the talent sees the "+XP" float on their next
-  // dashboard visit (gated by xpSeenAt). Invalid runs finalize without reward.
-  // Increment + finalize together so the grant and the audit trail can't drift.
+  // A valid run earns flat XP; the talent sees the "+XP" float on the training
+  // page right after the win, or on the next dashboard visit (gated by xpSeenAt).
+  // Invalid runs finalize without reward. Finalize + grant together so the grant
+  // and the audit trail can't drift.
   const xpAwarded = payload.valid ? MINIGAME_XP_REWARD : null;
 
   await prisma.$transaction(async (tx) => {
@@ -228,12 +232,43 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
         xpAwarded,
       },
     });
-    if (xpAwarded) {
+    if (!xpAwarded) return;
+
+    await grantXp(tx, {
+      talentId: attempt.talentId,
+      source: 'minigame',
+      sourceId: attempt.id,
+      amount: xpAwarded,
+      campusId: attempt.campusId,
+    });
+
+    // Rank bonus, paid the instant you finish: rank this run against the board so
+    // far (this attempt included, since it was just marked done), and pay a
+    // layered `minigame_rank` fact on top of the flat finish reward for a top-N
+    // place. No clawback — a later, better run never demotes a bonus already
+    // paid — so the bonus means "you held a top-N spot the moment you finished",
+    // and an early leader keeps it even once overtaken (the podium rewards more
+    // than the final three by design). Two finishes racing under READ COMMITTED
+    // may briefly tie a rank and double-pay one slot: harmless, and on-brand with
+    // rewarding broadly.
+    const rank = await rankOnCampusBoard(
+      tx,
+      attempt.publicationId,
+      attempt.campusId,
+      attempt.publication.scoringType,
+      attempt.id,
+    );
+    const rankBonus = minigameRankBonus(rank);
+    if (rankBonus > 0) {
+      await tx.minigameAttempt.update({
+        where: { id: attempt.id },
+        data: { rankXpAwarded: rankBonus },
+      });
       await grantXp(tx, {
         talentId: attempt.talentId,
-        source: 'minigame',
+        source: 'minigame_rank',
         sourceId: attempt.id,
-        amount: xpAwarded,
+        amount: rankBonus,
         campusId: attempt.campusId,
       });
     }
@@ -251,6 +286,40 @@ export async function markMinigameRewardsSeen(talentId: string): Promise<void> {
     where: { talentId, xpAwarded: { not: null }, xpSeenAt: null },
     data: { xpSeenAt: new Date() },
   });
+}
+
+/**
+ * Stamp `rankXpSeenAt` on the talent's rank-bonus-awarded-but-unseen attempts so
+ * the podium "+XP" float fires exactly once. The play page floats only the base
+ * finish reward, so the rank bonus is celebrated separately on the next dashboard
+ * visit; this flag is its own one-shot gate, kept apart from
+ * {@link markMinigameRewardsSeen} (different field) so the two floats can never
+ * stamp each other.
+ */
+export async function markMinigameRankRewardsSeen(
+  talentId: string,
+): Promise<void> {
+  await prisma.minigameAttempt.updateMany({
+    where: { talentId, rankXpAwarded: { not: null }, rankXpSeenAt: null },
+    data: { rankXpSeenAt: new Date() },
+  });
+}
+
+/**
+ * The talent's most recent rank bonus not yet celebrated, or null. Drives the
+ * one-shot podium float on whichever page the player lands on after a game (the
+ * dashboard or the leaderboard), gated by `rankXpSeenAt`. Shared by both loads so
+ * the celebration follows the player either way.
+ */
+export async function getUnseenMinigameRankReward(
+  talentId: string,
+): Promise<{ xp: number } | null> {
+  const attempt = await prisma.minigameAttempt.findFirst({
+    where: { talentId, rankXpAwarded: { not: null }, rankXpSeenAt: null },
+    orderBy: { finishedAt: 'desc' },
+    select: { rankXpAwarded: true },
+  });
+  return attempt?.rankXpAwarded != null ? { xp: attempt.rankXpAwarded } : null;
 }
 
 /** An enabled config paired with its live catalogue entry. */
@@ -306,7 +375,7 @@ export async function pickNextPublication(): Promise<MinigamePublication | null>
   const pick = weightedPick(pool);
   const level = Math.floor(Math.random() * pick.game.levelCount) + 1;
 
-  return prisma.minigamePublication.create({
+  const published = await prisma.minigamePublication.create({
     data: {
       game: pick.game.name,
       gameName: pick.game.displayName,
@@ -314,6 +383,8 @@ export async function pickNextPublication(): Promise<MinigamePublication | null>
       scoringType: scoringTypeFor(pick.game),
     },
   });
+
+  return published;
 }
 
 /**
@@ -328,7 +399,7 @@ export async function forcePublication(input: {
   scoringType: MinigameScoring;
   forcedById: string | null;
 }): Promise<MinigamePublication> {
-  return prisma.minigamePublication.create({
+  const published = await prisma.minigamePublication.create({
     data: {
       game: input.game,
       gameName: input.gameName,
@@ -337,6 +408,8 @@ export async function forcePublication(input: {
       forcedById: input.forcedById,
     },
   });
+
+  return published;
 }
 
 export interface LeaderboardRow {
@@ -347,6 +420,57 @@ export interface LeaderboardRow {
   score: number | null;
   chrono: number | null;
   finishedAt: Date | null;
+  // The rank bonus this talent actually locked in at finish (null = none). Their
+  // displayed `rank` can drift below it as others play (no clawback), so this is
+  // the truthful per-talent figure, not `minigameRankBonus(rank)`.
+  rankXpAwarded: number | null;
+}
+
+/**
+ * Leaderboard ordering, shared by the displayed board and the at-finish rank
+ * bonus ({@link rankOnCampusBoard}) so the rank that earns a bonus is exactly the
+ * rank the board shows. Score games: highest score first, shortest chrono breaks
+ * ties. Chrono games: fastest first. Nulls sort last in either mode.
+ */
+function compareAttempts(
+  a: { score: number | null; chrono: number | null },
+  b: { score: number | null; chrono: number | null },
+  scoringType: MinigameScoring,
+): number {
+  if (scoringType === 'score') {
+    const scoreDiff = (b.score ?? -Infinity) - (a.score ?? -Infinity);
+    if (scoreDiff !== 0) return scoreDiff;
+    return (a.chrono ?? Infinity) - (b.chrono ?? Infinity);
+  }
+  return (a.chrono ?? Infinity) - (b.chrono ?? Infinity);
+}
+
+/**
+ * The 1-based rank of a just-finalized attempt on its leaderboard, against every
+ * valid finish recorded so far. Reads through the caller's transaction so it sees
+ * this attempt already marked done. Same scope as {@link getCampusLeaderboard}
+ * (the talent's campus, or the global board when they have no campus) and the
+ * same {@link compareAttempts} ordering, so the rank that earns the bonus is the
+ * rank the talent sees on the board.
+ */
+async function rankOnCampusBoard(
+  tx: Prisma.TransactionClient,
+  publicationId: string,
+  campusId: string | null,
+  scoringType: MinigameScoring,
+  attemptId: string,
+): Promise<number> {
+  const peers = await tx.minigameAttempt.findMany({
+    where: {
+      publicationId,
+      status: 'done',
+      valid: true,
+      ...(campusId ? { campusId } : {}),
+    },
+    select: { id: true, score: true, chrono: true },
+  });
+  peers.sort((a, b) => compareAttempts(a, b, scoringType));
+  return peers.findIndex((p) => p.id === attemptId) + 1;
 }
 
 async function buildLeaderboard(
@@ -370,14 +494,9 @@ async function buildLeaderboard(
     },
   });
 
-  const sorted = [...attempts].sort((a, b) => {
-    if (publication.scoringType === 'score') {
-      const scoreDiff = (b.score ?? -Infinity) - (a.score ?? -Infinity);
-      if (scoreDiff !== 0) return scoreDiff;
-      return (a.chrono ?? Infinity) - (b.chrono ?? Infinity);
-    }
-    return (a.chrono ?? Infinity) - (b.chrono ?? Infinity);
-  });
+  const sorted = [...attempts].sort((a, b) =>
+    compareAttempts(a, b, publication.scoringType),
+  );
 
   const rows: LeaderboardRow[] = sorted.map((a, i) => ({
     rank: i + 1,
@@ -387,6 +506,7 @@ async function buildLeaderboard(
     score: a.score,
     chrono: a.chrono,
     finishedAt: a.finishedAt,
+    rankXpAwarded: a.rankXpAwarded,
   }));
 
   return { rows, scoringType: publication.scoringType };

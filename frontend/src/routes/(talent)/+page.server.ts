@@ -13,12 +13,13 @@ import {
   getActivePublication,
   getClosestEventForTalent,
   applyCallback,
-  markMinigameRewardsSeen,
+  getUnseenMinigameRankReward,
 } from '$lib/server/services/minigameService';
+import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import { stageWindowEnd } from '$lib/domain/event';
 
-export const load: PageServerLoad = async ({ locals, cookies }) => {
+export const load: PageServerLoad = async ({ locals, cookies, url }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
@@ -230,6 +231,35 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         ? { xp: lastAttempt.xpAwarded }
         : null;
 
+    // The rank bonus is granted at finish; the play page floats only the base
+    // finish reward, so MinigameRewardCelebration shows the podium float on the
+    // first page the player lands on afterwards (dashboard or leaderboard). Shared
+    // helper so both pages surface it identically.
+    const minigameRankReward = await getUnseenMinigameRankReward(studentId);
+
+    // Arrival celebration total. Only resolved when we actually arrived from
+    // onboarding (?welcome=1), so the float shows the real boosted total (base +
+    // early-bird) rather than a hardcoded 200. `earlyBirdBonus` lets the toast
+    // call out the pioneer bonus when it applies.
+    let onboardingArrival: { totalXp: number; earlyBirdBonus: number } | null =
+      null;
+    if (url.searchParams.has('welcome')) {
+      const earlyBird = await prisma.xpGrant.findUnique({
+        where: {
+          source_sourceId: {
+            source: 'onboarding_early_bird',
+            sourceId: studentId,
+          },
+        },
+        select: { amount: true },
+      });
+      const earlyBirdBonus = earlyBird?.amount ?? 0;
+      onboardingArrival = {
+        totalXp: WELCOME_XP_BONUS + earlyBirdBonus,
+        earlyBirdBonus,
+      };
+    }
+
     // The staff-authored CMS welcome message seeds the dashboard's Actualités
     // feed and shows for the whole stage window — this card is its only home.
     // Distinct from the fixed pre-onboarding splash at /welcome, which owns its
@@ -289,6 +319,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       serverNow: Date.now(),
       minigame,
       minigameReward,
+      minigameRankReward,
+      onboardingArrival,
       welcome,
     };
   } catch (err) {
@@ -298,18 +330,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 };
 
 export const actions: Actions = {
-  /**
-   * Mark the minigame XP celebration as seen, so the "+XP" float fires exactly
-   * once. Triggered client-side right after the float plays. Scoped to the
-   * talent's own unseen-but-awarded attempts (today's, in practice) and
-   * idempotent, so a double-fire or a stale tab is harmless.
-   */
-  acknowledgeMinigameReward: async ({ locals }) => {
-    if (!locals.talent) throw error(401, 'Non autorisé');
-    await markMinigameRewardsSeen(locals.talent.id);
-    return { acknowledged: true };
-  },
-
   /**
    * Dev-only shortcut to toggle today's minigame attempt without playing it or
    * editing the DB by hand: finalizes the attempt (→ "déjà joué") if not done,
@@ -330,13 +350,19 @@ export const actions: Actions = {
     const existing = await prisma.minigameAttempt.findUnique({ where });
 
     if (existing && existing.status !== 'pending') {
-      // Reset: revoke this attempt's ledger grant before dropping the row, so
+      // Reset: revoke this attempt's ledger grants before dropping the row, so
       // repeated dev toggles don't inflate the talent's balance. Revoke first —
-      // the grant keys on the attempt id, which the delete would take away.
+      // the grants key on the attempt id, which the delete would take away. Both
+      // the base finish reward and any rank bonus earned at finish are reverted.
       await prisma.$transaction(async (tx) => {
         await revokeXp(tx, {
           talentId,
           source: 'minigame',
+          sourceId: existing.id,
+        });
+        await revokeXp(tx, {
+          talentId,
+          source: 'minigame_rank',
           sourceId: existing.id,
         });
         await tx.minigameAttempt.delete({ where: { id: existing.id } });

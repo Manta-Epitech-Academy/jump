@@ -1398,6 +1398,14 @@ model MinigameAttempt {
   // while xpAwarded is set ⇒ a fresh win still to be celebrated (mirrors
   // Talent.welcomeSeenAt). Gates the one-shot float so it can't replay.
   xpSeenAt      DateTime?
+  // Bonus XP for placing top-N on the campus board (null = no bonus). Set once
+  // in the finish callback, the same way xpAwarded is, from the attempt's rank
+  // against the board at that moment — so a retried callback can't double-pay.
+  rankXpAwarded Int?
+  // One-shot float gate for the rank bonus, mirroring xpSeenAt. The play page
+  // floats only the base finish reward, so the rank bonus is celebrated on the
+  // next dashboard visit, independently of the finish float.
+  rankXpSeenAt  DateTime?
 
   talent      Talent              @relation(fields: [talentId], references: [id], onDelete: Cascade)
   publication MinigamePublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
@@ -1421,9 +1429,11 @@ model XpGrant {
   talentId  String
   campusId  String?
   source    XpGrantSource
-  // Stable dedupe key per source: onboarding→talentId, minigame→attemptId,
-  // activity_presence→participationId, admin_adjustment→null (never deduped:
-  // Postgres treats NULLs as distinct under the unique index).
+  // Stable dedupe key per source: onboarding→talentId,
+  // onboarding_early_bird→talentId (distinct row from the base because `source`
+  // differs), minigame→attemptId, minigame_rank→attemptId, activity_presence→
+  // participationId, admin_adjustment→null (never deduped: Postgres treats NULLs
+  // as distinct under the unique index).
   sourceId  String?
   amount    Int
   note      String?
@@ -1441,7 +1451,15 @@ model XpGrant {
 
 enum XpGrantSource {
   onboarding
+  // Bonus layered on `onboarding` for being among the first to finish onboarding
+  // in your campus. Its own fact (not a bigger `onboarding` amount) so the base
+  // arrival reward stays explainable and the early-bird tier is auditable.
+  onboarding_early_bird
   minigame
+  // Bonus layered on `minigame` for placing top-N on the campus board, ranked at
+  // the moment the talent finishes (per campus). Separate fact from the flat
+  // finish reward.
+  minigame_rank
   activity_presence
   admin_adjustment
 }

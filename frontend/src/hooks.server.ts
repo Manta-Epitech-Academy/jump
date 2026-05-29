@@ -4,6 +4,7 @@ import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
+import { resolveTalentCampus } from '$lib/server/services/talentCampus';
 import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
 import { runWithRequestContext } from '$lib/server/requestContext';
@@ -119,14 +120,14 @@ export const handle: Handle = async ({ event, resolve }) => {
       // Talents have no direct Campus relation; their effective campus is the
       // one from their most recent participation. Resolve it once here and reuse
       // for both feature-flag scoping (campusId) and analytics (talentCampusName)
-      // so the root layout doesn't have to re-run the same lookup.
-      const participation = await prisma.participation.findFirst({
-        where: { talentId: event.locals.talent.id },
-        orderBy: { event: { date: 'desc' } },
-        select: { campusId: true, campus: { select: { name: true } } },
-      });
-      campusId = participation?.campusId ?? null;
-      event.locals.talentCampusName = participation?.campus?.name ?? null;
+      // so the root layout doesn't have to re-run the same lookup. Shared with
+      // onboarding's early-bird scope via resolveTalentCampus.
+      const talentCampus = await resolveTalentCampus(
+        prisma,
+        event.locals.talent.id,
+      );
+      campusId = talentCampus.campusId;
+      event.locals.talentCampusName = talentCampus.campusName;
     }
     if (campusId) {
       const overrides = await prisma.campusFeatureFlag.findMany({
