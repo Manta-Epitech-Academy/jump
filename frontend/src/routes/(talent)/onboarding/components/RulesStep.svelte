@@ -90,9 +90,10 @@
 
   <!-- ═══ Signature ═══ -->
   <div
-    class="mt-6 flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
-    <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+    <span
+      class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
       >Fait à</span
     >
     <input
@@ -101,9 +102,10 @@
       bind:value={city}
       placeholder="Ville"
       required
-      class="w-40 rounded-lg border border-slate-200 bg-white/70 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+      class="w-40 min-w-0 rounded-lg border border-slate-200 bg-white/70 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
     />
-    <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+    <span
+      class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
       >, le {new Date().toLocaleDateString('fr-FR', {
         day: '2-digit',
         month: '2-digit',
