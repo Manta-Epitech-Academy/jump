@@ -1,9 +1,11 @@
 <script lang="ts">
   import {
+    AsYouType,
     isValidPhoneNumber,
     parsePhoneNumberFromString,
     type CountryCode,
   } from 'libphonenumber-js';
+  import { tick } from 'svelte';
   import * as Popover from '$lib/components/ui/popover';
   import * as Command from '$lib/components/ui/command';
   import { Button } from '$lib/components/ui/button';
@@ -39,20 +41,77 @@
     class?: string;
   } = $props();
 
-  // The user-facing input mainly holds raw digits so editing behaves like any
-  // text field: backspace removes one digit, mid-string edits don't shuffle
-  // the caret. The one exception is a leading "+": we keep it visible while
-  // the user is typing an international prefix, then strip it the moment a
-  // known dial code is recognized (so "+44…" auto-switches the country).
-  function parseInitial(e164: string): { country: CountryCode; text: string } {
-    if (!e164) return { country: DEFAULT_COUNTRY, text: '' };
+  // The field shows the number grouped the way the user would write it
+  // ("06 12 34 56 78"), formatted live as they type so the field always
+  // matches the placeholder and the value we store. The grouping is purely
+  // visual: only the hidden input below carries the canonical E.164 string to
+  // the server. The leading "+" of a typed international prefix is honored —
+  // the moment a known dial code is recognized it hops into the country
+  // selector and the field keeps only the national part.
+
+  // "Significant" chars = the digits the user meant, plus an optional leading
+  // "+". Everything the caret logic and the formatter care about is expressed
+  // in these, so spaces inserted by grouping never throw the caret off.
+  function extractSignificant(display: string): string {
+    const compact = display.replace(/[^\d+]/g, '');
+    if (compact.startsWith('+'))
+      return '+' + compact.slice(1).replace(/\D/g, '');
+    return compact.replace(/\D/g, '');
+  }
+
+  function countSignificant(display: string): number {
+    return (display.match(/[\d+]/g) ?? []).length;
+  }
+
+  // Index just past the n-th significant char in a formatted string, so we can
+  // restore the caret to the same logical spot after re-grouping.
+  function caretAfterNSignificant(display: string, n: number): number {
+    if (n <= 0) return 0;
+    let seen = 0;
+    for (let i = 0; i < display.length; i++) {
+      if (/[\d+]/.test(display[i])) {
+        seen += 1;
+        if (seen === n) return i + 1;
+      }
+    }
+    return display.length;
+  }
+
+  // Group a significant string the way the country writes phone numbers. An
+  // international "+..." string is grouped by libphonenumber's own country
+  // detection; a national one is grouped for the selected country.
+  function formatDisplay(country: CountryCode, sig: string): string {
+    if (!sig) return '';
+    if (sig.startsWith('+')) return new AsYouType().input(sig);
+    const national = new AsYouType(country).input(sig);
+    // National grouping only kicks in once the trunk prefix is present (the
+    // leading "0" in FR etc.). But the country selector already shows the dial
+    // code, so a user may legitimately drop the 0 and type "7 68 25 66 28".
+    // When national formatting added no separators, group via the dial code
+    // instead and strip it back off, so the digits stay spaced even without
+    // the trunk 0. (Returns the bare digits unchanged for short/partial input.)
+    if (national.replace(/\D/g, '') === national) {
+      const dialCode = COUNTRIES.find((c) => c.code === country)?.dialCode;
+      if (dialCode) {
+        const grouped = new AsYouType()
+          .input(`${dialCode}${sig}`)
+          .slice(dialCode.length)
+          .trimStart();
+        if (grouped) return grouped;
+      }
+    }
+    return national;
+  }
+
+  function parseInitial(e164: string): { country: CountryCode; sig: string } {
+    if (!e164) return { country: DEFAULT_COUNTRY, sig: '' };
     // Salesforce hands us phones in mixed shapes: full E.164 ("+33607131175")
     // for most, but a bare national number with no country and no leading 0
     // ("765719823") for some. Parse as international first; if that yields
     // nothing, fall back to reading it as a national number for the default
     // country. Without the second pass the bare form would prefill verbatim
     // (no leading 0), displaying differently from the E.164 ones, when every
-    // FR number should land identically as "0765719823".
+    // FR number should land identically as "06 12 34 56 78".
     const p =
       parsePhoneNumberFromString(e164) ??
       parsePhoneNumberFromString(e164, DEFAULT_COUNTRY);
@@ -60,17 +119,18 @@
       return {
         country: (p.country ?? DEFAULT_COUNTRY) as CountryCode,
         // formatNational() reintroduces the national prefix (leading "0" in
-        // FR etc.); strip separators to get the bare digit string.
-        text: p.formatNational().replace(/\D/g, ''),
+        // FR etc.); strip separators to get the bare significant digits.
+        sig: p.formatNational().replace(/\D/g, ''),
       };
     }
-    return { country: DEFAULT_COUNTRY, text: e164.replace(/[^\d+]/g, '') };
+    return { country: DEFAULT_COUNTRY, sig: e164.replace(/[^\d+]/g, '') };
   }
 
   // svelte-ignore state_referenced_locally
   const initial = parseInitial(value);
   let selectedCountry = $state<CountryCode>(initial.country);
-  let phoneText = $state(initial.text);
+  // svelte-ignore state_referenced_locally
+  let phoneText = $state(formatDisplay(initial.country, initial.sig));
   let open = $state(false);
   let search = $state('');
   let inputEl = $state<HTMLInputElement | null>(null);
@@ -89,12 +149,13 @@
   // back so the server returns "invalide" rather than "requis" when the user
   // typed something that did not parse.
   let e164Value = $derived.by(() => {
-    if (!phoneText) return '';
+    const sig = extractSignificant(phoneText);
+    if (!sig) return '';
     if (parsed?.number) return parsed.number;
     // While the user is still typing an international prefix ("+4"), let the
     // raw text through so server validation reports "invalide" coherently.
-    if (phoneText.startsWith('+')) return phoneText;
-    const trimmed = phoneText.replace(/^0/, '');
+    if (sig.startsWith('+')) return sig;
+    const trimmed = sig.replace(/^0/, '');
     return trimmed ? `${countryEntry.dialCode}${trimmed}` : '';
   });
 
@@ -105,15 +166,6 @@
     } catch {
       return false;
     }
-  });
-
-  // Confirmation line under the input: the same digits the user typed,
-  // grouped per the selected country's national format. Hidden when the
-  // grouped form would carry no extra information over the bare digits.
-  let preview = $derived.by(() => {
-    if (!phoneText || !parsed) return '';
-    const national = parsed.formatNational();
-    return national.replace(/\D/g, '') === national ? '' : national;
   });
 
   // When the user types or pastes a fully-international number ("+33 6…",
@@ -149,29 +201,58 @@
     return null;
   }
 
-  function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
+  // Push the field's text and caret back to the DOM by hand. The input is
+  // one-way bound (value={phoneText}), so when grouping leaves phoneText
+  // unchanged Svelte skips the DOM write and a rejected keystroke (a letter,
+  // a stray separator) would otherwise linger on screen.
+  async function commit(text: string, sigBeforeCaret: number) {
+    phoneText = text;
+    await tick();
+    if (!inputEl) return;
+    inputEl.value = text;
+    const pos = caretAfterNSignificant(text, sigBeforeCaret);
+    inputEl.setSelectionRange(pos, pos);
+  }
+
+  async function handleInput(e: Event & { currentTarget: HTMLInputElement }) {
     const incoming = e.currentTarget.value;
+    const isBackspace =
+      (e as unknown as InputEvent).inputType === 'deleteContentBackward';
+    const caret = e.currentTarget.selectionStart ?? incoming.length;
+
+    // A complete international number lifts its dial code into the selector;
+    // the dial-code digits leave the field, so anchoring the caret at the end
+    // is the only sensible spot (this branch fires on paste or once a prefix
+    // resolves, never mid-national-typing).
     const detected = detectInternationalPrefix(incoming);
     if (detected) {
       selectedCountry = detected.country;
-      phoneText = detected.rest;
+      const text = formatDisplay(detected.country, detected.rest);
+      await commit(text, countSignificant(text));
       return;
     }
-    // Preserve a leading "+" so the user can type "+44…" into an empty field
-    // and watch the country switch the moment the dial code is recognized.
-    // Until then the prefix stays visible; we never re-insert it after the
-    // fact, so backspacing past it returns straight to national-only mode.
-    if (incoming.startsWith('+')) {
-      phoneText = '+' + incoming.slice(1).replace(/\D/g, '');
-    } else {
-      phoneText = incoming.replace(/\D/g, '');
+
+    let sig = extractSignificant(incoming);
+    let sigBeforeCaret = countSignificant(incoming.slice(0, caret));
+
+    // A backspace that removed only a grouping space (no digit lost) would
+    // stall the caret on the separator. Drop the digit just before the caret
+    // instead, so one press always deletes one digit.
+    const prevSig = extractSignificant(phoneText);
+    if (isBackspace && sig.length === prevSig.length && sigBeforeCaret > 0) {
+      sig = sig.slice(0, sigBeforeCaret - 1) + sig.slice(sigBeforeCaret);
+      sigBeforeCaret -= 1;
     }
+
+    await commit(formatDisplay(selectedCountry, sig), sigBeforeCaret);
   }
 
   function selectCountry(code: CountryCode) {
     selectedCountry = code;
     open = false;
     search = '';
+    // Re-group the digits already entered for the newly chosen country.
+    phoneText = formatDisplay(code, extractSignificant(phoneText));
     // Hand focus straight to the number field so the lycéen can type their
     // digits without a second tap. requestAnimationFrame waits for the popover
     // close transition to release focus before we steal it.
@@ -188,7 +269,7 @@
   );
 </script>
 
-<div class="space-y-1">
+<div>
   <div class="flex gap-2">
     <Popover.Root bind:open>
       <Popover.Trigger>
@@ -266,47 +347,39 @@
       </Popover.Content>
     </Popover.Root>
 
-    <Input
-      bind:ref={inputEl}
-      {id}
-      type="tel"
-      inputmode="tel"
-      autocomplete="tel"
-      autocapitalize="off"
-      autocorrect="off"
-      spellcheck={false}
-      value={phoneText}
-      oninput={handleInput}
-      {placeholder}
-      {required}
-      aria-invalid={error || undefined}
-      aria-describedby={ariaDescribedBy}
-      class={cn(
-        'flex-1',
-        className,
-        error && 'border-destructive focus-visible:border-destructive',
-      )}
-    />
+    <div class="relative flex-1">
+      <Input
+        bind:ref={inputEl}
+        {id}
+        type="tel"
+        inputmode="tel"
+        autocomplete="tel"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck={false}
+        value={phoneText}
+        oninput={handleInput}
+        {placeholder}
+        {required}
+        aria-invalid={error || undefined}
+        aria-describedby={ariaDescribedBy}
+        class={cn(
+          'w-full pr-9 tabular-nums',
+          className,
+          error && 'border-destructive focus-visible:border-destructive',
+        )}
+      />
+      {#if isValid}
+        <CircleCheck
+          aria-hidden="true"
+          class="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-epi-blue"
+        />
+      {/if}
+    </div>
 
     <input type="hidden" {name} value={e164Value} />
   </div>
-  {#if preview}
-    <p
-      class={cn(
-        'flex items-center gap-1.5 px-1 text-sm font-medium tabular-nums transition-colors',
-        isValid
-          ? 'text-epi-blue dark:text-epi-blue'
-          : 'text-slate-500 dark:text-slate-400',
-      )}
-      aria-live="polite"
-    >
-      {#if isValid}
-        <CircleCheck aria-hidden="true" class="size-4 shrink-0" />
-      {/if}
-      <span>{preview}</span>
-      <span class="text-xs font-normal text-slate-400 dark:text-slate-500">
-        · {countryEntry.name}
-      </span>
-    </p>
-  {/if}
+  <span class="sr-only" aria-live="polite">
+    {isValid ? `Numéro valide pour ${countryEntry.name}` : ''}
+  </span>
 </div>
