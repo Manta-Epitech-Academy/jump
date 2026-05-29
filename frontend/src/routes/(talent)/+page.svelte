@@ -312,8 +312,8 @@
 
     <!-- The daily minigame as the first "mission" of the day: same row language
          as the activities below, but accented (gamepad, colour) so it reads as
-         a distinct kind of mission. Pre-play it's a "Jouer" CTA; once played it
-         links to the campus leaderboard on the game's own page. -->
+         a distinct kind of mission. Pre-play it's a "Commencer" CTA; once played
+         it links to the campus leaderboard on the game's own page. -->
     {#snippet minigameMission()}
       {#if hasMinigame && minigamePublication}
         <div class="relative">
@@ -396,7 +396,7 @@
               <span
                 class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white sm:w-auto"
               >
-                Jouer <ArrowRight class="h-4 w-4" />
+                Commencer <ArrowRight class="h-4 w-4" />
               </span>
             </a>
           {/if}
