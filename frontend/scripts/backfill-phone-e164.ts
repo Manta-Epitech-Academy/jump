@@ -26,7 +26,24 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { normalizePhoneToE164 } from '../src/lib/domain/phone';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+
+// Inlined from `normalizePhoneToE164` in `src/lib/domain/phone.ts` so the
+// script can run inside the production image, which only ships the built app
+// (no raw `src/`, and the `$lib` alias resolves only under Vite). Keep in sync
+// by inspection — the logic is small and pure. Collapses any parseable shape to
+// canonical E.164 ("+33765719823"), parsing as international first then as a
+// French national number; returns null for genuine junk (left untouched below).
+const DEFAULT_REGION = 'FR';
+function normalizePhoneToE164(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  const parsed =
+    parsePhoneNumberFromString(trimmed) ??
+    parsePhoneNumberFromString(trimmed, DEFAULT_REGION);
+  return parsed?.isValid() ? parsed.number : null;
+}
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });

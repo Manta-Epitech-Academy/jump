@@ -20,6 +20,7 @@ export const RELANCE_VARS_STUDENT = [
   'nom',
   'campus',
   'email_contact_campus',
+  'jours_restants',
   'login_link',
 ] as const;
 export const RELANCE_VARS_PARENT = [
@@ -37,7 +38,12 @@ export const RELANCE_VARS_PARENT = [
 // and the campus the message signs off as. `{{email}}` is the recipient's own
 // mailbox, named per the spec; `{{campus}}` is the "- Epitech {{campus}}"
 // sign-off in the default body.
-export const RELANCE_SMS_VARS_STUDENT = ['prenom', 'email', 'campus'] as const;
+export const RELANCE_SMS_VARS_STUDENT = [
+  'prenom',
+  'email',
+  'campus',
+  'jours_restants',
+] as const;
 export const RELANCE_SMS_VARS_PARENT = [
   'child_prenom',
   'email',
@@ -75,16 +81,24 @@ export const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
  * Substitutes `{{var}}` placeholders. Unknown vars are left untouched so a
  * staff typo doesn't silently swallow text. Trims values to avoid stray
  * whitespace creeping into rendered emails.
+ *
+ * The token grammar matches the server's `substituteVariables` — including the
+ * underscore/digit names (`email_contact_campus`, `jours_restants`, …). The
+ * previous `[a-zA-Z]+` pattern silently skipped every multi-word token, so the
+ * dialog preview left them as raw `{{…}}` while the sent mail substituted them.
  */
 export function applyPlaceholders(
   template: string,
   vars: Partial<Record<RelanceVar, string | null | undefined>>,
 ): string {
-  return template.replace(/\{\{\s*([a-zA-Z]+)\s*\}\}/g, (match, name) => {
-    const value = vars[name as RelanceVar];
-    if (value == null) return match;
-    return String(value).trim();
-  });
+  return template.replace(
+    /\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g,
+    (match, name) => {
+      const value = vars[name as RelanceVar];
+      if (value == null) return match;
+      return String(value).trim();
+    },
+  );
 }
 
 function capitalize(s: string | null | undefined): string {

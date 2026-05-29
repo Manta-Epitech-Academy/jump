@@ -19,9 +19,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     throw error(404, 'Document inconnu');
   }
 
-  const filePath =
-    locals.talent[ONBOARDING_DOCUMENTS[params.type].filePathField];
-  if (!filePath) {
+  const descriptor = ONBOARDING_DOCUMENTS[params.type];
+  // The route's contract is to serve a *signed* document, so require both the
+  // signature timestamp and the generated file. Gating on the file alone would
+  // keep handing back a stale PDF after the signature is voided (e.g. an admin
+  // onboarding reset nulls `rulesSignedAt`), serving a document the rest of the
+  // app already treats as unsigned.
+  const filePath = locals.talent[descriptor.filePathField];
+  if (!locals.talent[descriptor.signedAtField] || !filePath) {
     throw error(404, 'Document indisponible');
   }
 

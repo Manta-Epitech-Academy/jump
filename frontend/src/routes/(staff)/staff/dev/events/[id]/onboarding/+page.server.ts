@@ -6,7 +6,7 @@ import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { prisma } from '$lib/server/db';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
-import { loadStageOr404 } from '$lib/server/services/stageContext';
+import { loadStageOr404, daysUntil } from '$lib/server/services/stageContext';
 import { sendRelanceSchema } from '$lib/validation/reminders';
 import {
   sendRelances,
@@ -68,6 +68,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       name: locals.staffProfile?.campus?.name ?? '',
       contactEmail: locals.staffProfile?.campus?.contactEmail ?? null,
     },
+    // Countdown to this event for the {{jours_restants}} token — same value the
+    // send action resolves, surfaced so the preview shows the real number.
+    joursRestants: daysUntil(event.date),
     filter,
   };
 };
@@ -136,12 +139,13 @@ export const actions: Actions = {
     }
 
     const campusId = getCampusId(locals);
-    await loadStageOr404(params.id, campusId);
+    const event = await loadStageOr404(params.id, campusId);
 
     const result = await sendRelances({
       ...form.data,
       sentBy: locals.user!.id,
       campusId,
+      joursRestants: daysUntil(event.date),
     });
 
     return message(form, formatRelanceMessage(result));

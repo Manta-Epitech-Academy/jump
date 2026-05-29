@@ -16,6 +16,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
   const [templates, campuses] = await Promise.all([
     prisma.messageTemplate.findMany({
+      // Only broadcast-purposed templates. Templates wired to an
+      // EmailActionMapping are transactional (OTP, relance, account-deletion):
+      // they carry per-recipient secrets like {{otp_code}} and action
+      // semantics, so cohort-broadcasting one would send nonsense (empty code)
+      // or worse to every recipient. They stay editable via the templates list
+      // (where email-actions links to manage them), just not pickable here.
+      where: { emailActionMappings: { none: {} } },
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true,

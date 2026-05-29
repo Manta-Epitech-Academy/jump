@@ -27,11 +27,48 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import {
-  WELCOME_XP_BONUS,
-  getTotalXp,
-  getXpEligibleActivities,
-} from '../src/lib/domain/xp';
+
+// Inlined from `src/lib/domain/xp.ts` so the script can run inside the
+// production image, which only ships the built app (no raw `src/`, and the
+// `$lib` alias resolves only under Vite). Keep in sync by inspection with the
+// upstream definitions — the values and rules below are deploy-critical (a
+// drift here silently rebuilds wrong balances).
+
+// One-off XP granted when a talent finishes onboarding.
+const WELCOME_XP_BONUS = 200;
+
+const DIFFICULTY_XP: Record<string, number> = {
+  Débutant: 20,
+  Intermédiaire: 45,
+  Avancé: 75,
+};
+
+function getActivityXpValue(difficulte: string): number {
+  return DIFFICULTY_XP[difficulte] || 20;
+}
+
+// Keeps only activities the student was present for and that aren't orga
+// (roll call), reduced to the `difficulte` field `getTotalXp` reads.
+function getXpEligibleActivities<
+  T extends {
+    isPresent: boolean;
+    activity: { activityType: string; difficulte: string | null };
+  },
+>(participationActivities: T[]): { difficulte: string | null }[] {
+  return participationActivities
+    .filter((pa) => pa.isPresent && pa.activity.activityType !== 'orga')
+    .map((pa) => ({ difficulte: pa.activity.difficulte }));
+}
+
+// Total XP for a participation's eligible activities. An empty list (present
+// but no non-orga activity) still earns the 20 base attendance XP.
+function getTotalXp(items: { difficulte: string | null }[]): number {
+  if (!items || items.length === 0) return 20;
+  return items.reduce(
+    (total, item) => total + getActivityXpValue(item.difficulte ?? ''),
+    0,
+  );
+}
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });

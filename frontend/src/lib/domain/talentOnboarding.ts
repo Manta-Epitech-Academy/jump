@@ -147,6 +147,49 @@ export function clearOnboardingTimestamps(): Record<
   ) as Record<OnboardingTimestampField, null>;
 }
 
+/**
+ * The talent's own signed-document artifacts produced *during platform
+ * onboarding* — the generated-PDF S3 keys plus the place-of-signature metadata
+ * that attest the talent's signature, as distinct from the profile data they
+ * fill in (school, parents, interests), which a returning talent legitimately
+ * keeps.
+ *
+ * Owned here for the same reason as {@link ONBOARDING_TIMESTAMP_FIELDS}: every
+ * path that returns a talent to a pre-onboarding state (admin reset, RGPD
+ * anonymisation) must drop these alongside the gate timestamps, so a stale PDF
+ * never outlives the signature it attests. Adding a new talent-signed artifact
+ * here lights up both paths at once.
+ *
+ * Scope is the *talent's* signature only. The guardian's règlement co-signature
+ * (`parentRules*`) and the parent-decided image-rights artifacts sit outside the
+ * talent ladder and are cleared by their own flows, never by a talent reset.
+ * `rulesFilePath` is the one shared key: it carries both signature blocks, but
+ * voiding the talent's signature already invalidates the current render, so it
+ * is dropped here and regenerated when either signer next commits.
+ */
+export const TALENT_ONBOARDING_ARTIFACT_FIELDS = [
+  'charterFilePath',
+  'rulesFilePath',
+  'rulesSignedCity',
+] as const;
+
+export type TalentOnboardingArtifactField =
+  (typeof TALENT_ONBOARDING_ARTIFACT_FIELDS)[number];
+
+/**
+ * `{ field: null }` patch covering every {@link TALENT_ONBOARDING_ARTIFACT_FIELDS},
+ * meant to be spread into a `talent.update` `data` object alongside
+ * {@link clearOnboardingTimestamps}.
+ */
+export function clearTalentOnboardingArtifacts(): Record<
+  TalentOnboardingArtifactField,
+  null
+> {
+  return Object.fromEntries(
+    TALENT_ONBOARDING_ARTIFACT_FIELDS.map((f) => [f, null]),
+  ) as Record<TalentOnboardingArtifactField, null>;
+}
+
 export type OnboardingPhase = 'not-started' | 'in-progress' | 'complete';
 
 export type OnboardingProgress = {
