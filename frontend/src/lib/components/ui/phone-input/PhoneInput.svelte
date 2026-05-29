@@ -46,7 +46,16 @@
   // known dial code is recognized (so "+44…" auto-switches the country).
   function parseInitial(e164: string): { country: CountryCode; text: string } {
     if (!e164) return { country: DEFAULT_COUNTRY, text: '' };
-    const p = parsePhoneNumberFromString(e164);
+    // Salesforce hands us phones in mixed shapes: full E.164 ("+33607131175")
+    // for most, but a bare national number with no country and no leading 0
+    // ("765719823") for some. Parse as international first; if that yields
+    // nothing, fall back to reading it as a national number for the default
+    // country. Without the second pass the bare form would prefill verbatim
+    // (no leading 0), displaying differently from the E.164 ones, when every
+    // FR number should land identically as "0765719823".
+    const p =
+      parsePhoneNumberFromString(e164) ??
+      parsePhoneNumberFromString(e164, DEFAULT_COUNTRY);
     if (p) {
       return {
         country: (p.country ?? DEFAULT_COUNTRY) as CountryCode,

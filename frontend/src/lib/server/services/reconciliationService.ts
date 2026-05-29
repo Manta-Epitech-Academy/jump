@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { civiliteLabel, parentTypeLabel } from '$lib/domain/profile';
+import { normalizePhoneToE164 } from '$lib/domain/phone';
 import type { DiffField } from '$lib/domain/reconciliation';
 
 // The field catalogue (DIFF_FIELDS, DiffField, isDiffField, FIELD_LABELS) is
@@ -60,12 +61,17 @@ export interface TalentDiff {
 // Compare on a normalized form so cosmetic differences don't surface as a diff a
 // reviewer can never truly clear. Text is trimmed (names are `.trim()`'d on the
 // Jump side at capture but the SF mirror stores the raw claim); phone is reduced
-// to its digits so `+33 6…` and `06…` read as equal. The raw stored values are
-// still what we show the reviewer.
+// to canonical E.164 so `+33 6…`, `06…` and a bare national `765719823` all read
+// as equal (a bare-digit comparison would mismatch `33…` against `0…`). Values
+// that don't parse fall back to their digits so two equal raw strings still
+// match. The raw stored values are still what we show the reviewer.
 const sameText = (a: string | null, b: string | null) =>
   (a?.trim() || null) === (b?.trim() || null);
-const samePhone = (a: string | null, b: string | null) =>
-  (a?.replace(/\D/g, '') || null) === (b?.replace(/\D/g, '') || null);
+const samePhone = (a: string | null, b: string | null) => {
+  const canon = (v: string | null) =>
+    normalizePhoneToE164(v) ?? (v?.replace(/\D/g, '') || null);
+  return canon(a) === canon(b);
+};
 
 export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
   // Only talents that have a mirror and have confirmed at least one section can
