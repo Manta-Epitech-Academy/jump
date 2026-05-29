@@ -31,3 +31,26 @@ export const civiliteLabel = (value: string | null | undefined): string =>
 
 export const parentTypeLabel = (value: string | null | undefined): string =>
   labelFrom(PARENT_TYPE_OPTIONS, value);
+
+/**
+ * Maps the onboarding-collected guardian link (`parentType`) onto the exact
+ * "agissant en qualité de" option used by the parent signature forms (`mère`,
+ * `père`, `tuteur légal`, `tutrice légale`). A legal referent's gender comes
+ * from `parentCivilite` so the tuteur/tutrice variant matches; returns `''`
+ * when we lack the data, leaving the select unfilled.
+ */
+export const parentSignerRelationship = (
+  parentType: string | null | undefined,
+  parentCivilite: string | null | undefined,
+): string => {
+  switch (parentType) {
+    case 'pere':
+      return 'père';
+    case 'mere':
+      return 'mère';
+    case 'referent':
+      return parentCivilite === 'femme' ? 'tutrice légale' : 'tuteur légal';
+    default:
+      return '';
+  }
+};

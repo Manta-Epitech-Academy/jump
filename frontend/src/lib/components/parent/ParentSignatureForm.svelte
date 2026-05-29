@@ -5,6 +5,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Select from '$lib/components/ui/select';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+  import { parentSignerRelationship } from '$lib/domain/profile';
 
   // Shared signature shell for the parent flow's two co-signed acts: the
   // règlement intérieur (single accept) and the droit-à-l'image decision
@@ -28,6 +29,12 @@
        */
       parentPrenom?: string | null;
       parentNom?: string | null;
+      /**
+       * Talent-entered guardian link + civility, mapped to the "en qualité de"
+       * select so it pre-fills like the name fields. The guardian can override.
+       */
+      parentType?: string | null;
+      parentCivilite?: string | null;
     };
     /** Form action target, e.g. `?/sign` or `?/decide`. */
     action: string;
@@ -81,7 +88,11 @@
   // own the state, not later changes to the `child` prop.
   let signerPrenom = $state(untrack(() => child.parentPrenom ?? ''));
   let signerNom = $state(untrack(() => child.parentNom ?? ''));
-  let relationship = $state('');
+  let relationship = $state(
+    untrack(() =>
+      parentSignerRelationship(child.parentType, child.parentCivilite),
+    ),
+  );
   let city = $state('');
   let submitting = $state(false);
 
@@ -102,16 +113,6 @@
 </script>
 
 <div class="mb-6 space-y-4">
-  <!-- Child name header -->
-  <div
-    class="rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
-  >
-    <h2 class="text-base font-bold text-slate-900 dark:text-white">
-      {child.prenom}
-      {child.nom}
-    </h2>
-  </div>
-
   <form
     method="POST"
     {action}
