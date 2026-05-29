@@ -9,6 +9,16 @@
 
   let { data }: { data: PageData } = $props();
 
+  const isScore = $derived(data.scoringType === 'score');
+
+  // One plain sentence on how the board ranks, so two numbers (score + chrono on
+  // scored games) never leave the player guessing which one places them.
+  const rankingRule = $derived(
+    isScore
+      ? 'Classé au score. À égalité, le temps le plus court départage.'
+      : 'Classé au temps : le plus rapide en haut.',
+  );
+
   function formatChrono(ms: number | null): string {
     if (ms === null) return '—';
     return `${(ms / 1000).toFixed(1)}s`;
@@ -42,6 +52,12 @@
         </div>
       </div>
 
+      <p
+        class="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400"
+      >
+        {rankingRule}
+      </p>
+
       {#if data.rows.length === 0}
         <p class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
           Personne n'a encore joué.
@@ -56,14 +72,16 @@
               <th class="py-2 text-left font-bold text-slate-400 uppercase"
                 >Joueur</th
               >
-              {#if data.scoringType === 'score'}
+              {#if isScore}
                 <th class="py-2 text-right font-bold text-slate-400 uppercase"
                   >Score</th
                 >
               {/if}
-              <th class="py-2 text-right font-bold text-slate-400 uppercase"
-                >Chrono</th
-              >
+              <th class="py-2 text-right font-bold text-slate-400 uppercase">
+                Chrono{#if isScore}<span class="font-normal normal-case"
+                    >&nbsp;· départage</span
+                  >{/if}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -82,12 +100,18 @@
                     <span class="ml-1 text-xs text-epi-orange">(toi)</span>
                   {/if}
                 </td>
-                {#if data.scoringType === 'score'}
-                  <td class="py-2 text-right tabular-nums">
+                {#if isScore}
+                  <td
+                    class="py-2 text-right font-semibold text-slate-900 tabular-nums dark:text-white"
+                  >
                     {row.score ?? '—'}
                   </td>
                 {/if}
-                <td class="py-2 text-right tabular-nums">
+                <td
+                  class="py-2 text-right tabular-nums {isScore
+                    ? 'text-slate-400 dark:text-slate-500'
+                    : ''}"
+                >
                   {formatChrono(row.chrono)}
                 </td>
               </tr>

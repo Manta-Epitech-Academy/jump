@@ -38,6 +38,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       // name differs from what the talent typed).
       parentPrenom: true,
       parentNom: true,
+      parentType: true,
+      parentCivilite: true,
     },
   });
 

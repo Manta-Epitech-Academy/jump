@@ -20,11 +20,6 @@ const phoneSchema = z
 // semantics: it sends `"true"` when checked and omits the field entirely when
 // unchecked. Parse that explicitly — never `z.coerce.boolean()`, which maps any
 // non-empty string (including the literal `"false"`) to `true`.
-const checkboxBool = z
-  .literal('true')
-  .optional()
-  .transform((v) => v === 'true');
-
 // A consent box that must be ticked: the field is absent until checked, so a
 // plain required literal rejects an unchecked box with the given message.
 const requiredConsent = (message: string) => z.literal('true', { message });
@@ -170,7 +165,14 @@ export const interestsSchema = z.object({
 });
 
 export const equipmentSchema = z.object({
-  hasLaptop: checkboxBool,
+  // A working laptop is a hard prerequisite for the stage, so the box must be
+  // ticked to advance — enforced here, not only by the disabled CTA. Kept as a
+  // boolean column, hence the literal + transform rather than `requiredConsent`.
+  hasLaptop: z
+    .literal('true', {
+      message: 'Tu dois posséder un laptop fonctionnel pour continuer.',
+    })
+    .transform(() => true),
   setupDescription: z
     .string()
     .max(1000, 'Maximum 1000 caractères')

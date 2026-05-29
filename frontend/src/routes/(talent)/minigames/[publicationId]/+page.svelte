@@ -176,7 +176,7 @@
            classement / Retour), so there are no duplicate buttons out here. -->
       {#if !finished}
         <p class="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
-          Si tu fermes cette page avant la fin, ta partie sera perdue.
+          Reste sur cette page jusqu'à la fin de ta partie.
         </p>
       {/if}
     {:else}

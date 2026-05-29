@@ -4,7 +4,15 @@
   import { track, errReason } from '$lib/analytics';
 
   interface Props {
-    child: { id: string; prenom: string; nom: string };
+    child: {
+      id: string;
+      prenom: string;
+      nom: string;
+      parentPrenom?: string | null;
+      parentNom?: string | null;
+      parentType?: string | null;
+      parentCivilite?: string | null;
+    };
     error?: string;
   }
 

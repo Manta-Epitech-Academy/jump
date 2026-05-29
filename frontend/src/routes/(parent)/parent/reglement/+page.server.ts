@@ -23,6 +23,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       nom: true,
       parentPrenom: true,
       parentNom: true,
+      parentType: true,
+      parentCivilite: true,
     },
   });
 
