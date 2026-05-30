@@ -1,12 +1,14 @@
 /**
  * Database seed.
  *
- * STANDALONE RULE: this file must depend only on `node:*`, npm packages, and
- * `@prisma/client` — never on `$lib`/`src`. `prisma db seed` runs in deploy and
- * migration environments where the SvelteKit `src/` tree isn't packaged (and the
- * `$lib` alias doesn't resolve outside Vite). Any domain logic needed here is
- * re-stated locally and tagged "mirrors src/lib/domain/…" so it stays in sync by
- * inspection — see `XP_MAP`, `WELCOME_XP_BONUS`, `toStoredPhone` below.
+ * STANDALONE RULE: this file must depend only on `node:*`, npm packages,
+ * `@prisma/client`, and `prisma/`-local siblings (e.g. `./catalogs`), never on
+ * `$lib`/`src`. `prisma db seed` runs in deploy and migration environments where
+ * the SvelteKit `src/` tree isn't packaged (and the `$lib` alias doesn't resolve
+ * outside Vite), but the whole `prisma/` dir ships, so relative sibling imports
+ * are safe. Any domain logic needed here is re-stated locally and tagged
+ * "mirrors src/lib/domain/…" so it stays in sync by inspection (see `XP_MAP`,
+ * `WELCOME_XP_BONUS`, `toStoredPhone` below).
  */
 
 import path from 'node:path';
@@ -25,6 +27,12 @@ import {
 import { PrismaPg } from '@prisma/adapter-pg';
 import { marked } from 'marked';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+
+import {
+  seedInterests,
+  seedEmailTemplates,
+  seedBroadcastTemplates,
+} from './catalogs';
 
 // Mirrors normalizePhoneToE164 in src/lib/domain/phone.ts (see STANDALONE RULE).
 // Phones are written below in a readable spaced form ("+33 6 12 34 56 01"), but
@@ -3311,14 +3319,29 @@ async function main() {
   console.log(`✓  Users (${Object.keys(staffByKey).length} staff)`);
 
   // 2b. Intérêts catalogue (referenced by talents)
-  await seedInterests();
-  console.log('✓  Intérêts');
+  const interestCount = await seedInterests(prisma);
+  console.log(`✓  Intérêts (${interestCount})`);
 
   // 2c. Email templates + action mappings (OTP, parent welcome, relances).
   //     Without these, the transactional senders bail with `no_template` and
-  //     local dev breaks the OTP login flow.
-  const templateCount = await seedEmailTemplates(staffByKey);
+  //     local dev breaks the OTP login flow. Author defaults to the seeded
+  //     superdev, falling back to any seeded staff.
+  const createdById =
+    staffByKey['pauline.marchand']?.userId ??
+    Object.values(staffByKey)[0]?.userId;
+  if (!createdById)
+    throw new Error('No staff user available to author templates');
+  const templateCount = await seedEmailTemplates(prisma, createdById);
   console.log(`✓  Email templates + action mappings (${templateCount})`);
+
+  // 2d. Default broadcast templates (e.g. the inscription announcement staff
+  //     send to all talents). Free-standing rows the broadcast composer lists;
+  //     no action mapping, so nothing fires them automatically.
+  const broadcastTemplateCount = await seedBroadcastTemplates(
+    prisma,
+    createdById,
+  );
+  console.log(`✓  Broadcast templates (${broadcastTemplateCount})`);
 
   // 3. Students
   const talentByEmail = await seedStudents();
@@ -3482,60 +3505,6 @@ async function wipeAll() {
 }
 
 // ─── Interests ───
-
-async function seedInterests() {
-  const techItems = [
-    { nom: 'Créer des sites web', emoji: '🌐' },
-    { nom: 'Créer des apps', emoji: '📱' },
-    { nom: 'Créer des jeux vidéo', emoji: '🕹️' },
-    { nom: 'Programmation', emoji: '💻' },
-    { nom: 'Développement de logiciels', emoji: '🖥️' },
-    { nom: 'Intelligence artificielle', emoji: '🤖' },
-    { nom: 'Robotique', emoji: '🦾' },
-    { nom: 'Data science / Analyse de données', emoji: '📊' },
-    { nom: 'Cloud / Infrastructure', emoji: '☁️' },
-    { nom: 'Cybersécurité / Hacking', emoji: '🔒' },
-  ];
-
-  const generalItems = [
-    { nom: 'Jeux vidéo', emoji: '🎮' },
-    { nom: 'Manga / Anime', emoji: '📺' },
-    { nom: 'Séries / Films', emoji: '🎬' },
-    { nom: 'Musique (écouter)', emoji: '🎧' },
-    { nom: "Jouer d'un instrument", emoji: '🎸' },
-    { nom: 'Dessin / Illustration', emoji: '✏️' },
-    { nom: 'Photo / Vidéo', emoji: '📷' },
-    { nom: 'Lecture', emoji: '📚' },
-    { nom: 'Écriture / Poésie', emoji: '📝' },
-    { nom: 'Cuisine / Pâtisserie', emoji: '👨‍🍳' },
-    { nom: 'Sport collectif', emoji: '⚽' },
-    { nom: 'Sport individuel', emoji: '🏃' },
-    { nom: 'Danse', emoji: '💃' },
-    { nom: 'Skateboard / Roller', emoji: '🛹' },
-    { nom: 'Mode / Streetwear', emoji: '👟' },
-    { nom: 'Maquillage / Beauté', emoji: '💄' },
-    { nom: 'DIY / Bricolage', emoji: '🔨' },
-    { nom: 'Jardinage', emoji: '🌱' },
-    { nom: "L'espace / Astronomie", emoji: '🔭' },
-    { nom: 'Les animaux', emoji: '🐾' },
-    { nom: 'Environnement / Écologie', emoji: '🌍' },
-    { nom: 'Psychologie', emoji: '🧠' },
-    { nom: 'Histoire', emoji: '📜' },
-    { nom: 'Politique / Débats', emoji: '🗳️' },
-    { nom: 'Économie / Business', emoji: '💼' },
-  ];
-
-  await prisma.interest.createMany({
-    data: [
-      ...techItems.map((it, i) => ({ ...it, kind: 'tech' as const, order: i })),
-      ...generalItems.map((it, i) => ({
-        ...it,
-        kind: 'general' as const,
-        order: i,
-      })),
-    ],
-  });
-}
 
 async function assignTalentInterests() {
   // TalentInterest rows are written by the (atomic) interests step, which
@@ -4686,44 +4655,6 @@ async function seedBroadcasts(
     }),
   ]);
 
-  // Project-relevant SMS templates for the broadcast catalogue (pickable in
-  // /broadcasts/new). Link-free — an SMS points the recipient back to their
-  // inbox ({{email}}) rather than carrying a tappable URL. `{X}` (days until
-  // the stage) has no variable, so it stays a literal fill-in. Variables match
-  // BROADCAST_VARIABLES.
-  await prisma.messageTemplate.createMany({
-    data: [
-      {
-        name: 'Relance inscription — talent (SMS)',
-        channel: 'sms',
-        subject: null,
-        body: "Salut {{prenom}}, plus que {X} jours avant ton stage à Epitech ! Finalise vite ton inscription : on t'a envoyé un mail sur {{email}}. - Epitech {{campus}}",
-        createdById: templateAuthor,
-      },
-      {
-        name: "Relance parent — règlement & droit à l'image (SMS)",
-        channel: 'sms',
-        subject: null,
-        body: "Bonjour, votre signature du règlement intérieur et votre décision sur le droit à l'image sont attendues pour finaliser l'inscription de {{child_prenom}} au stage de seconde à Epitech. Mail envoyé sur {{email}}. - Epitech {{campus}}",
-        createdById: templateAuthor,
-      },
-      {
-        name: 'Rappel J-1 — stage de seconde (SMS)',
-        channel: 'sms',
-        subject: null,
-        body: "Salut {{prenom}} ! Ton stage Epitech commence demain à 9h. Pense à ta pièce d'identité et de quoi noter. À demain !",
-        createdById: templateAuthor,
-      },
-      {
-        name: 'Coding Club — prochaine séance (SMS)',
-        channel: 'sms',
-        subject: null,
-        body: 'Salut {{prenom}} ! Prochaine séance du Coding Club Epitech ce mercredi à 14h. On compte sur toi, à la prochaine !',
-        createdById: templateAuthor,
-      },
-    ],
-  });
-
   // Each broadcast ships with its recipient rows as one nested create. Skip
   // blueprints whose campus/author can't resolve, then fire the rest
   // concurrently.
@@ -4787,176 +4718,6 @@ async function seedBroadcasts(
     plans.map((p) => prisma.broadcast.create({ data: p.data })),
   );
   return plans.reduce((sum, p) => sum + p.recipientCount, 0);
-}
-
-// ─── Email templates + action mappings ───
-
-/**
- * Default transactional templates + their action mappings. Re-runnable —
- * `wipeAll` clears the tables first, so calling seedEmailTemplates twice
- * just refreshes the seeded content. Keep bodies in sync with
- * `src/lib/domain/relanceTemplates.ts` (relance defaults) and the OTP
- * legacy HTML they replace.
- */
-async function seedEmailTemplates(
-  staffByKey: Record<string, { id: string; userId: string }>,
-): Promise<number> {
-  const createdById =
-    staffByKey['pauline.marchand']?.userId ??
-    Object.values(staffByKey)[0]?.userId;
-  if (!createdById)
-    throw new Error('No staff user available to author templates');
-
-  const templates: {
-    actionKey: string;
-    name: string;
-    subject: string;
-    body: string;
-  }[] = [
-    {
-      actionKey: 'otp_talent',
-      name: 'OTP — Login talent (par défaut)',
-      subject: "Ton code d'accès secret pour Jump 🔑",
-      body: `Salut **{{prenom}}** !
-
-Voici ton code secret temporaire pour te connecter à ton Cockpit :
-
-# {{otp_code}}
-
-*Si tu n'as pas essayé de te connecter, tu peux supprimer cet email sans t'inquiéter. Ce code expirera rapidement.*
-
-Bon atelier !
-L'équipe Epitech Academy`,
-    },
-    {
-      actionKey: 'otp_parent',
-      name: 'OTP — Login parent (par défaut)',
-      subject: "Votre code d'accès Jump — Espace Parent",
-      body: `Bonjour **{{parent_prenom}}**,
-
-Voici votre code de connexion à l'Espace Parent :
-
-# {{otp_code}}
-
-Ce code est valable **10 minutes**.
-
-:button[Se connecter à l'Espace Parent]({{login_link}})
-
-*Si vous n'avez pas demandé ce code, vous pouvez ignorer cet email.*
-
-Cordialement,
-L'équipe Epitech Academy`,
-    },
-    {
-      actionKey: 'parent_welcome',
-      name: 'Bienvenue parent (par défaut)',
-      subject:
-        'Stage de seconde de {{child_prenom}} à Epitech : une dernière étape de votre côté',
-      body: `Bonjour,
-
-{{child_prenom}} vient de finaliser son inscription au stage de seconde à Epitech, qui se déroulera du 15 au 27 juin, sur notre campus de {{campus}}.
-
-Pour finaliser le dossier, votre **co-signature du règlement intérieur** est attendue : elle accompagne celle de {{child_prenom}}, qui s'engage à respecter le cadre du stage.
-
-Par ailleurs, pendant ce stage, nos équipes seront amenées à prendre des photos et vidéos : ateliers, défis, moments collectifs… Pour savoir si nous pouvons utiliser ces contenus dans les communications d'Epitech (réseaux sociaux, site, supports internes), nous avons besoin de votre **décision sur le droit à l'image**. Vous êtes bien sûr libre d'accepter ou de refuser.
-
-L'ensemble vous prendra moins de 2 minutes via le lien ci-dessous.
-
-:button[Finaliser le dossier de {{child_prenom}}]({{parent_fastlogin_link}})
-
-Le lien vous connecte directement à votre espace, sans mot de passe à créer.
-
-Si vous avez la moindre question, n'hésitez pas à nous écrire à {{email_contact_campus}}, nous vous répondons rapidement.
-
-Bien cordialement,
-L'équipe Epitech {{campus}}`,
-    },
-    {
-      actionKey: 'relance_student',
-      name: 'Relance — étudiant (par défaut)',
-      subject:
-        'J-{X}, {{prenom}} : dernière étape pour finaliser ton inscription au stage à Epitech.',
-      body: `Salut {{prenom}},
-
-Petit rappel : ton stage à Epitech démarre dans {X} jours, et ton inscription n'est pas encore finalisée. Il te reste 5 minutes à passer sur Jump pour boucler tout ça.
-
-:button[Finalise ton inscription]({{fastlogin_link}})
-
-Une question ? Un blocage ? Écris-nous à {{email_contact_campus}}, on te répond rapidement.
-
-À très vite,
-L'équipe Epitech {{campus}}`,
-    },
-    {
-      actionKey: 'relance_parent',
-      name: 'Relance — parent (par défaut)',
-      subject:
-        'Rappel : finaliser le dossier de {{child_prenom}} pour le stage à Epitech',
-      body: `Bonjour,
-
-Petit rappel : pour finaliser le dossier d'inscription de {{child_prenom}} au stage de seconde à Epitech, votre **co-signature du règlement intérieur** et votre **décision sur le droit à l'image** sont encore attendues.
-
-Cela vous prendra moins de 2 minutes.
-
-:button[Finaliser le dossier de {{child_prenom}}]({{parent_fastlogin_link}})
-
-Le lien vous connecte directement à votre espace, sans mot de passe à créer.
-
-Une question ? Écrivez-nous à {{email_contact_campus}}, on vous répond rapidement.
-
-Bien cordialement,
-L'équipe Epitech {{campus}}`,
-    },
-    {
-      actionKey: 'account_deletion_refused',
-      name: 'Suppression de compte — refus (par défaut)',
-      subject: 'Ta demande de suppression de compte',
-      body: `Salut **{{prenom}}**,
-
-Nous avons bien reçu ta demande de suppression de ton compte Jump, mais nous ne pouvons pas y donner suite pour le moment.
-
-**Motif :** {{deletion_reason}}
-
-Tu peux refaire une demande plus tard, ou répondre à cet email si tu as des questions.
-
-Si tu n'es pas d'accord, tu peux aussi introduire une réclamation auprès de la CNIL : [cnil.fr](https://www.cnil.fr/fr/plaintes).
-
-L'équipe Epitech Academy`,
-    },
-    {
-      actionKey: 'account_deletion_done',
-      name: 'Suppression de compte — confirmation (par défaut)',
-      subject: 'Ton compte Jump a été supprimé',
-      body: `Salut **{{prenom}}**,
-
-Comme tu l'avais demandé, ton compte Jump a été supprimé et tes données personnelles ont été définitivement anonymisées.
-
-Tu n'as plus accès à la plateforme. Si tu souhaites revenir un jour, il te faudra créer un nouveau compte.
-
-Merci d'avoir fait partie de l'aventure.
-L'équipe Epitech Academy`,
-    },
-  ];
-
-  const created = await prisma.messageTemplate.createManyAndReturn({
-    data: templates.map((t) => ({
-      name: t.name,
-      channel: 'mail' as const,
-      subject: t.subject,
-      body: t.body,
-      createdById,
-    })),
-    select: { id: true, name: true },
-  });
-  const templateIdByName = new Map(created.map((t) => [t.name, t.id]));
-
-  await prisma.emailActionMapping.createMany({
-    data: templates.map((t) => ({
-      actionKey: t.actionKey,
-      templateId: templateIdByName.get(t.name)!,
-    })),
-  });
-  return templates.length;
 }
 
 // ─── Helpers ───

@@ -7,10 +7,7 @@
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import {
-    rewardToast,
-    minigameRewardToast,
-  } from '$lib/components/talent/rewardToast';
+  import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
   import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
   import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
@@ -37,6 +34,7 @@
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
+  import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import { onMount, untrack, type Snippet } from 'svelte';
   import { track, secondsBetween } from '$lib/analytics';
   import { page } from '$app/state';
@@ -70,8 +68,10 @@
     return () => clearInterval(i);
   });
 
-  // Shared "+XP" reward celebration: confetti + a floating amount that fades
-  // out. Drives both the onboarding arrival and the minigame reward below.
+  // "+XP" reward celebration: confetti + a floating amount that fades out.
+  // Drives the onboarding arrival below; the minigame finish/rank floats live in
+  // MinigameRewardCelebration (shared with the leaderboard).
+  const XP_FLOAT_DURATION_MS = 2500;
   let showXpFloat = $state(false);
   let floatAmount = $state(0);
   function celebrateXp(
@@ -85,7 +85,7 @@
         showXpFloat = true;
       }, 300),
     );
-    timers.push(setTimeout(() => (showXpFloat = false), 2500));
+    timers.push(setTimeout(() => (showXpFloat = false), XP_FLOAT_DURATION_MS));
   }
 
   // Arrival celebration. Onboarding completion redirects here with the one-shot
@@ -99,32 +99,23 @@
     history.replaceState({}, '', page.url.pathname);
     welcomeHighlight = true;
 
+    // The boosted total (base + early-bird) is computed server-side; fall back
+    // to the base if the arrival payload is somehow absent.
+    const arrival = data.onboardingArrival;
+    const totalXp = arrival?.totalXp ?? WELCOME_XP_BONUS;
+    const earlyBirdBonus = arrival?.earlyBirdBonus ?? 0;
+
     const timers: ReturnType<typeof setTimeout>[] = [];
-    celebrateXp(WELCOME_XP_BONUS, timers);
+    celebrateXp(totalXp, timers);
+    // Hold the toast until the XP float has faded, so the welcome message lands
+    // on a calm page (after the first "stunned" beat) instead of competing with
+    // the confetti and the floating number for attention.
     timers.push(
-      setTimeout(() => {
-        rewardToast(
-          'Bienvenue sur Jump ! 🎉',
-          `Tu gagnes +${WELCOME_XP_BONUS} XP pour ton arrivée. Les XP reflètent ta progression — tu en gagneras en participant aux activités !`,
-        );
-      }, 1000),
+      setTimeout(
+        () => welcomeRewardToast(totalXp, earlyBirdBonus),
+        XP_FLOAT_DURATION_MS + 400,
+      ),
     );
-    return () => timers.forEach(clearTimeout);
-  });
-
-  // Minigame reward celebration. The game-end callback lands server-to-server,
-  // so the browser only learns of the win on the next dashboard visit: the load
-  // surfaces an unseen, XP-earning attempt as `minigameReward`. Celebrate once,
-  // then submit the hidden form to stamp xpSeenAt so it can't replay.
-  let ackForm: HTMLFormElement;
-  onMount(() => {
-    const reward = data.minigameReward;
-    if (!reward) return;
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    celebrateXp(reward.xp, timers);
-    timers.push(setTimeout(() => minigameRewardToast(reward.xp), 1000));
-    ackForm?.requestSubmit();
     return () => timers.forEach(clearTimeout);
   });
 
@@ -242,16 +233,12 @@
   <XpFloat amount={floatAmount} />
 {/if}
 
-<!-- One-shot: stamps xpSeenAt after the minigame reward float plays. The no-op
-     enhance callback skips the default invalidation so the celebration isn't
-     interrupted mid-animation. -->
-<form
-  bind:this={ackForm}
-  method="POST"
-  action="?/acknowledgeMinigameReward"
-  use:enhance={() => () => {}}
-  class="hidden"
-></form>
+<!-- Minigame finish + rank-bonus floats, shared with the leaderboard so the
+     celebration follows the player to whichever page they open after a game. -->
+<MinigameRewardCelebration
+  baseReward={data.minigameReward}
+  rankReward={data.minigameRankReward}
+/>
 
 <div class="flex min-h-screen flex-col">
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">

@@ -13,6 +13,7 @@ import {
   type VariableContext,
 } from '$lib/domain/broadcastVariables';
 import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+import { daysUntil } from '$lib/server/services/stageContext';
 import { resolveRecipients } from './recipients';
 import { getMailProvider } from './providers/mail';
 import { getSmsProvider } from './providers/sms';
@@ -24,6 +25,7 @@ import {
   buildParentFastloginLink,
 } from '$lib/server/auth/fastloginToken';
 import { mintSigninOtp } from './personalization';
+import { loadBroadcastTemplate } from './templates';
 import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { staffBulkDevRedirectPhones } from '$lib/server/sms/dev-redirect';
 
@@ -50,14 +52,22 @@ export interface EnqueueResult {
  * edits to the template don't rewrite history.
  *
  * No messages are sent here — call `processBroadcast()` after.
+ *
+ * The template is resolved through `loadBroadcastTemplate`, so a transactional
+ * one (an OTP/relance template wired to an action) is rejected here, not just
+ * hidden from the composer picker. Without that backstop a crafted request or a
+ * `?template=` deep link could enqueue an `{{otp_code}}` template and mail a live
+ * login code to every recipient.
  */
 export async function enqueueBroadcast(
   input: EnqueueBroadcastInput,
 ): Promise<EnqueueResult> {
-  const template = await prisma.messageTemplate.findUniqueOrThrow({
-    where: { id: input.templateId },
-    select: { channel: true, subject: true, body: true },
-  });
+  const template = await loadBroadcastTemplate(input.templateId);
+  if (!template) {
+    throw new Error(
+      `Template ${input.templateId} is not broadcastable (unknown or transactional)`,
+    );
+  }
 
   const { recipients } = await resolveRecipients(
     {
@@ -146,7 +156,7 @@ export async function processBroadcast(broadcastId: string): Promise<void> {
       subjectSnapshot: true,
       bodySnapshot: true,
       eventId: true,
-      event: { select: { titre: true } },
+      event: { select: { titre: true, date: true } },
       // The staff member who enqueued this broadcast. On dev/staging their
       // configured dev-redirect inbox (or login email) is where trapped mail
       // copies land (see `sendMailBatch`), so each tester only sees their own
@@ -290,7 +300,7 @@ type BroadcastForSend = {
   subjectSnapshot: string | null;
   bodySnapshot: string;
   eventId: string | null;
-  event: { titre: string } | null;
+  event: { titre: string; date: Date } | null;
   createdBy: {
     email: string;
     staffProfile: {
@@ -562,6 +572,12 @@ function buildContext(
     campus: recipient.broadcast.campus?.name ?? '',
     email_contact_campus: recipient.broadcast.campus?.contactEmail ?? null,
     event_name: broadcast.event?.titre ?? null,
+    // Countdown to the linked event for {{jours_restants}} (e.g. a "le stage
+    // commence dans X jours" broadcast). Null for event-less broadcasts, like
+    // the other contextual tokens.
+    jours_restants: broadcast.event?.date
+      ? String(daysUntil(broadcast.event.date))
+      : null,
     fastlogin_link: personal.fastloginLink,
     parent_fastlogin_link: personal.parentFastloginLink,
     otp_code: personal.otpCode,

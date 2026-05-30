@@ -54,8 +54,14 @@ export const EMAIL_ACTIONS = {
     key: 'relance_student',
     label: 'Relance — étudiant',
     description:
-      "Envoyé par le staff dev pour pousser un étudiant à finaliser son onboarding. Le template fournit le brouillon initial (sujet + corps) ; le staff peut l'éditer avant envoi. Préférez {{fastlogin_link}} : lien magique qui le connecte et l'amène directement à son onboarding ; {{login_link}} reste un repli.",
-    variables: ['prenom', 'nom', 'fastlogin_link', 'login_link'],
+      "Envoyé par le staff dev pour pousser un étudiant à finaliser son onboarding. Le template fournit le brouillon initial (sujet + corps) ; le staff peut l'éditer avant envoi. {{jours_restants}} rend le compte à rebours (J-X) jusqu'au début du stage. Préférez {{fastlogin_link}} : lien magique qui le connecte et l'amène directement à son onboarding ; {{login_link}} reste un repli.",
+    variables: [
+      'prenom',
+      'nom',
+      'jours_restants',
+      'fastlogin_link',
+      'login_link',
+    ],
   },
   relance_parent: {
     key: 'relance_parent',

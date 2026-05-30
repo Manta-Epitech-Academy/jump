@@ -21,6 +21,7 @@ import {
   sendRelances,
   formatRelanceMessage,
 } from '$lib/server/services/relanceService';
+import { daysUntilTalentStage } from '$lib/server/services/stageContext';
 import { buildBadgeCtx, computeBadges } from '$lib/domain/badges';
 import { groupParticipations } from '$lib/domain/talentTimeline';
 import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
@@ -278,6 +279,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     const form = await superValidate(zod4(studentSchema));
     const relanceForm = await superValidate(zod4(sendRelanceSchema));
     const relanceDefaults = await loadAllRelanceDefaults();
+    // Countdown to this talent's soonest upcoming stage for {{jours_restants}}
+    // — same resolver the send action uses, so the preview matches the mail.
+    const joursRestants = await daysUntilTalentStage(db, params.id);
 
     return {
       student,
@@ -304,6 +308,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         name: locals.staffProfile?.campus?.name ?? '',
         contactEmail: locals.staffProfile?.campus?.contactEmail ?? null,
       },
+      joursRestants,
       tab,
       timezone,
     };
@@ -396,6 +401,7 @@ export const actions: Actions = {
       body: form.data.body,
       sentBy: locals.user!.id,
       campusId,
+      joursRestants: await daysUntilTalentStage(db, params.id),
     });
 
     return message(form, formatRelanceMessage(result));

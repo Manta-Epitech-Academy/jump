@@ -90,9 +90,10 @@
 
   <!-- ═══ Signature ═══ -->
   <div
-    class="mt-6 flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
-    <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+    <span
+      class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
       >Fait à</span
     >
     <input
@@ -101,9 +102,10 @@
       bind:value={city}
       placeholder="Ville"
       required
-      class="w-40 rounded-lg border border-slate-200 bg-white/70 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+      class="w-40 min-w-0 rounded-lg border border-slate-200 bg-white/70 px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-300 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
     />
-    <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+    <span
+      class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
       >, le {new Date().toLocaleDateString('fr-FR', {
         day: '2-digit',
         month: '2-digit',
@@ -113,7 +115,23 @@
   </div>
 
   <!-- ═══ Checkboxes ═══ -->
+  <!-- Order mirrors the document order above (règlement intérieur, then sécurité
+       des données) so each checkbox sits right after the text it confirms. -->
   <div class="mt-6 space-y-3">
+    <label
+      class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
+    >
+      <Checkbox
+        bind:checked={acceptedRules}
+        name="acceptedRules"
+        value="true"
+        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
+      />
+      <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        Je m'engage à respecter le règlement intérieur d'Epitech.
+      </span>
+    </label>
+
     <label
       class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
     >
@@ -129,20 +147,6 @@
       </span>
     </label>
 
-    <label
-      class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
-    >
-      <Checkbox
-        bind:checked={acceptedRules}
-        name="acceptedRules"
-        value="true"
-        class="mt-0.5 size-5 shrink-0 data-[state=checked]:border-epi-teal data-[state=checked]:bg-epi-teal data-[state=checked]:text-black"
-      />
-      <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
-        Je m'engage à respecter le règlement intérieur d'Epitech.
-      </span>
-    </label>
-
     <ContinueButton
       {submitting}
       disabled={!acceptedRules || !acceptedCharter || !city.trim()}
@@ -150,5 +154,8 @@
       <Sparkles class="h-4 w-4 shrink-0" />
       Signer et obtenir mes {WELCOME_XP_BONUS} XP de bienvenue
     </ContinueButton>
+    <p class="text-center text-xs text-slate-400 dark:text-slate-500">
+      + un bonus si tu fais partie des premiers de ton campus
+    </p>
   </div>
 </form>

@@ -1,7 +1,10 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { revokeXp } from '$lib/server/services/xpService';
-import { clearOnboardingTimestamps } from '$lib/domain/talentOnboarding';
+import {
+  clearOnboardingTimestamps,
+  clearTalentOnboardingArtifacts,
+} from '$lib/domain/talentOnboarding';
 
 /**
  * Ensure a talent has a linked `bauth_user` and return its id.
@@ -81,22 +84,38 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
  * intérêts, règlement, charte) and the arrival celebration can be walked again.
  * This is a dev/QA affordance behind the admin-only impersonation page.
  *
- * Mirrors the inverse of the onboarding writes: nulls every gate timestamp the
- * guard checks plus `welcomeSeenAt`, and revokes the onboarding XP grant so a
- * re-run nets back to the same XP rather than stacking the bonus each time.
+ * Mirrors the inverse of the talent's own onboarding writes: nulls every gate
+ * timestamp the guard checks (plus `welcomeSeenAt`), drops the talent's signed-
+ * document artifacts so a stale PDF never outlives the signature it attests
+ * (`TALENT_ONBOARDING_ARTIFACT_FIELDS`), and revokes the onboarding XP grant so
+ * a re-run nets back to the same XP rather than stacking the bonus each time.
  *
- * Interest selections are intentionally left in place — the interest steps
- * pre-fill from them, which is the realistic returning-talent experience.
+ * Deliberately scoped to the talent. Profile data they filled in (school,
+ * parents, interests, equipment) is kept — the steps pre-fill from it, which is
+ * the realistic returning-talent experience. Parent-owned facts are left
+ * untouched too: the guardian's règlement co-signature (`parentRules*`) and the
+ * parent-decided image-rights stand on their own flows, not on the talent's
+ * onboarding, so a talent reset must not void them.
  */
 export async function resetTalentOnboarding(talentId: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await tx.talent.update({
       where: { id: talentId },
-      data: clearOnboardingTimestamps(),
+      data: {
+        ...clearOnboardingTimestamps(),
+        ...clearTalentOnboardingArtifacts(),
+      },
     });
     // Idempotent: drops the onboarding grant if present, no-op otherwise — so a
     // re-run nets back to the same XP rather than stacking the bonus, and the
-    // old `charterAcceptedAt` guard is no longer needed.
+    // old `charterAcceptedAt` guard is no longer needed. The early-bird bonus
+    // (granted to the earliest finishers) is reverted alongside it so a reset +
+    // re-onboard re-derives position cleanly instead of leaving a stale bonus.
     await revokeXp(tx, { talentId, source: 'onboarding', sourceId: talentId });
+    await revokeXp(tx, {
+      talentId,
+      source: 'onboarding_early_bird',
+      sourceId: talentId,
+    });
   });
 }

@@ -11,6 +11,7 @@ export interface VariableContext {
   campus: string;
   email_contact_campus: string | null;
   event_name: string | null;
+  jours_restants: string | null;
   fastlogin_link: string | null;
   parent_fastlogin_link: string | null;
   otp_code: string | null;
@@ -35,6 +36,7 @@ export const EMPTY_VARIABLE_CONTEXT: VariableContext = {
   campus: '',
   email_contact_campus: null,
   event_name: null,
+  jours_restants: null,
   fastlogin_link: null,
   parent_fastlogin_link: null,
   otp_code: null,

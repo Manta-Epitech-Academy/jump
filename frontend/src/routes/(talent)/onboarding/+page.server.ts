@@ -11,8 +11,16 @@ import {
   rulesSchema,
 } from '$lib/validation/onboarding';
 import { sendParentWelcomeEmail } from '$lib/server/otp';
-import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+import {
+  WELCOME_XP_BONUS,
+  onboardingEarlyBirdBonus,
+  ONBOARDING_EARLY_BIRD_LIMIT,
+} from '$lib/domain/xp';
 import { grantXp } from '$lib/server/services/xpService';
+import {
+  resolveTalentCampus,
+  countCampusEarlyBirdPosition,
+} from '$lib/server/services/talentCampus';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
 import {
   getOnboardingStep,
@@ -483,6 +491,25 @@ export const actions: Actions = {
     // Set timestamps, grant XP, and enqueue the PDF job atomically — all fast
     // DB writes, so the redirect below is instant.
     const job = await prisma.$transaction(async (tx) => {
+      // Resolve the talent's campus (most-recent participation) and their
+      // 0-based position among completers in that campus, BEFORE stamping this
+      // talent's own rulesSignedAt below — so the count is "those who finished
+      // before me". The position query holds a per-campus advisory lock for the
+      // rest of this transaction, so concurrent completions can't tie for the
+      // same tier. A campus-less talent (no participation yet) earns no
+      // early-bird: you can't be Nth in a campus you don't have, and with no
+      // campus there's nothing to serialize on.
+      const { campusId } = await resolveTalentCampus(tx, talentId);
+      const earlyBirdBonus = campusId
+        ? onboardingEarlyBirdBonus(
+            await countCampusEarlyBirdPosition(
+              tx,
+              campusId,
+              ONBOARDING_EARLY_BIRD_LIMIT,
+            ),
+          )
+        : 0;
+
       await tx.talent.update({
         where: { id: talentId },
         data: {
@@ -496,7 +523,20 @@ export const actions: Actions = {
         source: 'onboarding',
         sourceId: talentId,
         amount: WELCOME_XP_BONUS,
+        campusId,
       });
+      // Layered bonus fact for the earliest finishers in the campus — separate
+      // from the base so the arrival reward stays explainable and the tier is
+      // auditable. Idempotent on (onboarding_early_bird, talentId).
+      if (earlyBirdBonus > 0) {
+        await grantXp(tx, {
+          talentId,
+          source: 'onboarding_early_bird',
+          sourceId: talentId,
+          amount: earlyBirdBonus,
+          campusId,
+        });
+      }
       return enqueueOnboardingPdfJob(tx, {
         talentId,
         documentType: 'rules',

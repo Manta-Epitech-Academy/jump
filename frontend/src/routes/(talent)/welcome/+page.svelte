@@ -21,7 +21,7 @@
 </script>
 
 <div
-  class="relative flex min-h-screen w-full flex-col overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-slate-950"
+  class="relative flex min-h-dvh w-full flex-col overflow-hidden bg-slate-50 transition-colors duration-500 dark:bg-slate-950"
 >
   <div
     class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"

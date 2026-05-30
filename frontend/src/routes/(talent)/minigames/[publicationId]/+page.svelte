@@ -68,7 +68,7 @@
   // side-cannon streams follow, and the recap toast slides in last so it reads
   // as a reward, not a notification.
   const celebrationTimers: ReturnType<typeof setTimeout>[] = [];
-  const LEAD_IN = 550; // let the in-game card have its solo moment first
+  const LEAD_IN = 950; // let the in-game card have its solo moment first
   function celebrate() {
     if (celebrated) return;
     celebrated = true;
