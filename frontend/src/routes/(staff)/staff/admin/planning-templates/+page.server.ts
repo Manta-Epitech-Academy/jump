@@ -114,6 +114,53 @@ export const actions: Actions = {
     }
   },
 
+  duplicate: async ({ url }) => {
+    const id = url.searchParams.get('id');
+    if (!id) return fail(400);
+
+    try {
+      const source = await prisma.planningTemplate.findUniqueOrThrow({
+        where: { id },
+        include: {
+          days: {
+            orderBy: { dayIndex: 'asc' },
+            include: { slots: { orderBy: { sortOrder: 'asc' } } },
+          },
+        },
+      });
+
+      await prisma.planningTemplate.create({
+        data: {
+          nom: `${source.nom} (copie)`,
+          description: source.description,
+          nbDays: source.nbDays,
+          days: {
+            create: source.days.map((day) => ({
+              dayIndex: day.dayIndex,
+              label: day.label,
+              slots: {
+                create: day.slots.map((slot) => ({
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  sortOrder: slot.sortOrder,
+                  activityTemplateId: slot.activityTemplateId,
+                  nom: slot.nom,
+                  description: slot.description,
+                  activityType: slot.activityType,
+                })),
+              },
+            })),
+          },
+        },
+      });
+
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      return fail(500, { message: 'Erreur lors de la duplication.' });
+    }
+  },
+
   delete: async ({ url }) => {
     const id = url.searchParams.get('id');
     if (!id) return fail(400);

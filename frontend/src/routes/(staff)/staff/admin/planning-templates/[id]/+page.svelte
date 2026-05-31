@@ -90,6 +90,31 @@
     },
   );
 
+  function timeToMinutes(t: string): number {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function overlappingSlotIds(
+    slots: { id: string; startTime: string; endTime: string }[],
+  ): Set<string> {
+    const ids = new Set<string>();
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        const a = slots[i],
+          b = slots[j];
+        if (
+          timeToMinutes(a.startTime) < timeToMinutes(b.endTime) &&
+          timeToMinutes(b.startTime) < timeToMinutes(a.endTime)
+        ) {
+          ids.add(a.id);
+          ids.add(b.id);
+        }
+      }
+    }
+    return ids;
+  }
+
   let filteredTemplates = $derived(
     data.activityTemplates.filter((t) => {
       if (typeFilter !== 'all' && t.activityType !== typeFilter) return false;
@@ -105,8 +130,14 @@
   function openAddSlot(dayId: string) {
     editingSlotId = null;
     slotDialogDayId = dayId;
-    slotStartTime = '09:00';
-    slotEndTime = '10:00';
+    // Pre-fill: start where the last slot of this day ends.
+    const daySlots = days.find((d) => d.id === dayId)?.slots ?? [];
+    const lastSlot = daySlots.at(-1);
+    slotStartTime = lastSlot?.endTime ?? '09:00';
+    // Default 1h duration from start.
+    const startMins = timeToMinutes(slotStartTime);
+    const endMins = Math.min(startMins + 60, 23 * 60 + 59);
+    slotEndTime = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`;
     slotActivityTemplateId = '';
     slotNom = '';
     slotActivityType = 'orga';
@@ -255,16 +286,19 @@
             actionCallback={() => openAddSlot(day.id)}
           />
         {:else}
+          {@const overlaps = overlappingSlotIds(day.slots)}
           <div class="space-y-2">
             {#each day.slots as slot}
               {@const styles = activityTypeStyles[slot.activityType]}
               {@const name =
                 slot.activityTemplate?.nom ?? slot.nom ?? 'Sans nom'}
+              {@const isOverlap = overlaps.has(slot.id)}
               <div
                 class={cn(
                   'flex items-center gap-3 rounded-lg border border-l-4 p-3',
-                  styles.bg,
-                  styles.border,
+                  isOverlap
+                    ? 'border-destructive/50 bg-destructive/5'
+                    : [styles.bg, styles.border],
                 )}
               >
                 <Badge variant="outline" class="shrink-0 font-mono text-xs">
@@ -290,6 +324,11 @@
                   {#if slot.activityTemplate?.difficulte}
                     <Badge variant="secondary" class="text-[10px]">
                       {slot.activityTemplate.difficulte}
+                    </Badge>
+                  {/if}
+                  {#if isOverlap}
+                    <Badge variant="destructive" class="text-[10px]">
+                      Chevauchement
                     </Badge>
                   {/if}
                 </div>
@@ -366,7 +405,15 @@
         </div>
       </div>
 
-      <Tabs.Root value={slotActivityTemplateId ? 'template' : 'inline'}>
+      <Tabs.Root
+        value={slotActivityTemplateId ? 'template' : 'inline'}
+        onValueChange={(v) => {
+          if (v === 'inline') {
+            slotActivityTemplateId = '';
+            slotNom = '';
+          }
+        }}
+      >
         <Tabs.List class="grid w-full grid-cols-2">
           <Tabs.Trigger value="template">Depuis un template</Tabs.Trigger>
           <Tabs.Trigger value="inline">Activité inline</Tabs.Trigger>

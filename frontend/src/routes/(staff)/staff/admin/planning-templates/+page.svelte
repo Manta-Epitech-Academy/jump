@@ -4,6 +4,7 @@
   import Plus from '@lucide/svelte/icons/plus';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Copy from '@lucide/svelte/icons/copy';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import { Button } from '$lib/components/ui/button';
@@ -17,6 +18,7 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
   import { toast } from 'svelte-sonner';
+  import { enhance as kitEnhance } from '$app/forms';
   import { resolve } from '$app/paths';
   import { track, errReason } from '$lib/analytics';
 
@@ -177,6 +179,38 @@
                       {/snippet}
                     </Tooltip.Trigger>
                     <Tooltip.Content><p>Modifier</p></Tooltip.Content>
+                  </Tooltip.Root>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger>
+                      {#snippet child({ props })}
+                        <form
+                          method="POST"
+                          action="?/duplicate&id={template.id}"
+                          use:kitEnhance={() => {
+                            return async ({ result, update }) => {
+                              if (result.type === 'success') {
+                                track('planning_template_duplicated');
+                                toast.success('Modèle dupliqué !');
+                                await update();
+                              } else {
+                                toast.error('Erreur lors de la duplication.');
+                              }
+                            };
+                          }}
+                          class="inline"
+                        >
+                          <Button
+                            {...props}
+                            type="submit"
+                            variant="ghost"
+                            size="icon"
+                          >
+                            <Copy class="h-4 w-4" />
+                          </Button>
+                        </form>
+                      {/snippet}
+                    </Tooltip.Trigger>
+                    <Tooltip.Content><p>Dupliquer</p></Tooltip.Content>
                   </Tooltip.Root>
                   <Tooltip.Root>
                     <Tooltip.Trigger>
