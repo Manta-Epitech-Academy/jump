@@ -64,12 +64,12 @@ do_manifest() {
 
 do_seed() { # total
   local total="$1" start=1 count
-  echo "→ Seeding $total load-test talents at $BASE_URL (chunks of $CHUNK)…"
+  echo "→ Seeding $total load-test talents at $BASE_URL (chunks of $CHUNK)..."
   while (( start <= total )); do
     count=$(( CHUNK < total - start + 1 ? CHUNK : total - start + 1 ))
     api_post /api/test/seed-talents "{\"start\":$start,\"count\":$count}" >/dev/null || {
       echo "✗ seed failed at start=$start (are the /api/test/* endpoints deployed?)" >&2; exit 1; }
-    echo "  …$(( start + count - 1 ))/$total"
+    echo "  ...$(( start + count - 1 ))/$total"
     start=$(( start + CHUNK ))
   done
 }
@@ -100,7 +100,7 @@ case "$cmd" in
 
   cleanup)
     require_secret
-    echo "→ Deleting @loadtest.invalid accounts at $BASE_URL…"
+    echo "→ Deleting @loadtest.invalid accounts at $BASE_URL..."
     api_post /api/test/cleanup || {
       echo "✗ cleanup failed (are the /api/test/* endpoints deployed?)" >&2; exit 1; }
     echo
@@ -115,7 +115,7 @@ case "$cmd" in
     fi
     require_secret
     if [[ ! -f load/data.json ]]; then
-      echo "→ data.json missing, building manifest first…"
+      echo "→ data.json missing, building manifest first..."
       do_manifest
     fi
     exec k6 run \
