@@ -31,7 +31,7 @@
 
   let { slots, onSlotClick, onEmptyClick }: Props = $props();
 
-  const PX_PER_MIN = 1;
+  const PX_PER_MIN = 1.1;
   const DEFAULT_START = 9;
   const DEFAULT_END = 18;
   const SNAP_MINUTES = 15;
