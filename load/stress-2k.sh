@@ -29,9 +29,14 @@
 #   SAMPLE            manifest pool-size hint        (default 50)
 #   FORCE=1           skip the destructive-target confirmation prompt
 #
-# ⚠️  WRITE FLOOD: it stamps signatures, appends XpGrant rows and enqueues an
-#     OnboardingPdfJob on EVERY iteration across up to 2000 users. It pollutes the
-#     target DB hard. Run `./load/stress-2k.sh cleanup` after. NEVER point at prod.
+# ⚠️  WRITE FLOOD: each of up to 2000 users signs the rules once (stamps the
+#     Talent row, enqueues an OnboardingPdfJob -> Puppeteer render), and a staff
+#     pool repeatedly flips presence on shared rows. It pollutes the target DB
+#     hard. Two caveats on cleanup: it only removes @loadtest.invalid accounts,
+#     so the OnboardingPdfJob/XpGrant rows tied to them go too, BUT the staff
+#     scenario toggles REAL (manifest-sampled) participations whose flipped
+#     presence + recomputed XP are NOT reverted. Run `./load/stress-2k.sh cleanup`
+#     after. NEVER point at prod.
 
 set -euo pipefail
 

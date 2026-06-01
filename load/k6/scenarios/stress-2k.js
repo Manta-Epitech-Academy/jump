@@ -6,33 +6,57 @@ import { data } from '../lib/manifest.js';
 // ─────────────────────────────────────────────────────────────────────────────
 // STRESS 2K — "tout le monde tape à donf, surtout en écriture"
 //
-// Goal: ~2000 distinct users hammering writes (and some reads) as hard as the
-// box will take, to find where it knees over. This is a BREAK test, not an SLA
-// test — the thresholds are abort guards, not pass criteria.
+// Goal: ~2000 distinct users hammering the box as hard as it will take, to find
+// where it knees over. This is a BREAK test, not an SLA test: the thresholds are
+// abort guards, not pass criteria.
 //
 // Two independent scenarios so the metrics split per pressure source:
-//   • talent_spam     — up to 2000 seeded talents, each pinned to ONE VU, each
-//                       logging in ONCE then POSTing signRules back-to-back.
-//                       signRules is the heaviest talent write: it stamps the
-//                       Talent row, appends an XpGrant, AND enqueues an
-//                       OnboardingPdfJob every call (no "already signed" guard),
-//                       so it floods the ledger + the PDF queue at once.
+//   • talent_signup_storm — up to 2000 seeded talents, each pinned to ONE VU.
+//                       Each VU logs in once, signs the rules ONCE, then settles
+//                       into the dashboard read it lands on. signRules is the
+//                       heaviest talent write: one transaction stamps the Talent
+//                       row, upserts the onboarding XpGrant (one row per talent,
+//                       keyed on (source, sourceId), so it is NOT appended per
+//                       call) and enqueues an OnboardingPdfJob (always created,
+//                       so the PDF queue is what actually piles up). 2000 of
+//                       these inside the ramp window models the real event: a
+//                       whole cohort signing at once, flooding the PDF queue +
+//                       the Puppeteer browser pool (cap 5) in one burst.
+//                       WHY ONE SIGN, NOT A LOOP: signRules is TERMINAL. It sets
+//                       rulesSignedAt + charterAcceptedAt, which flips the talent
+//                       to "onboarding complete"; the route guard (guards.ts)
+//                       then 303-redirects any further /onboarding POST to `/`
+//                       BEFORE the action runs. So a talent can be signed exactly
+//                       once per seed. Looping signRules would just hammer the
+//                       guard's redirect, not the write. After its sign each VU
+//                       therefore switches to the dashboard read (the multi-query
+//                       hotspot) to keep sustained pressure through the HOLD.
 //   • staff_contention — a small staff pool slamming togglePresent on a SHARED
-//                       set of participation rows. Same rows on purpose: this is
-//                       where you see Postgres row locks / serialization
-//                       failures on the atomic XP recompute under concurrency.
+//                       set of participation rows. Unlike signRules this write IS
+//                       repeatable (it flips isPresent each iteration), so it
+//                       genuinely sustains. Same rows on purpose: this is where
+//                       you see Postgres row locks / serialization failures on
+//                       the atomic presence + XP recompute under concurrency.
+//                       NOTE: these are REAL (manifest-sampled) participations,
+//                       not @loadtest.invalid ones, so it mutates real talents'
+//                       presence + XP. `cleanup` only deletes @loadtest.invalid
+//                       accounts, so those flipped rows are NOT reverted. Fine on
+//                       a throwaway preprod; never point this at anything else.
 //
 // Why this shape (vs the existing ramping-vus scenarios):
 //   • Login is amortized PER VU (a real user logs in once, not per request).
 //     Calling loginAs every iteration mints a fresh BetterAuth session each
-//     time and turns session-creation into the dominant write — not realistic.
+//     time and turns session-creation into the dominant write, not realistic.
 //   • Each VU is pinned to a distinct seeded talent, so we genuinely spread
 //     across "tous les users" instead of replaying 46 prod accounts.
 //   • discardResponseBodies keeps the k6 generator from choking on 2000 VUs
-//     (writes return a tiny 303 anyway).
+//     (writes return a tiny 303 anyway; the sign check reads only the Location
+//     header, which survives the discard).
 //
-// PREREQS — seed a real 2000-user pool + manifest, then run. The launcher does
-// all three over the API (no DB access); easiest is just:
+// PREREQS — seed a fresh 2000-user pool + manifest, then run. Seeding RESETS the
+// signature state, which is exactly why the launcher always seeds immediately
+// before a run (so every VU's one sign is a real write, not a guard bounce). The
+// launcher does all of it over the API (no DB access); easiest is just:
 //   BASE_URL=https://jump-preprod.epiboost.eu VUS=2000 ./load/stress-2k.sh
 // or step by step:
 //   COUNT=2000 ./load/run.sh seed     # POST /api/test/seed-talents + refresh manifest
@@ -40,8 +64,9 @@ import { data } from '../lib/manifest.js';
 //          -e LOAD_TEST_SECRET=*** -e VUS=2000 \
 //          load/k6/scenarios/stress-2k.js
 //
-// AFTER — this pollutes the target HARD (hundreds of k OnboardingPdfJob rows, XP
-// grants, presence flips). Clean up: `./load/stress-2k.sh cleanup`.
+// AFTER — this pollutes the target HARD (thousands of OnboardingPdfJob rows, an
+// onboarding XpGrant per talent, real presence flips). Clean up the throwaway
+// accounts: `./load/stress-2k.sh cleanup` (real presence flips are NOT undone).
 // NEVER run against prod.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -56,9 +81,9 @@ export const options = {
   // iterations), split across machines / k6 Cloud — see the note at the bottom.
   discardResponseBodies: true,
   scenarios: {
-    talent_spam: {
+    talent_signup_storm: {
       executor: 'ramping-vus',
-      exec: 'talentSpam',
+      exec: 'talentSignupThenRead',
       startVUs: 0,
       stages: [
         { duration: RAMP, target: TALENT_VUS },
@@ -90,10 +115,11 @@ export const options = {
 
 const { baseUrl, secret } = requireEnv();
 
-// Per-VU "have I logged in yet" flag. Module scope persists across a VU's
-// iterations (k6 keeps one module instance per VU), so each VU authenticates
-// exactly once and reuses its cookie jar for the rest of the run.
+// Per-VU flags. Module scope persists across a VU's iterations (k6 keeps one
+// module instance per VU), so each VU authenticates exactly once and reuses its
+// cookie jar, and signs exactly once before switching to reads.
 const authed = new Set();
+const signed = new Set();
 
 export function setup() {
   const d = data();
@@ -122,11 +148,23 @@ export function setup() {
       pairs.push({ eventId: a.eventId, activityId: a.id, participationId: p.id });
     }
   }
-  return { pool, pairs, hasStaff: d.staffPeda.length > 0 };
+  const hasStaff = d.staffPeda.length > 0;
+  if (!hasStaff || pairs.length === 0) {
+    // Don't let the staff scenario silently no-op: on a fresh preprod the
+    // manifest may carry no orga activities / participations to target, in which
+    // case staff_contention does nothing and the "no contention seen" reading is
+    // a false negative, not a clean result.
+    console.warn(
+      `⚠ staff_contention will be a no-op: ${d.staffPeda.length} peda staff, ` +
+        `${pairs.length} target rows. Re-run the manifest against an env that ` +
+        `has recent events with orga activities + participations.`,
+    );
+  }
+  return { pool, pairs, hasStaff };
 }
 
-// Pin each VU to one distinct seeded talent, log in once, then spam writes.
-export function talentSpam(ctx) {
+// Pin each VU to one distinct seeded talent: log in once, sign once, then read.
+export function talentSignupThenRead(ctx) {
   const talent = ctx.pool[(__VU - 1) % ctx.pool.length];
 
   if (!authed.has(__VU)) {
@@ -134,21 +172,34 @@ export function talentSpam(ctx) {
     authed.add(__VU);
   }
 
-  // The hammer: re-sign every iteration. No idempotency guard server-side, so
-  // each call = 1 Talent update + 1 XpGrant + 1 OnboardingPdfJob enqueue.
-  group('sign', () => {
-    const r = formPost(
-      baseUrl,
-      '/onboarding?/signRules',
-      { city: 'Paris', acceptedCharter: 'true', acceptedRules: 'true' },
-      { redirects: 0, tags: { endpoint: 'sign' } },
-    );
-    check(r, { 'sign 2xx/3xx': (res) => res.status >= 200 && res.status < 400 });
-  });
-
-  // 1 in 4: also pull the home dashboard so the workload isn't 100% writes —
-  // home is the multi-query read hotspot, good to see it degrade alongside.
-  if (__ITER % 4 === 0) {
+  if (!signed.has(__VU)) {
+    // The write: one real signature per talent (signRules is terminal, see the
+    // header). One transaction = 1 Talent update + 1 XpGrant upsert + 1
+    // OnboardingPdfJob create + a fired-and-forgotten Puppeteer render.
+    group('sign', () => {
+      const r = formPost(
+        baseUrl,
+        '/onboarding?/signRules',
+        { city: 'Paris', acceptedCharter: 'true', acceptedRules: 'true' },
+        { redirects: 0, tags: { endpoint: 'sign' } },
+      );
+      // Distinguish a REAL write from a guard bounce: a successful sign 303s to
+      // the dashboard arrival splash (`/?welcome=1`), while an already-signed
+      // talent (state not reset before the run) 303s to plain `/`. Asserting on
+      // the splash location means a storm that silently degraded into guard
+      // redirects shows up RED instead of a misleading green.
+      check(r, {
+        'sign wrote (303 → welcome)': (res) =>
+          res.status === 303 &&
+          (res.headers['Location'] || '').includes('welcome=1'),
+      });
+    });
+    signed.add(__VU);
+  } else {
+    // Post-arrival steady state: the dashboard is the multi-query read hotspot.
+    // Keeps the pool + box under sustained read load through the HOLD window
+    // while the OnboardingPdfJob queue from the signature burst drains behind it
+    // (the Puppeteer browser pool, cap 5, is the natural backpressure).
     const r = http.get(`${baseUrl}/`, { tags: { endpoint: 'home' } });
     check(r, { 'home 2xx/3xx': (res) => res.status < 400 });
   }
