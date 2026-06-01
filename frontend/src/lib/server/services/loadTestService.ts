@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { timingSafeEqual } from 'node:crypto';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 
@@ -16,16 +17,30 @@ import { prisma } from '$lib/server/db';
 const DOMAIN = '@loadtest.invalid';
 
 /**
- * Same hard gate as POST /api/test/login-as:
+ * Constant-time string compare so the bearer check can't be turned into a
+ * timing oracle that recovers the secret byte by byte. Length is allowed to
+ * leak (standard for this primitive) since the secret is a fixed-length random
+ * token; only the content compare is hidden.
+ */
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
+/**
+ * The single hard gate shared by every /api/test/* handler (login-as included):
  *   - 404 unless LOAD_TEST_SECRET is set server-side (invisible in prod).
  *   - 401 unless the bearer token matches it.
- * Call first in every /api/test/* handler.
+ * Call first in every handler so the gate lives in exactly one place.
  */
 export function assertLoadTestAuth(request: Request): void {
   const secret = env.LOAD_TEST_SECRET;
   if (!secret) throw error(404, 'Not Found');
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  if (token !== secret) throw error(401, 'Unauthorized');
+  const token =
+    request.headers.get('authorization')?.replace('Bearer ', '') ?? '';
+  if (!safeEqual(token, secret)) throw error(401, 'Unauthorized');
 }
 
 export type SeededTalent = { id: string; email: string };
@@ -39,14 +54,18 @@ export type SeededTalent = { id: string; email: string };
  *
  * `start` lets the HTTP client chunk a big pool across several requests so no
  * single request has to do thousands of round-trips (gateway-timeout risk).
+ *
+ * Counts returned: `created` = brand-new rows, `updated` = pre-existing rows
+ * refreshed (every existing row IS rewritten, so none are "unchanged"), and
+ * `resetSigned` = the subset of `updated` that had a prior signature wiped.
  */
 export async function seedLoadTalents(
   count: number,
   start = 1,
 ): Promise<{
   created: number;
-  reset: number;
-  unchanged: number;
+  updated: number;
+  resetSigned: number;
   talents: SeededTalent[];
 }> {
   const campus = await prisma.campus.findFirst({ select: { id: true } });
@@ -129,8 +148,8 @@ export async function seedLoadTalents(
     talents.push({ id: talentId, email });
   }
 
-  const unchanged = count - created - reset;
-  return { created, reset, unchanged, talents };
+  const updated = count - created;
+  return { created, updated, resetSigned: reset, talents };
 }
 
 /**

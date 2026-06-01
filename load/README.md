@@ -41,7 +41,7 @@ load/
         ├── signature-burst.js         ← signRules → OnboardingPdfJob
         ├── cockpit-presence.js        ← togglePresent
         ├── mixed.js                   ← talent reads + staff reads + cockpit writes
-        └── stress-2k.js               ← 2000 users, login amorti, flood écritures + contention staff
+        └── stress-2k.js               ← 2000 users : storm d'inscription (1 signRules/talent) + contention staff répétée
 
 frontend/src/routes/api/test/          ← endpoints serveur (login-as, seed-talents, manifest, cleanup)
 frontend/src/lib/server/services/loadTestService.ts   ← logique DB partagée par ces endpoints
@@ -98,7 +98,7 @@ BASE_URL=https://jump-preprod.epiboost.eu ./load/run.sh talent-home
 BASE_URL=https://jump-preprod.epiboost.eu VUS=2000 HOLD=5m ./load/stress-2k.sh
 ```
 
-Enchaîne seed → manifest → flood (login amorti par VU, écritures + contention staff), tout à distance. `./load/stress-2k.sh help` pour les options.
+Enchaîne seed → manifest → run, tout à distance. Le seed **réinitialise** l'état de signature : chaque VU signe donc une fois pour de vrai (et pas un simple rebond du guard d'onboarding). `./load/stress-2k.sh help` pour les options.
 
 ## Scénarios
 
@@ -112,7 +112,7 @@ Enchaîne seed → manifest → flood (login amorti par VU, écritures + content
 | `signature-burst.js` | 50 VUs × `COUNT` iter | `POST /onboarding?/signRules` | Stresse la queue PDF. Requiert pool seedé. |
 | `cockpit-presence.js` | 10 VUs, 1min | `POST .../togglePresent` | Mutation présence + recompute XP. |
 | `mixed.js` | 3 scénarios concurrents | mix lectures+écritures | Ratio ~70%/30%, le plus proche du réel. |
-| `stress-2k.js` | 0→2000 VUs + 50 staff | flood `signRules` + `togglePresent` | Login amorti par VU, écritures à donf + contention staff. Lancer via `stress-2k.sh`. |
+| `stress-2k.js` | 0→2000 VUs + 50 staff | `signRules` (1×/talent) + `togglePresent` | Storm d'inscription : `signRules` est terminal (1 signature par talent, puis lectures dashboard) ; staff répète `togglePresent` sur des lignes partagées. ⚠ `togglePresent` mute de **vraies** participations (pool manifest), non annulées par `cleanup`. Lancer via `stress-2k.sh`. |
 
 Tous (sauf `smoke`) utilisent `data.json` — pas de variables d'env à passer.
 
