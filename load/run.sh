@@ -3,17 +3,22 @@
 #
 #   ./load/run.sh                      # help
 #   ./load/run.sh list                 # list scenarios
-#   ./load/run.sh manifest             # refresh data.json
-#   ./load/run.sh seed [N]             # seed N load-test talents (default 100)
-#   ./load/run.sh cleanup              # delete all @loadtest.invalid users
+#   ./load/run.sh manifest             # refresh data.json (via API)
+#   ./load/run.sh seed [N]             # seed N load-test talents (default 100, via API)
+#   ./load/run.sh cleanup              # delete all @loadtest.invalid users (via API)
 #   ./load/run.sh <scenario>           # run e.g. talent-home, mixed, cohort-view
-#   ./load/run.sh drain-pdfs           # POST /api/jobs/onboarding-pdfs
+#
+# Everything is remote: seed/manifest/cleanup are curl calls to Jump's API
+# (/api/test/*, bearer LOAD_TEST_SECRET) and run against the TARGET's own DB.
+# No database access from this machine. Those endpoints must be deployed on the
+# target (like /api/test/login-as); a 404 means they aren't.
 #
 # Env (read from repo-root .env, overridable on the CLI):
 #   BASE_URL          default http://localhost:5173
-#   LOAD_TEST_SECRET  required for any scenario or drain-pdfs
-#   CRON_SECRET       required for drain-pdfs
-#   COUNT             passed through to seed / signature-burst
+#   LOAD_TEST_SECRET  required for any scenario, seed, manifest, cleanup
+#   COUNT             talents to seed (seed command)
+#   CHUNK             talents seeded per request (default 500)
+#   SAMPLE            manifest pool-size hint (default 50)
 
 set -euo pipefail
 
@@ -26,21 +31,47 @@ if [[ -f .env ]]; then
 fi
 
 BASE_URL="${BASE_URL:-http://localhost:5173}"
+CHUNK="${CHUNK:-500}"
+SAMPLE="${SAMPLE:-50}"
 SCENARIOS_DIR="load/k6/scenarios"
 
 cmd="${1:-help}"
 shift || true
-
-bun_script() {
-  cd "$ROOT/frontend"
-  bun --env-file=../.env "scripts/load-test/$1" "${@:2}"
-}
 
 require_secret() {
   if [[ -z "${LOAD_TEST_SECRET:-}" ]]; then
     echo "✗ LOAD_TEST_SECRET not set (check .env or export it)" >&2
     exit 1
   fi
+}
+
+api_post() { # path [json-body]
+  curl -fsS -X POST "$BASE_URL$1" \
+    -H 'content-type: application/json' \
+    -H "authorization: Bearer $LOAD_TEST_SECRET" \
+    ${2:+-d "$2"}
+}
+api_get() { # path
+  curl -fsS "$BASE_URL$1" -H "authorization: Bearer $LOAD_TEST_SECRET"
+}
+
+do_manifest() {
+  echo "→ Building manifest from $BASE_URL…"
+  api_get "/api/test/manifest?sample=$SAMPLE" > "$ROOT/load/data.json" || {
+    echo "✗ manifest fetch failed (are the /api/test/* endpoints deployed?)" >&2; exit 1; }
+  echo "✓ wrote load/data.json"
+}
+
+do_seed() { # total
+  local total="$1" start=1 count
+  echo "→ Seeding $total load-test talents at $BASE_URL (chunks of $CHUNK)…"
+  while (( start <= total )); do
+    count=$(( CHUNK < total - start + 1 ? CHUNK : total - start + 1 ))
+    api_post /api/test/seed-talents "{\"start\":$start,\"count\":$count}" >/dev/null || {
+      echo "✗ seed failed at start=$start (are the /api/test/* endpoints deployed?)" >&2; exit 1; }
+    echo "  …$(( start + count - 1 ))/$total"
+    start=$(( start + CHUNK ))
+  done
 }
 
 list_scenarios() {
@@ -57,26 +88,21 @@ case "$cmd" in
     ;;
 
   manifest)
-    bun_script manifest.ts
+    require_secret
+    do_manifest
     ;;
 
   seed)
-    COUNT="${1:-${COUNT:-100}}" bun_script seed-load-talents.ts
-    echo "→ Refreshing manifest…"
-    bun_script manifest.ts
+    require_secret
+    do_seed "${1:-${COUNT:-100}}"
+    do_manifest
     ;;
 
   cleanup)
-    bun_script cleanup.ts
-    ;;
-
-  drain-pdfs)
     require_secret
-    if [[ -z "${CRON_SECRET:-}" ]]; then
-      echo "✗ CRON_SECRET not set" >&2; exit 1
-    fi
-    curl -fsS -X POST "$BASE_URL/api/jobs/onboarding-pdfs" \
-      -H "Authorization: Bearer $CRON_SECRET"
+    echo "→ Deleting @loadtest.invalid accounts at $BASE_URL…"
+    api_post /api/test/cleanup || {
+      echo "✗ cleanup failed (are the /api/test/* endpoints deployed?)" >&2; exit 1; }
     echo
     ;;
 
@@ -89,9 +115,8 @@ case "$cmd" in
     fi
     require_secret
     if [[ ! -f load/data.json ]]; then
-      echo "→ data.json missing, generating manifest first…"
-      bun_script manifest.ts
-      cd "$ROOT"
+      echo "→ data.json missing, building manifest first…"
+      do_manifest
     fi
     exec k6 run \
       -e "BASE_URL=$BASE_URL" \
