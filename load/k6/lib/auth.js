@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check, fail } from 'k6';
+import { check, fail, sleep } from 'k6';
 
 /**
  * Authenticate the current VU as `email`. Hits POST /api/test/login-as
@@ -8,21 +8,35 @@ import { check, fail } from 'k6';
  * captures them, so subsequent requests in this VU are authenticated.
  *
  * Returns the userId on success, throws otherwise.
+ *
+ * Retries transient failures (default 3 attempts). Under heavy sustained load
+ * the target autoscales: a freshly-spun pod that lacks `LOAD_TEST_SECRET` in its
+ * env answers this endpoint with 404, and an overloaded pod may 5xx. Both are
+ * transient at the fleet level (other pods are fine), so a short backoff rides
+ * them out instead of killing the VU. A 401 (wrong token) is NOT retried — it's
+ * a config error that won't fix itself.
  */
-export function loginAs(baseUrl, secret, { email, userId } = {}) {
+export function loginAs(baseUrl, secret, { email, userId, retries = 3 } = {}) {
   if (!email && !userId) fail('loginAs: must pass email or userId');
 
-  const res = http.post(
-    `${baseUrl}/api/test/login-as`,
-    JSON.stringify(email ? { email } : { userId }),
-    {
+  const payload = JSON.stringify(email ? { email } : { userId });
+  let res;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    res = http.post(`${baseUrl}/api/test/login-as`, payload, {
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${secret}`,
       },
       tags: { endpoint: 'login-as' },
-    },
-  );
+      // Override the scenario-wide discardResponseBodies so a failure body
+      // (e.g. "Not Found" vs "User not found") stays readable in the log.
+      responseType: 'text',
+    });
+
+    if (res.status === 200 && res.headers['Set-Cookie']) break;
+    if (res.status === 401) break; // bad secret — fatal, don't waste retries
+    if (attempt < retries) sleep(0.2 * attempt);
+  }
 
   const ok = check(res, {
     'login-as 200': (r) => r.status === 200,

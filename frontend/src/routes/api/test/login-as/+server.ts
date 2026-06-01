@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { randomBytes, createHmac } from 'node:crypto';
 import { prisma } from '$lib/server/db';
+import { assertLoadTestAuth } from '$lib/server/services/loadTestService';
 
 /**
  * Load-test helper: mints a BetterAuth session for an arbitrary user by
@@ -33,11 +34,7 @@ function signCookieValue(value: string, secret: string): string {
 }
 
 export const POST: RequestHandler = async ({ request }) => {
-  const secret = env.LOAD_TEST_SECRET;
-  if (!secret) throw error(404, 'Not Found');
-
-  const token = request.headers.get('authorization')?.replace('Bearer ', '');
-  if (token !== secret) throw error(401, 'Unauthorized');
+  assertLoadTestAuth(request);
 
   const authSecret = env.BETTER_AUTH_SECRET;
   if (!authSecret) throw error(500, 'BETTER_AUTH_SECRET not configured');

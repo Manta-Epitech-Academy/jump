@@ -7,17 +7,14 @@ import { data } from '../lib/manifest.js';
 // regardless of the PDF queue depth. Each iteration enqueues exactly one
 // OnboardingPdfJob row.
 //
-// Prereqs:
-//   bun load/scripts/seed-load-talents.ts   # COUNT=500 for a heavier burst
-//   bun load/scripts/manifest.ts            # picks up the seeded pool
+// Prereqs (all via the API, no DB access):
+//   COUNT=500 ./load/run.sh seed            # seeds the pool + refreshes manifest
 //
 //   k6 run -e BASE_URL=http://localhost:5173 -e LOAD_TEST_SECRET=*** \
 //     load/k6/scenarios/signature-burst.js
 //
-// After the run, observe the queue draining via /staff/admin/onboarding-pdfs
-// or trigger the worker manually:
-//   curl -X POST <BASE_URL>/api/jobs/onboarding-pdfs \
-//     -H "Authorization: Bearer $CRON_SECRET"
+// The PDF queue drains itself: signRules fires `void runOnboardingPdfJob` inline
+// (Puppeteer on the pod). Observe / retry failures at /staff/admin/onboarding-pdfs.
 export const options = {
   scenarios: {
     burst: {
