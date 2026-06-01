@@ -14,6 +14,7 @@
   import Inbox from '@lucide/svelte/icons/inbox';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { niveauLabel } from '$lib/domain/niveau';
 
   let { data } = $props();
 
@@ -228,7 +229,7 @@
                   <p
                     class="truncate text-[10px] tracking-widest text-muted-foreground uppercase"
                   >
-                    {talent.niveau || 'Niveau inconnu'}
+                    {niveauLabel(talent.niveau) || 'Niveau inconnu'}
                   </p>
                 </div>
                 <div class="flex items-baseline gap-1 text-right">

@@ -14,7 +14,7 @@
   import InscritCardPrep from './components/InscritCardPrep.svelte';
   import InscritCardOngoing from './components/InscritCardOngoing.svelte';
   import InscritCardPast from './components/InscritCardPast.svelte';
-  import { humanizeNiveau } from './components/niveau';
+  import { niveauLabel } from '$lib/domain/niveau';
   import type { OngoingRow, PrepRow, Sort } from './components/types';
 
   let { data }: { data: PageData } = $props();
@@ -57,8 +57,8 @@
         t?.prenom,
         t?.email,
         t?.parentEmail,
-        humanizeNiveau(t?.niveau),
-        t?.highSchoolName,
+        niveauLabel(t?.niveau),
+        t?.school?.name,
         interests,
       ]
         .filter(Boolean)

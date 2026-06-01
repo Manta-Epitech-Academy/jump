@@ -1,30 +1,30 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
+import { superValidate, message, setError } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
 import { broadcastSchema } from '$lib/validation/broadcasts';
-import { resolveRecipients } from '$lib/server/services/broadcast/recipients';
 import {
   enqueueBroadcast,
   processBroadcast,
 } from '$lib/server/services/broadcast/orchestrator';
+import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
 import {
-  substituteVariables,
-  buildDemoContext,
-} from '$lib/domain/broadcastVariables';
-import {
-  rewriteHtmlLinks,
-  rewriteSmsLinks,
-} from '$lib/server/services/broadcast/linkRewriter';
-import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
-import { sendEmail, MAIL_FROM } from '$lib/server/email';
+  BROADCASTABLE_TEMPLATE_WHERE,
+  loadBroadcastTemplate,
+} from '$lib/server/services/broadcast/templates';
+import { isSmsEnabled } from '$lib/server/sms';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
 
   const [templates, campuses] = await Promise.all([
     prisma.messageTemplate.findMany({
+      // Only broadcast-purposed templates (see BROADCASTABLE_TEMPLATE_WHERE).
+      // Transactional ones stay editable via the templates list (email-actions
+      // links to manage them), just not pickable here; the send paths enforce
+      // the same rule so hiding the option is not the only line of defence.
+      where: BROADCASTABLE_TEMPLATE_WHERE,
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true,
@@ -66,10 +66,9 @@ export const load: PageServerLoad = async ({ url }) => {
 
   const form = await superValidate(
     {
-      name: '',
       templateId: templateIdParam ?? '',
       campusId: '',
-      audience: 'talent' as const,
+      audience: undefined,
       eventId: '',
       sourceBroadcastId: '',
       filters: {},
@@ -78,67 +77,28 @@ export const load: PageServerLoad = async ({ url }) => {
     { errors: false },
   );
 
-  return { form, templates, campuses, events, sourceBroadcasts };
+  return {
+    form,
+    templates,
+    campuses,
+    events,
+    sourceBroadcasts,
+    userEmail: locals.user?.email ?? '',
+    smsEnabled: isSmsEnabled(),
+  };
 };
 
 export const actions: Actions = {
-  preview: async ({ request }) => {
-    const form = await superValidate(request, zod4(broadcastSchema));
-    if (!form.valid) return fail(400, { form });
-
-    const template = await prisma.messageTemplate.findUnique({
-      where: { id: form.data.templateId },
-      select: { channel: true },
-    });
-    if (!template)
-      return fail(400, { form, previewError: 'Template introuvable' });
-
-    const { recipients, excluded } = await resolveRecipients(
-      {
-        campusId: form.data.campusId,
-        audience: form.data.audience,
-        eventId: form.data.eventId || null,
-        filters: form.data.filters ?? null,
-        sourceBroadcastId: form.data.sourceBroadcastId || null,
-        sourceFilter: form.data.sourceFilter ?? null,
-      },
-      template.channel,
-    );
-
-    return {
-      form,
-      preview: {
-        total: recipients.length,
-        excluded,
-        sample: recipients.slice(0, 10).map((r) => ({
-          name: `${r.prenom} ${r.nom}`.trim(),
-          email: r.email,
-          phone: r.phone,
-        })),
-      },
-    };
-  },
-
   testSend: async ({ request, locals }) => {
-    const form = await superValidate(request, zod4(broadcastSchema));
+    const formData = await request.formData();
+    const form = await superValidate(formData, zod4(broadcastSchema));
     if (!form.valid) return fail(400, { form });
-    if (!locals.user?.email) {
-      return message(form, "Tu n'as pas d'email sur ton compte.", {
-        status: 400,
-      });
-    }
 
-    const template = await prisma.messageTemplate.findUnique({
-      where: { id: form.data.templateId },
-      select: { channel: true, subject: true, body: true },
-    });
+    const template = await loadBroadcastTemplate(form.data.templateId);
     if (!template) {
-      return message(form, 'Template introuvable.', { status: 400 });
-    }
-    if (template.channel === 'sms') {
       return message(
         form,
-        'Test SMS pas encore supporté (pas de provider configuré).',
+        { type: 'error', text: 'Template introuvable ou non diffusable.' },
         { status: 400 },
       );
     }
@@ -150,26 +110,38 @@ export const actions: Actions = {
         })
       : null;
 
-    const ctx = buildDemoContext(event?.titre);
-    const subject = template.subject
-      ? `[TEST] ${substituteVariables(template.subject, ctx)}`
-      : '[TEST] Envoi en masse';
-    const body = rewriteHtmlLinks(
-      renderBroadcastMail(substituteVariables(template.body, ctx)),
-      'TEST_TRACKING_ID',
-    );
+    // Pick the recipient field by channel; mail falls back to the sender's
+    // own address. `sendTestMessage` bypasses the dev-redirect trap, so this
+    // reaches the typed address even on dev/staging — that's the point of a
+    // test-send (the bulk `enqueue` path below stays trapped).
+    const to =
+      template.channel === 'sms'
+        ? ((formData.get('testPhone') as string | null)?.trim() ?? '')
+        : (formData.get('testEmail') as string | null)?.trim() ||
+          locals.user?.email ||
+          '';
 
-    const result = await sendEmail({
-      from: MAIL_FROM,
-      to: locals.user.email,
-      subject,
-      html: body,
+    const result = await sendTestMessage({
+      channel: template.channel,
+      subject: template.subject,
+      body: template.body,
+      to,
+      eventName: event?.titre,
     });
-
     if (!result.ok) {
-      return message(form, `Échec : ${result.message}`, { status: 500 });
+      return message(
+        form,
+        { type: 'error', text: `Échec : ${result.message}` },
+        { status: 400 },
+      );
     }
-    return message(form, `Test envoyé à ${locals.user.email}.`);
+    return message(form, {
+      type: 'success',
+      text:
+        template.channel === 'sms'
+          ? `Test SMS envoyé à ${to}.`
+          : `Test envoyé à ${to}.`,
+    });
   },
 
   enqueue: async ({ request, locals }) => {
@@ -177,11 +149,42 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
     if (!locals.user) return fail(401, { form });
 
+    // campusId + audience are required to enqueue (but not for test-send or
+    // the live preview), so the requirement is enforced here rather than in
+    // the shared schema.
+    const { campusId, audience, templateId } = form.data;
+    if (!campusId) setError(form, 'campusId', 'Sélectionne un campus');
+    if (!audience) setError(form, 'audience', 'Sélectionne une audience');
+    if (!campusId || !audience) return fail(400, { form });
+
+    // Auto-generate broadcast name: `[DD/MM/YYYY HH:MM] Campus - Template`.
+    // Resolve the template through the broadcastable guard so a transactional
+    // id (e.g. a `?template=` deep link the picker would have hidden) surfaces a
+    // clean form error here rather than throwing in `enqueueBroadcast`.
+    const [campus, template] = await Promise.all([
+      prisma.campus.findUnique({
+        where: { id: campusId },
+        select: { name: true },
+      }),
+      loadBroadcastTemplate(templateId),
+    ]);
+    if (!template) {
+      return message(
+        form,
+        { type: 'error', text: 'Template introuvable ou non diffusable.' },
+        { status: 400 },
+      );
+    }
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const name = `[${stamp}] ${campus?.name ?? '?'} - ${template.name}`;
+
     const { broadcastId } = await enqueueBroadcast({
-      name: form.data.name,
-      templateId: form.data.templateId,
-      campusId: form.data.campusId,
-      audience: form.data.audience,
+      name,
+      templateId,
+      campusId,
+      audience,
       eventId: form.data.eventId || null,
       sourceBroadcastId: form.data.sourceBroadcastId || null,
       sourceFilter: form.data.sourceFilter ?? null,
@@ -191,6 +194,7 @@ export const actions: Actions = {
 
     // Process inline (fire-and-forget). For larger volumes, route to a worker.
     processBroadcast(broadcastId).catch((err) => {
+      // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
       console.error(`[broadcast ${broadcastId}] processing failed`, err);
     });
 

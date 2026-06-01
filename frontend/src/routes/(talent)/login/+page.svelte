@@ -1,16 +1,22 @@
 <script lang="ts">
   import { superForm } from 'sveltekit-superforms';
-  import * as Card from '$lib/components/ui/card';
-  import Rocket from '@lucide/svelte/icons/rocket';
+  import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
+  import LoginBrandPanel from '$lib/components/layout/LoginBrandPanel.svelte';
   import LoginEmailStep from './components/LoginEmailStep.svelte';
-  import LoginOtpStep from './components/LoginOtpStep.svelte';
-  import { track } from '$lib/analytics';
+  import LoginOtpStep from '$lib/components/auth/LoginOtpStep.svelte';
+  import { track, errReason, secondsBetween } from '$lib/analytics';
 
   let { data } = $props();
 
   let step = $state<'email' | 'otp'>('email');
+  // Track funnel timings so we can spot OTP latency or repeated retries.
+  let otpEmailSentAt = $state<number | null>(null);
+  let emailAttempts = $state(0);
+  let codeAttempts = $state(0);
 
   const {
     form: emailForm,
@@ -24,11 +30,15 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.valid && form.message?.type === 'success') {
-          track('talent_otp_email_submitted');
+          otpEmailSentAt = Date.now();
+          track('talent_otp_email_submitted', { attempt: ++emailAttempts });
           $otpForm.email = $emailForm.email.toLowerCase().trim();
           step = 'otp';
         } else if (form.message?.type === 'error') {
-          track('talent_otp_email_failed');
+          track('talent_otp_email_failed', {
+            attempt: ++emailAttempts,
+            reason: errReason(form.message),
+          });
         }
       },
     },
@@ -46,11 +56,18 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.message?.type === 'error') {
-          track('talent_otp_code_failed');
+          track('talent_otp_code_failed', {
+            attempt: codeAttempts,
+            reason: errReason(form.message),
+            secondsSinceEmail: secondsBetween(otpEmailSentAt),
+          });
         }
       },
       onSubmit: () => {
-        track('talent_otp_code_submitted');
+        track('talent_otp_code_submitted', {
+          attempt: ++codeAttempts,
+          secondsSinceEmail: secondsBetween(otpEmailSentAt),
+        });
       },
     },
   );
@@ -66,127 +83,89 @@
   <title>Connexion</title>
 </svelte:head>
 
-<div
-  class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"
->
-  <!-- Visual background elements -->
-  <div
-    class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
-  ></div>
-  <div
-    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-teal/10 blur-[100px] dark:bg-epi-teal/20"
-  ></div>
-  <div
-    class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
-  ></div>
+<div class="grid min-h-screen w-full lg:grid-cols-[1.05fr_1fr]">
+  <!-- Brand panel — student-facing baseline; the gamified portal in one line. -->
+  <LoginBrandPanel>
+    <h1 class="font-heading text-5xl leading-[0.95] xl:text-6xl">
+      Passe au niveau<br />supérieur<span class="text-epi-teal">_</span>
+    </h1>
+    <p class="max-w-md font-mono text-sm text-white/70">
+      &lt; La plateforme qui t'accompagne lors de tes stages et coding clubs à
+      Epitech. /&gt;
+    </p>
+    <p class="font-mono text-xs tracking-widest text-white/50 uppercase">
+      Défis/ Badges/ XP/ Portfolio/
+    </p>
+  </LoginBrandPanel>
 
-  <div class="z-10 w-full max-w-md">
-    <Card.Root
-      class="relative w-full overflow-hidden rounded-2xl border-none bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl dark:bg-slate-900/80"
-    >
-      <div class="h-1.5 w-full bg-linear-to-r from-epi-blue to-epi-teal"></div>
-
-      <Card.Header class="space-y-4 pt-8 pb-4 text-center">
-        <div
-          class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
-        >
-          <Rocket class="h-7 w-7" />
-        </div>
-
-        <div class="space-y-1">
-          <Card.Title
-            class="font-heading text-3xl tracking-tight text-epi-blue uppercase"
-          >
-            Jump
-          </Card.Title>
-          <Card.Description
-            class="text-sm font-bold tracking-tight text-slate-500 uppercase"
-          >
+  <!-- Auth panel -->
+  <main class="flex items-center justify-center bg-background p-6 sm:p-12">
+    <div class="w-full max-w-sm space-y-8">
+      <!-- Header -->
+      <header class="space-y-5">
+        <!-- Compact logo — mobile only (the brand panel carries it on desktop) -->
+        <EpitechLogo class="h-7 w-auto lg:hidden" />
+        <div class="space-y-2">
+          <h2 class="font-heading text-3xl tracking-wide">
+            Jump<span class="text-epi-teal">_</span>
+          </h2>
+          <p class="text-sm text-muted-foreground">
             {#if step === 'email'}
-              Prêt pour l'aventure ?
+              Envie de découvrir la tech ?
             {:else}
               Dernière étape !
             {/if}
-          </Card.Description>
+          </p>
         </div>
-      </Card.Header>
+      </header>
 
-      <Card.Content class="pb-10">
-        {#if step === 'email'}
-          <LoginEmailStep
-            {emailForm}
-            {emailErrors}
-            {emailEnhance}
-            {emailDelayed}
-            {emailMessage}
-            errorMessage={data.errorMessage}
-          />
-        {:else}
-          <LoginOtpStep
-            {otpForm}
-            {otpErrors}
-            {otpEnhance}
-            {otpDelayed}
-            {otpMessage}
-            goBack={goBackToEmail}
-          />
-        {/if}
-      </Card.Content>
-    </Card.Root>
+      {#if step === 'email'}
+        <LoginEmailStep
+          {emailForm}
+          {emailErrors}
+          {emailEnhance}
+          {emailDelayed}
+          {emailMessage}
+          errorMessage={data.errorMessage}
+        />
+      {:else}
+        <LoginOtpStep
+          {otpForm}
+          {otpErrors}
+          {otpEnhance}
+          {otpDelayed}
+          {otpMessage}
+          goBack={goBackToEmail}
+        />
+      {/if}
 
-    <p
-      class="mt-8 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
-    >
-      Propulsé par Epitech Academy
-    </p>
-  </div>
+      <!-- Footer -->
+      <div class="space-y-3 text-center">
+        <p class="text-sm text-muted-foreground">
+          Vous faites partie du staff ?
+          <a
+            href={resolve('/staff/login')}
+            class="group ml-0.5 inline-flex items-center gap-1 font-semibold text-epi-blue transition-colors hover:underline"
+          >
+            Espace staff
+            <ArrowRight
+              class="size-3.5 transition-transform group-hover:translate-x-0.5"
+            />
+          </a>
+        </p>
+
+        <p class="text-xs text-muted-foreground">
+          Propulsé par
+          <a
+            href="https://www.epitech.eu"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-bold text-epi-blue transition-colors hover:underline"
+          >
+            Epitech
+          </a>
+        </p>
+      </div>
+    </div>
+  </main>
 </div>
-
-<style>
-  /* Subtle background pulse animation */
-  @keyframes pulse-slow {
-    0%,
-    100% {
-      transform: scale(1);
-      opacity: 0.5;
-    }
-    50% {
-      transform: scale(1.1);
-      opacity: 0.7;
-    }
-  }
-
-  .absolute.rounded-full {
-    animation: pulse-slow 15s ease-in-out infinite;
-  }
-
-  @keyframes slide-in-right {
-    from {
-      opacity: 0;
-      transform: translateX(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes slide-in-left {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  :global(.animate-slide-in-right) {
-    animation: slide-in-right 300ms ease-out;
-  }
-
-  :global(.animate-slide-in-left) {
-    animation: slide-in-left 300ms ease-out;
-  }
-</style>

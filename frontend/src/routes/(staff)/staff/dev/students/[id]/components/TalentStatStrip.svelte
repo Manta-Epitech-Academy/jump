@@ -32,9 +32,10 @@
   import Activity from '@lucide/svelte/icons/activity';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import { formatDateFr } from '$lib/utils';
+  import { computeLevel } from '$lib/domain/xp';
 
   type Props = {
-    student: { xp: number; level: string | null };
+    student: { xp: number };
     presentCount: number;
     totalEvents: number;
     lastActiveAt: Date | null;
@@ -65,7 +66,7 @@
   <KpiTile
     label="XP total"
     value={student.xp}
-    sub={student.level ?? undefined}
+    sub={computeLevel(student.xp)}
     icon={Trophy}
     tone="orange"
   />

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
+  import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
   import { Label } from '$lib/components/ui/label';
   import * as Dialog from '$lib/components/ui/dialog';
   import * as Select from '$lib/components/ui/select';
@@ -8,6 +9,7 @@
   import type { StudentForm } from '$lib/validation/students';
   import type { SuperForm, Infer } from 'sveltekit-superforms';
   import type { studentSchema } from '$lib/validation/students';
+  import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
 
   type StudentSuperForm = SuperForm<Infer<typeof studentSchema>>;
 
@@ -30,17 +32,6 @@
     enhance: StudentSuperForm['enhance'];
     action: string;
   } = $props();
-
-  const niveaux = [
-    '6eme',
-    '5eme',
-    '4eme',
-    '3eme',
-    '2nde',
-    '1ere',
-    'Terminale',
-    'Sup',
-  ];
 </script>
 
 <Dialog.Root bind:open>
@@ -130,13 +121,14 @@
                 >(optionnel)</span
               ></Label
             >
-            <Input
+            <PhoneInput
               id="phone"
               name="phone"
-              type="tel"
               bind:value={$form.phone}
-              placeholder="06..."
+              placeholder="06 12 34 56 78"
+              error={!!$errors.phone}
               class="rounded-sm bg-background"
+              triggerClass="rounded-sm bg-background"
             />
             {#if $errors.phone}<span class="text-xs text-destructive"
                 >{$errors.phone}</span
@@ -204,13 +196,14 @@
                 >(optionnel)</span
               ></Label
             >
-            <Input
+            <PhoneInput
               id="parent_phone"
               name="parent_phone"
-              type="tel"
               bind:value={$form.parent_phone}
-              placeholder="06..."
+              placeholder="06 12 34 56 78"
+              error={!!$errors.parent_phone}
               class="rounded-sm bg-background"
+              triggerClass="rounded-sm bg-background"
             />
             {#if $errors.parent_phone}<span class="text-xs text-destructive"
                 >{$errors.parent_phone}</span
@@ -230,11 +223,11 @@
           <Label for="niveau" class="text-xs">Niveau Scolaire</Label>
           <Select.Root type="single" bind:value={$form.niveau}>
             <Select.Trigger class="rounded-sm bg-background">
-              {$form.niveau ? $form.niveau : 'Sélectionner...'}
+              {$form.niveau ? niveauLabel($form.niveau) : 'Sélectionner...'}
             </Select.Trigger>
             <Select.Content class="rounded-sm">
-              {#each niveaux as niveau}
-                <Select.Item value={niveau}>{niveau}</Select.Item>
+              {#each NIVEAUX as niveau}
+                <Select.Item value={niveau}>{niveauLabel(niveau)}</Select.Item>
               {/each}
             </Select.Content>
           </Select.Root>

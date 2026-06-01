@@ -23,10 +23,17 @@
     type DocFilterKey,
     type OnboardingFilterKey,
   } from './filters';
-  import { countSignedDocs, isReady, TOTAL_DOCS } from './progress';
+  import {
+    countSignedDocs,
+    isImageRightsCompliant,
+    isReady,
+    isRulesCompliant,
+    TOTAL_DOCS,
+  } from './progress';
   import {
     classifyRelanceSkip,
     formatTalentVars,
+    reminderFor,
     type RelanceType,
     type RelanceVar,
   } from '$lib/domain/relance';
@@ -48,11 +55,9 @@
   let incompleteCount = $derived(total - ready - noneCount);
   let toComplete = $derived(total - ready);
 
-  let charteCount = $derived(
-    participations.filter((p) => p.stageCompliance?.charteSigned).length,
-  );
+  let charteCount = $derived(participations.filter(isRulesCompliant).length);
   let imageCount = $derived(
-    participations.filter((p) => p.stageCompliance?.imageRightsSigned).length,
+    participations.filter(isImageRightsCompliant).length,
   );
   let pcCount = $derived(participations.filter((p) => p.bringPc).length);
 
@@ -70,11 +75,9 @@
     if (filter === 'incomplete')
       return participations.filter((p) => countSignedDocs(p) < TOTAL_DOCS);
     if (filter === 'charte-missing')
-      return participations.filter((p) => !p.stageCompliance?.charteSigned);
+      return participations.filter((p) => !isRulesCompliant(p));
     if (filter === 'image-rights-missing')
-      return participations.filter(
-        (p) => !p.stageCompliance?.imageRightsSigned,
-      );
+      return participations.filter((p) => !isImageRightsCompliant(p));
     if (filter === 'pc-missing')
       return participations.filter((p) => !p.bringPc);
     return participations;
@@ -97,22 +100,17 @@
     changeFilter(filter === key ? 'all' : key);
   }
 
-  // Optimistic toggles
-  const optimisticAdminToggle = (id: string, docType: string) => {
+  // Optimistic toggle — charte only. Image rights are no longer staff-toggled:
+  // they reflect the guardian's authoritative online decision (read-only badge
+  // in the table).
+  const optimisticAdminToggle = (id: string) => {
     return () => {
       const index = participations.findIndex((p) => p.id === id);
       if (index !== -1) {
         const compliance = (participations[index].stageCompliance ??= {
           charteSigned: false,
-          imageRightsSigned: false,
-          participationId: id,
-          createdAt: new Date(),
-          updatedAt: new Date(),
         });
-        if (docType === 'charte')
-          compliance.charteSigned = !compliance.charteSigned;
-        if (docType === 'image')
-          compliance.imageRightsSigned = !compliance.imageRightsSigned;
+        compliance.charteSigned = !compliance.charteSigned;
       }
       return async ({ update }: { update: () => Promise<void> }) => {
         await update();
@@ -153,14 +151,30 @@
   function buildRecipients(state: ComposeState): ComposeRecipient[] {
     const lookup = new Map(participations.map((p) => [p.talent.id, p]));
     return state.talentIds.map((id) => {
-      const t = lookup.get(id)?.talent;
-      if (!t) return { id, label: id };
+      const p = lookup.get(id);
+      const t = p?.talent;
+      if (!t) return { id, label: id, willSkip: {} };
       const vars = formatTalentVars(t);
-      const willSkip = classifyRelanceSkip({
-        type: state.type,
-        talent: { ...t, email: t.email ?? t.user?.email ?? null },
-        lastReminderAt: t.reminders?.[0]?.sentAt,
-      });
+      const elig = { ...t, email: t.email ?? t.user?.email ?? null };
+      const summary = p?.reminderSummary;
+      const lastEmailAt = reminderFor(summary, state.type, 'email');
+      const lastSmsAt = reminderFor(summary, state.type, 'sms');
+      const hasPriorEmail = lastEmailAt != null;
+      const willSkip = {
+        email: classifyRelanceSkip({
+          type: state.type,
+          channel: 'email',
+          talent: elig,
+          lastReminderAt: lastEmailAt,
+        }),
+        sms: classifyRelanceSkip({
+          type: state.type,
+          channel: 'sms',
+          talent: elig,
+          lastReminderAt: lastSmsAt,
+          hasPriorEmail,
+        }),
+      };
       const label = `${vars.nom} ${vars.prenom}`.trim();
       return { id, label, willSkip };
     });
@@ -172,7 +186,20 @@
     const first = participations.find(
       (p) => p.talent.id === state.talentIds[0],
     )?.talent;
-    return first ? formatTalentVars(first) : {};
+    if (!first) return {};
+    const mailbox =
+      state.type === 'student'
+        ? (first.email ?? first.user?.email ?? '')
+        : (first.parentEmail ?? '');
+    return {
+      ...formatTalentVars(first),
+      email: mailbox,
+      campus: data.campus.name,
+      email_contact_campus: data.campus.contactEmail ?? '',
+      ...(data.joursRestants != null
+        ? { jours_restants: String(data.joursRestants) }
+        : {}),
+    };
   }
 
   function toggleAllTalents() {
@@ -198,9 +225,14 @@
 
   async function onSent() {
     if (compose) {
+      const daysBeforeEvent = Math.round(
+        (new Date(data.event.date).getTime() - Date.now()) / 86_400_000,
+      );
       track('adm_reminders_sent', {
         type: compose.type,
-        count: compose.talentIds.length,
+        recipientCount: compose.talentIds.length,
+        eventId: data.event.id,
+        daysBeforeEvent,
       });
     }
     selectedTalentIds = new Set();
@@ -388,6 +420,7 @@
     initialForm={data.relanceForm}
     defaultTemplate={data.relanceDefaults[compose.type].template}
     hasMapping={data.relanceDefaults[compose.type].hasMapping}
+    smsEnabled={data.smsEnabled}
     previewVars={buildPreviewVars(compose)}
     {onSent}
   />

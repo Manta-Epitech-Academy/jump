@@ -1,0 +1,13 @@
+#!/bin/sh
+# Auto-provision a freshly-added git worktree (link .env + install deps).
+# Args: $1 prev HEAD, $2 new HEAD, $3 flag (1 = branch/worktree checkout).
+[ "$3" = "1" ] || exit 0   # skip file checkouts (e.g. `git checkout -- path`)
+
+repo_root="$(git rev-parse --show-toplevel)"
+main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+[ "$repo_root" = "$main_root" ] && exit 0   # the main checkout provisions itself
+
+# Already set up — don't re-run on every branch switch.
+[ -d "$repo_root/frontend/node_modules" ] && [ -e "$repo_root/.env" ] && exit 0
+
+exec "$repo_root/frontend/scripts/setup-worktree.sh"

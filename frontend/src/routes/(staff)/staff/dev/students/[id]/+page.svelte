@@ -148,18 +148,47 @@
     if (!composeType) return [];
     const t = data.student;
     const vars = formatTalentVars(t);
-    const willSkip = classifyRelanceSkip({
-      type: composeType,
-      talent: { ...t, email: t.user?.email ?? t.email },
-      lastReminderAt: data.reminders.find((r) => r.audience === composeType)
-        ?.sentAt,
-    });
+    const elig = { ...t, email: t.user?.email ?? t.email };
+    const rem = data.reminders.filter((r) => r.audience === composeType);
+    const lastEmailAt = rem.find((r) => r.channel === 'email')?.sentAt;
+    const lastSmsAt = rem.find((r) => r.channel === 'sms')?.sentAt;
+    const hasPriorEmail = rem.some((r) => r.channel === 'email');
+    const willSkip = {
+      email: classifyRelanceSkip({
+        type: composeType,
+        channel: 'email',
+        talent: elig,
+        lastReminderAt: lastEmailAt,
+      }),
+      sms: classifyRelanceSkip({
+        type: composeType,
+        channel: 'sms',
+        talent: elig,
+        lastReminderAt: lastSmsAt,
+        hasPriorEmail,
+      }),
+    };
     const label = `${vars.nom} ${vars.prenom}`.trim();
     return [{ id: t.id, label, willSkip }];
   });
 
   const composePreviewVars = $derived.by<Partial<Record<RelanceVar, string>>>(
-    () => formatTalentVars(data.student),
+    () => {
+      const t = data.student;
+      const mailbox =
+        composeType === 'parent'
+          ? (t.parentEmail ?? '')
+          : (t.user?.email ?? t.email ?? '');
+      return {
+        ...formatTalentVars(t),
+        email: mailbox,
+        campus: data.campus.name,
+        email_contact_campus: data.campus.contactEmail ?? '',
+        ...(data.joursRestants != null
+          ? { jours_restants: String(data.joursRestants) }
+          : {}),
+      };
+    },
   );
 
   async function onRelanceSent() {
@@ -211,30 +240,16 @@
         <Sparkles
           class="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]/tab:text-epi-blue"
         />
-        <span class="flex flex-col items-start gap-0.5">
-          <span class="text-sm font-bold tracking-wide uppercase"
-            >Stagiaire</span
-          >
-          <span
-            class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-          >
-            Profil &amp; parcours
-          </span>
-        </span>
+        <span class="text-sm font-bold tracking-wide uppercase"
+          >Pédagogique</span
+        >
       </Tabs.Trigger>
       <Tabs.Trigger value="admin" class={triggerClass}>
         <FileText
           class="h-4 w-4 shrink-0 text-muted-foreground group-data-[state=active]/tab:text-epi-blue"
         />
-        <span class="flex flex-col items-start gap-0.5">
-          <span class="text-sm font-bold tracking-wide uppercase">
-            Administratif
-          </span>
-          <span
-            class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-          >
-            Dossier &amp; communications
-          </span>
+        <span class="text-sm font-bold tracking-wide uppercase">
+          Administratif
         </span>
       </Tabs.Trigger>
     </Tabs.List>
@@ -308,6 +323,8 @@
     <Tabs.Content value="admin" class="space-y-6">
       <DossierAlertBanner
         activeStageParticipations={data.activeStageParticipations}
+        imageRightsDecided={data.student.imageRightsDecision !== null}
+        parentRulesSignedAt={data.student.parentRulesSignedAt}
       />
 
       <Gated group="devLead" mode="hide">
@@ -344,6 +361,13 @@
         {#if primaryComplianceParticipation}
           <ComplianceDocsTable
             participation={primaryComplianceParticipation}
+            imageRightsDecision={data.student.imageRightsDecision}
+            parentRulesSignedAt={data.student.parentRulesSignedAt}
+            parentRulesSignerName={data.student.parentRulesSignerPrenom &&
+            data.student.parentRulesSignerNom
+              ? `${data.student.parentRulesSignerPrenom} ${data.student.parentRulesSignerNom}`
+              : (data.student.parentRulesSignerNom ??
+                data.student.parentRulesSignerPrenom)}
             timezone={data.timezone}
           />
         {/if}
@@ -408,6 +432,7 @@
       initialForm={data.relanceForm}
       defaultTemplate={data.relanceDefaults[composeType].template}
       hasMapping={data.relanceDefaults[composeType].hasMapping}
+      smsEnabled={data.smsEnabled}
       previewVars={composePreviewVars}
       onSent={onRelanceSent}
     />

@@ -1,43 +1,42 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { dev } from '$app/environment';
+  import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
-  import { toast } from 'svelte-sonner';
   import { triggerConfetti } from '$lib/actions/confetti';
-  import {
-    formatDateFr,
-    flattenActivityMissions,
-    THEME_TIER_CEILING,
-  } from '$lib/utils';
+  import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
+  import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
+  import { formatDateFr } from '$lib/utils';
   import { activityTypeLabels } from '$lib/validation/templates';
+  import {
+    EVENT_TYPE_LABELS,
+    minutesToHHMM,
+    type EventType,
+  } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
-  import BookOpen from '@lucide/svelte/icons/book-open';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import Clock from '@lucide/svelte/icons/clock';
   import Coffee from '@lucide/svelte/icons/coffee';
   import Hourglass from '@lucide/svelte/icons/hourglass';
-  import MapPin from '@lucide/svelte/icons/map-pin';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import Check from '@lucide/svelte/icons/check';
-  import FileDown from '@lucide/svelte/icons/file-down';
-  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import LogOut from '@lucide/svelte/icons/log-out';
   import History from '@lucide/svelte/icons/history';
-  import Calendar from '@lucide/svelte/icons/calendar';
-  import Target from '@lucide/svelte/icons/target';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
-  import Laptop from '@lucide/svelte/icons/laptop';
-  import Monitor from '@lucide/svelte/icons/monitor';
   import Settings from '@lucide/svelte/icons/settings';
-  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-  import Mail from '@lucide/svelte/icons/mail';
+  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
-  import { onMount, untrack } from 'svelte';
-  import { track } from '$lib/analytics';
-  import { goto } from '$app/navigation';
+  import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
+  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
+  import XpFloat from '$lib/components/talent/XpFloat.svelte';
+  import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
+  import { onMount, untrack, type Snippet } from 'svelte';
+  import { track, secondsBetween } from '$lib/analytics';
   import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
@@ -69,37 +68,60 @@
     return () => clearInterval(i);
   });
 
-  // Welcome celebration after onboarding completion
+  // "+XP" reward celebration: confetti + a floating amount that fades out.
+  // Drives the onboarding arrival below; the minigame finish/rank floats live in
+  // MinigameRewardCelebration (shared with the leaderboard).
+  const XP_FLOAT_DURATION_MS = 2500;
   let showXpFloat = $state(false);
-  onMount(() => {
-    if (page.url.searchParams.has('welcome')) {
-      // Clean URL without reloading
-      history.replaceState({}, '', page.url.pathname);
-
-      // Sequence: confetti → XP float → toast
+  let floatAmount = $state(0);
+  function celebrateXp(
+    amount: number,
+    timers: ReturnType<typeof setTimeout>[],
+  ) {
+    timers.push(
       setTimeout(() => {
         triggerConfetti();
+        floatAmount = amount;
         showXpFloat = true;
-      }, 300);
-      setTimeout(() => {
-        showXpFloat = false;
-      }, 2500);
-      setTimeout(() => {
-        toast('Bienvenue sur Jump !', {
-          description:
-            'Tu gagnes +50 XP pour ton arrivée sur la plateforme. Les XP reflètent ta progression — tu en gagneras en participant aux activités !',
-          duration: 12000,
-          style:
-            'background: var(--color-epi-blue); color: white; border: none; border-radius: 1rem; box-shadow: 0 8px 30px rgb(1 58 251 / 0.2);',
-        });
-      }, 1000);
-    }
+      }, 300),
+    );
+    timers.push(setTimeout(() => (showXpFloat = false), XP_FLOAT_DURATION_MS));
+  }
+
+  // Arrival celebration. Onboarding completion redirects here with the one-shot
+  // `?welcome=1` signal; we fire the celebration and leave the Actualités card
+  // highlighted so it's easy to find. No modal pops — the card surfaces the
+  // welcome message inline (the /welcome splash earlier is a separate greeting).
+  let welcomeHighlight = $state(false);
+  onMount(() => {
+    if (!page.url.searchParams.has('welcome')) return;
+    // Clean URL without reloading so the celebration can't replay.
+    history.replaceState({}, '', page.url.pathname);
+    welcomeHighlight = true;
+
+    // The boosted total (base + early-bird) is computed server-side; fall back
+    // to the base if the arrival payload is somehow absent.
+    const arrival = data.onboardingArrival;
+    const totalXp = arrival?.totalXp ?? WELCOME_XP_BONUS;
+    const earlyBirdBonus = arrival?.earlyBirdBonus ?? 0;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    celebrateXp(totalXp, timers);
+    // Hold the toast until the XP float has faded, so the welcome message lands
+    // on a calm page (after the first "stunned" beat) instead of competing with
+    // the confetti and the floating number for attention.
+    timers.push(
+      setTimeout(
+        () => welcomeRewardToast(totalXp, earlyBirdBonus),
+        XP_FLOAT_DURATION_MS + 400,
+      ),
+    );
+    return () => timers.forEach(clearTimeout);
   });
 
   let student = $derived(data.student);
   let participation = $derived(data.participation);
   let upcomingParticipation = $derived(data.upcomingParticipation);
-  let hasCompletedEvents = $derived(data.hasCompletedEvents);
   let todayIsMultiDay = $derived(data.todayIsMultiDay);
   let upcomingIsMultiDay = $derived(data.upcomingIsMultiDay);
 
@@ -118,33 +140,78 @@
     isStageUpcoming(upcomingParticipation?.event),
   );
 
-  let levelLabel = $derived(
-    student?.level === 'Expert'
-      ? 'Expert ✦'
-      : student?.level === 'Apprentice'
-        ? 'Apprenti'
-        : 'Novice',
-  );
+  let levelLabel = $derived(levelLabelFr(student?.xp ?? 0));
 
   let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
-  let eventTitle = $derived(participation?.event?.titre || 'Atelier Epitech');
   let timeSlots = $derived(participation?.event?.planning?.timeSlots ?? []);
+  type TimeSlot = (typeof timeSlots)[number];
   let completedActivityIds = $derived(new Set(data.completedActivityIds));
+  let tomorrowPreview = $derived(data.tomorrowPreview);
 
-  let previewMissions = $derived(
-    flattenActivityMissions(data.pastParticipations).slice(0, 2),
+  // The upcoming session is named by its type ("Stage de Seconde" / "Coding
+  // Club"), not the per-event titre which carries cohort dates.
+  let upcomingTypeLabel = $derived(
+    upcomingParticipation
+      ? (EVENT_TYPE_LABELS[
+          upcomingParticipation.event?.eventType as EventType
+        ] ??
+          upcomingParticipation.event?.titre ??
+          'Atelier Epitech')
+      : '',
   );
+
+  // Wall-clock start time of the next session ("10:00"), shown only once a dev
+  // has *confirmed* it (`startMinutes` set). We deliberately don't fall back to
+  // the type default here: a confidently-wrong hour is worse for a student than
+  // none, so until it's confirmed the talent sees the date alone (never the SF
+  // `date`'s meaningless midnight). Staff see the default + a nag meanwhile.
+  let upcomingStartTime = $derived(
+    minutesToHHMM(upcomingParticipation?.event?.startMinutes),
+  );
+
   let totalPastMissions = $derived(data.totalPastMissions);
 
-  // RPG Aspect : Top Skills
-  let topThemes = $derived(data.topThemes);
+  // The daily minigame is the first mission inside the "Mission du jour" card —
+  // a distinct, accented row, playable or already-played, independent of any
+  // event. The rich campus leaderboard now lives on the game's own page.
+  let hasMinigame = $derived(
+    !!data.minigame &&
+      (data.minigame.ok || data.minigame.reason === 'already_played'),
+  );
+  let minigamePublication = $derived(data.minigame?.publication ?? null);
+  let minigamePlayed = $derived(
+    !!data.minigame &&
+      !data.minigame.ok &&
+      data.minigame.reason === 'already_played',
+  );
+  let minigameAttempt = $derived(
+    data.minigame && !data.minigame.ok ? data.minigame.lastAttempt : null,
+  );
+  // Student-facing name for the daily minigame: the PO frames it as brain
+  // training, not a "mini-jeu". Defined once so the played/unplayed branches
+  // can't drift.
+  const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
 
   function formatTime(dateString: string | Date | undefined) {
     if (!dateString) return '';
     return new Date(dateString).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
+    });
+  }
+
+  function formatChrono(ms: number | null): string {
+    return ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`;
+  }
+
+  // Long, words-based date ("23 mai 2026") for the upcoming-session copy.
+  function formatDateLong(date: Date | string | undefined): string {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
     });
   }
 
@@ -156,94 +223,46 @@
     Avancé:
       'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
   };
-
-  // PDF Download Logic
-  let isDownloading = $state(false);
-
-  async function downloadCertificate() {
-    track('certificate_download_clicked');
-    isDownloading = true;
-    try {
-      const res = await fetch(resolve('/api/certificate'));
-      if (!res.ok) throw new Error('Erreur réseau');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-
-      const disposition = res.headers.get('Content-Disposition');
-      let filename = 'Attestation_Jump.pdf';
-      if (disposition && disposition.includes('filename=')) {
-        filename = disposition.split('filename=')[1].replace(/"/g, '');
-      }
-
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      track('certificate_downloaded');
-      toast.success('Attestation téléchargée !');
-      triggerConfetti();
-    } catch (e) {
-      track('certificate_download_failed');
-      toast.error("Erreur lors de la génération de l'attestation.");
-    } finally {
-      isDownloading = false;
-    }
-  }
 </script>
 
 <svelte:head>
-  <title>Cockpit</title>
+  <title>Tableau de bord</title>
 </svelte:head>
 
 {#if showXpFloat}
-  <div
-    class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
-  >
-    <div
-      class="animate-xp-float text-4xl font-bold text-epi-orange drop-shadow-lg"
-    >
-      +50 XP
-    </div>
-  </div>
+  <XpFloat amount={floatAmount} />
 {/if}
 
-<div class="mx-auto max-w-5xl px-4 py-8 pb-20 sm:py-12">
-  <!-- HEADER: Greeting & Context -->
-  <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
-    <div class="flex items-center gap-2">
+<!-- Minigame finish + rank-bonus floats, shared with the leaderboard so the
+     celebration follows the player to whichever page they open after a game. -->
+<MinigameRewardCelebration
+  baseReward={data.minigameReward}
+  rankReward={data.minigameRankReward}
+/>
+
+<div class="flex min-h-screen flex-col">
+  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+    <!-- Header wraps on mobile: logo + controls share the top row, the greeting
+         drops to its own full-width row below so a long name never truncates.
+         From sm up it's a single row (logo · greeting … controls) as before. -->
+    <header
+      class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-3 sm:flex-nowrap sm:gap-x-4"
+      in:fly={{ y: -20, duration: 400, delay: 100 }}
+    >
+      <a href={resolve('/')} aria-label="Accueil" class="shrink-0">
+        <EpitechLogo class="h-8 w-auto" />
+      </a>
+      <!-- Separates logo from greeting only when they share a row (sm+). -->
       <div
-        class="flex flex-1 flex-col items-center gap-2 text-center sm:flex-row sm:text-left"
+        class="hidden h-8 w-px shrink-0 bg-slate-200 sm:block dark:bg-slate-800"
+        aria-hidden="true"
+      ></div>
+      <h1
+        class="order-last w-full min-w-0 truncate font-heading text-2xl tracking-tight text-slate-900 uppercase sm:order-none sm:w-auto sm:text-3xl dark:text-white"
       >
-        <div
-          class="flex h-16 w-16 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-xl shadow-epi-blue/20"
-        >
-          <Rocket class="h-8 w-8" />
-        </div>
-        <div class="sm:ml-4">
-          <h1
-            class="font-heading text-4xl tracking-tight text-slate-900 uppercase dark:text-white"
-          >
-            Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
-          </h1>
-          <p class="font-bold text-slate-500 uppercase">
-            Bienvenue dans ton cockpit.
-          </p>
-          {#if data.hasWelcomePage}
-            <a
-              href={resolve('/welcome')}
-              class="mt-1 inline-flex items-center gap-1 text-sm text-epi-blue hover:underline"
-            >
-              <Mail class="h-3.5 w-3.5" />
-              Revoir le message de bienvenue
-            </a>
-          {/if}
-        </div>
-      </div>
-      <div class="flex items-center gap-1">
+        Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
+      </h1>
+      <div class="ml-auto flex shrink-0 items-center gap-1">
         <ModeToggle />
         <Button
           variant="ghost"
@@ -257,7 +276,13 @@
         <form
           action="{resolve('/logout')}?type=student"
           method="POST"
-          onsubmit={() => track('logout', { kind: 'talent' })}
+          onsubmit={() =>
+            track('logout', {
+              kind: 'talent',
+              sessionDurationSec: secondsBetween(
+                page.data.session?.createdAt as Date | string | undefined,
+              ),
+            })}
         >
           <Button
             type="submit"
@@ -270,231 +295,433 @@
           </Button>
         </form>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <div class="grid gap-6 md:grid-cols-12">
-    <!-- LEFT COLUMN: Stats & Profile -->
-    <div class="md:col-span-4" in:fly={{ x: -20, duration: 400, delay: 200 }}>
-      <div
-        class="relative overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-      >
-        <!-- Decorative background blur -->
-        <div
-          class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-epi-orange/10 blur-2xl"
-        ></div>
-
-        <div class="relative z-10 flex flex-col items-center text-center">
-          <div
-            class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/30"
-          >
-            <Trophy class="h-7 w-7 text-epi-orange" />
-          </div>
-
-          <Badge
-            variant="outline"
-            class="mb-3 border-orange-200 bg-orange-50 px-3 py-1 text-[10px] font-black tracking-widest text-orange-600 uppercase dark:border-orange-900/50 dark:bg-orange-900/20"
-          >
-            {levelLabel}
-          </Badge>
-
-          <div class="mb-4">
-            <span
-              class="text-5xl font-black tracking-tighter text-slate-900 dark:text-white"
+    <!-- The daily minigame as the first "mission" of the day: same row language
+         as the activities below, but accented (gamepad, colour) so it reads as
+         a distinct kind of mission. Pre-play it's a "Commencer" CTA; once played
+         it links to the campus leaderboard on the game's own page. -->
+    {#snippet minigameMission()}
+      {#if hasMinigame && minigamePublication}
+        <div class="relative">
+          {#if minigamePlayed}
+            <a
+              href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
+              class="flex flex-col gap-3 rounded-2xl border border-epi-teal-solid/30 bg-epi-teal-solid/5 p-4 transition-all hover:bg-epi-teal-solid/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
             >
-              {student?.xp || 0}
-            </span>
-            <span class="text-lg font-bold text-epi-orange">XP</span>
-          </div>
-
-          <!-- Custom Thick Progress Bar -->
-          <div class="w-full space-y-2">
-            <div
-              class="flex justify-between text-[10px] font-bold text-slate-400 uppercase"
-            >
-              <span>Progression</span>
-              <span>{Math.round(xpProgress)}%</span>
-            </div>
-            <div
-              class="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-            >
-              <div
-                class="h-full rounded-full bg-epi-orange transition-all duration-1000 ease-out"
-                style="width: {xpProgress}%"
-              ></div>
-            </div>
-          </div>
-
-          <!-- Mini-jeu du jour -->
-          {#if data.minigame}
-            {@const mg = data.minigame}
-            {#if mg.ok || (mg.publication && mg.reason === 'already_played')}
-              <div
-                class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
-              >
-                <h3
-                  class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
+              <!-- icon + text stay a row on mobile; `sm:contents` dissolves this
+                   wrapper on desktop so the CTA rejoins them on one line -->
+              <div class="flex items-center gap-4 sm:contents">
+                <div
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-teal-solid/15"
                 >
-                  <Gamepad2 class="h-4 w-4 text-epi-teal-solid" />
-                  Mini-jeu du jour
-                </h3>
-                {#if mg.ok}
-                  <div class="text-center">
-                    <p
-                      class="text-sm font-bold text-slate-800 capitalize dark:text-slate-200"
+                  <Gamepad2 class="h-5 w-5 text-epi-teal-solid" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div
+                    class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
+                  >
+                    <span class="text-epi-teal-solid"
+                      >{DAILY_TRAINING_LABEL}</span
                     >
-                      {mg.publication.game} · niveau {mg.publication.level}
-                    </p>
-                    <Button
-                      href={resolve(`/minigames/${mg.publication.id}`)}
-                      class="mt-2 w-full bg-epi-teal-solid text-white hover:bg-epi-teal-solid/90"
-                    >
-                      Jouer
-                    </Button>
+                    <span class="text-slate-300 dark:text-slate-700">•</span>
+                    <span class="text-slate-500">
+                      {minigamePublication.gameName} · niveau {minigamePublication.level}
+                    </span>
                   </div>
-                {:else if mg.reason === 'already_played' && mg.publication}
-                  <div class="space-y-2 text-center">
-                    <p
-                      class="text-sm font-bold text-slate-800 dark:text-slate-200"
-                    >
-                      Déjà joué !
-                    </p>
-                    {#if mg.lastAttempt}
-                      <p class="text-xs text-slate-500 dark:text-slate-400">
-                        {#if mg.lastAttempt.score !== null && mg.lastAttempt.score !== undefined}
-                          Score : {mg.lastAttempt.score}
-                        {/if}
-                        {#if mg.lastAttempt.chrono}
-                          {#if mg.lastAttempt.score !== null && mg.lastAttempt.score !== undefined}·{/if}
-                          {(mg.lastAttempt.chrono / 1000).toFixed(1)}s
-                        {/if}
-                      </p>
+                  <p
+                    class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
+                  >
+                    Défi relevé !
+                    {#if minigameAttempt && (minigameAttempt.score !== null || minigameAttempt.chrono !== null)}
+                      <span class="font-normal text-slate-500">
+                        {#if minigameAttempt.score !== null}{minigameAttempt.score}
+                          pts{/if}{#if minigameAttempt.score !== null && minigameAttempt.chrono !== null}
+                          ·
+                        {/if}{#if minigameAttempt.chrono !== null}{formatChrono(
+                            minigameAttempt.chrono,
+                          )}{/if}
+                      </span>
                     {/if}
-                    <Button
-                      variant="outline"
-                      href={resolve(
-                        `/minigames/${mg.publication.id}/leaderboard`,
-                      )}
-                      class="w-full"
-                    >
-                      <Trophy class="mr-2 h-4 w-4" /> Classement
-                    </Button>
-                  </div>
-                {/if}
+                  </p>
+                </div>
               </div>
-            {/if}
-          {/if}
-
-          <!-- RPG Skill Radar / Top Themes -->
-          {#if topThemes.length > 0}
-            <div
-              class="mt-6 w-full space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800"
-            >
-              <h3
-                class="flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase"
+              <span
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-teal-solid/15 px-3 py-1.5 text-xs font-bold text-epi-teal-solid uppercase sm:w-auto"
               >
-                <Target class="h-4 w-4 text-epi-teal-solid" /> Spécialités
-              </h3>
-              <div class="flex flex-col gap-3">
-                {#each topThemes as theme}
-                  <div class="space-y-1">
-                    <div
-                      class="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300"
-                    >
-                      <span class="truncate pr-2">{theme.name}</span>
-                      <span class="shrink-0 text-epi-teal-solid"
-                        >{theme.label}</span
-                      >
-                    </div>
-                    <div
-                      class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-                      role="progressbar"
-                      aria-valuenow={Math.min(theme.count, THEME_TIER_CEILING)}
-                      aria-valuemin={0}
-                      aria-valuemax={THEME_TIER_CEILING}
-                      aria-label="{theme.name} : {theme.label}"
-                    >
-                      <div
-                        class="h-full rounded-full bg-epi-teal-solid transition-all duration-1000 ease-out"
-                        style="width: {Math.min(
-                          (theme.count / THEME_TIER_CEILING) * 100,
-                          100,
-                        )}%"
-                      ></div>
-                    </div>
+                <Trophy class="h-4 w-4" /> Voir le classement
+              </span>
+            </a>
+          {:else}
+            <a
+              href={resolve(`/minigames/${minigamePublication.id}`)}
+              class="flex flex-col gap-3 rounded-2xl border border-epi-blue/20 bg-epi-blue/5 p-4 transition-all hover:bg-epi-blue/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4 dark:border-epi-blue/30 dark:bg-epi-blue/10"
+            >
+              <div class="flex items-center gap-4 sm:contents">
+                <div
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-epi-blue/10 dark:bg-epi-blue/20"
+                >
+                  <Gamepad2 class="h-5 w-5 text-epi-blue" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div
+                    class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
+                  >
+                    <span class="text-epi-blue">{DAILY_TRAINING_LABEL}</span>
+                    <span class="text-slate-300 dark:text-slate-700">•</span>
+                    <span class="text-slate-500">
+                      {minigamePublication.gameName} · niveau {minigamePublication.level}
+                    </span>
                   </div>
-                {/each}
+                  <p
+                    class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
+                  >
+                    Relève le défi du jour et grimpe au classement !
+                  </p>
+                </div>
               </div>
-            </div>
-          {/if}
-
-          <!-- PDF Download Section -->
-          {#if hasCompletedEvents}
-            <div
-              class="mt-4 w-full space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800"
-            >
-              <h3 class="text-xs font-bold text-slate-400 uppercase">
-                Mes Documents
-              </h3>
-              <Button
-                variant="secondary"
-                class="h-auto w-full rounded-xl bg-blue-50/80 py-2.5 text-xs font-bold text-epi-blue transition-colors hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
-                onclick={downloadCertificate}
-                disabled={isDownloading}
+              <span
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-xl bg-epi-blue px-3 py-1.5 text-sm font-bold text-white sm:w-auto"
               >
-                {#if isDownloading}
-                  <LoaderCircle class="mr-2 h-4 w-4 shrink-0 animate-spin" />
-                  <span class="truncate">Génération...</span>
-                {:else}
-                  <FileDown class="mr-2 h-4 w-4 shrink-0" />
-                  <span class="truncate">Attestation Parcoursup</span>
-                {/if}
-              </Button>
-            </div>
+                Commencer <ArrowRight class="h-4 w-4" />
+              </span>
+            </a>
+          {/if}
+          {#if dev}
+            <!-- Dev-only: flips today's attempt; out of flow, stripped in prod -->
+            <form
+              method="POST"
+              action="?/devToggleMinigame"
+              use:enhance
+              class="absolute top-1.5 right-2"
+            >
+              <button
+                type="submit"
+                title="Dev : basculer l'état de l'entraînement du jour"
+                class="text-[10px] font-bold tracking-wide text-slate-300 uppercase hover:text-epi-blue dark:text-slate-600"
+              >
+                {minigamePlayed ? 'dev: reset' : 'dev: joué'}
+              </button>
+            </form>
           {/if}
         </div>
-      </div>
-    </div>
+      {/if}
+    {/snippet}
 
-    <!-- RIGHT COLUMN: Today's Mission & History -->
-    <div class="md:col-span-8" in:fly={{ x: 20, duration: 400, delay: 300 }}>
-      <!-- Today's Mission -->
-      <h2
-        class="mb-4 font-heading text-xl text-slate-800 uppercase dark:text-slate-200"
+    {#snippet historyLink()}
+      {#if totalPastMissions > 0}
+        <a
+          href={resolve('/history')}
+          class="order-3 inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
+        >
+          <History class="h-4 w-4" />
+          Voir mes missions précédentes ({totalPastMissions})
+          <ArrowRight class="h-3.5 w-3.5" />
+        </a>
+      {/if}
+    {/snippet}
+
+    <!-- Shared body of an activity row: type badge, name, then a right cluster
+         (difficulty + a trailing slot for the status icon/label).
+         On mobile the name drops to its own full-width line (`order-last
+         w-full`) so it never truncates; from sm up it returns inline and
+         truncates as a flex-1 column — matching the header's greeting trick. -->
+    {#snippet activityRowBody(
+      activity: NonNullable<TimeSlot['activity']>,
+      trailing: Snippet,
+    )}
+      <Badge
+        variant="outline"
+        class="order-1 shrink-0 text-[9px] font-bold uppercase"
       >
-        Mission du jour<span class="text-epi-teal">_</span>
-      </h2>
+        {activityTypeLabels[activity.activityType] ?? activity.activityType}
+      </Badge>
+      <span
+        class="order-last w-full text-sm font-semibold text-slate-900 sm:order-2 sm:w-auto sm:min-w-0 sm:flex-1 sm:truncate dark:text-white"
+      >
+        {activity.nom}
+      </span>
+      <div
+        class="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-3 sm:ml-0"
+      >
+        {#if activity.difficulte}
+          <span
+            class="rounded-full px-2 py-0.5 text-[9px] font-bold {difficultyColors[
+              activity.difficulte
+            ] ?? ''}"
+          >
+            {activity.difficulte}
+          </span>
+        {/if}
+        {@render trailing()}
+      </div>
+    {/snippet}
 
-      {#if participation}
+    {#snippet activityRow(slot: TimeSlot)}
+      {#if slot.activity}
+        {@const activity = slot.activity}
+        {@const isDone = completedActivityIds.has(activity.id)}
+        {@const hasStarted =
+          new Date(slot.startTime).getTime() <= nowTime.getTime()}
+        {#if hasStarted}
+          {#snippet trailing()}
+            {#if isDone}
+              <Check class="h-4 w-4 shrink-0 text-epi-teal-solid" />
+            {:else}
+              <ArrowRight
+                class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
+              />
+            {/if}
+          {/snippet}
+          <a
+            href={resolve(`/${activity.id}`)}
+            class="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
+              ? 'bg-epi-teal-solid/10'
+              : ''}"
+          >
+            {@render activityRowBody(activity, trailing)}
+          </a>
+        {:else}
+          {#snippet trailing()}
+            <span
+              class="shrink-0 text-[9px] font-bold text-slate-400 uppercase"
+            >
+              À venir
+            </span>
+          {/snippet}
+          <button
+            type="button"
+            class="flex w-full cursor-pointer flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3 py-2.5 text-left opacity-70 transition-all hover:bg-slate-50 hover:opacity-100 dark:hover:bg-slate-800/50"
+            aria-label="{activity.nom} — aperçu"
+            onclick={() => {
+              previewSlot = {
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                activity,
+              };
+              previewOpen = true;
+            }}
+          >
+            {@render activityRowBody(activity, trailing)}
+          </button>
+        {/if}
+      {/if}
+    {/snippet}
+
+    <div class="grid gap-6 md:grid-cols-12">
+      <!-- LEFT COLUMN: profile + "Planning à venir" rail (next session, or a
+           preview of tomorrow during a multi-day event).
+           On mobile the wrapper collapses (display: contents) so its children
+           join the outer grid as siblings and `order-*` can interleave them
+           with the right column — keeping Actualités right under the profile
+           card. `order` is inert on desktop (block children, not flex/grid
+           items), so the two-column layout is untouched. -->
+      <div
+        class="contents md:col-span-4 md:block md:space-y-6"
+        in:fly={{ x: -20, duration: 400, delay: 200 }}
+      >
         <div
-          class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+          class="relative order-1 overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        >
+          <!-- Decorative background blur -->
+          <div
+            class="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-epi-orange/10 blur-2xl"
+          ></div>
+
+          <div class="relative z-10 flex flex-col items-center text-center">
+            <div
+              class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/30"
+            >
+              <Trophy class="h-7 w-7 text-epi-orange" />
+            </div>
+
+            <Badge
+              variant="outline"
+              class="mb-3 border-orange-200 bg-orange-50 px-3 py-1 text-[10px] font-black tracking-widest text-orange-600 uppercase dark:border-orange-900/50 dark:bg-orange-900/20"
+            >
+              {levelLabel}
+            </Badge>
+
+            <div class="mb-4">
+              <span
+                class="text-5xl font-black tracking-tighter text-slate-900 dark:text-white"
+              >
+                {student?.xp || 0}
+              </span>
+              <span class="text-lg font-bold text-epi-orange">XP</span>
+            </div>
+
+            <!-- Custom Thick Progress Bar -->
+            <div class="w-full space-y-2">
+              <div
+                class="flex justify-between text-[10px] font-bold text-slate-400 uppercase"
+              >
+                <span>Progression</span>
+                <span>{Math.round(xpProgress)}%</span>
+              </div>
+              <div
+                class="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+              >
+                <div
+                  class="h-full rounded-full bg-epi-orange transition-all duration-1000 ease-out"
+                  style="width: {xpProgress}%"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Planning à venir: tomorrow's activities during a multi-day event,
+             else the next upcoming session, else a quiet rest state. order-4
+             keeps it last on mobile (after the mission card + history). -->
+        <div
+          class="order-4 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
         >
           <div
-            class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+            class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
           >
-            <div
-              class="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500 uppercase"
+            <CalendarClock class="h-4 w-4 shrink-0 text-epi-blue" />
+            <h2
+              class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
             >
-              <MapPin class="h-4 w-4 text-epi-blue" />
-              <span>{eventTitle}</span>
-              <span class="text-slate-300 dark:text-slate-700">•</span>
-              <Clock class="h-4 w-4" />
-              <span>{formatTime(participation?.event?.date)}</span>
-              {#if todayIsMultiDay && !hideTodayCalendarLink}
-                <a
-                  href={resolve('/calendar')}
-                  class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
-                >
-                  Voir le calendrier <ArrowRight class="h-3 w-3" />
-                </a>
-              {/if}
-            </div>
+              Planning à venir<span class="text-epi-teal">_</span>
+            </h2>
           </div>
 
           <div class="p-6">
-            {#if timeSlots.length > 0}
-              <!-- Compact Timeline -->
-              <div class="space-y-4">
+            {#if tomorrowPreview}
+              <p class="mb-3 text-xs font-bold text-slate-400 uppercase">
+                Demain · {formatDateFr(new Date(tomorrowPreview.date))}
+              </p>
+              <!-- Click opens the same locked-preview dialog as a not-yet-started
+                   activity. The type badge stays for at-a-glance scanning; the
+                   difficulty lives in the dialog so the name keeps its width. -->
+              <div class="space-y-0.5">
+                {#each tomorrowPreview.slots as slot (slot.startTime)}
+                  <button
+                    type="button"
+                    class="flex w-full cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    aria-label="{slot.activity.nom} — aperçu"
+                    onclick={() => {
+                      previewSlot = {
+                        startTime: slot.startTime,
+                        endTime: slot.endTime,
+                        activity: slot.activity,
+                      };
+                      previewOpen = true;
+                    }}
+                  >
+                    <Badge
+                      variant="outline"
+                      class="shrink-0 text-[9px] font-bold uppercase"
+                    >
+                      {activityTypeLabels[slot.activity.activityType] ??
+                        slot.activity.activityType}
+                    </Badge>
+                    <span
+                      class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
+                    >
+                      {slot.activity.nom}
+                    </span>
+                    <ArrowRight
+                      class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
+                    />
+                  </button>
+                {/each}
+              </div>
+              {#if !hideTodayCalendarLink}
+                <a
+                  href={resolve('/calendar')}
+                  class="mt-4 inline-flex items-center gap-1 text-xs font-bold text-epi-blue uppercase hover:underline"
+                >
+                  Voir le planning <ArrowRight class="h-3 w-3 shrink-0" />
+                </a>
+              {/if}
+            {:else if upcomingParticipation}
+              <div
+                class="flex flex-col items-center justify-center text-center"
+              >
+                <div
+                  class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
+                >
+                  <Rocket class="h-8 w-8 text-epi-blue" />
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                  {upcomingTypeLabel}
+                </h3>
+                <p class="mt-2 text-sm text-slate-500">
+                  {#if upcomingIsMultiDay}
+                    Ça commence le
+                  {:else}
+                    Ta prochaine session est prévue le
+                  {/if}
+                  <strong class="text-slate-700 dark:text-slate-300"
+                    >{formatDateLong(upcomingParticipation.event?.date)}</strong
+                  >{#if upcomingStartTime}{' '}à{' '}<strong
+                      class="text-slate-700 dark:text-slate-300"
+                      >{upcomingStartTime}</strong
+                    >{/if}.
+                </p>
+
+                {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
+                  <a
+                    href={resolve('/calendar')}
+                    class="mt-4 inline-flex items-center gap-1 text-xs font-bold text-epi-blue uppercase hover:underline"
+                  >
+                    Voir le planning <ArrowRight class="h-3 w-3 shrink-0" />
+                  </a>
+                {/if}
+              </div>
+            {:else}
+              <div
+                class="flex flex-col items-center justify-center text-center"
+              >
+                <div
+                  class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
+                >
+                  <Coffee class="h-8 w-8 text-slate-400" />
+                </div>
+                <h3
+                  class="text-base font-bold text-slate-700 uppercase dark:text-slate-300"
+                >
+                  Rien de prévu
+                </h3>
+                <p class="mt-2 text-sm text-slate-500">
+                  Aucune session à venir pour le moment. On te préviendra ici
+                  dès qu'il y a du nouveau !
+                </p>
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: the day's missions (minigame first, then the event's
+           activities), then the Actualités feed as the second element. -->
+      <div
+        class="contents md:col-span-8 md:block md:space-y-6"
+        in:fly={{ x: 20, duration: 400, delay: 300 }}
+      >
+        <!-- order-3: sits below Actualités on mobile, with its history link -->
+        <div
+          class="order-3 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        >
+          <div
+            class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+          >
+            <Rocket class="h-4 w-4 shrink-0 text-epi-blue" />
+            <h2
+              class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
+            >
+              Mission du jour<span class="text-epi-teal">_</span>
+            </h2>
+          </div>
+
+          <div class="space-y-4 p-6">
+            {@render minigameMission()}
+
+            {#if participation}
+              {#if timeSlots.length > 0}
                 {#each timeSlots as slot (slot.id)}
                   <div>
                     <div class="mb-2 flex items-center gap-2">
@@ -511,254 +738,70 @@
                     <div
                       class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
                     >
-                      {#if slot.activity}
-                        {@const activity = slot.activity}
-                        {@const isDone = completedActivityIds.has(activity.id)}
-                        {@const hasStarted =
-                          new Date(slot.startTime).getTime() <=
-                          nowTime.getTime()}
-                        {#if hasStarted}
-                          <a
-                            href={resolve(`/${activity.id}`)}
-                            class="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
-                              ? 'bg-epi-teal-solid/10'
-                              : ''}"
-                          >
-                            <Badge
-                              variant="outline"
-                              class="shrink-0 text-[9px] font-bold uppercase"
-                            >
-                              {activityTypeLabels[activity.activityType] ??
-                                activity.activityType}
-                            </Badge>
-                            <span
-                              class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
-                            >
-                              {activity.nom}
-                            </span>
-                            {#if activity.difficulte}
-                              <span
-                                class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                                  activity.difficulte
-                                ] ?? ''}"
-                              >
-                                {activity.difficulte}
-                              </span>
-                            {/if}
-                            {#if isDone}
-                              <Check
-                                class="h-4 w-4 shrink-0 text-epi-teal-solid"
-                              />
-                            {:else}
-                              <ArrowRight
-                                class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
-                              />
-                            {/if}
-                          </a>
-                        {:else}
-                          <button
-                            type="button"
-                            class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left opacity-70 transition-all hover:bg-slate-50 hover:opacity-100 dark:hover:bg-slate-800/50"
-                            aria-label="{activity.nom} — aperçu"
-                            onclick={() => {
-                              previewSlot = {
-                                startTime: slot.startTime,
-                                endTime: slot.endTime,
-                                activity,
-                              };
-                              previewOpen = true;
-                            }}
-                          >
-                            <Badge
-                              variant="outline"
-                              class="shrink-0 text-[9px] font-bold uppercase"
-                            >
-                              {activityTypeLabels[activity.activityType] ??
-                                activity.activityType}
-                            </Badge>
-                            <span
-                              class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
-                            >
-                              {activity.nom}
-                            </span>
-                            {#if activity.difficulte}
-                              <span
-                                class="hidden shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold sm:inline {difficultyColors[
-                                  activity.difficulte
-                                ] ?? ''}"
-                              >
-                                {activity.difficulte}
-                              </span>
-                            {/if}
-                            <span
-                              class="shrink-0 text-[9px] font-bold text-slate-400 uppercase"
-                            >
-                              À venir
-                            </span>
-                          </button>
-                        {/if}
-                      {/if}
+                      {@render activityRow(slot)}
                     </div>
                   </div>
                 {/each}
-              </div>
-            {:else}
-              <!-- Event exists but no planning/activities yet -->
+              {:else}
+                <!-- Event exists but no planning/activities yet -->
+                <div
+                  class="flex flex-col items-center justify-center py-8 text-center"
+                >
+                  <div
+                    class="mb-4 rounded-full bg-slate-100 p-4 dark:bg-slate-800"
+                  >
+                    <Hourglass class="h-8 w-8 animate-pulse text-epi-blue" />
+                  </div>
+                  <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                    Le planning arrive...
+                  </h3>
+                  <p class="mt-2 max-w-sm text-sm text-slate-500">
+                    Le Manta est en train de préparer ta mission. Patiente
+                    quelques instants, la page se mettra à jour.
+                  </p>
+                </div>
+              {/if}
+            {:else if !hasMinigame}
+              <!-- No event and no minigame: nothing to do today -->
               <div
-                class="flex flex-col items-center justify-center py-12 text-center"
+                class="flex flex-col items-center justify-center py-8 text-center"
               >
                 <div
-                  class="mb-4 rounded-full bg-slate-100 p-4 dark:bg-slate-800"
+                  class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
                 >
-                  <Hourglass class="h-8 w-8 animate-pulse text-epi-blue" />
+                  <Coffee class="h-8 w-8 text-slate-400" />
                 </div>
-                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  Le planning arrive...
+                <h3
+                  class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
+                >
+                  Repos aujourd'hui
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-slate-500">
-                  Le Manta est en train de préparer ta mission. Patiente
-                  quelques instants, la page se mettra à jour.
+                  Aucun atelier n'est planifié pour toi. Profites-en pour te
+                  reposer ou revoir tes anciens projets dans ton portfolio !
                 </p>
               </div>
             {/if}
           </div>
         </div>
-      {:else if upcomingParticipation}
-        <!-- Upcoming Event -->
-        <div
-          class="flex min-h-62.5 flex-col overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-xl shadow-blue-900/5 dark:border-blue-900/30 dark:bg-slate-900 dark:shadow-none"
-        >
-          <div
-            class="border-b border-blue-50 bg-blue-50/50 px-6 py-4 dark:border-blue-900/20 dark:bg-blue-950/20"
-          >
-            <div
-              class="flex flex-wrap items-center gap-2 text-xs font-bold text-blue-600 uppercase dark:text-blue-400"
-            >
-              <CalendarClock class="h-4 w-4" />
-              <span>Mission à venir</span>
-              {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
-                <a
-                  href={resolve('/calendar')}
-                  class="ml-auto inline-flex items-center gap-1 text-xs font-bold text-epi-blue normal-case hover:underline"
-                >
-                  Voir le calendrier <ArrowRight class="h-3 w-3" />
-                </a>
-              {/if}
-            </div>
-          </div>
-          <div
-            class="flex flex-1 flex-col items-center justify-center p-6 text-center"
-          >
-            <div class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20">
-              <Rocket class="h-8 w-8 text-epi-blue" />
-            </div>
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">
-              {upcomingParticipation.event?.titre || 'Atelier Epitech'}
-            </h3>
-            <p class="mt-2 max-w-md text-sm text-slate-500">
-              Ta prochaine session est prévue le <strong
-                class="text-slate-700 dark:text-slate-300"
-                >{formatDateFr(upcomingParticipation.event?.date)}</strong
-              >
-              à
-              <strong class="text-slate-700 dark:text-slate-300"
-                >{formatTime(upcomingParticipation.event?.date)}</strong
-              >.
-            </p>
 
-            <div class="mt-6 flex gap-3">
-              {#if upcomingParticipation.bringPc}
-                <div
-                  class="flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-900/30 dark:bg-orange-900/20 dark:text-orange-400"
-                >
-                  <Laptop class="h-4 w-4 shrink-0" />
-                  <span>N'oublie pas d'apporter ton PC !</span>
-                </div>
-              {:else}
-                <div
-                  class="flex items-center gap-2 rounded-xl border border-epi-teal-solid/30 bg-epi-teal-solid/10 px-4 py-2 text-sm font-bold text-epi-teal-solid"
-                >
-                  <Monitor class="h-4 w-4 shrink-0" />
-                  <span>Le matériel sera fourni sur place.</span>
-                </div>
-              {/if}
-            </div>
-          </div>
-        </div>
-      {:else}
-        <!-- No event today AND no upcoming event -->
-        <div
-          class="flex min-h-62.5 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-6 text-center dark:border-slate-800 dark:bg-slate-900/50"
-        >
-          <div class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800">
-            <Coffee class="h-8 w-8 text-slate-400" />
-          </div>
-          <h3
-            class="text-lg font-bold text-slate-700 uppercase dark:text-slate-300"
-          >
-            Repos aujourd'hui
-          </h3>
-          <p class="mt-2 max-w-sm text-sm text-slate-500">
-            Aucun atelier n'est planifié pour toi. Profites-en pour te reposer
-            ou revoir tes anciens projets dans ton portfolio !
-          </p>
-        </div>
-      {/if}
+        {@render historyLink()}
 
-      <!-- Past Missions (History) - compact preview -->
-      {#if previewMissions.length > 0}
-        <div class="mt-6 flex items-center justify-between">
-          <h2
-            class="flex items-center gap-2 font-heading text-sm text-slate-800 uppercase dark:text-slate-200"
-          >
-            <History class="h-4 w-4 text-epi-blue" />
-            Missions précédentes<span class="text-epi-teal">_</span>
-          </h2>
-          {#if totalPastMissions > 2}
-            <Button
-              variant="ghost"
-              size="sm"
-              href={resolve('/history')}
-              class="text-xs font-bold text-epi-blue hover:bg-blue-50 dark:hover:bg-blue-900/20"
-            >
-              Voir tout ({totalPastMissions})
-              <ArrowRight class="ml-1 h-3 w-3" />
-            </Button>
-          {/if}
-        </div>
-        <div class="mt-3 grid gap-4 sm:grid-cols-2">
-          {#each previewMissions as mission}
-            <div
-              class="group flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-epi-blue/30 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
-            >
-              <div class="mb-4">
-                <div
-                  class="mb-2 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase"
-                >
-                  <Calendar class="h-3 w-3" />
-                  {formatDateFr(mission.eventDate)}
-                </div>
-                <h3
-                  class="line-clamp-2 font-normal text-slate-900 dark:text-white"
-                >
-                  {mission.activity.nom}
-                </h3>
-              </div>
-              {#if mission.activity.isDynamic}
-                <Button
-                  variant="outline"
-                  href={resolve(`/${mission.activity.id}`)}
-                  class="w-full gap-2 rounded-xl border-slate-200 transition-colors group-hover:border-epi-blue group-hover:bg-epi-blue group-hover:text-white dark:border-slate-800 dark:group-hover:border-epi-blue dark:group-hover:bg-epi-blue dark:group-hover:text-white"
-                >
-                  <BookOpen class="h-4 w-4" /> Revoir la mission
-                </Button>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
+        {#if data.welcome}
+          <!-- order-2: sits right under the profile card on mobile -->
+          <div class="order-2">
+            <NewsFeedCard
+              welcomeContent={data.welcome.content}
+              highlight={welcomeHighlight}
+            />
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
+
+  <!-- Footer: what Jump is — pinned to the bottom of the page -->
+  <TalentFooter />
 </div>
 
 <ActivitySummaryDialog bind:open={previewOpen} slot={previewSlot} />

@@ -14,6 +14,7 @@
  * a deploy ships before an admin configures templates.
  */
 
+import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import {
@@ -61,7 +62,7 @@ export async function sendActionEmail(
   const fullCtx: VariableContext = { ...EMPTY_VARIABLE_CONTEXT, ...ctx };
   const subject = substituteVariables(mapping.template.subject ?? '', fullCtx);
   const bodyWithVars = substituteVariables(mapping.template.body, fullCtx);
-  const html = renderBroadcastMail(bodyWithVars);
+  const html = renderBroadcastMail(bodyWithVars, env.ORIGIN ?? '');
 
   const result = await sendEmail({
     from: MAIL_FROM,
@@ -72,6 +73,7 @@ export async function sendActionEmail(
 
   if (!result.ok) {
     const message = `${result.reason}: ${result.message}`;
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
     console.error(`[email-action] Send failed for "${actionKey}":`, message);
     return { ok: false, reason: 'send_failed', message };
   }

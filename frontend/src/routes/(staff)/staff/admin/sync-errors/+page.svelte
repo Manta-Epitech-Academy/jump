@@ -14,7 +14,7 @@
   import { salesforceContactUrl } from '$lib/domain/salesforce';
   import { EVENT_TYPES } from '$lib/domain/event';
   import { toast } from 'svelte-sonner';
-  import { track } from '$lib/analytics';
+  import { track, daysBetween } from '$lib/analytics';
 
   let { data } = $props();
 
@@ -98,8 +98,17 @@
           use:enhance={() =>
             async ({ result, update }) => {
               if (result.type === 'success') {
+                const unresolved = data.errors.filter((e) => !e.resolved);
+                const urgentCount = unresolved.filter(
+                  (e) => e.eventType === EVENT_TYPES.STAGE_SECONDE,
+                ).length;
+                const oldestDaysOpen = unresolved
+                  .map((e) => daysBetween(e.createdAt) ?? 0)
+                  .reduce((max, d) => (d > max ? d : max), 0);
                 track('sync_errors_resolved_all', {
                   count: data.unresolvedCount,
+                  urgentCount,
+                  oldestDaysOpen,
                 });
                 toast.success('Toutes les erreurs ont été résolues');
                 await update();
@@ -219,7 +228,12 @@
                           }
                           return async ({ result, update }) => {
                             if (result.type === 'success') {
-                              track('sync_error_rebound');
+                              track('sync_error_rebound', {
+                                isStage:
+                                  error.eventType === EVENT_TYPES.STAGE_SECONDE,
+                                occurrenceCount: error.occurrenceCount,
+                                daysOpen: daysBetween(error.createdAt),
+                              });
                               toast.success('extId migré, erreur résolue.');
                               await update();
                             } else if (result.type === 'failure') {
@@ -253,7 +267,13 @@
                       use:enhance={() =>
                         async ({ result, update }) => {
                           if (result.type === 'success') {
-                            track('sync_error_resolved');
+                            track('sync_error_resolved', {
+                              isStage:
+                                error.eventType === EVENT_TYPES.STAGE_SECONDE,
+                              occurrenceCount: error.occurrenceCount,
+                              daysOpen: daysBetween(error.createdAt),
+                              surface: 'admin',
+                            });
                             toast.success('Erreur résolue');
                             await update();
                           } else {

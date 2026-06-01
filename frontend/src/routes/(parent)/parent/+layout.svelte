@@ -11,7 +11,7 @@
 {#if isLoginPage}
   {@render children()}
 {:else}
-  <div class="min-h-screen bg-slate-50 dark:bg-slate-950">
+  <div class="min-h-dvh bg-slate-50 dark:bg-slate-950">
     {@render children()}
   </div>
 {/if}

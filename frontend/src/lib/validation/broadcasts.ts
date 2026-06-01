@@ -2,11 +2,16 @@ import { z } from 'zod';
 import {
   BROADCAST_AUDIENCES,
   BROADCAST_CHANNELS,
+  IMAGE_RIGHTS_FILTER_OPTIONS,
   JUMP_LEVELS,
-  NIVEAUX,
-  SMS_MAX_LENGTH,
-  estimateSmsLength,
 } from '$lib/domain/broadcasts';
+import {
+  SMS_BROADCAST_MAX_CHARS,
+  SMS_MAX_SEGMENTS,
+  estimateSmsLength,
+  smsSegments,
+} from '$lib/domain/sms';
+import { NIVEAUX } from '$lib/domain/niveau';
 
 const tristate = z.enum(['yes', 'no', 'any']);
 
@@ -14,7 +19,7 @@ export const broadcastFiltersSchema = z
   .object({
     niveau: z.array(z.enum(NIVEAUX)).optional(),
     charterSigned: tristate.optional(),
-    imageRightsSigned: tristate.optional(),
+    imageRights: z.array(z.enum(IMAGE_RIGHTS_FILTER_OPTIONS)).optional(),
     jumpLevel: z.array(z.enum(JUMP_LEVELS)).optional(),
     hasPastEvent: tristate.optional(),
     hasFutureEvent: tristate.optional(),
@@ -52,10 +57,10 @@ export const messageTemplateSchema = z
     }
     if (data.channel === 'sms') {
       const estimated = estimateSmsLength(data.body);
-      if (estimated > SMS_MAX_LENGTH) {
+      if (estimated > SMS_BROADCAST_MAX_CHARS) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Le SMS dépasse ${SMS_MAX_LENGTH} caractères une fois les liens trackés (estimation : ${estimated})`,
+          message: `Message trop long : ${SMS_MAX_SEGMENTS} SMS maximum (~${SMS_BROADCAST_MAX_CHARS} caractères, liens compris ; ici ~${estimated} = ${smsSegments(estimated)} SMS). Raccourcissez le texte.`,
           path: ['body'],
         });
       }
@@ -70,17 +75,20 @@ export const broadcastSourceFilterSchema = z.enum([
   'all',
 ]);
 
+// Structural shape of the broadcast composer form, shared by the page load,
+// the `testSend` action (template-only — no audience/campus needed) and the
+// `enqueue` action. `campusId` and `audience` are required to *enqueue* but
+// not structurally: that rule lives in the enqueue action so test-send and
+// the live preview can reuse this schema without being blocked by it. The
+// broadcast name is generated server-side at enqueue time, so it isn't a
+// field here.
 export const broadcastSchema = z
   .object({
-    name: z
-      .string()
-      .min(3, 'Le nom doit faire au moins 3 caractères')
-      .max(120, 'Le nom ne peut pas dépasser 120 caractères'),
     templateId: z.string().min(1, 'Sélectionne un template'),
-    campusId: z.string().min(1, 'Sélectionne un campus'),
-    audience: z.enum(BROADCAST_AUDIENCES, {
-      message: 'Audience invalide',
-    }),
+    campusId: z.string().optional().or(z.literal('')),
+    audience: z
+      .enum(BROADCAST_AUDIENCES, { message: 'Audience invalide' })
+      .optional(),
     eventId: z.string().optional().or(z.literal('')),
     sourceBroadcastId: z.string().optional().or(z.literal('')),
     sourceFilter: broadcastSourceFilterSchema.optional(),
@@ -98,12 +106,3 @@ export const broadcastSchema = z
   });
 
 export type BroadcastForm = z.infer<typeof broadcastSchema>;
-
-export const testSendSchema = z.object({
-  templateId: z.string().min(1),
-  eventId: z.string().optional().or(z.literal('')),
-  recipientEmail: z.email('Email invalide').optional().or(z.literal('')),
-  recipientPhone: z.string().optional().or(z.literal('')),
-});
-
-export type TestSendForm = z.infer<typeof testSendSchema>;

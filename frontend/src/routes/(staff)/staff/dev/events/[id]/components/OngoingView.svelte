@@ -52,7 +52,7 @@
       talent: { id: string; nom: string; prenom: string };
     }[];
     lyceesBreakdown: {
-      rows: { highSchoolName: string; count: number }[];
+      rows: { schoolId: string; name: string; count: number }[];
       others: { count: number; categories: number } | null;
     };
     interestsCloud: {

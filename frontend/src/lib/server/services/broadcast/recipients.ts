@@ -6,6 +6,7 @@ import type {
 } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import type { BroadcastFilters } from '$lib/domain/broadcasts';
+import { xpRangeForLevel } from '$lib/domain/xp';
 
 export interface RecipientSpec {
   campusId: string;
@@ -183,12 +184,31 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   const and: Prisma.TalentWhereInput[] = [];
 
   if (f.niveau?.length) and.push({ niveau: { in: f.niveau } });
-  if (f.jumpLevel?.length) and.push({ level: { in: f.jumpLevel } });
+  // Level is derived from xp (no stored column) — translate each chosen tier
+  // into its xp range and OR them together.
+  if (f.jumpLevel?.length) {
+    and.push({
+      OR: f.jumpLevel.map((lvl) => {
+        const { min, maxExclusive } = xpRangeForLevel(lvl);
+        return maxExclusive === null
+          ? { xp: { gte: min } }
+          : { xp: { gte: min, lt: maxExclusive } };
+      }),
+    });
+  }
   if (f.charterSigned === 'yes') and.push({ charterAcceptedAt: { not: null } });
   if (f.charterSigned === 'no') and.push({ charterAcceptedAt: null });
-  if (f.imageRightsSigned === 'yes')
-    and.push({ imageRightsSignedAt: { not: null } });
-  if (f.imageRightsSigned === 'no') and.push({ imageRightsSignedAt: null });
+  // Image rights: OR the selected states. `undecided` is the absence of a
+  // decision; `accepted`/`refused` match the stored enum directly.
+  if (f.imageRights?.length) {
+    and.push({
+      OR: f.imageRights.map((status) =>
+        status === 'undecided'
+          ? { imageRightsDecidedAt: null }
+          : { imageRightsDecision: status },
+      ),
+    });
+  }
 
   const now = new Date();
   if (f.hasPastEvent === 'yes')

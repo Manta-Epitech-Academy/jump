@@ -91,9 +91,10 @@ function mapLevel(csvLevel: string): string {
   if (l.includes('troisième') || l.includes('3')) return '3eme';
   if (l.includes('seconde') || l.includes('2')) return '2nde';
   if (l.includes('première') || l.includes('1')) return '1ere';
-  if (l.includes('terminale') || l.includes('term')) return 'Terminale';
-  if (l.includes('bac') || l.includes('sup') || l.includes('+')) return 'Sup';
-  return 'Sup'; // Default fallback
+  if (l.includes('terminale') || l.includes('term')) return 'terminale';
+  // CSV can't distinguish a specific Bac+N year, so collapse higher ed to "autre".
+  if (l.includes('bac') || l.includes('sup') || l.includes('+')) return 'autre';
+  return 'autre'; // Default fallback
 }
 
 function cleanPhoneNumber(raw: string | number | undefined): string {

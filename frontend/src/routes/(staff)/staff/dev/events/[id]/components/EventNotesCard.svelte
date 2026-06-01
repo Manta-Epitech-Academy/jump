@@ -30,7 +30,7 @@
   <Gated group="devLead" mode="hide">
     <button
       type="button"
-      class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+      class="inline-flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
       onclick={() => onEdit?.()}
     >
       <Plus class="h-3.5 w-3.5" />

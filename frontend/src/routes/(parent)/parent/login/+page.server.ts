@@ -6,11 +6,13 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { camperEmailSchema, camperOtpSchema } from '$lib/validation/auth';
 import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
+import { checkRateLimit, recordAttempt } from '$lib/server/auth/rateLimiter';
 import { prisma } from '$lib/server/db';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (locals.user?.role === 'parent') {
-    throw redirect(303, resolve('/parent'));
+    // Canonical flow entry; the guard re-routes to welcome/merci as needed.
+    throw redirect(303, resolve('/parent/welcome'));
   }
 
   const emailForm = await superValidate(zod4(camperEmailSchema));
@@ -27,9 +29,21 @@ export const actions: Actions = {
       return fail(400, { emailForm });
     }
 
-    try {
-      const normalizedEmail = emailForm.data.email.toLowerCase().trim();
+    const normalizedEmail = emailForm.data.email.toLowerCase().trim();
 
+    const requestLimit = await checkRateLimit('request', normalizedEmail);
+    if (!requestLimit.allowed) {
+      return message(
+        emailForm,
+        {
+          type: 'error',
+          text: `Trop de demandes. Réessayez dans ${requestLimit.retryAfterSeconds} secondes.`,
+        },
+        { status: 429 },
+      );
+    }
+
+    try {
       const user = await prisma.bauth_user.findUnique({
         where: { email: normalizedEmail },
       });
@@ -49,6 +63,10 @@ export const actions: Actions = {
       await auth.api.sendVerificationOTP({
         body: { email: normalizedEmail, type: 'sign-in' },
       });
+
+      // Only count a real send: a lookup-404 or provider error costs nothing
+      // and shouldn't burn budget for the legitimate parent behind the typo.
+      await recordAttempt('request', normalizedEmail);
 
       return message(emailForm, {
         type: 'success',
@@ -77,6 +95,18 @@ export const actions: Actions = {
 
     const normalizedEmail = otpForm.data.email.toLowerCase().trim();
 
+    const verifyLimit = await checkRateLimit('verify', normalizedEmail);
+    if (!verifyLimit.allowed) {
+      return message(
+        otpForm,
+        {
+          type: 'error',
+          text: `Trop de tentatives. Réessayez dans ${verifyLimit.retryAfterSeconds} secondes.`,
+        },
+        { status: 429 },
+      );
+    }
+
     try {
       const authResponse = await auth.api.signInEmailOTP({
         body: {
@@ -93,6 +123,7 @@ export const actions: Actions = {
 
       forwardAuthCookies(authResponse, cookies);
     } catch (err) {
+      await recordAttempt('verify', normalizedEmail);
       console.error('[parent verifyOtp] Error:', err);
       return message(
         otpForm,
@@ -101,18 +132,19 @@ export const actions: Actions = {
       );
     }
 
-    // Check if image rights need signing before going to dashboard
-    const unsignedCount = await prisma.talent.count({
+    // Route into the flow if any child still has something pending — the
+    // règlement intérieur to co-sign or an image-rights decision to make.
+    const pendingCount = await prisma.talent.count({
       where: {
         parentEmail: normalizedEmail,
-        imageRightsSignedAt: null,
+        OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }],
       },
     });
 
-    if (unsignedCount > 0) {
-      throw redirect(303, resolve('/parent/signature'));
+    if (pendingCount > 0) {
+      throw redirect(303, resolve('/parent/welcome'));
     }
 
-    throw redirect(303, resolve('/parent'));
+    throw redirect(303, resolve('/parent/merci'));
   },
 };

@@ -12,6 +12,7 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { cn } from '$lib/utils';
+  import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
 
   let { data }: { data: PageData } = $props();
 
@@ -20,25 +21,14 @@
   let selectedNiveau = $state<string>('all');
   let sortMode = $state<SortMode>('name');
 
-  const NIVEAU_ORDER = [
-    '6eme',
-    '5eme',
-    '4eme',
-    '3eme',
-    '2nde',
-    '1ere',
-    'Terminale',
-    'Sup',
-  ];
-
   let allNiveaux = $derived.by(() => {
     const seen = new Set<string>();
     for (const p of data.participations) {
       if (p.talent.niveau) seen.add(p.talent.niveau);
     }
     return [...seen].sort((a, b) => {
-      const i = NIVEAU_ORDER.indexOf(a);
-      const j = NIVEAU_ORDER.indexOf(b);
+      const i = NIVEAUX.indexOf(a as (typeof NIVEAUX)[number]);
+      const j = NIVEAUX.indexOf(b as (typeof NIVEAUX)[number]);
       if (i !== -1 && j !== -1) return i - j;
       if (i !== -1) return -1;
       if (j !== -1) return 1;
@@ -206,7 +196,7 @@
               : 'border-border bg-card text-muted-foreground hover:border-epi-blue/50',
           )}
         >
-          {n}
+          {niveauLabel(n)}
         </button>
       {/each}
     </div>
@@ -256,7 +246,7 @@
                   variant="outline"
                   class="px-1.5 py-0 text-[9px] tracking-widest uppercase"
                 >
-                  {p.talent.niveau}
+                  {niveauLabel(p.talent.niveau)}
                 </Badge>
               {/if}
             </div>

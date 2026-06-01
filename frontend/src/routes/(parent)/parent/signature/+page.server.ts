@@ -2,48 +2,76 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
-import { generateOnboardingPDF } from '$lib/server/services/onboardingDocumentGenerator';
-import { getStorage } from '$lib/server/infra/storage';
+import {
+  IMAGE_RIGHTS_DECISIONS,
+  type ImageRightsDecision,
+} from '$lib/domain/imageRights';
+import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user || locals.user.role !== 'parent') {
     throw error(401, 'Non autorisé');
   }
 
-  const unsignedChildren = await prisma.talent.findMany({
+  // Règlement intérieur comes first in the flow. If any child's is still
+  // unsigned, send the parent back to that step — even on a direct hit here.
+  const unsignedRules = await prisma.talent.count({
+    where: { parentEmail: locals.user.email, parentRulesSignedAt: null },
+  });
+  if (unsignedRules > 0) {
+    throw redirect(303, resolve('/parent/reglement'));
+  }
+
+  // Children whose guardian has not yet decided either way — a refusal is a
+  // settled decision and drops out here just as an authorization does.
+  const undecidedChildren = await prisma.talent.findMany({
     where: {
       parentEmail: locals.user.email,
-      imageRightsSignedAt: null,
+      imageRightsDecidedAt: null,
     },
     select: {
       id: true,
       prenom: true,
       nom: true,
+      // Pre-fill the signer-name inputs from what the talent entered for their
+      // guardian during onboarding. The parent can still override (e.g. legal
+      // name differs from what the talent typed).
+      parentPrenom: true,
+      parentNom: true,
+      parentType: true,
+      parentCivilite: true,
     },
   });
 
-  if (unsignedChildren.length === 0) {
-    throw redirect(303, resolve('/parent'));
+  if (undecidedChildren.length === 0) {
+    throw redirect(303, resolve('/parent/merci'));
   }
 
   return {
     parentName: locals.user.name,
-    children: unsignedChildren,
+    children: undecidedChildren,
   };
 };
 
+function isDecision(value: unknown): value is ImageRightsDecision {
+  return (IMAGE_RIGHTS_DECISIONS as readonly string[]).includes(
+    value as string,
+  );
+}
+
 export const actions: Actions = {
-  sign: async ({ request, locals }) => {
+  decide: async ({ request, locals }) => {
     if (!locals.user || locals.user.role !== 'parent') {
       throw error(401, 'Non autorisé');
     }
 
     const formData = await request.formData();
     const talentId = (formData.get('talentId') as string)?.trim();
-    const signerName = (formData.get('signerName') as string)?.trim();
+    const signerPrenom = (formData.get('signerPrenom') as string)?.trim();
+    const signerNom = (formData.get('signerNom') as string)?.trim();
     const relationship = (formData.get('relationship') as string)?.trim();
     const city = (formData.get('city') as string)?.trim();
-    const accepted = formData.get('accepted');
+    const decision = formData.get('decision');
 
     if (!talentId) {
       return { error: 'Identifiant enfant manquant.' };
@@ -59,15 +87,19 @@ export const actions: Actions = {
       throw error(403, 'Accès non autorisé pour cet enfant.');
     }
 
-    if (!accepted) {
+    if (!isDecision(decision)) {
       return {
-        error: "Vous devez cocher l'autorisation pour signer.",
+        error: "Veuillez choisir d'autoriser ou de refuser le droit à l'image.",
         talentId,
       };
     }
 
-    if (!signerName || signerName.length < 2) {
-      return { error: 'Veuillez entrer votre nom complet.', talentId };
+    if (!signerPrenom || signerPrenom.length < 1) {
+      return { error: 'Veuillez entrer votre prénom.', talentId };
+    }
+
+    if (!signerNom || signerNom.length < 1) {
+      return { error: 'Veuillez entrer votre nom.', talentId };
     }
 
     if (!relationship) {
@@ -81,44 +113,33 @@ export const actions: Actions = {
       return { error: 'Veuillez indiquer la ville.', talentId };
     }
 
-    const now = new Date();
-    const storage = getStorage();
     const studentName = `${profile.prenom} ${profile.nom}`;
 
-    const pdf = await generateOnboardingPDF({
-      type: 'image-rights',
+    // Records the decision + enqueues the matching PDF atomically, then fires
+    // the (non-blocking) generation. The decided-at timestamp is set now, so
+    // the `remaining` count below already excludes this child.
+    await recordImageRightsDecision({
+      talentId: profile.id,
       studentName,
-      signerName,
+      decision,
+      signerPrenom,
+      signerNom,
       relationship,
       city,
-      signedAt: now,
     });
 
-    const key = `documents/${profile.id}/image-rights-${now.getTime()}.pdf`;
-    await storage.save(key, pdf);
-
-    await prisma.talent.update({
-      where: { id: profile.id },
-      data: {
-        imageRightsSignedAt: now,
-        imageRightsSignerName: signerName,
-        imageRightsFilePath: key,
-      },
-    });
-
-    // Check if more children need signing
+    // Any child still awaiting a decision keeps the parent on this page.
     const remaining = await prisma.talent.count({
       where: {
         parentEmail: locals.user.email,
-        imageRightsSignedAt: null,
+        imageRightsDecidedAt: null,
       },
     });
 
     if (remaining === 0) {
-      throw redirect(303, resolve('/parent'));
+      throw redirect(303, resolve('/parent/merci'));
     }
 
-    // Stay on page for remaining children
-    return { success: studentName };
+    return { success: studentName, decision };
   },
 };

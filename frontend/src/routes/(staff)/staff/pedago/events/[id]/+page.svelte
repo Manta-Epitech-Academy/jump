@@ -24,6 +24,7 @@
   import { getInitials, staffRoleAvatarFallbackClass } from '$lib/avatar';
   import { cn } from '$lib/utils';
   import { EVENT_TYPES } from '$lib/domain/event';
+  import { niveauLabel } from '$lib/domain/niveau';
 
   let { data }: { data: PageData } = $props();
 
@@ -407,7 +408,9 @@
                   <div
                     class="mt-0.5 flex items-center gap-2 text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
                   >
-                    {#if p.talent.niveau}<span>{p.talent.niveau}</span>{/if}
+                    {#if p.talent.niveau}<span
+                        >{niveauLabel(p.talent.niveau)}</span
+                      >{/if}
                     {#if p.talent.eventsCount > 0}
                       <span class="opacity-30">·</span>
                       <span
@@ -508,7 +511,7 @@
             </span>
             <ArrowRight class="h-4 w-4 text-muted-foreground" />
           </a>
-          {#if data.featureFlags?.includes('minigames')}
+          {#if data.minigamesAvailable}
             <a
               href={resolve(`/staff/pedago/events/${event.id}/minigames`)}
               class="flex items-center justify-between rounded-sm border bg-card p-3 transition-colors hover:border-epi-blue/50"

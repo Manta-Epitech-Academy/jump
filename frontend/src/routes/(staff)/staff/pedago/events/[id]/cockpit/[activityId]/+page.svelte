@@ -18,6 +18,7 @@
   import CockpitStudentCard from './components/CockpitStudentCard.svelte';
   import CockpitSlotNav from './components/CockpitSlotNav.svelte';
   import { formatSlotLabel } from '$lib/domain/presences';
+  import { niveauLabel, compareNiveaux } from '$lib/domain/niveau';
 
   let { data }: { data: PageData } = $props();
 
@@ -43,30 +44,12 @@
     return map;
   });
 
-  const NIVEAU_ORDER = [
-    '6eme',
-    '5eme',
-    '4eme',
-    '3eme',
-    '2nde',
-    '1ere',
-    'Terminale',
-    'Sup',
-  ];
-
   let uniqueNiveaux = $derived.by(() => {
     const niveaux = new Set<string>();
     participations.forEach((p) => {
       if (p.talent?.niveau) niveaux.add(p.talent.niveau);
     });
-    return Array.from(niveaux).sort((a, b) => {
-      const indexA = NIVEAU_ORDER.indexOf(a);
-      const indexB = NIVEAU_ORDER.indexOf(b);
-      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-      if (indexA !== -1) return -1;
-      if (indexB !== -1) return 1;
-      return a.localeCompare(b);
-    });
+    return Array.from(niveaux).sort(compareNiveaux);
   });
 
   let filteredParticipations = $derived(
@@ -459,7 +442,7 @@
                     : 'border-border bg-card text-muted-foreground hover:border-epi-blue/50',
                 )}
               >
-                {n}
+                {niveauLabel(n)}
               </button>
             {/each}
           </div>

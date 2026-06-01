@@ -9,6 +9,7 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
+import { rulesCompliantWhere } from '$lib/server/db/stageCompliance';
 import {
   hasFlag,
   requireFlag,
@@ -135,11 +136,8 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
           },
         }),
         db.participation.count({ where: { eventId: activeStage.id } }),
-        prisma.stageCompliance.count({
-          where: {
-            charteSigned: true,
-            participation: { eventId: activeStage.id },
-          },
+        db.participation.count({
+          where: { eventId: activeStage.id, ...rulesCompliantWhere },
         }),
       ]);
       stageStats = {

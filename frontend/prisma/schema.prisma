@@ -12,7 +12,8 @@ datasource db {
 // This avoids enum mapping issues between Prisma TS names and French display values.
 
 // StudentLevel stored as plain string: "Novice", "Apprentice", "Expert"
-// Niveau stored as plain string: "6eme", "5eme", "4eme", "3eme", "2nde", "1ere", "Terminale", "Sup"
+// Niveau stored as plain string from the canonical catalogue in
+// `src/lib/domain/niveau.ts` (NIVEAUX); values match jump-sf-worker's ClassLevel.
 
 enum StepStatus {
   active
@@ -129,11 +130,16 @@ model bauth_account {
 
 model bauth_verification {
   id         String   @id @default(cuid())
-  identifier String   @unique
+  identifier String
   value      String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  // NOT @unique: BetterAuth keeps multiple/overlapping verification rows per
+  // identifier (e.g. concurrent OTP requests). A unique constraint made
+  // `createVerificationOTP` (fastlogin path) 500 on a pre-existing row.
+  @@index([identifier])
 }
 
 // ─── Domain Profiles ───
@@ -144,6 +150,14 @@ model StaffProfile {
   campusId  String?
   staffRole StaffRole?
   discordId String?    @unique
+  // Personal dev-redirect destinations: on a trapped (non-prod) env, mail/SMS
+  // attributed to this staff member (sends they trigger, or talents they
+  // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
+  // list, so each tester only receives their own traffic. Empty = fall back to
+  // the env list. Inert in prod (the env gate is off). See
+  // `$lib/server/{email,sms}/dev-redirect.ts`.
+  devRedirectEmails String[] @default([])
+  devRedirectPhones String[] @default([])
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -180,7 +194,6 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
-  level                       String    @default("Novice")
   xp                          Int       @default(0)
   eventsCount                 Int       @default(0)
   charterAcceptedAt           DateTime?
@@ -188,12 +201,37 @@ model Talent {
   generalInterestsValidatedAt DateTime?
   interestsRecapSeenAt        DateTime?
   rulesSignedAt               DateTime?
-  imageRightsSignedAt         DateTime?
-  imageRightsSignerName       String?
+  imageRightsDecision         ImageRightsDecision?
+  imageRightsDecidedAt        DateTime?
+  // Guardian's typed legal name at the moment of the image-rights decision,
+  // captured as prénom + nom to mirror the talent's own identity columns
+  // (`prenom` / `nom`) — a single free-text field invited "first name only" /
+  // "last name only" entries that read asymmetrically on the signed PDF.
+  imageRightsSignerPrenom     String?
+  imageRightsSignerNom        String?
+  // Talent's place-of-signature, captured by the onboarding `signRules` form.
+  // Lives on the row (not just in the PDF job payload) so the règlement PDF can
+  // be regenerated from DB state alone when the guardian co-signs later.
+  rulesSignedCity             String?
+  // Guardian's online co-signature of the règlement intérieur. The talent signs
+  // it during onboarding (`rulesSignedAt`); for a minor the legal guardian
+  // co-signs it from the parent flow. The règlement PDF (`rulesFilePath`) is a
+  // single shared artifact carrying both signature blocks; the worker
+  // regenerates it from DB state every time either signer commits. Signer name
+  // is split into prénom + nom for the same reason as image-rights above.
+  parentRulesSignedAt         DateTime?
+  parentRulesSignerPrenom     String?
+  parentRulesSignerNom        String?
+  parentRulesRelationship     String?
+  parentRulesSignedCity       String?
   infoValidatedAt             DateTime?
-  highSchoolName              String?
-  highSchoolCity              String?
   highSchoolValidatedAt       DateTime?
+  parentsValidatedAt          DateTime?
+  processingCompletedAt       DateTime?
+  schoolId                    String?
+  // Free-text fallback used only when the talent's lycée has no UAI (so no
+  // canonical `School` row exists). When `schoolId` is set this stays null.
+  highSchoolNameManual        String?
   charterFilePath             String?
   rulesFilePath               String?
   imageRightsFilePath         String?
@@ -203,6 +241,19 @@ model Talent {
   parentPrenom                String?
   parentPhone                 String?
   phone                       String?
+  civilite                    String?
+  parentType                  String?
+  parentCivilite              String?
+  parent2Type                 String?
+  parent2Civilite             String?
+  parent2Nom                  String?
+  parent2Prenom               String?
+  parent2Email                String?
+  parent2Phone                String?
+  hasLaptop                   Boolean   @default(false)
+  setupDescription            String?
+  equipmentValidatedAt        DateTime?
+  interestsFreeText           String?
   discordId                   String?   @unique
   externalId                  String?   @unique
   lastSyncedAt                DateTime?
@@ -220,10 +271,109 @@ model Talent {
   competenceStates   TalentCompetenceState[]
   quizAttempts       TalentQuizAttempt[]
   reminders          OnboardingReminder[]
+  pdfJobs            OnboardingPdfJob[]
   minigameAttempts   MinigameAttempt[]
   interests          TalentInterest[]
+  xpGrants           XpGrant[]
+  school             School?                 @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  sfImport           TalentSfImport?
   broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
   broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
+  deletionRequests   TalentDeletionRequest[]
+
+  @@index([xp])
+  @@index([schoolId])
+}
+
+/// Canonical high-school directory, keyed by the national UAI (RNE) code.
+/// Rows are created lazily the first time a UAI is seen — Salesforce sync or a
+/// talent picking from the annuaire — then enriched from the official
+/// éducation-nationale annuaire. Only schools actually attended by a talent ever
+/// land here, never the full ~69k national dataset.
+model School {
+  id         String    @id @default(cuid())
+  uai        String    @unique
+  name       String
+  city       String?
+  postalCode String?
+  inseeCode  String?
+  /// null = created from a fallback name (annuaire lookup pending or failed); a
+  /// backfill pass fills name/city/codes once the annuaire resolves the UAI.
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  talents     Talent[]
+  sfClaimedBy TalentSfImport[]
+}
+
+/// 1:1 mirror of what Salesforce last claimed for a talent — the anti-corruption
+/// boundary. Upserted by the worker sync (only when the inbound payload differs),
+/// never written by onboarding. Reconciliation compares this against the `Talent`
+/// row: a divergence on a talent-confirmed field is a conflict. School is compared
+/// by FK (`sfSchoolId` vs `Talent.schoolId`), scalars value-by-value. `niveau` is
+/// kept for a faithful snapshot but is SF-owned, never reconciled.
+model TalentSfImport {
+  talentId   String   @id
+  nom        String?
+  prenom     String?
+  phone      String?
+  civilite   String?
+  niveau     String?
+  sfSchoolId String?
+  syncedAt   DateTime @updatedAt
+
+  talent   Talent  @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  sfSchool School? @relation(fields: [sfSchoolId], references: [id], onDelete: SetNull)
+
+  @@index([sfSchoolId])
+}
+
+// RGPD erasure as a fact log, not an instant destructive action. A talent's
+// "delete my account" no longer wipes rows on the spot — it appends a pending
+// request here. Staff fulfil it (→ anonymisation, the real erasure mechanism)
+// or reject it; the talent can withdraw their own pending request. Each
+// transition is a status on the same row, so the request doubles as the audit
+// trail of *when* and *by whom* an account was erased. See xpService for the
+// same facts-as-rows shape.
+enum TalentDeletionRequestStatus {
+  pending
+  fulfilled
+  rejected
+  cancelled
+}
+
+/// The legal guardian's image-rights decision for their child. `null` on Talent
+/// means undecided (still to be chased); a non-null value is a settled decision
+/// — `refused` is as final as `accepted`, it just means "do not photograph".
+enum ImageRightsDecision {
+  accepted
+  refused
+}
+
+model TalentDeletionRequest {
+  id             String                      @id @default(cuid())
+  talentId       String
+  status         TalentDeletionRequestStatus @default(pending)
+  // Optional free-text the talent leaves when asking ("I'm leaving school"…).
+  reason         String?
+  requestedAt    DateTime                    @default(now())
+  // Set on any terminal transition (fulfilled / rejected / cancelled).
+  resolvedAt     DateTime?
+  // bauth_user.id of the admin who fulfilled/rejected; null for self-withdrawal.
+  resolvedBy     String?
+  // Staff note on a rejection. Shown to the talent as the official reason
+  // (RGPD art. 12(4): the data subject must be told why erasure was declined),
+  // so it's written for them, not as an internal shorthand.
+  resolutionNote String?
+  // When the talent dismissed the rejection notice in their settings. Until
+  // set, the notice keeps showing; re-requesting (a new row) also clears it.
+  acknowledgedAt DateTime?
+
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([status, requestedAt])
+  @@index([talentId])
 }
 
 // ─── Domain Tables ───
@@ -233,6 +383,7 @@ model Campus {
   name         String   @unique
   externalName String?  @unique
   timezone     String   @default("Europe/Paris")
+  contactEmail String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -245,6 +396,8 @@ model Campus {
   invitations       StaffInvitation[]
   featureFlags      CampusFeatureFlag[]
   broadcasts        Broadcast[]
+  minigameAttempts  MinigameAttempt[]
+  xpGrants          XpGrant[]
 }
 
 model CmsPage {
@@ -376,12 +529,18 @@ model ActivityTheme {
 }
 
 model Event {
-  id         String    @id @default(cuid())
-  titre      String
-  date       DateTime
-  endDate    DateTime?
-  eventType  String    @default("coding_club")
-  campusId   String
+  id    String   @id @default(cuid())
+  titre String
+  date  DateTime
+  // Salesforce gives us the calendar day (`date`/`endDate`) but never a
+  // start time, so the time-of-day is Jump-owned: wall-clock minutes from
+  // local midnight (0–1439), `null` until staff set it. Kept separate from
+  // `date` precisely so the SF sync — which rewrites `date` — can never
+  // clobber it. Compose with the campus timezone for a real instant.
+  startMinutes Int?
+  endDate      DateTime?
+  eventType    String    @default("coding_club")
+  campusId     String
   themeId    String?
   pin        String?
   notes      String?
@@ -444,11 +603,10 @@ model Participation {
 }
 
 model StageCompliance {
-  participationId   String   @id
-  charteSigned      Boolean  @default(false)
-  imageRightsSigned Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  participationId String   @id
+  charteSigned    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
 }
@@ -939,13 +1097,37 @@ model OnboardingReminder {
   id       String   @id @default(cuid())
   talentId String
   type     String // "student" | "parent"
-  subject  String? // captured at send time, for audit + comm history
+  channel  String   @default("email") // "email" | "sms" — SMS is the escalation step
+  subject  String? // captured at send time (email only — SMS has no subject)
   body     String? // captured at send time, for audit + comm history
   sentAt   DateTime @default(now())
   sentBy   String // staff userId
 
   talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
 
+  @@index([talentId])
+}
+
+/// Tracking record for generating an onboarding PDF (charter/rules/image-rights)
+/// and uploading it to S3. Created in the same transaction as the signature,
+/// then generated in the background immediately after (see runOnboardingPdfJob)
+/// so the signer isn't blocked. No auto-retry: a failed job stays in "error"
+/// with the captured message, re-runnable from /staff/admin/onboarding-pdfs.
+model OnboardingPdfJob {
+  id           String    @id @default(cuid())
+  talentId     String
+  documentType String // "charter" | "rules" | "image-rights"
+  status       String    @default("pending") // "pending" | "processing" | "success" | "error"
+  filePath     String? // S3 key, set on success
+  errorMessage String? // captured on failure
+  payload      Json // snapshot of generator inputs (studentName, city, signedAt, etc.)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  processedAt  DateTime?
+
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
   @@index([talentId])
 }
 
@@ -1022,7 +1204,13 @@ enum BroadcastSourceFilter {
 }
 
 model MessageTemplate {
-  id          String           @id @default(cuid())
+  id String @id @default(cuid())
+  /// Stable identity for a seeded *broadcast* template (free-standing, no
+  /// EmailActionMapping). Lets `seed-catalogs` upsert these defaults
+  /// idempotently without colliding on the non-unique `name`. Null for admin-
+  /// and demo-authored templates. Seeded *transactional* defaults need no
+  /// seedKey: they are anchored by their EmailActionMapping.actionKey instead.
+  seedKey     String?          @unique
   name        String
   channel     BroadcastChannel
   subject     String?
@@ -1154,26 +1342,35 @@ enum MinigameAttemptStatus {
   invalid
 }
 
+// Host-side curation of the game catalogue: which games (by slug) are in the
+// daily rotation and with what weight. Everything *about* a game — its display
+// name, level count, scoring mode — is owned by jump-games and read live from
+// its `GET /api/games` catalogue (src/lib/server/services/minigameCatalog.ts),
+// never duplicated here. A game is in rotation iff it has a row with
+// enabled = true; no row means "not curated yet" (off).
 model MinigameConfig {
-  game        String          @id
-  levelCount  Int             @default(0)
-  weight      Int             @default(1)
-  scoringType MinigameScoring @default(score)
-  enabled     Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-
-  publications MinigamePublication[]
+  game      String   @id // jump-games catalogue slug
+  weight    Int      @default(1)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// A daily publication is an append-only fact: it records *what was published*.
+// `gameName` and `scoringType` are snapshotted from the catalogue at publish
+// time so historical leaderboards stay correct (and renderable) even if the
+// game is later renamed or removed from jump-games. `game` is the slug, kept
+// as a plain string (no FK) so a publication outlives any config/catalogue
+// churn.
 model MinigamePublication {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   game        String
+  gameName    String
   level       Int
-  publishedAt DateTime @default(now())
+  scoringType MinigameScoring
+  publishedAt DateTime        @default(now())
   forcedById  String?
 
-  config   MinigameConfig    @relation(fields: [game], references: [game])
   attempts MinigameAttempt[]
 
   @@index([publishedAt])
@@ -1184,7 +1381,8 @@ model MinigameAttempt {
   id            String                @id @default(cuid())
   talentId      String
   publicationId String
-  eventId       String
+  eventId       String?
+  campusId      String?
   status        MinigameAttemptStatus @default(pending)
   score         Int?
   chrono        Int?
@@ -1192,13 +1390,95 @@ model MinigameAttempt {
   startedAt     DateTime              @default(now())
   finishedAt    DateTime?
   jti           String                @unique
+  // XP granted for finishing this attempt (null = none, e.g. an invalid run or
+  // a pre-feature row). Source of truth for the award — set once in the
+  // callback, so a retried callback can't double-pay.
+  xpAwarded     Int?
+  // When the talent saw the "+XP" arrival celebration on the dashboard. Null
+  // while xpAwarded is set ⇒ a fresh win still to be celebrated (mirrors
+  // Talent.welcomeSeenAt). Gates the one-shot float so it can't replay.
+  xpSeenAt      DateTime?
+  // Bonus XP for placing top-N on the campus board (null = no bonus). Set once
+  // in the finish callback, the same way xpAwarded is, from the attempt's rank
+  // against the board at that moment — so a retried callback can't double-pay.
+  rankXpAwarded Int?
+  // One-shot float gate for the rank bonus, mirroring xpSeenAt. The play page
+  // floats only the base finish reward, so the rank bonus is celebrated on the
+  // next dashboard visit, independently of the finish float.
+  rankXpSeenAt  DateTime?
 
   talent      Talent              @relation(fields: [talentId], references: [id], onDelete: Cascade)
   publication MinigamePublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
-  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event       Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  campus      Campus?             @relation(fields: [campusId], references: [id], onDelete: SetNull)
 
   @@unique([talentId, publicationId])
   @@index([eventId, publicationId])
+  @@index([campusId, publicationId])
   @@index([publicationId])
 }
 
+// Append-only XP ledger. One row per granting fact, so a talent's balance is
+// always explainable ("which event gave how much"). Talent.xp is a cached
+// projection = SUM(amount), recomputed transactionally on every write — see
+// services/xpService.ts. Grants are upserted on (source, sourceId) and deleted
+// on reversal (unmark presence, remove participation, onboarding/dev reset), so
+// there is never a clamped Math.max() refund to drift out of sync.
+model XpGrant {
+  id        String        @id @default(cuid())
+  talentId  String
+  campusId  String?
+  source    XpGrantSource
+  // Stable dedupe key per source: onboarding→talentId,
+  // onboarding_early_bird→talentId (distinct row from the base because `source`
+  // differs), minigame→attemptId, minigame_rank→attemptId, activity_presence→
+  // participationId, admin_adjustment→null (never deduped: Postgres treats NULLs
+  // as distinct under the unique index).
+  sourceId  String?
+  amount    Int
+  note      String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  talent Talent  @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  campus Campus? @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  @@unique([source, sourceId])
+  @@index([talentId])
+  @@index([campusId])
+  @@index([source])
+}
+
+enum XpGrantSource {
+  onboarding
+  // Bonus layered on `onboarding` for being among the first to finish onboarding
+  // in your campus. Its own fact (not a bigger `onboarding` amount) so the base
+  // arrival reward stays explainable and the early-bird tier is auditable.
+  onboarding_early_bird
+  minigame
+  // Bonus layered on `minigame` for placing top-N on the campus board, ranked at
+  // the moment the talent finishes (per campus). Separate fact from the flat
+  // finish reward.
+  minigame_rank
+  activity_presence
+  admin_adjustment
+}
+
+/// Append-only ledger of OTP login attempts, consumed by
+/// `$lib/server/auth/rateLimiter` to cap brute-force on `verify` and mailbomb
+/// on `request`. One row per attempt; the limiter counts rows inside the
+/// bucket's window for its check. Lives in Postgres (not in-process memory)
+/// so horizontally-scaled SvelteKit pods share one ledger and a pod restart
+/// cannot reset an attacker's budget. `bucket` is kept as a `String` rather
+/// than a Prisma enum because the vocabulary lives in code
+/// (`OtpAttemptBucket` in `rateLimiter.ts`); adding a new bucket should not
+/// require a schema migration.
+model OtpAttempt {
+  id        String   @id @default(cuid())
+  bucket    String
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([bucket, email, createdAt])
+  @@index([createdAt])
+}

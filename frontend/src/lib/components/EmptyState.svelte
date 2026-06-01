@@ -44,7 +44,7 @@
   </h3>
 
   <p class="mt-3 max-w-sm text-sm font-medium text-muted-foreground italic">
-    {@html description}
+    {description}
   </p>
 
   {#if actionLabel}

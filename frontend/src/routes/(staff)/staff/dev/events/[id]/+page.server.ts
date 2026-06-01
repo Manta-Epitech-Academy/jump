@@ -2,7 +2,8 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { eventSchema } from '$lib/validation/events';
+import { prisma } from '$lib/server/db';
+import { eventSchema, startTimeSchema } from '$lib/validation/events';
 import { EventService } from '$lib/server/services/events';
 import {
   getCampusId,
@@ -11,7 +12,12 @@ import {
   type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_TYPES, eventTypeHasTheme } from '$lib/domain/event';
+import {
+  EVENT_TYPES,
+  eventTypeHasTheme,
+  effectiveStartMinutes,
+} from '$lib/domain/event';
+import { composeEventStartInstant } from '$lib/server/eventTime';
 import {
   applyPhaseOverride,
   getEventStatus,
@@ -21,6 +27,10 @@ import {
 import { stageEndOrDefault } from '$lib/server/services/stageContext';
 import { deriveEventAlerts } from '$lib/server/services/eventTasks';
 import { getEventOrgaSlotsWithCounts } from '$lib/domain/presences';
+import {
+  imageRightsCompliantWhere,
+  rulesCompliantWhere,
+} from '$lib/server/db/stageCompliance';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -29,6 +39,7 @@ type EventForLoader = {
   titre: string;
   eventType: string;
   date: Date;
+  startMinutes: number | null;
   endDate: Date | null;
   notes: string | null;
 };
@@ -64,7 +75,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     locals.stagePhaseOverride,
   );
   const isStage = event.eventType === EVENT_TYPES.STAGE_SECONDE;
-  const baseLoader = { db, event, bounds, basePath: '/staff/dev' };
+  const baseLoader = { db, event, bounds, basePath: '/staff/dev', tz };
 
   if (!isStage) {
     const legacy = await loadLegacyEvent(baseLoader);
@@ -126,6 +137,7 @@ type LoaderCtx = {
   event: EventForLoader;
   bounds: LifecycleBounds;
   basePath: string;
+  tz: string;
 };
 
 async function loadLegacyEvent(ctx: LoaderCtx) {
@@ -151,13 +163,12 @@ async function loadStagePrep(ctx: LoaderCtx) {
       db.participation.count({ where: { eventId: event.id } }),
       // Validation funnel only — bringing a PC is logistics (we just plan
       // the laptops), not a doc to validate.
+      // "Dossier admin" = both gates green: règlement OR offline-fallback,
+      // AND image-rights decided (refusal counts as decided).
       db.participation.count({
         where: {
           eventId: event.id,
-          stageCompliance: {
-            charteSigned: true,
-            imageRightsSigned: true,
-          },
+          AND: [rulesCompliantWhere, imageRightsCompliantWhere],
         },
       }),
       loadLyceesBreakdown(db, event.id),
@@ -169,12 +180,21 @@ async function loadStagePrep(ctx: LoaderCtx) {
     Math.ceil((event.date.getTime() - bounds.now.getTime()) / MS_PER_DAY),
   );
 
+  // The countdown ticks to the *effective* start (confirmed time, else type
+  // default), composed into a real instant in the campus tz. Whether that time
+  // is confirmed or still a default is a display concern — the hero reads it
+  // off the raw `event.startMinutes` (null = unconfirmed), already on the page.
+  const effectiveStart = effectiveStartMinutes(
+    event.eventType,
+    event.startMinutes,
+  );
+
   return {
     kpis: { total, dossiersAdmin },
     lyceesBreakdown,
     interestsCloud,
     daysToStart,
-    openDate: event.date,
+    openDate: composeEventStartInstant(event.date, effectiveStart, ctx.tz),
   };
 }
 
@@ -295,16 +315,10 @@ async function loadStagePast({ db, event }: LoaderCtx) {
         where: { participation: { eventId: event.id }, status: 'completed' },
       }),
       db.participation.count({
-        where: {
-          eventId: event.id,
-          stageCompliance: { charteSigned: true },
-        },
+        where: { eventId: event.id, ...rulesCompliantWhere },
       }),
       db.participation.count({
-        where: {
-          eventId: event.id,
-          stageCompliance: { imageRightsSigned: true },
-        },
+        where: { eventId: event.id, ...imageRightsCompliantWhere },
       }),
       db.participation.count({
         where: { eventId: event.id, bringPc: true },
@@ -333,7 +347,7 @@ async function loadStagePast({ db, event }: LoaderCtx) {
  */
 const BREAKDOWN_TOP_N = 10;
 
-type LyceeBreakdownRow = { highSchoolName: string; count: number };
+type LyceeBreakdownRow = { schoolId: string; name: string; count: number };
 type InterestBreakdownRow = {
   interestId: string;
   nom: string;
@@ -364,9 +378,9 @@ async function loadLyceesBreakdown(
   eventId: string,
 ): Promise<LyceesBreakdown> {
   const grouped = await db.talent.groupBy({
-    by: ['highSchoolName'],
+    by: ['schoolId'],
     where: {
-      highSchoolName: { not: null },
+      schoolId: { not: null },
       participations: { some: { eventId } },
     },
     _count: { _all: true },
@@ -378,12 +392,26 @@ async function loadLyceesBreakdown(
   const top = grouped.slice(0, BREAKDOWN_TOP_N);
   const tail = grouped.slice(BREAKDOWN_TOP_N);
 
+  // Resolve display names for the top schools. `School` is a global reference
+  // table (not campus-scoped), so it's read off the unscoped client. Talents
+  // with a free-text lycée (no UAI → no School row) aren't grouped here: the
+  // cohort breakdown covers resolved establishments only.
+  const ids = top
+    .map((g) => g.schoolId)
+    .filter((id): id is string => id !== null);
+  const schools = await prisma.school.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(schools.map((s) => [s.id, s.name]));
+
   const rows = top
-    .filter(
-      (g): g is typeof g & { highSchoolName: string } =>
-        g.highSchoolName !== null,
-    )
-    .map((g) => ({ highSchoolName: g.highSchoolName, count: g._count._all }));
+    .filter((g): g is typeof g & { schoolId: string } => g.schoolId !== null)
+    .map((g) => ({
+      schoolId: g.schoolId,
+      name: nameById.get(g.schoolId) ?? '—',
+      count: g._count._all,
+    }));
 
   const others =
     tail.length === 0
@@ -467,5 +495,22 @@ export const actions: Actions = {
     await EventService.updateEvent(params.id, getCampusId(locals), form.data);
 
     return message(form, 'Événement mis à jour !');
+  },
+
+  // Focused writer for the Jump-owned start time-of-day (its own action so
+  // editing notes/theme can never touch it). Empty `startTime` clears it back
+  // to the type default.
+  setStartTime: async ({ request, locals, params }) => {
+    requireStaffGroup(locals, 'devLead');
+    const form = await superValidate(request, zod4(startTimeSchema));
+    if (!form.valid) return fail(400, { form });
+
+    await EventService.setStartTime(
+      params.id,
+      getCampusId(locals),
+      form.data.startTime,
+    );
+
+    return message(form, 'Horaire enregistré.');
   },
 };

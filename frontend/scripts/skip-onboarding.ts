@@ -7,7 +7,7 @@
  * - rulesSignedAt     (règlement signature)
  * - charterAcceptedAt (charte RGPD)
  * - welcomeSeenAt     (welcome page for stage_seconde)
- * - imageRightsSignedAt + imageRightsSignerName (parent flow)
+ * - imageRightsDecision + imageRightsDecidedAt + imageRightsSignerName (parent flow)
  *
  * After running, the talent can log in and land directly on the dashboard.
  *
@@ -60,7 +60,8 @@ async function main() {
       rulesSignedAt: now,
       charterAcceptedAt: now,
       welcomeSeenAt: now,
-      imageRightsSignedAt: now,
+      imageRightsDecision: 'accepted',
+      imageRightsDecidedAt: now,
       imageRightsSignerName:
         talent.imageRightsSignerName ??
         `${talent.parentPrenom ?? 'Parent'} ${talent.parentNom ?? 'Test'}`.trim(),
@@ -81,7 +82,7 @@ async function main() {
     `  - welcomeSeenAt:       ${updated.welcomeSeenAt?.toISOString()}`,
   );
   console.log(
-    `  - imageRightsSignedAt: ${updated.imageRightsSignedAt?.toISOString()}`,
+    `  - imageRightsDecision:  ${updated.imageRightsDecision} @ ${updated.imageRightsDecidedAt?.toISOString()}`,
   );
   console.log(`  - imageRightsSignerName: ${updated.imageRightsSignerName}`);
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../../routes/layout.css';
   import { onMount } from 'svelte';
+  import TalentImpersonationBanner from '$lib/components/TalentImpersonationBanner.svelte';
 
   let { children } = $props();
 
@@ -14,7 +15,8 @@
 
 <!-- The "Friendly Tech" Camper Wrapper -->
 <div
-  class="camper-layout min-h-screen bg-slate-50 text-slate-900 selection:bg-epi-teal selection:text-black dark:bg-slate-950 dark:text-slate-100 dark:selection:bg-epi-teal"
+  class="camper-layout min-h-dvh bg-slate-50 text-slate-900 selection:bg-epi-teal selection:text-black dark:bg-slate-950 dark:text-slate-100 dark:selection:bg-epi-teal"
 >
+  <TalentImpersonationBanner />
   {@render children()}
 </div>

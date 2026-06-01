@@ -8,7 +8,8 @@
   import ClipboardList from '@lucide/svelte/icons/clipboard-list';
   import { enhance } from '$app/forms';
   import { toast } from 'svelte-sonner';
-  import { track } from '$lib/analytics';
+  import { track, errReason } from '$lib/analytics';
+  import { page } from '$app/state';
 
   type Props = {
     interviewId: string;
@@ -54,7 +55,11 @@
         use:enhance={() =>
           async ({ result, update }) => {
             if (result.type === 'success') {
-              track('interview_status_changed', { status: 'completed' });
+              track('interview_status_changed', {
+                toStatus: 'completed',
+                interviewId,
+                eventId: page.params.id,
+              });
               toast.success('Statut mis à jour');
               await update();
             } else {
@@ -77,7 +82,11 @@
         use:enhance={() =>
           async ({ result, update }) => {
             if (result.type === 'success') {
-              track('interview_status_changed', { status: 'cancelled' });
+              track('interview_status_changed', {
+                toStatus: 'cancelled',
+                interviewId,
+                eventId: page.params.id,
+              });
               toast.success('Entretien annulé');
               await update();
             } else {

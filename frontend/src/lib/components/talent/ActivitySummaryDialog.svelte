@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as Dialog from '$lib/components/ui/dialog';
+  import * as ResponsiveDialog from '$lib/components/ui/responsive-dialog';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -79,24 +79,26 @@
   };
 </script>
 
-<Dialog.Root bind:open>
-  <Dialog.Content class="sm:max-w-md">
+<ResponsiveDialog.Root bind:open>
+  <ResponsiveDialog.Content class="sm:max-w-md">
     {#if activity && slot}
-      <Dialog.Header>
-        <Dialog.Title class="text-lg leading-tight break-words">
+      <ResponsiveDialog.Header>
+        <ResponsiveDialog.Title class="text-lg leading-tight break-words">
           {activity.nom}
-        </Dialog.Title>
-        <Dialog.Description class="flex flex-wrap items-center gap-1.5 text-xs">
+        </ResponsiveDialog.Title>
+        <ResponsiveDialog.Description
+          class="flex flex-wrap items-center gap-1.5 text-xs"
+        >
           <span>{formatDate(slot.startTime)}</span>
           <span class="text-muted-foreground/60">·</span>
           <Clock class="h-3 w-3" />
           <span>
             {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
           </span>
-        </Dialog.Description>
-      </Dialog.Header>
+        </ResponsiveDialog.Description>
+      </ResponsiveDialog.Header>
 
-      <div class="space-y-3">
+      <ResponsiveDialog.Body class="space-y-3">
         <div class="flex flex-wrap items-center gap-1.5">
           <span
             class={cn(
@@ -154,7 +156,7 @@
             </span>
           </div>
         {/if}
-      </div>
+      </ResponsiveDialog.Body>
     {/if}
-  </Dialog.Content>
-</Dialog.Root>
+  </ResponsiveDialog.Content>
+</ResponsiveDialog.Root>

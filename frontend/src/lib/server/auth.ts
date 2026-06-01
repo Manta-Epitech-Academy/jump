@@ -42,7 +42,7 @@ export const auth = betterAuth({
 
   plugins: [
     admin({
-      impersonationSessionDuration: 60 * 60,
+      impersonationSessionDuration: 30 * 60,
     }),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {
@@ -58,6 +58,19 @@ export const auth = betterAuth({
       },
       otpLength: 6,
       expiresIn: 600,
+      // Resending within the 10-min window re-sends the SAME code and refreshes
+      // its expiry (until allowedAttempts is hit), instead of rotating a new one.
+      // Avoids the "two emails, which code works?" confusion for students/parents.
+      // Requires a retrievable OTP — works because storage is plaintext (default);
+      // switching `storeOTP` to 'hashed' would silently fall back to rotate.
+      resendStrategy: 'reuse',
+      // Relax the plugin's per-IP override (defaults: 3 req / 60s on
+      // `/sign-in/email-otp` and friends). With a stage_seconde cohort on a
+      // school's NAT, the default would 429 students 4..200 in the same
+      // minute regardless of correctness. Domain-aware policy lives in
+      // `$lib/server/auth/rateLimiter` (email-keyed); this stays as a sane
+      // per-IP backstop only.
+      rateLimit: { window: 60, max: 100 },
     }),
   ],
 

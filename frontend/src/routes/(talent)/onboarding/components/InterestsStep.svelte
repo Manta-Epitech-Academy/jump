@@ -1,99 +1,101 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
   import { enhance } from '$app/forms';
-  import { Button } from '$lib/components/ui/button';
-  import Sparkles from '@lucide/svelte/icons/sparkles';
+  import { invalidateAll } from '$app/navigation';
+  import { Label } from '$lib/components/ui/label';
+  import { Textarea } from '$lib/components/ui/textarea';
   import Code from '@lucide/svelte/icons/code';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
+  import ContinueButton from './ContinueButton.svelte';
+
+  const TECH_MAX = 2;
+  const GENERAL_MAX = 3;
 
   let {
-    interests,
-    selectedIds = [],
+    techInterests,
+    generalInterests,
+    selectedTechIds = [],
+    selectedGeneralIds = [],
+    freeText = '',
+    shuffleSeed = '',
     error,
-    kind,
-    maxSelect,
-    actionName,
-    techSelections,
   }: {
-    interests: { id: string; nom: string; emoji: string | null }[];
-    selectedIds?: string[];
+    techInterests: { id: string; nom: string; emoji: string | null }[];
+    generalInterests: { id: string; nom: string; emoji: string | null }[];
+    selectedTechIds?: string[];
+    selectedGeneralIds?: string[];
+    freeText?: string;
+    shuffleSeed?: string;
     error?: string;
-    kind: 'tech' | 'general';
-    maxSelect: number;
-    actionName: string;
-    techSelections?: { nom: string; emoji: string | null }[];
   } = $props();
 
-  // Shuffle interests on mount (avoid positional bias)
-  const shuffled = $derived.by(() => {
-    const arr = [...interests];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+  // FNV-1a hash → a deterministic ordering key per (seed, id). Ordering by it
+  // gives a shuffle that's stable for one student across reloads (same seed) yet
+  // differs across the cohort, so the chip layout stops jumping on refresh while
+  // still avoiding a fixed first-listed bias.
+  function hashStr(s: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
     }
-    return arr;
-  });
-
-  // svelte-ignore state_referenced_locally
-  let selected = $state(new Set<string>(selectedIds));
-  const count = $derived(selected.size);
-  const minSelect = 1;
-  const canSubmit = $derived(count >= minSelect && count <= maxSelect);
-
-  function toggle(id: string) {
-    const next = new Set(selected);
-    if (next.has(id)) {
-      next.delete(id);
-    } else if (next.size < maxSelect) {
-      next.add(id);
-    }
-    selected = next;
+    return h >>> 0;
   }
 
-  // IKEA effect: build a recap phrase from selections (in click order)
-  const byId = $derived(new Map(interests.map((i) => [i.id, i])));
-  const recapPhrase = $derived.by(() => {
-    if (count === 0) return '';
-    const names = [...selected]
-      .map((id) => byId.get(id))
-      .filter((i): i is (typeof interests)[number] => i !== undefined)
-      .map((i) => `${i.emoji ?? ''} ${i.nom}`.trim());
-    if (kind === 'tech') {
-      return `Tu es attiré par ${names.join(' et ')}`;
-    }
-    if (names.length === 1) return `Tu aimes ${names[0]}`;
-    const last = names.pop();
-    return `Tu aimes ${names.join(', ')} et ${last}`;
-  });
+  function seededShuffle<T extends { id: string }>(
+    arr: T[],
+    seed: string,
+  ): T[] {
+    return [...arr].sort((a, b) => hashStr(seed + a.id) - hashStr(seed + b.id));
+  }
 
-  const title = $derived(
-    kind === 'tech'
-      ? "Qu'est-ce qui t'attire en informatique ?"
-      : 'Et en dehors du code ?',
+  const shuffledTech = $derived(seededShuffle(techInterests, shuffleSeed));
+  const shuffledGeneral = $derived(
+    seededShuffle(generalInterests, shuffleSeed),
   );
 
-  const subtitle = $derived(
-    kind === 'tech'
-      ? `Choisis 1 ou 2 domaines qui t'intéressent.`
-      : `Choisis entre 1 et 5 sujets qui te passionnent.`,
+  // svelte-ignore state_referenced_locally
+  let techSelected = $state(new Set<string>(selectedTechIds));
+  // svelte-ignore state_referenced_locally
+  let generalSelected = $state(new Set<string>(selectedGeneralIds));
+
+  const canSubmit = $derived(
+    techSelected.size >= 1 && generalSelected.size >= 1,
   );
+  const techFull = $derived(techSelected.size >= TECH_MAX);
+  const generalFull = $derived(generalSelected.size >= GENERAL_MAX);
+
+  let submitting = $state(false);
+
+  // Toggle a chip, capping the selection at its max. At the limit, unselected
+  // chips are disabled (see markup) rather than silently evicting an earlier
+  // pick — the limit stays visible and the user explicitly deselects to swap.
+  function toggleTech(id: string) {
+    const next = new Set(techSelected);
+    if (next.has(id)) next.delete(id);
+    else if (next.size < TECH_MAX) next.add(id);
+    techSelected = next;
+  }
+
+  function toggleGeneral(id: string) {
+    const next = new Set(generalSelected);
+    if (next.has(id)) next.delete(id);
+    else if (next.size < GENERAL_MAX) next.add(id);
+    generalSelected = next;
+  }
 </script>
 
 <div class="mb-6 text-center">
   <div
     class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-epi-blue text-white shadow-lg shadow-epi-blue/20"
   >
-    {#if kind === 'tech'}
-      <Code class="h-6 w-6" />
-    {:else}
-      <Sparkles class="h-6 w-6" />
-    {/if}
+    <Sparkles class="h-7 w-7" />
   </div>
   <h1
     class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
   >
-    {title}
+    Tes centres d'intérêt
   </h1>
-  <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
 </div>
 
 {#if error}
@@ -104,42 +106,113 @@
   </p>
 {/if}
 
-<form method="POST" action="?/{actionName}" use:enhance>
-  {#each [...selected] as id}
-    <input type="hidden" name="interestIds" value={id} />
+<form
+  method="POST"
+  action="?/validateInterests"
+  use:enhance={() => {
+    submitting = true;
+    return async ({ result, update }) => {
+      if (result.type === 'success') {
+        await invalidateAll();
+        return;
+      }
+      await update();
+      submitting = false;
+    };
+  }}
+  class="space-y-6"
+>
+  {#each [...techSelected] as id}
+    <input type="hidden" name="techInterestIds" value={id} />
+  {/each}
+  {#each [...generalSelected] as id}
+    <input type="hidden" name="generalInterestIds" value={id} />
   {/each}
 
-  <div class="flex flex-wrap gap-2 p-1">
-    {#each shuffled as interest, index (interest.id)}
-      {@const isSelected = selected.has(interest.id)}
-      <button
-        type="button"
-        in:fly={{ y: 15, duration: 300, delay: index * 50 }}
-        onclick={() => toggle(interest.id)}
-        class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95
-          {isSelected
-          ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
-          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
+  <!-- Côté tech -->
+  <div>
+    <h2
+      class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+    >
+      <Code class="h-4 w-4" /> Côté tech
+      <span
+        class="text-xs font-normal normal-case {techFull
+          ? 'text-epi-blue'
+          : 'text-slate-400'}">{techSelected.size}/{TECH_MAX}</span
       >
-        {#if interest.emoji}
-          <span>{interest.emoji}</span>
-        {/if}
-        <span>{interest.nom}</span>
-      </button>
-    {/each}
+    </h2>
+    <div class="flex flex-wrap gap-2">
+      {#each shuffledTech as interest, index (interest.id)}
+        {@const isSelected = techSelected.has(interest.id)}
+        <button
+          type="button"
+          in:fly={{ y: 15, duration: 300, delay: index * 50 }}
+          onclick={() => toggleTech(interest.id)}
+          disabled={!isSelected && techFull}
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
+            {isSelected
+            ? 'border-epi-blue bg-epi-blue/10 text-epi-blue shadow-sm dark:bg-epi-blue/20'
+            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
+        >
+          {#if interest.emoji}<span>{interest.emoji}</span>{/if}
+          <span>{interest.nom}</span>
+        </button>
+      {/each}
+    </div>
   </div>
 
-  {#if recapPhrase}
-    <p class="mt-4 text-center text-sm font-medium text-foreground/80 italic">
-      {recapPhrase}
-    </p>
-  {/if}
+  <!-- Côté perso -->
+  <div>
+    <h2
+      class="mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-300"
+    >
+      <Sparkles class="h-4 w-4" /> Côté perso
+      <span
+        class="text-xs font-normal normal-case {generalFull
+          ? 'text-purple-500'
+          : 'text-slate-400'}">{generalSelected.size}/{GENERAL_MAX}</span
+      >
+    </h2>
+    <div class="flex flex-wrap gap-2">
+      {#each shuffledGeneral as interest, index (interest.id)}
+        {@const isSelected = generalSelected.has(interest.id)}
+        <button
+          type="button"
+          in:fly={{ y: 15, duration: 300, delay: index * 50 }}
+          onclick={() => toggleGeneral(interest.id)}
+          disabled={!isSelected && generalFull}
+          class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-sm font-medium transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
+            {isSelected
+            ? 'border-purple-500 bg-purple-500/10 text-purple-600 shadow-sm dark:bg-purple-500/20 dark:text-purple-400'
+            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-700'}"
+        >
+          {#if interest.emoji}<span>{interest.emoji}</span>{/if}
+          <span>{interest.nom}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
 
-  <Button
-    type="submit"
-    disabled={!canSubmit}
-    class="mt-6 h-auto w-full rounded-2xl bg-epi-teal px-6 py-3 text-black shadow-lg shadow-epi-teal/20 transition-all duration-200 hover:bg-epi-teal hover:brightness-110"
+  <!-- Champ libre -->
+  <div
+    class="rounded-xl border border-slate-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl dark:bg-slate-900/80"
   >
-    Continuer
-  </Button>
+    <Label
+      for="freeText"
+      class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+    >
+      Et sinon, qu'est-ce qui te fait vibrer en ce moment ?
+    </Label>
+    <Textarea
+      id="freeText"
+      name="freeText"
+      rows={3}
+      maxlength={500}
+      value={freeText}
+      placeholder="Une série, un sport, un projet, n'importe quoi…"
+      class="resize-none rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600"
+    />
+  </div>
+
+  <ContinueButton {submitting} disabled={!canSubmit} class="mt-4" />
 </form>

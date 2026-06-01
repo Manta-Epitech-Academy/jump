@@ -1,17 +1,25 @@
 <script lang="ts">
   import type { SuperValidated } from 'sveltekit-superforms';
   import { superForm } from 'sveltekit-superforms';
+  import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
+  import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
+  import * as Select from '$lib/components/ui/select';
   import VariablesPanel from './VariablesPanel.svelte';
   import {
     BROADCAST_CHANNELS,
     BROADCAST_CHANNEL_LABELS,
-    SMS_MAX_LENGTH,
-    estimateSmsLength,
   } from '$lib/domain/broadcasts';
+  import {
+    SMS_SINGLE_SEGMENT_CHARS,
+    SMS_BROADCAST_MAX_CHARS,
+    SMS_MAX_SEGMENTS,
+    estimateSmsLength,
+    smsSegments,
+  } from '$lib/domain/sms';
   import {
     substituteVariables,
     buildDemoContext,
@@ -23,9 +31,19 @@
     data: SuperValidated<MessageTemplateForm>;
     submitLabel: string;
     formAction?: string;
+    /** Whether the Brevo SMS backend is configured (gates the SMS test). */
+    smsEnabled?: boolean;
+    /** Sender's address, prefilled as the default mail test recipient. */
+    userEmail?: string;
   };
 
-  let { data, submitLabel, formAction }: Props = $props();
+  let {
+    data,
+    submitLabel,
+    formAction,
+    smsEnabled = false,
+    userEmail = '',
+  }: Props = $props();
 
   // svelte-ignore state_referenced_locally
   const { form, errors, enhance, submitting } = superForm(data, {
@@ -33,6 +51,51 @@
     resetForm: false,
     validationMethod: 'onsubmit',
   });
+
+  // ── Test send ───────────────────────────────────────────────────────
+  // Ships the *in-progress* draft (no save needed) to one recipient via the
+  // /templates/test endpoint, rendered with demo variables. The recipient is
+  // an email or a phone depending on the channel, so each channel keeps its
+  // own field: a single shared variable would let one channel's value (the
+  // email, or the E.164 phone PhoneInput writes back) leak into the other's
+  // input when the user toggles channel.
+  // svelte-ignore state_referenced_locally
+  let testEmail = $state(userEmail);
+  let testPhone = $state('');
+  const testRecipient = $derived(
+    $form.channel === 'sms' ? testPhone : testEmail,
+  );
+  let testing = $state(false);
+  const smsBlocked = $derived($form.channel === 'sms' && !smsEnabled);
+  const testDisabled = $derived(
+    testing ||
+      smsBlocked ||
+      !($form.body ?? '').trim() ||
+      !testRecipient.trim(),
+  );
+
+  async function sendTest() {
+    testing = true;
+    try {
+      const res = await fetch('/staff/admin/broadcasts/templates/test', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          channel: $form.channel,
+          subject: $form.subject ?? null,
+          body: $form.body ?? '',
+          to: testRecipient.trim(),
+        }),
+      });
+      const result = (await res.json()) as { ok: boolean; message?: string };
+      if (result.ok) toast.success(`Test envoyé à ${testRecipient.trim()}.`);
+      else toast.error(result.message ?? "Échec de l'envoi.");
+    } catch {
+      toast.error('Erreur réseau.');
+    } finally {
+      testing = false;
+    }
+  }
 
   function insertVariable(token: string) {
     $form.body = ($form.body ?? '') + token;
@@ -52,7 +115,11 @@
   const smsLength = $derived(
     $form.channel === 'sms' ? estimateSmsLength($form.body ?? '') : 0,
   );
-  const smsOverLimit = $derived(smsLength > SMS_MAX_LENGTH);
+  const smsSegmentCount = $derived(smsSegments(smsLength));
+  // Multipart (>1 SMS) is allowed — it just costs more, so we warn. Over the
+  // segment ceiling, the template can't be saved (see messageTemplateSchema).
+  const smsMultipart = $derived(smsSegmentCount > 1);
+  const smsOverCeiling = $derived(smsLength > SMS_BROADCAST_MAX_CHARS);
 </script>
 
 <form
@@ -72,16 +139,23 @@
 
     <div class="grid gap-2">
       <Label for="channel">Canal</Label>
-      <select
-        id="channel"
-        name="channel"
-        bind:value={$form.channel}
-        class="h-9 rounded-md border border-input bg-background px-3 text-sm"
+      <Select.Root
+        type="single"
+        value={$form.channel}
+        onValueChange={(v) =>
+          ($form.channel = v as (typeof BROADCAST_CHANNELS)[number])}
       >
-        {#each BROADCAST_CHANNELS as channel}
-          <option value={channel}>{BROADCAST_CHANNEL_LABELS[channel]}</option>
-        {/each}
-      </select>
+        <Select.Trigger id="channel" class="w-full">
+          {BROADCAST_CHANNEL_LABELS[$form.channel]}
+        </Select.Trigger>
+        <Select.Content>
+          {#each BROADCAST_CHANNELS as channel (channel)}
+            <Select.Item value={channel}>
+              {BROADCAST_CHANNEL_LABELS[channel]}
+            </Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
       {#if $errors.channel}
         <p class="text-xs text-destructive">{$errors.channel}</p>
       {/if}
@@ -107,11 +181,13 @@
         <Label for="body">Corps</Label>
         {#if $form.channel === 'sms'}
           <span
-            class="text-xs {smsOverLimit
+            class="text-xs {smsOverCeiling
               ? 'font-semibold text-destructive'
-              : 'text-muted-foreground'}"
+              : smsMultipart
+                ? 'font-medium text-amber-600 dark:text-amber-500'
+                : 'text-muted-foreground'}"
           >
-            ~{smsLength} / {SMS_MAX_LENGTH} car. (liens trackés inclus)
+            {smsLength} caractères · ≈ {smsSegmentCount} SMS
           </span>
         {/if}
       </div>
@@ -123,10 +199,33 @@
         class={$form.channel === 'mail' ? 'font-mono text-sm' : ''}
         placeholder={$form.channel === 'mail'
           ? 'Markdown. Titres avec #, gras **texte**, listes -, etc.\nPour un bouton centré : :button[Mon libellé](https://...)\nVariables {{prenom}}, {{event_name}}… (panneau à droite).'
-          : 'Texte simple. 160 caractères max après ajout des liens trackés.'}
+          : 'Idéalement court : un seul SMS = 160 caractères.'}
       />
       {#if $errors.body}
         <p class="text-xs text-destructive">{$errors.body}</p>
+      {/if}
+      {#if $form.channel === 'sms'}
+        {#if smsOverCeiling}
+          <p class="text-xs font-medium text-destructive">
+            Trop long : {SMS_MAX_SEGMENTS} SMS maximum par destinataire. Vous ne pourrez
+            pas enregistrer ce modèle tant qu'il dépasse — raccourcissez le texte
+            (ou retirez un lien).
+          </p>
+        {:else if smsMultipart}
+          <p class="text-xs font-medium text-amber-600 dark:text-amber-500">
+            Plus de {SMS_SINGLE_SEGMENT_CHARS} caractères : ce message partira en
+            {smsSegmentCount}
+            SMS par destinataire, et sera donc facturé {smsSegmentCount} fois par
+            personne.
+          </p>
+        {:else}
+          <p class="text-xs text-muted-foreground">
+            Un SMS fait {SMS_SINGLE_SEGMENT_CHARS} caractères. Au-delà, le message
+            est découpé en plusieurs SMS (facturés séparément). Chaque lien compte
+            pour plus de caractères qu'à l'écran : il est rallongé automatiquement
+            pour mesurer les clics.
+          </p>
+        {/if}
       {/if}
     </div>
 
@@ -150,6 +249,50 @@
         {/if}
       </div>
     </details>
+
+    <div class="space-y-2 rounded-md border bg-muted/20 p-3">
+      <Label for="testRecipient" class="text-sm font-medium">
+        S'envoyer un test
+      </Label>
+      <p class="text-xs text-muted-foreground">
+        Envoie ce brouillon (variables remplies par des valeurs fictives) à un
+        {$form.channel === 'sms' ? 'numéro' : 'email'}, sans enregistrer le
+        template.
+      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        {#if $form.channel === 'sms'}
+          <div class="w-full max-w-xs">
+            <PhoneInput
+              id="testRecipient"
+              bind:value={testPhone}
+              disabled={smsBlocked}
+              placeholder="06 12 34 56 78"
+            />
+          </div>
+        {:else}
+          <Input
+            id="testRecipient"
+            type="email"
+            bind:value={testEmail}
+            placeholder="ex : prenom.nom@epitech.eu"
+            class="max-w-xs"
+          />
+        {/if}
+        <Button
+          type="button"
+          variant="outline"
+          onclick={sendTest}
+          disabled={testDisabled}
+        >
+          {testing ? 'Envoi…' : 'Envoyer le test'}
+        </Button>
+      </div>
+      {#if smsBlocked}
+        <p class="text-xs text-destructive">
+          SMS non configuré (<code>SMS_PROVIDER</code>) — test indisponible.
+        </p>
+      {/if}
+    </div>
 
     <div class="flex items-center gap-3">
       <Button type="submit" disabled={$submitting}>{submitLabel}</Button>

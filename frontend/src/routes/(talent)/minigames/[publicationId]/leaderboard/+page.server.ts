@@ -1,33 +1,45 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { requireFlag } from '$lib/server/auth/guards';
 import {
   getClosestEventForTalent,
-  getLeaderboard,
+  getCampusLeaderboard,
+  getUnseenMinigameRankReward,
 } from '$lib/server/services/minigameService';
 import { prisma } from '$lib/server/db';
 
 /**
- * Leaderboard scoped by the talent's closest event (ongoing today →
- * upcoming → most recent past). Surfaces the same ranking the pédago
- * staff sees on `/staff/pedago/events/<id>/minigames`, but anchored to
- * whichever event the talent is closest to.
+ * Talent-facing leaderboard scoped to the talent's campus — derived from their
+ * closest event (ongoing today → upcoming → most recent past). Falls back to a
+ * global ranking when the talent has no participations (hence no campus).
  */
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
-  requireFlag(locals, 'minigames');
 
   const closest = await getClosestEventForTalent(locals.talent.id);
-  if (!closest) throw error(404, "Pas d'event rattaché à ton compte.");
+  const campusId = closest?.campusId ?? null;
 
   const publication = await prisma.minigamePublication.findUnique({
     where: { id: params.publicationId },
   });
   if (!publication) throw error(404, 'Publication introuvable.');
 
-  const { rows, scoringType } = await getLeaderboard(
+  const campus = campusId
+    ? await prisma.campus.findUnique({
+        where: { id: campusId },
+        select: { name: true },
+      })
+    : null;
+
+  const { rows, scoringType } = await getCampusLeaderboard(
     params.publicationId,
-    closest.eventId,
+    campusId,
+  );
+
+  // If the player just earned a rank bonus and hasn't seen its float yet, it
+  // plays here too (not only on the dashboard) so the celebration lands on
+  // whichever page they open first after a game.
+  const minigameRankReward = await getUnseenMinigameRankReward(
+    locals.talent.id,
   );
 
   return {
@@ -35,5 +47,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     rows,
     scoringType,
     currentTalentId: locals.talent.id,
+    campusName: campus?.name ?? null,
+    minigameRankReward,
   };
 };

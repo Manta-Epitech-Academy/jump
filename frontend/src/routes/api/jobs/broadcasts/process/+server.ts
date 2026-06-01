@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { processNextQueuedBroadcast } from '$lib/server/services/broadcast/orchestrator';
+import { safeTokenEquals } from '$lib/server/auth/safeTokenCompare';
 
 /**
  * Drains the broadcast queue: processes one queued broadcast per call.
@@ -14,7 +15,7 @@ export const POST: RequestHandler = async ({ request }) => {
   const token = request.headers.get('authorization')?.replace('Bearer ', '');
   const cronSecret = env.CRON_SECRET;
 
-  if (!cronSecret || token !== cronSecret) {
+  if (!cronSecret || !token || !safeTokenEquals(token, cronSecret)) {
     throw error(401, 'Unauthorized: Invalid or missing token');
   }
 

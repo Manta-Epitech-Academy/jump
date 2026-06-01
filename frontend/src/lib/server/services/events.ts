@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { generatePin } from '$lib/utils';
 import { prisma } from '$lib/server/db';
-import { eventTypeHasTheme } from '$lib/domain/event';
+import { eventTypeHasTheme, hhmmToMinutes } from '$lib/domain/event';
 
 async function validateMantaIds(campusId: string, mantaIds: string[]) {
   if (mantaIds.length === 0) return;
@@ -50,6 +50,7 @@ export const EventService = {
       data: {
         titre: newData.titre,
         date: new Date(newData.date),
+        startMinutes: original.startMinutes,
         themeId: original.themeId,
         campusId,
         pin,
@@ -80,9 +81,35 @@ export const EventService = {
   // TODO: activity recommender for parallel tracks in coding clubs
 
   /**
+   * Sets (or clears) the Jump-owned start time-of-day. SF never provides it,
+   * and the sync never writes `startMinutes` back, so this is the single
+   * writer. `startTime` is "HH:MM"; empty clears it back to the type default
+   * (`startMinutes = null` = unconfirmed). A non-null value means a human
+   * confirmed the time.
+   */
+  async setStartTime(eventId: string, campusId: string, startTime: string) {
+    const event = await prisma.event.findUniqueOrThrow({
+      where: { id: eventId },
+      select: { campusId: true },
+    });
+    if (event.campusId !== campusId) {
+      throw error(
+        403,
+        'Accès refusé : cet événement appartient à un autre campus.',
+      );
+    }
+    await prisma.event.update({
+      where: { id: eventId },
+      data: { startMinutes: hhmmToMinutes(startTime) },
+    });
+  },
+
+  /**
    * Updates Jump-side metadata on an event. Identity fields (titre, date,
    * endDate, mantas) are owned by Salesforce — the SF worker would overwrite
-   * anything we write locally, so they're not editable here.
+   * anything we write locally, so they're not editable here. The start time
+   * has its own writer (`setStartTime`), kept apart so editing notes can't
+   * touch it.
    */
   async updateEvent(
     eventId: string,

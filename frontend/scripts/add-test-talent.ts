@@ -4,7 +4,7 @@
  * Creates a talent with:
  * - infoValidatedAt set (student info done)
  * - rulesSignedAt NULL (règlement not signed)
- * - imageRightsSignedAt NULL (droit à l'image not signed)
+ * - imageRightsDecision NULL (droit à l'image undecided)
  * - parentEmail set to the provided email so both reminder types can be tested
  * - Linked to Paris campus via a Participation on the first available event
  *
@@ -99,7 +99,8 @@ async function main() {
       infoValidatedAt: new Date(),
       rulesSignedAt: null,
       charterAcceptedAt: null,
-      imageRightsSignedAt: null,
+      imageRightsDecision: null,
+      imageRightsDecidedAt: null,
       parentEmail: email,
       parentNom: 'Test',
       parentPrenom: 'Parent',
@@ -112,7 +113,8 @@ async function main() {
       infoValidatedAt: new Date(),
       rulesSignedAt: null,
       charterAcceptedAt: null,
-      imageRightsSignedAt: null,
+      imageRightsDecision: null,
+      imageRightsDecidedAt: null,
       parentEmail: email,
       parentNom: 'Test',
       parentPrenom: 'Parent',
@@ -138,7 +140,7 @@ async function main() {
   console.log(`\n✓ Test talent added: ${email}`);
   console.log(`  - infoValidatedAt: ✅`);
   console.log(`  - rulesSignedAt: ❌ (missing)`);
-  console.log(`  - imageRightsSignedAt: ❌ (missing)`);
+  console.log(`  - imageRightsDecision: ❌ (undecided)`);
   console.log(`  - parentEmail: ${email}`);
   console.log(`  - Campus: Paris (via participation on stage: ${event.titre})`);
 }

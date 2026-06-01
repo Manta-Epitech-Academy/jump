@@ -1,6 +1,20 @@
 <script lang="ts">
-  import { fly, fade } from 'svelte/transition';
+  import { fly } from 'svelte/transition';
   import type { TransitionConfig } from 'svelte/transition';
+  import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
+  import { resolve } from '$app/paths';
+  import ProgressBar from './components/ProgressBar.svelte';
+  import IdentityStep from './components/IdentityStep.svelte';
+  import SchoolStep from './components/SchoolStep.svelte';
+  import ParentsStep from './components/ParentsStep.svelte';
+  import InterestsStep from './components/InterestsStep.svelte';
+  import EquipmentStep from './components/EquipmentStep.svelte';
+  import ProcessingStep from './components/ProcessingStep.svelte';
+  import RulesStep from './components/RulesStep.svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import { Button } from '$lib/components/ui/button';
+  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
 
   function exitSlide(
     _node: Element,
@@ -12,107 +26,38 @@
         `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-30 * u}px);`,
     };
   }
-  import ProgressBar from './components/ProgressBar.svelte';
-  import InterstitialMessage from './components/InterstitialMessage.svelte';
-  import StudentInfoStep from './components/StudentInfoStep.svelte';
-  import ParentInfoStep from './components/ParentInfoStep.svelte';
-  import LyceeStep from './components/LyceeStep.svelte';
-  import InterestsStep from './components/InterestsStep.svelte';
-  import RulesStep from './components/RulesStep.svelte';
 
   let { data, form } = $props();
 
-  // Server step -> first micro-step mapping
-  const SERVER_STEP_TO_MICRO: Record<string, number> = {
-    'info-validation': 1,
-    lycee: 3,
-    'interests-tech': 4,
-    'interests-general': 5,
-    rules: 6,
+  const STEP_INFO: Record<
+    string,
+    { index: number; display: number; title: string }
+  > = {
+    identity: { index: 1, display: 1, title: 'Qui es-tu ?' },
+    school: { index: 2, display: 1, title: "D'où viens-tu ?" },
+    parents: { index: 3, display: 1, title: "Contacts d'urgence" },
+    interests: { index: 4, display: 2, title: "Centres d'intérêt" },
+    equipment: { index: 5, display: 3, title: 'Ton matériel' },
+    processing: { index: 6, display: 4, title: 'Génération...' },
+    rules: { index: 7, display: 4, title: 'Dernière étape' },
   };
+  const TOTAL_INTERNAL = 7;
+  const TOTAL_DISPLAY = 4;
 
-  const TOTAL_MICRO_STEPS = 6;
+  let goBackForm: HTMLFormElement;
 
-  // svelte-ignore state_referenced_locally
-  let microStep = $state(SERVER_STEP_TO_MICRO[data.step] ?? 1);
-  // svelte-ignore state_referenced_locally
-  let lastServerStep = $state(data.step);
-  let interstitial = $state<string | null>(null);
-  let interstitialDone: (() => void) | null = $state(null);
-
-  // Accumulated info fields for micro-steps 1-4
-  // svelte-ignore state_referenced_locally
-  let infoFields = $state({
-    nom: data.profile?.nom ?? '',
-    prenom: data.profile?.prenom ?? '',
-    email: data.profile?.email ?? '',
-    parentNom: data.profile?.parentNom ?? '',
-    parentPrenom: data.profile?.parentPrenom ?? '',
-    parentEmail: data.profile?.parentEmail ?? '',
-    parentPhone: data.profile?.parentPhone ?? '',
-    phone: data.profile?.phone ?? '',
-  });
-
-  // Sync microStep when the server step changes (after form POST + redirect)
-  $effect(() => {
-    if (data.step !== lastServerStep) {
-      lastServerStep = data.step;
-      microStep = SERVER_STEP_TO_MICRO[data.step] ?? 1;
-    }
-  });
-
-  // Auto-skip the recap step (server still requires it, but we don't show it)
-  $effect(() => {
-    if (data.step === 'interests-recap') {
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '?/confirmRecap';
-      document.body.appendChild(form);
-      form.submit();
-    }
-  });
-
-  // If server returned validation errors on validateInfo, jump to ParentInfoStep (micro 2)
-  $effect(() => {
-    if (form?.errors && data.step === 'info-validation') {
-      microStep = 2;
-    }
-  });
-
-  // Progress: 10% base + ~10% per step
+  const stepIndex = $derived(STEP_INFO[data.step]?.index ?? 1);
+  const displayStep = $derived(STEP_INFO[data.step]?.display ?? 1);
   const progress = $derived(
-    Math.round((microStep / TOTAL_MICRO_STEPS) * 90 + 10),
+    Math.round(((stepIndex - 0.5) / TOTAL_INTERNAL) * 100),
+  );
+  const pageTitle = $derived(STEP_INFO[data.step]?.title ?? 'Onboarding');
+  const showBack = $derived(
+    data.step !== 'identity' && data.step !== 'processing',
   );
 
-  // Page title per micro-step
-  const TITLES: Record<number, string> = {
-    1: 'Tes infos',
-    2: 'Ton parent',
-    3: 'Ton lycée',
-    4: 'Informatique',
-    5: "Centres d'intérêt",
-    6: 'Règlement',
-  };
-  const pageTitle = $derived(TITLES[microStep] ?? 'Onboarding');
-
-  // Interstitial messages after specific steps
-  const INTERSTITIALS: Record<number, string> = {
-    2: "L'administratif c'est fini !",
-    5: 'On y est presque',
-  };
-
-  function advanceMicroStep(nextStep: number) {
-    const message = INTERSTITIALS[microStep];
-    if (message) {
-      interstitial = message;
-      interstitialDone = () => {
-        interstitial = null;
-        interstitialDone = null;
-        microStep = nextStep;
-      };
-    } else {
-      microStep = nextStep;
-    }
+  function goBackServer() {
+    goBackForm.requestSubmit();
   }
 </script>
 
@@ -120,94 +65,128 @@
   <title>{pageTitle} — Bienvenue</title>
 </svelte:head>
 
-<ProgressBar {progress} />
-
 <div
-  class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950"
+  class="relative flex h-dvh w-full flex-col overflow-hidden bg-slate-100 transition-colors duration-500 dark:bg-slate-950"
 >
+  <!-- Background decorations -->
   <div
-    class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/10 blur-[100px] dark:bg-epi-blue/20"
+    class="absolute -top-20 -right-20 h-100 w-100 rounded-full bg-epi-blue/15 blur-[100px] dark:bg-epi-blue/20"
   ></div>
   <div
-    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-teal/10 blur-[100px] dark:bg-epi-teal/20"
+    class="absolute -bottom-20 -left-20 h-100 w-100 rounded-full bg-epi-teal/15 blur-[100px] dark:bg-epi-teal/20"
   ></div>
   <div
-    class="absolute inset-0 bg-[radial-gradient(var(--color-slate-200)_1px,transparent_1px)] bg-size-[32px_32px] opacity-50 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)]"
+    class="absolute inset-0 bg-[radial-gradient(var(--color-slate-300)_1px,transparent_1px)] bg-size-[32px_32px] opacity-70 dark:bg-[radial-gradient(var(--color-slate-800)_1px,transparent_1px)] dark:opacity-50"
   ></div>
 
-  <div class="z-10 w-full max-w-lg">
-    {#if interstitial && interstitialDone}
-      <InterstitialMessage message={interstitial} ondone={interstitialDone} />
-    {:else}
+  <!-- Hidden form for server-side go-back -->
+  <form
+    bind:this={goBackForm}
+    method="POST"
+    action="?/goBack"
+    use:enhance={() => {
+      return async ({ result, update }) => {
+        if (result.type === 'success') {
+          await invalidateAll();
+          return;
+        }
+        await update();
+      };
+    }}
+    class="hidden"
+  ></form>
+
+  <ProgressBar {progress} />
+
+  <!-- ═══ Header sticky ═══ -->
+  <header
+    class="relative z-10 shrink-0 border-b border-slate-300/50 bg-slate-100/80 backdrop-blur-md dark:border-slate-800/50 dark:bg-slate-950/80"
+  >
+    <div
+      class="mx-auto flex w-full max-w-lg items-center justify-between px-4 py-3"
+    >
+      <!-- Left: logo (always visible, fixed position) -->
+      <a href={resolve('/')} aria-label="Accueil">
+        <img
+          src="/EPITECH-LOGO-BLEU-2025.svg"
+          alt="Epitech"
+          class="h-7 w-auto dark:brightness-0 dark:invert"
+        />
+      </a>
+
+      <!-- Right: back button + step counter -->
+      <div class="flex items-center gap-3">
+        {#if showBack}
+          <Button
+            variant="ghost"
+            onclick={goBackServer}
+            class="h-auto gap-1 px-2 py-1 text-xs font-medium text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          >
+            <ArrowLeft class="h-3.5 w-3.5" />
+            Retour
+          </Button>
+        {/if}
+        <span class="text-xs font-semibold text-slate-400 dark:text-slate-500">
+          {displayStep}/{TOTAL_DISPLAY}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ Scrollable content ═══ -->
+  <main class="relative z-10 flex-1 overflow-y-auto">
+    <div class="mx-auto w-full max-w-lg px-4 py-8">
       <div class="relative">
-        {#key microStep}
+        {#key data.step}
           <div
             class="w-full"
-            in:fly|local={{ x: 30, duration: 300, delay: 280 }}
-            out:exitSlide|local={{ duration: 250 }}
+            in:fly|local={{ x: 30, duration: 250, delay: 180 }}
+            out:exitSlide|local={{ duration: 180 }}
           >
-            {#if microStep === 1}
-              <StudentInfoStep
-                prenom={infoFields.prenom}
-                nom={infoFields.nom}
-                email={infoFields.email}
-                phone={infoFields.phone}
-                onvalidate={(d) => {
-                  infoFields.prenom = d.prenom;
-                  infoFields.nom = d.nom;
-                  infoFields.email = d.email;
-                  infoFields.phone = d.phone;
-                  advanceMicroStep(2);
-                }}
+            {#if data.step === 'identity'}
+              <IdentityStep
+                profile={data.profile}
+                errors={form?.step === 'identity' ? form?.errors : undefined}
               />
-            {:else if microStep === 2}
-              <ParentInfoStep
-                nom={infoFields.nom}
-                prenom={infoFields.prenom}
-                email={infoFields.email}
-                phone={infoFields.phone}
-                parentNom={infoFields.parentNom}
-                parentPrenom={infoFields.parentPrenom}
-                parentEmail={infoFields.parentEmail}
-                parentPhone={infoFields.parentPhone}
-                errors={form?.errors}
+            {:else if data.step === 'school'}
+              <SchoolStep
+                profile={data.profile}
+                errors={form?.step === 'school' ? form?.errors : undefined}
               />
-            {:else if microStep === 3}
-              <LyceeStep
-                highSchoolName={data.highSchoolName}
-                highSchoolCity={data.highSchoolCity}
-                error={form?.error}
+            {:else if data.step === 'parents'}
+              <ParentsStep
+                profile={data.profile}
+                errors={form?.step === 'parents' ? form?.errors : undefined}
               />
-            {:else if microStep === 4}
+            {:else if data.step === 'interests'}
               <InterestsStep
-                interests={data.interests ?? []}
-                selectedIds={data.selectedIds ?? []}
-                error={form?.error}
-                kind="tech"
-                maxSelect={2}
-                actionName="validateTechInterests"
+                techInterests={data.techInterests ?? []}
+                generalInterests={data.generalInterests ?? []}
+                selectedTechIds={data.selectedTechIds ?? []}
+                selectedGeneralIds={data.selectedGeneralIds ?? []}
+                freeText={data.freeText ?? ''}
+                shuffleSeed={data.shuffleSeed ?? ''}
+                error={form?.step === 'interests' ? form?.error : undefined}
               />
-            {:else if microStep === 5}
-              <InterestsStep
-                interests={data.interests ?? []}
-                selectedIds={data.selectedIds ?? []}
-                error={form?.error}
-                kind="general"
-                maxSelect={5}
-                actionName="validateGeneralInterests"
+            {:else if data.step === 'equipment'}
+              <EquipmentStep
+                hasLaptop={data.hasLaptop ?? false}
+                setupDescription={data.setupDescription ?? ''}
+                error={form?.step === 'equipment' ? form?.error : undefined}
               />
-            {:else if microStep === 6}
-              <RulesStep error={form?.error} />
+            {:else if data.step === 'processing'}
+              <ProcessingStep />
+            {:else if data.step === 'rules'}
+              <RulesStep
+                error={form?.step === 'rules' ? form?.error : undefined}
+              />
             {/if}
           </div>
         {/key}
       </div>
-    {/if}
+    </div>
+  </main>
 
-    <p
-      class="mt-8 text-center text-[10px] font-bold tracking-widest text-slate-400 uppercase"
-    >
-      Propuls&eacute; par Epitech Academy
-    </p>
-  </div>
+  <!-- ═══ Footer ═══ -->
+  <TalentFooter class="relative z-10 shrink-0" />
 </div>

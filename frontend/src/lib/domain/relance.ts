@@ -1,27 +1,79 @@
+import { toBrevoRecipient } from './phone';
+
 export type RelanceType = 'student' | 'parent';
+
+/**
+ * Relance channel. `email` is the primary nudge; `sms` is the escalation step
+ * — a short, link-free text that points the recipient back to their mailbox
+ * once an email relance has gone unanswered.
+ */
+export type RelanceChannel = 'email' | 'sms';
 
 // Aligned with broadcast / email-action variable names so admin-bound
 // templates use the same tokens everywhere. Migrated from the legacy
 // `prenomParent`/`nomParent`/`childName` set; `formatTalentVars` populates
-// these via the canonical Talent → context mapping below.
-export const RELANCE_VARS_STUDENT = ['prenom', 'nom', 'login_link'] as const;
+// the talent-derived tokens, the server adds the campus-scoped ones
+// (`campus`, `email_contact_campus`) — both of which the default bodies use,
+// so they belong here too (chips + preview, not just the server context).
+export const RELANCE_VARS_STUDENT = [
+  'prenom',
+  'nom',
+  'campus',
+  'email_contact_campus',
+  'jours_restants',
+  'login_link',
+] as const;
 export const RELANCE_VARS_PARENT = [
   'parent_prenom',
   'parent_nom',
   'child_prenom',
   'child_nom',
+  'campus',
+  'email_contact_campus',
   'login_link',
+] as const;
+
+// SMS escalation carries no action link (the recipient is sent back to their
+// inbox), so the only useful tokens are who it's for, which mailbox to check,
+// and the campus the message signs off as. `{{email}}` is the recipient's own
+// mailbox, named per the spec; `{{campus}}` is the "- Epitech {{campus}}"
+// sign-off in the default body.
+export const RELANCE_SMS_VARS_STUDENT = [
+  'prenom',
+  'email',
+  'campus',
+  'jours_restants',
+] as const;
+export const RELANCE_SMS_VARS_PARENT = [
+  'child_prenom',
+  'email',
+  'campus',
 ] as const;
 
 export type StudentRelanceVar = (typeof RELANCE_VARS_STUDENT)[number];
 export type ParentRelanceVar = (typeof RELANCE_VARS_PARENT)[number];
-export type RelanceVar = StudentRelanceVar | ParentRelanceVar;
+export type RelanceVar = StudentRelanceVar | ParentRelanceVar | 'email';
 
-export function relanceVarsFor(type: RelanceType): readonly RelanceVar[] {
+export function relanceVarsFor(
+  type: RelanceType,
+  channel: RelanceChannel = 'email',
+): readonly RelanceVar[] {
+  if (channel === 'sms') {
+    return type === 'student'
+      ? RELANCE_SMS_VARS_STUDENT
+      : RELANCE_SMS_VARS_PARENT;
+  }
   return type === 'student' ? RELANCE_VARS_STUDENT : RELANCE_VARS_PARENT;
 }
 
-/** Cooldown between two relances of the same type for the same talent. */
+/**
+ * Max length of an SMS relance body. Two GSM-7 segments (~306 chars) is plenty
+ * for "check your inbox" and keeps the per-message credit cost predictable;
+ * the compose dialog surfaces a live segment count against this cap.
+ */
+export const RELANCE_SMS_BODY_MAX = 306;
+
+/** Cooldown between two relances of the same type+channel for the same talent. */
 export const COOLDOWN_DAYS = 3;
 export const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
 
@@ -29,16 +81,24 @@ export const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
  * Substitutes `{{var}}` placeholders. Unknown vars are left untouched so a
  * staff typo doesn't silently swallow text. Trims values to avoid stray
  * whitespace creeping into rendered emails.
+ *
+ * The token grammar matches the server's `substituteVariables` — including the
+ * underscore/digit names (`email_contact_campus`, `jours_restants`, …). The
+ * previous `[a-zA-Z]+` pattern silently skipped every multi-word token, so the
+ * dialog preview left them as raw `{{…}}` while the sent mail substituted them.
  */
 export function applyPlaceholders(
   template: string,
   vars: Partial<Record<RelanceVar, string | null | undefined>>,
 ): string {
-  return template.replace(/\{\{\s*([a-zA-Z]+)\s*\}\}/g, (match, name) => {
-    const value = vars[name as RelanceVar];
-    if (value == null) return match;
-    return String(value).trim();
-  });
+  return template.replace(
+    /\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g,
+    (match, name) => {
+      const value = vars[name as RelanceVar];
+      if (value == null) return match;
+      return String(value).trim();
+    },
+  );
 }
 
 function capitalize(s: string | null | undefined): string {
@@ -93,10 +153,15 @@ export function relanceGreeting(
 
 /**
  * Reasons a single recipient can be skipped *before* attempting to send.
- * The server adds a fourth bucket ('error') for transport failures, which
- * are not predictable client-side.
+ * The server adds an 'error' bucket for transport failures, which are not
+ * predictable client-side. `noPhone` / `noPriorEmail` are SMS-channel only.
  */
-export type RelanceSkipReason = 'cooldown' | 'completed' | 'noEmail';
+export type RelanceSkipReason =
+  | 'cooldown'
+  | 'completed'
+  | 'noEmail'
+  | 'noPhone'
+  | 'noPriorEmail';
 
 export const RELANCE_SKIP_LABELS: Record<
   RelanceSkipReason | 'error' | 'noTemplate',
@@ -105,6 +170,8 @@ export const RELANCE_SKIP_LABELS: Record<
   cooldown: 'cooldown',
   completed: 'onboarding complet',
   noEmail: 'email manquant',
+  noPhone: 'téléphone manquant',
+  noPriorEmail: 'aucune relance email préalable',
   error: 'erreur',
   noTemplate: 'template non configuré',
 };
@@ -113,17 +180,30 @@ export const RELANCE_SKIP_LABELS: Record<
 export type TalentEligibilityFields = {
   email?: string | null;
   parentEmail?: string | null;
+  phone?: string | null;
+  parentPhone?: string | null;
   infoValidatedAt?: Date | string | null;
   rulesSignedAt?: Date | string | null;
   charterAcceptedAt?: Date | string | null;
-  imageRightsSignedAt?: Date | string | null;
+  parentRulesSignedAt?: Date | string | null;
+  imageRightsDecidedAt?: Date | string | null;
 };
 
 export type ClassifyRelanceInput = {
   type: RelanceType;
+  /** Defaults to 'email' for back-compat with the original call sites. */
+  channel?: RelanceChannel;
   talent: TalentEligibilityFields;
-  /** Most recent matching-type reminder, or null/undefined if none. */
+  /**
+   * Most recent reminder matching this type+channel, or null/undefined if
+   * none. Drives the cooldown — each channel has its own track.
+   */
   lastReminderAt: Date | string | null | undefined;
+  /**
+   * Whether an email relance of this type has ever been sent. SMS only — the
+   * escalation requires a prior email nudge so we don't open on a text.
+   */
+  hasPriorEmail?: boolean;
   /** Override "now" for tests / SSR; defaults to current time. */
   now?: number;
 };
@@ -131,13 +211,21 @@ export type ClassifyRelanceInput = {
 /**
  * Decides whether a talent should be skipped, returning the dominant reason
  * or `undefined` if eligible. Order matches the server's send loop so the
- * dialog's preview agrees with what the action will actually count:
- * cooldown → completed → noEmail.
+ * dialog's preview agrees with what the action counts:
+ *   email → cooldown → completed → noEmail
+ *   sms   → cooldown → completed → noPhone → noPriorEmail
  */
 export function classifyRelanceSkip(
   input: ClassifyRelanceInput,
 ): RelanceSkipReason | undefined {
-  const { type, talent, lastReminderAt, now = Date.now() } = input;
+  const {
+    type,
+    channel = 'email',
+    talent,
+    lastReminderAt,
+    hasPriorEmail,
+    now = Date.now(),
+  } = input;
 
   if (lastReminderAt) {
     const ts =
@@ -147,16 +235,76 @@ export function classifyRelanceSkip(
     if (now - ts < COOLDOWN_MS) return 'cooldown';
   }
 
+  // Parent relances chase two acts per child — co-signing the règlement and an
+  // image-rights *decision* (a refusal counts: the guardian acted and must not
+  // be nagged further). The chase stops only once both are settled.
   const complete =
     type === 'student'
       ? talent.infoValidatedAt &&
         talent.rulesSignedAt &&
         talent.charterAcceptedAt
-      : talent.imageRightsSignedAt;
+      : talent.parentRulesSignedAt && talent.imageRightsDecidedAt;
   if (complete) return 'completed';
+
+  if (channel === 'sms') {
+    const rawPhone = type === 'student' ? talent.phone : talent.parentPhone;
+    if (!toBrevoRecipient(rawPhone)) return 'noPhone';
+    // SMS is an escalation, never first contact: require a prior email relance.
+    if (!hasPriorEmail) return 'noPriorEmail';
+    return undefined;
+  }
 
   const recipient = type === 'student' ? talent.email : talent.parentEmail;
   if (!recipient) return 'noEmail';
 
   return undefined;
+}
+
+/**
+ * Compact per-talent view of the onboarding-reminder history: the latest
+ * `sentAt` for each (audience type, channel) cell, or null when none was ever
+ * sent. Replaces shipping the full `reminders[]` array to the client — these
+ * four timestamps are everything the "Dernière relance" column and the relance
+ * dialog's per-channel cooldown / SMS-escalation gate actually read.
+ *
+ * `hasPriorEmail` (the SMS gate) is just `<type>.email !== null`, so it isn't a
+ * separate field — derive it via `reminderFor(summary, type, 'email')`.
+ */
+export type ReminderSummary = {
+  student: { email: Date | null; sms: Date | null };
+  parent: { email: Date | null; sms: Date | null };
+};
+
+/** Empty summary — no reminder ever sent to this talent. */
+export function emptyReminderSummary(): ReminderSummary {
+  return {
+    student: { email: null, sms: null },
+    parent: { email: null, sms: null },
+  };
+}
+
+/** Latest reminder timestamp for one (type, channel) cell, or null. */
+export function reminderFor(
+  summary: ReminderSummary | null | undefined,
+  type: RelanceType,
+  channel: RelanceChannel,
+): Date | null {
+  return summary?.[type]?.[channel] ?? null;
+}
+
+/**
+ * Most recent reminder across every cell — drives the table's "Dernière
+ * relance" column, which is audience- and channel-agnostic.
+ */
+export function latestReminderAt(
+  summary: ReminderSummary | null | undefined,
+): Date | null {
+  if (!summary) return null;
+  let latest: Date | null = null;
+  for (const audience of [summary.student, summary.parent]) {
+    for (const at of [audience.email, audience.sms]) {
+      if (at && (!latest || at.getTime() > latest.getTime())) latest = at;
+    }
+  }
+  return latest;
 }

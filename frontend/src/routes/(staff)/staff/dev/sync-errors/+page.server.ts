@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { EVENT_TYPES } from '$lib/domain/event';
 
 function splitName(name: string): { prenom: string; nom: string } {
@@ -20,6 +20,7 @@ async function campusEventExtIds(campusId: string): Promise<string[]> {
 
 export const load: PageServerLoad = async ({ locals }) => {
   requireStaffGroup(locals, 'devMember');
+  requireFlag(locals, 'staff_sync_errors');
 
   const campusId = locals.staffProfile?.campusId;
   if (!campusId) {
@@ -87,6 +88,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       email: e.email,
       message: e.message,
       occurrenceCount: e.occurrenceCount,
+      createdAt: e.createdAt.toISOString(),
       lastOccurredAt: e.lastOccurredAt.toISOString(),
       eventName: event?.titre ?? null,
       isStage,
@@ -118,6 +120,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   resolve: async ({ request, locals }) => {
     requireStaffGroup(locals, 'devMember');
+    requireFlag(locals, 'staff_sync_errors');
     const campusId = locals.staffProfile?.campusId;
     if (!campusId) return fail(400);
 

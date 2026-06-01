@@ -5,6 +5,7 @@
   import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as Table from '$lib/components/ui/table';
   import Plus from '@lucide/svelte/icons/plus';
   import Mail from '@lucide/svelte/icons/mail';
   import MessageSquare from '@lucide/svelte/icons/message-square';
@@ -43,13 +44,15 @@
       deleteForms[id]?.requestSubmit();
     }
   }
+
+  const th = 'text-xs uppercase';
 </script>
 
 <header class="space-y-2">
   <h1 class="text-2xl font-bold tracking-tight">Templates</h1>
   <p class="text-sm text-muted-foreground">
-    Crée et édite les templates réutilisables pour les envois en masse et les
-    mails transactionnels.
+    Crée et édite les templates réutilisables (mail / SMS) pour les envois en
+    masse et les messages transactionnels.
   </p>
 </header>
 
@@ -70,22 +73,22 @@
   </div>
 {:else}
   <div class="overflow-hidden rounded-lg border">
-    <table class="w-full text-sm">
-      <thead class="border-b bg-muted/50 text-left text-xs uppercase">
-        <tr>
-          <th class="px-4 py-2">Nom</th>
-          <th class="px-4 py-2">Canal</th>
-          <th class="px-4 py-2">Sujet</th>
-          <th class="px-4 py-2">Utilisations</th>
-          <th class="px-4 py-2">MAJ</th>
-          <th class="px-4 py-2"></th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table.Root>
+      <Table.Header class="bg-muted/50">
+        <Table.Row>
+          <Table.Head class={th}>Nom</Table.Head>
+          <Table.Head class={th}>Canal</Table.Head>
+          <Table.Head class={th}>Sujet</Table.Head>
+          <Table.Head class={th}>Utilisations</Table.Head>
+          <Table.Head class={th}>MAJ</Table.Head>
+          <Table.Head class={th}></Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
         {#each data.templates as t (t.id)}
-          <tr class="border-b last:border-b-0 hover:bg-muted/30">
-            <td class="px-4 py-2 font-medium">{t.name}</td>
-            <td class="px-4 py-2">
+          <Table.Row class="hover:bg-muted/30">
+            <Table.Cell class="font-medium">{t.name}</Table.Cell>
+            <Table.Cell>
               <span class="inline-flex items-center gap-1">
                 {#if t.channel === 'mail'}
                   <Mail class="h-3.5 w-3.5" />
@@ -94,20 +97,20 @@
                 {/if}
                 {BROADCAST_CHANNEL_LABELS[t.channel]}
               </span>
-            </td>
-            <td
-              class="max-w-xs truncate px-4 py-2 text-muted-foreground"
+            </Table.Cell>
+            <Table.Cell
+              class="max-w-xs truncate text-muted-foreground"
               title={t.subject ?? ''}
             >
               {t.subject ?? '—'}
-            </td>
-            <td class="px-4 py-2 text-muted-foreground">
+            </Table.Cell>
+            <Table.Cell class="text-muted-foreground">
               {t._count.broadcasts}
-            </td>
-            <td class="px-4 py-2 text-muted-foreground">
+            </Table.Cell>
+            <Table.Cell class="text-muted-foreground">
               {formatter.format(t.updatedAt)}
-            </td>
-            <td class="px-4 py-2 text-right">
+            </Table.Cell>
+            <Table.Cell class="text-right">
               <form
                 method="POST"
                 action="?/duplicate"
@@ -186,10 +189,10 @@
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </div>
-            </td>
-          </tr>
+            </Table.Cell>
+          </Table.Row>
         {/each}
-      </tbody>
-    </table>
+      </Table.Body>
+    </Table.Root>
   </div>
 {/if}

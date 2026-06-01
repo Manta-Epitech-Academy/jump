@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { getTotalXp, getXpEligibleActivities } from '$lib/domain/xp';
 import { toggleBringPc } from '$lib/server/actions/toggleBringPc';
 import { prisma } from '$lib/server/db';
+import { revokeXp, recomputeEventsCount } from '$lib/server/services/xpService';
 import {
   getCampusId,
   getCampusTimezone,
@@ -16,13 +16,17 @@ import {
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { getInterviewDisplayStatus } from '$lib/domain/interview';
-import { compareNiveaux } from './components/niveau';
-import { computeIsNewTalent } from './components/types';
+import { compareNiveaux } from '$lib/domain/niveau';
+import {
+  computeIsNewTalent,
+  ONGOING_PARTICIPATION_SELECT,
+  PREP_PARTICIPATION_SELECT,
+} from './components/types';
 import type { OngoingRow, PrepRow } from './components/types';
 
-function originConditions(lyceeName: string | null, interestId: string | null) {
+function originConditions(schoolId: string | null, interestId: string | null) {
   const conds: object[] = [];
-  if (lyceeName) conds.push({ talent: { highSchoolName: lyceeName } });
+  if (schoolId) conds.push({ talent: { schoolId } });
   if (interestId)
     conds.push({ talent: { interests: { some: { interestId } } } });
   return conds;
@@ -38,11 +42,18 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     getEventStatus(event, bounds),
     locals.stagePhaseOverride,
   );
-  const lyceeName = url.searchParams.get('lycee');
+  // The `lycee` filter param carries a canonical School id; resolve it to a name
+  // for the origin chip and filter participations on the talent's schoolId.
+  const schoolId = url.searchParams.get('lycee');
   const interestId = url.searchParams.get('interest');
 
-  const [activeLycee, activeInterest] = await Promise.all([
-    lyceeName ? Promise.resolve({ nom: lyceeName }) : Promise.resolve(null),
+  const [activeSchool, activeInterest] = await Promise.all([
+    schoolId
+      ? prisma.school.findUnique({
+          where: { id: schoolId },
+          select: { name: true },
+        })
+      : Promise.resolve(null),
     interestId
       ? db.interest.findUnique({
           where: { id: interestId },
@@ -51,11 +62,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       : Promise.resolve(null),
   ]);
   const origin = {
-    lycee: activeLycee,
+    lycee: activeSchool ? { nom: activeSchool.name } : null,
     interest: activeInterest,
   };
   const originAnd = originConditions(
-    activeLycee?.nom ?? null,
+    activeSchool ? schoolId : null,
     activeInterest?.id ?? null,
   );
 
@@ -66,13 +77,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
     const participations = await db.participation.findMany({
       where: filteredWhere,
-      include: {
-        talent: {
-          include: {
-            interests: { include: { interest: true } },
-          },
-        },
-      },
+      select: PREP_PARTICIPATION_SELECT,
       orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
     });
 
@@ -105,45 +110,34 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const ongoingAnd = [{ eventId: event.id }, ...originAnd];
   const ongoingWhere =
     ongoingAnd.length === 1 ? ongoingAnd[0] : { AND: ongoingAnd };
-  const participations = await db.participation.findMany({
-    where: ongoingWhere,
-    include: {
-      talent: {
-        include: {
-          interests: { include: { interest: true } },
+  // The latest-activity lookup filters by the event, not by the loaded rows, so
+  // it runs alongside the participation read rather than waiting on it.
+  const [participations, lastActivities] = await Promise.all([
+    db.participation.findMany({
+      where: ongoingWhere,
+      select: ONGOING_PARTICIPATION_SELECT,
+      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    }),
+    db.participationActivity.findMany({
+      where: {
+        participation: { eventId: event.id },
+        isPresent: true,
+      },
+      include: {
+        activity: {
+          select: {
+            nom: true,
+            timeSlot: { select: { startTime: true } },
+          },
         },
       },
-      interview: {
-        select: {
-          id: true,
-          status: true,
-          date: true,
-          recommendation: true,
-        },
-      },
-    },
-    orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-  });
-
-  const lastActivities = await db.participationActivity.findMany({
-    where: {
-      participation: { eventId: event.id },
-      isPresent: true,
-    },
-    include: {
-      activity: {
-        select: {
-          nom: true,
-          timeSlot: { select: { startTime: true } },
-        },
-      },
-    },
-    orderBy: [
-      { participationId: 'asc' },
-      { activity: { timeSlot: { startTime: 'desc' } } },
-    ],
-    distinct: ['participationId'],
-  });
+      orderBy: [
+        { participationId: 'asc' },
+        { activity: { timeSlot: { startTime: 'desc' } } },
+      ],
+      distinct: ['participationId'],
+    }),
+  ]);
   const lastByParticipation = new Map(
     lastActivities.map((pa) => [
       pa.participationId,
@@ -182,33 +176,40 @@ async function loadLastSeenByTalent(
   currentEventId: string,
 ): Promise<Map<string, { name: string; at: Date }>> {
   if (talentIds.length === 0) return new Map();
-  const priorActivities = await db.participationActivity.findMany({
+  // Each prior participation carries only its single latest present activity
+  // (bounded by how many past events a talent attended), then we keep the most
+  // recent across a talent's participations. This avoids pulling every
+  // historical activity row just to dedupe one value per talent in JS.
+  const priors = await db.participation.findMany({
     where: {
-      isPresent: true,
-      participation: {
-        talentId: { in: talentIds },
-        eventId: { not: currentEventId },
-      },
+      talentId: { in: talentIds },
+      eventId: { not: currentEventId },
     },
     select: {
-      activity: {
+      talentId: true,
+      activities: {
+        where: { isPresent: true },
+        orderBy: { activity: { timeSlot: { startTime: 'desc' } } },
+        take: 1,
         select: {
-          nom: true,
-          timeSlot: { select: { startTime: true } },
+          activity: {
+            select: {
+              nom: true,
+              timeSlot: { select: { startTime: true } },
+            },
+          },
         },
       },
-      participation: { select: { talentId: true } },
     },
-    orderBy: { activity: { timeSlot: { startTime: 'desc' } } },
   });
   const out = new Map<string, { name: string; at: Date }>();
-  for (const pa of priorActivities) {
-    const tid = pa.participation.talentId;
-    if (!out.has(tid)) {
-      out.set(tid, {
-        name: pa.activity.nom,
-        at: pa.activity.timeSlot.startTime,
-      });
+  for (const p of priors) {
+    const activity = p.activities[0]?.activity;
+    if (!activity) continue;
+    const at = activity.timeSlot.startTime;
+    const existing = out.get(p.talentId);
+    if (!existing || at.getTime() > existing.at.getTime()) {
+      out.set(p.talentId, { name: activity.nom, at });
     }
   }
   return out;
@@ -242,25 +243,23 @@ export const actions: Actions = {
     try {
       const p = await db.participation.findFirstOrThrow({
         where: { id, eventId: params.id },
-        include: { activities: { include: { activity: true } } },
+        select: { id: true, talentId: true, isPresent: true },
       });
 
-      if (p.isPresent) {
-        const xpValue = getTotalXp(getXpEligibleActivities(p.activities));
-        const profile = await prisma.talent.findUniqueOrThrow({
-          where: { id: p.talentId },
-          select: { xp: true, eventsCount: true },
-        });
-        await prisma.talent.update({
-          where: { id: p.talentId },
-          data: {
-            xp: Math.max(0, profile.xp - xpValue),
-            eventsCount: Math.max(0, profile.eventsCount - 1),
-          },
-        });
-      }
-
-      await prisma.participation.delete({ where: { id } });
+      // Campus is authorized by the scoped `db` read above. Revoke the presence
+      // grant (keyed on the participation id) before deleting the row, then
+      // refresh the cached event count — all atomic.
+      await prisma.$transaction(async (tx) => {
+        if (p.isPresent) {
+          await revokeXp(tx, {
+            talentId: p.talentId,
+            source: 'activity_presence',
+            sourceId: p.id,
+          });
+        }
+        await tx.participation.delete({ where: { id } });
+        await recomputeEventsCount(tx, p.talentId);
+      });
       return { success: true };
     } catch {
       return fail(500);

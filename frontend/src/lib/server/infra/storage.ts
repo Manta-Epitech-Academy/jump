@@ -92,6 +92,8 @@ export interface StorageService {
   save(key: string, data: Buffer | Uint8Array): Promise<string>;
   get(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;
+  /** Time-limited URL the browser can open directly. */
+  getDownloadUrl(key: string, expiresIn?: number): Promise<string>;
 }
 
 class S3StorageService implements StorageService {
@@ -119,6 +121,10 @@ class S3StorageService implements StorageService {
 
   async delete(key: string): Promise<void> {
     await deleteFile(this.bucket, key);
+  }
+
+  getDownloadUrl(key: string, expiresIn?: number): Promise<string> {
+    return getSignedDownloadUrl(this.bucket, key, expiresIn);
   }
 }
 

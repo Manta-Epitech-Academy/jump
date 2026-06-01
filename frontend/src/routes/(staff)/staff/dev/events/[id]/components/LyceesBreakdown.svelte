@@ -5,7 +5,8 @@
   import * as Card from '$lib/components/ui/card';
 
   type LyceeRow = {
-    highSchoolName: string;
+    schoolId: string;
+    name: string;
     count: number;
   };
 
@@ -46,19 +47,19 @@
         Aucun lycée renseigné pour les inscrits.
       </p>
     {:else}
-      {#each breakdown.rows as lyc (lyc.highSchoolName)}
+      {#each breakdown.rows as lyc (lyc.schoolId)}
         {@const pct = totalParticipations
           ? Math.round((lyc.count / totalParticipations) * 100)
           : 0}
         <a
-          href={`${inscritsBase}?lycee=${encodeURIComponent(lyc.highSchoolName)}`}
+          href={`${inscritsBase}?lycee=${encodeURIComponent(lyc.schoolId)}`}
           title={`Filtrer · ${lyc.count} ${lyc.count > 1 ? 'stagiaires' : 'stagiaire'}`}
           class="group block rounded-sm px-3 py-2 transition-colors hover:bg-epi-blue/5"
         >
           <div class="flex items-baseline justify-between gap-3 text-sm">
             <span
               class="truncate font-medium underline decoration-muted-foreground/40 decoration-dotted underline-offset-4 group-hover:text-epi-blue group-hover:decoration-epi-blue"
-              >{lyc.highSchoolName}</span
+              >{lyc.name}</span
             >
             <span
               class="flex shrink-0 items-center gap-1 font-mono text-[10px] font-bold text-muted-foreground"

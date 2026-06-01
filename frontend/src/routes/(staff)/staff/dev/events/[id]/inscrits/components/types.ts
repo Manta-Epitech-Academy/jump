@@ -3,32 +3,57 @@ import type { InterviewDisplayStatus } from '$lib/domain/interview';
 
 export type Sort = 'alpha' | 'xp' | 'events';
 
+// Single source of truth for the talent fields the inscrit cards, search and
+// sort actually read. Kept lean on purpose: the cohort fetch (~200 rows) must
+// not drag the full Talent row (incl. Salesforce-mirror columns) or full
+// Interest rows. The server load imports these selects so the query and the
+// row types below can never drift.
+export const TALENT_CARD_SELECT = {
+  id: true,
+  nom: true,
+  prenom: true,
+  niveau: true,
+  xp: true,
+  eventsCount: true,
+  email: true,
+  parentEmail: true,
+  school: { select: { id: true, name: true, city: true } },
+  interests: {
+    select: {
+      interestId: true,
+      interest: { select: { id: true, nom: true, emoji: true } },
+    },
+  },
+} satisfies Prisma.TalentSelect;
+
+export const PREP_PARTICIPATION_SELECT = {
+  id: true,
+  isPresent: true,
+  talentId: true,
+  talent: { select: TALENT_CARD_SELECT },
+} satisfies Prisma.ParticipationSelect;
+
+export const ONGOING_PARTICIPATION_SELECT = {
+  id: true,
+  isPresent: true,
+  talentId: true,
+  talent: { select: TALENT_CARD_SELECT },
+  interview: {
+    select: {
+      id: true,
+      status: true,
+      date: true,
+      recommendation: true,
+    },
+  },
+} satisfies Prisma.ParticipationSelect;
+
 type ParticipationPrep = Prisma.ParticipationGetPayload<{
-  include: {
-    talent: {
-      include: {
-        interests: { include: { interest: true } };
-      };
-    };
-  };
+  select: typeof PREP_PARTICIPATION_SELECT;
 }>;
 
 type ParticipationOngoing = Prisma.ParticipationGetPayload<{
-  include: {
-    talent: {
-      include: {
-        interests: { include: { interest: true } };
-      };
-    };
-    interview: {
-      select: {
-        id: true;
-        status: true;
-        date: true;
-        recommendation: true;
-      };
-    };
-  };
+  select: typeof ONGOING_PARTICIPATION_SELECT;
 }>;
 
 export type PrepRow = {

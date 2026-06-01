@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { niveauLabel } from '$lib/domain/niveau';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
@@ -96,7 +97,7 @@
                 <Badge
                   variant="outline"
                   class="rounded-sm text-[9px] tracking-widest uppercase"
-                  >{row.csvData.niveau}</Badge
+                  >{niveauLabel(row.csvData.niveau)}</Badge
                 >
               </div>
               <div class="text-xs font-medium text-muted-foreground">
@@ -147,7 +148,9 @@
                   <span class="capitalize">{row.existingStudent.prenom}</span>
                 </div>
                 <div class="mt-0.5 text-xs font-medium text-muted-foreground">
-                  {row.existingStudent.email} • {row.existingStudent.niveau}
+                  {row.existingStudent.email} • {niveauLabel(
+                    row.existingStudent.niveau,
+                  )}
                 </div>
               </div>
             {:else}

@@ -32,6 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         id: event.id,
         titre: event.titre,
         date: event.date,
+        startMinutes: event.startMinutes,
         theme: event.theme?.nom,
         presentCount: event.participations.length,
         mantas: event.mantas.map((m) => ({

@@ -6,6 +6,7 @@
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { capitalize } from '$lib/utils';
   import { salesforceContactUrl } from '$lib/domain/salesforce';
+  import { niveauLabel } from '$lib/domain/niveau';
 
   // Blueprint-blue band: square avatar + Anton-uppercase name with the
   // neon-teal `_` cursor + Salesforce shortcut. No action row, no cohort
@@ -17,7 +18,7 @@
       nom: string;
       prenom: string;
       niveau: string | null;
-      highSchoolName: string | null;
+      school: { name: string } | null;
     };
     isNewTalent: boolean;
   };
@@ -25,7 +26,9 @@
   let { student, isNewTalent }: Props = $props();
 
   const subtitle = $derived(
-    [student.highSchoolName, student.niveau].filter(Boolean).join(' · '),
+    [student.school?.name, niveauLabel(student.niveau)]
+      .filter(Boolean)
+      .join(' · '),
   );
 </script>
 
@@ -42,9 +45,9 @@
           class="flex items-baseline font-heading text-5xl tracking-wide uppercase md:text-6xl"
         >
           <span>{student.nom}</span>
-          <span class="ml-3 font-light">{capitalize(student.prenom)}</span><span
-            class="text-epi-teal">_</span
-          >
+          <span class="ml-3 font-light normal-case"
+            >{capitalize(student.prenom)}</span
+          ><span class="text-epi-teal">_</span>
         </h1>
         {#if student.externalId}
           <Tooltip.Provider delayDuration={150}>

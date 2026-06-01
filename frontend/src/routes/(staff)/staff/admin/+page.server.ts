@@ -13,7 +13,10 @@ export const load: PageServerLoad = async () => {
     lastSync,
   ] = await Promise.all([
     prisma.campus.count(),
-    prisma.bauth_user.count(),
+    // "Membres de l'équipe" = staff only. bauth_user also holds students and
+    // parents (every OTP login mints one), so an unfiltered count inflated this
+    // far past the staff list it links to. Match /staff/admin/users exactly.
+    prisma.bauth_user.count({ where: { staffProfile: { isNot: null } } }),
     prisma.talent.count(),
     prisma.event.count(),
     prisma.event.findMany({

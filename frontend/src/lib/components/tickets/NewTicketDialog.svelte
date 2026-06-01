@@ -14,6 +14,14 @@
   import { toast } from 'svelte-sonner';
   import { track } from '$lib/analytics';
 
+  // Keep body length low-cardinality for Umami grouping.
+  function bucketBodyLength(n: number): string {
+    if (n < 80) return '<80';
+    if (n < 300) return '80-300';
+    if (n < 1000) return '300-1k';
+    return '>1k';
+  }
+
   let {
     open = $bindable(false),
     basePath,
@@ -45,12 +53,18 @@
       });
       if (!response.ok) {
         const message = await response.text();
-        track('ticket_create_failed', { category });
+        track('ticket_create_failed', {
+          category,
+          reason: `http_${response.status}`,
+        });
         toast.error(message || 'Erreur lors de la création');
         return;
       }
       const { id } = await response.json();
-      track('ticket_created', { category });
+      track('ticket_created', {
+        category,
+        bodyLength: bucketBodyLength(body.length),
+      });
       toast.success('Ticket envoyé');
       open = false;
       reset();

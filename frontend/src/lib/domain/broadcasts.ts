@@ -1,4 +1,10 @@
 import type { BroadcastAudience, BroadcastChannel } from '@prisma/client';
+import type { Niveau } from './niveau';
+import { JUMP_LEVELS, type JumpLevel } from './xp';
+import {
+  IMAGE_RIGHTS_STATUS_LABELS,
+  type ImageRightsStatus,
+} from './imageRights';
 
 export const BROADCAST_CHANNELS = [
   'mail',
@@ -34,25 +40,24 @@ export const AUDIENCES_REQUIRING_EVENT: readonly BroadcastAudience[] = [
   'manta',
 ];
 
-export const SMS_MAX_LENGTH = 160;
-// Approximate cost of `&tracking_id=<cuid>` once injected.
-// cuid is ~25 chars + `&tracking_id=` is 13 chars = 38. Round up.
-export const SMS_TRACKING_ID_OVERHEAD = 40;
-
 export type BroadcastVariableKey =
   | 'prenom'
   | 'nom'
   | 'email'
   | 'phone'
   | 'campus'
+  | 'email_contact_campus'
   | 'event_name'
+  | 'jours_restants'
   | 'fastlogin_link'
+  | 'parent_fastlogin_link'
   | 'otp_code'
   | 'parent_prenom'
   | 'parent_nom'
   | 'child_prenom'
   | 'child_nom'
-  | 'login_link';
+  | 'login_link'
+  | 'deletion_reason';
 
 export interface BroadcastVariable {
   key: BroadcastVariableKey;
@@ -99,6 +104,13 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     contextual: false,
   },
   {
+    key: 'email_contact_campus',
+    token: '{{EMAIL_CONTACT_CAMPUS}}',
+    label: 'Email de contact du campus du destinataire',
+    demo: 'contact.paris@epitech.eu',
+    contextual: false,
+  },
+  {
     key: 'event_name',
     token: '{{event_name}}',
     label: "Nom de l'event lié à l'envoi",
@@ -106,10 +118,24 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     contextual: true,
   },
   {
+    key: 'jours_restants',
+    token: '{{jours_restants}}',
+    label: 'Jours avant le début du stage (J-X)',
+    demo: '5',
+    contextual: true,
+  },
+  {
     key: 'fastlogin_link',
     token: '{{fastlogin_link}}',
     label: 'Lien de connexion magique unique (par destinataire)',
     demo: 'https://jump.epiboost.fr/fastlogin?token=DEMO',
+    contextual: true,
+  },
+  {
+    key: 'parent_fastlogin_link',
+    token: '{{parent_fastlogin_link}}',
+    label: "Lien de connexion magique du parent (s'ouvre sur l'espace parent)",
+    demo: 'https://jump.epiboost.fr/parent/fastlogin?token=DEMO',
     contextual: true,
   },
   {
@@ -154,40 +180,41 @@ export const BROADCAST_VARIABLES: readonly BroadcastVariable[] = [
     demo: 'https://jump.epiboost.fr/parent/login',
     contextual: true,
   },
+  {
+    key: 'deletion_reason',
+    token: '{{deletion_reason}}',
+    label: "Motif du refus d'une demande de suppression de compte",
+    demo: 'Ton compte reste nécessaire pour le stage de seconde en cours.',
+    contextual: true,
+  },
 ] as const;
 
 export const BROADCAST_VARIABLE_TOKENS = BROADCAST_VARIABLES.map(
   (v) => v.token,
 );
 
-export const NIVEAUX = [
-  '6eme',
-  '5eme',
-  '4eme',
-  '3eme',
-  '2nde',
-  '1ere',
-  'Terminale',
-  'Sup',
-] as const;
-export type Niveau = (typeof NIVEAUX)[number];
-
-export const JUMP_LEVELS = ['Novice', 'Apprentice', 'Expert'] as const;
-export type JumpLevel = (typeof JUMP_LEVELS)[number];
+// Canonical level catalogue lives in domain/xp.ts (derived from XP_LEVEL_TIERS),
+// re-exported here so broadcast filter consumers keep their import path.
+export { JUMP_LEVELS, type JumpLevel };
 
 export type TristateFilter = 'yes' | 'no' | 'any';
+
+// Image rights is no longer a yes/no flag: a refusal is its own audience (e.g.
+// "warn the photographer", or exclude from photo-driven comms). Modelled as a
+// multi-select over the three states, like `niveau`/`jumpLevel`.
+export const IMAGE_RIGHTS_FILTER_OPTIONS = [
+  'accepted',
+  'refused',
+  'undecided',
+] as const satisfies readonly ImageRightsStatus[];
+
+export const IMAGE_RIGHTS_FILTER_LABELS = IMAGE_RIGHTS_STATUS_LABELS;
 
 export interface BroadcastFilters {
   niveau?: Niveau[];
   charterSigned?: TristateFilter;
-  imageRightsSigned?: TristateFilter;
+  imageRights?: ImageRightsStatus[];
   jumpLevel?: JumpLevel[];
   hasPastEvent?: TristateFilter;
   hasFutureEvent?: TristateFilter;
-}
-
-export function estimateSmsLength(body: string): number {
-  const urlRegex = /\bhttps?:\/\/[^\s<>"')]+/gi;
-  const urlCount = body.match(urlRegex)?.length ?? 0;
-  return body.length + urlCount * SMS_TRACKING_ID_OVERHEAD;
 }
