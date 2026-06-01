@@ -134,7 +134,7 @@ do_seed() {
   else
     echo "→ SEED=0, skipping seed."
   fi
-  echo "→ Building manifest from $BASE_URL…"
+  echo "-> Building manifest from ${BASE_URL}..."
   api_get "/api/test/manifest?sample=$SAMPLE" > "$ROOT/load/data.json" || {
     echo "✗ manifest fetch failed (are the /api/test/* endpoints deployed?)" >&2
     exit 1
