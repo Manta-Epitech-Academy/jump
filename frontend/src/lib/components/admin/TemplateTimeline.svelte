@@ -31,7 +31,7 @@
 
   let { slots, onSlotClick, onEmptyClick }: Props = $props();
 
-  const PX_PER_MIN = 2;
+  const PX_PER_MIN = 1.2;
   const DEFAULT_START = 9;
   const DEFAULT_END = 17;
   const SNAP_MINUTES = 15;
@@ -74,7 +74,7 @@
 
   function getHeight(start: string, end: string): number {
     const h = (timeToMinutes(end) - timeToMinutes(start)) * PX_PER_MIN;
-    return Math.max(h, 20 * PX_PER_MIN); // 40px min
+    return Math.max(h, 15 * PX_PER_MIN); // min height
   }
 
   // Column bin-packing for overlapping slots
@@ -208,7 +208,7 @@
         ]}
       {@const name = slot.activityTemplate?.nom ?? slot.nom ?? 'Sans nom'}
       {@const h = getHeight(slot.startTime, slot.endTime)}
-      {@const compact = h < 55}
+      {@const compact = h < 40}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
