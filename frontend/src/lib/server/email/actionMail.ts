@@ -22,7 +22,7 @@ import {
   EMPTY_VARIABLE_CONTEXT,
   type VariableContext,
 } from '$lib/domain/broadcastVariables';
-import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
 import type { EmailActionKey } from '$lib/domain/emailActions';
 
 export type ActionSendResult =
@@ -62,13 +62,18 @@ export async function sendActionEmail(
   const fullCtx: VariableContext = { ...EMPTY_VARIABLE_CONTEXT, ...ctx };
   const subject = substituteVariables(mapping.template.subject ?? '', fullCtx);
   const bodyWithVars = substituteVariables(mapping.template.body, fullCtx);
-  const html = renderBroadcastMail(bodyWithVars, env.ORIGIN ?? '');
+  const { html, text } = renderBroadcastEmail(
+    bodyWithVars,
+    env.ORIGIN ?? '',
+    subject,
+  );
 
   const result = await sendEmail({
     from: MAIL_FROM,
     to: recipient,
     subject,
     html,
+    text,
   });
 
   if (!result.ok) {
