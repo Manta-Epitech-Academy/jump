@@ -120,7 +120,7 @@ PY
 # seed (via API, chunked) + manifest (via API → load/data.json)
 do_seed() {
   if [[ "$SEED" -gt 0 ]]; then
-    echo "→ Seeding $SEED load-test talents at $BASE_URL (chunks of $CHUNK)…"
+    echo "→ Seeding $SEED load-test talents at $BASE_URL (chunks of $CHUNK)..."
     local start=1 count
     while (( start <= SEED )); do
       count=$(( CHUNK < SEED - start + 1 ? CHUNK : SEED - start + 1 ))
@@ -128,13 +128,13 @@ do_seed() {
         echo "✗ seed failed at start=$start (are the /api/test/* endpoints deployed?)" >&2
         exit 1
       }
-      echo "  …$(( start + count - 1 ))/$SEED"
+      echo "  ...$(( start + count - 1 ))/$SEED"
       start=$(( start + CHUNK ))
     done
   else
     echo "→ SEED=0, skipping seed."
   fi
-  echo "→ Building manifest from $BASE_URL…"
+  echo "-> Building manifest from ${BASE_URL}..."
   api_get "/api/test/manifest?sample=$SAMPLE" > "$ROOT/load/data.json" || {
     echo "✗ manifest fetch failed (are the /api/test/* endpoints deployed?)" >&2
     exit 1
@@ -156,7 +156,7 @@ case "$cmd" in
 
   cleanup)
     require_secret
-    echo "→ Deleting @loadtest.invalid accounts at $BASE_URL…"
+    echo "→ Deleting @loadtest.invalid accounts at $BASE_URL..."
     api_post /api/test/cleanup || {
       echo "✗ cleanup failed (are the /api/test/* endpoints deployed?)" >&2; exit 1; }
     echo
@@ -168,7 +168,7 @@ case "$cmd" in
     guard_target
     confirm_run
     do_seed
-    echo "→ Running stress-2k ($VUS talent VUs + $STAFF_VUS staff VUs)…"
+    echo "→ Running stress-2k ($VUS talent VUs + $STAFF_VUS staff VUs)..."
     exec k6 run \
       -e "BASE_URL=$BASE_URL" \
       -e "LOAD_TEST_SECRET=$LOAD_TEST_SECRET" \
