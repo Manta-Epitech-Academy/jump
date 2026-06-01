@@ -6,7 +6,6 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Plus from '@lucide/svelte/icons/plus';
   import Trash2 from '@lucide/svelte/icons/trash-2';
-  import Pencil from '@lucide/svelte/icons/pencil';
   import Copy from '@lucide/svelte/icons/copy';
   import Search from '@lucide/svelte/icons/search';
   import Clock from '@lucide/svelte/icons/clock';
@@ -22,6 +21,7 @@
   import * as Select from '$lib/components/ui/select';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import TemplateTimeline from '$lib/components/admin/TemplateTimeline.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { toast } from 'svelte-sonner';
   import {
@@ -29,7 +29,6 @@
     activityTypeStyles,
     activityTypes,
   } from '$lib/validation/templates';
-  import { cn } from '$lib/utils';
 
   let { data } = $props();
 
@@ -95,26 +94,6 @@
     return h * 60 + m;
   }
 
-  function overlappingSlotIds(
-    slots: { id: string; startTime: string; endTime: string }[],
-  ): Set<string> {
-    const ids = new Set<string>();
-    for (let i = 0; i < slots.length; i++) {
-      for (let j = i + 1; j < slots.length; j++) {
-        const a = slots[i],
-          b = slots[j];
-        if (
-          timeToMinutes(a.startTime) < timeToMinutes(b.endTime) &&
-          timeToMinutes(b.startTime) < timeToMinutes(a.endTime)
-        ) {
-          ids.add(a.id);
-          ids.add(b.id);
-        }
-      }
-    }
-    return ids;
-  }
-
   let filteredTemplates = $derived(
     data.activityTemplates.filter((t) => {
       if (typeFilter !== 'all' && t.activityType !== typeFilter) return false;
@@ -144,6 +123,27 @@
     searchQuery = '';
     typeFilter = 'all';
     slotDialogOpen = true;
+  }
+
+  function openAddSlotAtTime(dayId: string, time: string) {
+    editingSlotId = null;
+    slotDialogDayId = dayId;
+    slotStartTime = time;
+    const startMins = timeToMinutes(time);
+    const endMins = Math.min(startMins + 60, 23 * 60 + 59);
+    slotEndTime = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`;
+    slotActivityTemplateId = '';
+    slotNom = '';
+    slotActivityType = 'orga';
+    searchQuery = '';
+    typeFilter = 'all';
+    slotDialogOpen = true;
+  }
+
+  function handleSlotClick(slotId: string, dayId: string) {
+    const day = days.find((d) => d.id === dayId);
+    const slot = day?.slots.find((s) => s.id === slotId);
+    if (slot) openEditSlot(slot, dayId);
   }
 
   function openEditSlot(slot: any, dayId: string) {
@@ -286,73 +286,11 @@
             actionCallback={() => openAddSlot(day.id)}
           />
         {:else}
-          {@const overlaps = overlappingSlotIds(day.slots)}
-          <div class="space-y-2">
-            {#each day.slots as slot}
-              {@const styles = activityTypeStyles[slot.activityType]}
-              {@const name =
-                slot.activityTemplate?.nom ?? slot.nom ?? 'Sans nom'}
-              {@const isOverlap = overlaps.has(slot.id)}
-              <div
-                class={cn(
-                  'flex items-center gap-3 rounded-lg border border-l-4 p-3',
-                  isOverlap
-                    ? 'border-destructive/50 bg-destructive/5'
-                    : [styles.bg, styles.border],
-                )}
-              >
-                <Badge variant="outline" class="shrink-0 font-mono text-xs">
-                  {slot.startTime} — {slot.endTime}
-                </Badge>
-                <div class="flex min-w-0 flex-1 items-center gap-2">
-                  {#if slot.activityTemplate}
-                    {#if slot.activityTemplate.isDynamic}
-                      <Zap class="h-3.5 w-3.5 shrink-0 text-epi-orange" />
-                    {:else}
-                      <FileText
-                        class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                      />
-                    {/if}
-                  {/if}
-                  <span class="truncate text-sm font-bold">{name}</span>
-                  <Badge
-                    variant="outline"
-                    class={cn('text-[10px]', styles.accent)}
-                  >
-                    {activityTypeLabels[slot.activityType]}
-                  </Badge>
-                  {#if slot.activityTemplate?.difficulte}
-                    <Badge variant="secondary" class="text-[10px]">
-                      {slot.activityTemplate.difficulte}
-                    </Badge>
-                  {/if}
-                  {#if isOverlap}
-                    <Badge variant="destructive" class="text-[10px]">
-                      Chevauchement
-                    </Badge>
-                  {/if}
-                </div>
-                <div class="flex shrink-0 gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7"
-                    onclick={() => openEditSlot(slot, day.id)}
-                  >
-                    <Pencil class="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 text-destructive hover:text-destructive"
-                    onclick={() => confirmDeleteSlot(slot.id)}
-                  >
-                    <Trash2 class="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            {/each}
-          </div>
+          <TemplateTimeline
+            slots={day.slots}
+            onSlotClick={(id) => handleSlotClick(id, day.id)}
+            onEmptyClick={(time) => openAddSlotAtTime(day.id, time)}
+          />
         {/if}
       </Tabs.Content>
     {/each}
