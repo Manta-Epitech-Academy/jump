@@ -7,6 +7,10 @@
     activityTypeLabels,
     activityTypeStyles,
   } from '$lib/validation/templates';
+  import {
+    wallClockToMinutes,
+    minutesToWallClock,
+  } from '$lib/domain/planningTime';
 
   type Slot = {
     id: string;
@@ -36,22 +40,13 @@
   const DEFAULT_END = 18;
   const SNAP_MINUTES = 15;
 
-  function timeToMinutes(t: string): number {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  }
-
-  function minutesToTime(m: number): string {
-    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-  }
-
   // Visible hour range: the default window, expanded to fit any slots outside it.
   let range = $derived.by(() => {
     let start = DEFAULT_START;
     let end = DEFAULT_END;
     for (const s of slots) {
-      const sMin = timeToMinutes(s.startTime);
-      const eMin = timeToMinutes(s.endTime);
+      const sMin = wallClockToMinutes(s.startTime);
+      const eMin = wallClockToMinutes(s.endTime);
       if (sMin < start * 60) start = Math.floor(sMin / 60);
       if (eMin > end * 60) end = Math.ceil(eMin / 60);
     }
@@ -69,11 +64,12 @@
   );
 
   function getTop(time: string): number {
-    return (timeToMinutes(time) - range.start * 60) * PX_PER_MIN;
+    return (wallClockToMinutes(time) - range.start * 60) * PX_PER_MIN;
   }
 
   function getHeight(start: string, end: string): number {
-    const h = (timeToMinutes(end) - timeToMinutes(start)) * PX_PER_MIN;
+    const h =
+      (wallClockToMinutes(end) - wallClockToMinutes(start)) * PX_PER_MIN;
     return Math.max(h, 15 * PX_PER_MIN); // min height
   }
 
@@ -84,23 +80,24 @@
     if (slots.length === 0) return [];
 
     const sorted = [...slots].sort(
-      (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
+      (a, b) =>
+        wallClockToMinutes(a.startTime) - wallClockToMinutes(b.startTime),
     );
 
     // Build overlap groups
     const groups: Slot[][] = [];
     let currentGroup: Slot[] = [sorted[0]];
-    let groupEnd = timeToMinutes(sorted[0].endTime);
+    let groupEnd = wallClockToMinutes(sorted[0].endTime);
 
     for (let i = 1; i < sorted.length; i++) {
       const s = sorted[i];
-      if (timeToMinutes(s.startTime) < groupEnd) {
+      if (wallClockToMinutes(s.startTime) < groupEnd) {
         currentGroup.push(s);
-        groupEnd = Math.max(groupEnd, timeToMinutes(s.endTime));
+        groupEnd = Math.max(groupEnd, wallClockToMinutes(s.endTime));
       } else {
         groups.push(currentGroup);
         currentGroup = [s];
-        groupEnd = timeToMinutes(s.endTime);
+        groupEnd = wallClockToMinutes(s.endTime);
       }
     }
     groups.push(currentGroup);
@@ -114,7 +111,10 @@
         let placed = false;
         for (let c = 0; c < columns.length; c++) {
           const last = columns[c][columns[c].length - 1];
-          if (timeToMinutes(last.endTime) <= timeToMinutes(slot.startTime)) {
+          if (
+            wallClockToMinutes(last.endTime) <=
+            wallClockToMinutes(slot.startTime)
+          ) {
             columns[c].push(slot);
             result.push({ ...slot, colIndex: c, numCols: 0 });
             placed = true;
@@ -142,7 +142,9 @@
     const offsetY = e.clientY - rect.top;
     const rawMinutes = offsetY / PX_PER_MIN + range.start * 60;
     const snapped = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
-    onEmptyClick(minutesToTime(Math.max(0, Math.min(snapped, 23 * 60 + 45))));
+    onEmptyClick(
+      minutesToWallClock(Math.max(0, Math.min(snapped, 23 * 60 + 45))),
+    );
   }
 </script>
 

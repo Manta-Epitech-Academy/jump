@@ -29,6 +29,10 @@
     activityTypeStyles,
     activityTypes,
   } from '$lib/validation/templates';
+  import {
+    wallClockToMinutes,
+    minutesToWallClock,
+  } from '$lib/domain/planningTime';
 
   let { data } = $props();
 
@@ -89,11 +93,6 @@
     },
   );
 
-  function timeToMinutes(t: string): number {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  }
-
   let filteredTemplates = $derived(
     data.activityTemplates.filter((t) => {
       if (typeFilter !== 'all' && t.activityType !== typeFilter) return false;
@@ -114,9 +113,11 @@
     const lastSlot = daySlots.at(-1);
     slotStartTime = lastSlot?.endTime ?? '09:00';
     // Default 1h duration from start.
-    const startMins = timeToMinutes(slotStartTime);
-    const endMins = Math.min(startMins + 60, 23 * 60 + 59);
-    slotEndTime = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`;
+    const endMins = Math.min(
+      wallClockToMinutes(slotStartTime) + 60,
+      23 * 60 + 59,
+    );
+    slotEndTime = minutesToWallClock(endMins);
     slotActivityTemplateId = '';
     slotNom = '';
     slotActivityType = 'orga';
@@ -129,9 +130,8 @@
     editingSlotId = null;
     slotDialogDayId = dayId;
     slotStartTime = time;
-    const startMins = timeToMinutes(time);
-    const endMins = Math.min(startMins + 60, 23 * 60 + 59);
-    slotEndTime = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`;
+    const endMins = Math.min(wallClockToMinutes(time) + 60, 23 * 60 + 59);
+    slotEndTime = minutesToWallClock(endMins);
     slotActivityTemplateId = '';
     slotNom = '';
     slotActivityType = 'orga';
