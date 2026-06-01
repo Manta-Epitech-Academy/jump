@@ -19,3 +19,7 @@ Les consignes de sécurité et règles d'évacuation doivent être respectées e
 ## Obligations du stagiaire
 
 **Les stagiaires s'engagent à participer activement aux activités proposées** (conférences, ateliers, soutenances, jurys) et à remplir le questionnaire d'évaluation en fin de stage, dans le cadre de la démarche d'amélioration continue d'Epitech. Ils veillent également à utiliser le nom complet et le logo officiels de l'école dans tous leurs documents (convention, CV, présentations).
+
+En tant qu'entreprise d'accueil et école d'enseignement supérieur, **Epitech** dispose d'un règlement intérieur pour s'assurer d'une vie de campus respectueuse et propice à l'apprentissage.
+
+Tout manquement aux règles établies par le règlement intérieur entrainerait de fait une rupture à prise effet immédiat de la convention de stage.
