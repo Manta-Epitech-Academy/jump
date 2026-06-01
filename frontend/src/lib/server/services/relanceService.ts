@@ -16,7 +16,7 @@ import {
   EMPTY_VARIABLE_CONTEXT,
   type VariableContext,
 } from '$lib/domain/broadcastVariables';
-import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import { sendSms } from '$lib/server/sms';
 import {
@@ -272,13 +272,18 @@ export async function sendRelances(
     };
     const renderedSubject = substituteVariables(subject, ctx);
     const renderedBody = substituteVariables(body, ctx);
-    const html = renderBroadcastMail(renderedBody, env.ORIGIN ?? '');
+    const { html, text } = renderBroadcastEmail(
+      renderedBody,
+      env.ORIGIN ?? '',
+      renderedSubject,
+    );
 
     const sendResult = await sendEmail({
       from: MAIL_FROM,
       to: recipient,
       subject: renderedSubject,
       html,
+      text,
     });
     if (!sendResult.ok) {
       // Skip the audit write on failure — otherwise the "Historique des

@@ -36,10 +36,10 @@ function toOutcome(result: Awaited<ReturnType<typeof sendEmail>>): SendOutcome {
 }
 
 export const transactionalMailProvider: MailProvider = {
-  async sendMail({ to, subject, html }, opts): Promise<SendOutcome> {
+  async sendMail({ to, subject, html, text }, opts): Promise<SendOutcome> {
     return toOutcome(
       await sendEmail(
-        { from: MAIL_FROM, to, subject, html },
+        { from: MAIL_FROM, to, subject, html, text },
         { devRedirect: opts?.devRedirectTo },
       ),
     );
@@ -62,6 +62,7 @@ export const transactionalMailProvider: MailProvider = {
           to: m.to,
           subject: m.subject,
           html: m.html,
+          text: m.text,
         })),
         { devRedirect: opts?.devRedirectTo },
       );
