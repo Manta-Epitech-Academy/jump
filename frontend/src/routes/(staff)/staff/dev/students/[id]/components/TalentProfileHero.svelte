@@ -45,9 +45,9 @@
           class="flex items-baseline font-heading text-5xl tracking-wide uppercase md:text-6xl"
         >
           <span>{student.nom}</span>
-          <span class="ml-3 font-light">{capitalize(student.prenom)}</span><span
-            class="text-epi-teal">_</span
-          >
+          <span class="ml-3 font-light normal-case"
+            >{capitalize(student.prenom)}</span
+          ><span class="text-epi-teal">_</span>
         </h1>
         {#if student.externalId}
           <Tooltip.Provider delayDuration={150}>
