@@ -33,7 +33,7 @@
 
   const PX_PER_MIN = 1.2;
   const DEFAULT_START = 9;
-  const DEFAULT_END = 17;
+  const DEFAULT_END = 18;
   const SNAP_MINUTES = 15;
 
   function timeToMinutes(t: string): number {
