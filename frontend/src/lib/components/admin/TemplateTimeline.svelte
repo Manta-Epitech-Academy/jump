@@ -31,7 +31,7 @@
 
   let { slots, onSlotClick, onEmptyClick }: Props = $props();
 
-  const PX_PER_MIN = 1.2;
+  const PX_PER_MIN = 1;
   const DEFAULT_START = 9;
   const DEFAULT_END = 18;
   const SNAP_MINUTES = 15;
@@ -150,15 +150,13 @@
 <div class="flex select-none">
   <!-- Hour gutter -->
   <div class="relative w-14 shrink-0" style="height: {containerHeight}px;">
-    {#each hours as hour, i}
-      {#if i < hours.length - 1}
-        <span
-          class="absolute right-2 text-[10px] font-bold text-muted-foreground"
-          style="top: {(hour - range.start) * 60 * PX_PER_MIN - 6}px;"
-        >
-          {String(hour).padStart(2, '0')}:00
-        </span>
-      {/if}
+    {#each hours as hour}
+      <span
+        class="absolute right-2 text-[10px] font-bold text-muted-foreground"
+        style="top: {(hour - range.start) * 60 * PX_PER_MIN - 6}px;"
+      >
+        {String(hour).padStart(2, '0')}:00
+      </span>
     {/each}
   </div>
 
