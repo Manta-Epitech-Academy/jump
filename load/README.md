@@ -4,24 +4,33 @@ Tests de montée en charge ciblant **preprod** (ou localhost).
 
 ## ⚠️ Pré-requis serveur
 
-L'endpoint `POST /api/test/login-as` (qui forge des sessions BetterAuth pour les VUs k6) n'est actif **que si `LOAD_TEST_SECRET` est défini côté serveur**. Sans elle, l'endpoint répond 404.
+**Tout passe par l'API, à distance.** Aucun accès DB depuis la machine qui lance les tests : seed, manifest, cleanup et login se font via des endpoints `/api/test/*` gardés par `LOAD_TEST_SECRET`, qui font le travail DB sur l'environnement cible lui-même.
+
+| Endpoint | Rôle |
+|---|---|
+| `POST /api/test/login-as` | forge une session BetterAuth pour un user existant (insert direct `bauth_session`, bypass OTP, cookie signé `better-call`) |
+| `POST /api/test/seed-talents` | crée N talents jetables `@loadtest.invalid` (body `{count, start}`) |
+| `GET  /api/test/manifest` | renvoie le pool que k6 échantillonne (talents, staff, events, …) |
+| `POST /api/test/cleanup` | cascade-delete tous les `@loadtest.invalid` |
+
+Les quatre sont **inactifs tant que `LOAD_TEST_SECRET` n'est pas défini côté serveur** (réponse 404 sinon), et exigent un bearer correct (401 sinon). C'est du **code applicatif** : il doit être déployé sur la cible (comme login-as). Un 404 sur seed/manifest = endpoints pas encore déployés.
 
 ```
 # .env preprod uniquement — JAMAIS en prod
 LOAD_TEST_SECRET=<token long aléatoire, openssl rand -hex 32>
 ```
 
-L'endpoint insère directement dans `bauth_session` (bypass total de l'OTP) et signe le cookie au format `better-call` — aucune contention à grande échelle.
-
 ## Layout
 
 ```
 load/
 ├── README.md
-├── data.json                          ← généré par manifest.ts, lu par tous les scénarios
+├── run.sh                             ← launcher générique (list/seed/manifest/cleanup/<scenario>)
+├── stress-2k.sh                       ← launcher dédié au flood 2000 users (seed→manifest→stress)
+├── data.json                          ← écrit par `run.sh manifest` (GET /api/test/manifest), lu par les scénarios
 └── k6/
     ├── lib/
-    │   ├── auth.js                    ← loginAs() helper
+    │   ├── auth.js                    ← loginAs() helper (avec retry)
     │   └── manifest.js                ← charge data.json + sampler round-robin
     └── scenarios/
         ├── smoke.js                   ← sanity check (3 VUs)
@@ -31,15 +40,18 @@ load/
         ├── admin-talents.js           ← /staff/admin/talents
         ├── signature-burst.js         ← signRules → OnboardingPdfJob
         ├── cockpit-presence.js        ← togglePresent
-        └── mixed.js                   ← talent reads + staff reads + cockpit writes
+        ├── mixed.js                   ← talent reads + staff reads + cockpit writes
+        └── stress-2k.js               ← 2000 users, login amorti, flood écritures + contention staff
 
-frontend/scripts/load-test/            ← Bun + Prisma (conventionnellement avec les autres scripts DB du projet)
-├── manifest.ts                        ← fetch preprod data → load/data.json
-├── seed-load-talents.ts               ← crée N talents @loadtest.invalid pour les writes
-└── cleanup.ts                         ← supprime tout ce que les seeds ont créé
+frontend/src/routes/api/test/          ← endpoints serveur (login-as, seed-talents, manifest, cleanup)
+frontend/src/lib/server/services/loadTestService.ts   ← logique DB partagée par ces endpoints
 ```
 
+Les seuls outils requis côté machine : **k6** et **curl** (plus `python3` pour l'affichage des compteurs du manifest, optionnel).
+
 ## Workflow type
+
+`BASE_URL` + `LOAD_TEST_SECRET` se lisent depuis le `.env` racine ; surcharge possible en CLI. Tout passe par `load/run.sh`.
 
 ### 1. Installer k6
 
@@ -47,20 +59,19 @@ frontend/scripts/load-test/            ← Bun + Prisma (conventionnellement ave
 brew install k6
 ```
 
-### 2. Générer le manifest (snapshot des données preprod)
+### 2. Générer le manifest (snapshot des données de la cible)
 
 ```sh
-bun --env-file=../.env scripts/load-test/manifest.ts   # from frontend/
-# SAMPLE=100 bun --env-file=../.env scripts/load-test/manifest.ts   # from frontend/   # pool plus large
+BASE_URL=https://jump-preprod.epiboost.eu ./load/run.sh manifest
+# SAMPLE=100 ./load/run.sh manifest   # pool plus large
 ```
 
-Affiche les compteurs de ce qui a été récupéré (talents, staff par role, events, activités, participations, publications). À re-générer chaque fois que les fixtures preprod changent.
+`GET /api/test/manifest` côté serveur, écrit dans `load/data.json`. Comme le manifest vient de la cible, il reflète toujours la **même** base que k6 va taper — pas de désync local/preprod. À re-générer quand les fixtures changent.
 
-### 3. (Optionnel — pour signature-burst) Seed le pool de talents jetables
+### 3. (Optionnel — pour signature-burst / stress-2k) Seed le pool de talents jetables
 
 ```sh
-COUNT=500 bun --env-file=../.env scripts/load-test/seed-load-talents.ts   # from frontend/
-bun --env-file=../.env scripts/load-test/manifest.ts   # from frontend/   # rafraîchit data.json pour inclure le pool seedé
+COUNT=500 ./load/run.sh seed   # POST /api/test/seed-talents (chunké) + refresh manifest
 ```
 
 Les talents seedés ont **tous les gates onboarding set sauf `rulesSignedAt`** — chaque signature les pousse à 100% mais peut être ré-amorcée par re-seed (idempotent).
@@ -68,19 +79,26 @@ Les talents seedés ont **tous les gates onboarding set sauf `rulesSignedAt`** �
 ### 4. Lancer un scénario
 
 ```sh
-k6 run \
-  -e BASE_URL=http://localhost:5173 \
-  -e LOAD_TEST_SECRET=$LOAD_TEST_SECRET \
-  load/k6/scenarios/talent-home.js
+BASE_URL=https://jump-preprod.epiboost.eu ./load/run.sh talent-home
 ```
+
+(`smoke` exige en plus `LOGIN_EMAIL=...`.)
 
 ### 5. Cleanup
 
 ```sh
-bun --env-file=../.env scripts/load-test/cleanup.ts   # from frontend/
+./load/run.sh cleanup
 ```
 
-Supprime tous les `bauth_user` en `@loadtest.invalid` (cascade sur Talent, sessions, XpGrants, OnboardingPdfJobs).
+`POST /api/test/cleanup` : supprime tous les `bauth_user` en `@loadtest.invalid` (cascade sur Talent, sessions, XpGrants, OnboardingPdfJobs).
+
+### Raccourci : le flood 2000 users
+
+```sh
+BASE_URL=https://jump-preprod.epiboost.eu VUS=2000 HOLD=5m ./load/stress-2k.sh
+```
+
+Enchaîne seed → manifest → flood (login amorti par VU, écritures + contention staff), tout à distance. `./load/stress-2k.sh help` pour les options.
 
 ## Scénarios
 
@@ -94,6 +112,7 @@ Supprime tous les `bauth_user` en `@loadtest.invalid` (cascade sur Talent, sessi
 | `signature-burst.js` | 50 VUs × `COUNT` iter | `POST /onboarding?/signRules` | Stresse la queue PDF. Requiert pool seedé. |
 | `cockpit-presence.js` | 10 VUs, 1min | `POST .../togglePresent` | Mutation présence + recompute XP. |
 | `mixed.js` | 3 scénarios concurrents | mix lectures+écritures | Ratio ~70%/30%, le plus proche du réel. |
+| `stress-2k.js` | 0→2000 VUs + 50 staff | flood `signRules` + `togglePresent` | Login amorti par VU, écritures à donf + contention staff. Lancer via `stress-2k.sh`. |
 
 Tous (sauf `smoke`) utilisent `data.json` — pas de variables d'env à passer.
 
@@ -118,25 +137,19 @@ k6 run --out experimental-prometheus-rw=http://localhost:9090/api/v1/write ...
 
 ## Quelques recettes utiles
 
-**Drainer la queue PDF après signature-burst:**
-
-```sh
-curl -X POST $BASE_URL/api/jobs/onboarding-pdfs \
-  -H "Authorization: Bearer $CRON_SECRET"
-```
+**Queue PDF:** pas de drain manuel. `signRules` lance `void runOnboardingPdfJob` en fire-and-forget (Puppeteer sur le pod), donc la queue se vide d'elle-même pendant le run. Les jobs en **échec** se relancent depuis `/staff/admin/onboarding-pdfs`.
 
 **Reset rapide entre runs de signature-burst** (sans cleanup complet):
 
 ```sh
-bun --env-file=../.env scripts/load-test/seed-load-talents.ts   # from frontend/   # idempotent, remet rulesSignedAt à null
-bun --env-file=../.env scripts/load-test/manifest.ts   # from frontend/
+COUNT=500 ./load/run.sh seed   # idempotent : remet rulesSignedAt à null + refresh manifest
 ```
 
 **Stress max (trouver le breaking point):**
 
 ```sh
-# Override le profil avec --vus + --duration
-k6 run --vus 500 --duration 5m load/k6/scenarios/talent-home.js
+VUS=2000 HOLD=10m ./load/stress-2k.sh           # le scénario dédié
+k6 run --vus 500 --duration 5m load/k6/scenarios/talent-home.js   # ou override un profil simple
 ```
 
 ## Sécurité

@@ -31,17 +31,17 @@ import { data } from '../lib/manifest.js';
 //   • discardResponseBodies keeps the k6 generator from choking on 2000 VUs
 //     (writes return a tiny 303 anyway).
 //
-// PREREQS — seed a real 2000-user pool first, then refresh the manifest:
-//   cd frontend
-//   COUNT=2000 bun scripts/load-test/seed-load-talents.ts
-//   bun scripts/load-test/manifest.ts
-//   # …then from repo root:
+// PREREQS — seed a real 2000-user pool + manifest, then run. The launcher does
+// all three over the API (no DB access); easiest is just:
+//   BASE_URL=https://jump-preprod.epiboost.eu VUS=2000 ./load/stress-2k.sh
+// or step by step:
+//   COUNT=2000 ./load/run.sh seed     # POST /api/test/seed-talents + refresh manifest
 //   k6 run -e BASE_URL=https://jump-preprod.epiboost.eu \
 //          -e LOAD_TEST_SECRET=*** -e VUS=2000 \
 //          load/k6/scenarios/stress-2k.js
 //
-// AFTER — this pollutes preprod HARD (hundreds of k OnboardingPdfJob rows, XP
-// grants, presence flips). Clean up: `cd frontend && bun scripts/load-test/cleanup.ts`.
+// AFTER — this pollutes the target HARD (hundreds of k OnboardingPdfJob rows, XP
+// grants, presence flips). Clean up: `./load/stress-2k.sh cleanup`.
 // NEVER run against prod.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -101,8 +101,7 @@ export function setup() {
   if (pool.length === 0) {
     throw new Error(
       'No loadTestTalents in manifest. Seed them first:\n' +
-        '  cd frontend && COUNT=2000 bun scripts/load-test/seed-load-talents.ts\n' +
-        '  bun scripts/load-test/manifest.ts',
+        '  COUNT=2000 ./load/run.sh seed',
     );
   }
   if (pool.length < TALENT_VUS) {
