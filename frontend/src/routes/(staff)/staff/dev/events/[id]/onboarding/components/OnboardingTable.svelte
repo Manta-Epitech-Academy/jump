@@ -15,7 +15,11 @@
   import Gated from '$lib/components/auth/Gated.svelte';
   import { InfoTooltip } from '$lib/components/ui/info-tooltip';
   import { cn } from '$lib/utils';
-  import type { RelanceType } from '$lib/domain/relance';
+  import {
+    latestReminderAt,
+    type RelanceType,
+    type ReminderSummary,
+  } from '$lib/domain/relance';
   import { IMAGE_RIGHTS_STATUS_LABELS } from '$lib/domain/imageRights';
   import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
@@ -40,12 +44,10 @@
     onRowRelance?: (talentId: string, type: RelanceType) => void;
   } = $props();
 
-  function lastReminderLabel(
-    reminders: { sentAt: Date; type: string }[],
-  ): string {
-    if (!reminders || reminders.length === 0) return '—';
-    const d = new Date(reminders[0].sentAt);
-    return d.toLocaleDateString('fr-FR', {
+  function lastReminderLabel(summary: ReminderSummary | undefined): string {
+    const at = latestReminderAt(summary);
+    if (!at) return '—';
+    return new Date(at).toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
     });
@@ -240,7 +242,7 @@
           <!-- Dernière relance -->
           <Gated group="devLead" mode="hide">
             <Table.Cell class="py-4 text-center text-sm text-muted-foreground">
-              {lastReminderLabel(p.talent.reminders)}
+              {lastReminderLabel(p.reminderSummary)}
             </Table.Cell>
             <Table.Cell class="py-4 text-center">
               <div class="inline-flex items-center gap-1">

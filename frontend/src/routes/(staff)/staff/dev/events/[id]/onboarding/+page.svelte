@@ -33,6 +33,7 @@
   import {
     classifyRelanceSkip,
     formatTalentVars,
+    reminderFor,
     type RelanceType,
     type RelanceVar,
   } from '$lib/domain/relance';
@@ -108,9 +109,6 @@
       if (index !== -1) {
         const compliance = (participations[index].stageCompliance ??= {
           charteSigned: false,
-          participationId: id,
-          createdAt: new Date(),
-          updatedAt: new Date(),
         });
         compliance.charteSigned = !compliance.charteSigned;
       }
@@ -153,14 +151,15 @@
   function buildRecipients(state: ComposeState): ComposeRecipient[] {
     const lookup = new Map(participations.map((p) => [p.talent.id, p]));
     return state.talentIds.map((id) => {
-      const t = lookup.get(id)?.talent;
+      const p = lookup.get(id);
+      const t = p?.talent;
       if (!t) return { id, label: id, willSkip: {} };
       const vars = formatTalentVars(t);
       const elig = { ...t, email: t.email ?? t.user?.email ?? null };
-      const rem = (t.reminders ?? []).filter((r) => r.type === state.type);
-      const lastEmailAt = rem.find((r) => r.channel === 'email')?.sentAt;
-      const lastSmsAt = rem.find((r) => r.channel === 'sms')?.sentAt;
-      const hasPriorEmail = rem.some((r) => r.channel === 'email');
+      const summary = p?.reminderSummary;
+      const lastEmailAt = reminderFor(summary, state.type, 'email');
+      const lastSmsAt = reminderFor(summary, state.type, 'sms');
+      const hasPriorEmail = lastEmailAt != null;
       const willSkip = {
         email: classifyRelanceSkip({
           type: state.type,
