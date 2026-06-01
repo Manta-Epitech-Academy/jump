@@ -5,6 +5,23 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { planningTemplateSchema } from '$lib/validation/planningTemplates';
 import { prisma } from '$lib/server/db';
 
+// Pick a free "<nom> (copie)" / "<nom> (copie N)" name so duplication always
+// succeeds instead of tripping the unique constraint on PlanningTemplate.nom.
+async function resolveCopyName(sourceNom: string): Promise<string> {
+  const existing = await prisma.planningTemplate.findMany({
+    where: { nom: { startsWith: `${sourceNom} (copie` } },
+    select: { nom: true },
+  });
+  const taken = new Set(existing.map((t) => t.nom));
+
+  const first = `${sourceNom} (copie)`;
+  if (!taken.has(first)) return first;
+
+  let n = 2;
+  while (taken.has(`${sourceNom} (copie ${n})`)) n++;
+  return `${sourceNom} (copie ${n})`;
+}
+
 export const load: PageServerLoad = async () => {
   const planningTemplates = await prisma.planningTemplate.findMany({
     orderBy: { createdAt: 'desc' },
@@ -129,9 +146,11 @@ export const actions: Actions = {
         },
       });
 
+      const nom = await resolveCopyName(source.nom);
+
       await prisma.planningTemplate.create({
         data: {
-          nom: `${source.nom} (copie)`,
+          nom,
           description: source.description,
           nbDays: source.nbDays,
           days: {

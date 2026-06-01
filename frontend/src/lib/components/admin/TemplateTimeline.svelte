@@ -45,7 +45,7 @@
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   }
 
-  // Compute visible hour range: default 9-17, expand if slots overflow
+  // Visible hour range: the default window, expanded to fit any slots outside it.
   let range = $derived.by(() => {
     let start = DEFAULT_START;
     let end = DEFAULT_END;
@@ -108,6 +108,7 @@
     // Assign columns within each group
     const result: LayoutSlot[] = [];
     for (const group of groups) {
+      const groupStart = result.length;
       const columns: Slot[][] = [];
       for (const slot of group) {
         let placed = false;
@@ -125,12 +126,10 @@
           result.push({ ...slot, colIndex: columns.length - 1, numCols: 0 });
         }
       }
-      // Set numCols for all slots in this group
-      const numCols = columns.length;
-      for (const r of result) {
-        if (group.some((s) => s.id === r.id)) {
-          r.numCols = numCols;
-        }
+      // This group's slots were just pushed contiguously; widen them all to the
+      // number of columns the group needed so siblings share the row evenly.
+      for (let i = groupStart; i < result.length; i++) {
+        result[i].numCols = columns.length;
       }
     }
     return result;
@@ -184,7 +183,7 @@
       {/if}
     {/each}
 
-    <!-- Grey zones outside 9-17 -->
+    <!-- Grey zones outside the default window -->
     {#if range.start < DEFAULT_START}
       <div
         class="pointer-events-none absolute top-0 right-0 left-0 bg-muted/40 dark:bg-muted/20"

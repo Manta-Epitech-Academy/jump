@@ -170,6 +170,8 @@
   }
 
   function confirmDeleteSlot(id: string) {
+    // Close the edit dialog first so the confirm dialog isn't stacked on top.
+    slotDialogOpen = false;
     slotToDelete = id;
     deleteSlotOpen = true;
   }
@@ -428,7 +430,7 @@
                   {#each filteredTemplates as template}
                     <button
                       type="button"
-                      class="flex w-full items-center gap-2 rounded-md border bg-card p-2 text-left shadow-sm transition-colors hover:border-epi-blue hover:bg-muted/50 dark:shadow-none"
+                      class="flex w-full cursor-pointer items-center gap-2 rounded-md border bg-card p-2 text-left shadow-sm transition-colors hover:border-epi-blue hover:bg-muted/50 dark:shadow-none"
                       onclick={() => selectTemplate(template.id, template.nom)}
                     >
                       {#if template.isDynamic}
@@ -474,6 +476,17 @@
       </Tabs.Root>
 
       <Dialog.Footer>
+        {#if editingSlotId}
+          <Button
+            type="button"
+            variant="ghost"
+            class="mr-auto gap-1.5 text-destructive hover:text-destructive"
+            onclick={() => editingSlotId && confirmDeleteSlot(editingSlotId)}
+          >
+            <Trash2 class="h-4 w-4" />
+            Supprimer
+          </Button>
+        {/if}
         <Button type="submit" class="bg-epi-pink text-white">
           {editingSlotId ? 'Mettre à jour' : 'Ajouter'}
         </Button>
