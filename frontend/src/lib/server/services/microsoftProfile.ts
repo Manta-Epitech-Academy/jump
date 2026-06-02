@@ -27,7 +27,7 @@ export async function syncMicrosoftAvatar(userId: string): Promise<void> {
     if (!res.ok) return;
 
     const buffer = Buffer.from(await res.arrayBuffer());
-    await getStorage().save(avatarStorageKey(userId), buffer);
+    await getStorage().save(avatarStorageKey(userId), buffer, 'image/jpeg');
 
     // Cache-busting token: changes on each sync so the proxy URL stored in
     // bauth_user.image can be served with `immutable` browser caching.

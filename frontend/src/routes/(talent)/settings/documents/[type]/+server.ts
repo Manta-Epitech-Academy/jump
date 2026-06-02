@@ -4,6 +4,7 @@ import { getStorage } from '$lib/server/infra/storage';
 import {
   ONBOARDING_DOCUMENTS,
   isTalentViewableDocument,
+  onboardingDownloadFilename,
 } from '$lib/server/services/onboardingDocuments';
 
 /**
@@ -30,6 +31,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     throw error(404, 'Document indisponible');
   }
 
-  const url = await getStorage().getDownloadUrl(filePath);
+  const url = await getStorage().getDownloadUrl(filePath, {
+    filename: onboardingDownloadFilename(params.type, locals.talent),
+    contentType: 'application/pdf',
+  });
   throw redirect(302, url);
 };

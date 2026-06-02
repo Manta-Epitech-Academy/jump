@@ -7,6 +7,10 @@ import {
   isOnboardingPdfJobRetryable,
   runOnboardingPdfJob,
 } from '$lib/server/services/onboardingPdfJobService';
+import {
+  onboardingDownloadFilename,
+  type OnboardingDocumentType,
+} from '$lib/server/services/onboardingDocuments';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
 
@@ -146,13 +150,25 @@ export const actions: Actions = {
 
     const job = await prisma.onboardingPdfJob.findUnique({
       where: { id },
-      select: { filePath: true },
+      select: {
+        filePath: true,
+        documentType: true,
+        talent: {
+          select: { prenom: true, nom: true, externalId: true, id: true },
+        },
+      },
     });
     if (!job?.filePath)
       return fail(404, { message: 'Aucun fichier pour ce job.' });
 
     try {
-      const url = await getStorage().getDownloadUrl(job.filePath);
+      const url = await getStorage().getDownloadUrl(job.filePath, {
+        filename: onboardingDownloadFilename(
+          job.documentType as OnboardingDocumentType,
+          job.talent,
+        ),
+        contentType: 'application/pdf',
+      });
       return { url };
     } catch (err) {
       console.error('[onboarding-pdf-job] signed URL failed:', err);
