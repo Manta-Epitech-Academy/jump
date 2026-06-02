@@ -147,7 +147,7 @@
           placeholder="Prénom"
           required
           autocomplete="given-name"
-          class="inline-block w-32 rounded-lg border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+          class="inline-block w-32 rounded-xl border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
         />
         <input
           name="signerNom"
@@ -156,13 +156,13 @@
           placeholder="Nom"
           required
           autocomplete="family-name"
-          class="inline-block w-32 rounded-lg border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+          class="inline-block w-32 rounded-xl border border-slate-300 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
         />
         agissant en qualité de
         <input type="hidden" name="relationship" value={relationship} />
         <Select.Root type="single" bind:value={relationship}>
           <Select.Trigger
-            class="inline-flex h-auto w-auto gap-1 rounded-lg border-slate-300 bg-white px-2 py-1 align-middle text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            class="inline-flex h-auto w-auto gap-1 rounded-xl border-slate-300 bg-white px-2 py-1 align-middle text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
             {#if relationship}
               {relationship}
@@ -196,7 +196,7 @@
         bind:value={city}
         placeholder="Ville"
         required
-        class="w-40 min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
+        class="w-40 min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-epi-blue/40 focus:ring-0 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-600"
       />
       <span
         class="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300"
