@@ -13,6 +13,11 @@ import { env } from '$env/dynamic/private';
 
 const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
 
+// Crisp live-chat (talent space). Hosts whitelisted unconditionally; the widget
+// only actually loads when PUBLIC_CRISP_WEBSITE_ID is set (see Crisp.svelte).
+const CRISP_HOST = 'https://client.crisp.chat';
+const CRISP_RELAY = 'wss://client.relay.crisp.chat';
+
 // Allow the configured jump-games origin to be embedded as an iframe. Deployed
 // hosts already match the `*.epiboost.eu` wildcard below, but a local
 // jump-games (e.g. http://localhost:5174) does not — derive its origin so
@@ -32,11 +37,11 @@ const GAMES_FRAME_SRC = (() => {
 // so `'unsafe-inline'` must actually take effect here.
 const CSP_HEADER = [
   "default-src 'self'",
-  `script-src 'self' ${UMAMI_HOST} 'unsafe-inline' 'unsafe-hashes'`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  `script-src 'self' ${UMAMI_HOST} ${CRISP_HOST} 'unsafe-inline' 'unsafe-hashes'`,
+  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${CRISP_HOST}`,
   "img-src 'self' data: https:",
-  "font-src 'self' https://fonts.gstatic.com",
-  `connect-src 'self' https://discord.com ${UMAMI_HOST}`,
+  `font-src 'self' https://fonts.gstatic.com ${CRISP_HOST}`,
+  `connect-src 'self' https://discord.com ${UMAMI_HOST} ${CRISP_HOST} ${CRISP_RELAY}`,
   "frame-ancestors 'none'",
   `frame-src 'self' https://*.epiboost.eu https://*.epiboost.fr${GAMES_FRAME_SRC ? ` ${GAMES_FRAME_SRC}` : ''}`,
   "object-src 'none'",
