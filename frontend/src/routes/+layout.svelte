@@ -110,7 +110,7 @@
 <Umami />
 
 <div style="display: contents">
-  <Toaster richColors position="top-center" />
+  <Toaster richColors position="top-center" closeButton />
   {#if page.data.armedRealSends}
     <div class="sticky top-0 z-50">
       <RealSendsBanner until={page.data.armedRealSendsUntil} />

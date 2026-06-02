@@ -39,6 +39,13 @@
       cancelButton:
         'group-[.toast]:bg-transparent group-[.toast]:text-muted-foreground group-[.toast]:font-bold group-[.toast]:text-[10px] group-[.toast]:uppercase',
 
+      // Close button inherits the toast's own text colour (currentColor) instead
+      // of a fixed shade, so it reads on both the light staff toasts (dark text)
+      // and the epi-blue reward toasts (white text via REWARD_TOAST_STYLE)
+      // without per-toast overrides.
+      closeButton:
+        'group-[.toast]:border-current/25 group-[.toast]:bg-transparent group-[.toast]:text-current group-[.toast]:opacity-60 hover:group-[.toast]:opacity-100 group-[.toast]:transition-opacity',
+
       default:
         'group-[.toaster]:bg-card group-[.toaster]:text-foreground group-[.toaster]:border-border',
     },
