@@ -34,7 +34,7 @@
     { index: number; display: number; title: string }
   > = {
     identity: { index: 1, display: 1, title: 'Qui es-tu ?' },
-    school: { index: 2, display: 1, title: "D'où viens-tu ?" },
+    school: { index: 2, display: 1, title: 'De quel lycée viens-tu ?' },
     parents: { index: 3, display: 1, title: "Contacts d'urgence" },
     interests: { index: 4, display: 2, title: "Centres d'intérêt" },
     equipment: { index: 5, display: 3, title: 'Ton matériel' },
@@ -45,6 +45,12 @@
   const TOTAL_DISPLAY = 4;
 
   let goBackForm: HTMLFormElement;
+  let scrollContainer: HTMLElement | undefined = $state();
+
+  $effect(() => {
+    data.step;
+    scrollContainer?.scrollTo(0, 0);
+  });
 
   const stepIndex = $derived(STEP_INFO[data.step]?.index ?? 1);
   const displayStep = $derived(STEP_INFO[data.step]?.display ?? 1);
@@ -134,7 +140,10 @@
   </header>
 
   <!-- ═══ Scrollable content ═══ -->
-  <main class="relative z-10 flex-1 overflow-y-auto">
+  <main
+    bind:this={scrollContainer}
+    class="relative z-10 flex-1 overflow-y-auto"
+  >
     <div class="mx-auto w-full max-w-lg px-4 py-8">
       <div class="relative">
         {#key data.step}
