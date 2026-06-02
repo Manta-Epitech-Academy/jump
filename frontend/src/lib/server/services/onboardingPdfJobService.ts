@@ -154,7 +154,7 @@ export async function runOnboardingPdfJob(jobId: string): Promise<void> {
     // accumulating timestamp-keyed orphans in S3. The signature timestamps live
     // on the talent row — the bucket is just the current rendered artifact.
     const key = `documents/${job.talentId}/${documentType}.pdf`;
-    await storage.save(key, pdf);
+    await storage.save(key, pdf, 'application/pdf');
 
     const filePathField = ONBOARDING_DOCUMENTS[documentType].filePathField;
     await prisma.$transaction([
