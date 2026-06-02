@@ -16,6 +16,8 @@ export interface MailMessage {
   to: string;
   subject: string;
   html: string;
+  /** Plain-text alternative. Always set so the send is multipart, never HTML-only. */
+  text: string;
 }
 
 /**

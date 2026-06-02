@@ -2,6 +2,7 @@
   import '../../routes/layout.css';
   import { onMount } from 'svelte';
   import TalentImpersonationBanner from '$lib/components/TalentImpersonationBanner.svelte';
+  import Crisp from '$lib/components/Crisp.svelte';
 
   let { children } = $props();
 
@@ -20,3 +21,6 @@
   <TalentImpersonationBanner />
   {@render children()}
 </div>
+
+<!-- Live-chat widget, talent space only. No-op unless PUBLIC_CRISP_WEBSITE_ID is set. -->
+<Crisp />

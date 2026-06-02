@@ -3,7 +3,7 @@ import {
   substituteVariables,
   buildDemoContext,
 } from '$lib/domain/broadcastVariables';
-import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
 import { rewriteHtmlLinks, rewriteSmsLinks } from './linkRewriter';
 import { sendEmail, MAIL_FROM } from '$lib/server/email';
 import { sendSms } from '$lib/server/sms';
@@ -64,12 +64,15 @@ export async function sendTestMessage(
   const subject = input.subject
     ? `[TEST] ${substituteVariables(input.subject, ctx)}`
     : '[TEST] Envoi en masse';
-  const html = rewriteHtmlLinks(
-    renderBroadcastMail(substituteVariables(input.body, ctx), env.ORIGIN ?? ''),
-    TEST_TRACKING_ID,
+  const rendered = renderBroadcastEmail(
+    substituteVariables(input.body, ctx),
+    env.ORIGIN ?? '',
+    subject,
   );
+  const html = rewriteHtmlLinks(rendered.html, TEST_TRACKING_ID);
+  const text = rewriteSmsLinks(rendered.text, TEST_TRACKING_ID);
   const result = await sendEmail(
-    { from: MAIL_FROM, to, subject, html },
+    { from: MAIL_FROM, to, subject, html, text },
     { devRedirect: 'bypass' },
   );
   return result.ok ? { ok: true } : { ok: false, message: result.message };

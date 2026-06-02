@@ -265,11 +265,24 @@ export async function buildLoadManifest(sample = 50) {
   };
 }
 
-/** Cascade-delete every @loadtest.invalid account (Talent, sessions, XpGrants,
- *  OnboardingPdfJobs all go with it). Idempotent. */
-export async function cleanupLoadTest(): Promise<{ deleted: number }> {
-  const result = await prisma.bauth_user.deleteMany({
+/**
+ * Delete every @loadtest.invalid record. Idempotent.
+ *
+ * Order matters: Talent -> bauth_user is `onDelete: SetNull` (NOT Cascade), so
+ * deleting the user only nulls Talent.userId and leaves an orphan Talent row.
+ * Delete Talents by their own (unique) email FIRST -- that cascades to their
+ * children (XpGrant, OnboardingPdfJob, participations, etc., all `onDelete:
+ * Cascade`) -- then delete the users.
+ */
+export async function cleanupLoadTest(): Promise<{
+  deletedTalents: number;
+  deletedUsers: number;
+}> {
+  const talents = await prisma.talent.deleteMany({
     where: { email: { endsWith: DOMAIN } },
   });
-  return { deleted: result.count };
+  const users = await prisma.bauth_user.deleteMany({
+    where: { email: { endsWith: DOMAIN } },
+  });
+  return { deletedTalents: talents.count, deletedUsers: users.count };
 }

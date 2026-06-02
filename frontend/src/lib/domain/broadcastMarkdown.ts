@@ -243,3 +243,174 @@ export function wrapBroadcastHtml(innerHtml: string, baseUrl = ''): string {
 export function renderBroadcastMail(markdown: string, baseUrl = ''): string {
   return wrapBroadcastHtml(renderBroadcastBodyHtml(markdown), baseUrl);
 }
+
+/**
+ * Wrap the branded inner shell in a complete HTML document.
+ *
+ * The shell from {@link wrapBroadcastHtml} is a bare `<div>` fragment. Shipped
+ * as the HTML part of an email it carries no `<html>`/`<body>`, which
+ * SpamAssassin scores as HTML_MIME_NO_HTML_TAG and Gmail/Outlook read as a tell
+ * of auto-generated spam. Only the server send paths use this; in-app previews
+ * keep the fragment ({@link renderBroadcastMail}) because a full document
+ * injected via `{@html}` would nest `<html>`/`<body>` inside the live DOM.
+ */
+export function wrapEmailDocument(shellHtml: string, subject = ''): string {
+  const title = subject ? `<title>${escapeHtml(subject)}</title>` : '';
+  return [
+    '<!DOCTYPE html>',
+    '<html lang="fr">',
+    '<head>',
+    '<meta charset="utf-8" />',
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
+    '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
+    title,
+    '</head>',
+    '<body style="margin: 0; padding: 0; background-color: #f1f5f9;">',
+    shellHtml,
+    '</body>',
+    '</html>',
+  ].join('');
+}
+
+// Walking marked's token tree (rather than regex-scrubbing rendered output)
+// keeps URLs out of reach of emphasis handling. Tokens are typed as the
+// `Tokens.Generic` catch-all: marked folds custom tokens (our `broadcastButton`)
+// and the whole union into it, so per-type narrowing isn't available. Same
+// pragmatic shape the HTML renderers above use.
+
+/** Inline tokens → their bare text, dropping emphasis/code markers. */
+function inlineTokensToText(tokens: Tokens.Generic[] | undefined): string {
+  if (!tokens) return '';
+  return tokens.map(inlineTokenToText).join('');
+}
+
+function inlineTokenToText(token: Tokens.Generic): string {
+  switch (token.type) {
+    case 'escape':
+    case 'codespan':
+      return token.text;
+    case 'br':
+      return '\n';
+    case 'strong':
+    case 'em':
+    case 'del':
+      return inlineTokensToText(token.tokens);
+    case 'link': {
+      // The href lives in its own field, so emphasis handling never reaches
+      // inside the URL. When the label already spells out its destination the
+      // link is an autolink (gfm turns a bare `https://…`, email, or phone in
+      // the body into one); mail clients don't linkify plain text, so we keep
+      // the raw target but show it once instead of "addr (mailto:addr)". The
+      // mailto:/tel: scheme is stripped only for that sameness check, never
+      // from the surfaced href.
+      const label = inlineTokensToText(token.tokens).trim();
+      const href = String(token.href ?? '').trim();
+      if (!href) return label;
+      if (!label) return href;
+      const target = href.replace(/^(?:mailto|tel):/i, '');
+      return target === label ? label : `${label} (${href})`;
+    }
+    case 'image':
+      return token.text;
+    case 'text':
+      return token.tokens ? inlineTokensToText(token.tokens) : token.text;
+    default:
+      return '';
+  }
+}
+
+function listToText(list: Tokens.Generic): string {
+  const items = list.items as Tokens.Generic[];
+  return items
+    .map((item, index) => {
+      const marker = list.ordered
+        ? `${(Number(list.start) || 1) + index}. `
+        : '- ';
+      // Flatten any sub-blocks to a single line; these nudge mails use one-line
+      // bullets, and a wrapped marker reads worse than a long line in plain text.
+      const body = blockTokensToText(item.tokens).replace(/\n+/g, ' ').trim();
+      return `${marker}${body}`;
+    })
+    .join('\n');
+}
+
+function blockTokenToText(token: Tokens.Generic): string {
+  switch (token.type) {
+    case 'heading':
+    case 'paragraph':
+      return inlineTokensToText(token.tokens).trim();
+    case 'text':
+      return (
+        token.tokens ? inlineTokensToText(token.tokens) : token.text
+      ).trim();
+    case 'code':
+      return token.text;
+    case 'blockquote':
+      return blockTokensToText(token.tokens);
+    case 'list':
+      return listToText(token);
+    case 'broadcastButton': {
+      const label = String(token.label ?? '').trim();
+      const href = String(token.href ?? '').trim();
+      return href ? `${label} : ${href}` : label;
+    }
+    default:
+      // space, hr, and anything we don't surface in plain text → block break.
+      return '';
+  }
+}
+
+function blockTokensToText(tokens: Tokens.Generic[] | undefined): string {
+  if (!tokens) return '';
+  const blocks: string[] = [];
+  for (const token of tokens) {
+    const rendered = blockTokenToText(token);
+    if (rendered) blocks.push(rendered);
+  }
+  return blocks.join('\n\n');
+}
+
+/**
+ * Plain-text rendering of a broadcast markdown body, for the `text/plain`
+ * alternative of a multipart email. Without it the message is HTML-only
+ * (SpamAssassin's MIME_HTML_ONLY penalty), and clients that refuse HTML
+ * (locked-down corporate mail, smartwatches) show an empty message.
+ *
+ * Built by walking marked's token tree, not by regex-scrubbing the rendered
+ * string. URLs live in `link` / `broadcastButton` href fields, so emphasis
+ * handling can never reach inside them: a flat-text regex pass would delete
+ * the `_` pairs inside base64url magic-link tokens ({{fastlogin_link}}) and
+ * ship a broken login link in the text part (~13% of tokens carry such a
+ * pair). Links are kept inline as raw URLs so they survive and so the
+ * per-recipient tracking rewrite (`rewriteSmsLinks`, which scans for bare
+ * URLs) still reaches them.
+ */
+export function renderBroadcastText(markdown: string): string {
+  return blockTokensToText(marked.lexer(markdown))
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export interface RenderedBroadcastEmail {
+  /** Full HTML document (DOCTYPE + `<html>`/`<head>`/`<body>`) for the HTML part. */
+  html: string;
+  /** Plain-text alternative for the `text/plain` part. */
+  text: string;
+}
+
+/**
+ * Render a markdown body into a complete, MIME-ready email: a full HTML
+ * document (no HTML_MIME_NO_HTML_TAG) paired with a plain-text alternative (no
+ * MIME_HTML_ONLY). Every server send path builds its payload from this; in-app
+ * previews keep {@link renderBroadcastMail} (the DOM-safe fragment).
+ */
+export function renderBroadcastEmail(
+  markdown: string,
+  baseUrl = '',
+  subject = '',
+): RenderedBroadcastEmail {
+  return {
+    html: wrapEmailDocument(renderBroadcastMail(markdown, baseUrl), subject),
+    text: renderBroadcastText(markdown),
+  };
+}

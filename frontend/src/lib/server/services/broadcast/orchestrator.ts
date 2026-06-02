@@ -12,7 +12,7 @@ import {
   substituteVariables,
   type VariableContext,
 } from '$lib/domain/broadcastVariables';
-import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
+import { renderBroadcastEmail } from '$lib/domain/broadcastMarkdown';
 import { daysUntil } from '$lib/server/services/stageContext';
 import { resolveRecipients } from './recipients';
 import { getMailProvider } from './providers/mail';
@@ -320,18 +320,22 @@ function buildMailMessage(
   recipient: RecipientWithRelations,
   broadcast: BroadcastForSend,
   personal: Personalization,
-): { to: string; subject: string; html: string } | null {
+): { to: string; subject: string; html: string; text: string } | null {
   if (!recipient.recipientEmail) return null;
   const ctx = buildContext(recipient, broadcast, personal);
   const subject = broadcast.subjectSnapshot
     ? substituteVariables(broadcast.subjectSnapshot, ctx)
     : '';
   const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
-  const html = rewriteHtmlLinks(
-    renderBroadcastMail(bodyWithVars, env.ORIGIN ?? ''),
-    recipient.id,
+  const rendered = renderBroadcastEmail(
+    bodyWithVars,
+    env.ORIGIN ?? '',
+    subject,
   );
-  return { to: recipient.recipientEmail, subject, html };
+  // Track links in both parts so an open via the text/plain copy still counts.
+  const html = rewriteHtmlLinks(rendered.html, recipient.id);
+  const text = rewriteSmsLinks(rendered.text, recipient.id);
+  return { to: recipient.recipientEmail, subject, html, text };
 }
 
 /**
