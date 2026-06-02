@@ -15,7 +15,7 @@ const REWARD_TOAST_DURATION_MS = 6000;
 // The arrival toast carries two sentences (recognition + the XP lesson), so it
 // needs longer on screen than the one-line minigame toasts. A real student
 // reported the 6s default vanished before they finished reading it.
-const WELCOME_TOAST_DURATION_MS = 10000;
+const WELCOME_TOAST_DURATION_MS = 7000;
 
 export function rewardToast(
   title: string,
@@ -59,11 +59,15 @@ export function minigameRewardToast(xp: number) {
 }
 
 // The rank bonus is granted at finish based on the talent's place on the campus
-// board; the play page floats only the base finish reward, so this podium float
-// fires on the next dashboard visit. It nudges a replay to defend the spot.
+// board; the play page floats only the base finish reward, so this float fires on
+// the next dashboard visit. The reward pool reaches past the podium to the top of
+// the campus, so the copy stays placement-neutral (the board shows the exact
+// rank). No replay nudge: a talent plays each daily challenge once (eligibility
+// blocks a second go), so the board can't be re-climbed: the forward pull is the
+// next day's challenge, which the base finish toast already carries.
 export function minigameRankRewardToast(xp: number) {
   rewardToast(
-    'Sur le podium ! 🏆',
-    `Tu gagnes +${xp} XP bonus pour ton classement. Rejoue pour rester en haut !`,
+    'Dans le top du campus ! 🏆',
+    `Tu gagnes +${xp} XP bonus pour ton classement parmi les meilleurs de ton campus.`,
   );
 }
