@@ -36,9 +36,11 @@
   // fixed per-row "+X" would lie.
   const prizeRule = $derived.by(() => {
     const podium = `1er +${minigameRankBonus(1, fieldSize)} · 2e +${minigameRankBonus(2, fieldSize)} · 3e +${minigameRankBonus(3, fieldSize)}`;
-    return rankLimit > 3
-      ? `${podium} · 4e-${rankLimit}e +${minigameRankBonus(4, fieldSize)} XP`
-      : `${podium} XP`;
+    if (rankLimit <= 3) return `${podium} XP`;
+    // Collapse to a single position when the pool opens by exactly one slot, so
+    // a board of 31-40 finishers reads "4e", never "4e-4e".
+    const tail = rankLimit === 4 ? '4e' : `4e-${rankLimit}e`;
+    return `${podium} · ${tail} +${minigameRankBonus(4, fieldSize)} XP`;
   });
 
   function formatChrono(ms: number | null): string {
