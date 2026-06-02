@@ -8,7 +8,7 @@
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Zap from '@lucide/svelte/icons/zap';
-  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+  import Bomb from '@lucide/svelte/icons/bomb';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -31,7 +31,6 @@
   import { toast } from 'svelte-sonner';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
   import { EVENT_TYPES, EVENT_TYPE_LABELS } from '$lib/domain/event';
-  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
   import { track } from '$lib/analytics';
 
   let { data } = $props();
@@ -40,15 +39,22 @@
   let searchTimeout: ReturnType<typeof setTimeout>;
   let impersonating = $state<string | null>(null);
 
-  // Onboarding-reset confirm dialog — parameterised by the selected talent,
-  // mirroring the users page's single-dialog pattern.
-  let resetOpen = $state(false);
-  let resetting = $state(false);
-  let resetTarget = $state<{ id: string; name: string } | null>(null);
+  // Factory-reset (back to worker-import state) confirm dialog. Gated behind
+  // typing the talent's name: it irreversibly wipes real prod data (XP,
+  // minigames, files, account, event history), so it gets a heavier guard than
+  // the onboarding reset above.
+  let wipeOpen = $state(false);
+  let wiping = $state(false);
+  let wipeTarget = $state<{ id: string; name: string } | null>(null);
+  let wipeConfirm = $state('');
+  const wipeConfirmed = $derived(
+    wipeTarget !== null && wipeConfirm.trim() === wipeTarget.name,
+  );
 
-  function askReset(talent: { id: string; prenom: string; nom: string }) {
-    resetTarget = { id: talent.id, name: `${talent.prenom} ${talent.nom}` };
-    resetOpen = true;
+  function askWipe(talent: { id: string; prenom: string; nom: string }) {
+    wipeTarget = { id: talent.id, name: `${talent.prenom} ${talent.nom}` };
+    wipeConfirm = '';
+    wipeOpen = true;
   }
 
   const STATUS = {
@@ -394,28 +400,26 @@
               </Table.Cell>
               <Table.Cell class="text-right">
                 <div class="flex items-center justify-end gap-1">
-                  {#if talent.status !== 'never'}
-                    <Tooltip.Provider delayDuration={300}>
-                      <Tooltip.Root>
-                        <Tooltip.Trigger>
-                          {#snippet child({ props })}
-                            <Button
-                              {...props}
-                              variant="ghost"
-                              size="icon"
-                              class="text-muted-foreground hover:text-epi-orange"
-                              onclick={() => askReset(talent)}
-                            >
-                              <RotateCcw class="h-4 w-4" />
-                            </Button>
-                          {/snippet}
-                        </Tooltip.Trigger>
-                        <Tooltip.Content>
-                          <p>Réinitialiser l'onboarding</p>
-                        </Tooltip.Content>
-                      </Tooltip.Root>
-                    </Tooltip.Provider>
-                  {/if}
+                  <Tooltip.Provider delayDuration={300}>
+                    <Tooltip.Root>
+                      <Tooltip.Trigger>
+                        {#snippet child({ props })}
+                          <Button
+                            {...props}
+                            variant="ghost"
+                            size="icon"
+                            class="text-muted-foreground hover:text-destructive"
+                            onclick={() => askWipe(talent)}
+                          >
+                            <Bomb class="h-4 w-4" />
+                          </Button>
+                        {/snippet}
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        <p>Réinitialiser complètement (état import)</p>
+                      </Tooltip.Content>
+                    </Tooltip.Root>
+                  </Tooltip.Provider>
 
                   <form
                     method="POST"
@@ -521,53 +525,68 @@
   {/if}
 </div>
 
-<AlertDialog.Root bind:open={resetOpen}>
+<AlertDialog.Root bind:open={wipeOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
       <AlertDialog.Title class="font-heading text-xl tracking-tight uppercase">
-        Réinitialiser l'onboarding
+        Réinitialiser complètement
       </AlertDialog.Title>
       <AlertDialog.Description>
-        <strong>{resetTarget?.name}</strong> repassera par tout le parcours
-        d'onboarding (infos, lycée, intérêts, règlement, charte) et la
-        célébration d'arrivée à sa prochaine connexion. Le bonus de +{WELCOME_XP_BONUS}
-        XP d'arrivée est annulé pour éviter le cumul. Action immédiate sur des données
-        réelles.
+        <strong>{wipeTarget?.name}</strong> revient à l'état exact d'un import
+        Salesforce. Tout ce qui a été accumulé après l'import est
+        <strong>supprimé définitivement</strong> : XP, minigames, fichiers et PDF
+        signés, onboarding, contacts d'urgence, droits à l'image, règlement, historique
+        d'événements, et le compte de connexion (ainsi que celui d'un parent créé
+        pendant les tests). Sont conservés : l'identité Salesforce (nom, email, niveau,
+        lycée, ré-alignés sur le miroir SF) et les participations aux événements.
+        Action immédiate et irréversible sur des données réelles.
       </AlertDialog.Description>
     </AlertDialog.Header>
+    <div class="space-y-2">
+      <label for="wipe-confirm" class="text-sm text-muted-foreground">
+        Tape <strong class="text-foreground">{wipeTarget?.name}</strong> pour confirmer.
+      </label>
+      <Input
+        id="wipe-confirm"
+        bind:value={wipeConfirm}
+        autocomplete="off"
+        placeholder={wipeTarget?.name ?? ''}
+        class="rounded-sm"
+      />
+    </div>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel disabled={resetting}>Annuler</AlertDialog.Cancel>
+      <AlertDialog.Cancel disabled={wiping}>Annuler</AlertDialog.Cancel>
       <form
         method="POST"
-        action="?/resetOnboarding"
+        action="?/resetToImport"
         use:enhance={() => {
-          resetting = true;
+          wiping = true;
           return async ({ result, update }) => {
-            resetting = false;
+            wiping = false;
             if (result.type === 'success') {
-              resetOpen = false;
-              toast.success('Onboarding réinitialisé');
+              wipeOpen = false;
+              toast.success("Talent réinitialisé à l'état import");
               await update();
             } else {
               toast.error(
                 (result.type === 'failure' &&
                   (result.data?.message as string)) ||
-                  'Échec de la réinitialisation.',
+                  'Échec de la réinitialisation complète.',
               );
             }
           };
         }}
       >
-        <input type="hidden" name="talentId" value={resetTarget?.id ?? ''} />
+        <input type="hidden" name="talentId" value={wipeTarget?.id ?? ''} />
         <AlertDialog.Action
           type="submit"
-          disabled={resetting}
-          class={buttonVariants({ variant: 'default' })}
+          disabled={wiping || !wipeConfirmed}
+          class={buttonVariants({ variant: 'destructive' })}
         >
-          {#if resetting}
+          {#if wiping}
             <LoaderCircle class="mr-2 h-4 w-4 animate-spin" /> Réinitialisation…
           {:else}
-            Réinitialiser
+            Tout réinitialiser
           {/if}
         </AlertDialog.Action>
       </form>

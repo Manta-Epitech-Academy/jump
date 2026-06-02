@@ -12,7 +12,7 @@ import { auth } from '$lib/server/auth';
 import { forwardAuthCookies } from '$lib/server/auth/cookies';
 import {
   ensureTalentUser,
-  resetTalentOnboarding,
+  resetTalentToImport,
 } from '$lib/server/services/talentAccount';
 import {
   deriveOnboardingStatus,
@@ -260,9 +260,11 @@ export const actions: Actions = {
     throw redirect(303, resolve('/'));
   },
 
-  // Dev/QA affordance: send a talent back through the full onboarding + arrival
-  // flow so it can be re-tested (typically right before impersonating them).
-  resetOnboarding: async ({ request, locals }) => {
+  // Factory reset: wipe everything a talent accrued after the Salesforce worker
+  // import (XP, minigames, files, onboarding, parents, login account, event
+  // verdicts) so they're left exactly as the worker leaves a fresh import. The
+  // heavy cleanup affordance for after testing the talent experience in prod.
+  resetToImport: async ({ request, locals }) => {
     if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
 
     const data = await request.formData();
@@ -270,10 +272,10 @@ export const actions: Actions = {
     if (typeof talentId !== 'string' || !talentId) return fail(400);
 
     try {
-      await resetTalentOnboarding(talentId);
+      await resetTalentToImport(talentId);
     } catch (err) {
-      console.error('[resetOnboarding] failed', err);
-      return fail(500, { message: 'Échec de la réinitialisation.' });
+      console.error('[resetToImport] failed', err);
+      return fail(500, { message: 'Échec de la réinitialisation complète.' });
     }
     return { success: true };
   },
