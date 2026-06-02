@@ -11,7 +11,10 @@ export const gameConfigSchema = z.object({
     .max(50)
     .regex(/^[a-z0-9_-]+$/, 'Slug invalide'),
   weight: z.coerce.number().int().min(1, 'Doit être ≥ 1'),
-  enabled: z.boolean().default(true),
+  // No `.default(true)`: with dataType 'form', an unchecked Switch omits its
+  // checkbox from the payload, and a default would backfill the missing key as
+  // `true` — making "off" impossible to save. Absent → false is what we want.
+  enabled: z.boolean(),
 });
 
 export const forcePublicationSchema = z.object({
