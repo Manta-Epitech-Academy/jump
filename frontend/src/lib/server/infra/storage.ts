@@ -63,6 +63,12 @@ export interface DownloadUrlOptions {
    * needed. Overrides the opaque S3 key for the download.
    */
   filename?: string;
+  /**
+   * Content-Disposition type paired with `filename`. `attachment` (default)
+   * forces a download; `inline` lets the browser render the object in-tab
+   * (e.g. an admin previewing a PDF). Ignored when `filename` is unset.
+   */
+  disposition?: 'attachment' | 'inline';
   /** Override the object's served Content-Type for this download. */
   contentType?: string;
 }
@@ -72,7 +78,12 @@ export async function getSignedDownloadUrl(
   key: string,
   opts: DownloadUrlOptions = {},
 ): Promise<string> {
-  const { expiresIn = SIGNED_URL_EXPIRES_IN, filename, contentType } = opts;
+  const {
+    expiresIn = SIGNED_URL_EXPIRES_IN,
+    filename,
+    disposition = 'attachment',
+    contentType,
+  } = opts;
   return getSignedUrl(
     s3Public(),
     new GetObjectCommand({
@@ -80,7 +91,7 @@ export async function getSignedDownloadUrl(
       Key: key,
       ...(contentType && { ResponseContentType: contentType }),
       ...(filename && {
-        ResponseContentDisposition: `attachment; filename="${filename}"`,
+        ResponseContentDisposition: `${disposition}; filename="${filename}"`,
       }),
     }),
     { expiresIn },

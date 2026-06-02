@@ -59,8 +59,10 @@ export const ONBOARDING_DOCUMENTS: Record<
  *     slug      charter | rules | imagerights
  *     prenomnom lowercased, accent-stripped, alphanumerics only (concatenated)
  *     tag       Talent.externalId (Salesforce id) when set, else the first 8
- *               chars of the talent id — guarantees uniqueness across homonyms.
- * Pure ASCII, so it needs no RFC 5987 Content-Disposition encoding.
+ *               chars of the talent id, so homonyms' filenames stay distinct.
+ * Pure ASCII, so it needs no RFC 5987 Content-Disposition encoding. The `who`
+ * segment is dropped when a name slugifies to empty (fully non-Latin), leaving
+ * a clean `{slug}-{tag}.pdf` rather than a stray double hyphen.
  */
 export function onboardingDownloadFilename(
   type: OnboardingDocumentType,
@@ -69,7 +71,7 @@ export function onboardingDownloadFilename(
   const slug = ONBOARDING_DOCUMENTS[type].downloadSlug;
   const who = `${slugifyAscii(talent.prenom)}${slugifyAscii(talent.nom)}`;
   const tag = sanitizeTag(talent.externalId ?? talent.id.slice(0, 8));
-  return `${slug}-${who}-${tag}.pdf`;
+  return `${[slug, who, tag].filter(Boolean).join('-')}.pdf`;
 }
 
 function slugifyAscii(s: string): string {
@@ -101,6 +103,18 @@ export function isTalentViewableDocument(
   type: string,
 ): type is TalentViewableDocumentType {
   return (TALENT_VIEWABLE_DOCUMENTS as readonly string[]).includes(type);
+}
+
+/**
+ * Narrows a free-form string (e.g. the `OnboardingPdfJob.documentType` column,
+ * which is typed `String` in the schema) to a known document type. Use at the
+ * boundary instead of an unchecked `as OnboardingDocumentType` cast so a stray
+ * value degrades to a clear branch rather than a runtime read of `undefined`.
+ */
+export function isOnboardingDocumentType(
+  type: string,
+): type is OnboardingDocumentType {
+  return Object.hasOwn(ONBOARDING_DOCUMENTS, type);
 }
 
 /**

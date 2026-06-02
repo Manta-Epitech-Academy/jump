@@ -9,7 +9,7 @@ import {
 } from '$lib/server/services/onboardingPdfJobService';
 import {
   onboardingDownloadFilename,
-  type OnboardingDocumentType,
+  isOnboardingDocumentType,
 } from '$lib/server/services/onboardingDocuments';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
@@ -162,12 +162,17 @@ export const actions: Actions = {
       return fail(404, { message: 'Aucun fichier pour ce job.' });
 
     try {
+      // The "view" button opens the URL in a new tab, so render the PDF inline
+      // rather than forcing a download. The custom filename is a nicety: if a
+      // row ever carries an unknown documentType, fall back to no override so
+      // the preview still works instead of 500-ing on the filename build.
+      const filename = isOnboardingDocumentType(job.documentType)
+        ? onboardingDownloadFilename(job.documentType, job.talent)
+        : undefined;
       const url = await getStorage().getDownloadUrl(job.filePath, {
-        filename: onboardingDownloadFilename(
-          job.documentType as OnboardingDocumentType,
-          job.talent,
-        ),
+        filename,
         contentType: 'application/pdf',
+        disposition: 'inline',
       });
       return { url };
     } catch (err) {
