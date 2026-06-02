@@ -53,7 +53,7 @@
       <Label
         for="email"
         class="pl-1 text-xs font-black text-slate-500 uppercase"
-        >Ton email personnel</Label
+        >Votre adresse email</Label
       >
       <Input
         id="email"
