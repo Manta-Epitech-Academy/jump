@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import { revokeXp } from '$lib/server/services/xpService';
+import { deleteAnonymizedDocuments } from '$lib/server/services/anonymizationService';
 import {
   clearOnboardingTimestamps,
   clearTalentOnboardingArtifacts,
@@ -80,42 +80,236 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
 }
 
 /**
- * Reset a talent to its pre-onboarding state so the whole flow (infos, lycée,
- * intérêts, règlement, charte) and the arrival celebration can be walked again.
- * This is a dev/QA affordance behind the admin-only impersonation page.
+ * Factory reset: bring a talent all the way back to the state the Salesforce
+ * worker leaves them in on first import, and nothing more. The admin affordance
+ * for cleaning up after testing the talent experience in prod (impersonate →
+ * play minigames, onboard, upload, sign → wipe it all).
  *
- * Mirrors the inverse of the talent's own onboarding writes: nulls every gate
- * timestamp the guard checks (plus `welcomeSeenAt`), drops the talent's signed-
- * document artifacts so a stale PDF never outlives the signature it attests
- * (`TALENT_ONBOARDING_ARTIFACT_FIELDS`), and revokes the onboarding XP grant so
- * a re-run nets back to the same XP rather than stacking the bonus each time.
+ * What the worker import establishes, and what this keeps:
+ *   - the `Talent` row's SF identity (`externalId`, `email`) and the columns the
+ *     worker seeds from Salesforce (`nom`, `prenom`, `phone`, `civilite`,
+ *     `niveau`, `schoolId`), re-seeded here from the `TalentSfImport` mirror,
+ *     which is exactly what the worker would seed on a fresh create, so an
+ *     onboarding edit to e.g. the phone is rolled back to SF's claim;
+ *   - the SF mirror itself (`TalentSfImport`, worker-owned);
+ *   - the `Participation` rows the worker upserts per event (the talent *was*
+ *     imported into those events), reset to their import defaults, with every
+ *     post-import child (`ParticipationActivity` verdicts, `StageCompliance`)
+ *     dropped.
  *
- * Deliberately scoped to the talent. Profile data they filled in (school,
- * parents, interests, equipment) is kept — the steps pre-fill from it, which is
- * the realistic returning-talent experience. Parent-owned facts are left
- * untouched too: the guardian's règlement co-signature (`parentRules*`) and the
- * parent-decided image-rights stand on their own flows, not on the talent's
- * onboarding, so a talent reset must not void them.
+ * Everything else a talent accrues after import is deleted: the XP ledger and
+ * its cached projections (`xp`/`eventsCount` → 0), minigame attempts, quiz /
+ * observable / competence state, steps progress, interviews (and their calendar
+ * syncs), portfolio, interests, reminders, PDF jobs, broadcast-recipient rows,
+ * deletion requests, every onboarding/parent/image-rights/règlement column, and
+ * the generated onboarding PDFs in object storage. The login identity goes too:
+ * a freshly-imported talent has no `bauth_user` (their `userId` is null until a
+ * first login or impersonation), so the linked user (and any parent account
+ * minted during testing that no *other* talent still references) is deleted
+ * along with its sessions/accounts.
+ *
+ * Contrast with `anonymizeTalent`: it scrubs identity to placeholders for RGPD
+ * erasure but deliberately keeps the XP/stats and the account; this keeps the
+ * identity and deliberately destroys the stats.
+ *
+ * S3 deletes run after the transaction commits (an external call inside the tx
+ * would risk the interactive-tx timeout rolling back the DB reset), mirroring
+ * `anonymizeTalent` → {@link deleteAnonymizedDocuments}.
  */
-export async function resetTalentOnboarding(talentId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+export async function resetTalentToImport(talentId: string): Promise<void> {
+  const documentKeys = await prisma.$transaction(async (tx) => {
+    const talent = await tx.talent.findUnique({
+      where: { id: talentId },
+      select: {
+        nom: true,
+        prenom: true,
+        userId: true,
+        parentEmail: true,
+        parent2Email: true,
+        charterFilePath: true,
+        rulesFilePath: true,
+        imageRightsFilePath: true,
+        // The worker's source for the seed columns. When present, re-seeding the
+        // Talent from it reproduces a fresh worker `talent.create`. It is present
+        // for every SF talent (the worker creates it atomically with the row and
+        // this reset never drops it), so SF talents always re-seed fully. Absent
+        // only for a never-synced talent, whose lone creation path is the OAuth
+        // callback (it sets just userId/email/nom/prenom): there the SF-seeded
+        // profile columns (phone, civilite, niveau, schoolId) fall back to null,
+        // which is exactly that bare non-SF create state, while nom/prenom are
+        // kept as-is since there is no SF claim to revert them to.
+        sfImport: {
+          select: {
+            nom: true,
+            prenom: true,
+            phone: true,
+            civilite: true,
+            niveau: true,
+            sfSchoolId: true,
+          },
+        },
+      },
+    });
+    if (!talent) return [];
+
+    const sf = talent.sfImport;
+
+    // Captured before the update nulls them, so the matching parent accounts can
+    // be cleaned up afterwards (step 6) and the PDF objects deleted post-commit.
+    const parentEmails = [talent.parentEmail, talent.parent2Email].filter(
+      (e): e is string => !!e,
+    );
+    const documentKeys = [
+      talent.charterFilePath,
+      talent.rulesFilePath,
+      talent.imageRightsFilePath,
+    ].filter((k): k is string => !!k);
+
+    // 1. Drop the post-import children hanging off the worker-created
+    //    Participation rows (the rows themselves are kept, see step 3).
+    const participations = await tx.participation.findMany({
+      where: { talentId },
+      select: { id: true },
+    });
+    const participationIds = participations.map((p) => p.id);
+    if (participationIds.length > 0) {
+      await tx.participationActivity.deleteMany({
+        where: { participationId: { in: participationIds } },
+      });
+      await tx.stageCompliance.deleteMany({
+        where: { participationId: { in: participationIds } },
+      });
+    }
+
+    // 2. Delete every other talent-scoped record created after import. Interviews
+    //    cascade their OutlookCalendarSync rows; broadcast recipients are matched
+    //    on both the talent and parent-of slots (SetNull relations, so deleted
+    //    explicitly rather than left orphaned).
+    await tx.interview.deleteMany({ where: { talentId } });
+    await tx.stepsProgress.deleteMany({ where: { talentId } });
+    await tx.portfolioItem.deleteMany({ where: { talentId } });
+    await tx.talentObservableState.deleteMany({ where: { talentId } });
+    await tx.talentCompetenceState.deleteMany({ where: { talentId } });
+    await tx.talentQuizAttempt.deleteMany({ where: { talentId } });
+    await tx.talentInterest.deleteMany({ where: { talentId } });
+    await tx.onboardingReminder.deleteMany({ where: { talentId } });
+    await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
+    await tx.minigameAttempt.deleteMany({ where: { talentId } });
+    await tx.xpGrant.deleteMany({ where: { talentId } });
+    await tx.broadcastRecipient.deleteMany({
+      where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
+    });
+    await tx.talentDeletionRequest.deleteMany({ where: { talentId } });
+
+    // 3. Reset the worker-created Participation rows to their import defaults
+    //    (the worker creates them with only talent/event/campus set).
+    await tx.participation.updateMany({
+      where: { talentId },
+      data: {
+        isPresent: false,
+        delay: 0,
+        bringPc: false,
+        camperRating: null,
+        camperFeedback: null,
+      },
+    });
+
+    // 4. Reset the Talent row. Keep externalId + email (SF identity / auth key);
+    //    re-seed the SF-owned columns from the mirror; null everything onboarding
+    //    and the parent flows wrote; zero the cached XP projections.
     await tx.talent.update({
       where: { id: talentId },
       data: {
         ...clearOnboardingTimestamps(),
         ...clearTalentOnboardingArtifacts(),
+        nom: sf?.nom ?? talent.nom,
+        prenom: sf?.prenom ?? talent.prenom,
+        phone: sf?.phone ?? null,
+        civilite: sf?.civilite ?? null,
+        niveau: sf?.niveau ?? null,
+        schoolId: sf?.sfSchoolId ?? null,
+        xp: 0,
+        eventsCount: 0,
+        imageRightsDecision: null,
+        imageRightsDecidedAt: null,
+        imageRightsSignerPrenom: null,
+        imageRightsSignerNom: null,
+        imageRightsFilePath: null,
+        parentRulesSignedAt: null,
+        parentRulesSignerPrenom: null,
+        parentRulesSignerNom: null,
+        parentRulesRelationship: null,
+        parentRulesSignedCity: null,
+        highSchoolNameManual: null,
+        parentType: null,
+        parentCivilite: null,
+        parentNom: null,
+        parentPrenom: null,
+        parentEmail: null,
+        parentPhone: null,
+        parent2Type: null,
+        parent2Civilite: null,
+        parent2Nom: null,
+        parent2Prenom: null,
+        parent2Email: null,
+        parent2Phone: null,
+        hasLaptop: false,
+        setupDescription: null,
+        interestsFreeText: null,
+        discordId: null,
+        badges: Prisma.DbNull,
+        lastSyncedAt: null,
+        lastActiveAt: null,
+        userId: null,
       },
     });
-    // Idempotent: drops the onboarding grant if present, no-op otherwise — so a
-    // re-run nets back to the same XP rather than stacking the bonus, and the
-    // old `charterAcceptedAt` guard is no longer needed. The early-bird bonus
-    // (granted to the earliest finishers) is reverted alongside it so a reset +
-    // re-onboard re-derives position cleanly instead of leaving a stale bonus.
-    await revokeXp(tx, { talentId, source: 'onboarding', sourceId: talentId });
-    await revokeXp(tx, {
-      talentId,
-      source: 'onboarding_early_bird',
-      sourceId: talentId,
-    });
+
+    // 5. Delete the talent's login identity outright: a freshly-imported talent
+    //    has no bauth_user. (userId was just nulled above; the captured value
+    //    still points at the row to drop.)
+    //
+    //    Hard-deleting the bauth_user is safe because a *student* user is only
+    //    referenced by rows that fall away with it: bauth_session / bauth_account
+    //    (cascade, and cleared just below) and the Talent itself (SetNull, already
+    //    nulled). Every other FK onto bauth_user is staff-authored content
+    //    (TicketMessage.author, CmsPage, Broadcast, StaffInvitation,
+    //    MessageTemplate), so a student holds none and the delete can't trip a
+    //    P2003. Note TicketMessage.author has no onDelete, so it would block this
+    //    delete the moment a student authored one: revisit here if students ever
+    //    gain a staff-side affordance like opening tickets.
+    if (talent.userId) {
+      await tx.bauth_session.deleteMany({ where: { userId: talent.userId } });
+      await tx.bauth_account.deleteMany({ where: { userId: talent.userId } });
+      await tx.bauth_user.delete({ where: { id: talent.userId } });
+    }
+
+    // 6. Delete parent bauth_user(s) minted during testing, but only ones no
+    //    other talent still references, so a real sibling keeps their parent
+    //    login. Same guard as anonymizeTalent; here we delete rather than scrub
+    //    since the goal is "as if never created". The role === 'parent' check
+    //    also keeps the FK-safety from step 5: it never hard-deletes a staff user
+    //    who happens to share the email (and who could hold blocking ticket/CMS
+    //    rows).
+    for (const email of new Set(parentEmails)) {
+      const stillReferenced = await tx.talent.count({
+        where: {
+          id: { not: talentId },
+          OR: [{ parentEmail: email }, { parent2Email: email }],
+        },
+      });
+      if (stillReferenced > 0) continue;
+
+      const parentUser = await tx.bauth_user.findUnique({ where: { email } });
+      if (!parentUser || parentUser.role !== 'parent') continue;
+
+      await tx.bauth_session.deleteMany({ where: { userId: parentUser.id } });
+      await tx.bauth_account.deleteMany({ where: { userId: parentUser.id } });
+      await tx.bauth_user.delete({ where: { id: parentUser.id } });
+    }
+
+    return documentKeys;
   });
+
+  // Post-commit: drop the dereferenced onboarding PDFs from object storage.
+  await deleteAnonymizedDocuments(documentKeys);
 }
