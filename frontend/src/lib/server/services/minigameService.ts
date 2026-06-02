@@ -245,20 +245,21 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
     // Rank bonus, paid the instant you finish: rank this run against the board so
     // far (this attempt included, since it was just marked done), and pay a
     // layered `minigame_rank` fact on top of the flat finish reward for a top-N
-    // place. No clawback — a later, better run never demotes a bonus already
-    // paid — so the bonus means "you held a top-N spot the moment you finished",
-    // and an early leader keeps it even once overtaken (the podium rewards more
-    // than the final three by design). Two finishes racing under READ COMMITTED
-    // may briefly tie a rank and double-pay one slot: harmless, and on-brand with
-    // rewarding broadly.
-    const rank = await rankOnCampusBoard(
+    // place. The pool is cohort-relative (the top {@link MINIGAME_RANK_BONUS_FRACTION}
+    // of the field, floored at the podium), so it scales with the campus rather
+    // than handing every campus the same flat three. No clawback (a later, better
+    // run never demotes a bonus already paid), so the bonus means "you held a
+    // top-N spot the moment you finished", and an early leader keeps it even once
+    // overtaken. Two finishes racing under READ COMMITTED may briefly tie a rank
+    // and double-pay one slot: harmless, and on-brand with rewarding broadly.
+    const { rank, fieldSize } = await rankOnCampusBoard(
       tx,
       attempt.publicationId,
       attempt.campusId,
       attempt.publication.scoringType,
       attempt.id,
     );
-    const rankBonus = minigameRankBonus(rank);
+    const rankBonus = minigameRankBonus(rank, fieldSize);
     if (rankBonus > 0) {
       await tx.minigameAttempt.update({
         where: { id: attempt.id },
@@ -422,7 +423,7 @@ export interface LeaderboardRow {
   finishedAt: Date | null;
   // The rank bonus this talent actually locked in at finish (null = none). Their
   // displayed `rank` can drift below it as others play (no clawback), so this is
-  // the truthful per-talent figure, not `minigameRankBonus(rank)`.
+  // the truthful per-talent figure, not `minigameRankBonus(rank, fieldSize)`.
   rankXpAwarded: number | null;
 }
 
@@ -446,12 +447,14 @@ function compareAttempts(
 }
 
 /**
- * The 1-based rank of a just-finalized attempt on its leaderboard, against every
- * valid finish recorded so far. Reads through the caller's transaction so it sees
- * this attempt already marked done. Same scope as {@link getCampusLeaderboard}
- * (the talent's campus, or the global board when they have no campus) and the
- * same {@link compareAttempts} ordering, so the rank that earns the bonus is the
- * rank the talent sees on the board.
+ * The 1-based rank of a just-finalized attempt on its leaderboard, plus the size
+ * of the field it ranked against, both read from the same query so the
+ * cohort-relative bonus pool ({@link minigameRankBonus}) is sized off exactly the
+ * board the rank came from. Reads through the caller's transaction so it sees this
+ * attempt already marked done. Same scope as {@link getCampusLeaderboard} (the
+ * talent's campus, or the global board when they have no campus) and the same
+ * {@link compareAttempts} ordering, so the rank that earns the bonus is the rank
+ * the talent sees on the board.
  */
 async function rankOnCampusBoard(
   tx: Prisma.TransactionClient,
@@ -459,7 +462,7 @@ async function rankOnCampusBoard(
   campusId: string | null,
   scoringType: MinigameScoring,
   attemptId: string,
-): Promise<number> {
+): Promise<{ rank: number; fieldSize: number }> {
   const peers = await tx.minigameAttempt.findMany({
     where: {
       publicationId,
@@ -470,7 +473,10 @@ async function rankOnCampusBoard(
     select: { id: true, score: true, chrono: true },
   });
   peers.sort((a, b) => compareAttempts(a, b, scoringType));
-  return peers.findIndex((p) => p.id === attemptId) + 1;
+  return {
+    rank: peers.findIndex((p) => p.id === attemptId) + 1,
+    fieldSize: peers.length,
+  };
 }
 
 async function buildLeaderboard(

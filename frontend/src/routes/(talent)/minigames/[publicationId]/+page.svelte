@@ -37,6 +37,14 @@
 
   let iframeEl = $state<HTMLIFrameElement>();
   let frameLoaded = $state(false);
+
+  // The frame sizes itself to the game's content: jump-games posts its document
+  // height (`jumpgames:resize`) and we grow the iframe to match, so a tall board
+  // or a long consigne never hides behind a nested scrollbar. A generous floor
+  // keeps short content on a stable, roomy canvas instead of snapping the frame
+  // tight around a small card.
+  const MIN_FRAME_HEIGHT = 720;
+  let frameHeight = $state(MIN_FRAME_HEIGHT);
   let playForm = $state<HTMLFormElement>();
   let ackForm = $state<HTMLFormElement>();
   let finished = $state(false);
@@ -102,6 +110,12 @@
         goto(resolve('/'));
       } else if (msg?.type === 'jumpgames:leaderboard') {
         goto(resolve(`/minigames/${data.publication.id}/leaderboard`));
+      } else if (msg?.type === 'jumpgames:resize') {
+        // Grow the frame to the game's reported content height (never below the
+        // floor) so the iframe itself never scrolls.
+        if (typeof msg.height === 'number' && msg.height > 0) {
+          frameHeight = Math.max(MIN_FRAME_HEIGHT, Math.ceil(msg.height));
+        }
       } else if (msg?.type === 'jumpgames:finished') {
         finished = true;
         if (msg.valid) celebrate();
@@ -168,7 +182,8 @@
           sandbox="allow-scripts allow-same-origin"
           referrerpolicy="no-referrer"
           allow="fullscreen"
-          class="block h-[720px] w-full border-0"
+          style="height: {frameHeight}px;"
+          class="block w-full border-0"
         ></iframe>
       </div>
 
