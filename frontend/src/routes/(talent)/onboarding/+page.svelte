@@ -34,7 +34,7 @@
     { index: number; display: number; title: string }
   > = {
     identity: { index: 1, display: 1, title: 'Qui es-tu ?' },
-    school: { index: 2, display: 1, title: "D'où viens-tu ?" },
+    school: { index: 2, display: 1, title: 'De quel lycée viens-tu ?' },
     parents: { index: 3, display: 1, title: "Contacts d'urgence" },
     interests: { index: 4, display: 2, title: "Centres d'intérêt" },
     equipment: { index: 5, display: 3, title: 'Ton matériel' },

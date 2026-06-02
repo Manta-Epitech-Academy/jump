@@ -99,7 +99,7 @@
   <h1
     class="font-heading text-2xl tracking-tight text-epi-blue uppercase dark:text-epi-blue"
   >
-    D'où viens-tu ?
+    De quel lycée viens-tu ?
   </h1>
 </div>
 
