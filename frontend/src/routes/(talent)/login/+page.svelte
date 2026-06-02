@@ -2,10 +2,10 @@
   import { superForm } from 'sveltekit-superforms';
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
-  import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
   import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
   import LoginBrandPanel from '$lib/components/layout/LoginBrandPanel.svelte';
+  import LoginFooter from '$lib/components/layout/LoginFooter.svelte';
   import LoginEmailStep from './components/LoginEmailStep.svelte';
   import LoginOtpStep from '$lib/components/auth/LoginOtpStep.svelte';
   import { track, errReason, secondsBetween } from '$lib/analytics';
@@ -152,32 +152,11 @@
         />
       {/if}
 
-      <div class="space-y-3 text-center">
-        <p class="text-sm text-muted-foreground">
-          Vous faites partie du staff ?
-          <a
-            href={resolve('/staff/login')}
-            class="group ml-0.5 inline-flex items-center gap-1 font-semibold text-epi-blue transition-colors hover:underline"
-          >
-            Espace staff
-            <ArrowRight
-              class="size-3.5 transition-transform group-hover:translate-x-0.5"
-            />
-          </a>
-        </p>
-
-        <p class="text-xs text-muted-foreground">
-          Propulsé par
-          <a
-            href="https://www.epitech.eu"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="font-bold text-epi-blue transition-colors hover:underline"
-          >
-            Epitech
-          </a>
-        </p>
-      </div>
+      <LoginFooter
+        prompt="Vous faites partie du staff ?"
+        linkLabel="Espace staff"
+        linkHref={resolve('/staff/login')}
+      />
     </div>
   </main>
 </div>
