@@ -650,15 +650,12 @@
                   {upcomingTypeLabel}
                 </h3>
                 <p class="mt-2 text-sm text-slate-500">
-                  {#if upcomingIsMultiDay}
-                    Ça commence le
-                  {:else}
-                    Ta prochaine session est prévue le
-                  {/if}
-                  <strong class="text-slate-700 dark:text-slate-300"
+                  {#if upcomingIsMultiDay}Ça commence le{:else}Ta prochaine
+                    session est prévue le{/if}<br /><strong
+                    class="text-slate-700 dark:text-slate-300"
                     >{formatDateLong(upcomingParticipation.event?.date)}</strong
-                  >{#if upcomingStartTime}{' '}à{' '}<strong
-                      class="text-slate-700 dark:text-slate-300"
+                  >{#if upcomingStartTime}{' '}à
+                    <strong class="text-slate-700 dark:text-slate-300"
                       >{upcomingStartTime}</strong
                     >{/if}.
                 </p>

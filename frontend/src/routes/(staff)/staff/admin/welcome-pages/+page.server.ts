@@ -3,7 +3,7 @@ import { fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { EVENT_TYPES, stageWindowEnd } from '$lib/domain/event';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
-import DOMPurify from 'isomorphic-dompurify';
+import { sanitizeWelcomeHtml } from '$lib/server/cms/sanitize';
 
 const SLUG = 'welcome';
 const WELCOME_FLAG = 'staff_welcome_page' as const;
@@ -146,7 +146,7 @@ export const actions: Actions = {
       return fail(404, { error: 'Stage introuvable.' });
     }
 
-    const content = DOMPurify.sanitize(rawContent);
+    const content = sanitizeWelcomeHtml(rawContent);
 
     await prisma.cmsPage.upsert({
       where: { slug_eventId: { slug: SLUG, eventId } },

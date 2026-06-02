@@ -63,9 +63,15 @@
   $effect(() => {
     if (errors && Object.keys(errors).length > 0) {
       requestAnimationFrame(() => {
-        formEl
-          ?.querySelector('.text-destructive')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const errorEl = formEl?.querySelector('.text-destructive');
+        if (!errorEl) return;
+        const scrollParent = formEl?.closest('[class*="overflow-y"]');
+        if (scrollParent) {
+          const parentRect = scrollParent.getBoundingClientRect();
+          const errorRect = errorEl.getBoundingClientRect();
+          const offset = errorRect.top - parentRect.top - parentRect.height / 2;
+          scrollParent.scrollBy({ top: offset, behavior: 'smooth' });
+        }
       });
     }
   });

@@ -154,8 +154,5 @@
       <Sparkles class="h-4 w-4 shrink-0" />
       Signer et obtenir mes {WELCOME_XP_BONUS} XP de bienvenue
     </ContinueButton>
-    <p class="text-center text-xs text-slate-400 dark:text-slate-500">
-      + un bonus si tu fais partie des premiers de ton campus
-    </p>
   </div>
 </form>
