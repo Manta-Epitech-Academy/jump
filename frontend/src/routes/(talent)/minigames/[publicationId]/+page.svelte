@@ -39,15 +39,36 @@
   let frameLoaded = $state(false);
 
   // The frame sizes itself to the game's content: jump-games posts its document
-  // height (`jumpgames:resize`) and we grow the iframe to match, so a tall board
-  // or a long consigne never hides behind a nested scrollbar. A generous floor
-  // keeps short content on a stable, roomy canvas instead of snapping the frame
-  // tight around a small card.
+  // height (`jumpgames:resize`). A generous floor keeps short content on a stable,
+  // roomy canvas instead of snapping the frame tight around a small card.
   const MIN_FRAME_HEIGHT = 720;
+  // Space kept clear below the frame (the TalentFooter + breathing room) so the
+  // capped frame leaves the footer on-screen instead of pushing the page into
+  // scrolling.
+  const FRAME_BOTTOM_GAP = 100;
+  let contentHeight = MIN_FRAME_HEIGHT;
   let frameHeight = $state(MIN_FRAME_HEIGHT);
+
+  // Grow toward the content height, but cap at the space actually visible below
+  // the page chrome (which includes the impersonation banner when present). A
+  // tall game then scrolls *inside* the iframe — so its own sticky header (the
+  // chrono) stays put — instead of growing the frame past the viewport and
+  // scrolling the whole Talent page out from under it.
+  function sizeFrame() {
+    const desired = Math.max(MIN_FRAME_HEIGHT, contentHeight);
+    if (typeof window === 'undefined' || !iframeEl) {
+      frameHeight = desired;
+      return;
+    }
+    const offsetTop = iframeEl.getBoundingClientRect().top + window.scrollY;
+    const cap = Math.max(
+      360,
+      window.innerHeight - offsetTop - FRAME_BOTTOM_GAP,
+    );
+    frameHeight = Math.min(desired, cap);
+  }
   let playForm = $state<HTMLFormElement>();
   let ackForm = $state<HTMLFormElement>();
-  let finished = $state(false);
   let celebrated = $state(false);
   let showXpFloat = $state(false);
   let failed = $state(false);
@@ -111,23 +132,24 @@
       } else if (msg?.type === 'jumpgames:leaderboard') {
         goto(resolve(`/minigames/${data.publication.id}/leaderboard`));
       } else if (msg?.type === 'jumpgames:resize') {
-        // Grow the frame to the game's reported content height (never below the
-        // floor) so the iframe itself never scrolls.
         if (typeof msg.height === 'number' && msg.height > 0) {
-          frameHeight = Math.max(MIN_FRAME_HEIGHT, Math.ceil(msg.height));
+          contentHeight = Math.ceil(msg.height);
+          sizeFrame();
         }
       } else if (msg?.type === 'jumpgames:finished') {
-        finished = true;
         if (msg.valid) celebrate();
       }
     }
     window.addEventListener('message', onMessage);
+    // The cap depends on the viewport, so re-size the frame when it changes.
+    window.addEventListener('resize', sizeFrame);
 
     // Real visit (not a preload): mint the attempt and load the game.
     playForm?.requestSubmit();
 
     return () => {
       window.removeEventListener('message', onMessage);
+      window.removeEventListener('resize', sizeFrame);
       celebrationTimers.forEach(clearTimeout);
     };
   });
@@ -176,7 +198,10 @@
       >
         <iframe
           bind:this={iframeEl}
-          onload={() => (frameLoaded = true)}
+          onload={() => {
+            frameLoaded = true;
+            sizeFrame();
+          }}
           src={iframeSrc}
           title="Entraînement"
           sandbox="allow-scripts allow-same-origin"
@@ -188,12 +213,8 @@
       </div>
 
       <!-- Post-game navigation lives on the game's own result card (Voir le
-           classement / Retour), so there are no duplicate buttons out here. -->
-      {#if !finished}
-        <p class="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
-          Reste sur cette page jusqu'à la fin de ta partie.
-        </p>
-      {/if}
+           classement / Retour), and the "reste sur cette page" reminder now lives
+           inside the frame, so there's no chrome to add out here. -->
     {:else}
       <div
         class="flex flex-col items-center gap-4 rounded-3xl bg-white p-10 text-center shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
