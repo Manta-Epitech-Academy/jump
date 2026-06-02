@@ -56,6 +56,7 @@
       <input type="hidden" name="content" value={content} />
       <CmsEditor
         bind:content
+        allowImageUpload
         placeholder="Rédigez le contenu de la page d'accueil..."
       />
       <div class="mt-4 flex justify-end">

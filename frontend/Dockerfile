@@ -1,5 +1,8 @@
 # Step 1: Build the application
-FROM oven/bun:alpine AS builder
+# Pinned >= 1.3.14: the CMS welcome-image pipeline uses the built-in Bun.Image
+# API (added in 1.3.14) instead of a native module like sharp, which avoids the
+# musl/prebuilt-binary friction of native addons on this Alpine base.
+FROM oven/bun:1.3.14-alpine AS builder
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
@@ -17,7 +20,7 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" bunx prisma gen
 RUN bun run build
 
 # Step 2: Runtime image
-FROM oven/bun:alpine
+FROM oven/bun:1.3.14-alpine
 
 WORKDIR /app
 
