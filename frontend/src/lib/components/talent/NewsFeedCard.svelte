@@ -23,6 +23,20 @@
   } = $props();
 
   let open = $state(false);
+  let bodyRef = $state<HTMLDivElement | null>(null);
+
+  // On open, pin the message to the top. The scroll container differs per
+  // platform (the dialog panel on desktop, the body itself on mobile), so walk
+  // up from the body once it mounts and zero every scrollable ancestor.
+  $effect(() => {
+    if (!open || !bodyRef) return;
+    const body = bodyRef;
+    requestAnimationFrame(() => {
+      for (let el: HTMLElement | null = body; el; el = el.parentElement) {
+        el.scrollTop = 0;
+      }
+    });
+  });
 </script>
 
 <div
@@ -91,7 +105,7 @@
           Message de bienvenue
         </ResponsiveDialog.Title>
       </ResponsiveDialog.Header>
-      <ResponsiveDialog.Body>
+      <ResponsiveDialog.Body bind:ref={bodyRef}>
         <WelcomeMessageBody content={welcomeContent} />
       </ResponsiveDialog.Body>
     </ResponsiveDialog.Content>
