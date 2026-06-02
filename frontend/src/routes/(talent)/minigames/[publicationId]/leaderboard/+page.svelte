@@ -8,7 +8,7 @@
   import Trophy from '@lucide/svelte/icons/trophy';
   import Crown from '@lucide/svelte/icons/crown';
   import Home from '@lucide/svelte/icons/home';
-  import { MINIGAME_RANK_BONUS_LIMIT, minigameRankBonus } from '$lib/domain/xp';
+  import { minigameRankBonus, minigameRankBonusLimit } from '$lib/domain/xp';
 
   let { data }: { data: PageData } = $props();
 
@@ -22,12 +22,26 @@
       : 'Classé au temps : le plus rapide en haut.',
   );
 
-  // The podium prizes by position, read straight from the XP tiers so the copy
-  // can't drift from what's actually paid. We state the rule (not a per-row
-  // amount) because the bonus is locked in the moment a talent finishes: the
-  // board can move under them afterwards without changing what they already
-  // earned, so a fixed per-row "+X" would lie.
-  const prizeRule = `1er +${minigameRankBonus(1)} · 2e +${minigameRankBonus(2)} · 3e +${minigameRankBonus(3)} XP`;
+  // The bonus pool is cohort-relative (the top slice of the field), so it grows
+  // with the board: the podium plus a flat tail out to the current limit. Sized
+  // off the field on screen (`rows.length`) so the headline number matches what a
+  // talent finishing now would face.
+  const fieldSize = $derived(data.rows.length);
+  const rankLimit = $derived(minigameRankBonusLimit(fieldSize));
+
+  // The prizes by position, read straight from the XP tiers so the copy can't
+  // drift from what's actually paid. We state the rule (not a per-row amount)
+  // because the bonus is locked in the moment a talent finishes: the board can
+  // move under them afterwards without changing what they already earned, so a
+  // fixed per-row "+X" would lie.
+  const prizeRule = $derived.by(() => {
+    const podium = `1er +${minigameRankBonus(1, fieldSize)} · 2e +${minigameRankBonus(2, fieldSize)} · 3e +${minigameRankBonus(3, fieldSize)}`;
+    if (rankLimit <= 3) return `${podium} XP`;
+    // Collapse to a single position when the pool opens by exactly one slot, so
+    // a board of 31-40 finishers reads "4e", never "4e-4e".
+    const tail = rankLimit === 4 ? '4e' : `4e-${rankLimit}e`;
+    return `${podium} · ${tail} +${minigameRankBonus(4, fieldSize)} XP`;
+  });
 
   function formatChrono(ms: number | null): string {
     if (ms === null) return '—';
@@ -85,9 +99,9 @@
         class="mb-4 flex items-center gap-1.5 px-1 text-xs font-medium text-epi-orange"
       >
         <Crown class="h-3.5 w-3.5 shrink-0" />
-        Le top {MINIGAME_RANK_BONUS_LIMIT} de ton campus gagne un bonus XP dès la
-        fin de sa partie ({prizeRule}). Ton bonus dépend de ton classement quand
-        tu joues, et tu le gardes même si d'autres te dépassent ensuite.
+        Le top {rankLimit} de ton campus gagne un bonus XP dès la fin de sa partie
+        ({prizeRule}). Ton bonus dépend de ton classement quand tu joues, et tu
+        le gardes même si d'autres te dépassent ensuite.
       </p>
 
       {#if data.rows.length === 0}

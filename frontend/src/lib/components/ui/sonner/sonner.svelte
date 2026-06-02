@@ -39,6 +39,15 @@
       cancelButton:
         'group-[.toast]:bg-transparent group-[.toast]:text-muted-foreground group-[.toast]:font-bold group-[.toast]:text-[10px] group-[.toast]:uppercase',
 
+      // Close button inherits the toast's own text colour (currentColor) instead
+      // of a fixed shade, so it reads on both the light staff toasts (dark text)
+      // and the epi-blue reward toasts (white text via REWARD_TOAST_STYLE)
+      // without per-toast overrides. The glyph sits at full currentColor at rest
+      // (same contrast as the toast's own text, so it's visible without hovering);
+      // hover only adds a subtle wash for tactile feedback.
+      closeButton:
+        'group-[.toast]:border-current/30 group-[.toast]:bg-transparent group-[.toast]:text-current hover:group-[.toast]:bg-current/10 group-[.toast]:transition-colors',
+
       default:
         'group-[.toaster]:bg-card group-[.toaster]:text-foreground group-[.toaster]:border-border',
     },

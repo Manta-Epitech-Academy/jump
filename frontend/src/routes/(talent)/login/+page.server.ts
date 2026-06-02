@@ -11,12 +11,13 @@ import { prisma } from '$lib/server/db';
 import { ensureTalentUser } from '$lib/server/services/talentAccount';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-  // If already authenticated as a Student, route directly to the dashboard
   if (locals.talent) {
     throw redirect(303, resolve('/'));
   }
+  if (locals.user?.role === 'parent') {
+    throw redirect(303, resolve('/parent/welcome'));
+  }
 
-  // Handle errors returned from the OAuth callback
   const errorType = url.searchParams.get('error');
   let errorMessage = '';
 
@@ -67,40 +68,46 @@ export const actions: Actions = {
     }
 
     try {
-      // A talent profile must exist for this email (linked or seeded). Without
-      // one there's nothing to sign in to.
+      // Check if this email belongs to a talent or a parent
       const talent = await prisma.talent.findUnique({
         where: { email: normalizedEmail },
         select: { id: true },
       });
 
-      if (!talent) {
-        return message(
-          emailForm,
-          {
-            type: 'error',
-            text: 'Aucun profil trouvé avec cette adresse email.',
-          },
-          { status: 404 },
-        );
+      let userKind: 'talent' | 'parent' = 'talent';
+
+      if (talent) {
+        await ensureTalentUser(talent.id);
+      } else {
+        const parentUser = await prisma.bauth_user.findUnique({
+          where: { email: normalizedEmail },
+        });
+
+        if (parentUser?.role === 'parent') {
+          userKind = 'parent';
+        } else {
+          return message(
+            emailForm,
+            {
+              type: 'error',
+              text: 'Aucun compte trouvé avec cette adresse email.',
+            },
+            { status: 404 },
+          );
+        }
       }
 
-      // Bootstrap / link the bauth_user for seeded profiles that never logged in.
-      await ensureTalentUser(talent.id);
-
-      // Send OTP via BetterAuth emailOTP plugin
       await auth.api.sendVerificationOTP({
         body: { email: normalizedEmail, type: 'sign-in' },
       });
 
-      // Only count a real send: a lookup-404 or provider error costs nothing
-      // and shouldn't burn budget for the legitimate user behind the typo.
       await recordAttempt('request', normalizedEmail);
 
       return message(emailForm, {
         type: 'success',
         text: 'Code envoyé',
         email: normalizedEmail,
+        userKind,
       });
     } catch (err) {
       console.error('OTP Request Error:', err);
@@ -138,10 +145,9 @@ export const actions: Actions = {
     }
 
     try {
-      // Sign in via BetterAuth emailOTP plugin as a Response object
       const authResponse = await auth.api.signInEmailOTP({
         body: {
-          email: otpForm.data.email,
+          email: normalizedEmail,
           otp: otpForm.data.password,
         },
         asResponse: true,
@@ -161,6 +167,25 @@ export const actions: Actions = {
         { type: 'error', text: 'Code secret incorrect ou expiré.' },
         { status: 400 },
       );
+    }
+
+    // Route to the right space based on the user's role
+    const user = await prisma.bauth_user.findUnique({
+      where: { email: normalizedEmail },
+      select: { role: true },
+    });
+
+    if (user?.role === 'parent') {
+      const pendingCount = await prisma.talent.count({
+        where: {
+          parentEmail: normalizedEmail,
+          OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }],
+        },
+      });
+      if (pendingCount > 0) {
+        throw redirect(303, resolve('/parent/welcome'));
+      }
+      throw redirect(303, resolve('/parent/merci'));
     }
 
     throw redirect(303, resolve('/'));

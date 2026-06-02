@@ -5,7 +5,7 @@ import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { can } from '$lib/domain/permissions';
 import { resolveStageContext } from '$lib/server/services/stageContext';
-import DOMPurify from 'isomorphic-dompurify';
+import { sanitizeWelcomeHtml } from '$lib/server/cms/sanitize';
 
 const SLUG = 'welcome';
 
@@ -44,7 +44,7 @@ export const actions: Actions = {
       return fail(400, { error: 'Contenu invalide.' });
     }
 
-    const content = DOMPurify.sanitize(rawContent);
+    const content = sanitizeWelcomeHtml(rawContent);
 
     await prisma.cmsPage.upsert({
       where: { slug_eventId: { slug: SLUG, eventId } },

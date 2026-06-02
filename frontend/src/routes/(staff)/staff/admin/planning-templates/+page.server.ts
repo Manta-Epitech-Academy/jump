@@ -5,6 +5,23 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { planningTemplateSchema } from '$lib/validation/planningTemplates';
 import { prisma } from '$lib/server/db';
 
+// Pick a free "<nom> (copie)" / "<nom> (copie N)" name so duplication always
+// succeeds instead of tripping the unique constraint on PlanningTemplate.nom.
+async function resolveCopyName(sourceNom: string): Promise<string> {
+  const existing = await prisma.planningTemplate.findMany({
+    where: { nom: { startsWith: `${sourceNom} (copie` } },
+    select: { nom: true },
+  });
+  const taken = new Set(existing.map((t) => t.nom));
+
+  const first = `${sourceNom} (copie)`;
+  if (!taken.has(first)) return first;
+
+  let n = 2;
+  while (taken.has(`${sourceNom} (copie ${n})`)) n++;
+  return `${sourceNom} (copie ${n})`;
+}
+
 export const load: PageServerLoad = async () => {
   const planningTemplates = await prisma.planningTemplate.findMany({
     orderBy: { createdAt: 'desc' },
@@ -111,6 +128,55 @@ export const actions: Actions = {
     } catch (err) {
       console.error(err);
       return message(form, 'Erreur lors de la modification.', { status: 500 });
+    }
+  },
+
+  duplicate: async ({ url }) => {
+    const id = url.searchParams.get('id');
+    if (!id) return fail(400);
+
+    try {
+      const source = await prisma.planningTemplate.findUniqueOrThrow({
+        where: { id },
+        include: {
+          days: {
+            orderBy: { dayIndex: 'asc' },
+            include: { slots: { orderBy: { sortOrder: 'asc' } } },
+          },
+        },
+      });
+
+      const nom = await resolveCopyName(source.nom);
+
+      await prisma.planningTemplate.create({
+        data: {
+          nom,
+          description: source.description,
+          nbDays: source.nbDays,
+          days: {
+            create: source.days.map((day) => ({
+              dayIndex: day.dayIndex,
+              label: day.label,
+              slots: {
+                create: day.slots.map((slot) => ({
+                  startTime: slot.startTime,
+                  endTime: slot.endTime,
+                  sortOrder: slot.sortOrder,
+                  activityTemplateId: slot.activityTemplateId,
+                  nom: slot.nom,
+                  description: slot.description,
+                  activityType: slot.activityType,
+                })),
+              },
+            })),
+          },
+        },
+      });
+
+      return { success: true };
+    } catch (err) {
+      console.error(err);
+      return fail(500, { message: 'Erreur lors de la duplication.' });
     }
   },
 

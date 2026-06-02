@@ -19,6 +19,8 @@ interface OnboardingDocumentDescriptor {
   filePathField: 'charterFilePath' | 'rulesFilePath' | 'imageRightsFilePath';
   /** Talent column timestamping the signature this document attests. */
   signedAtField: 'charterAcceptedAt' | 'rulesSignedAt' | 'imageRightsDecidedAt';
+  /** Lowercase ASCII slug used as the first segment of the download filename. */
+  downloadSlug: 'charter' | 'rules' | 'imagerights';
 }
 
 export const ONBOARDING_DOCUMENTS: Record<
@@ -29,6 +31,7 @@ export const ONBOARDING_DOCUMENTS: Record<
     label: 'Charte Informatique et Éthique',
     filePathField: 'charterFilePath',
     signedAtField: 'charterAcceptedAt',
+    downloadSlug: 'charter',
   },
   // Shared règlement intérieur PDF — single artifact carrying the student's
   // signature block and (for minors) the legal guardian's co-signature block.
@@ -38,6 +41,7 @@ export const ONBOARDING_DOCUMENTS: Record<
     label: 'Règlement Intérieur',
     filePathField: 'rulesFilePath',
     signedAtField: 'rulesSignedAt',
+    downloadSlug: 'rules',
   },
   // Neutral label: the same document type backs both an authorization and a
   // refusal. The PDF generator picks the decision-specific title and body.
@@ -45,8 +49,42 @@ export const ONBOARDING_DOCUMENTS: Record<
     label: "Droit à l'Image",
     filePathField: 'imageRightsFilePath',
     signedAtField: 'imageRightsDecidedAt',
+    downloadSlug: 'imagerights',
   },
 };
+
+/**
+ * Build a human, unique download filename for a generated onboarding PDF:
+ *   {slug}-{prenomnom}-{tag}.pdf
+ *     slug      charter | rules | imagerights
+ *     prenomnom lowercased, accent-stripped, alphanumerics only (concatenated)
+ *     tag       Talent.externalId (Salesforce id) when set, else the first 8
+ *               chars of the talent id, so homonyms' filenames stay distinct.
+ * Pure ASCII, so it needs no RFC 5987 Content-Disposition encoding. The `who`
+ * segment is dropped when a name slugifies to empty (fully non-Latin), leaving
+ * a clean `{slug}-{tag}.pdf` rather than a stray double hyphen.
+ */
+export function onboardingDownloadFilename(
+  type: OnboardingDocumentType,
+  talent: Pick<Talent, 'prenom' | 'nom' | 'externalId' | 'id'>,
+): string {
+  const slug = ONBOARDING_DOCUMENTS[type].downloadSlug;
+  const who = `${slugifyAscii(talent.prenom)}${slugifyAscii(talent.nom)}`;
+  const tag = sanitizeTag(talent.externalId ?? talent.id.slice(0, 8));
+  return `${[slug, who, tag].filter(Boolean).join('-')}.pdf`;
+}
+
+function slugifyAscii(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // strip accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ''); // keep alphanumerics only
+}
+
+function sanitizeTag(s: string): string {
+  return s.replace(/[^a-zA-Z0-9]/g, '');
+}
 
 /**
  * Documents a talent can review from their own settings. The charte is omitted
@@ -65,6 +103,18 @@ export function isTalentViewableDocument(
   type: string,
 ): type is TalentViewableDocumentType {
   return (TALENT_VIEWABLE_DOCUMENTS as readonly string[]).includes(type);
+}
+
+/**
+ * Narrows a free-form string (e.g. the `OnboardingPdfJob.documentType` column,
+ * which is typed `String` in the schema) to a known document type. Use at the
+ * boundary instead of an unchecked `as OnboardingDocumentType` cast so a stray
+ * value degrades to a clear branch rather than a runtime read of `undefined`.
+ */
+export function isOnboardingDocumentType(
+  type: string,
+): type is OnboardingDocumentType {
+  return Object.hasOwn(ONBOARDING_DOCUMENTS, type);
 }
 
 /**

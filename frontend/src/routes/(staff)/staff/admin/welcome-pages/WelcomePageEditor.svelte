@@ -152,6 +152,7 @@
         <CmsEditor
           bind:this={editorRef}
           bind:content
+          allowImageUpload
           placeholder="Rédigez le mot de bienvenue affiché aux stagiaires…"
         />
         <div class="mt-4 flex items-center justify-end gap-3">

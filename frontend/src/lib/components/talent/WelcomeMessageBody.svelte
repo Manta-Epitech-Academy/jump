@@ -9,6 +9,21 @@
     $props();
 </script>
 
-<div class={cn('prose max-w-none prose-slate dark:prose-invert', className)}>
+<div
+  class={cn(
+    'welcome-body prose max-w-none prose-slate dark:prose-invert',
+    className,
+  )}
+>
   {@html content}
 </div>
+
+<style>
+  /* Images carry an explicit px width (the author's chosen size). Cap it so a
+     wide image never overflows a narrow card or mobile drawer, and preserve the
+     aspect ratio. */
+  .welcome-body :global(img) {
+    max-width: 100%;
+    height: auto;
+  }
+</style>

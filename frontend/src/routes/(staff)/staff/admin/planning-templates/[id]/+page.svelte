@@ -6,7 +6,6 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Plus from '@lucide/svelte/icons/plus';
   import Trash2 from '@lucide/svelte/icons/trash-2';
-  import Pencil from '@lucide/svelte/icons/pencil';
   import Copy from '@lucide/svelte/icons/copy';
   import Search from '@lucide/svelte/icons/search';
   import Clock from '@lucide/svelte/icons/clock';
@@ -22,6 +21,7 @@
   import * as Select from '$lib/components/ui/select';
   import { ScrollArea } from '$lib/components/ui/scroll-area';
   import ConfirmDeleteDialog from '$lib/components/admin/ConfirmDeleteDialog.svelte';
+  import TemplateTimeline from '$lib/components/admin/TemplateTimeline.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { toast } from 'svelte-sonner';
   import {
@@ -29,7 +29,10 @@
     activityTypeStyles,
     activityTypes,
   } from '$lib/validation/templates';
-  import { cn } from '$lib/utils';
+  import {
+    wallClockToMinutes,
+    minutesToWallClock,
+  } from '$lib/domain/planningTime';
 
   let { data } = $props();
 
@@ -105,14 +108,42 @@
   function openAddSlot(dayId: string) {
     editingSlotId = null;
     slotDialogDayId = dayId;
-    slotStartTime = '09:00';
-    slotEndTime = '10:00';
+    // Pre-fill: start where the last slot of this day ends.
+    const daySlots = days.find((d) => d.id === dayId)?.slots ?? [];
+    const lastSlot = daySlots.at(-1);
+    slotStartTime = lastSlot?.endTime ?? '09:00';
+    // Default 1h duration from start.
+    const endMins = Math.min(
+      wallClockToMinutes(slotStartTime) + 60,
+      23 * 60 + 59,
+    );
+    slotEndTime = minutesToWallClock(endMins);
     slotActivityTemplateId = '';
     slotNom = '';
     slotActivityType = 'orga';
     searchQuery = '';
     typeFilter = 'all';
     slotDialogOpen = true;
+  }
+
+  function openAddSlotAtTime(dayId: string, time: string) {
+    editingSlotId = null;
+    slotDialogDayId = dayId;
+    slotStartTime = time;
+    const endMins = Math.min(wallClockToMinutes(time) + 60, 23 * 60 + 59);
+    slotEndTime = minutesToWallClock(endMins);
+    slotActivityTemplateId = '';
+    slotNom = '';
+    slotActivityType = 'orga';
+    searchQuery = '';
+    typeFilter = 'all';
+    slotDialogOpen = true;
+  }
+
+  function handleSlotClick(slotId: string, dayId: string) {
+    const day = days.find((d) => d.id === dayId);
+    const slot = day?.slots.find((s) => s.id === slotId);
+    if (slot) openEditSlot(slot, dayId);
   }
 
   function openEditSlot(slot: any, dayId: string) {
@@ -139,6 +170,8 @@
   }
 
   function confirmDeleteSlot(id: string) {
+    // Close the edit dialog first so the confirm dialog isn't stacked on top.
+    slotDialogOpen = false;
     slotToDelete = id;
     deleteSlotOpen = true;
   }
@@ -255,65 +288,11 @@
             actionCallback={() => openAddSlot(day.id)}
           />
         {:else}
-          <div class="space-y-2">
-            {#each day.slots as slot}
-              {@const styles = activityTypeStyles[slot.activityType]}
-              {@const name =
-                slot.activityTemplate?.nom ?? slot.nom ?? 'Sans nom'}
-              <div
-                class={cn(
-                  'flex items-center gap-3 rounded-lg border border-l-4 p-3',
-                  styles.bg,
-                  styles.border,
-                )}
-              >
-                <Badge variant="outline" class="shrink-0 font-mono text-xs">
-                  {slot.startTime} — {slot.endTime}
-                </Badge>
-                <div class="flex min-w-0 flex-1 items-center gap-2">
-                  {#if slot.activityTemplate}
-                    {#if slot.activityTemplate.isDynamic}
-                      <Zap class="h-3.5 w-3.5 shrink-0 text-epi-orange" />
-                    {:else}
-                      <FileText
-                        class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                      />
-                    {/if}
-                  {/if}
-                  <span class="truncate text-sm font-bold">{name}</span>
-                  <Badge
-                    variant="outline"
-                    class={cn('text-[10px]', styles.accent)}
-                  >
-                    {activityTypeLabels[slot.activityType]}
-                  </Badge>
-                  {#if slot.activityTemplate?.difficulte}
-                    <Badge variant="secondary" class="text-[10px]">
-                      {slot.activityTemplate.difficulte}
-                    </Badge>
-                  {/if}
-                </div>
-                <div class="flex shrink-0 gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7"
-                    onclick={() => openEditSlot(slot, day.id)}
-                  >
-                    <Pencil class="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 text-destructive hover:text-destructive"
-                    onclick={() => confirmDeleteSlot(slot.id)}
-                  >
-                    <Trash2 class="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            {/each}
-          </div>
+          <TemplateTimeline
+            slots={day.slots}
+            onSlotClick={(id) => handleSlotClick(id, day.id)}
+            onEmptyClick={(time) => openAddSlotAtTime(day.id, time)}
+          />
         {/if}
       </Tabs.Content>
     {/each}
@@ -366,7 +345,15 @@
         </div>
       </div>
 
-      <Tabs.Root value={slotActivityTemplateId ? 'template' : 'inline'}>
+      <Tabs.Root
+        value={slotActivityTemplateId ? 'template' : 'inline'}
+        onValueChange={(v) => {
+          if (v === 'inline') {
+            slotActivityTemplateId = '';
+            slotNom = '';
+          }
+        }}
+      >
         <Tabs.List class="grid w-full grid-cols-2">
           <Tabs.Trigger value="template">Depuis un template</Tabs.Trigger>
           <Tabs.Trigger value="inline">Activité inline</Tabs.Trigger>
@@ -443,7 +430,7 @@
                   {#each filteredTemplates as template}
                     <button
                       type="button"
-                      class="flex w-full items-center gap-2 rounded-md border bg-card p-2 text-left shadow-sm transition-colors hover:border-epi-blue hover:bg-muted/50 dark:shadow-none"
+                      class="flex w-full cursor-pointer items-center gap-2 rounded-md border bg-card p-2 text-left shadow-sm transition-colors hover:border-epi-blue hover:bg-muted/50 dark:shadow-none"
                       onclick={() => selectTemplate(template.id, template.nom)}
                     >
                       {#if template.isDynamic}
@@ -489,6 +476,17 @@
       </Tabs.Root>
 
       <Dialog.Footer>
+        {#if editingSlotId}
+          <Button
+            type="button"
+            variant="ghost"
+            class="mr-auto gap-1.5 text-destructive hover:text-destructive"
+            onclick={() => editingSlotId && confirmDeleteSlot(editingSlotId)}
+          >
+            <Trash2 class="h-4 w-4" />
+            Supprimer
+          </Button>
+        {/if}
         <Button type="submit" class="bg-epi-pink text-white">
           {editingSlotId ? 'Mettre à jour' : 'Ajouter'}
         </Button>

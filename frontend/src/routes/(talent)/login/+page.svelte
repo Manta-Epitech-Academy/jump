@@ -13,7 +13,7 @@
   let { data } = $props();
 
   let step = $state<'email' | 'otp'>('email');
-  // Track funnel timings so we can spot OTP latency or repeated retries.
+  let userKind = $state<'talent' | 'parent' | null>(null);
   let otpEmailSentAt = $state<number | null>(null);
   let emailAttempts = $state(0);
   let codeAttempts = $state(0);
@@ -31,11 +31,14 @@
       onUpdated: ({ form }) => {
         if (form.valid && form.message?.type === 'success') {
           otpEmailSentAt = Date.now();
-          track('talent_otp_email_submitted', { attempt: ++emailAttempts });
+          userKind = form.message.userKind ?? 'talent';
+          track(`${userKind}_otp_email_submitted`, {
+            attempt: ++emailAttempts,
+          });
           $otpForm.email = $emailForm.email.toLowerCase().trim();
           step = 'otp';
         } else if (form.message?.type === 'error') {
-          track('talent_otp_email_failed', {
+          track('otp_email_failed', {
             attempt: ++emailAttempts,
             reason: errReason(form.message),
           });
@@ -56,7 +59,7 @@
       resetForm: false,
       onUpdated: ({ form }) => {
         if (form.message?.type === 'error') {
-          track('talent_otp_code_failed', {
+          track(`${userKind ?? 'talent'}_otp_code_failed`, {
             attempt: codeAttempts,
             reason: errReason(form.message),
             secondsSinceEmail: secondsBetween(otpEmailSentAt),
@@ -64,7 +67,7 @@
         }
       },
       onSubmit: () => {
-        track('talent_otp_code_submitted', {
+        track(`${userKind ?? 'talent'}_otp_code_submitted`, {
           attempt: ++codeAttempts,
           secondsSinceEmail: secondsBetween(otpEmailSentAt),
         });
@@ -74,6 +77,7 @@
 
   function goBackToEmail() {
     step = 'email';
+    userKind = null;
     $otpForm.password = '';
     $otpMessage = undefined;
   }
@@ -84,36 +88,45 @@
 </svelte:head>
 
 <div class="grid min-h-screen w-full lg:grid-cols-[1.05fr_1fr]">
-  <!-- Brand panel — student-facing baseline; the gamified portal in one line. -->
   <LoginBrandPanel>
     <h1 class="font-heading text-5xl leading-[0.95] xl:text-6xl">
-      Passe au niveau<br />supérieur<span class="text-epi-teal">_</span>
+      {#if userKind === 'parent'}
+        Suivez leur<br />parcours<span class="text-epi-teal">_</span>
+      {:else}
+        Passe au niveau<br />supérieur<span class="text-epi-teal">_</span>
+      {/if}
     </h1>
     <p class="max-w-md font-mono text-sm text-white/70">
-      &lt; La plateforme qui t'accompagne lors de tes stages et coding clubs à
-      Epitech. /&gt;
+      {#if userKind === 'parent'}
+        &lt; Leur progression, leur assiduité et leurs réussites, en un coup
+        d'œil. /&gt;
+      {:else}
+        &lt; La plateforme qui t'accompagne lors de tes stages et coding clubs à
+        Epitech. /&gt;
+      {/if}
     </p>
     <p class="font-mono text-xs tracking-widest text-white/50 uppercase">
-      Défis/ Badges/ XP/ Portfolio/
+      {#if userKind === 'parent'}
+        Progression/ Stages/ Présence/ Diplômes/
+      {:else}
+        Défis/ Badges/ XP/ Portfolio/
+      {/if}
     </p>
   </LoginBrandPanel>
 
-  <!-- Auth panel -->
   <main class="flex items-center justify-center bg-background p-6 sm:p-12">
     <div class="w-full max-w-sm space-y-8">
-      <!-- Header -->
       <header class="space-y-5">
-        <!-- Compact logo — mobile only (the brand panel carries it on desktop) -->
         <EpitechLogo class="h-7 w-auto lg:hidden" />
         <div class="space-y-2">
           <h2 class="font-heading text-3xl tracking-wide">
             Jump<span class="text-epi-teal">_</span>
           </h2>
           <p class="text-sm text-muted-foreground">
-            {#if step === 'email'}
-              Envie de découvrir la tech ?
-            {:else}
+            {#if step === 'otp'}
               Dernière étape !
+            {:else}
+              Élève ou parent, connectez-vous avec votre email.
             {/if}
           </p>
         </div>
@@ -139,7 +152,6 @@
         />
       {/if}
 
-      <!-- Footer -->
       <div class="space-y-3 text-center">
         <p class="text-sm text-muted-foreground">
           Vous faites partie du staff ?

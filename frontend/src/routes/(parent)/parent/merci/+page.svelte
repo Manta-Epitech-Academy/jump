@@ -56,7 +56,7 @@
 
             {#if data.contactEmail}
               <p>
-                Si vous avez la moindre question d'ici là, écrivez-nous à
+                Si vous avez la moindre question d'ici là, écrivez-nous à<br />
                 <a
                   href="mailto:{data.contactEmail}"
                   class="font-semibold text-epi-blue hover:underline"

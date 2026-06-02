@@ -45,23 +45,53 @@ export function onboardingEarlyBirdBonus(position: number): number {
 }
 
 /**
- * How many top finishers, PER CAMPUS bucket, earn a daily-leaderboard rank
- * bonus. Same per-campus fairness rationale as the early-bird limit.
+ * The rank-bonus pool, as a fraction of the field that actually competed on the
+ * board. Cohort-relative on purpose: a flat top-3 was top 3% at a ~100-strong
+ * campus but top ~12% at La Reunion's ~26, so one constant rewarded wildly
+ * different shares. Scaling by the field equalises that share across campuses
+ * with no roster lookup: the denominator is exactly the board the rank is
+ * measured against. 0.1 is roughly the top ten at a full stage cohort.
  */
-export const MINIGAME_RANK_BONUS_LIMIT = 3;
+export const MINIGAME_RANK_BONUS_FRACTION = 0.1;
+
+/**
+ * Floor on the pool, so the three podium tiers below always pay out even on a
+ * tiny board (an empty or single-digit field still has a podium). At La Reunion's
+ * ~26 the fraction already rounds to this floor, so the small campus keeps its
+ * top-3 podium while a 100-strong one opens up to ~10 slots.
+ */
+export const MINIGAME_RANK_BONUS_MIN_LIMIT = 3;
+
+/**
+ * How many top finishers earn a rank bonus, given the size of the field they
+ * finished against ({@link MINIGAME_RANK_BONUS_FRACTION} of it, never fewer than
+ * the {@link MINIGAME_RANK_BONUS_MIN_LIMIT} podium slots). Evaluated the instant a
+ * talent finishes, against the board so far: the same no-clawback "moment you
+ * finished" semantics as the rank itself.
+ */
+export function minigameRankBonusLimit(fieldSize: number): number {
+  return Math.max(
+    MINIGAME_RANK_BONUS_MIN_LIMIT,
+    Math.ceil(fieldSize * MINIGAME_RANK_BONUS_FRACTION),
+  );
+}
 
 /**
  * Additive bonus (on top of {@link MINIGAME_XP_REWARD}) for a 1-based rank on the
- * campus board, ranked the moment the talent finishes. Podium-shaped, as
- * multiples of the base:
- *   rank 1 → +100 (x3)   rank 2 → +50 (x2)   rank 3 → +25 (x1.5)   else → 0
- * Steep enough that the top spot is clearly worth chasing day to day.
+ * campus board, against a field of `fieldSize` finishers. A steep podium plus a
+ * flat honourable-mention tail out to {@link minigameRankBonusLimit}, as multiples
+ * of the base:
+ *   rank 1 → +100 (x2)   rank 2 → +50 (x1)   rank 3 → +25 (x0.5)
+ *   rank 4..limit → +10 (x0.2, the top-decile nod)   else → 0
+ * The podium stays steep so the top spot is clearly worth chasing day to day; the
+ * tail only widens *who* gets recognised, it never dilutes the medals.
  */
-export function minigameRankBonus(rank: number): number {
-  if (rank < 1 || rank > MINIGAME_RANK_BONUS_LIMIT) return 0;
+export function minigameRankBonus(rank: number, fieldSize: number): number {
+  if (rank < 1 || rank > minigameRankBonusLimit(fieldSize)) return 0;
   if (rank === 1) return MINIGAME_XP_REWARD * 2;
   if (rank === 2) return MINIGAME_XP_REWARD;
-  return Math.round(MINIGAME_XP_REWARD / 2);
+  if (rank === 3) return Math.round(MINIGAME_XP_REWARD / 2);
+  return Math.round(MINIGAME_XP_REWARD / 5);
 }
 
 export const DIFFICULTY_XP: Record<string, number> = {

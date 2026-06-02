@@ -29,6 +29,22 @@ export function isWallClock(value: string): value is WallClock {
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * Bare wall-clock `HH:MM` → minutes since midnight. The timezone-free sibling
+ * of `toMinutesOfDay`: use it for slots that carry a wall-clock string with no
+ * associated instant (e.g. planning *templates*, which are dateless), where
+ * pixel layout still needs minutes.
+ */
+export function wallClockToMinutes(time: WallClock): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+/** Minutes since midnight → wall-clock `HH:MM`. Inverse of `wallClockToMinutes`. */
+export function minutesToWallClock(minutes: number): WallClock {
+  return `${pad2(Math.floor(minutes / 60))}:${pad2(minutes % 60)}`;
+}
+
 function asDate(instant: Date | string): Date {
   return instant instanceof Date ? instant : new Date(instant);
 }
