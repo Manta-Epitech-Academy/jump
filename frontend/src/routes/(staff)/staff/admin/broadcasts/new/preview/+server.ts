@@ -7,7 +7,10 @@ import {
   broadcastFiltersSchema,
   broadcastSourceFilterSchema,
 } from '$lib/validation/broadcasts';
-import { BROADCAST_AUDIENCES } from '$lib/domain/broadcasts';
+import {
+  BROADCAST_AUDIENCES,
+  type IncludedRecipient,
+} from '$lib/domain/broadcasts';
 
 // Live recipient preview for /staff/admin/broadcasts/new. Called from the
 // page on every relevant field change (debounced client-side). Looser than
@@ -30,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const payload = await request.json().catch(() => null);
   const parsed = previewSchema.safeParse(payload);
   if (!parsed.success) {
-    return json({ total: 0, excluded: [], sample: [], incomplete: true });
+    return json({ total: 0, included: [], excluded: [], incomplete: true });
   }
 
   let channel: 'mail' | 'sms' = 'mail';
@@ -42,7 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (template) channel = template.channel;
   }
 
-  const { recipients, excluded } = await resolveRecipients(
+  const { recipients, excludedRecipients } = await resolveRecipients(
     {
       campusId: parsed.data.campusId,
       audience: parsed.data.audience,
@@ -54,13 +57,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     channel,
   );
 
+  // Full, exact roster — no sampling. The composer renders the whole list so
+  // staff see precisely who is (and isn't) contacted before sending.
+  const included: IncludedRecipient[] = recipients.map((r) => ({
+    prenom: r.prenom,
+    nom: r.nom,
+    role: r.role,
+    email: r.email,
+    phone: r.phone,
+  }));
   return json({
     total: recipients.length,
-    excluded,
-    sample: recipients.slice(0, 10).map((r) => ({
-      name: `${r.prenom} ${r.nom}`.trim(),
-      email: r.email,
-      phone: r.phone,
-    })),
+    included,
+    excluded: excludedRecipients,
   });
 };

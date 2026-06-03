@@ -8,6 +8,7 @@ import {
   getCampusId,
   getCampusTimezone,
   scopedPrisma,
+  type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
 import { rulesCompliantWhere } from '$lib/server/db/stageCompliance';
 import {
@@ -59,47 +60,57 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     const endOfWeek = new Date(bounds.endOfDay);
     endOfWeek.setDate(endOfWeek.getDate() + 7);
 
-    const ongoingEvents = await db.event.findMany({
-      where: ongoingEventWhere(bounds),
-      orderBy: { date: 'asc' },
-      include: {
-        _count: { select: { participations: true } },
-      },
-    });
+    // Every independent aggregate the dashboard hero needs, fired in one
+    // wave instead of six sequential round-trips. `stageStats` only depends
+    // on the active stage (already resolved by the layout), so it joins the
+    // wave rather than trailing it.
+    const [
+      ongoingEvents,
+      topTalents,
+      upcomingEvents,
+      eventsInWeek,
+      totalTalents,
+      stageStats,
+    ] = await Promise.all([
+      db.event.findMany({
+        where: ongoingEventWhere(bounds),
+        orderBy: { date: 'asc' },
+        include: {
+          _count: { select: { participations: true } },
+        },
+      }),
+      db.talent.findMany({
+        orderBy: [{ xp: 'desc' }, { eventsCount: 'desc' }],
+        take: 5,
+        include: { user: true },
+      }),
+      db.event.findMany({
+        where: upcomingEventWhere(bounds),
+        include: {
+          mantas: true,
+          _count: { select: { participations: true } },
+        },
+        take: 4,
+        orderBy: { date: 'asc' },
+      }),
+      db.event.findMany({
+        where: eventOverlappingWhere(bounds.startOfDay, endOfWeek),
+        select: { id: true, titre: true, eventType: true },
+      }),
+      db.talent.count(),
+      activeStage ? loadStageStats(db, activeStage.id) : null,
+    ]);
 
-    const topTalents = await db.talent.findMany({
-      orderBy: [{ xp: 'desc' }, { eventsCount: 'desc' }],
-      take: 5,
-      include: { user: true },
-    });
-
-    const upcomingEvents = await db.event.findMany({
-      where: upcomingEventWhere(bounds),
-      include: {
-        mantas: true,
-        _count: { select: { participations: true } },
-      },
-      take: 4,
-      orderBy: { date: 'asc' },
-    });
-
-    const eventsInWeek = await db.event.findMany({
-      where: eventOverlappingWhere(bounds.startOfDay, endOfWeek),
-      select: { id: true, titre: true, eventType: true },
-    });
-
-    // Active stage may sit outside the week window (upcoming-in-30-days).
-    // Always include it so its overdue interviews + onboarding gaps surface.
+    // Workspace alerts depend on the resolved week window, so they trail the
+    // wave. The active stage may sit outside that window (upcoming-in-30-days);
+    // pull it in so its overdue interviews + onboarding gaps still surface.
     const alertEventsMap = new Map(eventsInWeek.map((ev) => [ev.id, ev]));
-    if (activeStage) {
-      const existing = alertEventsMap.get(activeStage.id);
-      if (!existing) {
-        const stageEvent = await db.event.findUnique({
-          where: { id: activeStage.id },
-          select: { id: true, titre: true, eventType: true },
-        });
-        if (stageEvent) alertEventsMap.set(stageEvent.id, stageEvent);
-      }
+    if (activeStage && !alertEventsMap.has(activeStage.id)) {
+      const stageEvent = await db.event.findUnique({
+        where: { id: activeStage.id },
+        select: { id: true, titre: true, eventType: true },
+      });
+      if (stageEvent) alertEventsMap.set(stageEvent.id, stageEvent);
     }
 
     const tasks = await deriveWorkspaceAlerts(
@@ -107,46 +118,6 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
       Array.from(alertEventsMap.values()),
       { basePath: '/staff/dev', bounds },
     );
-
-    const totalTalents = await db.talent.count();
-
-    let stageStats: {
-      completedInterviews: number;
-      plannedInterviews: number;
-      totalParticipations: number;
-      chartesSigned: number;
-    } | null = null;
-    if (activeStage) {
-      const [
-        completedInterviews,
-        plannedInterviews,
-        totalParticipations,
-        chartesSigned,
-      ] = await Promise.all([
-        db.interview.count({
-          where: {
-            status: 'completed',
-            participation: { eventId: activeStage.id },
-          },
-        }),
-        db.interview.count({
-          where: {
-            status: 'planned',
-            participation: { eventId: activeStage.id },
-          },
-        }),
-        db.participation.count({ where: { eventId: activeStage.id } }),
-        db.participation.count({
-          where: { eventId: activeStage.id, ...rulesCompliantWhere },
-        }),
-      ]);
-      stageStats = {
-        completedInterviews,
-        plannedInterviews,
-        totalParticipations,
-        chartesSigned,
-      };
-    }
 
     return {
       userName: locals.user.name || 'Utilisateur',
@@ -175,6 +146,38 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     throw error(500, 'Erreur chargement dashboard');
   }
 };
+
+/**
+ * Stage KPI counts for the dashboard hero: interviews done/planned and charter
+ * compliance against total participations. Extracted so the four counts stay a
+ * single inner Promise.all that the dashboard load can drop into its outer wave
+ * as one unit.
+ */
+async function loadStageStats(db: ScopedPrismaClient, stageId: string) {
+  const [
+    completedInterviews,
+    plannedInterviews,
+    totalParticipations,
+    chartesSigned,
+  ] = await Promise.all([
+    db.interview.count({
+      where: { status: 'completed', participation: { eventId: stageId } },
+    }),
+    db.interview.count({
+      where: { status: 'planned', participation: { eventId: stageId } },
+    }),
+    db.participation.count({ where: { eventId: stageId } }),
+    db.participation.count({
+      where: { eventId: stageId, ...rulesCompliantWhere },
+    }),
+  ]);
+  return {
+    completedInterviews,
+    plannedInterviews,
+    totalParticipations,
+    chartesSigned,
+  };
+}
 
 export const actions: Actions = {
   duplicateEvent: async ({ request, locals }) => {

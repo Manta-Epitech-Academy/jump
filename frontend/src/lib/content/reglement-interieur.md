@@ -2,7 +2,7 @@ En tant qu'entreprise d'accueil et école d'enseignement supérieur, Epitech dis
 
 ## Présence et ponctualité
 
-**La présence sur le campus est obligatoire de 10h à 17h,** hors pause méridienne (12h30-13h30), pendant laquelle les stagiaires ne sont plus sous la responsabilité d'Epitech. Toute absence ou retard doit être justifié par écrit par les responsables légaux avant 10h30. Un stagiaire arrivant plus de 15 minutes après le début d'une activité est considéré absent ; en deçà, il peut être redirigé vers une autre salle si son arrivée perturbe la session. Aucune sortie n'est autorisée en dehors de la pause méridienne, sauf demande justifiée auprès de la direction.
+**La présence sur le campus est obligatoire de 10h à 17h (9h à 16h pour le campus de Toulouse),** hors pause méridienne (12h30-13h30), pendant laquelle les stagiaires ne sont plus sous la responsabilité d'Epitech. Toute absence ou retard doit être justifié par écrit par les responsables légaux avant 10h30. Un stagiaire arrivant plus de 15 minutes après le début d'une activité est considéré absent ; en deçà, il peut être redirigé vers une autre salle si son arrivée perturbe la session. Aucune sortie n'est autorisée en dehors de la pause méridienne, sauf demande justifiée auprès de la direction.
 
 ## Comportement et respect d'autrui
 
