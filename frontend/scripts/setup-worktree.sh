@@ -21,4 +21,9 @@ if [ ! -e "$repo_root/.env" ] && [ -f "$main_root/.env" ]; then
 fi
 
 echo "[setup-worktree] installing frontend deps…"
-cd "$repo_root/frontend" && bun install
+# The Puppeteer browser cache (~/.cache/puppeteer) is global and shared across
+# every worktree, so the main checkout's install already populated it. Skip the
+# per-worktree browser download: it adds nothing and a corrupt/partial cache
+# entry makes puppeteer's postinstall throw ("folder exists but executable is
+# missing"), which would fail worktree provisioning.
+cd "$repo_root/frontend" && PUPPETEER_SKIP_DOWNLOAD=true bun install

@@ -46,22 +46,23 @@ export const load: LayoutServerLoad = async ({ parent, locals, url }) => {
   // workspace — skip the dev shell side effects (stage resolution, ticket
   // counts) and signal `devLayoutScope: 'interview-only'` so the layout
   // svelte strips sidebar/header chrome.
-  const activeStage =
+  // Independent shell side-effects, fired in one wave rather than stacked as
+  // three sequential round-trips on every dev navigation. Each guard still
+  // short-circuits to a constant when it doesn't apply, so the parallel form
+  // keeps the same skip semantics as the sequential one.
+  const [activeStage, ticketsUnread, syncErrorCounts] = await Promise.all([
     !isInterviewerOnly && hasFlag(locals, 'stage_seconde')
-      ? await resolveStageContext(db, { phaseOverride })
-      : null;
-
-  const ticketsUnread =
+      ? resolveStageContext(db, { phaseOverride })
+      : null,
     !isInterviewerOnly && locals.ticketsEnabled
-      ? await countUnreadForAuthor(user.id)
-      : 0;
-
-  const syncErrorCounts =
+      ? countUnreadForAuthor(user.id)
+      : 0,
     !isInterviewerOnly &&
     staffProfile?.campusId &&
     hasFlag(locals, 'staff_sync_errors')
-      ? await countCampusSyncErrors(staffProfile.campusId)
-      : { total: 0, urgent: 0 };
+      ? countCampusSyncErrors(staffProfile.campusId)
+      : { total: 0, urgent: 0 },
+  ]);
 
   return {
     user,

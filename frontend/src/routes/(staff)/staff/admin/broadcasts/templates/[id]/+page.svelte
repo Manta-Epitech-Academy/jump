@@ -1,26 +1,26 @@
 <script lang="ts">
   import TemplateForm from '$lib/components/admin/broadcasts/TemplateForm.svelte';
-  import { enhance } from '$app/forms';
+  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
 
   let { data, form } = $props();
 </script>
 
 <div class="space-y-4">
-  <header class="flex items-start justify-between gap-4">
-    <div class="space-y-2">
-      <h1 class="text-2xl font-bold tracking-tight">Modifier le template</h1>
-      <p class="text-sm text-muted-foreground">
-        Met à jour le contenu ; les envois déjà partis gardent leur snapshot.
-      </p>
-    </div>
-    <span class="shrink-0 text-xs text-muted-foreground">
+  {#snippet usage()}
+    <span class="text-xs text-muted-foreground">
       Utilisé dans {data.template._count.broadcasts} envoi(s)
     </span>
-  </header>
+  {/snippet}
+  <AdminPageHeader
+    title="Modifier le"
+    accent="template"
+    subtitle="Les envois déjà partis gardent leur snapshot"
+    actions={usage}
+  />
 
   {#if form?.success}
     <p
-      class="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-700"
+      class="rounded-sm border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-700"
     >
       Enregistré.
     </p>

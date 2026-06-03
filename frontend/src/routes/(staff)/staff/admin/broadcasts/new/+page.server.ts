@@ -14,6 +14,7 @@ import {
   loadBroadcastTemplate,
 } from '$lib/server/services/broadcast/templates';
 import { isSmsEnabled } from '$lib/server/sms';
+import { SMS_BROADCAST_MAX_CHARS, estimateSmsLength } from '$lib/domain/sms';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
   const templateIdParam = url.searchParams.get('template') ?? undefined;
@@ -72,6 +73,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
       eventId: '',
       sourceBroadcastId: '',
       filters: {},
+      subject: '',
+      body: '',
     },
     zod4(broadcastSchema),
     { errors: false },
@@ -110,6 +113,14 @@ export const actions: Actions = {
         })
       : null;
 
+    // Test the *edited* content the composer shows, falling back to the
+    // template's own when a field is left untouched/empty.
+    const body = form.data.body?.trim() || template.body;
+    const subject =
+      template.channel === 'mail'
+        ? form.data.subject?.trim() || template.subject
+        : template.subject;
+
     // Pick the recipient field by channel; mail falls back to the sender's
     // own address. `sendTestMessage` bypasses the dev-redirect trap, so this
     // reaches the typed address even on dev/staging — that's the point of a
@@ -123,8 +134,8 @@ export const actions: Actions = {
 
     const result = await sendTestMessage({
       channel: template.channel,
-      subject: template.subject,
-      body: template.body,
+      subject,
+      body,
       to,
       eventName: event?.titre,
     });
@@ -157,10 +168,10 @@ export const actions: Actions = {
     if (!audience) setError(form, 'audience', 'Sélectionne une audience');
     if (!campusId || !audience) return fail(400, { form });
 
-    // Auto-generate broadcast name: `[DD/MM/YYYY HH:MM] Campus - Template`.
     // Resolve the template through the broadcastable guard so a transactional
     // id (e.g. a `?template=` deep link the picker would have hidden) surfaces a
-    // clean form error here rather than throwing in `enqueueBroadcast`.
+    // clean form error here rather than throwing in `enqueueBroadcast`. The
+    // template also fixes the channel for content validation below.
     const [campus, template] = await Promise.all([
       prisma.campus.findUnique({
         where: { id: campusId },
@@ -175,6 +186,28 @@ export const actions: Actions = {
         { status: 400 },
       );
     }
+
+    // Validate the per-send content (seeded from the template, editable here).
+    const body = form.data.body?.trim() ?? '';
+    const subject = form.data.subject?.trim() ?? '';
+    if (!body) setError(form, 'body', 'Le message ne peut pas être vide');
+    if (template.channel === 'mail' && !subject) {
+      setError(form, 'subject', 'Le sujet est obligatoire pour un mail');
+    }
+    if (
+      template.channel === 'sms' &&
+      estimateSmsLength(body) > SMS_BROADCAST_MAX_CHARS
+    ) {
+      setError(form, 'body', 'Message SMS trop long — raccourcissez le texte');
+    }
+    if (
+      (form.errors.body?.length ?? 0) > 0 ||
+      (form.errors.subject?.length ?? 0) > 0
+    ) {
+      return fail(400, { form });
+    }
+
+    // Auto-generate broadcast name: `[DD/MM/YYYY HH:MM] Campus - Template`.
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -190,6 +223,9 @@ export const actions: Actions = {
       sourceFilter: form.data.sourceFilter ?? null,
       filters: form.data.filters ?? null,
       createdById: locals.user.id,
+      // Snapshot the composer's edited content for this send only.
+      bodyOverride: body,
+      subjectOverride: template.channel === 'mail' ? subject : null,
     });
 
     // Process inline (fire-and-forget). For larger volumes, route to a worker.

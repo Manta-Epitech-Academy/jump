@@ -8,33 +8,33 @@
   import { Input } from '$lib/components/ui/input';
   import PhoneInput from '$lib/components/ui/phone-input/PhoneInput.svelte';
   import { Label } from '$lib/components/ui/label';
-  import { Checkbox } from '$lib/components/ui/checkbox';
   import * as Select from '$lib/components/ui/select';
   import * as RadioGroup from '$lib/components/ui/radio-group';
   import * as Collapsible from '$lib/components/ui/collapsible';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import * as Dialog from '$lib/components/ui/dialog';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import Plus from '@lucide/svelte/icons/plus';
+  import Send from '@lucide/svelte/icons/send';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
+  import MessageBodyEditor from '$lib/components/admin/broadcasts/MessageBodyEditor.svelte';
+  import MessagePreview from '$lib/components/admin/broadcasts/MessagePreview.svelte';
+  import BroadcastFilters from '$lib/components/admin/broadcasts/BroadcastFilters.svelte';
+  import RecipientsPanel from '$lib/components/admin/broadcasts/RecipientsPanel.svelte';
   import {
     BROADCAST_AUDIENCES,
     BROADCAST_AUDIENCE_LABELS,
     BROADCAST_CHANNEL_LABELS,
-    JUMP_LEVELS,
-    IMAGE_RIGHTS_FILTER_OPTIONS,
-    IMAGE_RIGHTS_FILTER_LABELS,
+    EVENT_SCOPED_AUDIENCES,
+    countActiveBroadcastFilters,
+    type IncludedRecipient,
+    type ExcludedRecipient,
   } from '$lib/domain/broadcasts';
-  import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
-  import {
-    substituteVariables,
-    buildDemoContext,
-  } from '$lib/domain/broadcastVariables';
-  import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
   import { cn } from '$lib/utils';
 
   let { data } = $props();
 
-  const DRAFT_KEY = 'broadcast-new-draft-v1';
+  const DRAFT_KEY = 'broadcast-new-draft-v2';
 
   // svelte-ignore state_referenced_locally
   const {
@@ -45,52 +45,95 @@
     message: formMessage,
   } = superForm(data.form, {
     dataType: 'json',
-    // Without this, a successful test-send action wipes the user's form
-    // because superforms resets to the load-time state.
     resetForm: false,
-    // Don't surface load-time errors (empty required fields) until the
-    // user actually tries to submit.
     validationMethod: 'onsubmit',
     onResult: ({ result }) => {
-      // Enqueue is the only action that redirects — that's our success
-      // signal to drop the draft. testSend stays put with a flash message.
       if (browser && result.type === 'redirect') {
         localStorage.removeItem(DRAFT_KEY);
       }
     },
   });
 
+  // ── Channel-first selection ─────────────────────────────────────────────
+  // The channel is chosen up front and filters the template picker; the actual
+  // send channel is still the picked template's (they always agree). With no
+  // template yet, the chosen channel drives the editor + SMS meter.
+  let channelChoice = $state<'mail' | 'sms'>('mail');
+  const channelOptions = [
+    { value: 'mail', label: BROADCAST_CHANNEL_LABELS.mail },
+    { value: 'sms', label: BROADCAST_CHANNEL_LABELS.sms },
+  ];
   const selectedTemplate = $derived(
     data.templates.find((t) => t.id === $form.templateId),
   );
-  const channel = $derived(selectedTemplate?.channel ?? 'mail');
+  const channel = $derived(selectedTemplate?.channel ?? channelChoice);
+  const templatesForChannel = $derived(
+    data.templates.filter((t) => t.channel === channelChoice),
+  );
+
+  function onChannelChange(v: string) {
+    const next = v as 'mail' | 'sms';
+    if (next === channelChoice) return;
+    channelChoice = next;
+    // Dropping a template from the other channel: clear it and its seeded
+    // content so the editor starts clean for the new channel.
+    if (selectedTemplate && selectedTemplate.channel !== next) {
+      $form.templateId = '';
+      $form.subject = '';
+      $form.body = '';
+      seededFor = '';
+    }
+  }
+
+  // ── Seed editable content from the picked template ──────────────────────
+  // Choosing a template fills the (editable) subject/body once. Editing them
+  // afterwards never touches the template — the send snapshots this content.
+  let seededFor = $state('');
+  $effect(() => {
+    const tid = $form.templateId;
+    if (tid && tid !== seededFor) {
+      const t = data.templates.find((x) => x.id === tid);
+      if (t) {
+        $form.subject = t.subject ?? '';
+        $form.body = t.body;
+        seededFor = tid;
+        channelChoice = t.channel;
+      }
+    }
+  });
 
   const filteredEvents = $derived(
     data.events.filter((e) =>
       $form.campusId ? e.campusId === $form.campusId : true,
     ),
   );
-
   const filteredSources = $derived(
     data.sourceBroadcasts.filter((b) =>
       $form.campusId ? b.campusId === $form.campusId : true,
     ),
   );
+  // Only talent/parent/manta are narrowed by an event; for the other staff
+  // audiences the event does nothing, so we hide the picker entirely.
+  const eventScoped = $derived(
+    $form.audience ? EVENT_SCOPED_AUDIENCES.includes($form.audience) : false,
+  );
+
+  function onAudienceChange(v: string) {
+    const next = v as (typeof BROADCAST_AUDIENCES)[number];
+    $form.audience = next;
+    // Drop a now-meaningless event when switching to an audience the event
+    // can't scope, so a stale id can't ride along in the draft / preview.
+    if (!EVENT_SCOPED_AUDIENCES.includes(next)) $form.eventId = '';
+  }
 
   let showFilters = $state(false);
   let showRetarget = $state(false);
   let confirmEnqueueOpen = $state(false);
-  let mailPreviewOpen = $state(false);
-  let testSendOpen = $state(false);
   // svelte-ignore state_referenced_locally
   let testEmail = $state(data.userEmail ?? '');
   let testPhone = $state('');
 
-  // ── Draft auto-save ────────────────────────────────────────────────
-  // localStorage-backed so a half-filled form survives a page reload or
-  // accidental tab close. Cleared on successful enqueue (see onResult
-  // above). URL `?template=` always wins over a saved templateId since
-  // it represents fresh explicit intent.
+  // ── Draft auto-save (localStorage) ──────────────────────────────────────
   onMount(() => {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return;
@@ -104,6 +147,13 @@
       $form.sourceBroadcastId = draft.sourceBroadcastId ?? '';
       $form.sourceFilter = draft.sourceFilter;
       $form.filters = draft.filters ?? {};
+      $form.subject = draft.subject ?? '';
+      $form.body = draft.body ?? '';
+      // Mark the (possibly edited) draft content as already seeded so the
+      // template-seed effect doesn't clobber it.
+      seededFor = $form.templateId ?? '';
+      const t = data.templates.find((x) => x.id === $form.templateId);
+      if (t) channelChoice = t.channel;
       toast.info('Brouillon restauré');
     } catch {
       localStorage.removeItem(DRAFT_KEY);
@@ -112,7 +162,6 @@
 
   $effect(() => {
     if (!browser) return;
-    // Read fields outside the timeout so the effect re-runs on change.
     const snapshot = {
       campusId: $form.campusId,
       eventId: $form.eventId,
@@ -121,31 +170,27 @@
       sourceBroadcastId: $form.sourceBroadcastId,
       sourceFilter: $form.sourceFilter,
       filters: $form.filters,
+      subject: $form.subject,
+      body: $form.body,
     };
     const isEmpty =
       !snapshot.campusId &&
-      !snapshot.eventId &&
       !snapshot.audience &&
       !snapshot.templateId &&
-      !snapshot.sourceBroadcastId;
+      !snapshot.sourceBroadcastId &&
+      !snapshot.body;
     const timer = setTimeout(() => {
-      if (isEmpty) {
-        localStorage.removeItem(DRAFT_KEY);
-      } else {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
-      }
+      if (isEmpty) localStorage.removeItem(DRAFT_KEY);
+      else localStorage.setItem(DRAFT_KEY, JSON.stringify(snapshot));
     }, 500);
     return () => clearTimeout(timer);
   });
 
-  // ── Live recipient preview ──────────────────────────────────────────
-  // POSTs the form to /preview as JSON, debounced. The endpoint short-
-  // circuits when the form is too incomplete to resolve, so we can fire
-  // freely without filling the panel with errors mid-typing.
+  // ── Live recipient preview (full, exact roster) ─────────────────────────
   type PreviewState = {
     total: number;
-    excluded: { reason: 'no_email' | 'no_phone'; count: number }[];
-    sample: { name: string; email: string | null; phone: string | null }[];
+    included: IncludedRecipient[];
+    excluded: ExcludedRecipient[];
     incomplete?: boolean;
   };
   let preview = $state<PreviewState | null>(null);
@@ -153,7 +198,6 @@
   let previewError = $state<string | null>(null);
 
   $effect(() => {
-    // Track the fields that actually change the recipient set.
     const payload = {
       templateId: $form.templateId,
       campusId: $form.campusId,
@@ -195,592 +239,475 @@
     };
   });
 
-  // ── Mail preview (modal) ────────────────────────────────────────────
-  const previewMailHtml = $derived.by(() => {
-    if (!selectedTemplate || selectedTemplate.channel !== 'mail') return '';
-    const event = $form.eventId
-      ? data.events.find((e) => e.id === $form.eventId)
-      : null;
-    const ctx = buildDemoContext(event?.titre ?? null);
-    const body = substituteVariables(selectedTemplate.body, ctx);
-    return renderBroadcastMail(body);
-  });
-  const previewMailSubject = $derived.by(() => {
-    if (!selectedTemplate?.subject) return '';
-    const event = $form.eventId
-      ? data.events.find((e) => e.id === $form.eventId)
-      : null;
-    return substituteVariables(
-      selectedTemplate.subject,
-      buildDemoContext(event?.titre ?? null),
-    );
-  });
-  const previewSmsBody = $derived.by(() => {
-    if (!selectedTemplate || selectedTemplate.channel !== 'sms') return '';
-    const event = $form.eventId
-      ? data.events.find((e) => e.id === $form.eventId)
-      : null;
-    return substituteVariables(
-      selectedTemplate.body,
-      buildDemoContext(event?.titre ?? null),
-    );
-  });
-
   const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
   });
 
-  type TristateKey = 'charterSigned' | 'hasPastEvent' | 'hasFutureEvent';
-  const tristateFilters: Array<[TristateKey, string]> = [
-    ['charterSigned', 'Charte signée'],
-    ['hasPastEvent', 'A déjà participé'],
-    ['hasFutureEvent', 'Event à venir'],
-  ];
-  const tristateValues = ['any', 'yes', 'no'] as const;
-
-  // shadcn Select can't carry an empty-string item value, so the "all events"
-  // / "no source" options use a sentinel that maps back to '' on the form.
   const NONE = '__none__';
+
+  const activeFilterCount = $derived(
+    countActiveBroadcastFilters($form.filters),
+  );
+
+  // CSV export of the exact roster for the current targeting. Mirrors the live
+  // preview params; `filters` is JSON-encoded into a single query arg.
+  const csvHref = $derived.by(() => {
+    const p = new URLSearchParams();
+    if ($form.campusId) p.set('campusId', $form.campusId);
+    if ($form.audience) p.set('audience', $form.audience);
+    if ($form.templateId) p.set('templateId', $form.templateId);
+    if ($form.eventId) p.set('eventId', $form.eventId);
+    if ($form.sourceBroadcastId)
+      p.set('sourceBroadcastId', $form.sourceBroadcastId);
+    if ($form.sourceFilter) p.set('sourceFilter', $form.sourceFilter);
+    if ($form.filters && Object.keys($form.filters).length > 0)
+      p.set('filters', JSON.stringify($form.filters));
+    return `/staff/admin/broadcasts/new/export?${p.toString()}`;
+  });
+
+  // Enough to enable the send button (the server re-validates everything).
+  const canSend = $derived(
+    Boolean(
+      $form.templateId &&
+      $form.campusId &&
+      $form.audience &&
+      ($form.body ?? '').trim() &&
+      (channel === 'sms' || ($form.subject ?? '').trim()),
+    ),
+  );
 </script>
 
-<header class="space-y-2">
-  <h1 class="text-2xl font-bold tracking-tight">Nouvel envoi</h1>
-  <p class="text-sm text-muted-foreground">
-    Renseigne campus, event, audience et template — les destinataires
-    s'affichent en direct à droite.
-  </p>
-</header>
+{#snippet sectionLabel(n: number, title: string)}
+  <div class="flex items-center gap-2">
+    <span
+      class="flex h-5 w-5 items-center justify-center rounded-sm bg-epi-pink/10 font-mono text-[11px] font-bold text-epi-pink"
+      >{n}</span
+    >
+    <h2
+      class="font-mono text-[11px] font-bold tracking-widest text-muted-foreground uppercase"
+    >
+      {title}
+    </h2>
+  </div>
+{/snippet}
+
+<AdminPageHeader
+  title="Nouvel"
+  accent="envoi"
+  subtitle="Choisis le canal, rédige le message, cible l'audience — l'aperçu est à droite"
+/>
 
 <form
   id="broadcast-form"
   method="POST"
   use:enhance
-  class="grid gap-6 lg:grid-cols-[1fr_320px]"
+  class="mt-6 grid gap-6 lg:grid-cols-[1fr_390px]"
 >
-  <div class="space-y-5">
-    <div class="grid gap-2">
-      <Label for="campusId">Campus</Label>
-      <Select.Root
-        type="single"
-        value={$form.campusId}
-        onValueChange={(v) => ($form.campusId = v ?? '')}
-      >
-        <Select.Trigger id="campusId" class="w-full">
-          {data.campuses.find((c) => c.id === $form.campusId)?.name ??
-            '— Sélectionner —'}
-        </Select.Trigger>
-        <Select.Content>
-          {#each data.campuses as c (c.id)}
-            <Select.Item value={c.id}>{c.name}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-      {#if $errors.campusId}
-        <p class="text-xs text-destructive">{$errors.campusId}</p>
-      {/if}
-    </div>
-
-    <div class="grid gap-2">
-      <Label for="eventId">Event (optionnel — vide = tous)</Label>
-      <Select.Root
-        type="single"
-        value={$form.eventId || NONE}
-        onValueChange={(v) => ($form.eventId = v === NONE ? '' : (v ?? ''))}
-        disabled={!$form.campusId}
-      >
-        <Select.Trigger id="eventId" class="w-full">
-          <span class="truncate">
-            {#if $form.eventId}
-              {@const e = filteredEvents.find((ev) => ev.id === $form.eventId)}
-              {e
-                ? `${dateFormatter.format(e.date)} — ${e.titre}`
-                : 'Tous les events du campus'}
-            {:else}
-              Tous les events du campus
-            {/if}
-          </span>
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value={NONE}>Tous les events du campus</Select.Item>
-          {#each filteredEvents as e (e.id)}
-            <Select.Item value={e.id}>
-              {dateFormatter.format(e.date)} — {e.titre}
-            </Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    <fieldset class="space-y-2">
-      <legend class="text-sm font-medium">Audience</legend>
-      <RadioGroup.Root
-        value={$form.audience ?? ''}
-        onValueChange={(v) =>
-          ($form.audience = v as (typeof BROADCAST_AUDIENCES)[number])}
-        class="grid grid-cols-3 gap-2"
-      >
-        {#each BROADCAST_AUDIENCES as a (a)}
-          <Label
-            class="cursor-pointer rounded-md border px-3 py-2 font-normal hover:bg-accent"
+  <div class="space-y-6">
+    <!-- 1 · Canal & modèle -->
+    <section class="space-y-3 rounded-sm border bg-card p-4">
+      {@render sectionLabel(1, 'Canal & modèle')}
+      <SegmentedFilter
+        options={channelOptions}
+        value={channelChoice}
+        onChange={onChannelChange}
+        ariaLabel="Canal de l'envoi"
+      />
+      <div class="grid gap-2">
+        <Label for="templateId">Partir d'un modèle</Label>
+        <div class="flex items-center gap-2">
+          <Select.Root
+            type="single"
+            value={$form.templateId}
+            onValueChange={(v) => ($form.templateId = v ?? '')}
           >
-            <RadioGroup.Item value={a} />
-            {BROADCAST_AUDIENCE_LABELS[a]}
-          </Label>
-        {/each}
-      </RadioGroup.Root>
-      {#if $errors.audience}
-        <p class="text-xs text-destructive">{$errors.audience}</p>
-      {/if}
-    </fieldset>
+            <Select.Trigger id="templateId" class="flex-1">
+              <span class="truncate">
+                {selectedTemplate?.name ?? '— Sélectionner un modèle —'}
+              </span>
+            </Select.Trigger>
+            <Select.Content>
+              {#if templatesForChannel.length === 0}
+                <div class="px-2 py-1.5 text-xs text-muted-foreground">
+                  Aucun modèle {BROADCAST_CHANNEL_LABELS[channelChoice]}.
+                </div>
+              {/if}
+              {#each templatesForChannel as t (t.id)}
+                <Select.Item value={t.id}>{t.name}</Select.Item>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <Button
+            variant="outline"
+            size="icon"
+            href="/staff/admin/broadcasts/templates/new"
+            target="_blank"
+            rel="noopener"
+            aria-label="Créer un modèle (nouvel onglet)"
+            title="Créer un modèle (nouvel onglet)"
+          >
+            <Plus class="h-4 w-4" />
+          </Button>
+        </div>
+        {#if $errors.templateId}
+          <p class="text-xs text-destructive">{$errors.templateId}</p>
+        {/if}
+      </div>
+    </section>
 
-    <div class="grid gap-2">
-      <Label for="templateId">Template</Label>
-      <div class="flex items-center gap-2">
+    <!-- 2 · Message -->
+    <section class="space-y-3 rounded-sm border bg-card p-4">
+      {@render sectionLabel(2, 'Message')}
+      {#if !$form.templateId}
+        <p class="text-sm text-muted-foreground">
+          Choisis un modèle ci-dessus pour pré-remplir le message — tu pourras
+          l'ajuster ici pour cet envoi sans modifier le modèle.
+        </p>
+      {:else}
+        <p class="text-xs text-muted-foreground">
+          Modifications appliquées à <strong>cet envoi uniquement</strong> ; le
+          modèle « {selectedTemplate?.name} » n'est pas touché.
+        </p>
+        {#if channel === 'mail'}
+          <div class="grid gap-2">
+            <Label for="subject">Sujet</Label>
+            <Input
+              id="subject"
+              bind:value={$form.subject}
+              placeholder="Ex : Invitation Coding Club n°{'{{event_name}}'}"
+            />
+            {#if $errors.subject}
+              <p class="text-xs text-destructive">{$errors.subject}</p>
+            {/if}
+          </div>
+        {/if}
+        <MessageBodyEditor bind:value={$form.body} {channel} />
+        {#if $errors.body}
+          <p class="text-xs text-destructive">{$errors.body}</p>
+        {/if}
+      {/if}
+    </section>
+
+    <!-- 3 · Audience & ciblage -->
+    <section class="space-y-4 rounded-sm border bg-card p-4">
+      {@render sectionLabel(3, 'Audience & ciblage')}
+
+      <div class="grid gap-2">
+        <Label for="campusId">Campus</Label>
         <Select.Root
           type="single"
-          value={$form.templateId}
-          onValueChange={(v) => ($form.templateId = v ?? '')}
+          value={$form.campusId}
+          onValueChange={(v) => ($form.campusId = v ?? '')}
         >
-          <Select.Trigger id="templateId" class="flex-1">
-            <span class="truncate">
-              {#if selectedTemplate}
-                [{BROADCAST_CHANNEL_LABELS[selectedTemplate.channel]}]
-                {selectedTemplate.name}
-              {:else}
-                — Sélectionner —
-              {/if}
-            </span>
+          <Select.Trigger id="campusId" class="w-full">
+            {data.campuses.find((c) => c.id === $form.campusId)?.name ??
+              '— Sélectionner —'}
           </Select.Trigger>
           <Select.Content>
-            {#each data.templates as t (t.id)}
-              <Select.Item value={t.id}>
-                [{BROADCAST_CHANNEL_LABELS[t.channel]}] {t.name}
-              </Select.Item>
+            {#each data.campuses as c (c.id)}
+              <Select.Item value={c.id}>{c.name}</Select.Item>
             {/each}
           </Select.Content>
         </Select.Root>
-        <Tooltip.Provider delayDuration={200}>
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <Button
-                  {...props}
-                  variant="outline"
-                  size="icon"
-                  href="/staff/admin/broadcasts/templates/new"
-                  target="_blank"
-                  rel="noopener"
-                  aria-label="Créer un template"
-                >
-                  <Plus class="h-4 w-4" />
-                </Button>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content>Créer un template (nouvel onglet)</Tooltip.Content>
-          </Tooltip.Root>
-        </Tooltip.Provider>
+        {#if $errors.campusId}
+          <p class="text-xs text-destructive">{$errors.campusId}</p>
+        {/if}
       </div>
-      {#if $errors.templateId}
-        <p class="text-xs text-destructive">{$errors.templateId}</p>
-      {/if}
-    </div>
 
-    <Collapsible.Root
-      open={showRetarget}
-      onOpenChange={(o) => (showRetarget = o)}
-      class="rounded-md border"
-    >
-      <Collapsible.Trigger
-        class="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50"
-      >
-        <span>Repartir d'un envoi passé (retargeting)</span>
-        <span class="text-xs text-muted-foreground"
-          >{showRetarget ? '−' : '+'}</span
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium">Audience</legend>
+        <RadioGroup.Root
+          value={$form.audience ?? ''}
+          onValueChange={onAudienceChange}
+          class="grid grid-cols-2 gap-2 sm:grid-cols-3"
         >
-      </Collapsible.Trigger>
-      <Collapsible.Content class="space-y-3 border-t p-3">
+          {#each BROADCAST_AUDIENCES as a (a)}
+            <Label
+              class="cursor-pointer rounded-sm border px-3 py-2 font-normal hover:bg-accent"
+            >
+              <RadioGroup.Item value={a} />
+              {BROADCAST_AUDIENCE_LABELS[a]}
+            </Label>
+          {/each}
+        </RadioGroup.Root>
+        {#if $errors.audience}
+          <p class="text-xs text-destructive">{$errors.audience}</p>
+        {/if}
+      </fieldset>
+
+      {#if eventScoped}
         <div class="grid gap-2">
-          <Label for="sourceBroadcastId">Envoi source</Label>
+          <Label for="eventId">Event (optionnel — vide = tous)</Label>
           <Select.Root
             type="single"
-            value={$form.sourceBroadcastId || NONE}
-            onValueChange={(v) =>
-              ($form.sourceBroadcastId = v === NONE ? '' : (v ?? ''))}
+            value={$form.eventId || NONE}
+            onValueChange={(v) => ($form.eventId = v === NONE ? '' : (v ?? ''))}
+            disabled={!$form.campusId}
           >
-            <Select.Trigger id="sourceBroadcastId" class="w-full">
+            <Select.Trigger id="eventId" class="w-full">
               <span class="truncate">
-                {#if $form.sourceBroadcastId}
-                  {@const b = filteredSources.find(
-                    (s) => s.id === $form.sourceBroadcastId,
+                {#if $form.eventId}
+                  {@const e = filteredEvents.find(
+                    (ev) => ev.id === $form.eventId,
                   )}
-                  {b
-                    ? `${dateFormatter.format(b.createdAt)} — ${b.name}`
-                    : 'Aucun'}
+                  {e
+                    ? `${dateFormatter.format(e.date)} — ${e.titre}`
+                    : 'Tous les events du campus'}
                 {:else}
-                  Aucun
+                  Tous les events du campus
                 {/if}
               </span>
             </Select.Trigger>
             <Select.Content>
-              <Select.Item value={NONE}>Aucun</Select.Item>
-              {#each filteredSources as b (b.id)}
-                <Select.Item value={b.id}>
-                  {dateFormatter.format(b.createdAt)} — {b.name}
+              <Select.Item value={NONE}>Tous les events du campus</Select.Item>
+              {#each filteredEvents as e (e.id)}
+                <Select.Item value={e.id}>
+                  {dateFormatter.format(e.date)} — {e.titre}
                 </Select.Item>
               {/each}
             </Select.Content>
           </Select.Root>
         </div>
-        {#if $form.sourceBroadcastId}
-          <div class="grid gap-2">
-            <Label>Filtrer les destinataires sources</Label>
-            <RadioGroup.Root
-              value={$form.sourceFilter ?? ''}
-              onValueChange={(v) =>
-                ($form.sourceFilter = v as typeof $form.sourceFilter)}
-              class="flex flex-row gap-3 text-sm"
-            >
-              <Label class="cursor-pointer gap-1.5 font-normal">
-                <RadioGroup.Item value="all" /> Tous
-              </Label>
-              <Label class="cursor-pointer gap-1.5 font-normal">
-                <RadioGroup.Item value="opened" /> Ouverts
-              </Label>
-              <Label class="cursor-pointer gap-1.5 font-normal">
-                <RadioGroup.Item value="not_opened" /> Non ouverts
-              </Label>
-            </RadioGroup.Root>
-            {#if $errors.sourceFilter}
-              <p class="text-xs text-destructive">{$errors.sourceFilter}</p>
-            {/if}
-            <p class="text-xs text-muted-foreground">
-              « Ouvert » = a cliqué sur ≥ 1 lien tracké de l'envoi source.
-            </p>
-          </div>
-        {/if}
-      </Collapsible.Content>
-    </Collapsible.Root>
+      {/if}
 
-    <Collapsible.Root
-      open={showFilters}
-      onOpenChange={(o) => (showFilters = o)}
-      class="rounded-md border"
-    >
-      <Collapsible.Trigger
-        class="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50"
+      <!-- Advanced filters -->
+      <Collapsible.Root
+        open={showFilters}
+        onOpenChange={(o) => (showFilters = o)}
+        class="rounded-sm border"
       >
-        <span>Filtres avancés</span>
-        <span class="text-xs text-muted-foreground"
-          >{showFilters ? '−' : '+'}</span
+        <Collapsible.Trigger
+          class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50"
         >
-      </Collapsible.Trigger>
-      <Collapsible.Content class="space-y-3 border-t p-3 text-sm">
-        {#if $form.audience === 'talent' || $form.audience === 'parent'}
-          <div class="grid gap-2">
-            <Label>Niveau scolaire</Label>
-            <div class="flex flex-wrap gap-3">
-              {#each NIVEAUX as n}
-                <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-                  <Checkbox
-                    checked={$form.filters?.niveau?.includes(n) ?? false}
-                    onCheckedChange={(checked) => {
-                      const cur = new Set($form.filters?.niveau ?? []);
-                      if (checked) cur.add(n);
-                      else cur.delete(n);
-                      $form.filters = {
-                        ...($form.filters ?? {}),
-                        niveau: [...cur],
-                      };
-                    }}
-                  />
-                  {niveauLabel(n)}
-                </label>
-              {/each}
-            </div>
-          </div>
-
-          <div class="grid gap-2">
-            <Label>Niveau Jump</Label>
-            <div class="flex flex-wrap gap-3">
-              {#each JUMP_LEVELS as lvl}
-                <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-                  <Checkbox
-                    checked={$form.filters?.jumpLevel?.includes(lvl) ?? false}
-                    onCheckedChange={(checked) => {
-                      const cur = new Set($form.filters?.jumpLevel ?? []);
-                      if (checked) cur.add(lvl);
-                      else cur.delete(lvl);
-                      $form.filters = {
-                        ...($form.filters ?? {}),
-                        jumpLevel: [...cur],
-                      };
-                    }}
-                  />
-                  {lvl}
-                </label>
-              {/each}
-            </div>
-          </div>
-
-          <div class="grid gap-2">
-            <Label>Droit à l'image</Label>
-            <div class="flex flex-wrap gap-3">
-              {#each IMAGE_RIGHTS_FILTER_OPTIONS as status (status)}
-                <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-                  <Checkbox
-                    checked={$form.filters?.imageRights?.includes(status) ??
-                      false}
-                    onCheckedChange={(checked) => {
-                      const cur = new Set($form.filters?.imageRights ?? []);
-                      if (checked) cur.add(status);
-                      else cur.delete(status);
-                      $form.filters = {
-                        ...($form.filters ?? {}),
-                        imageRights: [...cur],
-                      };
-                    }}
-                  />
-                  {IMAGE_RIGHTS_FILTER_LABELS[status]}
-                </label>
-              {/each}
-            </div>
-          </div>
-
-          {#each tristateFilters as entry (entry[0])}
-            {@const k = entry[0]}
-            {@const label = entry[1]}
-            <div class="grid gap-1">
-              <Label class="text-xs">{label}</Label>
-              <RadioGroup.Root
-                value={$form.filters?.[k] ?? 'any'}
-                onValueChange={(v) => {
-                  $form.filters = {
-                    ...($form.filters ?? {}),
-                    [k]: v === 'any' ? undefined : (v as 'yes' | 'no'),
-                  };
-                }}
-                class="flex flex-row gap-3"
+          <span class="flex items-center gap-2">
+            Filtres avancés
+            {#if activeFilterCount > 0}
+              <span
+                class="rounded-sm bg-epi-blue/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-epi-blue"
+                >{activeFilterCount}</span
               >
-                {#each tristateValues as v (v)}
-                  <Label class="cursor-pointer gap-1.5 text-xs font-normal">
-                    <RadioGroup.Item value={v} />
-                    {v === 'any' ? 'Indifférent' : v === 'yes' ? 'Oui' : 'Non'}
-                  </Label>
-                {/each}
-              </RadioGroup.Root>
-            </div>
-          {/each}
-        {:else}
-          <p class="text-xs text-muted-foreground">
-            Pas de filtres avancés pour cette audience.
-          </p>
-        {/if}
-      </Collapsible.Content>
-    </Collapsible.Root>
+            {/if}
+          </span>
+          <ChevronDown
+            class={cn(
+              'h-4 w-4 transition-transform',
+              showFilters && 'rotate-180',
+            )}
+          />
+        </Collapsible.Trigger>
+        <Collapsible.Content class="border-t p-3">
+          <BroadcastFilters
+            bind:filters={$form.filters}
+            audience={$form.audience}
+          />
+        </Collapsible.Content>
+      </Collapsible.Root>
 
-    <div class="flex flex-wrap gap-2 pt-2">
-      <Button
-        type="button"
-        variant="outline"
-        onclick={() => (mailPreviewOpen = true)}
-        disabled={!selectedTemplate}
+      <!-- Retargeting -->
+      <Collapsible.Root
+        open={showRetarget}
+        onOpenChange={(o) => (showRetarget = o)}
+        class="rounded-sm border"
       >
-        Aperçu envoi
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        onclick={() => {
-          testEmail = data.userEmail ?? '';
-          testSendOpen = true;
-        }}
-        disabled={$submitting || !selectedTemplate}
-      >
-        S'envoyer un test
-      </Button>
-      <Button
-        type="button"
-        onclick={() => (confirmEnqueueOpen = true)}
-        disabled={$submitting}
-      >
-        Démarrer les envois
-      </Button>
-    </div>
+        <Collapsible.Trigger
+          class="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-muted/50"
+        >
+          <span>Repartir d'un envoi passé (retargeting)</span>
+          <ChevronDown
+            class={cn(
+              'h-4 w-4 transition-transform',
+              showRetarget && 'rotate-180',
+            )}
+          />
+        </Collapsible.Trigger>
+        <Collapsible.Content class="space-y-3 border-t p-3">
+          <div class="grid gap-2">
+            <Label for="sourceBroadcastId">Envoi source</Label>
+            <Select.Root
+              type="single"
+              value={$form.sourceBroadcastId || NONE}
+              onValueChange={(v) =>
+                ($form.sourceBroadcastId = v === NONE ? '' : (v ?? ''))}
+            >
+              <Select.Trigger id="sourceBroadcastId" class="w-full">
+                <span class="truncate">
+                  {#if $form.sourceBroadcastId}
+                    {@const b = filteredSources.find(
+                      (s) => s.id === $form.sourceBroadcastId,
+                    )}
+                    {b
+                      ? `${dateFormatter.format(b.createdAt)} — ${b.name}`
+                      : 'Aucun'}
+                  {:else}
+                    Aucun
+                  {/if}
+                </span>
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value={NONE}>Aucun</Select.Item>
+                {#each filteredSources as b (b.id)}
+                  <Select.Item value={b.id}>
+                    {dateFormatter.format(b.createdAt)} — {b.name}
+                  </Select.Item>
+                {/each}
+              </Select.Content>
+            </Select.Root>
+          </div>
+          {#if $form.sourceBroadcastId}
+            <div class="grid gap-2">
+              <Label>Filtrer les destinataires sources</Label>
+              <RadioGroup.Root
+                value={$form.sourceFilter ?? ''}
+                onValueChange={(v) =>
+                  ($form.sourceFilter = v as typeof $form.sourceFilter)}
+                class="flex flex-row gap-3 text-sm"
+              >
+                <Label class="cursor-pointer gap-1.5 font-normal">
+                  <RadioGroup.Item value="all" /> Tous
+                </Label>
+                <Label class="cursor-pointer gap-1.5 font-normal">
+                  <RadioGroup.Item value="opened" /> Ouverts
+                </Label>
+                <Label class="cursor-pointer gap-1.5 font-normal">
+                  <RadioGroup.Item value="not_opened" /> Non ouverts
+                </Label>
+              </RadioGroup.Root>
+              {#if $errors.sourceFilter}
+                <p class="text-xs text-destructive">{$errors.sourceFilter}</p>
+              {/if}
+              <p class="text-xs text-muted-foreground">
+                « Ouvert » = a cliqué sur ≥ 1 lien tracké de l'envoi source.
+              </p>
+            </div>
+          {/if}
+        </Collapsible.Content>
+      </Collapsible.Root>
+    </section>
   </div>
 
-  <aside class="space-y-4">
-    <div class="rounded-lg border bg-muted/30 p-4">
-      <div class="mb-2 flex items-center justify-between">
-        <h3
-          class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-        >
-          Aperçu destinataires
-        </h3>
-        {#if previewLoading}
-          <span class="text-[10px] text-muted-foreground">…</span>
-        {/if}
-      </div>
-      {#if previewError}
-        <p class="text-xs text-destructive">Erreur : {previewError}</p>
-      {:else if preview && !preview.incomplete}
-        <p class="text-2xl font-bold">{preview.total}</p>
-        <p class="mb-3 text-xs text-muted-foreground">destinataire(s)</p>
-        {#if preview.excluded.length > 0}
-          <ul class="mb-3 space-y-0.5 text-xs text-amber-700">
-            {#each preview.excluded as ex}
-              <li>
-                {ex.count} exclu(s) :
-                {ex.reason === 'no_email' ? "pas d'email" : 'pas de téléphone'}
-              </li>
-            {/each}
-          </ul>
-        {/if}
-        {#if preview.sample.length > 0}
-          <p class="mb-1 text-xs font-medium">Échantillon :</p>
-          <ul class="space-y-0.5 text-xs text-muted-foreground">
-            {#each preview.sample as r}
-              <li class="truncate">
-                {r.name} <span class="text-[10px]">({r.email ?? r.phone})</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
+  <!-- Right panel: recipients + preview + send -->
+  <aside class="space-y-4 lg:sticky lg:top-4 lg:self-start">
+    <!-- Recipients (full, exact roster + CSV) -->
+    <RecipientsPanel
+      total={preview?.total ?? 0}
+      included={preview?.included ?? []}
+      excluded={preview?.excluded ?? []}
+      loading={previewLoading}
+      error={previewError}
+      incomplete={!preview || preview.incomplete === true}
+      {csvHref}
+    />
+
+    <!-- Message preview -->
+    <div class="rounded-sm border bg-card p-4">
+      <h3
+        class="mb-3 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+      >
+        Aperçu du message
+      </h3>
+      {#if $form.templateId}
+        <MessagePreview
+          {channel}
+          subject={$form.subject}
+          body={$form.body ?? ''}
+          eventName={data.events.find((e) => e.id === $form.eventId)?.titre ??
+            null}
+        />
       {:else}
         <p class="text-xs text-muted-foreground">
-          Sélectionne un campus et une audience pour voir les destinataires.
-        </p>
-      {/if}
-
-      {#if $formMessage}
-        <p
-          class={cn(
-            'mt-3 rounded border px-2 py-1 text-xs',
-            $formMessage.type === 'error'
-              ? 'border-destructive/30 bg-destructive/10 text-destructive'
-              : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
-          )}
-        >
-          {$formMessage.text}
+          Sélectionne un modèle pour prévisualiser le message.
         </p>
       {/if}
     </div>
+
+    <!-- Test send (inline) -->
+    <div class="space-y-2 rounded-sm border bg-muted/20 p-4">
+      <Label class="text-sm font-medium">S'envoyer un test</Label>
+      <p class="text-xs text-muted-foreground">
+        Atteint l'adresse / le numéro saisi (hors redirection dev).
+      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        {#if channel === 'sms'}
+          <div class="flex-1">
+            <PhoneInput
+              name="testPhone"
+              form="broadcast-form"
+              bind:value={testPhone}
+              placeholder="06 12 34 56 78"
+              disabled={!data.smsEnabled}
+            />
+          </div>
+        {:else}
+          <Input
+            name="testEmail"
+            form="broadcast-form"
+            type="email"
+            bind:value={testEmail}
+            placeholder="prenom.nom@epitech.eu"
+            class="flex-1"
+          />
+        {/if}
+        <Button
+          type="submit"
+          variant="outline"
+          form="broadcast-form"
+          formaction="?/testSend"
+          disabled={$submitting ||
+            !$form.templateId ||
+            !($form.body ?? '').trim() ||
+            (channel === 'sms' ? !testPhone || !data.smsEnabled : !testEmail)}
+        >
+          <Send class="mr-1 h-3.5 w-3.5" /> Tester
+        </Button>
+      </div>
+      {#if channel === 'sms' && !data.smsEnabled}
+        <p class="text-xs text-destructive">
+          SMS non configuré (<code>SMS_PROVIDER</code>) — test indisponible.
+        </p>
+      {/if}
+    </div>
+
+    <!-- Send -->
+    <Button
+      type="button"
+      class="w-full"
+      disabled={$submitting || !canSend}
+      onclick={() => (confirmEnqueueOpen = true)}
+    >
+      <Send class="mr-1 h-4 w-4" /> Démarrer les envois
+    </Button>
+
+    {#if $formMessage}
+      <p
+        class={cn(
+          'rounded-sm border px-2 py-1 text-xs',
+          $formMessage.type === 'error'
+            ? 'border-destructive/30 bg-destructive/10 text-destructive'
+            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
+        )}
+      >
+        {$formMessage.text}
+      </p>
+    {/if}
   </aside>
 </form>
-
-<Dialog.Root bind:open={mailPreviewOpen}>
-  <Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-    <Dialog.Header>
-      <Dialog.Title>Aperçu de l'envoi</Dialog.Title>
-      <Dialog.Description class="text-xs">
-        Rendu avec des données fictives — destinataires réels recevront leurs
-        propres variables substituées.
-      </Dialog.Description>
-    </Dialog.Header>
-    {#if !selectedTemplate}
-      <p class="text-sm text-muted-foreground">Sélectionne un template.</p>
-    {:else if selectedTemplate.channel === 'mail'}
-      {#if previewMailSubject}
-        <p class="text-xs">
-          <span class="font-semibold">Sujet :</span>
-          {previewMailSubject}
-        </p>
-      {/if}
-      <div class="overflow-hidden rounded border">
-        {@html previewMailHtml}
-      </div>
-    {:else}
-      <pre
-        class="rounded border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{previewSmsBody}</pre>
-    {/if}
-  </Dialog.Content>
-</Dialog.Root>
-
-<Dialog.Root bind:open={testSendOpen}>
-  <Dialog.Content class="sm:max-w-md">
-    <Dialog.Header>
-      <Dialog.Title>
-        {channel === 'sms' ? "S'envoyer un test SMS" : "S'envoyer un test"}
-      </Dialog.Title>
-      <Dialog.Description class="text-xs">
-        {#if channel === 'sms'}
-          Envoie un SMS de test avec les variables remplies par des valeurs
-          fictives.
-        {:else}
-          Envoie un email de test avec les variables remplies par des valeurs
-          fictives.
-        {/if}
-      </Dialog.Description>
-    </Dialog.Header>
-    {#if channel === 'sms'}
-      {#if !data.smsEnabled}
-        <p
-          class="rounded border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs text-destructive"
-        >
-          SMS non configuré (<code>SMS_PROVIDER</code>). Renseigne le
-          fournisseur Brevo côté serveur pour envoyer un test.
-        </p>
-      {/if}
-      <div class="grid gap-2">
-        <Label for="testPhone">Numéro destinataire</Label>
-        <PhoneInput
-          id="testPhone"
-          name="testPhone"
-          form="broadcast-form"
-          bind:value={testPhone}
-          placeholder="06 12 34 56 78"
-          disabled={!data.smsEnabled}
-        />
-      </div>
-    {:else}
-      <div class="grid gap-2">
-        <Label for="testEmail">Email destinataire</Label>
-        <Input
-          id="testEmail"
-          name="testEmail"
-          form="broadcast-form"
-          type="email"
-          bind:value={testEmail}
-          placeholder="ex: prenom.nom@epitech.eu"
-        />
-      </div>
-    {/if}
-    <Dialog.Footer class="mt-4">
-      <Button
-        type="button"
-        variant="outline"
-        onclick={() => (testSendOpen = false)}
-      >
-        Annuler
-      </Button>
-      <Button
-        type="submit"
-        form="broadcast-form"
-        formaction="?/testSend"
-        disabled={$submitting ||
-          (channel === 'sms' ? !testPhone || !data.smsEnabled : !testEmail)}
-        onclick={() => (testSendOpen = false)}
-      >
-        Envoyer le test
-      </Button>
-    </Dialog.Footer>
-  </Dialog.Content>
-</Dialog.Root>
 
 <AlertDialog.Root bind:open={confirmEnqueueOpen}>
   <AlertDialog.Content class="rounded-sm">
     <AlertDialog.Header>
       <AlertDialog.Title
-        class="text-lg font-bold tracking-tight text-destructive uppercase"
+        class="font-heading text-lg tracking-tight text-destructive uppercase"
       >
         Démarrer les envois ?
       </AlertDialog.Title>
       <AlertDialog.Description class="text-sm font-medium">
         {#if preview && !preview.incomplete}
-          {preview.total} message(s) vont être envoyés immédiatement aux destinataires
-          sélectionnés. Cette action est <strong>irréversible</strong>.
+          {preview.total} message{preview.total > 1 ? 's' : ''} vont partir immédiatement
+          aux destinataires sélectionnés. Cette action est
+          <strong>irréversible</strong>.
         {:else}
-          Les messages vont être envoyés immédiatement aux destinataires
-          sélectionnés. Cette action est <strong>irréversible</strong>.
+          Les messages vont partir immédiatement aux destinataires sélectionnés.
+          Cette action est <strong>irréversible</strong>.
         {/if}
       </AlertDialog.Description>
     </AlertDialog.Header>
@@ -791,10 +718,7 @@
         form="broadcast-form"
         formaction="?/enqueue"
         disabled={$submitting}
-        class={buttonVariants({
-          variant: 'destructive',
-          class: 'rounded-sm',
-        })}
+        class={buttonVariants({ variant: 'destructive', class: 'rounded-sm' })}
       >
         Oui, démarrer les envois
       </AlertDialog.Action>

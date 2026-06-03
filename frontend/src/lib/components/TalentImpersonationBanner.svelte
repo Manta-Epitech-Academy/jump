@@ -11,7 +11,7 @@
   // Shown to an admin impersonating a talent. The talent portal is a light,
   // sidebar-less layout, so the staff-rail ImpersonationCard doesn't fit here.
   // Styled as a floating iOS-style notification pill that slides up from the
-  // bottom-right corner: deliberately rounded/blurred (off-brand vs the square
+  // bottom-left corner: deliberately rounded/blurred (off-brand vs the square
   // DS) to read as a transient system overlay, not part of the talent UI.
   // Tucked into the corner and dimmed at rest so it stops competing with the
   // content; brightens to full opacity on hover when the admin reaches for it.
@@ -46,7 +46,7 @@
 </script>
 
 {#if isImpersonating}
-  <div class="pointer-events-none fixed right-3 bottom-3 z-[60]">
+  <div class="pointer-events-none fixed bottom-3 left-3 z-[60]">
     <div
       in:fly={{ y: 80, duration: 320, opacity: 0 }}
       class="pointer-events-auto flex max-w-xs items-center gap-3 rounded-2xl border border-black/5 bg-white/85 p-2.5 opacity-65 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl transition-opacity duration-200 focus-within:opacity-100 hover:opacity-100 dark:border-white/10 dark:bg-slate-900/85 dark:ring-white/10"

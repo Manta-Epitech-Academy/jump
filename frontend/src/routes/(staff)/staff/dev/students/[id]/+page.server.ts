@@ -276,12 +276,19 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       locals.stagePhaseOverride,
     );
 
-    const form = await superValidate(zod4(studentSchema));
-    const relanceForm = await superValidate(zod4(sendRelanceSchema));
-    const relanceDefaults = await loadAllRelanceDefaults();
-    // Countdown to this talent's soonest upcoming stage for {{jours_restants}}
-    // — same resolver the send action uses, so the preview matches the mail.
-    const joursRestants = await daysUntilTalentStage(db, params.id);
+    // Independent leftovers, resolved together: two empty form scaffolds plus
+    // the relance defaults and the stage countdown (both DB reads). None
+    // depend on each other.
+    const [form, relanceForm, relanceDefaults, joursRestants] =
+      await Promise.all([
+        superValidate(zod4(studentSchema)),
+        superValidate(zod4(sendRelanceSchema)),
+        loadAllRelanceDefaults(),
+        // Countdown to this talent's soonest upcoming stage for
+        // {{jours_restants}}, same resolver the send action uses so the
+        // preview matches the mail.
+        daysUntilTalentStage(db, params.id),
+      ]);
 
     return {
       student,

@@ -22,9 +22,11 @@
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
+  import Megaphone from '@lucide/svelte/icons/megaphone';
   import Send from '@lucide/svelte/icons/send';
   import Mails from '@lucide/svelte/icons/mails';
   import MailCog from '@lucide/svelte/icons/mail-warning';
+  import History from '@lucide/svelte/icons/history';
   import DoorOpen from '@lucide/svelte/icons/door-open';
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -142,6 +144,18 @@
   </div>
   <nav class="mb-8 space-y-1">
     <a
+      href={resolve('/staff/admin/communication')}
+      class={navLinkClass(
+        isActive(
+          '/staff/admin/communication',
+          '/staff/admin/communication/relances',
+        ),
+      )}
+    >
+      <Megaphone class="h-4 w-4" />
+      <span>Vue d'ensemble</span>
+    </a>
+    <a
       href={resolve('/staff/admin/broadcasts')}
       class={navLinkClass(
         isActive(
@@ -166,6 +180,13 @@
     >
       <MailCog class="h-4 w-4" />
       <span>Mails transactionnels</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/communication/relances')}
+      class={navLinkClass(isActive('/staff/admin/communication/relances'))}
+    >
+      <History class="h-4 w-4" />
+      <span>Relances (lecture seule)</span>
     </a>
     <a
       href={resolve('/staff/admin/welcome-pages')}
