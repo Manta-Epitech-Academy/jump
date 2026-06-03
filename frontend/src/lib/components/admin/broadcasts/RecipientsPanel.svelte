@@ -48,6 +48,19 @@
         .includes(needle),
     );
   });
+
+  // The whole roster stays client-side so the search box is instant, but a
+  // campus-wide audience (no event picked) can be the entire cumulative campus
+  // population (thousands of rows), and the ScrollArea isn't virtualized. So we
+  // paint at most MAX_VISIBLE_ROWS and point past that to the search box / CSV,
+  // which stays exhaustive. Same bound the /staff/admin/talents list applies.
+  const MAX_VISIBLE_ROWS = 100;
+
+  const visibleIncluded = $derived(filtered.slice(0, MAX_VISIBLE_ROWS));
+  const hiddenIncluded = $derived(filtered.length - visibleIncluded.length);
+
+  const visibleExcluded = $derived(excluded.slice(0, MAX_VISIBLE_ROWS));
+  const hiddenExcluded = $derived(excluded.length - visibleExcluded.length);
 </script>
 
 <div class="rounded-sm border bg-card p-4">
@@ -117,7 +130,7 @@
           </div>
         {:else}
           <ul class="divide-y divide-border">
-            {#each filtered as r (r.email ?? r.phone ?? `${r.prenom}${r.nom}`)}
+            {#each visibleIncluded as r (r.email ?? r.phone ?? `${r.prenom}${r.nom}`)}
               <li class="flex items-center justify-between gap-2 px-3 py-1.5">
                 <div class="min-w-0">
                   <p class="truncate text-sm font-medium">
@@ -136,6 +149,15 @@
               </li>
             {/each}
           </ul>
+          {#if hiddenIncluded > 0}
+            <p class="px-3 py-2 text-center text-[11px] text-muted-foreground">
+              + {hiddenIncluded} autre{hiddenIncluded > 1 ? 's' : ''} masqué{hiddenIncluded >
+              1
+                ? 's'
+                : ''}. Affine la recherche ou exporte le CSV pour la liste
+              complète.
+            </p>
+          {/if}
         {/if}
       </ScrollArea>
     {:else}
@@ -170,7 +192,7 @@
         </Collapsible.Trigger>
         <Collapsible.Content>
           <ul class="divide-y divide-border border-t text-xs">
-            {#each excluded as e (`${e.prenom}${e.nom}${e.reason}`)}
+            {#each visibleExcluded as e (`${e.prenom}${e.nom}${e.reason}`)}
               <li class="flex items-center justify-between gap-2 px-3 py-1.5">
                 <span class="truncate">{e.prenom} {e.nom}</span>
                 <span class="shrink-0 text-muted-foreground"
@@ -179,12 +201,20 @@
               </li>
             {/each}
           </ul>
+          {#if hiddenExcluded > 0}
+            <p
+              class="border-t px-3 py-2 text-center text-[11px] text-muted-foreground"
+            >
+              + {hiddenExcluded} autre{hiddenExcluded > 1 ? 's' : ''}. Voir le
+              CSV pour la liste complète.
+            </p>
+          {/if}
         </Collapsible.Content>
       </Collapsible.Root>
     {/if}
 
     <p class="mt-2 text-[11px] text-muted-foreground">
-      Liste complète et exacte de ce qui partira — exportable en CSV.
+      Le CSV contient la liste complète et exacte de ce qui partira.
     </p>
   {/if}
 </div>
