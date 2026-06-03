@@ -1,22 +1,25 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import {
-  getClosestEventForTalent,
+  resolveLeaderboardScope,
   getCampusLeaderboard,
   getUnseenMinigameRankReward,
 } from '$lib/server/services/minigameService';
 import { prisma } from '$lib/server/db';
 
 /**
- * Talent-facing leaderboard scoped to the talent's campus — derived from their
- * closest event (ongoing today → upcoming → most recent past). Falls back to a
- * global ranking when the talent has no participations (hence no campus).
+ * Talent-facing leaderboard, scoped to the board the viewer was ranked on: the
+ * campus stamped on their own attempt once they've played (so the board they see
+ * matches the board their rank bonus was paid on), or a preview from their
+ * closest event before they've played. Null scope ⇒ a global ranking.
  */
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
-  const closest = await getClosestEventForTalent(locals.talent.id);
-  const campusId = closest?.campusId ?? null;
+  const { campusId } = await resolveLeaderboardScope(
+    locals.talent.id,
+    params.publicationId,
+  );
 
   const publication = await prisma.minigamePublication.findUnique({
     where: { id: params.publicationId },

@@ -214,6 +214,21 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
   if (!attempt) return; // Unknown attempt: silently ignore (idempotent on retry of a deleted attempt).
   if (attempt.status !== 'pending') return; // Already finalized — idempotent: never re-pay XP.
 
+  // Decide the board this run belongs to at FINISH, not mint. Mint context is
+  // provisional: a talent can open the game before they have any participation
+  // (campusId null ⇒ they'd rank on, and be shown, the global board), then gain
+  // one before they finish. Re-resolving here puts the run on the campus board
+  // they actually belong to when the result counts. No-clobber on null: a
+  // resolvable campus wins, but an unresolvable one keeps the mint value rather
+  // than downgrading a known campus to null. The same `campusId` then drives the
+  // grant, the rank, and (via the attempt row) the board the talent is shown:
+  // one value, so the board you place on can't diverge from the board you see.
+  const resolved = payload.valid
+    ? await getClosestEventForTalent(attempt.talentId)
+    : null;
+  const eventId = resolved?.eventId ?? attempt.eventId;
+  const campusId = resolved?.campusId ?? attempt.campusId;
+
   // A valid run earns flat XP; the talent sees the "+XP" float on the training
   // page right after the win, or on the next dashboard visit (gated by xpSeenAt).
   // Invalid runs finalize without reward. Finalize + grant together so the grant
@@ -229,6 +244,8 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
         chrono: payload.chrono,
         valid: payload.valid,
         finishedAt: new Date(),
+        eventId,
+        campusId,
         xpAwarded,
       },
     });
@@ -239,7 +256,7 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
       source: 'minigame',
       sourceId: attempt.id,
       amount: xpAwarded,
-      campusId: attempt.campusId,
+      campusId,
     });
 
     // Rank bonus, paid the instant you finish: rank this run against the board so
@@ -255,7 +272,7 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
     const { rank, fieldSize } = await rankOnCampusBoard(
       tx,
       attempt.publicationId,
-      attempt.campusId,
+      campusId,
       attempt.publication.scoringType,
       attempt.id,
     );
@@ -270,7 +287,7 @@ export async function applyCallback(payload: CallbackPayload): Promise<void> {
         source: 'minigame_rank',
         sourceId: attempt.id,
         amount: rankBonus,
-        campusId: attempt.campusId,
+        campusId,
       });
     }
   });
@@ -451,10 +468,11 @@ function compareAttempts(
  * of the field it ranked against, both read from the same query so the
  * cohort-relative bonus pool ({@link minigameRankBonus}) is sized off exactly the
  * board the rank came from. Reads through the caller's transaction so it sees this
- * attempt already marked done. Same scope as {@link getCampusLeaderboard} (the
- * talent's campus, or the global board when they have no campus) and the same
- * {@link compareAttempts} ordering, so the rank that earns the bonus is the rank
- * the talent sees on the board.
+ * attempt already marked done. The caller passes the `campusId` it just stamped
+ * on the attempt (the talent's campus at finish, or null ⇒ the global board),
+ * which is the very value {@link resolveLeaderboardScope} reads back to scope the
+ * board the talent sees, so the rank that earns the bonus is the rank shown on
+ * that board. Same {@link compareAttempts} ordering for the same reason.
  */
 async function rankOnCampusBoard(
   tx: Prisma.TransactionClient,
@@ -519,8 +537,32 @@ async function buildLeaderboard(
 }
 
 /**
+ * The board scope a talent is shown for a publication: the single source of
+ * truth shared with the rank bonus. Once they've played, it's the `campusId`
+ * stamped on their own attempt (the board their bonus was ranked and paid on in
+ * {@link applyCallback}), so the board they see can never diverge from the board
+ * they placed on. Before they've played, there's no attempt and so no bonus to
+ * agree with, so we preview where they'd land from their closest event. Null in
+ * either case ⇒ the global board.
+ */
+export async function resolveLeaderboardScope(
+  talentId: string,
+  publicationId: string,
+): Promise<{ campusId: string | null }> {
+  const attempt = await prisma.minigameAttempt.findUnique({
+    where: { talentId_publicationId: { talentId, publicationId } },
+    select: { campusId: true },
+  });
+  if (attempt) return { campusId: attempt.campusId };
+  const closest = await getClosestEventForTalent(talentId);
+  return { campusId: closest?.campusId ?? null };
+}
+
+/**
  * Talent-facing leaderboard: scoped to the talent's campus when known, or
  * global (everyone who played today's publication) when `campusId` is null.
+ * Pass the `campusId` from {@link resolveLeaderboardScope} so the rows match the
+ * board the viewer was ranked on.
  */
 export async function getCampusLeaderboard(
   publicationId: string,
