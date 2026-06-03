@@ -7,11 +7,7 @@ import {
   getStaffRoleRedirectPath,
 } from '$lib/domain/staff';
 import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
-import {
-  REDIRECT_COOKIE,
-  safeRedirectTarget,
-  clearRedirectCookieHeader,
-} from '$lib/server/auth/loginRedirect';
+import { consumeRedirectCookie } from '$lib/server/auth/loginRedirect';
 
 /**
  * Expire BetterAuth's session-data cookie cache so the next request
@@ -27,9 +23,6 @@ function expireSessionCache(redirectUrl: string): Response {
     'Set-Cookie',
     'better-auth.session_data=; Path=/; Max-Age=0; SameSite=Lax',
   );
-  // Clear the login-redirect cookie now that we've consumed it (harmless no-op
-  // when it was never set).
-  headers.append('Set-Cookie', clearRedirectCookieHeader());
   return new Response(null, { status: 303, headers });
 }
 
@@ -110,8 +103,10 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
   await syncMicrosoftAvatar(locals.user.id);
 
   // Replay where the guard bounced them from (captured at login), else the
-  // role's default landing page.
-  const back = safeRedirectTarget(cookies.get(REDIRECT_COOKIE));
+  // role's default landing page. consumeRedirectCookie clears the cookie too;
+  // the deletion rides the raw Response below (SvelteKit merges cookie mutations
+  // into both `throw redirect()` and returned Responses).
+  const back = consumeRedirectCookie(cookies, 'staff');
 
   // Expire the cookie cache so the fresh role is picked up immediately.
   // Using a raw Response instead of `throw redirect()` so we can set the

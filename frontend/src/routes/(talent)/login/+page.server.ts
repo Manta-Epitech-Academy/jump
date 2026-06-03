@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   }
 
   // Stash where the guard bounced them from, to replay after OTP verifies.
-  captureRedirectCookie(url, cookies);
+  captureRedirectCookie(url, cookies, 'talent');
 
   const errorType = url.searchParams.get('error');
   let errorMessage = '';
@@ -178,7 +178,7 @@ export const actions: Actions = {
 
     // Read + clear the "return to" target captured when the guard bounced them
     // to login (talents only; parents have their own destinations below).
-    const back = consumeRedirectCookie(cookies);
+    const back = consumeRedirectCookie(cookies, 'talent');
 
     // Route to the right space based on the user's role
     const user = await prisma.bauth_user.findUnique({

@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   }
 
   // Stash where the guard bounced them from, to replay after OAuth succeeds.
-  captureRedirectCookie(url, cookies);
+  captureRedirectCookie(url, cookies, 'staff');
 
   const errorType = url.searchParams.get('error');
   let errorMessage = '';
