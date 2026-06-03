@@ -298,8 +298,6 @@ export interface BroadcastFilters {
   /** Règlement intérieur co-signed by the legal guardian (canonical minor
    *  compliance) — `Talent.parentRulesSignedAt`. */
   parentRulesSigned?: TristateFilter;
-  /** Whole onboarding funnel cleared (every gate + charter). */
-  onboardingDone?: TristateFilter;
   imageRights?: ImageRightsStatus[];
   jumpLevel?: JumpLevel[];
   hasPastEvent?: TristateFilter;
@@ -321,7 +319,6 @@ export function countActiveBroadcastFilters(
   if (isSet(f.charterSigned)) n++;
   if (isSet(f.rulesSigned)) n++;
   if (isSet(f.parentRulesSigned)) n++;
-  if (isSet(f.onboardingDone)) n++;
   if (isSet(f.hasPastEvent)) n++;
   if (isSet(f.hasFutureEvent)) n++;
   return n;

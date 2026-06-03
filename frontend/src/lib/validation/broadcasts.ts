@@ -21,7 +21,6 @@ export const broadcastFiltersSchema = z
     charterSigned: tristate.optional(),
     rulesSigned: tristate.optional(),
     parentRulesSigned: tristate.optional(),
-    onboardingDone: tristate.optional(),
     imageRights: z.array(z.enum(IMAGE_RIGHTS_FILTER_OPTIONS)).optional(),
     jumpLevel: z.array(z.enum(JUMP_LEVELS)).optional(),
     hasPastEvent: tristate.optional(),

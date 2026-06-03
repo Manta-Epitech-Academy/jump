@@ -45,7 +45,6 @@
     | 'charterSigned'
     | 'rulesSigned'
     | 'parentRulesSigned'
-    | 'onboardingDone'
     | 'hasPastEvent'
     | 'hasFutureEvent';
   // Grouped: compliance signatures/completion vs event participation.
@@ -62,7 +61,6 @@
         { key: 'charterSigned', label: 'Charte RGPD signée' },
         { key: 'rulesSigned', label: 'Règlement signé (élève)' },
         { key: 'parentRulesSigned', label: 'Règlement co-signé (parent)' },
-        { key: 'onboardingDone', label: 'Onboarding terminé' },
       ],
     },
     {

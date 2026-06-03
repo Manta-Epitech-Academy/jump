@@ -50,23 +50,6 @@ const AUDIENCE_TO_STAFF_ROLE: Record<
   superdev: 'superdev',
 };
 
-// The gate timestamps that define a *completed* onboarding funnel — mirrors the
-// branches of `getOnboardingStep` (domain/talentOnboarding) plus the charter,
-// i.e. the same set `isOnboardingComplete` requires. Kept here (not the broader
-// `ONBOARDING_TIMESTAMP_FIELDS`, which also includes the welcome splash + recap
-// acks) so "Onboarding terminé" means the funnel, not every incidental ack.
-const ONBOARDING_DONE_FIELDS = [
-  'infoValidatedAt',
-  'highSchoolValidatedAt',
-  'parentsValidatedAt',
-  'techInterestsValidatedAt',
-  'generalInterestsValidatedAt',
-  'equipmentValidatedAt',
-  'processingCompletedAt',
-  'rulesSignedAt',
-  'charterAcceptedAt',
-] as const;
-
 /**
  * Resolve a list of recipients for a broadcast spec.
  *
@@ -241,22 +224,6 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   if (f.parentRulesSigned === 'yes')
     and.push({ parentRulesSignedAt: { not: null } });
   if (f.parentRulesSigned === 'no') and.push({ parentRulesSignedAt: null });
-  // Onboarding funnel cleared = every gate getOnboardingStep checks
-  // (domain/talentOnboarding) plus the charter. "yes" = all set; "no" = any unset.
-  if (f.onboardingDone === 'yes') {
-    and.push({
-      AND: ONBOARDING_DONE_FIELDS.map(
-        (fld) => ({ [fld]: { not: null } }) as Prisma.TalentWhereInput,
-      ),
-    });
-  }
-  if (f.onboardingDone === 'no') {
-    and.push({
-      OR: ONBOARDING_DONE_FIELDS.map(
-        (fld) => ({ [fld]: null }) as Prisma.TalentWhereInput,
-      ),
-    });
-  }
   // Image rights: OR the selected states. `undecided` is the absence of a
   // decision; `accepted`/`refused` match the stored enum directly.
   if (f.imageRights?.length) {
