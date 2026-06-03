@@ -128,8 +128,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
   // Calendar sync state is only consumed by the Ongoing view (the sync
   // button lives in its header). Loading it for prep/past would burn an
-  // aggregate query + a user/account fetch for nothing.
-  const calendarSync = await loadCalendarSyncOrNull(locals, event.id, timezone);
+  // aggregate query + a user/account fetch for nothing. It's independent of
+  // the ongoing payload, so the two resolve together.
+  const [calendarSync, ongoing] = await Promise.all([
+    loadCalendarSyncOrNull(locals, event.id, timezone),
+    loadInterviewsOngoing(ctx, url),
+  ]);
 
   return {
     kind: 'ongoing' as const,
@@ -138,7 +142,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     timezone,
     bounds: serializeBounds(bounds),
     calendarSync,
-    ...(await loadInterviewsOngoing(ctx, url)),
+    ...ongoing,
   };
 };
 

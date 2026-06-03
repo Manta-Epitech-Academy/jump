@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { Badge } from '$lib/components/ui/badge';
   import { cn } from '$lib/utils';
+  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
   import WelcomePageEditor from './WelcomePageEditor.svelte';
   import { STAGE_STATUS_META, formatStageRange } from './stageDisplay';
   import MapPin from '@lucide/svelte/icons/map-pin';
@@ -18,9 +19,7 @@
 </script>
 
 <div class="mb-6">
-  <h1 class="text-2xl font-bold">
-    Pages d'accueil talents<span class="text-epi-pink">_</span>
-  </h1>
+  <AdminPageHeader title="Pages" accent="d'accueil" cursor />
   <p class="mt-1 max-w-3xl text-sm text-muted-foreground">
     Le message de bienvenue affiché aux talents dans le fil « Actualités » de
     leur tableau de bord, pendant toute la durée du stage. Vous éditez ici la
@@ -36,7 +35,7 @@
   <!-- Campus / stage picker -->
   <aside class="space-y-5 lg:max-h-[calc(100vh-12rem)] lg:overflow-y-auto">
     {#each data.campuses as campus (campus.id)}
-      <div class="rounded-lg border border-border bg-card">
+      <div class="rounded-sm border border-border bg-card">
         <div
           class="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5"
         >
@@ -120,7 +119,7 @@
   <section class="min-w-0">
     {#if !data.selected}
       <div
-        class="rounded-lg border border-dashed border-border bg-card p-10 text-center"
+        class="rounded-sm border border-dashed border-border bg-card p-10 text-center"
       >
         <p class="text-sm text-muted-foreground">
           Aucun stage de seconde n'existe encore. Créez un événement pour

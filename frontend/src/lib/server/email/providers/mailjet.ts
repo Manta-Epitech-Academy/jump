@@ -19,11 +19,17 @@ import { env } from '$env/dynamic/private';
 import type { MailMessage, MailProvider, SendEmailResult } from '../types';
 
 /**
- * Mailjet v3.1 Send caps at 50 Messages per call. The broadcast mail
- * provider chunks before calling, so the orchestrator's PAGE size stays
- * provider-agnostic.
+ * Mailjet v3.1 Send caps the TOTAL number of recipients (summed `To` across
+ * every Message) per call at 50 — *not* the message count. Most broadcast
+ * messages carry a single recipient, so message-count and recipient-count
+ * chunking coincide in prod. But the dev-redirect rewrites each message's
+ * `to` to the tester's list (see `dev-redirect.ts`), so 50 single-recipient
+ * messages can balloon to 50 × listSize recipients in one call and trip the
+ * cap. `sendBatch` therefore chunks by cumulative recipient count, splitting
+ * into as many HTTP calls as needed. Used as `batchMax` too: an outer bound of
+ * 50 messages is always at least as tight as 50 recipients.
  */
-const MAILJET_BATCH_MAX = 50;
+const MAILJET_RECIPIENTS_PER_CALL = 50;
 
 const ENDPOINT = 'https://api.mailjet.com/v3.1/send';
 
@@ -180,12 +186,34 @@ async function send(msg: MailMessage): Promise<SendEmailResult> {
 
 async function sendBatch(payloads: MailMessage[]): Promise<SendEmailResult[]> {
   if (payloads.length === 0) return [];
-  return postSend(payloads.map(toMailjetMessage));
+  const messages = payloads.map(toMailjetMessage);
+  const results: SendEmailResult[] = [];
+  let chunk: MailjetMessage[] = [];
+  let chunkRecipients = 0;
+  for (const message of messages) {
+    // A single message that alone exceeds the cap (a >50-address redirect
+    // list — absurd config) still ships solo so Mailjet rejects only it,
+    // rather than starving its neighbours' slots; one message's recipients
+    // can't be split across calls.
+    const count = Math.max(message.To.length, 1);
+    if (
+      chunk.length > 0 &&
+      chunkRecipients + count > MAILJET_RECIPIENTS_PER_CALL
+    ) {
+      results.push(...(await postSend(chunk)));
+      chunk = [];
+      chunkRecipients = 0;
+    }
+    chunk.push(message);
+    chunkRecipients += count;
+  }
+  if (chunk.length > 0) results.push(...(await postSend(chunk)));
+  return results;
 }
 
 export const mailjetProvider: MailProvider = {
   name: 'mailjet',
-  batchMax: MAILJET_BATCH_MAX,
+  batchMax: MAILJET_RECIPIENTS_PER_CALL,
   send,
   sendBatch,
 };

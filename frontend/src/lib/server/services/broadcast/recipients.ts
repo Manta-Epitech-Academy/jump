@@ -5,7 +5,12 @@ import type {
   StaffRole,
 } from '@prisma/client';
 import { prisma } from '$lib/server/db';
-import type { BroadcastFilters } from '$lib/domain/broadcasts';
+import type {
+  BroadcastFilters,
+  ExcludedRecipient,
+  RecipientExclusionReason,
+  RecipientRole,
+} from '$lib/domain/broadcasts';
 import { xpRangeForLevel } from '$lib/domain/xp';
 
 export interface RecipientSpec {
@@ -23,6 +28,7 @@ export interface ResolvedRecipient {
   parentOfTalentId: string | null;
   prenom: string;
   nom: string;
+  role: RecipientRole;
   email: string | null;
   phone: string | null;
   campusName: string;
@@ -30,7 +36,8 @@ export interface ResolvedRecipient {
 
 export interface ResolveResult {
   recipients: ResolvedRecipient[];
-  excluded: { reason: 'no_email' | 'no_phone'; count: number }[];
+  excluded: { reason: RecipientExclusionReason; count: number }[];
+  excludedRecipients: ExcludedRecipient[];
 }
 
 const AUDIENCE_TO_STAFF_ROLE: Record<
@@ -71,7 +78,7 @@ async function resolveTalentBased(
 ): Promise<ResolveResult> {
   const talentIds = await pickTalentIds(spec);
   if (talentIds.length === 0) {
-    return { recipients: [], excluded: [] };
+    return { recipients: [], excluded: [], excludedRecipients: [] };
   }
 
   const talents = await prisma.talent.findMany({
@@ -99,19 +106,25 @@ async function resolveTalentBased(
     no_phone: 0,
   };
   const recipients: ResolvedRecipient[] = [];
+  const excludedRecipients: ExcludedRecipient[] = [];
   const isParent = spec.audience === 'parent';
+  const role: RecipientRole = isParent ? 'parent' : 'talent';
 
   for (const t of talents) {
     const campusName = t.participations[0]?.campus.name ?? '';
     const email = isParent ? t.parentEmail : t.email;
     const phone = isParent ? t.parentPhone : t.phone;
+    const prenom = isParent ? (t.parentPrenom ?? '') : t.prenom;
+    const nom = isParent ? (t.parentNom ?? '') : t.nom;
 
     if (channel === 'mail' && !email) {
       excludedCounts.no_email++;
+      excludedRecipients.push({ prenom, nom, role, reason: 'no_email' });
       continue;
     }
     if (channel === 'sms' && !phone) {
       excludedCounts.no_phone++;
+      excludedRecipients.push({ prenom, nom, role, reason: 'no_phone' });
       continue;
     }
 
@@ -119,15 +132,20 @@ async function resolveTalentBased(
       talentId: isParent ? null : t.id,
       staffUserId: null,
       parentOfTalentId: isParent ? t.id : null,
-      prenom: isParent ? (t.parentPrenom ?? '') : t.prenom,
-      nom: isParent ? (t.parentNom ?? '') : t.nom,
+      prenom,
+      nom,
+      role,
       email,
       phone,
       campusName,
     });
   }
 
-  return { recipients, excluded: formatExcluded(excludedCounts) };
+  return {
+    recipients,
+    excluded: formatExcluded(excludedCounts),
+    excludedRecipients,
+  };
 }
 
 async function pickTalentIds(spec: RecipientSpec): Promise<string[]> {
@@ -198,6 +216,14 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   }
   if (f.charterSigned === 'yes') and.push({ charterAcceptedAt: { not: null } });
   if (f.charterSigned === 'no') and.push({ charterAcceptedAt: null });
+  // Règlement intérieur: the talent's own signature (`rulesSignedAt`) and the
+  // legal guardian's online co-signature (`parentRulesSignedAt`, the canonical
+  // minor-compliance signal — see domain/stageCompliance `isRulesCompliant`).
+  if (f.rulesSigned === 'yes') and.push({ rulesSignedAt: { not: null } });
+  if (f.rulesSigned === 'no') and.push({ rulesSignedAt: null });
+  if (f.parentRulesSigned === 'yes')
+    and.push({ parentRulesSignedAt: { not: null } });
+  if (f.parentRulesSigned === 'no') and.push({ parentRulesSignedAt: null });
   // Image rights: OR the selected states. `undecided` is the absence of a
   // decision; `accepted`/`refused` match the stored enum directly.
   if (f.imageRights?.length) {
@@ -254,7 +280,8 @@ async function resolveStaffBased(
       select: { staffUserId: true },
     });
     const ids = rows.map((r) => r.staffUserId).filter((v): v is string => !!v);
-    if (ids.length === 0) return { recipients: [], excluded: [] };
+    if (ids.length === 0)
+      return { recipients: [], excluded: [], excludedRecipients: [] };
     userIdFilter = { in: ids };
   }
 
@@ -263,6 +290,14 @@ async function resolveStaffBased(
       staffRole: role,
       campusId: spec.campusId,
       ...(userIdFilter ? { userId: userIdFilter } : {}),
+      // Mantas are assigned to events (EventManta), so when an event is chosen
+      // the manta audience narrows to that event's assignees, matching how
+      // talent/parent scope through Participation. The other staff roles
+      // (dev/peda/superdev) carry no per-event assignment, so the event is
+      // simply ignored for them.
+      ...(spec.audience === 'manta' && spec.eventId
+        ? { eventMantas: { some: { eventId: spec.eventId } } }
+        : {}),
     },
     select: {
       campus: { select: { name: true } },
@@ -272,20 +307,34 @@ async function resolveStaffBased(
 
   const excludedCounts = { no_email: 0, no_phone: 0 };
   const recipients: ResolvedRecipient[] = [];
+  const excludedRecipients: ExcludedRecipient[] = [];
 
   for (const p of profiles) {
     const fullName = p.user.name ?? '';
-    const [prenom, ...rest] = fullName.split(' ');
+    const [first, ...rest] = fullName.split(' ');
+    const prenom = first ?? '';
     const nom = rest.join(' ');
     const email = p.user.email;
     const phone = null; // staff phones not stored
 
     if (channel === 'mail' && !email) {
       excludedCounts.no_email++;
+      excludedRecipients.push({
+        prenom,
+        nom,
+        role: 'staff',
+        reason: 'no_email',
+      });
       continue;
     }
     if (channel === 'sms') {
       excludedCounts.no_phone++;
+      excludedRecipients.push({
+        prenom,
+        nom,
+        role: 'staff',
+        reason: 'no_phone',
+      });
       continue;
     }
 
@@ -293,15 +342,20 @@ async function resolveStaffBased(
       talentId: null,
       staffUserId: p.user.id,
       parentOfTalentId: null,
-      prenom: prenom ?? '',
+      prenom,
       nom,
+      role: 'staff',
       email,
       phone,
       campusName: p.campus?.name ?? '',
     });
   }
 
-  return { recipients, excluded: formatExcluded(excludedCounts) };
+  return {
+    recipients,
+    excluded: formatExcluded(excludedCounts),
+    excludedRecipients,
+  };
 }
 
 function formatExcluded(counts: {

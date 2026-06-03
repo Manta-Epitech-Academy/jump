@@ -5,12 +5,18 @@
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-  import {
-    BROADCAST_AUDIENCE_LABELS,
-    BROADCAST_CHANNEL_LABELS,
-  } from '$lib/domain/broadcasts';
+  import Users from '@lucide/svelte/icons/users';
+  import Send from '@lucide/svelte/icons/send';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import Eye from '@lucide/svelte/icons/eye';
+  import Activity from '@lucide/svelte/icons/activity';
+  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
+  import KpiTile from '$lib/components/staff/KpiTile.svelte';
+  import BroadcastStatusBadge from '$lib/components/admin/broadcasts/BroadcastStatusBadge.svelte';
+  import ChannelBadge from '$lib/components/admin/broadcasts/ChannelBadge.svelte';
+  import RecipientStatusBadge from '$lib/components/admin/broadcasts/RecipientStatusBadge.svelte';
+  import { BROADCAST_AUDIENCE_LABELS } from '$lib/domain/broadcasts';
   import { renderBroadcastMail } from '$lib/domain/broadcastMarkdown';
-  import type { BroadcastStatus } from '@prisma/client';
 
   let { data } = $props();
 
@@ -30,13 +36,12 @@
     timeStyle: 'short',
   });
 
-  const STATUS_LABEL: Record<BroadcastStatus, string> = {
-    queued: 'En file',
-    sending: 'En cours',
-    sent: 'Envoyé',
-    partial_failed: 'Partiel',
-    failed: 'Échec',
-  };
+  const total = $derived(data.broadcast._count.recipients);
+  // Delivery = sent / total; open rate = opened / sent (mail only). Guard /0.
+  const sentPct = $derived(total > 0 ? (data.stats.sent / total) * 100 : 0);
+  const openPct = $derived(
+    data.stats.sent > 0 ? (data.stats.opened / data.stats.sent) * 100 : 0,
+  );
 
   function recipientName(r: (typeof data.recipients)[number]): string {
     if (r.talent) return `${r.talent.prenom} ${r.talent.nom}`.trim();
@@ -58,60 +63,69 @@
   const th = 'text-xs uppercase';
 </script>
 
-<div class="space-y-4">
+{#snippet statusValue()}
+  <BroadcastStatusBadge status={data.broadcast.status} />
+{/snippet}
+
+<div class="space-y-5">
   <Button variant="ghost" size="sm" href={resolve('/staff/admin/broadcasts')}>
     <ArrowLeft class="mr-1 h-4 w-4" /> Retour aux envois
   </Button>
 
-  <header class="space-y-2">
-    <h1 class="text-2xl font-bold tracking-tight">{data.broadcast.name}</h1>
-    <p class="text-sm text-muted-foreground">
-      {BROADCAST_CHANNEL_LABELS[data.broadcast.channel]} · {BROADCAST_AUDIENCE_LABELS[
-        data.broadcast.audience
-      ]}
-      · {data.broadcast.campus.name}
-      {#if data.broadcast.event}
-        · {data.broadcast.event.titre}
-      {/if}
-      · Créé le {formatter.format(data.broadcast.createdAt)} par {data.broadcast
+  <AdminPageHeader title={data.broadcast.name} />
+  <div
+    class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
+  >
+    <ChannelBadge channel={data.broadcast.channel} />
+    <span aria-hidden="true">·</span>
+    <span>{BROADCAST_AUDIENCE_LABELS[data.broadcast.audience]}</span>
+    <span aria-hidden="true">·</span>
+    <span>{data.broadcast.campus.name}</span>
+    {#if data.broadcast.event}
+      <span aria-hidden="true">·</span>
+      <span>{data.broadcast.event.titre}</span>
+    {/if}
+    <span aria-hidden="true">·</span>
+    <span>
+      Créé le {formatter.format(data.broadcast.createdAt)} par {data.broadcast
         .createdBy?.name ?? data.broadcast.createdBy?.email}
-    </p>
-  </header>
-
-  <div class="grid gap-3 md:grid-cols-5">
-    <div class="rounded-lg border bg-muted/30 p-3">
-      <p class="text-[10px] tracking-widest text-muted-foreground uppercase">
-        Statut
-      </p>
-      <p class="font-semibold">{STATUS_LABEL[data.broadcast.status]}</p>
-    </div>
-    <div class="rounded-lg border bg-muted/30 p-3">
-      <p class="text-[10px] tracking-widest text-muted-foreground uppercase">
-        Total
-      </p>
-      <p class="text-lg font-bold">{data.broadcast._count.recipients}</p>
-    </div>
-    <div class="rounded-lg border bg-muted/30 p-3">
-      <p class="text-[10px] tracking-widest text-muted-foreground uppercase">
-        Envoyés
-      </p>
-      <p class="text-lg font-bold text-emerald-600">{data.stats.sent}</p>
-    </div>
-    <div class="rounded-lg border bg-muted/30 p-3">
-      <p class="text-[10px] tracking-widest text-muted-foreground uppercase">
-        Échecs
-      </p>
-      <p class="text-lg font-bold text-destructive">{data.stats.failed}</p>
-    </div>
-    <div class="rounded-lg border bg-muted/30 p-3">
-      <p class="text-[10px] tracking-widest text-muted-foreground uppercase">
-        Ouverts
-      </p>
-      <p class="text-lg font-bold">{data.stats.opened}</p>
-    </div>
+    </span>
   </div>
 
-  <details class="rounded-lg border bg-muted/20 p-4 text-sm">
+  <div class="grid gap-3 md:grid-cols-5">
+    <KpiTile
+      label="Statut"
+      valueSnippet={statusValue}
+      icon={Activity}
+      tone="neutral"
+    />
+    <KpiTile label="Total" value={total} icon={Users} tone="blue" />
+    <KpiTile
+      label="Envoyés"
+      value={data.stats.sent}
+      icon={Send}
+      tone="teal"
+      progress={sentPct}
+    />
+    <KpiTile
+      label="Échecs"
+      value={data.stats.failed}
+      icon={TriangleAlert}
+      tone="orange"
+    />
+    <KpiTile
+      label="Ouverts"
+      value={data.stats.opened}
+      icon={Eye}
+      tone="blue"
+      progress={data.broadcast.channel === 'mail' ? openPct : undefined}
+      helpText={data.broadcast.channel === 'mail'
+        ? 'Ont cliqué sur ≥ 1 lien tracké'
+        : "Le suivi d'ouverture ne s'applique pas au SMS"}
+    />
+  </div>
+
+  <details class="rounded-sm border bg-muted/20 p-4 text-sm">
     <summary class="cursor-pointer font-medium"
       >Contenu envoyé (snapshot)</summary
     >
@@ -123,12 +137,12 @@
         </p>
       {/if}
       {#if data.broadcast.channel === 'mail'}
-        <div class="overflow-hidden rounded border">
+        <div class="overflow-hidden rounded-sm border">
           {@html renderBroadcastMail(data.broadcast.bodySnapshot)}
         </div>
       {:else}
         <pre
-          class="rounded border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{data
+          class="rounded-sm border bg-white p-3 text-xs whitespace-pre-wrap text-slate-800 dark:bg-slate-900 dark:text-slate-200">{data
             .broadcast.bodySnapshot}</pre>
       {/if}
     </div>
@@ -172,7 +186,7 @@
     {/if}
   </div>
 
-  <div class="overflow-hidden rounded-lg border">
+  <div class="overflow-hidden rounded-sm border">
     <Table.Root>
       <Table.Header class="bg-muted/50">
         <Table.Row>
@@ -195,7 +209,7 @@
             <Table.Cell class="text-xs text-muted-foreground">
               {r.recipientEmail ?? r.recipientPhone ?? '—'}
             </Table.Cell>
-            <Table.Cell class="text-xs">{r.status}</Table.Cell>
+            <Table.Cell><RecipientStatusBadge status={r.status} /></Table.Cell>
             <Table.Cell class="text-xs text-muted-foreground">
               {r.sentAt ? formatter.format(r.sentAt) : '—'}
             </Table.Cell>
