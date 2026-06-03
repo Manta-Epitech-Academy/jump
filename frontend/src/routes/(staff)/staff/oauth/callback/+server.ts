@@ -7,6 +7,7 @@ import {
   getStaffRoleRedirectPath,
 } from '$lib/domain/staff';
 import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
+import { consumeRedirectCookie } from '$lib/server/auth/loginRedirect';
 
 /**
  * Expire BetterAuth's session-data cookie cache so the next request
@@ -17,14 +18,12 @@ import { syncMicrosoftAvatar } from '$lib/server/services/microsoftProfile';
  * login for invited admins.
  */
 function expireSessionCache(redirectUrl: string): Response {
-  return new Response(null, {
-    status: 303,
-    headers: {
-      Location: redirectUrl,
-      'Set-Cookie':
-        'better-auth.session_data=; Path=/; Max-Age=0; SameSite=Lax',
-    },
-  });
+  const headers = new Headers({ Location: redirectUrl });
+  headers.append(
+    'Set-Cookie',
+    'better-auth.session_data=; Path=/; Max-Age=0; SameSite=Lax',
+  );
+  return new Response(null, { status: 303, headers });
 }
 
 // BetterAuth handles the OAuth exchange via /api/auth/callback/microsoft.
@@ -35,7 +34,7 @@ function expireSessionCache(redirectUrl: string): Response {
 // 3. Rejects (and deletes the just-created bauth_user) if no invitation and
 //    no existing provisioned StaffProfile — staff must be invited first.
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, cookies }) => {
   if (!locals.user) {
     throw redirect(303, `${resolve('/staff/login')}?error=OAuthFailed`);
   }
@@ -103,8 +102,14 @@ export const GET: RequestHandler = async ({ locals }) => {
 
   await syncMicrosoftAvatar(locals.user.id);
 
+  // Replay where the guard bounced them from (captured at login), else the
+  // role's default landing page. consumeRedirectCookie clears the cookie too;
+  // the deletion rides the raw Response below (SvelteKit merges cookie mutations
+  // into both `throw redirect()` and returned Responses).
+  const back = consumeRedirectCookie(cookies, 'staff');
+
   // Expire the cookie cache so the fresh role is picked up immediately.
   // Using a raw Response instead of `throw redirect()` so we can set the
   // Set-Cookie header — SvelteKit's redirect() doesn't allow that.
-  return expireSessionCache(resolve(targetPath));
+  return expireSessionCache(back ?? resolve(targetPath));
 };

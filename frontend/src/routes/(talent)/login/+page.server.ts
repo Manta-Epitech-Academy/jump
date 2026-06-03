@@ -9,14 +9,21 @@ import { forwardAuthCookies } from '$lib/server/auth/cookies';
 import { checkRateLimit, recordAttempt } from '$lib/server/auth/rateLimiter';
 import { prisma } from '$lib/server/db';
 import { ensureTalentUser } from '$lib/server/services/talentAccount';
+import {
+  captureRedirectCookie,
+  consumeRedirectCookie,
+} from '$lib/server/auth/loginRedirect';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (locals.talent) {
     throw redirect(303, resolve('/'));
   }
   if (locals.user?.role === 'parent') {
     throw redirect(303, resolve('/parent/welcome'));
   }
+
+  // Stash where the guard bounced them from, to replay after OTP verifies.
+  captureRedirectCookie(url, cookies, 'talent');
 
   const errorType = url.searchParams.get('error');
   let errorMessage = '';
@@ -169,6 +176,10 @@ export const actions: Actions = {
       );
     }
 
+    // Read + clear the "return to" target captured when the guard bounced them
+    // to login (talents only; parents have their own destinations below).
+    const back = consumeRedirectCookie(cookies, 'talent');
+
     // Route to the right space based on the user's role
     const user = await prisma.bauth_user.findUnique({
       where: { email: normalizedEmail },
@@ -188,6 +199,6 @@ export const actions: Actions = {
       throw redirect(303, resolve('/parent/merci'));
     }
 
-    throw redirect(303, resolve('/'));
+    throw redirect(303, back ?? resolve('/'));
   },
 };

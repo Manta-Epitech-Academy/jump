@@ -2,14 +2,18 @@ import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { getStaffRoleRedirectPath } from '$lib/domain/staff';
+import { captureRedirectCookie } from '$lib/server/auth/loginRedirect';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (locals.user && locals.staffProfile?.staffRole) {
     const targetPath = getStaffRoleRedirectPath(locals.staffProfile.staffRole);
     if (targetPath) {
       throw redirect(302, resolve(targetPath));
     }
   }
+
+  // Stash where the guard bounced them from, to replay after OAuth succeeds.
+  captureRedirectCookie(url, cookies, 'staff');
 
   const errorType = url.searchParams.get('error');
   let errorMessage = '';
