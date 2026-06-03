@@ -6,6 +6,7 @@ import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
 import type { FlagKey } from '$lib/domain/featureFlags';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
+import { loginUrlWithRedirect } from '$lib/server/auth/loginRedirect';
 
 function forbidGroup(group: StaffGroup): never {
   throw error(403, {
@@ -123,7 +124,11 @@ export async function applyRouteGuards(
       currentPath.startsWith(pathTalentOAuth);
 
     if (!event.locals.talent && !isTalentPublic) {
-      return Response.redirect(new URL(pathTalentLogin, event.url).href, 303);
+      return Response.redirect(
+        new URL(loginUrlWithRedirect(pathTalentLogin, event.url), event.url)
+          .href,
+        303,
+      );
     }
     if (event.locals.talent && currentPath === pathTalentLogin) {
       return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
@@ -211,7 +216,11 @@ export async function applyRouteGuards(
       currentPath === pathStaffLogin || currentPath.startsWith(pathStaffOAuth);
 
     if (!isStaffPublic && !event.locals.user) {
-      return Response.redirect(new URL(pathStaffLogin, event.url).href, 303);
+      return Response.redirect(
+        new URL(loginUrlWithRedirect(pathStaffLogin, event.url), event.url)
+          .href,
+        303,
+      );
     }
 
     // Students without a staff profile shouldn't access staff area.
