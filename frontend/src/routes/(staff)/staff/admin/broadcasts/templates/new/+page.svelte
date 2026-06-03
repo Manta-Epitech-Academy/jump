@@ -1,17 +1,16 @@
 <script lang="ts">
   import TemplateForm from '$lib/components/admin/broadcasts/TemplateForm.svelte';
+  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
 
   let { data } = $props();
 </script>
 
 <div class="space-y-4">
-  <header class="space-y-2">
-    <h1 class="text-2xl font-bold tracking-tight">Nouveau template</h1>
-    <p class="text-sm text-muted-foreground">
-      Définis le canal et le contenu de ce template ; il pourra ensuite servir
-      pour un envoi en masse ou un message transactionnel.
-    </p>
-  </header>
+  <AdminPageHeader
+    title="Nouveau"
+    accent="template"
+    subtitle="Canal et contenu — réutilisable pour un envoi en masse ou un mail transactionnel"
+  />
   <TemplateForm
     data={data.form}
     submitLabel="Créer"

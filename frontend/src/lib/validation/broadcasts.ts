@@ -19,6 +19,9 @@ export const broadcastFiltersSchema = z
   .object({
     niveau: z.array(z.enum(NIVEAUX)).optional(),
     charterSigned: tristate.optional(),
+    rulesSigned: tristate.optional(),
+    parentRulesSigned: tristate.optional(),
+    onboardingDone: tristate.optional(),
     imageRights: z.array(z.enum(IMAGE_RIGHTS_FILTER_OPTIONS)).optional(),
     jumpLevel: z.array(z.enum(JUMP_LEVELS)).optional(),
     hasPastEvent: tristate.optional(),
@@ -93,6 +96,17 @@ export const broadcastSchema = z
     sourceBroadcastId: z.string().optional().or(z.literal('')),
     sourceFilter: broadcastSourceFilterSchema.optional(),
     filters: broadcastFiltersSchema.optional(),
+    // Per-send content, seeded from the picked template but editable for this
+    // send only. The Broadcast snapshots whatever lands here (the template is
+    // never mutated). Structurally optional so the live preview / test-send can
+    // reuse this schema; the enqueue action enforces non-empty body + a subject
+    // for mail, plus the SMS length ceiling.
+    subject: z
+      .string()
+      .max(200, 'Le sujet ne peut pas dépasser 200 caractères')
+      .optional()
+      .or(z.literal('')),
+    body: z.string().optional().or(z.literal('')),
   })
   .superRefine((data, ctx) => {
     if (data.sourceBroadcastId && !data.sourceFilter) {

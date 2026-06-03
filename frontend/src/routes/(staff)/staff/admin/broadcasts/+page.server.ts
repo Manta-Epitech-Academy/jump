@@ -1,5 +1,9 @@
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
+import {
+  getBroadcastProgress,
+  getBroadcastStats,
+} from '$lib/server/services/communicationStats';
 
 export const load: PageServerLoad = async () => {
   const broadcasts = await prisma.broadcast.findMany({
@@ -18,42 +22,14 @@ export const load: PageServerLoad = async () => {
     },
   });
 
-  const counts = await prisma.broadcastRecipient.groupBy({
-    by: ['broadcastId', 'status'],
-    where: { broadcastId: { in: broadcasts.map((b) => b.id) } },
-    _count: { _all: true },
-  });
-
-  const opened = await prisma.broadcastRecipient.groupBy({
-    by: ['broadcastId'],
-    where: {
-      broadcastId: { in: broadcasts.map((b) => b.id) },
-      openedAt: { not: null },
-    },
-    _count: { _all: true },
-  });
-
-  const progress = new Map<
-    string,
-    { sent: number; failed: number; pending: number; opened: number }
-  >();
-  for (const b of broadcasts) {
-    progress.set(b.id, { sent: 0, failed: 0, pending: 0, opened: 0 });
-  }
-  for (const c of counts) {
-    const p = progress.get(c.broadcastId);
-    if (!p) continue;
-    p[c.status] = c._count._all;
-  }
-  for (const o of opened) {
-    const p = progress.get(o.broadcastId);
-    if (p) p.opened = o._count._all;
-  }
+  // Per-row recipient progress + the 30-day headline stats share one service.
+  const [progress, stats] = await Promise.all([
+    getBroadcastProgress(broadcasts.map((b) => b.id)),
+    getBroadcastStats(),
+  ]);
 
   return {
-    broadcasts: broadcasts.map((b) => ({
-      ...b,
-      progress: progress.get(b.id)!,
-    })),
+    broadcasts: broadcasts.map((b) => ({ ...b, progress: progress[b.id] })),
+    stats,
   };
 };

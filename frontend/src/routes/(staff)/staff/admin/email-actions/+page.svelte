@@ -7,6 +7,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
+  import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
 
   let { data } = $props();
 
@@ -28,21 +29,25 @@
 </script>
 
 <div class="space-y-6">
-  <header class="space-y-2">
-    <h1 class="text-2xl font-bold tracking-tight">Mails transactionnels</h1>
-    <p class="text-sm text-muted-foreground">
+  <div class="space-y-2">
+    <AdminPageHeader
+      title="Mails"
+      accent="transactionnels"
+      subtitle="Chaque action automatique relayée vers un template"
+    />
+    <p class="max-w-3xl text-sm text-muted-foreground">
       Associe chaque action (OTP, bienvenue parent…) à un template
       <a
         href={resolve('/staff/admin/broadcasts/templates')}
         class="font-medium text-epi-blue hover:underline">éditable ici</a
-      >. Si aucun template n'est lié, l'email n'est <strong>pas envoyé</strong>
-      — l'utilisateur ne reçoit rien et le login OTP échoue silencieusement.
+      >. Si aucun template n'est lié, l'email n'est <strong>pas envoyé</strong> :
+      l'utilisateur ne reçoit rien et le login OTP échoue silencieusement.
     </p>
-  </header>
+  </div>
 
   {#if data.missingCount > 0}
     <div
-      class="flex items-start gap-3 rounded-md border-2 border-destructive bg-destructive/10 p-4 text-sm"
+      class="flex items-start gap-3 rounded-sm border-2 border-destructive bg-destructive/10 p-4 text-sm"
       role="alert"
     >
       <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
@@ -59,7 +64,7 @@
     </div>
   {:else}
     <div
-      class="flex items-start gap-3 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-900 dark:text-emerald-200"
+      class="flex items-start gap-3 rounded-sm border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-900 dark:text-emerald-200"
     >
       <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
       <p>
@@ -69,7 +74,7 @@
     </div>
   {/if}
 
-  <div class="overflow-hidden rounded-lg border">
+  <div class="overflow-hidden rounded-sm border">
     <Table.Root>
       <Table.Header class="bg-muted/50">
         <Table.Row>
