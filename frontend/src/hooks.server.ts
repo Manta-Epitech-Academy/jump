@@ -7,6 +7,7 @@ import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
 import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
+import { readPlanningPreview } from '$lib/server/talentPlanningPreview';
 import { runWithRequestContext } from '$lib/server/requestContext';
 import { readArmedState } from '$lib/server/armRealSends';
 import { env } from '$env/dynamic/private';
@@ -90,6 +91,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.featureFlags = new Set();
   event.locals.ticketsEnabled = false;
   event.locals.stagePhaseOverride = null;
+  event.locals.planningPreview = null;
   event.locals.impersonator = null;
   event.locals.talentCampusName = null;
   event.locals.armedRealSends = false;
@@ -182,6 +184,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
 
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);
+    event.locals.planningPreview = readPlanningPreview(event);
 
     // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget)
     if (event.locals.talent) {
