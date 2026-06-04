@@ -26,6 +26,9 @@
     startTime: Date | string;
     endTime: Date | string;
     activity: ActivityLike | null;
+    // Present on the multi-event calendar so the dialog can name which event the
+    // activity belongs to. Optional so single-event callers stay valid.
+    event?: { id: string; titre: string };
   };
 
   let {
@@ -96,6 +99,11 @@
             {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
           </span>
         </ResponsiveDialog.Description>
+        {#if slot.event}
+          <p class="text-xs font-medium text-muted-foreground">
+            {slot.event.titre}
+          </p>
+        {/if}
       </ResponsiveDialog.Header>
 
       <ResponsiveDialog.Body class="space-y-3">

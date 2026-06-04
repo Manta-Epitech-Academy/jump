@@ -72,3 +72,114 @@ export function toPlanningView(
   }
   return { state: 'none' };
 }
+
+/**
+ * The full talent calendar (route `(talent)/calendar`) is no longer scoped to a
+ * single event: it lays every activity of every event the talent participates in
+ * onto one continuous week-grid. As with {@link toPlanningView}, the server folds
+ * the nested Participation → Event → Planning → TimeSlot → Activity rows into a
+ * flat view-model so the grid component branches on plain slots with no DB-row
+ * shapes leaking into it.
+ */
+export type CalendarParticipation = {
+  event: {
+    id: string;
+    titre: string;
+    date: Date;
+    endDate: Date | null;
+    planning: {
+      timeSlots: Array<{
+        id: string;
+        startTime: Date;
+        endTime: Date;
+        activity: {
+          id: string;
+          nom: string;
+          description: string | null;
+          activityType: string;
+          difficulte: string | null;
+          isDynamic: boolean;
+        } | null;
+      }>;
+    } | null;
+  };
+};
+
+/**
+ * One placeable slot, tagged with just enough of its parent event (its identity
+ * + display name) to label which event it belongs to, with no
+ * Participation/Planning shape attached.
+ */
+export type CalendarSlot = {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  activity: {
+    id: string;
+    nom: string;
+    description: string | null;
+    activityType: string;
+    difficulte: string | null;
+    isDynamic: boolean;
+  } | null;
+  event: { id: string; titre: string };
+};
+
+/**
+ * The flattened event-tagged slots plus the overall date range spanning every
+ * event. `range` is null when the talent has no events at all, which the grid
+ * renders as an empty calendar rather than navigating an empty span.
+ */
+export type CalendarPlanning = {
+  slots: CalendarSlot[];
+  range: { start: Date; end: Date } | null;
+};
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+/**
+ * Flatten every participation's timeSlots into one event-tagged, start-sorted
+ * list and compute the overall date range. The range is derived from the events'
+ * own [date, endDate] spans (not the slots) so a multi-day event's activity-free
+ * edge days still count as in-range on the grid.
+ */
+export function toCalendarPlanning(
+  participations: CalendarParticipation[],
+): CalendarPlanning {
+  const slots: CalendarSlot[] = [];
+  let start: Date | null = null;
+  let end: Date | null = null;
+
+  for (const { event } of participations) {
+    const eventStart = startOfDay(event.date);
+    const eventEnd = startOfDay(event.endDate ?? event.date);
+    if (!start || eventStart < start) start = eventStart;
+    if (!end || eventEnd > end) end = eventEnd;
+
+    for (const slot of event.planning?.timeSlots ?? []) {
+      slots.push({
+        id: slot.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        activity: slot.activity,
+        event: {
+          id: event.id,
+          titre: event.titre,
+        },
+      });
+    }
+  }
+
+  slots.sort((a, b) => {
+    const sa = new Date(a.startTime).getTime();
+    const sb = new Date(b.startTime).getTime();
+    if (sa !== sb) return sa - sb;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+
+  return { slots, range: start && end ? { start, end } : null };
+}

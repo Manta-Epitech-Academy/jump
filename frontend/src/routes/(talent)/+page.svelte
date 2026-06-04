@@ -2,7 +2,6 @@
   import type { PageData } from './$types';
   import { dev } from '$app/environment';
   import { enhance } from '$app/forms';
-  import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
@@ -14,17 +13,13 @@
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-  import LogOut from '@lucide/svelte/icons/log-out';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
-  import Settings from '@lucide/svelte/icons/settings';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import { onMount } from 'svelte';
-  import { track, secondsBetween } from '$lib/analytics';
   import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
@@ -159,62 +154,20 @@
 />
 
 <div class="flex min-h-screen flex-col">
-  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
-    <!-- Header wraps on mobile: logo + controls share the top row, the greeting
-         drops to its own full-width row below so a long name never truncates.
-         From sm up it's a single row (logo · greeting … controls) as before. -->
-    <header
-      class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-3 sm:flex-nowrap sm:gap-x-4"
-      in:fly={{ y: -20, duration: 400, delay: 100 }}
-    >
-      <a href={resolve('/')} aria-label="Accueil" class="shrink-0">
-        <EpitechLogo class="h-8 w-auto" />
-      </a>
-      <!-- Separates logo from greeting only when they share a row (sm+). -->
-      <div
-        class="hidden h-8 w-px shrink-0 bg-slate-200 sm:block dark:bg-slate-800"
-        aria-hidden="true"
-      ></div>
+  <!-- Same app bar as every talent page; the greeting is the only thing the
+       dashboard adds to it (it drops to its own line on mobile via the lead
+       slot's wrapping rules). -->
+  <TalentPageHeader>
+    {#snippet lead()}
       <h1
-        class="order-last w-full min-w-0 truncate font-heading text-2xl tracking-tight text-slate-900 uppercase sm:order-none sm:w-auto sm:text-3xl dark:text-white"
+        class="truncate font-heading text-xl tracking-tight text-slate-900 uppercase sm:text-2xl dark:text-white"
       >
         Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
       </h1>
-      <div class="ml-auto flex shrink-0 items-center gap-1">
-        <ModeToggle />
-        <Button
-          variant="ghost"
-          size="icon"
-          href={resolve('/settings')}
-          class="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-        >
-          <Settings class="h-4 w-4" />
-          <span class="sr-only">Paramètres</span>
-        </Button>
-        <form
-          action="{resolve('/logout')}?type=student"
-          method="POST"
-          onsubmit={() =>
-            track('logout', {
-              kind: 'talent',
-              sessionDurationSec: secondsBetween(
-                page.data.session?.createdAt as Date | string | undefined,
-              ),
-            })}
-        >
-          <Button
-            type="submit"
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8 text-slate-400 hover:text-destructive"
-          >
-            <LogOut class="h-4 w-4" />
-            <span class="sr-only">Déconnexion</span>
-          </Button>
-        </form>
-      </div>
-    </header>
+    {/snippet}
+  </TalentPageHeader>
 
+  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <!-- The daily minigame as the first "mission" of the day: same row language
          as the activities below, but accented (gamepad, colour) so it reads as
          a distinct kind of mission. Pre-play it's a "Commencer" CTA; once played

@@ -6,7 +6,6 @@
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import MapIcon from '@lucide/svelte/icons/map';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -15,6 +14,7 @@
   import { enhance } from '$app/forms';
   import { cn } from '$lib/utils';
 
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import RoadmapSidebar from './components/RoadmapSidebar.svelte';
   import StepValidationBlock from './components/StepValidationBlock.svelte';
   import PortfolioDrawer from './components/PortfolioDrawer.svelte';
@@ -109,29 +109,15 @@
   <div
     class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
   >
-    <header
-      class="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:px-6 dark:border-slate-800 dark:bg-slate-900"
-    >
-      <div class="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          href={resolve('/')}
-          class="h-9 w-9 shrink-0"
-        >
-          <ArrowLeft class="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 class="line-clamp-1 font-heading text-lg tracking-wide uppercase">
-            {data.activity.nom}<span class="text-epi-teal">_</span>
-          </h1>
-        </div>
-      </div>
-    </header>
+    <TalentPageHeader
+      title={data.activity.nom}
+      backHref={resolve('/calendar')}
+      backLabel="Retour au planning"
+    />
 
     <main class="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
       <div
-        class="mx-auto max-w-3xl px-6 py-8 md:py-12"
+        class="mx-auto max-w-3xl px-4 py-8 md:px-8 md:py-12"
         in:fly={{ y: 15, duration: 300 }}
       >
         {#if data.activity.description}
@@ -166,26 +152,12 @@
   <div
     class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
   >
-    <header
-      class="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:px-6 dark:border-slate-800 dark:bg-slate-900"
+    <TalentPageHeader
+      title={data.activity.nom}
+      backHref={resolve('/calendar')}
+      backLabel="Retour au planning"
     >
-      <div class="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          href={resolve('/')}
-          class="h-9 w-9 shrink-0"
-        >
-          <ArrowLeft class="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 class="line-clamp-1 font-heading text-lg tracking-wide uppercase">
-            {data.activity.nom}<span class="text-epi-teal">_</span>
-          </h1>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-2">
+      {#snippet actions()}
         <Button
           variant="outline"
           size="sm"
@@ -229,8 +201,8 @@
             >{Math.min(unlockedIndex, steps.length)} / {steps.length}</span
           >
         </div>
-      </div>
-    </header>
+      {/snippet}
+    </TalentPageHeader>
 
     <div class="relative flex flex-1 overflow-hidden">
       <RoadmapSidebar
