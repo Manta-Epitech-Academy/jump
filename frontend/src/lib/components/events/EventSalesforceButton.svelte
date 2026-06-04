@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Cloud from '@lucide/svelte/icons/cloud';
+  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { salesforceCampaignUrl } from '$lib/domain/salesforce';
@@ -25,7 +25,7 @@
             size="sm"
             class="rounded-sm shadow-sm"
           >
-            <Cloud class="mr-2 h-3.5 w-3.5" />
+            <SalesforceIcon class="mr-2 h-3.5 w-3.5" />
             Campagne Salesforce
           </Button>
         {/snippet}

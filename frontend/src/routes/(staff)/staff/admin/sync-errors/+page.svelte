@@ -4,7 +4,7 @@
   import Check from '@lucide/svelte/icons/check';
   import CheckCheck from '@lucide/svelte/icons/check-check';
   import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
-  import CloudUpload from '@lucide/svelte/icons/cloud-upload';
+  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
@@ -162,9 +162,9 @@
                     rel="noopener noreferrer"
                     title="Ouvrir dans Salesforce"
                     aria-label="Ouvrir l'extId tenté dans Salesforce"
-                    class="text-muted-foreground hover:text-epi-blue"
+                    class="transition-opacity hover:opacity-70"
                   >
-                    <CloudUpload class="h-3.5 w-3.5" />
+                    <SalesforceIcon class="h-3.5 w-3.5" />
                   </a>
                 </span>
               </Table.Cell>
@@ -178,9 +178,9 @@
                       rel="noopener noreferrer"
                       title="Ouvrir dans Salesforce"
                       aria-label="Ouvrir l'extId existant dans Salesforce"
-                      class="text-muted-foreground hover:text-epi-blue"
+                      class="transition-opacity hover:opacity-70"
                     >
-                      <CloudUpload class="h-3.5 w-3.5" />
+                      <SalesforceIcon class="h-3.5 w-3.5" />
                     </a>
                   </span>
                 {:else}

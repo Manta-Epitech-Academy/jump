@@ -3,8 +3,8 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import AlertCircle from '@lucide/svelte/icons/alert-circle';
   import Check from '@lucide/svelte/icons/check';
-  import Cloud from '@lucide/svelte/icons/cloud';
   import CloudUpload from '@lucide/svelte/icons/cloud-upload';
+  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
   import Phone from '@lucide/svelte/icons/phone';
   import Mail from '@lucide/svelte/icons/mail';
   import UserX from '@lucide/svelte/icons/user-x';
@@ -43,7 +43,7 @@
         {#if icon === 'upload'}
           <CloudUpload class={cn('h-3.5 w-3.5', accent)} />
         {:else}
-          <Cloud class={cn('h-3.5 w-3.5', accent)} />
+          <SalesforceIcon class={cn('h-3.5 w-3.5', accent)} />
         {/if}
         {title}
       </Card.Title>
@@ -104,7 +104,7 @@
         size="sm"
         class="mt-1 w-full gap-2 rounded-sm whitespace-nowrap"
       >
-        <Cloud class="h-3.5 w-3.5" />
+        <SalesforceIcon class="h-3.5 w-3.5" />
         Ouvrir Salesforce
       </Button>
     </Card.Content>

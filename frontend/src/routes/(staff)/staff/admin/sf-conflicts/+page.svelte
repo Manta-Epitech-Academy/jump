@@ -7,9 +7,9 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Input } from '$lib/components/ui/input';
   import { Button, buttonVariants } from '$lib/components/ui/button';
+  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
   import Download from '@lucide/svelte/icons/download';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
-  import CloudUpload from '@lucide/svelte/icons/cloud-upload';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Search from '@lucide/svelte/icons/search';
   import CheckCheck from '@lucide/svelte/icons/check-check';
@@ -276,9 +276,9 @@
                             rel="noopener noreferrer"
                             title="Ouvrir dans Salesforce"
                             aria-label="Ouvrir le contact dans Salesforce"
-                            class="hover:text-epi-blue"
+                            class="transition-opacity hover:opacity-70"
                           >
-                            <CloudUpload class="h-3.5 w-3.5" />
+                            <SalesforceIcon class="h-3.5 w-3.5" />
                           </a>
                         {/if}
                       </div>
@@ -353,9 +353,9 @@
                         rel="noopener noreferrer"
                         title="Ouvrir dans Salesforce"
                         aria-label="Ouvrir le contact dans Salesforce"
-                        class="hover:text-epi-blue"
+                        class="transition-opacity hover:opacity-70"
                       >
-                        <CloudUpload class="h-3.5 w-3.5" />
+                        <SalesforceIcon class="h-3.5 w-3.5" />
                       </a>
                     {/if}
                   </span>
