@@ -47,6 +47,15 @@ export interface FieldDiff {
   jump: string | null;
   /** What Salesforce currently claims (null when `kind` is `missing`). */
   sf: string | null;
+  /**
+   * Stable match key behind the display value, when the field references an
+   * entity rather than a scalar. Today only `school`: `jump`/`sf` carry the
+   * lycée *name* (what a human reads), `jumpKey`/`sfKey` carry its **UAI** (what
+   * Salesforce matches on — names are fuzzy and non-unique, the UAI is exact).
+   * `undefined` for scalar fields, whose value is already its own key.
+   */
+  jumpKey?: string | null;
+  sfKey?: string | null;
 }
 
 export interface TalentDiff {
@@ -95,7 +104,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
       schoolId: true,
       infoValidatedAt: true,
       highSchoolValidatedAt: true,
-      school: { select: { name: true } },
+      school: { select: { name: true, uai: true } },
       sfImport: {
         select: {
           nom: true,
@@ -103,7 +112,7 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
           phone: true,
           civilite: true,
           sfSchoolId: true,
-          sfSchool: { select: { name: true } },
+          sfSchool: { select: { name: true, uai: true } },
         },
       },
     },
@@ -179,6 +188,8 @@ export async function listSalesforceDiffs(): Promise<TalentDiff[]> {
         kind: m.sfSchoolId ? 'conflict' : 'missing',
         jump: t.school?.name ?? null,
         sf: m.sfSchool?.name ?? null,
+        jumpKey: t.school?.uai ?? null,
+        sfKey: m.sfSchool?.uai ?? null,
       });
     }
 
