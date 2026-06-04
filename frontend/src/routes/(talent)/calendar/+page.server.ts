@@ -2,14 +2,6 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
 
-function sameCalendarDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
@@ -17,14 +9,19 @@ export const load: PageServerLoad = async ({ locals }) => {
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
 
-  // Ongoing (endDate on or after today) or nearest upcoming multi-day event.
+  // Ongoing (date range covers today) or nearest upcoming event.
   // Comparing against startOfDay(now) keeps the event visible for its whole
   // last day, matching the dashboard's "À venir"/today filter.
-  const candidates = await prisma.participation.findMany({
+  const participation = await prisma.participation.findFirst({
     where: {
       talentId: locals.talent.id,
       event: {
-        endDate: { not: null, gte: todayStart },
+        OR: [
+          // Multi-day event whose span covers today or is upcoming
+          { endDate: { gte: todayStart } },
+          // Single-day event today or upcoming
+          { endDate: null, date: { gte: todayStart } },
+        ],
       },
     },
     include: {
@@ -56,12 +53,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     orderBy: { event: { date: 'asc' } },
   });
 
-  const participation = candidates.find(
-    (p) => p.event.endDate && !sameCalendarDay(p.event.date, p.event.endDate),
-  );
-
   if (!participation) {
-    throw error(404, 'Aucun événement multi-jours en cours ou à venir.');
+    throw error(404, 'Aucun événement en cours ou à venir.');
   }
 
   return { participation, serverNow: Date.now() };
