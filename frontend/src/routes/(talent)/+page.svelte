@@ -3,12 +3,11 @@
   import { dev } from '$app/environment';
   import { enhance } from '$app/forms';
   import { Button } from '$lib/components/ui/button';
-  import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
+  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
   import { EVENT_TYPE_LABELS, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -86,10 +85,6 @@
   // dev preview when an admin impersonates this talent). The widget branches on
   // `planning.state` alone; no raw participation rows reach the UI.
   let planning = $derived(data.planning);
-
-  let levelLabel = $derived(levelLabelFr(student?.xp ?? 0));
-
-  let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
   // Event-type label for the planning widget, with the per-state fallback the
   // copy used before (ongoing → "Activité", upcoming → "Atelier Epitech").
@@ -358,38 +353,13 @@
               <Trophy class="h-7 w-7 text-epi-orange" />
             </div>
 
-            <Badge
-              variant="outline"
-              class="mb-3 border-orange-200 bg-orange-50 px-3 py-1 text-[10px] font-black tracking-widest text-orange-600 uppercase dark:border-orange-900/50 dark:bg-orange-900/20"
-            >
-              {levelLabel}
-            </Badge>
-
-            <div class="mb-4">
+            <div>
               <span
                 class="text-5xl font-black tracking-tighter text-slate-900 dark:text-white"
               >
                 {student?.xp || 0}
               </span>
               <span class="text-lg font-bold text-epi-orange">XP</span>
-            </div>
-
-            <!-- Custom Thick Progress Bar -->
-            <div class="w-full space-y-2">
-              <div
-                class="flex justify-between text-[10px] font-bold text-slate-400 uppercase"
-              >
-                <span>Progression</span>
-                <span>{Math.round(xpProgress)}%</span>
-              </div>
-              <div
-                class="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-              >
-                <div
-                  class="h-full rounded-full bg-epi-orange transition-all duration-1000 ease-out"
-                  style="width: {xpProgress}%"
-                ></div>
-              </div>
             </div>
           </div>
         </div>
@@ -424,12 +394,29 @@
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
                   {planningTypeLabel}
                 </h3>
-                <p class="mt-1 text-sm font-semibold text-epi-blue">En cours</p>
+                <!-- Live status: a pulsing dot so an active IRL event reads as
+                     "happening now", distinct from the action button below. -->
+                <span
+                  class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-epi-blue/10 px-2.5 py-1 text-xs font-bold text-epi-blue uppercase"
+                >
+                  <span class="relative flex h-2 w-2">
+                    <span
+                      class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
+                    ></span>
+                    <span
+                      class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
+                    ></span>
+                  </span>
+                  En cours
+                </span>
+                <!-- The primary action this widget exists to drive during a
+                     live event: a full-width filled CTA, mirroring the
+                     minigame "Commencer" button so it reads as the main tap. -->
                 <a
                   href={resolve('/calendar')}
-                  class="mt-4 inline-flex items-center gap-1 text-xs font-bold text-epi-blue uppercase hover:underline"
+                  class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-epi-blue px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-epi-blue/90"
                 >
-                  Voir le planning <ArrowRight class="h-3 w-3 shrink-0" />
+                  Voir le planning <ArrowRight class="h-4 w-4 shrink-0" />
                 </a>
               </div>
             {:else if planning.state === 'upcoming'}
@@ -453,13 +440,6 @@
                       >{upcomingStartTime}</strong
                     >{/if}.
                 </p>
-
-                <a
-                  href={resolve('/calendar')}
-                  class="mt-4 inline-flex items-center gap-1 text-xs font-bold text-epi-blue uppercase hover:underline"
-                >
-                  Voir le planning <ArrowRight class="h-3 w-3 shrink-0" />
-                </a>
               </div>
             {:else}
               <div
@@ -510,7 +490,8 @@
             {@render minigameMission()}
 
             {#if !hasMinigame}
-              <!-- No event and no minigame: nothing to do today -->
+              <!-- No minigame available today: the daily training is the only
+                   mission this card carries, so there's nothing to do. -->
               <div
                 class="flex flex-col items-center justify-center py-8 text-center"
               >
@@ -525,8 +506,8 @@
                   Repos aujourd'hui
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-slate-500">
-                  Aucun atelier n'est planifié pour toi. Profites-en pour te
-                  reposer ou revoir tes anciens projets dans ton portfolio !
+                  Aucune mission pour aujourd'hui. Profites-en pour souffler ou
+                  revoir tes anciens projets dans ton portfolio !
                 </p>
               </div>
             {/if}
