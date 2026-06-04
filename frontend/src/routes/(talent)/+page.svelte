@@ -9,11 +9,7 @@
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
   import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
-  import {
-    EVENT_TYPE_LABELS,
-    minutesToHHMM,
-    type EventType,
-  } from '$lib/domain/event';
+  import { EVENT_TYPE_LABELS, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -86,29 +82,25 @@
   });
 
   let student = $derived(data.student);
-  let activeParticipation = $derived(data.activeParticipation);
-  let upcomingParticipation = $derived(data.upcomingParticipation);
+  // Single view-model for the "Planning à venir" widget (server-derived, or a
+  // dev preview when an admin impersonates this talent). The widget branches on
+  // `planning.state` alone; no raw participation rows reach the UI.
+  let planning = $derived(data.planning);
 
   let levelLabel = $derived(levelLabelFr(student?.xp ?? 0));
 
   let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
 
-  let activeTypeLabel = $derived(
-    activeParticipation
-      ? (EVENT_TYPE_LABELS[activeParticipation.event?.eventType as EventType] ??
-          activeParticipation.event?.titre ??
-          'Activité')
-      : '',
-  );
-
-  let upcomingTypeLabel = $derived(
-    upcomingParticipation
-      ? (EVENT_TYPE_LABELS[
-          upcomingParticipation.event?.eventType as EventType
-        ] ??
-          upcomingParticipation.event?.titre ??
+  // Event-type label for the planning widget, with the per-state fallback the
+  // copy used before (ongoing → "Activité", upcoming → "Atelier Epitech").
+  let planningTypeLabel = $derived(
+    planning.state === 'ongoing'
+      ? (EVENT_TYPE_LABELS[planning.eventType] ?? planning.titre ?? 'Activité')
+      : planning.state === 'upcoming'
+        ? (EVENT_TYPE_LABELS[planning.eventType] ??
+          planning.titre ??
           'Atelier Epitech')
-      : '',
+        : '',
   );
 
   // Wall-clock start time of the next session ("10:00"), shown only once a dev
@@ -117,7 +109,7 @@
   // none, so until it's confirmed the talent sees the date alone (never the SF
   // `date`'s meaningless midnight). Staff see the default + a nag meanwhile.
   let upcomingStartTime = $derived(
-    minutesToHHMM(upcomingParticipation?.event?.startMinutes),
+    planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
   );
 
   // The daily minigame is the first mission inside the "Mission du jour" card —
@@ -340,8 +332,8 @@
     {/snippet}
 
     <div class="grid gap-6 md:grid-cols-12">
-      <!-- LEFT COLUMN: profile + "Planning à venir" rail (next session, or a
-           preview of tomorrow during a multi-day event).
+      <!-- LEFT COLUMN: profile + "Planning à venir" rail (the active event,
+           the next upcoming session, or a quiet rest state).
            On mobile the wrapper collapses (display: contents) so its children
            join the outer grid as siblings and `order-*` can interleave them
            with the right column — keeping Actualités right under the profile
@@ -402,9 +394,9 @@
           </div>
         </div>
 
-        <!-- Planning à venir: tomorrow's activities during a multi-day event,
-             else the next upcoming session, else a quiet rest state. order-4
-             keeps it last on mobile (after the mission card + history). -->
+        <!-- Planning à venir: the active event if one covers today, else the
+             next upcoming session, else a quiet rest state. order-4 keeps it
+             last on mobile (after the mission card). -->
         <div
           class="order-4 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
         >
@@ -420,7 +412,7 @@
           </div>
 
           <div class="p-6">
-            {#if activeParticipation}
+            {#if planning.state === 'ongoing'}
               <div
                 class="flex flex-col items-center justify-center text-center"
               >
@@ -430,7 +422,7 @@
                   <CalendarClock class="h-8 w-8 text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  {activeTypeLabel}
+                  {planningTypeLabel}
                 </h3>
                 <p class="mt-1 text-sm font-semibold text-epi-blue">En cours</p>
                 <a
@@ -440,7 +432,7 @@
                   Voir le planning <ArrowRight class="h-3 w-3 shrink-0" />
                 </a>
               </div>
-            {:else if upcomingParticipation}
+            {:else if planning.state === 'upcoming'}
               <div
                 class="flex flex-col items-center justify-center text-center"
               >
@@ -450,12 +442,12 @@
                   <Rocket class="h-8 w-8 text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  {upcomingTypeLabel}
+                  {planningTypeLabel}
                 </h3>
                 <p class="mt-2 text-sm text-slate-500">
                   Ta prochaine session est prévue le<br /><strong
                     class="text-slate-700 dark:text-slate-300"
-                    >{formatDateLong(upcomingParticipation.event?.date)}</strong
+                    >{formatDateLong(planning.date)}</strong
                   >{#if upcomingStartTime}{' '}à
                     <strong class="text-slate-700 dark:text-slate-300"
                       >{upcomingStartTime}</strong

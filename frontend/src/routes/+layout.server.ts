@@ -1,4 +1,5 @@
 import type { LayoutServerLoad } from './$types';
+import { isTalentImpersonation } from '$lib/server/talentPlanningPreview';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
   return {
@@ -12,5 +13,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     // Drives the global "real sends armed" banner (dev/staging only).
     armedRealSends: locals.armedRealSends,
     armedRealSendsUntil: locals.armedRealSendsUntil,
+    // Dev-tooling: the talent impersonation banner reads these to render its
+    // planning-preview toggle (active state + whether the toggle applies).
+    planningPreview: locals.planningPreview,
+    canPreviewPlanning: isTalentImpersonation(locals),
   };
 };
