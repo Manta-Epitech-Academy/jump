@@ -33,6 +33,8 @@ export type BroadcastCommunication = CommunicationBase & {
     id: string;
     name: string;
     subjectSnapshot: string | null;
+    /** Name of the MessageTemplate the campaign was sent from. */
+    templateName: string;
   };
 };
 

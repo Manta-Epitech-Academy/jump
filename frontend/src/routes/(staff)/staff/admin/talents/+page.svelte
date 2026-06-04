@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Search from '@lucide/svelte/icons/search';
   import Funnel from '@lucide/svelte/icons/funnel';
   import LogIn from '@lucide/svelte/icons/log-in';
   import Users from '@lucide/svelte/icons/users';
@@ -16,10 +15,16 @@
   import SegmentedFilter, {
     type SegmentOption,
   } from '$lib/components/staff/SegmentedFilter.svelte';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
   import { Button, buttonVariants } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
+  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import type { ColumnDef } from '$lib/components/staff/datatable/types';
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -164,12 +169,42 @@
     goto(page.url.pathname, { keepFocus: true });
   }
 
-  function handleSearchInput(e: Event) {
-    const value = (e.target as HTMLInputElement).value;
+  function onSearchInput(value: string) {
     searchQuery = value;
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => navigateWithParams({ q: value }), 300);
   }
+
+  const columns: ColumnDef[] = [
+    { key: 'nom', label: 'Talent', sortable: true },
+    { key: 'niveau', label: 'Niveau', sortable: true },
+    { key: 'campus', label: 'Campus' },
+    { key: 'progression', label: 'Progression' },
+    { key: 'statut', label: 'Statut' },
+    { key: 'activite', label: 'Activité', sortable: true },
+    { key: 'action', label: 'Action', align: 'right' },
+  ];
+
+  // Server-side sort: clicking a header swaps `?sort=&dir=` and reloads. The
+  // baseline (no `sort` param) keeps the most-recently-active-first ordering.
+  function toggleSort(key: string) {
+    const nextDir =
+      data.filters.sort === key && data.filters.dir === 'asc' ? 'desc' : 'asc';
+    navigateWithParams({ sort: key, dir: nextDir });
+  }
+
+  const countSuffix = $derived(
+    hasActiveFilters
+      ? data.totalItems > 1
+        ? 'correspondent aux filtres'
+        : 'correspond aux filtres'
+      : 'au total',
+  );
+
+  // Campus list can be long, so it gets a searchable select.
+  const campusOptions = $derived<SelectOption[]>(
+    data.campuses.map((c) => ({ value: c.id, label: c.name })),
+  );
 
   function goToPage(p: number) {
     const url = new URL(page.url);
@@ -206,322 +241,295 @@
     {/each}
   </div>
 
-  <!-- Filter toolbar — the single control surface. Type and Statut are
-       independent segmented radios that compose; niveau/campus stay dropdowns
+  <!-- Filter toolbar — search + filtered count on the shared DataTableToolbar,
+       with the admin-specific composing filters dropped into its snippet. Type
+       and Statut are independent segmented radios; niveau/campus stay dropdowns
        (too many options for a segmented control). -->
-  <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
-    <div class="relative w-full max-w-72">
-      <Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
-      <Input
-        placeholder="Rechercher par nom ou email…"
-        class="rounded-sm pl-9"
-        value={searchQuery}
-        oninput={handleSearchInput}
-      />
-    </div>
-
-    <div class="flex items-center gap-2">
-      <span
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Type
-      </span>
-      <SegmentedFilter
-        ariaLabel="Filtrer par type d'événement"
-        options={typeOptions}
-        value={data.filters.type || 'all'}
-        onChange={(v) => navigateWithParams({ type: v === 'all' ? '' : v })}
-      />
-    </div>
-
-    <div class="flex items-center gap-2">
-      <span
-        class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        Statut
-      </span>
-      <SegmentedFilter
-        ariaLabel="Filtrer par statut de compte"
-        options={statutOptions}
-        value={data.filters.account}
-        onChange={(v) => navigateWithParams({ account: v === 'all' ? '' : v })}
-      />
-    </div>
-
-    <div class="w-44">
-      <Select.Root
-        type="single"
-        value={data.filters.niveau || 'all'}
-        onValueChange={(v) =>
-          navigateWithParams({ niveau: v === 'all' ? '' : v })}
-      >
-        <Select.Trigger class="rounded-sm">
-          <Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
-          {data.filters.niveau
-            ? niveauLabel(data.filters.niveau)
-            : 'Tous les niveaux'}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value="all">Tous les niveaux</Select.Item>
-          {#each NIVEAUX as n}
-            <Select.Item value={n}>{niveauLabel(n)}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    <div class="w-44">
-      <Select.Root
-        type="single"
-        value={data.filters.campus || 'all'}
-        onValueChange={(v) =>
-          navigateWithParams({ campus: v === 'all' ? '' : v })}
-      >
-        <Select.Trigger class="rounded-sm">
-          {data.campuses.find((c) => c.id === data.filters.campus)?.name ??
-            'Tous les campus'}
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value="all">Tous les campus</Select.Item>
-          {#each data.campuses as c}
-            <Select.Item value={c.id}>{c.name}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    {#if hasActiveFilters}
-      <Button
-        variant="ghost"
-        size="sm"
-        onclick={resetFilters}
-        class="text-muted-foreground hover:text-foreground"
-      >
-        <FilterX class="mr-1.5 h-4 w-4" />
-        Réinitialiser
-      </Button>
-    {/if}
-  </div>
-
-  <!-- Filtered result count, distinct from the full-population overview above. -->
-  <p class="-mt-2 text-xs text-muted-foreground">
-    <span class="font-bold text-foreground">{data.totalItems}</span>
-    talent{data.totalItems > 1 ? 's' : ''}
-    {hasActiveFilters
-      ? data.totalItems > 1
-        ? 'correspondent aux filtres'
-        : 'correspond aux filtres'
-      : 'au total'}
-  </p>
-
-  {#if data.talents.length > 0}
-    <div class="rounded-sm border bg-card shadow-sm">
-      <Table.Root>
-        <Table.Header class="bg-muted/50">
-          <Table.Row>
-            <Table.Head class="text-xs font-bold uppercase">Talent</Table.Head>
-            <Table.Head class="text-xs font-bold uppercase">Niveau</Table.Head>
-            <Table.Head class="text-xs font-bold uppercase">Campus</Table.Head>
-            <Table.Head class="text-xs font-bold uppercase">
-              Progression
-            </Table.Head>
-            <Table.Head class="text-xs font-bold uppercase">Statut</Table.Head>
-            <Table.Head class="text-xs font-bold uppercase">
-              Activité
-            </Table.Head>
-            <Table.Head class="text-right text-xs font-bold uppercase">
-              Action
-            </Table.Head>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {#each data.talents as talent (talent.id)}
-            <Table.Row class="hover:bg-muted/30">
-              <Table.Cell>
-                <StudentAvatarItem
-                  student={talent}
-                  subText={talent.email}
-                  showBadge={false}
-                />
-              </Table.Cell>
-              <Table.Cell>
-                {#if talent.niveau}
-                  <Badge
-                    variant="secondary"
-                    class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
-                  >
-                    {niveauLabel(talent.niveau)}
-                  </Badge>
-                {:else}
-                  <span class="text-sm text-muted-foreground">—</span>
-                {/if}
-              </Table.Cell>
-              <Table.Cell>
-                {#if talent.campus}
-                  <span class="text-sm">{talent.campus}</span>
-                {:else}
-                  <span class="text-sm text-muted-foreground">—</span>
-                {/if}
-              </Table.Cell>
-              <Table.Cell>
-                <div class="flex items-center gap-2">
-                  <Zap class="h-3.5 w-3.5 text-epi-pink" />
-                  <span class="font-mono text-sm font-bold">{talent.xp}</span>
-                  <span class="text-xs text-muted-foreground">
-                    · {talent.eventsCount} évé{talent.eventsCount > 1
-                      ? 'nements'
-                      : 'nement'}
-                  </span>
-                </div>
-                <span
-                  class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-                >
-                  {talent.level}
-                </span>
-              </Table.Cell>
-              <Table.Cell>
-                <div class="flex flex-col items-start gap-0.5">
-                  <span
-                    class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS[
-                      talent.status
-                    ].class}"
-                  >
-                    {STATUS[talent.status].label}
-                  </span>
-                  {#if talent.onboardingStep}
-                    <span class="text-[10px] text-muted-foreground">
-                      {talent.onboardingStep}
-                    </span>
-                  {/if}
-                </div>
-              </Table.Cell>
-              <Table.Cell class="text-sm text-muted-foreground">
-                {lastActiveLabel(talent.lastActiveAt)}
-              </Table.Cell>
-              <Table.Cell class="text-right">
-                <div class="flex items-center justify-end gap-1">
-                  <Tooltip.Provider delayDuration={300}>
-                    <Tooltip.Root>
-                      <Tooltip.Trigger>
-                        {#snippet child({ props })}
-                          <Button
-                            {...props}
-                            variant="ghost"
-                            size="icon"
-                            class="text-muted-foreground hover:text-destructive"
-                            onclick={() => askWipe(talent)}
-                          >
-                            <Bomb class="h-4 w-4" />
-                          </Button>
-                        {/snippet}
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>
-                        <p>Réinitialiser complètement (état import)</p>
-                      </Tooltip.Content>
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-
-                  <form
-                    method="POST"
-                    action="?/impersonate"
-                    class="inline"
-                    use:enhance={() => {
-                      impersonating = talent.id;
-                      return async ({ result }) => {
-                        if (result.type === 'redirect') {
-                          track('impersonation_started', {
-                            targetRole: 'talent',
-                          });
-                          // Full-page nav so the new session cookie is read
-                          // fresh on the next request and guards re-evaluate.
-                          window.location.href = result.location;
-                          return;
-                        }
-                        impersonating = null;
-                        track('impersonation_failed');
-                        if (result.type === 'failure') {
-                          toast.error(
-                            (result.data?.message as string) ??
-                              'Impossible de se connecter en tant que ce talent.',
-                          );
-                        }
-                      };
-                    }}
-                  >
-                    <input type="hidden" name="talentId" value={talent.id} />
-                    <Tooltip.Provider delayDuration={300}>
-                      <Tooltip.Root>
-                        <Tooltip.Trigger>
-                          {#snippet child({ props })}
-                            <Button
-                              {...props}
-                              type="submit"
-                              variant="ghost"
-                              size="sm"
-                              class="gap-1.5 text-muted-foreground hover:text-epi-pink"
-                              disabled={impersonating === talent.id ||
-                                (!talent.email && !talent.userId)}
-                            >
-                              <LogIn class="h-4 w-4" />
-                              <span class="text-xs font-bold uppercase">
-                                Se connecter
-                              </span>
-                            </Button>
-                          {/snippet}
-                        </Tooltip.Trigger>
-                        <Tooltip.Content>
-                          <p>
-                            {talent.email || talent.userId
-                              ? talent.status === 'never'
-                                ? 'Crée un compte puis ouvre sa session'
-                                : 'Ouvre la session de ce talent'
-                              : 'Aucun email — impossible de se connecter'}
-                          </p>
-                        </Tooltip.Content>
-                      </Tooltip.Root>
-                    </Tooltip.Provider>
-                  </form>
-                </div>
-              </Table.Cell>
-            </Table.Row>
-          {/each}
-        </Table.Body>
-      </Table.Root>
-    </div>
-
-    {#if data.totalPages > 1}
-      <div class="flex items-center justify-end">
-        <div class="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8"
-            disabled={data.currentPage <= 1}
-            onclick={() => goToPage(data.currentPage - 1)}
-          >
-            <ChevronLeft class="h-4 w-4" />
-          </Button>
-          <span class="px-3 text-sm text-muted-foreground">
-            {data.currentPage} / {data.totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            class="h-8 w-8"
-            disabled={data.currentPage >= data.totalPages}
-            onclick={() => goToPage(data.currentPage + 1)}
-          >
-            <ChevronRight class="h-4 w-4" />
-          </Button>
-        </div>
+  <DataTableToolbar
+    searchValue={searchQuery}
+    {onSearchInput}
+    searchPlaceholder="Rechercher par nom ou email…"
+    count={data.totalItems}
+    countNoun="talent"
+    {countSuffix}
+  >
+    {#snippet filters()}
+      <div class="flex items-center gap-2">
+        <span
+          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          Type
+        </span>
+        <SegmentedFilter
+          ariaLabel="Filtrer par type d'événement"
+          options={typeOptions}
+          value={data.filters.type || 'all'}
+          onChange={(v) => navigateWithParams({ type: v === 'all' ? '' : v })}
+        />
       </div>
-    {/if}
-  {:else}
-    <EmptyState
-      icon={Users}
-      title="Aucun talent"
-      description="Aucun talent ne correspond à ces filtres."
-    />
+
+      <div class="flex items-center gap-2">
+        <span
+          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          Statut
+        </span>
+        <SegmentedFilter
+          ariaLabel="Filtrer par statut de compte"
+          options={statutOptions}
+          value={data.filters.account}
+          onChange={(v) =>
+            navigateWithParams({ account: v === 'all' ? '' : v })}
+        />
+      </div>
+
+      <div class="w-52">
+        <Select.Root
+          type="single"
+          value={data.filters.niveau || 'all'}
+          onValueChange={(v) =>
+            navigateWithParams({ niveau: v === 'all' ? '' : v })}
+        >
+          <Select.Trigger class="w-full rounded-sm">
+            <Funnel class="mr-2 h-4 w-4 text-muted-foreground" />
+            {data.filters.niveau
+              ? niveauLabel(data.filters.niveau)
+              : 'Tous les niveaux'}
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Item value="all">Tous les niveaux</Select.Item>
+            {#each NIVEAUX as n}
+              <Select.Item value={n}>{niveauLabel(n)}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </div>
+
+      <div class="w-52">
+        <SearchableSelect
+          options={campusOptions}
+          value={data.filters.campus || 'all'}
+          onChange={(v) => navigateWithParams({ campus: v === 'all' ? '' : v })}
+          allLabel="Tous les campus"
+          placeholder="Tous les campus"
+          searchPlaceholder="Rechercher un campus…"
+          emptyLabel="Aucun campus."
+          triggerClass="w-full"
+        >
+          {#snippet icon()}
+            <Funnel class="h-4 w-4 text-muted-foreground" />
+          {/snippet}
+        </SearchableSelect>
+      </div>
+    {/snippet}
+
+    {#snippet countActions()}
+      {#if hasActiveFilters}
+        <Button
+          variant="ghost"
+          size="sm"
+          onclick={resetFilters}
+          class="h-7 px-2 text-muted-foreground hover:text-foreground"
+        >
+          <FilterX class="mr-1.5 h-4 w-4" />
+          Réinitialiser
+        </Button>
+      {/if}
+    {/snippet}
+  </DataTableToolbar>
+
+  <SortableTable
+    {columns}
+    rows={data.talents}
+    sortKey={data.filters.sort || null}
+    sortDir={data.filters.dir}
+    onSort={toggleSort}
+    rowKey={(t) => t.id}
+  >
+    {#snippet row(talent)}
+      <Table.Cell>
+        <StudentAvatarItem
+          student={talent}
+          subText={talent.email}
+          showBadge={false}
+        />
+      </Table.Cell>
+      <Table.Cell>
+        {#if talent.niveau}
+          <Badge
+            variant="secondary"
+            class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+          >
+            {niveauLabel(talent.niveau)}
+          </Badge>
+        {:else}
+          <span class="text-sm text-muted-foreground">—</span>
+        {/if}
+      </Table.Cell>
+      <Table.Cell>
+        {#if talent.campus}
+          <span class="text-sm">{talent.campus}</span>
+        {:else}
+          <span class="text-sm text-muted-foreground">—</span>
+        {/if}
+      </Table.Cell>
+      <Table.Cell>
+        <div class="flex items-center gap-2">
+          <Zap class="h-3.5 w-3.5 text-epi-pink" />
+          <span class="font-mono text-sm font-bold">{talent.xp}</span>
+          <span class="text-xs text-muted-foreground">
+            · {talent.eventsCount} évé{talent.eventsCount > 1
+              ? 'nements'
+              : 'nement'}
+          </span>
+        </div>
+        <span
+          class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
+        >
+          {talent.level}
+        </span>
+      </Table.Cell>
+      <Table.Cell>
+        <div class="flex flex-col items-start gap-0.5">
+          <span
+            class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS[
+              talent.status
+            ].class}"
+          >
+            {STATUS[talent.status].label}
+          </span>
+          {#if talent.onboardingStep}
+            <span class="text-[10px] text-muted-foreground">
+              {talent.onboardingStep}
+            </span>
+          {/if}
+        </div>
+      </Table.Cell>
+      <Table.Cell class="text-sm text-muted-foreground">
+        {lastActiveLabel(talent.lastActiveAt)}
+      </Table.Cell>
+      <Table.Cell class="text-right">
+        <div class="flex items-center justify-end gap-1">
+          <Tooltip.Provider delayDuration={300}>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class="text-muted-foreground hover:text-destructive"
+                    onclick={() => askWipe(talent)}
+                  >
+                    <Bomb class="h-4 w-4" />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p>Réinitialiser complètement (état import)</p>
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+
+          <form
+            method="POST"
+            action="?/impersonate"
+            class="inline"
+            use:enhance={() => {
+              impersonating = talent.id;
+              return async ({ result }) => {
+                if (result.type === 'redirect') {
+                  track('impersonation_started', {
+                    targetRole: 'talent',
+                  });
+                  // Full-page nav so the new session cookie is read
+                  // fresh on the next request and guards re-evaluate.
+                  window.location.href = result.location;
+                  return;
+                }
+                impersonating = null;
+                track('impersonation_failed');
+                if (result.type === 'failure') {
+                  toast.error(
+                    (result.data?.message as string) ??
+                      'Impossible de se connecter en tant que ce talent.',
+                  );
+                }
+              };
+            }}
+          >
+            <input type="hidden" name="talentId" value={talent.id} />
+            <Tooltip.Provider delayDuration={300}>
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      class="gap-1.5 text-muted-foreground hover:text-epi-pink"
+                      disabled={impersonating === talent.id ||
+                        (!talent.email && !talent.userId)}
+                    >
+                      <LogIn class="h-4 w-4" />
+                      <span class="text-xs font-bold uppercase">
+                        Se connecter
+                      </span>
+                    </Button>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <p>
+                    {talent.email || talent.userId
+                      ? talent.status === 'never'
+                        ? 'Crée un compte puis ouvre sa session'
+                        : 'Ouvre la session de ce talent'
+                      : 'Aucun email — impossible de se connecter'}
+                  </p>
+                </Tooltip.Content>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          </form>
+        </div>
+      </Table.Cell>
+    {/snippet}
+
+    {#snippet empty()}
+      <EmptyState
+        icon={Users}
+        title="Aucun talent"
+        description="Aucun talent ne correspond à ces filtres."
+      />
+    {/snippet}
+  </SortableTable>
+
+  {#if data.totalPages > 1}
+    <div class="flex items-center justify-end">
+      <div class="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
+          disabled={data.currentPage <= 1}
+          onclick={() => goToPage(data.currentPage - 1)}
+        >
+          <ChevronLeft class="h-4 w-4" />
+        </Button>
+        <span class="px-3 text-sm text-muted-foreground">
+          {data.currentPage} / {data.totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-8 w-8"
+          disabled={data.currentPage >= data.totalPages}
+          onclick={() => goToPage(data.currentPage + 1)}
+        >
+          <ChevronRight class="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   {/if}
 </div>
 

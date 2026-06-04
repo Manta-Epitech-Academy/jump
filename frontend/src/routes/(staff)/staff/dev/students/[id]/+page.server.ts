@@ -3,7 +3,6 @@ import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { studentSchema } from '$lib/validation/students';
-import { sendRelanceSchema } from '$lib/validation/reminders';
 import { prisma } from '$lib/server/db';
 import {
   getCampusId,
@@ -17,41 +16,18 @@ import {
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { EVENT_TYPES } from '$lib/domain/event';
-import {
-  sendRelances,
-  formatRelanceMessage,
-} from '$lib/server/services/relanceService';
-import { daysUntilTalentStage } from '$lib/server/services/stageContext';
-import { buildBadgeCtx, computeBadges } from '$lib/domain/badges';
-import { groupParticipations } from '$lib/domain/talentTimeline';
-import { loadAllRelanceDefaults } from '$lib/server/services/relanceDefaults';
-import { generateTalentOtp } from '$lib/server/services/talentOtp';
-import { isSmsEnabled } from '$lib/server/sms';
+import { deriveTalentTodos } from '$lib/domain/talentTodos';
 import type { Communication } from '$lib/domain/communications';
 
-const TAB_KEYS = ['pedago', 'admin'] as const;
-type TabKey = (typeof TAB_KEYS)[number];
+// The scoped-down fiche keeps only the latest handful of communications, shown
+// one-line each in the sticky right rail — no pagination. Volume per talent is
+// in the low hundreds across a stage lifecycle, so fetch both sources unbounded,
+// merge in memory, and slice the head.
+const RIGHT_RAIL_COMMS = 6;
 
-function validateTab(raw: string | null): TabKey {
-  return TAB_KEYS.includes(raw as TabKey) ? (raw as TabKey) : 'pedago';
-}
-
-// Communications timeline: per-talent volume caps in the low hundreds
-// (≤20 reminders + ≤200ish broadcast recipients across a stage lifecycle),
-// so we fetch both sources unbounded and merge in memory rather than
-// stitching a SQL UNION with per-source offsets that would never line up.
-const COMMUNICATIONS_PAGE_SIZE = 20;
-
-function parsePage(raw: string | null): number {
-  const n = parseInt(raw ?? '1', 10);
-  return Number.isFinite(n) && n > 0 ? n : 1;
-}
-
-export const load: PageServerLoad = async ({ params, locals, url }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
-  const tab = validateTab(url.searchParams.get('tab'));
-  const communicationsPage = parsePage(url.searchParams.get('page'));
   const broadcastsWhere = {
     OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
   };
@@ -64,37 +40,23 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
             user: true,
             interests: { include: { interest: true } },
             school: { select: { name: true } },
-            interviews: {
-              where: { campusId },
-              include: {
-                staff: { include: { user: true } },
-                participation: { include: { event: true } },
-              },
-              orderBy: { date: 'desc' },
-            },
           },
         }),
         db.participation.findMany({
           where: { talentId: params.id },
-          include: {
-            stageCompliance: true,
-            interview: true,
-            event: {
-              include: {
-                mantas: {
-                  include: { staffProfile: { include: { user: true } } },
-                },
-              },
+          select: {
+            id: true,
+            isPresent: true,
+            stageCompliance: {
+              select: { charteSigned: true, updatedAt: true },
             },
-            activities: {
-              include: {
-                activity: {
-                  include: {
-                    activityThemes: { include: { theme: true } },
-                    timeSlot: true,
-                  },
-                },
-                verdictAuthor: { include: { user: true } },
+            event: {
+              select: {
+                id: true,
+                titre: true,
+                date: true,
+                endDate: true,
+                eventType: true,
               },
             },
           },
@@ -129,6 +91,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
                 channel: true,
                 subjectSnapshot: true,
                 createdAt: true,
+                template: { select: { name: true } },
               },
             },
           },
@@ -170,28 +133,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         id: b.broadcast.id,
         name: b.broadcast.name,
         subjectSnapshot: b.broadcast.subjectSnapshot,
+        templateName: b.broadcast.template.name,
       },
     }));
     const allCommunications = [...reminderComms, ...broadcastComms].sort(
       (a, b) => b.sentAt.getTime() - a.sentAt.getTime(),
     );
-    const communicationsTotal = allCommunications.length;
-    const communicationsTotalPages = Math.max(
-      1,
-      Math.ceil(communicationsTotal / COMMUNICATIONS_PAGE_SIZE),
-    );
-    const safeCommunicationsPage = Math.min(
-      communicationsPage,
-      communicationsTotalPages,
-    );
-    const communications = allCommunications.slice(
-      (safeCommunicationsPage - 1) * COMMUNICATIONS_PAGE_SIZE,
-      safeCommunicationsPage * COMMUNICATIONS_PAGE_SIZE,
-    );
-
-    // `reminders` is still consumed by the relance compose dialog to detect
-    // recent skips (don't re-spam the same talent within the cooldown).
-    const reminders = reminderComms;
+    const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
     const timezone = getCampusTimezone(locals);
     const bounds = getLifecycleBounds(timezone);
@@ -204,119 +152,47 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       );
       return status === 'upcoming' || status === 'ongoing';
     });
+    const primaryComplianceParticipation = activeStageParticipations[0] ?? null;
 
-    // Second wave — independent queries fired in parallel once `userId` is
-    // known. Cohort rank dropped per design feedback (hero is now identity-
-    // only); the page no longer carries that signal.
-    const [portfolioItems, firstLoginRow] = await Promise.all([
-      db.portfolioItem.findMany({
-        where: { talentId: params.id },
-        include: {
-          event: { select: { id: true, titre: true, date: true } },
-          activity: { select: { id: true, nom: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 6,
-      }),
-      student.userId
-        ? prisma.bauth_session.findFirst({
-            where: { userId: student.userId },
-            orderBy: { createdAt: 'asc' },
-            select: { createdAt: true },
-          })
-        : Promise.resolve(null),
-    ]);
-
+    // First platform login (oldest session) backs the right rail's "première
+    // connexion" line and tells the dev whether the talent ever logged in.
+    const firstLoginRow = student.userId
+      ? await prisma.bauth_session.findFirst({
+          where: { userId: student.userId },
+          orderBy: { createdAt: 'asc' },
+          select: { createdAt: true },
+        })
+      : null;
     const firstLoginAt = firstLoginRow?.createdAt ?? null;
 
-    const stats = {
-      totalEvents: participations.length,
-      presentCount: participations.filter((p) => p.isPresent).length,
-      lateCount: participations.filter((p) => p.isPresent && (p.delay || 0) > 0)
-        .length,
-      favoriteTheme: 'Aucun',
-    };
+    // Email-open signal: only broadcasts carry `openedAt`. "Never opened" is
+    // only a meaningful nudge once at least one mail actually went out.
+    const mailsSent = broadcastRows.filter(
+      (b) => b.broadcast.channel === 'mail' && b.sentAt,
+    ).length;
+    const hasOpenedAnyMail = broadcastRows.some((b) => b.openedAt != null);
 
-    const themeCounts: Record<string, number> = {};
-    participations.forEach((p) => {
-      if (p.isPresent) {
-        p.activities.forEach((pa) => {
-          if (pa.activity.activityType === 'orga') return;
-          pa.activity.activityThemes.forEach((at) => {
-            themeCounts[at.theme.nom] = (themeCounts[at.theme.nom] || 0) + 1;
-          });
-        });
-      }
+    const todos = deriveTalentTodos({
+      ...student,
+      charteSigned:
+        primaryComplianceParticipation?.stageCompliance?.charteSigned,
+      mailsSent,
+      hasOpenedAnyMail,
     });
 
-    const sortedThemes = Object.entries(themeCounts).sort(
-      (a, b) => b[1] - a[1],
-    );
-    if (sortedThemes.length > 0) {
-      stats.favoriteTheme = sortedThemes[0][0];
-    }
-
-    const badges = computeBadges(
-      buildBadgeCtx({
-        talent: {
-          xp: student.xp,
-          eventsCount: student.eventsCount,
-          charterAcceptedAt: student.charterAcceptedAt,
-          interests: student.interests,
-        },
-        participations,
-        portfolioItems,
-        interviews: student.interviews,
-      }),
-    );
-
-    const timelineGroups = groupParticipations(
-      participations,
-      timezone,
-      locals.stagePhaseOverride,
-    );
-
-    // Independent leftovers, resolved together: two empty form scaffolds plus
-    // the relance defaults and the stage countdown (both DB reads). None
-    // depend on each other.
-    const [form, relanceForm, relanceDefaults, joursRestants] =
-      await Promise.all([
-        superValidate(zod4(studentSchema)),
-        superValidate(zod4(sendRelanceSchema)),
-        loadAllRelanceDefaults(),
-        // Countdown to this talent's soonest upcoming stage for
-        // {{jours_restants}}, same resolver the send action uses so the
-        // preview matches the mail.
-        daysUntilTalentStage(db, params.id),
-      ]);
+    // Empty scaffold for the contact-edit dialog (the only mutation left on the
+    // scoped fiche).
+    const form = await superValidate(zod4(studentSchema));
 
     return {
       student,
       participations,
       activeStageParticipations,
-      reminders,
+      primaryComplianceParticipation,
       communications,
-      communicationsTotal,
-      communicationsPage: safeCommunicationsPage,
-      communicationsPageSize: COMMUNICATIONS_PAGE_SIZE,
-      stats,
-      portfolioItems,
       firstLoginAt,
-      badges,
-      timelineGroups,
+      todos,
       form,
-      relanceForm,
-      relanceDefaults,
-      smsEnabled: isSmsEnabled(),
-      // Campus-scoped relance variables ({{campus}}, {{email_contact_campus}})
-      // the server substitutes at send time — surfaced so the compose preview
-      // renders them instead of leaving raw tokens. Already on locals, no query.
-      campus: {
-        name: locals.staffProfile?.campus?.name ?? '',
-        contactEmail: locals.staffProfile?.campus?.contactEmail ?? null,
-      },
-      joursRestants,
-      tab,
       timezone,
     };
   } catch (e) {
@@ -378,60 +254,6 @@ export const actions: Actions = {
         );
       }
       return message(form, 'Erreur lors de la mise à jour', { status: 500 });
-    }
-  },
-
-  sendRelance: async ({ request, params, locals }) => {
-    requireStaffGroup(locals, 'devLead');
-    const campusId = getCampusId(locals);
-    const db = scopedPrisma(campusId);
-
-    // Confirm the talent exists in the staff member's campus before sending.
-    await db.talent.findUniqueOrThrow({
-      where: { id: params.id },
-      select: { id: true },
-    });
-
-    const formData = await request.formData();
-    const form = await superValidate(formData, zod4(sendRelanceSchema));
-    if (!form.valid) {
-      return message(form, 'Données invalides.', { status: 400 });
-    }
-
-    // Force the talentIds payload to the URL-scoped talent so the dialog
-    // can't be reused to fan out to arbitrary recipients.
-    const result = await sendRelances({
-      talentIds: [params.id],
-      type: form.data.type,
-      channel: form.data.channel,
-      subject: form.data.subject,
-      body: form.data.body,
-      sentBy: locals.user!.id,
-      campusId,
-      joursRestants: await daysUntilTalentStage(db, params.id),
-    });
-
-    return message(form, formatRelanceMessage(result));
-  },
-
-  generateOtp: async ({ params, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const db = scopedPrisma(getCampusId(locals));
-    // Re-fetch in the campus scope so a dev can't mint an OTP for a talent
-    // outside their campus by guessing the id.
-    await db.talent.findUniqueOrThrow({
-      where: { id: params.id },
-      select: { id: true },
-    });
-    try {
-      const result = await generateTalentOtp(params.id);
-      console.log(
-        `[otp] staff=${locals.user!.id} minted sign-in OTP for talent=${params.id}`,
-      );
-      return result;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur inattendue';
-      return fail(400, { message });
     }
   },
 };

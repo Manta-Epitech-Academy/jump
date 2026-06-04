@@ -2,26 +2,100 @@
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
+  import { toast } from 'svelte-sonner';
   import Users from '@lucide/svelte/icons/users';
   import X from '@lucide/svelte/icons/x';
+  import Check from '@lucide/svelte/icons/check';
+  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import FilterX from '@lucide/svelte/icons/filter-x';
+  import Download from '@lucide/svelte/icons/download';
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button } from '$lib/components/ui/button';
+  import { Badge } from '$lib/components/ui/badge';
+  import * as Table from '$lib/components/ui/table';
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
+  import SortableTable from '$lib/components/staff/datatable/SortableTable.svelte';
+  import DataTableToolbar from '$lib/components/staff/datatable/DataTableToolbar.svelte';
+  import type {
+    ColumnDef,
+    SortDir,
+  } from '$lib/components/staff/datatable/types';
+  import SegmentedFilter, {
+    type SegmentOption,
+  } from '$lib/components/staff/SegmentedFilter.svelte';
+  import SearchableSelect, {
+    type SelectOption,
+  } from '$lib/components/staff/SearchableSelect.svelte';
+  import School from '@lucide/svelte/icons/school';
+  import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
-  import InscritFilterBar from './components/InscritFilterBar.svelte';
-  import InscritCardPrep from './components/InscritCardPrep.svelte';
-  import InscritCardOngoing from './components/InscritCardOngoing.svelte';
-  import InscritCardPast from './components/InscritCardPast.svelte';
-  import { niveauLabel } from '$lib/domain/niveau';
-  import type { OngoingRow, PrepRow, Sort } from './components/types';
+  import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+  import type { FlagKey } from '$lib/domain/featureFlags';
+  import type { InscritRow, SortKey } from './components/types';
 
   let { data }: { data: PageData } = $props();
 
+  // Navigation is flat in stage-only mode (we land here, click into a profile),
+  // so the breadcrumb is pure noise. It only earns its keep once coding_club
+  // adds depth to the workspace.
+  const hasCodingClub = $derived(
+    new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]).has('coding_club'),
+  );
+
   let searchQuery = $state('');
   let niveauFilter = $state<'all' | string>('all');
-  let sort = $state<Sort>('alpha');
+  let statutFilter = $state<'all' | 'ready' | 'incomplete'>('all');
+  let lyceeFilter = $state<'all' | string>('all');
+  // Default mirrors the server's initial order (nom asc), so the first paint
+  // needs no client reshuffle and the header arrow matches the rows shown.
+  let sortKey = $state<SortKey>('nom');
+  let sortDir = $state<SortDir>('asc');
+
+  const columns: ColumnDef[] = [
+    { key: 'avatar', label: '', class: 'w-12' },
+    { key: 'prenom', label: 'Prénom', sortable: true },
+    { key: 'nom', label: 'Nom', sortable: true },
+    { key: 'lycee', label: 'Lycée', sortable: true },
+    { key: 'niveau', label: 'Niveau', sortable: true },
+    { key: 'ready', label: 'Statut', sortable: true, align: 'right' },
+  ];
+
+  // Niveau is a one-click segmented filter, but only worth showing when the
+  // cohort actually spans more than one level (otherwise "Tous / 2nde" is noise).
+  const showNiveauFilter = $derived(data.availableNiveaux.length > 1);
+  const niveauOptions: SegmentOption[] = $derived([
+    { value: 'all', label: 'Tous' },
+    ...data.availableNiveaux.map((n) => ({ value: n, label: niveauLabel(n) })),
+  ]);
+
+  const statutOptions: SegmentOption[] = [
+    { value: 'all', label: 'Tous' },
+    { value: 'ready', label: 'Prêt' },
+    { value: 'incomplete', label: 'Incomplet' },
+  ];
+
+  // Lycées present in the cohort, searchable (the list can be long).
+  const lyceeOptions = $derived<SelectOption[]>(
+    Array.from(
+      new Set(
+        data.rows.map((r) => r.schoolName).filter((s): s is string => !!s),
+      ),
+    )
+      .sort((a, b) => a.localeCompare(b, 'fr'))
+      .map((name) => ({ value: name, label: name })),
+  );
+
+  function toggleSort(key: string) {
+    if (sortKey === key) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortKey = key as SortKey;
+      sortDir = 'asc';
+    }
+  }
 
   function navigateWithParams(params: Record<string, string>) {
     const url = new URL(page.url);
@@ -32,103 +106,117 @@
     goto(url.toString(), { keepFocus: true, noScroll: true });
   }
 
-  function clearLycee() {
-    navigateWithParams({ lycee: '' });
-  }
-  function clearInterest() {
-    navigateWithParams({ interest: '' });
-  }
-
   function resetClientFilters() {
     searchQuery = '';
     niveauFilter = 'all';
-    sort = 'alpha';
+    statutFilter = 'all';
+    lyceeFilter = 'all';
   }
 
   const norm = (s: string) =>
     s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-  function makeHaystack(row: PrepRow | OngoingRow): string {
-    const t = row.participation.talent;
-    const interests = (t?.interests ?? []).map((i) => i.interest.nom).join(' ');
+  function makeHaystack(r: InscritRow): string {
     return norm(
       [
-        t?.nom,
-        t?.prenom,
-        t?.email,
-        t?.parentEmail,
-        niveauLabel(t?.niveau),
-        t?.school?.name,
-        interests,
+        r.nom,
+        r.prenom,
+        niveauLabel(r.niveau),
+        r.schoolName,
+        r.email,
+        r.parentEmail,
       ]
         .filter(Boolean)
         .join(' '),
     );
   }
 
-  function applySearch<T extends PrepRow | OngoingRow>(
-    rows: T[],
-    query: string,
-  ): T[] {
-    const tokens = norm(query).split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return rows;
-    return rows.filter((r) => {
+  function compareRows(a: InscritRow, b: InscritRow, key: SortKey): number {
+    switch (key) {
+      case 'prenom':
+        return a.prenom.localeCompare(b.prenom, 'fr');
+      case 'nom':
+        return a.nom.localeCompare(b.nom, 'fr');
+      case 'lycee':
+        return (a.schoolName ?? '').localeCompare(b.schoolName ?? '', 'fr');
+      case 'niveau':
+        if (!a.niveau && !b.niveau) return 0;
+        if (!a.niveau) return 1;
+        if (!b.niveau) return -1;
+        return compareNiveaux(a.niveau, b.niveau);
+      case 'ready':
+        return a.ready === b.ready ? 0 : a.ready ? 1 : -1;
+    }
+  }
+
+  const filtered = $derived.by(() => {
+    const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
+    const out = data.rows.filter((r) => {
+      if (niveauFilter !== 'all' && r.niveau !== niveauFilter) return false;
+      if (statutFilter === 'ready' && !r.ready) return false;
+      if (statutFilter === 'incomplete' && r.ready) return false;
+      if (lyceeFilter !== 'all' && r.schoolName !== lyceeFilter) return false;
+      if (tokens.length === 0) return true;
       const h = makeHaystack(r);
       return tokens.every((tok) => h.includes(tok));
     });
-  }
-
-  function applyNiveau<T extends PrepRow | OngoingRow>(
-    rows: T[],
-    niveau: string,
-  ): T[] {
-    if (niveau === 'all') return rows;
-    return rows.filter((r) => r.participation.talent?.niveau === niveau);
-  }
-
-  function applySort<T extends PrepRow | OngoingRow>(rows: T[], s: Sort): T[] {
-    const out = [...rows];
-    switch (s) {
-      case 'alpha':
-        out.sort((a, b) => {
-          const an = `${a.participation.talent?.nom ?? ''} ${a.participation.talent?.prenom ?? ''}`;
-          const bn = `${b.participation.talent?.nom ?? ''} ${b.participation.talent?.prenom ?? ''}`;
-          return an.localeCompare(bn, 'fr');
-        });
-        break;
-      case 'xp':
-        out.sort(
-          (a, b) =>
-            (b.participation.talent?.xp ?? 0) -
-            (a.participation.talent?.xp ?? 0),
-        );
-        break;
-      case 'events':
-        out.sort(
-          (a, b) =>
-            (b.participation.talent?.eventsCount ?? 0) -
-            (a.participation.talent?.eventsCount ?? 0),
-        );
-        break;
-    }
+    out.sort((a, b) => {
+      const c = compareRows(a, b, sortKey);
+      return sortDir === 'asc' ? c : -c;
+    });
     return out;
-  }
-
-  const variant = $derived(data.variant);
-
-  const totalCount = $derived(variant.rows.length);
-  const presentCount = $derived(
-    variant.kind === 'past' || variant.kind === 'ongoing'
-      ? variant.rows.filter((r) => r.participation.isPresent).length
-      : 0,
-  );
-  const absentCount = $derived(
-    variant.kind === 'past' ? totalCount - presentCount : 0,
-  );
+  });
 
   const clientFiltersApplied = $derived(
-    searchQuery.trim().length > 0 || niveauFilter !== 'all',
+    searchQuery.trim().length > 0 ||
+      niveauFilter !== 'all' ||
+      statutFilter !== 'all' ||
+      lyceeFilter !== 'all',
   );
+
+  const countSuffix = $derived(
+    clientFiltersApplied
+      ? filtered.length > 1
+        ? 'correspondent aux filtres'
+        : 'correspond aux filtres'
+      : 'au total',
+  );
+
+  function openProfile(r: InscritRow) {
+    goto(resolve(`/staff/dev/students/${r.talentId}`));
+  }
+
+  let exporting = $state(false);
+
+  // Export exactly the rows the dev is looking at (current filters + sort): POST
+  // their talent ids in display order to the export endpoint, which builds the
+  // XLSX server-side, then download the returned file.
+  async function exportXlsx() {
+    if (exporting || filtered.length === 0) return;
+    exporting = true;
+    try {
+      const res = await fetch(`${page.url.pathname}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ talentIds: filtered.map((r) => r.talentId) }),
+      });
+      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Inscrits - ${data.event.titre}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('export xlsx', e);
+      toast.error("Échec de l'export.");
+    } finally {
+      exporting = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -136,15 +224,17 @@
 </svelte:head>
 
 <div class="space-y-6 pb-10">
-  <PageBreadcrumb
-    items={[
-      {
-        label: STAGE_SECONDE_LABEL,
-        href: resolve(`/staff/dev/events/${data.event.id}`),
-      },
-      { label: 'Inscrits' },
-    ]}
-  />
+  {#if hasCodingClub}
+    <PageBreadcrumb
+      items={[
+        {
+          label: STAGE_SECONDE_LABEL,
+          href: resolve(`/staff/dev/events/${data.event.id}`),
+        },
+        { label: 'Inscrits' },
+      ]}
+    />
+  {/if}
   <PageHeader title="Inscrits">
     <EventSalesforceButton externalId={data.event.externalId} />
   </PageHeader>
@@ -163,7 +253,7 @@
           Lycée · {data.origin.lycee.nom}
           <button
             type="button"
-            onclick={clearLycee}
+            onclick={() => navigateWithParams({ lycee: '' })}
             aria-label="Retirer le filtre lycée"
             class="cursor-pointer rounded-sm hover:bg-epi-blue/20"
           >
@@ -179,7 +269,7 @@
           {data.origin.interest.nom}
           <button
             type="button"
-            onclick={clearInterest}
+            onclick={() => navigateWithParams({ interest: '' })}
             aria-label="Retirer le filtre intérêt"
             class="cursor-pointer rounded-sm hover:bg-epi-pink/20"
           >
@@ -190,7 +280,7 @@
     </div>
   {/if}
 
-  {#if totalCount === 0}
+  {#if data.rows.length === 0}
     <div
       class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-16 text-center"
     >
@@ -213,73 +303,170 @@
       </Button>
     </div>
   {:else}
-    <p class="text-sm text-muted-foreground">
-      <span class="font-bold text-foreground">
-        {totalCount}
-        {totalCount > 1 ? 'stagiaires' : 'stagiaire'}
-      </span>
-      {#if variant.kind === 'past'}
-        {totalCount > 1 ? 'étaient inscrits' : 'était inscrit'} —
-        <span class="font-mono font-bold text-green-600 dark:text-green-400">
-          {presentCount}
-        </span>
-        {presentCount > 1 ? 'présents' : 'présent'}{#if absentCount > 0}{','}
-          <span class="font-mono font-bold text-destructive">
-            {absentCount}
+    <DataTableToolbar
+      searchValue={searchQuery}
+      onSearchInput={(v) => (searchQuery = v)}
+      searchPlaceholder="Rechercher un stagiaire…"
+      count={filtered.length}
+      countNoun="stagiaire"
+      {countSuffix}
+    >
+      {#snippet filters()}
+        <div class="flex items-center gap-2">
+          <span
+            class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+          >
+            Statut
           </span>
-          {absentCount > 1 ? 'absents' : 'absent'}{/if}.
-      {:else}
-        {totalCount > 1 ? 'sont inscrits' : 'est inscrit'}.
-      {/if}
-    </p>
+          <SegmentedFilter
+            ariaLabel="Filtrer par statut de dossier"
+            options={statutOptions}
+            value={statutFilter}
+            onChange={(v) => (statutFilter = v as typeof statutFilter)}
+          />
+        </div>
 
-    <InscritFilterBar
-      bind:searchQuery
-      bind:niveauFilter
-      bind:sort
-      availableNiveaux={data.availableNiveaux}
-    />
+        {#if showNiveauFilter}
+          <div class="flex items-center gap-2">
+            <span
+              class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+            >
+              Niveau
+            </span>
+            <SegmentedFilter
+              ariaLabel="Filtrer par niveau scolaire"
+              options={niveauOptions}
+              value={niveauFilter}
+              onChange={(v) => (niveauFilter = v)}
+            />
+          </div>
+        {/if}
 
-    {@const allRows = variant.rows as (PrepRow | OngoingRow)[]}
-    {@const filtered = applySort(
-      applyNiveau(applySearch(allRows, searchQuery), niveauFilter),
-      sort,
-    )}
-    {#if filtered.length === 0}
-      <div
-        class="flex flex-col items-center justify-center rounded-sm border border-dashed bg-muted/10 p-12 text-center"
-      >
-        <h3
-          class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+        <div class="w-52">
+          <SearchableSelect
+            options={lyceeOptions}
+            value={lyceeFilter}
+            onChange={(v) => (lyceeFilter = v)}
+            allLabel="Tous les lycées"
+            placeholder="Tous les lycées"
+            searchPlaceholder="Rechercher un lycée…"
+            emptyLabel="Aucun lycée."
+            triggerClass="w-full"
+          >
+            {#snippet icon()}
+              <School class="h-4 w-4 text-muted-foreground" />
+            {/snippet}
+          </SearchableSelect>
+        </div>
+      {/snippet}
+
+      {#snippet actions()}
+        <Button
+          variant="outline"
+          size="sm"
+          onclick={exportXlsx}
+          disabled={exporting || filtered.length === 0}
+          class="rounded-sm"
         >
-          Aucun résultat
-        </h3>
+          {#if exporting}
+            <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+          {:else}
+            <Download class="mr-1.5 h-4 w-4" />
+          {/if}
+          Exporter (XLSX)
+        </Button>
+      {/snippet}
+
+      {#snippet countActions()}
         {#if clientFiltersApplied}
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onclick={resetClientFilters}
-            class="mt-3 rounded-sm"
+            class="h-7 px-2 text-muted-foreground hover:text-foreground"
           >
-            Réinitialiser les filtres
+            <FilterX class="mr-1.5 h-4 w-4" />
+            Réinitialiser
           </Button>
         {/if}
-      </div>
-    {:else}
-      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {#each filtered as row (row.participation.id)}
-          {#if variant.kind === 'prep'}
-            <InscritCardPrep row={row as PrepRow} timezone={data.timezone} />
-          {:else if variant.kind === 'ongoing'}
-            <InscritCardOngoing
-              row={row as OngoingRow}
-              timezone={data.timezone}
-            />
+      {/snippet}
+    </DataTableToolbar>
+
+    <SortableTable
+      {columns}
+      rows={filtered}
+      {sortKey}
+      {sortDir}
+      onSort={toggleSort}
+      rowKey={(r) => r.id}
+      onRowClick={openProfile}
+    >
+      {#snippet row(r: InscritRow)}
+        <Table.Cell>
+          <TalentAvatar
+            talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+            size="sm"
+          />
+        </Table.Cell>
+        <Table.Cell class="font-medium">{r.prenom}</Table.Cell>
+        <Table.Cell class="font-bold uppercase">{r.nom}</Table.Cell>
+        <Table.Cell class="text-sm">
+          {#if r.schoolName}
+            {r.schoolName}
           {:else}
-            <InscritCardPast row={row as OngoingRow} timezone={data.timezone} />
+            <span class="text-muted-foreground">—</span>
           {/if}
-        {/each}
-      </div>
-    {/if}
+        </Table.Cell>
+        <Table.Cell>
+          {#if r.niveau}
+            <Badge
+              variant="secondary"
+              class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+            >
+              {niveauLabel(r.niveau)}
+            </Badge>
+          {:else}
+            <span class="text-sm text-muted-foreground">—</span>
+          {/if}
+        </Table.Cell>
+        <Table.Cell class="text-right">
+          {#if r.ready}
+            <span
+              class="inline-flex items-center gap-1 rounded-full border border-epi-teal/30 bg-epi-teal/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-epi-teal-solid uppercase"
+            >
+              <Check class="h-3 w-3" />
+              Prêt
+            </span>
+          {:else}
+            <span
+              class="inline-flex items-center gap-1 rounded-full border border-epi-orange/30 bg-epi-orange/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-epi-orange uppercase"
+            >
+              <CircleAlert class="h-3 w-3" />
+              Incomplet
+            </span>
+          {/if}
+        </Table.Cell>
+      {/snippet}
+
+      {#snippet empty()}
+        <div class="flex flex-col items-center gap-3 py-6">
+          <span
+            class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
+          >
+            Aucun résultat
+          </span>
+          {#if clientFiltersApplied}
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={resetClientFilters}
+              class="rounded-sm"
+            >
+              Réinitialiser les filtres
+            </Button>
+          {/if}
+        </div>
+      {/snippet}
+    </SortableTable>
   {/if}
 </div>

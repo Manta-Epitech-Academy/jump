@@ -4,7 +4,10 @@
     nom?: string | null;
     prenom?: string | null;
   }): string {
-    const initials = `${t.nom?.[0] ?? ''}${t.prenom?.[0] ?? ''}`.toUpperCase();
+    // Firstname-first monogram (Jean Dupont -> "JD"), matching how names read.
+    // Only the overlaid glyphs change: the gradient colour is seeded on `id`,
+    // so initials order never alters a talent's avatar identity.
+    const initials = `${t.prenom?.[0] ?? ''}${t.nom?.[0] ?? ''}`.toUpperCase();
     return `https://avatar.vercel.sh/${encodeURIComponent(t.id)}.svg?text=${encodeURIComponent(initials)}`;
   }
 </script>
@@ -30,7 +33,7 @@
     lg: 'h-16 w-16',
   };
 
-  let alt = $derived(`${talent.nom ?? ''} ${talent.prenom ?? ''}`.trim());
+  let alt = $derived(`${talent.prenom ?? ''} ${talent.nom ?? ''}`.trim());
 </script>
 
 <img

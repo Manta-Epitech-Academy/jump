@@ -8,9 +8,10 @@
   import { salesforceContactUrl } from '$lib/domain/salesforce';
   import { niveauLabel } from '$lib/domain/niveau';
 
-  // Blueprint-blue band: square avatar + Anton-uppercase name with the
-  // neon-teal `_` cursor + Salesforce shortcut. No action row, no cohort
-  // rank — staff already have those affordances elsewhere on the page.
+  // Blueprint-blue band: square avatar + name with the neon-teal `_` cursor +
+  // Salesforce shortcut. Firstname leads (light), surname follows in Anton
+  // uppercase. No action row, no cohort rank — staff already have those
+  // affordances elsewhere on the page.
   type Props = {
     student: {
       id: string;
@@ -44,10 +45,12 @@
         <h1
           class="flex items-baseline font-heading text-5xl tracking-wide uppercase md:text-6xl"
         >
-          <span>{student.nom}</span>
-          <span class="ml-3 font-light normal-case"
+          <span class="font-light normal-case"
             >{capitalize(student.prenom)}</span
-          ><span class="text-epi-teal">_</span>
+          >
+          <span class="ml-3">{student.nom}</span><span class="text-epi-teal"
+            >_</span
+          >
         </h1>
         {#if student.externalId}
           <Tooltip.Provider delayDuration={150}>

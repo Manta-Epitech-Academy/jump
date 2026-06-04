@@ -1,89 +1,48 @@
-import type { InterviewRecommendation, Prisma } from '@prisma/client';
-import type { InterviewDisplayStatus } from '$lib/domain/interview';
+import type { Prisma } from '@prisma/client';
 
-export type Sort = 'alpha' | 'xp' | 'events';
-
-// Single source of truth for the talent fields the inscrit cards, search and
-// sort actually read. Kept lean on purpose: the cohort fetch (~200 rows) must
-// not drag the full Talent row (incl. Salesforce-mirror columns) or full
-// Interest rows. The server load imports these selects so the query and the
-// row types below can never drift.
-export const TALENT_CARD_SELECT = {
+// The scoped-down inscrits page is one flat table: avatar, prenom, nom, lycee,
+// niveau, readiness. No phase variants, no interview status, no last-activity.
+// This select stays lean on purpose: the cohort fetch (~200 rows) must not drag
+// the full Talent row (Salesforce-mirror columns) or full Interest rows. The
+// server load imports this select so the query and the row type can never drift.
+export const INSCRIT_TALENT_SELECT = {
   id: true,
   nom: true,
   prenom: true,
   niveau: true,
-  xp: true,
-  eventsCount: true,
   email: true,
   parentEmail: true,
-  school: { select: { id: true, name: true, city: true } },
-  interests: {
-    select: {
-      interestId: true,
-      interest: { select: { id: true, nom: true, emoji: true } },
-    },
-  },
+  // Readiness inputs (see isRulesCompliant / isImageRightsCompliant).
+  parentRulesSignedAt: true,
+  imageRightsDecision: true,
+  school: { select: { id: true, name: true } },
 } satisfies Prisma.TalentSelect;
 
-export const PREP_PARTICIPATION_SELECT = {
+export const INSCRIT_PARTICIPATION_SELECT = {
   id: true,
-  isPresent: true,
   talentId: true,
-  talent: { select: TALENT_CARD_SELECT },
+  talent: { select: INSCRIT_TALENT_SELECT },
+  // The offline-attested règlement signature lives on the participation, so it
+  // joins the readiness computation alongside the talent's online co-signature.
+  stageCompliance: { select: { charteSigned: true } },
 } satisfies Prisma.ParticipationSelect;
 
-export const ONGOING_PARTICIPATION_SELECT = {
-  id: true,
-  isPresent: true,
-  talentId: true,
-  talent: { select: TALENT_CARD_SELECT },
-  interview: {
-    select: {
-      id: true,
-      status: true,
-      date: true,
-      recommendation: true,
-    },
-  },
-} satisfies Prisma.ParticipationSelect;
-
-type ParticipationPrep = Prisma.ParticipationGetPayload<{
-  select: typeof PREP_PARTICIPATION_SELECT;
+export type ParticipationInscrit = Prisma.ParticipationGetPayload<{
+  select: typeof INSCRIT_PARTICIPATION_SELECT;
 }>;
 
-type ParticipationOngoing = Prisma.ParticipationGetPayload<{
-  select: typeof ONGOING_PARTICIPATION_SELECT;
-}>;
-
-export type PrepRow = {
-  participation: ParticipationPrep;
-  isNewTalent: boolean;
-  lastSeenName: string | null;
-  lastSeenAt: Date | null;
+/** One projected table row. `id` is the participation id (stable row key). */
+export type InscritRow = {
+  id: string;
+  talentId: string;
+  nom: string;
+  prenom: string;
+  niveau: string | null;
+  schoolName: string | null;
+  ready: boolean;
+  // Search haystack extras (not shown as columns).
+  email: string | null;
+  parentEmail: string | null;
 };
 
-export type OngoingRow = {
-  participation: ParticipationOngoing;
-  isNewTalent: boolean;
-  interviewStatus: InterviewDisplayStatus;
-  interviewDate: Date | null;
-  interviewRecommendation: InterviewRecommendation | null;
-  lastActivityName: string | null;
-  lastActivityAt: Date | null;
-};
-
-/**
- * "Nouveau" tag = this stage is the talent's first ever at Epitech.
- * `eventsCount` is bumped on `markPresent`, so we must subtract the
- * current event's presence to recover the "before this stage" count.
- */
-export function computeIsNewTalent(p: {
-  isPresent: boolean;
-  talent: { eventsCount: number } | null;
-}): boolean {
-  const count = p.talent?.eventsCount ?? 0;
-  return count - (p.isPresent ? 1 : 0) <= 0;
-}
-
-export type PastRow = OngoingRow;
+export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'ready';

@@ -29,6 +29,7 @@
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
   import Gated from '$lib/components/auth/Gated.svelte';
+  import { can } from '$lib/domain/permissions';
   import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
@@ -45,6 +46,12 @@
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
   let hasPlanning = $derived(featureFlags.has('event_planning'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
+  // The "Gestion" section header must not show when none of its links would:
+  // Doublons SF (hasSyncErrors) or Staff du campus (hasCampusTeam, lead-only).
+  let showManagement = $derived(
+    hasSyncErrors ||
+      (hasCampusTeam && can('devLead', data.staffProfile?.staffRole)),
+  );
   // Peda visiting a single interviews route gets a stripped shell — no
   // sidebar, no command-K, no impersonation, no tickets. Just header + main.
   let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
@@ -169,24 +176,29 @@
       Stage de Seconde<span class="text-epi-teal">_</span>
     </div>
     <nav class="space-y-1">
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}`, true),
-        )}
-      >
-        <LayoutDashboard class="h-5 w-5" />
-        <span>Vue d'ensemble</span>
-      </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
-        )}
-      >
-        <ClipboardCheck class="h-5 w-5" />
-        <span>Onboarding</span>
-      </a>
+      <!-- Stage-only release scopes the workspace down to Inscrits + Entretiens.
+           The event overview and onboarding tracker are coding_club-era
+           surfaces, kept behind the flag so that future stays intact. -->
+      {#if hasCodingClub}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}`, true),
+          )}
+        >
+          <LayoutDashboard class="h-5 w-5" />
+          <span>Vue d'ensemble</span>
+        </a>
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
+          )}
+        >
+          <ClipboardCheck class="h-5 w-5" />
+          <span>Onboarding</span>
+        </a>
+      {/if}
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
         class={navLinkClass(
@@ -254,7 +266,7 @@
     </nav>
   {/if}
 
-  <Gated group="devMember" mode="hide">
+  {#if showManagement}
     <div class="sidebar-section-title">
       Gestion<span class="text-epi-orange">_</span>
     </div>
@@ -296,7 +308,7 @@
         </a>
       {/if}
     </nav>
-  </Gated>
+  {/if}
 
   {#if data.ticketsEnabled}
     <div class="sidebar-section-title">
