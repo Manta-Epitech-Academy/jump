@@ -1,10 +1,13 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
+  import { enhance } from '$app/forms';
   import { page } from '$app/state';
+  import { toast } from 'svelte-sonner';
   import { Button } from '$lib/components/ui/button';
   import * as Table from '$lib/components/ui/table';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import Users from '@lucide/svelte/icons/users';
   import Send from '@lucide/svelte/icons/send';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -148,6 +151,30 @@
     </div>
   </details>
 
+  {#if data.broadcast.channel === 'sms' && data.stats.failed > 0}
+    <div class="flex justify-end">
+      <form
+        method="POST"
+        action="?/retryAll"
+        use:enhance={() =>
+          async ({ result, update }) => {
+            if (result.type === 'success') {
+              const n = data.stats.failed;
+              toast.success(`${n} SMS en échec relancé${n > 1 ? 's' : ''}.`);
+              await update();
+            } else {
+              toast.error('Une erreur est survenue.');
+            }
+          }}
+      >
+        <Button type="submit" variant="outline" class="gap-2 rounded-sm">
+          <RotateCcw class="h-4 w-4" />
+          Réessayer tous les échecs ({data.stats.failed})
+        </Button>
+      </form>
+    </div>
+  {/if}
+
   <div class="flex items-center justify-between text-xs text-muted-foreground">
     <span>
       Destinataires {(data.recipientsPage - 1) * data.recipientsPageSize +
@@ -217,7 +244,42 @@
               {r.openedAt ? formatter.format(r.openedAt) : '—'}
             </Table.Cell>
             <Table.Cell class="text-xs text-destructive">
-              {r.errorMessage ?? ''}
+              {#if data.broadcast.channel === 'sms' && r.status === 'failed'}
+                <div class="flex items-center gap-2">
+                  <span
+                    class="min-w-0 flex-1 truncate"
+                    title={r.errorMessage ?? ''}
+                  >
+                    {r.errorMessage ?? 'Échec'}
+                  </span>
+                  <form
+                    method="POST"
+                    action="?/retry"
+                    use:enhance={() =>
+                      async ({ result, update }) => {
+                        if (result.type === 'success') {
+                          toast.success('SMS relancé.');
+                          await update();
+                        } else {
+                          toast.error('Une erreur est survenue.');
+                        }
+                      }}
+                  >
+                    <input type="hidden" name="recipientId" value={r.id} />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      class="shrink-0 gap-1"
+                    >
+                      <RotateCcw class="h-3.5 w-3.5" />
+                      Réessayer
+                    </Button>
+                  </form>
+                </div>
+              {:else}
+                {r.errorMessage ?? ''}
+              {/if}
             </Table.Cell>
           </Table.Row>
         {/each}

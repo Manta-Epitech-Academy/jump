@@ -1,8 +1,31 @@
-import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+import { error, fail } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
+import { processBroadcast } from '$lib/server/services/broadcast/orchestrator';
 
 const RECIPIENTS_PAGE_SIZE = 100;
+
+// Reset a `failed` recipient so the orchestrator picks it up again: back to
+// `pending`, attempt counter cleared (a manual retry grants fresh attempts) and
+// `lastTriedAt` nulled so the per-row cooldown gate doesn't hold it back.
+const RETRY_RESET = {
+  status: 'pending',
+  errorMessage: null,
+  retryCount: 0,
+  lastTriedAt: null,
+} as const;
+
+// Requeue the broadcast (the orchestrator's claim only matches `queued` /
+// stuck-`sending`) and re-run it fire-and-forget, mirroring the onboarding-pdf
+// retry. The atomic claim in `processBroadcast` makes a concurrent cron tick a
+// no-op, so this can't double-send.
+async function requeueAndRun(broadcastId: string): Promise<void> {
+  await prisma.broadcast.update({
+    where: { id: broadcastId },
+    data: { status: 'queued' },
+  });
+  void processBroadcast(broadcastId);
+}
 
 function parsePage(raw: string | null): number {
   const n = parseInt(raw ?? '1', 10);
@@ -91,4 +114,40 @@ export const load: PageServerLoad = async ({ params, url }) => {
     recipientsPageSize: RECIPIENTS_PAGE_SIZE,
     stats: { ...stats, opened },
   };
+};
+
+export const actions: Actions = {
+  // Retry a single failed recipient.
+  retry: async ({ params, request }) => {
+    const formData = await request.formData();
+    const recipientId = formData.get('recipientId');
+    if (typeof recipientId !== 'string' || !recipientId) return fail(400);
+
+    const reset = await prisma.broadcastRecipient.updateMany({
+      where: { id: recipientId, broadcastId: params.id, status: 'failed' },
+      data: RETRY_RESET,
+    });
+    if (reset.count === 0) {
+      return fail(404, {
+        message: 'Aucun échec à réessayer pour ce destinataire.',
+      });
+    }
+
+    await requeueAndRun(params.id);
+    return { success: true, retried: 1 };
+  },
+
+  // Retry every failed recipient of this broadcast.
+  retryAll: async ({ params }) => {
+    const reset = await prisma.broadcastRecipient.updateMany({
+      where: { broadcastId: params.id, status: 'failed' },
+      data: RETRY_RESET,
+    });
+    if (reset.count === 0) {
+      return fail(400, { message: 'Aucun échec à réessayer.' });
+    }
+
+    await requeueAndRun(params.id);
+    return { success: true, retried: reset.count };
+  },
 };
