@@ -10,6 +10,11 @@ import { csvResponse } from '$lib/server/csv';
 // back into Salesforce. `type` separates a real divergence (SF disagrees) from
 // data SF simply doesn't hold — both differing fields and the parent contacts
 // Salesforce has no column for.
+//
+// The `uai_*` columns carry the lycée's UAI alongside its name: a school's name
+// is fuzzy and non-unique, so Salesforce can only be matched on the exact UAI.
+// Only `school` rows populate them (every other field is a scalar that already
+// matches on its own value); they stay empty everywhere else.
 export const GET: RequestHandler = async () => {
   const [diffs, enrichment] = await Promise.all([
     listSalesforceDiffs(),
@@ -27,7 +32,9 @@ export const GET: RequestHandler = async () => {
         d.kind === 'conflict' ? 'Divergence' : 'Absent de Salesforce',
         FIELD_LABELS[d.field],
         d.jump,
+        d.jumpKey ?? null,
         d.sf,
+        d.sfKey ?? null,
       ]);
     }
   }
@@ -41,6 +48,8 @@ export const GET: RequestHandler = async () => {
         'Absent de Salesforce',
         f.label,
         f.value,
+        null,
+        null,
         null,
       ]);
     }
@@ -57,7 +66,9 @@ export const GET: RequestHandler = async () => {
       'type',
       'champ',
       'valeur_jump',
+      'uai_jump',
       'valeur_salesforce',
+      'uai_salesforce',
     ],
     rows,
   );
