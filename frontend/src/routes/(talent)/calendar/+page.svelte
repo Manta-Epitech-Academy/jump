@@ -275,17 +275,6 @@
     return map;
   });
 
-  // Which event(s) the visible week belongs to, shown as the header subtitle.
-  // Events don't overlap in practice, so this is usually a single title; the
-  // join only matters on the rare seam where one event ends and another begins.
-  let visibleEventTitle = $derived.by(() => {
-    const titres: string[] = [];
-    for (const s of [...slotsByDay.values()].flat()) {
-      if (!titres.includes(s.event.titre)) titres.push(s.event.titre);
-    }
-    return titres.length ? titres.join(' · ') : undefined;
-  });
-
   // Hour range: tight to the week's slots, with a small pad. Falls back to
   // 8–20 when the week has no slots.
   let hourRange = $derived.by(() => {
@@ -362,7 +351,7 @@
 </svelte:head>
 
 <div class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-  <TalentPageHeader title="Planning" subtitle={visibleEventTitle}>
+  <TalentPageHeader title="Planning">
     {#snippet actions()}
       {#if range}
         <Button
