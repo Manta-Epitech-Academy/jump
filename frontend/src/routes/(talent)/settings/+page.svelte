@@ -14,6 +14,7 @@
   import FileText from '@lucide/svelte/icons/file-text';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Loader from '@lucide/svelte/icons/loader';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { track, daysBetween } from '$lib/analytics';
   import { toast } from 'svelte-sonner';
@@ -148,7 +149,7 @@
                 </p>
               {/if}
             </div>
-            {#if doc.ready}
+            {#if doc.status === 'ready'}
               <Button
                 variant="outline"
                 size="sm"
@@ -160,12 +161,20 @@
                 <ExternalLink class="mr-1 h-3.5 w-3.5" />
                 Voir
               </Button>
-            {:else}
+            {:else if doc.status === 'generating'}
               <span
                 class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-slate-400 uppercase"
               >
                 <Loader class="h-3.5 w-3.5 animate-spin" />
                 Génération…
+              </span>
+            {:else}
+              <span
+                class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-600 uppercase dark:text-amber-500"
+                title="La génération de ce document a échoué. Notre équipe peut le relancer, réessaie plus tard ou contacte-la."
+              >
+                <AlertTriangle class="h-3.5 w-3.5" />
+                Indisponible
               </span>
             {/if}
           </li>
