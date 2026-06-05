@@ -1,9 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { superForm } from 'sveltekit-superforms';
   import Funnel from '@lucide/svelte/icons/funnel';
   import Ellipsis from '@lucide/svelte/icons/ellipsis';
-  import Pencil from '@lucide/svelte/icons/pencil';
   import Search from '@lucide/svelte/icons/search';
   import Eye from '@lucide/svelte/icons/eye';
   import Users from '@lucide/svelte/icons/users';
@@ -17,43 +15,15 @@
   import { Badge } from '$lib/components/ui/badge';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { toast } from 'svelte-sonner';
-  import { untrack } from 'svelte';
   import { resolve } from '$app/paths';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
-  import StudentFormDialog from './components/StudentFormDialog.svelte';
-  import { track, errReason } from '$lib/analytics';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
 
   let { data }: { data: PageData } = $props();
 
-  const { form, errors, delayed, enhance, reset } = superForm(
-    untrack(() => data.form),
-    {
-      onResult: ({ result }) => {
-        if (result.type === 'success') {
-          track(isEditing ? 'student_updated' : 'student_created', {
-            niveau: $form.niveau ?? null,
-            withParent: !!$form.parent_email || !!$form.parent_nom,
-          });
-          open = false;
-          toast.success(result.data?.form.message);
-        } else if (result.type === 'failure') {
-          track(isEditing ? 'student_update_failed' : 'student_create_failed', {
-            reason: errReason(result),
-          });
-          toast.error(result.data?.form.message || 'Erreur de validation');
-        }
-      },
-    },
-  );
-
-  let open = $state(false);
-  let isEditing = $state(false);
-  let editId = $state('');
   let searchQuery = $state(page.url.searchParams.get('q') || '');
   let selectedLevel = $state(page.url.searchParams.get('niveau') || 'all');
   let searchTimeout: ReturnType<typeof setTimeout>;
@@ -78,22 +48,6 @@
     searchQuery = value;
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => navigateWithParams({ q: value }), 300);
-  }
-
-  function openEdit(student: any) {
-    reset();
-    $form.nom = student.nom;
-    $form.prenom = student.prenom;
-    $form.email = student.user?.email || '';
-    $form.phone = student.phone || '';
-    $form.parent_email = student.parentEmail || '';
-    $form.parent_phone = student.parentPhone || '';
-    $form.parent_nom = student.parentNom || '';
-    $form.parent_prenom = student.parentPrenom || '';
-    $form.niveau = student.niveau;
-    isEditing = true;
-    editId = student.id;
-    open = true;
   }
 
   function goToPage(p: number) {
@@ -147,17 +101,6 @@
         </Select.Content>
       </Select.Root>
     </div>
-
-    <StudentFormDialog
-      bind:open
-      {isEditing}
-      {editId}
-      {form}
-      {errors}
-      {delayed}
-      {enhance}
-      action="?/update"
-    />
   </div>
 
   {#if data.students.length > 0}
@@ -185,7 +128,7 @@
                   href={resolve(`/staff/dev/students/${student.id}`)}
                   class="group block"
                 >
-                  <StudentAvatarItem {student} showBadge={false} />
+                  <StudentAvatarItem {student} />
                 </a>
               </Table.Cell>
               <Table.Cell>
@@ -220,10 +163,6 @@
                     >
                       <Eye class="mr-2 h-4 w-4 text-epi-blue" /> Voir le dossier
                     </a>
-                    <DropdownMenu.Separator />
-                    <DropdownMenu.Item onclick={() => openEdit(student)}
-                      ><Pencil class="mr-2 h-4 w-4" /> Modifier</DropdownMenu.Item
-                    >
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
               </Table.Cell>

@@ -24,7 +24,8 @@
     sortDir = 'asc',
     onSort,
     rowKey,
-    onRowClick,
+    rowHref,
+    rowLabel,
     row,
     empty,
     headerClass = 'bg-muted/50',
@@ -36,8 +37,17 @@
     onSort?: (key: string) => void;
     /** Stable key per row for the keyed `{#each}`. */
     rowKey: (row: T, index: number) => string;
-    /** When set, the whole row is a link to `onRowClick(row)`. */
-    onRowClick?: (row: T) => void;
+    /**
+     * When set, the whole row becomes a real link to this href via a stretched
+     * anchor overlay. Prefer this over a JS click handler for navigation: a real
+     * `<a>` gives cmd/middle/right-click (open in new tab), hover URL preview,
+     * native keyboard activation and correct a11y — none of which a row `onclick`
+     * can replicate. Any interactive element inside a cell must then carry
+     * `relative z-10` to stay clickable above the overlay.
+     */
+    rowHref?: (row: T) => string;
+    /** Accessible name for the row link — the cells are not inside the anchor. */
+    rowLabel?: (row: T) => string;
     /** Renders the `<Table.Cell>`s for a row. */
     row: Snippet<[T, number]>;
     /** Optional custom empty state (defaults to a muted "Aucun résultat"). */
@@ -104,19 +114,24 @@
       {:else}
         {#each rows as r, i (rowKey(r, i))}
           <Table.Row
-            class={cn('hover:bg-muted/30', onRowClick && 'cursor-pointer')}
-            role={onRowClick ? 'link' : undefined}
-            tabindex={onRowClick ? 0 : undefined}
-            onclick={onRowClick ? () => onRowClick?.(r) : undefined}
-            onkeydown={onRowClick
-              ? (e: KeyboardEvent) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onRowClick?.(r);
-                  }
-                }
-              : undefined}
+            class={cn('[&>td]:transition-colors', rowHref && 'relative')}
           >
+            {#if rowHref}
+              <!-- Stretched-link overlay: a real <a> covering the whole row. The
+                   absolute <td> drops out of table flow (so it adds no column),
+                   and inset-0 resolves against the relative <tr>. It MUST stay
+                   transparent: the row-hover rule tints every <td>, and this one
+                   sits above the cells, so otherwise it paints a muted sheet over
+                   the row's text on hover. Focus shows an inset ring, no fill. -->
+              <td class="absolute inset-0 bg-transparent! p-0">
+                <a
+                  href={rowHref(r)}
+                  class="block size-full rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
+                >
+                  <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
+                </a>
+              </td>
+            {/if}
             {@render row(r, i)}
           </Table.Row>
         {/each}

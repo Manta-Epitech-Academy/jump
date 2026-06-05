@@ -348,11 +348,7 @@
   >
     {#snippet row(talent)}
       <Table.Cell>
-        <StudentAvatarItem
-          student={talent}
-          subText={talent.email}
-          showBadge={false}
-        />
+        <StudentAvatarItem student={talent} subText={talent.email} />
       </Table.Cell>
       <Table.Cell>
         {#if talent.niveau}

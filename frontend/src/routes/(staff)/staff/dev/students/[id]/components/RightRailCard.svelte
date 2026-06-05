@@ -7,35 +7,46 @@
   import Clock from '@lucide/svelte/icons/clock';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import { Separator } from '$lib/components/ui/separator';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import { formatDateFr } from '$lib/utils';
-  import {
-    isImageRightsCompliant,
-    isRulesCompliant,
-  } from '$lib/domain/stageCompliance';
+  import { isRulesCompliant } from '$lib/domain/stageCompliance';
   import {
     IMAGE_RIGHTS_STATUS_LABELS,
     type ImageRightsDecision,
   } from '$lib/domain/imageRights';
   import type { Communication } from '$lib/domain/communications';
 
+  // One document-status badge: a label + icon in a tone colour, plus the
+  // hover tooltip that explains what the state means and what's still expected.
+  type DocStatus = {
+    label: string;
+    colorClass: string;
+    icon: typeof Check;
+    tooltip: string;
+  };
+
   // The sticky synthesis rail: last connection, recent communications (one line
   // each), and the two stage documents (RI + DI) at a glance. Read-only — the
-  // actions live in the todo list on the left.
+  // actions live in the recommendations list on the left.
   let {
     lastActiveAt,
     firstLoginAt,
     communications,
+    rulesSignedAt,
     parentRulesSignedAt,
     charteSigned,
     imageRightsDecision,
+    imageRightsDecidedAt,
     timezone,
   }: {
     lastActiveAt: Date | string | null;
     firstLoginAt: Date | string | null;
     communications: Communication[];
+    rulesSignedAt: Date | string | null;
     parentRulesSignedAt: Date | string | null;
     charteSigned: boolean | null | undefined;
     imageRightsDecision: ImageRightsDecision | null;
+    imageRightsDecidedAt: Date | string | null;
     timezone: string;
   } = $props();
 
@@ -67,10 +78,65 @@
   }
 
   const rulesOk = $derived(isRulesCompliant(parentRulesSignedAt, charteSigned));
-  const imageOk = $derived(isImageRightsCompliant(imageRightsDecision));
-  const imageLabel = $derived(
-    IMAGE_RIGHTS_STATUS_LABELS[imageRightsDecision ?? 'undecided'],
-  );
+  // Talent signed their part but the guardian co-signature is still pending —
+  // not a red "rien fait" blocker, just waiting on the parent.
+  const rulesAwaitingParent = $derived(!rulesOk && rulesSignedAt != null);
+
+  const rulesStatus = $derived.by<DocStatus>(() => {
+    if (rulesOk) {
+      return {
+        label: 'Signé',
+        colorClass: 'text-epi-teal-solid',
+        icon: Check,
+        tooltip: parentRulesSignedAt
+          ? `Co-signé par le représentant légal le ${formatDateFr(parentRulesSignedAt, timezone)}.`
+          : "Signature attestée manuellement par l'équipe (hors ligne).",
+      };
+    }
+    if (rulesAwaitingParent) {
+      return {
+        label: 'Attente parent',
+        colorClass: 'text-amber-600 dark:text-amber-500',
+        icon: Clock,
+        tooltip: `L'élève a signé le règlement${rulesSignedAt ? ` le ${formatDateFr(rulesSignedAt, timezone)}` : ''}, mais la co-signature du représentant légal est encore attendue.`,
+      };
+    }
+    return {
+      label: 'En attente',
+      colorClass: 'text-destructive',
+      icon: Clock,
+      tooltip: "Le règlement intérieur n'a pas encore été signé par l'élève.",
+    };
+  });
+
+  const imageStatus = $derived.by<DocStatus>(() => {
+    const decidedSuffix = imageRightsDecidedAt
+      ? ` (décidé le ${formatDateFr(imageRightsDecidedAt, timezone)})`
+      : '';
+    if (imageRightsDecision === 'accepted') {
+      return {
+        label: IMAGE_RIGHTS_STATUS_LABELS.accepted,
+        colorClass: 'text-epi-teal-solid',
+        icon: Check,
+        tooltip: `Le représentant légal autorise la captation et l'utilisation de l'image${decidedSuffix}.`,
+      };
+    }
+    if (imageRightsDecision === 'refused') {
+      return {
+        label: IMAGE_RIGHTS_STATUS_LABELS.refused,
+        colorClass: 'text-epi-orange',
+        icon: X,
+        tooltip: `Le représentant légal refuse la captation : ce stagiaire ne doit pas être photographié ni filmé${decidedSuffix}.`,
+      };
+    }
+    return {
+      label: IMAGE_RIGHTS_STATUS_LABELS.undecided,
+      colorClass: 'text-destructive',
+      icon: Clock,
+      tooltip:
+        "Aucune décision du représentant légal sur le droit à l'image pour le moment.",
+    };
+  });
 </script>
 
 <EpiSection title="Synthèse" accent="blue">
@@ -80,11 +146,11 @@
       <h4
         class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
       >
-        Connexion
+        Connexion à Jump
       </h4>
       <dl class="space-y-1.5 text-sm">
         <div class="flex items-baseline justify-between gap-3">
-          <dt class="text-muted-foreground">Dernière activité</dt>
+          <dt class="text-muted-foreground">Dernière connexion</dt>
           <dd class="font-mono text-xs font-bold">
             {relativeLabel(lastActiveAt)}
           </dd>
@@ -160,48 +226,34 @@
         Documents
       </h4>
       <ul class="space-y-1.5 text-sm">
-        <li class="flex items-center justify-between gap-3">
-          <span class="text-muted-foreground">Règlement intérieur</span>
-          {#if rulesOk}
-            <span
-              class="inline-flex items-center gap-1 font-mono text-[10px] font-bold tracking-widest text-epi-teal-solid uppercase"
-            >
-              <Check class="h-3 w-3" /> Signé
-            </span>
-          {:else}
-            <span
-              class="inline-flex items-center gap-1 font-mono text-[10px] font-bold tracking-widest text-destructive uppercase"
-            >
-              <Clock class="h-3 w-3" /> En attente
-            </span>
-          {/if}
-        </li>
-        <li class="flex items-center justify-between gap-3">
-          <span class="text-muted-foreground">Droit à l'image</span>
-          {#if imageOk}
-            <span
-              class="inline-flex items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase {imageRightsDecision ===
-              'refused'
-                ? 'text-epi-orange'
-                : 'text-epi-teal-solid'}"
-            >
-              {#if imageRightsDecision === 'refused'}
-                <X class="h-3 w-3" />
-              {:else}
-                <Check class="h-3 w-3" />
-              {/if}
-              {imageLabel}
-            </span>
-          {:else}
-            <span
-              class="inline-flex items-center gap-1 font-mono text-[10px] font-bold tracking-widest text-destructive uppercase"
-            >
-              <Clock class="h-3 w-3" />
-              {imageLabel}
-            </span>
-          {/if}
-        </li>
+        {@render docRow('Règlement intérieur', rulesStatus)}
+        {@render docRow("Droit à l'image", imageStatus)}
       </ul>
     </section>
   </div>
 </EpiSection>
+
+{#snippet docRow(name: string, s: DocStatus)}
+  {@const Icon = s.icon}
+  <li class="flex items-center justify-between gap-3">
+    <span class="text-muted-foreground">{name}</span>
+    <Tooltip.Provider delayDuration={150}>
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          {#snippet child({ props })}
+            <span
+              {...props}
+              class="inline-flex cursor-help items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase {s.colorClass}"
+            >
+              <Icon class="h-3 w-3" />
+              {s.label}
+            </span>
+          {/snippet}
+        </Tooltip.Trigger>
+        <Tooltip.Content class="max-w-60">
+          <p class="text-xs">{s.tooltip}</p>
+        </Tooltip.Content>
+      </Tooltip.Root>
+    </Tooltip.Provider>
+  </li>
+{/snippet}

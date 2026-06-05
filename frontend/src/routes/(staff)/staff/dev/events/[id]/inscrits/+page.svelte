@@ -182,10 +182,6 @@
       : 'au total',
   );
 
-  function openProfile(r: InscritRow) {
-    goto(resolve(`/staff/dev/students/${r.talentId}`));
-  }
-
   let exporting = $state(false);
 
   // Export exactly the rows the dev is looking at (current filters + sort): POST
@@ -399,7 +395,8 @@
       {sortDir}
       onSort={toggleSort}
       rowKey={(r) => r.id}
-      onRowClick={openProfile}
+      rowHref={(r) => resolve(`/staff/dev/students/${r.talentId}`)}
+      rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
     >
       {#snippet row(r: InscritRow)}
         <Table.Cell>

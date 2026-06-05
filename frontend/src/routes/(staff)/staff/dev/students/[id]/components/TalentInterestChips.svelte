@@ -59,7 +59,7 @@
   <Heart class="h-3 w-3 text-epi-orange" />
 {/snippet}
 
-<div class="space-y-5">
+<div class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
   {@render group('Tech', 'text-epi-teal-solid', techIcon, tech)}
   {@render group('Perso', 'text-epi-orange', persoIcon, perso)}
 </div>
