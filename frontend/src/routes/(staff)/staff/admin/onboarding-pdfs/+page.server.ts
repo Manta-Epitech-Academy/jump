@@ -10,6 +10,7 @@ import {
 import {
   onboardingDownloadFilename,
   isOnboardingDocumentType,
+  FINISHED_ONBOARDING_DOCS_WHERE,
 } from '$lib/server/services/onboardingDocuments';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
@@ -58,7 +59,7 @@ export const load: PageServerLoad = async ({ url, depends }) => {
     };
   }
 
-  const [jobs, counts, matchCount] = await Promise.all([
+  const [jobs, counts, matchCount, exportableCount] = await Promise.all([
     prisma.onboardingPdfJob.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -72,6 +73,11 @@ export const load: PageServerLoad = async ({ url, depends }) => {
       _count: { _all: true },
     }),
     prisma.onboardingPdfJob.count({ where }),
+    // Drives the bulk-download button: how many talents have a finished
+    // image-rights or co-signed règlement PDF ready to archive. Counts talents,
+    // not files, so it understates a talent who has both, fine for a
+    // show/hide gate.
+    prisma.talent.count({ where: FINISHED_ONBOARDING_DOCS_WHERE }),
   ]);
 
   const countByStatus: Record<JobStatus, number> = {
@@ -90,6 +96,7 @@ export const load: PageServerLoad = async ({ url, depends }) => {
     filters: { status, type, q },
     errorCount: countByStatus.error,
     matchCount,
+    exportableCount,
     truncated: matchCount > PAGE_SIZE,
     jobs: jobs.map((j) => ({
       id: j.id,
