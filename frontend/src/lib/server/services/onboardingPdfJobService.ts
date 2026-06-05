@@ -228,3 +228,50 @@ export function isOnboardingPdfJobRetryable(job: {
       return false;
   }
 }
+
+/**
+ * The lifecycle of a signed document's PDF as the owning talent should see it,
+ * folding the cached `Talent.*FilePath` projection together with the document's
+ * latest generation job:
+ *   ready       the file exists — offer to view it.
+ *   generating  signed, no file yet, but the job is still pending or actively
+ *               processing within the stranded window — a spinner is honest.
+ *   failed      signed, no file, and the job errored or has sat in `processing`
+ *               past {@link STRANDED_AFTER_MS}: nothing is happening until an
+ *               admin retries, so a spinner would lie forever; surface an
+ *               unavailable state instead.
+ *
+ * The file path wins over any in-flight job: a re-enqueued regeneration (e.g. a
+ * guardian co-signing the règlement) keeps the existing PDF viewable while the
+ * replacement renders over the same key.
+ *
+ * Pass a job whenever one exists. A null job with no file means the document was
+ * never produced (a bypassed signature, a pre-pipeline row); callers that list
+ * documents filter those out, so the null branch here is only a defensive
+ * fallback and still resolves to `failed`.
+ */
+export type TalentDocumentStatus = 'ready' | 'generating' | 'failed';
+
+export function resolveTalentDocumentStatus(
+  filePathSet: boolean,
+  job: { status: string; updatedAt: Date } | null,
+): TalentDocumentStatus {
+  if (filePathSet) return 'ready';
+  if (!job) return 'failed';
+  switch (job.status) {
+    case 'success':
+      // Success writes the file path in the same transaction, so this is only
+      // reachable in a vanishing window; trust the path as the source of truth.
+      return 'ready';
+    case 'pending':
+      return 'generating';
+    case 'processing':
+      return Date.now() - job.updatedAt.getTime() >= STRANDED_AFTER_MS
+        ? 'failed'
+        : 'generating';
+    case 'error':
+      return 'failed';
+    default:
+      return 'failed';
+  }
+}

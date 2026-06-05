@@ -11,16 +11,33 @@ import {
   TALENT_VIEWABLE_DOCUMENTS,
   projectTalentDocument,
 } from '$lib/server/services/onboardingDocuments';
+import { resolveTalentDocumentStatus } from '$lib/server/services/onboardingPdfJobService';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
 
-  const [participationsCount, latestDeletion] = await Promise.all([
-    prisma.participation.count({ where: { talentId: locals.talent.id } }),
-    getLatestDeletionRequest(locals.talent.id),
-  ]);
+  const [participationsCount, latestDeletion, latestPdfJobs] =
+    await Promise.all([
+      prisma.participation.count({ where: { talentId: locals.talent.id } }),
+      getLatestDeletionRequest(locals.talent.id),
+      // Latest generation job per viewable document, to tell "still rendering"
+      // apart from "errored/stranded": the talent's `*FilePath` column only
+      // says whether the file landed, not why it hasn't yet.
+      prisma.onboardingPdfJob.findMany({
+        where: {
+          talentId: locals.talent.id,
+          documentType: { in: [...TALENT_VIEWABLE_DOCUMENTS] },
+        },
+        orderBy: { createdAt: 'desc' },
+        distinct: ['documentType'],
+        select: { documentType: true, status: true, updatedAt: true },
+      }),
+    ]);
+  const latestPdfJobByType = new Map(
+    latestPdfJobs.map((job) => [job.documentType, job]),
+  );
 
   // Surface only the two states the talent acts on: a request still pending
   // (account stays usable meanwhile), or one that was refused and not yet
@@ -58,12 +75,31 @@ export const load: PageServerLoad = async ({ locals }) => {
     .filter(
       (doc): doc is typeof doc & { signedAt: Date } => doc.signedAt !== null,
     )
+    // Only list a document that has a PDF, or a job generating one. A recorded
+    // signature with neither a file nor a job means the document was never
+    // produced through the signing flow (e.g. a campus that bypasses
+    // image-rights signing, or a pre-pipeline legacy row), so there is nothing
+    // to review; omit it rather than show a permanently "indisponible" entry.
+    // Genuine flow signatures always enqueue a job in the signature's own
+    // transaction, so this never hides a document that is really on its way.
+    .filter((doc) => doc.ready || latestPdfJobByType.has(doc.type))
     .map((doc) => {
+      // Fold the cached file-path projection with the latest job so the UI can
+      // show a terminal "indisponible" instead of an unending spinner.
+      const base = {
+        type: doc.type,
+        label: doc.label,
+        signedAt: doc.signedAt,
+        status: resolveTalentDocumentStatus(
+          doc.ready,
+          latestPdfJobByType.get(doc.type) ?? null,
+        ),
+      };
       if (doc.type === 'image-rights') {
         const prenom = locals.talent!.imageRightsSignerPrenom;
         const nom = locals.talent!.imageRightsSignerNom;
         return {
-          ...doc,
+          ...base,
           signerName: prenom && nom ? `${prenom} ${nom}` : (nom ?? prenom),
           coSigner: null as { name: string; signedAt: Date } | null,
         };
@@ -75,7 +111,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         const parentSignerName =
           prenom && nom ? `${prenom} ${nom}` : (nom ?? prenom);
         return {
-          ...doc,
+          ...base,
           signerName: null,
           coSigner:
             parentSignedAt && parentSignerName
@@ -83,7 +119,7 @@ export const load: PageServerLoad = async ({ locals }) => {
               : null,
         };
       }
-      return { ...doc, signerName: null, coSigner: null };
+      return { ...base, signerName: null, coSigner: null };
     });
 
   return { talent: locals.talent, participationsCount, deletion, documents };
