@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { Button } from '$lib/components/ui/button';
   import { resolve } from '$app/paths';
-  import TalentChromeHeader from '$lib/components/talent/TalentChromeHeader.svelte';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -69,9 +69,8 @@
 <MinigameRewardCelebration rankReward={data.minigameRankReward} />
 
 <div class="flex min-h-screen flex-col">
-  <div class="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:py-8">
-    <TalentChromeHeader />
-
+  <TalentPageHeader title="Classement" />
+  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <div
       class="rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
     >

@@ -26,6 +26,9 @@
     startTime: Date | string;
     endTime: Date | string;
     activity: ActivityLike | null;
+    // Present on the multi-event calendar so the dialog can name which event the
+    // activity belongs to. Optional so single-event callers stay valid.
+    event?: { id: string; titre: string };
   };
 
   let {
@@ -96,6 +99,11 @@
             {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
           </span>
         </ResponsiveDialog.Description>
+        {#if slot.event}
+          <p class="text-xs font-medium text-muted-foreground">
+            {slot.event.titre}
+          </p>
+        {/if}
       </ResponsiveDialog.Header>
 
       <ResponsiveDialog.Body class="space-y-3">
@@ -144,15 +152,29 @@
             <ArrowRight class="ml-2 h-4 w-4" />
           </Button>
         {:else}
+          {@const startsToday =
+            new Date(slot.startTime).toDateString() ===
+            new Date().toDateString()}
           <div
             class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs dark:border-slate-800 dark:bg-slate-950"
           >
             <Lock class="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <span class="text-slate-600 dark:text-slate-400">
-              Contenu disponible à
-              <strong class="text-slate-900 dark:text-white"
-                >{formatTime(slot.startTime)}</strong
-              >.
+              {#if startsToday}
+                Contenu disponible à
+                <strong class="text-slate-900 dark:text-white"
+                  >{formatTime(slot.startTime)}</strong
+                >.
+              {:else}
+                Contenu disponible le
+                <strong class="text-slate-900 dark:text-white"
+                  >{formatDate(slot.startTime)}</strong
+                >
+                à
+                <strong class="text-slate-900 dark:text-white"
+                  >{formatTime(slot.startTime)}</strong
+                >.
+              {/if}
             </span>
           </div>
         {/if}

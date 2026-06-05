@@ -2,71 +2,27 @@
   import type { PageData } from './$types';
   import { dev } from '$app/environment';
   import { enhance } from '$app/forms';
-  import { Button } from '$lib/components/ui/button';
-  import { Badge } from '$lib/components/ui/badge';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { WELCOME_XP_BONUS, levelLabelFr } from '$lib/domain/xp';
-  import { formatDateFr } from '$lib/utils';
-  import { activityTypeLabels } from '$lib/validation/templates';
-  import {
-    EVENT_TYPE_LABELS,
-    minutesToHHMM,
-    type EventType,
-  } from '$lib/domain/event';
+  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+  import { EVENT_TYPE_LABELS, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
-  import Clock from '@lucide/svelte/icons/clock';
   import Coffee from '@lucide/svelte/icons/coffee';
-  import Hourglass from '@lucide/svelte/icons/hourglass';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-  import Check from '@lucide/svelte/icons/check';
-  import LogOut from '@lucide/svelte/icons/log-out';
-  import History from '@lucide/svelte/icons/history';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
-  import Settings from '@lucide/svelte/icons/settings';
-  import EpitechLogo from '$lib/components/layout/EpitechLogo.svelte';
-  import ModeToggle from '$lib/components/ModeToggle.svelte';
-  import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
-  import { onMount, untrack, type Snippet } from 'svelte';
-  import { track, secondsBetween } from '$lib/analytics';
+  import { onMount } from 'svelte';
   import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
-
-  type PreviewActivity = {
-    id: string;
-    nom: string;
-    description?: string | null;
-    activityType: string;
-    difficulte?: string | null;
-    isDynamic: boolean;
-  };
-  let previewSlot = $state<{
-    startTime: Date | string;
-    endTime: Date | string;
-    activity: PreviewActivity | null;
-  } | null>(null);
-  let previewOpen = $state(false);
-  $effect(() => {
-    if (!previewOpen) previewSlot = null;
-  });
-
-  // Init from server timestamp so SSR + client hydration match.
-  // onMount refreshes to real browser time.
-  let nowTime = $state(untrack(() => new Date(data.serverNow)));
-  onMount(() => {
-    nowTime = new Date();
-    const i = setInterval(() => (nowTime = new Date()), 60_000);
-    return () => clearInterval(i);
-  });
 
   // "+XP" reward celebration: confetti + a floating amount that fades out.
   // Drives the onboarding arrival below; the minigame finish/rank floats live in
@@ -120,45 +76,21 @@
   });
 
   let student = $derived(data.student);
-  let participation = $derived(data.participation);
-  let upcomingParticipation = $derived(data.upcomingParticipation);
-  let todayIsMultiDay = $derived(data.todayIsMultiDay);
-  let upcomingIsMultiDay = $derived(data.upcomingIsMultiDay);
+  // Single view-model for the "Planning à venir" widget (server-derived, or a
+  // dev preview when an admin impersonates this talent). The widget branches on
+  // `planning.state` alone; no raw participation rows reach the UI.
+  let planning = $derived(data.planning);
 
-  function isStageUpcoming(
-    event:
-      | { eventType?: string | null; date?: string | Date | null }
-      | null
-      | undefined,
-  ) {
-    if (!event || event.eventType !== 'stage_seconde' || !event.date)
-      return false;
-    return new Date(event.date) > nowTime;
-  }
-  let hideTodayCalendarLink = $derived(isStageUpcoming(participation?.event));
-  let hideUpcomingCalendarLink = $derived(
-    isStageUpcoming(upcomingParticipation?.event),
-  );
-
-  let levelLabel = $derived(levelLabelFr(student?.xp ?? 0));
-
-  let xpProgress = $derived(Math.min(((student?.xp || 0) / 1000) * 100, 100));
-
-  let timeSlots = $derived(participation?.event?.planning?.timeSlots ?? []);
-  type TimeSlot = (typeof timeSlots)[number];
-  let completedActivityIds = $derived(new Set(data.completedActivityIds));
-  let tomorrowPreview = $derived(data.tomorrowPreview);
-
-  // The upcoming session is named by its type ("Stage de Seconde" / "Coding
-  // Club"), not the per-event titre which carries cohort dates.
-  let upcomingTypeLabel = $derived(
-    upcomingParticipation
-      ? (EVENT_TYPE_LABELS[
-          upcomingParticipation.event?.eventType as EventType
-        ] ??
-          upcomingParticipation.event?.titre ??
+  // Event-type label for the planning widget, with the per-state fallback the
+  // copy used before (ongoing → "Activité", upcoming → "Atelier Epitech").
+  let planningTypeLabel = $derived(
+    planning.state === 'ongoing'
+      ? (EVENT_TYPE_LABELS[planning.eventType] ?? planning.titre ?? 'Activité')
+      : planning.state === 'upcoming'
+        ? (EVENT_TYPE_LABELS[planning.eventType] ??
+          planning.titre ??
           'Atelier Epitech')
-      : '',
+        : '',
   );
 
   // Wall-clock start time of the next session ("10:00"), shown only once a dev
@@ -167,10 +99,8 @@
   // none, so until it's confirmed the talent sees the date alone (never the SF
   // `date`'s meaningless midnight). Staff see the default + a nag meanwhile.
   let upcomingStartTime = $derived(
-    minutesToHHMM(upcomingParticipation?.event?.startMinutes),
+    planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
   );
-
-  let totalPastMissions = $derived(data.totalPastMissions);
 
   // The daily minigame is the first mission inside the "Mission du jour" card —
   // a distinct, accented row, playable or already-played, independent of any
@@ -193,14 +123,6 @@
   // can't drift.
   const DAILY_TRAINING_LABEL = 'Entraîne ton cerveau';
 
-  function formatTime(dateString: string | Date | undefined) {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-
   function formatChrono(ms: number | null): string {
     return ms === null ? '—' : `${(ms / 1000).toFixed(1)}s`;
   }
@@ -214,15 +136,6 @@
       year: 'numeric',
     });
   }
-
-  const difficultyColors: Record<string, string> = {
-    Débutant:
-      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    Intermédiaire:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    Avancé:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  };
 </script>
 
 <svelte:head>
@@ -241,62 +154,20 @@
 />
 
 <div class="flex min-h-screen flex-col">
-  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
-    <!-- Header wraps on mobile: logo + controls share the top row, the greeting
-         drops to its own full-width row below so a long name never truncates.
-         From sm up it's a single row (logo · greeting … controls) as before. -->
-    <header
-      class="mb-6 flex flex-wrap items-center gap-x-3 gap-y-3 sm:flex-nowrap sm:gap-x-4"
-      in:fly={{ y: -20, duration: 400, delay: 100 }}
-    >
-      <a href={resolve('/')} aria-label="Accueil" class="shrink-0">
-        <EpitechLogo class="h-8 w-auto" />
-      </a>
-      <!-- Separates logo from greeting only when they share a row (sm+). -->
-      <div
-        class="hidden h-8 w-px shrink-0 bg-slate-200 sm:block dark:bg-slate-800"
-        aria-hidden="true"
-      ></div>
+  <!-- Same app bar as every talent page; the greeting is the only thing the
+       dashboard adds to it (it drops to its own line on mobile via the lead
+       slot's wrapping rules). -->
+  <TalentPageHeader>
+    {#snippet lead()}
       <h1
-        class="order-last w-full min-w-0 truncate font-heading text-2xl tracking-tight text-slate-900 uppercase sm:order-none sm:w-auto sm:text-3xl dark:text-white"
+        class="truncate font-heading text-xl tracking-tight text-slate-900 uppercase sm:text-2xl dark:text-white"
       >
         Salut, <span class="text-epi-blue">{student?.prenom}</span> 👋
       </h1>
-      <div class="ml-auto flex shrink-0 items-center gap-1">
-        <ModeToggle />
-        <Button
-          variant="ghost"
-          size="icon"
-          href={resolve('/settings')}
-          class="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-        >
-          <Settings class="h-4 w-4" />
-          <span class="sr-only">Paramètres</span>
-        </Button>
-        <form
-          action="{resolve('/logout')}?type=student"
-          method="POST"
-          onsubmit={() =>
-            track('logout', {
-              kind: 'talent',
-              sessionDurationSec: secondsBetween(
-                page.data.session?.createdAt as Date | string | undefined,
-              ),
-            })}
-        >
-          <Button
-            type="submit"
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8 text-slate-400 hover:text-destructive"
-          >
-            <LogOut class="h-4 w-4" />
-            <span class="sr-only">Déconnexion</span>
-          </Button>
-        </form>
-      </div>
-    </header>
+    {/snippet}
+  </TalentPageHeader>
 
+  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
     <!-- The daily minigame as the first "mission" of the day: same row language
          as the activities below, but accented (gamepad, colour) so it reads as
          a distinct kind of mission. Pre-play it's a "Commencer" CTA; once played
@@ -408,109 +279,9 @@
       {/if}
     {/snippet}
 
-    {#snippet historyLink()}
-      {#if totalPastMissions > 0}
-        <a
-          href={resolve('/history')}
-          class="order-3 inline-flex items-center gap-2 text-sm font-bold text-epi-blue hover:underline"
-        >
-          <History class="h-4 w-4" />
-          Voir mes missions précédentes ({totalPastMissions})
-          <ArrowRight class="h-3.5 w-3.5" />
-        </a>
-      {/if}
-    {/snippet}
-
-    <!-- Shared body of an activity row: type badge, name, then a right cluster
-         (difficulty + a trailing slot for the status icon/label).
-         On mobile the name drops to its own full-width line (`order-last
-         w-full`) so it never truncates; from sm up it returns inline and
-         truncates as a flex-1 column — matching the header's greeting trick. -->
-    {#snippet activityRowBody(
-      activity: NonNullable<TimeSlot['activity']>,
-      trailing: Snippet,
-    )}
-      <Badge
-        variant="outline"
-        class="order-1 shrink-0 text-[9px] font-bold uppercase"
-      >
-        {activityTypeLabels[activity.activityType] ?? activity.activityType}
-      </Badge>
-      <span
-        class="order-last w-full text-sm font-semibold text-slate-900 sm:order-2 sm:w-auto sm:min-w-0 sm:flex-1 sm:truncate dark:text-white"
-      >
-        {activity.nom}
-      </span>
-      <div
-        class="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-3 sm:ml-0"
-      >
-        {#if activity.difficulte}
-          <span
-            class="rounded-full px-2 py-0.5 text-[9px] font-bold {difficultyColors[
-              activity.difficulte
-            ] ?? ''}"
-          >
-            {activity.difficulte}
-          </span>
-        {/if}
-        {@render trailing()}
-      </div>
-    {/snippet}
-
-    {#snippet activityRow(slot: TimeSlot)}
-      {#if slot.activity}
-        {@const activity = slot.activity}
-        {@const isDone = completedActivityIds.has(activity.id)}
-        {@const hasStarted =
-          new Date(slot.startTime).getTime() <= nowTime.getTime()}
-        {#if hasStarted}
-          {#snippet trailing()}
-            {#if isDone}
-              <Check class="h-4 w-4 shrink-0 text-epi-teal-solid" />
-            {:else}
-              <ArrowRight
-                class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
-              />
-            {/if}
-          {/snippet}
-          <a
-            href={resolve(`/${activity.id}`)}
-            class="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3 py-2.5 transition-all hover:bg-slate-50 active:scale-[0.99] dark:hover:bg-slate-800/50 {isDone
-              ? 'bg-epi-teal-solid/10'
-              : ''}"
-          >
-            {@render activityRowBody(activity, trailing)}
-          </a>
-        {:else}
-          {#snippet trailing()}
-            <span
-              class="shrink-0 text-[9px] font-bold text-slate-400 uppercase"
-            >
-              À venir
-            </span>
-          {/snippet}
-          <button
-            type="button"
-            class="flex w-full cursor-pointer flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3 py-2.5 text-left opacity-70 transition-all hover:bg-slate-50 hover:opacity-100 dark:hover:bg-slate-800/50"
-            aria-label="{activity.nom} — aperçu"
-            onclick={() => {
-              previewSlot = {
-                startTime: slot.startTime,
-                endTime: slot.endTime,
-                activity,
-              };
-              previewOpen = true;
-            }}
-          >
-            {@render activityRowBody(activity, trailing)}
-          </button>
-        {/if}
-      {/if}
-    {/snippet}
-
     <div class="grid gap-6 md:grid-cols-12">
-      <!-- LEFT COLUMN: profile + "Planning à venir" rail (next session, or a
-           preview of tomorrow during a multi-day event).
+      <!-- LEFT COLUMN: profile + "Planning à venir" rail (the active event,
+           the next upcoming session, or a quiet rest state).
            On mobile the wrapper collapses (display: contents) so its children
            join the outer grid as siblings and `order-*` can interleave them
            with the right column — keeping Actualités right under the profile
@@ -535,14 +306,7 @@
               <Trophy class="h-7 w-7 text-epi-orange" />
             </div>
 
-            <Badge
-              variant="outline"
-              class="mb-3 border-orange-200 bg-orange-50 px-3 py-1 text-[10px] font-black tracking-widest text-orange-600 uppercase dark:border-orange-900/50 dark:bg-orange-900/20"
-            >
-              {levelLabel}
-            </Badge>
-
-            <div class="mb-4">
+            <div>
               <span
                 class="text-5xl font-black tracking-tighter text-slate-900 dark:text-white"
               >
@@ -550,30 +314,12 @@
               </span>
               <span class="text-lg font-bold text-epi-orange">XP</span>
             </div>
-
-            <!-- Custom Thick Progress Bar -->
-            <div class="w-full space-y-2">
-              <div
-                class="flex justify-between text-[10px] font-bold text-slate-400 uppercase"
-              >
-                <span>Progression</span>
-                <span>{Math.round(xpProgress)}%</span>
-              </div>
-              <div
-                class="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-              >
-                <div
-                  class="h-full rounded-full bg-epi-orange transition-all duration-1000 ease-out"
-                  style="width: {xpProgress}%"
-                ></div>
-              </div>
-            </div>
           </div>
         </div>
 
-        <!-- Planning à venir: tomorrow's activities during a multi-day event,
-             else the next upcoming session, else a quiet rest state. order-4
-             keeps it last on mobile (after the mission card + history). -->
+        <!-- Planning à venir: the active event if one covers today, else the
+             next upcoming session, else a quiet rest state. order-4 keeps it
+             last on mobile (after the mission card). -->
         <div
           class="order-4 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
         >
@@ -589,55 +335,44 @@
           </div>
 
           <div class="p-6">
-            {#if tomorrowPreview}
-              <p class="mb-3 text-xs font-bold text-slate-400 uppercase">
-                Demain · {formatDateFr(new Date(tomorrowPreview.date))}
-              </p>
-              <!-- Click opens the same locked-preview dialog as a not-yet-started
-                   activity. The type badge stays for at-a-glance scanning; the
-                   difficulty lives in the dialog so the name keeps its width. -->
-              <div class="space-y-0.5">
-                {#each tomorrowPreview.slots as slot (slot.startTime)}
-                  <button
-                    type="button"
-                    class="flex w-full cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    aria-label="{slot.activity.nom} — aperçu"
-                    onclick={() => {
-                      previewSlot = {
-                        startTime: slot.startTime,
-                        endTime: slot.endTime,
-                        activity: slot.activity,
-                      };
-                      previewOpen = true;
-                    }}
-                  >
-                    <Badge
-                      variant="outline"
-                      class="shrink-0 text-[9px] font-bold uppercase"
-                    >
-                      {activityTypeLabels[slot.activity.activityType] ??
-                        slot.activity.activityType}
-                    </Badge>
+            {#if planning.state === 'ongoing'}
+              <div
+                class="flex flex-col items-center justify-center text-center"
+              >
+                <div
+                  class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
+                >
+                  <CalendarClock class="h-8 w-8 text-epi-blue" />
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                  {planningTypeLabel}
+                </h3>
+                <!-- Live status: a pulsing dot so an active IRL event reads as
+                     "happening now", distinct from the action button below. -->
+                <span
+                  class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-epi-blue/10 px-2.5 py-1 text-xs font-bold text-epi-blue uppercase"
+                >
+                  <span class="relative flex h-2 w-2">
                     <span
-                      class="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 dark:text-white"
-                    >
-                      {slot.activity.nom}
-                    </span>
-                    <ArrowRight
-                      class="h-4 w-4 shrink-0 text-slate-300 dark:text-slate-600"
-                    />
-                  </button>
-                {/each}
-              </div>
-              {#if !hideTodayCalendarLink}
+                      class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
+                    ></span>
+                    <span
+                      class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
+                    ></span>
+                  </span>
+                  En cours
+                </span>
+                <!-- The primary action this widget exists to drive during a
+                     live event: a full-width filled CTA, mirroring the
+                     minigame "Commencer" button so it reads as the main tap. -->
                 <a
                   href={resolve('/calendar')}
-                  class="mt-4 inline-flex items-center gap-1 text-xs font-bold text-epi-blue uppercase hover:underline"
+                  class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-epi-blue px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-epi-blue/90"
                 >
-                  Voir le planning <ArrowRight class="h-3 w-3 shrink-0" />
+                  Voir le planning <ArrowRight class="h-4 w-4 shrink-0" />
                 </a>
-              {/if}
-            {:else if upcomingParticipation}
+              </div>
+            {:else if planning.state === 'upcoming'}
               <div
                 class="flex flex-col items-center justify-center text-center"
               >
@@ -647,27 +382,17 @@
                   <Rocket class="h-8 w-8 text-epi-blue" />
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                  {upcomingTypeLabel}
+                  {planningTypeLabel}
                 </h3>
                 <p class="mt-2 text-sm text-slate-500">
-                  {#if upcomingIsMultiDay}Ça commence le{:else}Ta prochaine
-                    session est prévue le{/if}<br /><strong
+                  Ta prochaine session est prévue le<br /><strong
                     class="text-slate-700 dark:text-slate-300"
-                    >{formatDateLong(upcomingParticipation.event?.date)}</strong
+                    >{formatDateLong(planning.date)}</strong
                   >{#if upcomingStartTime}{' '}à
                     <strong class="text-slate-700 dark:text-slate-300"
                       >{upcomingStartTime}</strong
                     >{/if}.
                 </p>
-
-                {#if upcomingIsMultiDay && !hideUpcomingCalendarLink}
-                  <a
-                    href={resolve('/calendar')}
-                    class="mt-4 inline-flex items-center gap-1 text-xs font-bold text-epi-blue uppercase hover:underline"
-                  >
-                    Voir le planning <ArrowRight class="h-3 w-3 shrink-0" />
-                  </a>
-                {/if}
               </div>
             {:else}
               <div
@@ -717,49 +442,9 @@
           <div class="space-y-4 p-6">
             {@render minigameMission()}
 
-            {#if participation}
-              {#if timeSlots.length > 0}
-                {#each timeSlots as slot (slot.id)}
-                  <div>
-                    <div class="mb-2 flex items-center gap-2">
-                      <Clock class="h-3.5 w-3.5 shrink-0 text-epi-blue" />
-                      <span
-                        class="text-[11px] font-bold text-slate-400 uppercase"
-                      >
-                        {formatTime(slot.startTime)} — {formatTime(
-                          slot.endTime,
-                        )}
-                      </span>
-                    </div>
-
-                    <div
-                      class="ml-5 space-y-1.5 border-l-2 border-slate-100 pl-3 dark:border-slate-800"
-                    >
-                      {@render activityRow(slot)}
-                    </div>
-                  </div>
-                {/each}
-              {:else}
-                <!-- Event exists but no planning/activities yet -->
-                <div
-                  class="flex flex-col items-center justify-center py-8 text-center"
-                >
-                  <div
-                    class="mb-4 rounded-full bg-slate-100 p-4 dark:bg-slate-800"
-                  >
-                    <Hourglass class="h-8 w-8 animate-pulse text-epi-blue" />
-                  </div>
-                  <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                    Le planning arrive...
-                  </h3>
-                  <p class="mt-2 max-w-sm text-sm text-slate-500">
-                    Le Manta est en train de préparer ta mission. Patiente
-                    quelques instants, la page se mettra à jour.
-                  </p>
-                </div>
-              {/if}
-            {:else if !hasMinigame}
-              <!-- No event and no minigame: nothing to do today -->
+            {#if !hasMinigame}
+              <!-- No minigame available today: the daily training is the only
+                   mission this card carries, so there's nothing to do. -->
               <div
                 class="flex flex-col items-center justify-center py-8 text-center"
               >
@@ -774,15 +459,13 @@
                   Repos aujourd'hui
                 </h3>
                 <p class="mt-2 max-w-sm text-sm text-slate-500">
-                  Aucun atelier n'est planifié pour toi. Profites-en pour te
-                  reposer ou revoir tes anciens projets dans ton portfolio !
+                  Aucune mission pour aujourd'hui. Profites-en pour souffler ou
+                  revoir tes anciens projets dans ton portfolio !
                 </p>
               </div>
             {/if}
           </div>
         </div>
-
-        {@render historyLink()}
 
         {#if data.welcome}
           <!-- order-2: sits right under the profile card on mobile -->
@@ -800,5 +483,3 @@
   <!-- Footer: what Jump is — pinned to the bottom of the page -->
   <TalentFooter />
 </div>
-
-<ActivitySummaryDialog bind:open={previewOpen} slot={previewSlot} />
