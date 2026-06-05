@@ -48,6 +48,10 @@
     field: DiffField;
     jump: string;
     sf: string;
+    // UAI behind the value, for `school` only — the exact key Salesforce matches
+    // on (names are fuzzy). null for scalar fields whose value is its own key.
+    jumpKey: string | null;
+    sfKey: string | null;
   };
 
   const conflicts = $derived<ConflictRow[]>(
@@ -63,6 +67,8 @@
           field: d.field,
           jump: displayValue(d.field, d.jump),
           sf: displayValue(d.field, d.sf),
+          jumpKey: d.jumpKey ?? null,
+          sfKey: d.sfKey ?? null,
         })),
     ),
   );
@@ -78,6 +84,9 @@
   type PushItem = {
     label: string;
     value: string;
+    // UAI behind the value, for the `school` field only (the exact match key);
+    // null for scalar fields and parent contacts.
+    uai: string | null;
     // 'field' re-syncs away once SF carries it; 'parent' never auto-clears.
     origin: 'field' | 'parent';
   };
@@ -113,6 +122,7 @@
           ensure(t).items.push({
             label: FIELD_LABELS[d.field],
             value: displayValue(d.field, d.jump),
+            uai: d.jumpKey ?? null,
             origin: 'field',
           });
 
@@ -121,6 +131,7 @@
         ensure(t).items.push({
           label: f.label,
           value: f.value,
+          uai: null,
           origin: 'parent',
         });
 
@@ -288,9 +299,19 @@
                     </Table.Cell>
                     <Table.Cell class="font-medium text-epi-blue">
                       {c.jump}
+                      {#if c.jumpKey}
+                        <div
+                          class="font-mono text-xs font-normal text-muted-foreground"
+                        >
+                          UAI {c.jumpKey}
+                        </div>
+                      {/if}
                     </Table.Cell>
                     <Table.Cell class="text-muted-foreground">
                       {c.sf}
+                      {#if c.sfKey}
+                        <div class="font-mono text-xs">UAI {c.sfKey}</div>
+                      {/if}
                     </Table.Cell>
                     <Table.Cell class="text-right">
                       <Button
@@ -378,6 +399,13 @@
                       </dt>
                       <dd class="text-right text-sm font-medium">
                         {item.value}
+                        {#if item.uai}
+                          <div
+                            class="font-mono text-xs font-normal text-muted-foreground"
+                          >
+                            UAI {item.uai}
+                          </div>
+                        {/if}
                       </dd>
                     </div>
                   {/each}
@@ -406,8 +434,11 @@
         <strong>{adoptTarget ? FIELD_LABELS[adoptTarget.field] : ''}</strong>
         confirmée par
         <strong>{adoptTarget?.prenom} {adoptTarget?.nom}</strong>
-        (« {adoptTarget?.jump} ») sera remplacée par celle de Salesforce (« {adoptTarget?.sf}
-        »). Action immédiate sur des données réelles, sans annulation directe.
+        (« {adoptTarget?.jump} »{#if adoptTarget?.jumpKey}, UAI {adoptTarget.jumpKey}{/if})
+        sera remplacée par celle de Salesforce (« {adoptTarget?.sf} »{#if adoptTarget?.sfKey},
+          UAI
+          {adoptTarget.sfKey}{/if}). Action immédiate sur des données réelles,
+        sans annulation directe.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
