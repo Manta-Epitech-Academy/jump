@@ -16,7 +16,7 @@
              wraps to its own line on mobile so a long name never truncates.
     - title  a page title in a second row, preceded by a back button. `subtitle`,
              `icon` and `actions` decorate that row. Omit `title` and there is no
-             second row at all (the dashboard, the minigame page).
+             second row at all (the dashboard, which carries a `lead` instead).
 
   Whatever those extras are, the first row (logo + controls) keeps the same
   position and height on every page — that is the part that must not move.

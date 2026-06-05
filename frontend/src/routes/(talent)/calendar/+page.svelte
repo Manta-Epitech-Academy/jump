@@ -136,7 +136,7 @@
     const startTime = new Date(slot.startTime).getTime();
     const daysFromNow = Math.round((startTime - Date.now()) / 86_400_000);
     track('calendar_slot_previewed', {
-      slotType: (slot as { type?: string }).type ?? null,
+      slotType: slot.activity?.activityType ?? null,
       daysFromNow,
     });
     previewSlot = slot;
