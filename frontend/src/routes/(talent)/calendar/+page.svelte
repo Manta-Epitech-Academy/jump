@@ -2,20 +2,21 @@
   import type { PageData } from './$types';
   import { onMount, untrack } from 'svelte';
   import { Button } from '$lib/components/ui/button';
-  import { resolve } from '$app/paths';
-  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import CalendarIcon from '@lucide/svelte/icons/calendar';
   import Zap from '@lucide/svelte/icons/zap';
   import { cn } from '$lib/utils';
   import { activityTypeStyles } from '$lib/validation/templates';
   import ActivitySummaryDialog from '$lib/components/talent/ActivitySummaryDialog.svelte';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import { track } from '$lib/analytics';
 
   let { data }: { data: PageData } = $props();
 
-  let event = $derived(data.participation.event);
-  let timeSlots = $derived(event.planning?.timeSlots ?? []);
+  let planning = $derived(data.planning);
+  let timeSlots = $derived(planning.slots);
+  let range = $derived(planning.range);
 
   type Slot = (typeof timeSlots)[number];
 
@@ -53,24 +54,47 @@
     return () => clearInterval(i);
   });
 
-  let eventStart = $derived(startOfDay(new Date(event.date)));
-  let eventEnd = $derived(
-    event.endDate ? startOfDay(new Date(event.endDate)) : eventStart,
+  // Overall span across every event. Falls back to today when the talent has no
+  // events, but the grid isn't rendered in that case (empty state below).
+  let rangeStart = $derived(
+    range ? startOfDay(new Date(range.start)) : startOfDay(nowTime),
+  );
+  let rangeEnd = $derived(
+    range ? startOfDay(new Date(range.end)) : startOfDay(nowTime),
   );
 
-  function pickInitialWeek(ts: number, start: Date, end: Date): Date {
+  // Land on the week of the activity closest to "now" so the talent never opens
+  // onto a blank gap week between two far-apart events (or after an all-past
+  // timeline). Falls back to the range start when there are no activities.
+  function pickInitialWeek(
+    ts: number,
+    slots: Slot[],
+    fallbackStart: Date | null,
+  ): Date {
     const today = startOfDay(new Date(ts));
-    return startOfWeek(today >= start && today <= end ? today : start);
+    if (slots.length === 0) return startOfWeek(fallbackStart ?? today);
+    let nearest = slots[0];
+    let nearestDist = Infinity;
+    for (const s of slots) {
+      const dist = Math.abs(
+        startOfDay(new Date(s.startTime)).getTime() - today.getTime(),
+      );
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = s;
+      }
+    }
+    return startOfWeek(startOfDay(new Date(nearest.startTime)));
   }
 
   let weekStart = $state<Date>(
     untrack(() =>
       pickInitialWeek(
         data.serverNow,
-        startOfDay(new Date(event.date)),
-        event.endDate
-          ? startOfDay(new Date(event.endDate))
-          : startOfDay(new Date(event.date)),
+        data.planning.slots,
+        data.planning.range
+          ? startOfDay(new Date(data.planning.range.start))
+          : null,
       ),
     ),
   );
@@ -83,13 +107,13 @@
     }),
   );
 
-  // A day is in-range if it falls within the event window.
-  function dayInEvent(d: Date): boolean {
-    return d >= eventStart && d <= eventEnd;
+  // A day is in-range if it falls within the overall span of the talent's events.
+  function dayInRange(d: Date): boolean {
+    return range != null && d >= rangeStart && d <= rangeEnd;
   }
 
-  let canGoPrev = $derived(weekDays[6] > eventStart);
-  let canGoNext = $derived(weekDays[0] < eventEnd);
+  let canGoPrev = $derived(range != null && weekDays[6] > rangeStart);
+  let canGoNext = $derived(range != null && weekDays[0] < rangeEnd);
 
   let previewSlot = $state<Slot | null>(null);
   let previewOpen = $state(false);
@@ -112,7 +136,7 @@
     const startTime = new Date(slot.startTime).getTime();
     const daysFromNow = Math.round((startTime - Date.now()) / 86_400_000);
     track('calendar_slot_previewed', {
-      slotType: (slot as { type?: string }).type ?? null,
+      slotType: slot.activity?.activityType ?? null,
       daysFromNow,
     });
     previewSlot = slot;
@@ -251,6 +275,17 @@
     return map;
   });
 
+  // Which event(s) the visible week belongs to, shown as the header subtitle.
+  // Events don't overlap in practice, so this is usually a single title; the
+  // join only matters on the rare seam where one event ends and another begins.
+  let visibleEventTitle = $derived.by(() => {
+    const titres: string[] = [];
+    for (const s of [...slotsByDay.values()].flat()) {
+      if (!titres.includes(s.event.titre)) titres.push(s.event.titre);
+    }
+    return titres.length ? titres.join(' · ') : undefined;
+  });
+
   // Hour range: tight to the week's slots, with a small pad. Falls back to
   // 8–20 when the week has no slots.
   let hourRange = $derived.by(() => {
@@ -327,27 +362,9 @@
 </svelte:head>
 
 <div class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-  <header
-    class="shrink-0 border-b border-slate-200 bg-white px-4 py-4 md:px-8 dark:border-slate-800 dark:bg-slate-900"
-  >
-    <Button
-      variant="ghost"
-      size="sm"
-      href={resolve('/')}
-      class="mb-3 -ml-2 text-xs font-bold text-slate-500 uppercase"
-    >
-      <ArrowLeft class="mr-1 h-3.5 w-3.5" /> Retour au tableau de bord
-    </Button>
-    <div class="flex items-end justify-between gap-4">
-      <div>
-        <h1
-          class="font-heading text-2xl tracking-tight text-slate-900 uppercase sm:text-3xl dark:text-white"
-        >
-          Planning<span class="text-epi-teal">_</span>
-        </h1>
-        <p class="mt-1 text-xs font-medium text-slate-500">{event.titre}</p>
-      </div>
-      <div class="flex items-center gap-1">
+  <TalentPageHeader title="Planning" subtitle={visibleEventTitle}>
+    {#snippet actions()}
+      {#if range}
         <Button
           variant="outline"
           size="icon"
@@ -371,159 +388,178 @@
         >
           <ChevronRight class="h-4 w-4" />
         </Button>
-      </div>
-    </div>
-  </header>
+      {/if}
+    {/snippet}
+  </TalentPageHeader>
 
   <div class="min-h-0 flex-1 overflow-hidden bg-white dark:bg-slate-900">
-    <div class="flex h-full flex-col">
-      <!-- Day header row -->
-      <div
-        class="grid shrink-0 border-b border-slate-200 dark:border-slate-800"
-        style="grid-template-columns: 3rem repeat(7, minmax(0, 1fr));"
-      >
-        <div></div>
-        {#each weekDays as d, i (i)}
-          {@const inRange = dayInEvent(d)}
-          {@const isToday = sameDay(d, nowTime)}
-          <div
-            class={cn(
-              'flex flex-col items-center justify-center gap-0.5 py-2 text-center',
-              !inRange && 'opacity-30',
-            )}
-          >
-            <span
-              class={cn(
-                'text-[10px] font-bold tracking-wider uppercase',
-                isToday ? 'text-epi-blue' : 'text-slate-400',
-              )}
-            >
-              {WEEK_DAYS[i]}
-            </span>
-            <span
-              class={cn(
-                'text-sm font-semibold',
-                isToday
-                  ? 'flex h-6 w-6 items-center justify-center rounded-full bg-epi-blue text-white'
-                  : 'text-slate-700 dark:text-slate-300',
-              )}
-            >
-              {d.getDate()}
-            </span>
-          </div>
-        {/each}
-      </div>
-
-      <!-- Time grid -->
-      <div class="min-h-0 flex-1 overflow-y-auto">
+    {#if range}
+      <div class="mx-auto flex h-full w-full max-w-5xl flex-col px-4 md:px-8">
+        <!-- Day header row -->
         <div
-          class="relative grid"
-          style="grid-template-columns: 3rem repeat(7, minmax(0, 1fr)); height: {gridHeightPx}px;"
+          class="grid shrink-0 border-b border-slate-200 dark:border-slate-800"
+          style="grid-template-columns: 3rem repeat(7, minmax(0, 1fr));"
         >
-          <!-- Hour labels column -->
-          <div class="relative">
-            {#each hours as h, i (h)}
-              <div
-                class="absolute right-1 -translate-y-1/2 text-[10px] font-medium text-slate-400 tabular-nums"
-                style="top: {i * 60 * PIXELS_PER_MINUTE}px;"
-                class:opacity-0={i === 0}
-              >
-                {String(h).padStart(2, '0')}:00
-              </div>
-            {/each}
-          </div>
-
-          <!-- Day columns -->
+          <div></div>
           {#each weekDays as d, i (i)}
-            {@const inRange = dayInEvent(d)}
-            {@const daySlots = slotsByDay.get(i) ?? []}
+            {@const inRange = dayInRange(d)}
+            {@const isToday = sameDay(d, nowTime)}
             <div
               class={cn(
-                'relative border-l border-slate-100 dark:border-slate-800',
-                !inRange &&
-                  'bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgba(100,116,139,0.04)_6px_12px)]',
+                'flex flex-col items-center justify-center gap-0.5 py-2 text-center',
+                !inRange && 'opacity-30',
               )}
             >
-              <!-- Hour grid lines -->
-              {#each hours as _, idx (idx)}
-                {#if idx > 0}
-                  <div
-                    class="absolute inset-x-0 border-t border-slate-100 dark:border-slate-800"
-                    style="top: {idx * 60 * PIXELS_PER_MINUTE}px;"
-                  ></div>
-                {/if}
-              {/each}
-
-              <!-- Activity blocks -->
-              {#each daySlots as slot (slot.id)}
-                {#if slot.activity}
-                  {@const activity = slot.activity}
-                  {@const styles =
-                    activityTypeStyles[
-                      activity.activityType as keyof typeof activityTypeStyles
-                    ]}
-                  {@const top = pixelsFromTime(slot.startTime)}
-                  {@const height = Math.max(
-                    20 * PIXELS_PER_MINUTE,
-                    pixelsFromTime(slot.endTime) - top,
-                  )}
-                  {@const hasStarted =
-                    new Date(slot.startTime).getTime() <= nowTime.getTime()}
-                  {@const widthPct = (98 * slot.colSpan) / slot.numCols}
-                  {@const leftPct = (slot.colIndex * 98) / slot.numCols + 1}
-                  <button
-                    type="button"
-                    class={cn(
-                      'absolute flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-left transition-all hover:z-10 hover:shadow-md',
-                      styles?.bg,
-                      styles?.border,
-                      'border-y border-r border-y-border border-r-border',
-                      !hasStarted && 'opacity-60 hover:opacity-100',
-                    )}
-                    style="top: {top}px; height: {height}px; left: {leftPct}%; width: calc({widthPct}% - 2px);"
-                    aria-label={activity.nom}
-                    onclick={() => openPreview(slot)}
-                  >
-                    <span
-                      class={cn(
-                        'text-[10px] leading-tight font-bold break-words',
-                        styles?.text,
-                      )}
-                    >
-                      {activity.nom}
-                    </span>
-                    <div
-                      class="flex items-center gap-1 text-[9px] font-medium text-muted-foreground"
-                    >
-                      {#if activity.isDynamic}
-                        <Zap class="h-2.5 w-2.5 text-epi-orange" />
-                      {/if}
-                      <span>
-                        {formatTime(slot.startTime)} – {formatTime(
-                          slot.endTime,
-                        )}
-                      </span>
-                    </div>
-                  </button>
-                {/if}
-              {/each}
-
-              <!-- Now line (today only) -->
-              {#if todayIdx === i && nowLineVisible}
-                <div
-                  class="pointer-events-none absolute inset-x-0 z-20 flex items-center"
-                  style="top: {nowLineTop}px;"
-                >
-                  <span class="h-2 w-2 -translate-x-1 rounded-full bg-epi-blue"
-                  ></span>
-                  <span class="h-px flex-1 bg-epi-blue"></span>
-                </div>
-              {/if}
+              <span
+                class={cn(
+                  'text-[10px] font-bold tracking-wider uppercase',
+                  isToday ? 'text-epi-blue' : 'text-slate-400',
+                )}
+              >
+                {WEEK_DAYS[i]}
+              </span>
+              <span
+                class={cn(
+                  'text-sm font-semibold',
+                  isToday
+                    ? 'flex h-6 w-6 items-center justify-center rounded-full bg-epi-blue text-white'
+                    : 'text-slate-700 dark:text-slate-300',
+                )}
+              >
+                {d.getDate()}
+              </span>
             </div>
           {/each}
         </div>
+
+        <!-- Time grid -->
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          <div
+            class="relative grid"
+            style="grid-template-columns: 3rem repeat(7, minmax(0, 1fr)); height: {gridHeightPx}px;"
+          >
+            <!-- Hour labels column -->
+            <div class="relative">
+              {#each hours as h, i (h)}
+                <div
+                  class="absolute right-1 -translate-y-1/2 text-[10px] font-medium text-slate-400 tabular-nums"
+                  style="top: {i * 60 * PIXELS_PER_MINUTE}px;"
+                  class:opacity-0={i === 0}
+                >
+                  {String(h).padStart(2, '0')}:00
+                </div>
+              {/each}
+            </div>
+
+            <!-- Day columns -->
+            {#each weekDays as d, i (i)}
+              {@const inRange = dayInRange(d)}
+              {@const daySlots = slotsByDay.get(i) ?? []}
+              <div
+                class={cn(
+                  'relative border-l border-slate-100 dark:border-slate-800',
+                  !inRange &&
+                    'bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgba(100,116,139,0.04)_6px_12px)]',
+                )}
+              >
+                <!-- Hour grid lines -->
+                {#each hours as _, idx (idx)}
+                  {#if idx > 0}
+                    <div
+                      class="absolute inset-x-0 border-t border-slate-100 dark:border-slate-800"
+                      style="top: {idx * 60 * PIXELS_PER_MINUTE}px;"
+                    ></div>
+                  {/if}
+                {/each}
+
+                <!-- Activity blocks -->
+                {#each daySlots as slot (slot.id)}
+                  {#if slot.activity}
+                    {@const activity = slot.activity}
+                    {@const styles =
+                      activityTypeStyles[
+                        activity.activityType as keyof typeof activityTypeStyles
+                      ]}
+                    {@const top = pixelsFromTime(slot.startTime)}
+                    {@const height = Math.max(
+                      20 * PIXELS_PER_MINUTE,
+                      pixelsFromTime(slot.endTime) - top,
+                    )}
+                    {@const hasStarted =
+                      new Date(slot.startTime).getTime() <= nowTime.getTime()}
+                    {@const widthPct = (98 * slot.colSpan) / slot.numCols}
+                    {@const leftPct = (slot.colIndex * 98) / slot.numCols + 1}
+                    <button
+                      type="button"
+                      class={cn(
+                        'absolute flex cursor-pointer flex-col gap-0.5 overflow-hidden rounded-md border-l-4 px-1.5 py-1 text-left transition-all hover:z-10 hover:shadow-md',
+                        styles?.bg,
+                        styles?.border,
+                        'border-y border-r border-y-border border-r-border',
+                        !hasStarted && 'opacity-60 hover:opacity-100',
+                      )}
+                      style="top: {top}px; height: {height}px; left: {leftPct}%; width: calc({widthPct}% - 2px);"
+                      aria-label={activity.nom}
+                      onclick={() => openPreview(slot)}
+                    >
+                      <span
+                        class={cn(
+                          'text-[10px] leading-tight font-bold break-words',
+                          styles?.text,
+                        )}
+                      >
+                        {activity.nom}
+                      </span>
+                      <div
+                        class="flex items-center gap-1 text-[9px] font-medium text-muted-foreground"
+                      >
+                        {#if activity.isDynamic}
+                          <Zap class="h-2.5 w-2.5 text-epi-orange" />
+                        {/if}
+                        <span>
+                          {formatTime(slot.startTime)} – {formatTime(
+                            slot.endTime,
+                          )}
+                        </span>
+                      </div>
+                    </button>
+                  {/if}
+                {/each}
+
+                <!-- Now line (today only) -->
+                {#if todayIdx === i && nowLineVisible}
+                  <div
+                    class="pointer-events-none absolute inset-x-0 z-20 flex items-center"
+                    style="top: {nowLineTop}px;"
+                  >
+                    <span
+                      class="h-2 w-2 -translate-x-1 rounded-full bg-epi-blue"
+                    ></span>
+                    <span class="h-px flex-1 bg-epi-blue"></span>
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </div>
       </div>
-    </div>
+    {:else}
+      <div class="flex h-full items-center justify-center px-4">
+        <div class="flex max-w-sm flex-col items-center gap-3 text-center">
+          <div class="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
+            <CalendarIcon class="h-8 w-8 text-slate-400" />
+          </div>
+          <h2
+            class="font-heading text-lg tracking-wide text-slate-700 uppercase dark:text-slate-200"
+          >
+            Aucune activité au programme<span class="text-epi-teal">_</span>
+          </h2>
+          <p class="text-sm text-slate-500">
+            Ton planning apparaîtra ici dès qu'un événement sera prévu.
+          </p>
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 

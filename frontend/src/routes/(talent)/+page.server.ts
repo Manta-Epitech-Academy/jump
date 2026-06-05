@@ -1,5 +1,4 @@
 import type { Actions, PageServerLoad } from './$types';
-import type { ActivityType } from '@prisma/client';
 import { error } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { now } from '@internationalized/date';
@@ -7,7 +6,6 @@ import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { revokeXp } from '$lib/server/services/xpService';
 import { env } from '$env/dynamic/private';
-import { getStartOfDay } from '$lib/utils';
 import {
   checkTalentEligibility,
   getActivePublication,
@@ -18,6 +16,8 @@ import {
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import { stageWindowEnd } from '$lib/domain/event';
+import { toPlanningView } from '$lib/domain/talentPlanning';
+import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
 
 export const load: PageServerLoad = async ({ locals, cookies, url }) => {
   if (!locals.talent) {
@@ -29,8 +29,10 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
 
     // Calculate boundaries for "Today" in the user's browser timezone
     const tz = getBrowserTimezone(cookies);
-    const filterDateStart = getStartOfDay(tz);
     const tzNow = now(tz);
+    const startOfDay = tzNow
+      .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
+      .toDate();
     const endOfDay = tzNow.set({
       hour: 23,
       minute: 59,
@@ -38,179 +40,57 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
       millisecond: 999,
     });
     const filterDateEnd = endOfDay.toDate();
-    const filterDateStartDate = new Date(filterDateStart);
 
-    // Fetch participations for today with full planning chain.
-    // Match single-day events happening today AND multi-day events whose span
-    // covers today (event.date <= today <= event.endDate).
-    const participations = await prisma.participation.findMany({
-      where: {
-        talentId: studentId,
-        event: {
-          date: { lte: filterDateEnd },
-          OR: [
-            { endDate: { gte: filterDateStartDate } },
-            { endDate: null, date: { gte: filterDateStartDate } },
-          ],
+    // "Planning à venir" widget state, collapsed to a single view-model. When
+    // an admin impersonating this talent has armed a preview, we substitute the
+    // view-model wholesale and skip the queries entirely (there's no real state
+    // to recompute once we're faking it), mirroring the dev space's phase
+    // override. Otherwise we derive it from the talent's actual participations.
+    // The two events we read are scoped to just the fields the widget shows.
+    const eventSelect = {
+      event: {
+        select: {
+          eventType: true,
+          titre: true,
+          date: true,
+          startMinutes: true,
         },
       },
-      include: {
-        event: {
-          include: {
-            planning: {
-              include: {
-                timeSlots: {
-                  where: {
-                    activity: { activityType: { not: 'orga' } },
-                    startTime: {
-                      gte: filterDateStartDate,
-                      lte: filterDateEnd,
-                    },
-                  },
-                  include: { activity: true },
-                  orderBy: { startTime: 'asc' },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { event: { date: 'asc' } },
-    });
+    } as const;
 
-    // Fetch the NEXT upcoming participation (if any)
-    const upcomingParticipation = await prisma.participation.findFirst({
-      where: {
-        talentId: studentId,
-        event: { date: { gt: filterDateEnd } },
-      },
-      include: {
-        event: true,
-      },
-      orderBy: { event: { date: 'asc' } },
-    });
-
-    // Count past missions (present activities excluding orga, before today).
-    // Only the tally feeds the dashboard now — the history route owns the full
-    // list — so count in SQL rather than fetching every participation to size it.
-    const totalPastMissions = await prisma.participationActivity.count({
-      where: {
-        participation: {
-          talentId: studentId,
-          isPresent: true,
-          event: { date: { lt: filterDateStartDate } },
-        },
-        activity: { activityType: { not: 'orga' } },
-      },
-    });
-
-    // If there are multiple event today, grab the first one
-    const todayParticipation =
-      participations.length > 0 ? participations[0] : null;
-
-    // Fetch completion status for today's activities
-    const completedActivityIds: Set<string> = new Set();
-    if (todayParticipation?.event) {
-      const progressRecords = await prisma.stepsProgress.findMany({
+    let planning;
+    if (locals.planningPreview) {
+      planning = buildPreviewPlanningView(locals.planningPreview);
+    } else {
+      // Event whose date range covers today (ongoing multi-day or single-day today).
+      const activeParticipation = await prisma.participation.findFirst({
         where: {
           talentId: studentId,
-          eventId: todayParticipation.event.id,
-          activityId: { not: null },
-          status: 'completed',
-        },
-        select: { activityId: true },
-      });
-      for (const p of progressRecords) {
-        if (p.activityId) completedActivityIds.add(p.activityId);
-      }
-    }
-
-    const isMultiDay = (
-      event:
-        | {
-            date: Date;
-            endDate: Date | null;
-          }
-        | null
-        | undefined,
-    ): boolean => {
-      if (!event?.endDate) return false;
-      const a = new Date(event.date);
-      const b = new Date(event.endDate);
-      return (
-        a.getFullYear() !== b.getFullYear() ||
-        a.getMonth() !== b.getMonth() ||
-        a.getDate() !== b.getDate()
-      );
-    };
-    const todayIsMultiDay = isMultiDay(todayParticipation?.event);
-    const upcomingIsMultiDay = isMultiDay(upcomingParticipation?.event);
-
-    // For an in-progress multi-day event, preview tomorrow's activities in the
-    // "Planning à venir" rail — but only while tomorrow still falls within the
-    // event span. Tomorrow's slots aren't in the today-scoped query above, so
-    // fetch them on their own.
-    let tomorrowPreview: {
-      date: number;
-      slots: {
-        startTime: Date;
-        endTime: Date;
-        activity: {
-          id: string;
-          nom: string;
-          description: string | null;
-          activityType: ActivityType;
-          difficulte: string | null;
-          isDynamic: boolean;
-        };
-      }[];
-    } | null = null;
-    if (todayParticipation?.event && todayIsMultiDay) {
-      const tomorrow = tzNow.add({ days: 1 });
-      const tomorrowStartDate = tomorrow
-        .set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
-        .toDate();
-      const tomorrowEndDate = tomorrow
-        .set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
-        .toDate();
-      const eventEnd = todayParticipation.event.endDate;
-      if (eventEnd && new Date(eventEnd) >= tomorrowStartDate) {
-        const slots = await prisma.timeSlot.findMany({
-          where: {
-            planning: { eventId: todayParticipation.event.id },
-            activity: { activityType: { not: 'orga' } },
-            startTime: { gte: tomorrowStartDate, lte: tomorrowEndDate },
+          event: {
+            date: { lte: filterDateEnd },
+            OR: [
+              { endDate: { gte: startOfDay } },
+              { endDate: null, date: { gte: startOfDay } },
+            ],
           },
-          include: { activity: true },
-          orderBy: { startTime: 'asc' },
-        });
-        // Carry the full slot + activity so the dashboard can open the same
-        // preview dialog used for not-yet-started activities today.
-        const previewSlots = slots.flatMap((s) =>
-          s.activity
-            ? [
-                {
-                  startTime: s.startTime,
-                  endTime: s.endTime,
-                  activity: {
-                    id: s.activity.id,
-                    nom: s.activity.nom,
-                    description: s.activity.description,
-                    activityType: s.activity.activityType,
-                    difficulte: s.activity.difficulte,
-                    isDynamic: s.activity.isDynamic,
-                  },
-                },
-              ]
-            : [],
-        );
-        if (previewSlots.length > 0) {
-          tomorrowPreview = {
-            date: tomorrowStartDate.getTime(),
-            slots: previewSlots,
-          };
-        }
-      }
+        },
+        select: eventSelect,
+        orderBy: { event: { date: 'asc' } },
+      });
+
+      // The NEXT upcoming participation (if any), only when not in an active event.
+      const upcomingParticipation = activeParticipation
+        ? null
+        : await prisma.participation.findFirst({
+            where: {
+              talentId: studentId,
+              event: { date: { gt: filterDateEnd } },
+            },
+            select: eventSelect,
+            orderBy: { event: { date: 'asc' } },
+          });
+
+      planning = toPlanningView(activeParticipation, upcomingParticipation);
     }
 
     // Minigames are intrinsic but require the games backend to be wired up.
@@ -309,14 +189,7 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
 
     return {
       student: locals.talent,
-      participation: todayParticipation,
-      completedActivityIds: [...completedActivityIds],
-      upcomingParticipation,
-      totalPastMissions,
-      todayIsMultiDay,
-      upcomingIsMultiDay,
-      tomorrowPreview,
-      serverNow: Date.now(),
+      planning,
       minigame,
       minigameReward,
       minigameRankReward,

@@ -9,7 +9,7 @@
   import { triggerConfetti, triggerSideCannons } from '$lib/actions/confetti';
   import { minigameRewardToast } from '$lib/components/talent/rewardToast';
   import { MINIGAME_XP_REWARD } from '$lib/domain/xp';
-  import TalentChromeHeader from '$lib/components/talent/TalentChromeHeader.svelte';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import Home from '@lucide/svelte/icons/home';
@@ -184,11 +184,8 @@
 ></form>
 
 <div class="flex min-h-screen flex-col">
+  <TalentPageHeader title="Mission du jour" backLabel="Retour à l'accueil" />
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
-    <!-- No title here: the embedded game shows its own (consigne card + in-game
-         header), so repeating it in the host chrome is redundant. -->
-    <TalentChromeHeader />
-
     {#if iframeSrc}
       <!-- No card chrome here: the game paints its own Talent-style page (slate
            background + white/slate-900 cards) inside the frame, so wrapping it

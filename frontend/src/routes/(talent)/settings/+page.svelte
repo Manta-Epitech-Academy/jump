@@ -5,7 +5,7 @@
   import { resolve } from '$app/paths';
   import { enhance } from '$app/forms';
   import { fly } from 'svelte/transition';
-  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import User from '@lucide/svelte/icons/user';
   import Mail from '@lucide/svelte/icons/mail';
@@ -14,6 +14,7 @@
   import FileText from '@lucide/svelte/icons/file-text';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Loader from '@lucide/svelte/icons/loader';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import { track, daysBetween } from '$lib/analytics';
   import { toast } from 'svelte-sonner';
@@ -34,292 +35,276 @@
   <title>Paramètres</title>
 </svelte:head>
 
+<TalentPageHeader title="Paramètres" />
+
 <div
-  class="flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:py-12"
+  class="mx-auto max-w-sm space-y-4 px-4 py-8 sm:py-12"
+  in:fly={{ y: 20, duration: 400, delay: 200 }}
 >
-  <div class="w-full max-w-sm space-y-5">
-    <!-- Header -->
-    <header in:fly={{ y: -20, duration: 400, delay: 100 }}>
+  <!-- Profile Info (read-only) -->
+  <div
+    class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+  >
+    <h2
+      class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+    >
+      Mon compte
+    </h2>
+    <div class="space-y-3">
       <div class="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          href={resolve('/')}
-          class="h-10 w-10 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-        >
-          <ArrowLeft class="h-5 w-5" />
-          <span class="sr-only">Retour</span>
-        </Button>
-        <h1
-          class="font-heading text-3xl tracking-tight text-slate-900 uppercase dark:text-white"
-        >
-          Paramètres<span class="text-epi-teal">_</span>
-        </h1>
-      </div>
-    </header>
-
-    <div class="space-y-4" in:fly={{ y: 20, duration: 400, delay: 200 }}>
-      <!-- Profile Info (read-only) -->
-      <div
-        class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-      >
-        <h2
-          class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
-        >
-          Mon compte
-        </h2>
-        <div class="space-y-3">
-          <div class="flex items-center gap-3">
-            <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
-            >
-              <User class="h-4 w-4 text-epi-blue" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-[10px] font-bold text-slate-400 uppercase">Nom</p>
-              <p
-                class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
-              >
-                {student?.prenom}
-                {student?.nom}
-              </p>
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
-            >
-              <Mail class="h-4 w-4 text-epi-blue" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-[10px] font-bold text-slate-400 uppercase">
-                Email
-              </p>
-              <p
-                class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
-              >
-                {data.user?.email}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Appearance -->
-      <div
-        class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-      >
-        <h2
-          class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
-        >
-          Apparence
-        </h2>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30"
-            >
-              <Sun class="h-4 w-4 text-epi-orange dark:hidden" />
-              <Moon class="hidden h-4 w-4 text-epi-orange dark:block" />
-            </div>
-            <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
-              >Thème sombre</span
-            >
-          </div>
-          <ModeToggle />
-        </div>
-      </div>
-
-      <!-- Signed documents -->
-      {#if documents.length > 0}
         <div
-          class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
         >
-          <h2
-            class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
-          >
-            Mes documents
-          </h2>
-          <ul class="space-y-3">
-            {#each documents as doc (doc.type)}
-              <li class="flex items-center gap-3">
-                <div
-                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
-                >
-                  <FileText class="h-4 w-4 text-epi-teal-solid" />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p
-                    class="text-sm leading-tight font-bold text-slate-800 dark:text-slate-200"
-                  >
-                    {doc.label}
-                  </p>
-                  <p class="text-[10px] font-bold text-slate-400 uppercase">
-                    {#if doc.signerName}
-                      Signé par {doc.signerName} le {formatDateFr(doc.signedAt)}
-                    {:else}
-                      Signé le {formatDateFr(doc.signedAt)}
-                    {/if}
-                  </p>
-                  {#if doc.coSigner}
-                    <p class="text-[10px] font-bold text-slate-400 uppercase">
-                      Co-signé par {doc.coSigner.name} le {formatDateFr(
-                        doc.coSigner.signedAt,
-                      )}
-                    </p>
-                  {/if}
-                </div>
-                {#if doc.ready}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    href={resolve(`/settings/documents/${doc.type}`)}
-                    target="_blank"
-                    rel="noopener"
-                    class="h-9 shrink-0 rounded-xl text-xs font-bold"
-                  >
-                    <ExternalLink class="mr-1 h-3.5 w-3.5" />
-                    Voir
-                  </Button>
-                {:else}
-                  <span
-                    class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-slate-400 uppercase"
-                  >
-                    <Loader class="h-3.5 w-3.5 animate-spin" />
-                    Génération…
-                  </span>
-                {/if}
-              </li>
-            {/each}
-          </ul>
+          <User class="h-4 w-4 text-epi-blue" />
         </div>
-      {/if}
-
-      <!-- Danger Zone -->
-      {#if deletion?.status === 'pending'}
-        <div
-          class="rounded-3xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/40 dark:bg-amber-950/20"
-        >
-          <h2 class="mb-1 text-sm font-bold text-amber-700 dark:text-amber-400">
-            Demande de suppression en cours
-          </h2>
+        <div class="min-w-0">
+          <p class="text-[10px] font-bold text-slate-400 uppercase">Nom</p>
           <p
-            class="text-xs leading-relaxed text-amber-700/80 dark:text-amber-400/70"
+            class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
           >
-            Ta demande du {formatDateFr(deletion.at)} a été transmise à l'équipe.
-            Ton compte reste actif tant qu'elle n'a pas été traitée. Tu peux l'annuler
-            tant que ce n'est pas fait.
+            {student?.prenom}
+            {student?.nom}
           </p>
-          <form
-            action="?/cancelDeletion"
-            method="POST"
-            use:enhance={() => {
-              cancelling = true;
-              return async ({ result, update }) => {
-                await update();
-                cancelling = false;
-                if (result.type === 'success') {
-                  toast.success('Demande de suppression annulée.');
-                }
-              };
-            }}
-          >
-            <Button
-              type="submit"
-              variant="outline"
-              size="sm"
-              disabled={cancelling}
-              class="mt-3 h-9 rounded-xl border-amber-300 bg-transparent text-xs font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/40"
-            >
-              {cancelling ? 'Annulation…' : 'Annuler ma demande'}
-            </Button>
-          </form>
         </div>
-      {:else if deletion?.status === 'rejected'}
+      </div>
+      <div class="flex items-center gap-3">
         <div
-          class="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/40"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
         >
-          <h2 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-300">
-            Demande de suppression refusée
-          </h2>
-          <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-            Ta demande du {formatDateFr(deletion.at)} n'a pas été acceptée par l'équipe.
-          </p>
-          {#if deletion.note}
-            <blockquote
-              class="mt-2 border-l-2 border-slate-300 pl-3 text-xs leading-relaxed text-slate-700 dark:border-slate-700 dark:text-slate-300"
-            >
-              {deletion.note}
-            </blockquote>
-          {/if}
+          <Mail class="h-4 w-4 text-epi-blue" />
+        </div>
+        <div class="min-w-0">
+          <p class="text-[10px] font-bold text-slate-400 uppercase">Email</p>
           <p
-            class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400"
+            class="truncate text-sm font-bold text-slate-800 dark:text-slate-200"
           >
-            Tu peux refaire une demande ou contacter l'équipe pour en savoir
-            plus.
+            {data.user?.email}
           </p>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <form
-              action="?/requestDeletion"
-              method="POST"
-              use:enhance={() => {
-                requesting = true;
-                return async ({ result, update }) => {
-                  await update();
-                  requesting = false;
-                  if (result.type === 'success') {
-                    toast.success('Nouvelle demande transmise à l’équipe.');
-                  }
-                };
-              }}
-            >
-              <Button
-                type="submit"
-                variant="outline"
-                size="sm"
-                disabled={requesting}
-                class="h-9 rounded-xl text-xs font-bold"
-              >
-                {requesting ? 'Envoi…' : 'Faire une nouvelle demande'}
-              </Button>
-            </form>
-            <form
-              action="?/acknowledgeRejection"
-              method="POST"
-              use:enhance={() => {
-                acknowledging = true;
-                return async ({ update }) => {
-                  await update();
-                  acknowledging = false;
-                };
-              }}
-            >
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                disabled={acknowledging}
-                class="h-9 rounded-xl text-xs font-bold text-slate-500"
-              >
-                {acknowledging ? '…' : 'J’ai compris'}
-              </Button>
-            </form>
-          </div>
         </div>
-      {:else}
-        <div class="pt-2 text-center">
-          <Button
-            variant="link"
-            size="sm"
-            onclick={() => (deleteDialogOpen = true)}
-            class="h-auto p-0 text-[11px] font-normal text-slate-400 decoration-dotted underline-offset-4 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400"
-          >
-            Supprimer mon compte
-          </Button>
-        </div>
-      {/if}
+      </div>
     </div>
   </div>
+
+  <!-- Appearance -->
+  <div
+    class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+  >
+    <h2
+      class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+    >
+      Apparence
+    </h2>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30"
+        >
+          <Sun class="h-4 w-4 text-epi-orange dark:hidden" />
+          <Moon class="hidden h-4 w-4 text-epi-orange dark:block" />
+        </div>
+        <span class="text-sm font-bold text-slate-700 dark:text-slate-300"
+          >Thème sombre</span
+        >
+      </div>
+      <ModeToggle />
+    </div>
+  </div>
+
+  <!-- Signed documents -->
+  {#if documents.length > 0}
+    <div
+      class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+    >
+      <h2
+        class="mb-3 text-base font-bold tracking-widest text-slate-400 uppercase"
+      >
+        Mes documents
+      </h2>
+      <ul class="space-y-3">
+        {#each documents as doc (doc.type)}
+          <li class="flex items-center gap-3">
+            <div
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
+            >
+              <FileText class="h-4 w-4 text-epi-teal-solid" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p
+                class="text-sm leading-tight font-bold text-slate-800 dark:text-slate-200"
+              >
+                {doc.label}
+              </p>
+              <p class="text-[10px] font-bold text-slate-400 uppercase">
+                {#if doc.signerName}
+                  Signé par {doc.signerName} le {formatDateFr(doc.signedAt)}
+                {:else}
+                  Signé le {formatDateFr(doc.signedAt)}
+                {/if}
+              </p>
+              {#if doc.coSigner}
+                <p class="text-[10px] font-bold text-slate-400 uppercase">
+                  Co-signé par {doc.coSigner.name} le {formatDateFr(
+                    doc.coSigner.signedAt,
+                  )}
+                </p>
+              {/if}
+            </div>
+            {#if doc.status === 'ready'}
+              <Button
+                variant="outline"
+                size="sm"
+                href={resolve(`/settings/documents/${doc.type}`)}
+                target="_blank"
+                rel="noopener"
+                class="h-9 shrink-0 rounded-xl text-xs font-bold"
+              >
+                <ExternalLink class="mr-1 h-3.5 w-3.5" />
+                Voir
+              </Button>
+            {:else if doc.status === 'generating'}
+              <span
+                class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-slate-400 uppercase"
+              >
+                <Loader class="h-3.5 w-3.5 animate-spin" />
+                Génération…
+              </span>
+            {:else}
+              <span
+                class="flex shrink-0 items-center gap-1 text-[10px] font-bold text-amber-600 uppercase dark:text-amber-500"
+                title="La génération de ce document a échoué. Notre équipe peut le relancer, réessaie plus tard ou contacte-la."
+              >
+                <AlertTriangle class="h-3.5 w-3.5" />
+                Indisponible
+              </span>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+
+  <!-- Danger Zone -->
+  {#if deletion?.status === 'pending'}
+    <div
+      class="rounded-3xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900/40 dark:bg-amber-950/20"
+    >
+      <h2 class="mb-1 text-sm font-bold text-amber-700 dark:text-amber-400">
+        Demande de suppression en cours
+      </h2>
+      <p
+        class="text-xs leading-relaxed text-amber-700/80 dark:text-amber-400/70"
+      >
+        Ta demande du {formatDateFr(deletion.at)} a été transmise à l'équipe. Ton
+        compte reste actif tant qu'elle n'a pas été traitée. Tu peux l'annuler tant
+        que ce n'est pas fait.
+      </p>
+      <form
+        action="?/cancelDeletion"
+        method="POST"
+        use:enhance={() => {
+          cancelling = true;
+          return async ({ result, update }) => {
+            await update();
+            cancelling = false;
+            if (result.type === 'success') {
+              toast.success('Demande de suppression annulée.');
+            }
+          };
+        }}
+      >
+        <Button
+          type="submit"
+          variant="outline"
+          size="sm"
+          disabled={cancelling}
+          class="mt-3 h-9 rounded-xl border-amber-300 bg-transparent text-xs font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/40"
+        >
+          {cancelling ? 'Annulation…' : 'Annuler ma demande'}
+        </Button>
+      </form>
+    </div>
+  {:else if deletion?.status === 'rejected'}
+    <div
+      class="rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/40"
+    >
+      <h2 class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-300">
+        Demande de suppression refusée
+      </h2>
+      <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+        Ta demande du {formatDateFr(deletion.at)} n'a pas été acceptée par l'équipe.
+      </p>
+      {#if deletion.note}
+        <blockquote
+          class="mt-2 border-l-2 border-slate-300 pl-3 text-xs leading-relaxed text-slate-700 dark:border-slate-700 dark:text-slate-300"
+        >
+          {deletion.note}
+        </blockquote>
+      {/if}
+      <p
+        class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400"
+      >
+        Tu peux refaire une demande ou contacter l'équipe pour en savoir plus.
+      </p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <form
+          action="?/requestDeletion"
+          method="POST"
+          use:enhance={() => {
+            requesting = true;
+            return async ({ result, update }) => {
+              await update();
+              requesting = false;
+              if (result.type === 'success') {
+                toast.success('Nouvelle demande transmise à l’équipe.');
+              }
+            };
+          }}
+        >
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            disabled={requesting}
+            class="h-9 rounded-xl text-xs font-bold"
+          >
+            {requesting ? 'Envoi…' : 'Faire une nouvelle demande'}
+          </Button>
+        </form>
+        <form
+          action="?/acknowledgeRejection"
+          method="POST"
+          use:enhance={() => {
+            acknowledging = true;
+            return async ({ update }) => {
+              await update();
+              acknowledging = false;
+            };
+          }}
+        >
+          <Button
+            type="submit"
+            variant="ghost"
+            size="sm"
+            disabled={acknowledging}
+            class="h-9 rounded-xl text-xs font-bold text-slate-500"
+          >
+            {acknowledging ? '…' : 'J’ai compris'}
+          </Button>
+        </form>
+      </div>
+    </div>
+  {:else}
+    <div class="pt-2 text-center">
+      <Button
+        variant="link"
+        size="sm"
+        onclick={() => (deleteDialogOpen = true)}
+        class="h-auto p-0 text-[11px] font-normal text-slate-400 decoration-dotted underline-offset-4 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400"
+      >
+        Supprimer mon compte
+      </Button>
+    </div>
+  {/if}
 </div>
 
 <AlertDialog.Root bind:open={deleteDialogOpen}>

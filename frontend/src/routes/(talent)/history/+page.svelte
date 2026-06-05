@@ -4,10 +4,10 @@
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { formatDateFr, flattenActivityMissions } from '$lib/utils';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import History from '@lucide/svelte/icons/history';
   import Calendar from '@lucide/svelte/icons/calendar';
   import BookOpen from '@lucide/svelte/icons/book-open';
-  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
   let { data }: { data: PageData } = $props();
 
@@ -18,25 +18,13 @@
   <title>Missions précédentes</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-  <header class="mb-8" in:fly={{ y: -20, duration: 400, delay: 100 }}>
-    <Button
-      variant="ghost"
-      href={resolve('/')}
-      class="mb-4 gap-2 text-sm font-bold text-slate-500 hover:text-epi-blue"
-    >
-      <ArrowLeft class="h-4 w-4" />
-      Retour au tableau de bord
-    </Button>
-    <h1
-      class="flex items-center gap-3 font-heading text-3xl tracking-tight text-slate-900 uppercase dark:text-white"
-    >
-      <History class="h-7 w-7 text-epi-blue" />
-      Missions précédentes<span class="text-epi-teal">_</span>
-    </h1>
-    <p class="mt-2 text-sm text-slate-500">Toutes tes missions complétées.</p>
-  </header>
+<TalentPageHeader
+  title="Missions précédentes"
+  subtitle="Toutes tes missions complétées."
+  icon={History}
+/>
 
+<div class="mx-auto max-w-5xl px-4 py-8 sm:py-12">
   {#if missions.length > 0}
     <div
       class="grid gap-4 sm:grid-cols-2"
