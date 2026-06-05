@@ -167,6 +167,21 @@ class S3StorageService implements StorageService {
   }
 }
 
+/**
+ * True when an error from {@link StorageService.get} means the object simply is
+ * not there (deleted, or a row pointing at a key that was never written), as
+ * opposed to a transient storage incident (timeout, throttling, 5xx) that the
+ * S3 client already retried. Callers that tolerate a missing object but must
+ * not mask infra failures (e.g. the bulk onboarding-PDF export) branch on this.
+ */
+export function isObjectNotFound(err: unknown): boolean {
+  if (err instanceof Error && err.message.startsWith('Object not found:')) {
+    return true;
+  }
+  const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
+  return e?.name === 'NoSuchKey' || e?.$metadata?.httpStatusCode === 404;
+}
+
 let instance: StorageService | null = null;
 
 export function getStorage(): StorageService {

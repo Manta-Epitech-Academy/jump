@@ -1,15 +1,20 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { Zip, ZipPassThrough } from 'fflate';
-import { getStorage } from '$lib/server/infra/storage';
+import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
 import {
   collectFinishedOnboardingDocs,
   type FinishedOnboardingDoc,
 } from '$lib/server/services/onboardingDocuments';
 
-// How many PDFs to pull from S3 at once. A global export can span thousands of
-// files; firing one GET per talent simultaneously would exhaust sockets and
-// memory. Eight keeps the pipe busy while peak memory stays at ~8 buffered PDFs.
+// How many PDFs to pull from S3 at once. Firing one GET per talent
+// simultaneously would open hundreds of sockets at once; eight keeps the pipe
+// busy without that. Note this bounds only the *fetch* side: the workers
+// enqueue zip output as fast as they fetch and don't honour stream
+// backpressure, so on a slow client the unsent bytes can grow to ~the whole
+// archive. At our scale (a few hundred small, already-generated PDFs) that's
+// tens of MB, which is fine; revisit if the corpus ever grows by an order of
+// magnitude.
 const FETCH_CONCURRENCY = 8;
 
 // Self-documenting top-level folders inside the archive, one per document kind.
@@ -18,16 +23,59 @@ const ARCHIVE_FOLDER: Record<FinishedOnboardingDoc['type'], string> = {
   rules: 'reglement-interieur',
 };
 
+// A document the row promised but the export couldn't include. `missing` = the
+// object is genuinely gone (deleted, or a stale `*FilePath`); `error` = a
+// storage incident that survived the S3 client's own retries. Recorded so the
+// omission surfaces in a manifest instead of vanishing.
+type SkippedDoc = { doc: FinishedOnboardingDoc; reason: 'missing' | 'error' };
+
+const archivePath = (doc: FinishedOnboardingDoc): string =>
+  `${ARCHIVE_FOLDER[doc.type]}/${doc.filename}`;
+
+// French, admin-facing text dropped into the archive when anything was left
+// out, so a short export is visible without reading pod logs. Legal documents:
+// a silent omission is worse than a loud one.
+function renderSkipManifest(skipped: SkippedDoc[], date: string): string {
+  const missing = skipped.filter((s) => s.reason === 'missing');
+  const failed = skipped.filter((s) => s.reason === 'error');
+  const lines = [
+    `Documents absents de cette archive (export du ${date})`,
+    '',
+    `${skipped.length} document(s) attendu(s) n'ont pas pu être inclus :`,
+    '',
+  ];
+  if (missing.length > 0) {
+    lines.push(
+      `Introuvables dans le stockage (${missing.length}) : fichier supprimé ou`,
+      'jamais généré. Relancer la génération du PDF concerné.',
+      ...missing.map((s) => `  - ${archivePath(s.doc)}  [clé : ${s.doc.key}]`),
+      '',
+    );
+  }
+  if (failed.length > 0) {
+    lines.push(
+      `Erreurs de récupération (${failed.length}) : incident temporaire du`,
+      "stockage. Relancer l'export devrait les rapatrier.",
+      ...failed.map((s) => `  - ${archivePath(s.doc)}  [clé : ${s.doc.key}]`),
+      '',
+    );
+  }
+  return lines.join('\n');
+}
+
 // Bulk download of every finished onboarding PDF as a single ZIP: the
 // image-rights document for each decided talent, plus the règlement intérieur
 // for talents whose copy is co-signed by both the student and the parent (the
 // filter lives in `collectFinishedOnboardingDocs`). The PDFs already exist in
 // S3, so this only fetches and repackages them; nothing is regenerated.
 //
-// Streamed rather than buffered: bytes start flowing before the whole archive
-// is built, so a large global export neither blows pod memory nor stalls long
-// enough to trip a proxy idle timeout. Store-level (ZipPassThrough, no deflate)
-// because PDFs are already compressed; recompressing would only burn CPU.
+// Streamed rather than assembled into one Blob: bytes start flowing before the
+// whole archive is built, so the browser sees progress at once and a large
+// export doesn't stall long enough to trip a proxy idle timeout. (Streaming
+// doesn't cap memory here, see FETCH_CONCURRENCY; total memory is bounded by
+// archive size, tens of MB at our scale.) Store-level (ZipPassThrough, no
+// deflate) because PDFs are already compressed; recompressing would only burn
+// CPU.
 export const GET: RequestHandler = async ({ locals }) => {
   // The /staff/admin layout already redirects non-admins; this is defence in
   // depth for an endpoint that streams minors' signed documents.
@@ -53,31 +101,45 @@ export const GET: RequestHandler = async ({ locals }) => {
 
       // Workers share a cursor over `docs`. Appending to the archive is
       // synchronous, so the single-threaded runtime serialises the add/push
-      // pairs even though the S3 fetches run concurrently.
+      // pairs even though the S3 fetches run concurrently. Each worker returns
+      // the docs it had to skip; one bad object must not abort the archive, but
+      // it must not vanish silently either (see the manifest below).
       let cursor = 0;
-      const worker = async (): Promise<void> => {
+      const worker = async (): Promise<SkippedDoc[]> => {
+        const skipped: SkippedDoc[] = [];
         while (cursor < docs.length) {
           const doc = docs[cursor++];
           let bytes: Buffer;
           try {
             bytes = await storage.get(doc.key);
           } catch (err) {
-            // A `*FilePath` set on the row but missing in S3 (deleted object,
-            // transient error) is skipped, not fatal: one stale pointer must
-            // not abort the whole archive.
-            console.error(`[onboarding-zip] skipping ${doc.key}:`, err);
+            const reason = isObjectNotFound(err) ? 'missing' : 'error';
+            console.error(`[onboarding-zip] ${reason}: ${doc.key}`, err);
+            skipped.push({ doc, reason });
             continue;
           }
-          const file = new ZipPassThrough(
-            `${ARCHIVE_FOLDER[doc.type]}/${doc.filename}`,
-          );
+          const file = new ZipPassThrough(archivePath(doc));
           zip.add(file);
           file.push(new Uint8Array(bytes), true);
         }
+        return skipped;
       };
 
       Promise.all(Array.from({ length: FETCH_CONCURRENCY }, worker))
-        .then(() => zip.end())
+        .then((perWorker) => {
+          const skipped = perWorker.flat();
+          if (skipped.length > 0) {
+            // Tell the admin which expected documents are absent and why,
+            // inside the artifact they downloaded.
+            const manifest = new ZipPassThrough('_DOCUMENTS-MANQUANTS.txt');
+            zip.add(manifest);
+            manifest.push(
+              new TextEncoder().encode(renderSkipManifest(skipped, date)),
+              true,
+            );
+          }
+          zip.end();
+        })
         .catch((err) => controller.error(err));
     },
   });
