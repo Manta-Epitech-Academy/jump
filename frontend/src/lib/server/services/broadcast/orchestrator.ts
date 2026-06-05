@@ -39,6 +39,14 @@ export interface EnqueueBroadcastInput {
   sourceFilter?: BroadcastSourceFilter | null;
   filters?: BroadcastFilters | null;
   createdById: string;
+  /**
+   * Per-send content overrides. When provided, these are snapshotted onto the
+   * Broadcast instead of the template's own subject/body — letting the composer
+   * tweak the message for this send without mutating the reusable template.
+   * `null`/omitted falls back to the template (the historical behaviour).
+   */
+  subjectOverride?: string | null;
+  bodyOverride?: string | null;
 }
 
 export interface EnqueueResult {
@@ -92,8 +100,9 @@ export async function enqueueBroadcast(
       sourceBroadcastId: input.sourceBroadcastId || null,
       sourceFilter: input.sourceFilter ?? null,
       filters: (input.filters ?? null) as never,
-      subjectSnapshot: template.subject,
-      bodySnapshot: template.body,
+      // Snapshot the per-send override when given, else the template's content.
+      subjectSnapshot: input.subjectOverride ?? template.subject,
+      bodySnapshot: input.bodyOverride ?? template.body,
       status: 'queued',
       createdById: input.createdById,
     },
