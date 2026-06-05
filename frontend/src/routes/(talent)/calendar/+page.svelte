@@ -107,11 +107,6 @@
     }),
   );
 
-  // A day is in-range if it falls within the overall span of the talent's events.
-  function dayInRange(d: Date): boolean {
-    return range != null && d >= rangeStart && d <= rangeEnd;
-  }
-
   let canGoPrev = $derived(range != null && weekDays[6] > rangeStart);
   let canGoNext = $derived(range != null && weekDays[0] < rangeEnd);
 
@@ -275,17 +270,6 @@
     return map;
   });
 
-  // Which event(s) the visible week belongs to, shown as the header subtitle.
-  // Events don't overlap in practice, so this is usually a single title; the
-  // join only matters on the rare seam where one event ends and another begins.
-  let visibleEventTitle = $derived.by(() => {
-    const titres: string[] = [];
-    for (const s of [...slotsByDay.values()].flat()) {
-      if (!titres.includes(s.event.titre)) titres.push(s.event.titre);
-    }
-    return titres.length ? titres.join(' · ') : undefined;
-  });
-
   // Hour range: tight to the week's slots, with a small pad. Falls back to
   // 8–20 when the week has no slots.
   let hourRange = $derived.by(() => {
@@ -362,7 +346,7 @@
 </svelte:head>
 
 <div class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-  <TalentPageHeader title="Planning" subtitle={visibleEventTitle}>
+  <TalentPageHeader title="Planning">
     {#snippet actions()}
       {#if range}
         <Button
@@ -402,13 +386,9 @@
         >
           <div></div>
           {#each weekDays as d, i (i)}
-            {@const inRange = dayInRange(d)}
             {@const isToday = sameDay(d, nowTime)}
             <div
-              class={cn(
-                'flex flex-col items-center justify-center gap-0.5 py-2 text-center',
-                !inRange && 'opacity-30',
-              )}
+              class="flex flex-col items-center justify-center gap-0.5 py-2 text-center"
             >
               <span
                 class={cn(
@@ -452,15 +432,10 @@
             </div>
 
             <!-- Day columns -->
-            {#each weekDays as d, i (i)}
-              {@const inRange = dayInRange(d)}
+            {#each weekDays as _, i (i)}
               {@const daySlots = slotsByDay.get(i) ?? []}
               <div
-                class={cn(
-                  'relative border-l border-slate-100 dark:border-slate-800',
-                  !inRange &&
-                    'bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgba(100,116,139,0.04)_6px_12px)]',
-                )}
+                class="relative border-l border-slate-100 dark:border-slate-800"
               >
                 <!-- Hour grid lines -->
                 {#each hours as _, idx (idx)}
