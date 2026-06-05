@@ -8,7 +8,8 @@
  * the three consumers to drift (a renamed column fixed in one, missed in
  * another).
  */
-import type { Talent } from '@prisma/client';
+import type { Prisma, Talent } from '@prisma/client';
+import { prisma } from '$lib/server/db';
 
 export type OnboardingDocumentType = 'charter' | 'rules' | 'image-rights';
 
@@ -84,6 +85,83 @@ function slugifyAscii(s: string): string {
 
 function sanitizeTag(s: string): string {
   return s.replace(/[^a-zA-Z0-9]/g, '');
+}
+
+/**
+ * A talent's "finished" onboarding documents are EITHER:
+ *   - the image-rights PDF, once the legal guardian has decided either way
+ *     (authorization OR refusal both produce a legal PDF worth archiving), OR
+ *   - the règlement intérieur PDF, ONLY once it is co-signed by BOTH the talent
+ *     (`rulesSignedAt`) AND the parent (`parentRulesSignedAt`). The règlement is
+ *     a single artifact carrying both signature blocks, so the two-signature
+ *     gate guards that one file: a talent-only-signed règlement never matches.
+ * Each arm also requires the generated PDF to exist on the row (`*FilePath`).
+ * Shared by the bulk-export endpoint and the page that gates its button so the
+ * filter can never drift between the two.
+ */
+export const FINISHED_ONBOARDING_DOCS_WHERE: Prisma.TalentWhereInput = {
+  OR: [
+    { imageRightsDecidedAt: { not: null }, imageRightsFilePath: { not: null } },
+    {
+      rulesSignedAt: { not: null },
+      parentRulesSignedAt: { not: null },
+      rulesFilePath: { not: null },
+    },
+  ],
+};
+
+export interface FinishedOnboardingDoc {
+  /** S3 key of the stored PDF. */
+  key: string;
+  type: Extract<OnboardingDocumentType, 'rules' | 'image-rights'>;
+  /** Per-file download name, e.g. `imagerights-jeandupont-A12345.pdf`. */
+  filename: string;
+}
+
+/**
+ * Collects every finished onboarding document across all talents (global,
+ * matching the admin scope), expanded to one {@link FinishedOnboardingDoc} per
+ * file. A talent can contribute both an image-rights and a règlement file, so
+ * each arm is re-checked independently rather than trusting which OR-branch of
+ * {@link FINISHED_ONBOARDING_DOCS_WHERE} matched the row.
+ */
+export async function collectFinishedOnboardingDocs(): Promise<
+  FinishedOnboardingDoc[]
+> {
+  const talents = await prisma.talent.findMany({
+    where: FINISHED_ONBOARDING_DOCS_WHERE,
+    select: {
+      id: true,
+      prenom: true,
+      nom: true,
+      externalId: true,
+      imageRightsDecidedAt: true,
+      imageRightsFilePath: true,
+      rulesSignedAt: true,
+      parentRulesSignedAt: true,
+      rulesFilePath: true,
+    },
+    orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+  });
+
+  const docs: FinishedOnboardingDoc[] = [];
+  for (const t of talents) {
+    if (t.imageRightsDecidedAt && t.imageRightsFilePath) {
+      docs.push({
+        key: t.imageRightsFilePath,
+        type: 'image-rights',
+        filename: onboardingDownloadFilename('image-rights', t),
+      });
+    }
+    if (t.rulesSignedAt && t.parentRulesSignedAt && t.rulesFilePath) {
+      docs.push({
+        key: t.rulesFilePath,
+        type: 'rules',
+        filename: onboardingDownloadFilename('rules', t),
+      });
+    }
+  }
+  return docs;
 }
 
 /**
