@@ -2,6 +2,7 @@
   import FileText from '@lucide/svelte/icons/file-text';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+  import Archive from '@lucide/svelte/icons/archive';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Search from '@lucide/svelte/icons/search';
   import X from '@lucide/svelte/icons/x';
@@ -14,7 +15,8 @@
   import { goto, invalidate } from '$app/navigation';
   import { page } from '$app/state';
   import { Badge } from '$lib/components/ui/badge';
-  import { Button } from '$lib/components/ui/button';
+  import { Button, buttonVariants } from '$lib/components/ui/button';
+  import { resolve } from '$app/paths';
   import * as Card from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
   import * as Select from '$lib/components/ui/select';
@@ -218,6 +220,17 @@
             Tout relancer ({data.errorCount})
           </Button>
         </form>
+      {/if}
+
+      {#if data.exportableCount > 0}
+        <a
+          href={resolve('/staff/admin/onboarding-pdfs/export')}
+          class={cn(buttonVariants({ variant: 'default' }), 'gap-2')}
+          download
+        >
+          <Archive class="h-4 w-4" />
+          Télécharger les PDF signés
+        </a>
       {/if}
     </div>
   </div>

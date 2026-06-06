@@ -3,6 +3,7 @@ import type { StaffProfile, Talent, Campus, StaffRole } from '@prisma/client';
 import type { FlagKey } from '$lib/domain/featureFlags';
 import type { StaffGroup } from '$lib/domain/permissions';
 import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
+import type { PlanningPreview } from '$lib/server/talentPlanningPreview';
 
 declare global {
   namespace App {
@@ -33,6 +34,13 @@ declare global {
        * event dates. See {@link readDevPhaseOverride}.
        */
       stagePhaseOverride: EventLifecycleStatus | null;
+      /**
+       * Dev-tooling preview of the talent dashboard "Planning à venir" widget.
+       * Only set when an admin is impersonating a talent. Lets staff cycle the
+       * widget through its states (event en cours / prochaine session / rien)
+       * without seeding events. See {@link readPlanningPreview}.
+       */
+      planningPreview: PlanningPreview | null;
       /**
        * The real admin behind an impersonated session. Set only when
        * `session.impersonatedBy` is present. Lets analytics identify the
