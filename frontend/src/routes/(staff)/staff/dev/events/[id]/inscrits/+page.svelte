@@ -96,9 +96,16 @@
     { key: 'avatar', label: '', class: 'w-12' },
     { key: 'prenom', label: 'Prénom', sortable: true },
     { key: 'nom', label: 'Nom', sortable: true },
-    { key: 'lycee', label: 'Lycée', sortable: true },
+    // Lycée is the greedy column: it soaks up the table's slack (school names
+    // are the longest, most variable values) so the trailing columns stay
+    // content-width and hug the right instead of the slack pooling behind a
+    // left-aligned Statut badge as a dead gap.
+    { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
     { key: 'niveau', label: 'Niveau', sortable: true },
-    { key: 'ready', label: 'Statut', sortable: true, align: 'right' },
+    // Left-aligned like every other column (and the admin talents table): a
+    // right-aligned badge made the header label overhang the badge text by the
+    // badge's own border + padding, reading as misaligned.
+    { key: 'ready', label: 'Statut', sortable: true },
   ];
 
   // Niveau is a one-click segmented filter, but only worth showing when the
@@ -478,7 +485,7 @@
                 <span class="text-sm text-muted-foreground">—</span>
               {/if}
             </Table.Cell>
-            <Table.Cell class="text-right">
+            <Table.Cell>
               <Tooltip.Provider delayDuration={150}>
                 <Tooltip.Root>
                   <Tooltip.Trigger>

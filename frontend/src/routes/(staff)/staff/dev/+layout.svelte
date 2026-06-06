@@ -162,7 +162,14 @@
           </span>
         {/snippet}
       </Tooltip.Trigger>
-      <Tooltip.Content>
+      <!-- Right-anchored: these entries stack in the vertical nav, so a top
+           tooltip would cover the sibling row above. Right points into the
+           gutter between sidebar and main, covering nothing.
+           No arrow + a wider offset: the trigger fills the nav (its right edge
+           sits ~17px inside the sidebar, behind the px-4 gutter), so a pointer
+           arrow would land on the dark sidebar and vanish. We drop it and push
+           the chip clear of the sidebar onto the light content instead. -->
+      <Tooltip.Content side="right" sideOffset={20} showArrow={false}>
         <p>Bientôt disponible</p>
       </Tooltip.Content>
     </Tooltip.Root>
