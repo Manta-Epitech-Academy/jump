@@ -29,6 +29,7 @@
     row,
     empty,
     headerClass = 'bg-muted/50',
+    stickyHeader = false,
   }: {
     columns: ColumnDef[];
     rows: T[];
@@ -53,17 +54,29 @@
     /** Optional custom empty state (defaults to a muted "Aucun résultat"). */
     empty?: Snippet;
     headerClass?: string;
+    /**
+     * Freeze the header as the page scrolls. The `<th>`s pin to the page's
+     * scroller, so the table opts out of the primitive's horizontal-scroll
+     * wrapper (`scrollable={false}`) — an overflow ancestor would otherwise
+     * capture the sticky and the header would never pin. The caller owns the
+     * surrounding layout (one page scroll, no nested scrollbar).
+     */
+    stickyHeader?: boolean;
   } = $props();
 </script>
 
 <div class="rounded-sm border bg-card shadow-sm">
-  <Table.Root>
+  <Table.Root scrollable={!stickyHeader}>
     <Table.Header class={headerClass}>
       <Table.Row>
         {#each columns as col (col.key)}
           <Table.Head
             class={cn(
               'text-xs font-bold uppercase',
+              // Pinned header: each th carries its own opaque fill + bottom
+              // border so the frozen bar reads as one line while rows scroll
+              // under it (z above the body cells and the stretched row link).
+              stickyHeader && 'sticky top-0 z-20 border-b bg-muted',
               col.align === 'right' && 'text-right',
               col.class,
             )}
@@ -116,13 +129,19 @@
           <Table.Row
             class={cn('[&>td]:transition-colors', rowHref && 'relative')}
           >
+            {@render row(r, i)}
             {#if rowHref}
-              <!-- Stretched-link overlay: a real <a> covering the whole row. The
-                   absolute <td> drops out of table flow (so it adds no column),
-                   and inset-0 resolves against the relative <tr>. It MUST stay
-                   transparent: the row-hover rule tints every <td>, and this one
-                   sits above the cells, so otherwise it paints a muted sheet over
-                   the row's text on hover. Focus shows an inset ring, no fill. -->
+              <!-- Stretched-link overlay: a real <a> covering the whole row,
+                   inset-0 resolving against the relative <tr>. The browser wraps
+                   this absolutely-positioned <td> in an anonymous table cell, so
+                   it DOES claim a column — it MUST be rendered last, otherwise
+                   that phantom (zero-width) column lands at the front and shifts
+                   every real cell one column right of its header. As the trailing
+                   cell the phantom column sits past the last header, invisible.
+                   It MUST stay transparent: the row-hover rule tints every <td>,
+                   and this one sits above the cells, so otherwise it paints a
+                   muted sheet over the row's text on hover. Focus shows an inset
+                   ring, no fill. -->
               <td class="absolute inset-0 bg-transparent! p-0">
                 <a
                   href={rowHref(r)}
@@ -132,7 +151,6 @@
                 </a>
               </td>
             {/if}
-            {@render row(r, i)}
           </Table.Row>
         {/each}
       {/if}

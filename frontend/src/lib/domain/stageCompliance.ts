@@ -38,3 +38,30 @@ export function isImageRightsCompliant(
 ): boolean {
   return imageRightsDecision != null;
 }
+
+/** The three display states a règlement intérieur signature can be in. */
+export type RulesStatus = 'signed' | 'awaiting_parent' | 'pending';
+
+/** UI labels (French) keyed by the resolved règlement status. */
+export const RULES_STATUS_LABELS: Record<RulesStatus, string> = {
+  signed: 'Signé',
+  awaiting_parent: 'Attente parent',
+  pending: 'En attente',
+};
+
+/**
+ * Resolves the displayable règlement status from its three signals. Mirrors
+ * {@link isRulesCompliant} for the "done" case, then splits the not-done case
+ * into the actionable "chase the parent" state (student signed, guardian
+ * co-signature still pending) versus "nothing signed yet". One definition so
+ * the per-student rail and the cohort table never drift on the wording.
+ */
+export function rulesStatus(
+  parentRulesSignedAt: Date | string | null | undefined,
+  charteSigned: boolean | null | undefined,
+  rulesSignedAt: Date | string | null | undefined,
+): RulesStatus {
+  if (isRulesCompliant(parentRulesSignedAt, charteSigned)) return 'signed';
+  if (rulesSignedAt != null) return 'awaiting_parent';
+  return 'pending';
+}

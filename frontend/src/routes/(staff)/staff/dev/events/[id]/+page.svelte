@@ -60,7 +60,10 @@
     data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
   );
 
-  const showPlanning = $derived(data.featureFlags.includes('event_planning'));
+  // Planning isn't built for this release yet (shown as "Bientôt disponible" in
+  // the dev sidebar), so its links stay hidden on the coding_club overview too.
+  // Flip back on alongside the sidebar entry and the planning route.
+  const showPlanning = false;
 </script>
 
 <svelte:head>

@@ -1064,8 +1064,12 @@
   <!-- Top Bar -->
   <div class="mb-4 flex shrink-0 items-center justify-between px-1">
     <div class="hidden text-sm font-medium text-muted-foreground sm:block">
-      Cliquez-glissez sur la grille pour créer un créneau, ou déposez une
-      activité du catalogue.
+      {#if canEdit}
+        Cliquez-glissez sur la grille pour créer un créneau, ou déposez une
+        activité du catalogue.
+      {:else}
+        Planning en lecture seule.
+      {/if}
     </div>
     {#if canEdit && planningTemplates && planningTemplates.length > 0}
       <Button

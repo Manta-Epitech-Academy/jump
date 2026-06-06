@@ -9,7 +9,10 @@
   import { Separator } from '$lib/components/ui/separator';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import { formatDateFr } from '$lib/utils';
-  import { isRulesCompliant } from '$lib/domain/stageCompliance';
+  import {
+    rulesStatus,
+    RULES_STATUS_LABELS,
+  } from '$lib/domain/stageCompliance';
   import {
     IMAGE_RIGHTS_STATUS_LABELS,
     type ImageRightsDecision,
@@ -77,15 +80,17 @@
     return c.openedAt ? 'opened' : 'unopened';
   }
 
-  const rulesOk = $derived(isRulesCompliant(parentRulesSignedAt, charteSigned));
-  // Talent signed their part but the guardian co-signature is still pending —
-  // not a red "rien fait" blocker, just waiting on the parent.
-  const rulesAwaitingParent = $derived(!rulesOk && rulesSignedAt != null);
+  // Shared three-state resolver (kept in lockstep with the cohort table); the
+  // rail layers the date-rich tooltip and tone on top of the state.
+  const rules = $derived(
+    rulesStatus(parentRulesSignedAt, charteSigned, rulesSignedAt),
+  );
 
-  const rulesStatus = $derived.by<DocStatus>(() => {
-    if (rulesOk) {
+  const rulesDoc = $derived.by<DocStatus>(() => {
+    const label = RULES_STATUS_LABELS[rules];
+    if (rules === 'signed') {
       return {
-        label: 'Signé',
+        label,
         colorClass: 'text-epi-teal-solid',
         icon: Check,
         tooltip: parentRulesSignedAt
@@ -93,23 +98,23 @@
           : "Signature attestée manuellement par l'équipe (hors ligne).",
       };
     }
-    if (rulesAwaitingParent) {
+    if (rules === 'awaiting_parent') {
       return {
-        label: 'Attente parent',
+        label,
         colorClass: 'text-amber-600 dark:text-amber-500',
         icon: Clock,
         tooltip: `L'élève a signé le règlement${rulesSignedAt ? ` le ${formatDateFr(rulesSignedAt, timezone)}` : ''}, mais la co-signature du représentant légal est encore attendue.`,
       };
     }
     return {
-      label: 'En attente',
+      label,
       colorClass: 'text-destructive',
       icon: Clock,
       tooltip: "Le règlement intérieur n'a pas encore été signé par l'élève.",
     };
   });
 
-  const imageStatus = $derived.by<DocStatus>(() => {
+  const imageDoc = $derived.by<DocStatus>(() => {
     const decidedSuffix = imageRightsDecidedAt
       ? ` (décidé le ${formatDateFr(imageRightsDecidedAt, timezone)})`
       : '';
@@ -226,8 +231,8 @@
         Documents
       </h4>
       <ul class="space-y-1.5 text-sm">
-        {@render docRow('Règlement intérieur', rulesStatus)}
-        {@render docRow("Droit à l'image", imageStatus)}
+        {@render docRow('Règlement intérieur', rulesDoc)}
+        {@render docRow("Droit à l'image", imageDoc)}
       </ul>
     </section>
   </div>

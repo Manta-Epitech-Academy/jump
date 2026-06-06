@@ -1,4 +1,6 @@
 import type { Prisma } from '@prisma/client';
+import type { RulesStatus } from '$lib/domain/stageCompliance';
+import type { ImageRightsStatus } from '$lib/domain/imageRights';
 
 // The scoped-down inscrits page is one flat table: avatar, prenom, nom, lycee,
 // niveau, readiness. No phase variants, no interview status, no last-activity.
@@ -12,7 +14,10 @@ export const INSCRIT_TALENT_SELECT = {
   niveau: true,
   email: true,
   parentEmail: true,
-  // Readiness inputs (see isRulesCompliant / isImageRightsCompliant).
+  // Dossier inputs — feed the readiness badge and its per-document tooltip
+  // (see rulesStatus / imageRightsStatus). `rulesSignedAt` distinguishes the
+  // "waiting on the parent co-signature" state from "nothing signed yet".
+  rulesSignedAt: true,
   parentRulesSignedAt: true,
   imageRightsDecision: true,
   school: { select: { id: true, name: true } },
@@ -40,6 +45,10 @@ export type InscritRow = {
   niveau: string | null;
   schoolName: string | null;
   ready: boolean;
+  // Per-document dossier states behind the readiness badge — drive its tooltip
+  // breakdown. `ready` is `rulesStatus === 'signed' && imageStatus !== 'undecided'`.
+  rulesStatus: RulesStatus;
+  imageStatus: ImageRightsStatus;
   // Search haystack extras (not shown as columns).
   email: string | null;
   parentEmail: string | null;

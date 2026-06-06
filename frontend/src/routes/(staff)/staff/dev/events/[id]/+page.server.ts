@@ -2,7 +2,6 @@ import type { PageServerLoad, Actions } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { prisma } from '$lib/server/db';
 import { eventSchema, startTimeSchema } from '$lib/validation/events';
 import { EventService } from '$lib/server/services/events';
 import {
@@ -31,6 +30,10 @@ import {
   imageRightsCompliantWhere,
   rulesCompliantWhere,
 } from '$lib/server/db/stageCompliance';
+import {
+  loadLyceesBreakdown,
+  loadInterestsCloud,
+} from '$lib/server/services/cohortOverview';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -335,138 +338,6 @@ async function loadStagePast({ db, event }: LoaderCtx) {
     },
     endDate: stageEndOrDefault(event),
   };
-}
-
-// ─── Helpers for prep view ───────────────────────────────────────────────
-
-/**
- * Cap shown rows for both breakdown sections at the same N. Keeps the two
- * cards visually balanced side-by-side and protects the page layout when a
- * cohort spans many lycées or picks across the full interest catalogue.
- * The tail is summarised in a non-clickable footer row by the components.
- */
-const BREAKDOWN_TOP_N = 10;
-
-type LyceeBreakdownRow = { schoolId: string; name: string; count: number };
-type InterestBreakdownRow = {
-  interestId: string;
-  nom: string;
-  emoji: string | null;
-  count: number;
-};
-
-/**
- * Tail aggregate. `count` semantics differ per section:
- *   - lycées: unique talents (each talent has one lycée),
- *   - interests: declarations (a talent picking 3 tail interests adds 3).
- * The components label this accordingly.
- */
-type BreakdownTail = { count: number; categories: number };
-
-export type LyceesBreakdown = {
-  rows: LyceeBreakdownRow[];
-  others: BreakdownTail | null;
-};
-
-export type InterestsBreakdown = {
-  rows: InterestBreakdownRow[];
-  others: BreakdownTail | null;
-};
-
-async function loadLyceesBreakdown(
-  db: ScopedPrismaClient,
-  eventId: string,
-): Promise<LyceesBreakdown> {
-  const grouped = await db.talent.groupBy({
-    by: ['schoolId'],
-    where: {
-      schoolId: { not: null },
-      participations: { some: { eventId } },
-    },
-    _count: { _all: true },
-    orderBy: { _count: { id: 'desc' } },
-  });
-
-  if (grouped.length === 0) return { rows: [], others: null };
-
-  const top = grouped.slice(0, BREAKDOWN_TOP_N);
-  const tail = grouped.slice(BREAKDOWN_TOP_N);
-
-  // Resolve display names for the top schools. `School` is a global reference
-  // table (not campus-scoped), so it's read off the unscoped client. Talents
-  // with a free-text lycée (no UAI → no School row) aren't grouped here: the
-  // cohort breakdown covers resolved establishments only.
-  const ids = top
-    .map((g) => g.schoolId)
-    .filter((id): id is string => id !== null);
-  const schools = await prisma.school.findMany({
-    where: { id: { in: ids } },
-    select: { id: true, name: true },
-  });
-  const nameById = new Map(schools.map((s) => [s.id, s.name]));
-
-  const rows = top
-    .filter((g): g is typeof g & { schoolId: string } => g.schoolId !== null)
-    .map((g) => ({
-      schoolId: g.schoolId,
-      name: nameById.get(g.schoolId) ?? '—',
-      count: g._count._all,
-    }));
-
-  const others =
-    tail.length === 0
-      ? null
-      : {
-          count: tail.reduce((sum, g) => sum + g._count._all, 0),
-          categories: tail.length,
-        };
-
-  return { rows, others };
-}
-
-async function loadInterestsCloud(
-  db: ScopedPrismaClient,
-  eventId: string,
-): Promise<InterestsBreakdown> {
-  const grouped = await db.talentInterest.groupBy({
-    by: ['interestId'],
-    where: { talent: { participations: { some: { eventId } } } },
-    _count: { _all: true },
-    orderBy: { _count: { interestId: 'desc' } },
-  });
-
-  if (grouped.length === 0) return { rows: [], others: null };
-
-  const top = grouped.slice(0, BREAKDOWN_TOP_N);
-  const tail = grouped.slice(BREAKDOWN_TOP_N);
-
-  const interests = await db.interest.findMany({
-    where: { id: { in: top.map((g) => g.interestId) } },
-  });
-  const byId = new Map(interests.map((i) => [i.id, i]));
-
-  const rows = top.flatMap((g) => {
-    const i = byId.get(g.interestId);
-    if (!i) return [];
-    return [
-      {
-        interestId: i.id,
-        nom: i.nom,
-        emoji: i.emoji,
-        count: g._count._all,
-      },
-    ];
-  });
-
-  const others =
-    tail.length === 0
-      ? null
-      : {
-          count: tail.reduce((sum, g) => sum + g._count._all, 0),
-          categories: tail.length,
-        };
-
-  return { rows, others };
 }
 
 // ─── Edit form ───────────────────────────────────────────────────────────

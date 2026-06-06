@@ -1,5 +1,10 @@
 <script lang="ts" module>
-  export type SelectOption = { value: string; label: string };
+  export type SelectOption = {
+    value: string;
+    label: string;
+    /** Optional trailing tally shown right-aligned in the dropdown row. */
+    count?: number;
+  };
 </script>
 
 <script lang="ts">
@@ -17,10 +22,12 @@
     value,
     onChange,
     allLabel = 'Tous',
+    allCount,
     placeholder = 'Filtrer…',
     searchPlaceholder = 'Rechercher…',
     emptyLabel = 'Aucun résultat.',
     triggerClass,
+    contentClass = 'w-[--bits-popover-anchor-width]',
     icon,
   }: {
     options: SelectOption[];
@@ -28,10 +35,18 @@
     value: string;
     onChange: (value: string) => void;
     allLabel?: string;
+    /** Optional tally shown on the `'all'` row (e.g. the cohort total). */
+    allCount?: number;
     placeholder?: string;
     searchPlaceholder?: string;
     emptyLabel?: string;
     triggerClass?: string;
+    /**
+     * Popover width. Defaults to matching the trigger; pass a fixed/larger
+     * width when option labels are long (the trigger can stay compact while
+     * the dropdown breathes).
+     */
+    contentClass?: string;
     icon?: import('svelte').Snippet;
   } = $props();
 
@@ -75,29 +90,40 @@
       </button>
     {/snippet}
   </Popover.Trigger>
-  <Popover.Content class="w-[--bits-popover-anchor-width] p-0" align="start">
+  <Popover.Content class={cn('p-0', contentClass)} align="start">
     <Command.Root>
       <Command.Input placeholder={searchPlaceholder} />
       <Command.List class="max-h-[300px] overflow-y-auto">
         <Command.Empty>{emptyLabel}</Command.Empty>
         <Command.Item value={allLabel} onSelect={() => select('all')}>
           <Check
-            class={cn(
-              'mr-2 h-4 w-4',
-              value === 'all' ? 'opacity-100' : 'opacity-0',
-            )}
+            class={cn('h-4 w-4', value === 'all' ? 'opacity-100' : 'opacity-0')}
           />
-          {allLabel}
+          <span class="truncate">{allLabel}</span>
+          {#if allCount != null}
+            <span
+              class="mr-2 ml-auto font-mono text-[10px] font-bold text-muted-foreground"
+            >
+              {allCount}
+            </span>
+          {/if}
         </Command.Item>
         {#each options as opt (opt.value)}
           <Command.Item value={opt.label} onSelect={() => select(opt.value)}>
             <Check
               class={cn(
-                'mr-2 h-4 w-4',
+                'h-4 w-4',
                 value === opt.value ? 'opacity-100' : 'opacity-0',
               )}
             />
             <span class="truncate">{opt.label}</span>
+            {#if opt.count != null}
+              <span
+                class="mr-2 ml-auto font-mono text-[10px] font-bold text-muted-foreground"
+              >
+                {opt.count}
+              </span>
+            {/if}
           </Command.Item>
         {/each}
       </Command.List>

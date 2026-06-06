@@ -5,12 +5,20 @@
   let {
     ref = $bindable(null),
     class: className,
+    scrollable = true,
     children,
     ...restProps
-  }: WithElementRef<HTMLTableAttributes> = $props();
+  }: WithElementRef<HTMLTableAttributes> & { scrollable?: boolean } = $props();
 </script>
 
-<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<!-- The container scrolls horizontally by default so wide tables never blow out
+     the layout. Pass `scrollable={false}` when the table carries a `sticky`
+     header: the overflow box is itself a scroll container, so it would capture
+     the sticky instead of letting it pin against the page's real scroller. -->
+<div
+  data-slot="table-container"
+  class={cn('relative w-full', scrollable && 'overflow-x-auto')}
+>
   <table
     bind:this={ref}
     data-slot="table"
