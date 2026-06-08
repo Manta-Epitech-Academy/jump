@@ -2,7 +2,8 @@
   import SalesforceLinkButton from '$lib/components/salesforce/SalesforceLinkButton.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import { capitalize, cn } from '$lib/utils';
+  import { cn } from '$lib/utils';
+  import { formatGivenName } from '$lib/domain/profile';
   import { niveauLabel } from '$lib/domain/niveau';
 
   // Blueprint-blue band: square avatar + name with the neon-teal `_` cursor.
@@ -44,7 +45,9 @@
       <h1
         class="flex items-baseline font-heading text-5xl tracking-wide uppercase md:text-6xl"
       >
-        <span class="font-light normal-case">{capitalize(student.prenom)}</span>
+        <span class="font-light normal-case"
+          >{formatGivenName(student.prenom)}</span
+        >
         <span class="ml-3">{student.nom}</span><span class="text-epi-teal"
           >_</span
         >

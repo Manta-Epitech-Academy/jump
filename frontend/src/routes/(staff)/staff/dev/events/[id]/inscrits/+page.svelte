@@ -39,6 +39,7 @@
   import InterestsCloud from '../components/InterestsCloud.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+  import { formatGivenName } from '$lib/domain/profile';
   import {
     RULES_STATUS_LABELS,
     DOSSIER_READINESS_LABELS,
@@ -535,7 +536,8 @@
                  fit, but a freak-long one ellipsizes inside its cell (full value
                  on hover) instead of bleeding into the neighbouring column. -->
               <Table.Cell class="font-medium">
-                <span class="block truncate" title={r.prenom}>{r.prenom}</span>
+                {@const prenom = formatGivenName(r.prenom)}
+                <span class="block truncate" title={prenom}>{prenom}</span>
               </Table.Cell>
               <Table.Cell class="font-bold uppercase">
                 <span class="block truncate" title={r.nom}>{r.nom}</span>
