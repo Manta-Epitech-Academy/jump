@@ -5,12 +5,22 @@
   let {
     ref = $bindable(null),
     class: className,
+    containerClass,
     children,
     ...restProps
-  }: WithElementRef<HTMLTableAttributes> = $props();
+  }: WithElementRef<HTMLTableAttributes> & {
+    containerClass?: string;
+  } = $props();
 </script>
 
-<div data-slot="table-container" class="relative w-full overflow-x-auto">
+<!-- The container scrolls horizontally by default so a wide table never blows
+     out the page. `containerClass` lets a caller relax that on a breakpoint —
+     e.g. a sticky-header table passes `lg:overflow-visible` so the header pins
+     to the page on desktop, while mobile keeps the contained x-scroll. -->
+<div
+  data-slot="table-container"
+  class={cn('relative w-full overflow-x-auto', containerClass)}
+>
   <table
     bind:this={ref}
     data-slot="table"

@@ -7,7 +7,11 @@
   import { cn } from '$lib/utils';
   import type { StaffRole } from '@prisma/client';
   import type { InterviewWithRelations } from '../+page.server';
-  import { getInterviewDisplayStatus } from '$lib/domain/interview';
+  import {
+    getInterviewDisplayStatus,
+    INTERVIEW_DISPLAY_LABELS,
+    INTERVIEW_STATUS_CHIP_CLASS,
+  } from '$lib/domain/interview';
   import { getStaffRoleLabel } from '$lib/domain/staff';
 
   type Props = {
@@ -141,22 +145,10 @@
             <span
               class={cn(
                 'inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase',
-                display === 'done'
-                  ? 'border-epi-teal-solid/30 bg-epi-teal-solid/10 text-epi-teal-solid'
-                  : display === 'overdue'
-                    ? 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange'
-                    : display === 'cancelled'
-                      ? 'border-border bg-muted text-muted-foreground'
-                      : 'border-epi-blue/30 bg-epi-blue/10 text-epi-blue',
+                INTERVIEW_STATUS_CHIP_CLASS[display],
               )}
             >
-              {display === 'done'
-                ? 'Mené'
-                : display === 'overdue'
-                  ? 'En retard'
-                  : display === 'cancelled'
-                    ? 'Annulé'
-                    : 'Planifié'}
+              {INTERVIEW_DISPLAY_LABELS[display]}
             </span>
           </td>
           <td class="px-3 py-2">

@@ -2,7 +2,6 @@
  * Canonical school-level (« niveau scolaire ») catalogue.
  *
  * Single source of truth shared by:
- *  - student validation + edit form (`validation/students.ts`, `StudentFormDialog.svelte`)
  *  - dev students list filter (`staff/dev/students`)
  *  - pedago event « inscrits » filter + badges
  *  - broadcast audience targeting (`domain/broadcasts.ts`)

@@ -7,15 +7,14 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Input } from '$lib/components/ui/input';
   import { Button, buttonVariants } from '$lib/components/ui/button';
+  import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
   import Download from '@lucide/svelte/icons/download';
   import CloudDownload from '@lucide/svelte/icons/cloud-download';
-  import CloudUpload from '@lucide/svelte/icons/cloud-upload';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import Search from '@lucide/svelte/icons/search';
   import CheckCheck from '@lucide/svelte/icons/check-check';
   import { toast } from 'svelte-sonner';
   import { civiliteLabel } from '$lib/domain/profile';
-  import { salesforceContactUrl } from '$lib/domain/salesforce';
   import { FIELD_LABELS, type DiffField } from '$lib/domain/reconciliation';
 
   let { data } = $props();
@@ -280,18 +279,11 @@
                         class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
                       >
                         {c.email ?? '—'}
-                        {#if c.externalId}
-                          <a
-                            href={salesforceContactUrl(c.externalId)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Ouvrir dans Salesforce"
-                            aria-label="Ouvrir le contact dans Salesforce"
-                            class="hover:text-epi-blue"
-                          >
-                            <CloudUpload class="h-3.5 w-3.5" />
-                          </a>
-                        {/if}
+                        <SalesforceIconLink
+                          externalId={c.externalId}
+                          kind="lead"
+                          label="Ouvrir le contact dans Salesforce"
+                        />
                       </div>
                     </Table.Cell>
                     <Table.Cell class="font-medium">
@@ -367,18 +359,11 @@
                     class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
                   >
                     {g.email ?? '—'}
-                    {#if g.externalId}
-                      <a
-                        href={salesforceContactUrl(g.externalId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Ouvrir dans Salesforce"
-                        aria-label="Ouvrir le contact dans Salesforce"
-                        class="hover:text-epi-blue"
-                      >
-                        <CloudUpload class="h-3.5 w-3.5" />
-                      </a>
-                    {/if}
+                    <SalesforceIconLink
+                      externalId={g.externalId}
+                      kind="lead"
+                      label="Ouvrir le contact dans Salesforce"
+                    />
                   </span>
                 </div>
                 <dl class="grid gap-x-8 gap-y-2 sm:grid-cols-2">

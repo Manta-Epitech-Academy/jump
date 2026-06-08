@@ -4,7 +4,10 @@
     nom?: string | null;
     prenom?: string | null;
   }): string {
-    const initials = `${t.nom?.[0] ?? ''}${t.prenom?.[0] ?? ''}`.toUpperCase();
+    // Firstname-first monogram (Jean Dupont -> "JD"), matching how names read.
+    // Only the overlaid glyphs change: the gradient colour is seeded on `id`,
+    // so initials order never alters a talent's avatar identity.
+    const initials = `${t.prenom?.[0] ?? ''}${t.nom?.[0] ?? ''}`.toUpperCase();
     return `https://avatar.vercel.sh/${encodeURIComponent(t.id)}.svg?text=${encodeURIComponent(initials)}`;
   }
 </script>
@@ -30,13 +33,22 @@
     lg: 'h-16 w-16',
   };
 
-  let alt = $derived(`${talent.nom ?? ''} ${talent.prenom ?? ''}`.trim());
+  let alt = $derived(`${talent.prenom ?? ''} ${talent.nom ?? ''}`.trim());
 </script>
 
 <img
   src={talentGradientUrl(talent)}
   {alt}
-  class={cn('rounded-full object-cover', SIZE_CLASS[size], className)}
+  class={cn(
+    // The avatar is a fixed-size element and must never be squished. Tailwind
+    // preflight applies `max-width: 100%` to every img, so inside a width-starved
+    // table-auto column (e.g. a sibling column set to `w-full`) it collapses to
+    // 0. `max-w-none` drops that cap so the size class holds; `shrink-0` covers
+    // the same risk in a flex row.
+    'max-w-none shrink-0 rounded-full object-cover',
+    SIZE_CLASS[size],
+    className,
+  )}
   loading="lazy"
   decoding="async"
 />

@@ -33,7 +33,12 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
   if (!hasFlag(locals, 'coding_club')) {
     if (activeStage) {
-      throw redirect(303, resolvePath(`/staff/dev/events/${activeStage.id}`));
+      // Stage-only landing: drop the dev straight onto the inscrits table
+      // (the dashboard + event overview are coding_club-era surfaces).
+      throw redirect(
+        303,
+        resolvePath(`/staff/dev/events/${activeStage.id}/inscrits`),
+      );
     }
     return {
       userName: locals.user.name || 'Utilisateur',

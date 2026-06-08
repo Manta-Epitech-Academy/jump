@@ -1,4 +1,4 @@
-import type { ImageRightsDecision } from './imageRights';
+import type { ImageRightsDecision, ImageRightsStatus } from './imageRights';
 
 /**
  * Shared predicates for stage-de-seconde dossier compliance. One module so
@@ -37,4 +37,67 @@ export function isImageRightsCompliant(
   imageRightsDecision: ImageRightsDecision | null | undefined,
 ): boolean {
   return imageRightsDecision != null;
+}
+
+/** The three display states a règlement intérieur signature can be in. */
+export type RulesStatus = 'signed' | 'awaiting_parent' | 'pending';
+
+/** UI labels (French) keyed by the resolved règlement status. */
+export const RULES_STATUS_LABELS: Record<RulesStatus, string> = {
+  signed: 'Signé',
+  awaiting_parent: 'Attente parent',
+  pending: 'En attente',
+};
+
+/**
+ * Resolves the displayable règlement status from its three signals. Mirrors
+ * {@link isRulesCompliant} for the "done" case, then splits the not-done case
+ * into the actionable "chase the parent" state (student signed, guardian
+ * co-signature still pending) versus "nothing signed yet". One definition so
+ * the per-student rail and the cohort table never drift on the wording.
+ */
+export function rulesStatus(
+  parentRulesSignedAt: Date | string | null | undefined,
+  charteSigned: boolean | null | undefined,
+  rulesSignedAt: Date | string | null | undefined,
+): RulesStatus {
+  if (isRulesCompliant(parentRulesSignedAt, charteSigned)) return 'signed';
+  if (rulesSignedAt != null) return 'awaiting_parent';
+  return 'pending';
+}
+
+/**
+ * The dossier's overall readiness, folding both gates (règlement intérieur +
+ * droit à l'image) into the three states the cohort badge shows. One definition
+ * shared by the inscrits table, its statut filter and the XLSX export so they
+ * never drift on what counts as "prêt" vs merely "en cours".
+ */
+export type DossierReadiness = 'ready' | 'partial' | 'empty';
+
+/** UI labels (French) keyed by the folded readiness state. */
+export const DOSSIER_READINESS_LABELS: Record<DossierReadiness, string> = {
+  ready: 'Prêt',
+  partial: 'En cours',
+  empty: 'Incomplet',
+};
+
+/**
+ * Folds the two per-document statuses into the badge's three states:
+ *  - `ready`   — both gates done: règlement signed AND image-rights decided.
+ *  - `partial` — some forward motion but not both done: a signed règlement, a
+ *                settled image decision, or the student signed and the guardian
+ *                co-signature is still pending (`awaiting_parent`).
+ *  - `empty`   — nothing started on either gate.
+ * The `ready` case is exactly the old binary "prêt"; `partial` carves the
+ * intermediary out of what used to all read as "incomplet".
+ */
+export function dossierReadiness(
+  rules: RulesStatus,
+  image: ImageRightsStatus,
+): DossierReadiness {
+  const rulesDone = rules === 'signed';
+  const imageDone = image !== 'undecided';
+  if (rulesDone && imageDone) return 'ready';
+  if (rulesDone || imageDone || rules === 'awaiting_parent') return 'partial';
+  return 'empty';
 }

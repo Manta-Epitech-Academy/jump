@@ -92,6 +92,25 @@ export const load: PageServerLoad = async ({ url }) => {
   const type = (EVENT_TYPE_VALUES as string[]).includes(typeParam)
     ? (typeParam as EventType)
     : '';
+  // Clickable column sort. Unknown/empty `sort` falls back to the baseline
+  // ordering (most-recently-active first), so a junk param never breaks the
+  // page and the default first load is unchanged.
+  const SORT_KEYS = ['nom', 'niveau', 'activite'] as const;
+  const sortParam = url.searchParams.get('sort') || '';
+  const sort = (SORT_KEYS as readonly string[]).includes(sortParam)
+    ? sortParam
+    : '';
+  const dir: 'asc' | 'desc' =
+    url.searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
+
+  const orderBy: import('@prisma/client').Prisma.TalentOrderByWithRelationInput[] =
+    sort === 'nom'
+      ? [{ nom: dir }, { prenom: dir }]
+      : sort === 'niveau'
+        ? [{ niveau: { sort: dir, nulls: 'last' } }, { nom: 'asc' }]
+        : sort === 'activite'
+          ? [{ lastActiveAt: { sort: dir, nulls: 'last' } }, { nom: 'asc' }]
+          : [{ lastActiveAt: { sort: 'desc', nulls: 'last' } }, { nom: 'asc' }];
 
   const where: import('@prisma/client').Prisma.TalentWhereInput = {};
   if (search) {
@@ -130,10 +149,7 @@ export const load: PageServerLoad = async ({ url }) => {
     await Promise.all([
       prisma.talent.findMany({
         where,
-        orderBy: [
-          { lastActiveAt: { sort: 'desc', nulls: 'last' } },
-          { nom: 'asc' },
-        ],
+        orderBy,
         skip: (page - 1) * PER_PAGE,
         take: PER_PAGE,
         select: {
@@ -210,7 +226,7 @@ export const load: PageServerLoad = async ({ url }) => {
     totalPages: Math.ceil(totalItems / PER_PAGE),
     totalItems,
     currentPage: page,
-    filters: { q: search, niveau, account, campus, type },
+    filters: { q: search, niveau, account, campus, type, sort, dir },
     stats: {
       total: totalAll,
       active: activeAll,

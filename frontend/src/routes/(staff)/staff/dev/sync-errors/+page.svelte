@@ -3,8 +3,9 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import AlertCircle from '@lucide/svelte/icons/alert-circle';
   import Check from '@lucide/svelte/icons/check';
-  import Cloud from '@lucide/svelte/icons/cloud';
   import CloudUpload from '@lucide/svelte/icons/cloud-upload';
+  import SalesforceIcon from '$lib/components/icons/SalesforceIcon.svelte';
+  import SalesforceLinkButton from '$lib/components/salesforce/SalesforceLinkButton.svelte';
   import Phone from '@lucide/svelte/icons/phone';
   import Mail from '@lucide/svelte/icons/mail';
   import UserX from '@lucide/svelte/icons/user-x';
@@ -15,7 +16,6 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { formatDateTimeFr, cn } from '$lib/utils';
-  import { salesforceContactUrl } from '$lib/domain/salesforce';
   import { toast } from 'svelte-sonner';
   import { track, daysBetween } from '$lib/analytics';
 
@@ -43,7 +43,7 @@
         {#if icon === 'upload'}
           <CloudUpload class={cn('h-3.5 w-3.5', accent)} />
         {:else}
-          <Cloud class={cn('h-3.5 w-3.5', accent)} />
+          <SalesforceIcon class={cn('h-3.5 w-3.5', accent)} />
         {/if}
         {title}
       </Card.Title>
@@ -96,17 +96,12 @@
           {contact.extId}
         </p>
       </div>
-      <Button
-        href={salesforceContactUrl(contact.extId)}
-        target="_blank"
-        rel="noopener noreferrer"
-        variant="outline"
-        size="sm"
-        class="mt-1 w-full gap-2 rounded-sm whitespace-nowrap"
-      >
-        <Cloud class="h-3.5 w-3.5" />
-        Ouvrir Salesforce
-      </Button>
+      <SalesforceLinkButton
+        externalId={contact.extId}
+        kind="lead"
+        label="Ouvrir Salesforce"
+        class="mt-1 w-full whitespace-nowrap"
+      />
     </Card.Content>
   </Card.Root>
 {/snippet}

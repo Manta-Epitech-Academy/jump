@@ -3,6 +3,7 @@
   import Check from '@lucide/svelte/icons/check';
   import { toast } from 'svelte-sonner';
   import { cn } from '$lib/utils';
+  import * as Tooltip from '$lib/components/ui/tooltip';
 
   type Props = {
     value: string | null | undefined;
@@ -33,20 +34,31 @@
   }
 </script>
 
-<button
-  type="button"
-  onclick={copy}
-  disabled={!value}
-  aria-label={label}
-  title={label}
-  class={cn(
-    'inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40',
-    className,
-  )}
->
-  {#if copied}
-    <Check class="h-3.5 w-3.5 text-emerald-600" />
-  {:else}
-    <Copy class="h-3.5 w-3.5" />
-  {/if}
-</button>
+<Tooltip.Provider delayDuration={300}>
+  <Tooltip.Root>
+    <Tooltip.Trigger>
+      {#snippet child({ props })}
+        <button
+          {...props}
+          type="button"
+          onclick={copy}
+          disabled={!value}
+          aria-label={label}
+          class={cn(
+            'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40',
+            className,
+          )}
+        >
+          {#if copied}
+            <Check class="h-3.5 w-3.5 text-emerald-600" />
+          {:else}
+            <Copy class="h-3.5 w-3.5" />
+          {/if}
+        </button>
+      {/snippet}
+    </Tooltip.Trigger>
+    <Tooltip.Content>
+      <p>{copied ? 'Copié' : label}</p>
+    </Tooltip.Content>
+  </Tooltip.Root>
+</Tooltip.Provider>
