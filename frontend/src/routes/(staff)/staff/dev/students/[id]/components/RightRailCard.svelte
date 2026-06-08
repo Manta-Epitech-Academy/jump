@@ -39,7 +39,6 @@
     parentRulesSignedAt,
     charteSigned,
     imageRightsDecision,
-    imageRightsDecidedAt,
     timezone,
   }: {
     lastActiveAt: Date | string | null;
@@ -49,7 +48,6 @@
     parentRulesSignedAt: Date | string | null;
     charteSigned: boolean | null | undefined;
     imageRightsDecision: ImageRightsDecision | null;
-    imageRightsDecidedAt: Date | string | null;
     timezone: string;
   } = $props();
 
@@ -81,7 +79,7 @@
   }
 
   // Shared three-state resolver (kept in lockstep with the cohort table); the
-  // rail layers the date-rich tooltip and tone on top of the state.
+  // rail layers an explanatory tooltip and tone on top of the state.
   const rules = $derived(
     rulesStatus(parentRulesSignedAt, charteSigned, rulesSignedAt),
   );
@@ -94,7 +92,7 @@
         colorClass: 'text-epi-teal-solid',
         icon: Check,
         tooltip: parentRulesSignedAt
-          ? `Co-signé par le représentant légal le ${formatDateFr(parentRulesSignedAt, timezone)}.`
+          ? 'Co-signé par le parent et le stagiaire'
           : "Signature attestée manuellement par l'équipe (hors ligne).",
       };
     }
@@ -103,27 +101,27 @@
         label,
         colorClass: 'text-amber-600 dark:text-amber-500',
         icon: Clock,
-        tooltip: `L'élève a signé le règlement${rulesSignedAt ? ` le ${formatDateFr(rulesSignedAt, timezone)}` : ''}, mais la co-signature du représentant légal est encore attendue.`,
+        tooltip:
+          'Le stagiaire a signé le règlement intérieur, la co-signature du parent est en cours.',
       };
     }
     return {
       label,
       colorClass: 'text-destructive',
       icon: Clock,
-      tooltip: "Le règlement intérieur n'a pas encore été signé par l'élève.",
+      tooltip:
+        "Le règlement intérieur n'a pas encore été signé par le stagiaire.",
     };
   });
 
   const imageDoc = $derived.by<DocStatus>(() => {
-    const decidedSuffix = imageRightsDecidedAt
-      ? ` (décidé le ${formatDateFr(imageRightsDecidedAt, timezone)})`
-      : '';
     if (imageRightsDecision === 'accepted') {
       return {
         label: IMAGE_RIGHTS_STATUS_LABELS.accepted,
         colorClass: 'text-epi-teal-solid',
         icon: Check,
-        tooltip: `Le représentant légal autorise la captation et l'utilisation de l'image${decidedSuffix}.`,
+        tooltip:
+          "Le parent autorise l'utilisation de l'image du stagiaire par Epitech.",
       };
     }
     if (imageRightsDecision === 'refused') {
@@ -131,15 +129,15 @@
         label: IMAGE_RIGHTS_STATUS_LABELS.refused,
         colorClass: 'text-epi-orange',
         icon: X,
-        tooltip: `Le représentant légal refuse la captation : ce stagiaire ne doit pas être photographié ni filmé${decidedSuffix}.`,
+        tooltip:
+          'Les photos et les vidéos de ce stagiaire ne doivent pas être utilisées par Epitech.',
       };
     }
     return {
       label: IMAGE_RIGHTS_STATUS_LABELS.undecided,
       colorClass: 'text-destructive',
       icon: Clock,
-      tooltip:
-        "Aucune décision du représentant légal sur le droit à l'image pour le moment.",
+      tooltip: "Pas d'information, en attente de signature des parents.",
     };
   });
 </script>

@@ -393,7 +393,7 @@
             {/if}
 
             {#if lyceeOptions.length > 0}
-              <div class="w-60">
+              <div class="w-full sm:w-60">
                 <SearchableSelect
                   options={lyceeOptions}
                   value={activeLycee}
@@ -468,7 +468,15 @@
             <Table.Cell class="font-bold uppercase">{r.nom}</Table.Cell>
             <Table.Cell class="text-sm">
               {#if r.schoolName}
-                {r.schoolName}
+                <!-- Cap + ellipsis the lycée: some names run very long (e.g.
+                     "Section d'enseignement général et technologique du Lycée
+                     agricole …") and, with no per-table x-scroll, an un-capped
+                     cell would stretch the column and break the whole layout.
+                     The inner block gives `truncate` a width to resolve against
+                     (auto table-layout otherwise ignores it); full name on hover. -->
+                <span class="block max-w-[26rem] truncate" title={r.schoolName}>
+                  {r.schoolName}
+                </span>
               {:else}
                 <span class="text-muted-foreground">—</span>
               {/if}
@@ -551,7 +559,10 @@
            within the `<main>` scrollport, with its own height cap + overflow so
            the rail can outgrow the viewport and its bottom card stays reachable
            (otherwise a pinned rail taller than the screen clips its tail). -->
-      <aside class="lg:col-span-3">
+      <!-- On mobile the overview (countdown + breakdowns) leads — it's the
+           glanceable summary; the long table follows. Desktop keeps the table
+           left, rail right (reset the order at lg). -->
+      <aside class="order-first lg:order-none lg:col-span-3">
         <div
           class="space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-1"
         >

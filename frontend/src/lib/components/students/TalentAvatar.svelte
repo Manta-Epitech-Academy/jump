@@ -39,7 +39,16 @@
 <img
   src={talentGradientUrl(talent)}
   {alt}
-  class={cn('rounded-full object-cover', SIZE_CLASS[size], className)}
+  class={cn(
+    // The avatar is a fixed-size element and must never be squished. Tailwind
+    // preflight applies `max-width: 100%` to every img, so inside a width-starved
+    // table-auto column (e.g. a sibling column set to `w-full`) it collapses to
+    // 0. `max-w-none` drops that cap so the size class holds; `shrink-0` covers
+    // the same risk in a flex row.
+    'max-w-none shrink-0 rounded-full object-cover',
+    SIZE_CLASS[size],
+    className,
+  )}
   loading="lazy"
   decoding="async"
 />

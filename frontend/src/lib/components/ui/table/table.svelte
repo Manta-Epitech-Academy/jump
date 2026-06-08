@@ -5,19 +5,21 @@
   let {
     ref = $bindable(null),
     class: className,
-    scrollable = true,
+    containerClass,
     children,
     ...restProps
-  }: WithElementRef<HTMLTableAttributes> & { scrollable?: boolean } = $props();
+  }: WithElementRef<HTMLTableAttributes> & {
+    containerClass?: string;
+  } = $props();
 </script>
 
-<!-- The container scrolls horizontally by default so wide tables never blow out
-     the layout. Pass `scrollable={false}` when the table carries a `sticky`
-     header: the overflow box is itself a scroll container, so it would capture
-     the sticky instead of letting it pin against the page's real scroller. -->
+<!-- The container scrolls horizontally by default so a wide table never blows
+     out the page. `containerClass` lets a caller relax that on a breakpoint —
+     e.g. a sticky-header table passes `lg:overflow-visible` so the header pins
+     to the page on desktop, while mobile keeps the contained x-scroll. -->
 <div
   data-slot="table-container"
-  class={cn('relative w-full', scrollable && 'overflow-x-auto')}
+  class={cn('relative w-full overflow-x-auto', containerClass)}
 >
   <table
     bind:this={ref}

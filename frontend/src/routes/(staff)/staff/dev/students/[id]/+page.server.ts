@@ -1,6 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
+import { MAIL_FROM } from '$lib/server/email';
 import {
   getCampusId,
   getCampusTimezone,
@@ -185,9 +187,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       .filter((i) => i.kind === 'tech' && i.recommendationMessage != null)
       .map((i) => i.recommendationMessage as string);
 
+    // REC-001/003 name infra in their copy: the public app URL the student
+    // should reach, and the address the parents' signing mail comes from. Pull
+    // both from config so they auto-track the environment instead of hardcoding
+    // (ORIGIN = https://jump.epiboost.fr in prod; sender = the MAIL_FROM address).
+    const appUrl = env.ORIGIN ?? '';
+    const senderEmail = MAIL_FROM.match(/<([^>]+)>/)?.[1] ?? MAIL_FROM;
+
     const recommendations = deriveTalentRecommendations({
       ...student,
       prenom: capitalize(student.prenom),
+      appUrl,
+      senderEmail,
       connected: firstLoginAt != null,
       rulesCompliant: isRulesCompliant(
         student.parentRulesSignedAt,

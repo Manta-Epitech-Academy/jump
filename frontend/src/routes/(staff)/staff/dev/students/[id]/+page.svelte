@@ -156,7 +156,6 @@
           parentRulesSignedAt={data.student.parentRulesSignedAt}
           {charteSigned}
           imageRightsDecision={data.student.imageRightsDecision}
-          imageRightsDecidedAt={data.student.imageRightsDecidedAt}
           timezone={data.timezone}
         />
       </div>

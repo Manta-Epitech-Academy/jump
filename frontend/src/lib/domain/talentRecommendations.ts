@@ -1,7 +1,5 @@
 import {
   deriveOnboardingStatus,
-  describeOnboardingProgress,
-  ONBOARDING_STEP_LABELS,
   type TalentOnboardingFields,
 } from './talentOnboarding';
 
@@ -49,6 +47,25 @@ export type TalentRecommendation = {
 export type TalentRecommendationInput = TalentOnboardingFields & {
   /** The talent's first name, already capitalized — used to address them by name. */
   prenom: string;
+  /**
+   * Student's login email — named in the "jamais connecté" reco when present.
+   * Nullable: an SF-imported talent can lack one (and, having no auth identity,
+   * can never log in), so the reco omits the clause rather than render a blank.
+   */
+  email: string | null;
+  /** Guardian's email — named in the "signatures parents" reco. */
+  parentEmail: string | null;
+  /**
+   * Public app origin (`env.ORIGIN`, e.g. https://jump.epiboost.fr in prod) —
+   * named in the "jamais connecté" reco so the dev can point the student at it.
+   * Passed in (not read from env) to keep this module pure/testable.
+   */
+  appUrl: string;
+  /**
+   * Configured sender address (parsed from `MAIL_FROM`) — named in the parent
+   * reco so the dev can tell the parents which address the mail came from.
+   */
+  senderEmail: string;
   /** Whether the talent ever logged in (an oldest `bauth_session` exists). */
   connected: boolean;
   /**
@@ -83,44 +100,27 @@ function deriveFunnelRecommendation(
       id: 'never-connected',
       severity: 'urgent',
       shortTitle: 'Jamais connecté',
-      message: `${t.prenom} ne s'est jamais connecté sur la plateforme. Vous pouvez l'appeler pour lui signaler qu'on lui a envoyé un mail.`,
+      message: `Contactez ${t.prenom} car il/elle ne s'est jamais connecté(e)${t.email ? ` avec son email ${t.email}` : ''} sur la plateforme ${t.appUrl}.`,
       contact: 'student',
     };
   }
 
   if (deriveOnboardingStatus(t) !== 'done') {
-    const { step, completed, total, phase } = describeOnboardingProgress(t);
-    const where =
-      phase === 'not-started'
-        ? ' (onboarding non démarré)'
-        : step
-          ? ` (à l'étape ${completed + 1}/${total} · ${ONBOARDING_STEP_LABELS[step]})`
-          : '';
     return {
       id: 'onboarding-blocked',
       severity: 'urgent',
-      shortTitle: 'Onboarding non finalisé',
-      message: `${t.prenom} s'est connecté mais n'a pas finalisé son onboarding${where}. Il y a peut-être un blocage, vous pouvez le contacter pour identifier le problème.`,
+      shortTitle: '1ère connexion en cours',
+      message: `Contactez ${t.prenom} pour lui conseiller d'utiliser le support de la plateforme, chat bleu en bas à droite, qui va l'accompagner pour finaliser sa première connexion : le parcours d'onboarding.`,
       contact: 'student',
     };
   }
 
   if (!(t.rulesCompliant && t.imageRightsDecided)) {
-    // The two parent acts are independent booleans, so name exactly the one(s)
-    // still outstanding. Today the parent flow gates the image decision behind
-    // the règlement signature, so "rules pending while image done" should not
-    // occur, but this stays correct without relying on that distant invariant.
-    const message =
-      !t.rulesCompliant && !t.imageRightsDecided
-        ? "Les parents doivent encore signer le règlement intérieur et le droit à l'image. Vous pouvez les contacter."
-        : t.rulesCompliant
-          ? "Le règlement intérieur est signé, mais le droit à l'image n'a pas encore été signé par les parents. Vous pouvez les contacter."
-          : "Le droit à l'image est signé, mais le règlement intérieur n'a pas encore été signé par les parents. Vous pouvez les contacter.";
     return {
       id: 'parent-pending',
       severity: 'urgent',
-      shortTitle: 'Signatures parents en attente',
-      message,
+      shortTitle: 'Signatures parents',
+      message: `Contactez les parents de ${t.prenom} pour les informer qu'ils ont reçu un mail sur leur adresse ${t.parentEmail ?? 'e-mail'} de la part de ${t.senderEmail} pour signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
       contact: 'parent',
     };
   }
@@ -145,8 +145,7 @@ export function deriveTalentRecommendations(
       id: 'interview-todo',
       severity: 'info',
       shortTitle: 'Entretien à planifier',
-      message:
-        "Vous n'avez pas encore réalisé l'entretien d'orientation pour ce stagiaire. Pensez à le planifier dans votre calendrier.",
+      message: `Vous n'avez pas encore réalisé l'entretien d'orientation de ${t.prenom}. Pensez à le planifier dans votre calendrier.`,
       contact: null,
     });
   }
@@ -158,7 +157,7 @@ export function deriveTalentRecommendations(
     recommendations.push({
       id: `event-opportunity:${i}`,
       severity: 'info',
-      shortTitle: 'Opportunité événement',
+      shortTitle: 'Opportunité',
       message: message.replaceAll('{prenom}', t.prenom),
       contact: 'student',
     });

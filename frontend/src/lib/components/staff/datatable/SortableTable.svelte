@@ -55,28 +55,30 @@
     empty?: Snippet;
     headerClass?: string;
     /**
-     * Freeze the header as the page scrolls. The `<th>`s pin to the page's
-     * scroller, so the table opts out of the primitive's horizontal-scroll
-     * wrapper (`scrollable={false}`) — an overflow ancestor would otherwise
-     * capture the sticky and the header would never pin. The caller owns the
-     * surrounding layout (one page scroll, no nested scrollbar).
+     * Freeze the header as the page scrolls — desktop only (`lg+`). There, the
+     * container drops its overflow (`lg:overflow-visible`) so the `<th>`s pin
+     * to the page's scroller rather than a wrapping overflow box. Below `lg`
+     * the table keeps its contained horizontal scroll (a wide table would
+     * otherwise overflow the page sideways on mobile) and the header is normal.
      */
     stickyHeader?: boolean;
   } = $props();
 </script>
 
 <div class="rounded-sm border bg-card shadow-sm">
-  <Table.Root scrollable={!stickyHeader}>
+  <Table.Root containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}>
     <Table.Header class={headerClass}>
       <Table.Row>
         {#each columns as col (col.key)}
           <Table.Head
             class={cn(
               'text-xs font-bold uppercase',
-              // Pinned header: each th carries its own opaque fill + bottom
-              // border so the frozen bar reads as one line while rows scroll
-              // under it (z above the body cells and the stretched row link).
-              stickyHeader && 'sticky top-0 z-20 border-b bg-muted',
+              // Pinned header (desktop): each th carries its own opaque fill +
+              // bottom border so the frozen bar reads as one line while rows
+              // scroll under it (z above the body cells and the stretched row
+              // link). Gated to lg — on mobile the table x-scrolls in its box.
+              stickyHeader &&
+                'lg:sticky lg:top-0 lg:z-20 lg:border-b lg:bg-muted',
               col.align === 'right' && 'text-right',
               col.class,
             )}

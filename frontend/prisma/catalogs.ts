@@ -58,7 +58,7 @@ export const INTEREST_TECH: {
     nom: 'Créer des apps',
     emoji: '📱',
     recommendationMessage:
-      "{prenom} a montré un intérêt pour la création d'**applications**. Proposez-lui un atelier de maquettage d'application mobile.",
+      "{prenom} a montré un intérêt pour la création d'**applications**. Proposez-lui un atelier de maquettage d'application mobile (Figma).",
   },
   {
     nom: 'Créer des jeux vidéo',
@@ -88,7 +88,7 @@ export const INTEREST_TECH: {
     nom: 'Data science / Analyse de données',
     emoji: '📊',
     recommendationMessage:
-      "{prenom} a montré un intérêt pour la **data science**. Pensez à l'inviter à votre prochain atelier data.",
+      "{prenom} a montré un intérêt pour la **data science**. Pensez à l'inviter à votre prochain atelier ou événement data.",
   },
   {
     nom: 'Cloud / Infrastructure',
@@ -100,7 +100,7 @@ export const INTEREST_TECH: {
     nom: 'Cybersécurité / Hacking',
     emoji: '🔒',
     recommendationMessage:
-      "{prenom} a montré un intérêt pour la **cybersécurité**. Pensez à l'inscrire à votre prochain CTF, ça va lui plaire.",
+      "{prenom} a montré un intérêt pour la **cybersécurité**. Pensez à l'inviter à votre prochain CTF, ça va lui plaire.",
   },
 ];
 
