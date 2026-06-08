@@ -111,7 +111,7 @@ export const parentsSchema = z
     parentEmail: z.email('Email parent invalide'),
     parentPhone: phoneSchema,
   })
-  .merge(parent2Schema)
+  .extend(parent2Schema.shape)
   .refine(
     (data) => normEmail(data.parentEmail) !== normEmail(data.studentEmail),
     {
@@ -195,12 +195,15 @@ export type ParentsForm = z.infer<typeof parentsSchema>;
 
 // --- Étape 4 & 5 : Intérêts et Matériel ---
 export const interestsSchema = z.object({
+  // IDs are internal cuid v1 keys, but the action count-checks each against the
+  // DB (interest.count must equal the submitted length), so a plain string is
+  // enough — no point in Zod's now-deprecated cuid v1 format check.
   techInterestIds: z
-    .array(z.string().cuid())
+    .array(z.string())
     .min(1, 'Choisis au moins 1 domaine tech')
     .max(2, '2 domaines tech maximum'),
   generalInterestIds: z
-    .array(z.string().cuid())
+    .array(z.string())
     .min(1, "Choisis au moins 1 centre d'intérêt")
     .max(3, "3 centres d'intérêt maximum"),
   freeText: z
