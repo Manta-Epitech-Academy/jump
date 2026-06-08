@@ -4,7 +4,6 @@
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import { capitalize, cn } from '$lib/utils';
   import { niveauLabel } from '$lib/domain/niveau';
-  import { civiliteCourtesyTitle } from '$lib/domain/profile';
 
   // Blueprint-blue band: square avatar + name with the neon-teal `_` cursor.
   // Firstname leads (light), surname follows in Anton uppercase. The Salesforce
@@ -16,7 +15,6 @@
       externalId: string | null;
       nom: string;
       prenom: string;
-      civilite: string | null;
       niveau: string | null;
       school: { name: string } | null;
     };
@@ -26,12 +24,10 @@
 
   const externalId = $derived(student.externalId);
 
+  // Academic context only: school · niveau. Civilité moved to the Coordonnées
+  // section, where it reads as civil identity rather than a banner tagline.
   const subtitle = $derived(
-    [
-      civiliteCourtesyTitle(student.civilite),
-      student.school?.name,
-      niveauLabel(student.niveau),
-    ]
+    [student.school?.name, niveauLabel(student.niveau)]
       .filter(Boolean)
       .join(' · '),
   );
