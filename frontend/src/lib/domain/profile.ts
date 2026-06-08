@@ -29,6 +29,20 @@ function labelFrom(
 export const civiliteLabel = (value: string | null | undefined): string =>
   labelFrom(CIVILITE_OPTIONS, value);
 
+/**
+ * Courtesy title (civilité) for display: the formal Monsieur/Madame rendering
+ * of the gender enum. Distinct from CIVILITE_OPTIONS / civiliteLabel (the
+ * onboarding selector labels Homme/Femme/Autre): `autre` and null have no
+ * standard courtesy title, so they yield '' and callers omit the segment.
+ */
+export const civiliteCourtesyTitle = (
+  value: string | null | undefined,
+): string => {
+  if (value === 'homme') return 'Monsieur';
+  if (value === 'femme') return 'Madame';
+  return '';
+};
+
 export const parentTypeLabel = (value: string | null | undefined): string =>
   labelFrom(PARENT_TYPE_OPTIONS, value);
 
