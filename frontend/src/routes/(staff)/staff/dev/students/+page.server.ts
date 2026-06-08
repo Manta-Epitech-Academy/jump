@@ -1,11 +1,6 @@
-import type { PageServerLoad, Actions } from './$types';
-import { fail } from '@sveltejs/kit';
-import { superValidate, message } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
-import { studentSchema } from '$lib/validation/students';
-import { prisma } from '$lib/server/db';
+import type { PageServerLoad } from './$types';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
-import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag } from '$lib/server/auth/guards';
 
 const PER_PAGE = 50;
 
@@ -43,67 +38,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     db.talent.count({ where }),
   ]);
 
-  const form = await superValidate(zod4(studentSchema));
-
   return {
     students,
     totalPages: Math.ceil(totalItems / PER_PAGE),
     totalItems,
     currentPage: page,
-    form,
   };
-};
-
-export const actions: Actions = {
-  update: async ({ request, locals }) => {
-    requireStaffGroup(locals, 'devMember');
-    const formData = await request.formData();
-    const form = await superValidate(formData, zod4(studentSchema));
-    const id = formData.get('id') as string;
-    if (!form.valid || !id) return fail(400, { form });
-    const db = scopedPrisma(getCampusId(locals));
-
-    try {
-      await db.talent.update({
-        where: { id },
-        data: {
-          nom: form.data.nom,
-          prenom: form.data.prenom,
-          niveau: form.data.niveau || null,
-          parentEmail: form.data.parent_email
-            ? form.data.parent_email.toLowerCase().trim()
-            : null,
-          parentPhone: form.data.parent_phone || null,
-          parentNom: form.data.parent_nom?.trim() || null,
-          parentPrenom: form.data.parent_prenom?.trim() || null,
-          phone: form.data.phone || null,
-        },
-      });
-
-      if (form.data.email) {
-        const profile = await db.talent.findUniqueOrThrow({
-          where: { id },
-        });
-        if (profile.userId) {
-          await prisma.bauth_user.update({
-            where: { id: profile.userId },
-            data: { email: form.data.email },
-          });
-        }
-      }
-
-      return message(form, 'Stagiaire modifié avec succès !');
-    } catch (err: any) {
-      if (err.code === 'P2002') {
-        return message(
-          form,
-          'Un stagiaire avec ce nom et cet email existe déjà.',
-          {
-            status: 400,
-          },
-        );
-      }
-      return message(form, 'Erreur lors de la modification', { status: 500 });
-    }
-  },
 };

@@ -22,7 +22,8 @@
    * right-aligned meta snippet.
    */
   type Props = {
-    overline: string;
+    /** Optional mono overline above the title. Omit for a title-only header. */
+    overline?: string;
     title: string;
     accent?: SectionAccent;
     /** Right-aligned snippet rendered next to the title (e.g. "12/24"). */
@@ -56,16 +57,21 @@
 <section class={cn('rounded-sm border bg-card dark:shadow-none', extraClass)}>
   <header class="flex items-end justify-between gap-3 border-b px-5 pt-5 pb-4">
     <div class="min-w-0">
-      <p
-        class={cn(
-          'font-mono text-[10px] font-bold tracking-widest uppercase',
-          accentColor,
-        )}
-      >
-        {overline}
-      </p>
+      {#if overline}
+        <p
+          class={cn(
+            'font-mono text-[10px] font-bold tracking-widest uppercase',
+            accentColor,
+          )}
+        >
+          {overline}
+        </p>
+      {/if}
       <h2
-        class="mt-1.5 font-heading text-xl tracking-wide uppercase md:text-2xl"
+        class={cn(
+          'font-heading text-xl tracking-wide uppercase md:text-2xl',
+          overline && 'mt-1.5',
+        )}
       >
         {title}<span class="text-epi-teal">_</span>
       </h2>

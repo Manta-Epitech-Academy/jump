@@ -16,3 +16,16 @@ export function salesforceContactUrl(externalId: string): string {
 export function salesforceCampaignUrl(externalId: string): string {
   return `${SF_TENANT_BASE}/lightning/r/Campaign/${externalId}/view`;
 }
+
+/** Which Salesforce record an `externalId` points at. */
+export type SalesforceRecordKind = 'lead' | 'campaign';
+
+/** Deep-link to a record, dispatched by kind. Keeps the lead/campaign split in one place for the UI link components. */
+export function salesforceUrl(
+  kind: SalesforceRecordKind,
+  externalId: string,
+): string {
+  return kind === 'campaign'
+    ? salesforceCampaignUrl(externalId)
+    : salesforceContactUrl(externalId);
+}

@@ -172,6 +172,7 @@ export type EventRecord = {
   id: string;
   titre: string;
   date: Date;
+  startMinutes: number | null;
   endDate: Date | null;
   eventType: string;
   campusId: string;
@@ -188,6 +189,7 @@ export async function loadEventOr404(
       id: true,
       titre: true,
       date: true,
+      startMinutes: true,
       endDate: true,
       eventType: true,
       campusId: true,

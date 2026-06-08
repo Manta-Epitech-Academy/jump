@@ -4,14 +4,13 @@
   import Check from '@lucide/svelte/icons/check';
   import CheckCheck from '@lucide/svelte/icons/check-check';
   import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
-  import CloudUpload from '@lucide/svelte/icons/cloud-upload';
+  import SalesforceIconLink from '$lib/components/salesforce/SalesforceIconLink.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import * as Card from '$lib/components/ui/card';
   import * as Select from '$lib/components/ui/select';
   import * as Table from '$lib/components/ui/table';
   import { formatDateTimeFr } from '$lib/utils';
-  import { salesforceContactUrl } from '$lib/domain/salesforce';
   import { EVENT_TYPES } from '$lib/domain/event';
   import { toast } from 'svelte-sonner';
   import { track, daysBetween } from '$lib/analytics';
@@ -156,32 +155,22 @@
               <Table.Cell class="font-mono text-xs">
                 <span class="inline-flex items-center gap-1">
                   {error.attemptedExtId}
-                  <a
-                    href={salesforceContactUrl(error.attemptedExtId)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Ouvrir dans Salesforce"
-                    aria-label="Ouvrir l'extId tenté dans Salesforce"
-                    class="text-muted-foreground hover:text-epi-blue"
-                  >
-                    <CloudUpload class="h-3.5 w-3.5" />
-                  </a>
+                  <SalesforceIconLink
+                    externalId={error.attemptedExtId}
+                    kind="lead"
+                    label="Ouvrir l'extId tenté dans Salesforce"
+                  />
                 </span>
               </Table.Cell>
               <Table.Cell class="font-mono text-xs">
                 {#if error.existingExtId}
                   <span class="inline-flex items-center gap-1">
                     {error.existingExtId}
-                    <a
-                      href={salesforceContactUrl(error.existingExtId)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Ouvrir dans Salesforce"
-                      aria-label="Ouvrir l'extId existant dans Salesforce"
-                      class="text-muted-foreground hover:text-epi-blue"
-                    >
-                      <CloudUpload class="h-3.5 w-3.5" />
-                    </a>
+                    <SalesforceIconLink
+                      externalId={error.existingExtId}
+                      kind="lead"
+                      label="Ouvrir l'extId existant dans Salesforce"
+                    />
                   </span>
                 {:else}
                   —

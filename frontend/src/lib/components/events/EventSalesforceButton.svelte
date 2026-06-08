@@ -1,8 +1,6 @@
 <script lang="ts">
-  import Cloud from '@lucide/svelte/icons/cloud';
-  import { Button } from '$lib/components/ui/button';
+  import SalesforceLinkButton from '$lib/components/salesforce/SalesforceLinkButton.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
-  import { salesforceCampaignUrl } from '$lib/domain/salesforce';
 
   type Props = {
     externalId: string | null | undefined;
@@ -16,22 +14,17 @@
     <Tooltip.Root>
       <Tooltip.Trigger>
         {#snippet child({ props })}
-          <Button
+          <SalesforceLinkButton
             {...props}
-            href={salesforceCampaignUrl(externalId)}
-            target="_blank"
-            rel="noopener noreferrer"
-            variant="outline"
-            size="sm"
-            class="rounded-sm shadow-sm"
-          >
-            <Cloud class="mr-2 h-3.5 w-3.5" />
-            Campagne Salesforce
-          </Button>
+            {externalId}
+            kind="campaign"
+            label="Campagne Salesforce"
+            class="shadow-sm"
+          />
         {/snippet}
       </Tooltip.Trigger>
       <Tooltip.Content>
-        Ouvrir la campagne Salesforce associée dans un nouvel onglet
+        Ouvrir la campagne Salesforce associée à cet événement
       </Tooltip.Content>
     </Tooltip.Root>
   </Tooltip.Provider>

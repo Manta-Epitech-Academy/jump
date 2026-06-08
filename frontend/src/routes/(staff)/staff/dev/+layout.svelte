@@ -10,6 +10,8 @@
   import Search from '@lucide/svelte/icons/search';
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
+  import UserCheck from '@lucide/svelte/icons/user-check';
+  import type { Icon as IconType } from '@lucide/svelte';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import UserCog from '@lucide/svelte/icons/user-cog';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
@@ -22,6 +24,7 @@
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as Tooltip from '$lib/components/ui/tooltip';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { track, secondsBetween } from '$lib/analytics';
@@ -29,7 +32,7 @@
   import { onMount } from 'svelte';
   import { resolve } from '$app/paths';
   import Gated from '$lib/components/auth/Gated.svelte';
-  import { getStaffRoleLabel } from '$lib/domain/staff';
+  import { can } from '$lib/domain/permissions';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
@@ -43,8 +46,13 @@
   let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
-  let hasPlanning = $derived(featureFlags.has('event_planning'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
+  // The "Gestion" section header must not show when none of its links would:
+  // Doublons SF (hasSyncErrors) or Staff du campus (hasCampusTeam, lead-only).
+  let showManagement = $derived(
+    hasSyncErrors ||
+      (hasCampusTeam && can('devLead', data.staffProfile?.staffRole)),
+  );
   // Peda visiting a single interviews route gets a stripped shell — no
   // sidebar, no command-K, no impersonation, no tickets. Just header + main.
   let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
@@ -107,7 +115,6 @@
 {#snippet sidebarBrand()}
   <BrandMark
     href={resolve('/staff/dev')}
-    sublabel={getStaffRoleLabel(data.staffProfile?.staffRole)}
     tagline="Gestion des stages et du coding club"
     campus={data.staffProfile?.campus?.name}
   />
@@ -132,6 +139,40 @@
       </button>
     </div>
   {/if}
+{/snippet}
+
+{#snippet comingSoonEntry(label: string, Icon: typeof IconType)}
+  <!-- Permanent Stage de Seconde surface that isn't built yet: rendered
+       disabled with a "Bientôt disponible" tooltip, mirroring the
+       "Faire l'entretien" button on the talent fiche. Re-enable by swapping the
+       {@render} call for a normal <a> nav link. -->
+  <Tooltip.Provider delayDuration={150}>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <!-- Wrapper takes the hover: a disabled control has no pointer
+               events, so the tooltip can't trigger on it directly. -->
+          <span
+            {...props}
+            class="flex cursor-not-allowed items-center gap-3 rounded-sm px-3 py-2 text-sm font-bold text-sidebar-foreground-muted opacity-50"
+          >
+            <Icon class="h-5 w-5" />
+            <span>{label}</span>
+          </span>
+        {/snippet}
+      </Tooltip.Trigger>
+      <!-- Right-anchored: these entries stack in the vertical nav, so a top
+           tooltip would cover the sibling row above. Right points into the
+           gutter between sidebar and main, covering nothing.
+           No arrow + a wider offset: the trigger fills the nav (its right edge
+           sits ~17px inside the sidebar, behind the px-4 gutter), so a pointer
+           arrow would land on the dark sidebar and vanish. We drop it and push
+           the chip clear of the sidebar onto the light content instead. -->
+      <Tooltip.Content side="right" sideOffset={20} showArrow={false}>
+        <p>Bientôt disponible</p>
+      </Tooltip.Content>
+    </Tooltip.Root>
+  </Tooltip.Provider>
 {/snippet}
 
 {#snippet navMenu()}
@@ -169,24 +210,29 @@
       Stage de Seconde<span class="text-epi-teal">_</span>
     </div>
     <nav class="space-y-1">
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}`, true),
-        )}
-      >
-        <LayoutDashboard class="h-5 w-5" />
-        <span>Vue d'ensemble</span>
-      </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
-        )}
-      >
-        <ClipboardCheck class="h-5 w-5" />
-        <span>Onboarding</span>
-      </a>
+      <!-- Stage-only release scopes the workspace down to Inscrits + Entretiens.
+           The event overview and onboarding tracker are coding_club-era
+           surfaces, kept behind the flag so that future stays intact. -->
+      {#if hasCodingClub}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}`, true),
+          )}
+        >
+          <LayoutDashboard class="h-5 w-5" />
+          <span>Vue d'ensemble</span>
+        </a>
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/onboarding`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/onboarding`),
+          )}
+        >
+          <ClipboardCheck class="h-5 w-5" />
+          <span>Onboarding</span>
+        </a>
+      {/if}
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
         class={navLinkClass(
@@ -196,26 +242,12 @@
         <Users class="h-5 w-5" />
         <span>Inscrits</span>
       </a>
-      {#if hasPlanning}
-        <a
-          href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
-          class={navLinkClass(
-            isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
-          )}
-        >
-          <CalendarDays class="h-5 w-5" />
-          <span>Planning</span>
-        </a>
-      {/if}
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/interviews`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/interviews`),
-        )}
-      >
-        <MessageSquare class="h-5 w-5" />
-        <span>Entretiens</span>
-      </a>
+      <!-- Planning, Entretiens and Présences are permanent stage surfaces, not
+           yet built for this release: shown disabled (see comingSoonEntry).
+           Présences has no route at all yet. -->
+      {@render comingSoonEntry('Planning', CalendarDays)}
+      {@render comingSoonEntry('Entretiens', MessageSquare)}
+      {@render comingSoonEntry('Présences', UserCheck)}
       {#if hasIntervenants}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
@@ -254,7 +286,7 @@
     </nav>
   {/if}
 
-  <Gated group="devMember" mode="hide">
+  {#if showManagement}
     <div class="sidebar-section-title">
       Gestion<span class="text-epi-orange">_</span>
     </div>
@@ -296,7 +328,7 @@
         </a>
       {/if}
     </nav>
-  </Gated>
+  {/if}
 
   {#if data.ticketsEnabled}
     <div class="sidebar-section-title">
@@ -436,7 +468,6 @@
           </Button>
           <BrandMark
             href={resolve('/staff/dev')}
-            sublabel={getStaffRoleLabel(data.staffProfile?.staffRole)}
             tone="auto"
             orientation="inline"
           />

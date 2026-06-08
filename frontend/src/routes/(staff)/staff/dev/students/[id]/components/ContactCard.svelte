@@ -2,20 +2,11 @@
   import Mail from '@lucide/svelte/icons/mail';
   import Phone from '@lucide/svelte/icons/phone';
   import Users from '@lucide/svelte/icons/users';
-  import Fingerprint from '@lucide/svelte/icons/fingerprint';
-  import Cloud from '@lucide/svelte/icons/cloud';
-  import MessageCircle from '@lucide/svelte/icons/message-circle';
-  import Pencil from '@lucide/svelte/icons/pencil';
-  import ExternalLink from '@lucide/svelte/icons/external-link';
-  import { Separator } from '$lib/components/ui/separator';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
-  import { salesforceContactUrl } from '$lib/domain/salesforce';
 
   type Student = {
     id: string;
-    externalId?: string | null;
-    discordId?: string | null;
     email?: string | null;
     user?: { email?: string | null } | null;
     phone?: string | null;
@@ -25,7 +16,7 @@
     parentPhone?: string | null;
   };
 
-  let { student, onEdit }: { student: Student; onEdit?: () => void } = $props();
+  let { student }: { student: Student } = $props();
 
   const studentEmail = $derived(student.user?.email || student.email);
   const parentLine = $derived(
@@ -40,28 +31,10 @@
       student.parentPrenom,
     ),
   );
-
-  // Short identifier — keep the prefix that's most meaningful when staff
-  // copy/paste between Jump and Salesforce.
-  const shortId = $derived(student.id.slice(0, 8).toUpperCase());
 </script>
 
-<EpiSection overline="Contacts" title="Coordonnées" accent="blue">
-  {#snippet meta()}
-    {#if onEdit}
-      <button
-        type="button"
-        onclick={onEdit}
-        class="inline-flex h-7 w-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-epi-blue"
-        aria-label="Modifier le profil"
-        title="Modifier le profil"
-      >
-        <Pencil class="h-3.5 w-3.5" />
-      </button>
-    {/if}
-  {/snippet}
-
-  <div class="space-y-4">
+<EpiSection title="Coordonnées" accent="blue">
+  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
     <div class="space-y-2">
       <h4
         class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
@@ -104,9 +77,7 @@
       {/if}
     </div>
 
-    <Separator />
-
-    <div class="space-y-2">
+    <div class="space-y-2 sm:border-l sm:border-border sm:pl-6">
       <h4
         class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
       >
@@ -151,43 +122,6 @@
             />
           </div>
         {/if}
-      {/if}
-    </div>
-
-    <Separator />
-
-    <div class="space-y-2">
-      <h4
-        class="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-      >
-        <Fingerprint class="h-3 w-3" />
-        Identifiants
-      </h4>
-      <div class="flex items-center gap-2 text-sm" title={student.id}>
-        <Fingerprint class="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span class="font-mono text-xs">Jump · {shortId}</span>
-      </div>
-      {#if student.externalId}
-        <a
-          href={salesforceContactUrl(student.externalId)}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="group flex items-center gap-2 text-sm transition-colors hover:text-epi-blue"
-        >
-          <Cloud class="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span class="font-mono text-xs"
-            >Salesforce · {student.externalId}</span
-          >
-          <ExternalLink
-            class="h-3 w-3 shrink-0 text-muted-foreground transition-colors group-hover:text-epi-blue"
-          />
-        </a>
-      {/if}
-      {#if student.discordId}
-        <div class="flex items-center gap-2 text-sm">
-          <MessageCircle class="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span class="font-mono text-xs">Discord · {student.discordId}</span>
-        </div>
       {/if}
     </div>
   </div>

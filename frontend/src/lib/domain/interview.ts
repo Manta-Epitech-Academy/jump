@@ -46,10 +46,9 @@ export const INTERVIEW_DISPLAY_LABELS: Record<InterviewDisplayStatus, string> =
 
 /**
  * Chip color classes per display status, mapped onto the Epitech charte
- * palette (epi-blue / epi-teal-solid / epi-orange). Single source of truth
- * shared by InterviewHistoryList and InscritCardOngoing — keeps the inscrits
- * card and the talent fiche visually consistent and on-brand (no off-charte
- * green / amber / yellow Tailwind utilities).
+ * palette (epi-blue / epi-teal-solid / epi-orange). Single brand-token source
+ * for the interviews views so every interview-status chip stays on-charte (no
+ * off-brand green / amber / yellow Tailwind utilities).
  */
 export const INTERVIEW_STATUS_CHIP_CLASS: Record<
   InterviewDisplayStatus,
