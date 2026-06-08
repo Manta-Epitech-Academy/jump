@@ -55,20 +55,22 @@
   // Status tints for the dossier tooltip. The tooltip surface is bg-foreground,
   // which inverts with the theme: dark in light mode (the bright tints pop) but
   // light (#c9c9c9) in dark mode, where those same bright tints wash out to
-  // ~1.2:1. So each bright tint is paired with a darker -800 shade applied via
-  // `dark:`, keeping the label readable (AA) on the light dark-mode surface.
+  // ~1.2:1. So each bright tint is paired with a darker -900 shade applied via
+  // `dark:`, uniform across all four states so they clear WCAG AA (4.5:1) on the
+  // light dark-mode surface: teal 5.72, amber 5.48, orange 5.66, red 6.05. The
+  // status is also carried by an icon + label, so color is reinforcement only.
   const rulesTone = (s: RulesStatus) =>
     s === 'signed'
-      ? 'text-epi-teal dark:text-teal-800'
+      ? 'text-epi-teal dark:text-teal-900'
       : s === 'awaiting_parent'
-        ? 'text-amber-300 dark:text-amber-800'
-        : 'text-red-300 dark:text-red-800';
+        ? 'text-amber-300 dark:text-amber-900'
+        : 'text-red-300 dark:text-red-900';
   const imageTone = (s: ImageRightsStatus) =>
     s === 'accepted'
-      ? 'text-epi-teal dark:text-teal-800'
+      ? 'text-epi-teal dark:text-teal-900'
       : s === 'refused'
-        ? 'text-orange-300 dark:text-orange-800'
-        : 'text-red-300 dark:text-red-800';
+        ? 'text-orange-300 dark:text-orange-900'
+        : 'text-red-300 dark:text-red-900';
 
   // Statut badge presentation, one entry per folded readiness state. Teal =
   // done, amber = in progress (one gate left or the parent co-sign pending),
