@@ -41,7 +41,9 @@
   import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
   import {
     RULES_STATUS_LABELS,
+    DOSSIER_READINESS_LABELS,
     type RulesStatus,
+    type DossierReadiness,
   } from '$lib/domain/stageCompliance';
   import {
     IMAGE_RIGHTS_STATUS_LABELS,
@@ -65,6 +67,35 @@
         ? 'text-orange-300'
         : 'text-red-300';
 
+  // Statut badge presentation, one entry per folded readiness state. Teal =
+  // done, amber = in progress (one gate left or the parent co-sign pending),
+  // orange = nothing started.
+  const READINESS_BADGE: Record<
+    DossierReadiness,
+    { icon: typeof Check; class: string }
+  > = {
+    ready: {
+      icon: Check,
+      class: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
+    },
+    partial: {
+      icon: Clock,
+      class: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+    },
+    empty: {
+      icon: CircleAlert,
+      class: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    },
+  };
+
+  // Sort order: least-ready first in ascending, so the rows still needing a
+  // chase float to the top.
+  const READINESS_ORDER: Record<DossierReadiness, number> = {
+    empty: 0,
+    partial: 1,
+    ready: 2,
+  };
+
   let { data }: { data: PageData } = $props();
 
   // Navigation is flat in stage-only mode (we land here, click into a profile),
@@ -76,7 +107,7 @@
 
   let searchQuery = $state('');
   let niveauFilter = $state<'all' | string>('all');
-  let statutFilter = $state<'all' | 'ready' | 'incomplete'>('all');
+  let statutFilter = $state<'all' | DossierReadiness>('all');
   // Default mirrors the server's initial order (nom asc), so the first paint
   // needs no client reshuffle and the header arrow matches the rows shown.
   let sortKey = $state<SortKey>('nom');
@@ -105,7 +136,7 @@
     // Left-aligned like every other column (and the admin talents table): a
     // right-aligned badge made the header label overhang the badge text by the
     // badge's own border + padding, reading as misaligned.
-    { key: 'ready', label: 'Statut', sortable: true },
+    { key: 'readiness', label: 'Statut', sortable: true },
   ];
 
   // Niveau is a one-click segmented filter, but only worth showing when the
@@ -118,8 +149,9 @@
 
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
-    { value: 'ready', label: 'Prêt' },
-    { value: 'incomplete', label: 'Incomplet' },
+    { value: 'ready', label: DOSSIER_READINESS_LABELS.ready },
+    { value: 'partial', label: DOSSIER_READINESS_LABELS.partial },
+    { value: 'empty', label: DOSSIER_READINESS_LABELS.empty },
   ];
 
   // Every lycée in the cohort, ranked by headcount, for the toolbar picker.
@@ -193,8 +225,8 @@
         if (!a.niveau) return 1;
         if (!b.niveau) return -1;
         return compareNiveaux(a.niveau, b.niveau);
-      case 'ready':
-        return a.ready === b.ready ? 0 : a.ready ? 1 : -1;
+      case 'readiness':
+        return READINESS_ORDER[a.readiness] - READINESS_ORDER[b.readiness];
     }
   }
 
@@ -202,8 +234,7 @@
     const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
     const out = data.rows.filter((r) => {
       if (niveauFilter !== 'all' && r.niveau !== niveauFilter) return false;
-      if (statutFilter === 'ready' && !r.ready) return false;
-      if (statutFilter === 'incomplete' && r.ready) return false;
+      if (statutFilter !== 'all' && r.readiness !== statutFilter) return false;
       if (tokens.length === 0) return true;
       const h = makeHaystack(r);
       return tokens.every((tok) => h.includes(tok));
@@ -351,8 +382,12 @@
     </div>
   {:else}
     <div class="grid gap-6 lg:grid-cols-10">
-      <!-- Left 70% — the cohort table is the working surface. -->
-      <div class="space-y-4 lg:col-span-7">
+      <!-- Left 70% — the cohort table is the working surface. `min-w-0` is
+           load-bearing: as a grid item it defaults to `min-width: auto`, which
+           would refuse to shrink below the table's intrinsic (6-column) width
+           and blow the whole grid past the viewport. With `min-w-0` it shrinks
+           to the track and the table scrolls inside its own overflow box. -->
+      <div class="min-w-0 space-y-4 lg:col-span-7">
         <DataTableToolbar
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
@@ -364,7 +399,7 @@
           {#snippet filters()}
             <div class="flex items-center gap-2">
               <span
-                class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
               >
                 Statut
               </span>
@@ -379,7 +414,7 @@
             {#if showNiveauFilter}
               <div class="flex items-center gap-2">
                 <span
-                  class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                  class="hidden text-[10px] font-bold tracking-widest text-muted-foreground uppercase sm:inline"
                 >
                   Niveau
                 </span>
@@ -498,6 +533,8 @@
                 <Tooltip.Root>
                   <Tooltip.Trigger>
                     {#snippet child({ props })}
+                      {@const badge = READINESS_BADGE[r.readiness]}
+                      {@const BadgeIcon = badge.icon}
                       <!-- The badge IS the row link: relative z-10 lifts it above
                            the stretched-link overlay so it both fires the tooltip
                            on hover and navigates to the fiche on click (cmd/middle
@@ -509,18 +546,11 @@
                         tabindex={-1}
                         class={cn(
                           'relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
-                          r.ready
-                            ? 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid'
-                            : 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+                          badge.class,
                         )}
                       >
-                        {#if r.ready}
-                          <Check class="h-3 w-3" />
-                          Prêt
-                        {:else}
-                          <CircleAlert class="h-3 w-3" />
-                          Incomplet
-                        {/if}
+                        <BadgeIcon class="h-3 w-3" />
+                        {DOSSIER_READINESS_LABELS[r.readiness]}
                       </a>
                     {/snippet}
                   </Tooltip.Trigger>
@@ -559,10 +589,11 @@
            within the `<main>` scrollport, with its own height cap + overflow so
            the rail can outgrow the viewport and its bottom card stays reachable
            (otherwise a pinned rail taller than the screen clips its tail). -->
-      <!-- On mobile the overview (countdown + breakdowns) leads — it's the
-           glanceable summary; the long table follows. Desktop keeps the table
-           left, rail right (reset the order at lg). -->
-      <aside class="order-first lg:order-none lg:col-span-3">
+      <!-- Content-first on mobile: the search + list (the reason you open this
+           page) come first; this overview rail (countdown + breakdowns, the
+           glanceable secondary info) follows below. On desktop it's the sticky
+           right column. -->
+      <aside class="min-w-0 lg:col-span-3">
         <div
           class="space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-1"
         >

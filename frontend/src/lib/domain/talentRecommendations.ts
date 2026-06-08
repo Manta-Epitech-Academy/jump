@@ -28,15 +28,26 @@ import {
 export type TalentRecommendationSeverity = 'urgent' | 'info';
 
 /**
- * Who the dev should reach out to. The fiche surfaces that person's phone (or
- * email as a fallback) as a copyable value, so the recommendation only needs to
- * name the audience, not carry the contact details. `null` = no contact panel
- * (the action is the dev's own, e.g. plan an interview, invite to an event).
+ * Who the dev should reach out to, surfaced on the fiche as that person's
+ * copyable contact. How it renders depends on the recommendation `kind`: a
+ * `funnel` nudge shows the single fastest reach (phone, email as fallback),
+ * while an `opportunity` shows both email and phone. `null` = no contact panel
+ * (the action is the dev's own, e.g. plan an interview).
  */
 export type TalentRecommendationContact = 'parent' | 'student' | null;
 
+/**
+ * Which of the two groups (see the module doc) this recommendation belongs to:
+ * `funnel` = a readiness gate, an urgent single nudge to unblock the dossier;
+ * `opportunity` = an action to engage the talent (plan the interview, invite to
+ * an event). It drives how the contact panel renders — a funnel nudge wants the
+ * one fastest way to reach the person, an opportunity surfaces every channel.
+ */
+export type TalentRecommendationKind = 'funnel' | 'opportunity';
+
 export type TalentRecommendation = {
   id: string;
+  kind: TalentRecommendationKind;
   severity: TalentRecommendationSeverity;
   /** Short bold lead, rendered inline before the message. */
   shortTitle: string;
@@ -98,6 +109,7 @@ function deriveFunnelRecommendation(
   if (!t.connected) {
     return {
       id: 'never-connected',
+      kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Jamais connecté',
       message: `Contactez ${t.prenom} car il/elle ne s'est jamais connecté(e)${t.email ? ` avec son email ${t.email}` : ''} sur la plateforme ${t.appUrl}.`,
@@ -108,6 +120,7 @@ function deriveFunnelRecommendation(
   if (deriveOnboardingStatus(t) !== 'done') {
     return {
       id: 'onboarding-blocked',
+      kind: 'funnel',
       severity: 'urgent',
       shortTitle: '1ère connexion en cours',
       message: `Contactez ${t.prenom} pour lui conseiller d'utiliser le support de la plateforme, chat bleu en bas à droite, qui va l'accompagner pour finaliser sa première connexion : le parcours d'onboarding.`,
@@ -118,6 +131,7 @@ function deriveFunnelRecommendation(
   if (!(t.rulesCompliant && t.imageRightsDecided)) {
     return {
       id: 'parent-pending',
+      kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Signatures parents',
       message: `Contactez les parents de ${t.prenom} pour les informer qu'ils ont reçu un mail sur leur adresse ${t.parentEmail ?? 'e-mail'} de la part de ${t.senderEmail} pour signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
@@ -143,6 +157,7 @@ export function deriveTalentRecommendations(
   if (t.connected && !t.hasCompletedInterview) {
     recommendations.push({
       id: 'interview-todo',
+      kind: 'opportunity',
       severity: 'info',
       shortTitle: 'Entretien à planifier',
       message: `Vous n'avez pas encore réalisé l'entretien d'orientation de ${t.prenom}. Pensez à le planifier dans votre calendrier.`,
@@ -156,6 +171,7 @@ export function deriveTalentRecommendations(
   t.techRecommendationMessages.forEach((message, i) => {
     recommendations.push({
       id: `event-opportunity:${i}`,
+      kind: 'opportunity',
       severity: 'info',
       shortTitle: 'Opportunité',
       message: message.replaceAll('{prenom}', t.prenom),

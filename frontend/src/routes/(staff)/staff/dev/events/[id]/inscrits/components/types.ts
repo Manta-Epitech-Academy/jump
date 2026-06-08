@@ -1,5 +1,8 @@
 import type { Prisma } from '@prisma/client';
-import type { RulesStatus } from '$lib/domain/stageCompliance';
+import type {
+  DossierReadiness,
+  RulesStatus,
+} from '$lib/domain/stageCompliance';
 import type { ImageRightsStatus } from '$lib/domain/imageRights';
 
 // The scoped-down inscrits page is one flat table: avatar, prenom, nom, lycee,
@@ -44,9 +47,11 @@ export type InscritRow = {
   prenom: string;
   niveau: string | null;
   schoolName: string | null;
-  ready: boolean;
+  // Folded three-state readiness (prêt / en cours / incomplet); see
+  // `dossierReadiness`. Drives the badge, the statut filter and the sort.
+  readiness: DossierReadiness;
   // Per-document dossier states behind the readiness badge — drive its tooltip
-  // breakdown. `ready` is `rulesStatus === 'signed' && imageStatus !== 'undecided'`.
+  // breakdown and feed the fold above.
   rulesStatus: RulesStatus;
   imageStatus: ImageRightsStatus;
   // Search haystack extras (not shown as columns).
@@ -54,4 +59,4 @@ export type InscritRow = {
   parentEmail: string | null;
 };
 
-export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'ready';
+export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'readiness';

@@ -4,9 +4,11 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { niveauLabel } from '$lib/domain/niveau';
 import {
-  isImageRightsCompliant,
-  isRulesCompliant,
+  rulesStatus,
+  dossierReadiness,
+  DOSSIER_READINESS_LABELS,
 } from '$lib/domain/stageCompliance';
+import { imageRightsStatus } from '$lib/domain/imageRights';
 import { buildXlsx } from '$lib/server/xlsx';
 import { INSCRIT_PARTICIPATION_SELECT } from '../components/types';
 
@@ -44,17 +46,20 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
   const rows = ordered.map((p) => {
     const t = p.talent;
-    const ready =
-      isRulesCompliant(
+    const readiness = dossierReadiness(
+      rulesStatus(
         t.parentRulesSignedAt,
         p.stageCompliance?.charteSigned,
-      ) && isImageRightsCompliant(t.imageRightsDecision);
+        t.rulesSignedAt,
+      ),
+      imageRightsStatus(t),
+    );
     return [
       t.prenom,
       t.nom,
       t.school?.name ?? '',
       t.niveau ? niveauLabel(t.niveau) : '',
-      ready ? 'Prêt' : 'Incomplet',
+      DOSSIER_READINESS_LABELS[readiness],
       t.email ?? '',
       t.parentEmail ?? '',
     ];

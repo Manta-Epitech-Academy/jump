@@ -33,7 +33,6 @@
   import { resolve } from '$app/paths';
   import Gated from '$lib/components/auth/Gated.svelte';
   import { can } from '$lib/domain/permissions';
-  import { getStaffRoleLabel } from '$lib/domain/staff';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import TicketsLauncher from '$lib/components/tickets/TicketsLauncher.svelte';
   import ImpersonationCard from '$lib/components/ImpersonationCard.svelte';
@@ -469,7 +468,6 @@
           </Button>
           <BrandMark
             href={resolve('/staff/dev')}
-            sublabel={getStaffRoleLabel(data.staffProfile?.staffRole)}
             tone="auto"
             orientation="inline"
           />

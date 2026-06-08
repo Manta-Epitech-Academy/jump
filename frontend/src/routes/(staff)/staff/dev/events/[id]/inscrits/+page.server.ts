@@ -9,7 +9,7 @@ import {
   stageEndOrDefault,
 } from '$lib/server/services/stageContext';
 import { compareNiveaux } from '$lib/domain/niveau';
-import { rulesStatus } from '$lib/domain/stageCompliance';
+import { rulesStatus, dossierReadiness } from '$lib/domain/stageCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
 import {
   getLifecycleBounds,
@@ -145,7 +145,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       prenom: t.prenom,
       niveau: t.niveau,
       schoolName: t.school?.name ?? null,
-      ready: rules === 'signed' && image !== 'undecided',
+      readiness: dossierReadiness(rules, image),
       rulesStatus: rules,
       imageStatus: image,
       email: t.email,

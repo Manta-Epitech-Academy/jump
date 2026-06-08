@@ -53,6 +53,32 @@
   }
 </script>
 
+{#snippet emailRow(email: string)}
+  <span class="inline-flex min-w-0 items-center gap-1.5 text-sm">
+    <Mail class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+    <a
+      href={`mailto:${email}`}
+      class="truncate transition-colors hover:text-epi-blue"
+    >
+      {email}
+    </a>
+    <CopyButton value={email} label="Copier l'email" />
+  </span>
+{/snippet}
+
+{#snippet phoneRow(phone: string)}
+  <span class="inline-flex items-center gap-1.5 text-sm">
+    <Phone class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+    <a
+      href={`tel:${phone.replace(/\s+/g, '')}`}
+      class="transition-colors hover:text-epi-blue"
+    >
+      {phone}
+    </a>
+    <CopyButton value={phone} label="Copier le téléphone" />
+  </span>
+{/snippet}
+
 {#if recommendations.length === 0}
   <div
     class="flex items-center gap-2 rounded-sm border border-dashed border-epi-teal/30 bg-epi-teal/5 px-4 py-3 text-sm text-epi-teal-solid"
@@ -75,7 +101,7 @@
           aria-hidden="true"
         ></span>
         <div
-          class="flex flex-1 flex-col gap-x-6 gap-y-2 py-2.5 pr-3 sm:flex-row sm:items-start sm:justify-between"
+          class="flex flex-1 flex-col gap-x-6 gap-y-2 py-2.5 pr-3 sm:flex-row sm:items-center sm:justify-between"
         >
           <div class="min-w-0">
             <p class="text-sm">
@@ -85,40 +111,26 @@
           </div>
 
           {#if rec.contact}
-            <!-- The person the dev reaches out to, beside the recommendation. -->
+            <!-- The person the dev reaches out to, beside the recommendation.
+                 An opportunity surfaces every channel (email then phone); a
+                 funnel nudge wants the one fastest reach (phone, email only as
+                 a fallback). -->
             <div
               class="flex shrink-0 flex-col gap-1 sm:items-end sm:text-right"
             >
-              <!-- Phone is the dev's preferred reach; fall back to email only
-                   when there's no number. Never both. -->
-              {#if info.phone}
-                <span class="inline-flex items-center gap-1.5 text-sm">
-                  <Phone class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <a
-                    href={`tel:${info.phone.replace(/\s+/g, '')}`}
-                    class="transition-colors hover:text-epi-blue"
-                  >
-                    {info.phone}
-                  </a>
-                  <CopyButton value={info.phone} label="Copier le téléphone" />
-                </span>
-              {:else if info.email}
-                <span class="inline-flex min-w-0 items-center gap-1.5 text-sm">
-                  <Mail class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  <a
-                    href={`mailto:${info.email}`}
-                    class="truncate transition-colors hover:text-epi-blue"
-                  >
-                    {info.email}
-                  </a>
-                  <CopyButton value={info.email} label="Copier l'email" />
-                </span>
-              {:else}
+              {#if !info.email && !info.phone}
                 <span
                   class="font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
                 >
                   Aucun contact renseigné
                 </span>
+              {:else if rec.kind === 'opportunity'}
+                {#if info.email}{@render emailRow(info.email)}{/if}
+                {#if info.phone}{@render phoneRow(info.phone)}{/if}
+              {:else if info.phone}
+                {@render phoneRow(info.phone)}
+              {:else if info.email}
+                {@render emailRow(info.email)}
               {/if}
             </div>
           {/if}
