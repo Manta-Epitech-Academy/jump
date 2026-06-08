@@ -30,6 +30,7 @@
     empty,
     headerClass = 'bg-muted/50',
     stickyHeader = false,
+    layout = 'auto',
   }: {
     columns: ColumnDef[];
     rows: T[];
@@ -62,11 +63,25 @@
      * otherwise overflow the page sideways on mobile) and the header is normal.
      */
     stickyHeader?: boolean;
+    /**
+     * Table sizing algorithm. `'auto'` (default) sizes columns to their content
+     * — fine for a self-scrolling, full-width table. `'fixed'` makes the table
+     * fill exactly its container width and divide it among the columns by their
+     * declared widths, so a greedy `w-full` column absorbs the slack and
+     * truncates instead of stretching the table past its track. Reach for it
+     * when the table lives in a constrained column AND drops its own x-scroll
+     * (e.g. a `stickyHeader` table in a grid track): auto layout would let the
+     * intrinsic width spill over the neighbour, fixed layout can't.
+     */
+    layout?: 'auto' | 'fixed';
   } = $props();
 </script>
 
 <div class="rounded-sm border bg-card shadow-sm">
-  <Table.Root containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}>
+  <Table.Root
+    class={layout === 'fixed' ? 'table-fixed' : undefined}
+    containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}
+  >
     <Table.Header class={headerClass}>
       <Table.Row>
         {#each columns as col (col.key)}

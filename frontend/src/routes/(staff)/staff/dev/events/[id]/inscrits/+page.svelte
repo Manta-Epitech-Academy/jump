@@ -123,20 +123,24 @@
     Boolean(data.origin.lycee) || Boolean(data.origin.interest),
   );
 
+  // The table runs `table-layout: fixed` (SortableTable `layout="fixed"`) so it
+  // can never outgrow its grid track and spill over the overview rail — auto
+  // layout did, because `stickyHeader` drops the table's own x-scroll on desktop
+  // (it pins the header to the page scroller). Under fixed layout these widths
+  // are the budget: the fixed-width columns are honoured first and Lycée
+  // (`w-full`) absorbs whatever track is left, truncating its values (school
+  // names are the longest, most variable). The fixed widths sum well under the
+  // track at the `xl` two-column breakpoint, so Lycée always keeps a usable share.
   const columns: ColumnDef[] = [
     { key: 'avatar', label: '', class: 'w-12' },
-    { key: 'prenom', label: 'Prénom', sortable: true },
-    { key: 'nom', label: 'Nom', sortable: true },
-    // Lycée is the greedy column: it soaks up the table's slack (school names
-    // are the longest, most variable values) so the trailing columns stay
-    // content-width and hug the right instead of the slack pooling behind a
-    // left-aligned Statut badge as a dead gap.
+    { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
+    { key: 'nom', label: 'Nom', sortable: true, class: 'w-32' },
     { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
-    { key: 'niveau', label: 'Niveau', sortable: true },
+    { key: 'niveau', label: 'Niveau', sortable: true, class: 'w-24' },
     // Left-aligned like every other column (and the admin talents table): a
     // right-aligned badge made the header label overhang the badge text by the
     // badge's own border + padding, reading as misaligned.
-    { key: 'readiness', label: 'Statut', sortable: true },
+    { key: 'readiness', label: 'Statut', sortable: true, class: 'w-28' },
   ];
 
   // Niveau is a one-click segmented filter, but only worth showing when the
@@ -392,13 +396,18 @@
       {/if}
     </div>
   {:else}
-    <div class="grid gap-6 lg:grid-cols-10">
+    <!-- Two-column (70/30) split is held back to `xl`: a 6-column roster plus
+         the overview rail simply doesn't fit side by side on a `lg` laptop once
+         the app sidebar + page padding are taken out, so below `xl` the table
+         takes the full width and the rail drops beneath it. -->
+    <div class="grid gap-6 xl:grid-cols-10">
       <!-- Left 70% — the cohort table is the working surface. `min-w-0` is
            load-bearing: as a grid item it defaults to `min-width: auto`, which
            would refuse to shrink below the table's intrinsic (6-column) width
            and blow the whole grid past the viewport. With `min-w-0` it shrinks
-           to the track and the table scrolls inside its own overflow box. -->
-      <div class="min-w-0 space-y-4 lg:col-span-7">
+           to the track; the table's own fixed layout then divides that track
+           among its columns rather than overflowing it. -->
+      <div class="min-w-0 space-y-4 xl:col-span-7">
         <DataTableToolbar
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
@@ -460,35 +469,38 @@
             {/if}
           {/snippet}
 
-          {#snippet actions()}
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={exportXlsx}
-              disabled={exporting || filtered.length === 0}
-              class="rounded-sm"
-            >
-              {#if exporting}
-                <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-              {:else}
-                <Download class="mr-1.5 h-4 w-4" />
-              {/if}
-              Exporter (XLSX)
-            </Button>
-          {/snippet}
-
           {#snippet countActions()}
-            {#if anyFiltersApplied}
+            <!-- Filters sit next to the search; the export rides the summary line
+                 instead, right-aligned and grouped with reset. It acts on exactly
+                 the count shown here, so the pairing reads naturally and the wide
+                 statut + lycée filters never push it off its row. -->
+            <div class="ml-auto flex items-center gap-2">
+              {#if anyFiltersApplied}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onclick={resetFilters}
+                  class="h-7 px-2 text-muted-foreground hover:text-foreground"
+                >
+                  <FilterX class="mr-1.5 h-4 w-4" />
+                  Réinitialiser
+                </Button>
+              {/if}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onclick={resetFilters}
-                class="h-7 px-2 text-muted-foreground hover:text-foreground"
+                onclick={exportXlsx}
+                disabled={exporting || filtered.length === 0}
+                class="rounded-sm"
               >
-                <FilterX class="mr-1.5 h-4 w-4" />
-                Réinitialiser
+                {#if exporting}
+                  <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+                {:else}
+                  <Download class="mr-1.5 h-4 w-4" />
+                {/if}
+                Exporter (XLSX)
               </Button>
-            {/if}
+            </div>
           {/snippet}
         </DataTableToolbar>
 
@@ -502,6 +514,7 @@
           rowHref={(r) => resolve(`/staff/dev/students/${r.talentId}`)}
           rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
           stickyHeader
+          layout="fixed"
         >
           {#snippet row(r: InscritRow)}
             <Table.Cell>
@@ -510,17 +523,22 @@
                 size="sm"
               />
             </Table.Cell>
-            <Table.Cell class="font-medium">{r.prenom}</Table.Cell>
-            <Table.Cell class="font-bold uppercase">{r.nom}</Table.Cell>
+            <!-- prénom/nom truncate within their fixed columns: realistic names
+                 fit, but a freak-long one ellipsizes inside its cell (full value
+                 on hover) instead of bleeding into the neighbouring column. -->
+            <Table.Cell class="font-medium">
+              <span class="block truncate" title={r.prenom}>{r.prenom}</span>
+            </Table.Cell>
+            <Table.Cell class="font-bold uppercase">
+              <span class="block truncate" title={r.nom}>{r.nom}</span>
+            </Table.Cell>
             <Table.Cell class="text-sm">
               {#if r.schoolName}
-                <!-- Cap + ellipsis the lycée: some names run very long (e.g.
-                     "Section d'enseignement général et technologique du Lycée
-                     agricole …") and, with no per-table x-scroll, an un-capped
-                     cell would stretch the column and break the whole layout.
-                     The inner block gives `truncate` a width to resolve against
-                     (auto table-layout otherwise ignores it); full name on hover. -->
-                <span class="block max-w-[26rem] truncate" title={r.schoolName}>
+                <!-- Some school names run very long (e.g. "Section d'enseignement
+                     général et technologique du Lycée agricole …"). Under fixed
+                     layout the Lycée column owns a definite width, so the inner
+                     block truncates cleanly to it; full name on hover. -->
+                <span class="block truncate" title={r.schoolName}>
                   {r.schoolName}
                 </span>
               {:else}
@@ -595,18 +613,20 @@
         </SortableTable>
       </div>
 
-      <!-- Right 30% — stage overview at a glance: the opening countdown plus the
-           origin breakdowns, which are the page's cohort filter surface. Sticky
-           within the `<main>` scrollport, with its own height cap + overflow so
-           the rail can outgrow the viewport and its bottom card stays reachable
-           (otherwise a pinned rail taller than the screen clips its tail). -->
-      <!-- Content-first on mobile: the search + list (the reason you open this
+      <!-- Right 30% (xl+) — stage overview at a glance: the opening countdown
+           plus the origin breakdowns, which are the page's cohort filter
+           surface. At `xl` it's the sticky right column, with its own height cap
+           + overflow so the rail can outgrow the viewport and its bottom card
+           stays reachable (otherwise a pinned rail taller than the screen clips
+           its tail). -->
+      <!-- Content-first below `xl`: the search + list (the reason you open this
            page) come first; this overview rail (countdown + breakdowns, the
-           glanceable secondary info) follows below. On desktop it's the sticky
-           right column. -->
-      <aside class="min-w-0 lg:col-span-3">
+           glanceable secondary info) follows below, its cards laid side by side
+           so the full width reads as intentional rather than a stretched stack.
+           At `xl` the grid folds to one column → the sticky vertical rail. -->
+      <aside class="min-w-0 xl:col-span-3">
         <div
-          class="space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-1"
+          class="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
         >
           <StageCountdownCard
             status={data.countdown.status}

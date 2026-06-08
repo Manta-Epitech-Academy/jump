@@ -55,6 +55,8 @@
     if (!date) return 'Jamais';
     const diff = Date.now() - new Date(date).getTime();
     const day = 86_400_000;
+    // Clamp future timestamps (clock skew, bad data) to today rather than
+    // letting a negative diff leak through the buckets below.
     if (diff < day) return "Aujourd'hui";
     if (diff < 2 * day) return 'Hier';
     if (diff < 7 * day) return `Il y a ${Math.floor(diff / day)} j`;
