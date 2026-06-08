@@ -17,8 +17,8 @@
  * value stays the truth that Salesforce reconciliation compares against. It also
  * replaces the naive `capitalize`, which lowercased everything after the first
  * letter and so flattened "Jean-Pierre" to "Jean-pierre". Surnames are rendered
- * uppercase by their own surface (CSS in <TalentName>, toUpperCase below), so
- * only the given name needs this.
+ * uppercase by their own surface (CSS in <TalentName>, `formatFamilyName` below),
+ * so only the given name needs this.
  */
 export function formatGivenName(value: string | null | undefined): string {
   if (!value) return '';
@@ -28,6 +28,17 @@ export function formatGivenName(value: string | null | undefined): string {
       /(^|[\s\-'’])(\p{L})/gu,
       (_match, sep, ch) => sep + ch.toLocaleUpperCase('fr'),
     );
+}
+
+/**
+ * Uppercases a surname for display (French civil convention: "Dupont" → "DUPONT").
+ * Locale-aware so accented letters case correctly ("é" → "É"). Like
+ * formatGivenName, a pure display projection over the raw stored value, never
+ * written back. Use formatGivenName instead where the surname sits in a
+ * salutation rather than a list ("Bonjour Mr/Mme Dupont,", not "DUPONT").
+ */
+export function formatFamilyName(value: string | null | undefined): string {
+  return value ? value.toLocaleUpperCase('fr') : '';
 }
 
 /**
@@ -44,7 +55,7 @@ export function formatPersonName(
   order: 'given-first' | 'surname-first' = 'given-first',
 ): string {
   const given = formatGivenName(prenom);
-  const family = nom ? nom.toLocaleUpperCase('fr') : '';
+  const family = formatFamilyName(nom);
   const parts = order === 'surname-first' ? [family, given] : [given, family];
   return parts.filter(Boolean).join(' ');
 }
