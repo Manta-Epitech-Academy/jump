@@ -79,7 +79,10 @@
         )}
       >
         <span class="flex min-w-0 items-center gap-2">
-          {#if icon}{@render icon()}{/if}
+          <!-- shrink-0: the icon keeps its size; only the label (truncate)
+               gives way when the selected option's name is long. Without it
+               the icon competes with the label for space and shrinks. -->
+          {#if icon}<span class="flex shrink-0">{@render icon()}</span>{/if}
           <span
             class={cn('truncate', value === 'all' && 'text-muted-foreground')}
           >
