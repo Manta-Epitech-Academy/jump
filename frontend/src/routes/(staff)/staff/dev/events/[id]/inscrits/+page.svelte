@@ -368,17 +368,28 @@
       >
         Aucun stagiaire inscrit
       </h3>
-      <p class="mt-1 text-xs font-medium text-muted-foreground">
-        Importer une cohorte via la page d'import.
-      </p>
-      <Button
-        variant="outline"
-        size="sm"
-        href={resolve('/staff/dev/events/import')}
-        class="mt-4 rounded-sm"
-      >
-        Importer
-      </Button>
+      {#if hasCodingClub}
+        <p class="mt-1 text-xs font-medium text-muted-foreground">
+          Importer une cohorte via la page d'import.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          href={resolve('/staff/dev/events/import')}
+          class="mt-4 rounded-sm"
+        >
+          Importer
+        </Button>
+      {:else}
+        <!-- Stage-only: the cohort is synced from Salesforce by the worker, not
+             imported by hand. The CSV import page is coding_club-gated and 404s
+             here, and stage participations land via the sync anyway, so point
+             the dev at that rather than a dead "Importer" button. -->
+        <p class="mt-1 max-w-sm text-xs font-medium text-muted-foreground">
+          Les stagiaires sont synchronisés automatiquement depuis Salesforce et
+          apparaîtront ici une fois la synchronisation effectuée.
+        </p>
+      {/if}
     </div>
   {:else}
     <div class="grid gap-6 lg:grid-cols-10">

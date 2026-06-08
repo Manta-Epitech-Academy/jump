@@ -24,6 +24,15 @@ export const INSCRIT_TALENT_SELECT = {
   parentRulesSignedAt: true,
   imageRightsDecision: true,
   school: { select: { id: true, name: true } },
+  // Contact + parent identity. Not shown in the table, but the XLSX export
+  // (export/+server.ts) emits them so the download is a usable cohort contact
+  // sheet (call the student, call the parents). Cheap scalar columns, so the
+  // shared select carries them rather than the export forking its own — a second
+  // select is exactly the drift this shared one exists to prevent.
+  phone: true,
+  parentPrenom: true,
+  parentNom: true,
+  parentPhone: true,
 } satisfies Prisma.TalentSelect;
 
 export const INSCRIT_PARTICIPATION_SELECT = {

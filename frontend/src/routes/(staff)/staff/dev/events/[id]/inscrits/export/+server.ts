@@ -7,16 +7,25 @@ import {
   rulesStatus,
   dossierReadiness,
   DOSSIER_READINESS_LABELS,
+  RULES_STATUS_LABELS,
 } from '$lib/domain/stageCompliance';
-import { imageRightsStatus } from '$lib/domain/imageRights';
+import {
+  imageRightsStatus,
+  IMAGE_RIGHTS_STATUS_LABELS,
+} from '$lib/domain/imageRights';
 import { buildXlsx } from '$lib/server/xlsx';
 import { INSCRIT_PARTICIPATION_SELECT } from '../components/types';
 
 /**
  * Filtered-cohort XLSX export. The inscrits page filters/sorts ~200 rows client
  * side, so it POSTs the talent ids it is currently showing (in display order);
- * the server re-queries them campus + event scoped and recomputes readiness from
- * the DB (never trusting the client for the verdict), then streams the workbook.
+ * the server re-queries them campus + event scoped and recomputes the dossier
+ * verdicts from the DB (never trusting the client), then streams the workbook.
+ *
+ * The sheet is richer than the on-screen table on purpose — a download is where
+ * the dev actually works the cohort: it adds student + parent phone/email and
+ * splits the folded "Statut" into its two gates (règlement, droit à l'image) so
+ * the file doubles as a contact list and a "who owes what" triage sheet.
  */
 export const POST: RequestHandler = async ({ params, locals, request }) => {
   requireStaffGroup(locals, 'devMember');
@@ -46,22 +55,30 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
   const rows = ordered.map((p) => {
     const t = p.talent;
-    const readiness = dossierReadiness(
-      rulesStatus(
-        t.parentRulesSignedAt,
-        p.stageCompliance?.charteSigned,
-        t.rulesSignedAt,
-      ),
-      imageRightsStatus(t),
+    // Recompute both dossier gates server-side (never trust the client verdict):
+    // the folded "Statut" mirrors the table badge, and each gate gets its own
+    // column so the sheet can be triaged on what a student actually owes.
+    const rules = rulesStatus(
+      t.parentRulesSignedAt,
+      p.stageCompliance?.charteSigned,
+      t.rulesSignedAt,
     );
+    const image = imageRightsStatus(t);
+    const readiness = dossierReadiness(rules, image);
+    const parentName = [t.parentPrenom, t.parentNom].filter(Boolean).join(' ');
     return [
       t.prenom,
       t.nom,
       t.school?.name ?? '',
       t.niveau ? niveauLabel(t.niveau) : '',
       DOSSIER_READINESS_LABELS[readiness],
+      RULES_STATUS_LABELS[rules],
+      IMAGE_RIGHTS_STATUS_LABELS[image],
       t.email ?? '',
+      t.phone ?? '',
+      parentName,
       t.parentEmail ?? '',
+      t.parentPhone ?? '',
     ];
   });
 
@@ -73,11 +90,16 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       'Lycée',
       'Niveau',
       'Statut',
+      'Règlement intérieur',
+      "Droit à l'image",
       'Email élève',
+      'Téléphone élève',
+      'Parent',
       'Email parent',
+      'Téléphone parent',
     ],
     rows,
-    colWidths: [18, 18, 32, 16, 12, 28, 28],
+    colWidths: [16, 16, 30, 10, 12, 18, 16, 26, 16, 22, 26, 16],
   });
 
   // ASCII-safe filename for the Content-Disposition header (the client sets its

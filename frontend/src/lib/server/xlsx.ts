@@ -23,11 +23,19 @@ export type XlsxCell = string | number | null | undefined;
 // (sheet name in `workbookXml`). `&quot;` is harmless in text but required in
 // attributes, so one escaper stays correct wherever a value is interpolated.
 function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return (
+    s
+      // XML 1.0 forbids the C0 control chars (except tab/LF/CR) even when
+      // escaped, so a single stray one from bad upstream data makes the part
+      // unparseable and Excel refuses to open the whole workbook. Strip them
+      // before escaping so one bad cell can't sink the file; tab (0x09), LF
+      // (0x0A) and CR (0x0D) are legal and kept.
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+  );
 }
 
 /** 0-based column index -> spreadsheet column name (0 -> A, 26 -> AA). */
