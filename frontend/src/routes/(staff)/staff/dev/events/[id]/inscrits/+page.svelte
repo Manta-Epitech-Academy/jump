@@ -504,61 +504,64 @@
           {/snippet}
         </DataTableToolbar>
 
-        <SortableTable
-          {columns}
-          rows={filtered}
-          {sortKey}
-          {sortDir}
-          onSort={toggleSort}
-          rowKey={(r) => r.id}
-          rowHref={(r) => resolve(`/staff/dev/students/${r.talentId}`)}
-          rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
-          stickyHeader
-          layout="fixed"
-        >
-          {#snippet row(r: InscritRow)}
-            <Table.Cell>
-              <TalentAvatar
-                talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                size="sm"
-              />
-            </Table.Cell>
-            <!-- prénom/nom truncate within their fixed columns: realistic names
+        <!-- One provider for the whole table: it only carries the hover-delay
+             config, so the per-row badge tooltips share a single instance rather
+             than spinning up one provider per cohort row (~200 at full stage). -->
+        <Tooltip.Provider delayDuration={150}>
+          <SortableTable
+            {columns}
+            rows={filtered}
+            {sortKey}
+            {sortDir}
+            onSort={toggleSort}
+            rowKey={(r) => r.id}
+            rowHref={(r) => resolve(`/staff/dev/students/${r.talentId}`)}
+            rowLabel={(r) => `Voir la fiche de ${r.prenom} ${r.nom}`}
+            stickyHeader
+            layout="fixed"
+          >
+            {#snippet row(r: InscritRow)}
+              <Table.Cell>
+                <TalentAvatar
+                  talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                  size="sm"
+                />
+              </Table.Cell>
+              <!-- prénom/nom truncate within their fixed columns: realistic names
                  fit, but a freak-long one ellipsizes inside its cell (full value
                  on hover) instead of bleeding into the neighbouring column. -->
-            <Table.Cell class="font-medium">
-              <span class="block truncate" title={r.prenom}>{r.prenom}</span>
-            </Table.Cell>
-            <Table.Cell class="font-bold uppercase">
-              <span class="block truncate" title={r.nom}>{r.nom}</span>
-            </Table.Cell>
-            <Table.Cell class="text-sm">
-              {#if r.schoolName}
-                <!-- Some school names run very long (e.g. "Section d'enseignement
+              <Table.Cell class="font-medium">
+                <span class="block truncate" title={r.prenom}>{r.prenom}</span>
+              </Table.Cell>
+              <Table.Cell class="font-bold uppercase">
+                <span class="block truncate" title={r.nom}>{r.nom}</span>
+              </Table.Cell>
+              <Table.Cell class="text-sm">
+                {#if r.schoolName}
+                  <!-- Some school names run very long (e.g. "Section d'enseignement
                      général et technologique du Lycée agricole …"). Under fixed
                      layout the Lycée column owns a definite width, so the inner
                      block truncates cleanly to it; full name on hover. -->
-                <span class="block truncate" title={r.schoolName}>
-                  {r.schoolName}
-                </span>
-              {:else}
-                <span class="text-muted-foreground">—</span>
-              {/if}
-            </Table.Cell>
-            <Table.Cell>
-              {#if r.niveau}
-                <Badge
-                  variant="secondary"
-                  class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
-                >
-                  {niveauLabel(r.niveau)}
-                </Badge>
-              {:else}
-                <span class="text-sm text-muted-foreground">—</span>
-              {/if}
-            </Table.Cell>
-            <Table.Cell>
-              <Tooltip.Provider delayDuration={150}>
+                  <span class="block truncate" title={r.schoolName}>
+                    {r.schoolName}
+                  </span>
+                {:else}
+                  <span class="text-muted-foreground">—</span>
+                {/if}
+              </Table.Cell>
+              <Table.Cell>
+                {#if r.niveau}
+                  <Badge
+                    variant="secondary"
+                    class="rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+                  >
+                    {niveauLabel(r.niveau)}
+                  </Badge>
+                {:else}
+                  <span class="text-sm text-muted-foreground">—</span>
+                {/if}
+              </Table.Cell>
+              <Table.Cell>
                 <Tooltip.Root>
                   <Tooltip.Trigger>
                     {#snippet child({ props })}
@@ -587,30 +590,30 @@
                     {@render dossierBreakdown(r)}
                   </Tooltip.Content>
                 </Tooltip.Root>
-              </Tooltip.Provider>
-            </Table.Cell>
-          {/snippet}
+              </Table.Cell>
+            {/snippet}
 
-          {#snippet empty()}
-            <div class="flex flex-col items-center gap-3 py-6">
-              <span
-                class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
-              >
-                Aucun résultat
-              </span>
-              {#if anyFiltersApplied}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={resetFilters}
-                  class="rounded-sm"
+            {#snippet empty()}
+              <div class="flex flex-col items-center gap-3 py-6">
+                <span
+                  class="text-xs font-bold tracking-widest text-muted-foreground uppercase"
                 >
-                  Réinitialiser les filtres
-                </Button>
-              {/if}
-            </div>
-          {/snippet}
-        </SortableTable>
+                  Aucun résultat
+                </span>
+                {#if anyFiltersApplied}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onclick={resetFilters}
+                    class="rounded-sm"
+                  >
+                    Réinitialiser les filtres
+                  </Button>
+                {/if}
+              </div>
+            {/snippet}
+          </SortableTable>
+        </Tooltip.Provider>
       </div>
 
       <!-- Right 30% (xl+) — stage overview at a glance: the opening countdown
