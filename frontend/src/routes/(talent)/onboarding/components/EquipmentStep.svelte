@@ -1,6 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { onboardingSubmit } from '../stepSubmit';
   import { Checkbox } from '$lib/components/ui/checkbox';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
@@ -48,17 +48,7 @@
 <form
   method="POST"
   action="?/validateEquipment"
-  use:enhance={() => {
-    submitting = true;
-    return async ({ result, update }) => {
-      if (result.type === 'success') {
-        await invalidateAll();
-        return;
-      }
-      await update();
-      submitting = false;
-    };
-  }}
+  use:enhance={onboardingSubmit((v) => (submitting = v))}
   class="space-y-6"
 >
   <!-- Ton équipement — the one input that matters operationally (do they have a

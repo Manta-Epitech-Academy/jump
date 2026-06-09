@@ -1,6 +1,6 @@
 <script lang="ts">
   import Quote from '@lucide/svelte/icons/quote';
-  import { capitalize } from '$lib/utils';
+  import { formatGivenName } from '$lib/domain/profile';
 
   // Free-text the talent wrote about themselves during onboarding, surfaced as
   // warm pull-quotes so they speak in their own words — the human, "shiny"
@@ -17,7 +17,7 @@
     setupDescription?: string | null;
   } = $props();
 
-  const name = $derived(capitalize(firstName));
+  const name = $derived(formatGivenName(firstName));
 
   type PullQuote = { id: string; lead: string; text: string };
   const quotes = $derived(

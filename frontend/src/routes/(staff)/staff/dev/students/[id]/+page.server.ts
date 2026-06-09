@@ -14,7 +14,7 @@ import {
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { EVENT_TYPES } from '$lib/domain/event';
-import { capitalize } from '$lib/utils';
+import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/stageCompliance';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
@@ -196,7 +196,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     const recommendations = deriveTalentRecommendations({
       ...student,
-      prenom: capitalize(student.prenom),
+      prenom: formatGivenName(student.prenom),
       appUrl,
       senderEmail,
       connected: firstLoginAt != null,

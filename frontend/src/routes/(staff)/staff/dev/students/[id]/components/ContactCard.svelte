@@ -4,12 +4,18 @@
   import Users from '@lucide/svelte/icons/users';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
+  import TalentName from '$lib/components/students/TalentName.svelte';
+  import { civiliteCourtesyTitle } from '$lib/domain/profile';
 
   type Student = {
     id: string;
+    prenom?: string | null;
+    nom?: string | null;
+    civilite?: string | null;
     email?: string | null;
     user?: { email?: string | null } | null;
     phone?: string | null;
+    parentCivilite?: string | null;
     parentNom?: string | null;
     parentPrenom?: string | null;
     parentEmail?: string | null;
@@ -19,9 +25,12 @@
   let { student }: { student: Student } = $props();
 
   const studentEmail = $derived(student.user?.email || student.email);
-  const parentLine = $derived(
-    [student.parentPrenom, student.parentNom].filter(Boolean).join(' ').trim(),
-  );
+
+  // Courtesy title (civilité) kept separate from the name so the `identityLine`
+  // snippet can subordinate the honorific. Civilité lives here now that it has
+  // left the hero band.
+  const studentTitle = $derived(civiliteCourtesyTitle(student.civilite));
+  const parentTitle = $derived(civiliteCourtesyTitle(student.parentCivilite));
 
   const hasParentContact = $derived(
     Boolean(
@@ -33,6 +42,22 @@
   );
 </script>
 
+<!-- Honorific subordinated to the name: same line, but the civilité is muted so
+     "Madame" reads as a courtesy title and the name stands on its own. The name
+     goes through <TalentName> (given-first), so the surname is uppercased here
+     exactly as it is in the profile hero. -->
+{#snippet identityLine(
+  title: string,
+  person: { prenom?: string | null; nom?: string | null },
+)}
+  {#if title || person.prenom || person.nom}
+    <p class="text-sm font-semibold">
+      {#if title}<span class="font-normal text-muted-foreground">{title}</span
+        >{' '}{/if}<TalentName talent={person} order="given-first" />
+    </p>
+  {/if}
+{/snippet}
+
 <EpiSection title="Coordonnées" accent="blue">
   <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
     <div class="space-y-2">
@@ -41,6 +66,10 @@
       >
         Élève
       </h4>
+      {@render identityLine(studentTitle, {
+        prenom: student.prenom,
+        nom: student.nom,
+      })}
       {#if studentEmail}
         <div class="flex items-center gap-1">
           <a
@@ -89,9 +118,10 @@
           Aucune information renseignée
         </p>
       {:else}
-        {#if parentLine}
-          <p class="text-sm font-medium">{parentLine}</p>
-        {/if}
+        {@render identityLine(parentTitle, {
+          prenom: student.parentPrenom,
+          nom: student.parentNom,
+        })}
         {#if student.parentEmail}
           <div class="flex items-center gap-1">
             <a

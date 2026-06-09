@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { onboardingSubmit } from '../stepSubmit';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import Code from '@lucide/svelte/icons/code';
@@ -109,17 +109,7 @@
 <form
   method="POST"
   action="?/validateInterests"
-  use:enhance={() => {
-    submitting = true;
-    return async ({ result, update }) => {
-      if (result.type === 'success') {
-        await invalidateAll();
-        return;
-      }
-      await update();
-      submitting = false;
-    };
-  }}
+  use:enhance={onboardingSubmit((v) => (submitting = v))}
   class="space-y-6"
 >
   {#each [...techSelected] as id}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { onboardingSubmit } from '../stepSubmit';
   import * as Command from '$lib/components/ui/command';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -106,17 +106,7 @@
 <form
   method="POST"
   action="?/validateSchool"
-  use:enhance={() => {
-    submitting = true;
-    return async ({ result, update }) => {
-      if (result.type === 'success') {
-        await invalidateAll();
-        return;
-      }
-      await update();
-      submitting = false;
-    };
-  }}
+  use:enhance={onboardingSubmit((v) => (submitting = v))}
   class="space-y-4"
 >
   <input type="hidden" name="schoolName" value={selectedNom} />
