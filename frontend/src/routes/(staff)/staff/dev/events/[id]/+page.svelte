@@ -60,9 +60,10 @@
     data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
   );
 
-  // Planning isn't built for this release yet (shown as "Bientôt disponible" in
-  // the dev sidebar), so its links stay hidden on the coding_club overview too.
-  // Flip back on alongside the sidebar entry and the planning route.
+  // Planning ships as a read-only viewer, but stays gated until each onboarded
+  // campus has its calendar data (shown as "Bientôt disponible" in the dev
+  // sidebar), so its links stay hidden on the coding_club overview too.
+  // Flip back on once every onboarded campus has its planning data.
   const showPlanning = false;
 </script>
 

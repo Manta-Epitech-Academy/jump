@@ -1,4 +1,5 @@
 import type { EventType } from './event';
+import { startOfDay } from './calendarWeek';
 
 /**
  * The talent dashboard "Planning à venir" widget renders exactly one of three
@@ -134,12 +135,6 @@ export type CalendarPlanning = {
   slots: CalendarSlot[];
   range: { start: Date; end: Date } | null;
 };
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
 
 /**
  * Flatten every participation's timeSlots into one event-tagged, start-sorted
