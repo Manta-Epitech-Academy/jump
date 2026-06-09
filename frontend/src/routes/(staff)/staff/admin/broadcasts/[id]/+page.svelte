@@ -234,7 +234,11 @@
               >{recipientRole(r)}</Table.Cell
             >
             <Table.Cell class="text-xs text-muted-foreground">
-              {r.recipientEmail ?? r.recipientPhone ?? '—'}
+              {#if data.broadcast.channel === 'sms'}
+                {r.recipientPhone ?? r.recipientEmail ?? '—'}
+              {:else}
+                {r.recipientEmail ?? r.recipientPhone ?? '—'}
+              {/if}
             </Table.Cell>
             <Table.Cell><RecipientStatusBadge status={r.status} /></Table.Cell>
             <Table.Cell class="text-xs text-muted-foreground">

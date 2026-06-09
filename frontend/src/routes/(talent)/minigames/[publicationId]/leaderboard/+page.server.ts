@@ -16,7 +16,7 @@ import { prisma } from '$lib/server/db';
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
-  const { campusId } = await resolveLeaderboardScope(
+  const { campusId, viewerOutcome } = await resolveLeaderboardScope(
     locals.talent.id,
     params.publicationId,
   );
@@ -51,6 +51,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     scoringType,
     currentTalentId: locals.talent.id,
     campusName: campus?.name ?? null,
+    viewerOutcome,
     minigameRankReward,
   };
 };

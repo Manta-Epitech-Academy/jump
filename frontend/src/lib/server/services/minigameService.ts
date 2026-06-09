@@ -537,25 +537,43 @@ async function buildLeaderboard(
 }
 
 /**
- * The board scope a talent is shown for a publication: the single source of
- * truth shared with the rank bonus. Once they've played, it's the `campusId`
- * stamped on their own attempt (the board their bonus was ranked and paid on in
- * {@link applyCallback}), so the board they see can never diverge from the board
- * they placed on. Before they've played, there's no attempt and so no bonus to
- * agree with, so we preview where they'd land from their closest event. Null in
- * either case ⇒ the global board.
+ * Where the viewer themselves stands on a board: they `won` (a `done` run, so
+ * they're ranked on it) or they `lost` (an `invalid` run — they played, but the
+ * board only lists wins, so they're absent from it). A leftover `pending` mint,
+ * or no attempt at all, is neither. Lets the board explain a loss ("ta partie
+ * n'a pas été validée") instead of letting it read as "nobody played".
+ */
+export type ViewerOutcome = 'won' | 'lost';
+
+/**
+ * The board scope a talent is shown for a publication, plus where the viewer
+ * stands on it (both read from the same row). The `campusId` is the single
+ * source of truth shared with the rank bonus: once they've played, it's the
+ * `campusId` stamped on their own attempt (the board their bonus was ranked and
+ * paid on in {@link applyCallback}), so the board they see can never diverge
+ * from the board they placed on. Before they've played, there's no attempt and
+ * so no bonus to agree with, so we preview where they'd land from their closest
+ * event. Null in either case ⇒ the global board.
  */
 export async function resolveLeaderboardScope(
   talentId: string,
   publicationId: string,
-): Promise<{ campusId: string | null }> {
+): Promise<{ campusId: string | null; viewerOutcome: ViewerOutcome | null }> {
   const attempt = await prisma.minigameAttempt.findUnique({
     where: { talentId_publicationId: { talentId, publicationId } },
-    select: { campusId: true },
+    select: { campusId: true, status: true },
   });
-  if (attempt) return { campusId: attempt.campusId };
+  if (attempt) {
+    const viewerOutcome: ViewerOutcome | null =
+      attempt.status === 'pending'
+        ? null
+        : attempt.status === 'done'
+          ? 'won'
+          : 'lost';
+    return { campusId: attempt.campusId, viewerOutcome };
+  }
   const closest = await getClosestEventForTalent(talentId);
-  return { campusId: closest?.campusId ?? null };
+  return { campusId: closest?.campusId ?? null, viewerOutcome: null };
 }
 
 /**

@@ -4,6 +4,7 @@
   import Users from '@lucide/svelte/icons/users';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import EpiSection from '$lib/components/staff/EpiSection.svelte';
+  import TalentName from '$lib/components/students/TalentName.svelte';
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
 
   type Student = {
@@ -25,32 +26,34 @@
 
   const studentEmail = $derived(student.user?.email || student.email);
 
-  // Identity per column = courtesy title (civilité) + name, kept as separate
-  // pieces so the `identityLine` snippet can subordinate the honorific (muted,
-  // lighter) and let the name read as the name. Civilité lives here now that it
-  // has left the hero band.
+  // Courtesy title (civilité) kept separate from the name so the `identityLine`
+  // snippet can subordinate the honorific. Civilité lives here now that it has
+  // left the hero band.
   const studentTitle = $derived(civiliteCourtesyTitle(student.civilite));
-  const studentName = $derived(
-    [student.prenom, student.nom].filter(Boolean).join(' ').trim(),
-  );
   const parentTitle = $derived(civiliteCourtesyTitle(student.parentCivilite));
-  const parentName = $derived(
-    [student.parentPrenom, student.parentNom].filter(Boolean).join(' ').trim(),
-  );
 
   const hasParentContact = $derived(
-    Boolean(student.parentEmail || student.parentPhone || parentName),
+    Boolean(
+      student.parentEmail ||
+      student.parentPhone ||
+      student.parentNom ||
+      student.parentPrenom,
+    ),
   );
 </script>
 
-<!-- Honorific subordinated to the name: same line, but the civilité is muted
-     and lighter so "Madame" reads as a courtesy title and the actual name (bold,
-     full-contrast) stands on its own. -->
-{#snippet identityLine(title: string, name: string)}
-  {#if title || name}
+<!-- Honorific subordinated to the name: same line, but the civilité is muted so
+     "Madame" reads as a courtesy title and the name stands on its own. The name
+     goes through <TalentName> (given-first), so the surname is uppercased here
+     exactly as it is in the profile hero. -->
+{#snippet identityLine(
+  title: string,
+  person: { prenom?: string | null; nom?: string | null },
+)}
+  {#if title || person.prenom || person.nom}
     <p class="text-sm font-semibold">
       {#if title}<span class="font-normal text-muted-foreground">{title}</span
-        >{' '}{/if}{name}
+        >{' '}{/if}<TalentName talent={person} order="given-first" />
     </p>
   {/if}
 {/snippet}
@@ -63,7 +66,10 @@
       >
         Élève
       </h4>
-      {@render identityLine(studentTitle, studentName)}
+      {@render identityLine(studentTitle, {
+        prenom: student.prenom,
+        nom: student.nom,
+      })}
       {#if studentEmail}
         <div class="flex items-center gap-1">
           <a
@@ -112,7 +118,10 @@
           Aucune information renseignée
         </p>
       {:else}
-        {@render identityLine(parentTitle, parentName)}
+        {@render identityLine(parentTitle, {
+          prenom: student.parentPrenom,
+          nom: student.parentNom,
+        })}
         {#if student.parentEmail}
           <div class="flex items-center gap-1">
             <a
