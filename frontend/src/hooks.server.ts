@@ -186,8 +186,13 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);
     event.locals.planningPreview = readPlanningPreview(event);
 
-    // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget)
-    if (event.locals.talent) {
+    // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget).
+    // Skip while impersonated: the request is an admin testing the talent's
+    // experience, not the talent being active. Counting it would mark a
+    // never-logged-in talent as recently connected (and leave "dernière
+    // connexion" disagreeing with "première connexion", which filters
+    // impersonation sessions out).
+    if (event.locals.talent && !impersonatedById) {
       const now = new Date();
       const lastActive = event.locals.talent.lastActiveAt;
       if (
