@@ -33,6 +33,23 @@ export interface AuthAccountSummary {
   linkedTalent: { id: string; prenom: string; nom: string } | null;
 }
 
+/** What an account / email maps to elsewhere in the system, for the expandable
+ * "who is this" detail. */
+export type AccountNature =
+  | { kind: 'orphan' }
+  | { kind: 'this_talent' }
+  | {
+      kind: 'talent';
+      talentId: string;
+      prenom: string;
+      nom: string;
+      /** true: the account is linked to that talent; false: the email is that
+       * talent's login email but the account isn't theirs. */
+      linked: boolean;
+    }
+  | { kind: 'parent'; talentId: string; prenom: string; nom: string }
+  | { kind: 'staff'; name: string | null };
+
 export interface AuthConflict {
   talentId: string;
   externalId: string | null;
@@ -45,7 +62,14 @@ export interface AuthConflict {
   /** The account that already holds `targetEmail`, if any. null → SIMPLE_DRIFT. */
   holder: AuthAccountSummary | null;
   verdict: AuthConflictVerdict;
-  /** Backward direction: is the stale email a real other person's? */
+  /** What the holder account is (orphan / staff / parent / other talent). null
+   * when there is no holder. Shown in the expandable detail. */
+  holderNature: AccountNature | null;
+  /** Who legitimately owns the stale email the linked account squats. null =
+   * nobody (just a wrong value). Non-null ⇒ exposure risk. */
+  staleOwner: AccountNature | null;
+  /** Backward direction: is the stale email a real other person's? Derived from
+   * `staleOwner` (kept for triage/badge convenience). */
   exposureRisk: boolean;
   exposureKind: ExposureKind | null;
   /** For SYMMETRIC_INVERSION: the partner talent to swap with. */
@@ -90,3 +114,22 @@ export const ACTION_LABELS: Record<AuthRepairAction, string> = {
   swap: 'Échanger les deux comptes',
   sever: 'Couper le lien',
 };
+
+/** Human description of what an account / email maps to, for the detail panel. */
+export function natureLabel(n: AccountNature | null): string {
+  if (!n) return 'Personne (valeur sans propriétaire)';
+  switch (n.kind) {
+    case 'orphan':
+      return 'Compte orphelin (rattaché à personne)';
+    case 'this_talent':
+      return 'Ce talent';
+    case 'talent':
+      return n.linked
+        ? `Autre talent : ${n.prenom} ${n.nom} (compte lié)`
+        : `Email d’un autre talent : ${n.prenom} ${n.nom}`;
+    case 'parent':
+      return `Parent de ${n.prenom} ${n.nom}`;
+    case 'staff':
+      return n.name ? `Compte staff : ${n.name}` : 'Compte staff';
+  }
+}

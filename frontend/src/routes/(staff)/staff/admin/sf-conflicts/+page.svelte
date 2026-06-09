@@ -17,6 +17,8 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Link2Off from '@lucide/svelte/icons/link-2-off';
   import Wrench from '@lucide/svelte/icons/wrench';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { toast } from 'svelte-sonner';
   import { civiliteLabel } from '$lib/domain/profile';
   import { FIELD_LABELS, type DiffField } from '$lib/domain/reconciliation';
@@ -24,7 +26,9 @@
     VERDICT_LABELS,
     ACTION_LABELS,
     actionForVerdict,
+    natureLabel,
     type AuthConflict,
+    type AuthAccountSummary,
     type AuthRepairAction,
   } from '$lib/domain/authIdentity';
 
@@ -169,6 +173,22 @@
     data.authConflicts.filter((c) => c.exposureRisk).length,
   );
 
+  // Detail rows are revealed on demand (chevron) so the table stays light; the
+  // data is already in `data.authConflicts`, no extra request.
+  let expandedAuth = $state<Set<string>>(new Set());
+  function toggleAuth(id: string) {
+    const next = new Set(expandedAuth);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    expandedAuth = next;
+  }
+
+  const fmtDate = (d: Date | string) =>
+    new Intl.DateTimeFormat('fr-FR', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(d));
+
   function verdictBadgeClass(c: AuthConflict): string {
     if (c.exposureRisk) return 'border-red-500/50 bg-red-500/10 text-red-600';
     switch (c.verdict) {
@@ -241,6 +261,36 @@
       class="pl-9"
     />
   </div>
+
+  {#snippet accountBlock(
+    title: string,
+    acc: AuthAccountSummary | null,
+    natureText: string,
+    exposureNote: string | null,
+  )}
+    <div class="space-y-1">
+      <div
+        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+      >
+        {title}
+      </div>
+      {#if acc}
+        <div class="font-mono text-xs break-all">{acc.email}</div>
+        <div>{acc.name ?? '—'} · rôle « {acc.role} »</div>
+        <div class="text-muted-foreground">
+          créé le {fmtDate(acc.createdAt)} · {acc.sessions} session(s) active(s)
+        </div>
+        <div>Nature : <span class="font-medium">{natureText}</span></div>
+        {#if exposureNote}
+          <div class="font-medium text-red-600">{exposureNote}</div>
+        {/if}
+      {:else}
+        <div class="text-muted-foreground italic">
+          aucun compte ne détient cet email
+        </div>
+      {/if}
+    </div>
+  {/snippet}
 
   <Tabs.Root value={authExposureCount > 0 ? 'auth' : 'data'} class="w-full">
     <Tabs.List>
@@ -499,16 +549,33 @@
                   {@const primary = actionForVerdict(c.verdict)}
                   <Table.Row class={c.exposureRisk ? 'bg-red-500/5' : ''}>
                     <Table.Cell>
-                      <div class="font-medium">{c.prenom} {c.nom}</div>
-                      <div
-                        class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
-                      >
-                        {c.targetEmail}
-                        <SalesforceIconLink
-                          externalId={c.externalId}
-                          kind="lead"
-                          label="Ouvrir le contact dans Salesforce"
-                        />
+                      <div class="flex items-start gap-2">
+                        <button
+                          type="button"
+                          class="mt-0.5 text-muted-foreground hover:text-foreground"
+                          onclick={() => toggleAuth(c.talentId)}
+                          aria-label="Afficher les détails"
+                          title="Détails des comptes"
+                        >
+                          {#if expandedAuth.has(c.talentId)}
+                            <ChevronDown class="h-4 w-4" />
+                          {:else}
+                            <ChevronRight class="h-4 w-4" />
+                          {/if}
+                        </button>
+                        <div>
+                          <div class="font-medium">{c.prenom} {c.nom}</div>
+                          <div
+                            class="flex items-center gap-1 font-mono text-xs text-muted-foreground"
+                          >
+                            {c.targetEmail}
+                            <SalesforceIconLink
+                              externalId={c.externalId}
+                              kind="lead"
+                              label="Ouvrir le contact dans Salesforce"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </Table.Cell>
                     <Table.Cell>
@@ -574,6 +641,28 @@
                       </div>
                     </Table.Cell>
                   </Table.Row>
+                  {#if expandedAuth.has(c.talentId)}
+                    <Table.Row class="bg-muted/30 hover:bg-muted/30">
+                      <Table.Cell colspan={5} class="p-0">
+                        <div class="grid gap-6 p-4 text-sm sm:grid-cols-2">
+                          {@render accountBlock(
+                            'Compte de connexion actuel (obsolète)',
+                            c.linked,
+                            'Compte de connexion de ce talent',
+                            c.staleOwner
+                              ? `⚠ L'email obsolète « ${c.linked.email} » appartient à : ${natureLabel(c.staleOwner)}`
+                              : null,
+                          )}
+                          {@render accountBlock(
+                            "Compte détenant l'email cible",
+                            c.holder,
+                            natureLabel(c.holderNature),
+                            null,
+                          )}
+                        </div>
+                      </Table.Cell>
+                    </Table.Row>
+                  {/if}
                 {:else}
                   <Table.Row>
                     <Table.Cell
