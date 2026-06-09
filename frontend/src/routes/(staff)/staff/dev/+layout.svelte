@@ -242,10 +242,19 @@
         <Users class="h-5 w-5" />
         <span>Inscrits</span>
       </a>
-      <!-- Planning, Entretiens and Présences are permanent stage surfaces, not
-           yet built for this release: shown disabled (see comingSoonEntry).
-           Présences has no route at all yet. -->
-      {@render comingSoonEntry('Planning', CalendarDays)}
+      <!-- Planning ships as a read-only viewer of the active stage's schedule.
+           Entretiens and Présences are permanent stage surfaces not yet built
+           for this release: shown disabled (see comingSoonEntry). Présences has
+           no route at all yet. -->
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+        )}
+      >
+        <CalendarDays class="h-5 w-5" />
+        <span>Planning</span>
+      </a>
       {@render comingSoonEntry('Entretiens', MessageSquare)}
       {@render comingSoonEntry('Présences', UserCheck)}
       {#if hasIntervenants}

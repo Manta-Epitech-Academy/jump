@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { renderMarkdown } from '$lib/markdown';
+  import { sanitizeActivityContent } from '$lib/sanitize';
   import DOMPurify from 'isomorphic-dompurify';
   import { fade, fly } from 'svelte/transition';
   import { resolve } from '$app/paths';
@@ -60,10 +61,11 @@
           : '',
   );
 
-  // Static activity content (stored as HTML from WYSIWYG editor)
+  // Static activity content (stored as HTML from WYSIWYG editor). Sanitized via
+  // the shared helper so external links open safely in a new tab.
   let staticHtml = $derived(
     !isDynamic && data.activity.content
-      ? DOMPurify.sanitize(data.activity.content)
+      ? sanitizeActivityContent(data.activity.content)
       : '',
   );
 

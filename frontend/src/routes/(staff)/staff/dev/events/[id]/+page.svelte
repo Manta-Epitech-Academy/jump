@@ -60,10 +60,9 @@
     data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
   );
 
-  // Planning isn't built for this release yet (shown as "Bientôt disponible" in
-  // the dev sidebar), so its links stay hidden on the coding_club overview too.
-  // Flip back on alongside the sidebar entry and the planning route.
-  const showPlanning = false;
+  // Planning ships as a read-only viewer (sidebar entry + route are live), so
+  // its entry points on the overview are surfaced.
+  const showPlanning = true;
 </script>
 
 <svelte:head>
