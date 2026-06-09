@@ -22,9 +22,47 @@ import {
 export async function ensureTalentUser(talentId: string): Promise<string> {
   const talent = await prisma.talent.findUniqueOrThrow({
     where: { id: talentId },
-    select: { id: true, userId: true, email: true, prenom: true, nom: true },
+    select: {
+      id: true,
+      userId: true,
+      email: true,
+      prenom: true,
+      nom: true,
+      user: { select: { email: true } },
+    },
   });
-  if (talent.userId) return talent.userId;
+
+  // Already linked: reconcile the login email before returning. Salesforce can
+  // change Talent.email after the link was made; the linked bauth_user.email
+  // then goes stale and the student logs in "into the void" (BetterAuth resolves
+  // OTP by bauth_user.email, while the dashboard loads by the linked account).
+  // Realign it to Talent.email so the next OTP lands on this account. If another
+  // account already holds the new email (P2002 — an orphan the student made via
+  // direct OTP, or a Salesforce inversion), DON'T force it: leave the link as-is
+  // for the admin auth-conflicts tool to arbitrate, and still return the current
+  // id so this call never blocks a login.
+  if (talent.userId) {
+    const wanted = talent.email?.toLowerCase().trim();
+    const current = talent.user?.email?.toLowerCase().trim();
+    if (wanted && current && wanted !== current) {
+      try {
+        await prisma.bauth_user.update({
+          where: { id: talent.userId },
+          data: { email: wanted },
+        });
+      } catch (err) {
+        if (
+          !(
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === 'P2002'
+          )
+        )
+          throw err;
+        // Collision → leave for manual resolution (see authIdentityService).
+      }
+    }
+    return talent.userId;
+  }
 
   const email = talent.email?.toLowerCase().trim();
   if (!email) {
@@ -35,10 +73,19 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
 
   const existing = await prisma.bauth_user.findUnique({
     where: { email },
-    select: { id: true },
+    select: { id: true, role: true, staffProfile: { select: { id: true } } },
   });
   let userId: string;
   if (existing) {
+    // Never adopt a parent or staff account as a student's login: that would
+    // hand this talent's dashboard to whoever owns that email. An SF data
+    // anomaly (a student carrying a parent/staff email) must be resolved by
+    // hand, not papered over by silently linking.
+    if (existing.staffProfile || existing.role === 'parent') {
+      throw new Error(
+        "L'adresse du talent correspond à un compte parent ou staff — résolution manuelle requise (conflit d'identité).",
+      );
+    }
     userId = existing.id;
   } else {
     try {

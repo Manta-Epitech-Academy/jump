@@ -1,5 +1,20 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import type {
+  AuthConflict,
+  AuthConflictVerdict,
+  AuthAccountSummary,
+  ExposureKind,
+} from '$lib/domain/authIdentity';
+
+// Re-exported so existing server callers can keep importing these from the
+// service; the canonical definitions live in the shared domain module.
+export type {
+  AuthConflict,
+  AuthConflictVerdict,
+  AuthAccountSummary,
+  ExposureKind,
+} from '$lib/domain/authIdentity';
 
 /**
  * Auth-identity conflicts: the login-layer sibling of `reconciliationService`.
@@ -36,72 +51,19 @@ import { prisma } from '$lib/server/db';
 const norm = (email: string | null | undefined): string | null =>
   email?.toLowerCase().trim() || null;
 
-/**
- * What kind of account already holds the talent's target email, which decides
- * the only safe resolution for the row.
- *
- *  - SIMPLE_DRIFT        nobody holds `Talent.email`. The linked account can
- *                        simply be renamed to it (what the backfill does). The
- *                        root-cause fix to `ensureTalentUser` tarets this class
- *                        at next login; rarely needs the admin tool.
- *  - ORPHAN_HOLDER       held by an account with no talent / staff / parent
- *                        link. Repoint the Talent onto it (it is where the live
- *                        sessions are) and drop the stale account.
- *  - SYMMETRIC_INVERSION held by another Talent, and the cross is symmetric
- *                        (their emails are each other's). A temp-value swap
- *                        fixes both talents at once.
- *  - DEGRADED_INVERSION  held by another Talent, but NOT symmetric. No automatic
- *                        move is provably correct; needs human, two-sided care.
- *  - PARENT_HOLDER       held by a parent login. A student cannot log in with a
- *                        parent's email: an SF data anomaly, escalate, never
- *                        force.
- *  - STAFF_HOLDER        held by a staff account. Same: escalate, never force.
- */
-export type AuthConflictVerdict =
-  | 'SIMPLE_DRIFT'
-  | 'ORPHAN_HOLDER'
-  | 'SYMMETRIC_INVERSION'
-  | 'DEGRADED_INVERSION'
-  | 'PARENT_HOLDER'
-  | 'STAFF_HOLDER';
-
-/** What the stale email the linked account squats actually belongs to. When it
- * is a real, loggable identity, that person logging in lands on THIS talent's
- * dashboard: a cross-account data exposure (minors → RGPD). Drives triage. */
-export type ExposureKind = 'talent' | 'parent' | 'staff';
-
-export interface AuthAccountSummary {
-  id: string;
-  email: string;
-  role: string;
-  name: string | null;
-  createdAt: Date;
-  sessions: number;
-  /** True when this account carries a staffProfile (the reliable staff signal,
-   * more so than the `role` string). */
-  isStaff: boolean;
-  /** The talent this account is linked to, if any (its `bauth_user.talent`). */
-  linkedTalent: { id: string; prenom: string; nom: string } | null;
-}
-
-export interface AuthConflict {
-  talentId: string;
-  externalId: string | null;
-  prenom: string;
-  nom: string;
-  /** The email the student should log in with (Talent.email), normalized. */
-  targetEmail: string;
-  /** The account the Talent points to today, carrying the stale email. */
-  linked: AuthAccountSummary;
-  /** The account that already holds `targetEmail`, if any. null → SIMPLE_DRIFT. */
-  holder: AuthAccountSummary | null;
-  verdict: AuthConflictVerdict;
-  /** Backward direction: is the stale email a real other person's? */
-  exposureRisk: boolean;
-  exposureKind: ExposureKind | null;
-  /** For SYMMETRIC_INVERSION: the partner talent to swap with. */
-  partnerTalentId: string | null;
-}
+// Verdict semantics (types live in `$lib/domain/authIdentity`):
+//  - SIMPLE_DRIFT        nobody holds `Talent.email`. The linked account can be
+//                        renamed to it (rename). The root-cause fix to
+//                        `ensureTalentUser` targets this class at next login.
+//  - ORPHAN_HOLDER       held by an account with no talent/staff/parent link.
+//                        Repoint the Talent onto it (the live sessions are
+//                        there) and drop the stale account (repoint+drop).
+//  - SYMMETRIC_INVERSION held by another Talent, cross is symmetric (their
+//                        emails are each other's). A temp-value swap fixes both.
+//  - DEGRADED_INVERSION  held by another Talent, NOT symmetric. No automatic
+//                        move is provably correct; two-sided manual care.
+//  - PARENT_HOLDER       held by a parent login. Escalate, never force.
+//  - STAFF_HOLDER        held by a staff account. Escalate, never force.
 
 // The bauth_user shape we summarize, with the relations that decide its nature.
 const ACCOUNT_SELECT = {
