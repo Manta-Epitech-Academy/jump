@@ -17,7 +17,7 @@ const campusSchema = z.object({
   contactEmail: z
     .string()
     .trim()
-    .email('Email invalide')
+    .pipe(z.email('Email invalide'))
     .or(z.literal(''))
     .nullable()
     .default(null),

@@ -65,6 +65,33 @@ export const schoolSchema = z.object({
 });
 
 // --- Étape 3 : Référents ---
+
+// Emails are stored lowercased/trimmed, so uniqueness has to compare on the
+// same normalized form — otherwise a case-only difference passes the check here
+// and then collides on save.
+const normEmail = (v: string | null | undefined): string =>
+  (v ?? '').trim().toLowerCase();
+
+// Parent 2 is optional, but the moment the talent fills any of its fields the
+// referent is "being added", so the mandatory set becomes required.
+type Parent2Fields = {
+  parent2Type?: string;
+  parent2Civilite?: string;
+  parent2Nom?: string;
+  parent2Prenom?: string;
+  parent2Email?: string;
+  parent2Phone?: string;
+};
+const parent2Engaged = (d: Parent2Fields): boolean =>
+  Boolean(
+    d.parent2Type ||
+    d.parent2Civilite ||
+    d.parent2Nom ||
+    d.parent2Prenom ||
+    d.parent2Email ||
+    d.parent2Phone,
+  );
+
 export const parentsSchema = z
   .object({
     // studentEmail / studentPhone are injected server-side from the talent's
@@ -84,11 +111,14 @@ export const parentsSchema = z
     parentEmail: z.email('Email parent invalide'),
     parentPhone: phoneSchema,
   })
-  .merge(parent2Schema)
-  .refine((data) => data.studentEmail !== data.parentEmail, {
-    message: "L'email du parent doit être différent de celui de l'enfant",
-    path: ['parentEmail'],
-  })
+  .extend(parent2Schema.shape)
+  .refine(
+    (data) => normEmail(data.parentEmail) !== normEmail(data.studentEmail),
+    {
+      message: "L'email du parent doit être différent de celui de l'enfant",
+      path: ['parentEmail'],
+    },
+  )
   .refine(
     (data) => !data.studentPhone || data.studentPhone !== data.parentPhone,
     {
@@ -97,33 +127,49 @@ export const parentsSchema = z
       path: ['parentPhone'],
     },
   )
+  // Parent 2 mandatory set, once engaged — one refine per field so each error
+  // lands on its own path and renders next to its input. The old single refine
+  // pinned every case to `parent2Nom`, so a missing type/civilité/prénom/email
+  // wrote to a path with no message and read as a silent "nothing happened".
+  .refine((data) => !parent2Engaged(data) || !!data.parent2Type, {
+    message: 'Le lien de parenté est requis',
+    path: ['parent2Type'],
+  })
+  .refine((data) => !parent2Engaged(data) || !!data.parent2Civilite, {
+    message: 'La civilité est requise',
+    path: ['parent2Civilite'],
+  })
   .refine(
-    (data) => {
-      const hasAny = data.parent2Nom || data.parent2Prenom || data.parent2Email;
-      if (!hasAny) return true;
-      return (
-        !!data.parent2Type &&
-        data.parent2Type !== '' &&
-        !!data.parent2Civilite &&
-        data.parent2Civilite !== '' &&
-        !!data.parent2Nom &&
-        data.parent2Nom.length >= 2 &&
-        !!data.parent2Prenom &&
-        data.parent2Prenom.length >= 2 &&
-        !!data.parent2Email &&
-        data.parent2Email.includes('@')
-      );
-    },
+    (data) =>
+      !parent2Engaged(data) ||
+      (!!data.parent2Prenom && data.parent2Prenom.trim().length >= 2),
     {
-      message:
-        "Si un second parent est renseigné, le type, la civilité, le nom, le prénom et l'email sont obligatoires",
+      message: 'Le prénom du parent doit faire au moins 2 caractères',
+      path: ['parent2Prenom'],
+    },
+  )
+  .refine(
+    (data) =>
+      !parent2Engaged(data) ||
+      (!!data.parent2Nom && data.parent2Nom.trim().length >= 2),
+    {
+      message: 'Le nom du parent doit faire au moins 2 caractères',
       path: ['parent2Nom'],
     },
   )
   .refine(
+    (data) =>
+      !parent2Engaged(data) ||
+      (!!data.parent2Email && z.email().safeParse(data.parent2Email).success),
+    {
+      message: 'Email parent invalide',
+      path: ['parent2Email'],
+    },
+  )
+  .refine(
     (data) => {
-      if (!data.parent2Email || data.parent2Email === '') return true;
-      return data.parent2Email !== data.studentEmail;
+      const p2 = normEmail(data.parent2Email);
+      return !p2 || p2 !== normEmail(data.studentEmail);
     },
     {
       message:
@@ -133,8 +179,8 @@ export const parentsSchema = z
   )
   .refine(
     (data) => {
-      if (!data.parent2Email || data.parent2Email === '') return true;
-      return data.parent2Email !== data.parentEmail;
+      const p2 = normEmail(data.parent2Email);
+      return !p2 || p2 !== normEmail(data.parentEmail);
     },
     {
       message:
@@ -149,12 +195,15 @@ export type ParentsForm = z.infer<typeof parentsSchema>;
 
 // --- Étape 4 & 5 : Intérêts et Matériel ---
 export const interestsSchema = z.object({
+  // IDs are internal cuid v1 keys, but the action count-checks each against the
+  // DB (interest.count must equal the submitted length), so a plain string is
+  // enough — no point in Zod's now-deprecated cuid v1 format check.
   techInterestIds: z
-    .array(z.string().cuid())
+    .array(z.string())
     .min(1, 'Choisis au moins 1 domaine tech')
     .max(2, '2 domaines tech maximum'),
   generalInterestIds: z
-    .array(z.string().cuid())
+    .array(z.string())
     .min(1, "Choisis au moins 1 centre d'intérêt")
     .max(3, "3 centres d'intérêt maximum"),
   freeText: z

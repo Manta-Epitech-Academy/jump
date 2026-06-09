@@ -39,6 +39,7 @@
   import InterestsCloud from '../components/InterestsCloud.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+  import { formatGivenName } from '$lib/domain/profile';
   import {
     RULES_STATUS_LABELS,
     DOSSIER_READINESS_LABELS,
@@ -52,20 +53,25 @@
   import type { FlagKey } from '$lib/domain/featureFlags';
   import type { InscritRow, SortKey } from './components/types';
 
-  // Tones tuned for the dark tooltip surface (bg-foreground / text-background):
-  // bright teal for done, warm/red tints for the open states.
+  // Status tints for the dossier tooltip. The tooltip surface is bg-foreground,
+  // which inverts with the theme: dark in light mode (the bright tints pop) but
+  // light (#c9c9c9) in dark mode, where those same bright tints wash out to
+  // ~1.2:1. So each bright tint is paired with a darker -900 shade applied via
+  // `dark:`, uniform across all four states so they clear WCAG AA (4.5:1) on the
+  // light dark-mode surface: teal 5.72, amber 5.48, orange 5.66, red 6.05. The
+  // status is also carried by an icon + label, so color is reinforcement only.
   const rulesTone = (s: RulesStatus) =>
     s === 'signed'
-      ? 'text-epi-teal'
+      ? 'text-epi-teal dark:text-teal-900'
       : s === 'awaiting_parent'
-        ? 'text-amber-300'
-        : 'text-red-300';
+        ? 'text-amber-300 dark:text-amber-900'
+        : 'text-red-300 dark:text-red-900';
   const imageTone = (s: ImageRightsStatus) =>
     s === 'accepted'
-      ? 'text-epi-teal'
+      ? 'text-epi-teal dark:text-teal-900'
       : s === 'refused'
-        ? 'text-orange-300'
-        : 'text-red-300';
+        ? 'text-orange-300 dark:text-orange-900'
+        : 'text-red-300 dark:text-red-900';
 
   // Statut badge presentation, one entry per folded readiness state. Teal =
   // done, amber = in progress (one gate left or the parent co-sign pending),
@@ -134,7 +140,7 @@
   const columns: ColumnDef[] = [
     { key: 'avatar', label: '', class: 'w-12' },
     { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
-    { key: 'nom', label: 'Nom', sortable: true, class: 'w-32' },
+    { key: 'nom', label: 'Nom', sortable: true, class: 'w-40' },
     { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
     { key: 'niveau', label: 'Niveau', sortable: true, class: 'w-24' },
     // Left-aligned like every other column (and the admin talents table): a
@@ -315,7 +321,7 @@
         : Clock}
   <div class="space-y-1.5">
     <p
-      class="font-mono text-[10px] font-bold tracking-widest text-background/60 uppercase"
+      class="font-mono text-[10px] font-bold tracking-widest text-background/70 uppercase"
     >
       Dossier administratif
     </p>
@@ -470,37 +476,36 @@
           {/snippet}
 
           {#snippet countActions()}
-            <!-- Filters sit next to the search; the export rides the summary line
-                 instead, right-aligned and grouped with reset. It acts on exactly
-                 the count shown here, so the pairing reads naturally and the wide
-                 statut + lycée filters never push it off its row. -->
-            <div class="ml-auto flex items-center gap-2">
-              {#if anyFiltersApplied}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onclick={resetFilters}
-                  class="h-7 px-2 text-muted-foreground hover:text-foreground"
-                >
-                  <FilterX class="mr-1.5 h-4 w-4" />
-                  Réinitialiser
-                </Button>
-              {/if}
+            <!-- Réinitialiser sits inline right after the count it clears, so the
+                 control reads against the number it acts on. Export keeps to the
+                 right edge of the same line (ml-auto), acting on exactly the count
+                 shown; the wide statut + lycée filters live on the search row
+                 above, so this line never gets crowded. -->
+            {#if anyFiltersApplied}
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onclick={exportXlsx}
-                disabled={exporting || filtered.length === 0}
-                class="rounded-sm"
+                onclick={resetFilters}
+                class="h-7 px-2 text-muted-foreground hover:text-foreground"
               >
-                {#if exporting}
-                  <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-                {:else}
-                  <Download class="mr-1.5 h-4 w-4" />
-                {/if}
-                Exporter (XLSX)
+                <FilterX class="mr-1.5 h-4 w-4" />
+                Réinitialiser
               </Button>
-            </div>
+            {/if}
+            <Button
+              variant="outline"
+              size="sm"
+              onclick={exportXlsx}
+              disabled={exporting || filtered.length === 0}
+              class="ml-auto rounded-sm"
+            >
+              {#if exporting}
+                <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+              {:else}
+                <Download class="mr-1.5 h-4 w-4" />
+              {/if}
+              Exporter (XLSX)
+            </Button>
           {/snippet}
         </DataTableToolbar>
 
@@ -531,7 +536,8 @@
                  fit, but a freak-long one ellipsizes inside its cell (full value
                  on hover) instead of bleeding into the neighbouring column. -->
               <Table.Cell class="font-medium">
-                <span class="block truncate" title={r.prenom}>{r.prenom}</span>
+                {@const prenom = formatGivenName(r.prenom)}
+                <span class="block truncate" title={prenom}>{prenom}</span>
               </Table.Cell>
               <Table.Cell class="font-bold uppercase">
                 <span class="block truncate" title={r.nom}>{r.nom}</span>

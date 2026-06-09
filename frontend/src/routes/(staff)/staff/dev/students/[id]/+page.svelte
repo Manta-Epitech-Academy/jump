@@ -19,6 +19,7 @@
   import InterviewGridMock from './components/InterviewGridMock.svelte';
 
   import type { FlagKey } from '$lib/domain/featureFlags';
+  import { formatPersonName } from '$lib/domain/profile';
 
   let { data }: { data: PageData } = $props();
 
@@ -59,7 +60,13 @@
     <PageBreadcrumb
       items={[
         { label: 'Stagiaires', href: talentsHref },
-        { label: `${data.student.nom} ${data.student.prenom}` },
+        {
+          label: formatPersonName(
+            data.student.prenom,
+            data.student.nom,
+            'surname-first',
+          ),
+        },
       ]}
     />
   {/if}
@@ -95,7 +102,7 @@
 
       {#if interviewMode}
         <InterviewGridMock
-          talentName={`${data.student.prenom} ${data.student.nom}`}
+          talentName={formatPersonName(data.student.prenom, data.student.nom)}
         />
       {:else}
         <EpiSection title="Recommandations" accent="together">

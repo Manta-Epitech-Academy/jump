@@ -210,6 +210,7 @@ export async function syncTalents(
       where: { externalId: t.external_id },
       select: {
         id: true,
+        userId: true,
         prenom: true,
         nom: true,
         email: true,
@@ -352,16 +353,33 @@ export async function syncTalents(
 
       const hasPatch = Object.keys(patch).length > 0;
       if (hasPatch) {
+        // When the email changes it is the auth identity: BetterAuth looks the
+        // talent up by `bauth_user.email` at OTP verify, so the linked user row
+        // must move with `Talent.email` or the talent can no longer log in.
+        // Update both in one transaction so the two emails never diverge — a
+        // half-applied change would re-break login exactly as before.
+        const syncAuthEmail =
+          patch.email !== undefined && !!email && !!existing.userId;
         try {
-          await prisma.talent.update({
-            where: { externalId: t.external_id },
-            data: patch,
+          await prisma.$transaction(async (tx) => {
+            await tx.talent.update({
+              where: { externalId: t.external_id },
+              data: patch,
+            });
+            if (syncAuthEmail) {
+              await tx.bauth_user.update({
+                where: { id: existing.userId! },
+                data: { email: email! },
+              });
+            }
           });
         } catch (err) {
           if (
             err instanceof Prisma.PrismaClientKnownRequestError &&
             err.code === 'P2002'
           ) {
+            // The clash is on `email`, unique on both Talent and bauth_user.
+            // Find which one so the logged reason isn't misleading.
             const conflicting = email
               ? await prisma.talent.findUnique({
                   where: { email },
@@ -374,7 +392,9 @@ export async function syncTalents(
               existingExtId: conflicting?.externalId ?? null,
               talentName: `${t.first_name} ${t.last_name}`,
               eventExtId: eventExternalId,
-              message: `Mise à jour impossible : l'email "${email}" est déjà utilisé par le talent externalId="${conflicting?.externalId ?? '?'}"`,
+              message: conflicting
+                ? `Mise à jour impossible : l'email "${email}" est déjà utilisé par le talent externalId="${conflicting.externalId}"`
+                : `Mise à jour impossible : l'email "${email}" est déjà rattaché à un autre compte de connexion`,
             });
             skipped++;
             continue;

@@ -1,4 +1,5 @@
 import { toBrevoRecipient } from './phone';
+import { formatGivenName, formatFamilyName } from './profile';
 
 export type RelanceType = 'student' | 'parent';
 
@@ -101,11 +102,6 @@ export function applyPlaceholders(
   );
 }
 
-function capitalize(s: string | null | undefined): string {
-  if (!s) return '';
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-}
-
 /** Subset of Talent fields needed to build relance variables. */
 export type TalentRelanceFields = {
   prenom?: string | null;
@@ -123,13 +119,16 @@ export type TalentRelanceFields = {
 export function formatTalentVars(
   talent: TalentRelanceFields,
 ): Partial<Record<RelanceVar, string>> {
-  const prenom = capitalize(talent.prenom);
-  const nom = (talent.nom ?? '').toUpperCase();
+  const prenom = formatGivenName(talent.prenom);
+  const nom = formatFamilyName(talent.nom);
   return {
     prenom,
     nom,
-    parent_prenom: capitalize(talent.parentPrenom),
-    parent_nom: capitalize(talent.parentNom),
+    parent_prenom: formatGivenName(talent.parentPrenom),
+    // Title-cased, not uppercased: this token feeds the
+    // "Bonjour Mr/Mme {parent_nom}," salutation, where "Dupont" reads right and
+    // "DUPONT" would shout.
+    parent_nom: formatGivenName(talent.parentNom),
     child_prenom: prenom,
     child_nom: nom,
     // login_link is injected by the server send (depends on `RelanceType`).
