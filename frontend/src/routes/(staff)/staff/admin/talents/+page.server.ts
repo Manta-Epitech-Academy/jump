@@ -220,6 +220,11 @@ export const load: PageServerLoad = async ({ url }) => {
           xp: true,
           eventsCount: true,
           lastActiveAt: true,
+          // Talent's own coordinates (gender + phone). Email is already
+          // selected above; phone/civilité fill out the contact card so the
+          // admin list carries the same info as the dev student dossier.
+          civilite: true,
+          phone: true,
           charterAcceptedAt: true,
           infoValidatedAt: true,
           highSchoolValidatedAt: true,
@@ -229,11 +234,18 @@ export const load: PageServerLoad = async ({ url }) => {
           equipmentValidatedAt: true,
           processingCompletedAt: true,
           rulesSignedAt: true,
-          // Guardian contact + compliance (parent-1).
+          // Guardian contacts (up to two, in priority order) + parent-1
+          // compliance fields the parentStatus chip reads.
           parentEmail: true,
           parentNom: true,
           parentPrenom: true,
           parentPhone: true,
+          parentCivilite: true,
+          parent2Email: true,
+          parent2Nom: true,
+          parent2Prenom: true,
+          parent2Phone: true,
+          parent2Civilite: true,
           imageRightsDecision: true,
           imageRightsDecidedAt: true,
           parentRulesSignedAt: true,
@@ -267,9 +279,25 @@ export const load: PageServerLoad = async ({ url }) => {
 
   const talents = rows.map(({ charterAcceptedAt, participations, ...t }) => {
     const status = onboardingStatus({ ...t, charterAcceptedAt });
-    const hasGuardian = Boolean(
-      t.parentEmail || t.parentNom || t.parentPrenom || t.parentPhone,
-    );
+    // Both guardians in priority order; drop any with no identity or contact at
+    // all so the contact dialog only ever lists reachable responsables. Same
+    // projection émargement uses, so the two roster views can't drift.
+    const guardians = [
+      {
+        civilite: t.parentCivilite,
+        prenom: t.parentPrenom,
+        nom: t.parentNom,
+        email: t.parentEmail,
+        phone: t.parentPhone,
+      },
+      {
+        civilite: t.parent2Civilite,
+        prenom: t.parent2Prenom,
+        nom: t.parent2Nom,
+        email: t.parent2Email,
+        phone: t.parent2Phone,
+      },
+    ].filter((g) => g.prenom || g.nom || g.email || g.phone);
     // Parent status, gated on a parentEmail (the relance contact): "complete"
     // once the parent has co-signed the règlement AND the image-rights decision
     // is settled, else "pending" (still blocked). null = no parent to chase.
@@ -284,6 +312,8 @@ export const load: PageServerLoad = async ({ url }) => {
       nom: t.nom,
       prenom: t.prenom,
       email: t.email,
+      phone: t.phone,
+      civilite: t.civilite,
       niveau: t.niveau,
       userId: t.userId,
       level: computeLevel(t.xp),
@@ -295,15 +325,9 @@ export const load: PageServerLoad = async ({ url }) => {
       // Only meaningful mid-journey: shown next to the "Onboarding" badge so the
       // admin sees where impersonation will drop them.
       onboardingStep: status === 'pending' ? onboardingStepLabel(t) : null,
-      // Guardian contact (null when none on file) + parent completion status.
-      parent: hasGuardian
-        ? {
-            prenom: t.parentPrenom,
-            nom: t.parentNom,
-            email: t.parentEmail,
-            phone: t.parentPhone,
-          }
-        : null,
+      // Reachable guardians (empty when none) for the contact dialog, plus the
+      // parent completion status chip surfaced in the table.
+      guardians,
       parentStatus,
     };
   });
