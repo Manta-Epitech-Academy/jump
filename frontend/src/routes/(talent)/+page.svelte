@@ -13,6 +13,7 @@
   import Coffee from '@lucide/svelte/icons/coffee';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+  import FeedbackBanner from '$lib/components/feedback/FeedbackBanner.svelte';
   import NewsFeedCard from '$lib/components/talent/NewsFeedCard.svelte';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
@@ -169,6 +170,16 @@
   </TalentPageHeader>
 
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+    {#each data.pendingFeedback as pf (pf.formId)}
+      <div class="mb-4">
+        <FeedbackBanner
+          eventId={pf.eventId}
+          formId={pf.formId}
+          week={pf.week}
+        />
+      </div>
+    {/each}
+
     <!-- The daily minigame as the first "mission" of the day: same row language
          as the activities below, but accented (gamepad, colour) so it reads as
          a distinct kind of mission. Pre-play it's a "Commencer" CTA; once played

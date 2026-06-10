@@ -17,6 +17,7 @@ import {
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import { stageWindowEnd } from '$lib/domain/event';
+import { pendingFeedbackForms } from '$lib/domain/feedback';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
 
@@ -188,6 +189,49 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       }
     }
 
+    // Feedback banner: check if any stage_seconde event has pending feedback
+    let pendingFeedback: Array<{
+      eventId: string;
+      formId: string;
+      week: 1 | 2;
+    }> = [];
+    if (locals.featureFlags?.has('stage_seconde')) {
+      const feedbackParticipation = await prisma.participation.findFirst({
+        where: {
+          talentId: studentId,
+          event: { eventType: 'stage_seconde' },
+        },
+        include: {
+          event: {
+            select: { id: true, date: true, campusId: true },
+          },
+        },
+      });
+      if (feedbackParticipation) {
+        const campus = await prisma.campus.findUnique({
+          where: { id: feedbackParticipation.event.campusId },
+          select: { timezone: true },
+        });
+        const timezone = campus?.timezone ?? 'Europe/Paris';
+        const existingSubs = await prisma.feedbackSubmission.findMany({
+          where: {
+            talentId: studentId,
+            eventId: feedbackParticipation.eventId,
+          },
+          select: { formId: true },
+        });
+        pendingFeedback = pendingFeedbackForms(
+          feedbackParticipation.event.date,
+          new Date(),
+          timezone,
+          existingSubs.map((s) => s.formId),
+        ).map((pf) => ({
+          ...pf,
+          eventId: feedbackParticipation.eventId,
+        }));
+      }
+    }
+
     return {
       student: locals.talent,
       planning,
@@ -196,6 +240,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       minigameRankReward,
       onboardingArrival,
       welcome,
+      pendingFeedback,
     };
   } catch (err) {
     console.error('Error fetching camper dashboard data:', err);
