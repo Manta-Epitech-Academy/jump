@@ -55,6 +55,20 @@ export interface EnqueueResult {
 }
 
 /**
+ * Thrown when a targeting resolves to zero recipients. The composer's `canSend`
+ * guard blocks this client-side, but a race (preview still resolving when the
+ * admin confirms) or a crafted request can slip past it. The invariant "never
+ * create an empty broadcast" is enforced here, where recipients are already
+ * resolved, so it holds for every caller rather than relying on the UI.
+ */
+export class EmptyBroadcastError extends Error {
+  constructor() {
+    super('Cannot enqueue a broadcast with no resolved recipients');
+    this.name = 'EmptyBroadcastError';
+  }
+}
+
+/**
  * Create a Broadcast + N BroadcastRecipient rows in `pending` status.
  * The template body/subject are snapshotted onto the Broadcast so later
  * edits to the template don't rewrite history.
@@ -89,6 +103,10 @@ export async function enqueueBroadcast(
     template.channel,
   );
 
+  if (recipients.length === 0) {
+    throw new EmptyBroadcastError();
+  }
+
   const broadcast = await prisma.broadcast.create({
     data: {
       name: input.name,
@@ -109,19 +127,17 @@ export async function enqueueBroadcast(
     select: { id: true },
   });
 
-  if (recipients.length > 0) {
-    await prisma.broadcastRecipient.createMany({
-      data: recipients.map((r) => ({
-        broadcastId: broadcast.id,
-        talentId: r.talentId,
-        staffUserId: r.staffUserId,
-        parentOfTalentId: r.parentOfTalentId,
-        recipientEmail: r.email,
-        recipientPhone: r.phone,
-        status: 'pending' as const,
-      })),
-    });
-  }
+  await prisma.broadcastRecipient.createMany({
+    data: recipients.map((r) => ({
+      broadcastId: broadcast.id,
+      talentId: r.talentId,
+      staffUserId: r.staffUserId,
+      parentOfTalentId: r.parentOfTalentId,
+      recipientEmail: r.email,
+      recipientPhone: r.phone,
+      status: 'pending' as const,
+    })),
+  });
 
   return { broadcastId: broadcast.id, recipientCount: recipients.length };
 }

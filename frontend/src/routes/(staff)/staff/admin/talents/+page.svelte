@@ -11,6 +11,8 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import Mail from '@lucide/svelte/icons/mail';
+  import Phone from '@lucide/svelte/icons/phone';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import SegmentedFilter, {
     type SegmentOption,
@@ -28,6 +30,7 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import { enhance } from '$app/forms';
@@ -36,6 +39,7 @@
   import { toast } from 'svelte-sonner';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
   import { EVENT_TYPES, EVENT_TYPE_LABELS } from '$lib/domain/event';
+  import { formatPersonName } from '$lib/domain/profile';
   import { track } from '$lib/analytics';
 
   let { data } = $props();
@@ -74,6 +78,20 @@
     never: {
       label: 'Jamais connecté',
       class: 'border-border bg-muted text-muted-foreground',
+    },
+  } as const;
+
+  // Parent completion chip (règlement co-signature + droit à l'image), tinted
+  // like the account-status chip: complete reads calm (teal), en attente flags
+  // a parent still to chase (orange).
+  const PARENT_STATUS = {
+    complete: {
+      label: 'Complet',
+      class: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
+    },
+    pending: {
+      label: 'En attente',
+      class: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
     },
   } as const;
 
@@ -156,14 +174,25 @@
     { value: 'onboarding', label: 'Onboarding' },
     { value: 'never', label: 'Jamais connectés' },
   ];
+  // Parent completion status: "En attente" = règlement not co-signed or
+  // image-rights not decided (the blocked parents the SMS relance targets);
+  // "Complet" = both done. Filtering to "En attente" + the toolbar count is the
+  // before/after-relance stat. Only talents with a parent on file land in either
+  // bucket. Mirrors the server `parentStatus` filter.
+  const parentStatusOptions: SegmentOption[] = [
+    { value: 'all', label: 'Tous' },
+    { value: 'pending', label: 'En attente' },
+    { value: 'complete', label: 'Complet' },
+  ];
 
-  // `account` defaults to 'all' server-side; the others are empty when inactive.
+  // `status` defaults to 'all' server-side; the others are empty when inactive.
   const hasActiveFilters = $derived(
     Boolean(
       data.filters.q ||
       data.filters.type ||
       data.filters.niveau ||
-      data.filters.campus,
+      data.filters.campus ||
+      data.filters.parentStatus,
     ) || data.filters.status !== 'all',
   );
 
@@ -182,6 +211,7 @@
     { key: 'nom', label: 'Talent', sortable: true },
     { key: 'niveau', label: 'Niveau', sortable: true },
     { key: 'campus', label: 'Campus' },
+    { key: 'parent', label: 'Responsable' },
     { key: 'xp', label: 'Progression', sortable: true },
     { key: 'statut', label: 'Statut' },
     { key: 'activite', label: 'Activité', sortable: true },
@@ -285,6 +315,21 @@
         />
       </div>
 
+      <div class="flex items-center gap-2">
+        <span
+          class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+        >
+          Parent
+        </span>
+        <SegmentedFilter
+          ariaLabel="Filtrer par statut du parent"
+          options={parentStatusOptions}
+          value={data.filters.parentStatus || 'all'}
+          onChange={(v) =>
+            navigateWithParams({ parentStatus: v === 'all' ? '' : v })}
+        />
+      </div>
+
       <div class="w-52">
         <Select.Root
           type="single"
@@ -369,6 +414,52 @@
           <span class="text-sm">{talent.campus}</span>
         {:else}
           <span class="text-sm text-muted-foreground">—</span>
+        {/if}
+      </Table.Cell>
+      <Table.Cell>
+        {#if talent.parent}
+          <div class="flex flex-col items-start gap-0.5">
+            <span class="text-sm">
+              {formatPersonName(talent.parent.prenom, talent.parent.nom) || '—'}
+            </span>
+            {#if talent.parent.email}
+              <div class="flex items-center gap-1">
+                <a
+                  href={`mailto:${talent.parent.email}`}
+                  class="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-epi-blue"
+                >
+                  <Mail class="h-3 w-3 shrink-0" />
+                  <span class="max-w-[13rem] truncate"
+                    >{talent.parent.email}</span
+                  >
+                </a>
+                <CopyButton
+                  value={talent.parent.email}
+                  label="Copier l'email du responsable"
+                />
+              </div>
+            {/if}
+            {#if talent.parent.phone}
+              <a
+                href={`tel:${talent.parent.phone.replace(/\s+/g, '')}`}
+                class="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-epi-blue"
+              >
+                <Phone class="h-3 w-3 shrink-0" />
+                <span>{talent.parent.phone}</span>
+              </a>
+            {/if}
+            {#if talent.parentStatus}
+              <span
+                class="mt-0.5 inline-flex w-fit rounded-sm border px-1.5 py-0 text-[10px] font-bold uppercase {PARENT_STATUS[
+                  talent.parentStatus
+                ].class}"
+              >
+                {PARENT_STATUS[talent.parentStatus].label}
+              </span>
+            {/if}
+          </div>
+        {:else}
+          <span class="text-sm text-muted-foreground">Aucun parent</span>
         {/if}
       </Table.Cell>
       <Table.Cell>

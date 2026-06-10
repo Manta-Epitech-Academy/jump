@@ -21,6 +21,10 @@ import {
   type OnboardingStepFields,
   type TalentOnboardingFields,
 } from '$lib/domain/talentOnboarding';
+import {
+  parentBlockedWhere,
+  parentCompleteWhere,
+} from '$lib/server/db/stageCompliance';
 
 const PER_PAGE = 50;
 
@@ -108,6 +112,12 @@ export const load: PageServerLoad = async ({ url }) => {
   const niveau = url.searchParams.get('niveau') || '';
   const status = (url.searchParams.get('status') || 'all') as StatusFilter;
   const campus = url.searchParams.get('campus') || '';
+  // Parent completion status. A parent is "complete" once they've co-signed the
+  // règlement AND settled the image-rights decision; "pending" means still
+  // blocked on one of those (the SMS-relance target). Lets the admin see who's
+  // blocked and read before/after-relance counts off the filtered total.
+  // Unknown values degrade to no filter (the `where` block ignores them).
+  const parentStatusFilter = url.searchParams.get('parentStatus') || '';
   // Talents have no "type" column — they're a stagiaire/coding-clubber by virtue
   // of the events they attended. Validate against the canonical list so a junk
   // ?type= silently degrades to "all" rather than matching zero rows.
@@ -183,6 +193,16 @@ export const load: PageServerLoad = async ({ url }) => {
     where.participations = { some: participation };
   }
 
+  // Parent status. Both buckets presuppose a parent on file (a parentEmail to
+  // relance), AND'd with the shared blocked/complete predicate so the admin
+  // list and the broadcast "parent en attente" filter can't drift. Pushed onto
+  // AND so it composes with the search OR rather than clobbering it.
+  if (parentStatusFilter === 'pending') {
+    where.AND = [{ parentEmail: { not: null } }, parentBlockedWhere];
+  } else if (parentStatusFilter === 'complete') {
+    where.AND = [{ parentEmail: { not: null } }, parentCompleteWhere];
+  }
+
   const [rows, totalItems, totalAll, activeAll, stagiairesAll, campuses] =
     await Promise.all([
       prisma.talent.findMany({
@@ -209,6 +229,14 @@ export const load: PageServerLoad = async ({ url }) => {
           equipmentValidatedAt: true,
           processingCompletedAt: true,
           rulesSignedAt: true,
+          // Guardian contact + compliance (parent-1).
+          parentEmail: true,
+          parentNom: true,
+          parentPrenom: true,
+          parentPhone: true,
+          imageRightsDecision: true,
+          imageRightsDecidedAt: true,
+          parentRulesSignedAt: true,
           // Effective campus = most-recent participation's campus, matching the
           // resolution in hooks.server.ts that scopes `locals.featureFlags`.
           participations: {
@@ -239,6 +267,18 @@ export const load: PageServerLoad = async ({ url }) => {
 
   const talents = rows.map(({ charterAcceptedAt, participations, ...t }) => {
     const status = onboardingStatus({ ...t, charterAcceptedAt });
+    const hasGuardian = Boolean(
+      t.parentEmail || t.parentNom || t.parentPrenom || t.parentPhone,
+    );
+    // Parent status, gated on a parentEmail (the relance contact): "complete"
+    // once the parent has co-signed the règlement AND the image-rights decision
+    // is settled, else "pending" (still blocked). null = no parent to chase.
+    // Mirror of the `parentStatus` where-filter above.
+    const parentStatus: 'complete' | 'pending' | null = !t.parentEmail
+      ? null
+      : t.parentRulesSignedAt && t.imageRightsDecidedAt
+        ? 'complete'
+        : 'pending';
     return {
       id: t.id,
       nom: t.nom,
@@ -255,6 +295,16 @@ export const load: PageServerLoad = async ({ url }) => {
       // Only meaningful mid-journey: shown next to the "Onboarding" badge so the
       // admin sees where impersonation will drop them.
       onboardingStep: status === 'pending' ? onboardingStepLabel(t) : null,
+      // Guardian contact (null when none on file) + parent completion status.
+      parent: hasGuardian
+        ? {
+            prenom: t.parentPrenom,
+            nom: t.parentNom,
+            email: t.parentEmail,
+            phone: t.parentPhone,
+          }
+        : null,
+      parentStatus,
     };
   });
 
@@ -264,7 +314,16 @@ export const load: PageServerLoad = async ({ url }) => {
     totalPages: Math.ceil(totalItems / PER_PAGE),
     totalItems,
     currentPage: page,
-    filters: { q: search, niveau, status, campus, type, sort, dir },
+    filters: {
+      q: search,
+      niveau,
+      status,
+      campus,
+      type,
+      sort,
+      dir,
+      parentStatus: parentStatusFilter,
+    },
     stats: {
       total: totalAll,
       active: activeAll,

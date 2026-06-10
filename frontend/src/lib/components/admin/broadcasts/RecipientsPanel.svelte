@@ -130,7 +130,7 @@
           </div>
         {:else}
           <ul class="divide-y divide-border">
-            {#each visibleIncluded as r (r.email ?? r.phone ?? `${r.prenom}${r.nom}`)}
+            {#each visibleIncluded as r, i (`${r.email ?? r.phone ?? ''}-${r.prenom}-${r.nom}-${i}`)}
               <li class="flex items-center justify-between gap-2 px-3 py-1.5">
                 <div class="min-w-0">
                   <p class="truncate text-sm font-medium">
@@ -192,7 +192,7 @@
         </Collapsible.Trigger>
         <Collapsible.Content>
           <ul class="divide-y divide-border border-t text-xs">
-            {#each visibleExcluded as e (`${e.prenom}${e.nom}${e.reason}`)}
+            {#each visibleExcluded as e, i (`${e.prenom}-${e.nom}-${e.reason}-${i}`)}
               <li class="flex items-center justify-between gap-2 px-3 py-1.5">
                 <span class="truncate">{e.prenom} {e.nom}</span>
                 <span class="shrink-0 text-muted-foreground"
