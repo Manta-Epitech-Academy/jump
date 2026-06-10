@@ -23,16 +23,14 @@ export const SMS_BROADCAST_MAX_CHARS =
   SMS_MAX_SEGMENTS * SMS_MULTIPART_SEGMENT_CHARS;
 
 /**
- * Approximate characters a tracked link adds once `&tracking_id=<cuid>` is
- * injected at send time: cuid ~25 + `&tracking_id=` 13 ≈ 38, rounded up.
+ * Estimated on-the-wire length. SMS links are sent verbatim (we never append a
+ * tracking id; visible query junk reads as phishing on a handset and depresses
+ * clicks, so click-tracking is mail-only), so the wire length is just the
+ * character count. Caveat: a `{{...}}` link variable expands to a real URL at
+ * send time, longer than its token, and that growth isn't modelled here.
  */
-export const SMS_TRACKING_ID_OVERHEAD = 40;
-
-/** Estimated on-the-wire length: body length + tracking-id overhead per link. */
 export function estimateSmsLength(body: string): number {
-  const urlRegex = /\bhttps?:\/\/[^\s<>"')]+/gi;
-  const urlCount = body.match(urlRegex)?.length ?? 0;
-  return body.length + urlCount * SMS_TRACKING_ID_OVERHEAD;
+  return body.length;
 }
 
 /** How many SMS segments `estimatedChars` splits into (0 when empty). */

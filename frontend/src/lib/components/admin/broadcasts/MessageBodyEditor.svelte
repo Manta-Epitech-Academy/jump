@@ -203,7 +203,7 @@
     {#if smsOverCeiling}
       <p class="text-xs font-medium text-destructive">
         Trop long : {SMS_MAX_SEGMENTS} SMS maximum par destinataire. Raccourcissez
-        le texte (ou retirez un lien) pour pouvoir envoyer.
+        le texte pour pouvoir envoyer.
       </p>
     {:else if smsMultipart}
       <p class="text-xs font-medium text-epi-orange">
@@ -212,8 +212,7 @@
       </p>
     {:else}
       <p class="text-xs text-muted-foreground">
-        Un SMS = {SMS_SINGLE_SEGMENT_CHARS} caractères. Chaque lien est rallongé automatiquement
-        pour mesurer les clics, et compte donc pour plus que sa longueur à l'écran.
+        Un SMS = {SMS_SINGLE_SEGMENT_CHARS} caractères.
       </p>
     {/if}
   {/if}

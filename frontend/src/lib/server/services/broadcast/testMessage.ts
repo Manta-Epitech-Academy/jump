@@ -46,10 +46,9 @@ export async function sendTestMessage(
   if (input.channel === 'sms') {
     const recipient = toBrevoRecipient(input.to);
     if (!recipient) return { ok: false, message: 'Numéro de test invalide.' };
-    const body = rewriteSmsLinks(
-      substituteVariables(input.body, ctx),
-      TEST_TRACKING_ID,
-    );
+    // SMS links are sent verbatim (no tracking suffix); see the SMS path in
+    // the orchestrator. Mirror that here so the test matches a real send.
+    const body = substituteVariables(input.body, ctx);
     const result = await sendSms(
       { to: recipient, body },
       { devRedirect: 'bypass' },

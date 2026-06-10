@@ -47,12 +47,29 @@
     dataType: 'json',
     resetForm: false,
     validationMethod: 'onsubmit',
+    // Flag the in-flight action HERE, not in the buttons' onclick. Disabling a
+    // submit button synchronously inside its own click handler cancels the
+    // native form submission: Svelte flushes the `disabled` attribute before
+    // the browser runs the submit's default action, so it sees a disabled
+    // button and never fires `submit` (the button froze on "Envoi..." with no
+    // request sent). By the time onSubmit runs, enhance has already intercepted
+    // the submit, so toggling disabled here is safe.
+    onSubmit: ({ action }) => {
+      if (action.search === '?/testSend') testSending = true;
+      else if (action.search === '?/enqueue') enqueueSending = true;
+    },
     onResult: ({ result }) => {
       testSending = false;
       enqueueSending = false;
       if (browser && result.type === 'redirect') {
         localStorage.removeItem(DRAFT_KEY);
       }
+    },
+    onError: () => {
+      // A thrown action calls onError, not onResult, so reset here too: the
+      // button can't stay stuck on "Envoi..." after a server error.
+      testSending = false;
+      enqueueSending = false;
     },
   });
 
@@ -127,6 +144,22 @@
       $form.campusId ? b.campusId === $form.campusId : true,
     ),
   );
+  const selectedSource = $derived(
+    data.sourceBroadcasts.find((b) => b.id === $form.sourceBroadcastId) ?? null,
+  );
+  // SMS sends don't track link clicks (a visible tracking suffix reads as
+  // phishing on a handset), so an SMS source has no "ouverts" data. The opened /
+  // not-opened retargeting filters can't mean anything for it: disable them and
+  // coerce any stale selection back to "tous".
+  const sourceLacksOpens = $derived(selectedSource?.channel === 'sms');
+  $effect(() => {
+    if (
+      sourceLacksOpens &&
+      ($form.sourceFilter === 'opened' || $form.sourceFilter === 'not_opened')
+    ) {
+      $form.sourceFilter = 'all';
+    }
+  });
   // Only talent/parent/manta are narrowed by an event; for the other staff
   // audiences the event does nothing, so we hide the picker entirely.
   const eventScoped = $derived(
@@ -601,19 +634,40 @@
                 <Label class="cursor-pointer gap-1.5 font-normal">
                   <RadioGroup.Item value="all" /> Tous
                 </Label>
-                <Label class="cursor-pointer gap-1.5 font-normal">
-                  <RadioGroup.Item value="opened" /> Ouverts
+                <Label
+                  class={cn(
+                    'cursor-pointer gap-1.5 font-normal',
+                    sourceLacksOpens && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  <RadioGroup.Item value="opened" disabled={sourceLacksOpens} /> Ouverts
                 </Label>
-                <Label class="cursor-pointer gap-1.5 font-normal">
-                  <RadioGroup.Item value="not_opened" /> Non ouverts
+                <Label
+                  class={cn(
+                    'cursor-pointer gap-1.5 font-normal',
+                    sourceLacksOpens && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  <RadioGroup.Item
+                    value="not_opened"
+                    disabled={sourceLacksOpens}
+                  />
+                  Non ouverts
                 </Label>
               </RadioGroup.Root>
               {#if $errors.sourceFilter}
                 <p class="text-xs text-destructive">{$errors.sourceFilter}</p>
               {/if}
-              <p class="text-xs text-muted-foreground">
-                « Ouvert » = a cliqué sur ≥ 1 lien tracké de l'envoi source.
-              </p>
+              {#if sourceLacksOpens}
+                <p class="text-xs text-muted-foreground">
+                  Cet envoi SMS ne suit pas les clics : « ouverts / non ouverts
+                  » ne sont pas disponibles, seul « tous » est possible.
+                </p>
+              {:else}
+                <p class="text-xs text-muted-foreground">
+                  « Ouvert » = a cliqué sur ≥ 1 lien tracké de l'envoi source.
+                </p>
+              {/if}
             </div>
           {/if}
         </Collapsible.Content>
@@ -692,7 +746,6 @@
             !$form.templateId ||
             !($form.body ?? '').trim() ||
             (channel === 'sms' ? !testPhone || !data.smsEnabled : !testEmail)}
-          onclick={() => (testSending = true)}
         >
           <Send class="mr-1 h-3.5 w-3.5" />
           {testSending ? 'Envoi...' : 'Tester'}
@@ -756,7 +809,6 @@
         form="broadcast-form"
         formaction="?/enqueue"
         disabled={enqueueSending}
-        onclick={() => (enqueueSending = true)}
         class={buttonVariants({ variant: 'destructive', class: 'rounded-sm' })}
       >
         {enqueueSending ? 'Envoi en cours...' : 'Oui, démarrer les envois'}
