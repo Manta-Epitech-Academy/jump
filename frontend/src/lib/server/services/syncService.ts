@@ -8,6 +8,7 @@ import {
 import { isNiveau, type Niveau } from '$lib/domain/niveau';
 import { normalizePhoneToE164 } from '$lib/domain/phone';
 import { resolveSchoolByUai } from '$lib/server/services/schoolService';
+import { autoResolveAuthIdentity } from '$lib/server/services/authIdentityRepairService';
 
 // Salesforce ships a binary gender ('m' | 'f'); map it onto the civilité enum
 // the rest of the app uses. SF has no equivalent for 'autre', so it stays null.
@@ -214,6 +215,10 @@ export async function syncTalents(
         prenom: true,
         nom: true,
         email: true,
+        // Linked login account email, to detect (in memory) an auth-identity
+        // divergence and auto-reconcile it below — covers both a fresh email
+        // change this pass and a pre-existing backlog divergence.
+        user: { select: { email: true } },
         phone: true,
         civilite: true,
         niveau: true,
@@ -353,33 +358,21 @@ export async function syncTalents(
 
       const hasPatch = Object.keys(patch).length > 0;
       if (hasPatch) {
-        // When the email changes it is the auth identity: BetterAuth looks the
-        // talent up by `bauth_user.email` at OTP verify, so the linked user row
-        // must move with `Talent.email` or the talent can no longer log in.
-        // Update both in one transaction so the two emails never diverge — a
-        // half-applied change would re-break login exactly as before.
-        const syncAuthEmail =
-          patch.email !== undefined && !!email && !!existing.userId;
         try {
-          await prisma.$transaction(async (tx) => {
-            await tx.talent.update({
-              where: { externalId: t.external_id },
-              data: patch,
-            });
-            if (syncAuthEmail) {
-              await tx.bauth_user.update({
-                where: { id: existing.userId! },
-                data: { email: email! },
-              });
-            }
+          // Talent.email follows SF (the mirror's truth). The linked login
+          // account is reconciled separately, just below, so a colliding login
+          // email no longer rolls back the rest of the patch.
+          await prisma.talent.update({
+            where: { externalId: t.external_id },
+            data: patch,
           });
         } catch (err) {
           if (
             err instanceof Prisma.PrismaClientKnownRequestError &&
             err.code === 'P2002'
           ) {
-            // The clash is on `email`, unique on both Talent and bauth_user.
-            // Find which one so the logged reason isn't misleading.
+            // Collision on `Talent.email` itself: another talent already owns it
+            // (an SF duplicate). Not an auth-identity case — log and skip.
             const conflicting = email
               ? await prisma.talent.findUnique({
                   where: { email },
@@ -394,12 +387,47 @@ export async function syncTalents(
               eventExtId: eventExternalId,
               message: conflicting
                 ? `Mise à jour impossible : l'email "${email}" est déjà utilisé par le talent externalId="${conflicting.externalId}"`
-                : `Mise à jour impossible : l'email "${email}" est déjà rattaché à un autre compte de connexion`,
+                : `Mise à jour impossible : l'email "${email}" est déjà utilisé par un autre talent`,
             });
             skipped++;
             continue;
           }
           throw err;
+        }
+      }
+
+      // Auto-reconcile the login identity whenever Talent.email and the linked
+      // account diverge — a fresh SF email change OR a pre-existing backlog
+      // divergence. The sync self-heals only the SAFE cases on its own:
+      //   orphan holder → repoint the talent onto it + drop the stale account;
+      //   simple drift  → rename the linked account to the new email.
+      // Parent/staff holders, inversions and exposures are NEVER auto-forced
+      // (SF is the unreliable source; auto-swapping login identities on its
+      // say-so could thrash and expose minors' accounts). Those stay a conflict
+      // in Divergences Salesforce › Connexion for an admin to arbitrate.
+      const linkedEmail = existing.user?.email?.toLowerCase().trim() ?? null;
+      if (existing.userId && email && email !== linkedEmail) {
+        try {
+          const outcome = await autoResolveAuthIdentity(existing.id, 'sync');
+          if (outcome === 'skipped') {
+            await logSyncError({
+              email,
+              attemptedExtId: t.external_id,
+              existingExtId: null,
+              talentName: `${t.first_name} ${t.last_name}`,
+              eventExtId: eventExternalId,
+              message: `Divergence d'identité de connexion non auto-résoluble pour "${email}" — à arbitrer dans Divergences Salesforce › Connexion.`,
+            });
+          }
+        } catch (err) {
+          await logSyncError({
+            email,
+            attemptedExtId: t.external_id,
+            existingExtId: null,
+            talentName: `${t.first_name} ${t.last_name}`,
+            eventExtId: eventExternalId,
+            message: `Réconciliation de l'identité de connexion échouée pour "${email}" : ${err instanceof Error ? err.message : 'erreur inconnue'} (réessai au prochain sync).`,
+          });
         }
       }
       if (mirrorChanged || hasPatch) updated++;

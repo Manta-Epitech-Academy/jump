@@ -57,6 +57,16 @@ async function provisionParentAccount(
   const existing = await prisma.bauth_user.findUnique({
     where: { email: parent.email },
   });
+  if (existing && existing.role !== 'parent') {
+    // The address already belongs to a NON-parent login — a student's or staff's
+    // account (bad data: a parent contact email that is also someone's student
+    // email, e.g. a family sharing one address). Don't repurpose it: renaming
+    // their account to the parent's name would pollute their identity, and the
+    // welcome magic link would be refused anyway (/parent/fastlogin filters by
+    // role: 'parent'). Leave it untouched; the collision surfaces elsewhere
+    // (auth-conflicts) rather than being silently mutated here.
+    return;
+  }
   if (!existing) {
     await prisma.bauth_user.create({
       data: { email: parent.email, name, role: 'parent', emailVerified: true },

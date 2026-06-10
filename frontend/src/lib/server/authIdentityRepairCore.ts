@@ -232,6 +232,14 @@ export async function planRename(
     throw new Error(
       'Target email is already held by another account — not SIMPLE_DRIFT; use repoint+drop or swap.',
     );
+  // Even with no account on it, a parent-contact email must not be renamed onto:
+  // it is bad SF data (a minor with a parent's address in the student record),
+  // a PARENT_HOLDER to escalate, never a drift to auto-fix. (A staff email
+  // always has an account, so the holder check above already covers staff.)
+  if (await isParentEmail(db, t.targetEmail))
+    throw new Error(
+      'Target email is a parent contact (PARENT_HOLDER) — escalate, do not force.',
+    );
   return {
     talentId,
     talentName: t.name,

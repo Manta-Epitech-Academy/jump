@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
+import { isParentOrStaffEmail } from '$lib/server/auth/emailIdentity';
 import { deleteAnonymizedDocuments } from '$lib/server/services/anonymizationService';
 import {
   clearOnboardingTimestamps,
@@ -45,20 +46,28 @@ export async function ensureTalentUser(talentId: string): Promise<string> {
     const wanted = talent.email?.toLowerCase().trim();
     const current = talent.user?.email?.toLowerCase().trim();
     if (wanted && current && wanted !== current) {
-      try {
-        await prisma.bauth_user.update({
-          where: { id: talent.userId },
-          data: { email: wanted },
-        });
-      } catch (err) {
-        if (
-          !(
-            err instanceof Prisma.PrismaClientKnownRequestError &&
-            err.code === 'P2002'
+      // Guard before realigning: `Talent.email` pointing at a parent or staff
+      // address is bad SF data (a minor onboarded with a parent's email), NOT an
+      // email change. Renaming the student's account onto it would steal that
+      // parent/staff identity. Skip the rename and leave it for the admin
+      // auth-conflicts tool, which surfaces it as PARENT_HOLDER / STAFF_HOLDER
+      // (escalate, never force) — same stance as the adopt branch below.
+      if (!(await isParentOrStaffEmail(wanted))) {
+        try {
+          await prisma.bauth_user.update({
+            where: { id: talent.userId },
+            data: { email: wanted },
+          });
+        } catch (err) {
+          if (
+            !(
+              err instanceof Prisma.PrismaClientKnownRequestError &&
+              err.code === 'P2002'
+            )
           )
-        )
-          throw err;
-        // Collision → leave for manual resolution (see authIdentityService).
+            throw err;
+          // Collision → leave for manual resolution (see authIdentityService).
+        }
       }
     }
     return talent.userId;
