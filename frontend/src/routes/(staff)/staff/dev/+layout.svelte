@@ -210,7 +210,8 @@
       Stage de Seconde<span class="text-epi-teal">_</span>
     </div>
     <nav class="space-y-1">
-      <!-- Stage-only release scopes the workspace down to Inscrits + Entretiens.
+      <!-- Stage-only release scopes the workspace down to its live surfaces
+           (Inscrits, Émargement); Planning and Entretiens render disabled below.
            The event overview and onboarding tracker are coding_club-era
            surfaces, kept behind the flag so that future stays intact. -->
       {#if hasCodingClub}
@@ -233,6 +234,13 @@
           <span>Onboarding</span>
         </a>
       {/if}
+      <!-- Live stage surfaces first (Inscrits, Émargement, then any flag-gated
+           ones), with the not-yet-shipped surfaces grouped last as disabled
+           "Bientôt disponible" entries. Keeping them last avoids greyed rows
+           splitting two live links, which reads as broken rather than upcoming.
+           Planning is built but de-scoped from this release (no schedule data
+           yet); Entretiens isn't built at all. Re-enable Planning by swapping its
+           {@render} call for an <a> nav link to /planning. -->
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
         class={navLinkClass(
@@ -242,20 +250,6 @@
         <Users class="h-5 w-5" />
         <span>Inscrits</span>
       </a>
-      <!-- Planning ships as a read-only viewer of the active stage's schedule.
-           Émargement is live (its own route /emargement). Entretiens stays a
-           permanent stage surface not yet built for this release: shown disabled
-           via comingSoonEntry. -->
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
-        )}
-      >
-        <CalendarDays class="h-5 w-5" />
-        <span>Planning</span>
-      </a>
-      {@render comingSoonEntry('Entretiens', MessageSquare)}
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/emargement`)}
         class={navLinkClass(
@@ -285,6 +279,8 @@
           <span>Page d'accueil</span>
         </a>
       {/if}
+      {@render comingSoonEntry('Planning', CalendarDays)}
+      {@render comingSoonEntry('Entretiens', MessageSquare)}
     </nav>
   {/if}
 
