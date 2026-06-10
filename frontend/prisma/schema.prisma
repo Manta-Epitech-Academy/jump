@@ -1517,3 +1517,36 @@ model OtpAttempt {
   @@index([bucket, email, createdAt])
   @@index([createdAt])
 }
+
+/// Append-only audit ledger of manual auth-identity repairs (see
+/// `authIdentityRepairCore.ts`). When an admin (or the Salesforce sync) resolves a
+/// login-identity conflict — a talent linked to the wrong `bauth_user` after a
+/// Salesforce email change/inversion — the resolution is recorded here as one
+/// immutable fact. This is identity surgery on minors' accounts (RGPD), so it
+/// must stay explainable and auditable after the fact: who repaired which
+/// talent, how, and which accounts were repointed / renamed / dropped. Follows
+/// the repo's "facts as rows" convention (cf. XpGrant / OtpAttempt). Never
+/// updated.
+model AuthIdentityRepair {
+  id       String @id @default(cuid())
+  talentId String
+  /// repoint_drop | rename | swap | sever — kept a `String` (the vocabulary
+  /// lives in code as `AuthRepairKind`), so a new operation needs no migration.
+  kind String
+  /// The account kept / linked after the repair (null for `sever`).
+  toUserId String?
+  /// The account renamed-from or hard-dropped by the repair (null where N/A).
+  fromUserId String?
+  /// Emails captured at repair time, for the trail — the rows they describe may
+  /// be gone by the time anyone reads this.
+  fromEmail String?
+  toEmail   String?
+  /// `bauth_user.id` of the admin who ran it, or `'sync'` when the Salesforce
+  /// sync auto-resolved it. Plain `String` (no FK) so a non-user actor like the
+  /// sync still records, and so the row survives the actor's own later deletion.
+  resolvedBy String
+  resolvedAt DateTime @default(now())
+
+  @@index([talentId])
+  @@index([resolvedAt])
+}
