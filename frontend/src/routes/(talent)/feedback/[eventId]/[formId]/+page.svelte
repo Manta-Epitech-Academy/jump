@@ -33,18 +33,20 @@
   <title>Feedback - {data.formSchema.title}</title>
 </svelte:head>
 
-<TalentPageHeader title="Feedback" backHref="/" />
+<div class="flex min-h-dvh flex-col">
+  <TalentPageHeader title="Feedback" backHref="/" />
 
-<div class="mx-auto max-w-4xl px-4 pb-12">
-  <div
-    class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
-  >
-    <ChatScreen
-      form={data.formSchema}
-      prefill={data.prefill}
-      onSubmit={handleSubmit}
-    />
+  <div class="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
+    <div
+      class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+    >
+      <ChatScreen
+        form={data.formSchema}
+        prefill={data.prefill}
+        onSubmit={handleSubmit}
+      />
+    </div>
   </div>
-</div>
 
-<TalentFooter />
+  <TalentFooter />
+</div>
