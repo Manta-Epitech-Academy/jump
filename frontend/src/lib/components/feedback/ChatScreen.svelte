@@ -75,7 +75,7 @@
 
   <!-- Response dock: all answer inputs live here, flush at the bottom -->
   <div
-    class="border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800"
+    class="border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/50"
   >
     {#if conv.error}
       <p class="mb-2 text-center text-xs text-red-500">{conv.error}</p>
