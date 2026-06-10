@@ -14,6 +14,7 @@
   import { dev } from '$app/environment';
   import Umami from '$lib/components/Umami.svelte';
   import RealSendsBanner from '$lib/components/layout/RealSendsBanner.svelte';
+  import DevRedirectPinBanner from '$lib/components/layout/DevRedirectPinBanner.svelte';
   import { identify, reset } from '$lib/analytics';
 
   // Import SVGs as URLs using Vite's ?url suffix
@@ -114,6 +115,14 @@
   {#if page.data.armedRealSends}
     <div class="sticky top-0 z-50">
       <RealSendsBanner until={page.data.armedRealSendsUntil} />
+    </div>
+  {/if}
+  {#if page.data.devRedirectPin}
+    <div class="sticky top-0 z-50">
+      <DevRedirectPinBanner
+        until={page.data.devRedirectPin.until}
+        to={page.data.devRedirectPin.to}
+      />
     </div>
   {/if}
   {@render children()}

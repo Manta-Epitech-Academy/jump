@@ -48,11 +48,14 @@ export function parseDevRecipients(): string[] | null {
  *     the staff member who triggered it);
  *   - the acting staff member's personal `devRedirectEmails` (configured by
  *     admins in the settings dialog) — so a tester on a shared dev env only
- *     receives their own traffic, at an address they actually read;
+ *     receives their own traffic, at an address they actually read. On a
+ *     logged-out request (e.g. the OTP login flow) the "acting staff" can be a
+ *     pinned admin — see the dev-redirect pin in `hooks.server.ts`;
  *   - the acting human's login email — a reasonable default when they haven't
  *     configured a personal list;
- *   - the `EMAIL_DEV_RECIPIENTS` fallback — for sends with no request actor
- *     (cron, worker, logged-out OTP).
+ *   - the `EMAIL_DEV_RECIPIENTS` fallback — the last-resort floor for sends with
+ *     no actor *and* no pin (headless cron / anonymization). Interactive
+ *     logged-out testing should arm a pin instead of relying on this list.
  *
  * If trapped and *none* of those resolve a destination, it's `{ kind: 'drop' }`:
  * the send is suppressed rather than leaked to the real recipient (fail-closed).
@@ -75,7 +78,7 @@ export function resolveMailRouting(
   return {
     kind: 'drop',
     reason:
-      'outbound trapped (OUTBOUND_MODE != real) but no dev mail destination resolved — set EMAIL_DEV_RECIPIENTS or a personal redirect list',
+      'outbound trapped (OUTBOUND_MODE != real) but no dev mail destination resolved — arm a login-redirect pin (settings dialog), set a personal redirect list, or set EMAIL_DEV_RECIPIENTS',
   };
 }
 
