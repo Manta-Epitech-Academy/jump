@@ -1,0 +1,193 @@
+{
+  "id": "w1",
+  "title": "Bilan 1ère semaine — Stage seconde Epitech",
+  "intro": "Coin coin ! Moi c'est Bernard le canard. On doit remplir les attestations de stage pour ton lycée. Pour être les plus précis possible, on te laisse la parole. Ton lycée pourra accéder à tes réponses sur demande. C'est parti, ça prend 3 minutes !",
+  "questions": [
+    {
+      "id": "coordonnees_gate",
+      "prompt": "Avant de commencer : veux-tu renseigner tes coordonnées (campus, nom, prénom, téléphone, e-mail) ?",
+      "required": true,
+      "type": "gate",
+      "skipsIdentity": true,
+      "options": ["Oui, je les renseigne", "Non, passer cette étape"],
+      "skipOption": "Non, passer cette étape"
+    },
+    {
+      "id": "campus",
+      "section": "Section 1",
+      "prompt": "Tout d'abord, sur quel campus es-tu ?",
+      "required": false,
+      "identity": true,
+      "type": "single",
+      "options": [
+        "Bordeaux",
+        "Lille",
+        "Lyon",
+        "Nantes",
+        "Marseille",
+        "Montpellier",
+        "Moulins",
+        "Mulhouse",
+        "Nancy",
+        "Nice",
+        "Paris - Kremlin Bicêtre",
+        "Rennes",
+        "Saint André - La Réunion",
+        "Strasbourg",
+        "Toulouse"
+      ]
+    },
+    {
+      "id": "civilite",
+      "prompt": "Ta civilité ?",
+      "required": false,
+      "identity": true,
+      "type": "single",
+      "options": ["Monsieur", "Madame", "Je ne souhaite pas le préciser"]
+    },
+    {
+      "id": "nom",
+      "prompt": "Quel est ton nom ?",
+      "required": false,
+      "identity": true,
+      "type": "text",
+      "inputKind": "name",
+      "placeholder": "Ton nom"
+    },
+    {
+      "id": "prenom",
+      "prompt": "Et ton prénom ?",
+      "required": false,
+      "identity": true,
+      "type": "text",
+      "inputKind": "name",
+      "placeholder": "Ton prénom"
+    },
+    {
+      "id": "telephone",
+      "prompt": "Ton numéro de téléphone ?",
+      "required": false,
+      "identity": true,
+      "type": "text",
+      "inputKind": "tel",
+      "placeholder": "06 12 34 56 78"
+    },
+    {
+      "id": "mail",
+      "prompt": "Ton adresse e-mail ?",
+      "required": false,
+      "identity": true,
+      "type": "text",
+      "inputKind": "email",
+      "placeholder": "prenom@exemple.com"
+    },
+    {
+      "id": "specialites",
+      "prompt": "Quelles sont tes 3 spécialités de Première ?",
+      "required": true,
+      "type": "multiple",
+      "minSelections": 3,
+      "maxSelections": 3,
+      "options": [
+        "Numériques et sciences informatiques",
+        "Histoire-géographie, géopolitique et sciences politiques",
+        "Humanités, littérature et philosophie",
+        "Langues, littératures et cultures étrangères",
+        "Mathématiques",
+        "Physique-chimie",
+        "Sciences de la vie et de la Terre",
+        "Sciences économiques et sociales",
+        "Sciences de l'ingénieur",
+        "Art",
+        "Littérature, langues et culture de l'Antiquité",
+        "Sports : Éducation physique, pratique et culture sportives",
+        "STD2A"
+      ]
+    },
+    {
+      "id": "avis_conferences",
+      "prompt": "Ton avis sur les conférences de la 1ère semaine ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Très intéressant",
+        "Intéressant",
+        "Pas intéressant"
+      ]
+    },
+    {
+      "id": "avis_atelier_product_designer",
+      "prompt": "Ton avis sur l'atelier « Vie ma vie de Product Designer » de la 1ère semaine ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Très intéressant",
+        "Intéressant",
+        "Pas intéressant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "piste_orientation",
+      "prompt": "Ce stage t'a-t-il déjà fait découvrir une piste d'orientation post-bac ?",
+      "required": true,
+      "type": "single",
+      "options": ["Oui", "Non", "Pas encore, j'attends la 2e semaine"]
+    },
+    {
+      "id": "coding_club",
+      "prompt": "Souhaites-tu participer aux prochains Coding Club pendant les vacances de 1ère et Terminale ? (stages gratuits de 3 à 5 jours : Cybersécurité, Data, Robotique, Drones, Impression 3D)",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Oui, je suis très intéressé",
+        "Oui, pourquoi pas",
+        "Non, je n'aime décidément pas la tech"
+      ]
+    },
+    {
+      "id": "appetence",
+      "section": "Section 2",
+      "sectionIntro": "Quelques questions pour mieux te connaître et adapter les prochains ateliers et thèmes de projets. 🎯",
+      "prompt": "Tu as une appétence pour : (plusieurs choix possibles)",
+      "required": true,
+      "type": "multiple",
+      "options": [
+        "UX / UI Design / Webdesign",
+        "Marketing digital et/ou influence digitale",
+        "Data",
+        "Objets connectés",
+        "Cybersécurité",
+        "Infrastructures et réseaux",
+        "Développement web et mobile",
+        "Développement informatique (autre)",
+        "Transformation digitale en général",
+        "Rien de tout cela"
+      ]
+    },
+    {
+      "id": "influenceurs",
+      "prompt": "Des influenceurs que tu suis ? (réponse libre)",
+      "required": true,
+      "type": "text",
+      "inputKind": "text",
+      "placeholder": "Ex : @pseudo, ..."
+    },
+    {
+      "id": "reseaux_sociaux",
+      "prompt": "Sur quels réseaux sociaux es-tu ? (plusieurs choix possibles)",
+      "required": true,
+      "type": "multiple",
+      "options": ["TikTok", "Instagram", "YouTube", "Snapchat", "Twitch"]
+    },
+    {
+      "id": "reseaux_preferes",
+      "prompt": "Parmi ceux-ci, classe tes 3 réseaux préférés par ordre de préférence et d'utilisation.",
+      "required": true,
+      "type": "textarea",
+      "placeholder": "1. ...\n2. ...\n3. ..."
+    }
+  ]
+}
