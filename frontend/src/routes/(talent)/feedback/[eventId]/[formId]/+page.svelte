@@ -1,5 +1,7 @@
 <script lang="ts">
   import { toast } from 'svelte-sonner';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
+  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import ChatScreen from '$lib/components/feedback/ChatScreen.svelte';
   import type { Answers } from '$lib/domain/feedbackForms/schema';
 
@@ -31,8 +33,18 @@
   <title>Feedback - {data.formSchema.title}</title>
 </svelte:head>
 
-<ChatScreen
-  form={data.formSchema}
-  prefill={data.prefill}
-  onSubmit={handleSubmit}
-/>
+<TalentPageHeader title="Feedback" backHref="/" />
+
+<div class="mx-auto max-w-2xl px-4 pb-12">
+  <div
+    class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+  >
+    <ChatScreen
+      form={data.formSchema}
+      prefill={data.prefill}
+      onSubmit={handleSubmit}
+    />
+  </div>
+</div>
+
+<TalentFooter />

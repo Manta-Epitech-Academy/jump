@@ -49,7 +49,7 @@
   );
 </script>
 
-<div class="flex h-full flex-col bg-slate-50 dark:bg-slate-900">
+<div class="flex flex-col bg-slate-50 dark:bg-slate-900/50">
   <!-- Header -->
   <div
     class="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800"
