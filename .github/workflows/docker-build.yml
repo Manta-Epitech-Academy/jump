@@ -91,3 +91,9 @@ jobs:
           NAMESPACE="${{ needs.build-sveltekit.outputs.namespace }}"
           echo "Restarting deployment in namespace: $NAMESPACE"
           kubectl rollout restart deployment/jump-sk -n "$NAMESPACE"
+
+          # A push on staging also rolls preprod so it picks up the new staging image.
+          if [ "${{ github.ref_name }}" = "staging" ]; then
+            echo "Restarting deployment in namespace: jump-preprod"
+            kubectl rollout restart deployment/jump-sk -n jump-preprod
+          fi
