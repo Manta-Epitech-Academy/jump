@@ -104,18 +104,18 @@
     }
   });
 
-  // Reset event and source when campus changes so a stale id from another
-  // campus can't ride along in the draft, preview, or the actual send.
-  let prevCampusId = $state($form.campusId);
-  $effect(() => {
-    const cur = $form.campusId;
-    if (cur !== prevCampusId) {
-      prevCampusId = cur;
-      $form.eventId = '';
-      $form.sourceBroadcastId = '';
-      $form.sourceFilter = undefined;
-    }
-  });
+  // Switching campus invalidates any event/source picked under the old one, so
+  // drop them here (mirrors `onAudienceChange`). Doing it in the change handler
+  // rather than an effect on `$form.campusId` is deliberate: a programmatic
+  // draft restore assigns `campusId` directly and must keep its restored
+  // event/source instead of having them wiped by a reaction.
+  function onCampusChange(next: string) {
+    if (next === $form.campusId) return;
+    $form.campusId = next;
+    $form.eventId = '';
+    $form.sourceBroadcastId = '';
+    $form.sourceFilter = undefined;
+  }
 
   const filteredEvents = $derived(
     data.events.filter((e) =>
@@ -437,7 +437,7 @@
         <Select.Root
           type="single"
           value={$form.campusId}
-          onValueChange={(v) => ($form.campusId = v ?? '')}
+          onValueChange={(v) => onCampusChange(v ?? '')}
         >
           <Select.Trigger id="campusId" class="w-full">
             {data.campuses.find((c) => c.id === $form.campusId)?.name ??

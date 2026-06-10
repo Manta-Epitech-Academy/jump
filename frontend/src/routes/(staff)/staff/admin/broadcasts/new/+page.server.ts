@@ -7,6 +7,7 @@ import { broadcastSchema } from '$lib/validation/broadcasts';
 import {
   enqueueBroadcast,
   processBroadcast,
+  EmptyBroadcastError,
 } from '$lib/server/services/broadcast/orchestrator';
 import { sendTestMessage } from '$lib/server/services/broadcast/testMessage';
 import {
@@ -213,20 +214,38 @@ export const actions: Actions = {
     const stamp = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
     const name = `[${stamp}] ${campus?.name ?? '?'} - ${template.name}`;
 
-    const { broadcastId } = await enqueueBroadcast({
-      name,
-      templateId,
-      campusId,
-      audience,
-      eventId: form.data.eventId || null,
-      sourceBroadcastId: form.data.sourceBroadcastId || null,
-      sourceFilter: form.data.sourceFilter ?? null,
-      filters: form.data.filters ?? null,
-      createdById: locals.user.id,
-      // Snapshot the composer's edited content for this send only.
-      bodyOverride: body,
-      subjectOverride: template.channel === 'mail' ? subject : null,
-    });
+    let broadcastId: string;
+    try {
+      ({ broadcastId } = await enqueueBroadcast({
+        name,
+        templateId,
+        campusId,
+        audience,
+        eventId: form.data.eventId || null,
+        sourceBroadcastId: form.data.sourceBroadcastId || null,
+        sourceFilter: form.data.sourceFilter ?? null,
+        filters: form.data.filters ?? null,
+        createdById: locals.user.id,
+        // Snapshot the composer's edited content for this send only.
+        bodyOverride: body,
+        subjectOverride: template.channel === 'mail' ? subject : null,
+      }));
+    } catch (err) {
+      // The audience emptied out between preview and confirm (or a crafted
+      // request bypassed the client guard). Surface it as a form error instead
+      // of creating a zero-recipient broadcast.
+      if (err instanceof EmptyBroadcastError) {
+        return message(
+          form,
+          {
+            type: 'error',
+            text: 'Aucun destinataire ne correspond à ce ciblage.',
+          },
+          { status: 400 },
+        );
+      }
+      throw err;
+    }
 
     // Process inline (fire-and-forget). For larger volumes, route to a worker.
     processBroadcast(broadcastId).catch((err) => {
