@@ -67,16 +67,12 @@ export type TalentRecommendationInput = TalentOnboardingFields & {
   /** Guardian's email — named in the "signatures parents" reco. */
   parentEmail: string | null;
   /**
-   * Public app origin (`env.ORIGIN`, e.g. https://jump.epiboost.fr in prod) —
-   * named in the "jamais connecté" reco so the dev can point the student at it.
-   * Passed in (not read from env) to keep this module pure/testable.
+   * Public app origin (`env.ORIGIN`, e.g. https://jump.epiboost.fr in prod),
+   * named in the "jamais connecté" and "signatures parents" recos so the dev can
+   * point the student or their parents at it. Passed in (not read from env) to
+   * keep this module pure/testable.
    */
   appUrl: string;
-  /**
-   * Configured sender address (parsed from `MAIL_FROM`) — named in the parent
-   * reco so the dev can tell the parents which address the mail came from.
-   */
-  senderEmail: string;
   /** Whether the talent ever logged in (an oldest `bauth_session` exists). */
   connected: boolean;
   /**
@@ -112,7 +108,7 @@ function deriveFunnelRecommendation(
       kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Jamais connecté',
-      message: `Contactez ${t.prenom} car il/elle ne s'est jamais connecté(e)${t.email ? ` avec son email **${t.email}**` : ''} sur la plateforme ${t.appUrl}`,
+      message: `Contactez ${t.prenom} car il/elle ne s'est jamais connecté(e) sur la plateforme ${t.appUrl}${t.email ? ` avec son adresse **${t.email}**` : ''}.`,
       contact: 'student',
     };
   }
@@ -134,7 +130,7 @@ function deriveFunnelRecommendation(
       kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Signatures parents',
-      message: `Contactez les parents de ${t.prenom} pour les informer qu'ils ont reçu un mail sur leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} de la part de **${t.senderEmail}** pour signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
+      message: `Contactez les parents de ${t.prenom} car ils/elles ne sont jamais connecté(e)s sur la plateforme ${t.appUrl} avec leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} afin de signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
       contact: 'parent',
     };
   }
