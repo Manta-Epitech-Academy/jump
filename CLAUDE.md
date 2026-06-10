@@ -201,6 +201,7 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 ## Coding Conventions
 
 - **Language:** All UI text and user-facing strings are in **French**. Code identifiers (functions, variables) are in English.
+- **Register (vous / tu):** Pick by who reads the string. **Staff-facing copy uses _vous_** (dev, pedago, admin spaces: buttons, tooltips, help cards, confirms). **Talent-facing copy uses _tu_** (the student portal and anything a talent reads, e.g. the QR check-in page). A single feature often spans both: the émargement staff page vouvoie the staff, while its talent check-in page tutoie the student. Match the surrounding screen's register, don't mix within one audience.
 - **Forms:** Use sveltekit-superforms with Zod validation. Never use raw `<form>` handling.
 - **DB access:** Import `prisma` from `$lib/server/db`. Never pass the Prisma client as a function parameter — it's a singleton. Always scope queries by `campusId` for staff/student data.
 - **Auth checks:** Don't call BetterAuth directly in page server loads; `hooks.server.ts` already hydrates `locals.{user, staffProfile, talent}`.

@@ -170,6 +170,8 @@ model StaffProfile {
   cmsImages               CmsImage[]
   subjectVersionsImported SubjectVersion[]
   observableValidations   TalentObservableState[]
+  presencesMarked         EventPresence[]
+  presenceClosuresMade    EventPresenceClosure[]
 
   @@index([campusId])
 }
@@ -281,6 +283,7 @@ model Talent {
   broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
   broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
   deletionRequests   TalentDeletionRequest[]
+  eventPresences     EventPresence[]
 
   @@index([xp])
   @@index([schoolId])
@@ -561,6 +564,8 @@ model Event {
   cmsPages         CmsPage[]
   broadcasts       Broadcast[]
   minigameAttempts MinigameAttempt[]
+  presenceClosures EventPresenceClosure[]
+  eventPresences   EventPresence[]
 
   @@index([campusId])
 }
@@ -628,6 +633,74 @@ model ParticipationActivity {
 
   @@id([participationId, activityId])
   @@index([verdictAuthorId])
+}
+
+// Administrative attendance ("émargement"), one record per half-day a talent is
+// expected at an event. Deliberately autonomous: it keys on (talentId, eventId)
+// directly, NOT on Participation, because participations / event-presence are
+// owned by Salesforce (campaign member status) and the SF sync rewrites
+// Participation. This table is the staff's own operational appel, decoupled from
+// that lifecycle, with the XLSX export as its only deliverable (no SF write-back).
+// A missing row = "en attente" (not handled yet), so the table stays sparse and
+// closing a slot just inserts the absent rows. Scoped via event.campusId, like
+// Planning. The enrollment roster is still READ from Participation (the SF
+// mirror) to know who to list; only the storage is decoupled.
+model EventPresence {
+  id         String         @id @default(cuid())
+  talentId   String
+  eventId    String
+  day        DateTime       @db.Date
+  slot       PresenceSlot
+  status     PresenceStatus
+  source     PresenceSource @default(manual)
+  markedById String?
+  markedAt   DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  talent   Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event    Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  markedBy StaffProfile? @relation(fields: [markedById], references: [id], onDelete: SetNull)
+
+  @@unique([talentId, eventId, day, slot])
+  @@index([eventId, day, slot])
+  @@index([markedById])
+}
+
+// Marks a half-day's émargement as closed: late self-check-in is refused and
+// every still-pending talent has been turned absent. A missing row = the slot
+// is open. Event-wide (not per-talent), so it hangs off Event and is scoped via
+// event.campusId, like Planning.
+model EventPresenceClosure {
+  id         String       @id @default(cuid())
+  eventId    String
+  day        DateTime     @db.Date
+  slot       PresenceSlot
+  closedById String?
+  closedAt   DateTime     @default(now())
+
+  event    Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  closedBy StaffProfile? @relation(fields: [closedById], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, day, slot])
+}
+
+enum PresenceSlot {
+  morning
+  afternoon
+}
+
+enum PresenceStatus {
+  present
+  late
+  absent
+  excused
+}
+
+enum PresenceSource {
+  qr
+  manual
+  system
 }
 
 model Interview {

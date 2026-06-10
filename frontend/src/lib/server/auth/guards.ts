@@ -86,7 +86,6 @@ export async function applyRouteGuards(
   const pathStaffAdmin = p('/staff/admin');
   const pathTalentLogin = p('/login');
   const pathTalentRoot = p('/');
-  const pathTalentCharter = p('/charter');
   const pathTalentOnboarding = p('/onboarding');
   const pathTalentOAuth = p('/oauth');
   const pathLogout = p('/logout');
@@ -191,22 +190,23 @@ export async function applyRouteGuards(
       }
     }
 
-    // Charter guard (onboarding sets charterAcceptedAt on completion)
+    // Charter guard. `charterAcceptedAt` is set at the end of onboarding (same
+    // transaction as `rulesSignedAt`), so a talent missing it hasn't finished
+    // onboarding and is already caught by the onboarding guard above. This stays
+    // as a defensive net: send any talent without the charter back through
+    // onboarding, where it is signed. (The old standalone `/charter` page was
+    // retired once the charter folded into the onboarding rules step.)
     if (
       event.locals.talent &&
       !event.locals.talent.charterAcceptedAt &&
-      currentPath !== pathTalentCharter &&
       !currentPath.startsWith(pathTalentOnboarding) &&
       currentPath !== pathTalentWelcome &&
       currentPath !== pathTalentLogin
     ) {
-      return Response.redirect(new URL(pathTalentCharter, event.url).href, 303);
-    }
-    if (
-      event.locals.talent?.charterAcceptedAt &&
-      currentPath === pathTalentCharter
-    ) {
-      return Response.redirect(new URL(pathTalentRoot, event.url).href, 303);
+      return Response.redirect(
+        new URL(pathTalentOnboarding, event.url).href,
+        303,
+      );
     }
   }
 

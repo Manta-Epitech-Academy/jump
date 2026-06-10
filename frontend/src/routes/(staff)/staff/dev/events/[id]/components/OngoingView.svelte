@@ -110,6 +110,9 @@
   const interviewsHref = $derived(
     resolve(`/staff/dev/events/${eventId}/interviews`),
   );
+  const emargementHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/emargement`),
+  );
 </script>
 
 <div class="space-y-6 pb-12">
@@ -133,6 +136,7 @@
         tone="teal"
         progress={presencePctRounded}
         sub={`${kpis.todayPresence.slotName} · ${presencePctRounded} %`}
+        href={emargementHref}
       >
         {#snippet valueSnippet()}
           <p class="font-heading text-5xl tracking-wide text-epi-teal-solid">
@@ -146,9 +150,10 @@
       <KpiTile
         label="Présents aujourd’hui"
         value="—"
-        sub="aucun appel terminé"
+        sub="ouvrir l’émargement"
         icon={UserCheck}
         tone="neutral"
+        href={emargementHref}
       />
     {/if}
     <KpiTile

@@ -243,9 +243,9 @@
         <span>Inscrits</span>
       </a>
       <!-- Planning ships as a read-only viewer of the active stage's schedule.
-           Entretiens and Présences are permanent stage surfaces not yet built
-           for this release: shown disabled (see comingSoonEntry). Présences has
-           no route at all yet. -->
+           Émargement is live (its own route /emargement). Entretiens stays a
+           permanent stage surface not yet built for this release: shown disabled
+           via comingSoonEntry. -->
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
         class={navLinkClass(
@@ -256,7 +256,15 @@
         <span>Planning</span>
       </a>
       {@render comingSoonEntry('Entretiens', MessageSquare)}
-      {@render comingSoonEntry('Présences', UserCheck)}
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/emargement`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/emargement`),
+        )}
+      >
+        <UserCheck class="h-5 w-5" />
+        <span>Émargement</span>
+      </a>
       {#if hasIntervenants}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}

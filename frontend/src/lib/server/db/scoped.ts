@@ -386,6 +386,70 @@ export function scopedPrisma(campusId: string) {
         },
       },
 
+      // ── EventPresence (scoped through event.campusId) ──
+      // Only the operations the émargement feature actually performs are scoped:
+      // findMany (page load + export), upsert and deleteMany (the staff
+      // setPresence action). `upsert` keys on the unique (talentId, eventId, day,
+      // slot), whose `where` can't carry a relation filter, so its campus check
+      // runs pre-query on the create payload's eventId, like create/update/delete
+      // elsewhere in this file. The talent self-check-in writes intentionally use
+      // the raw client: a scan has no staff campus, and is gated by the signed
+      // token + a participation check instead (see (talent)/presence/[token]).
+      eventPresence: {
+        async findMany({ args, query }) {
+          args.where = {
+            ...args.where,
+            event: { ...((args.where as any)?.event ?? {}), campusId },
+          };
+          return query(args);
+        },
+        async upsert({ args, query }) {
+          const event = await prisma.event.findUniqueOrThrow({
+            where: { id: (args.create as any).eventId as string },
+            select: { campusId: true },
+          });
+          if (event.campusId !== campusId) accessDenied('EventPresence');
+          return query(args);
+        },
+        async deleteMany({ args, query }) {
+          args.where = {
+            ...args.where,
+            event: { ...((args.where as any)?.event ?? {}), campusId },
+          };
+          return query(args);
+        },
+      },
+
+      // ── EventPresenceClosure (scoped through event.campusId) ──
+      // findMany (page load + export) plus the upsert/deleteMany that close and
+      // reopen a créneau (see presenceService). `upsert` keys on the unique
+      // (eventId, day, slot), so its campus check runs pre-query on the create
+      // payload's eventId, the same shape as EventPresence above.
+      eventPresenceClosure: {
+        async findMany({ args, query }) {
+          args.where = {
+            ...args.where,
+            event: { ...((args.where as any)?.event ?? {}), campusId },
+          };
+          return query(args);
+        },
+        async upsert({ args, query }) {
+          const event = await prisma.event.findUniqueOrThrow({
+            where: { id: (args.create as any).eventId as string },
+            select: { campusId: true },
+          });
+          if (event.campusId !== campusId) accessDenied('EventPresenceClosure');
+          return query(args);
+        },
+        async deleteMany({ args, query }) {
+          args.where = {
+            ...args.where,
+            event: { ...((args.where as any)?.event ?? {}), campusId },
+          };
+          return query(args);
+        },
+      },
+
       // ── Planning (scoped through event.campusId) ──
       planning: {
         async findMany({ args, query }) {
