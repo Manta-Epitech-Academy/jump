@@ -35,15 +35,19 @@
 </script>
 
 <PageHero>
-  <div class="flex items-center gap-6">
+  <!-- Stacks on a phone: a `text-5xl` name between a 96px avatar and the Salesforce
+       button has no room on the row, so the name block (overflow-hidden) collapses
+       and the title clips out of view. Below `sm` the band goes column (avatar, name,
+       full-width button); the original row returns at `sm`. -->
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
     <TalentAvatar
       talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
       size="lg"
-      class="h-24 w-24 shrink-0 rounded-sm shadow-md md:h-28 md:w-28"
+      class="h-20 w-20 shrink-0 rounded-sm shadow-md sm:h-24 sm:w-24 md:h-28 md:w-28"
     />
     <div class="min-w-0 flex-1 overflow-hidden">
       <h1
-        class="flex items-baseline font-heading text-5xl tracking-wide uppercase md:text-6xl"
+        class="flex flex-wrap items-baseline font-heading text-3xl tracking-wide uppercase sm:text-5xl md:text-6xl"
       >
         <span class="font-light normal-case"
           >{formatGivenName(student.prenom)}</span
@@ -53,7 +57,7 @@
         >
       </h1>
       {#if subtitle}
-        <p class="mt-3 font-mono text-xs text-blue-100">{subtitle}</p>
+        <p class="mt-2 font-mono text-xs text-blue-100 sm:mt-3">{subtitle}</p>
       {/if}
     </div>
 
@@ -69,7 +73,7 @@
         label="Fiche Salesforce"
         variant="default"
         class={cn(
-          'shrink-0 self-end bg-white font-semibold text-epi-blue shadow-md',
+          'w-full shrink-0 justify-center bg-white font-semibold text-epi-blue shadow-md sm:w-auto sm:self-end',
           'hover:bg-white/90 hover:text-epi-blue hover:shadow-lg',
         )}
       />

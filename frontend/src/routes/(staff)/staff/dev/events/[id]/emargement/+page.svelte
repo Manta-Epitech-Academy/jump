@@ -464,6 +464,43 @@
               </Table.Cell>
             {/snippet}
 
+            <!-- Mobile card (below lg): name + contact on top, then the présence
+                 switch full-width beneath as the row's primary control. No `rowHref`
+                 on this table, so the switch and contact button stay directly
+                 tappable (no stretched-link overlay), which is how émargement is run
+                 on the floor from a phone. -->
+            {#snippet mobileRow(r: PresenceRow)}
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-3">
+                  <TalentAvatar
+                    talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                    size="sm"
+                  />
+                  <p class="min-w-0 flex-1 truncate text-sm">
+                    <span class="font-medium">{r.prenom}</span>
+                    <span class="font-bold uppercase">{r.nom}</span>
+                  </p>
+                  {#if r.phone || r.email || r.guardians.length}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                      onclick={() => openContact(r)}
+                      aria-label={`Coordonnées de ${r.prenom} ${r.nom}`}
+                    >
+                      <Phone class="h-4 w-4" />
+                    </Button>
+                  {/if}
+                </div>
+                <PresenceSwitch
+                  block
+                  status={rowStatus(r)}
+                  disabled={!canEdit}
+                  onset={(s) => setStatus(r, s)}
+                />
+              </div>
+            {/snippet}
+
             {#snippet empty()}
               <div class="flex flex-col items-center gap-3 py-6">
                 <span
