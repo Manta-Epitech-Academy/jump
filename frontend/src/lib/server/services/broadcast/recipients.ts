@@ -12,6 +12,10 @@ import type {
   RecipientRole,
 } from '$lib/domain/broadcasts';
 import { xpRangeForLevel } from '$lib/domain/xp';
+import {
+  parentBlockedWhere,
+  parentCompleteWhere,
+} from '$lib/server/db/stageCompliance';
 
 export interface RecipientSpec {
   campusId: string;
@@ -112,6 +116,23 @@ async function resolveTalentBased(
 
   for (const t of talents) {
     const campusName = t.participations[0]?.campus.name ?? '';
+
+    // For the parent audience, a talent who hasn't registered a guardian yet
+    // (never passed the onboarding "contacts d'urgence" step) has no parent to
+    // reach - that's a non-recipient, not an unreachable one. Skip it so it
+    // doesn't inflate the "exclus" count with phantom empty-name rows. A
+    // registered parent missing only this channel's contact (e.g. an email but
+    // no phone for an SMS send) still counts as a real exclusion below.
+    if (
+      isParent &&
+      !t.parentEmail &&
+      !t.parentPhone &&
+      !t.parentNom &&
+      !t.parentPrenom
+    ) {
+      continue;
+    }
+
     const email = isParent ? t.parentEmail : t.email;
     const phone = isParent ? t.parentPhone : t.phone;
     const prenom = isParent ? (t.parentPrenom ?? '') : t.prenom;
@@ -224,6 +245,11 @@ function talentWhere(spec: RecipientSpec): Prisma.TalentWhereInput {
   if (f.parentRulesSigned === 'yes')
     and.push({ parentRulesSignedAt: { not: null } });
   if (f.parentRulesSigned === 'no') and.push({ parentRulesSignedAt: null });
+  // Overall parent status: the union of the two acts (règlement co-signature +
+  // image-rights decision) that the granular flags above can only AND. "pending"
+  // = at least one still owed, the "relance every blocked parent" target.
+  if (f.parentStatus === 'pending') and.push(parentBlockedWhere);
+  if (f.parentStatus === 'complete') and.push(parentCompleteWhere);
   // Image rights: OR the selected states. `undecided` is the absence of a
   // decision; `accepted`/`refused` match the stored enum directly.
   if (f.imageRights?.length) {

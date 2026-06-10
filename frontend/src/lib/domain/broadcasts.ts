@@ -298,6 +298,11 @@ export interface BroadcastFilters {
   /** Règlement intérieur co-signed by the legal guardian (canonical minor
    *  compliance) — `Talent.parentRulesSignedAt`. */
   parentRulesSigned?: TristateFilter;
+  /** Overall parent-démarches status: `pending` = either act still owed
+   *  (image-rights undecided OR règlement not co-signed), `complete` = both
+   *  done. The union the two granular flags can't express together (they AND).
+   *  Drives "relance every blocked parent". See `parentBlockedWhere`. */
+  parentStatus?: 'pending' | 'complete';
   imageRights?: ImageRightsStatus[];
   jumpLevel?: JumpLevel[];
   hasPastEvent?: TristateFilter;
@@ -316,6 +321,7 @@ export function countActiveBroadcastFilters(
   if (f.niveau?.length) n++;
   if (f.jumpLevel?.length) n++;
   if (f.imageRights?.length) n++;
+  if (f.parentStatus) n++;
   if (isSet(f.charterSigned)) n++;
   if (isSet(f.rulesSigned)) n++;
   if (isSet(f.parentRulesSigned)) n++;

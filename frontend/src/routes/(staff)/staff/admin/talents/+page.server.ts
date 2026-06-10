@@ -21,6 +21,11 @@ import {
   type OnboardingStepFields,
   type TalentOnboardingFields,
 } from '$lib/domain/talentOnboarding';
+import {
+  parentBlockedWhere,
+  parentCompleteWhere,
+} from '$lib/server/db/stageCompliance';
+
 const PER_PAGE = 50;
 
 type AccountFilter = 'all' | 'active' | 'pending';
@@ -151,21 +156,13 @@ export const load: PageServerLoad = async ({ url }) => {
   }
 
   // Parent status. Both buckets presuppose a parent on file (a parentEmail to
-  // relance). "pending" mirrors the guardian-outstanding predicate in guards.ts
-  // (règlement not co-signed OR image-rights not decided); "complete" needs both
-  // settled. Must stay in sync with the row-level `parentStatus` below. Pushed
-  // onto AND so it composes with the search OR rather than clobbering it.
+  // relance), AND'd with the shared blocked/complete predicate so the admin
+  // list and the broadcast "parent en attente" filter can't drift. Pushed onto
+  // AND so it composes with the search OR rather than clobbering it.
   if (parentStatusFilter === 'pending') {
-    where.AND = [
-      { parentEmail: { not: null } },
-      { OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }] },
-    ];
+    where.AND = [{ parentEmail: { not: null } }, parentBlockedWhere];
   } else if (parentStatusFilter === 'complete') {
-    where.AND = [
-      { parentEmail: { not: null } },
-      { parentRulesSignedAt: { not: null } },
-      { imageRightsDecidedAt: { not: null } },
-    ];
+    where.AND = [{ parentEmail: { not: null } }, parentCompleteWhere];
   }
 
   const [rows, totalItems, totalAll, activeAll, stagiairesAll, campuses] =
