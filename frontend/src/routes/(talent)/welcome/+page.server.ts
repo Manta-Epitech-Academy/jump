@@ -3,8 +3,9 @@ import { error, redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { stageWindowEnd } from '$lib/domain/event';
+import { captureOnboardingReturn } from '$lib/server/auth/loginRedirect';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
 
   // /welcome is a one-shot gate before onboarding, not a destination. Once
@@ -44,6 +45,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, resolve('/'));
   }
 
+  // The splash is showing, so the talent is entering the funnel: stash the page
+  // they were originally heading for (e.g. an émargement QR) to resume after
+  // onboarding. Survives the markSeen → onboarding handoff via the cookie.
+  captureOnboardingReturn(url, cookies);
+
   return {
     prenom: locals.talent.prenom,
     eventId: event.id,
@@ -62,7 +68,7 @@ export const actions: Actions = {
 
     // The message has been read here; welcome runs before onboarding, so hand
     // off to the onboarding flow. The dashboard celebration fires later, once
-    // onboarding completes and redirects with `?welcome=1`.
+    // onboarding completes and arms the one-shot arrival-celebration cookie.
     throw redirect(303, resolve('/onboarding'));
   },
 };

@@ -67,37 +67,43 @@ export function rulesStatus(
 }
 
 /**
- * The dossier's overall readiness, folding both gates (règlement intérieur +
- * droit à l'image) into the three states the cohort badge shows. One definition
- * shared by the inscrits table, its statut filter and the XLSX export so they
- * never drift on what counts as "prêt" vs merely "en cours".
+ * The inscrit's stage in the admission funnel, the single state the cohort badge
+ * shows. Gated on connection first, then the two dossier gates (règlement
+ * intérieur + droit à l'image): a student who never logged in is the most urgent
+ * case and must read distinctly from one who connected but still owes documents.
+ * One definition shared by the inscrits table, its statut filter and the XLSX
+ * export so they never drift.
  */
-export type DossierReadiness = 'ready' | 'partial' | 'empty';
+export type InscritStatus = 'never_connected' | 'in_progress' | 'ready';
 
-/** UI labels (French) keyed by the folded readiness state. */
-export const DOSSIER_READINESS_LABELS: Record<DossierReadiness, string> = {
+/**
+ * UI labels (French) keyed by the funnel state. `never_connected` is the short
+ * "Jamais" on purpose, so the pill and filter chip stay as compact as the other
+ * two; the badge tooltip spells out the full "Jamais connecté".
+ */
+export const INSCRIT_STATUS_LABELS: Record<InscritStatus, string> = {
+  never_connected: 'Jamais',
+  in_progress: 'En cours',
   ready: 'Prêt',
-  partial: 'En cours',
-  empty: 'Incomplet',
 };
 
 /**
- * Folds the two per-document statuses into the badge's three states:
- *  - `ready`   — both gates done: règlement signed AND image-rights decided.
- *  - `partial` — some forward motion but not both done: a signed règlement, a
- *                settled image decision, or the student signed and the guardian
- *                co-signature is still pending (`awaiting_parent`).
- *  - `empty`   — nothing started on either gate.
- * The `ready` case is exactly the old binary "prêt"; `partial` carves the
- * intermediary out of what used to all read as "incomplet".
+ * Folds connection + the two per-document statuses into the badge's three states:
+ *  - `never_connected` — the talent never logged in (no real `bauth_session`).
+ *                        Most urgent: nothing in the dossier can move until they
+ *                        connect, so it reads red regardless of document state.
+ *  - `ready`           — connected AND both gates done: règlement signed AND
+ *                        image-rights decided.
+ *  - `in_progress`     — connected but not both gates done. Subsumes the old
+ *                        "partial" (some motion) and the connected slice of the
+ *                        old "empty" (nothing signed yet).
  */
-export function dossierReadiness(
+export function inscritStatus(
+  connected: boolean,
   rules: RulesStatus,
   image: ImageRightsStatus,
-): DossierReadiness {
-  const rulesDone = rules === 'signed';
-  const imageDone = image !== 'undecided';
-  if (rulesDone && imageDone) return 'ready';
-  if (rulesDone || imageDone || rules === 'awaiting_parent') return 'partial';
-  return 'empty';
+): InscritStatus {
+  if (!connected) return 'never_connected';
+  if (rules === 'signed' && image !== 'undecided') return 'ready';
+  return 'in_progress';
 }

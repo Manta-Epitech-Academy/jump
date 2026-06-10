@@ -106,11 +106,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       db.interview.count({
         where: { talentId: params.id, status: 'completed' },
       }),
-      // First platform login (oldest session). Keyed on the talent relation so
-      // it parallelizes with the fetch above instead of waiting on its userId;
+      // First platform login (oldest real session). Keyed on the talent relation
+      // so it parallelizes with the fetch above instead of waiting on its userId;
       // a cross-campus id still 404s via the scoped talent fetch in this batch.
+      // `impersonatedBy: null` excludes admin impersonation sessions, so testing
+      // a talent's experience never counts as their first login.
       prisma.bauth_session.findFirst({
-        where: { user: { talent: { id: params.id } } },
+        where: { user: { talent: { id: params.id } }, impersonatedBy: null },
         orderBy: { createdAt: 'asc' },
         select: { createdAt: true },
       }),

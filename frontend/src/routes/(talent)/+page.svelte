@@ -6,7 +6,6 @@
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
   import { EVENT_TYPE_LABELS, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -20,7 +19,6 @@
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
 
@@ -44,22 +42,20 @@
     timers.push(setTimeout(() => (showXpFloat = false), XP_FLOAT_DURATION_MS));
   }
 
-  // Arrival celebration. Onboarding completion redirects here with the one-shot
-  // `?welcome=1` signal; we fire the celebration and leave the Actualités card
-  // highlighted so it's easy to find. No modal pops — the card surfaces the
-  // welcome message inline (the /welcome splash earlier is a separate greeting).
+  // Arrival celebration. The server arms `data.onboardingArrival` on the first
+  // dashboard load after onboarding completes (consuming a one-shot cookie), so
+  // its presence is the whole trigger: there is no URL param to read or scrub,
+  // and a refresh can't replay it. We fire the XP float + welcome toast and
+  // highlight the Actualités card so it's easy to find. No modal pops: the card
+  // surfaces the welcome message inline (the /welcome splash is a separate
+  // earlier greeting).
   let welcomeHighlight = $state(false);
   onMount(() => {
-    if (!page.url.searchParams.has('welcome')) return;
-    // Clean URL without reloading so the celebration can't replay.
-    history.replaceState({}, '', page.url.pathname);
+    const arrival = data.onboardingArrival;
+    if (!arrival) return;
     welcomeHighlight = true;
 
-    // The boosted total (base + early-bird) is computed server-side; fall back
-    // to the base if the arrival payload is somehow absent.
-    const arrival = data.onboardingArrival;
-    const totalXp = arrival?.totalXp ?? WELCOME_XP_BONUS;
-    const earlyBirdBonus = arrival?.earlyBirdBonus ?? 0;
+    const { totalXp, earlyBirdBonus } = arrival;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     celebrateXp(totalXp, timers);

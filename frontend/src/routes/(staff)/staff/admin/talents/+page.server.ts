@@ -28,7 +28,10 @@ import {
 
 const PER_PAGE = 50;
 
-type AccountFilter = 'all' | 'active' | 'pending';
+// Mirrors the three onboarding states shown in the table's Statut column:
+// `active` = onboarding complete, `onboarding` = account exists but mid-flow,
+// `never` = no login account yet. `all` clears the filter.
+type StatusFilter = 'all' | 'active' | 'onboarding' | 'never';
 
 /**
  * "Stagiaire" = this year's cohort, not anyone who ever attended a stage. The
@@ -81,13 +84,33 @@ function onboardingStepLabel(t: OnboardingStepFields): string | null {
   return `${completed + 1}/${total} · ${ONBOARDING_STEP_LABELS[step!]}`;
 }
 
+/**
+ * Prisma predicate for a talent who has fully cleared platform onboarding —
+ * every step gate set AND the charter accepted. The Prisma mirror of
+ * `deriveOnboardingStatus(...) === 'done'`; the three-way Statut filter splits
+ * accounts into done (`active`) vs not-done (`onboarding`) by negating this, so
+ * a new gate added to the ladder has to land here too.
+ */
+const ONBOARDING_DONE_WHERE: import('@prisma/client').Prisma.TalentWhereInput =
+  {
+    infoValidatedAt: { not: null },
+    highSchoolValidatedAt: { not: null },
+    parentsValidatedAt: { not: null },
+    techInterestsValidatedAt: { not: null },
+    generalInterestsValidatedAt: { not: null },
+    equipmentValidatedAt: { not: null },
+    processingCompletedAt: { not: null },
+    rulesSignedAt: { not: null },
+    charterAcceptedAt: { not: null },
+  };
+
 // Admin is campus-agnostic (no staffProfile.campusId), so the talent directory
 // here is intentionally global — unlike the campus-scoped dev students list.
 export const load: PageServerLoad = async ({ url }) => {
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
   const search = url.searchParams.get('q') || '';
   const niveau = url.searchParams.get('niveau') || '';
-  const account = (url.searchParams.get('account') || 'all') as AccountFilter;
+  const status = (url.searchParams.get('status') || 'all') as StatusFilter;
   const campus = url.searchParams.get('campus') || '';
   // Parent completion status. A parent is "complete" once they've co-signed the
   // règlement AND settled the image-rights decision; "pending" means still
@@ -105,7 +128,7 @@ export const load: PageServerLoad = async ({ url }) => {
   // Clickable column sort. Unknown/empty `sort` falls back to the baseline
   // ordering (most-recently-active first), so a junk param never breaks the
   // page and the default first load is unchanged.
-  const SORT_KEYS = ['nom', 'niveau', 'activite'] as const;
+  const SORT_KEYS = ['nom', 'niveau', 'xp', 'activite'] as const;
   const sortParam = url.searchParams.get('sort') || '';
   const sort = (SORT_KEYS as readonly string[]).includes(sortParam)
     ? sortParam
@@ -118,9 +141,14 @@ export const load: PageServerLoad = async ({ url }) => {
       ? [{ nom: dir }, { prenom: dir }]
       : sort === 'niveau'
         ? [{ niveau: { sort: dir, nulls: 'last' } }, { nom: 'asc' }]
-        : sort === 'activite'
-          ? [{ lastActiveAt: { sort: dir, nulls: 'last' } }, { nom: 'asc' }]
-          : [{ lastActiveAt: { sort: 'desc', nulls: 'last' } }, { nom: 'asc' }];
+        : sort === 'xp'
+          ? [{ xp: dir }, { nom: 'asc' }]
+          : sort === 'activite'
+            ? [{ lastActiveAt: { sort: dir, nulls: 'last' } }, { nom: 'asc' }]
+            : [
+                { lastActiveAt: { sort: 'desc', nulls: 'last' } },
+                { nom: 'asc' },
+              ];
 
   const where: import('@prisma/client').Prisma.TalentWhereInput = {};
   if (search) {
@@ -134,8 +162,18 @@ export const load: PageServerLoad = async ({ url }) => {
     }
   }
   if (niveau) where.niveau = niveau;
-  if (account === 'active') where.userId = { not: null };
-  else if (account === 'pending') where.userId = null;
+  // Three-way Statut filter. `active`/`onboarding` both require an account, then
+  // split on whether onboarding is fully cleared; `never` is the no-account set.
+  // The done-predicate goes under AND/NOT so it can't collide with the search OR
+  // at the top level (Prisma keys both as `OR`).
+  if (status === 'never') where.userId = null;
+  else if (status === 'active') {
+    where.userId = { not: null };
+    where.AND = ONBOARDING_DONE_WHERE;
+  } else if (status === 'onboarding') {
+    where.userId = { not: null };
+    where.NOT = ONBOARDING_DONE_WHERE;
+  }
   // Campus and type both narrow the same relation, so build one `some` filter
   // and let them AND together — "a stagiaire *at* campus X" means one
   // participation that is both, not two separate matches. A talent's campus
@@ -279,7 +317,7 @@ export const load: PageServerLoad = async ({ url }) => {
     filters: {
       q: search,
       niveau,
-      account,
+      status,
       campus,
       type,
       sort,

@@ -14,7 +14,9 @@
     RULES_STATUS_LABELS,
   } from '$lib/domain/stageCompliance';
   import {
-    IMAGE_RIGHTS_STATUS_LABELS,
+    IMAGE_RIGHTS_DISPLAY_LABELS,
+    imageRightsStatus,
+    imageRightsDisplayStatus,
     type ImageRightsDecision,
   } from '$lib/domain/imageRights';
   import type { Communication } from '$lib/domain/communications';
@@ -116,27 +118,48 @@
     };
   });
 
+  // Made parallel to the règlement row: an undecided image splits into "awaiting
+  // parent" (the student signed, so the parent flow that co-signs both is under
+  // way) vs "pending" (nothing signed yet), gated on the student's own signature,
+  // not `rules`, whose `signed` state a staff offline attestation can reach
+  // without a parent ever being invited.
+  const imageDisplay = $derived(
+    imageRightsDisplayStatus(
+      imageRightsStatus({ imageRightsDecision }),
+      rulesSignedAt != null,
+    ),
+  );
+
   const imageDoc = $derived.by<DocStatus>(() => {
-    if (imageRightsDecision === 'accepted') {
+    if (imageDisplay === 'accepted') {
       return {
-        label: IMAGE_RIGHTS_STATUS_LABELS.accepted,
+        label: IMAGE_RIGHTS_DISPLAY_LABELS.accepted,
         colorClass: 'text-epi-teal-solid',
         icon: Check,
         tooltip:
           "Le parent autorise l'utilisation de l'image du stagiaire par Epitech.",
       };
     }
-    if (imageRightsDecision === 'refused') {
+    if (imageDisplay === 'refused') {
       return {
-        label: IMAGE_RIGHTS_STATUS_LABELS.refused,
+        label: IMAGE_RIGHTS_DISPLAY_LABELS.refused,
         colorClass: 'text-epi-orange',
         icon: X,
         tooltip:
           'Les photos et les vidéos de ce stagiaire ne doivent pas être utilisées par Epitech.',
       };
     }
+    if (imageDisplay === 'awaiting_parent') {
+      return {
+        label: IMAGE_RIGHTS_DISPLAY_LABELS.awaiting_parent,
+        colorClass: 'text-amber-600 dark:text-amber-500',
+        icon: Clock,
+        tooltip:
+          "En attente de la décision des parents sur le droit à l'image.",
+      };
+    }
     return {
-      label: IMAGE_RIGHTS_STATUS_LABELS.undecided,
+      label: IMAGE_RIGHTS_DISPLAY_LABELS.pending,
       colorClass: 'text-destructive',
       icon: Clock,
       tooltip: "Pas d'information, en attente de signature des parents.",
