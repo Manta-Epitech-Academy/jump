@@ -52,8 +52,8 @@
         <span class="font-light normal-case"
           >{formatGivenName(student.prenom)}</span
         >
-        <span class="ml-3">{student.nom}</span><span class="text-epi-teal"
-          >_</span
+        <span class="ml-3"
+          >{student.nom}<span class="text-epi-teal">_</span></span
         >
       </h1>
       {#if subtitle}

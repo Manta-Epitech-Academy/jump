@@ -47,8 +47,9 @@
      * anchor overlay. Prefer this over a JS click handler for navigation: a real
      * `<a>` gives cmd/middle/right-click (open in new tab), hover URL preview,
      * native keyboard activation and correct a11y — none of which a row `onclick`
-     * can replicate. Any interactive element inside a cell must then carry
-     * `relative z-10` to stay clickable above the overlay.
+     * can replicate. Any interactive element inside a cell (or a `mobileRow`
+     * card, which reuses the same overlay) must then carry `relative z-10` to
+     * stay clickable above the overlay.
      */
     rowHref?: (row: T) => string;
     /** Accessible name for the row link — the cells are not inside the anchor. */
@@ -255,7 +256,7 @@
       </div>
     {:else}
       {#each rows as r, i (rowKey(r, i))}
-        <div class="group/row relative rounded-sm border bg-card p-3 shadow-sm">
+        <div class="relative rounded-sm border bg-card p-3 shadow-sm">
           {@render mobileRow(r, i)}
           {#if rowHref}
             <a
