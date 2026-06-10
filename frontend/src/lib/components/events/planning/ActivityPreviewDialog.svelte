@@ -2,7 +2,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
-  import DOMPurify from 'isomorphic-dompurify';
+  import { sanitizeActivityContent } from '$lib/sanitize';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import ExternalLink from '@lucide/svelte/icons/external-link';
@@ -18,24 +18,28 @@
   import type { TimeSlotWithActivity } from '$lib/types';
   import type { ActivityStructure } from '$lib/server/services/progressService';
 
+  // Defaults make the read-only call site clean: a viewer (e.g. the dev space)
+  // mounts it with just `slot` + `timezone` and gets no edit/train footer. The
+  // editing call site (CalendarPlanner) passes every prop explicitly, so its
+  // behaviour is unchanged.
   let {
     open = $bindable(false),
     slot,
     timezone,
-    canEdit,
-    canTrain,
-    eventId,
-    onEdit,
-    onDelete,
+    canEdit = false,
+    canTrain = false,
+    eventId = null,
+    onEdit = () => {},
+    onDelete = () => {},
   }: {
-    open: boolean;
+    open?: boolean;
     slot: TimeSlotWithActivity | null;
     timezone: string;
-    canEdit: boolean;
-    canTrain: boolean;
-    eventId: string | null;
-    onEdit: () => void;
-    onDelete: () => void;
+    canEdit?: boolean;
+    canTrain?: boolean;
+    eventId?: string | null;
+    onEdit?: () => void;
+    onDelete?: () => void;
   } = $props();
 
   let activity = $derived(slot?.activity ?? null);
@@ -68,7 +72,7 @@
 
   let staticHtml = $derived(
     activity && !activity.isDynamic && activity.content
-      ? DOMPurify.sanitize(activity.content)
+      ? sanitizeActivityContent(activity.content)
       : '',
   );
 

@@ -24,6 +24,15 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
 };
 
 /**
+ * Human label for a raw `Event.eventType` string (Prisma types it as `string`),
+ * falling back to the raw value for any unknown type. Use this for talent-facing
+ * copy and QR sheets so the per-event `titre` (cohort dates/suffixes) never leaks.
+ */
+export function eventTypeLabel(eventType: string): string {
+  return EVENT_TYPE_LABELS[eventType as EventType] ?? eventType;
+}
+
+/**
  * Default span of a Stage de Seconde when an event carries no explicit
  * `endDate`. Seconde internships run ~2 weeks, and we rarely populate
  * `endDate`, so this default is what actually drives "is the stage still

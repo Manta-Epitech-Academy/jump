@@ -78,6 +78,22 @@
       [key]: v === 'any' ? undefined : (v as TristateFilter),
     };
   }
+
+  // Overall parent-démarches status. Unlike the granular flags (which AND), this
+  // is the union: "en attente" = the guardian still owes the image-rights
+  // verdict OR the règlement co-signature. The "relance every blocked parent"
+  // control.
+  const parentStatusOptions = [
+    { value: 'any', label: 'Indifférent' },
+    { value: 'pending', label: 'En attente' },
+    { value: 'complete', label: 'Complet' },
+  ];
+  function setParentStatus(v: string) {
+    filters = {
+      ...filters,
+      parentStatus: v === 'any' ? undefined : (v as 'pending' | 'complete'),
+    };
+  }
 </script>
 
 {#snippet chip(label: string, selected: boolean, onToggle: () => void)}
@@ -168,6 +184,22 @@
           })}
         {/each}
       </div>
+    </div>
+
+    <div class="grid gap-1.5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-xs font-medium">Démarches parent</p>
+        <SegmentedFilter
+          options={parentStatusOptions}
+          value={filters.parentStatus ?? 'any'}
+          onChange={setParentStatus}
+          ariaLabel="Statut des démarches parent"
+        />
+      </div>
+      <p class="text-[11px] text-muted-foreground">
+        « En attente » = droit à l'image non décidé ou règlement non co-signé.
+        Cible les parents à relancer.
+      </p>
     </div>
 
     {#each tristateGroups as group (group.heading)}

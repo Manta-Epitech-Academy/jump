@@ -2,7 +2,6 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
-import { MAIL_FROM } from '$lib/server/email';
 import {
   getCampusId,
   getCampusTimezone,
@@ -14,7 +13,7 @@ import {
   getLifecycleBounds,
 } from '$lib/domain/eventLifecycle';
 import { EVENT_TYPES } from '$lib/domain/event';
-import { capitalize } from '$lib/utils';
+import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/stageCompliance';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
@@ -106,11 +105,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       db.interview.count({
         where: { talentId: params.id, status: 'completed' },
       }),
-      // First platform login (oldest session). Keyed on the talent relation so
-      // it parallelizes with the fetch above instead of waiting on its userId;
+      // First platform login (oldest real session). Keyed on the talent relation
+      // so it parallelizes with the fetch above instead of waiting on its userId;
       // a cross-campus id still 404s via the scoped talent fetch in this batch.
+      // `impersonatedBy: null` excludes admin impersonation sessions, so testing
+      // a talent's experience never counts as their first login.
       prisma.bauth_session.findFirst({
-        where: { user: { talent: { id: params.id } } },
+        where: { user: { talent: { id: params.id } }, impersonatedBy: null },
         orderBy: { createdAt: 'asc' },
         select: { createdAt: true },
       }),
@@ -187,18 +188,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       .filter((i) => i.kind === 'tech' && i.recommendationMessage != null)
       .map((i) => i.recommendationMessage as string);
 
-    // REC-001/003 name infra in their copy: the public app URL the student
-    // should reach, and the address the parents' signing mail comes from. Pull
-    // both from config so they auto-track the environment instead of hardcoding
-    // (ORIGIN = https://jump.epiboost.fr in prod; sender = the MAIL_FROM address).
+    // REC-001/003 name the public app URL the student and their parents should
+    // reach. Pull it from config so it auto-tracks the environment instead of
+    // hardcoding (ORIGIN = https://jump.epiboost.fr in prod).
     const appUrl = env.ORIGIN ?? '';
-    const senderEmail = MAIL_FROM.match(/<([^>]+)>/)?.[1] ?? MAIL_FROM;
 
     const recommendations = deriveTalentRecommendations({
       ...student,
-      prenom: capitalize(student.prenom),
+      prenom: formatGivenName(student.prenom),
       appUrl,
-      senderEmail,
       connected: firstLoginAt != null,
       rulesCompliant: isRulesCompliant(
         student.parentRulesSignedAt,

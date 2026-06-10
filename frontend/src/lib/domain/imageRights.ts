@@ -38,6 +38,46 @@ export function imageRightsStatus(talent: {
   return talent.imageRightsDecision ?? 'undecided';
 }
 
+/**
+ * Display-only status for the dossier breakdown, made parallel to
+ * {@link RulesStatus} so the règlement and droit-à-l'image rows read
+ * consistently. The image decision is the guardian's alone, so it has no
+ * student step of its own. But the same parent flow co-signs the règlement and
+ * decides the image, both invited by the student's own online signature. So an
+ * *undecided* image splits the way the règlement does: "awaiting parent" once
+ * the student has signed (`studentSigned`, which is what invites the guardian),
+ * else "pending". A settled decision (`accepted` / `refused`) passes through
+ * unchanged.
+ *
+ * `studentSigned` must be the student's own signature (`rulesSignedAt != null`),
+ * not "the règlement is satisfied": a staff offline attestation (`charteSigned`)
+ * marks the règlement signed without ever inviting a guardian, so folding it in
+ * would mislabel an undecided image as "awaiting parent" when no one was asked.
+ */
+export type ImageRightsDisplayStatus =
+  | ImageRightsDecision
+  | 'awaiting_parent'
+  | 'pending';
+
+/** UI labels (French); the two undecided splits mirror `RULES_STATUS_LABELS`. */
+export const IMAGE_RIGHTS_DISPLAY_LABELS: Record<
+  ImageRightsDisplayStatus,
+  string
+> = {
+  accepted: 'Autorisé',
+  refused: 'Refusé',
+  awaiting_parent: 'Attente parent',
+  pending: 'En attente',
+};
+
+export function imageRightsDisplayStatus(
+  status: ImageRightsStatus,
+  studentSigned: boolean,
+): ImageRightsDisplayStatus {
+  if (status !== 'undecided') return status;
+  return studentSigned ? 'awaiting_parent' : 'pending';
+}
+
 /** True once the guardian has made any decision — the chase can stop. */
 export function isImageRightsDecided(talent: {
   imageRightsDecidedAt: Date | string | null;

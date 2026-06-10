@@ -10,7 +10,7 @@ const optionalText = (max: number) =>
     .or(z.literal('').transform(() => undefined));
 
 const optionalRecommendation = z
-  .nativeEnum(InterviewRecommendation)
+  .enum(InterviewRecommendation)
   .nullish()
   .or(z.literal('').transform(() => null));
 

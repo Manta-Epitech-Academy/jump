@@ -6,6 +6,60 @@
  * (`civiliteEnum`, `parentTypeEnum`).
  */
 
+/**
+ * Title-cases a given name for display: every space / hyphen / apostrophe
+ * delimited segment gets an uppercase initial and a lowercase tail, so a value
+ * stored as "MARIE" renders "Marie", "jean-pierre" renders "Jean-Pierre" and
+ * "anne sophie" renders "Anne Sophie". Unicode- and accent-aware.
+ *
+ * Names are persisted exactly as the student or Salesforce supplied them (often
+ * ALL CAPS); this is a pure display projection, never written back, so the raw
+ * value stays the truth that Salesforce reconciliation compares against. It also
+ * replaces the naive `capitalize`, which lowercased everything after the first
+ * letter and so flattened "Jean-Pierre" to "Jean-pierre". Surnames are rendered
+ * uppercase by their own surface (CSS in <TalentName>, `formatFamilyName` below),
+ * so only the given name needs this.
+ */
+export function formatGivenName(value: string | null | undefined): string {
+  if (!value) return '';
+  return value
+    .toLocaleLowerCase('fr')
+    .replace(
+      /(^|[\s\-'’])(\p{L})/gu,
+      (_match, sep, ch) => sep + ch.toLocaleUpperCase('fr'),
+    );
+}
+
+/**
+ * Uppercases a surname for display (French civil convention: "Dupont" → "DUPONT").
+ * Locale-aware so accented letters case correctly ("é" → "É"). Like
+ * formatGivenName, a pure display projection over the raw stored value, never
+ * written back. Use formatGivenName instead where the surname sits in a
+ * salutation rather than a list ("Bonjour Mr/Mme Dupont,", not "DUPONT").
+ */
+export function formatFamilyName(value: string | null | undefined): string {
+  return value ? value.toLocaleUpperCase('fr') : '';
+}
+
+/**
+ * Person name as a plain string with the surname uppercased, matching the
+ * <TalentName> component and the talent profile hero. Use this only where
+ * markup is impossible (document titles, breadcrumb labels passed as strings);
+ * anywhere an element can render, prefer <TalentName>. `order` mirrors the
+ * component's: 'surname-first' ("DUPONT Marie") for scannable lists,
+ * 'given-first' ("Marie DUPONT") for civil identity.
+ */
+export function formatPersonName(
+  prenom: string | null | undefined,
+  nom: string | null | undefined,
+  order: 'given-first' | 'surname-first' = 'given-first',
+): string {
+  const given = formatGivenName(prenom);
+  const family = formatFamilyName(nom);
+  const parts = order === 'surname-first' ? [family, given] : [given, family];
+  return parts.filter(Boolean).join(' ');
+}
+
 export const CIVILITE_OPTIONS = [
   { value: 'homme', label: 'Homme' },
   { value: 'femme', label: 'Femme' },

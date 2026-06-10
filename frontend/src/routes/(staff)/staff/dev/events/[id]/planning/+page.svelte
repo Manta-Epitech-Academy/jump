@@ -1,66 +1,29 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { resolve } from '$app/paths';
-  import CalendarPlanner from '$lib/components/events/planning/CalendarPlanner.svelte';
-  import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
-  import { can } from '$lib/domain/permissions';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
+  import EventPlanningView from './components/EventPlanningView.svelte';
 
   let { data }: { data: PageData } = $props();
+
+  // Stage-only release has shallow page depth, so the breadcrumb is noise; it
+  // only earns its place once coding_club deepens the workspace.
+  let hasCodingClub = $derived(
+    (data.featureFlags ?? []).includes('coding_club'),
+  );
 </script>
 
 <svelte:head>
   <title>{STAGE_SECONDE_LABEL} — Planning</title>
 </svelte:head>
 
-<div class="flex h-[calc(100vh-4rem)] flex-col bg-background">
-  <div class="shrink-0 border-b pb-4">
-    <PageBreadcrumb
-      items={[
-        {
-          label: STAGE_SECONDE_LABEL,
-          href: resolve(`/staff/dev/events/${data.event.id}`),
-        },
-        { label: 'Planning' },
-      ]}
-    />
-    <div>
-      <h1 class="text-2xl font-bold text-epi-blue uppercase">
-        Planning<span class="text-epi-teal">_</span>
-      </h1>
-      <p
-        class="text-sm font-bold tracking-wider text-muted-foreground uppercase"
-      >
-        {STAGE_SECONDE_LABEL} • {new Date(data.event.date).toLocaleDateString(
-          'fr-FR',
-          {
-            day: 'numeric',
-            month: 'short',
-            timeZone: data.timezone,
-          },
-        )}{#if data.event.endDate}
-          – {new Date(data.event.endDate).toLocaleDateString('fr-FR', {
-            day: 'numeric',
-            month: 'short',
-            timeZone: data.timezone,
-          })}
-        {/if}
-      </p>
-    </div>
-  </div>
-
-  <div class="flex-1 overflow-hidden p-4">
-    <CalendarPlanner
-      planning={data.planning}
-      templates={data.templates}
-      eventDate={data.event.date}
-      eventEndDate={data.event.endDate}
-      planningTemplates={data.planningTemplates}
-      applyTemplateForm={data.applyTemplateForm}
-      timezone={data.timezone}
-      containerClass="h-full"
-      canEdit={can('devLead', data.staffProfile?.staffRole)}
-      eventId={data.event.id}
-    />
-  </div>
-</div>
+<!-- Keyed on the event so all per-event state (visible week, open preview)
+     re-seeds when staff switch events; see EventPlanningView. -->
+{#key data.event.id}
+  <EventPlanningView
+    event={data.event}
+    planning={data.planning}
+    timezone={data.timezone}
+    serverNow={data.serverNow}
+    {hasCodingClub}
+  />
+{/key}

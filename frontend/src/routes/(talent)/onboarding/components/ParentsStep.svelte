@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
+  import { onboardingSubmit } from '../stepSubmit';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { PhoneInput } from '$lib/components/ui/phone-input';
@@ -63,7 +63,12 @@
   $effect(() => {
     if (errors && Object.keys(errors).length > 0) {
       requestAnimationFrame(() => {
-        const errorEl = formEl?.querySelector('.text-destructive');
+        // Prefer the first field-level error (a <span>); fall back to the
+        // form-level alert (a <div>) so an error on a path with no inline
+        // message still scrolls something into view rather than failing silent.
+        const errorEl =
+          formEl?.querySelector('span.text-destructive') ??
+          formEl?.querySelector('.text-destructive');
         if (!errorEl) return;
         const scrollParent = formEl?.closest('[class*="overflow-y"]');
         if (scrollParent) {
@@ -94,17 +99,7 @@
   bind:this={formEl}
   method="POST"
   action="?/validateParents"
-  use:enhance={() => {
-    submitting = true;
-    return async ({ result, update }) => {
-      if (result.type === 'success') {
-        await invalidateAll();
-        return;
-      }
-      await update();
-      submitting = false;
-    };
-  }}
+  use:enhance={onboardingSubmit((v) => (submitting = v))}
   class="space-y-6"
 >
   <input type="hidden" name="parentType" value={localParentType} />
@@ -112,6 +107,20 @@
   {#if showParent2}
     <input type="hidden" name="parent2Type" value={localP2Type} />
     <input type="hidden" name="parent2Civilite" value={localP2Civilite} />
+  {/if}
+
+  <!-- Form-level guard: a submit that fails validation always surfaces here,
+       even if an error path has no inline field message (the silent-fail class
+       that made "Continuer" look like a no-op). It's a <div>, so the scroll
+       effect still prefers a precise field <span> when one exists. -->
+  {#if errors && Object.keys(errors).length > 0}
+    <div
+      role="alert"
+      class="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+    >
+      Certains champs ne sont pas valides. Corrigez les erreurs indiquées
+      ci-dessous pour continuer.
+    </div>
   {/if}
 
   <!-- Parent 1 -->
@@ -303,6 +312,9 @@
               >
             {/each}
           </div>
+          {#if errors?.parent2Type}<span class="mt-1 text-xs text-destructive"
+              >{errors.parent2Type[0]}</span
+            >{/if}
         </div>
         <div>
           <p
@@ -323,6 +335,10 @@
               >
             {/each}
           </div>
+          {#if errors?.parent2Civilite}<span
+              class="mt-1 text-xs text-destructive"
+              >{errors.parent2Civilite[0]}</span
+            >{/if}
         </div>
       </div>
       <div
@@ -338,6 +354,9 @@
             placeholder="Sophie"
             class={fieldInput}
           />
+          {#if errors?.parent2Prenom}<span class="text-xs text-destructive"
+              >{errors.parent2Prenom[0]}</span
+            >{/if}
         </div>
         <div>
           <Label for="parent2Nom" class={fieldLabel}>Nom</Label>
@@ -349,6 +368,9 @@
             placeholder="Dupont"
             class={fieldInput}
           />
+          {#if errors?.parent2Nom}<span class="text-xs text-destructive"
+              >{errors.parent2Nom[0]}</span
+            >{/if}
         </div>
       </div>
       <!-- Stacked so the phone field gets full width — see IdentityStep. -->
@@ -365,6 +387,9 @@
             placeholder="parent2@mail.com"
             class={fieldInput}
           />
+          {#if errors?.parent2Email}<span class="text-xs text-destructive"
+              >{errors.parent2Email[0]}</span
+            >{/if}
         </div>
         <div>
           <Label for="parent2Phone" class={fieldLabel}>Téléphone</Label>

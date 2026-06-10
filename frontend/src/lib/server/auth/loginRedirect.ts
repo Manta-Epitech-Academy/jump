@@ -139,3 +139,63 @@ export function consumeRedirectCookie(
   if (raw) cookies.delete(REDIRECT_COOKIE, { path: '/' });
   return redirectTargetFor(raw, audience);
 }
+
+// ── Resume-after-onboarding ──────────────────────────────────────────────────
+//
+// The login redirect above gets an unauthenticated visitor back to the page
+// they were heading for, but only as far as the first guard: a talent who still
+// owes onboarding is then bounced into the welcome/onboarding funnel, and the
+// login target is already spent. This second, parallel target survives that
+// funnel so onboarding completion can drop the talent exactly where they were
+// going. The motivating case: an émargement QR scanned before the talent has
+// finished onboarding. They sign everything first, then land on the check-in
+// and get marked present, instead of silently ending on the dashboard.
+const ONBOARDING_REDIRECT_COOKIE = 'post_onboarding_redirect';
+// Onboarding is seven steps; a teenager can take a while. Generous but bounded.
+const ONBOARDING_COOKIE_MAX_AGE = 30 * 60; // 30 minutes
+
+/**
+ * The URL a welcome/onboarding guard bounces to, carrying the page the talent
+ * was trying to reach as `?redirect=` (the welcome/onboarding page load then
+ * stashes it). Only deep links are carried: the dashboard is the default
+ * landing spot anyway, so a bare-root target is dropped. Like
+ * `loginUrlWithRedirect`, the guard only ever bounces a path from the talent's
+ * own space, so the open-redirect check alone is enough here.
+ */
+export function onboardingFunnelUrl(destPath: string, url: URL): string {
+  const target = url.pathname + url.search;
+  if (pathnameOf(target) === '/' || !safeRedirectTarget(target))
+    return destPath;
+  return `${destPath}?${REDIRECT_PARAM}=${encodeURIComponent(target)}`;
+}
+
+/**
+ * Persist the `?redirect=` target into a cookie that survives the multi-step
+ * onboarding wizard. Unlike the login capture, an ABSENT param is a no-op, not a
+ * delete: the wizard re-runs its load on every step with no param, and deleting
+ * then would drop the target mid-flow.
+ */
+export function captureOnboardingReturn(url: URL, cookies: Cookies): void {
+  const target = redirectTargetFor(
+    url.searchParams.get(REDIRECT_PARAM),
+    'talent',
+  );
+  if (!target) return;
+  cookies.set(ONBOARDING_REDIRECT_COOKIE, target, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: ONBOARDING_COOKIE_MAX_AGE,
+  });
+}
+
+/**
+ * Read + clear the onboarding return target, or null. Consumed at onboarding
+ * completion: a talent who entered onboarding via a deep link resumes there (the
+ * émargement check-in) instead of the default dashboard.
+ */
+export function consumeOnboardingReturn(cookies: Cookies): string | null {
+  const raw = cookies.get(ONBOARDING_REDIRECT_COOKIE);
+  if (raw) cookies.delete(ONBOARDING_REDIRECT_COOKIE, { path: '/' });
+  return redirectTargetFor(raw, 'talent');
+}

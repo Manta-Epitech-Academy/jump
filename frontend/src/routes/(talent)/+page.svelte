@@ -6,7 +6,6 @@
   import { fly } from 'svelte/transition';
   import { triggerConfetti } from '$lib/actions/confetti';
   import { welcomeRewardToast } from '$lib/components/talent/rewardToast';
-  import { WELCOME_XP_BONUS } from '$lib/domain/xp';
   import { EVENT_TYPE_LABELS, minutesToHHMM } from '$lib/domain/event';
   import Rocket from '@lucide/svelte/icons/rocket';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -20,7 +19,6 @@
   import XpFloat from '$lib/components/talent/XpFloat.svelte';
   import MinigameRewardCelebration from '$lib/components/talent/MinigameRewardCelebration.svelte';
   import { onMount } from 'svelte';
-  import { page } from '$app/state';
 
   let { data }: { data: PageData } = $props();
 
@@ -44,22 +42,20 @@
     timers.push(setTimeout(() => (showXpFloat = false), XP_FLOAT_DURATION_MS));
   }
 
-  // Arrival celebration. Onboarding completion redirects here with the one-shot
-  // `?welcome=1` signal; we fire the celebration and leave the Actualités card
-  // highlighted so it's easy to find. No modal pops — the card surfaces the
-  // welcome message inline (the /welcome splash earlier is a separate greeting).
+  // Arrival celebration. The server arms `data.onboardingArrival` on the first
+  // dashboard load after onboarding completes (consuming a one-shot cookie), so
+  // its presence is the whole trigger: there is no URL param to read or scrub,
+  // and a refresh can't replay it. We fire the XP float + welcome toast and
+  // highlight the Actualités card so it's easy to find. No modal pops: the card
+  // surfaces the welcome message inline (the /welcome splash is a separate
+  // earlier greeting).
   let welcomeHighlight = $state(false);
   onMount(() => {
-    if (!page.url.searchParams.has('welcome')) return;
-    // Clean URL without reloading so the celebration can't replay.
-    history.replaceState({}, '', page.url.pathname);
+    const arrival = data.onboardingArrival;
+    if (!arrival) return;
     welcomeHighlight = true;
 
-    // The boosted total (base + early-bird) is computed server-side; fall back
-    // to the base if the arrival payload is somehow absent.
-    const arrival = data.onboardingArrival;
-    const totalXp = arrival?.totalXp ?? WELCOME_XP_BONUS;
-    const earlyBirdBonus = arrival?.earlyBirdBonus ?? 0;
+    const { totalXp, earlyBirdBonus } = arrival;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     celebrateXp(totalXp, timers);
@@ -118,6 +114,11 @@
   let minigameAttempt = $derived(
     data.minigame && !data.minigame.ok ? data.minigame.lastAttempt : null,
   );
+  // A finalized attempt is either a win (`done` — ranked on the board, earned
+  // XP) or a loss (`invalid` — played, but no XP and absent from the board).
+  // The played card must tell these apart: a loss shown as "Défi relevé !"
+  // reads as a win the talent never actually got.
+  let minigameWon = $derived(minigameAttempt?.status === 'done');
   // Student-facing name for the daily minigame: the PO frames it as brain
   // training, not a "mini-jeu". Defined once so the played/unplayed branches
   // can't drift.
@@ -175,7 +176,7 @@
     {#snippet minigameMission()}
       {#if hasMinigame && minigamePublication}
         <div class="relative">
-          {#if minigamePlayed}
+          {#if minigamePlayed && minigameWon}
             <a
               href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
               class="flex flex-col gap-3 rounded-2xl border border-epi-teal-solid/30 bg-epi-teal-solid/5 p-4 transition-all hover:bg-epi-teal-solid/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
@@ -219,6 +220,51 @@
               </div>
               <span
                 class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-epi-teal-solid/15 px-3 py-1.5 text-xs font-bold text-epi-teal-solid uppercase sm:w-auto"
+              >
+                <Trophy class="h-4 w-4" /> Voir le classement
+              </span>
+            </a>
+          {:else if minigamePlayed}
+            <!-- Played but didn't validate the run: no XP, not on the board. Say
+                 so honestly (amber, not the teal "win" treatment) rather than
+                 congratulating a "Défi relevé !" that never happened. The attempt
+                 is still spent, so the link goes to the board, not back to play. -->
+            <a
+              href={resolve(`/minigames/${minigamePublication.id}/leaderboard`)}
+              class="flex flex-col gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 transition-all hover:bg-amber-500/10 active:scale-[0.99] sm:flex-row sm:items-center sm:gap-4"
+            >
+              <div class="flex items-center gap-4 sm:contents">
+                <div
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-500/15"
+                >
+                  <Gamepad2
+                    class="h-5 w-5 text-amber-600 dark:text-amber-500"
+                  />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div
+                    class="flex flex-wrap items-center gap-x-2 text-xs font-bold uppercase"
+                  >
+                    <span class="text-amber-600 dark:text-amber-500"
+                      >{DAILY_TRAINING_LABEL}</span
+                    >
+                    <span class="text-slate-300 dark:text-slate-700">•</span>
+                    <span class="text-slate-500">
+                      {minigamePublication.gameName} · niveau {minigamePublication.level}
+                    </span>
+                  </div>
+                  <p
+                    class="mt-0.5 text-sm font-semibold text-slate-900 dark:text-white"
+                  >
+                    Pas validé cette fois
+                    <span class="font-normal text-slate-500"
+                      >· retente demain</span
+                    >
+                  </p>
+                </div>
+              </div>
+              <span
+                class="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-amber-500/15 px-3 py-1.5 text-xs font-bold text-amber-600 uppercase sm:w-auto dark:text-amber-500"
               >
                 <Trophy class="h-4 w-4" /> Voir le classement
               </span>

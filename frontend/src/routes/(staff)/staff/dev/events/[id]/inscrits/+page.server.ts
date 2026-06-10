@@ -9,7 +9,7 @@ import {
   stageEndOrDefault,
 } from '$lib/server/services/stageContext';
 import { compareNiveaux } from '$lib/domain/niveau';
-import { rulesStatus, dossierReadiness } from '$lib/domain/stageCompliance';
+import { rulesStatus, inscritStatus } from '$lib/domain/stageCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
 import {
   getLifecycleBounds,
@@ -138,6 +138,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       t.rulesSignedAt,
     );
     const image = imageRightsStatus(t);
+    const connected = (t.user?.sessions.length ?? 0) > 0;
     return {
       id: p.id,
       talentId: p.talentId,
@@ -145,9 +146,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       prenom: t.prenom,
       niveau: t.niveau,
       schoolName: t.school?.name ?? null,
-      readiness: dossierReadiness(rules, image),
+      status: inscritStatus(connected, rules, image),
+      connected,
       rulesStatus: rules,
       imageStatus: image,
+      studentSigned: t.rulesSignedAt != null,
       email: t.email,
       parentEmail: t.parentEmail,
     };

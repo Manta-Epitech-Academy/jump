@@ -2,9 +2,9 @@
   import SalesforceLinkButton from '$lib/components/salesforce/SalesforceLinkButton.svelte';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
-  import { capitalize, cn } from '$lib/utils';
+  import { cn } from '$lib/utils';
+  import { formatGivenName } from '$lib/domain/profile';
   import { niveauLabel } from '$lib/domain/niveau';
-  import { civiliteCourtesyTitle } from '$lib/domain/profile';
 
   // Blueprint-blue band: square avatar + name with the neon-teal `_` cursor.
   // Firstname leads (light), surname follows in Anton uppercase. The Salesforce
@@ -16,7 +16,6 @@
       externalId: string | null;
       nom: string;
       prenom: string;
-      civilite: string | null;
       niveau: string | null;
       school: { name: string } | null;
     };
@@ -26,35 +25,39 @@
 
   const externalId = $derived(student.externalId);
 
+  // Academic context only: school · niveau. Civilité moved to the Coordonnées
+  // section, where it reads as civil identity rather than a banner tagline.
   const subtitle = $derived(
-    [
-      civiliteCourtesyTitle(student.civilite),
-      student.school?.name,
-      niveauLabel(student.niveau),
-    ]
+    [student.school?.name, niveauLabel(student.niveau)]
       .filter(Boolean)
       .join(' · '),
   );
 </script>
 
 <PageHero>
-  <div class="flex items-center gap-6">
+  <!-- Stacks on a phone: a `text-5xl` name between a 96px avatar and the Salesforce
+       button has no room on the row, so the name block (overflow-hidden) collapses
+       and the title clips out of view. Below `sm` the band goes column (avatar, name,
+       full-width button); the original row returns at `sm`. -->
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
     <TalentAvatar
       talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
       size="lg"
-      class="h-24 w-24 shrink-0 rounded-sm shadow-md md:h-28 md:w-28"
+      class="h-20 w-20 shrink-0 rounded-sm shadow-md sm:h-24 sm:w-24 md:h-28 md:w-28"
     />
     <div class="min-w-0 flex-1 overflow-hidden">
       <h1
-        class="flex items-baseline font-heading text-5xl tracking-wide uppercase md:text-6xl"
+        class="flex flex-wrap items-baseline font-heading text-3xl tracking-wide uppercase sm:text-5xl md:text-6xl"
       >
-        <span class="font-light normal-case">{capitalize(student.prenom)}</span>
-        <span class="ml-3">{student.nom}</span><span class="text-epi-teal"
-          >_</span
+        <span class="font-light normal-case"
+          >{formatGivenName(student.prenom)}</span
+        >
+        <span class="ml-3"
+          >{student.nom}<span class="text-epi-teal">_</span></span
         >
       </h1>
       {#if subtitle}
-        <p class="mt-3 font-mono text-xs text-blue-100">{subtitle}</p>
+        <p class="mt-2 font-mono text-xs text-blue-100 sm:mt-3">{subtitle}</p>
       {/if}
     </div>
 
@@ -70,7 +73,7 @@
         label="Fiche Salesforce"
         variant="default"
         class={cn(
-          'shrink-0 self-end bg-white font-semibold text-epi-blue shadow-md',
+          'w-full shrink-0 justify-center bg-white font-semibold text-epi-blue shadow-md sm:w-auto sm:self-end',
           'hover:bg-white/90 hover:text-epi-blue hover:shadow-lg',
         )}
       />

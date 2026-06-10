@@ -7,7 +7,7 @@
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
-  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Unplug from '@lucide/svelte/icons/unplug';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Download from '@lucide/svelte/icons/download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
@@ -39,60 +39,69 @@
   import InterestsCloud from '../components/InterestsCloud.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+  import { formatGivenName } from '$lib/domain/profile';
   import {
     RULES_STATUS_LABELS,
-    DOSSIER_READINESS_LABELS,
+    INSCRIT_STATUS_LABELS,
     type RulesStatus,
-    type DossierReadiness,
+    type InscritStatus,
   } from '$lib/domain/stageCompliance';
   import {
-    IMAGE_RIGHTS_STATUS_LABELS,
-    type ImageRightsStatus,
+    IMAGE_RIGHTS_DISPLAY_LABELS,
+    imageRightsDisplayStatus,
+    type ImageRightsDisplayStatus,
   } from '$lib/domain/imageRights';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import type { InscritRow, SortKey } from './components/types';
 
-  // Tones tuned for the dark tooltip surface (bg-foreground / text-background):
-  // bright teal for done, warm/red tints for the open states.
+  // Status tints for the dossier tooltip. The tooltip surface is bg-foreground,
+  // which inverts with the theme: dark in light mode (the bright tints pop) but
+  // light (#c9c9c9) in dark mode, where those same bright tints wash out to
+  // ~1.2:1. So each bright tint is paired with a darker -900 shade applied via
+  // `dark:`, uniform across all four states so they clear WCAG AA (4.5:1) on the
+  // light dark-mode surface: teal 5.72, amber 5.48, orange 5.66, red 6.05. The
+  // status is also carried by an icon + label, so color is reinforcement only.
   const rulesTone = (s: RulesStatus) =>
     s === 'signed'
-      ? 'text-epi-teal'
+      ? 'text-epi-teal dark:text-teal-900'
       : s === 'awaiting_parent'
-        ? 'text-amber-300'
-        : 'text-red-300';
-  const imageTone = (s: ImageRightsStatus) =>
+        ? 'text-amber-300 dark:text-amber-900'
+        : 'text-red-300 dark:text-red-900';
+  const imageTone = (s: ImageRightsDisplayStatus) =>
     s === 'accepted'
-      ? 'text-epi-teal'
+      ? 'text-epi-teal dark:text-teal-900'
       : s === 'refused'
-        ? 'text-orange-300'
-        : 'text-red-300';
+        ? 'text-orange-300 dark:text-orange-900'
+        : s === 'awaiting_parent'
+          ? 'text-amber-300 dark:text-amber-900'
+          : 'text-red-300 dark:text-red-900';
 
-  // Statut badge presentation, one entry per folded readiness state. Teal =
-  // done, amber = in progress (one gate left or the parent co-sign pending),
-  // orange = nothing started.
-  const READINESS_BADGE: Record<
-    DossierReadiness,
+  // Statut badge presentation, one entry per funnel state. Red = never logged in
+  // (the most urgent case), amber = connected but dossier in progress, teal =
+  // connected with both gates done.
+  const INSCRIT_STATUS_BADGE: Record<
+    InscritStatus,
     { icon: typeof Check; class: string }
   > = {
+    never_connected: {
+      icon: Unplug,
+      class: 'border-destructive/30 bg-destructive/10 text-destructive',
+    },
+    in_progress: {
+      icon: Clock,
+      class: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+    },
     ready: {
       icon: Check,
       class: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
     },
-    partial: {
-      icon: Clock,
-      class: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
-    },
-    empty: {
-      icon: CircleAlert,
-      class: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
-    },
   };
 
   // Sort order: least-ready first in ascending, so the rows still needing a
-  // chase float to the top.
-  const READINESS_ORDER: Record<DossierReadiness, number> = {
-    empty: 0,
-    partial: 1,
+  // chase float to the top (never connected before in progress before ready).
+  const STATUS_ORDER: Record<InscritStatus, number> = {
+    never_connected: 0,
+    in_progress: 1,
     ready: 2,
   };
 
@@ -107,7 +116,7 @@
 
   let searchQuery = $state('');
   let niveauFilter = $state<'all' | string>('all');
-  let statutFilter = $state<'all' | DossierReadiness>('all');
+  let statutFilter = $state<'all' | InscritStatus>('all');
   // Default mirrors the server's initial order (nom asc), so the first paint
   // needs no client reshuffle and the header arrow matches the rows shown.
   let sortKey = $state<SortKey>('nom');
@@ -134,13 +143,13 @@
   const columns: ColumnDef[] = [
     { key: 'avatar', label: '', class: 'w-12' },
     { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
-    { key: 'nom', label: 'Nom', sortable: true, class: 'w-32' },
+    { key: 'nom', label: 'Nom', sortable: true, class: 'w-40' },
     { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
     { key: 'niveau', label: 'Niveau', sortable: true, class: 'w-24' },
     // Left-aligned like every other column (and the admin talents table): a
     // right-aligned badge made the header label overhang the badge text by the
     // badge's own border + padding, reading as misaligned.
-    { key: 'readiness', label: 'Statut', sortable: true, class: 'w-28' },
+    { key: 'status', label: 'Statut', sortable: true, class: 'w-28' },
   ];
 
   // Niveau is a one-click segmented filter, but only worth showing when the
@@ -153,9 +162,9 @@
 
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
-    { value: 'ready', label: DOSSIER_READINESS_LABELS.ready },
-    { value: 'partial', label: DOSSIER_READINESS_LABELS.partial },
-    { value: 'empty', label: DOSSIER_READINESS_LABELS.empty },
+    { value: 'never_connected', label: INSCRIT_STATUS_LABELS.never_connected },
+    { value: 'in_progress', label: INSCRIT_STATUS_LABELS.in_progress },
+    { value: 'ready', label: INSCRIT_STATUS_LABELS.ready },
   ];
 
   // Every lycée in the cohort, ranked by headcount, for the toolbar picker.
@@ -229,8 +238,8 @@
         if (!a.niveau) return 1;
         if (!b.niveau) return -1;
         return compareNiveaux(a.niveau, b.niveau);
-      case 'readiness':
-        return READINESS_ORDER[a.readiness] - READINESS_ORDER[b.readiness];
+      case 'status':
+        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     }
   }
 
@@ -238,7 +247,7 @@
     const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
     const out = data.rows.filter((r) => {
       if (niveauFilter !== 'all' && r.niveau !== niveauFilter) return false;
-      if (statutFilter !== 'all' && r.readiness !== statutFilter) return false;
+      if (statutFilter !== 'all' && r.status !== statutFilter) return false;
       if (tokens.length === 0) return true;
       const h = makeHaystack(r);
       return tokens.every((tok) => h.includes(tok));
@@ -302,23 +311,42 @@
   <title>{STAGE_SECONDE_LABEL} — Inscrits</title>
 </svelte:head>
 
-<!-- Readiness badge tooltip: the two dossier documents at a glance, so staff can
-     triage the cohort (who owes a règlement vs a droit-à-l'image) without opening
-     each fiche — the fiche stays the place for the full history and next actions. -->
-{#snippet dossierBreakdown(r: InscritRow)}
+<!-- Statut badge tooltip: the three triage signals at a glance (did the student
+     connect, do they still owe a règlement, a droit-à-l'image), so staff can
+     triage the cohort without opening each fiche — the fiche stays the place for
+     the full history and next actions. -->
+{#snippet statusBreakdown(r: InscritRow)}
   {@const RulesIcon = r.rulesStatus === 'signed' ? Check : Clock}
+  {@const imageDisplay = imageRightsDisplayStatus(
+    r.imageStatus,
+    r.studentSigned,
+  )}
   {@const ImageIcon =
-    r.imageStatus === 'accepted'
+    imageDisplay === 'accepted'
       ? Check
-      : r.imageStatus === 'refused'
+      : imageDisplay === 'refused'
         ? X
         : Clock}
   <div class="space-y-1.5">
-    <p
-      class="font-mono text-[10px] font-bold tracking-widest text-background/60 uppercase"
-    >
-      Dossier administratif
-    </p>
+    <div class="flex items-center justify-between gap-6">
+      <span class="text-background/70">Connexion</span>
+      <span
+        class={cn(
+          'inline-flex items-center gap-1 font-bold',
+          r.connected
+            ? 'text-epi-teal dark:text-teal-900'
+            : 'text-red-300 dark:text-red-900',
+        )}
+      >
+        {#if r.connected}
+          <Check class="h-3 w-3" />
+          Connecté
+        {:else}
+          <X class="h-3 w-3" />
+          Jamais connecté
+        {/if}
+      </span>
+    </div>
     <div class="flex items-center justify-between gap-6">
       <span class="text-background/70">Règlement intérieur</span>
       <span
@@ -336,11 +364,11 @@
       <span
         class={cn(
           'inline-flex items-center gap-1 font-bold',
-          imageTone(r.imageStatus),
+          imageTone(imageDisplay),
         )}
       >
         <ImageIcon class="h-3 w-3" />
-        {IMAGE_RIGHTS_STATUS_LABELS[r.imageStatus]}
+        {IMAGE_RIGHTS_DISPLAY_LABELS[imageDisplay]}
       </span>
     </div>
   </div>
@@ -412,6 +440,8 @@
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
           searchPlaceholder="Rechercher un stagiaire…"
+          searchWidthClass="max-w-[230px]"
+          filtersAlign="end"
           count={filtered.length}
           countNoun="stagiaire"
           {countSuffix}
@@ -470,37 +500,52 @@
           {/snippet}
 
           {#snippet countActions()}
-            <!-- Filters sit next to the search; the export rides the summary line
-                 instead, right-aligned and grouped with reset. It acts on exactly
-                 the count shown here, so the pairing reads naturally and the wide
-                 statut + lycée filters never push it off its row. -->
-            <div class="ml-auto flex items-center gap-2">
-              {#if anyFiltersApplied}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onclick={resetFilters}
-                  class="h-7 px-2 text-muted-foreground hover:text-foreground"
-                >
-                  <FilterX class="mr-1.5 h-4 w-4" />
-                  Réinitialiser
-                </Button>
-              {/if}
+            <!-- Réinitialiser sits inline right after the count it clears, so the
+                 control reads against the number it acts on. Export keeps to the
+                 right edge of the same line (ml-auto), acting on exactly the count
+                 shown; the wide statut + lycée filters live on the search row
+                 above, so this line never gets crowded. -->
+            {#if anyFiltersApplied}
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onclick={exportXlsx}
-                disabled={exporting || filtered.length === 0}
-                class="rounded-sm"
+                onclick={resetFilters}
+                class="h-7 px-2 text-muted-foreground hover:text-foreground"
               >
-                {#if exporting}
-                  <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-                {:else}
-                  <Download class="mr-1.5 h-4 w-4" />
-                {/if}
-                Exporter (XLSX)
+                <FilterX class="mr-1.5 h-4 w-4" />
+                Réinitialiser
               </Button>
-            </div>
+            {/if}
+            <Tooltip.Provider delayDuration={300}>
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      variant="outline"
+                      size="sm"
+                      onclick={exportXlsx}
+                      disabled={exporting || filtered.length === 0}
+                      class="ml-auto rounded-sm"
+                    >
+                      {#if exporting}
+                        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+                      {:else}
+                        <Download class="mr-1.5 h-4 w-4" />
+                      {/if}
+                      Exporter (XLSX)
+                    </Button>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content class="max-w-60 rounded-sm">
+                  <p>
+                    Exporte les {filtered.length}
+                    {filtered.length > 1 ? 'stagiaires' : 'stagiaire'} actuellement
+                    affichés (filtres et tri appliqués), pas toute la cohorte.
+                  </p>
+                </Tooltip.Content>
+              </Tooltip.Root>
+            </Tooltip.Provider>
           {/snippet}
         </DataTableToolbar>
 
@@ -531,7 +576,8 @@
                  fit, but a freak-long one ellipsizes inside its cell (full value
                  on hover) instead of bleeding into the neighbouring column. -->
               <Table.Cell class="font-medium">
-                <span class="block truncate" title={r.prenom}>{r.prenom}</span>
+                {@const prenom = formatGivenName(r.prenom)}
+                <span class="block truncate" title={prenom}>{prenom}</span>
               </Table.Cell>
               <Table.Cell class="font-bold uppercase">
                 <span class="block truncate" title={r.nom}>{r.nom}</span>
@@ -565,7 +611,7 @@
                 <Tooltip.Root>
                   <Tooltip.Trigger>
                     {#snippet child({ props })}
-                      {@const badge = READINESS_BADGE[r.readiness]}
+                      {@const badge = INSCRIT_STATUS_BADGE[r.status]}
                       {@const BadgeIcon = badge.icon}
                       <!-- The badge IS the row link: relative z-10 lifts it above
                            the stretched-link overlay so it both fires the tooltip
@@ -582,15 +628,63 @@
                         )}
                       >
                         <BadgeIcon class="h-3 w-3" />
-                        {DOSSIER_READINESS_LABELS[r.readiness]}
+                        {INSCRIT_STATUS_LABELS[r.status]}
                       </a>
                     {/snippet}
                   </Tooltip.Trigger>
                   <Tooltip.Content class="max-w-64">
-                    {@render dossierBreakdown(r)}
+                    {@render statusBreakdown(r)}
                   </Tooltip.Content>
                 </Tooltip.Root>
               </Table.Cell>
+            {/snippet}
+
+            <!-- Mobile card (below lg): the fixed 6-column roster can't fit a phone,
+                 so the row folds to avatar + name with the status badge top-right,
+                 then lycée + niveau beneath. The whole card links to the fiche via
+                 SortableTable's `rowHref`, so the badge stays a plain span here. -->
+            {#snippet mobileRow(r: InscritRow)}
+              {@const prenom = formatGivenName(r.prenom)}
+              {@const badge = INSCRIT_STATUS_BADGE[r.status]}
+              {@const BadgeIcon = badge.icon}
+              <div class="flex items-start gap-3">
+                <TalentAvatar
+                  talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                  size="sm"
+                />
+                <div class="min-w-0 flex-1 space-y-1">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="min-w-0 truncate text-sm">
+                      <span class="font-medium">{prenom}</span>
+                      <span class="font-bold uppercase">{r.nom}</span>
+                    </p>
+                    <span
+                      class={cn(
+                        'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                        badge.class,
+                      )}
+                    >
+                      <BadgeIcon class="h-3 w-3" />
+                      {INSCRIT_STATUS_LABELS[r.status]}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+                    >
+                      {r.schoolName || '—'}
+                    </span>
+                    {#if r.niveau}
+                      <Badge
+                        variant="secondary"
+                        class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+                      >
+                        {niveauLabel(r.niveau)}
+                      </Badge>
+                    {/if}
+                  </div>
+                </div>
+              </div>
             {/snippet}
 
             {#snippet empty()}

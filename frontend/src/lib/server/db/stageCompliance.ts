@@ -55,3 +55,23 @@ export const imageRightsCompliantWhere: Prisma.ParticipationWhereInput = {
 export const imageRightsPendingWhere: Prisma.ParticipationWhereInput = {
   talent: { imageRightsDecidedAt: null },
 };
+
+/**
+ * Talent-scoped parent-completion predicates (note: `TalentWhereInput`, unlike
+ * the participation fragments above). A guardian is "complete" once they have
+ * BOTH co-signed the règlement (`parentRulesSignedAt`) AND settled the
+ * image-rights decision (`imageRightsDecidedAt`) - the two acts of the parent
+ * fastlogin flow; "blocked" means still owing at least one. Single home for the
+ * "parent en attente" rule so the admin talents directory filter and the
+ * broadcast `parent`-audience targeting can't drift. Neither carries a
+ * parent-on-file gate: callers that need one (the talents list) AND it in, and
+ * the broadcast parent audience already skips talents without a guardian.
+ */
+export const parentBlockedWhere: Prisma.TalentWhereInput = {
+  OR: [{ parentRulesSignedAt: null }, { imageRightsDecidedAt: null }],
+};
+
+export const parentCompleteWhere: Prisma.TalentWhereInput = {
+  parentRulesSignedAt: { not: null },
+  imageRightsDecidedAt: { not: null },
+};

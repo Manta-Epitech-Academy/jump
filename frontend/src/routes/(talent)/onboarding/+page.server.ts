@@ -30,6 +30,11 @@ import {
   enqueueOnboardingPdfJob,
   runOnboardingPdfJob,
 } from '$lib/server/services/onboardingPdfJobService';
+import {
+  captureOnboardingReturn,
+  consumeOnboardingReturn,
+} from '$lib/server/auth/loginRedirect';
+import { signalArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
 
 // Re-exported for the `./$types`-typed action handlers that key off the step.
 export type { OnboardingStep };
@@ -57,6 +62,21 @@ async function provisionParentAccount(
   const existing = await prisma.bauth_user.findUnique({
     where: { email: parent.email },
   });
+  if (existing && existing.role !== 'parent') {
+    // The address already belongs to a NON-parent login: a student's or staff's
+    // account (bad data, e.g. a family sharing one address so a parent contact
+    // email is also someone's student email). Don't repurpose it: renaming their
+    // account to the parent's name would pollute their identity, and the welcome
+    // magic link would be refused anyway (/parent/fastlogin filters by
+    // role: 'parent'). So we leave it untouched and warn. Note this is NOT caught
+    // by the admin auth-conflicts tool (that surface only classifies
+    // Talent.userId vs Talent.email drift), so without the warning the parent
+    // would silently get no account until the shared address is fixed at source.
+    console.warn(
+      `Parent account not provisioned for talent ${talentId}: "${parent.email}" already belongs to a non-parent (${existing.role}) account; skipping to avoid hijacking it.`,
+    );
+    return;
+  }
   if (!existing) {
     await prisma.bauth_user.create({
       data: { email: parent.email, name, role: 'parent', emailVerified: true },
@@ -80,7 +100,7 @@ async function provisionParentAccount(
   }
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url, cookies }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
@@ -90,6 +110,11 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (!step) {
     throw redirect(303, resolve('/'));
   }
+
+  // Stash the page the talent was heading for when a guard bounced them here
+  // (e.g. an émargement QR scanned pre-onboarding), to resume on completion. A
+  // no-op without the `?redirect=` param, so the per-step reloads don't clear it.
+  captureOnboardingReturn(url, cookies);
 
   // The three personal steps (identity / school / parents) share one combined
   // profile payload: each renders a slice of it, so the load shape stays unified
@@ -467,7 +492,7 @@ export const actions: Actions = {
     return { success: true };
   },
 
-  signRules: async ({ request, locals }) => {
+  signRules: async ({ request, locals, cookies }) => {
     if (!locals.talent) {
       throw error(401, 'Non autorisé');
     }
@@ -549,9 +574,15 @@ export const actions: Actions = {
     // later. Failures are visible and re-runnable at /staff/admin/onboarding-pdfs.
     void runOnboardingPdfJob(job.id);
 
-    // Head to the dashboard with the one-shot arrival-celebration signal. The
-    // welcome splash already ran before onboarding (so `welcomeSeenAt` is set),
-    // which means the welcome guard won't re-intercept this redirect.
-    throw redirect(303, resolve('/?welcome=1'));
+    // Arm the arrival celebration (fired on the next dashboard load), then resume
+    // the page the talent was heading for when onboarding interrupted them (e.g.
+    // the émargement check-in), else fall back to the dashboard. The celebration
+    // rides a cookie, not a `?welcome=1` param, so it survives the resume detour
+    // through the check-in instead of being lost with the param. The welcome
+    // splash already ran before onboarding (so `welcomeSeenAt` is set), which
+    // means the welcome guard won't re-intercept either redirect.
+    signalArrivalCelebration(cookies);
+    const resume = consumeOnboardingReturn(cookies);
+    throw redirect(303, resume ?? resolve('/'));
   },
 };

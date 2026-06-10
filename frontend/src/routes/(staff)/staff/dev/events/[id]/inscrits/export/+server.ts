@@ -5,13 +5,14 @@ import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { niveauLabel } from '$lib/domain/niveau';
 import {
   rulesStatus,
-  dossierReadiness,
-  DOSSIER_READINESS_LABELS,
+  inscritStatus,
+  INSCRIT_STATUS_LABELS,
   RULES_STATUS_LABELS,
 } from '$lib/domain/stageCompliance';
 import {
   imageRightsStatus,
-  IMAGE_RIGHTS_STATUS_LABELS,
+  imageRightsDisplayStatus,
+  IMAGE_RIGHTS_DISPLAY_LABELS,
 } from '$lib/domain/imageRights';
 import { buildXlsx } from '$lib/server/xlsx';
 import { INSCRIT_PARTICIPATION_SELECT } from '../components/types';
@@ -55,8 +56,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
   const rows = ordered.map((p) => {
     const t = p.talent;
-    // Recompute both dossier gates server-side (never trust the client verdict):
-    // the folded "Statut" mirrors the table badge, and each gate gets its own
+    // Recompute the verdict server-side (never trust the client): the folded
+    // "Statut" mirrors the table badge, and connection + each gate get their own
     // column so the sheet can be triaged on what a student actually owes.
     const rules = rulesStatus(
       t.parentRulesSignedAt,
@@ -64,16 +65,20 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       t.rulesSignedAt,
     );
     const image = imageRightsStatus(t);
-    const readiness = dossierReadiness(rules, image);
+    const connected = (t.user?.sessions.length ?? 0) > 0;
+    const status = inscritStatus(connected, rules, image);
     const parentName = [t.parentPrenom, t.parentNom].filter(Boolean).join(' ');
     return [
       t.prenom,
       t.nom,
       t.school?.name ?? '',
       t.niveau ? niveauLabel(t.niveau) : '',
-      DOSSIER_READINESS_LABELS[readiness],
+      INSCRIT_STATUS_LABELS[status],
+      connected ? 'Oui' : 'Non',
       RULES_STATUS_LABELS[rules],
-      IMAGE_RIGHTS_STATUS_LABELS[image],
+      IMAGE_RIGHTS_DISPLAY_LABELS[
+        imageRightsDisplayStatus(image, t.rulesSignedAt != null)
+      ],
       t.email ?? '',
       t.phone ?? '',
       parentName,
@@ -90,6 +95,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       'Lycée',
       'Niveau',
       'Statut',
+      'Connexion',
       'Règlement intérieur',
       "Droit à l'image",
       'Email élève',
@@ -99,7 +105,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       'Téléphone parent',
     ],
     rows,
-    colWidths: [16, 16, 30, 10, 12, 18, 16, 26, 16, 22, 26, 16],
+    colWidths: [16, 16, 30, 10, 12, 11, 18, 16, 26, 16, 22, 26, 16],
   });
 
   // ASCII-safe filename for the Content-Disposition header (the client sets its

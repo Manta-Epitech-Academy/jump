@@ -6,6 +6,7 @@
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { track, errReason, secondsBetween } from '$lib/analytics';
   import { WELCOME_XP_BONUS } from '$lib/domain/xp';
+  import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
   import { renderMarkdown } from '$lib/markdown';
   import reglementMd from '$lib/content/reglement-interieur.md?raw';
   import ContinueButton from './ContinueButton.svelte';
@@ -80,11 +81,11 @@
       On collecte ton nom, ton prénom et ta progression pédagogique (étapes
       complétées, compétences validées, XP, badges, créations de ton portfolio)
       pour suivre ton parcours, générer tes certifications et te permettre de
-      partager ton portfolio. Ces données sont conservées 6 mois après ta
-      dernière activité, puis automatiquement anonymisées. Tu peux à tout moment
-      les consulter, les modifier ou les supprimer depuis ton espace personnel,
-      et demander la suppression complète de ton compte. Tout est stocké en
-      France, sur un serveur géré par l'équipe Epitech.
+      partager ton portfolio. Ces données sont conservées {DATA_RETENTION_MONTHS}
+      mois après ta dernière activité, puis automatiquement anonymisées. Tu peux à
+      tout moment les consulter, les modifier ou les supprimer depuis ton espace personnel,
+      et demander la suppression complète de ton compte. Tout est stocké en France,
+      sur un serveur géré par l'équipe Epitech.
     </p>
   </div>
 

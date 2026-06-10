@@ -48,6 +48,8 @@
     resetForm: false,
     validationMethod: 'onsubmit',
     onResult: ({ result }) => {
+      testSending = false;
+      enqueueSending = false;
       if (browser && result.type === 'redirect') {
         localStorage.removeItem(DRAFT_KEY);
       }
@@ -102,6 +104,19 @@
     }
   });
 
+  // Switching campus invalidates any event/source picked under the old one, so
+  // drop them here (mirrors `onAudienceChange`). Doing it in the change handler
+  // rather than an effect on `$form.campusId` is deliberate: a programmatic
+  // draft restore assigns `campusId` directly and must keep its restored
+  // event/source instead of having them wiped by a reaction.
+  function onCampusChange(next: string) {
+    if (next === $form.campusId) return;
+    $form.campusId = next;
+    $form.eventId = '';
+    $form.sourceBroadcastId = '';
+    $form.sourceFilter = undefined;
+  }
+
   const filteredEvents = $derived(
     data.events.filter((e) =>
       $form.campusId ? e.campusId === $form.campusId : true,
@@ -129,6 +144,11 @@
   let showFilters = $state(false);
   let showRetarget = $state(false);
   let confirmEnqueueOpen = $state(false);
+  // Track test-send separately so it doesn't disable the enqueue button (and
+  // vice-versa). `$submitting` covers both actions because superforms owns it;
+  // these flags layer on top so each button only greys out for its own action.
+  let testSending = $state(false);
+  let enqueueSending = $state(false);
   // svelte-ignore state_referenced_locally
   let testEmail = $state(data.userEmail ?? '');
   let testPhone = $state('');
@@ -140,12 +160,25 @@
     try {
       const draft = JSON.parse(raw) as Partial<typeof $form>;
       const urlTemplate = page.url.searchParams.get('template');
-      $form.campusId = draft.campusId ?? '';
-      $form.eventId = draft.eventId ?? '';
+      // Validate restored IDs against current data to avoid phantom references
+      // (e.g. a template deleted since the draft was saved).
+      const campusValid = data.campuses.some((c) => c.id === draft.campusId);
+      $form.campusId = campusValid ? (draft.campusId ?? '') : '';
+      const eventValid =
+        campusValid && data.events.some((e) => e.id === draft.eventId);
+      $form.eventId = eventValid ? (draft.eventId ?? '') : '';
       $form.audience = draft.audience;
-      if (!urlTemplate) $form.templateId = draft.templateId ?? '';
-      $form.sourceBroadcastId = draft.sourceBroadcastId ?? '';
-      $form.sourceFilter = draft.sourceFilter;
+      if (!urlTemplate) {
+        const tplValid = data.templates.some((t) => t.id === draft.templateId);
+        $form.templateId = tplValid ? (draft.templateId ?? '') : '';
+      }
+      const sourceValid = data.sourceBroadcasts.some(
+        (b) => b.id === draft.sourceBroadcastId,
+      );
+      $form.sourceBroadcastId = sourceValid
+        ? (draft.sourceBroadcastId ?? '')
+        : '';
+      $form.sourceFilter = sourceValid ? draft.sourceFilter : undefined;
       $form.filters = draft.filters ?? {};
       $form.subject = draft.subject ?? '';
       $form.body = draft.body ?? '';
@@ -213,6 +246,8 @@
       return;
     }
     const controller = new AbortController();
+    // Keep the previous preview visible while loading (no flicker).
+    // Only clear it on error or when targeting becomes incomplete.
     const timer = setTimeout(async () => {
       previewLoading = true;
       previewError = null;
@@ -266,13 +301,18 @@
   });
 
   // Enough to enable the send button (the server re-validates everything).
+  // Also requires a resolved preview with at least one recipient so the admin
+  // can't fire off an empty broadcast.
   const canSend = $derived(
     Boolean(
       $form.templateId &&
       $form.campusId &&
       $form.audience &&
       ($form.body ?? '').trim() &&
-      (channel === 'sms' || ($form.subject ?? '').trim()),
+      (channel === 'sms' || ($form.subject ?? '').trim()) &&
+      preview &&
+      !preview.incomplete &&
+      preview.total > 0,
     ),
   );
 </script>
@@ -397,7 +437,7 @@
         <Select.Root
           type="single"
           value={$form.campusId}
-          onValueChange={(v) => ($form.campusId = v ?? '')}
+          onValueChange={(v) => onCampusChange(v ?? '')}
         >
           <Select.Trigger id="campusId" class="w-full">
             {data.campuses.find((c) => c.id === $form.campusId)?.name ??
@@ -446,13 +486,11 @@
           >
             <Select.Trigger id="eventId" class="w-full">
               <span class="truncate">
-                {#if $form.eventId}
+                {#if $form.eventId && filteredEvents.find((ev) => ev.id === $form.eventId)}
                   {@const e = filteredEvents.find(
                     (ev) => ev.id === $form.eventId,
                   )}
-                  {e
-                    ? `${dateFormatter.format(e.date)} — ${e.titre}`
-                    : 'Tous les events du campus'}
+                  {`${dateFormatter.format(e!.date)} — ${e!.titre}`}
                 {:else}
                   Tous les events du campus
                 {/if}
@@ -531,13 +569,11 @@
             >
               <Select.Trigger id="sourceBroadcastId" class="w-full">
                 <span class="truncate">
-                  {#if $form.sourceBroadcastId}
+                  {#if $form.sourceBroadcastId && filteredSources.find((s) => s.id === $form.sourceBroadcastId)}
                     {@const b = filteredSources.find(
                       (s) => s.id === $form.sourceBroadcastId,
                     )}
-                    {b
-                      ? `${dateFormatter.format(b.createdAt)} — ${b.name}`
-                      : 'Aucun'}
+                    {`${dateFormatter.format(b!.createdAt)} — ${b!.name}`}
                   {:else}
                     Aucun
                   {/if}
@@ -652,12 +688,14 @@
           variant="outline"
           form="broadcast-form"
           formaction="?/testSend"
-          disabled={$submitting ||
+          disabled={testSending ||
             !$form.templateId ||
             !($form.body ?? '').trim() ||
             (channel === 'sms' ? !testPhone || !data.smsEnabled : !testEmail)}
+          onclick={() => (testSending = true)}
         >
-          <Send class="mr-1 h-3.5 w-3.5" /> Tester
+          <Send class="mr-1 h-3.5 w-3.5" />
+          {testSending ? 'Envoi...' : 'Tester'}
         </Button>
       </div>
       {#if channel === 'sms' && !data.smsEnabled}
@@ -671,7 +709,7 @@
     <Button
       type="button"
       class="w-full"
-      disabled={$submitting || !canSend}
+      disabled={enqueueSending || !canSend}
       onclick={() => (confirmEnqueueOpen = true)}
     >
       <Send class="mr-1 h-4 w-4" /> Démarrer les envois
@@ -717,10 +755,11 @@
         type="submit"
         form="broadcast-form"
         formaction="?/enqueue"
-        disabled={$submitting}
+        disabled={enqueueSending}
+        onclick={() => (enqueueSending = true)}
         class={buttonVariants({ variant: 'destructive', class: 'rounded-sm' })}
       >
-        Oui, démarrer les envois
+        {enqueueSending ? 'Envoi en cours...' : 'Oui, démarrer les envois'}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>

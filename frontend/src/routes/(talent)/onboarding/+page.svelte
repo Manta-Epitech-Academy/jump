@@ -2,8 +2,8 @@
   import { fly } from 'svelte/transition';
   import type { TransitionConfig } from 'svelte/transition';
   import { enhance } from '$app/forms';
-  import { invalidateAll } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { onboardingSubmit } from './stepSubmit';
   import ProgressBar from './components/ProgressBar.svelte';
   import IdentityStep from './components/IdentityStep.svelte';
   import SchoolStep from './components/SchoolStep.svelte';
@@ -90,15 +90,7 @@
     bind:this={goBackForm}
     method="POST"
     action="?/goBack"
-    use:enhance={() => {
-      return async ({ result, update }) => {
-        if (result.type === 'success') {
-          await invalidateAll();
-          return;
-        }
-        await update();
-      };
-    }}
+    use:enhance={onboardingSubmit()}
     class="hidden"
   ></form>
 
