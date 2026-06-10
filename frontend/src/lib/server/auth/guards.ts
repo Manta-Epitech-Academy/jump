@@ -6,7 +6,10 @@ import { prisma } from '$lib/server/db';
 import { can, type StaffGroup } from '$lib/domain/permissions';
 import type { FlagKey } from '$lib/domain/featureFlags';
 import { getOnboardingStep } from '$lib/domain/talentOnboarding';
-import { loginUrlWithRedirect } from '$lib/server/auth/loginRedirect';
+import {
+  loginUrlWithRedirect,
+  onboardingFunnelUrl,
+} from '$lib/server/auth/loginRedirect';
 
 function forbidGroup(group: StaffGroup): never {
   throw error(403, {
@@ -158,7 +161,10 @@ export async function applyRouteGuards(
           stageParticipation.event.endDate ?? stageParticipation.event.date;
         if (stageEnd >= new Date()) {
           return Response.redirect(
-            new URL(pathTalentWelcome, event.url).href,
+            new URL(
+              onboardingFunnelUrl(pathTalentWelcome, event.url),
+              event.url,
+            ).href,
             303,
           );
         }
@@ -179,7 +185,10 @@ export async function applyRouteGuards(
         currentPath !== pathTalentLogin
       ) {
         return Response.redirect(
-          new URL(pathTalentOnboarding, event.url).href,
+          new URL(
+            onboardingFunnelUrl(pathTalentOnboarding, event.url),
+            event.url,
+          ).href,
           303,
         );
       }
