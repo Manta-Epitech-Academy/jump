@@ -71,45 +71,46 @@
   </div>
 
   <!-- Chat thread -->
-  <ChatThread messages={conv.messages} typing={conv.status === 'typing'}>
-    {#snippet replies()}
-      {#if showChoices && conv.current}
-        <QuickReplies
-          question={conv.current}
-          onanswer={(v) => conv.answer(v)}
-        />
-      {/if}
-      {#if showScale && conv.current?.options}
-        <ScaleRating
-          options={conv.current.options}
-          onanswer={(value, display) => conv.answer(value, display)}
-        />
-      {/if}
-    {/snippet}
-  </ChatThread>
+  <ChatThread messages={conv.messages} typing={conv.status === 'typing'} />
 
-  <!-- Footer dock -->
-  {#if conv.isDone}
-    <div
-      class="flex flex-col items-center gap-3 border-t border-slate-200 bg-white px-4 py-6 dark:border-slate-700 dark:bg-slate-800"
-    >
-      <p class="text-center text-sm font-medium">Merci pour ton retour !</p>
-      <a
-        href="/"
-        class="rounded-full bg-epi-blue px-6 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-      >
-        Retour a mon espace
-      </a>
-    </div>
-  {:else if showText && conv.current}
-    <TextInput question={conv.current} onanswer={(v) => conv.answer(v)} />
-  {:else}
-    <!-- Empty dock while typing / awaiting choices -->
-    <div class="h-3"></div>
-  {/if}
+  <!-- Response dock: all answer inputs live here, flush at the bottom -->
+  <div
+    class="border-t border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800"
+  >
+    {#if conv.error}
+      <p class="mb-2 text-center text-xs text-red-500">{conv.error}</p>
+    {/if}
 
-  <!-- Error display -->
-  {#if conv.error}
-    <div class="px-4 pb-2 text-center text-xs text-red-500">{conv.error}</div>
-  {/if}
+    {#if conv.isDone}
+      <div class="flex flex-col items-center gap-3 py-3">
+        <p class="text-center text-sm font-medium">Merci pour ton retour !</p>
+        <a
+          href="/"
+          class="rounded-full bg-epi-blue px-6 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        >
+          Retour a mon espace
+        </a>
+      </div>
+    {:else if showChoices && conv.current}
+      <QuickReplies question={conv.current} onanswer={(v) => conv.answer(v)} />
+    {:else if showScale && conv.current?.options}
+      <ScaleRating
+        options={conv.current.options}
+        onanswer={(value, display) => conv.answer(value, display)}
+      />
+      {#if conv.current.extraOptions?.length}
+        <div class="mt-2 text-center">
+          {#each conv.current.extraOptions as eo (eo)}
+            <button
+              type="button"
+              class="text-xs text-muted-foreground underline underline-offset-2"
+              onclick={() => conv.answer(eo)}>{eo}</button
+            >
+          {/each}
+        </div>
+      {/if}
+    {:else if showText && conv.current}
+      <TextInput question={conv.current} onanswer={(v) => conv.answer(v)} />
+    {/if}
+  </div>
 </div>
