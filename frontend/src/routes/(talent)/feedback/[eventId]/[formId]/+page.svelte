@@ -35,7 +35,7 @@
 
 <TalentPageHeader title="Feedback" backHref="/" />
 
-<div class="mx-auto max-w-2xl px-4 pb-12">
+<div class="mx-auto max-w-4xl px-4 pb-12">
   <div
     class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
   >
