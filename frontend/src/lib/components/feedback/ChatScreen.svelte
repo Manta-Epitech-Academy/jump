@@ -49,7 +49,7 @@
   );
 </script>
 
-<div class="flex h-full flex-col bg-slate-50 dark:bg-slate-900/50">
+<div class="flex h-full flex-col bg-white dark:bg-slate-900">
   <!-- Header -->
   <div
     class="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800"
@@ -74,9 +74,7 @@
   <ChatThread messages={conv.messages} typing={conv.status === 'typing'} />
 
   <!-- Response dock: all answer inputs live here, flush at the bottom -->
-  <div
-    class="border-t border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/50"
-  >
+  <div class="border-t border-slate-200 px-4 py-3 dark:border-slate-700">
     {#if conv.error}
       <p class="mb-2 text-center text-xs text-red-500">{conv.error}</p>
     {/if}
