@@ -4,6 +4,7 @@
   import FileText from '@lucide/svelte/icons/file-text';
   import Camera from '@lucide/svelte/icons/camera';
   import MessageSquare from '@lucide/svelte/icons/message-square';
+  import UserCheck from '@lucide/svelte/icons/user-check';
   import { resolve } from '$app/paths';
   import PageHero from '$lib/components/layout/PageHero.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
@@ -44,6 +45,9 @@
   );
   const onboardingHref = $derived(
     resolve(`/staff/dev/events/${eventId}/onboarding`),
+  );
+  const emargementHref = $derived(
+    resolve(`/staff/dev/events/${eventId}/emargement`),
   );
 
   const datesLabel = $derived(
@@ -118,6 +122,13 @@
       icon={Camera}
       tone="neutral"
       href={onboardingHref}
+    />
+    <KpiTile
+      label="Émargement"
+      icon={UserCheck}
+      tone="neutral"
+      sub="présences du stage"
+      href={emargementHref}
     />
   </div>
 

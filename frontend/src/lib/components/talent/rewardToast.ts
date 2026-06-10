@@ -36,7 +36,7 @@ export function rewardToast(
 const XP_PROGRESSION_HINT =
   'Les XP reflètent ta progression, tu en gagneras en participant aux activités !';
 
-// Onboarding arrival reward, fired on the dashboard after `?welcome=1`. The
+// Onboarding arrival reward, fired on the first dashboard load after onboarding. The
 // early-bird branch layers pioneer recognition + the bonus breakdown ON TOP of
 // the same progression hint the normal branch shows, rather than replacing it,
 // so being among the first of your campus never costs you the lesson.

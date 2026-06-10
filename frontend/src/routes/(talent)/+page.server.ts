@@ -5,6 +5,7 @@ import { now } from '@internationalized/date';
 import { prisma } from '$lib/server/db';
 import { getBrowserTimezone } from '$lib/server/db/scoped';
 import { revokeXp } from '$lib/server/services/xpService';
+import { consumeArrivalCelebration } from '$lib/server/talent/arrivalCelebration';
 import { env } from '$env/dynamic/private';
 import {
   checkTalentEligibility,
@@ -19,7 +20,7 @@ import { stageWindowEnd } from '$lib/domain/event';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
 
-export const load: PageServerLoad = async ({ locals, cookies, url }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
     throw error(401, 'Non autorisé');
   }
@@ -117,13 +118,13 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
     // helper so both pages surface it identically.
     const minigameRankReward = await getUnseenMinigameRankReward(studentId);
 
-    // Arrival celebration total. Only resolved when we actually arrived from
-    // onboarding (?welcome=1), so the float shows the real boosted total (base +
-    // early-bird) rather than a hardcoded 200. `earlyBirdBonus` lets the toast
-    // call out the pioneer bonus when it applies.
+    // Arrival celebration total. Only resolved on the first dashboard load after
+    // onboarding completion (the arrival-celebration cookie, consumed here), so
+    // the float shows the real boosted total (base + early-bird) rather than a
+    // hardcoded 200. `earlyBirdBonus` lets the toast call out the pioneer bonus.
     let onboardingArrival: { totalXp: number; earlyBirdBonus: number } | null =
       null;
-    if (url.searchParams.has('welcome')) {
+    if (consumeArrivalCelebration(cookies)) {
       const earlyBird = await prisma.xpGrant.findUnique({
         where: {
           source_sourceId: {

@@ -6,9 +6,21 @@ import {
   type PutObjectCommandInput,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { env } from '$env/dynamic/private';
 
 const SIGNED_URL_EXPIRES_IN = 3600; // 1 hour
+
+// Bound how long an S3 call may wait to CONNECT, and cap retries. Without this
+// the SDK waits on the OS default (tens of seconds) when the endpoint is
+// unreachable or unresponsive, and on a request-scoped read like the avatar
+// proxy that hang holds a browser connection: six of them saturate the
+// per-origin pool and the whole page stalls (every other request goes pending).
+// A bounded connect makes a missing/down S3 fail fast (then surface as a 404)
+// instead of wedging the app. `requestTimeout` stays 0 (unbounded transfer) so
+// large uploads/downloads (diplomas, PDFs) are never cut off mid-stream.
+const S3_CONNECTION_TIMEOUT_MS = 3000;
+const S3_MAX_ATTEMPTS = 2;
 
 function getClient(endpoint: string): S3Client {
   return new S3Client({
@@ -19,6 +31,11 @@ function getClient(endpoint: string): S3Client {
       secretAccessKey: env.S3_SECRET_ACCESS_KEY!,
     },
     forcePathStyle: true,
+    maxAttempts: S3_MAX_ATTEMPTS,
+    requestHandler: new NodeHttpHandler({
+      connectionTimeout: S3_CONNECTION_TIMEOUT_MS,
+      requestTimeout: 0,
+    }),
   });
 }
 

@@ -148,10 +148,13 @@
       label: EVENT_TYPE_LABELS[EVENT_TYPES.CODING_CLUB],
     },
   ];
+  // Mirrors the three states of the table's Statut column, so filtering and the
+  // badge speak the same language: complete onboarding, mid-onboarding, no account.
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
     { value: 'active', label: 'Actifs' },
-    { value: 'pending', label: 'Jamais connectés' },
+    { value: 'onboarding', label: 'Onboarding' },
+    { value: 'never', label: 'Jamais connectés' },
   ];
 
   // `account` defaults to 'all' server-side; the others are empty when inactive.
@@ -161,7 +164,7 @@
       data.filters.type ||
       data.filters.niveau ||
       data.filters.campus,
-    ) || data.filters.account !== 'all',
+    ) || data.filters.status !== 'all',
   );
 
   function resetFilters() {
@@ -179,7 +182,7 @@
     { key: 'nom', label: 'Talent', sortable: true },
     { key: 'niveau', label: 'Niveau', sortable: true },
     { key: 'campus', label: 'Campus' },
-    { key: 'progression', label: 'Progression' },
+    { key: 'xp', label: 'Progression', sortable: true },
     { key: 'statut', label: 'Statut' },
     { key: 'activite', label: 'Activité', sortable: true },
     { key: 'action', label: 'Action', align: 'right' },
@@ -277,9 +280,8 @@
         <SegmentedFilter
           ariaLabel="Filtrer par statut de compte"
           options={statutOptions}
-          value={data.filters.account}
-          onChange={(v) =>
-            navigateWithParams({ account: v === 'all' ? '' : v })}
+          value={data.filters.status}
+          onChange={(v) => navigateWithParams({ status: v === 'all' ? '' : v })}
         />
       </div>
 

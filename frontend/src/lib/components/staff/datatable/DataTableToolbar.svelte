@@ -10,6 +10,8 @@
     searchValue,
     onSearchInput,
     searchPlaceholder = 'Rechercher…',
+    searchWidthClass = 'max-w-72',
+    filtersAlign = 'start',
     count,
     countNoun = 'résultat',
     countNounPlural,
@@ -21,6 +23,13 @@
     searchValue: string;
     onSearchInput: (value: string) => void;
     searchPlaceholder?: string;
+    /** Max-width utility for the search box; default `max-w-72` (288px). */
+    searchWidthClass?: string;
+    /**
+     * `end` pushes the filters to the right edge as one group (space-between
+     * against the search box); `start` (default) keeps them inline next to it.
+     */
+    filtersAlign?: 'start' | 'end';
     count: number;
     countNoun?: string;
     countNounPlural?: string;
@@ -39,7 +48,7 @@
 
 <div class="space-y-3">
   <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
-    <div class="relative w-full max-w-72">
+    <div class="relative w-full {searchWidthClass}">
       <Search class="absolute top-2.5 left-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         placeholder={searchPlaceholder}
@@ -51,7 +60,13 @@
     </div>
 
     {#if filters}
-      {@render filters()}
+      {#if filtersAlign === 'end'}
+        <div class="ml-auto flex flex-wrap items-center gap-x-5 gap-y-3">
+          {@render filters()}
+        </div>
+      {:else}
+        {@render filters()}
+      {/if}
     {/if}
 
     {#if actions}

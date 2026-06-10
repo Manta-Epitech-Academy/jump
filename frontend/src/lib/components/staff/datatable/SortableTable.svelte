@@ -144,7 +144,10 @@
       {:else}
         {#each rows as r, i (rowKey(r, i))}
           <Table.Row
-            class={cn('[&>td]:transition-colors', rowHref && 'relative')}
+            class={cn(
+              'group/row [&>td]:transition-colors',
+              rowHref && 'relative',
+            )}
           >
             {@render row(r, i)}
             {#if rowHref}

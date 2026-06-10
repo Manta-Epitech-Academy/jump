@@ -112,7 +112,7 @@ function deriveFunnelRecommendation(
       kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Jamais connecté',
-      message: `Contactez ${t.prenom} car il/elle ne s'est jamais connecté(e)${t.email ? ` avec son email ${t.email}` : ''} sur la plateforme ${t.appUrl}.`,
+      message: `Contactez ${t.prenom} car il/elle ne s'est jamais connecté(e)${t.email ? ` avec son email **${t.email}**` : ''} sur la plateforme ${t.appUrl}`,
       contact: 'student',
     };
   }
@@ -134,7 +134,7 @@ function deriveFunnelRecommendation(
       kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Signatures parents',
-      message: `Contactez les parents de ${t.prenom} pour les informer qu'ils ont reçu un mail sur leur adresse ${t.parentEmail ?? 'e-mail'} de la part de ${t.senderEmail} pour signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
+      message: `Contactez les parents de ${t.prenom} pour les informer qu'ils ont reçu un mail sur leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} de la part de **${t.senderEmail}** pour signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
       contact: 'parent',
     };
   }

@@ -1,0 +1,65 @@
+<script lang="ts">
+  import Info from '@lucide/svelte/icons/info';
+  import QrCode from '@lucide/svelte/icons/qr-code';
+  import MousePointerClick from '@lucide/svelte/icons/mouse-pointer-click';
+  import Lock from '@lucide/svelte/icons/lock';
+  import FileDown from '@lucide/svelte/icons/file-down';
+  import * as Card from '$lib/components/ui/card';
+
+  // Static how-it-works card. Each line names the actual on-screen control
+  // ("Afficher le QR code", "Clôturer", "Tout exporter") so the help maps onto
+  // the page: the QR + export buttons sit in the header, the clôture /
+  // réouverture control in the Synthèse card just above this one.
+</script>
+
+<Card.Root class="rounded-sm shadow-sm dark:shadow-none">
+  <div
+    class="flex flex-row items-center gap-2 border-b bg-muted/30 px-6 pt-4 pb-3"
+  >
+    <Info class="h-5 w-5 text-epi-blue" />
+    <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
+      Aide
+    </h3>
+  </div>
+
+  <Card.Content class="space-y-3.5 p-4 text-xs leading-relaxed">
+    <div class="flex gap-3">
+      <QrCode class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
+      <p class="text-muted-foreground">
+        <span class="font-semibold text-foreground">Afficher le QR code.</span>
+        Projetez-le sur un écran : les stagiaires le scannent pour pointer eux-mêmes,
+        et les présences s'actualisent en direct. Vous pouvez aussi le télécharger
+        en PDF pour l'imprimer et l'afficher dans la salle.
+      </p>
+    </div>
+
+    <div class="flex gap-3">
+      <MousePointerClick class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
+      <p class="text-muted-foreground">
+        <span class="font-semibold text-foreground">Pointage manuel.</span>
+        Sur la ligne d'un stagiaire, cliquez présent, en retard, absent ou justifié
+        ; recliquez le même état pour le remettre en attente.
+      </p>
+    </div>
+
+    <div class="flex gap-3">
+      <Lock class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
+      <p class="text-muted-foreground">
+        <span class="font-semibold text-foreground"
+          >Clôture et réouverture.</span
+        >
+        « Clôturer » passe les « en attente » en absents et coupe le QR code ; c'est
+        automatique à 11h et 15h. Vous pouvez rouvrir un créneau fermé à la main,
+        mais pas un créneau déjà passé 11h ou 15h.
+      </p>
+    </div>
+
+    <div class="flex gap-3">
+      <FileDown class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
+      <p class="text-muted-foreground">
+        <span class="font-semibold text-foreground">Tout exporter.</span>
+        Téléchargez l'émargement complet du stage (tous les créneaux) au format XLSX.
+      </p>
+    </div>
+  </Card.Content>
+</Card.Root>

@@ -7,7 +7,7 @@
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
-  import CircleAlert from '@lucide/svelte/icons/circle-alert';
+  import Unplug from '@lucide/svelte/icons/unplug';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Download from '@lucide/svelte/icons/download';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
@@ -42,13 +42,14 @@
   import { formatGivenName } from '$lib/domain/profile';
   import {
     RULES_STATUS_LABELS,
-    DOSSIER_READINESS_LABELS,
+    INSCRIT_STATUS_LABELS,
     type RulesStatus,
-    type DossierReadiness,
+    type InscritStatus,
   } from '$lib/domain/stageCompliance';
   import {
-    IMAGE_RIGHTS_STATUS_LABELS,
-    type ImageRightsStatus,
+    IMAGE_RIGHTS_DISPLAY_LABELS,
+    imageRightsDisplayStatus,
+    type ImageRightsDisplayStatus,
   } from '$lib/domain/imageRights';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import type { InscritRow, SortKey } from './components/types';
@@ -66,39 +67,41 @@
       : s === 'awaiting_parent'
         ? 'text-amber-300 dark:text-amber-900'
         : 'text-red-300 dark:text-red-900';
-  const imageTone = (s: ImageRightsStatus) =>
+  const imageTone = (s: ImageRightsDisplayStatus) =>
     s === 'accepted'
       ? 'text-epi-teal dark:text-teal-900'
       : s === 'refused'
         ? 'text-orange-300 dark:text-orange-900'
-        : 'text-red-300 dark:text-red-900';
+        : s === 'awaiting_parent'
+          ? 'text-amber-300 dark:text-amber-900'
+          : 'text-red-300 dark:text-red-900';
 
-  // Statut badge presentation, one entry per folded readiness state. Teal =
-  // done, amber = in progress (one gate left or the parent co-sign pending),
-  // orange = nothing started.
-  const READINESS_BADGE: Record<
-    DossierReadiness,
+  // Statut badge presentation, one entry per funnel state. Red = never logged in
+  // (the most urgent case), amber = connected but dossier in progress, teal =
+  // connected with both gates done.
+  const INSCRIT_STATUS_BADGE: Record<
+    InscritStatus,
     { icon: typeof Check; class: string }
   > = {
+    never_connected: {
+      icon: Unplug,
+      class: 'border-destructive/30 bg-destructive/10 text-destructive',
+    },
+    in_progress: {
+      icon: Clock,
+      class: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+    },
     ready: {
       icon: Check,
       class: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
     },
-    partial: {
-      icon: Clock,
-      class: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
-    },
-    empty: {
-      icon: CircleAlert,
-      class: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
-    },
   };
 
   // Sort order: least-ready first in ascending, so the rows still needing a
-  // chase float to the top.
-  const READINESS_ORDER: Record<DossierReadiness, number> = {
-    empty: 0,
-    partial: 1,
+  // chase float to the top (never connected before in progress before ready).
+  const STATUS_ORDER: Record<InscritStatus, number> = {
+    never_connected: 0,
+    in_progress: 1,
     ready: 2,
   };
 
@@ -113,7 +116,7 @@
 
   let searchQuery = $state('');
   let niveauFilter = $state<'all' | string>('all');
-  let statutFilter = $state<'all' | DossierReadiness>('all');
+  let statutFilter = $state<'all' | InscritStatus>('all');
   // Default mirrors the server's initial order (nom asc), so the first paint
   // needs no client reshuffle and the header arrow matches the rows shown.
   let sortKey = $state<SortKey>('nom');
@@ -146,7 +149,7 @@
     // Left-aligned like every other column (and the admin talents table): a
     // right-aligned badge made the header label overhang the badge text by the
     // badge's own border + padding, reading as misaligned.
-    { key: 'readiness', label: 'Statut', sortable: true, class: 'w-28' },
+    { key: 'status', label: 'Statut', sortable: true, class: 'w-28' },
   ];
 
   // Niveau is a one-click segmented filter, but only worth showing when the
@@ -159,9 +162,9 @@
 
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
-    { value: 'ready', label: DOSSIER_READINESS_LABELS.ready },
-    { value: 'partial', label: DOSSIER_READINESS_LABELS.partial },
-    { value: 'empty', label: DOSSIER_READINESS_LABELS.empty },
+    { value: 'never_connected', label: INSCRIT_STATUS_LABELS.never_connected },
+    { value: 'in_progress', label: INSCRIT_STATUS_LABELS.in_progress },
+    { value: 'ready', label: INSCRIT_STATUS_LABELS.ready },
   ];
 
   // Every lycée in the cohort, ranked by headcount, for the toolbar picker.
@@ -235,8 +238,8 @@
         if (!a.niveau) return 1;
         if (!b.niveau) return -1;
         return compareNiveaux(a.niveau, b.niveau);
-      case 'readiness':
-        return READINESS_ORDER[a.readiness] - READINESS_ORDER[b.readiness];
+      case 'status':
+        return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     }
   }
 
@@ -244,7 +247,7 @@
     const tokens = norm(searchQuery).split(/\s+/).filter(Boolean);
     const out = data.rows.filter((r) => {
       if (niveauFilter !== 'all' && r.niveau !== niveauFilter) return false;
-      if (statutFilter !== 'all' && r.readiness !== statutFilter) return false;
+      if (statutFilter !== 'all' && r.status !== statutFilter) return false;
       if (tokens.length === 0) return true;
       const h = makeHaystack(r);
       return tokens.every((tok) => h.includes(tok));
@@ -308,23 +311,42 @@
   <title>{STAGE_SECONDE_LABEL} — Inscrits</title>
 </svelte:head>
 
-<!-- Readiness badge tooltip: the two dossier documents at a glance, so staff can
-     triage the cohort (who owes a règlement vs a droit-à-l'image) without opening
-     each fiche — the fiche stays the place for the full history and next actions. -->
-{#snippet dossierBreakdown(r: InscritRow)}
+<!-- Statut badge tooltip: the three triage signals at a glance (did the student
+     connect, do they still owe a règlement, a droit-à-l'image), so staff can
+     triage the cohort without opening each fiche — the fiche stays the place for
+     the full history and next actions. -->
+{#snippet statusBreakdown(r: InscritRow)}
   {@const RulesIcon = r.rulesStatus === 'signed' ? Check : Clock}
+  {@const imageDisplay = imageRightsDisplayStatus(
+    r.imageStatus,
+    r.studentSigned,
+  )}
   {@const ImageIcon =
-    r.imageStatus === 'accepted'
+    imageDisplay === 'accepted'
       ? Check
-      : r.imageStatus === 'refused'
+      : imageDisplay === 'refused'
         ? X
         : Clock}
   <div class="space-y-1.5">
-    <p
-      class="font-mono text-[10px] font-bold tracking-widest text-background/70 uppercase"
-    >
-      Dossier administratif
-    </p>
+    <div class="flex items-center justify-between gap-6">
+      <span class="text-background/70">Connexion</span>
+      <span
+        class={cn(
+          'inline-flex items-center gap-1 font-bold',
+          r.connected
+            ? 'text-epi-teal dark:text-teal-900'
+            : 'text-red-300 dark:text-red-900',
+        )}
+      >
+        {#if r.connected}
+          <Check class="h-3 w-3" />
+          Connecté
+        {:else}
+          <X class="h-3 w-3" />
+          Jamais connecté
+        {/if}
+      </span>
+    </div>
     <div class="flex items-center justify-between gap-6">
       <span class="text-background/70">Règlement intérieur</span>
       <span
@@ -342,11 +364,11 @@
       <span
         class={cn(
           'inline-flex items-center gap-1 font-bold',
-          imageTone(r.imageStatus),
+          imageTone(imageDisplay),
         )}
       >
         <ImageIcon class="h-3 w-3" />
-        {IMAGE_RIGHTS_STATUS_LABELS[r.imageStatus]}
+        {IMAGE_RIGHTS_DISPLAY_LABELS[imageDisplay]}
       </span>
     </div>
   </div>
@@ -418,6 +440,8 @@
           searchValue={searchQuery}
           onSearchInput={(v) => (searchQuery = v)}
           searchPlaceholder="Rechercher un stagiaire…"
+          searchWidthClass="max-w-[230px]"
+          filtersAlign="end"
           count={filtered.length}
           countNoun="stagiaire"
           {countSuffix}
@@ -492,20 +516,36 @@
                 Réinitialiser
               </Button>
             {/if}
-            <Button
-              variant="outline"
-              size="sm"
-              onclick={exportXlsx}
-              disabled={exporting || filtered.length === 0}
-              class="ml-auto rounded-sm"
-            >
-              {#if exporting}
-                <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-              {:else}
-                <Download class="mr-1.5 h-4 w-4" />
-              {/if}
-              Exporter (XLSX)
-            </Button>
+            <Tooltip.Provider delayDuration={300}>
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <Button
+                      {...props}
+                      variant="outline"
+                      size="sm"
+                      onclick={exportXlsx}
+                      disabled={exporting || filtered.length === 0}
+                      class="ml-auto rounded-sm"
+                    >
+                      {#if exporting}
+                        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+                      {:else}
+                        <Download class="mr-1.5 h-4 w-4" />
+                      {/if}
+                      Exporter (XLSX)
+                    </Button>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content class="max-w-60 rounded-sm">
+                  <p>
+                    Exporte les {filtered.length}
+                    {filtered.length > 1 ? 'stagiaires' : 'stagiaire'} actuellement
+                    affichés (filtres et tri appliqués), pas toute la cohorte.
+                  </p>
+                </Tooltip.Content>
+              </Tooltip.Root>
+            </Tooltip.Provider>
           {/snippet}
         </DataTableToolbar>
 
@@ -571,7 +611,7 @@
                 <Tooltip.Root>
                   <Tooltip.Trigger>
                     {#snippet child({ props })}
-                      {@const badge = READINESS_BADGE[r.readiness]}
+                      {@const badge = INSCRIT_STATUS_BADGE[r.status]}
                       {@const BadgeIcon = badge.icon}
                       <!-- The badge IS the row link: relative z-10 lifts it above
                            the stretched-link overlay so it both fires the tooltip
@@ -588,12 +628,12 @@
                         )}
                       >
                         <BadgeIcon class="h-3 w-3" />
-                        {DOSSIER_READINESS_LABELS[r.readiness]}
+                        {INSCRIT_STATUS_LABELS[r.status]}
                       </a>
                     {/snippet}
                   </Tooltip.Trigger>
                   <Tooltip.Content class="max-w-64">
-                    {@render dossierBreakdown(r)}
+                    {@render statusBreakdown(r)}
                   </Tooltip.Content>
                 </Tooltip.Root>
               </Table.Cell>
