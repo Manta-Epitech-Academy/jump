@@ -29,7 +29,7 @@
 
 <div
   bind:this={el}
-  class="flex min-h-[50vh] flex-1 flex-col gap-3 overflow-y-auto bg-slate-50 px-4 py-6 dark:bg-slate-900/50"
+  class="flex min-h-[50vh] flex-1 flex-col justify-end gap-3 overflow-y-auto bg-slate-50 px-4 py-6 dark:bg-slate-900/50"
 >
   {#each messages as msg (msg.id)}
     <MessageBubble role={msg.role} text={msg.text} time={msg.time} />
