@@ -1,5 +1,9 @@
-import { composeEventStartInstant } from '$lib/server/eventTime';
-import type { PresenceSlot } from '$lib/domain/eventPresence';
+import { zonedWallClockInstant } from '$lib/server/eventTime';
+import {
+  dateKeyParts,
+  type DateKey,
+  type PresenceSlot,
+} from '$lib/domain/eventPresence';
 
 /**
  * Wall-clock cutoff per half-day, minutes from local midnight (campus tz):
@@ -10,13 +14,24 @@ export const SLOT_CUTOFF_MINUTES: Record<PresenceSlot, number> = {
   afternoon: 15 * 60, // 15h00
 };
 
-/** The instant a half-day auto-closes, resolved in the campus timezone. */
+/**
+ * The instant a half-day auto-closes, resolved in the campus timezone. Takes the
+ * créneau's calendar-day key directly (not a `Date`) so the cutoff lands on the
+ * right local day in every zone, including negative-offset campuses.
+ */
 export function slotCutoffInstant(
-  day: Date,
+  dayKey: DateKey,
   slot: PresenceSlot,
   timezone: string,
 ): Date {
-  return composeEventStartInstant(day, SLOT_CUTOFF_MINUTES[slot], timezone);
+  const { year, month, day } = dateKeyParts(dayKey);
+  return zonedWallClockInstant(
+    year,
+    month,
+    day,
+    SLOT_CUTOFF_MINUTES[slot],
+    timezone,
+  );
 }
 
 /**
@@ -31,10 +46,10 @@ export function slotCutoffInstant(
  * never a stored row).
  */
 export function isSlotPastCutoff(
-  day: Date,
+  dayKey: DateKey,
   slot: PresenceSlot,
   timezone: string,
   now: Date = new Date(),
 ): boolean {
-  return now.getTime() >= slotCutoffInstant(day, slot, timezone).getTime();
+  return now.getTime() >= slotCutoffInstant(dayKey, slot, timezone).getTime();
 }
