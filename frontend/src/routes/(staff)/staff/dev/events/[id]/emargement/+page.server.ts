@@ -116,9 +116,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     closureRows.map((c) => slotKey(dbDateToKey(c.day), c.slot)),
   );
   const pastCutoffKeys = slots
-    .filter((s) =>
-      isSlotPastCutoff(dateKeyToDbDate(s.day), s.slot, timezone, now),
-    )
+    .filter((s) => isSlotPastCutoff(s.day, s.slot, timezone, now))
     .map((s) => s.key);
   const pastCutoffSet = new Set(pastCutoffKeys);
   const closedKeys = slots

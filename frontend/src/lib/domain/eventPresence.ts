@@ -70,6 +70,20 @@ export function dateKeyToDbDate(key: DateKey): Date {
   return new Date(`${key}T00:00:00.000Z`);
 }
 
+/**
+ * Decompose a `YYYY-MM-DD` key into its numeric calendar parts. Use this (not a
+ * `Date`) to feed a wall-clock-in-timezone calculation: a key is a bare calendar
+ * day, so its parts carry no timezone to be lost or misread.
+ */
+export function dateKeyParts(key: DateKey): {
+  year: number;
+  month: number;
+  day: number;
+} {
+  const [year, month, day] = key.split('-').map(Number);
+  return { year, month, day };
+}
+
 /** Recover the calendar day from a `@db.Date` value Prisma read back. */
 export function dbDateToKey(value: Date): DateKey {
   return value.toISOString().slice(0, 10);

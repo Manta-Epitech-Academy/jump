@@ -75,7 +75,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // any job having to run.
   const closed =
     !!closure ||
-    isSlotPastCutoff(dayDate, slot, event.campus?.timezone ?? 'Europe/Paris');
+    isSlotPastCutoff(day, slot, event.campus?.timezone ?? 'Europe/Paris');
   if (closed) return { state: 'closed' as CheckinState, ...withLabel };
   if (!participation)
     return { state: 'not_registered' as CheckinState, ...withLabel };

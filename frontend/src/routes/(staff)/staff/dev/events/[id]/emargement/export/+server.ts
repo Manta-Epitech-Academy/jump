@@ -15,7 +15,6 @@ import {
   slotLabelLong,
   statusLabelFr,
   effectiveStatus,
-  dateKeyToDbDate,
   dbDateToKey,
   type CellStatus,
 } from '$lib/domain/eventPresence';
@@ -78,7 +77,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
       .filter(
         (s) =>
           manualClosed.has(s.key) ||
-          isSlotPastCutoff(dateKeyToDbDate(s.day), s.slot, timezone, now),
+          isSlotPastCutoff(s.day, s.slot, timezone, now),
       )
       .map((s) => s.key),
   );
