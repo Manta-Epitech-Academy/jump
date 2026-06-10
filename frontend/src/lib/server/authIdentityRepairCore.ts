@@ -2,13 +2,11 @@ import { Prisma } from '@prisma/client';
 
 /**
  * Mutation core for auth-identity repairs. Deliberately depends on NOTHING but
- * `@prisma/client` (no `$lib/server/db` singleton, no SvelteKit), so it is the
- * single source of truth shared by two very different callers:
- *
- *   - the admin UI service (`authIdentityRepairService.ts`), which wraps these
- *     in the request's prisma singleton + admin actor;
- *   - the standalone backlog CLI (`scripts/resolve-auth-email-collision.ts`),
- *     which wraps them in its own PrismaClient — scripts can't import `$lib`.
+ * `@prisma/client` (no `$lib/server/db` singleton, no SvelteKit), so the core
+ * stays decoupled from the request layer and reusable. Its driver is the admin
+ * UI service (`authIdentityRepairService.ts`), which wraps these in the request's
+ * prisma singleton + admin actor (and which the Salesforce sync calls through
+ * `autoResolveAuthIdentity` to self-heal the safe verdicts).
  *
  * Every operation is split into `plan*` (read-only: re-derive the situation and
  * assert the precondition, throwing a human reason on failure) and `apply*`

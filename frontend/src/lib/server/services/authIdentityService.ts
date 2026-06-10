@@ -322,15 +322,3 @@ export async function listAuthIdentityConflicts(): Promise<AuthConflict[]> {
   );
   return out;
 }
-
-/**
- * Single-talent classification, for the CLI diagnostic. Returns null when the
- * talent's link is already aligned (no conflict). Reuses the same logic as the
- * list by filtering it, so the two can never disagree.
- */
-export async function getAuthConflictForTalent(
-  talentId: string,
-): Promise<AuthConflict | null> {
-  const all = await listAuthIdentityConflicts();
-  return all.find((c) => c.talentId === talentId) ?? null;
-}

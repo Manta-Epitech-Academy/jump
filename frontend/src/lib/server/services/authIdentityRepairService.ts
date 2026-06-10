@@ -19,8 +19,8 @@ export type { AuthRepairAction } from '$lib/domain/authIdentity';
  * action that no longer applies (state moved since the page loaded) throws and
  * rolls back — the caller surfaces it as a failed action.
  *
- * The standalone backlog CLI drives the same core directly; this module is only
- * the `$lib`-bound entry point for the page actions.
+ * This module is the `$lib`-bound entry point for the page actions; the
+ * Salesforce sync drives the same core through `autoResolveAuthIdentity` below.
  */
 
 export async function runAuthRepair(

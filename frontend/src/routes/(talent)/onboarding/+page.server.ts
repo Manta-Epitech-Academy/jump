@@ -58,13 +58,18 @@ async function provisionParentAccount(
     where: { email: parent.email },
   });
   if (existing && existing.role !== 'parent') {
-    // The address already belongs to a NON-parent login — a student's or staff's
-    // account (bad data: a parent contact email that is also someone's student
-    // email, e.g. a family sharing one address). Don't repurpose it: renaming
-    // their account to the parent's name would pollute their identity, and the
-    // welcome magic link would be refused anyway (/parent/fastlogin filters by
-    // role: 'parent'). Leave it untouched; the collision surfaces elsewhere
-    // (auth-conflicts) rather than being silently mutated here.
+    // The address already belongs to a NON-parent login: a student's or staff's
+    // account (bad data, e.g. a family sharing one address so a parent contact
+    // email is also someone's student email). Don't repurpose it: renaming their
+    // account to the parent's name would pollute their identity, and the welcome
+    // magic link would be refused anyway (/parent/fastlogin filters by
+    // role: 'parent'). So we leave it untouched and warn. Note this is NOT caught
+    // by the admin auth-conflicts tool (that surface only classifies
+    // Talent.userId vs Talent.email drift), so without the warning the parent
+    // would silently get no account until the shared address is fixed at source.
+    console.warn(
+      `Parent account not provisioned for talent ${talentId}: "${parent.email}" already belongs to a non-parent (${existing.role}) account; skipping to avoid hijacking it.`,
+    );
     return;
   }
   if (!existing) {

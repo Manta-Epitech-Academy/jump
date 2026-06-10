@@ -1519,7 +1519,7 @@ model OtpAttempt {
 }
 
 /// Append-only audit ledger of manual auth-identity repairs (see
-/// `authIdentityRepairCore.ts`). When an admin (or the backlog CLI) resolves a
+/// `authIdentityRepairCore.ts`). When an admin (or the Salesforce sync) resolves a
 /// login-identity conflict — a talent linked to the wrong `bauth_user` after a
 /// Salesforce email change/inversion — the resolution is recorded here as one
 /// immutable fact. This is identity surgery on minors' accounts (RGPD), so it
@@ -1541,9 +1541,9 @@ model AuthIdentityRepair {
   /// be gone by the time anyone reads this.
   fromEmail String?
   toEmail   String?
-  /// `bauth_user.id` of the admin who ran it, or `'cli'` for the backlog script.
-  /// Plain `String` (no FK) so a CLI run with no real actor still records, and
-  /// so the row survives the actor's own later deletion.
+  /// `bauth_user.id` of the admin who ran it, or `'sync'` when the Salesforce
+  /// sync auto-resolved it. Plain `String` (no FK) so a non-user actor like the
+  /// sync still records, and so the row survives the actor's own later deletion.
   resolvedBy String
   resolvedAt DateTime @default(now())
 
