@@ -11,7 +11,6 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import Mail from '@lucide/svelte/icons/mail';
   import Phone from '@lucide/svelte/icons/phone';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import SegmentedFilter, {
@@ -30,16 +29,17 @@
   import * as Select from '$lib/components/ui/select';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
+  import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
+  import type { ContactPerson } from '$lib/components/students/contact';
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { toast } from 'svelte-sonner';
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
   import { EVENT_TYPES, EVENT_TYPE_LABELS } from '$lib/domain/event';
-  import { formatPersonName } from '$lib/domain/profile';
+  import { formatPersonName, civiliteCourtesyTitle } from '$lib/domain/profile';
   import { track } from '$lib/analytics';
 
   let { data } = $props();
@@ -64,6 +64,35 @@
     wipeTarget = { id: talent.id, name: `${talent.prenom} ${talent.nom}` };
     wipeConfirm = '';
     wipeOpen = true;
+  }
+
+  // Contact dialog: full coordinates (élève + responsables) live behind a
+  // per-row button so the table rows stay one line tall.
+  let contactOpen = $state(false);
+  let contactTarget = $state<{
+    student: ContactPerson;
+    guardians: ContactPerson[];
+  } | null>(null);
+
+  function openContact(talent: {
+    prenom: string | null;
+    nom: string | null;
+    civilite: string | null;
+    email: string | null;
+    phone: string | null;
+    guardians: ContactPerson[];
+  }) {
+    contactTarget = {
+      student: {
+        civilite: talent.civilite,
+        prenom: talent.prenom,
+        nom: talent.nom,
+        email: talent.email,
+        phone: talent.phone,
+      },
+      guardians: talent.guardians,
+    };
+    contactOpen = true;
   }
 
   const STATUS = {
@@ -211,7 +240,7 @@
     { key: 'nom', label: 'Talent', sortable: true },
     { key: 'niveau', label: 'Niveau', sortable: true },
     { key: 'campus', label: 'Campus' },
-    { key: 'parent', label: 'Responsable' },
+    { key: 'parent', label: 'Parent' },
     { key: 'xp', label: 'Progression', sortable: true },
     { key: 'statut', label: 'Statut' },
     { key: 'activite', label: 'Activité', sortable: true },
@@ -395,7 +424,33 @@
   >
     {#snippet row(talent)}
       <Table.Cell>
-        <StudentAvatarItem student={talent} subText={talent.email} />
+        <div class="flex items-center justify-between gap-2">
+          <StudentAvatarItem
+            student={talent}
+            courtesyTitle={civiliteCourtesyTitle(talent.civilite)}
+          />
+          <Tooltip.Provider delayDuration={300}>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                    onclick={() => openContact(talent)}
+                    aria-label={`Coordonnées de ${formatPersonName(talent.prenom, talent.nom)}`}
+                  >
+                    <Phone class="h-4 w-4" />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p>Coordonnées</p>
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        </div>
       </Table.Cell>
       <Table.Cell>
         {#if talent.niveau}
@@ -417,47 +472,16 @@
         {/if}
       </Table.Cell>
       <Table.Cell>
-        {#if talent.parent}
-          <div class="flex flex-col items-start gap-0.5">
-            <span class="text-sm">
-              {formatPersonName(talent.parent.prenom, talent.parent.nom) || '—'}
-            </span>
-            {#if talent.parent.email}
-              <div class="flex items-center gap-1">
-                <a
-                  href={`mailto:${talent.parent.email}`}
-                  class="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-epi-blue"
-                >
-                  <Mail class="h-3 w-3 shrink-0" />
-                  <span class="max-w-[13rem] truncate"
-                    >{talent.parent.email}</span
-                  >
-                </a>
-                <CopyButton
-                  value={talent.parent.email}
-                  label="Copier l'email du responsable"
-                />
-              </div>
-            {/if}
-            {#if talent.parent.phone}
-              <a
-                href={`tel:${talent.parent.phone.replace(/\s+/g, '')}`}
-                class="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-epi-blue"
-              >
-                <Phone class="h-3 w-3 shrink-0" />
-                <span>{talent.parent.phone}</span>
-              </a>
-            {/if}
-            {#if talent.parentStatus}
-              <span
-                class="mt-0.5 inline-flex w-fit rounded-sm border px-1.5 py-0 text-[10px] font-bold uppercase {PARENT_STATUS[
-                  talent.parentStatus
-                ].class}"
-              >
-                {PARENT_STATUS[talent.parentStatus].label}
-              </span>
-            {/if}
-          </div>
+        {#if talent.parentStatus}
+          <span
+            class="inline-flex w-fit rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {PARENT_STATUS[
+              talent.parentStatus
+            ].class}"
+          >
+            {PARENT_STATUS[talent.parentStatus].label}
+          </span>
+        {:else if talent.guardians.length > 0}
+          <span class="text-sm text-muted-foreground">—</span>
         {:else}
           <span class="text-sm text-muted-foreground">Aucun parent</span>
         {/if}
@@ -621,6 +645,12 @@
     </div>
   {/if}
 </div>
+
+<StudentContactDialog
+  bind:open={contactOpen}
+  student={contactTarget?.student ?? null}
+  guardians={contactTarget?.guardians ?? []}
+/>
 
 <AlertDialog.Root bind:open={wipeOpen}>
   <AlertDialog.Content>
