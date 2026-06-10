@@ -103,7 +103,17 @@
       class={navLinkClass(isActive('/staff/admin/sf-conflicts'))}
     >
       <GitCompareArrows class="h-4 w-4" />
-      <span>Divergences Salesforce</span>
+      <span class="flex flex-1 items-center justify-between">
+        <span>Divergences Salesforce</span>
+        {#if data.authConflictsPending > 0}
+          <span
+            class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white"
+            title="{data.authConflictsPending} conflit(s) d'identité de connexion à résoudre"
+          >
+            {data.authConflictsPending}
+          </span>
+        {/if}
+      </span>
     </a>
     <a
       href={resolve('/staff/admin/onboarding-pdfs')}

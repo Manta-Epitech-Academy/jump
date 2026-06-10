@@ -60,9 +60,11 @@
     data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
   );
 
-  // Planning ships as a read-only viewer (sidebar entry + route are live), so
-  // its entry points on the overview are surfaced.
-  const showPlanning = true;
+  // Planning ships as a read-only viewer, but stays gated until each onboarded
+  // campus has its calendar data (shown as "Bientôt disponible" in the dev
+  // sidebar), so its links stay hidden on the coding_club overview too.
+  // Flip back on once every onboarded campus has its planning data.
+  const showPlanning = false;
 </script>
 
 <svelte:head>
