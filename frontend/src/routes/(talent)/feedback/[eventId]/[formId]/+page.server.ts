@@ -1,11 +1,12 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
-import { zod4 } from 'sveltekit-superforms/adapters';
 import { prisma } from '$lib/server/db';
-import { loadForm, validateAnswer } from '$lib/domain/feedbackForms/schema';
+import {
+  loadForm,
+  validateAnswer,
+  type Answers,
+} from '$lib/domain/feedbackForms/schema';
 import { buildPrefill } from '$lib/domain/feedback';
-import { feedbackSubmitSchema } from '$lib/validation/feedback';
 
 const VALID_FORM_IDS = ['w1', 'w2'];
 
@@ -77,21 +78,28 @@ export const actions: Actions = {
       throw error(404, 'Formulaire introuvable');
     }
 
-    const form = await superValidate(request, zod4(feedbackSubmitSchema));
-    if (!form.valid) {
-      return fail(400, { form });
+    let body: { answers?: Answers };
+    try {
+      body = await request.json();
+    } catch {
+      return fail(400, { message: 'JSON invalide' });
     }
 
-    const errors: string[] = [];
+    const answers = body.answers;
+    if (!answers || typeof answers !== 'object') {
+      return fail(400, { message: 'Reponses manquantes' });
+    }
+
+    const validationErrors: string[] = [];
     for (const q of formSchema.questions) {
-      const err = validateAnswer(q, form.data.answers[q.id]);
+      const err = validateAnswer(q, answers[q.id]);
       if (err) {
-        errors.push(`${q.id}: ${err}`);
+        validationErrors.push(`${q.id}: ${err}`);
       }
     }
 
-    if (errors.length > 0) {
-      return fail(400, { form, validationErrors: errors });
+    if (validationErrors.length > 0) {
+      return fail(400, { validationErrors });
     }
 
     const eventId = params.eventId;
@@ -109,13 +117,13 @@ export const actions: Actions = {
         eventId,
         talentId: locals.talent.id,
         formId,
-        answers: form.data.answers,
+        answers: answers as object,
       },
       update: {
-        answers: form.data.answers,
+        answers: answers as object,
       },
     });
 
-    return { form, success: true };
+    return { success: true };
   },
 };

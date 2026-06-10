@@ -1,20 +1,20 @@
 {
   "id": "w2",
-  "title": "Bilan 2ème semaine — Stage seconde Epitech",
-  "intro": "Coin coin, c'est encore Bernard le canard ! On arrive au bout du stage. On doit remplir les attestations pour ton lycée, alors on te redonne la parole pour cette 2ème semaine. Ton lycée pourra accéder à tes réponses sur demande. Dernière ligne droite !",
+  "title": "Bilan 2eme semaine - Stage seconde Epitech",
+  "intro": "Coin coin, c'est encore Bernard le canard ! On arrive au bout du stage. On doit remplir les attestations pour ton lycee, alors on te redonne la parole pour cette 2eme semaine. Ton lycee pourra acceder a tes reponses sur demande. Derniere ligne droite !",
   "questions": [
     {
       "id": "coordonnees_gate",
-      "prompt": "Avant de commencer : veux-tu renseigner tes coordonnées (campus, nom, prénom, téléphone, e-mail) ?",
+      "prompt": "Avant de commencer : veux-tu renseigner tes coordonnees (campus, nom, prenom, telephone, e-mail) ?",
       "required": true,
       "type": "gate",
       "skipsIdentity": true,
-      "options": ["Oui, je les renseigne", "Non, passer cette étape"],
-      "skipOption": "Non, passer cette étape"
+      "options": ["Oui, je les renseigne", "Non, passer cette etape"],
+      "skipOption": "Non, passer cette etape"
     },
     {
       "id": "campus",
-      "section": "Section 1",
+      "section": "Tes coordonnees",
       "prompt": "Pour commencer, sur quel campus es-tu ?",
       "required": false,
       "identity": true,
@@ -30,20 +30,20 @@
         "Mulhouse",
         "Nancy",
         "Nice",
-        "Paris - Kremlin Bicêtre",
+        "Paris - Kremlin Bicetre",
         "Rennes",
-        "Saint André - La Réunion",
+        "Saint Andre - La Reunion",
         "Strasbourg",
         "Toulouse"
       ]
     },
     {
       "id": "civilite",
-      "prompt": "Ta civilité ?",
+      "prompt": "Ta civilite ?",
       "required": false,
       "identity": true,
       "type": "single",
-      "options": ["Monsieur", "Madame", "Je ne souhaite pas le préciser"]
+      "options": ["Monsieur", "Madame", "Je ne souhaite pas le preciser"]
     },
     {
       "id": "nom",
@@ -56,16 +56,16 @@
     },
     {
       "id": "prenom",
-      "prompt": "Et ton prénom ?",
+      "prompt": "Et ton prenom ?",
       "required": false,
       "identity": true,
       "type": "text",
       "inputKind": "name",
-      "placeholder": "Ton prénom"
+      "placeholder": "Ton prenom"
     },
     {
       "id": "telephone",
-      "prompt": "Ton numéro de téléphone ?",
+      "prompt": "Ton numero de telephone ?",
       "required": false,
       "identity": true,
       "type": "text",
@@ -82,99 +82,149 @@
       "placeholder": "prenom@exemple.com"
     },
     {
-      "id": "avis_conferences",
-      "prompt": "Ton avis sur les conférences de la 2ème semaine ?",
+      "id": "avis_conf_tools",
+      "section": "Hackathon - Vis ma vie de Product Designer",
+      "sectionIntro": "Parlons du hackathon et de la 2eme semaine !",
+      "prompt": "Ton avis sur la conference \"Tools : Build with IA\" by Google (J6) ?",
       "required": true,
       "type": "scale",
       "options": [
         "Passionnant",
-        "Très intéressant",
-        "Intéressant",
-        "Pas intéressant"
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
       ]
     },
     {
-      "id": "avis_atelier_prompt_engineer",
-      "prompt": "Ton avis sur l'atelier « Vie ma vie de Prompt Engineer » (création du site d'une marque), le lundi de la 2ème semaine ?",
+      "id": "avis_conf_product",
+      "prompt": "Ton avis sur la conference \"Product : De l'idee a la marque\" (J7) ?",
       "required": true,
       "type": "scale",
       "options": [
         "Passionnant",
-        "Très intéressant",
-        "Intéressant",
-        "Pas intéressant"
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_conf_success",
+      "prompt": "Ton avis sur la conference \"Success : De la startup a la licorne\" (J8) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_hackathon_design_sprint",
+      "prompt": "Ton avis sur le Design Sprint (J6) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
       ],
       "extraOptions": ["Je n'ai pas tout compris"]
     },
     {
-      "id": "avis_atelier_python_developer",
-      "prompt": "Ton avis sur l'atelier « Vie ma vie de Python Developer » (atelier de programmation), le mardi ?",
+      "id": "avis_hackathon_landing_page",
+      "prompt": "Ton avis sur la creation de Landing Page - Vis ma vie de Prompt Engineer (J7) ?",
       "required": true,
       "type": "scale",
       "options": [
         "Passionnant",
-        "Très intéressant",
-        "Intéressant",
-        "Pas intéressant"
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
       ],
       "extraOptions": ["Je n'ai pas tout compris"]
     },
     {
-      "id": "avis_atelier_osint",
-      "prompt": "Ton avis sur l'atelier « Vie ma vie d'OSINT Investigator » (challenges de cybersécurité), le mercredi ?",
+      "id": "avis_hackathon_figma",
+      "prompt": "Ton avis sur la maquette mobile Figma - Vis ma vie de Product Designer (J7) ?",
       "required": true,
       "type": "scale",
       "options": [
         "Passionnant",
-        "Très intéressant",
-        "Intéressant",
-        "Pas intéressant"
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
       ],
       "extraOptions": ["Je n'ai pas tout compris"]
     },
     {
-      "id": "avis_atelier_business_developer",
-      "prompt": "Ton avis sur l'atelier « Vie ma vie de Business Developer » (Business Game), le jeudi ?",
+      "id": "avis_hackathon_pitch",
+      "prompt": "Ton avis sur la preparation et le Pitch Contest (J8) ?",
       "required": true,
       "type": "scale",
       "options": [
         "Passionnant",
-        "Très intéressant",
-        "Intéressant",
-        "Pas intéressant"
-      ],
-      "extraOptions": ["Je n'ai pas tout compris"]
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_conf_ia",
+      "section": "Demo Day & cloture",
+      "prompt": "Ton avis sur la conference \"IA & Impact : construire une tech responsable\" (J9) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_demo_day",
+      "prompt": "Ton avis sur le Demo Day et le cocktail de cloture (J9) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
     },
     {
       "id": "piste_orientation",
-      "section": "Section 2",
-      "sectionIntro": "Quelques questions pour mieux te connaître et adapter les prochains ateliers et stages. 🎯",
-      "prompt": "Ce stage t'a-t-il permis de découvrir une piste d'orientation post-bac ?",
+      "section": "Orientation & suite",
+      "sectionIntro": "Quelques questions pour mieux te connaitre et preparer la suite.",
+      "prompt": "Ce stage t'a-t-il permis de decouvrir une piste d'orientation post-bac ?",
       "required": true,
       "type": "single",
       "options": ["Oui", "Non"]
     },
     {
       "id": "invitation_conferences",
-      "prompt": "Souhaites-tu être invité à des conférences sur la tech organisées par Epitech ?",
+      "prompt": "Souhaites-tu etre invite a des conferences sur la tech organisees par Epitech ?",
       "required": false,
       "type": "single",
       "options": ["Oui", "Non"]
     },
     {
       "id": "ateliers_vacances",
-      "prompt": "Les prochains ateliers de découverte auront lieu pendant les vacances de Première et Terminale (stages gratuits de 3 à 5 jours : cybersécurité, IA, robotique, création de jeu vidéo). Souhaites-tu y participer ?",
+      "prompt": "Les prochains ateliers de decouverte auront lieu pendant les vacances de Premiere et Terminale (stages gratuits de 3 a 5 jours : cybersecurite, IA, robotique, creation de jeu video). Souhaites-tu y participer ?",
       "required": true,
       "type": "scale",
       "options": [
-        "Oui, je suis très intéressé",
+        "Oui, je suis tres interesse",
         "Oui, pourquoi pas",
-        "Non, je n'aime décidément pas la tech"
+        "Non, je n'aime decidement pas la tech"
       ]
     },
     {
       "id": "domaines",
-      "prompt": "À l'issue de ces deux semaines, quels domaines t'attirent le plus ? (au plus 3)",
+      "prompt": "A l'issue de ces deux semaines, quels domaines t'attirent le plus ? (au plus 3)",
       "required": true,
       "type": "multiple",
       "maxSelections": 3,
@@ -182,29 +232,29 @@
         "UX / UI Design / Web Design",
         "Marketing digital et/ou influence digitale",
         "Data",
-        "Objets connectés",
-        "Cybersécurité",
+        "Objets connectes",
+        "Cybersecurite",
         "Intelligence Artificielle",
-        "Infrastructures et réseaux",
-        "Développement web et mobile",
-        "Développement informatique",
-        "Transformation digitale en général",
+        "Infrastructures et reseaux",
+        "Developpement web et mobile",
+        "Developpement informatique",
+        "Transformation digitale en general",
         "Rien de tout cela"
       ]
     },
     {
       "id": "recommandation",
-      "prompt": "Recommanderais-tu ce stage aux élèves de seconde de l'an prochain ?",
+      "prompt": "Recommanderais-tu ce stage aux eleves de seconde de l'an prochain ?",
       "required": true,
       "type": "scale",
-      "options": ["Oui 1000 fois", "Oui", "Mitigé", "Non"]
+      "options": ["Oui 1000 fois", "Oui", "Mitige", "Non"]
     },
     {
       "id": "ameliorations",
-      "prompt": "Selon toi, que pourrions-nous améliorer pour rendre ce stage encore plus intéressant ?",
+      "prompt": "Selon toi, que pourrions-nous ameliorer pour rendre ce stage encore plus interessant ?",
       "required": false,
       "type": "textarea",
-      "placeholder": "Tes idées..."
+      "placeholder": "Tes idees..."
     }
   ]
 }

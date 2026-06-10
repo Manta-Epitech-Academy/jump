@@ -14,15 +14,22 @@
     if (submitting || submitted) return;
     submitting = true;
     try {
-      const res = await fetch('', {
+      const res = await fetch(`/api/feedback/${data.eventId}/${data.formId}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ answers }),
       });
-      if (!res.ok) throw new Error('Erreur serveur');
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.message ?? 'Erreur serveur');
+      }
       submitted = true;
-    } catch {
-      toast.error("Erreur lors de l'enregistrement. Reessaie.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de l'enregistrement. Reessaie.",
+      );
     } finally {
       submitting = false;
     }
@@ -36,9 +43,12 @@
 <div class="flex min-h-dvh flex-col">
   <TalentPageHeader title="Feedback" backHref="/" />
 
-  <div class="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-6">
+  <div
+    class="mx-auto w-full max-w-4xl px-4 py-6"
+    style="height: calc(100dvh - 10rem);"
+  >
     <div
-      class="flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+      class="flex h-full flex-col overflow-hidden rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none"
     >
       <ChatScreen
         form={data.formSchema}
