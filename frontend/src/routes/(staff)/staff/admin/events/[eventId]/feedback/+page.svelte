@@ -1,6 +1,7 @@
 <script lang="ts">
   import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
   import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
+  import Download from '@lucide/svelte/icons/download';
 
   let { data } = $props();
 
@@ -31,11 +32,24 @@
       ariaLabel="Formulaire de feedback"
     />
 
-    <p class="text-sm text-muted-foreground">
-      <span class="font-mono font-bold text-foreground">{submissionCount}</span>
-      / {data.participantCount} reponses
-      <span class="text-xs">({pctResponse} %)</span>
-    </p>
+    <div class="flex items-center gap-4">
+      <p class="text-sm text-muted-foreground">
+        <span class="font-mono font-bold text-foreground"
+          >{submissionCount}</span
+        >
+        / {data.participantCount} reponses
+        <span class="text-xs">({pctResponse} %)</span>
+      </p>
+
+      <a
+        href={`/staff/admin/events/${data.event.id}/feedback/export?formId=${activeForm}`}
+        download
+        class="inline-flex items-center gap-1.5 rounded-sm border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+      >
+        <Download class="h-3.5 w-3.5" />
+        Exporter CSV
+      </a>
+    </div>
   </div>
 
   {#if currentForm}
