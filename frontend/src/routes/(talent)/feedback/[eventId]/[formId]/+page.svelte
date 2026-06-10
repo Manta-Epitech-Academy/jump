@@ -36,9 +36,9 @@
 <div class="flex min-h-dvh flex-col">
   <TalentPageHeader title="Feedback" backHref="/" />
 
-  <div class="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
+  <div class="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-6">
     <div
-      class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+      class="flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
     >
       <ChatScreen
         form={data.formSchema}
