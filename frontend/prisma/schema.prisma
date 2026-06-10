@@ -280,10 +280,11 @@ model Talent {
   xpGrants           XpGrant[]
   school             School?                 @relation(fields: [schoolId], references: [id], onDelete: SetNull)
   sfImport           TalentSfImport?
-  broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
-  broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
-  deletionRequests   TalentDeletionRequest[]
-  eventPresences     EventPresence[]
+  broadcastsReceived  BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
+  broadcastsAsParent  BroadcastRecipient[]    @relation("BroadcastRecipientParent")
+  deletionRequests    TalentDeletionRequest[]
+  eventPresences      EventPresence[]
+  feedbackSubmissions FeedbackSubmission[]
 
   @@index([xp])
   @@index([schoolId])
@@ -564,8 +565,9 @@ model Event {
   cmsPages         CmsPage[]
   broadcasts       Broadcast[]
   minigameAttempts MinigameAttempt[]
-  presenceClosures EventPresenceClosure[]
-  eventPresences   EventPresence[]
+  presenceClosures     EventPresenceClosure[]
+  eventPresences       EventPresence[]
+  feedbackSubmissions  FeedbackSubmission[]
 
   @@index([campusId])
 }
@@ -683,6 +685,21 @@ model EventPresenceClosure {
   closedBy StaffProfile? @relation(fields: [closedById], references: [id], onDelete: SetNull)
 
   @@unique([eventId, day, slot])
+}
+
+model FeedbackSubmission {
+  id        String   @id @default(cuid())
+  eventId   String
+  talentId  String
+  formId    String
+  answers   Json
+  createdAt DateTime @default(now())
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, talentId, formId])
+  @@index([eventId, formId])
 }
 
 enum PresenceSlot {
