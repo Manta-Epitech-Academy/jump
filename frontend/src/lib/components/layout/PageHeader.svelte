@@ -37,7 +37,9 @@
     {/if}
   </div>
   {#if children}
-    <div class="flex items-center gap-2">
+    <!-- flex-wrap so multi-action headers (e.g. Émargement's export + QR) drop to a
+         second line on a phone instead of overflowing; no effect once they fit. -->
+    <div class="flex flex-wrap items-center gap-2">
       {@render children()}
     </div>
   {/if}

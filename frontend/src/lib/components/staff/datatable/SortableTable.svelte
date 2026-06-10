@@ -8,6 +8,7 @@
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
   import * as Table from '$lib/components/ui/table';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { cn } from '$lib/utils';
   import type { ColumnDef, SortDir } from './types';
 
@@ -31,6 +32,8 @@
     headerClass = 'bg-muted/50',
     stickyHeader = false,
     layout = 'auto',
+    mobileRow,
+    mobileSort = true,
   }: {
     columns: ColumnDef[];
     rows: T[];
@@ -44,8 +47,9 @@
      * anchor overlay. Prefer this over a JS click handler for navigation: a real
      * `<a>` gives cmd/middle/right-click (open in new tab), hover URL preview,
      * native keyboard activation and correct a11y — none of which a row `onclick`
-     * can replicate. Any interactive element inside a cell must then carry
-     * `relative z-10` to stay clickable above the overlay.
+     * can replicate. Any interactive element inside a cell (or a `mobileRow`
+     * card, which reuses the same overlay) must then carry `relative z-10` to
+     * stay clickable above the overlay.
      */
     rowHref?: (row: T) => string;
     /** Accessible name for the row link — the cells are not inside the anchor. */
@@ -74,10 +78,29 @@
      * intrinsic width spill over the neighbour, fixed layout can't.
      */
     layout?: 'auto' | 'fixed';
+    /**
+     * Opt-in mobile presentation. When set, below `lg` the table is hidden and each
+     * row renders as a stacked card through this snippet instead — the desktop table
+     * is untouched at `lg+`. The roster table's fixed layout squeezes its columns
+     * into nothing on a phone (a 6-column budget can't fit ~400px), so the card list
+     * is the readable form there. Leaving it unset keeps the table visible at every
+     * width with its own x-scroll, so existing callers are unaffected.
+     */
+    mobileRow?: Snippet<[T, number]>;
+    /** Show the compact "Trier" dropdown above the mobile cards (sortable cols only). */
+    mobileSort?: boolean;
   } = $props();
+
+  const sortableColumns = $derived(columns.filter((c) => c.sortable));
+  const activeSortColumn = $derived(columns.find((c) => c.key === sortKey));
 </script>
 
-<div class="rounded-sm border bg-card shadow-sm">
+<div
+  class={cn(
+    'rounded-sm border bg-card shadow-sm',
+    mobileRow && 'hidden lg:block',
+  )}
+>
   <Table.Root
     class={layout === 'fixed' ? 'table-fixed' : undefined}
     containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}
@@ -177,3 +200,74 @@
     </Table.Body>
   </Table.Root>
 </div>
+
+{#if mobileRow}
+  <!-- Mobile (below lg): the fixed table can't fit a phone, so each row becomes a
+       card. The header's per-column sort buttons go with it, so an optional "Trier"
+       dropdown carries the same sort over (it calls the same `onSort`, which the
+       parent already toggles). Cards reuse `rowHref` via the same stretched-link
+       overlay as the table rows, so cmd/middle-click and keyboard nav behave alike. -->
+  <div class="space-y-2 lg:hidden">
+    {#if mobileSort && onSort && sortableColumns.length > 0}
+      <div class="flex items-center justify-end">
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-sm border bg-background px-3 text-xs font-bold uppercase"
+            aria-label="Trier la liste"
+          >
+            <ChevronsUpDown class="h-3.5 w-3.5 text-muted-foreground" />
+            Trier{activeSortColumn ? ` : ${activeSortColumn.label}` : ''}
+            {#if activeSortColumn}
+              {#if sortDir === 'asc'}
+                <ArrowUp class="h-3.5 w-3.5 text-epi-blue" />
+              {:else}
+                <ArrowDown class="h-3.5 w-3.5 text-epi-blue" />
+              {/if}
+            {/if}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end">
+            {#each sortableColumns as col (col.key)}
+              <DropdownMenu.Item
+                class="cursor-pointer"
+                onSelect={() => onSort?.(col.key)}
+              >
+                {col.label}
+                {#if sortKey === col.key}
+                  {#if sortDir === 'asc'}
+                    <ArrowUp class="ml-auto h-3.5 w-3.5 text-epi-blue" />
+                  {:else}
+                    <ArrowDown class="ml-auto h-3.5 w-3.5 text-epi-blue" />
+                  {/if}
+                {/if}
+              </DropdownMenu.Item>
+            {/each}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </div>
+    {/if}
+
+    {#if rows.length === 0}
+      <div class="rounded-sm border bg-card p-6 text-center shadow-sm">
+        {#if empty}
+          {@render empty()}
+        {:else}
+          <span class="text-sm text-muted-foreground">Aucun résultat</span>
+        {/if}
+      </div>
+    {:else}
+      {#each rows as r, i (rowKey(r, i))}
+        <div class="relative rounded-sm border bg-card p-3 shadow-sm">
+          {@render mobileRow(r, i)}
+          {#if rowHref}
+            <a
+              href={rowHref(r)}
+              class="absolute inset-0 rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
+            >
+              <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
+            </a>
+          {/if}
+        </div>
+      {/each}
+    {/if}
+  </div>
+{/if}

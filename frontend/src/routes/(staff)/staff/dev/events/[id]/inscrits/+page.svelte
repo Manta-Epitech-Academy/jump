@@ -639,6 +639,54 @@
               </Table.Cell>
             {/snippet}
 
+            <!-- Mobile card (below lg): the fixed 6-column roster can't fit a phone,
+                 so the row folds to avatar + name with the status badge top-right,
+                 then lycée + niveau beneath. The whole card links to the fiche via
+                 SortableTable's `rowHref`, so the badge stays a plain span here. -->
+            {#snippet mobileRow(r: InscritRow)}
+              {@const prenom = formatGivenName(r.prenom)}
+              {@const badge = INSCRIT_STATUS_BADGE[r.status]}
+              {@const BadgeIcon = badge.icon}
+              <div class="flex items-start gap-3">
+                <TalentAvatar
+                  talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                  size="sm"
+                />
+                <div class="min-w-0 flex-1 space-y-1">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="min-w-0 truncate text-sm">
+                      <span class="font-medium">{prenom}</span>
+                      <span class="font-bold uppercase">{r.nom}</span>
+                    </p>
+                    <span
+                      class={cn(
+                        'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                        badge.class,
+                      )}
+                    >
+                      <BadgeIcon class="h-3 w-3" />
+                      {INSCRIT_STATUS_LABELS[r.status]}
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="min-w-0 flex-1 truncate text-xs text-muted-foreground"
+                    >
+                      {r.schoolName || '—'}
+                    </span>
+                    {#if r.niveau}
+                      <Badge
+                        variant="secondary"
+                        class="shrink-0 rounded-sm bg-epi-blue/5 px-2 py-0 text-[10px] font-bold text-epi-blue uppercase"
+                      >
+                        {niveauLabel(r.niveau)}
+                      </Badge>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            {/snippet}
+
             {#snippet empty()}
               <div class="flex flex-col items-center gap-3 py-6">
                 <span
