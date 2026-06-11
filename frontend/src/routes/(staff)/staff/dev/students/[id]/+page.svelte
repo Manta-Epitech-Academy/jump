@@ -1,7 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { untrack } from 'svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { scale } from 'svelte/transition';
+  import { backOut } from 'svelte/easing';
 
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import Play from '@lucide/svelte/icons/play';
@@ -11,7 +14,6 @@
   import Loader2 from '@lucide/svelte/icons/loader-2';
   import Check from '@lucide/svelte/icons/check';
 
-  import { Switch } from '$lib/components/ui/switch';
   import { Button } from '$lib/components/ui/button';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
@@ -31,7 +33,9 @@
   import type { InterviewStatus } from '@prisma/client';
 
   import type { FlagKey } from '$lib/domain/featureFlags';
+  import type { InterviewProgressSummary } from '$lib/domain/interview';
   import { formatPersonName } from '$lib/domain/profile';
+  import { cn } from '$lib/utils';
 
   let { data }: { data: PageData } = $props();
 
@@ -73,7 +77,27 @@
   // questions live on the left.
   // svelte-ignore state_referenced_locally
   let interviewStatus = $state<InterviewStatus | null>(data.interviewStatus);
-  let interviewProgress = $state<{ done: number; total: number } | undefined>(
+  // Minuteur anchor: the interview's conduct timestamp. Seeded from the server
+  // (so a reload of a running interview resumes the clock), but the load is NOT
+  // refetched on "Démarrer" (the grid uses invalidateAll: false), so when the
+  // interview starts this session we stamp the client clock once — otherwise the
+  // timer would only appear after a manual reload. Cleared on abandon so a later
+  // start re-stamps from zero.
+  // svelte-ignore state_referenced_locally
+  let interviewStartedAt = $state<Date | string | null>(
+    data.interviewConductedAt,
+  );
+  $effect(() => {
+    const status = interviewStatus;
+    untrack(() => {
+      if (status === 'in_progress' && interviewStartedAt == null) {
+        interviewStartedAt = new Date();
+      } else if (status === null) {
+        interviewStartedAt = null;
+      }
+    });
+  });
+  let interviewProgress = $state<InterviewProgressSummary | undefined>(
     undefined,
   );
   // Autosave + in-flight state, plus a handle to drive the grid's lifecycle from
@@ -82,6 +106,15 @@
     undefined,
   );
   let interviewGrid = $state<InterviewGrid>();
+
+  // Every incontournable (★) covered: the Clôturer button shifts to an
+  // affirmative tone to reward completion and signal the interview is ready to
+  // finalize. It stays fully usable before then (the ★ are skippable if time
+  // runs short), so this affirms, never gates.
+  const allEssentialDone = $derived(
+    (interviewProgress?.total ?? 0) > 0 &&
+      (interviewProgress?.done ?? 0) >= (interviewProgress?.total ?? 0),
+  );
 
   // The toggle subtitle states the lifecycle, not the action, so an interview
   // left running reads as running even from the dossier view.
@@ -188,32 +221,62 @@
     <div class="lg:col-span-3">
       <div class="space-y-3 lg:sticky lg:top-6">
         {#if data.canConductInterview}
-          <div class="rounded-sm border bg-card px-4 py-3">
-            <div class="flex items-center justify-between gap-3">
-              <div class="min-w-0">
-                <p
+          <!-- The whole card is the toggle: a big click target (no fiddly
+               switch) with an epi-blue tint so it reads as the primary action of
+               the rail. <button> can't wrap <p>, so the copy uses block spans. -->
+          <button
+            type="button"
+            aria-pressed={interviewMode}
+            aria-label="Activer le mode entretien"
+            onclick={() => (interviewMode = !interviewMode)}
+            class={cn(
+              'block w-full cursor-pointer rounded-sm border px-4 py-3 text-left transition-colors',
+              interviewMode
+                ? 'border-epi-blue/50 bg-epi-blue/10 hover:bg-epi-blue/15'
+                : 'border-epi-blue/30 bg-epi-blue/5 hover:bg-epi-blue/10',
+            )}
+          >
+            <span class="flex items-center justify-between gap-3">
+              <span class="min-w-0">
+                <span
                   class="flex items-center gap-1.5 text-sm font-bold text-foreground"
                 >
                   <MessageSquare class="h-4 w-4 text-epi-blue" />
                   Mode entretien
-                </p>
-                <p class="text-xs text-muted-foreground">
+                </span>
+                <span class="block text-xs text-muted-foreground">
                   {interviewToggleHint}
-                </p>
-              </div>
-              <Switch
-                checked={interviewMode}
-                onCheckedChange={(v) => (interviewMode = v)}
-                aria-label="Activer le mode entretien"
-              />
-            </div>
+                </span>
+              </span>
+              <!-- Decorative switch: the card itself is the control (carries
+                   aria-pressed + label), so this only mirrors the state. Mirrors
+                   ui/switch sizing/colors to stay consistent with the app. -->
+              <span
+                aria-hidden="true"
+                class={cn(
+                  'inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-colors',
+                  interviewMode ? 'bg-primary' : 'bg-input dark:bg-input/80',
+                )}
+              >
+                <span
+                  class={cn(
+                    'block size-4 rounded-full bg-background ring-0 transition-transform',
+                    interviewMode
+                      ? 'translate-x-[calc(100%-2px)] dark:bg-primary-foreground'
+                      : 'translate-x-0 dark:bg-foreground',
+                  )}
+                ></span>
+              </span>
+            </span>
             {#if interviewMode && interviewStatus === 'in_progress'}
-              <p class="mt-2 border-t pt-2 text-xs text-muted-foreground">
+              <span
+                class="mt-2 block border-t pt-2 text-xs text-muted-foreground"
+              >
                 Vous pouvez naviguer ailleurs : l'entretien reste en cours tant
                 que vous ne l'avez pas clôturé.
-              </p>
+              </span>
             {/if}
-          </div>
+          </button>
         {:else}
           <!-- No active stage participation to attach the interview to: keep the
                toggle visible but disabled, with the reason on hover. -->
@@ -236,11 +299,14 @@
                         Indisponible pour ce stagiaire
                       </p>
                     </div>
-                    <Switch
-                      checked={false}
-                      disabled
-                      aria-label="Mode entretien indisponible"
-                    />
+                    <span
+                      aria-hidden="true"
+                      class="inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent bg-input shadow-xs dark:bg-input/80"
+                    >
+                      <span
+                        class="block size-4 translate-x-0 rounded-full bg-background dark:bg-foreground"
+                      ></span>
+                    </span>
                   </div>
                 {/snippet}
               </Tooltip.Trigger>
@@ -277,13 +343,22 @@
                 {#if interviewActionState?.saveState === 'saving'}
                   <Loader2 class="h-3.5 w-3.5 animate-spin" /> Enregistrement…
                 {:else if interviewActionState?.saveState === 'saved'}
-                  <Check class="h-3.5 w-3.5 text-epi-teal-solid" /> Enregistré
+                  <span
+                    class="inline-flex"
+                    in:scale={{ duration: 220, start: 0.5, easing: backOut }}
+                  >
+                    <Check class="h-3.5 w-3.5 text-epi-teal-solid" />
+                  </span> Enregistré
                 {:else}
                   Enregistrement automatique
                 {/if}
               </p>
               <Button
-                class="w-full justify-center"
+                class={cn(
+                  'w-full justify-center',
+                  allEssentialDone &&
+                    'bg-epi-teal-solid text-white hover:bg-epi-teal-solid/90',
+                )}
                 disabled={interviewActionState?.busy}
                 onclick={() => interviewGrid?.close()}
               >
@@ -326,8 +401,8 @@
           {/snippet}
           <InterviewProgressCard
             status={interviewStatus}
-            done={interviewProgress?.done ?? 0}
-            total={interviewProgress?.total ?? 0}
+            progress={interviewProgress}
+            startedAt={interviewStartedAt}
             footer={interviewControls}
           />
           <GuideCard />

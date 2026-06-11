@@ -76,8 +76,10 @@ export type InterviewQuestion = ChoiceQuestion | RatingQuestion | TextQuestion;
 export type InterviewBloc = {
   key: string;
   title: string;
-  /** Pacing budget from the guide's déroulé, shown as a subtle bloc meta. */
-  duration: string;
+  /** Pacing budget from the guide's déroulé, in seconds. Single source: the
+   *  bloc meta string is derived via `formatBlocDuration`, and the rail's live
+   *  minuteur sums these into `INTERVIEW_TOTAL_SECONDS` (the 10-min target). */
+  durationSeconds: number;
   questions: InterviewQuestion[];
 };
 
@@ -102,7 +104,7 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
   {
     key: 'decouverte',
     title: 'Découverte & motivation',
-    duration: '1 min 30',
+    durationSeconds: 90,
     questions: [
       {
         kind: 'single',
@@ -145,7 +147,7 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
   {
     key: 'lycee',
     title: 'Lycée & parcours',
-    duration: '2 min',
+    durationSeconds: 120,
     questions: [
       {
         kind: 'multi',
@@ -218,7 +220,7 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
   {
     key: 'projet',
     title: 'Projet d’orientation',
-    duration: '2 min 30',
+    durationSeconds: 150,
     questions: [
       {
         kind: 'single',
@@ -292,7 +294,7 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
   {
     key: 'domaines',
     title: 'Attrait pour les domaines du stage',
-    duration: '1 min 30',
+    durationSeconds: 90,
     questions: [
       {
         kind: 'single',
@@ -322,7 +324,7 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
   {
     key: 'retour',
     title: 'Retour sur le stage',
-    duration: '1 min 30',
+    durationSeconds: 90,
     questions: [
       {
         kind: 'rating',
@@ -355,7 +357,7 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
   {
     key: 'contact',
     title: 'Garder le contact',
-    duration: '30 s',
+    durationSeconds: 30,
     questions: [
       {
         kind: 'multi',
@@ -374,6 +376,32 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
     ],
   },
 ] as const;
+
+/** Render a bloc's `durationSeconds` as the French pacing meta shown on the
+ *  grid ("1 min 30", "2 min", "30 s"). The seconds are the source; this is the
+ *  only place that stringifies them, so the meta can never drift from the
+ *  minuteur's total. */
+export function formatBlocDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (minutes === 0) return `${rest} s`;
+  if (rest === 0) return `${minutes} min`;
+  return `${minutes} min ${rest}`;
+}
+
+/** Sum of the bloc budgets: the interview's pacing target (9 min 30 of
+ *  questions, the verdict fills the last 30 s of the guide's "10 minutes").
+ *  The rail's minuteur counts elapsed time against this. */
+export const INTERVIEW_TOTAL_SECONDS = INTERVIEW_BLOCS.reduce(
+  (sum, bloc) => sum + bloc.durationSeconds,
+  0,
+);
+
+/** DOM ids for the conduct grid's bloc sections + the interviewer verdict, so
+ *  the right rail's section nav can scroll to them. Shared so the anchor the
+ *  grid renders and the target the nav jumps to can never disagree. */
+export const interviewBlocAnchorId = (key: string) => `interview-bloc-${key}`;
+export const INTERVIEW_VERDICT_ANCHOR_ID = 'interview-verdict';
 
 /** A choice question that unlocks free-text inputs (its `reveal` is present). */
 export type RevealQuestion = ChoiceQuestion & { reveal: Reveal };
@@ -398,6 +426,62 @@ export function isRevealActive(reveal: Reveal, value: unknown): boolean {
   return Array.isArray(value)
     ? value.includes(reveal.when)
     : value === reveal.when;
+}
+
+// ─── ★-progress (shared by the grid's close-gate and the rail's section nav) ───
+
+/** Per-bloc count of answered incontournables, for the rail's section nav. */
+export type SectionProgress = {
+  key: string;
+  title: string;
+  done: number;
+  total: number;
+};
+
+/** The interview's ★-progress: per-bloc essentials plus the interviewer's
+ *  recommendation (an essential that lives outside the blocs). `done`/`total`
+ *  are the grand totals the close-gate compares; `sections` + `verdictDone`
+ *  drive the rail's section nav. One computation so the meter, the nav and the
+ *  "il reste N incontournables" warning can never disagree. */
+export type InterviewProgressSummary = {
+  done: number;
+  total: number;
+  sections: SectionProgress[];
+  verdictDone: boolean;
+};
+
+/** Whether an incontournable holds an answer: a non-empty array for multi, any
+ *  non-empty value otherwise (a picked chip, a star rating). */
+function isAnswered(question: InterviewQuestion, value: unknown): boolean {
+  if (question.kind === 'multi') {
+    return Array.isArray(value) && value.length > 0;
+  }
+  return value != null && value !== '';
+}
+
+/** Compute ★-progress from a flat form-values record (the conduct form). Pure
+ *  and catalogue-driven: a new ★ question or bloc is counted by adding it to
+ *  `INTERVIEW_BLOCS`, never by touching the grid or the rail. */
+export function computeInterviewProgress(
+  values: Record<string, unknown>,
+): InterviewProgressSummary {
+  const sections = INTERVIEW_BLOCS.map((bloc) => {
+    const essentials = bloc.questions.filter((q) => q.essential);
+    const done = essentials.filter((q) =>
+      isAnswered(q, values[q.field]),
+    ).length;
+    return { key: bloc.key, title: bloc.title, done, total: essentials.length };
+  });
+  const verdictDone = values.recommendation != null;
+  const blocDone = sections.reduce((n, s) => n + s.done, 0);
+  const blocTotal = sections.reduce((n, s) => n + s.total, 0);
+  return {
+    sections,
+    verdictDone,
+    // +1 for the interviewer's recommendation: an incontournable not in any bloc.
+    done: blocDone + (verdictDone ? 1 : 0),
+    total: blocTotal + 1,
+  };
 }
 
 /** Interviewer-only block, filled after the interview (never asked to the
@@ -476,11 +560,12 @@ export const INTERVIEW_STATUS_LABELS: Record<InterviewListStatus, string> = {
   done: 'Finalisé',
 };
 
-/** Chip classes on the Epitech charte palette (no off-brand green/amber):
- *  todo = neutral, in_progress = epi-orange (action pending), done = epi-teal. */
+/** Chip classes mirror the inscrits page status badges so the two dev-space
+ *  cohort tables share one color language: todo = neutral, in_progress = amber
+ *  (action pending), done = epi-teal (gate cleared). */
 export const INTERVIEW_STATUS_CHIP_CLASS: Record<InterviewListStatus, string> =
   {
     todo: 'border-border bg-muted text-muted-foreground',
-    in_progress: 'border-epi-orange/40 bg-epi-orange/10 text-epi-orange',
-    done: 'border-epi-teal-solid/40 bg-epi-teal-solid/10 text-epi-teal-solid',
+    in_progress: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+    done: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
   };

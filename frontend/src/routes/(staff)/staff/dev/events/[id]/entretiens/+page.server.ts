@@ -114,6 +114,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     total: rows.length,
     recoCounts,
     topInterviewers,
+    // Lets the leaderboard highlight the acting staff member's own row so they
+    // can locate themselves at a glance, whatever their rank.
+    currentStaffId: locals.staffProfile?.id ?? null,
     timezone,
   };
 };

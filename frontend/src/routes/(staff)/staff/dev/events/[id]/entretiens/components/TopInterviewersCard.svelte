@@ -6,7 +6,11 @@
   import { cn } from '$lib/utils';
   import type { TopInterviewer } from './types';
 
-  let { interviewers }: { interviewers: TopInterviewer[] } = $props();
+  let {
+    interviewers,
+    currentStaffId = null,
+  }: { interviewers: TopInterviewer[]; currentStaffId?: string | null } =
+    $props();
 
   // Podium ring for the top three; the rest sit ringless. The list is already
   // ordered by count desc, so position conveys rank.
@@ -38,7 +42,13 @@
     {:else}
       <ol class="space-y-2.5">
         {#each interviewers as person, i (person.id)}
-          <li class="flex items-center gap-3">
+          {@const isMe = person.id === currentStaffId}
+          <li
+            class={cn(
+              'flex items-center gap-3',
+              isMe && '-mx-2 rounded-md bg-epi-blue/[0.07] px-2 py-1',
+            )}
+          >
             <Avatar.Root class={cn('h-8 w-8 shrink-0', ringClass(i))}>
               <Avatar.Image
                 src={person.image ?? undefined}
@@ -54,6 +64,13 @@
             <span class="min-w-0 flex-1 truncate text-sm font-medium">
               {person.name}
             </span>
+            {#if isMe}
+              <span
+                class="shrink-0 rounded-full bg-epi-blue/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-epi-blue uppercase"
+              >
+                vous
+              </span>
+            {/if}
             <span
               class="shrink-0 text-sm font-bold text-foreground tabular-nums"
             >

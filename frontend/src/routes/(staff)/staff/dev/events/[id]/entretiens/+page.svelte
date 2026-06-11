@@ -351,7 +351,10 @@
             total={data.total}
             recoCounts={data.recoCounts}
           />
-          <TopInterviewersCard interviewers={data.topInterviewers} />
+          <TopInterviewersCard
+            interviewers={data.topInterviewers}
+            currentStaffId={data.currentStaffId}
+          />
           <GuideCard />
         </div>
       </aside>

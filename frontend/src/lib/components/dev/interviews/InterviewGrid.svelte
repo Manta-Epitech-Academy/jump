@@ -21,6 +21,7 @@
   import { toast } from 'svelte-sonner';
   import Star from '@lucide/svelte/icons/star';
   import Check from '@lucide/svelte/icons/check';
+  import ListFilter from '@lucide/svelte/icons/list-filter';
   import Lock from '@lucide/svelte/icons/lock';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -36,9 +37,14 @@
     INTERVIEW_RECOMMENDATIONS,
     INTERVIEW_RECOMMENDATION_VALUES,
     isRevealActive,
+    computeInterviewProgress,
+    formatBlocDuration,
+    interviewBlocAnchorId,
+    INTERVIEW_VERDICT_ANCHOR_ID,
     type ChoiceOption,
     type Reveal,
     type RecommendationToneToken,
+    type InterviewProgressSummary,
   } from '$lib/domain/interview';
   import type { InterviewConductForm } from '$lib/validation/interviews';
 
@@ -56,9 +62,10 @@
     // reopened). Bound up to the fiche so toggling the interview view off and on
     // never resurfaces "Démarrer" for an already-started interview.
     status: InterviewStatus | null;
-    // ★-questions progress, surfaced up so the fiche can render the title +
-    // progress bar in its right rail next to the guide.
-    progress?: { done: number; total: number };
+    // ★-questions progress (grand totals + per-bloc breakdown + verdict),
+    // surfaced up so the fiche's right rail can render the meter and the
+    // section nav next to the guide while the questions stay here.
+    progress?: InterviewProgressSummary;
     // Autosave + in-flight state, surfaced so the fiche renders the lifecycle
     // controls (clôturer / abandonner / rouvrir) and save indicator in its right
     // rail. The actions themselves are driven through the exported methods below.
@@ -68,6 +75,12 @@
   const started = $derived(status === 'in_progress');
   // Fields are interactive only while the interview is in progress.
   const interactive = $derived(started);
+
+  // "Essentiel seulement": collapse the non-★ questions so a time-pressed
+  // interview shows only the incontournables (the guide's "si le temps déborde,
+  // vous sautez les questions non marquées"). A pure view filter — an answer
+  // already entered on a hidden question is kept, just not shown.
+  let focusEssential = $state(false);
 
   let lastAction = $state<InterviewAction>('autosave');
   let saveState = $state<InterviewSaveState>('idle');
@@ -192,7 +205,7 @@
   // time runs short, so we confirm rather than hard-block.
   let closeConfirmOpen = $state(false);
   function attemptClose() {
-    if (essentialDone < essentialTotal) closeConfirmOpen = true;
+    if (summary.done < summary.total) closeConfirmOpen = true;
     else doClose();
   }
   function doClose() {
@@ -232,29 +245,18 @@
   }
 
   // ── Essential-progress meter (★ questions + the recommendation) ──
-  const essentialQuestions = INTERVIEW_BLOCS.flatMap((b) => b.questions).filter(
-    (q) => q.essential,
+  // Catalogue-driven (domain/interview): the per-bloc + verdict breakdown the
+  // rail's section nav renders is the same count the close-gate compares, so
+  // the meter, the nav and the "il reste N incontournables" warning agree.
+  const summary = $derived(
+    computeInterviewProgress($form as Record<string, unknown>),
   );
-  const essentialTotal = essentialQuestions.length + 1;
-  const essentialDone = $derived.by(() => {
-    let n = 0;
-    for (const q of essentialQuestions) {
-      const v = fv(q.field);
-      if (q.kind === 'multi') {
-        if (Array.isArray(v) && v.length > 0) n++;
-      } else if (v != null && v !== '') {
-        n++;
-      }
-    }
-    if ($form.recommendation != null) n++;
-    return n;
-  });
-  const missingEssential = $derived(essentialTotal - essentialDone);
+  const missingEssential = $derived(summary.total - summary.done);
 
   // Surface the live ★-progress to the fiche so its right rail can render the
-  // grille title + progress bar next to the guide while the questions stay here.
+  // meter + section nav next to the guide while the questions stay here.
   $effect(() => {
-    progress = { done: essentialDone, total: essentialTotal };
+    progress = summary;
   });
   // Surface autosave + in-flight state so the rail's controls can spin/disable
   // and show the save indicator without a sticky bar under the grid.
@@ -282,7 +284,7 @@
   });
 
   const chipBase =
-    'cursor-pointer rounded-sm border px-3 py-1.5 text-sm font-medium transition-colors select-none disabled:cursor-default';
+    'cursor-pointer rounded-sm border px-3 py-1.5 text-sm font-medium transition select-none active:scale-95 disabled:cursor-default disabled:active:scale-100';
   const chipIdle =
     'border-border bg-background text-foreground hover:border-epi-blue/40 hover:bg-epi-blue/5';
   const chipActive = 'border-epi-blue bg-epi-blue text-white shadow-sm';
@@ -384,6 +386,47 @@
 <!-- The grille title + ★-progress live in the fiche's right rail (see
      InterviewProgressCard); here the panel holds only the questions. -->
 <section class="rounded-sm border bg-card px-5 pt-5 pb-5 dark:shadow-none">
+  <!-- Pace control: collapse the grid to its ★ questions when time is short.
+       Only while in progress — there's nothing to filter before start or after
+       clôture. -->
+  {#if interactive}
+    <div class="mb-5 flex items-center justify-between gap-3">
+      <p class="text-xs text-muted-foreground">
+        {#if focusEssential}
+          Questions incontournables (★) seulement.
+        {:else}
+          Toutes les questions de la grille.
+        {/if}
+      </p>
+      <button
+        type="button"
+        aria-pressed={focusEssential}
+        onclick={() => (focusEssential = !focusEssential)}
+        class={cn(
+          'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-semibold transition-colors',
+          focusEssential
+            ? 'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid'
+            : 'border-border bg-background text-muted-foreground hover:border-epi-blue/40 hover:text-foreground',
+        )}
+      >
+        <ListFilter class="h-3.5 w-3.5" />
+        Essentiel seulement
+      </button>
+    </div>
+  {:else if status === 'done'}
+    <!-- A finalisé interview renders the same answers at full colour, so without
+         this it looks editable but is inert. The banner names the read-only state
+         and points to the rail's "Rouvrir" control. -->
+    <div
+      class="mb-5 flex items-center gap-2 rounded-sm border border-epi-teal-solid/30 bg-epi-teal-solid/5 px-3 py-2"
+    >
+      <Lock class="h-4 w-4 shrink-0 text-epi-teal-solid" />
+      <p class="text-xs text-muted-foreground">
+        <span class="font-semibold text-foreground">Entretien finalisé.</span>
+        Lecture seule : rouvrez-le pour modifier les réponses.
+      </p>
+    </div>
+  {/if}
   <form bind:this={formEl} method="POST" action="?/saveInterview" use:enhance>
     <!-- Hidden submitters: every lifecycle transition is driven from the fiche's
          right rail through requestSubmit on one of these. -->
@@ -422,91 +465,101 @@
 
     <div
       class={cn(
-        'space-y-7',
+        'space-y-6',
         !interactive && 'pointer-events-none',
         status === null && 'opacity-55',
       )}
       aria-disabled={!interactive}
     >
       {#each INTERVIEW_BLOCS as bloc, i (bloc.key)}
-        <section class="space-y-4">
-          <div
-            class="flex items-baseline justify-between gap-3 border-b pb-1.5"
+        {@const questions =
+          focusEssential && interactive
+            ? bloc.questions.filter((q) => q.essential)
+            : bloc.questions}
+        {#if questions.length}
+          <section
+            id={interviewBlocAnchorId(bloc.key)}
+            class="scroll-mt-20 space-y-3"
           >
-            <h3
-              class="font-heading text-lg tracking-wide text-foreground uppercase"
+            <div
+              class="flex items-baseline justify-between gap-3 border-b pb-1.5"
             >
-              {i + 1}. {bloc.title}<span class="text-epi-teal">_</span>
-            </h3>
-            <span
-              class="shrink-0 font-mono text-xs font-bold tracking-wider text-muted-foreground uppercase"
-            >
-              {bloc.duration}
-            </span>
-          </div>
-
-          {#each bloc.questions as q (q.field)}
-            <div class="space-y-2 rounded-md border bg-muted/20 p-3">
-              {@render questionLabel(q.label, q.essential)}
-              {#if q.hint}
-                <p class="text-xs text-muted-foreground italic">{q.hint}</p>
-              {/if}
-
-              {#if q.kind === 'single'}
-                {@render singleChips(q.field, q.options)}
-                {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
-                  {@render revealInputs(q.reveal)}
-                {/if}
-              {:else if q.kind === 'multi'}
-                {@render multiChips(q.field, q.options)}
-                {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
-                  {@render revealInputs(q.reveal)}
-                {/if}
-              {:else if q.kind === 'rating'}
-                <div class="flex items-center gap-1.5">
-                  {#each Array.from({ length: q.max }) as _, idx (idx)}
-                    {@const filled = ($form.satisfactionStars ?? 0) > idx}
-                    <button
-                      type="button"
-                      disabled={!interactive}
-                      onclick={() => setStars(idx + 1)}
-                      aria-label={`${idx + 1} sur ${q.max}`}
-                      class="cursor-pointer rounded-sm p-0.5 transition-transform hover:scale-110 disabled:cursor-default disabled:hover:scale-100"
-                    >
-                      <Star
-                        class={cn(
-                          'h-7 w-7 transition-colors',
-                          filled
-                            ? 'fill-epi-orange text-epi-orange'
-                            : 'text-muted-foreground/40',
-                        )}
-                      />
-                    </button>
-                  {/each}
-                  {#if $form.satisfactionStars}
-                    <span class="ml-1 text-sm font-bold text-foreground">
-                      {$form.satisfactionStars}/5
-                    </span>
-                  {/if}
-                </div>
-              {:else if q.kind === 'text'}
-                <Textarea
-                  value={(fv(q.field) as string) ?? ''}
-                  oninput={(e) => setText(q.field, e.currentTarget.value)}
-                  placeholder={q.placeholder}
-                  maxlength={q.maxLength}
-                  disabled={!interactive}
-                  class="min-h-16 resize-none bg-background"
-                />
-              {/if}
+              <h3
+                class="font-heading text-lg tracking-wide text-foreground uppercase"
+              >
+                {i + 1}. {bloc.title}<span class="text-epi-teal">_</span>
+              </h3>
+              <span
+                class="shrink-0 font-mono text-xs font-bold tracking-wider text-muted-foreground uppercase"
+              >
+                {formatBlocDuration(bloc.durationSeconds)}
+              </span>
             </div>
-          {/each}
-        </section>
+
+            {#each questions as q (q.field)}
+              <div class="space-y-2 rounded-md border bg-muted/20 p-3">
+                {@render questionLabel(q.label, q.essential)}
+                {#if q.hint}
+                  <p class="text-xs text-muted-foreground italic">{q.hint}</p>
+                {/if}
+
+                {#if q.kind === 'single'}
+                  {@render singleChips(q.field, q.options)}
+                  {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
+                    {@render revealInputs(q.reveal)}
+                  {/if}
+                {:else if q.kind === 'multi'}
+                  {@render multiChips(q.field, q.options)}
+                  {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
+                    {@render revealInputs(q.reveal)}
+                  {/if}
+                {:else if q.kind === 'rating'}
+                  <div class="flex items-center gap-1.5">
+                    {#each Array.from({ length: q.max }) as _, idx (idx)}
+                      {@const filled = ($form.satisfactionStars ?? 0) > idx}
+                      <button
+                        type="button"
+                        disabled={!interactive}
+                        onclick={() => setStars(idx + 1)}
+                        aria-label={`${idx + 1} sur ${q.max}`}
+                        class="cursor-pointer rounded-sm p-0.5 transition-transform hover:scale-110 active:scale-95 disabled:cursor-default disabled:hover:scale-100 disabled:active:scale-100"
+                      >
+                        <Star
+                          class={cn(
+                            'h-7 w-7 transition-colors',
+                            filled
+                              ? 'fill-epi-orange text-epi-orange'
+                              : 'text-muted-foreground/40',
+                          )}
+                        />
+                      </button>
+                    {/each}
+                    {#if $form.satisfactionStars}
+                      <span class="ml-1 text-sm font-bold text-foreground">
+                        {$form.satisfactionStars}/5
+                      </span>
+                    {/if}
+                  </div>
+                {:else if q.kind === 'text'}
+                  <Textarea
+                    value={(fv(q.field) as string) ?? ''}
+                    oninput={(e) => setText(q.field, e.currentTarget.value)}
+                    placeholder={q.placeholder}
+                    maxlength={q.maxLength}
+                    disabled={!interactive}
+                    class="min-h-16 resize-none bg-background"
+                  />
+                {/if}
+              </div>
+            {/each}
+          </section>
+        {/if}
       {/each}
 
       <!-- Interviewer-only verdict, walled off from the talent-facing questions. -->
       <section
-        class="space-y-3 rounded-md border-2 border-epi-blue/60 bg-epi-blue/5 p-4"
+        id={INTERVIEW_VERDICT_ANCHOR_ID}
+        class="scroll-mt-20 space-y-3 rounded-md border-2 border-epi-blue/60 bg-epi-blue/5 p-4"
       >
         <div>
           <h3
@@ -537,7 +590,7 @@
                   scheduleAutosave();
                 }}
                 class={cn(
-                  'cursor-pointer rounded-sm border px-3 py-2 text-left text-sm font-bold transition-all disabled:cursor-default',
+                  'cursor-pointer rounded-sm border px-3 py-2 text-left text-sm font-bold transition-all active:scale-[0.98] disabled:cursor-default disabled:active:scale-100',
                   active ? TONE_ACTIVE[desc.tone] : TONE_IDLE[desc.tone],
                 )}
               >
@@ -575,14 +628,12 @@
         vides dans la synthèse.
       </AlertDialog.Description>
     </AlertDialog.Header>
-    <AlertDialog.Footer class="flex-col gap-2 sm:flex-col sm:space-x-0">
-      <Button class="w-full" onclick={doClose}>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Continuer la saisie</AlertDialog.Cancel>
+      <Button onclick={doClose}>
         <Lock class="mr-1.5 h-4 w-4" />
         Clôturer quand même
       </Button>
-      <AlertDialog.Cancel class="mt-0 w-full">
-        Continuer la saisie
-      </AlertDialog.Cancel>
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>
@@ -603,12 +654,12 @@
         {/if}
       </AlertDialog.Description>
     </AlertDialog.Header>
-    <AlertDialog.Footer class="flex-col gap-2 sm:flex-col sm:space-x-0">
-      <Button variant="destructive" class="w-full" onclick={doAbandon}>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+      <Button variant="destructive" onclick={doAbandon}>
         <Trash2 class="mr-1.5 h-4 w-4" />
         Abandonner l'entretien
       </Button>
-      <AlertDialog.Cancel class="mt-0 w-full">Annuler</AlertDialog.Cancel>
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>
