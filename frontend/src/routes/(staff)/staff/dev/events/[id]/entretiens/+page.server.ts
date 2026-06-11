@@ -1,0 +1,119 @@
+import type { PageServerLoad } from './$types';
+import {
+  getCampusId,
+  getCampusTimezone,
+  scopedPrisma,
+} from '$lib/server/db/scoped';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
+import { requireFlag } from '$lib/server/auth/guards';
+import { interviewListStatus } from '$lib/domain/interview';
+import type { InterviewRecommendation } from '@prisma/client';
+import type { EntretienRow, TopInterviewer } from './components/types';
+
+const TOP_INTERVIEWERS = 5;
+
+export const load: PageServerLoad = async ({ params, locals }) => {
+  const campusId = getCampusId(locals);
+  requireFlag(locals, 'stage_seconde');
+  const event = await loadEventOr404(params.id, campusId);
+  const db = scopedPrisma(campusId);
+  const timezone = getCampusTimezone(locals);
+
+  // One driving query for the table (every participant left-joined with their
+  // interview) plus a grouped count for the "top interviewers" rail card. The
+  // status buckets, the recommendation breakdown and the per-interviewer tally
+  // are all derived from rows already in memory (a stage cohort is ~200), so no
+  // extra round-trips beyond the groupBy that needs the DB.
+  const [participations, byStaff] = await Promise.all([
+    db.participation.findMany({
+      where: { eventId: event.id },
+      select: {
+        id: true,
+        talentId: true,
+        talent: { select: { nom: true, prenom: true } },
+        interview: {
+          select: {
+            status: true,
+            conductedAt: true,
+            recommendation: true,
+            staff: {
+              select: {
+                id: true,
+                user: { select: { name: true, image: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+    }),
+    db.interview.groupBy({
+      by: ['staffId'],
+      where: { participation: { eventId: event.id } },
+      _count: { staffId: true },
+      orderBy: { _count: { staffId: 'desc' } },
+      take: TOP_INTERVIEWERS,
+    }),
+  ]);
+
+  const rows: EntretienRow[] = participations.map((p) => ({
+    participationId: p.id,
+    talentId: p.talentId,
+    nom: p.talent.nom,
+    prenom: p.talent.prenom,
+    status: interviewListStatus(p.interview),
+    interviewerName: p.interview?.staff.user?.name ?? null,
+    interviewerImage: p.interview?.staff.user?.image ?? null,
+    conductedAt: p.interview?.conductedAt ?? null,
+    recommendation: p.interview?.recommendation ?? null,
+  }));
+
+  // Status buckets (à faire / en cours / finalisé) for the synthesis card.
+  const counts = { todo: 0, in_progress: 0, done: 0 };
+  // Recommendation breakdown over finalized interviews, for prospection.
+  const recoCounts: Record<InterviewRecommendation, number> = {
+    tres_compatible: 0,
+    bon_profil: 0,
+    indecis: 0,
+    pas_interesse: 0,
+  };
+  for (const p of participations) {
+    counts[interviewListStatus(p.interview)]++;
+    if (p.interview?.status === 'done' && p.interview.recommendation) {
+      recoCounts[p.interview.recommendation]++;
+    }
+  }
+
+  // Resolve the grouped staff ids to display names (one extra query, only for
+  // the handful that actually conducted an interview).
+  const staffIds = byStaff.map((g) => g.staffId);
+  const staff = staffIds.length
+    ? await db.staffProfile.findMany({
+        where: { id: { in: staffIds } },
+        select: {
+          id: true,
+          user: { select: { name: true, email: true, image: true } },
+        },
+      })
+    : [];
+  const staffById = new Map(staff.map((s) => [s.id, s]));
+  const topInterviewers: TopInterviewer[] = byStaff.map((g) => {
+    const u = staffById.get(g.staffId)?.user;
+    return {
+      id: g.staffId,
+      name: u?.name ?? u?.email ?? 'Staff',
+      image: u?.image ?? null,
+      count: g._count.staffId,
+    };
+  });
+
+  return {
+    event: { id: event.id, titre: event.titre },
+    rows,
+    counts,
+    total: rows.length,
+    recoCounts,
+    topInterviewers,
+    timezone,
+  };
+};

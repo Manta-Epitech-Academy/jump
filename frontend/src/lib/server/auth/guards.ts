@@ -35,12 +35,6 @@ type StaffRoleGate = {
   readOnlyForRest?: readonly StaffRole[];
 };
 
-// Single source of truth for the dev-space carve-out that lets peda reach
-// the interviews route. Used by hooks (`applyRouteGuards` dev sub-guard),
-// the `/staff/dev/` layout gate, and `STAFF_ROLE_GATES` below.
-export const DEV_INTERVIEWS_PATH_PATTERN =
-  /^\/staff\/dev\/events\/[^/]+\/interviews(?:\/|$)/;
-
 const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
   {
     pattern: /^\/staff\/dev\/events\/import(?:\/|$)/,
@@ -49,10 +43,6 @@ const STAFF_ROLE_GATES: readonly StaffRoleGate[] = [
   {
     pattern: /^\/staff\/dev\/team(?:\/|$)/,
     group: 'devLead',
-  },
-  {
-    pattern: DEV_INTERVIEWS_PATH_PATTERN,
-    group: 'interviewers',
   },
   {
     pattern: /^\/staff\/pedago\/events\/[^/]+\/planning(?:\/|$)/,
@@ -250,18 +240,10 @@ export async function applyRouteGuards(
       }
     }
 
-    // Dev sub-guard: only superdev or dev. Carve-out: any role in the
-    // `interviewers` group can reach the interviews route on any event so
-    // they can fill the grid for interviews they were assigned. The
-    // `interviewers` STAFF_ROLE_GATES entry below narrows it further; the
-    // wider /staff/dev/* shell stays dev-only.
+    // Dev sub-guard: only superdev or dev.
     if (isDevPath) {
       const role = event.locals.staffProfile?.staffRole;
-      const isInterviewsPath = DEV_INTERVIEWS_PATH_PATTERN.test(currentPath);
-      const allowed =
-        role === 'superdev' ||
-        role === 'dev' ||
-        (isInterviewsPath && can('interviewers', role));
+      const allowed = role === 'superdev' || role === 'dev';
       if (!allowed) {
         const correctPath = getStaffRoleRedirectPath(role);
         if (correctPath) {
@@ -390,29 +372,4 @@ export function requireStaffGroup(
 } {
   if (can(group, locals.staffProfile?.staffRole)) return;
   forbidGroup(group);
-}
-
-/**
- * Allow either devMember (admissions team owns the workflow) OR the staff
- * the interview was assigned to (so a pédago who was assigned an interview
- * can fill its evaluation grid and close it out themselves).
- *
- * The null-role check up front is what makes the `staffRole: StaffRole`
- * narrowing sound: without it, an unrolled staff whose `id` happens to
- * match `interview.staffId` would slip through and the assertion would
- * lie to callers.
- */
-export function requireInterviewActor(
-  locals: App.Locals,
-  interview: { staffId: string },
-): asserts locals is App.Locals & {
-  staffProfile: NonNullable<App.Locals['staffProfile']> & {
-    staffRole: StaffRole;
-  };
-} {
-  const profile = locals.staffProfile;
-  if (!profile || !profile.staffRole) forbidGroup('interviewers');
-  if (can('devMember', profile.staffRole)) return;
-  if (interview.staffId === profile.id) return;
-  forbidGroup('interviewers');
 }

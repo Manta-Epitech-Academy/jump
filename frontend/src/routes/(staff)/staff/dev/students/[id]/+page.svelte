@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { resolve } from '$app/paths';
+  import { page } from '$app/state';
 
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import X from '@lucide/svelte/icons/x';
@@ -16,7 +17,7 @@
   import TalentRecommendationList from './components/TalentRecommendationList.svelte';
   import ContactCard from './components/ContactCard.svelte';
   import RightRailCard from './components/RightRailCard.svelte';
-  import InterviewGridMock from './components/InterviewGridMock.svelte';
+  import InterviewGrid from '$lib/components/dev/interviews/InterviewGrid.svelte';
 
   import type { FlagKey } from '$lib/domain/featureFlags';
   import { formatPersonName } from '$lib/domain/profile';
@@ -48,7 +49,11 @@
 
   // "Faire l'entretien" swaps the dossier tools (recommendations + contact) for
   // the interview grid, keeping the talent context (hero, interests, right rail).
-  let interviewMode = $state(false);
+  // A `?interview=1` deep-link (from the Entretiens list) opens it straight away.
+  // svelte-ignore state_referenced_locally
+  let interviewMode = $state(
+    page.url.searchParams.get('interview') === '1' && data.canConductInterview,
+  );
 </script>
 
 <svelte:head>
@@ -101,8 +106,12 @@
       </EpiSection>
 
       {#if interviewMode}
-        <InterviewGridMock
+        <InterviewGrid
+          form={data.interviewForm}
           talentName={formatPersonName(data.student.prenom, data.student.nom)}
+          status={data.interviewStatus}
+          conductedAt={data.interviewConductedAt}
+          timezone={data.timezone}
         />
       {:else}
         <EpiSection title="Recommandations" accent="together">
@@ -121,39 +130,47 @@
          the left column scrolls. -->
     <div class="lg:col-span-3">
       <div class="space-y-3 lg:sticky lg:top-6">
-        <!-- Disabled while the interview feature is being built. Re-enable by
-             removing `disabled` and unwrapping the tooltip; the toggle wiring
-             below is left intact on purpose. -->
-        <Tooltip.Provider delayDuration={150}>
-          <Tooltip.Root>
-            <Tooltip.Trigger>
-              {#snippet child({ props })}
-                <!-- Wrapper takes the hover: a disabled button has no pointer
-                     events, so the tooltip can't trigger on it directly. -->
-                <span {...props} class="block">
-                  <Button
-                    onclick={() => (interviewMode = !interviewMode)}
-                    variant={interviewMode ? 'outline' : 'default'}
-                    size="lg"
-                    disabled
-                    class="w-full justify-center gap-2"
-                  >
-                    {#if interviewMode}
-                      <X class="h-4 w-4" />
-                      Quitter l'entretien
-                    {:else}
+        {#if data.canConductInterview}
+          <Button
+            onclick={() => (interviewMode = !interviewMode)}
+            variant={interviewMode ? 'outline' : 'default'}
+            size="lg"
+            class="w-full justify-center gap-2"
+          >
+            {#if interviewMode}
+              <X class="h-4 w-4" />
+              Quitter l'entretien
+            {:else}
+              <MessageSquare class="h-4 w-4" />
+              Faire l'entretien
+            {/if}
+          </Button>
+        {:else}
+          <!-- No active stage participation to attach the interview to: keep
+               the control visible but disabled, with the reason on hover. -->
+          <Tooltip.Provider delayDuration={150}>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <span {...props} class="block">
+                    <Button
+                      variant="default"
+                      size="lg"
+                      disabled
+                      class="w-full justify-center gap-2"
+                    >
                       <MessageSquare class="h-4 w-4" />
                       Faire l'entretien
-                    {/if}
-                  </Button>
-                </span>
-              {/snippet}
-            </Tooltip.Trigger>
-            <Tooltip.Content>
-              <p>Bientôt disponible</p>
-            </Tooltip.Content>
-          </Tooltip.Root>
-        </Tooltip.Provider>
+                    </Button>
+                  </span>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p>{data.noInterviewReason}</p>
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        {/if}
 
         <RightRailCard
           lastActiveAt={data.student.lastActiveAt}

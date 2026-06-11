@@ -1,5 +1,4 @@
 <script lang="ts">
-  import AlarmClock from '@lucide/svelte/icons/alarm-clock';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import CalendarClock from '@lucide/svelte/icons/calendar-clock';
   import FileSignature from '@lucide/svelte/icons/file-signature';
@@ -7,7 +6,6 @@
   import Inbox from '@lucide/svelte/icons/inbox';
   import Laptop from '@lucide/svelte/icons/laptop';
   import Mail from '@lucide/svelte/icons/mail';
-  import PhoneCall from '@lucide/svelte/icons/phone-call';
   import UserPlus from '@lucide/svelte/icons/user-plus';
   import IconType from '@lucide/svelte/icons/type';
   import TaskQueueItem from '$lib/components/staff/TaskQueueItem.svelte';
@@ -37,8 +35,6 @@
     'missing-mantas': UserPlus,
     'missing-planning': CalendarClock,
     'unassigned-slots': AlertTriangle,
-    'interviews-today': PhoneCall,
-    'interviews-overdue': AlarmClock,
     'chartes-to-chase': FileSignature,
     'image-rights-to-chase': Mail,
     'pc-missing': Laptop,

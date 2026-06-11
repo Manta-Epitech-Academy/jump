@@ -133,12 +133,12 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
       topTalents,
       kpis: {
         totalTalents,
-        completedInterviews: stageStats?.completedInterviews ?? null,
-        plannedInterviews: stageStats?.plannedInterviews ?? null,
+        completedInterviews: stageStats?.doneInterviews ?? null,
+        plannedInterviews: stageStats?.inProgressInterviews ?? null,
       },
       stageObjectives: stageStats
         ? {
-            interviews: stageStats.completedInterviews,
+            interviews: stageStats.doneInterviews,
             interviewsTarget: stageStats.totalParticipations,
             chartes: stageStats.chartesSigned,
             totalParticipations: stageStats.totalParticipations,
@@ -153,23 +153,23 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 };
 
 /**
- * Stage KPI counts for the dashboard hero: interviews done/planned and charter
- * compliance against total participations. Extracted so the four counts stay a
- * single inner Promise.all that the dashboard load can drop into its outer wave
- * as one unit.
+ * Stage KPI counts for the dashboard hero: interviews finalized / in progress
+ * and charter compliance against total participations. Extracted so the four
+ * counts stay a single inner Promise.all that the dashboard load can drop into
+ * its outer wave as one unit.
  */
 async function loadStageStats(db: ScopedPrismaClient, stageId: string) {
   const [
-    completedInterviews,
-    plannedInterviews,
+    doneInterviews,
+    inProgressInterviews,
     totalParticipations,
     chartesSigned,
   ] = await Promise.all([
     db.interview.count({
-      where: { status: 'completed', participation: { eventId: stageId } },
+      where: { status: 'done', participation: { eventId: stageId } },
     }),
     db.interview.count({
-      where: { status: 'planned', participation: { eventId: stageId } },
+      where: { status: 'in_progress', participation: { eventId: stageId } },
     }),
     db.participation.count({ where: { eventId: stageId } }),
     db.participation.count({
@@ -177,8 +177,8 @@ async function loadStageStats(db: ScopedPrismaClient, stageId: string) {
     }),
   ]);
   return {
-    completedInterviews,
-    plannedInterviews,
+    doneInterviews,
+    inProgressInterviews,
     totalParticipations,
     chartesSigned,
   };

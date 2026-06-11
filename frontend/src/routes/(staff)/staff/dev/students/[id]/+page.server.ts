@@ -1,5 +1,7 @@
-import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import type { PageServerLoad, Actions, RequestEvent } from './$types';
+import { error, fail } from '@sveltejs/kit';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import {
@@ -7,6 +9,8 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { interviewConductSchema } from '$lib/validation/interviews';
 import {
   applyPhaseOverride,
   getEventStatus,
@@ -103,7 +107,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         },
       }),
       db.interview.count({
-        where: { talentId: params.id, status: 'completed' },
+        where: { talentId: params.id, status: 'done' },
       }),
       // First platform login (oldest real session). Keyed on the talent relation
       // so it parallelizes with the fetch above instead of waiting on its userId;
@@ -173,6 +177,48 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     });
     const primaryComplianceParticipation = activeStageParticipations[0] ?? null;
 
+    // Interview conduct surface. The interview is 1:1 with the talent's active
+    // stage participation, so we prefill the grid from any existing row (absence
+    // = "à faire"). With no active stage there is nothing to attach to, so the
+    // fiche disables "Faire l'entretien" with a reason and the actions refuse.
+    const existingInterview = primaryComplianceParticipation
+      ? await db.interview.findUnique({
+          where: { participationId: primaryComplianceParticipation.id },
+        })
+      : null;
+
+    const interviewForm = await superValidate(
+      existingInterview
+        ? {
+            participationId: primaryComplianceParticipation!.id,
+            discoveryChannel: existingInterview.discoveryChannel,
+            motivation: existingInterview.motivation,
+            orientationTalkAtSchool: existingInterview.orientationTalkAtSchool,
+            passionateTeacher: existingInterview.passionateTeacher,
+            techProjection: existingInterview.techProjection,
+            weekFavorite: existingInterview.weekFavorite,
+            wantsMore: existingInterview.wantsMore,
+            satisfactionContent: existingInterview.satisfactionContent,
+            recommendation: existingInterview.recommendation,
+            specialties: existingInterview.specialties,
+            otherJobs: existingInterview.otherJobs,
+            infoSources: existingInterview.infoSources,
+            nextYearEvents: existingInterview.nextYearEvents,
+            satisfactionStars: existingInterview.satisfactionStars,
+            teacherName: existingInterview.teacherName ?? '',
+            teacherSubject: existingInterview.teacherSubject ?? '',
+            oneSentence: existingInterview.oneSentence ?? '',
+            interviewerNote: existingInterview.interviewerNote ?? '',
+          }
+        : { participationId: primaryComplianceParticipation?.id ?? '' },
+      zod4(interviewConductSchema),
+    );
+
+    const canConductInterview = primaryComplianceParticipation != null;
+    const noInterviewReason = canConductInterview
+      ? null
+      : 'Aucun stage de seconde en cours pour ce stagiaire.';
+
     // Backs the right rail's "première connexion" line and tells the dev
     // whether the talent ever logged in (fetched in the batch above).
     const firstLoginAt = firstLoginRow?.createdAt ?? null;
@@ -216,9 +262,160 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       firstLoginAt,
       recommendations,
       timezone,
+      interviewForm,
+      canConductInterview,
+      noInterviewReason,
+      interviewStatus: existingInterview?.status ?? null,
+      interviewConductedAt: existingInterview?.conductedAt ?? null,
     };
   } catch (e) {
     console.error('Erreur chargement stagiaire:', e);
     throw error(404, 'Stagiaire introuvable');
   }
+};
+
+type InterviewMode = 'start' | 'save' | 'close' | 'reopen';
+
+/**
+ * Upsert the orientation interview for the talent's active stage participation.
+ * The status transition is owned by the `mode`, never read from the payload, so
+ * an autosave can never accidentally close an interview:
+ *   - `start`  → create the row `in_progress` (the "Démarrer l'entretien" CTA)
+ *   - `save`   → autosave answers, status unchanged
+ *   - `close`  → flip to `done` (the "Clôturer l'entretien" CTA)
+ *   - `reopen` → back to `in_progress` for corrections
+ * Dev-only (Talent Acquisition conducts interviews), stage-gated, re-validated.
+ */
+async function persistInterview(
+  { request, locals, params }: RequestEvent,
+  mode: InterviewMode,
+) {
+  requireStaffGroup(locals, 'devMember');
+  requireFlag(locals, 'stage_seconde');
+
+  const campusId = getCampusId(locals);
+  const db = scopedPrisma(campusId);
+
+  const form = await superValidate(request, zod4(interviewConductSchema));
+  if (!form.valid) return fail(400, { form });
+
+  const participation = await db.participation.findUnique({
+    where: { id: form.data.participationId },
+    select: {
+      id: true,
+      talentId: true,
+      campusId: true,
+      event: { select: { eventType: true } },
+    },
+  });
+  if (
+    !participation ||
+    participation.talentId !== params.id ||
+    participation.campusId !== campusId ||
+    participation.event.eventType !== EVENT_TYPES.STAGE_SECONDE
+  ) {
+    return message(form, 'Entretien impossible pour ce stagiaire.', {
+      status: 400,
+    });
+  }
+
+  const {
+    participationId,
+    passionateTeacher,
+    teacherName,
+    teacherSubject,
+    oneSentence,
+    interviewerNote,
+    ...choices
+  } = form.data;
+  // Teacher name/subject only mean something when a teacher was actually named;
+  // empty free text becomes null so the DB never stores "".
+  const teacherKnown = passionateTeacher === 'oui';
+  const answers = {
+    ...choices,
+    passionateTeacher,
+    teacherName: teacherKnown ? teacherName.trim() || null : null,
+    teacherSubject: teacherKnown ? teacherSubject.trim() || null : null,
+    oneSentence: oneSentence.trim() || null,
+    interviewerNote: interviewerNote.trim() || null,
+  };
+
+  const createStatus = mode === 'close' ? 'done' : 'in_progress';
+  // `save` leaves the status untouched; the other modes set it explicitly.
+  const setStatus =
+    mode === 'close'
+      ? ('done' as const)
+      : mode === 'start' || mode === 'reopen'
+        ? ('in_progress' as const)
+        : undefined;
+
+  await db.interview.upsert({
+    where: { participationId },
+    create: {
+      participationId,
+      talentId: participation.talentId,
+      campusId,
+      staffId: locals.staffProfile.id,
+      status: createStatus,
+      ...answers,
+    },
+    update: {
+      ...answers,
+      ...(setStatus ? { status: setStatus } : {}),
+    },
+  });
+
+  const MESSAGES: Record<InterviewMode, string> = {
+    start: 'Entretien démarré.',
+    save: 'Entretien enregistré.',
+    close: 'Entretien clôturé.',
+    reopen: 'Entretien rouvert.',
+  };
+  return message(form, MESSAGES[mode]);
+}
+
+/**
+ * Discard an in-progress interview, reverting the talent to "à faire". The
+ * reverse of `start` (e.g. a misclicked "Démarrer"). Scoped to `in_progress`
+ * so a finalised interview, which is a record, can never be deleted this way
+ * (corrections go through `reopen`).
+ */
+async function discardInterview({ request, locals, params }: RequestEvent) {
+  requireStaffGroup(locals, 'devMember');
+  requireFlag(locals, 'stage_seconde');
+
+  const campusId = getCampusId(locals);
+  const db = scopedPrisma(campusId);
+
+  const form = await superValidate(request, zod4(interviewConductSchema));
+  if (!form.valid) return fail(400, { form });
+
+  const participation = await db.participation.findUnique({
+    where: { id: form.data.participationId },
+    select: { id: true, talentId: true, campusId: true },
+  });
+  if (
+    !participation ||
+    participation.talentId !== params.id ||
+    participation.campusId !== campusId
+  ) {
+    return message(form, 'Entretien introuvable.', { status: 400 });
+  }
+
+  await db.interview.deleteMany({
+    where: {
+      participationId: form.data.participationId,
+      status: 'in_progress',
+    },
+  });
+
+  return message(form, 'Entretien abandonné.');
+}
+
+export const actions: Actions = {
+  startInterview: (event) => persistInterview(event, 'start'),
+  saveInterview: (event) => persistInterview(event, 'save'),
+  closeInterview: (event) => persistInterview(event, 'close'),
+  reopenInterview: (event) => persistInterview(event, 'reopen'),
+  abandonInterview: discardInterview,
 };

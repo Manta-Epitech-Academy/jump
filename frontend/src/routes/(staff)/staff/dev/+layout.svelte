@@ -53,11 +53,6 @@
     hasSyncErrors ||
       (hasCampusTeam && can('devLead', data.staffProfile?.staffRole)),
   );
-  // Peda visiting a single interviews route gets a stripped shell — no
-  // sidebar, no command-K, no impersonation, no tickets. Just header + main.
-  let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
-  let showFullChrome = $derived(!isInterviewOnly);
-
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
 
@@ -121,7 +116,7 @@
 {/snippet}
 
 {#snippet sidebarSearch()}
-  {#if hasCodingClub && showFullChrome}
+  {#if hasCodingClub}
     <div class="px-3 pb-2">
       <button
         class="flex h-9 w-full items-center justify-between rounded-sm border border-sidebar-border bg-sidebar-hover px-3 text-sm text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
@@ -234,13 +229,13 @@
           <span>Onboarding</span>
         </a>
       {/if}
-      <!-- Live stage surfaces first (Inscrits, Émargement, then any flag-gated
-           ones), with the not-yet-shipped surfaces grouped last as disabled
-           "Bientôt disponible" entries. Keeping them last avoids greyed rows
-           splitting two live links, which reads as broken rather than upcoming.
-           Planning is built but de-scoped from this release (no schedule data
-           yet); Entretiens isn't built at all. Re-enable Planning by swapping its
-           {@render} call for an <a> nav link to /planning. -->
+      <!-- Live stage surfaces first (Inscrits, Émargement, Entretiens, then any
+           flag-gated ones), with the not-yet-shipped surfaces grouped last as
+           disabled "Bientôt disponible" entries. Keeping them last avoids greyed
+           rows splitting two live links, which reads as broken rather than
+           upcoming. Planning is built but de-scoped from this release (no
+           schedule data yet); re-enable it by swapping its {@render} call for an
+           <a> nav link to /planning. -->
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
         class={navLinkClass(
@@ -279,8 +274,16 @@
           <span>Page d'accueil</span>
         </a>
       {/if}
+      <a
+        href={resolve(`/staff/dev/events/${data.activeStage.id}/entretiens`)}
+        class={navLinkClass(
+          isActive(`/staff/dev/events/${data.activeStage.id}/entretiens`),
+        )}
+      >
+        <MessageSquare class="h-5 w-5" />
+        <span>Entretiens</span>
+      </a>
       {@render comingSoonEntry('Planning', CalendarDays)}
-      {@render comingSoonEntry('Entretiens', MessageSquare)}
     </nav>
   {/if}
 
@@ -425,79 +428,75 @@
 {/snippet}
 
 <div class="flex h-dvh w-full overflow-hidden bg-background">
-  {#if showFullChrome}
-    <aside
-      class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
-    >
-      <div class="border-b border-sidebar-border">
-        {@render sidebarBrand()}
-      </div>
-      {@render sidebarSearch()}
-      <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
-        {@render navMenu()}
-      </div>
-      <Gated group="devLead" mode="hide">
-        {#if hasCodingClub}
-          <div class="border-t border-sidebar-border p-3">
-            <Button
-              variant="outline"
-              class="w-full justify-start border-dashed border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
-              href={resolve('/staff/dev/events/import')}
-            >
-              <Plus class="mr-2 h-4 w-4" />
-              Importer un événement
-            </Button>
-          </div>
-        {/if}
-      </Gated>
-      <ImpersonationCard />
-      {@render sidebarFooter()}
-    </aside>
-  {/if}
+  <aside
+    class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+  >
+    <div class="border-b border-sidebar-border">
+      {@render sidebarBrand()}
+    </div>
+    {@render sidebarSearch()}
+    <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
+      {@render navMenu()}
+    </div>
+    <Gated group="devLead" mode="hide">
+      {#if hasCodingClub}
+        <div class="border-t border-sidebar-border p-3">
+          <Button
+            variant="outline"
+            class="w-full justify-start border-dashed border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
+            href={resolve('/staff/dev/events/import')}
+          >
+            <Plus class="mr-2 h-4 w-4" />
+            Importer un événement
+          </Button>
+        </div>
+      {/if}
+    </Gated>
+    <ImpersonationCard />
+    {@render sidebarFooter()}
+  </aside>
 
   <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
-    {#if showFullChrome}
-      <header
-        class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
-      >
-        <div class="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            class="relative h-10 w-10"
-            onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-          >
-            <Menu
-              class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
-                ? 'scale-0 opacity-0'
-                : 'scale-100 opacity-100'}"
-            />
-            <X
-              class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
-                ? 'scale-100 rotate-0 opacity-100'
-                : 'scale-0 -rotate-90 opacity-0'}"
-            />
-            <span class="sr-only">Toggle menu</span>
-          </Button>
-          <BrandMark
-            href={resolve('/staff/dev')}
-            tone="auto"
-            orientation="inline"
+    <header
+      class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
+    >
+      <div class="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="relative h-10 w-10"
+          onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+        >
+          <Menu
+            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+              ? 'scale-0 opacity-0'
+              : 'scale-100 opacity-100'}"
           />
-        </div>
-        {#if hasCodingClub}
-          <Button
-            variant="ghost"
-            size="icon"
-            onclick={() => (commandOpen = true)}
-          >
-            <Search class="h-5 w-5" />
-          </Button>
-        {/if}
-      </header>
-    {/if}
+          <X
+            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+              ? 'scale-100 rotate-0 opacity-100'
+              : 'scale-0 -rotate-90 opacity-0'}"
+          />
+          <span class="sr-only">Toggle menu</span>
+        </Button>
+        <BrandMark
+          href={resolve('/staff/dev')}
+          tone="auto"
+          orientation="inline"
+        />
+      </div>
+      {#if hasCodingClub}
+        <Button
+          variant="ghost"
+          size="icon"
+          onclick={() => (commandOpen = true)}
+        >
+          <Search class="h-5 w-5" />
+        </Button>
+      {/if}
+    </header>
 
-    {#if mobileMenuOpen && showFullChrome}
+    {#if mobileMenuOpen}
       <div
         class="absolute inset-0 z-40 bg-black/50 md:hidden"
         transition:fade={{ duration: 200 }}
@@ -541,10 +540,10 @@
   </div>
 </div>
 
-{#if hasCodingClub && showFullChrome}
+{#if hasCodingClub}
   <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
 {/if}
 
-{#if data.ticketsEnabled && showFullChrome}
+{#if data.ticketsEnabled}
   <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />
 {/if}

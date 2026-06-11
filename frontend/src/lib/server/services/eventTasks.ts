@@ -26,8 +26,6 @@ export type EventAlertKind =
   | 'missing-mantas'
   | 'missing-planning'
   | 'unassigned-slots'
-  | 'interviews-today'
-  | 'interviews-overdue'
   | 'chartes-to-chase'
   | 'image-rights-to-chase'
   | 'pc-missing';
@@ -44,10 +42,7 @@ export type EventAlert = {
   href: string;
 };
 
-export type ChecklistItemKind = Exclude<
-  EventAlertKind,
-  'interviews-today' | 'interviews-overdue'
->;
+export type ChecklistItemKind = EventAlertKind;
 
 export type ChecklistGroup = 'team' | 'documents';
 
@@ -67,12 +62,6 @@ export type DeriveAlertsContext = {
   basePath: string;
   /** Lifecycle bounds (today's start/end + now). */
   bounds: LifecycleBounds;
-  /**
-   * Optional staffProfileId — when set, "interviews today" only counts
-   * interviews assigned to that staff member (per-user inbox view).
-   * When omitted, counts all today's planned interviews on the event.
-   */
-  forStaffProfileId?: string;
 };
 
 type EventForAlerts = {
@@ -90,8 +79,6 @@ type EventFacts = {
   chartesToChase: number;
   imageRightsToChase: number;
   pcMissing: number;
-  interviewsToday: number;
-  overdueInterviews: number;
 };
 
 /**
@@ -135,31 +122,11 @@ async function loadEventFacts(
     chartesToChase: 0,
     imageRightsToChase: 0,
     pcMissing: 0,
-    interviewsToday: 0,
-    overdueInterviews: 0,
   };
 
   if (!isStage || totalParticipations === 0) return baseFacts;
 
-  // `forStaffProfileId` narrows both interview counts to the actor's own
-  // assignments. Applied symmetrically so that when the event dashboard
-  // renders the per-staff lens ("Vos entretiens du jour"), the sibling
-  // "Entretiens en retard" alert doesn't suddenly switch back to an
-  // event-wide tally — staff would see "2 today / 47 overdue" and parse
-  // it as their own 47.
-  const interviewBaseWhere = {
-    participation: { eventId: event.id },
-    status: 'planned' as const,
-    ...(ctx.forStaffProfileId ? { staffId: ctx.forStaffProfileId } : {}),
-  };
-
-  const [
-    chartesToChase,
-    imageRightsToChase,
-    pcMissing,
-    interviewsToday,
-    overdueInterviews,
-  ] = await Promise.all([
+  const [chartesToChase, imageRightsToChase, pcMissing] = await Promise.all([
     db.participation.count({
       where: { eventId: event.id, ...rulesPendingWhere },
     }),
@@ -171,18 +138,6 @@ async function loadEventFacts(
     db.participation.count({
       where: { eventId: event.id, bringPc: false },
     }),
-    db.interview.count({
-      where: {
-        ...interviewBaseWhere,
-        date: { gte: ctx.bounds.startOfDay, lte: ctx.bounds.endOfDay },
-      },
-    }),
-    db.interview.count({
-      where: {
-        ...interviewBaseWhere,
-        date: { lt: ctx.bounds.startOfDay },
-      },
-    }),
   ]);
 
   return {
@@ -190,8 +145,6 @@ async function loadEventFacts(
     chartesToChase,
     imageRightsToChase,
     pcMissing,
-    interviewsToday,
-    overdueInterviews,
   };
 }
 
@@ -248,7 +201,6 @@ export async function deriveEventAlerts(
 
   if (!facts.isStage || facts.totalParticipations === 0) return alerts;
 
-  const interviewsHref = `${eventBase}/interviews`;
   const onboardingHref = `${eventBase}/onboarding`;
 
   if (facts.chartesToChase > 0) {
@@ -290,36 +242,6 @@ export async function deriveEventAlerts(
       count: facts.pcMissing,
       severity: 'info',
       href: `${onboardingHref}?filter=pc-missing`,
-    });
-  }
-  if (facts.overdueInterviews > 0) {
-    alerts.push({
-      key: `interviews-overdue-${event.id}`,
-      kind: 'interviews-overdue',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: ctx.forStaffProfileId
-        ? 'Vos entretiens en retard'
-        : 'Entretiens en retard',
-      description: 'Reprogrammer ou marquer comme terminés',
-      count: facts.overdueInterviews,
-      severity: 'danger',
-      href: interviewsHref,
-    });
-  }
-  if (facts.interviewsToday > 0) {
-    alerts.push({
-      key: `interviews-today-${event.id}`,
-      kind: 'interviews-today',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: ctx.forStaffProfileId
-        ? 'Vos entretiens du jour'
-        : 'Entretiens à mener aujourd’hui',
-      description: 'Préparer la grille avant chaque entretien',
-      count: facts.interviewsToday,
-      severity: 'info',
-      href: interviewsHref,
     });
   }
 
