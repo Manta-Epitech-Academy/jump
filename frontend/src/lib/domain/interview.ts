@@ -15,14 +15,31 @@ import type { InterviewRecommendation, InterviewStatus } from '@prisma/client';
 
 export type ChoiceOption = { value: string; label: string };
 
-/** Free-text inputs unlocked by a specific single-choice answer (e.g. the
- *  passionate-teacher name/subject, shown only when the answer is "oui"). */
+/** Every free-text column unlocked by a choice answer. The union (not a bare
+ *  `string`) keeps the conduct action's reveal-clearing loop typed against the
+ *  real `Interview` columns, so a typo can't silently write to nothing. */
+export type RevealTextField =
+  | 'teacherName'
+  | 'teacherSubject'
+  | 'discoveryChannelOther'
+  | 'specialtiesOther'
+  | 'otherJobsOther'
+  | 'infoSourcesOther';
+
+/** A free-text input unlocked by a specific choice answer (e.g. the
+ *  passionate-teacher name/subject when the answer is "oui", or the "Précisez"
+ *  box that appears once the student picks "Autre"). */
 export type RevealField = {
-  field: 'teacherName' | 'teacherSubject';
+  field: RevealTextField;
   label: string;
   placeholder?: string;
   maxLength: number;
 };
+
+/** A choice answer that unlocks free-text inputs. `when` is matched by equality
+ *  for single-choice questions and by membership for multi-choice (so the
+ *  "Autre" precision shows the moment "Autre" is among the picks). */
+export type Reveal = { when: string; fields: RevealField[] };
 
 export type ChoiceQuestion = {
   kind: 'single' | 'multi';
@@ -32,7 +49,7 @@ export type ChoiceQuestion = {
   essential?: boolean;
   hint?: string;
   options: ChoiceOption[];
-  reveal?: { when: string; fields: RevealField[] };
+  reveal?: Reveal;
 };
 
 export type RatingQuestion = {
@@ -74,6 +91,9 @@ export type InterviewBloc = {
 export const INTERVIEW_TEXT_LIMITS = {
   teacherName: 120,
   teacherSubject: 120,
+  // The "Précisez" box shown when "Autre" is picked: a short clarification
+  // (a channel, a specialty, a métier), never a paragraph.
+  otherChoice: 120,
   oneSentence: 2000,
   interviewerNote: 2000,
 } as const;
@@ -96,6 +116,17 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
           { value: 'epitech', label: 'Par Epitech' },
           { value: 'autre', label: 'Autre' },
         ],
+        reveal: {
+          when: 'autre',
+          fields: [
+            {
+              field: 'discoveryChannelOther',
+              label: 'Précisez',
+              placeholder: 'Par quel moyen ?',
+              maxLength: INTERVIEW_TEXT_LIMITS.otherChoice,
+            },
+          ],
+        },
       },
       {
         kind: 'single',
@@ -131,6 +162,17 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
           { value: 'autre', label: 'Autre' },
           { value: 'indecis', label: 'Pas encore décidé' },
         ],
+        reveal: {
+          when: 'autre',
+          fields: [
+            {
+              field: 'specialtiesOther',
+              label: 'Précisez',
+              placeholder: 'Quelle spécialité ?',
+              maxLength: INTERVIEW_TEXT_LIMITS.otherChoice,
+            },
+          ],
+        },
       },
       {
         kind: 'single',
@@ -205,6 +247,17 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
           { value: 'sport', label: 'Sport' },
           { value: 'autre', label: 'Autre' },
         ],
+        reveal: {
+          when: 'autre',
+          fields: [
+            {
+              field: 'otherJobsOther',
+              label: 'Précisez',
+              placeholder: 'Quel métier ?',
+              maxLength: INTERVIEW_TEXT_LIMITS.otherChoice,
+            },
+          ],
+        },
       },
       {
         kind: 'multi',
@@ -222,6 +275,17 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
           { value: 'lycee', label: 'Mon lycée' },
           { value: 'autre', label: 'Autre' },
         ],
+        reveal: {
+          when: 'autre',
+          fields: [
+            {
+              field: 'infoSourcesOther',
+              label: 'Précisez',
+              placeholder: 'Quelle source ?',
+              maxLength: INTERVIEW_TEXT_LIMITS.otherChoice,
+            },
+          ],
+        },
       },
     ],
   },
@@ -310,6 +374,31 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
     ],
   },
 ] as const;
+
+/** A choice question that unlocks free-text inputs (its `reveal` is present). */
+export type RevealQuestion = ChoiceQuestion & { reveal: Reveal };
+
+/** Every reveal-bearing question, flattened. The conduct action loops this to
+ *  trim each reveal field and null it when its trigger choice is deselected, so
+ *  a precision never outlives the answer that unlocked it (e.g. a leftover
+ *  `discoveryChannelOther` after switching away from "Autre"). Catalogue-driven:
+ *  a new "Autre" precision is wired by adding a `reveal`, not by touching the
+ *  action. */
+export const REVEAL_QUESTIONS: readonly RevealQuestion[] =
+  INTERVIEW_BLOCS.flatMap((b) => b.questions).filter(
+    (q): q is RevealQuestion =>
+      (q.kind === 'single' || q.kind === 'multi') && q.reveal != null,
+  );
+
+/** Whether a reveal's trigger is satisfied by the current answer. Single-choice
+ *  answers match by equality; multi-choice arrays by membership. Shared by the
+ *  grid (show the inputs) and the action (clear them when the trigger is off) so
+ *  the two can never disagree on when a precision is live. */
+export function isRevealActive(reveal: Reveal, value: unknown): boolean {
+  return Array.isArray(value)
+    ? value.includes(reveal.when)
+    : value === reveal.when;
+}
 
 /** Interviewer-only block, filled after the interview (never asked to the
  *  student). The recommendation is the single most actionable signal for

@@ -24,7 +24,9 @@
     INTERVIEWER_SECTION,
     INTERVIEW_RECOMMENDATIONS,
     INTERVIEW_RECOMMENDATION_VALUES,
+    isRevealActive,
     type ChoiceOption,
+    type Reveal,
     type RecommendationToneToken,
   } from '$lib/domain/interview';
   import type { InterviewConductForm } from '$lib/validation/interviews';
@@ -364,6 +366,30 @@
   </div>
 {/snippet}
 
+<!-- Free-text inputs unlocked by a choice (teacher details, the "Précisez" box
+     once "Autre" is picked). One renderer for both single- and multi-choice. -->
+{#snippet revealInputs(reveal: Reveal)}
+  <div
+    class={cn('grid gap-2 pt-1', reveal.fields.length > 1 && 'sm:grid-cols-2')}
+  >
+    {#each reveal.fields as rf (rf.field)}
+      <div class="space-y-1">
+        <span class="text-[11px] font-medium text-muted-foreground">
+          {rf.label}
+        </span>
+        <Input
+          value={(fv(rf.field) as string) ?? ''}
+          oninput={(e) => setText(rf.field, e.currentTarget.value)}
+          placeholder={rf.placeholder}
+          maxlength={rf.maxLength}
+          disabled={!interactive}
+          class="bg-background"
+        />
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
 <EpiSection title="Grille d'entretien" accent="blue">
   {#snippet meta()}
     <div class="flex items-center gap-2">
@@ -474,30 +500,14 @@
 
               {#if q.kind === 'single'}
                 {@render singleChips(q.field, q.options)}
-                {#if q.reveal && fv(q.field) === q.reveal.when}
-                  <div class="grid gap-2 pt-1 sm:grid-cols-2">
-                    {#each q.reveal.fields as rf (rf.field)}
-                      <div class="space-y-1">
-                        <span
-                          class="text-[11px] font-medium text-muted-foreground"
-                        >
-                          {rf.label}
-                        </span>
-                        <Input
-                          value={(fv(rf.field) as string) ?? ''}
-                          oninput={(e) =>
-                            setText(rf.field, e.currentTarget.value)}
-                          placeholder={rf.placeholder}
-                          maxlength={rf.maxLength}
-                          disabled={!interactive}
-                          class="bg-background"
-                        />
-                      </div>
-                    {/each}
-                  </div>
+                {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
+                  {@render revealInputs(q.reveal)}
                 {/if}
               {:else if q.kind === 'multi'}
                 {@render multiChips(q.field, q.options)}
+                {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
+                  {@render revealInputs(q.reveal)}
+                {/if}
               {:else if q.kind === 'rating'}
                 <div class="flex items-center gap-1.5">
                   {#each Array.from({ length: q.max }) as _, idx (idx)}

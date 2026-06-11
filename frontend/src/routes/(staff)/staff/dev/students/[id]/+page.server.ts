@@ -12,6 +12,11 @@ import {
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { interviewConductSchema } from '$lib/validation/interviews';
 import {
+  REVEAL_QUESTIONS,
+  isRevealActive,
+  type RevealTextField,
+} from '$lib/domain/interview';
+import {
   applyPhaseOverride,
   getEventStatus,
   getLifecycleBounds,
@@ -209,6 +214,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             teacherSubject: existingInterview.teacherSubject ?? '',
             oneSentence: existingInterview.oneSentence ?? '',
             interviewerNote: existingInterview.interviewerNote ?? '',
+            discoveryChannelOther:
+              existingInterview.discoveryChannelOther ?? '',
+            specialtiesOther: existingInterview.specialtiesOther ?? '',
+            otherJobsOther: existingInterview.otherJobsOther ?? '',
+            infoSourcesOther: existingInterview.infoSourcesOther ?? '',
           }
         : { participationId: primaryComplianceParticipation?.id ?? '' },
       zod4(interviewConductSchema),
@@ -319,25 +329,29 @@ async function persistInterview(
     });
   }
 
-  const {
-    participationId,
-    passionateTeacher,
-    teacherName,
-    teacherSubject,
-    oneSentence,
-    interviewerNote,
-    ...choices
-  } = form.data;
-  // Teacher name/subject only mean something when a teacher was actually named;
-  // empty free text becomes null so the DB never stores "".
-  const teacherKnown = passionateTeacher === 'oui';
+  const { participationId, oneSentence, interviewerNote, ...rest } = form.data;
+
+  // Reveal-gated free text (teacher name/subject, the "Autre" precisions): trim,
+  // and clear when its trigger choice is not selected so the DB never keeps a
+  // precision orphaned from the answer that unlocked it. Catalogue-driven, so a
+  // new "Autre" precision needs no change here. `data` reads both the trigger
+  // value (an enum or an array) and the raw text by field name.
+  const data = form.data as Record<string, unknown>;
+  const revealText = {} as Record<RevealTextField, string | null>;
+  for (const q of REVEAL_QUESTIONS) {
+    const active = isRevealActive(q.reveal, data[q.field]);
+    for (const rf of q.reveal.fields) {
+      const raw = data[rf.field];
+      const trimmed = typeof raw === 'string' ? raw.trim() : '';
+      revealText[rf.field] = active && trimmed ? trimmed : null;
+    }
+  }
+
   const answers = {
-    ...choices,
-    passionateTeacher,
-    teacherName: teacherKnown ? teacherName.trim() || null : null,
-    teacherSubject: teacherKnown ? teacherSubject.trim() || null : null,
+    ...rest,
     oneSentence: oneSentence.trim() || null,
     interviewerNote: interviewerNote.trim() || null,
+    ...revealText,
   };
 
   const createStatus = mode === 'close' ? 'done' : 'in_progress';

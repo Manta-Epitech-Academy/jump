@@ -842,6 +842,13 @@ model Interview {
   oneSentence       String?
   interviewerNote   String?
 
+  // "Autre" precisions: the free text behind the matching "Autre" choice
+  // (null unless that choice is selected; see domain/interview.ts reveals).
+  discoveryChannelOther String?
+  specialtiesOther      String?
+  otherJobsOther        String?
+  infoSourcesOther      String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
