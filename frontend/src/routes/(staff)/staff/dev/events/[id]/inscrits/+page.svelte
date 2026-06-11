@@ -10,6 +10,7 @@
   import Unplug from '@lucide/svelte/icons/unplug';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Download from '@lucide/svelte/icons/download';
+  import IdCard from '@lucide/svelte/icons/id-card';
   import LoaderCircle from '@lucide/svelte/icons/loader-circle';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
@@ -305,6 +306,35 @@
       exporting = false;
     }
   }
+
+  let generatingBadges = $state(false);
+
+  // Generate the printable badge sheet for every inscrit of this event (no
+  // selection). The endpoint builds the PDF server-side from all participations.
+  async function generateBadges() {
+    if (generatingBadges) return;
+    generatingBadges = true;
+    try {
+      const res = await fetch(
+        page.url.pathname.replace(/\/inscrits\/?$/, '/badges.pdf'),
+      );
+      if (!res.ok) throw new Error(`Badges failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Badges - ${data.event.titre}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('generate badges', e);
+      toast.error('Échec de la génération des badges.');
+    } finally {
+      generatingBadges = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -387,6 +417,20 @@
     />
   {/if}
   <PageHeader title="Inscrits">
+    <Button
+      variant="outline"
+      size="sm"
+      onclick={generateBadges}
+      disabled={generatingBadges}
+    >
+      {#if generatingBadges}
+        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+        Génération…
+      {:else}
+        <IdCard class="mr-1.5 h-4 w-4" />
+        Générer badges
+      {/if}
+    </Button>
     <EventSalesforceButton externalId={data.event.externalId} />
   </PageHeader>
 

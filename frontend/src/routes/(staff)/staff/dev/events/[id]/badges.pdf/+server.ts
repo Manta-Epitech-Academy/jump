@@ -1,36 +1,21 @@
 import type { RequestHandler } from './$types';
-import { error } from '@sveltejs/kit';
 import { getCampusId, scopedPrisma } from '$lib/server/db/scoped';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { resolveStageContext } from '$lib/server/services/stageContext';
+import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { imageRightsStatus } from '$lib/domain/imageRights';
 import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+// Generates the printable badge sheet for every talent registered to this event
+// (no selection — all inscrits). Campus-scoped via the event load.
+export const GET: RequestHandler = async ({ params, locals }) => {
   requireStaffGroup(locals, 'devMember');
 
-  const db = scopedPrisma(getCampusId(locals));
-  const stage = await resolveStageContext(db, {
-    phaseOverride: locals.stagePhaseOverride,
-  });
-  if (!stage) {
-    throw error(404, 'Aucun stage de seconde actif.');
-  }
+  const campusId = getCampusId(locals);
+  const event = await loadEventOr404(params.id, campusId);
+  const db = scopedPrisma(campusId);
 
-  const body = (await request.json().catch(() => null)) as {
-    ids?: unknown;
-  } | null;
-  const ids = Array.isArray(body?.ids)
-    ? body.ids.filter((x): x is string => typeof x === 'string')
-    : [];
-  if (ids.length === 0) {
-    throw error(400, 'Aucun badge sélectionné.');
-  }
-
-  // Re-resolve the talents server-side from the active stage participations so a
-  // forged id can't pull a talent outside this campus/stage onto a badge.
   const participations = await db.participation.findMany({
-    where: { eventId: stage.id, talentId: { in: ids } },
+    where: { eventId: event.id },
     select: {
       talent: {
         select: { prenom: true, nom: true, imageRightsDecision: true },
@@ -52,7 +37,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="badges-stage.pdf"',
+        'Content-Disposition': 'attachment; filename="badges.pdf"',
       },
     },
   );
