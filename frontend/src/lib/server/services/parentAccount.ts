@@ -21,6 +21,11 @@ import { sendParentWelcomeEmail } from '$lib/server/otp';
  *   - the new address must differ from the student's own email (that would hand
  *     the parent the student's identity at login).
  *
+ * When the new address already hosts a parent account (a sibling's, say), the
+ * talent is pointed at it and the previous login is dropped if nothing else
+ * references it — the same no-orphan rule the reset / anonymization paths follow
+ * (see {@link findUnreferencedParentAccount}).
+ *
  * Salesforce never writes parent fields, so there is no sync-clobber to guard
  * against (unlike Talent.email): the edit sticks.
  */
@@ -105,7 +110,17 @@ export async function changeParentEmail(
 
       if (targetUser) {
         // A parent account already exists at the new address (e.g. a sibling's
-        // already-correct parent). Point the talent at it; nothing to mint.
+        // already-correct parent). The talent now points at it (updated above);
+        // drop the previous login if no one else still references it, so the
+        // correction never strands an orphaned parent account.
+        if (oldEmail) {
+          const orphan = await findUnreferencedParentAccount(
+            tx,
+            oldEmail,
+            talentId,
+          );
+          if (orphan) await deleteParentAccountCascade(tx, orphan.id);
+        }
         return 'linked-existing';
       }
       if (currentUser?.role === 'parent' && !sharedOld) {
@@ -169,4 +184,59 @@ async function trySendWelcome(
     console.error('[changeParentEmail] welcome email failed', err);
     return false;
   }
+}
+
+/**
+ * The parent-login lifecycle keeps one invariant: no parent `bauth_user` row
+ * outlives the last talent that points at it. Three flows can sever that final
+ * pointer — a full reset to import, an RGPD anonymization, and a parent-email
+ * correction — and each must apply the SAME guard before touching the account,
+ * or a drifting copy risks clobbering a sibling's shared login or a staff /
+ * student account that merely happens to hold the address. This is that single
+ * guard: it returns the parent account safe to act on, or `null`.
+ *
+ *   - `null` while a *sibling* still references the address (a shared parent),
+ *     so the login another talent depends on is never touched;
+ *   - `null` unless the row's role is `parent`: a student / staff account that
+ *     happens to hold the email is off-limits (it can also carry blocking FK
+ *     rows like authored tickets that would trip a hard delete).
+ *
+ * `excludeTalentId` is the talent whose pointer just moved away; its own row is
+ * excluded from the reference count. Call inside the transaction that runs the
+ * action which follows (delete or scrub).
+ */
+export async function findUnreferencedParentAccount(
+  tx: Prisma.TransactionClient,
+  email: string,
+  excludeTalentId: string,
+): Promise<{ id: string } | null> {
+  const stillReferenced = await tx.talent.count({
+    where: {
+      id: { not: excludeTalentId },
+      OR: [{ parentEmail: email }, { parent2Email: email }],
+    },
+  });
+  if (stillReferenced > 0) return null;
+
+  const parentUser = await tx.bauth_user.findUnique({
+    where: { email },
+    select: { id: true, role: true },
+  });
+  if (!parentUser || parentUser.role !== 'parent') return null;
+  return { id: parentUser.id };
+}
+
+/**
+ * Hard-delete a parent `bauth_user` along with its BetterAuth session / account
+ * rows (which don't cascade at the DB level). Only ever call with an id from
+ * {@link findUnreferencedParentAccount}, which proves the row is a parent login
+ * no other talent references. Call inside a transaction.
+ */
+export async function deleteParentAccountCascade(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  await tx.bauth_session.deleteMany({ where: { userId } });
+  await tx.bauth_account.deleteMany({ where: { userId } });
+  await tx.bauth_user.delete({ where: { id: userId } });
 }
