@@ -402,6 +402,8 @@
           canArmRealSends={data.canArmRealSends}
           armedRealSends={data.armedRealSends}
           armedRealSendsUntil={data.armedRealSendsUntil}
+          devRedirectPin={data.devRedirectPin}
+          devRedirectPinTo={data.devRedirectPinTo}
         />
       </div>
     </div>

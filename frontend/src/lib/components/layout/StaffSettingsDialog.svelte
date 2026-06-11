@@ -9,6 +9,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import Info from '@lucide/svelte/icons/info';
   import ShieldAlert from '@lucide/svelte/icons/shield-alert';
+  import MailCheck from '@lucide/svelte/icons/mail-check';
 
   type Props = {
     open?: boolean;
@@ -18,6 +19,10 @@
     armedRealSends: boolean;
     // Serialized to a string across the load boundary; accept the raw shapes too.
     armedRealSendsUntil: Date | string | number | null;
+    // An active login-redirect pin (normally null while logged in), and where a
+    // pin would route login mail (computed server-side from saved settings).
+    devRedirectPin: { until: Date | string | number; to: string[] } | null;
+    devRedirectPinTo: string[];
   };
 
   let {
@@ -27,6 +32,8 @@
     canArmRealSends,
     armedRealSends,
     armedRealSendsUntil,
+    devRedirectPin,
+    devRedirectPinTo,
   }: Props = $props();
 
   // superForm intentionally seeds from the initial form; the reactive-read
@@ -64,6 +71,21 @@
         })
       : null,
   );
+
+  const pinUntilLabel = $derived(
+    devRedirectPin
+      ? new Date(devRedirectPin.until).toLocaleTimeString('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : null,
+  );
+
+  const pinToLabel = $derived(
+    devRedirectPinTo.length > 0
+      ? devRedirectPinTo.join(', ')
+      : 'votre email de connexion',
+  );
 </script>
 
 <Dialog.Root bind:open>
@@ -82,13 +104,23 @@
     <div class="space-y-6">
       {#if !outboundTrapped}
         <div
-          class="flex items-start gap-2 rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground"
+          class="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200"
         >
           <Info class="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
-            Cet environnement n'est pas en mode test : aucune redirection n'est
-            active. Vous pouvez tout de même préparer vos adresses ici.
-          </p>
+          <div class="space-y-1">
+            <p>
+              <strong
+                >Cet environnement envoie pour de vrai (OUTBOUND_MODE=real).</strong
+              >
+              Aucun réglage de cette fenêtre n'a d'effet ici : ni la redirection des
+              emails et SMS, ni les outils de test (qui sont d'ailleurs masqués).
+              Tout cela ne s'active que sur un environnement de test (dev/staging).
+            </p>
+            <p>
+              Vous pouvez tout de même préparer vos adresses : elles
+              s'appliqueront là-bas.
+            </p>
+          </div>
         </div>
       {/if}
 
@@ -181,6 +213,50 @@
               <input type="hidden" name="action" value="arm" />
               <Button type="submit" variant="destructive"
                 >Activer les envois réels (15 min)</Button
+              >
+            </form>
+          {/if}
+        </div>
+
+        <div
+          class="space-y-3 rounded-md border border-amber-300 p-4 dark:border-amber-900/60"
+        >
+          <div>
+            <h3
+              class="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400"
+            >
+              <MailCheck class="h-4 w-4" /> Tester la connexion (OTP)
+            </h3>
+            <p class="mt-1 text-xs text-muted-foreground">
+              Pour tester la vraie connexion d'un talent ou d'un parent : armez
+              la redirection, déconnectez-vous, puis demandez un code. L'email
+              de connexion vous sera redirigé (<strong>{pinToLabel}</strong>) au
+              lieu de la liste partagée. Sans danger : le message reste piégé,
+              jamais envoyé au vrai destinataire.
+            </p>
+          </div>
+
+          {#if devRedirectPin}
+            <div
+              class="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900/60 dark:bg-amber-950/40"
+            >
+              <span class="font-semibold text-amber-700 dark:text-amber-300">
+                Active{pinUntilLabel
+                  ? ` (se désactive à ${pinUntilLabel})`
+                  : ''}.
+              </span>
+              <form method="POST" action="/api/dev/redirect-pin">
+                <input type="hidden" name="action" value="disarm" />
+                <Button type="submit" variant="outline" size="sm"
+                  >Désactiver</Button
+                >
+              </form>
+            </div>
+          {:else}
+            <form method="POST" action="/api/dev/redirect-pin">
+              <input type="hidden" name="action" value="arm" />
+              <Button type="submit" variant="outline"
+                >Activer la redirection de connexion (30 min)</Button
               >
             </form>
           {/if}
