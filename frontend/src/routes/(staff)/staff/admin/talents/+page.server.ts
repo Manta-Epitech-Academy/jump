@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
 import { resolve } from '$app/paths';
 import { prisma } from '$lib/server/db';
 import { auth } from '$lib/server/auth';
@@ -8,6 +9,7 @@ import {
   ensureTalentUser,
   resetTalentToImport,
 } from '$lib/server/services/talentAccount';
+import { changeParentEmail } from '$lib/server/services/parentAccount';
 import { parentCompleteWhere } from '$lib/server/db/stageCompliance';
 import {
   parseTalentFilters,
@@ -147,5 +149,51 @@ export const actions: Actions = {
       return fail(500, { message: 'Échec de la réinitialisation complète.' });
     }
     return { success: true };
+  },
+
+  // Fix the email a parent-1 signs in with (e.g. a typo entered at onboarding
+  // that locked the parent out). Moves Talent.parentEmail and the parent's
+  // bauth_user.email together, with the hijack/sibling guards in
+  // changeParentEmail; optionally re-sends the connection link to the new
+  // address.
+  updateParentEmail: async ({ request, locals }) => {
+    if (locals.staffProfile?.staffRole !== 'admin') return fail(403);
+
+    const data = await request.formData();
+    const talentId = data.get('talentId');
+    const resendWelcome = data.get('resendWelcome') === 'on';
+    if (typeof talentId !== 'string' || !talentId) return fail(400);
+
+    const parsed = z
+      .email('Adresse email invalide.')
+      .safeParse(String(data.get('email') ?? '').trim());
+    if (!parsed.success) {
+      return fail(400, { message: parsed.error.issues[0]?.message });
+    }
+
+    try {
+      const result = await changeParentEmail(talentId, parsed.data, {
+        resendWelcome,
+      });
+      if (!result.ok) {
+        return fail(400, {
+          message:
+            result.reason === 'same_as_student'
+              ? "L'adresse du parent doit être différente de celle de l'élève."
+              : 'Cette adresse est déjà utilisée par un autre compte.',
+        });
+      }
+      const message = !result.changed
+        ? result.welcomeSent
+          ? 'Lien de connexion renvoyé.'
+          : 'Adresse inchangée.'
+        : result.welcomeSent
+          ? 'Email du parent mis à jour, lien de connexion envoyé.'
+          : 'Email du parent mis à jour.';
+      return { success: true, message };
+    } catch (err) {
+      console.error('[updateParentEmail] failed', err);
+      return fail(500, { message: "Échec de la mise à jour de l'email." });
+    }
   },
 };

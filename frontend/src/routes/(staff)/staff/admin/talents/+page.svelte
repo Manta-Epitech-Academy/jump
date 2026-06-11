@@ -13,6 +13,7 @@
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Phone from '@lucide/svelte/icons/phone';
+  import Pencil from '@lucide/svelte/icons/pencil';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import SegmentedFilter, {
     type SegmentOption,
@@ -33,6 +34,7 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
+  import EditParentEmailDialog from './EditParentEmailDialog.svelte';
   import type { ContactPerson } from '$lib/components/students/contact';
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
@@ -95,6 +97,32 @@
       guardians: talent.guardians,
     };
     contactOpen = true;
+  }
+
+  // Edit-parent-1-email dialog. Opened from the Parent column so an admin can
+  // fix a wrong address the parent was locked out by; the action keeps the
+  // parent's login account in sync.
+  let editParentOpen = $state(false);
+  let editParentTarget = $state<{
+    id: string;
+    parentEmail: string | null;
+    parentName: string | null;
+  } | null>(null);
+
+  function openEditParent(talent: {
+    id: string;
+    parentEmail: string | null;
+    parentPrenom: string | null;
+    parentNom: string | null;
+  }) {
+    editParentTarget = {
+      id: talent.id,
+      parentEmail: talent.parentEmail,
+      parentName:
+        [talent.parentPrenom, talent.parentNom].filter(Boolean).join(' ') ||
+        null,
+    };
+    editParentOpen = true;
   }
 
   // Status chip tints (labels are single-sourced in ./labels so the table and
@@ -494,19 +522,42 @@
         {/if}
       </Table.Cell>
       <Table.Cell>
-        {#if talent.parentStatus}
-          <span
-            class="inline-flex w-fit rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {PARENT_STATUS_CLASS[
-              talent.parentStatus
-            ]}"
-          >
-            {PARENT_STATUS_LABELS[talent.parentStatus]}
-          </span>
-        {:else if talent.guardians.length > 0}
-          <span class="text-sm text-muted-foreground">—</span>
-        {:else}
-          <span class="text-sm text-muted-foreground">Aucun parent</span>
-        {/if}
+        <div class="flex items-center gap-1.5">
+          {#if talent.parentStatus}
+            <span
+              class="inline-flex w-fit rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {PARENT_STATUS_CLASS[
+                talent.parentStatus
+              ]}"
+            >
+              {PARENT_STATUS_LABELS[talent.parentStatus]}
+            </span>
+          {:else if talent.guardians.length > 0}
+            <span class="text-sm text-muted-foreground">—</span>
+          {:else}
+            <span class="text-sm text-muted-foreground">Aucun parent</span>
+          {/if}
+          <Tooltip.Provider delayDuration={300}>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                    onclick={() => openEditParent(talent)}
+                    aria-label="Modifier l'email du parent"
+                  >
+                    <Pencil class="h-3.5 w-3.5" />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p>Modifier l'email de connexion du parent</p>
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        </div>
       </Table.Cell>
       <Table.Cell>
         <div class="flex items-center gap-2">
@@ -673,6 +724,8 @@
   student={contactTarget?.student ?? null}
   guardians={contactTarget?.guardians ?? []}
 />
+
+<EditParentEmailDialog bind:open={editParentOpen} talent={editParentTarget} />
 
 <AlertDialog.Root bind:open={wipeOpen}>
   <AlertDialog.Content>

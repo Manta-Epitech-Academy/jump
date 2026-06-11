@@ -361,6 +361,11 @@ export function projectTalentRow(row: TalentRow) {
     eventsCount: t.eventsCount,
     lastActiveAt: t.lastActiveAt,
     imageRightsDecision: t.imageRightsDecision,
+    // Parent-1 identity, surfaced so the admin can edit the login email the
+    // parent connects with (see the updateParentEmail action).
+    parentEmail: t.parentEmail,
+    parentPrenom: t.parentPrenom,
+    parentNom: t.parentNom,
     campus: participations[0]?.campus?.name ?? null,
     status,
     // Only meaningful mid-journey: shown next to the "Onboarding" badge so the
