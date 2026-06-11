@@ -25,6 +25,17 @@
   import Lock from '@lucide/svelte/icons/lock';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Trash2 from '@lucide/svelte/icons/trash-2';
+  // Domain-identity glyphs for the tech-domain chips (weekFavorite,
+  // techProjection). Keyed by the catalogue's ChoiceIconToken via CHIP_ICONS.
+  import Code from '@lucide/svelte/icons/code';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import InfinityIcon from '@lucide/svelte/icons/infinity';
+  import Palette from '@lucide/svelte/icons/palette';
+  import Brain from '@lucide/svelte/icons/brain';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
+  import Network from '@lucide/svelte/icons/network';
+  import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+  import Compass from '@lucide/svelte/icons/compass';
   import type { InterviewStatus } from '@prisma/client';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
@@ -42,6 +53,8 @@
     interviewBlocAnchorId,
     INTERVIEW_VERDICT_ANCHOR_ID,
     type ChoiceOption,
+    type ChoiceTone,
+    type ChoiceIconToken,
     type Reveal,
     type RecommendationToneToken,
     type InterviewProgressSummary,
@@ -289,6 +302,48 @@
     'border-border bg-background text-foreground hover:border-epi-blue/40 hover:bg-epi-blue/5';
   const chipActive = 'border-epi-blue bg-epi-blue text-white shadow-sm';
 
+  // Sentiment palette for ordinal answers (oui / un peu / pas du tout). One
+  // active language across the grid — a solid fill, like the categorical blue —
+  // with colour carrying the valence: green = positive, amber = neutral, red =
+  // negative. Idle keeps a faint tint so the valence reads even unselected.
+  const CHIP_TONE_IDLE: Record<ChoiceTone, string> = {
+    positive:
+      'border-epi-teal-solid/30 bg-epi-teal-solid/5 text-epi-teal-solid hover:border-epi-teal-solid hover:bg-epi-teal-solid/10',
+    neutral:
+      'border-amber-500/30 bg-amber-500/5 text-amber-600 hover:border-amber-500 hover:bg-amber-500/10',
+    negative:
+      'border-destructive/30 bg-destructive/5 text-destructive hover:border-destructive hover:bg-destructive/10',
+  };
+  const CHIP_TONE_ACTIVE: Record<ChoiceTone, string> = {
+    positive: 'border-epi-teal-solid bg-epi-teal-solid text-white shadow-sm',
+    neutral: 'border-amber-500 bg-amber-500 text-white shadow-sm',
+    negative: 'border-destructive bg-destructive text-white shadow-sm',
+  };
+
+  // Catalogue's ChoiceIconToken → Lucide component (token kept in the domain
+  // module, the component wiring stays here). InfinityIcon is aliased so it
+  // doesn't shadow the JS `Infinity` global.
+  const CHIP_ICONS: Record<ChoiceIconToken, typeof Code> = {
+    dev: Code,
+    cyber: ShieldCheck,
+    devops: InfinityIcon,
+    design: Palette,
+    ia: Brain,
+    jeux_video: Gamepad2,
+    reseaux: Network,
+    pas_idee: CircleQuestionMark,
+    hors_tech: Compass,
+  };
+
+  // A chip's colour: tone palette when the option carries a sentiment, else the
+  // neutral categorical blue (a channel, a specialty — no valence to imply).
+  function chipClass(opt: ChoiceOption, active: boolean): string {
+    if (opt.tone) {
+      return active ? CHIP_TONE_ACTIVE[opt.tone] : CHIP_TONE_IDLE[opt.tone];
+    }
+    return active ? chipActive : chipIdle;
+  }
+
   const TONE_IDLE: Record<RecommendationToneToken, string> = {
     'epi-tech':
       'border-epi-teal-solid/30 bg-epi-teal-solid/5 text-epi-teal-solid hover:border-epi-teal-solid',
@@ -323,13 +378,19 @@
   <div class="flex flex-wrap gap-2">
     {#each options as opt (opt.value)}
       {@const active = fv(field) === opt.value}
+      {@const Icon = opt.icon ? CHIP_ICONS[opt.icon] : null}
       <button
         type="button"
         aria-pressed={active}
         disabled={!interactive}
         onclick={() => setSingle(field, opt.value)}
-        class={cn(chipBase, active ? chipActive : chipIdle)}
+        class={cn(
+          chipBase,
+          'inline-flex items-center gap-1.5',
+          chipClass(opt, active),
+        )}
       >
+        {#if Icon}<Icon class="h-3.5 w-3.5" />{/if}
         {opt.label}
       </button>
     {/each}
@@ -349,7 +410,7 @@
         class={cn(
           chipBase,
           'inline-flex items-center gap-1.5',
-          active ? chipActive : chipIdle,
+          chipClass(opt, active),
         )}
       >
         {#if active}<Check class="h-3.5 w-3.5" />{/if}

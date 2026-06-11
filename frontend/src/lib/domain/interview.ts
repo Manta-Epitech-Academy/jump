@@ -13,7 +13,35 @@ import type { InterviewRecommendation, InterviewStatus } from '@prisma/client';
  * ("Comment as-tu connu ce stage ?"). The staff controls around them vouvoient.
  */
 
-export type ChoiceOption = { value: string; label: string };
+/** Sentiment of an ordinal answer, driving a green→amber→red chip so the
+ *  interviewer reads the valence at a glance. Set only on scale questions
+ *  (oui / un peu / pas du tout); categorical options omit it, since color there
+ *  would imply a ranking that isn't real (one channel isn't "better" than
+ *  another). */
+export type ChoiceTone = 'positive' | 'neutral' | 'negative';
+
+/** Domain-identity glyph for the tech-domain questions, mapped to a Lucide icon
+ *  in the grid (token → component, the same indirection as the verdict's tone
+ *  token, so no icon components leak into this domain module). Set only where a
+ *  clean glyph exists; brand answers (TikTok, ONISEP) have none and stay
+ *  text-only rather than reaching for an emoji. */
+export type ChoiceIconToken =
+  | 'dev'
+  | 'cyber'
+  | 'devops'
+  | 'design'
+  | 'ia'
+  | 'jeux_video'
+  | 'reseaux'
+  | 'pas_idee'
+  | 'hors_tech';
+
+export type ChoiceOption = {
+  value: string;
+  label: string;
+  tone?: ChoiceTone;
+  icon?: ChoiceIconToken;
+};
 
 /** Every free-text column unlocked by a choice answer. The union (not a bare
  *  `string`) keeps the conduct action's reveal-clearing loop typed against the
@@ -181,9 +209,9 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
         field: 'orientationTalkAtSchool',
         label: 'On te parle d’orientation vers la tech dans ton lycée ?',
         options: [
-          { value: 'souvent', label: 'Oui, souvent' },
-          { value: 'un_peu', label: 'Un peu' },
-          { value: 'pas_du_tout', label: 'Pas du tout' },
+          { value: 'souvent', label: 'Oui, souvent', tone: 'positive' },
+          { value: 'un_peu', label: 'Un peu', tone: 'neutral' },
+          { value: 'pas_du_tout', label: 'Pas du tout', tone: 'negative' },
         ],
       },
       {
@@ -194,8 +222,12 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
         essential: true,
         hint: 'Un prof passionné, qui aime monter des concours ou des challenges : on aimerait organiser des ateliers avec ton lycée.',
         options: [
-          { value: 'oui', label: 'Oui' },
-          { value: 'pas_sur', label: 'Je ne vois pas / pas sûr·e' },
+          { value: 'oui', label: 'Oui', tone: 'positive' },
+          {
+            value: 'pas_sur',
+            label: 'Je ne vois pas / pas sûr·e',
+            tone: 'neutral',
+          },
         ],
         reveal: {
           when: 'oui',
@@ -228,14 +260,18 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
         label: 'Vers quels métiers / domaines tu te projettes ?',
         essential: true,
         options: [
-          { value: 'dev', label: 'Dev' },
-          { value: 'cyber', label: 'Cyber' },
-          { value: 'ia_data', label: 'IA / Data' },
-          { value: 'jeux_video', label: 'Jeux vidéo' },
-          { value: 'design', label: 'Design' },
-          { value: 'reseaux_systemes', label: 'Réseaux / Systèmes' },
-          { value: 'pas_idee', label: 'Pas encore d’idée' },
-          { value: 'hors_tech', label: 'Plutôt hors tech' },
+          { value: 'dev', label: 'Dev', icon: 'dev' },
+          { value: 'cyber', label: 'Cyber', icon: 'cyber' },
+          { value: 'ia_data', label: 'IA / Data', icon: 'ia' },
+          { value: 'jeux_video', label: 'Jeux vidéo', icon: 'jeux_video' },
+          { value: 'design', label: 'Design', icon: 'design' },
+          {
+            value: 'reseaux_systemes',
+            label: 'Réseaux / Systèmes',
+            icon: 'reseaux',
+          },
+          { value: 'pas_idee', label: 'Pas encore d’idée', icon: 'pas_idee' },
+          { value: 'hors_tech', label: 'Plutôt hors tech', icon: 'hors_tech' },
         ],
       },
       {
@@ -302,11 +338,11 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
         label: 'Quel domaine de la semaine t’a le plus parlé ?',
         essential: true,
         options: [
-          { value: 'cyber', label: 'Cyber' },
-          { value: 'dev', label: 'Dev' },
-          { value: 'devops', label: 'DevOps' },
-          { value: 'product_design', label: 'Product design' },
-          { value: 'ia', label: 'IA' },
+          { value: 'cyber', label: 'Cyber', icon: 'cyber' },
+          { value: 'dev', label: 'Dev', icon: 'dev' },
+          { value: 'devops', label: 'DevOps', icon: 'devops' },
+          { value: 'product_design', label: 'Product design', icon: 'design' },
+          { value: 'ia', label: 'IA', icon: 'ia' },
         ],
       },
       {
@@ -314,9 +350,13 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
         field: 'wantsMore',
         label: 'Ça t’a donné envie d’aller plus loin dans la tech ?',
         options: [
-          { value: 'oui', label: 'Oui carrément' },
-          { value: 'peut_etre', label: 'Peut-être' },
-          { value: 'pas_maintenant', label: 'Pas pour le moment' },
+          { value: 'oui', label: 'Oui carrément', tone: 'positive' },
+          { value: 'peut_etre', label: 'Peut-être', tone: 'neutral' },
+          {
+            value: 'pas_maintenant',
+            label: 'Pas pour le moment',
+            tone: 'negative',
+          },
         ],
       },
     ],
@@ -338,10 +378,13 @@ export const INTERVIEW_BLOCS: readonly InterviewBloc[] = [
         field: 'satisfactionContent',
         label: 'Le contenu du stage',
         essential: true,
+        // Goldilocks, not a linear scale: the middle is the good answer, the two
+        // extremes are signals (too easy / too dense), not failures — hence
+        // amber neutral on both ends and positive on "bon niveau".
         options: [
-          { value: 'trop_facile', label: 'Trop facile' },
-          { value: 'bon_niveau', label: 'Bon niveau' },
-          { value: 'trop_dense', label: 'Trop dense' },
+          { value: 'trop_facile', label: 'Trop facile', tone: 'neutral' },
+          { value: 'bon_niveau', label: 'Bon niveau', tone: 'positive' },
+          { value: 'trop_dense', label: 'Trop dense', tone: 'neutral' },
         ],
       },
       {
