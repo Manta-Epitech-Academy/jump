@@ -9,6 +9,7 @@ import { countAuthIdentityConflicts } from '$lib/server/services/authIdentitySer
 import { staffDevRedirectSchema } from '$lib/validation/staffSettings';
 import { outboundTrapped } from '$lib/server/outbound';
 import { canArmRealSends } from '$lib/server/armRealSends';
+import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 
 export const load: LayoutServerLoad = async ({ parent, locals }) => {
   const { user, staffProfile } = await parent();
@@ -49,5 +50,15 @@ export const load: LayoutServerLoad = async ({ parent, locals }) => {
     canArmRealSends: canArmRealSends(locals),
     armedRealSends: locals.armedRealSends,
     armedRealSendsUntil: locals.armedRealSendsUntil,
+    // The pin is only ever set on a logged-out request, so it's normally null
+    // here; the dialog uses it to show "actif" when an admin re-opens settings
+    // in another (still logged-in) tab, and otherwise previews the destination.
+    devRedirectPin: locals.devRedirectPin,
+    // Where a pin would route login mail, computed with the same helper the live
+    // routing uses, so the dialog's preview matches reality.
+    devRedirectPinTo: staffBulkDevRedirectEmails(
+      staffProfile.devRedirectEmails,
+      user.email ?? null,
+    ),
   };
 };

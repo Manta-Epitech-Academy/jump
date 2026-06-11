@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '$lib/server/db';
 import { getStorage } from '$lib/server/infra/storage';
+import { findUnreferencedParentAccount } from '$lib/server/services/parentAccount';
 import { DATA_RETENTION_MONTHS } from '$lib/domain/retention';
 import {
   clearOnboardingTimestamps,
@@ -163,28 +164,22 @@ export async function anonymizeTalent(
   // 5. Scrub the parent `bauth_user`(s) — but only those no other talent still
   //    references, so a shared parent (siblings) keeps their account. Already-
   //    anonymised siblings have null parent emails, so they never count here.
+  //    The sibling + role guard is shared with resetTalentToImport; here we
+  //    scrub to a placeholder rather than delete (RGPD erasure keeps the row).
   for (const email of new Set(parentEmails)) {
-    const stillReferenced = await tx.talent.count({
-      where: {
-        id: { not: talentId },
-        OR: [{ parentEmail: email }, { parent2Email: email }],
-      },
-    });
-    if (stillReferenced > 0) continue;
-
-    const parentUser = await tx.bauth_user.findUnique({ where: { email } });
-    if (!parentUser || parentUser.role !== 'parent') continue;
+    const orphan = await findUnreferencedParentAccount(tx, email, talentId);
+    if (!orphan) continue;
 
     await tx.bauth_user.update({
-      where: { id: parentUser.id },
+      where: { id: orphan.id },
       data: {
         name: 'Parent Anonymisé',
         image: null,
-        email: `anonymized-parent-${parentUser.id}@jump.internal`,
+        email: `anonymized-parent-${orphan.id}@jump.internal`,
       },
     });
-    await tx.bauth_session.deleteMany({ where: { userId: parentUser.id } });
-    await tx.bauth_account.deleteMany({ where: { userId: parentUser.id } });
+    await tx.bauth_session.deleteMany({ where: { userId: orphan.id } });
+    await tx.bauth_account.deleteMany({ where: { userId: orphan.id } });
   }
 
   // The column scrub above only removes the app's *path* to the generated PDFs;

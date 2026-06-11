@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'IBM Plex Sans', sans-serif;
+        color: #0f172a;
+        background: #ffffff;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      /* A4-portrait sheet, 2 columns, 6mm page margin. In `simple` mode a 4-row
+         grid yields 8 single-sided badges. In `foldable` mode a 2-row grid yields
+         4 taller cells, each holding the badge twice (upright on top, 180°-rotated
+         below) so a fold down the middle gives a double-sided badge. */
+      .sheet {
+        width: 210mm;
+        height: 297mm;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        padding: 6mm;
+        page-break-after: always;
+      }
+      .sheet:last-child {
+        page-break-after: auto;
+      }
+      /* Row height = full-row height minus 8mm; freed space drops to the bottom
+         margin. Foldable cells are two single-badge rows tall. */
+      .sheet.simple {
+        grid-template-rows: repeat(4, 63.25mm);
+      }
+      .sheet.foldable {
+        grid-template-rows: repeat(2, 126.5mm);
+      }
+      .badge {
+        display: flex;
+        flex-direction: column;
+        border-color: #94a3b8;
+        border-style: solid;
+        border-width: 0;
+      }
+      /* Both modes are a 2-column grid filled row-major, so the cut lines are
+         shared by adjacent cells the same way regardless of mode: draw each line
+         once and every cell still ends up framed on all four sides after the
+         guillotine cut. The mode only changes the row count, not the sharing.
+           - Vertical: outer frame on the far edges + one interior divider.
+           - Horizontal: a line under every row, plus the outer top above row 1. */
+      .badge:nth-child(odd) {
+        border-left-width: 0.2mm;
+        border-right-width: 0.2mm;
+      }
+      .badge:nth-child(even) {
+        border-right-width: 0.2mm;
+      }
+      .badge {
+        border-bottom-width: 0.2mm;
+      }
+      .badge:nth-child(-n + 2) {
+        border-top-width: 0.2mm;
+      }
+      /* A single badge face. In foldable cells two faces stack 50/50; the top
+         one carries a dashed fold guide and the bottom one is rotated 180°. */
+      .face {
+        position: relative;
+        flex: 1 1 0;
+        min-height: 0;
+        padding: 5mm 8mm;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        overflow: hidden;
+      }
+      .foldable .face:first-child {
+        border-bottom: 0.2mm dashed #94a3b8;
+      }
+      .face.flip {
+        transform: rotate(180deg);
+      }
+      .face .logo {
+        height: 8mm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .face .logo svg {
+        height: 7mm;
+        width: auto;
+      }
+      .accent {
+        width: 16mm;
+        height: 1.6mm;
+        border-radius: 1mm;
+        background: #013afb;
+        margin: 2.5mm 0 0;
+      }
+      .names {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5mm;
+        margin: auto 0;
+      }
+      .prenom {
+        font-family: 'Anton', 'IBM Plex Sans', sans-serif;
+        font-size: 29pt;
+        line-height: 1.05;
+        letter-spacing: 0.5pt;
+      }
+      .nom {
+        font-size: 17pt;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1pt;
+        color: #1e293b;
+        word-break: break-word;
+      }
+      /* Image-rights refusal: a bold crossed-camera glyph inside a red ring,
+         pinned to the top-left corner — no label — big and bright. */
+      .no-photo {
+        position: absolute;
+        top: 3mm;
+        left: 3mm;
+        width: 18mm;
+        height: 18mm;
+        border: 1mm solid #ff0000;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ff0000;
+      }
+      .no-photo svg {
+        width: 9.5mm;
+        height: 9.5mm;
+      }
+    </style>
+  </head>
+  <body>
+    <% const mode = data.mode === 'foldable' ? 'foldable' : 'simple'; const
+    perPage = mode === 'foldable' ? 4 : 8; const badges = data.badges; const
+    pages = []; for (let i = 0; i < badges.length; i += perPage)
+    pages.push(badges.slice(i, i + perPage)); %> <% pages.forEach(function
+    (page) { %>
+    <div class="sheet <%= mode %>">
+      <% page.forEach(function (b) { %>
+      <div class="badge">
+        <% (mode === 'foldable' ? [false, true] : [false]).forEach(function
+        (flip) { %>
+        <div class="face<%= flip ? ' flip' : '' %>">
+          <% if (b.imageRefused) { %>
+          <div class="no-photo">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h11" />
+              <path d="M9.5 9.5a3.5 3.5 0 0 0 4.5 4.5" />
+              <path d="M22 8.5V18a2 2 0 0 1-.5 1.3" />
+              <line x1="2" y1="2" x2="22" y2="22" />
+            </svg>
+          </div>
+          <% } %>
+          <div class="logo"><%- data.logoSvg %></div>
+          <div class="accent"></div>
+          <div class="names">
+            <div class="prenom"><%= b.prenom %></div>
+            <div class="nom"><%= b.nom %></div>
+          </div>
+        </div>
+        <% }); %>
+      </div>
+      <% }); %> <% for (let k = page.length; k < perPage; k++) { %>
+      <div class="badge badge-empty"></div>
+      <% } %>
+    </div>
+    <% }); %>
+  </body>
+</html>

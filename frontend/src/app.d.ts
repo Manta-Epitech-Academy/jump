@@ -66,6 +66,14 @@ declare global {
       armedRealSends: boolean;
       /** When the current arm auto-disarms, or null if not armed. */
       armedRealSendsUntil: Date | null;
+      /**
+       * An armed dev-redirect pin for a logged-out request (see
+       * `$lib/server/devRedirectPin`): routes trapped login (OTP) mail to the
+       * pinned admin so they can test the real logged-out login flow. Drives
+       * the global amber banner; `to` is the predicted destination, `until` the
+       * auto-clear deadline. Null when no valid pin is present.
+       */
+      devRedirectPin: { until: Date; to: string[] } | null;
     }
     // interface PageData {}
     // interface PageState {}
