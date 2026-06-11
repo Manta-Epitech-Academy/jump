@@ -112,17 +112,20 @@
 
 <div style="display: contents">
   <Toaster richColors position="top-center" closeButton />
-  {#if page.data.armedRealSends}
+  <!-- Outbound status banners share one sticky region so they stack as blocks
+       instead of two independent `sticky top-0` layers fighting for the same
+       offset (which made the second paint over the first when both are armed). -->
+  {#if page.data.armedRealSends || page.data.devRedirectPin}
     <div class="sticky top-0 z-50">
-      <RealSendsBanner until={page.data.armedRealSendsUntil} />
-    </div>
-  {/if}
-  {#if page.data.devRedirectPin}
-    <div class="sticky top-0 z-50">
-      <DevRedirectPinBanner
-        until={page.data.devRedirectPin.until}
-        to={page.data.devRedirectPin.to}
-      />
+      {#if page.data.armedRealSends}
+        <RealSendsBanner until={page.data.armedRealSendsUntil} />
+      {/if}
+      {#if page.data.devRedirectPin}
+        <DevRedirectPinBanner
+          until={page.data.devRedirectPin.until}
+          to={page.data.devRedirectPin.to}
+        />
+      {/if}
     </div>
   {/if}
   {@render children()}
