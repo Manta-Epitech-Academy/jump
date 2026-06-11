@@ -47,6 +47,7 @@
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
+  let hasPlanning = $derived(featureFlags.has('planning'));
   // The "Gestion" section header must not show when none of its links would:
   // Doublons SF (hasSyncErrors) or Staff du campus (hasCampusTeam, lead-only).
   let showManagement = $derived(
@@ -211,9 +212,10 @@
     </div>
     <nav class="space-y-1">
       <!-- Stage-only release scopes the workspace down to its live surfaces
-           (Inscrits, Émargement); Planning and Entretiens render disabled below.
-           The event overview and onboarding tracker are coding_club-era
-           surfaces, kept behind the flag so that future stays intact. -->
+           (Inscrits, Émargement, plus Planning once the campus has the flag);
+           Entretiens still renders disabled below. The event overview and
+           onboarding tracker are coding_club-era surfaces, kept behind the flag
+           so that future stays intact. -->
       {#if hasCodingClub}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
@@ -234,13 +236,13 @@
           <span>Onboarding</span>
         </a>
       {/if}
-      <!-- Live stage surfaces first (Inscrits, Émargement, then any flag-gated
-           ones), with the not-yet-shipped surfaces grouped last as disabled
-           "Bientôt disponible" entries. Keeping them last avoids greyed rows
-           splitting two live links, which reads as broken rather than upcoming.
-           Planning is built but de-scoped from this release (no schedule data
-           yet); Entretiens isn't built at all. Re-enable Planning by swapping its
-           {@render} call for an <a> nav link to /planning. -->
+      <!-- Live stage surfaces first (Inscrits, Émargement, Planning, then any
+           flag-gated ones), with the not-yet-built surfaces grouped last as
+           disabled "Bientôt disponible" entries. Keeping them last avoids greyed
+           rows splitting two live links, which reads as broken rather than
+           upcoming. Planning is governed per campus by the `planning` flag: it
+           appears once that campus's schedule is populated in DB and the flag is
+           switched on. Entretiens isn't built at all yet. -->
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
         class={navLinkClass(
@@ -259,6 +261,17 @@
         <UserCheck class="h-5 w-5" />
         <span>Émargement</span>
       </a>
+      {#if hasPlanning}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span>Planning</span>
+        </a>
+      {/if}
       {#if hasIntervenants}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
@@ -279,7 +292,6 @@
           <span>Page d'accueil</span>
         </a>
       {/if}
-      {@render comingSoonEntry('Planning', CalendarDays)}
       {@render comingSoonEntry('Entretiens', MessageSquare)}
     </nav>
   {/if}

@@ -30,6 +30,14 @@
   let participation = $derived(data.participation);
   let portfolioItems = $derived(data.portfolioItems || []);
 
+  // The calendar 404s when the campus runs its schedule outside Jump (planning
+  // flag off), so the back button falls back to the dashboard.
+  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  let backHref = $derived(hasPlanning ? resolve('/calendar') : resolve('/'));
+  let backLabel = $derived(
+    hasPlanning ? 'Retour au planning' : "Retour à l'accueil",
+  );
+
   // Dynamic activity state (only used when isDynamic)
   let progress = $derived(data.progress);
   let steps = $derived(data.content?.steps || []);
@@ -111,11 +119,7 @@
   <div
     class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
   >
-    <TalentPageHeader
-      title={data.activity.nom}
-      backHref={resolve('/calendar')}
-      backLabel="Retour au planning"
-    />
+    <TalentPageHeader title={data.activity.nom} {backHref} {backLabel} />
 
     <main class="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
       <div
@@ -154,11 +158,7 @@
   <div
     class="flex h-dvh flex-col overflow-hidden bg-slate-50 dark:bg-slate-950"
   >
-    <TalentPageHeader
-      title={data.activity.nom}
-      backHref={resolve('/calendar')}
-      backLabel="Retour au planning"
-    >
+    <TalentPageHeader title={data.activity.nom} {backHref} {backLabel}>
       {#snippet actions()}
         <Button
           variant="outline"

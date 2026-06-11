@@ -17,8 +17,9 @@ import {
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import { stageWindowEnd } from '$lib/domain/event';
-import { toPlanningView } from '$lib/domain/talentPlanning';
+import { toPlanningView, type PlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
+import { hasFlag } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.talent) {
@@ -59,39 +60,44 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       },
     } as const;
 
-    let planning;
-    if (locals.planningPreview) {
-      planning = buildPreviewPlanningView(locals.planningPreview);
-    } else {
-      // Event whose date range covers today (ongoing multi-day or single-day today).
-      const activeParticipation = await prisma.participation.findFirst({
-        where: {
-          talentId: studentId,
-          event: {
-            date: { lte: filterDateEnd },
-            OR: [
-              { endDate: { gte: startOfDay } },
-              { endDate: null, date: { gte: startOfDay } },
-            ],
-          },
-        },
-        select: eventSelect,
-        orderBy: { event: { date: 'asc' } },
-      });
-
-      // The NEXT upcoming participation (if any), only when not in an active event.
-      const upcomingParticipation = activeParticipation
-        ? null
-        : await prisma.participation.findFirst({
-            where: {
-              talentId: studentId,
-              event: { date: { gt: filterDateEnd } },
+    // Campuses with the planning feature off run their schedule outside Jump, so
+    // the widget has nothing to show and /calendar 404s — skip the queries and
+    // hand the client a null planning (the card hides itself).
+    let planning: PlanningView | null = null;
+    if (hasFlag(locals, 'planning')) {
+      if (locals.planningPreview) {
+        planning = buildPreviewPlanningView(locals.planningPreview);
+      } else {
+        // Event whose date range covers today (ongoing multi-day or single-day today).
+        const activeParticipation = await prisma.participation.findFirst({
+          where: {
+            talentId: studentId,
+            event: {
+              date: { lte: filterDateEnd },
+              OR: [
+                { endDate: { gte: startOfDay } },
+                { endDate: null, date: { gte: startOfDay } },
+              ],
             },
-            select: eventSelect,
-            orderBy: { event: { date: 'asc' } },
-          });
+          },
+          select: eventSelect,
+          orderBy: { event: { date: 'asc' } },
+        });
 
-      planning = toPlanningView(activeParticipation, upcomingParticipation);
+        // The NEXT upcoming participation (if any), only when not in an active event.
+        const upcomingParticipation = activeParticipation
+          ? null
+          : await prisma.participation.findFirst({
+              where: {
+                talentId: studentId,
+                event: { date: { gt: filterDateEnd } },
+              },
+              select: eventSelect,
+              orderBy: { event: { date: 'asc' } },
+            });
+
+        planning = toPlanningView(activeParticipation, upcomingParticipation);
+      }
     }
 
     // Minigames are intrinsic but require the games backend to be wired up.

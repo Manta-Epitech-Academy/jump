@@ -27,6 +27,8 @@
 
   let { data } = $props();
 
+  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+
   function formatDate(date: Date): string {
     return date.toLocaleDateString('fr-FR', {
       weekday: 'long',
@@ -173,13 +175,17 @@
           </p>
         </div>
 
-        <Button
-          class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
-          href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
-        >
-          <CalendarDays class="mr-2 h-4 w-4" />
-          {ctaLabel}
-        </Button>
+        {#if hasPlanning}
+          <Button
+            class="bg-epi-blue text-white shadow-sm hover:bg-epi-blue/90"
+            href={resolve(
+              `/staff/pedago/events/${data.activeStage.id}/planning`,
+            )}
+          >
+            <CalendarDays class="mr-2 h-4 w-4" />
+            {ctaLabel}
+          </Button>
+        {/if}
       </Card.Content>
     </Card.Root>
   {/if}
@@ -628,19 +634,21 @@
                       <Ellipsis class="h-4 w-4 text-muted-foreground" />
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content align="end" class="w-48 rounded-sm">
-                      <DropdownMenu.Item class="p-0">
-                        {#snippet child({ props })}
-                          <a
-                            {...props}
-                            href={resolve(
-                              `/staff/pedago/events/${event.id}/planning`,
-                            )}
-                            class="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-                          >
-                            <CalendarDays class="mr-2 h-4 w-4" /> Builder Planning
-                          </a>
-                        {/snippet}
-                      </DropdownMenu.Item>
+                      {#if hasPlanning}
+                        <DropdownMenu.Item class="p-0">
+                          {#snippet child({ props })}
+                            <a
+                              {...props}
+                              href={resolve(
+                                `/staff/pedago/events/${event.id}/planning`,
+                              )}
+                              class="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                            >
+                              <CalendarDays class="mr-2 h-4 w-4" /> Builder Planning
+                            </a>
+                          {/snippet}
+                        </DropdownMenu.Item>
+                      {/if}
                       <DropdownMenu.Item
                         onclick={() => openAssignDialog(event)}
                       >
