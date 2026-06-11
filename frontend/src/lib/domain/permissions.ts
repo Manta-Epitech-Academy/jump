@@ -33,10 +33,12 @@ export const STAFF_GROUPS = {
   // Roles a superdev may invite / assign on their campus. Excludes `admin`
   // (admin role is provisioned manually, not self-replicating).
   campusManageable: ['superdev', 'dev', 'peda', 'manta'],
-  // Roles allowed to arm "real sends" on a trapped (dev/staging) env — lifting
-  // the mail/SMS redirect to reach real recipients. Dangerous (recipients are
-  // minors), so restricted to admin only — the dev-redirect controls live in
-  // the admin space. See `$lib/server/armRealSends`.
+  // Roles allowed to manage the dev-redirect controls on a trapped (dev/staging)
+  // env: arming "real sends" (lifting the mail/SMS redirect to reach real
+  // recipients — dangerous, recipients are minors) and arming a login-redirect
+  // pin (routing trapped OTP mail to themselves — benign, stays trapped).
+  // Restricted to admin only; the controls live in the admin space. See
+  // `$lib/server/armRealSends` and `$lib/server/devRedirectPin`.
   realSendArmers: ['admin'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 

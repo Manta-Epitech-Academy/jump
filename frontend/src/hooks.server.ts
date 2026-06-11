@@ -9,7 +9,9 @@ import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
 import { readPlanningPreview } from '$lib/server/talentPlanningPreview';
 import { runWithRequestContext } from '$lib/server/requestContext';
-import { readArmedState } from '$lib/server/armRealSends';
+import { readArmedState, effectiveUserId } from '$lib/server/armRealSends';
+import { readDevRedirectPin } from '$lib/server/devRedirectPin';
+import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { env } from '$env/dynamic/private';
 
 const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
@@ -96,6 +98,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.talentCampusName = null;
   event.locals.armedRealSends = false;
   event.locals.armedRealSendsUntil = null;
+  event.locals.devRedirectPin = null;
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -238,12 +241,66 @@ export const handle: Handle = async ({ event, resolve }) => {
   const armed = readArmedState(event);
   event.locals.armedRealSends = armed.armed;
   event.locals.armedRealSendsUntil = armed.until;
+
+  // Dev-redirect pin (trapped envs only). Two roles:
+  //   - logged OUT: make the arming admin look like the request actor, so the
+  //     OTP login mail routes to their inbox — the functional case the pin
+  //     exists for (a logged-out send otherwise has no actor and falls to the
+  //     shared env list). The pin can only pick a destination inside the trap,
+  //     never lift it.
+  //   - logged IN as the armer: cosmetic only — surface the amber confirmation
+  //     banner (mirrors the real-sends banner) so the admin sees the pin is
+  //     armed and can log out to test. The actor is already correct here, so
+  //     we do NOT let the pin override it.
+  let pinnedStaff: {
+    email: string | null;
+    devRedirectEmails: string[];
+    devRedirectPhones: string[];
+  } | null = null;
+  const pin = readDevRedirectPin(event);
+  if (pin) {
+    const loggedOut = !event.locals.user;
+    const isArmer = pin.userId === effectiveUserId(event.locals);
+    if (loggedOut || isArmer) {
+      const pinned = await prisma.bauth_user.findUnique({
+        where: { id: pin.userId },
+        select: {
+          email: true,
+          staffProfile: {
+            select: { devRedirectEmails: true, devRedirectPhones: true },
+          },
+        },
+      });
+      if (pinned) {
+        const staff = {
+          email: pinned.email ?? null,
+          devRedirectEmails: pinned.staffProfile?.devRedirectEmails ?? [],
+          devRedirectPhones: pinned.staffProfile?.devRedirectPhones ?? [],
+        };
+        // Predict the destination with the same helper the live routing uses,
+        // so the banner can never claim an inbox the send won't reach.
+        event.locals.devRedirectPin = {
+          until: pin.until,
+          to: staffBulkDevRedirectEmails(staff.devRedirectEmails, staff.email),
+        };
+        // Override the actor only when logged out; a logged-in armer already
+        // routes to themselves and must not be impersonated by their own pin.
+        if (loggedOut) pinnedStaff = staff;
+      }
+    }
+  }
+
   const response = await runWithRequestContext(
     {
       actorEmail:
-        event.locals.impersonator?.email ?? event.locals.user?.email ?? null,
-      devRedirectEmails: actingStaff?.devRedirectEmails ?? [],
-      devRedirectPhones: actingStaff?.devRedirectPhones ?? [],
+        event.locals.impersonator?.email ??
+        event.locals.user?.email ??
+        pinnedStaff?.email ??
+        null,
+      devRedirectEmails:
+        actingStaff?.devRedirectEmails ?? pinnedStaff?.devRedirectEmails ?? [],
+      devRedirectPhones:
+        actingStaff?.devRedirectPhones ?? pinnedStaff?.devRedirectPhones ?? [],
       armedRealSends: armed.armed,
     },
     () => resolve(event),

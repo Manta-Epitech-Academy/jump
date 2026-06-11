@@ -1,8 +1,7 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { RequestEvent } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import { can } from '$lib/domain/permissions';
 import { outboundTrapped } from '$lib/server/outbound';
+import { parseCookieToken, signCookieToken } from '$lib/server/signedCookie';
 
 /**
  * "Real sends" arming — the gun safety for outbound on a trapped env.
@@ -23,48 +22,17 @@ import { outboundTrapped } from '$lib/server/outbound';
  *   - **role-gated + loud** — only `realSendArmers` can arm, and a red banner
  *     shows everywhere while armed (see the root layout).
  *
- * The cookie is HMAC-signed with `BETTER_AUTH_SECRET` so it can't be forged in
- * devtools to bypass the role gate.
+ * The cookie is HMAC-signed with `BETTER_AUTH_SECRET` (via `signedCookie`) so it
+ * can't be forged in devtools to bypass the role gate.
  */
 export const ARM_REAL_SENDS_COOKIE = 'armed_real_sends';
 
 /** How long an arm lasts before it auto-disarms. */
 export const ARM_REAL_SENDS_MS = 15 * 60 * 1000;
 
-function secret(): string {
-  const s = env.BETTER_AUTH_SECRET;
-  if (!s) throw new Error('BETTER_AUTH_SECRET is not configured');
-  return s;
-}
-
-function sign(payload: string): string {
-  return createHmac('sha256', secret()).update(payload).digest('hex');
-}
-
-/**
- * Build the signed cookie value. Format: `<expiresAtMs>.<userId>.<sig>`.
- * `expiresAt` is numeric, `userId` is a cuid, `sig` is hex — none contain a
- * dot, so the three segments split unambiguously on `.`.
- */
+/** Build the signed cookie value. See `signedCookie` for the token format. */
 export function makeArmCookie(expiresAt: number, userId: string): string {
-  const body = `${expiresAt}.${userId}`;
-  return `${body}.${sign(body)}`;
-}
-
-type ParsedArm = { expiresAt: number; userId: string };
-
-function parseArmCookie(raw: string | undefined): ParsedArm | null {
-  if (!raw) return null;
-  const parts = raw.split('.');
-  if (parts.length !== 3) return null;
-  const [expStr, userId, sig] = parts;
-  const expected = sign(`${expStr}.${userId}`);
-  const a = Buffer.from(expected);
-  const b = Buffer.from(sig);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  const expiresAt = Number(expStr);
-  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
-  return { expiresAt, userId };
+  return signCookieToken(expiresAt, userId);
 }
 
 /** Effective staff role of the human driving the request (impersonator wins). */
@@ -106,7 +74,7 @@ export function readArmedState(event: RequestEvent): {
   until: Date | null;
 } {
   if (!outboundTrapped()) return { armed: false, until: null };
-  const parsed = parseArmCookie(event.cookies.get(ARM_REAL_SENDS_COOKIE));
+  const parsed = parseCookieToken(event.cookies.get(ARM_REAL_SENDS_COOKIE));
   const humanId = effectiveUserId(event.locals);
   if (!parsed || !humanId || parsed.userId !== humanId) {
     return { armed: false, until: null };

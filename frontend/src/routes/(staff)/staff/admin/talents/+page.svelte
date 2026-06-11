@@ -3,8 +3,9 @@
   import LogIn from '@lucide/svelte/icons/log-in';
   import Users from '@lucide/svelte/icons/users';
   import UserCheck from '@lucide/svelte/icons/user-check';
+  import UsersRound from '@lucide/svelte/icons/users-round';
   import UserX from '@lucide/svelte/icons/user-x';
-  import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+  import Download from '@lucide/svelte/icons/download';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Zap from '@lucide/svelte/icons/zap';
   import Bomb from '@lucide/svelte/icons/bomb';
@@ -12,6 +13,7 @@
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Phone from '@lucide/svelte/icons/phone';
+  import Pencil from '@lucide/svelte/icons/pencil';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import SegmentedFilter, {
     type SegmentOption,
@@ -32,6 +34,7 @@
   import EmptyState from '$lib/components/EmptyState.svelte';
   import StudentAvatarItem from '$lib/components/students/StudentAvatarItem.svelte';
   import StudentContactDialog from '$lib/components/students/StudentContactDialog.svelte';
+  import EditParentEmailDialog from './EditParentEmailDialog.svelte';
   import type { ContactPerson } from '$lib/components/students/contact';
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
@@ -40,6 +43,7 @@
   import { NIVEAUX, niveauLabel } from '$lib/domain/niveau';
   import { EVENT_TYPES, EVENT_TYPE_LABELS } from '$lib/domain/event';
   import { formatPersonName, civiliteCourtesyTitle } from '$lib/domain/profile';
+  import { TALENT_STATUS_LABELS, PARENT_STATUS_LABELS } from './labels';
   import { track } from '$lib/analytics';
 
   let { data } = $props();
@@ -95,33 +99,46 @@
     contactOpen = true;
   }
 
-  const STATUS = {
-    active: {
-      label: 'Actif',
-      class: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
-    },
-    pending: {
-      label: 'Onboarding',
-      class: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
-    },
-    never: {
-      label: 'Jamais connecté',
-      class: 'border-border bg-muted text-muted-foreground',
-    },
+  // Edit-parent-1-email dialog. Opened from the Parent column so an admin can
+  // fix a wrong address the parent was locked out by; the action keeps the
+  // parent's login account in sync.
+  let editParentOpen = $state(false);
+  let editParentTarget = $state<{
+    id: string;
+    parentEmail: string | null;
+    parentName: string | null;
+  } | null>(null);
+
+  function openEditParent(talent: {
+    id: string;
+    parentEmail: string | null;
+    parentPrenom: string | null;
+    parentNom: string | null;
+  }) {
+    editParentTarget = {
+      id: talent.id,
+      parentEmail: talent.parentEmail,
+      parentName:
+        [talent.parentPrenom, talent.parentNom].filter(Boolean).join(' ') ||
+        null,
+    };
+    editParentOpen = true;
+  }
+
+  // Status chip tints (labels are single-sourced in ./labels so the table and
+  // the XLSX export read the same words). `active` = onboarding complete.
+  const STATUS_CLASS = {
+    active: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
+    pending: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
+    never: 'border-border bg-muted text-muted-foreground',
   } as const;
 
   // Parent completion chip (règlement co-signature + droit à l'image), tinted
   // like the account-status chip: complete reads calm (teal), en attente flags
   // a parent still to chase (orange).
-  const PARENT_STATUS = {
-    complete: {
-      label: 'Complet',
-      class: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
-    },
-    pending: {
-      label: 'En attente',
-      class: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
-    },
+  const PARENT_STATUS_CLASS = {
+    complete: 'border-epi-teal/30 bg-epi-teal/10 text-epi-teal-solid',
+    pending: 'border-epi-orange/30 bg-epi-orange/10 text-epi-orange',
   } as const;
 
   function lastActiveLabel(date: Date | string | null): string {
@@ -147,39 +164,25 @@
     goto(url.toString(), { keepFocus: true });
   }
 
-  // Overview metrics — read-only. These report the full population (not the
-  // filtered result), so they're a stable "lay of the land" the admin watches;
-  // narrowing the table happens in the toolbar below, never by clicking a tile.
-  const overview = $derived([
-    {
-      label: 'Total',
-      value: data.stats.total,
-      sub: 'Tous les talents',
-      tone: 'neutral',
-      Icon: Users,
-    },
-    {
-      label: 'Stagiaires',
-      value: data.stats.stagiaires,
-      sub: 'Stage de seconde · cette année',
-      tone: 'pink',
-      Icon: GraduationCap,
-    },
-    {
-      label: 'Comptes actifs',
-      value: data.stats.active,
-      sub: 'Au moins une connexion',
-      tone: 'teal',
-      Icon: UserCheck,
-    },
-    {
-      label: 'Jamais connectés',
-      value: data.stats.pending,
-      sub: 'Aucun compte créé',
-      tone: 'orange',
-      Icon: UserX,
-    },
-  ] as const);
+  // KPI tiles report the *scoped* population (campus multiselect + type + niveau
+  // + search), so the admin can read onboarding progress for a chosen set of
+  // campuses; the status/parent breakdown filters narrow the table, not the
+  // tiles. `pct` guards the empty-scope divide-by-zero.
+  const pct = (value: number, total: number) =>
+    total > 0 ? Math.round((value * 100) / total) : 0;
+
+  // Whether the "jamais connectés" tile's filter is active (it drills into
+  // Statut=Jamais connecté), so the tile renders pressed.
+  const neverConnectedActive = $derived(data.filters.status === 'never');
+
+  // Current filter querystring, forwarded to the export endpoint so the
+  // download honours exactly what's on screen. `page` is harmless (export
+  // ignores pagination). Built off the absolute pathname, not a `./export`
+  // relative href: the route has no trailing slash, so `./` would resolve
+  // against /staff/admin/ and 404.
+  const exportHref = $derived(
+    `${page.url.pathname}/export?${page.url.searchParams.toString()}`,
+  );
 
   // Two independent filter dimensions, each a one-click segmented radio. They
   // compose freely (e.g. "stagiaires" + "jamais connectés") because they write
@@ -199,7 +202,7 @@
   // badge speak the same language: complete onboarding, mid-onboarding, no account.
   const statutOptions: SegmentOption[] = [
     { value: 'all', label: 'Tous' },
-    { value: 'active', label: 'Actifs' },
+    { value: 'active', label: 'Onboardés' },
     { value: 'onboarding', label: 'Onboarding' },
     { value: 'never', label: 'Jamais connectés' },
   ];
@@ -214,15 +217,17 @@
     { value: 'complete', label: 'Complet' },
   ];
 
-  // `status` defaults to 'all' server-side; the others are empty when inactive.
+  // `status`/`parentStatus` default to 'all' server-side; the others are empty
+  // when inactive (campus is a multi-select id list).
   const hasActiveFilters = $derived(
     Boolean(
       data.filters.q ||
       data.filters.type ||
       data.filters.niveau ||
-      data.filters.campus ||
-      data.filters.parentStatus,
-    ) || data.filters.status !== 'all',
+      data.filters.campusIds.length,
+    ) ||
+      data.filters.status !== 'all' ||
+      data.filters.parentStatus !== 'all',
   );
 
   function resetFilters() {
@@ -290,17 +295,46 @@
     </p>
   </div>
 
-  <!-- Overview metrics — read-only, full population. -->
+  <!-- Onboarding KPIs — scoped to the active campus/type/niveau/search filters
+       so the admin reads progress for the chosen cohort. -->
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    {#each overview as metric (metric.label)}
-      <KpiTile
-        label={metric.label}
-        value={metric.value}
-        sub={metric.sub}
-        icon={metric.Icon}
-        tone={metric.tone}
-      />
-    {/each}
+    <KpiTile
+      label="Total"
+      value={data.stats.scopedTotal}
+      sub="Dans le périmètre filtré"
+      tone="neutral"
+      icon={Users}
+    />
+    <KpiTile
+      label="Talents onboardés"
+      value={data.stats.onboarded}
+      total={data.stats.scopedTotal}
+      progress={pct(data.stats.onboarded, data.stats.scopedTotal)}
+      sub="Parcours talent terminé"
+      helpText="Onboarding plateforme bouclé : profil rempli, règlement et charte signés."
+      tone="teal"
+      icon={UserCheck}
+    />
+    <KpiTile
+      label="Parents complets"
+      value={data.stats.parentsComplete}
+      total={data.stats.withParent}
+      progress={pct(data.stats.parentsComplete, data.stats.withParent)}
+      sub="Parmi les talents avec un parent"
+      helpText="Parent ayant co-signé le règlement et tranché le droit à l'image."
+      tone="teal"
+      icon={UsersRound}
+    />
+    <KpiTile
+      label="Jamais connectés"
+      value={data.stats.neverConnected}
+      sub="Aucun compte créé"
+      helpText="Talent importé sans compte de connexion : jamais venu sur la plateforme. Cliquez pour filtrer."
+      tone="orange"
+      icon={UserX}
+      onclick={() => navigateWithParams({ status: 'never', parentStatus: '' })}
+      pressed={neverConnectedActive}
+    />
   </div>
 
   <!-- Filter toolbar — search + filtered count on the shared DataTableToolbar,
@@ -383,9 +417,11 @@
 
       <div class="w-52">
         <SearchableSelect
+          multiple
           options={campusOptions}
-          value={data.filters.campus || 'all'}
-          onChange={(v) => navigateWithParams({ campus: v === 'all' ? '' : v })}
+          values={data.filters.campusIds}
+          onChangeMultiple={(ids) =>
+            navigateWithParams({ campus: ids.join(',') })}
           allLabel="Tous les campus"
           placeholder="Tous les campus"
           searchPlaceholder="Rechercher un campus…"
@@ -397,6 +433,19 @@
           {/snippet}
         </SearchableSelect>
       </div>
+    {/snippet}
+
+    {#snippet actions()}
+      <!-- Re-derives the filter set server-side and exports every matching row
+           (the table only holds the current page of 50). -->
+      <a
+        href={exportHref}
+        data-sveltekit-preload-data="off"
+        class={buttonVariants({ variant: 'outline', size: 'sm' })}
+      >
+        <Download class="mr-1.5 h-4 w-4" />
+        Exporter (XLSX)
+      </a>
     {/snippet}
 
     {#snippet countActions()}
@@ -427,6 +476,7 @@
         <div class="flex items-center justify-between gap-2">
           <StudentAvatarItem
             student={talent}
+            subText={talent.email}
             courtesyTitle={civiliteCourtesyTitle(talent.civilite)}
           />
           <Tooltip.Provider delayDuration={300}>
@@ -472,19 +522,42 @@
         {/if}
       </Table.Cell>
       <Table.Cell>
-        {#if talent.parentStatus}
-          <span
-            class="inline-flex w-fit rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {PARENT_STATUS[
-              talent.parentStatus
-            ].class}"
-          >
-            {PARENT_STATUS[talent.parentStatus].label}
-          </span>
-        {:else if talent.guardians.length > 0}
-          <span class="text-sm text-muted-foreground">—</span>
-        {:else}
-          <span class="text-sm text-muted-foreground">Aucun parent</span>
-        {/if}
+        <div class="flex items-center gap-1.5">
+          {#if talent.parentStatus}
+            <span
+              class="inline-flex w-fit rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {PARENT_STATUS_CLASS[
+                talent.parentStatus
+              ]}"
+            >
+              {PARENT_STATUS_LABELS[talent.parentStatus]}
+            </span>
+          {:else if talent.guardians.length > 0}
+            <span class="text-sm text-muted-foreground">—</span>
+          {:else}
+            <span class="text-sm text-muted-foreground">Aucun parent</span>
+          {/if}
+          <Tooltip.Provider delayDuration={300}>
+            <Tooltip.Root>
+              <Tooltip.Trigger>
+                {#snippet child({ props })}
+                  <Button
+                    {...props}
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 shrink-0 rounded-sm text-muted-foreground hover:bg-epi-blue/10 hover:text-epi-blue"
+                    onclick={() => openEditParent(talent)}
+                    aria-label="Modifier l'email du parent"
+                  >
+                    <Pencil class="h-3.5 w-3.5" />
+                  </Button>
+                {/snippet}
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <p>Modifier l'email de connexion du parent</p>
+              </Tooltip.Content>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        </div>
       </Table.Cell>
       <Table.Cell>
         <div class="flex items-center gap-2">
@@ -505,11 +578,11 @@
       <Table.Cell>
         <div class="flex flex-col items-start gap-0.5">
           <span
-            class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS[
+            class="inline-flex rounded-sm border px-2 py-0.5 text-[10px] font-bold uppercase {STATUS_CLASS[
               talent.status
-            ].class}"
+            ]}"
           >
-            {STATUS[talent.status].label}
+            {TALENT_STATUS_LABELS[talent.status]}
           </span>
           {#if talent.onboardingStep}
             <span class="text-[10px] text-muted-foreground">
@@ -651,6 +724,8 @@
   student={contactTarget?.student ?? null}
   guardians={contactTarget?.guardians ?? []}
 />
+
+<EditParentEmailDialog bind:open={editParentOpen} talent={editParentTarget} />
 
 <AlertDialog.Root bind:open={wipeOpen}>
   <AlertDialog.Content>

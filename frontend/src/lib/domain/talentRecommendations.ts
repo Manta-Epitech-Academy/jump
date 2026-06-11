@@ -130,7 +130,7 @@ function deriveFunnelRecommendation(
       kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Signatures parents',
-      message: `Contactez les parents de ${t.prenom} car ils/elles ne sont jamais connecté(e)s sur la plateforme ${t.appUrl} avec leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} afin de signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
+      message: `Contactez les parents de ${t.prenom} car ils/elles ne se sont jamais connecté(e)s sur la plateforme ${t.appUrl} avec leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} afin de signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
       contact: 'parent',
     };
   }
