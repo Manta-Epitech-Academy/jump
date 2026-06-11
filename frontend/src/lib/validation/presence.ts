@@ -30,6 +30,13 @@ export const setPresenceSchema = z.object({
   status: z.enum(presenceStatuses),
 });
 
+// Bulk "everyone present": targets a whole créneau, like closeSlot. Fills the
+// still-pending cells present; cells already marked are left as-is server-side.
+export const markAllPresentSchema = z.object({
+  day: dayKey,
+  slot,
+});
+
 export const closeSlotSchema = z.object({
   day: dayKey,
   slot,

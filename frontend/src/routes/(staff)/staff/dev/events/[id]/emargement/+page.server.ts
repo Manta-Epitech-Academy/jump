@@ -9,9 +9,8 @@ import {
 } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_TYPES } from '$lib/domain/event';
 import {
-  eventSlots,
+  presenceSlots,
   slotKey,
   dateKeyToDbDate,
   dbDateToKey,
@@ -28,6 +27,7 @@ import {
 } from '$lib/server/services/presenceService';
 import {
   setPresenceSchema,
+  markAllPresentSchema,
   closeSlotSchema,
   reopenSlotSchema,
 } from '$lib/validation/presence';
@@ -40,8 +40,6 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   const timezone = getCampusTimezone(locals);
   const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
-
-  const workdaysOnly = event.eventType === EVENT_TYPES.STAGE_SECONDE;
 
   const [participations, presenceRows, closureRows] = await Promise.all([
     db.participation.findMany({
@@ -66,7 +64,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   ]);
 
   const now = new Date();
-  const slots = eventSlots(event, timezone, { workdaysOnly });
+  const slots = presenceSlots(event, timezone);
 
   const rows: PresenceRow[] = participations.map((p) => {
     const t = p.talent;
@@ -208,6 +206,45 @@ export const actions: Actions = {
     });
 
     return message(form, 'Présence enregistrée.');
+  },
+
+  markAllPresent: async ({ request, locals, params }) => {
+    requireStaffGroup(locals, 'devMember');
+    const form = await superValidate(request, zod4(markAllPresentSchema));
+    if (!form.valid) return fail(400, { form });
+
+    const campusId = getCampusId(locals);
+    const event = await loadEventOr404(params.id, campusId);
+    const db = scopedPrisma(campusId);
+
+    const day = dateKeyToDbDate(form.data.day);
+    const { slot } = form.data;
+
+    // The expected roster is read from Participation (the Salesforce mirror),
+    // same source as the load. One write fills every still-"en attente" cell:
+    // `skipDuplicates` against the (talent, event, day, slot) unique key inserts
+    // only where no row exists yet, so a talent already marked (absent, justifié,
+    // en retard, or present) keeps their row untouched. No clobber, one query.
+    const roster = await db.participation.findMany({
+      where: { eventId: event.id },
+      select: { talentId: true },
+    });
+    const now = new Date();
+    await db.eventPresence.createMany({
+      data: roster.map((p) => ({
+        talentId: p.talentId,
+        eventId: event.id,
+        day,
+        slot,
+        status: 'present' as const,
+        source: 'manual' as const,
+        markedById: locals.staffProfile.id,
+        markedAt: now,
+      })),
+      skipDuplicates: true,
+    });
+
+    return message(form, 'Stagiaires en attente marqués présents.');
   },
 
   closeSlot: async ({ request, locals, params }) => {

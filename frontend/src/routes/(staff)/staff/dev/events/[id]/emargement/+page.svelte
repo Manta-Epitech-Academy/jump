@@ -11,6 +11,7 @@
   import Users from '@lucide/svelte/icons/users';
   import Lock from '@lucide/svelte/icons/lock';
   import LockOpen from '@lucide/svelte/icons/lock-open';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import Download from '@lucide/svelte/icons/download';
   import * as Table from '$lib/components/ui/table';
   import * as Dialog from '$lib/components/ui/dialog';
@@ -199,11 +200,14 @@
 
   // ── Mutations ──────────────────────────────────────────────────────────
   let qrOpen = $state(false);
+  let presentConfirmOpen = $state(false);
   let closeConfirmOpen = $state(false);
   let contactOpen = $state(false);
   let contactTarget = $state<PresenceRow | null>(null);
 
-  const anyDialogOpen = $derived(qrOpen || closeConfirmOpen || contactOpen);
+  const anyDialogOpen = $derived(
+    qrOpen || presentConfirmOpen || closeConfirmOpen || contactOpen,
+  );
 
   function openContact(row: PresenceRow) {
     contactTarget = row;
@@ -580,15 +584,37 @@
                     </Button>
                   </form>
                 {:else}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="w-full rounded-sm"
-                    onclick={() => (closeConfirmOpen = true)}
-                  >
-                    <Lock class="mr-1.5 h-4 w-4" />
-                    Clôturer le créneau
-                  </Button>
+                  <!-- The two end-of-créneau bulk actions, paired so they read as
+                       a choice: mark everyone present, or clôturer (which marks the
+                       still-en-attente stagiaires absent and cuts the QR). The
+                       caption spells out the clôture effect, the part staff missed. -->
+                  <div class="space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="w-full rounded-sm"
+                        onclick={() => (presentConfirmOpen = true)}
+                      >
+                        <CheckCheck class="mr-1.5 h-4 w-4" />
+                        Tout présent
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="w-full rounded-sm"
+                        onclick={() => (closeConfirmOpen = true)}
+                      >
+                        <Lock class="mr-1.5 h-4 w-4" />
+                        Clôturer
+                      </Button>
+                    </div>
+                    <p class="text-[11px] leading-snug text-muted-foreground">
+                      En fin de créneau : marquez tout le monde présent, ou
+                      clôturez pour noter absents ceux qui restent « en attente
+                      ».
+                    </p>
+                  </div>
                 {/if}
               {/if}
             {/snippet}
@@ -627,11 +653,51 @@
 <!-- Contact card: phones to reach the stagiaire, then the family if no answer -->
 <ContactDialog bind:open={contactOpen} row={contactTarget} />
 
+<!-- Mark-all-present confirmation -->
+<Dialog.Root bind:open={presentConfirmOpen}>
+  <Dialog.Content class="rounded-sm sm:max-w-md">
+    <Dialog.Header>
+      <Dialog.Title>Marquer tout le monde présent ?</Dialog.Title>
+      <Dialog.Description>
+        Tous les stagiaires encore « En attente » sur ce créneau passeront
+        présents. Les présences déjà saisies (absent, justifié, en retard) ne
+        sont pas modifiées.
+      </Dialog.Description>
+    </Dialog.Header>
+    {#if activeSlot}
+      <form
+        method="POST"
+        action="?/markAllPresent"
+        use:formEnhance={() =>
+          async ({ result, update }) => {
+            await update();
+            if (result.type === 'success')
+              toast.success('Stagiaires en attente marqués présents.');
+            presentConfirmOpen = false;
+          }}
+        class="flex justify-end gap-2 pt-2"
+      >
+        <input type="hidden" name="day" value={activeSlot.day} />
+        <input type="hidden" name="slot" value={activeSlot.slot} />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onclick={() => (presentConfirmOpen = false)}
+        >
+          Annuler
+        </Button>
+        <Button type="submit" size="sm">Tout marquer présent</Button>
+      </form>
+    {/if}
+  </Dialog.Content>
+</Dialog.Root>
+
 <!-- Close-slot confirmation -->
 <Dialog.Root bind:open={closeConfirmOpen}>
   <Dialog.Content class="rounded-sm sm:max-w-md">
     <Dialog.Header>
-      <Dialog.Title>Clôturer le créneau ?</Dialog.Title>
+      <Dialog.Title>Clôturer et noter les absents ?</Dialog.Title>
       <Dialog.Description>
         Tous les stagiaires encore « En attente » seront marqués absents et le
         QR code de ce créneau cessera de fonctionner. Vous pourrez rouvrir le
