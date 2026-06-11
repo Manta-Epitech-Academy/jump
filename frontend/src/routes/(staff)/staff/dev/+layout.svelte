@@ -11,6 +11,7 @@
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
+  import IdCard from '@lucide/svelte/icons/id-card';
   import type { Icon as IconType } from '@lucide/svelte';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import UserCog from '@lucide/svelte/icons/user-cog';
@@ -258,6 +259,13 @@
       >
         <UserCheck class="h-5 w-5" />
         <span>Émargement</span>
+      </a>
+      <a
+        href={resolve('/staff/dev/badges')}
+        class={navLinkClass(isActive('/staff/dev/badges'))}
+      >
+        <IdCard class="h-5 w-5" />
+        <span>Badges</span>
       </a>
       {#if hasIntervenants}
         <a
