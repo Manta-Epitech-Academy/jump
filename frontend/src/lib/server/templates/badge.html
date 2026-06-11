@@ -25,16 +25,19 @@
         margin: 0;
       }
       /* One A4-portrait sheet holds a 2-column x 4-row grid of landscape badges.
-         A page margin (6mm) + inter-badge gap (4mm) keep each cut card a little
-         smaller than its A6 holder (~97 x 68 mm) so it slides into the pochette
-         easily instead of fitting edge-to-edge. Cut along the dashed guides. */
+         Badges sit edge-to-edge (no inter-badge gap) inside a 6mm page margin,
+         so each card is ~99 x 71 mm — a touch under its A6 holder, yet sharing
+         straight cut lines. Separators are single shared lines (one vertical,
+         three horizontal): a guillotine clears a whole row/column in one pass
+         instead of trimming every badge individually. */
       .sheet {
         width: 210mm;
         height: 297mm;
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: repeat(4, 1fr);
-        gap: 4mm;
+        /* Fixed row height = full-row height (71.25mm) minus 8mm, so each badge
+           is a little shorter; the freed space drops to the bottom margin. */
+        grid-template-rows: repeat(4, 63.25mm);
         padding: 6mm;
         page-break-after: always;
       }
@@ -42,18 +45,40 @@
         page-break-after: auto;
       }
       .badge {
+        position: relative;
         width: 100%;
         height: 100%;
         padding: 5mm 8mm;
-        border: 0.3mm dashed #cbd5e1;
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
         overflow: hidden;
       }
-      .badge-empty {
-        border: 0.3mm dashed #e2e8f0;
+      /* Full single-line grid: an outer frame around the whole block plus the
+         interior dividers, drawn edge-by-edge so each line is rendered once (no
+         doubling) yet every badge ends up framed on all four sides after the
+         cut. Interior dividers: one vertical, three horizontal. */
+      .badge {
+        border-color: #94a3b8;
+        border-style: solid;
+        border-width: 0;
+      }
+      .badge:nth-child(odd) {
+        border-left-width: 0.2mm; /* outer left frame (column 1) */
+        border-right-width: 0.2mm; /* lone interior vertical divider */
+      }
+      .badge:nth-child(even) {
+        border-right-width: 0.2mm; /* outer right frame (column 2) */
+      }
+      .badge:nth-child(-n + 2) {
+        border-top-width: 0.2mm; /* outer top frame (row 1) */
+      }
+      .badge:nth-child(-n + 6) {
+        border-bottom-width: 0.2mm; /* three interior horizontal dividers */
+      }
+      .badge:nth-child(n + 7) {
+        border-bottom-width: 0.2mm; /* outer bottom frame (row 4) */
       }
       .badge .logo {
         height: 8mm;
@@ -70,7 +95,7 @@
         height: 1.6mm;
         border-radius: 1mm;
         background: #013afb;
-        margin: 2.5mm 0 auto;
+        margin: 2.5mm 0 0;
       }
       .names {
         display: flex;
@@ -80,48 +105,37 @@
       }
       .prenom {
         font-family: 'Anton', 'IBM Plex Sans', sans-serif;
-        font-size: 22pt;
+        font-size: 29pt;
         line-height: 1.05;
         letter-spacing: 0.5pt;
       }
       .nom {
-        font-size: 13pt;
+        font-size: 17pt;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 1pt;
         color: #1e293b;
         word-break: break-word;
       }
-      /* Marker slot is always reserved so the names stay vertically centered
-         whether or not a marker is shown. A second marker (exit authorization)
-         can be added here later. */
-      .markers {
-        margin-top: auto;
-        min-height: 7mm;
+      /* Image-rights refusal: a bold crossed-camera glyph inside a red ring,
+         pinned to the top-left corner — no label — big and bright so it reads at
+         a glance. */
+      .no-photo {
+        position: absolute;
+        top: 3mm;
+        left: 3mm;
+        width: 18mm;
+        height: 18mm;
+        border: 1mm solid #ff0000;
+        border-radius: 50%;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 2mm;
-        width: 100%;
+        justify-content: center;
+        color: #ff0000;
       }
-      .marker {
-        display: inline-flex;
-        align-items: center;
-        gap: 1.5mm;
-        padding: 1.5mm 3.5mm;
-        border-radius: 2mm;
-        font-size: 8pt;
-        font-weight: 600;
-      }
-      .marker-image {
-        background: #fee2e2;
-        color: #b91c1c;
-        border: 0.3mm solid #fca5a5;
-      }
-      .marker svg {
-        height: 3.5mm;
-        width: 3.5mm;
-        flex: none;
+      .no-photo svg {
+        width: 9.5mm;
+        height: 9.5mm;
       }
     </style>
   </head>
@@ -132,31 +146,28 @@
     <div class="sheet">
       <% page.forEach(function (b) { %>
       <div class="badge">
+        <% if (b.imageRefused) { %>
+        <div class="no-photo">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h11" />
+            <path d="M9.5 9.5a3.5 3.5 0 0 0 4.5 4.5" />
+            <path d="M22 8.5V18a2 2 0 0 1-.5 1.3" />
+            <line x1="2" y1="2" x2="22" y2="22" />
+          </svg>
+        </div>
+        <% } %>
         <div class="logo"><%- data.logoSvg %></div>
         <div class="accent"></div>
         <div class="names">
           <div class="prenom"><%= b.prenom %></div>
           <div class="nom"><%= b.nom %></div>
-        </div>
-        <div class="markers">
-          <% if (b.imageRefused) { %>
-          <span class="marker marker-image">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h11" />
-              <path d="M9.5 9.5a3.5 3.5 0 0 0 4.5 4.5" />
-              <path d="M22 8.5V18a2 2 0 0 1-.5 1.3" />
-              <line x1="2" y1="2" x2="22" y2="22" />
-            </svg>
-            Droit à l'image interdit
-          </span>
-          <% } %>
         </div>
       </div>
       <% }); %> <% for (let k = page.length; k < 8; k++) { %>
