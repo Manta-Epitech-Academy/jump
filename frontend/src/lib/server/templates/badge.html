@@ -24,30 +24,75 @@
         size: A4 portrait;
         margin: 0;
       }
-      /* One A4-portrait sheet holds a 2-column x 4-row grid of landscape badges.
-         Badges sit edge-to-edge (no inter-badge gap) inside a 6mm page margin,
-         so each card is ~99 x 71 mm — a touch under its A6 holder, yet sharing
-         straight cut lines. Separators are single shared lines (one vertical,
-         three horizontal): a guillotine clears a whole row/column in one pass
-         instead of trimming every badge individually. */
+      /* A4-portrait sheet, 2 columns, 6mm page margin. In `simple` mode a 4-row
+         grid yields 8 single-sided badges. In `foldable` mode a 2-row grid yields
+         4 taller cells, each holding the badge twice (upright on top, 180°-rotated
+         below) so a fold down the middle gives a double-sided badge. */
       .sheet {
         width: 210mm;
         height: 297mm;
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        /* Fixed row height = full-row height (71.25mm) minus 8mm, so each badge
-           is a little shorter; the freed space drops to the bottom margin. */
-        grid-template-rows: repeat(4, 63.25mm);
         padding: 6mm;
         page-break-after: always;
       }
       .sheet:last-child {
         page-break-after: auto;
       }
+      /* Row height = full-row height minus 8mm; freed space drops to the bottom
+         margin. Foldable cells are two single-badge rows tall. */
+      .sheet.simple {
+        grid-template-rows: repeat(4, 63.25mm);
+      }
+      .sheet.foldable {
+        grid-template-rows: repeat(2, 126.5mm);
+      }
       .badge {
+        display: flex;
+        flex-direction: column;
+        border-color: #94a3b8;
+        border-style: solid;
+        border-width: 0;
+      }
+      /* Full single-line cut grid: outer frame + interior dividers, drawn
+         edge-by-edge so each line is rendered once yet every cell is framed on
+         four sides after the cut. */
+      .simple .badge:nth-child(odd) {
+        border-left-width: 0.2mm;
+        border-right-width: 0.2mm;
+      }
+      .simple .badge:nth-child(even) {
+        border-right-width: 0.2mm;
+      }
+      .simple .badge:nth-child(-n + 2) {
+        border-top-width: 0.2mm;
+      }
+      .simple .badge:nth-child(-n + 6) {
+        border-bottom-width: 0.2mm;
+      }
+      .simple .badge:nth-child(n + 7) {
+        border-bottom-width: 0.2mm;
+      }
+      .foldable .badge:nth-child(odd) {
+        border-left-width: 0.2mm;
+        border-right-width: 0.2mm;
+      }
+      .foldable .badge:nth-child(even) {
+        border-right-width: 0.2mm;
+      }
+      .foldable .badge:nth-child(-n + 2) {
+        border-top-width: 0.2mm;
+        border-bottom-width: 0.2mm;
+      }
+      .foldable .badge:nth-child(n + 3) {
+        border-bottom-width: 0.2mm;
+      }
+      /* A single badge face. In foldable cells two faces stack 50/50; the top
+         one carries a dashed fold guide and the bottom one is rotated 180°. */
+      .face {
         position: relative;
-        width: 100%;
-        height: 100%;
+        flex: 1 1 0;
+        min-height: 0;
         padding: 5mm 8mm;
         display: flex;
         flex-direction: column;
@@ -55,38 +100,19 @@
         text-align: center;
         overflow: hidden;
       }
-      /* Full single-line grid: an outer frame around the whole block plus the
-         interior dividers, drawn edge-by-edge so each line is rendered once (no
-         doubling) yet every badge ends up framed on all four sides after the
-         cut. Interior dividers: one vertical, three horizontal. */
-      .badge {
-        border-color: #94a3b8;
-        border-style: solid;
-        border-width: 0;
+      .foldable .face:first-child {
+        border-bottom: 0.2mm dashed #94a3b8;
       }
-      .badge:nth-child(odd) {
-        border-left-width: 0.2mm; /* outer left frame (column 1) */
-        border-right-width: 0.2mm; /* lone interior vertical divider */
+      .face.flip {
+        transform: rotate(180deg);
       }
-      .badge:nth-child(even) {
-        border-right-width: 0.2mm; /* outer right frame (column 2) */
-      }
-      .badge:nth-child(-n + 2) {
-        border-top-width: 0.2mm; /* outer top frame (row 1) */
-      }
-      .badge:nth-child(-n + 6) {
-        border-bottom-width: 0.2mm; /* three interior horizontal dividers */
-      }
-      .badge:nth-child(n + 7) {
-        border-bottom-width: 0.2mm; /* outer bottom frame (row 4) */
-      }
-      .badge .logo {
+      .face .logo {
         height: 8mm;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      .badge .logo svg {
+      .face .logo svg {
         height: 7mm;
         width: auto;
       }
@@ -118,8 +144,7 @@
         word-break: break-word;
       }
       /* Image-rights refusal: a bold crossed-camera glyph inside a red ring,
-         pinned to the top-left corner — no label — big and bright so it reads at
-         a glance. */
+         pinned to the top-left corner — no label — big and bright. */
       .no-photo {
         position: absolute;
         top: 3mm;
@@ -140,37 +165,44 @@
     </style>
   </head>
   <body>
-    <% const badges = data.badges; const pages = []; for (let i = 0; i <
-    badges.length; i += 8) pages.push(badges.slice(i, i + 8)); %> <%
-    pages.forEach(function (page) { %>
-    <div class="sheet">
+    <% const mode = data.mode === 'foldable' ? 'foldable' : 'simple'; const
+    perPage = mode === 'foldable' ? 4 : 8; const badges = data.badges; const
+    pages = []; for (let i = 0; i < badges.length; i += perPage)
+    pages.push(badges.slice(i, i + perPage)); %> <% pages.forEach(function
+    (page) { %>
+    <div class="sheet <%= mode %>">
       <% page.forEach(function (b) { %>
       <div class="badge">
-        <% if (b.imageRefused) { %>
-        <div class="no-photo">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h11" />
-            <path d="M9.5 9.5a3.5 3.5 0 0 0 4.5 4.5" />
-            <path d="M22 8.5V18a2 2 0 0 1-.5 1.3" />
-            <line x1="2" y1="2" x2="22" y2="22" />
-          </svg>
+        <% (mode === 'foldable' ? [false, true] : [false]).forEach(function
+        (flip) { %>
+        <div class="face<%= flip ? ' flip' : '' %>">
+          <% if (b.imageRefused) { %>
+          <div class="no-photo">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h11" />
+              <path d="M9.5 9.5a3.5 3.5 0 0 0 4.5 4.5" />
+              <path d="M22 8.5V18a2 2 0 0 1-.5 1.3" />
+              <line x1="2" y1="2" x2="22" y2="22" />
+            </svg>
+          </div>
+          <% } %>
+          <div class="logo"><%- data.logoSvg %></div>
+          <div class="accent"></div>
+          <div class="names">
+            <div class="prenom"><%= b.prenom %></div>
+            <div class="nom"><%= b.nom %></div>
+          </div>
         </div>
-        <% } %>
-        <div class="logo"><%- data.logoSvg %></div>
-        <div class="accent"></div>
-        <div class="names">
-          <div class="prenom"><%= b.prenom %></div>
-          <div class="nom"><%= b.nom %></div>
-        </div>
+        <% }); %>
       </div>
-      <% }); %> <% for (let k = page.length; k < 8; k++) { %>
+      <% }); %> <% for (let k = page.length; k < perPage; k++) { %>
       <div class="badge badge-empty"></div>
       <% } %>
     </div>

@@ -11,16 +11,24 @@ export type BadgeData = {
 };
 
 /**
- * Renders a print-ready PDF of name badges, four A6 badges per A4 sheet laid out
- * on a 2x2 grid with dashed cut guides. One A4 page is emitted per group of four
- * selected talents.
+ * Print layout:
+ * - `simple`: 8 single-sided landscape badges per A4 page.
+ * - `foldable`: 4 per page, each printed twice (upright + 180°) so a fold down
+ *   the middle yields a double-sided badge.
+ */
+export type BadgeMode = 'simple' | 'foldable';
+
+/**
+ * Renders a print-ready PDF of name badges on A4 portrait sheets with single
+ * shared cut lines. The `mode` selects the simple or foldable layout.
  */
 export async function generateBadgesPDF(
   badges: BadgeData[],
+  mode: BadgeMode = 'simple',
 ): Promise<Uint8Array<ArrayBuffer>> {
   const htmlContent = await ejs.render(
     badgeTemplate,
-    { data: { badges, logoSvg: epitechLogoSvg } },
+    { data: { badges, mode, logoSvg: epitechLogoSvg } },
     { async: true },
   );
 

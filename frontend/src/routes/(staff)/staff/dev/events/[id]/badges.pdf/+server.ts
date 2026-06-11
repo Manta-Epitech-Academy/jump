@@ -6,9 +6,13 @@ import { imageRightsStatus } from '$lib/domain/imageRights';
 import { generateBadgesPDF } from '$lib/server/services/badgeGenerator';
 
 // Generates the printable badge sheet for every talent registered to this event
-// (no selection — all inscrits). Campus-scoped via the event load.
-export const GET: RequestHandler = async ({ params, locals }) => {
+// (no selection — all inscrits). Campus-scoped via the event load. The `mode`
+// query param picks the simple or foldable layout.
+export const GET: RequestHandler = async ({ params, locals, url }) => {
   requireStaffGroup(locals, 'devMember');
+
+  const mode =
+    url.searchParams.get('mode') === 'foldable' ? 'foldable' : 'simple';
 
   const campusId = getCampusId(locals);
   const event = await loadEventOr404(params.id, campusId);
@@ -30,7 +34,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     imageRefused: imageRightsStatus(p.talent) === 'refused',
   }));
 
-  const pdf = await generateBadgesPDF(badges);
+  const pdf = await generateBadgesPDF(badges, mode);
 
   return new Response(
     new Blob([pdf as BlobPart], { type: 'application/pdf' }),
