@@ -4,7 +4,6 @@
   import Clock from '@lucide/svelte/icons/clock';
   import Circle from '@lucide/svelte/icons/circle';
   import MessageSquare from '@lucide/svelte/icons/message-square';
-  import { Badge } from '$lib/components/ui/badge';
   import * as Table from '$lib/components/ui/table';
   import { cn } from '$lib/utils';
   import type { PageData } from './$types';
@@ -27,14 +26,13 @@
   import {
     INTERVIEW_STATUS_LABELS,
     INTERVIEW_STATUS_CHIP_CLASS,
-    INTERVIEW_RECOMMENDATIONS,
     type InterviewListStatus,
   } from '$lib/domain/interview';
   import type { FlagKey } from '$lib/domain/featureFlags';
   import type { EntretienRow, SortKey } from './components/types';
   import SynthesisCard from './components/SynthesisCard.svelte';
   import TopInterviewersCard from './components/TopInterviewersCard.svelte';
-  import GuideCard from './components/GuideCard.svelte';
+  import GuideCard from '$lib/components/dev/interviews/GuideCard.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -280,15 +278,6 @@
                   <span class="truncate" title={r.interviewerName}>
                     {r.interviewerName}
                   </span>
-                  {#if r.recommendation}
-                    {@const desc = INTERVIEW_RECOMMENDATIONS[r.recommendation]}
-                    <Badge
-                      variant="secondary"
-                      class="shrink-0 rounded-sm bg-muted px-1.5 py-0 text-[10px] font-bold uppercase"
-                    >
-                      {desc.short}
-                    </Badge>
-                  {/if}
                 </span>
               {:else}
                 <span class="text-muted-foreground">—</span>

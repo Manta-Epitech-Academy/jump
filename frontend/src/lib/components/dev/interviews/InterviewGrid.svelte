@@ -1,15 +1,27 @@
+<script lang="ts" module>
+  export type InterviewAction =
+    | 'start'
+    | 'autosave'
+    | 'close'
+    | 'reopen'
+    | 'abandon';
+  export type InterviewSaveState = 'idle' | 'saving' | 'saved';
+  // Surfaced to the fiche so it can render the lifecycle controls + autosave
+  // indicator in the right rail instead of a sticky bar glued under the grid.
+  export type InterviewActionState = {
+    busy: boolean;
+    lastAction: InterviewAction;
+    saveState: InterviewSaveState;
+  };
+</script>
+
 <script lang="ts">
   import { untrack } from 'svelte';
   import { superForm, type SuperValidated } from 'sveltekit-superforms';
   import { toast } from 'svelte-sonner';
-  import { beforeNavigate, goto } from '$app/navigation';
   import Star from '@lucide/svelte/icons/star';
   import Check from '@lucide/svelte/icons/check';
-  import Play from '@lucide/svelte/icons/play';
   import Lock from '@lucide/svelte/icons/lock';
-  import LockOpen from '@lucide/svelte/icons/lock-open';
-  import Loader2 from '@lucide/svelte/icons/loader-2';
-  import CircleCheckBig from '@lucide/svelte/icons/circle-check-big';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import type { InterviewStatus } from '@prisma/client';
@@ -17,7 +29,6 @@
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import EpiSection from '$lib/components/staff/EpiSection.svelte';
   import { cn } from '$lib/utils';
   import {
     INTERVIEW_BLOCS,
@@ -34,39 +45,38 @@
   let {
     form: data,
     talentName,
-    status,
-    conductedAt,
-    timezone,
+    status = $bindable(),
+    progress = $bindable(),
+    actionState = $bindable(),
   }: {
     form: SuperValidated<InterviewConductForm>;
     talentName: string;
+    // Lifecycle: null = "à faire" (not started), in_progress = "en cours"
+    // (started, autosaving), done = "finalisé" (closed, read-only until
+    // reopened). Bound up to the fiche so toggling the interview view off and on
+    // never resurfaces "Démarrer" for an already-started interview.
     status: InterviewStatus | null;
-    conductedAt: Date | string | null;
-    timezone: string;
+    // ★-questions progress, surfaced up so the fiche can render the title +
+    // progress bar in its right rail next to the guide.
+    progress?: { done: number; total: number };
+    // Autosave + in-flight state, surfaced so the fiche renders the lifecycle
+    // controls (clôturer / abandonner / rouvrir) and save indicator in its right
+    // rail. The actions themselves are driven through the exported methods below.
+    actionState?: InterviewActionState;
   } = $props();
 
-  // Lifecycle: null = "à faire" (not started), in_progress = "en cours" (started,
-  // autosaving, leave-guarded), done = "finalisé" (closed, read-only until reopened).
-  // svelte-ignore state_referenced_locally
-  let localStatus = $state<InterviewStatus | null>(status);
-  const started = $derived(localStatus === 'in_progress');
-  const closed = $derived(localStatus === 'done');
+  const started = $derived(status === 'in_progress');
   // Fields are interactive only while the interview is in progress.
   const interactive = $derived(started);
 
-  type Action = 'start' | 'autosave' | 'close' | 'reopen' | 'abandon';
-  let lastAction = $state<Action>('autosave');
-  let saveState = $state<'idle' | 'saving' | 'saved'>('idle');
-
-  // Leave-guard state.
-  let leaveDialogOpen = $state(false);
-  let pendingUrl = $state<string | null>(null);
-  let leaveAfterClose = $state(false);
-  let bypassGuard = false;
+  let lastAction = $state<InterviewAction>('autosave');
+  let saveState = $state<InterviewSaveState>('idle');
 
   let formEl: HTMLFormElement;
+  let startBtn: HTMLButtonElement;
   let closeBtn: HTMLButtonElement;
   let abandonBtn: HTMLButtonElement;
+  let reopenBtn: HTMLButtonElement;
 
   const { form, enhance, delayed, reset } = superForm(
     untrack(() => data),
@@ -98,21 +108,17 @@
         }
         if (result.type === 'success') {
           if (lastAction === 'start') {
-            localStatus = 'in_progress';
+            status = 'in_progress';
             toast.success('Entretien démarré.');
           } else if (lastAction === 'close') {
-            localStatus = 'done';
+            status = 'done';
             saveState = 'idle';
             toast.success('Entretien clôturé.');
-            if (leaveAfterClose && pendingUrl) {
-              bypassGuard = true;
-              goto(pendingUrl);
-            }
           } else if (lastAction === 'reopen') {
-            localStatus = 'in_progress';
+            status = 'in_progress';
             toast.success('Entretien rouvert.');
           } else if (lastAction === 'abandon') {
-            localStatus = null;
+            status = null;
             saveState = 'idle';
             // Clear the grid so a later "Démarrer" starts from a blank slate
             // rather than recreating the abandoned answers.
@@ -120,7 +126,6 @@
             toast.success('Entretien abandonné.');
           }
         } else if (result.type === 'failure') {
-          leaveAfterClose = false;
           toast.error(result.data?.form?.message ?? 'Une erreur est survenue.');
         }
       },
@@ -130,7 +135,7 @@
   // ── Debounced autosave (only while in progress) ──
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
   function scheduleAutosave() {
-    if (localStatus !== 'in_progress') return;
+    if (status !== 'in_progress') return;
     saveState = 'saving';
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -142,7 +147,7 @@
   // An explicit lifecycle action cancels the *scheduled* autosave (the debounce
   // timer); an autosave already on the wire is aborted by `multipleSubmits:
   // 'abort'` above. Between the two, the lifecycle submit never races a save.
-  function beginAction(a: Action) {
+  function beginAction(a: InterviewAction) {
     clearTimeout(saveTimer);
     lastAction = a;
   }
@@ -178,44 +183,9 @@
     scheduleAutosave();
   }
 
-  // ── Leave guards ──
-  // In-app navigation away from the fiche while an interview is open: cancel it
-  // and ask whether to close the interview first (answers are already saved).
-  beforeNavigate((nav) => {
-    if (bypassGuard || localStatus !== 'in_progress') return;
-    if (nav.willUnload || !nav.to) return; // tab close/refresh → beforeunload
-    nav.cancel();
-    pendingUrl = nav.to.url.href;
-    leaveDialogOpen = true;
-  });
-  // Tab close / refresh: native browser prompt (text can't be customised).
-  $effect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (localStatus === 'in_progress') {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  });
-
-  function leaveWithoutClosing() {
-    bypassGuard = true;
-    leaveDialogOpen = false;
-    if (pendingUrl) goto(pendingUrl);
-  }
-  function closeAndLeave() {
-    leaveDialogOpen = false;
-    leaveAfterClose = true;
-    lastAction = 'close';
-    clearTimeout(saveTimer);
-    formEl.requestSubmit(closeBtn);
-  }
-  function cancelLeave() {
-    leaveDialogOpen = false;
-    pendingUrl = null;
-  }
+  // No leave guard: an open interview stays in_progress until explicitly
+  // clôturé. Staff can navigate away freely (the answers autosave), so there is
+  // nothing to confirm on the way out — the lifecycle is decoupled from the view.
 
   // Closing with ★ questions still empty is almost always a misclick (an empty
   // finalisé row pollutes the synthesis), but the guide allows skipping when
@@ -240,6 +210,27 @@
     formEl.requestSubmit(abandonBtn);
   }
 
+  function doReopen() {
+    beginAction('reopen');
+    formEl.requestSubmit(reopenBtn);
+  }
+
+  // Public lifecycle controls, driven from the fiche's right rail (the grid
+  // itself holds only the questions).
+  export function start() {
+    beginAction('start');
+    formEl.requestSubmit(startBtn);
+  }
+  export function close() {
+    attemptClose();
+  }
+  export function abandon() {
+    abandonConfirmOpen = true;
+  }
+  export function reopen() {
+    doReopen();
+  }
+
   // ── Essential-progress meter (★ questions + the recommendation) ──
   const essentialQuestions = INTERVIEW_BLOCS.flatMap((b) => b.questions).filter(
     (q) => q.essential,
@@ -258,8 +249,18 @@
     if ($form.recommendation != null) n++;
     return n;
   });
-  const allEssentialDone = $derived(essentialDone === essentialTotal);
   const missingEssential = $derived(essentialTotal - essentialDone);
+
+  // Surface the live ★-progress to the fiche so its right rail can render the
+  // grille title + progress bar next to the guide while the questions stay here.
+  $effect(() => {
+    progress = { done: essentialDone, total: essentialTotal };
+  });
+  // Surface autosave + in-flight state so the rail's controls can spin/disable
+  // and show the save indicator without a sticky bar under the grid.
+  $effect(() => {
+    actionState = { busy: $delayed, lastAction, saveState };
+  });
   const closeWarning = $derived(
     missingEssential > 1
       ? `Il reste ${missingEssential} questions incontournables (★) non remplies.`
@@ -279,16 +280,6 @@
     }
     return false;
   });
-
-  const conductedLabel = $derived(
-    conductedAt
-      ? new Date(conductedAt).toLocaleDateString('fr-FR', {
-          day: 'numeric',
-          month: 'long',
-          timeZone: timezone,
-        })
-      : null,
-  );
 
   const chipBase =
     'cursor-pointer rounded-sm border px-3 py-1.5 text-sm font-medium transition-colors select-none disabled:cursor-default';
@@ -390,37 +381,20 @@
   </div>
 {/snippet}
 
-<EpiSection title="Grille d'entretien" accent="blue">
-  {#snippet meta()}
-    <div class="flex items-center gap-2">
-      {#if closed}
-        <span
-          class="inline-flex items-center gap-1 rounded-full border border-epi-teal-solid/40 bg-epi-teal-solid/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-epi-teal-solid uppercase"
-        >
-          <CircleCheckBig class="h-3 w-3" /> Finalisé
-        </span>
-      {:else if started}
-        <span
-          class="inline-flex items-center gap-1 rounded-full border border-epi-orange/40 bg-epi-orange/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-epi-orange uppercase"
-        >
-          En cours
-        </span>
-      {/if}
-      <span
-        class={cn(
-          'rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest uppercase',
-          allEssentialDone
-            ? 'border-epi-teal-solid/40 bg-epi-teal-solid/10 text-epi-teal-solid'
-            : 'border-border bg-muted text-muted-foreground',
-        )}
-      >
-        {essentialDone}/{essentialTotal} ★
-      </span>
-    </div>
-  {/snippet}
-
+<!-- The grille title + ★-progress live in the fiche's right rail (see
+     InterviewProgressCard); here the panel holds only the questions. -->
+<section class="rounded-sm border bg-card px-5 pt-5 pb-5 dark:shadow-none">
   <form bind:this={formEl} method="POST" action="?/saveInterview" use:enhance>
-    <!-- Hidden submitters for the programmatic close / abandon paths. -->
+    <!-- Hidden submitters: every lifecycle transition is driven from the fiche's
+         right rail through requestSubmit on one of these. -->
+    <button
+      bind:this={startBtn}
+      type="submit"
+      formaction="?/startInterview"
+      class="hidden"
+      aria-hidden="true"
+      tabindex={-1}
+    ></button>
     <button
       bind:this={closeBtn}
       type="submit"
@@ -437,40 +411,20 @@
       aria-hidden="true"
       tabindex={-1}
     ></button>
-
-    {#if localStatus === null}
-      <div
-        class="mb-6 flex flex-col items-center gap-3 rounded-md border-2 border-dashed border-epi-blue/40 bg-epi-blue/5 p-5 text-center"
-      >
-        <p class="font-heading text-lg tracking-wide text-foreground uppercase">
-          Prêt pour l'entretien&nbsp;?
-        </p>
-        <p class="max-w-md text-sm text-muted-foreground">
-          Démarrez l'entretien avec {talentName} pour saisir les réponses. Tout est
-          enregistré au fur et à mesure ; vous le clôturez à la fin.
-        </p>
-        <Button
-          type="submit"
-          formaction="?/startInterview"
-          size="lg"
-          disabled={$delayed}
-          onclick={() => beginAction('start')}
-        >
-          {#if $delayed && lastAction === 'start'}
-            <Loader2 class="mr-1.5 h-4 w-4 animate-spin" />
-          {:else}
-            <Play class="mr-1.5 h-4 w-4" />
-          {/if}
-          Démarrer l'entretien
-        </Button>
-      </div>
-    {/if}
+    <button
+      bind:this={reopenBtn}
+      type="submit"
+      formaction="?/reopenInterview"
+      class="hidden"
+      aria-hidden="true"
+      tabindex={-1}
+    ></button>
 
     <div
       class={cn(
         'space-y-7',
         !interactive && 'pointer-events-none',
-        localStatus === null && 'opacity-55',
+        status === null && 'opacity-55',
       )}
       aria-disabled={!interactive}
     >
@@ -485,7 +439,7 @@
               {i + 1}. {bloc.title}<span class="text-epi-teal">_</span>
             </h3>
             <span
-              class="shrink-0 font-mono text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+              class="shrink-0 font-mono text-xs font-bold tracking-wider text-muted-foreground uppercase"
             >
               {bloc.duration}
             </span>
@@ -606,112 +560,8 @@
         </div>
       </section>
     </div>
-
-    <!-- Sticky action bar: the lifecycle control + autosave state, pinned to the
-         viewport so it stays reachable however far the grid is scrolled. -->
-    <div
-      class="sticky bottom-0 z-10 -mx-5 mt-6 -mb-5 flex flex-wrap items-center justify-between gap-3 border-t bg-card/95 px-5 py-3 backdrop-blur"
-    >
-      <span class="flex items-center gap-2 text-xs text-muted-foreground">
-        {#if started}
-          {#if saveState === 'saving'}
-            <Loader2 class="h-3.5 w-3.5 animate-spin" /> Enregistrement…
-          {:else if saveState === 'saved'}
-            <Check class="h-3.5 w-3.5 text-epi-teal-solid" /> Enregistré
-          {:else}
-            {essentialDone}/{essentialTotal} questions incontournables
-          {/if}
-        {:else if closed && conductedLabel}
-          Entretien mené le {conductedLabel}
-        {:else}
-          {essentialDone}/{essentialTotal} questions incontournables
-        {/if}
-      </span>
-
-      <div class="flex items-center gap-2">
-        {#if localStatus === null}
-          <Button
-            type="submit"
-            formaction="?/startInterview"
-            disabled={$delayed}
-            onclick={() => beginAction('start')}
-          >
-            {#if $delayed && lastAction === 'start'}
-              <Loader2 class="mr-1.5 h-4 w-4 animate-spin" />
-            {:else}
-              <Play class="mr-1.5 h-4 w-4" />
-            {/if}
-            Démarrer l'entretien
-          </Button>
-        {:else if started}
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={$delayed}
-            onclick={() => (abandonConfirmOpen = true)}
-            class="text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 class="mr-1.5 h-4 w-4" />
-            Abandonner
-          </Button>
-          <Button type="button" disabled={$delayed} onclick={attemptClose}>
-            {#if $delayed && lastAction === 'close'}
-              <Loader2 class="mr-1.5 h-4 w-4 animate-spin" />
-            {:else}
-              <Lock class="mr-1.5 h-4 w-4" />
-            {/if}
-            Clôturer l'entretien
-          </Button>
-        {:else}
-          <Button
-            type="submit"
-            formaction="?/reopenInterview"
-            variant="outline"
-            disabled={$delayed}
-            onclick={() => beginAction('reopen')}
-          >
-            {#if $delayed && lastAction === 'reopen'}
-              <Loader2 class="mr-1.5 h-4 w-4 animate-spin" />
-            {:else}
-              <LockOpen class="mr-1.5 h-4 w-4" />
-            {/if}
-            Rouvrir l'entretien
-          </Button>
-        {/if}
-      </div>
-    </div>
   </form>
-</EpiSection>
-
-<AlertDialog.Root bind:open={leaveDialogOpen}>
-  <AlertDialog.Content class="rounded-sm">
-    <AlertDialog.Header>
-      <AlertDialog.Title class="flex items-center gap-2">
-        <TriangleAlert class="h-5 w-5 text-epi-orange" />
-        Vous quittez la page
-      </AlertDialog.Title>
-      <AlertDialog.Description>
-        L'entretien de {talentName} est en cours. Voulez-vous le clôturer avant de
-        partir&nbsp;? Vos réponses sont déjà enregistrées dans tous les cas.
-      </AlertDialog.Description>
-    </AlertDialog.Header>
-    <!-- Stacked full-width: three actions with long French labels don't fit in
-         a row at the dialog's width, so a vertical list reads cleanly and never
-         overflows. Primary (close) on top, cancel at the bottom. -->
-    <AlertDialog.Footer class="flex-col gap-2 sm:flex-col sm:space-x-0">
-      <Button class="w-full" onclick={closeAndLeave}>
-        <Lock class="mr-1.5 h-4 w-4" />
-        Clôturer et quitter
-      </Button>
-      <Button variant="outline" class="w-full" onclick={leaveWithoutClosing}>
-        Quitter sans clôturer
-      </Button>
-      <AlertDialog.Cancel class="mt-0 w-full" onclick={cancelLeave}>
-        Rester
-      </AlertDialog.Cancel>
-    </AlertDialog.Footer>
-  </AlertDialog.Content>
-</AlertDialog.Root>
+</section>
 
 <AlertDialog.Root bind:open={closeConfirmOpen}>
   <AlertDialog.Content class="rounded-sm">
