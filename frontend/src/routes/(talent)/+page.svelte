@@ -77,6 +77,11 @@
   // `planning.state` alone; no raw participation rows reach the UI.
   let planning = $derived(data.planning);
 
+  // The widget's state is always shown, but the "Voir le planning" CTA opens the
+  // /calendar grid, which 404s when the campus runs its schedule outside Jump.
+  // With the flag off we keep the ongoing/upcoming state and drop that link.
+  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+
   // Event-type label for the planning widget, with the per-state fallback the
   // copy used before (ongoing → "Activité", upcoming → "Atelier Epitech").
   let planningTypeLabel = $derived(
@@ -365,7 +370,10 @@
 
         <!-- Planning à venir: the active event if one covers today, else the
              next upcoming session, else a quiet rest state. order-4 keeps it
-             last on mobile (after the mission card). -->
+             last on mobile (after the mission card). Always shown (the state is
+             participation-derived, truthful regardless of the planning flag);
+             only the ongoing "Voir le planning" CTA is flag-gated, since it
+             opens the /calendar grid that 404s when the flag is off. -->
         <div
           class="order-4 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
         >
@@ -408,15 +416,24 @@
                   </span>
                   En cours
                 </span>
-                <!-- The primary action this widget exists to drive during a
-                     live event: a full-width filled CTA, mirroring the
-                     minigame "Commencer" button so it reads as the main tap. -->
-                <a
-                  href={resolve('/calendar')}
-                  class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-epi-blue px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-epi-blue/90"
-                >
-                  Voir le planning <ArrowRight class="h-4 w-4 shrink-0" />
-                </a>
+                {#if hasPlanning}
+                  <!-- The primary action this widget exists to drive during a
+                       live event: a full-width filled CTA, mirroring the
+                       minigame "Commencer" button so it reads as the main tap. -->
+                  <a
+                    href={resolve('/calendar')}
+                    class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-epi-blue px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-epi-blue/90"
+                  >
+                    Voir le planning <ArrowRight class="h-4 w-4 shrink-0" />
+                  </a>
+                {:else}
+                  <!-- No /calendar to open (planning flag off): the live status
+                       stands alone, with a line pointing the talent on-site so
+                       the card doesn't read as truncated where the CTA was. -->
+                  <p class="mt-3 text-sm text-slate-500">
+                    Ça se passe en ce moment. Rejoins ton groupe sur place !
+                  </p>
+                {/if}
               </div>
             {:else if planning.state === 'upcoming'}
               <div

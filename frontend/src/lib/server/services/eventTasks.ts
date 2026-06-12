@@ -73,6 +73,13 @@ export type DeriveAlertsContext = {
    * When omitted, counts all today's planned interviews on the event.
    */
   forStaffProfileId?: string;
+  /**
+   * Whether the campus has the `planning` feature on. Defaults to true so
+   * callers that don't care keep the old behaviour. When false, the
+   * planning-construction and unassigned-slot items are dropped — the campus
+   * runs its schedule outside Jump and those hrefs would 404.
+   */
+  planningEnabled?: boolean;
 };
 
 type EventForAlerts = {
@@ -221,29 +228,31 @@ export async function deriveEventAlerts(
     });
   }
 
-  if (facts.slotCount === 0) {
-    alerts.push({
-      key: `missing-planning-${event.id}`,
-      kind: 'missing-planning',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Planning à construire',
-      description: `${event.titre} — aucun créneau`,
-      severity: 'warning',
-      href: `${eventBase}/planning`,
-    });
-  } else if (facts.unassignedSlots > 0) {
-    alerts.push({
-      key: `unassigned-slots-${event.id}`,
-      kind: 'unassigned-slots',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Créneaux à assigner',
-      description: `${event.titre} — créneaux sans activité`,
-      count: facts.unassignedSlots,
-      severity: 'warning',
-      href: `${eventBase}/planning`,
-    });
+  if (ctx.planningEnabled !== false) {
+    if (facts.slotCount === 0) {
+      alerts.push({
+        key: `missing-planning-${event.id}`,
+        kind: 'missing-planning',
+        eventId: event.id,
+        eventTitre: event.titre,
+        title: 'Planning à construire',
+        description: `${event.titre} — aucun créneau`,
+        severity: 'warning',
+        href: `${eventBase}/planning`,
+      });
+    } else if (facts.unassignedSlots > 0) {
+      alerts.push({
+        key: `unassigned-slots-${event.id}`,
+        kind: 'unassigned-slots',
+        eventId: event.id,
+        eventTitre: event.titre,
+        title: 'Créneaux à assigner',
+        description: `${event.titre} — créneaux sans activité`,
+        count: facts.unassignedSlots,
+        severity: 'warning',
+        href: `${eventBase}/planning`,
+      });
+    }
   }
 
   if (!facts.isStage || facts.totalParticipations === 0) return alerts;
@@ -361,35 +370,37 @@ export async function deriveEventChecklist(
     href: `${eventBase}/team`,
   });
 
-  items.push({
-    key: `missing-planning-${event.id}`,
-    kind: 'missing-planning',
-    group: 'team',
-    title: 'Planning du stage publié',
-    meta:
-      facts.slotCount > 0
-        ? `${facts.slotCount} créneau${facts.slotCount > 1 ? 'x' : ''} planifié${facts.slotCount > 1 ? 's' : ''}`
-        : 'Aucun créneau — construire le planning',
-    done: facts.slotCount > 0,
-    severity: 'warning',
-    href: `${eventBase}/planning`,
-  });
+  if (ctx.planningEnabled !== false) {
+    items.push({
+      key: `missing-planning-${event.id}`,
+      kind: 'missing-planning',
+      group: 'team',
+      title: 'Planning du stage publié',
+      meta:
+        facts.slotCount > 0
+          ? `${facts.slotCount} créneau${facts.slotCount > 1 ? 'x' : ''} planifié${facts.slotCount > 1 ? 's' : ''}`
+          : 'Aucun créneau — construire le planning',
+      done: facts.slotCount > 0,
+      severity: 'warning',
+      href: `${eventBase}/planning`,
+    });
 
-  items.push({
-    key: `unassigned-slots-${event.id}`,
-    kind: 'unassigned-slots',
-    group: 'team',
-    title: 'Tous les créneaux ont une activité',
-    meta:
-      facts.slotCount === 0
-        ? 'En attente du planning'
-        : facts.unassignedSlots === 0
-          ? `${facts.slotCount} créneau${facts.slotCount > 1 ? 'x' : ''} avec activité`
-          : `${facts.unassignedSlots} créneau${facts.unassignedSlots > 1 ? 'x' : ''} sans activité`,
-    done: facts.slotCount > 0 && facts.unassignedSlots === 0,
-    severity: 'warning',
-    href: `${eventBase}/planning`,
-  });
+    items.push({
+      key: `unassigned-slots-${event.id}`,
+      kind: 'unassigned-slots',
+      group: 'team',
+      title: 'Tous les créneaux ont une activité',
+      meta:
+        facts.slotCount === 0
+          ? 'En attente du planning'
+          : facts.unassignedSlots === 0
+            ? `${facts.slotCount} créneau${facts.slotCount > 1 ? 'x' : ''} avec activité`
+            : `${facts.unassignedSlots} créneau${facts.unassignedSlots > 1 ? 'x' : ''} sans activité`,
+      done: facts.slotCount > 0 && facts.unassignedSlots === 0,
+      severity: 'warning',
+      href: `${eventBase}/planning`,
+    });
+  }
 
   if (!facts.isStage || facts.totalParticipations === 0) return items;
 

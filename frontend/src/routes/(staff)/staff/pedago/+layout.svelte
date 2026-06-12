@@ -31,6 +31,7 @@
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
+  let hasPlanning = $derived(featureFlags.has('planning'));
 
   let mobileMenuOpen = $state(false);
   let commandOpen = $state(false);
@@ -109,15 +110,17 @@
       Stage de Seconde<span class="text-epi-teal">_</span>
     </div>
     <nav class="space-y-1">
-      <a
-        href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
-        class={navLinkClass(
-          isActive(`/staff/pedago/events/${data.activeStage.id}/planning`),
-        )}
-      >
-        <CalendarDays class="h-5 w-5" />
-        <span>Planning</span>
-      </a>
+      {#if hasPlanning}
+        <a
+          href={resolve(`/staff/pedago/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/pedago/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span>Planning</span>
+        </a>
+      {/if}
       <a
         href={resolve(`/staff/pedago/events/${data.activeStage.id}/presences`)}
         class={navLinkClass(

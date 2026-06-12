@@ -121,7 +121,11 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     const tasks = await deriveWorkspaceAlerts(
       db,
       Array.from(alertEventsMap.values()),
-      { basePath: '/staff/dev', bounds },
+      {
+        basePath: '/staff/dev',
+        bounds,
+        planningEnabled: hasFlag(locals, 'planning'),
+      },
     );
 
     return {
