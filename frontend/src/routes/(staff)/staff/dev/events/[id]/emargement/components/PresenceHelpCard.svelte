@@ -2,14 +2,16 @@
   import Info from '@lucide/svelte/icons/info';
   import QrCode from '@lucide/svelte/icons/qr-code';
   import MousePointerClick from '@lucide/svelte/icons/mouse-pointer-click';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import Lock from '@lucide/svelte/icons/lock';
   import FileDown from '@lucide/svelte/icons/file-down';
   import * as Card from '$lib/components/ui/card';
 
   // Static how-it-works card. Each line names the actual on-screen control
-  // ("Afficher le QR code", "Clôturer", "Tout exporter") so the help maps onto
-  // the page: the QR + export buttons sit in the header, the clôture /
-  // réouverture control in the Synthèse card just above this one.
+  // ("Afficher le QR code", "Tout présent", "Clôturer", "Tout exporter") so the
+  // help maps onto the page: the QR + export buttons sit in the header, the
+  // Tout présent / clôture / réouverture controls in the Synthèse card just
+  // above this one.
 </script>
 
 <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
@@ -43,14 +45,23 @@
     </div>
 
     <div class="flex gap-3">
+      <CheckCheck class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
+      <p class="text-muted-foreground">
+        <span class="font-semibold text-foreground">Tout présent.</span>
+        En fin de créneau, marque présents en un clic tous les stagiaires encore «
+        en attente ». Les présences déjà saisies ne sont pas touchées.
+      </p>
+    </div>
+
+    <div class="flex gap-3">
       <Lock class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
       <p class="text-muted-foreground">
         <span class="font-semibold text-foreground"
           >Clôture et réouverture.</span
         >
-        « Clôturer » passe les « en attente » en absents et coupe le QR code ; c'est
-        automatique à 11h et 15h. Vous pouvez rouvrir un créneau fermé à la main,
-        mais pas un créneau déjà passé 11h ou 15h.
+        « Clôturer » passe en absents les stagiaires encore « en attente » et coupe
+        le QR code ; c'est automatique à 11h et 15h. Vous pouvez rouvrir un créneau
+        fermé à la main, mais pas un créneau déjà passé 11h ou 15h.
       </p>
     </div>
 

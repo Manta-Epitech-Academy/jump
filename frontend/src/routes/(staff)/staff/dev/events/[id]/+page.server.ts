@@ -10,7 +10,7 @@ import {
   scopedPrisma,
   type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { hasFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import {
   EVENT_TYPES,
   eventTypeHasTheme,
@@ -78,7 +78,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     locals.stagePhaseOverride,
   );
   const isStage = event.eventType === EVENT_TYPES.STAGE_SECONDE;
-  const baseLoader = { db, event, bounds, basePath: '/staff/dev', tz };
+  const baseLoader = {
+    db,
+    event,
+    bounds,
+    basePath: '/staff/dev',
+    tz,
+    planningEnabled: hasFlag(locals, 'planning'),
+  };
 
   if (!isStage) {
     const legacy = await loadLegacyEvent(baseLoader);
@@ -139,6 +146,7 @@ type LoaderCtx = {
   bounds: LifecycleBounds;
   basePath: string;
   tz: string;
+  planningEnabled: boolean;
 };
 
 async function loadLegacyEvent(ctx: LoaderCtx) {
@@ -148,7 +156,11 @@ async function loadLegacyEvent(ctx: LoaderCtx) {
     db.participation.count({
       where: { eventId: event.id, bringPc: true },
     }),
-    deriveEventAlerts(db, event, { basePath: ctx.basePath, bounds }),
+    deriveEventAlerts(db, event, {
+      basePath: ctx.basePath,
+      bounds,
+      planningEnabled: ctx.planningEnabled,
+    }),
   ]);
 
   return {
@@ -215,7 +227,11 @@ async function loadStageOngoing(ctx: LoaderCtx) {
     db.interview.count({
       where: { participation: { eventId: event.id }, status: 'done' },
     }),
-    deriveEventAlerts(db, event, { basePath: ctx.basePath, bounds }),
+    deriveEventAlerts(db, event, {
+      basePath: ctx.basePath,
+      bounds,
+      planningEnabled: ctx.planningEnabled,
+    }),
     getEventOrgaSlotsWithCounts(event.id, db, bounds.now),
     db.timeSlot.findMany({
       where: {

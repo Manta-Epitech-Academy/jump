@@ -8,9 +8,8 @@ import { requireStaffGroup } from '$lib/server/auth/guards';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { niveauLabel } from '$lib/domain/niveau';
 import { buildXlsx } from '$lib/server/xlsx';
-import { EVENT_TYPES } from '$lib/domain/event';
 import {
-  eventSlots,
+  presenceSlots,
   slotKey,
   slotLabelLong,
   statusLabelFr,
@@ -35,8 +34,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
 
-  const workdaysOnly = event.eventType === EVENT_TYPES.STAGE_SECONDE;
-  const slots = eventSlots(event, timezone, { workdaysOnly });
+  const slots = presenceSlots(event, timezone);
 
   const now = new Date();
   const [participations, presenceRows, closureRows] = await Promise.all([

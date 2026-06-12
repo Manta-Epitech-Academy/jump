@@ -48,6 +48,12 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     // to recompute once we're faking it), mirroring the dev space's phase
     // override. Otherwise we derive it from the talent's actual participations.
     // The two events we read are scoped to just the fields the widget shows.
+    //
+    // Always computed, even when the campus runs its schedule outside Jump
+    // (planning flag off): this is participation-derived (Participation → Event),
+    // never planning rows, so a talent there still has events to surface. The
+    // flag only gates the detailed /calendar grid — the widget drops its "Voir
+    // le planning" CTA client-side when it's off, keeping the state itself.
     const eventSelect = {
       event: {
         select: {

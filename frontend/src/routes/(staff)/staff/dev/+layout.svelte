@@ -11,7 +11,6 @@
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
-  import type { Icon as IconType } from '@lucide/svelte';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import UserCog from '@lucide/svelte/icons/user-cog';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
@@ -24,7 +23,6 @@
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { track, secondsBetween } from '$lib/analytics';
@@ -47,6 +45,7 @@
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
+  let hasPlanning = $derived(featureFlags.has('planning'));
   // The "Gestion" section header must not show when none of its links would:
   // Doublons SF (hasSyncErrors) or Staff du campus (hasCampusTeam, lead-only).
   let showManagement = $derived(
@@ -136,40 +135,6 @@
   {/if}
 {/snippet}
 
-{#snippet comingSoonEntry(label: string, Icon: typeof IconType)}
-  <!-- Permanent Stage de Seconde surface that isn't built yet: rendered
-       disabled with a "Bientôt disponible" tooltip, mirroring the
-       "Faire l'entretien" button on the talent fiche. Re-enable by swapping the
-       {@render} call for a normal <a> nav link. -->
-  <Tooltip.Provider delayDuration={150}>
-    <Tooltip.Root>
-      <Tooltip.Trigger>
-        {#snippet child({ props })}
-          <!-- Wrapper takes the hover: a disabled control has no pointer
-               events, so the tooltip can't trigger on it directly. -->
-          <span
-            {...props}
-            class="flex cursor-not-allowed items-center gap-3 rounded-sm px-3 py-2 text-sm font-bold text-sidebar-foreground-muted opacity-50"
-          >
-            <Icon class="h-5 w-5" />
-            <span>{label}</span>
-          </span>
-        {/snippet}
-      </Tooltip.Trigger>
-      <!-- Right-anchored: these entries stack in the vertical nav, so a top
-           tooltip would cover the sibling row above. Right points into the
-           gutter between sidebar and main, covering nothing.
-           No arrow + a wider offset: the trigger fills the nav (its right edge
-           sits ~17px inside the sidebar, behind the px-4 gutter), so a pointer
-           arrow would land on the dark sidebar and vanish. We drop it and push
-           the chip clear of the sidebar onto the light content instead. -->
-      <Tooltip.Content side="right" sideOffset={20} showArrow={false}>
-        <p>Bientôt disponible</p>
-      </Tooltip.Content>
-    </Tooltip.Root>
-  </Tooltip.Provider>
-{/snippet}
-
 {#snippet navMenu()}
   {#if hasCodingClub}
     <div class="sidebar-section-title">
@@ -206,9 +171,10 @@
     </div>
     <nav class="space-y-1">
       <!-- Stage-only release scopes the workspace down to its live surfaces
-           (Inscrits, Émargement); Planning and Entretiens render disabled below.
-           The event overview and onboarding tracker are coding_club-era
-           surfaces, kept behind the flag so that future stays intact. -->
+           (Inscrits, Émargement, plus Planning once the campus has the flag);
+           Entretiens still renders disabled below. The event overview and
+           onboarding tracker are coding_club-era surfaces, kept behind the flag
+           so that future stays intact. -->
       {#if hasCodingClub}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
@@ -229,13 +195,11 @@
           <span>Onboarding</span>
         </a>
       {/if}
-      <!-- Live stage surfaces first (Inscrits, Émargement, Entretiens, then any
-           flag-gated ones), with the not-yet-shipped surfaces grouped last as
-           disabled "Bientôt disponible" entries. Keeping them last avoids greyed
-           rows splitting two live links, which reads as broken rather than
-           upcoming. Planning is built but de-scoped from this release (no
-           schedule data yet); re-enable it by swapping its {@render} call for an
-           <a> nav link to /planning. -->
+      <!-- Live stage surfaces: Inscrits and Émargement always, then the
+           flag-gated ones (Planning, Intervenants, Page d'accueil) and
+           Entretiens. Planning is governed per campus by the `planning` flag:
+           it appears once that campus's schedule is populated in DB and the
+           flag is switched on. -->
       <a
         href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
         class={navLinkClass(
@@ -254,6 +218,17 @@
         <UserCheck class="h-5 w-5" />
         <span>Émargement</span>
       </a>
+      {#if hasPlanning}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span>Planning</span>
+        </a>
+      {/if}
       {#if hasIntervenants}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
@@ -283,7 +258,6 @@
         <MessageSquare class="h-5 w-5" />
         <span>Entretiens</span>
       </a>
-      {@render comingSoonEntry('Planning', CalendarDays)}
     </nav>
   {/if}
 
