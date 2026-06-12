@@ -391,13 +391,9 @@ async function persistInterview(
     },
   });
 
-  const MESSAGES: Record<InterviewMode, string> = {
-    start: 'Entretien démarré.',
-    save: 'Entretien enregistré.',
-    close: 'Entretien clôturé.',
-    reopen: 'Entretien rouvert.',
-  };
-  return message(form, MESSAGES[mode]);
+  // Success carries no flash: the conduct UI signals each lifecycle outcome
+  // through its view transition (cover ⇆ questions ⇆ synthèse), not a toast.
+  return { form };
 }
 
 /**
@@ -435,7 +431,8 @@ async function discardInterview({ request, locals, params }: RequestEvent) {
     },
   });
 
-  return message(form, 'Entretien abandonné.');
+  // Same as conduct: the revert to the "à faire" cover is the visible feedback.
+  return { form };
 }
 
 export const actions: Actions = {

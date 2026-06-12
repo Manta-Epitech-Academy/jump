@@ -198,21 +198,22 @@
           cancel();
           return;
         }
+        // No success toast on a lifecycle action: each one visibly transitions
+        // the screen (cover ⇆ questions ⇆ synthèse finalisée), so the view
+        // change IS the confirmation. A toast would only narrate what's already
+        // on screen. Failures, which leave no visible trace, toast below.
         if (result.type === 'success') {
           if (lastAction === 'start') {
             status = 'in_progress';
             // Front the student-facing questions the moment the interview opens.
             step = 1;
-            toast.success('Entretien démarré.');
           } else if (lastAction === 'close') {
             status = 'done';
             saveState = 'idle';
-            toast.success('Entretien clôturé.');
           } else if (lastAction === 'reopen') {
             status = 'in_progress';
             // Land on the first section, not the cover: a reopen is a correction.
             step = 1;
-            toast.success('Entretien rouvert.');
           } else if (lastAction === 'abandon') {
             status = null;
             saveState = 'idle';
@@ -220,7 +221,6 @@
             // from a blank slate rather than recreating the abandoned answers.
             step = 0;
             reset({ data: { participationId: $form.participationId } });
-            toast.success('Entretien abandonné.');
           }
         } else if (result.type === 'failure') {
           toast.error(result.data?.form?.message ?? 'Une erreur est survenue.');
@@ -294,8 +294,11 @@
   // clôturé. Staff can navigate away freely (the answers autosave), so there is
   // nothing to confirm on the way out — the lifecycle is decoupled from the view.
 
-  // Clôture is the explicit end of the verdict step, so a lightweight confirm
-  // is enough to catch a misclick. Reopen-able, so nothing is lost.
+  // The one confirm worth keeping: clôture crosses a one-way door. An
+  // in_progress interview can be abandoned (deleted); a finalisé one can only be
+  // reopened to edit, never removed (abandonInterview is in_progress-scoped
+  // server-side). The confirm guards that deletable → permanent step, not data
+  // loss — answers autosave and reopen restores them.
   let closeConfirmOpen = $state(false);
   function doClose() {
     closeConfirmOpen = false;
@@ -1013,8 +1016,8 @@
         Clôturer l'entretien&nbsp;?
       </AlertDialog.Title>
       <AlertDialog.Description>
-        L'entretien passera en «&nbsp;finalisé&nbsp;» et la synthèse remplacera
-        la grille. Vous pourrez le rouvrir pour corriger les réponses.
+        L'entretien passera en «&nbsp;finalisé&nbsp;». Vous pourrez le rouvrir
+        pour corriger les réponses, mais vous ne pourrez plus l'abandonner.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
