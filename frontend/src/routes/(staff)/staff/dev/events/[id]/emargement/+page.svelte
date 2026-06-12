@@ -673,6 +673,14 @@
             await update();
             if (result.type === 'success')
               toast.success('Stagiaires en attente marqués présents.');
+            // The créneau closed between render and submit (e.g. the 11h/15h
+            // cutoff passed): the server refuses the bulk mark, surface why.
+            else if (result.type === 'failure')
+              toast.error(
+                (result.data?.form as { message?: string } | undefined)
+                  ?.message ??
+                  'Ce créneau est clôturé : corrigez les présences ligne par ligne.',
+              );
             presentConfirmOpen = false;
           }}
         class="flex justify-end gap-2 pt-2"

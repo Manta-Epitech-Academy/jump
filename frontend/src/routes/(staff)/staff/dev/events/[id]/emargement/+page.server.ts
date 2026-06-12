@@ -24,6 +24,7 @@ import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
 import {
   closePresenceSlot,
   reopenPresenceSlot,
+  markAllPresentInSlot,
 } from '$lib/server/services/presenceService';
 import {
   setPresenceSchema,
@@ -214,35 +215,25 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
+    const timezone = getCampusTimezone(locals);
     const event = await loadEventOr404(params.id, campusId);
-    const db = scopedPrisma(campusId);
 
-    const day = dateKeyToDbDate(form.data.day);
-    const { slot } = form.data;
+    const result = await markAllPresentInSlot(
+      campusId,
+      event.id,
+      dateKeyToDbDate(form.data.day),
+      form.data.slot,
+      timezone,
+      locals.staffProfile.id,
+    );
 
-    // The expected roster is read from Participation (the Salesforce mirror),
-    // same source as the load. One write fills every still-"en attente" cell:
-    // `skipDuplicates` against the (talent, event, day, slot) unique key inserts
-    // only where no row exists yet, so a talent already marked (absent, justifié,
-    // en retard, or present) keeps their row untouched. No clobber, one query.
-    const roster = await db.participation.findMany({
-      where: { eventId: event.id },
-      select: { talentId: true },
-    });
-    const now = new Date();
-    await db.eventPresence.createMany({
-      data: roster.map((p) => ({
-        talentId: p.talentId,
-        eventId: event.id,
-        day,
-        slot,
-        status: 'present' as const,
-        source: 'manual' as const,
-        markedById: locals.staffProfile.id,
-        markedAt: now,
-      })),
-      skipDuplicates: true,
-    });
+    if (result.status === 'closed') {
+      return message(
+        form,
+        'Ce créneau est clôturé : corrigez les présences ligne par ligne.',
+        { status: 409 },
+      );
+    }
 
     return message(form, 'Stagiaires en attente marqués présents.');
   },
