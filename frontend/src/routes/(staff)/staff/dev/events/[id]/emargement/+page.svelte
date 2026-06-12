@@ -470,6 +470,7 @@
               <!-- Notes icon, always present (every talent can have a note);
                    tinted epi-blue when a note exists so noted talents stand out. -->
               <Table.Cell class="text-right">
+                {@const note = rowNote(r)?.trim()}
                 <Tooltip.Root>
                   <Tooltip.Trigger>
                     {#snippet child({ props })}
@@ -477,7 +478,7 @@
                         {...props}
                         variant="ghost"
                         size="icon"
-                        class={`h-8 w-8 rounded-sm transition-colors hover:bg-epi-blue/10 hover:text-epi-blue ${rowNote(r)?.trim() ? 'text-epi-blue' : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground'}`}
+                        class={`h-8 w-8 rounded-sm transition-colors hover:bg-epi-blue/10 hover:text-epi-blue ${note ? 'text-epi-blue' : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground'}`}
                         onclick={() => openNotes(r)}
                         aria-label={`Notes de ${r.prenom} ${r.nom}`}
                       >
@@ -485,10 +486,20 @@
                       </Button>
                     {/snippet}
                   </Tooltip.Trigger>
-                  <Tooltip.Content>
-                    {rowNote(r)?.trim()
-                      ? 'Voir / éditer la note'
-                      : 'Ajouter une note'}
+                  <!-- When a note exists, surface its text on hover so staff can
+                       read it without opening the modal; clamp long notes and
+                       point to the click for the full editor. Empty: the CTA. -->
+                  <Tooltip.Content class="max-w-72">
+                    {#if note}
+                      <p class="line-clamp-6 text-left whitespace-pre-wrap">
+                        {note}
+                      </p>
+                      <p class="mt-1 text-left text-background/60">
+                        Cliquer pour éditer
+                      </p>
+                    {:else}
+                      Ajouter une note
+                    {/if}
                   </Tooltip.Content>
                 </Tooltip.Root>
               </Table.Cell>

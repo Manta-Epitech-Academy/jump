@@ -14,10 +14,15 @@
     talentId,
     note = null,
     onSaved,
+    onCancel,
   }: {
     talentId: string;
     note?: string | null;
     onSaved?: (note: string | null) => void;
+    // When provided, renders an "Annuler" button next to Enregistrer. The inline
+    // fiche passes this to drop back to its read view; the émargement modal omits
+    // it and leans on the dialog's own close instead.
+    onCancel?: () => void;
   } = $props();
 
   // Seed the edit buffer once from the loaded note: the editor owns `value` and
@@ -116,13 +121,20 @@
     <p class="text-xs text-muted-foreground">
       Visible uniquement par le staff.
     </p>
-    <Button size="sm" onclick={() => save()} disabled={saving || !dirty}>
-      {#if saving}
-        <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
-        Enregistrement…
-      {:else}
-        Enregistrer
+    <div class="flex items-center gap-2">
+      {#if onCancel}
+        <Button size="sm" variant="ghost" onclick={onCancel} disabled={saving}>
+          Annuler
+        </Button>
       {/if}
-    </Button>
+      <Button size="sm" onclick={() => save()} disabled={saving || !dirty}>
+        {#if saving}
+          <LoaderCircle class="mr-1.5 h-4 w-4 animate-spin" />
+          Enregistrement…
+        {:else}
+          Enregistrer
+        {/if}
+      </Button>
+    </div>
   </div>
 </div>

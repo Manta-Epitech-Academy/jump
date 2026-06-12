@@ -17,8 +17,7 @@
   import ContactCard from './components/ContactCard.svelte';
   import RightRailCard from './components/RightRailCard.svelte';
   import InterviewGridMock from './components/InterviewGridMock.svelte';
-  import * as Card from '$lib/components/ui/card';
-  import TalentNoteEditor from '$lib/components/dev/notes/TalentNoteEditor.svelte';
+  import TalentNotePanel from '$lib/components/dev/notes/TalentNotePanel.svelte';
 
   import type { FlagKey } from '$lib/domain/featureFlags';
   import { formatPersonName } from '$lib/domain/profile';
@@ -157,20 +156,6 @@
           </Tooltip.Root>
         </Tooltip.Provider>
 
-        <Card.Root>
-          <Card.Header class="pb-3">
-            <Card.Title class="text-sm font-bold uppercase">
-              Notes (staff)
-            </Card.Title>
-          </Card.Header>
-          <Card.Content>
-            <TalentNoteEditor
-              talentId={data.student.id}
-              note={data.student.note}
-            />
-          </Card.Content>
-        </Card.Root>
-
         <RightRailCard
           lastActiveAt={data.student.lastActiveAt}
           firstLoginAt={data.firstLoginAt}
@@ -181,6 +166,19 @@
           imageRightsDecision={data.student.imageRightsDecision}
           timezone={data.timezone}
         />
+
+        <!-- Staff note last: the Synthèse above is the at-a-glance dossier status
+             staff scan on every visit, the note is an annotation layer. Same
+             EpiSection chrome as the Synthèse so the rail reads as one charte-
+             styled column. Neutral accent: a free-text note carries no brand
+             vector. Read-first (TalentNotePanel) since it is read far more than
+             edited; the editor only mounts on demand. -->
+        <EpiSection title="Notes" accent="neutral">
+          <TalentNotePanel
+            talentId={data.student.id}
+            note={data.student.note}
+          />
+        </EpiSection>
       </div>
     </div>
   </div>
