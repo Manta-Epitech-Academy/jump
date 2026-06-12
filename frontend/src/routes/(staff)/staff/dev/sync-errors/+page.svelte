@@ -16,6 +16,7 @@
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { formatDateTimeFr, cn } from '$lib/utils';
+  import { formatPhoneForDisplay } from '$lib/domain/phone';
   import { toast } from 'svelte-sonner';
   import { track, daysBetween } from '$lib/analytics';
 
@@ -75,7 +76,9 @@
             class="group flex items-center gap-2 text-sm transition-colors hover:text-epi-blue"
           >
             <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span>{contact.phone}</span>
+            <span class="tabular-nums"
+              >{formatPhoneForDisplay(contact.phone) ?? contact.phone}</span
+            >
           </a>
         {:else}
           <p

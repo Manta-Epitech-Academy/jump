@@ -14,6 +14,9 @@
  *    with like.
  *  - `toBrevoRecipient` — the *send* form Brevo's SMS API wants, digits-only
  *    with no leading 0 and no "+" ("33765719823").
+ *  - `formatPhoneForDisplay`: the human-readable form for staff screens, in
+ *    international grouping ("+33 6 12 34 56 78") so a number is legible at a
+ *    glance instead of rendered as the run-together string we store.
  */
 
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
@@ -80,4 +83,28 @@ export function toBrevoRecipient(
   // typo or a fragment — refuse it rather than burn an SMS credit on a bounce.
   if (digits.length < 8 || digits.length > 15) return null;
   return digits;
+}
+
+/**
+ * Render a stored phone number in a legible, spaced form for display.
+ *
+ * Every number comes back in international grouping with its country code
+ * visible ("+33 6 12 34 56 78", "+44 7911 123456") — French numbers included,
+ * so staff always see the dialable form. Returns `null` for an empty value (so
+ * callers can `?? '—'` / `|| 'Aucun numéro'`), and falls back to the trimmed
+ * input verbatim when the value won't parse, so a malformed-but-present number
+ * is shown as-is rather than hidden. Display only: the `tel:` href and SMS
+ * sends keep deriving from the raw value.
+ */
+export function formatPhoneForDisplay(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  const parsed =
+    parsePhoneNumberFromString(trimmed) ??
+    parsePhoneNumberFromString(trimmed, DEFAULT_REGION);
+  if (!parsed?.isValid()) return trimmed;
+  return parsed.formatInternational();
 }
