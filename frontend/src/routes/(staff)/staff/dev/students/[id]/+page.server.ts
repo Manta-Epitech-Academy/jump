@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions, RequestEvent } from './$types';
 import { error, fail } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
+import { Prisma } from '@prisma/client';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import {
@@ -189,6 +190,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const existingInterview = primaryComplianceParticipation
       ? await db.interview.findUnique({
           where: { participationId: primaryComplianceParticipation.id },
+          include: {
+            staff: { select: { user: { select: { name: true } } } },
+          },
         })
       : null;
 
@@ -201,9 +205,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             orientationTalkAtSchool: existingInterview.orientationTalkAtSchool,
             passionateTeacher: existingInterview.passionateTeacher,
             techProjection: existingInterview.techProjection,
-            weekFavorite: existingInterview.weekFavorite,
             wantsMore: existingInterview.wantsMore,
-            satisfactionContent: existingInterview.satisfactionContent,
             recommendation: existingInterview.recommendation,
             specialties: existingInterview.specialties,
             otherJobs: existingInterview.otherJobs,
@@ -277,10 +279,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       noInterviewReason,
       interviewStatus: existingInterview?.status ?? null,
       interviewConductedAt: existingInterview?.conductedAt ?? null,
+      interviewConductedBy: existingInterview?.staff.user?.name ?? null,
     };
   } catch (e) {
+    // A genuinely missing talent (findUniqueOrThrow → P2025) is the only real
+    // 404. Anything else (a DB/infra fault, a bug like a stale schema) must
+    // surface as a 500, not masquerade as "introuvable" and hide the failure.
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === 'P2025'
+    ) {
+      throw error(404, 'Stagiaire introuvable');
+    }
     console.error('Erreur chargement stagiaire:', e);
-    throw error(404, 'Stagiaire introuvable');
+    throw e;
   }
 };
 

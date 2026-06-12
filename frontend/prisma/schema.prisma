@@ -122,24 +122,10 @@ enum InfoSource {
   autre
 }
 
-enum WeekDomain {
-  cyber
-  dev
-  devops
-  product_design
-  ia
-}
-
 enum WantsMoreAnswer {
   oui
   peut_etre
   pas_maintenant
-}
-
-enum SatisfactionContent {
-  trop_facile
-  bon_niveau
-  trop_dense
 }
 
 enum NextYearEvent {
@@ -824,9 +810,7 @@ model Interview {
   orientationTalkAtSchool OrientationTalkFrequency?
   passionateTeacher       PassionateTeacherAnswer?
   techProjection          TechProjection?
-  weekFavorite            WeekDomain?
   wantsMore               WantsMoreAnswer?
-  satisfactionContent     SatisfactionContent?
   recommendation          InterviewRecommendation?
 
   // Multi-choice answers (Postgres enum arrays).

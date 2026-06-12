@@ -8,9 +8,7 @@ import {
   TechProjection,
   OtherJobDomain,
   InfoSource,
-  WeekDomain,
   WantsMoreAnswer,
-  SatisfactionContent,
   NextYearEvent,
   InterviewRecommendation,
 } from '@prisma/client';
@@ -51,9 +49,7 @@ export const interviewConductSchema = z.object({
   orientationTalkAtSchool: nullableEnum(OrientationTalkFrequency),
   passionateTeacher: nullableEnum(PassionateTeacherAnswer),
   techProjection: nullableEnum(TechProjection),
-  weekFavorite: nullableEnum(WeekDomain),
   wantsMore: nullableEnum(WantsMoreAnswer),
-  satisfactionContent: nullableEnum(SatisfactionContent),
   recommendation: nullableEnum(InterviewRecommendation),
 
   // multi-choice
