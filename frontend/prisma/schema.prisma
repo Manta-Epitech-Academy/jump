@@ -197,6 +197,10 @@ model Talent {
   nom                         String
   prenom                      String
   niveau                      String?
+  // Free-text staff-only note (discipline, administratif, retard, …). Edited
+  // from the dev talent fiche and émargement. NEVER exposed to the talent
+  // portal — the (talent) loads that return locals.talent strip this field.
+  note                        String?
   xp                          Int       @default(0)
   eventsCount                 Int       @default(0)
   charterAcceptedAt           DateTime?

@@ -16,6 +16,7 @@ export const PRESENCE_ROSTER_SELECT = {
       civilite: true,
       email: true,
       phone: true,
+      note: true,
       user: { select: { email: true } },
       parentCivilite: true,
       parentPrenom: true,
@@ -47,6 +48,8 @@ export type PresenceRow = {
   civilite: string | null;
   email: string | null;
   phone: string | null;
+  /** Staff-only free-text note (`Talent.note`); null when none. */
+  note: string | null;
   /** Up to two guardians, in priority order; empty when none are on file. */
   guardians: Guardian[];
 };

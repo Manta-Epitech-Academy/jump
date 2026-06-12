@@ -35,8 +35,11 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     orderBy: { event: { date: 'desc' } },
   });
 
+  // Strip the staff-only `note` before returning the Talent row to the client.
+  const { note: _staffNote, ...student } = locals.talent;
+
   return {
-    student: locals.talent,
+    student,
     pastParticipations,
   };
 };

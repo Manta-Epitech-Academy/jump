@@ -8,6 +8,7 @@
   import QrCode from '@lucide/svelte/icons/qr-code';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Phone from '@lucide/svelte/icons/phone';
+  import NotebookPen from '@lucide/svelte/icons/notebook-pen';
   import Users from '@lucide/svelte/icons/users';
   import Lock from '@lucide/svelte/icons/lock';
   import LockOpen from '@lucide/svelte/icons/lock-open';
@@ -41,6 +42,7 @@
   import type { PresenceRow, PresenceSortKey } from './components/types';
   import PresenceSwitch from './components/PresenceSwitch.svelte';
   import ContactDialog from './components/ContactDialog.svelte';
+  import NotesDialog from './components/NotesDialog.svelte';
   import SlotStatsCard from './components/SlotStatsCard.svelte';
   import PresenceHelpCard from './components/PresenceHelpCard.svelte';
   import SlotNavigator from './components/SlotNavigator.svelte';
@@ -189,6 +191,7 @@
       label: activeSlot ? slotLabelFr(activeSlot.slot) : 'Présence',
       class: 'w-80',
     },
+    { key: 'notes', label: '', align: 'right', class: 'w-12' },
     { key: 'contact', label: 'Contact', align: 'right', class: 'w-20' },
   ]);
 
@@ -202,12 +205,35 @@
   let closeConfirmOpen = $state(false);
   let contactOpen = $state(false);
   let contactTarget = $state<PresenceRow | null>(null);
+  let notesOpen = $state(false);
+  let notesTarget = $state<PresenceRow | null>(null);
 
-  const anyDialogOpen = $derived(qrOpen || closeConfirmOpen || contactOpen);
+  const anyDialogOpen = $derived(
+    qrOpen || closeConfirmOpen || contactOpen || notesOpen,
+  );
 
   function openContact(row: PresenceRow) {
     contactTarget = row;
     contactOpen = true;
+  }
+
+  // Reactive note overrides (mirrors the presence `overrides` map): a save paints
+  // the new note locally so the row icon highlight and the next modal open use it
+  // without a full page reload.
+  const noteOverrides = new SvelteMap<string, string | null>();
+  function rowNote(row: PresenceRow): string | null {
+    return noteOverrides.has(row.talentId)
+      ? (noteOverrides.get(row.talentId) ?? null)
+      : row.note;
+  }
+
+  function openNotes(row: PresenceRow) {
+    notesTarget = { ...row, note: rowNote(row) };
+    notesOpen = true;
+  }
+
+  function onNoteSaved(talentId: string, note: string | null) {
+    noteOverrides.set(talentId, note);
   }
 
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
@@ -435,6 +461,31 @@
                   onset={(s) => setStatus(r, s)}
                 />
               </Table.Cell>
+              <!-- Notes icon, always present (every talent can have a note);
+                   tinted epi-blue when a note exists so noted talents stand out. -->
+              <Table.Cell class="text-right">
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        class={`h-8 w-8 rounded-sm transition-colors hover:bg-epi-blue/10 hover:text-epi-blue ${rowNote(r)?.trim() ? 'text-epi-blue' : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground'}`}
+                        onclick={() => openNotes(r)}
+                        aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                      >
+                        <NotebookPen class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>
+                    {rowNote(r)?.trim()
+                      ? 'Voir / éditer la note'
+                      : 'Ajouter une note'}
+                  </Tooltip.Content>
+                </Tooltip.Root>
+              </Table.Cell>
               <!-- Icon-only to cut the per-row noise of 200+ rows: quiet at rest,
                  brightening when the row is hovered or focused. Kept visible
                  (not display:none) so it stays tappable on a touch device where
@@ -480,6 +531,15 @@
                     <span class="font-medium">{r.prenom}</span>
                     <span class="font-bold uppercase">{r.nom}</span>
                   </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class={`h-8 w-8 shrink-0 rounded-sm hover:bg-epi-blue/10 hover:text-epi-blue ${rowNote(r)?.trim() ? 'text-epi-blue' : 'text-muted-foreground'}`}
+                    onclick={() => openNotes(r)}
+                    aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                  >
+                    <NotebookPen class="h-4 w-4" />
+                  </Button>
                   {#if r.phone || r.email || r.guardians.length}
                     <Button
                       variant="ghost"
@@ -626,6 +686,8 @@
 
 <!-- Contact card: phones to reach the stagiaire, then the family if no answer -->
 <ContactDialog bind:open={contactOpen} row={contactTarget} />
+
+<NotesDialog bind:open={notesOpen} row={notesTarget} onsaved={onNoteSaved} />
 
 <!-- Close-slot confirmation -->
 <Dialog.Root bind:open={closeConfirmOpen}>

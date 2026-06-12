@@ -6,6 +6,7 @@
   import Users from '@lucide/svelte/icons/users';
   import GraduationCap from '@lucide/svelte/icons/graduation-cap';
   import UserX from '@lucide/svelte/icons/user-x';
+  import NotebookPen from '@lucide/svelte/icons/notebook-pen';
   import Tags from '@lucide/svelte/icons/tags';
   import LogOut from '@lucide/svelte/icons/log-out';
   import Settings from '@lucide/svelte/icons/settings';
@@ -233,6 +234,13 @@
     >
       <GraduationCap class="h-4 w-4" />
       <span>Talents</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/notes')}
+      class={navLinkClass(isActive('/staff/admin/notes'))}
+    >
+      <NotebookPen class="h-4 w-4" />
+      <span>Notes</span>
     </a>
     <a
       href={resolve('/staff/admin/account-deletions')}

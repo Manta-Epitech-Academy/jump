@@ -194,8 +194,13 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       }
     }
 
+    // Strip the staff-only `note` before it ever reaches the talent's browser:
+    // `locals.talent` is the whole Talent row and this load returns it to the
+    // client. The note must never be visible to the student (minor).
+    const { note: _staffNote, ...student } = locals.talent;
+
     return {
-      student: locals.talent,
+      student,
       planning,
       minigame,
       minigameReward,

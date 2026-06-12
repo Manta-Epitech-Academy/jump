@@ -122,7 +122,11 @@ export const load: PageServerLoad = async ({ locals }) => {
       return { ...base, signerName: null, coSigner: null };
     });
 
-  return { talent: locals.talent, participationsCount, deletion, documents };
+  // Strip the staff-only `note`: this returns the whole Talent row to the
+  // student's browser, and the note must never be exposed to the talent (minor).
+  const { note: _staffNote, ...talent } = locals.talent;
+
+  return { talent, participationsCount, deletion, documents };
 };
 
 export const actions: Actions = {
