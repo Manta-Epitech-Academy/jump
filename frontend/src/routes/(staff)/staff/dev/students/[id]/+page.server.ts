@@ -288,7 +288,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   }
 };
 
-type InterviewMode = 'start' | 'save' | 'close' | 'reopen';
+type InterviewMode = 'start' | 'save' | 'close';
 
 /**
  * Upsert the orientation interview for the talent's active stage participation.
@@ -297,7 +297,8 @@ type InterviewMode = 'start' | 'save' | 'close' | 'reopen';
  *   - `start`  → create the row `in_progress` (the "Démarrer l'entretien" CTA)
  *   - `save`   → autosave answers, status unchanged
  *   - `close`  → flip to `done` (the "Clôturer l'entretien" CTA)
- *   - `reopen` → back to `in_progress` for corrections
+ * Clôture is a one-way door: a `done` interview is locked for good (guarded
+ * below), so the lifecycle only ever runs null → in_progress → done.
  * Dev-only (Talent Acquisition conducts interviews), stage-gated, re-validated.
  */
 async function persistInterview(
@@ -333,6 +334,24 @@ async function persistInterview(
     });
   }
 
+  // Clôture is terminal: once `done`, the interview is locked for good. Refuse
+  // any further mutation (autosave, re-close, or a stray start) server-side so
+  // the lock holds even against a replayed or hand-crafted POST, not just the
+  // removed UI controls.
+  const existing = await db.interview.findUnique({
+    where: { participationId: form.data.participationId },
+    select: { status: true },
+  });
+  if (existing?.status === 'done') {
+    return message(
+      form,
+      'Cet entretien est finalisé et ne peut plus être modifié.',
+      {
+        status: 409,
+      },
+    );
+  }
+
   const { participationId, oneSentence, interviewerNote, ...rest } = form.data;
 
   // Reveal-gated free text (teacher name/subject, the "Autre" precisions): trim,
@@ -363,7 +382,7 @@ async function persistInterview(
   const setStatus =
     mode === 'close'
       ? ('done' as const)
-      : mode === 'start' || mode === 'reopen'
+      : mode === 'start'
         ? ('in_progress' as const)
         : undefined;
 
@@ -388,49 +407,8 @@ async function persistInterview(
   return { form };
 }
 
-/**
- * Discard an in-progress interview, reverting the talent to "à faire". The
- * reverse of `start` (e.g. a misclicked "Démarrer"). Scoped to `in_progress`
- * so a finalised interview, which is a record, can never be deleted this way
- * (corrections go through `reopen`).
- */
-async function discardInterview({ request, locals, params }: RequestEvent) {
-  requireStaffGroup(locals, 'devMember');
-  requireFlag(locals, 'stage_seconde');
-
-  const campusId = getCampusId(locals);
-  const db = scopedPrisma(campusId);
-
-  const form = await superValidate(request, zod4(interviewConductSchema));
-  if (!form.valid) return fail(400, { form });
-
-  const participation = await db.participation.findUnique({
-    where: { id: form.data.participationId },
-    select: { id: true, talentId: true, campusId: true },
-  });
-  if (
-    !participation ||
-    participation.talentId !== params.id ||
-    participation.campusId !== campusId
-  ) {
-    return message(form, 'Entretien introuvable.', { status: 400 });
-  }
-
-  await db.interview.deleteMany({
-    where: {
-      participationId: form.data.participationId,
-      status: 'in_progress',
-    },
-  });
-
-  // Same as conduct: the revert to the "à faire" cover is the visible feedback.
-  return { form };
-}
-
 export const actions: Actions = {
   startInterview: (event) => persistInterview(event, 'start'),
   saveInterview: (event) => persistInterview(event, 'save'),
   closeInterview: (event) => persistInterview(event, 'close'),
-  reopenInterview: (event) => persistInterview(event, 'reopen'),
-  abandonInterview: discardInterview,
 };

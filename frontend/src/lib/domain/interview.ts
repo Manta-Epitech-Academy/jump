@@ -106,8 +106,8 @@ export type InterviewSection = {
  * Character ceilings for the interview's free-text fields. Single source for
  * both the Zod schema (server guard, `validation/interviews.ts`) and the
  * inputs' `maxlength` (client guard), so the form can never hold a value the
- * action would reject (which would otherwise silently fail the autosave and
- * block the abandon escape-hatch).
+ * action would reject (which would otherwise silently fail the autosave,
+ * stranding the edit).
  */
 export const INTERVIEW_TEXT_LIMITS = {
   teacherName: 120,

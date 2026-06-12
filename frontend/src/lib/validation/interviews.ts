@@ -35,10 +35,10 @@ const text = (max: number) =>
 
 /**
  * The orientation-interview grid. One schema backs every lifecycle action
- * (`startInterview` / `saveInterview` autosave / `closeInterview` /
- * `reopenInterview`) with the same payload, so closing never drops unsaved
- * edits. `status`/`staffId` are NOT in the payload: the action owns the status
- * transition, so an autosave can never accidentally close an interview.
+ * (`startInterview` / `saveInterview` autosave / `closeInterview`) with the
+ * same payload, so closing never drops unsaved edits. `status`/`staffId` are
+ * NOT in the payload: the action owns the status transition, so an autosave can
+ * never accidentally close an interview.
  */
 export const interviewConductSchema = z.object({
   participationId: z.string().min(1, 'Participation requise'),

@@ -1,10 +1,5 @@
 <script lang="ts" module>
-  export type InterviewAction =
-    | 'start'
-    | 'autosave'
-    | 'close'
-    | 'reopen'
-    | 'abandon';
+  export type InterviewAction = 'start' | 'autosave' | 'close';
   export type InterviewSaveState = 'idle' | 'saving' | 'saved';
   // Surfaced to the fiche so it can keep the lifecycle status in sync with the
   // toggle and show the in-flight state if it needs to.
@@ -25,9 +20,6 @@
   import Check from '@lucide/svelte/icons/check';
   import Play from '@lucide/svelte/icons/play';
   import Lock from '@lucide/svelte/icons/lock';
-  import LockOpen from '@lucide/svelte/icons/lock-open';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
-  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import Loader2 from '@lucide/svelte/icons/loader-2';
@@ -54,7 +46,6 @@
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import { cn } from '$lib/utils';
   import {
     INTERVIEW_SECTIONS,
@@ -85,8 +76,8 @@
     form: SuperValidated<InterviewConductForm>;
     talentName: string;
     // Lifecycle: null = "à faire" (not started), in_progress = "en cours"
-    // (started, autosaving), done = "finalisé" (synthesis, read-only until
-    // reopened). Bound up to the fiche so toggling the interview view off and on
+    // (started, autosaving), done = "finalisé" (synthesis, read-only and
+    // final). Bound up to the fiche so toggling the interview view off and on
     // never resurfaces "Démarrer" for an already-started interview.
     status: InterviewStatus | null;
     // Step cursor, bindable so the fiche's section-nav card can jump around.
@@ -167,24 +158,22 @@
   let formEl: HTMLFormElement;
   let startBtn: HTMLButtonElement;
   let closeBtn: HTMLButtonElement;
-  let abandonBtn: HTMLButtonElement;
-  let reopenBtn: HTMLButtonElement;
 
-  const { form, enhance, delayed, reset } = superForm(
+  const { form, enhance, delayed } = superForm(
     untrack(() => data),
     {
       dataType: 'json',
       resetForm: false,
       invalidateAll: false,
-      // Only one submit may be in flight. A lifecycle action (close / abandon /
-      // reopen) fired while a debounced autosave is mid-request ABORTS that
-      // autosave rather than being dropped: superForm's 'prevent' default would
-      // silently drop the lifecycle submit, then the stale autosave result would
-      // be read under the new `lastAction` and the close/abandon branch below
-      // would run: UI flips to "Finalisé" while the row is still in_progress in
-      // the DB. Abort also stops a fast second autosave from being lost behind a
-      // slow first one. `beginAction` clears the *scheduled* autosave; this
-      // covers the one already on the wire.
+      // Only one submit may be in flight. A lifecycle action (start / close)
+      // fired while a debounced autosave is mid-request ABORTS that autosave
+      // rather than being dropped: superForm's 'prevent' default would silently
+      // drop the lifecycle submit, then the stale autosave result would be read
+      // under the new `lastAction` and the close branch below would run: UI
+      // flips to "Finalisé" while the row is still in_progress in the DB. Abort
+      // also stops a fast second autosave from being lost behind a slow first
+      // one. `beginAction` clears the *scheduled* autosave; this covers the one
+      // already on the wire.
       multipleSubmits: 'abort',
       onResult: ({ result, cancel }) => {
         // Autosave: keep the client form authoritative (don't let the echoed
@@ -210,17 +199,6 @@
           } else if (lastAction === 'close') {
             status = 'done';
             saveState = 'idle';
-          } else if (lastAction === 'reopen') {
-            status = 'in_progress';
-            // Land on the first section, not the cover: a reopen is a correction.
-            step = 1;
-          } else if (lastAction === 'abandon') {
-            status = null;
-            saveState = 'idle';
-            // Back to the cover, and clear the grid so a later "Démarrer" starts
-            // from a blank slate rather than recreating the abandoned answers.
-            step = 0;
-            reset({ data: { participationId: $form.participationId } });
           }
         } else if (result.type === 'failure') {
           toast.error(result.data?.form?.message ?? 'Une erreur est survenue.');
@@ -295,30 +273,14 @@
   // clôturé. Staff can navigate away freely (the answers autosave), so there is
   // nothing to confirm on the way out, the lifecycle is decoupled from the view.
 
-  // The one confirm worth keeping: clôture crosses a one-way door. An
-  // in_progress interview can be abandoned (deleted); a finalisé one can only be
-  // reopened to edit, never removed (abandonInterview is in_progress-scoped
-  // server-side). The confirm guards that deletable → permanent step, not data
-  // loss: answers autosave and reopen restores them.
+  // The one confirm worth keeping: clôture crosses a one-way door. Finalising is
+  // terminal, a done interview is locked for good (the server refuses any later
+  // mutation), so the confirm guards that irreversible step.
   let closeConfirmOpen = $state(false);
   function doClose() {
     closeConfirmOpen = false;
     beginAction('close');
     formEl.requestSubmit(closeBtn);
-  }
-
-  // Abandon: the reverse of "Démarrer" for a misclicked start. Always confirmed
-  // (it's a delete); the warning adapts to whether anything was typed.
-  let abandonConfirmOpen = $state(false);
-  function doAbandon() {
-    abandonConfirmOpen = false;
-    beginAction('abandon');
-    formEl.requestSubmit(abandonBtn);
-  }
-
-  function doReopen() {
-    beginAction('reopen');
-    formEl.requestSubmit(reopenBtn);
   }
 
   // Public lifecycle controls (driven from the steps' own CTAs; also exported so
@@ -330,30 +292,10 @@
   export function close() {
     closeConfirmOpen = true;
   }
-  export function abandon() {
-    abandonConfirmOpen = true;
-  }
-  export function reopen() {
-    doReopen();
-  }
 
   // Surface autosave + in-flight state so the fiche can mirror it if it wants.
   $effect(() => {
     actionState = { busy: $delayed, lastAction, saveState };
-  });
-
-  // Any answer entered (excluding the participation key) drives the abandon
-  // confirmation copy: warn about data loss only when there is data to lose.
-  const hasAnswers = $derived.by(() => {
-    for (const [k, v] of Object.entries($form)) {
-      if (k === 'participationId') continue;
-      if (Array.isArray(v)) {
-        if (v.length > 0) return true;
-      } else if (v != null && v !== '') {
-        return true;
-      }
-    }
-    return false;
   });
 
   // The label of a question's current answer, for the synthesis: option labels
@@ -674,76 +616,30 @@
       aria-hidden="true"
       tabindex={-1}
     ></button>
-    <button
-      bind:this={abandonBtn}
-      type="submit"
-      formaction="?/abandonInterview"
-      class="hidden"
-      aria-hidden="true"
-      tabindex={-1}
-    ></button>
-    <button
-      bind:this={reopenBtn}
-      type="submit"
-      formaction="?/reopenInterview"
-      class="hidden"
-      aria-hidden="true"
-      tabindex={-1}
-    ></button>
 
     {#if status === 'done'}
-      <!-- ═══ Synthesis: the finalised interview at a glance. The default view
-           when coming back to a done interview, reopening is the secondary
-           action, reading is the primary one. ═══ -->
+      <!-- ═══ Synthesis: the finalised interview at a glance. Read-only and
+           final, clôture is a one-way door, so there is nothing to do here but
+           read it. ═══ -->
       <div class="px-5 py-6">
         <div class="mx-auto w-full max-w-2xl space-y-6">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3
-                class="font-heading text-2xl tracking-wide text-foreground uppercase"
-              >
-                Synthèse de l'entretien<span class="text-epi-teal">_</span>
-              </h3>
-              <p class="text-xs text-muted-foreground">
-                {#if conductedLabel && conductedBy}
-                  Mené le {conductedLabel} par {conductedBy}.
-                {:else if conductedBy}
-                  Mené par {conductedBy}.
-                {:else if conductedLabel}
-                  Mené le {conductedLabel}.
-                {:else}
-                  Entretien finalisé.
-                {/if}
-              </p>
-            </div>
-            <Tooltip.Provider delayDuration={150}>
-              <Tooltip.Root>
-                <Tooltip.Trigger>
-                  {#snippet child({ props })}
-                    <Button
-                      {...props}
-                      variant="outline"
-                      size="sm"
-                      disabled={$delayed}
-                      onclick={reopen}
-                    >
-                      {#if $delayed && lastAction === 'reopen'}
-                        <Loader2 class="mr-1.5 h-4 w-4 animate-spin" />
-                      {:else}
-                        <LockOpen class="mr-1.5 h-4 w-4" />
-                      {/if}
-                      Rouvrir
-                    </Button>
-                  {/snippet}
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                  <p>
-                    Repasser l'entretien en «&nbsp;en cours&nbsp;» pour corriger
-                    les réponses, puis le clôturer à nouveau.
-                  </p>
-                </Tooltip.Content>
-              </Tooltip.Root>
-            </Tooltip.Provider>
+          <div>
+            <h3
+              class="font-heading text-2xl tracking-wide text-foreground uppercase"
+            >
+              Synthèse de l'entretien<span class="text-epi-teal">_</span>
+            </h3>
+            <p class="text-xs text-muted-foreground">
+              {#if conductedLabel && conductedBy}
+                Mené le {conductedLabel} par {conductedBy}.
+              {:else if conductedBy}
+                Mené par {conductedBy}.
+              {:else if conductedLabel}
+                Mené le {conductedLabel}.
+              {:else}
+                Entretien finalisé.
+              {/if}
+            </p>
           </div>
 
           <!-- The verdict first: it's the one thing staff come back for. -->
@@ -864,20 +760,10 @@
                       </Button>
                     </div>
                   {:else}
-                    <div class="flex flex-col items-center gap-2 pt-2">
+                    <div class="flex justify-center pt-2">
                       <Button class="px-10" onclick={resume}>
                         Reprendre l'entretien
                         <ArrowRight class="ml-1.5 h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        class="text-muted-foreground hover:text-destructive"
-                        disabled={$delayed}
-                        onclick={abandon}
-                      >
-                        <Trash2 class="mr-1.5 h-3.5 w-3.5" />
-                        Abandonner l'entretien
                       </Button>
                     </div>
                   {/if}
@@ -1017,8 +903,9 @@
         Clôturer l'entretien&nbsp;?
       </AlertDialog.Title>
       <AlertDialog.Description>
-        L'entretien passera en «&nbsp;finalisé&nbsp;». Vous pourrez le rouvrir
-        pour corriger les réponses, mais vous ne pourrez plus l'abandonner.
+        L'entretien passera en «&nbsp;finalisé&nbsp;». Cette action est
+        définitive&nbsp;: vous ne pourrez plus le modifier. Vérifiez les
+        réponses avant de clôturer.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
@@ -1026,32 +913,6 @@
       <Button onclick={doClose}>
         <Lock class="mr-1.5 h-4 w-4" />
         Clôturer
-      </Button>
-    </AlertDialog.Footer>
-  </AlertDialog.Content>
-</AlertDialog.Root>
-
-<AlertDialog.Root bind:open={abandonConfirmOpen}>
-  <AlertDialog.Content class="rounded-sm">
-    <AlertDialog.Header>
-      <AlertDialog.Title class="flex items-center gap-2">
-        <TriangleAlert class="h-5 w-5 text-destructive" />
-        Abandonner l'entretien&nbsp;?
-      </AlertDialog.Title>
-      <AlertDialog.Description>
-        {#if hasAnswers}
-          Les réponses déjà saisies pour {talentName} seront définitivement supprimées
-          et le stagiaire repassera en «&nbsp;à faire&nbsp;».
-        {:else}
-          {talentName} repassera en «&nbsp;à faire&nbsp;». Rien n'a encore été saisi.
-        {/if}
-      </AlertDialog.Description>
-    </AlertDialog.Header>
-    <AlertDialog.Footer>
-      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
-      <Button variant="destructive" onclick={doAbandon}>
-        <Trash2 class="mr-1.5 h-4 w-4" />
-        Abandonner l'entretien
       </Button>
     </AlertDialog.Footer>
   </AlertDialog.Content>
