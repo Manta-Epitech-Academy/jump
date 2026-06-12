@@ -30,11 +30,6 @@ export const STAFF_GROUPS = {
   pedaLead: ['peda'],
   pedaMember: ['peda', 'manta'],
   leads: ['superdev', 'peda'],
-  // Roles eligible to be assigned as the staff side of an Interview, and
-  // permitted to fill the grid for any interview they were assigned to. Dev
-  // team owns the workflow (scheduling, reassignment, autoSchedule) but any
-  // staff role on a campus can run an interview and capture its outcome.
-  interviewers: ['superdev', 'dev', 'peda', 'manta'],
   // Roles a superdev may invite / assign on their campus. Excludes `admin`
   // (admin role is provisioned manually, not self-replicating).
   campusManageable: ['superdev', 'dev', 'peda', 'manta'],
@@ -74,10 +69,6 @@ const STAFF_GROUP_DESCRIPTIONS: Record<StaffGroup, StaffGroupDescription> = {
   leads: {
     label: "Responsable d'espace",
     contact: 'un superdev ou un référent péda',
-  },
-  interviewers: {
-    label: 'Membre interviewer',
-    contact: 'un membre staff de votre campus',
   },
   campusManageable: {
     label: 'Membre staff',

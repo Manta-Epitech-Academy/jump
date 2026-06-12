@@ -65,7 +65,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
       t.rulesSignedAt,
     );
     const image = imageRightsStatus(t);
-    const connected = (t.user?.sessions.length ?? 0) > 0;
+    const connected = t.firstLoginAt != null;
     const status = inscritStatus(connected, rules, image);
     const parentName = [t.parentPrenom, t.parentNom].filter(Boolean).join(' ');
     return [

@@ -12,6 +12,7 @@ import {
   pastEventWhere,
   upcomingEventWhere,
 } from '$lib/domain/eventLifecycle';
+import { hasFlag } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals }) => {
   const db = scopedPrisma(getCampusId(locals));
@@ -138,29 +139,37 @@ export const load: PageServerLoad = async ({ locals }) => {
     orderBy: { user: { name: 'asc' } },
   });
 
+  // Campuses with the planning feature off manage their schedule outside Jump,
+  // so the planning-prep tasks (and their dead links) must not surface.
+  const planningOn = hasFlag(locals, 'planning');
+
   const eventsMissingMantas = eventsInWeek
     .filter((ev) => ev.mantas.length === 0)
     .map((ev) => ({ id: ev.id, titre: ev.titre, date: ev.date }));
-  const eventsMissingPlanning = eventsInWeek
-    .filter((ev) => !ev.planning || ev.planning._count.timeSlots === 0)
-    .map((ev) => ({ id: ev.id, titre: ev.titre, date: ev.date }));
+  const eventsMissingPlanning = planningOn
+    ? eventsInWeek
+        .filter((ev) => !ev.planning || ev.planning._count.timeSlots === 0)
+        .map((ev) => ({ id: ev.id, titre: ev.titre, date: ev.date }))
+    : [];
   // Events that have a planning with at least one unassigned slot. Excluded
   // from this list are events with zero slots (they fall under
   // eventsMissingPlanning) — assigning slots is a different task than
   // creating them.
-  const eventsWithUnassignedSlots = eventsInWeek
-    .filter(
-      (ev) =>
-        ev.planning &&
-        ev.planning._count.timeSlots > 0 &&
-        ev.planning.timeSlots.length > 0,
-    )
-    .map((ev) => ({
-      id: ev.id,
-      titre: ev.titre,
-      date: ev.date,
-      unassignedCount: ev.planning!.timeSlots.length,
-    }));
+  const eventsWithUnassignedSlots = planningOn
+    ? eventsInWeek
+        .filter(
+          (ev) =>
+            ev.planning &&
+            ev.planning._count.timeSlots > 0 &&
+            ev.planning.timeSlots.length > 0,
+        )
+        .map((ev) => ({
+          id: ev.id,
+          titre: ev.titre,
+          date: ev.date,
+          unassignedCount: ev.planning!.timeSlots.length,
+        }))
+    : [];
 
   return {
     role,

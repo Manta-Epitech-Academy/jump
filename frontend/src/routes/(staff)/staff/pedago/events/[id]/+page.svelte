@@ -32,6 +32,7 @@
   let readiness = $derived(data.readiness);
   let kpis = $derived(data.kpis);
   let status = $derived(data.status);
+  let hasPlanning = $derived(data.featureFlags.includes('planning'));
 
   let presentRatio = $derived(
     kpis.participantsCount > 0
@@ -258,51 +259,53 @@
             Préparation pédago
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
-            <Card.Root class="rounded-sm">
-              <Card.Content class="flex items-start gap-3 p-4">
-                <CalendarDays
-                  class="mt-0.5 h-5 w-5 shrink-0 {readiness.hasPlanning
-                    ? 'text-epi-teal-solid'
-                    : 'text-yellow-500'}"
-                />
-                <div class="min-w-0 flex-1">
-                  <div class="text-sm font-bold uppercase">Planning</div>
-                  {#if !readiness.hasPlanning}
-                    <p
-                      class="mt-1 text-xs text-yellow-600 dark:text-yellow-400"
-                    >
-                      Pas encore construit
-                    </p>
-                  {:else if readiness.unassignedSlotsCount > 0}
-                    <p
-                      class="mt-1 text-xs text-yellow-600 dark:text-yellow-400"
-                    >
-                      {readiness.unassignedSlotsCount} créneau{readiness.unassignedSlotsCount >
-                      1
-                        ? 'x'
-                        : ''} sans activité
-                    </p>
-                  {:else}
-                    <p class="mt-1 text-xs text-muted-foreground">
-                      {readiness.totalSlots} créneau{readiness.totalSlots > 1
-                        ? 'x'
-                        : ''} · {readiness.orgaSlotsCount} appel{readiness.orgaSlotsCount >
-                      1
-                        ? 's'
-                        : ''}
-                    </p>
-                  {/if}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  href={resolve(`/staff/pedago/events/${event.id}/planning`)}
-                  class="shrink-0 gap-1 text-xs"
-                >
-                  Ouvrir <ArrowRight class="h-3 w-3" />
-                </Button>
-              </Card.Content>
-            </Card.Root>
+            {#if hasPlanning}
+              <Card.Root class="rounded-sm">
+                <Card.Content class="flex items-start gap-3 p-4">
+                  <CalendarDays
+                    class="mt-0.5 h-5 w-5 shrink-0 {readiness.hasPlanning
+                      ? 'text-epi-teal-solid'
+                      : 'text-yellow-500'}"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <div class="text-sm font-bold uppercase">Planning</div>
+                    {#if !readiness.hasPlanning}
+                      <p
+                        class="mt-1 text-xs text-yellow-600 dark:text-yellow-400"
+                      >
+                        Pas encore construit
+                      </p>
+                    {:else if readiness.unassignedSlotsCount > 0}
+                      <p
+                        class="mt-1 text-xs text-yellow-600 dark:text-yellow-400"
+                      >
+                        {readiness.unassignedSlotsCount} créneau{readiness.unassignedSlotsCount >
+                        1
+                          ? 'x'
+                          : ''} sans activité
+                      </p>
+                    {:else}
+                      <p class="mt-1 text-xs text-muted-foreground">
+                        {readiness.totalSlots} créneau{readiness.totalSlots > 1
+                          ? 'x'
+                          : ''} · {readiness.orgaSlotsCount} appel{readiness.orgaSlotsCount >
+                        1
+                          ? 's'
+                          : ''}
+                      </p>
+                    {/if}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    href={resolve(`/staff/pedago/events/${event.id}/planning`)}
+                    class="shrink-0 gap-1 text-xs"
+                  >
+                    Ouvrir <ArrowRight class="h-3 w-3" />
+                  </Button>
+                </Card.Content>
+              </Card.Root>
+            {/if}
 
             <Card.Root class="rounded-sm">
               <Card.Content class="flex items-start gap-3 p-4">

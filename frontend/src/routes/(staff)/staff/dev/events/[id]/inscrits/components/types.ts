@@ -5,9 +5,8 @@ import type { ImageRightsStatus } from '$lib/domain/imageRights';
 // The scoped-down inscrits page is one flat table: avatar, prenom, nom, lycee,
 // niveau, statut. This select stays lean on purpose: the cohort fetch (~200 rows)
 // must not drag the full Talent row (Salesforce-mirror columns) or full Interest
-// rows. The one exception is a minimal connection probe (a single real session
-// id, see `user.sessions` below) that gates the statut badge. The server load
-// imports this select so the query and the row type can never drift.
+// rows. The server load imports this select so the query and the row type can
+// never drift.
 export const INSCRIT_TALENT_SELECT = {
   id: true,
   nom: true,
@@ -21,19 +20,12 @@ export const INSCRIT_TALENT_SELECT = {
   rulesSignedAt: true,
   parentRulesSignedAt: true,
   imageRightsDecision: true,
-  // Connection probe: has the talent ever genuinely logged in? One session id is
-  // all the statut badge needs — `impersonatedBy: null` excludes admin
-  // impersonation sessions so testing a talent's experience never marks them as
-  // connected (same definition as the fiche's "première connexion").
-  user: {
-    select: {
-      sessions: {
-        where: { impersonatedBy: null },
-        take: 1,
-        select: { id: true },
-      },
-    },
-  },
+  // Has the talent ever genuinely logged in? Gates the statut badge. Read from
+  // the durable `firstLoginAt` projection (stamped once on first real,
+  // non-impersonated login), not a bauth_session probe: sessions are deleted by
+  // logout / identity repair, which would drop a real login back to "never
+  // connected". Same definition as the fiche's "première connexion".
+  firstLoginAt: true,
   school: { select: { id: true, name: true } },
   // Contact + parent identity. Not shown in the table, but the XLSX export
   // (export/+server.ts) emits them so the download is a usable cohort contact

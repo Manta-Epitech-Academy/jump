@@ -2,15 +2,18 @@
   import { onMount, untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { page } from '$app/state';
+  import { resolve } from '$app/paths';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import QrCode from '@lucide/svelte/icons/qr-code';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Phone from '@lucide/svelte/icons/phone';
+  import NotebookPen from '@lucide/svelte/icons/notebook-pen';
   import Users from '@lucide/svelte/icons/users';
   import Lock from '@lucide/svelte/icons/lock';
   import LockOpen from '@lucide/svelte/icons/lock-open';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   import Download from '@lucide/svelte/icons/download';
   import * as Table from '$lib/components/ui/table';
   import * as Dialog from '$lib/components/ui/dialog';
@@ -41,6 +44,7 @@
   import type { PresenceRow, PresenceSortKey } from './components/types';
   import PresenceSwitch from './components/PresenceSwitch.svelte';
   import ContactDialog from './components/ContactDialog.svelte';
+  import NotesDialog from './components/NotesDialog.svelte';
   import SlotStatsCard from './components/SlotStatsCard.svelte';
   import PresenceHelpCard from './components/PresenceHelpCard.svelte';
   import SlotNavigator from './components/SlotNavigator.svelte';
@@ -189,6 +193,7 @@
       label: activeSlot ? slotLabelFr(activeSlot.slot) : 'Présence',
       class: 'w-80',
     },
+    { key: 'notes', label: 'Note', align: 'right', class: 'w-12' },
     { key: 'contact', label: 'Contact', align: 'right', class: 'w-20' },
   ]);
 
@@ -199,15 +204,51 @@
 
   // ── Mutations ──────────────────────────────────────────────────────────
   let qrOpen = $state(false);
+  let presentConfirmOpen = $state(false);
   let closeConfirmOpen = $state(false);
   let contactOpen = $state(false);
   let contactTarget = $state<PresenceRow | null>(null);
+  let notesOpen = $state(false);
+  let notesTarget = $state<PresenceRow | null>(null);
 
-  const anyDialogOpen = $derived(qrOpen || closeConfirmOpen || contactOpen);
+  const anyDialogOpen = $derived(
+    qrOpen ||
+      presentConfirmOpen ||
+      closeConfirmOpen ||
+      contactOpen ||
+      notesOpen,
+  );
 
   function openContact(row: PresenceRow) {
     contactTarget = row;
     contactOpen = true;
+  }
+
+  // Reactive note overrides (mirrors the presence `overrides` map): a save paints
+  // the new note locally so the row icon highlight and the next modal open use it
+  // without a full page reload.
+  const noteOverrides = new SvelteMap<string, string | null>();
+  function rowNote(row: PresenceRow): string | null {
+    return noteOverrides.has(row.talentId)
+      ? (noteOverrides.get(row.talentId) ?? null)
+      : row.note;
+  }
+
+  function openNotes(row: PresenceRow) {
+    notesTarget = { ...row, note: rowNote(row) };
+    notesOpen = true;
+  }
+
+  function onNoteSaved(talentId: string, note: string | null) {
+    noteOverrides.set(talentId, note);
+  }
+
+  // The talent fiche opens in a new tab on purpose: staff stay anchored in the
+  // émargement flow (presence toggles, filters, scroll position) instead of
+  // navigating away mid-attendance, while still reaching the full dossier when a
+  // case needs it. Backs the row name/avatar links below.
+  function ficheHref(talentId: string): string {
+    return resolve(`/staff/dev/students/${talentId}`);
   }
 
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
@@ -416,11 +457,24 @@
             layout="fixed"
           >
             {#snippet row(r: PresenceRow)}
+              <!-- The avatar is the only fiche link: a small, conventional
+                   target that reuses an element already in the row, so it adds
+                   no surface to mis-tap while marking presence. New tab keeps
+                   staff anchored in the émargement flow. -->
               <Table.Cell>
-                <TalentAvatar
-                  talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                  size="sm"
-                />
+                <a
+                  href={ficheHref(r.talentId)}
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex"
+                  title="Voir la fiche"
+                  aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
+                >
+                  <TalentAvatar
+                    talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                    size="sm"
+                  />
+                </a>
               </Table.Cell>
               <Table.Cell class="font-medium">
                 <span class="block truncate" title={r.prenom}>{r.prenom}</span>
@@ -434,6 +488,42 @@
                   disabled={!canEdit}
                   onset={(s) => setStatus(r, s)}
                 />
+              </Table.Cell>
+              <!-- Notes icon, always present (every talent can have a note);
+                   tinted epi-blue when a note exists so noted talents stand out. -->
+              <Table.Cell class="text-right">
+                {@const note = rowNote(r)?.trim()}
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        class={`h-8 w-8 rounded-sm transition-colors hover:bg-epi-blue/10 hover:text-epi-blue ${note ? 'text-epi-blue' : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground'}`}
+                        onclick={() => openNotes(r)}
+                        aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                      >
+                        <NotebookPen class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <!-- When a note exists, surface its text on hover so staff can
+                       read it without opening the modal; clamp long notes and
+                       point to the click for the full editor. Empty: the CTA. -->
+                  <Tooltip.Content class="max-w-72">
+                    {#if note}
+                      <p class="line-clamp-6 text-left whitespace-pre-wrap">
+                        {note}
+                      </p>
+                      <p class="mt-1 text-left text-background/60">
+                        Cliquer pour éditer
+                      </p>
+                    {:else}
+                      Ajouter une note
+                    {/if}
+                  </Tooltip.Content>
+                </Tooltip.Root>
               </Table.Cell>
               <!-- Icon-only to cut the per-row noise of 200+ rows: quiet at rest,
                  brightening when the row is hovered or focused. Kept visible
@@ -472,14 +562,35 @@
             {#snippet mobileRow(r: PresenceRow)}
               <div class="space-y-2.5">
                 <div class="flex items-center gap-3">
-                  <TalentAvatar
-                    talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                    size="sm"
-                  />
+                  <!-- Avatar is the fiche link here too (new tab); the name and
+                       action buttons stay non-navigating so they're safe to tap
+                       on the floor. -->
+                  <a
+                    href={ficheHref(r.talentId)}
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex shrink-0"
+                    title="Voir la fiche"
+                    aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
+                  >
+                    <TalentAvatar
+                      talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                      size="sm"
+                    />
+                  </a>
                   <p class="min-w-0 flex-1 truncate text-sm">
                     <span class="font-medium">{r.prenom}</span>
                     <span class="font-bold uppercase">{r.nom}</span>
                   </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class={`h-8 w-8 shrink-0 rounded-sm hover:bg-epi-blue/10 hover:text-epi-blue ${rowNote(r)?.trim() ? 'text-epi-blue' : 'text-muted-foreground'}`}
+                    onclick={() => openNotes(r)}
+                    aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                  >
+                    <NotebookPen class="h-4 w-4" />
+                  </Button>
                   {#if r.phone || r.email || r.guardians.length}
                     <Button
                       variant="ghost"
@@ -580,15 +691,37 @@
                     </Button>
                   </form>
                 {:else}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="w-full rounded-sm"
-                    onclick={() => (closeConfirmOpen = true)}
-                  >
-                    <Lock class="mr-1.5 h-4 w-4" />
-                    Clôturer le créneau
-                  </Button>
+                  <!-- The two end-of-créneau bulk actions, paired so they read as
+                       a choice: mark everyone present, or clôturer (which marks the
+                       still-en-attente stagiaires absent and cuts the QR). The
+                       caption spells out the clôture effect, the part staff missed. -->
+                  <div class="space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="w-full rounded-sm"
+                        onclick={() => (presentConfirmOpen = true)}
+                      >
+                        <CheckCheck class="mr-1.5 h-4 w-4" />
+                        Tout présent
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="w-full rounded-sm"
+                        onclick={() => (closeConfirmOpen = true)}
+                      >
+                        <Lock class="mr-1.5 h-4 w-4" />
+                        Clôturer
+                      </Button>
+                    </div>
+                    <p class="text-[11px] leading-snug text-muted-foreground">
+                      En fin de créneau : marquez tout le monde présent, ou
+                      clôturez pour noter absents ceux qui restent « en attente
+                      ».
+                    </p>
+                  </div>
                 {/if}
               {/if}
             {/snippet}
@@ -627,11 +760,61 @@
 <!-- Contact card: phones to reach the stagiaire, then the family if no answer -->
 <ContactDialog bind:open={contactOpen} row={contactTarget} />
 
+<NotesDialog bind:open={notesOpen} row={notesTarget} onsaved={onNoteSaved} />
+
+<!-- Mark-all-present confirmation -->
+<Dialog.Root bind:open={presentConfirmOpen}>
+  <Dialog.Content class="rounded-sm sm:max-w-md">
+    <Dialog.Header>
+      <Dialog.Title>Marquer tout le monde présent ?</Dialog.Title>
+      <Dialog.Description>
+        Tous les stagiaires encore « En attente » sur ce créneau passeront
+        présents. Les présences déjà saisies (absent, justifié, en retard) ne
+        sont pas modifiées.
+      </Dialog.Description>
+    </Dialog.Header>
+    {#if activeSlot}
+      <form
+        method="POST"
+        action="?/markAllPresent"
+        use:formEnhance={() =>
+          async ({ result, update }) => {
+            await update();
+            if (result.type === 'success')
+              toast.success('Stagiaires en attente marqués présents.');
+            // The créneau closed between render and submit (e.g. the 11h/15h
+            // cutoff passed): the server refuses the bulk mark, surface why.
+            else if (result.type === 'failure')
+              toast.error(
+                (result.data?.form as { message?: string } | undefined)
+                  ?.message ??
+                  'Ce créneau est clôturé : corrigez les présences ligne par ligne.',
+              );
+            presentConfirmOpen = false;
+          }}
+        class="flex justify-end gap-2 pt-2"
+      >
+        <input type="hidden" name="day" value={activeSlot.day} />
+        <input type="hidden" name="slot" value={activeSlot.slot} />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onclick={() => (presentConfirmOpen = false)}
+        >
+          Annuler
+        </Button>
+        <Button type="submit" size="sm">Tout marquer présent</Button>
+      </form>
+    {/if}
+  </Dialog.Content>
+</Dialog.Root>
+
 <!-- Close-slot confirmation -->
 <Dialog.Root bind:open={closeConfirmOpen}>
   <Dialog.Content class="rounded-sm sm:max-w-md">
     <Dialog.Header>
-      <Dialog.Title>Clôturer le créneau ?</Dialog.Title>
+      <Dialog.Title>Clôturer et noter les absents ?</Dialog.Title>
       <Dialog.Description>
         Tous les stagiaires encore « En attente » seront marqués absents et le
         QR code de ce créneau cessera de fonctionner. Vous pourrez rouvrir le

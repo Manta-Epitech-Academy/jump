@@ -5,6 +5,7 @@
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import TalentName from '$lib/components/students/TalentName.svelte';
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
+  import { formatPhoneForDisplay } from '$lib/domain/phone';
   import type { ContactPerson } from './contact';
 
   let {
@@ -47,15 +48,16 @@
 {/snippet}
 
 {#snippet phoneRow(value: string, copyLabel: string)}
+  {@const display = formatPhoneForDisplay(value) ?? value}
   <div class="flex items-center gap-1">
     <a
       href={`tel:${value.replace(/\s+/g, '')}`}
       class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
     >
       <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span>{value}</span>
+      <span class="tabular-nums">{display}</span>
     </a>
-    <CopyButton {value} label={copyLabel} />
+    <CopyButton value={display} label={copyLabel} />
   </div>
 {/snippet}
 

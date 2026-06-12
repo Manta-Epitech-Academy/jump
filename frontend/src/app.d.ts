@@ -16,7 +16,10 @@ declare global {
       user: User | null;
       session: Session | null;
       staffProfile: (StaffProfile & { campus: Campus | null }) | null;
-      talent: Talent | null;
+      // `note` is the staff-only talent note; it is deliberately omitted here so
+      // a talent's own session object can never carry it to their browser. Staff
+      // surfaces read the note through their own scoped queries, not `locals`.
+      talent: Omit<Talent, 'note'> | null;
       /**
        * Campus name for the current talent, derived from their most recent
        * participation (talents have no direct Campus relation). Null for staff
@@ -76,7 +79,14 @@ declare global {
       devRedirectPin: { until: Date; to: string[] } | null;
     }
     // interface PageData {}
-    // interface PageState {}
+    interface PageState {
+      /**
+       * Fiche talent "Mode entretien" view toggle. Shallow-routed so flipping
+       * the switch is instant (no load rerun); mirrored to `?interview=1`,
+       * which seeds the mode again on a full reload or deep-link.
+       */
+      interviewMode?: boolean;
+    }
     // interface Platform {}
   }
 }

@@ -9,9 +9,8 @@ import {
 } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_TYPES } from '$lib/domain/event';
 import {
-  eventSlots,
+  presenceSlots,
   slotKey,
   dateKeyToDbDate,
   dbDateToKey,
@@ -25,9 +24,11 @@ import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
 import {
   closePresenceSlot,
   reopenPresenceSlot,
+  markAllPresentInSlot,
 } from '$lib/server/services/presenceService';
 import {
   setPresenceSchema,
+  markAllPresentSchema,
   closeSlotSchema,
   reopenSlotSchema,
 } from '$lib/validation/presence';
@@ -40,8 +41,6 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   const timezone = getCampusTimezone(locals);
   const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
-
-  const workdaysOnly = event.eventType === EVENT_TYPES.STAGE_SECONDE;
 
   const [participations, presenceRows, closureRows] = await Promise.all([
     db.participation.findMany({
@@ -66,7 +65,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   ]);
 
   const now = new Date();
-  const slots = eventSlots(event, timezone, { workdaysOnly });
+  const slots = presenceSlots(event, timezone);
 
   const rows: PresenceRow[] = participations.map((p) => {
     const t = p.talent;
@@ -95,6 +94,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
       // Prefer the login email (authoritative) over the imported SF address.
       email: t.user?.email ?? t.email,
       phone: t.phone,
+      note: t.note,
       guardians,
     };
   });
@@ -208,6 +208,35 @@ export const actions: Actions = {
     });
 
     return message(form, 'Présence enregistrée.');
+  },
+
+  markAllPresent: async ({ request, locals, params }) => {
+    requireStaffGroup(locals, 'devMember');
+    const form = await superValidate(request, zod4(markAllPresentSchema));
+    if (!form.valid) return fail(400, { form });
+
+    const campusId = getCampusId(locals);
+    const timezone = getCampusTimezone(locals);
+    const event = await loadEventOr404(params.id, campusId);
+
+    const result = await markAllPresentInSlot(
+      campusId,
+      event.id,
+      dateKeyToDbDate(form.data.day),
+      form.data.slot,
+      timezone,
+      locals.staffProfile.id,
+    );
+
+    if (result.status === 'closed') {
+      return message(
+        form,
+        'Ce créneau est clôturé : corrigez les présences ligne par ligne.',
+        { status: 409 },
+      );
+    }
+
+    return message(form, 'Stagiaires en attente marqués présents.');
   },
 
   closeSlot: async ({ request, locals, params }) => {

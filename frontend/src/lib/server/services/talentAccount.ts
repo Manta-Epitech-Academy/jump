@@ -241,10 +241,10 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       });
     }
 
-    // 2. Delete every other talent-scoped record created after import. Interviews
-    //    cascade their OutlookCalendarSync rows; broadcast recipients are matched
-    //    on both the talent and parent-of slots (SetNull relations, so deleted
-    //    explicitly rather than left orphaned).
+    // 2. Delete every other talent-scoped record created after import.
+    //    Broadcast recipients are matched on both the talent and parent-of
+    //    slots (SetNull relations, so deleted explicitly rather than left
+    //    orphaned).
     await tx.interview.deleteMany({ where: { talentId } });
     await tx.stepsProgress.deleteMany({ where: { talentId } });
     await tx.portfolioItem.deleteMany({ where: { talentId } });
@@ -319,7 +319,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         discordId: null,
         badges: Prisma.DbNull,
         lastSyncedAt: null,
+        // Activity projections: a fresh-import talent has never logged in, so
+        // both the first-login and last-active facts are dropped alongside the
+        // account itself (userId null + bauth_user deleted below).
         lastActiveAt: null,
+        firstLoginAt: null,
         userId: null,
       },
     });

@@ -7,6 +7,8 @@
   import SlotDayGroup from './components/SlotDayGroup.svelte';
 
   let { data }: { data: PageData } = $props();
+
+  let hasPlanning = $derived(data.featureFlags.includes('planning'));
 </script>
 
 <svelte:head>
@@ -25,14 +27,18 @@
         <h2 class="mt-4 text-base font-bold">Aucun créneau d'appel</h2>
         <p class="mt-2 text-sm text-muted-foreground">
           Ce stage ne contient pas encore d'activité de type « orga ».
-          Ajoutez-en dans le planning pour piloter les appels ici.
+          {#if hasPlanning}
+            Ajoutez-en dans le planning pour piloter les appels ici.
+          {/if}
         </p>
-        <a
-          href={resolve(`/staff/pedago/events/${data.event.id}/planning`)}
-          class={buttonVariants({ variant: 'default', class: 'mt-4' })}
-        >
-          Ouvrir le planning
-        </a>
+        {#if hasPlanning}
+          <a
+            href={resolve(`/staff/pedago/events/${data.event.id}/planning`)}
+            class={buttonVariants({ variant: 'default', class: 'mt-4' })}
+          >
+            Ouvrir le planning
+          </a>
+        {/if}
       </div>
     </div>
   {:else}

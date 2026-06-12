@@ -18,9 +18,17 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { fromWallClock, isDateKey, toDateKey } from '$lib/domain/planningTime';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 
 type PlanningEvent = RequestEvent<{ id: string }>;
+
+// Every planning mutation needs both gates: the campus must have the planning
+// feature on, and the actor must be a workspace lead. Keeping them in one
+// helper stops the two from drifting apart across the ~10 actions below.
+function requirePlanningLead(locals: App.Locals) {
+  requireFlag(locals, 'planning');
+  requireStaffGroup(locals, 'leads');
+}
 
 // Builds the UTC start/end instants for a slot from the form's wall-clock
 // inputs. The `slotDate` form field is the campus-local calendar day the user
@@ -48,7 +56,7 @@ export const planningActions = {
   // Creates an empty TimeSlot (no Activity). The slot renders as "to be
   // assigned" until the user picks an activity for it.
   createTimeSlot: async ({ request, locals, params }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const formData = await request.formData();
     const form = await superValidate(formData, zod4(timeSlotSchema));
     if (!form.valid) return fail(400, { form });
@@ -89,7 +97,7 @@ export const planningActions = {
   // Assigns an activity to an existing empty slot. Accepts either inline
   // fields or a templateId for template-based assignment.
   assignActivity: async ({ request, locals }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const form = await superValidate(request, zod4(assignActivitySchema));
     if (!form.valid) return fail(400, { form });
     try {
@@ -171,7 +179,7 @@ export const planningActions = {
     locals,
     params,
   }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const formData = await request.formData();
     const form = await superValidate(
       formData,
@@ -264,7 +272,7 @@ export const planningActions = {
   },
 
   updateTimeSlot: async ({ request, locals, params }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const formData = await request.formData();
     const timeSlotId = formData.get('timeSlotId') as string;
     if (!timeSlotId) return fail(400);
@@ -304,7 +312,7 @@ export const planningActions = {
   },
 
   deleteTimeSlot: async ({ url, locals }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const timeSlotId = url.searchParams.get('id');
     if (!timeSlotId) return fail(400);
     try {
@@ -318,7 +326,7 @@ export const planningActions = {
   },
 
   renameActivity: async ({ request, locals }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const form = await superValidate(request, zod4(renameActivitySchema));
     if (!form.valid) return fail(400, { form });
 
@@ -336,7 +344,7 @@ export const planningActions = {
   },
 
   updateActivity: async ({ request, locals }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const form = await superValidate(request, zod4(updateActivitySchema));
     if (!form.valid) return fail(400, { form });
     try {
@@ -360,7 +368,7 @@ export const planningActions = {
   },
 
   changeActivityType: async ({ request, locals }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const form = await superValidate(request, zod4(changeActivityTypeSchema));
     if (!form.valid) return fail(400, { form });
 
@@ -385,7 +393,7 @@ export const planningActions = {
   deleteActivity: async ({ url, locals }: PlanningEvent) => {
     // Deleting the activity also deletes its slot — the 1:1 invariant means an
     // empty slot is not a valid state.
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const activityId = url.searchParams.get('id');
     if (!activityId) return fail(400);
     try {
@@ -403,7 +411,7 @@ export const planningActions = {
   },
 
   applyTemplate: async ({ request, locals, params }: PlanningEvent) => {
-    requireStaffGroup(locals, 'leads');
+    requirePlanningLead(locals);
     const form = await superValidate(
       request,
       zod4(applyPlanningTemplateSchema),

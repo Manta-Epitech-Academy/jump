@@ -1,5 +1,6 @@
 <script lang="ts">
   import { niveauLabel } from '$lib/domain/niveau';
+  import { formatPhoneForDisplay } from '$lib/domain/phone';
   import * as Command from '$lib/components/ui/command';
   import { goto } from '$app/navigation';
   import Calendar from '@lucide/svelte/icons/calendar';
@@ -164,9 +165,9 @@
                 class="ml-auto flex items-center gap-2 rounded-sm bg-blue-50 px-2 py-1 text-epi-blue dark:bg-blue-900/30"
               >
                 <Phone class="h-3.5 w-3.5" />
-                <span class="text-xs font-black"
-                  >{student.phone ||
-                    student.parentPhone ||
+                <span class="text-xs font-black tabular-nums"
+                  >{formatPhoneForDisplay(student.phone) ||
+                    formatPhoneForDisplay(student.parentPhone) ||
                     'Aucun numéro'}</span
                 >
               </div>

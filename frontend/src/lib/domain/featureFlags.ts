@@ -66,6 +66,14 @@ export const FEATURE_FLAGS = {
       'Résolution des doublons de synchronisation Salesforce côté dev (/staff/dev/sync-errors).',
     removeBy: new Date('2026-07-15'),
   }),
+  planning: def({
+    key: 'planning',
+    kind: 'capability',
+    defaultEnabled: false,
+    label: 'Planning',
+    description:
+      'Planning des stages / coding clubs (dev, pédago, talent). Activer pour les campus qui gèrent leur emploi du temps dans Jump.',
+  }),
 };
 
 export type FlagKey = keyof typeof FEATURE_FLAGS;
