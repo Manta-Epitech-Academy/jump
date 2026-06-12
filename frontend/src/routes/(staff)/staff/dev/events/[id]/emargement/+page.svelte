@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { page } from '$app/state';
+  import { resolve } from '$app/paths';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
@@ -192,7 +193,7 @@
       label: activeSlot ? slotLabelFr(activeSlot.slot) : 'Présence',
       class: 'w-80',
     },
-    { key: 'notes', label: '', align: 'right', class: 'w-12' },
+    { key: 'notes', label: 'Note', align: 'right', class: 'w-12' },
     { key: 'contact', label: 'Contact', align: 'right', class: 'w-20' },
   ]);
 
@@ -240,6 +241,14 @@
 
   function onNoteSaved(talentId: string, note: string | null) {
     noteOverrides.set(talentId, note);
+  }
+
+  // The talent fiche opens in a new tab on purpose: staff stay anchored in the
+  // émargement flow (presence toggles, filters, scroll position) instead of
+  // navigating away mid-attendance, while still reaching the full dossier when a
+  // case needs it. Backs the row name/avatar links below.
+  function ficheHref(talentId: string): string {
+    return resolve(`/staff/dev/students/${talentId}`);
   }
 
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
@@ -448,11 +457,24 @@
             layout="fixed"
           >
             {#snippet row(r: PresenceRow)}
+              <!-- The avatar is the only fiche link: a small, conventional
+                   target that reuses an element already in the row, so it adds
+                   no surface to mis-tap while marking presence. New tab keeps
+                   staff anchored in the émargement flow. -->
               <Table.Cell>
-                <TalentAvatar
-                  talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                  size="sm"
-                />
+                <a
+                  href={ficheHref(r.talentId)}
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex"
+                  title="Voir la fiche"
+                  aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
+                >
+                  <TalentAvatar
+                    talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                    size="sm"
+                  />
+                </a>
               </Table.Cell>
               <Table.Cell class="font-medium">
                 <span class="block truncate" title={r.prenom}>{r.prenom}</span>
@@ -540,10 +562,22 @@
             {#snippet mobileRow(r: PresenceRow)}
               <div class="space-y-2.5">
                 <div class="flex items-center gap-3">
-                  <TalentAvatar
-                    talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                    size="sm"
-                  />
+                  <!-- Avatar is the fiche link here too (new tab); the name and
+                       action buttons stay non-navigating so they're safe to tap
+                       on the floor. -->
+                  <a
+                    href={ficheHref(r.talentId)}
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex shrink-0"
+                    title="Voir la fiche"
+                    aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
+                  >
+                    <TalentAvatar
+                      talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                      size="sm"
+                    />
+                  </a>
                   <p class="min-w-0 flex-1 truncate text-sm">
                     <span class="font-medium">{r.prenom}</span>
                     <span class="font-bold uppercase">{r.nom}</span>
