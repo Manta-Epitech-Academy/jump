@@ -197,28 +197,39 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);
     event.locals.planningPreview = readPlanningPreview(event);
 
-    // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget).
-    // Skip while impersonated: the request is an admin testing the talent's
-    // experience, not the talent being active. Counting it would mark a
-    // never-logged-in talent as recently connected (and leave "dernière
-    // connexion" disagreeing with "première connexion", which filters
-    // impersonation sessions out).
+    // 2.5 Stamp the talent's activity projections (fire-and-forget). Two durable
+    // facts derived from this real request:
+    //   - `firstLoginAt` — set once, on the first real request, never cleared.
+    //     It is the durable source for "première connexion" / the cohort funnel's
+    //     "connected" gate, replacing a probe of bauth_session (whose rows are
+    //     deleted by logout, identity repair and account relinks, so a real
+    //     login would read "Jamais" once its session vanished).
+    //   - `lastActiveAt` — throttled to once per day.
+    // Skip both while impersonated: the request is an admin testing the talent's
+    // experience, not the talent being active. Counting it would falsely mark a
+    // never-logged-in talent as connected.
     if (event.locals.talent && !impersonatedById) {
       const now = new Date();
-      const lastActive = event.locals.talent.lastActiveAt;
-      if (
+      const talent = event.locals.talent;
+      const needFirstLogin = talent.firstLoginAt == null;
+      const lastActive = talent.lastActiveAt;
+      const lastActiveStale =
         !lastActive ||
-        now.getTime() - lastActive.getTime() > 1000 * 60 * 60 * 24
-      ) {
+        now.getTime() - lastActive.getTime() > 1000 * 60 * 60 * 24;
+      if (needFirstLogin || lastActiveStale) {
         prisma.talent
           .update({
-            where: { id: event.locals.talent.id },
-            data: { lastActiveAt: now },
+            where: { id: talent.id },
+            data: {
+              lastActiveAt: now,
+              ...(needFirstLogin ? { firstLoginAt: now } : {}),
+            },
           })
           .catch((e) =>
-            console.warn('[lastActiveAt] update failed:', e.message),
+            console.warn('[talent activity] update failed:', e.message),
           );
-        event.locals.talent.lastActiveAt = now;
+        talent.lastActiveAt = now;
+        if (needFirstLogin) talent.firstLoginAt = now;
       }
     }
   }

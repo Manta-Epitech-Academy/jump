@@ -319,7 +319,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         discordId: null,
         badges: Prisma.DbNull,
         lastSyncedAt: null,
+        // Activity projections: a fresh-import talent has never logged in, so
+        // both the first-login and last-active facts are dropped alongside the
+        // account itself (userId null + bauth_user deleted below).
         lastActiveAt: null,
+        firstLoginAt: null,
         userId: null,
       },
     });

@@ -48,7 +48,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       reminderRows,
       broadcastRows,
       completedInterviewCount,
-      firstLoginRow,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -114,16 +113,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       }),
       db.interview.count({
         where: { talentId: params.id, status: 'done' },
-      }),
-      // First platform login (oldest real session). Keyed on the talent relation
-      // so it parallelizes with the fetch above instead of waiting on its userId;
-      // a cross-campus id still 404s via the scoped talent fetch in this batch.
-      // `impersonatedBy: null` excludes admin impersonation sessions, so testing
-      // a talent's experience never counts as their first login.
-      prisma.bauth_session.findFirst({
-        where: { user: { talent: { id: params.id } }, impersonatedBy: null },
-        orderBy: { createdAt: 'asc' },
-        select: { createdAt: true },
       }),
     ]);
 
@@ -231,9 +220,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       ? null
       : 'Aucun stage de seconde en cours pour ce stagiaire.';
 
-    // Backs the right rail's "première connexion" line and tells the dev
-    // whether the talent ever logged in (fetched in the batch above).
-    const firstLoginAt = firstLoginRow?.createdAt ?? null;
+    // Backs the right rail's "première connexion" line and tells the dev whether
+    // the talent ever logged in. Read from the durable `Talent.firstLoginAt`
+    // projection (stamped once on first real login in hooks), not a bauth_session
+    // probe — sessions are deleted by logout / identity repair, which would make
+    // a real login read "Jamais".
+    const firstLoginAt = student.firstLoginAt;
 
     const charteSigned =
       primaryComplianceParticipation?.stageCompliance?.charteSigned;

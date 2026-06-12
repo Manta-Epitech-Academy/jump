@@ -73,7 +73,7 @@ export type TalentRecommendationInput = TalentOnboardingFields & {
    * keep this module pure/testable.
    */
   appUrl: string;
-  /** Whether the talent ever logged in (an oldest `bauth_session` exists). */
+  /** Whether the talent ever logged in (the durable `Talent.firstLoginAt` is set). */
   connected: boolean;
   /**
    * Règlement intérieur compliance: guardian co-signed online

@@ -347,6 +347,13 @@ model Talent {
   externalId                  String?              @unique
   lastSyncedAt                DateTime?
   lastActiveAt                DateTime?
+  // First real (non-impersonated) login, stamped once in hooks.server.ts and
+  // never cleared. A durable projection of "has this talent ever connected" —
+  // distinct from probing bauth_session, whose rows are deleted by logout,
+  // identity repair and account relinks, so a real login would otherwise read
+  // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
+  // activity); this is the MIN.
+  firstLoginAt                DateTime?
   welcomeSeenAt               DateTime?
   createdAt                   DateTime             @default(now())
   updatedAt                   DateTime             @updatedAt
