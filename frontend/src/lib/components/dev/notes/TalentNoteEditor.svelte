@@ -20,7 +20,12 @@
     onSaved?: (note: string | null) => void;
   } = $props();
 
+  // Seed the edit buffer once from the loaded note: the editor owns `value` and
+  // `baseContent` after mount (it remounts per talent and per dialog open), so
+  // capturing only the initial prop value is intentional, not a missed reaction.
+  // svelte-ignore state_referenced_locally
   let value = $state(note ?? '');
+  // svelte-ignore state_referenced_locally
   let baseContent = $state(note ?? '');
   let saving = $state(false);
   let conflict = $state<{ current: string | null } | null>(null);
@@ -71,6 +76,7 @@
     bind:value
     rows={6}
     disabled={saving}
+    maxlength={5000}
     placeholder="Discipline, administratif, retard…"
     class="min-h-28 resize-y"
     aria-invalid={conflict ? true : undefined}

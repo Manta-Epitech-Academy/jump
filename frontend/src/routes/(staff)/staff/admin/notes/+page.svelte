@@ -27,7 +27,7 @@
       {#each data.talents as talent (talent.id)}
         <Card.Root>
           <Card.Header class="pb-3">
-            <StudentAvatarItem student={talent} />
+            <StudentAvatarItem student={talent} subText={talent.campus} />
           </Card.Header>
           <Card.Content>
             <p class="text-sm whitespace-pre-wrap">{talent.note}</p>

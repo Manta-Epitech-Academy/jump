@@ -16,7 +16,10 @@ declare global {
       user: User | null;
       session: Session | null;
       staffProfile: (StaffProfile & { campus: Campus | null }) | null;
-      talent: Talent | null;
+      // `note` is the staff-only talent note; it is deliberately omitted here so
+      // a talent's own session object can never carry it to their browser. Staff
+      // surfaces read the note through their own scoped queries, not `locals`.
+      talent: Omit<Talent, 'note'> | null;
       /**
        * Campus name for the current talent, derived from their most recent
        * participation (talents have no direct Campus relation). Null for staff
