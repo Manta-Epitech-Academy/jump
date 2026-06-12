@@ -5,6 +5,7 @@ import { emailOTP } from 'better-auth/plugins/email-otp';
 import { prisma } from '$lib/server/db';
 import { env } from '$env/dynamic/private';
 import { sendOtpEmail, sendParentOtpEmail } from '$lib/server/otp';
+import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
 import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
 
@@ -25,7 +26,9 @@ export const auth = betterAuth({
 
   plugins: [
     admin({
-      impersonationSessionDuration: 30 * 60,
+      // Creation window; the same value is the idle window that
+      // `slideImpersonationExpiry` extends by on activity (see hooks).
+      impersonationSessionDuration: IMPERSONATION_IDLE_WINDOW_SEC,
     }),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {

@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
+import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
@@ -157,6 +158,13 @@ export const handle: Handle = async ({ event, resolve }) => {
     const impersonatedById =
       (event.locals.session as { impersonatedBy?: string | null } | null)
         ?.impersonatedBy ?? null;
+    // Keep an actively-used impersonation session from hitting its hard wall:
+    // slide its expiry forward so an admin testing a talent's flow is never
+    // bounced to login (which would drop their own admin session too). An
+    // abandoned session still lapses after the idle window. See the helper.
+    if (impersonatedById && event.locals.session) {
+      slideImpersonationExpiry(event.locals.session);
+    }
     if (impersonatedById) {
       const adminRecord = await prisma.bauth_user.findUnique({
         where: { id: impersonatedById },
