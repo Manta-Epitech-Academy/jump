@@ -40,7 +40,7 @@
   );
 
   // Contacts surfaced (copyable) next to the recommendations that need a
-  // call/email. The fiche is read-only for dev staff — no talent edits here.
+  // call/email. The fiche is read-only for dev staff, no talent edits here.
   const contacts = $derived({
     parentEmail: data.student.parentEmail,
     parentPhone: data.student.parentPhone,
@@ -51,13 +51,13 @@
   // "Mode entretien" swaps the dossier (interests + recommendations + contact)
   // for the focused interview flow; the right rail drops to just this toggle so
   // nothing competes with the question on screen. The toggle is purely a view:
-  // the interview's lifecycle is independent — it stays in_progress until
+  // the interview's lifecycle is independent: it stays in_progress until
   // explicitly clôturé, so flipping the switch off (or navigating away) never
   // cancels anything. Two layers keep it on the URL without a load rerun:
-  // `page.state.interviewMode` is the live value (shallow routing — it's what
+  // `page.state.interviewMode` is the live value (shallow routing, it's what
   // `replaceState` updates reactively; `page.url` only moves on real
   // navigations), and the mirrored `?interview=1` param survives what state
-  // can't — a full reload, a shared link, the Entretiens deep-link.
+  // can't: a full reload, a shared link, the Entretiens deep-link.
   const interviewMode = $derived(
     data.canConductInterview &&
       (page.state.interviewMode ??
@@ -69,7 +69,7 @@
     if (on) url.searchParams.set('interview', '1');
     else url.searchParams.delete('interview');
     // replaceState, not pushState: the param persists the view across reloads,
-    // it isn't a navigation — Back should leave the fiche, not replay toggles.
+    // it isn't a navigation, so Back should leave the fiche, not replay toggles.
     replaceState(url, { ...page.state, interviewMode: on });
   }
   // Interview lifecycle surfaced from InterviewFlow so the toggle subtitle can
@@ -135,7 +135,7 @@
   <TalentProfileHero student={data.student} />
 
   <div class="grid gap-6 lg:grid-cols-10">
-    <!-- Left 70% — the talent's dossier in normal mode; the interview flow takes
+    <!-- Left 70%: the talent's dossier in normal mode; the interview flow takes
          over in interview mode. The flow stays mounted (just hidden) so toggling
          the view never tears down its form: an interview is a lifecycle, not a
          screen. Dossier first, flow last, so the trailing hidden node doesn't
@@ -190,7 +190,7 @@
       {/if}
     </div>
 
-    <!-- Right 30% — the interview-mode toggle, then the talent synthesis in
+    <!-- Right 30%: the interview-mode toggle, then the talent synthesis in
          dossier mode. In interview mode the rail is just the toggle, so the flow
          on the left holds the focus. Kept out of any overflow-x ancestor so the
          viewport-sticky positioning holds while the left column scrolls. -->

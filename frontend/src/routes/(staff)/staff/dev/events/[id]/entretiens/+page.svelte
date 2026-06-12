@@ -212,7 +212,7 @@
     </div>
   {:else}
     <div class="grid gap-6 xl:grid-cols-10">
-      <!-- Left 70% — the working list. `min-w-0` lets the fixed-layout table
+      <!-- Left 70%: the working list. `min-w-0` lets the fixed-layout table
            shrink to its grid track instead of overflowing past the rail. -->
       <div class="min-w-0 space-y-4 xl:col-span-7">
         <DataTableToolbar
@@ -340,7 +340,7 @@
         </SortableTable>
       </div>
 
-      <!-- Right 30% — synthesis, top interviewers and the interview guide. Same
+      <!-- Right 30%: synthesis, top interviewers and the interview guide. Same
            sticky-rail mechanics as Inscrits / Émargement. -->
       <aside class="min-w-0 xl:col-span-3">
         <div

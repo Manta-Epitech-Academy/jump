@@ -5,7 +5,7 @@
   import ErrorTerminal from '$lib/components/errors/ErrorTerminal.svelte';
 
   // "Home" depends on who's looking: a staff member goes to their workspace,
-  // everyone else (talents, logged-out visitors) to the app root — which routes
+  // everyone else (talents, logged-out visitors) to the app root, which routes
   // a talent to their dashboard and a guest to login. Detect staff by
   // staffProfile, NOT "has a user": talents carry a bauth user too, so the old
   // `talent && !user` check mislabelled students as staff and pointed them at

@@ -21,7 +21,7 @@
 
 {#if status === 403}
   <!-- A role-gated 403 keeps its bespoke, helpful message (which role, who to
-       contact) rather than the generic terminal — the actionable detail matters
+       contact) rather than the generic terminal, the actionable detail matters
        more here than the brand flourish. -->
   <div
     class="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center"

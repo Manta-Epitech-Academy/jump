@@ -7,12 +7,12 @@
  * but a bare national number with no country and no leading 0 ("765719823")
  * for some. Two consumers each want their own shape:
  *
- *  - `normalizePhoneToE164` — the canonical *storage* form, E.164 with a "+"
+ *  - `normalizePhoneToE164`: the canonical *storage* form, E.164 with a "+"
  *    ("+33765719823"). Used at the Salesforce ingest boundary and as the form
  *    the onboarding input submits, so every parseable shape collapses to one
  *    representation and equality checks (reconciliation, prefill) compare like
  *    with like.
- *  - `toBrevoRecipient` — the *send* form Brevo's SMS API wants, digits-only
+ *  - `toBrevoRecipient`: the *send* form Brevo's SMS API wants, digits-only
  *    with no leading 0 and no "+" ("33765719823").
  *  - `formatPhoneForDisplay`: the human-readable form for staff screens, in
  *    international grouping ("+33 6 12 34 56 78") so a number is legible at a
@@ -29,7 +29,7 @@ const DEFAULT_REGION = 'FR';
  * Collapse any parseable phone shape to canonical E.164 ("+33765719823"), or
  * return `null` when the value isn't a valid number. Parses as international
  * first (a "+" / "00…" prefix wins), then falls back to reading it as a French
- * national number — this is what rescues SF's bare "765719823" form, which
+ * national number: this is what rescues SF's bare "765719823" form, which
  * carries no country and would otherwise be stored verbatim (missing its
  * leading 0) and read as different from the same number entered at onboarding.
  *
@@ -79,8 +79,8 @@ export function toBrevoRecipient(
     digits = '33' + digits.slice(1);
   }
 
-  // E.164 numbers (sans "+") run 8–15 digits. Anything outside that is a
-  // typo or a fragment — refuse it rather than burn an SMS credit on a bounce.
+  // E.164 numbers (sans "+") run 8 to 15 digits. Anything outside that is a
+  // typo or a fragment, so refuse it rather than burn an SMS credit on a bounce.
   if (digits.length < 8 || digits.length > 15) return null;
   return digits;
 }
@@ -89,7 +89,7 @@ export function toBrevoRecipient(
  * Render a stored phone number in a legible, spaced form for display.
  *
  * Every number comes back in international grouping with its country code
- * visible ("+33 6 12 34 56 78", "+44 7911 123456") — French numbers included,
+ * visible ("+33 6 12 34 56 78", "+44 7911 123456"), French numbers included,
  * so staff always see the dialable form. Returns `null` for an empty value (so
  * callers can `?? '—'` / `|| 'Aucun numéro'`), and falls back to the trimmed
  * input verbatim when the value won't parse, so a malformed-but-present number

@@ -7,9 +7,9 @@
 
   // Right-rail companion to InterviewFlow while an interview is in progress: a
   // light jump-to nav over the flow's local step cursor (bound, so a click here
-  // is the same as paging with Suivant/Précédent). Deliberately minimal — no
+  // is the same as paging with Suivant/Précédent). Deliberately minimal: no
   // numbers, no progress counts, no cover entry (Précédent from the first
-  // section reaches it) — so it never competes with the question on the left.
+  // section reaches it), so it never competes with the question on the left.
   let { step = $bindable() }: { step: number } = $props();
 
   const rows = [

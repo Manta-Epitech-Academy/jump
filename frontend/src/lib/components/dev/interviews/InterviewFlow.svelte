@@ -127,11 +127,11 @@
 
   // "Reprendre" should drop the interviewer back where work remains, not on
   // section 1. `step` is local-only, so a page reload (status still in_progress,
-  // step reset to 0) is the case that matters — and the answers come from the DB,
+  // step reset to 0) is the case that matters, and the answers come from the DB,
   // so they tell us how far the interview got. Target = the first section with no
   // answer yet; if every section has been started, the verdict (the place left to
   // finish). A section counts as "touched" on any single answer, since the
-  // questionnaire has no required questions — keying off full completion would
+  // questionnaire has no required questions, keying off full completion would
   // pull resume back to section 1 over one skipped optional choice.
   function sectionTouched(section: InterviewSection): boolean {
     return section.questions.some((q) => answerText(q) !== null);
@@ -181,7 +181,7 @@
       // autosave rather than being dropped: superForm's 'prevent' default would
       // silently drop the lifecycle submit, then the stale autosave result would
       // be read under the new `lastAction` and the close/abandon branch below
-      // would run — UI flips to "Finalisé" while the row is still in_progress in
+      // would run: UI flips to "Finalisé" while the row is still in_progress in
       // the DB. Abort also stops a fast second autosave from being lost behind a
       // slow first one. `beginAction` clears the *scheduled* autosave; this
       // covers the one already on the wire.
@@ -189,7 +189,7 @@
       onResult: ({ result, cancel }) => {
         // Autosave: keep the client form authoritative (don't let the echoed
         // server data clobber keystrokes made during the round-trip), and stay
-        // quiet — just flip the inline indicator.
+        // quiet, just flip the inline indicator.
         if (lastAction === 'autosave') {
           saveState = result.type === 'success' ? 'saved' : 'idle';
           if (result.type !== 'success') {
@@ -276,6 +276,7 @@
     scheduleAutosave();
   }
   function setText(field: string, value: string) {
+    if (!interactive) return;
     $form = { ...$form, [field]: value } as InterviewConductForm;
     scheduleAutosave();
   }
@@ -292,13 +293,13 @@
 
   // No leave guard: an open interview stays in_progress until explicitly
   // clôturé. Staff can navigate away freely (the answers autosave), so there is
-  // nothing to confirm on the way out — the lifecycle is decoupled from the view.
+  // nothing to confirm on the way out, the lifecycle is decoupled from the view.
 
   // The one confirm worth keeping: clôture crosses a one-way door. An
   // in_progress interview can be abandoned (deleted); a finalisé one can only be
   // reopened to edit, never removed (abandonInterview is in_progress-scoped
   // server-side). The confirm guards that deletable → permanent step, not data
-  // loss — answers autosave and reopen restores them.
+  // loss: answers autosave and reopen restores them.
   let closeConfirmOpen = $state(false);
   function doClose() {
     closeConfirmOpen = false;
@@ -434,7 +435,7 @@
   };
 
   // A chip's colour: tone palette when the option carries a sentiment, else the
-  // neutral categorical blue (a channel, a specialty — no valence to imply).
+  // neutral categorical blue (a channel, a specialty, no valence to imply).
   function chipClass(opt: ChoiceOption, active: boolean): string {
     if (opt.tone) {
       return active ? CHIP_TONE_ACTIVE[opt.tone] : CHIP_TONE_IDLE[opt.tone];
@@ -473,7 +474,7 @@
 <!-- One chip group for both single- and multi-choice. `multi` only swaps the
      active test (membership vs equality) and the handler (toggle vs set); the
      chrome is identical, so the two kinds never drift apart. Selection reads
-     through the active ring + tint alone — no per-chip tick, which (rendering
+     through the active ring + tint alone, no per-chip tick, which (rendering
      only when active) would widen the chip on select and re-wrap the row. The
      one-vs-many cue lives once under the prompt instead (see questionBlock). -->
 {#snippet choiceChips(
@@ -531,7 +532,7 @@
 {/snippet}
 
 <!-- One question: the prompt is the prominent element (it's what the dev reads
-     aloud), the answers sit quieter below. No box around it — the step is the
+     aloud), the answers sit quieter below. No box around it: the step is the
      unit, not the question. -->
 {#snippet questionBlock(q: InterviewQuestion)}
   <div class="space-y-4">
@@ -543,7 +544,7 @@
         <p class="text-sm text-muted-foreground italic">{q.hint}</p>
       {/if}
       <!-- Single-choice is the default expectation, so only the multi questions
-           carry a cue. One quiet muted line under the prompt — enough to resolve
+           carry a cue. One quiet muted line under the prompt, enough to resolve
            the one-vs-many ambiguity without putting an affordance on every chip. -->
       {#if q.kind === 'multi'}
         <p
@@ -644,7 +645,7 @@
 
 <section class="rounded-sm border bg-card dark:shadow-none">
   <!-- Progress fill: a thin no-number bar so paging never feels like a numbered
-       checklist. Conduct-only — the synthesis has nothing to pace. -->
+       checklist. Conduct-only: the synthesis has nothing to pace. -->
   {#if status === 'in_progress'}
     <div class="h-1 w-full overflow-hidden rounded-t-sm bg-muted">
       <div
@@ -692,7 +693,7 @@
 
     {#if status === 'done'}
       <!-- ═══ Synthesis: the finalised interview at a glance. The default view
-           when coming back to a done interview — reopening is the secondary
+           when coming back to a done interview, reopening is the secondary
            action, reading is the primary one. ═══ -->
       <div class="px-5 py-6">
         <div class="mx-auto w-full max-w-2xl space-y-6">
@@ -966,7 +967,7 @@
         </div>
       </div>
 
-      <!-- Step nav: Précédent / autosave / Suivant — or Clôturer on the verdict.
+      <!-- Step nav: Précédent / autosave / Suivant, or Clôturer on the verdict.
            Hidden on the cover, whose CTAs drive the lifecycle. -->
       {#if !isIntro}
         <div class="border-t px-5 py-3.5">

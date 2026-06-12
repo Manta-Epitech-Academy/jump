@@ -30,7 +30,7 @@ import { isImageRightsDecided } from '$lib/domain/imageRights';
 import type { Communication } from '$lib/domain/communications';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
-// one-line each in the sticky right rail — no pagination. Volume per talent is
+// one-line each in the sticky right rail, no pagination. Volume per talent is
 // in the low hundreds across a stage lifecycle, so fetch both sources unbounded,
 // merge in memory, and slice the head.
 const RIGHT_RAIL_COMMS = 6;
@@ -223,7 +223,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     // Backs the right rail's "première connexion" line and tells the dev whether
     // the talent ever logged in. Read from the durable `Talent.firstLoginAt`
     // projection (stamped once on first real login in hooks), not a bauth_session
-    // probe — sessions are deleted by logout / identity repair, which would make
+    // probe: sessions are deleted by logout / identity repair, which would make
     // a real login read "Jamais".
     const firstLoginAt = student.firstLoginAt;
 

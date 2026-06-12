@@ -121,7 +121,7 @@ export const INTERVIEW_TEXT_LIMITS = {
 
 /** The four student-facing sections of the conduct flow, in order. The verdict
  *  ("Avis de l'interviewer", `INTERVIEWER_SECTION`) is a fifth, staff-only step
- *  rendered apart. All questions are equal weight — there is no longer an
+ *  rendered apart. All questions are equal weight. There is no longer an
  *  "incontournable" tier. */
 export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
   {
