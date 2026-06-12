@@ -77,12 +77,17 @@
   // `planning.state` alone; no raw participation rows reach the UI.
   let planning = $derived(data.planning);
 
+  // The widget's state is always shown, but the "Voir le planning" CTA opens the
+  // /calendar grid, which 404s when the campus runs its schedule outside Jump.
+  // With the flag off we keep the ongoing/upcoming state and drop that link.
+  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+
   // Event-type label for the planning widget, with the per-state fallback the
   // copy used before (ongoing → "Activité", upcoming → "Atelier Epitech").
   let planningTypeLabel = $derived(
-    planning?.state === 'ongoing'
+    planning.state === 'ongoing'
       ? (EVENT_TYPE_LABELS[planning.eventType] ?? planning.titre ?? 'Activité')
-      : planning?.state === 'upcoming'
+      : planning.state === 'upcoming'
         ? (EVENT_TYPE_LABELS[planning.eventType] ??
           planning.titre ??
           'Atelier Epitech')
@@ -95,7 +100,7 @@
   // none, so until it's confirmed the talent sees the date alone (never the SF
   // `date`'s meaningless midnight). Staff see the default + a nag meanwhile.
   let upcomingStartTime = $derived(
-    planning?.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
+    planning.state === 'upcoming' ? minutesToHHMM(planning.startMinutes) : '',
   );
 
   // The daily minigame is the first mission inside the "Mission du jour" card —
@@ -365,106 +370,115 @@
 
         <!-- Planning à venir: the active event if one covers today, else the
              next upcoming session, else a quiet rest state. order-4 keeps it
-             last on mobile (after the mission card). Absent entirely when the
-             campus runs its schedule outside Jump (planning flag off). -->
-        {#if planning}
+             last on mobile (after the mission card). Always shown (the state is
+             participation-derived, truthful regardless of the planning flag);
+             only the ongoing "Voir le planning" CTA is flag-gated, since it
+             opens the /calendar grid that 404s when the flag is off. -->
+        <div
+          class="order-4 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        >
           <div
-            class="order-4 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+            class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
           >
-            <div
-              class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900"
+            <CalendarClock class="h-4 w-4 shrink-0 text-epi-blue" />
+            <h2
+              class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
             >
-              <CalendarClock class="h-4 w-4 shrink-0 text-epi-blue" />
-              <h2
-                class="font-heading text-base tracking-wider text-slate-800 uppercase dark:text-slate-200"
-              >
-                Planning à venir<span class="text-epi-teal">_</span>
-              </h2>
-            </div>
+              Planning à venir<span class="text-epi-teal">_</span>
+            </h2>
+          </div>
 
-            <div class="p-6">
-              {#if planning.state === 'ongoing'}
+          <div class="p-6">
+            {#if planning.state === 'ongoing'}
+              <div
+                class="flex flex-col items-center justify-center text-center"
+              >
                 <div
-                  class="flex flex-col items-center justify-center text-center"
+                  class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
                 >
-                  <div
-                    class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
-                  >
-                    <CalendarClock class="h-8 w-8 text-epi-blue" />
-                  </div>
-                  <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                    {planningTypeLabel}
-                  </h3>
-                  <!-- Live status: a pulsing dot so an active IRL event reads as
+                  <CalendarClock class="h-8 w-8 text-epi-blue" />
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                  {planningTypeLabel}
+                </h3>
+                <!-- Live status: a pulsing dot so an active IRL event reads as
                      "happening now", distinct from the action button below. -->
-                  <span
-                    class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-epi-blue/10 px-2.5 py-1 text-xs font-bold text-epi-blue uppercase"
-                  >
-                    <span class="relative flex h-2 w-2">
-                      <span
-                        class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
-                      ></span>
-                      <span
-                        class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
-                      ></span>
-                    </span>
-                    En cours
+                <span
+                  class="mt-2 inline-flex items-center gap-1.5 rounded-full bg-epi-blue/10 px-2.5 py-1 text-xs font-bold text-epi-blue uppercase"
+                >
+                  <span class="relative flex h-2 w-2">
+                    <span
+                      class="absolute inline-flex h-full w-full animate-ping rounded-full bg-epi-blue opacity-75"
+                    ></span>
+                    <span
+                      class="relative inline-flex h-2 w-2 rounded-full bg-epi-blue"
+                    ></span>
                   </span>
+                  En cours
+                </span>
+                {#if hasPlanning}
                   <!-- The primary action this widget exists to drive during a
-                     live event: a full-width filled CTA, mirroring the
-                     minigame "Commencer" button so it reads as the main tap. -->
+                       live event: a full-width filled CTA, mirroring the
+                       minigame "Commencer" button so it reads as the main tap. -->
                   <a
                     href={resolve('/calendar')}
                     class="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-epi-blue px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-epi-blue/90"
                   >
                     Voir le planning <ArrowRight class="h-4 w-4 shrink-0" />
                   </a>
-                </div>
-              {:else if planning.state === 'upcoming'}
-                <div
-                  class="flex flex-col items-center justify-center text-center"
-                >
-                  <div
-                    class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
-                  >
-                    <Rocket class="h-8 w-8 text-epi-blue" />
-                  </div>
-                  <h3 class="text-lg font-bold text-slate-900 dark:text-white">
-                    {planningTypeLabel}
-                  </h3>
-                  <p class="mt-2 text-sm text-slate-500">
-                    Ta prochaine session est prévue le<br /><strong
-                      class="text-slate-700 dark:text-slate-300"
-                      >{formatDateLong(planning.date)}</strong
-                    >{#if upcomingStartTime}{' '}à
-                      <strong class="text-slate-700 dark:text-slate-300"
-                        >{upcomingStartTime}</strong
-                      >{/if}.
+                {:else}
+                  <!-- No /calendar to open (planning flag off): the live status
+                       stands alone, with a line pointing the talent on-site so
+                       the card doesn't read as truncated where the CTA was. -->
+                  <p class="mt-3 text-sm text-slate-500">
+                    Ça se passe en ce moment. Rejoins ton groupe sur place !
                   </p>
-                </div>
-              {:else}
+                {/if}
+              </div>
+            {:else if planning.state === 'upcoming'}
+              <div
+                class="flex flex-col items-center justify-center text-center"
+              >
                 <div
-                  class="flex flex-col items-center justify-center text-center"
+                  class="mb-4 rounded-full bg-blue-50 p-4 dark:bg-blue-900/20"
                 >
-                  <div
-                    class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
-                  >
-                    <Coffee class="h-8 w-8 text-slate-400" />
-                  </div>
-                  <h3
-                    class="text-base font-bold text-slate-700 uppercase dark:text-slate-300"
-                  >
-                    Rien de prévu
-                  </h3>
-                  <p class="mt-2 text-sm text-slate-500">
-                    Aucune session à venir pour le moment. On te préviendra ici
-                    dès qu'il y a du nouveau !
-                  </p>
+                  <Rocket class="h-8 w-8 text-epi-blue" />
                 </div>
-              {/if}
-            </div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                  {planningTypeLabel}
+                </h3>
+                <p class="mt-2 text-sm text-slate-500">
+                  Ta prochaine session est prévue le<br /><strong
+                    class="text-slate-700 dark:text-slate-300"
+                    >{formatDateLong(planning.date)}</strong
+                  >{#if upcomingStartTime}{' '}à
+                    <strong class="text-slate-700 dark:text-slate-300"
+                      >{upcomingStartTime}</strong
+                    >{/if}.
+                </p>
+              </div>
+            {:else}
+              <div
+                class="flex flex-col items-center justify-center text-center"
+              >
+                <div
+                  class="mb-4 rounded-full bg-slate-200/50 p-4 dark:bg-slate-800"
+                >
+                  <Coffee class="h-8 w-8 text-slate-400" />
+                </div>
+                <h3
+                  class="text-base font-bold text-slate-700 uppercase dark:text-slate-300"
+                >
+                  Rien de prévu
+                </h3>
+                <p class="mt-2 text-sm text-slate-500">
+                  Aucune session à venir pour le moment. On te préviendra ici
+                  dès qu'il y a du nouveau !
+                </p>
+              </div>
+            {/if}
           </div>
-        {/if}
+        </div>
       </div>
 
       <!-- RIGHT COLUMN: the day's missions (minigame first, then the event's
