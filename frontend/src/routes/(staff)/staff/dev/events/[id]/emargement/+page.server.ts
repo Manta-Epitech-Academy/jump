@@ -94,6 +94,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
       // Prefer the login email (authoritative) over the imported SF address.
       email: t.user?.email ?? t.email,
       phone: t.phone,
+      note: t.note,
       guardians,
     };
   });

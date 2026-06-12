@@ -2,12 +2,14 @@
   import { onMount, untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
   import { page } from '$app/state';
+  import { resolve } from '$app/paths';
   import { invalidate } from '$app/navigation';
   import { enhance as formEnhance, deserialize } from '$app/forms';
   import { toast } from 'svelte-sonner';
   import QrCode from '@lucide/svelte/icons/qr-code';
   import FilterX from '@lucide/svelte/icons/filter-x';
   import Phone from '@lucide/svelte/icons/phone';
+  import NotebookPen from '@lucide/svelte/icons/notebook-pen';
   import Users from '@lucide/svelte/icons/users';
   import Lock from '@lucide/svelte/icons/lock';
   import LockOpen from '@lucide/svelte/icons/lock-open';
@@ -42,6 +44,7 @@
   import type { PresenceRow, PresenceSortKey } from './components/types';
   import PresenceSwitch from './components/PresenceSwitch.svelte';
   import ContactDialog from './components/ContactDialog.svelte';
+  import NotesDialog from './components/NotesDialog.svelte';
   import SlotStatsCard from './components/SlotStatsCard.svelte';
   import PresenceHelpCard from './components/PresenceHelpCard.svelte';
   import SlotNavigator from './components/SlotNavigator.svelte';
@@ -190,6 +193,7 @@
       label: activeSlot ? slotLabelFr(activeSlot.slot) : 'Présence',
       class: 'w-80',
     },
+    { key: 'notes', label: 'Note', align: 'right', class: 'w-12' },
     { key: 'contact', label: 'Contact', align: 'right', class: 'w-20' },
   ]);
 
@@ -204,14 +208,47 @@
   let closeConfirmOpen = $state(false);
   let contactOpen = $state(false);
   let contactTarget = $state<PresenceRow | null>(null);
+  let notesOpen = $state(false);
+  let notesTarget = $state<PresenceRow | null>(null);
 
   const anyDialogOpen = $derived(
-    qrOpen || presentConfirmOpen || closeConfirmOpen || contactOpen,
+    qrOpen ||
+      presentConfirmOpen ||
+      closeConfirmOpen ||
+      contactOpen ||
+      notesOpen,
   );
 
   function openContact(row: PresenceRow) {
     contactTarget = row;
     contactOpen = true;
+  }
+
+  // Reactive note overrides (mirrors the presence `overrides` map): a save paints
+  // the new note locally so the row icon highlight and the next modal open use it
+  // without a full page reload.
+  const noteOverrides = new SvelteMap<string, string | null>();
+  function rowNote(row: PresenceRow): string | null {
+    return noteOverrides.has(row.talentId)
+      ? (noteOverrides.get(row.talentId) ?? null)
+      : row.note;
+  }
+
+  function openNotes(row: PresenceRow) {
+    notesTarget = { ...row, note: rowNote(row) };
+    notesOpen = true;
+  }
+
+  function onNoteSaved(talentId: string, note: string | null) {
+    noteOverrides.set(talentId, note);
+  }
+
+  // The talent fiche opens in a new tab on purpose: staff stay anchored in the
+  // émargement flow (presence toggles, filters, scroll position) instead of
+  // navigating away mid-attendance, while still reaching the full dossier when a
+  // case needs it. Backs the row name/avatar links below.
+  function ficheHref(talentId: string): string {
+    return resolve(`/staff/dev/students/${talentId}`);
   }
 
   // Mark one cell straight from the inline switch. Optimistic: paint the choice
@@ -420,11 +457,24 @@
             layout="fixed"
           >
             {#snippet row(r: PresenceRow)}
+              <!-- The avatar is the only fiche link: a small, conventional
+                   target that reuses an element already in the row, so it adds
+                   no surface to mis-tap while marking presence. New tab keeps
+                   staff anchored in the émargement flow. -->
               <Table.Cell>
-                <TalentAvatar
-                  talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                  size="sm"
-                />
+                <a
+                  href={ficheHref(r.talentId)}
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex"
+                  title="Voir la fiche"
+                  aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
+                >
+                  <TalentAvatar
+                    talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                    size="sm"
+                  />
+                </a>
               </Table.Cell>
               <Table.Cell class="font-medium">
                 <span class="block truncate" title={r.prenom}>{r.prenom}</span>
@@ -438,6 +488,42 @@
                   disabled={!canEdit}
                   onset={(s) => setStatus(r, s)}
                 />
+              </Table.Cell>
+              <!-- Notes icon, always present (every talent can have a note);
+                   tinted epi-blue when a note exists so noted talents stand out. -->
+              <Table.Cell class="text-right">
+                {@const note = rowNote(r)?.trim()}
+                <Tooltip.Root>
+                  <Tooltip.Trigger>
+                    {#snippet child({ props })}
+                      <Button
+                        {...props}
+                        variant="ghost"
+                        size="icon"
+                        class={`h-8 w-8 rounded-sm transition-colors hover:bg-epi-blue/10 hover:text-epi-blue ${note ? 'text-epi-blue' : 'text-muted-foreground/40 group-focus-within/row:text-muted-foreground group-hover/row:text-muted-foreground'}`}
+                        onclick={() => openNotes(r)}
+                        aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                      >
+                        <NotebookPen class="h-4 w-4" />
+                      </Button>
+                    {/snippet}
+                  </Tooltip.Trigger>
+                  <!-- When a note exists, surface its text on hover so staff can
+                       read it without opening the modal; clamp long notes and
+                       point to the click for the full editor. Empty: the CTA. -->
+                  <Tooltip.Content class="max-w-72">
+                    {#if note}
+                      <p class="line-clamp-6 text-left whitespace-pre-wrap">
+                        {note}
+                      </p>
+                      <p class="mt-1 text-left text-background/60">
+                        Cliquer pour éditer
+                      </p>
+                    {:else}
+                      Ajouter une note
+                    {/if}
+                  </Tooltip.Content>
+                </Tooltip.Root>
               </Table.Cell>
               <!-- Icon-only to cut the per-row noise of 200+ rows: quiet at rest,
                  brightening when the row is hovered or focused. Kept visible
@@ -476,14 +562,35 @@
             {#snippet mobileRow(r: PresenceRow)}
               <div class="space-y-2.5">
                 <div class="flex items-center gap-3">
-                  <TalentAvatar
-                    talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
-                    size="sm"
-                  />
+                  <!-- Avatar is the fiche link here too (new tab); the name and
+                       action buttons stay non-navigating so they're safe to tap
+                       on the floor. -->
+                  <a
+                    href={ficheHref(r.talentId)}
+                    target="_blank"
+                    rel="noopener"
+                    class="inline-flex shrink-0"
+                    title="Voir la fiche"
+                    aria-label={`Ouvrir la fiche de ${r.prenom} ${r.nom} (nouvel onglet)`}
+                  >
+                    <TalentAvatar
+                      talent={{ id: r.talentId, nom: r.nom, prenom: r.prenom }}
+                      size="sm"
+                    />
+                  </a>
                   <p class="min-w-0 flex-1 truncate text-sm">
                     <span class="font-medium">{r.prenom}</span>
                     <span class="font-bold uppercase">{r.nom}</span>
                   </p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class={`h-8 w-8 shrink-0 rounded-sm hover:bg-epi-blue/10 hover:text-epi-blue ${rowNote(r)?.trim() ? 'text-epi-blue' : 'text-muted-foreground'}`}
+                    onclick={() => openNotes(r)}
+                    aria-label={`Notes de ${r.prenom} ${r.nom}`}
+                  >
+                    <NotebookPen class="h-4 w-4" />
+                  </Button>
                   {#if r.phone || r.email || r.guardians.length}
                     <Button
                       variant="ghost"
@@ -652,6 +759,8 @@
 
 <!-- Contact card: phones to reach the stagiaire, then the family if no answer -->
 <ContactDialog bind:open={contactOpen} row={contactTarget} />
+
+<NotesDialog bind:open={notesOpen} row={notesTarget} onsaved={onNoteSaved} />
 
 <!-- Mark-all-present confirmation -->
 <Dialog.Root bind:open={presentConfirmOpen}>
