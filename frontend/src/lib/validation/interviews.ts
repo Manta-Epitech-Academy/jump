@@ -48,11 +48,11 @@ export const interviewConductSchema = z.object({
   motivation: nullableEnum(InterviewMotivation),
   orientationTalkAtSchool: nullableEnum(OrientationTalkFrequency),
   passionateTeacher: nullableEnum(PassionateTeacherAnswer),
-  techProjection: nullableEnum(TechProjection),
   wantsMore: nullableEnum(WantsMoreAnswer),
   recommendation: nullableEnum(InterviewRecommendation),
 
   // multi-choice
+  techProjection: z.array(z.enum(TechProjection)).default([]),
   specialties: z.array(z.enum(Specialty)).default([]),
   otherJobs: z.array(z.enum(OtherJobDomain)).default([]),
   infoSources: z.array(z.enum(InfoSource)).default([]),

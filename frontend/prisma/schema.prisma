@@ -809,11 +809,11 @@ model Interview {
   motivation              InterviewMotivation?
   orientationTalkAtSchool OrientationTalkFrequency?
   passionateTeacher       PassionateTeacherAnswer?
-  techProjection          TechProjection?
   wantsMore               WantsMoreAnswer?
   recommendation          InterviewRecommendation?
 
   // Multi-choice answers (Postgres enum arrays).
+  techProjection TechProjection[] @default([])
   specialties    Specialty[]      @default([])
   otherJobs      OtherJobDomain[] @default([])
   infoSources    InfoSource[]     @default([])

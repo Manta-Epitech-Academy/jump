@@ -33,6 +33,7 @@
   import Loader2 from '@lucide/svelte/icons/loader-2';
   import Clock from '@lucide/svelte/icons/clock';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
   // Domain-identity glyphs for the tech-domain chips (techProjection). Keyed by
   // the catalogue's ChoiceIconToken via CHIP_ICONS.
   import Code from '@lucide/svelte/icons/code';
@@ -466,16 +467,29 @@
   };
 </script>
 
-{#snippet singleChips(field: string, options: readonly ChoiceOption[])}
+<!-- One chip group for both single- and multi-choice. `multi` only swaps the
+     active test (membership vs equality) and the handler (toggle vs set); the
+     chrome is identical, so the two kinds never drift apart. Selection reads
+     through the active ring + tint alone — no per-chip tick, which (rendering
+     only when active) would widen the chip on select and re-wrap the row. The
+     one-vs-many cue lives once under the prompt instead (see questionBlock). -->
+{#snippet choiceChips(
+  field: string,
+  options: readonly ChoiceOption[],
+  multi: boolean,
+)}
   <div class="flex flex-wrap gap-2">
     {#each options as opt (opt.value)}
-      {@const active = fv(field) === opt.value}
+      {@const active = multi
+        ? ((fv(field) as string[] | undefined) ?? []).includes(opt.value)
+        : fv(field) === opt.value}
       {@const Icon = opt.icon ? CHIP_ICONS[opt.icon] : null}
       <button
         type="button"
         aria-pressed={active}
         disabled={!interactive}
-        onclick={() => setSingle(field, opt.value)}
+        onclick={() =>
+          multi ? toggleMulti(field, opt.value) : setSingle(field, opt.value)}
         class={cn(
           chipBase,
           'inline-flex items-center gap-1.5',
@@ -483,39 +497,6 @@
         )}
       >
         {#if Icon}<Icon class="h-3.5 w-3.5" />{/if}
-        {opt.label}
-      </button>
-    {/each}
-  </div>
-{/snippet}
-
-{#snippet multiChips(field: string, options: readonly ChoiceOption[])}
-  {@const selected = (fv(field) as string[] | undefined) ?? []}
-  <div class="flex flex-wrap gap-2">
-    {#each options as opt (opt.value)}
-      {@const active = selected.includes(opt.value)}
-      <button
-        type="button"
-        aria-pressed={active}
-        disabled={!interactive}
-        onclick={() => toggleMulti(field, opt.value)}
-        class={cn(
-          chipBase,
-          'inline-flex items-center gap-1.5',
-          chipClass(opt, active),
-        )}
-      >
-        <!-- Reserve the tick's slot so selecting fades it in rather than widening
-             the chip — a width jump here re-wraps the whole flex row and shifts
-             every other chip. -->
-        <span class="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-          <Check
-            class={cn(
-              'h-3.5 w-3.5 transition-opacity',
-              active ? 'opacity-100' : 'opacity-0',
-            )}
-          />
-        </span>
         {opt.label}
       </button>
     {/each}
@@ -558,15 +539,21 @@
       {#if q.hint}
         <p class="text-sm text-muted-foreground italic">{q.hint}</p>
       {/if}
+      <!-- Single-choice is the default expectation, so only the multi questions
+           carry a cue. One quiet muted line under the prompt — enough to resolve
+           the one-vs-many ambiguity without putting an affordance on every chip. -->
+      {#if q.kind === 'multi'}
+        <p
+          class="flex items-center gap-1 text-xs font-medium text-muted-foreground/70"
+        >
+          <CheckCheck class="h-3 w-3" />
+          Plusieurs réponses possibles
+        </p>
+      {/if}
     </div>
 
-    {#if q.kind === 'single'}
-      {@render singleChips(q.field, q.options)}
-      {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
-        {@render revealInputs(q.reveal)}
-      {/if}
-    {:else if q.kind === 'multi'}
-      {@render multiChips(q.field, q.options)}
+    {#if q.kind === 'single' || q.kind === 'multi'}
+      {@render choiceChips(q.field, q.options, q.kind === 'multi')}
       {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
         {@render revealInputs(q.reveal)}
       {/if}

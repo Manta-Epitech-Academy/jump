@@ -243,7 +243,7 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
     title: 'Orientation',
     questions: [
       {
-        kind: 'single',
+        kind: 'multi',
         field: 'techProjection',
         label: 'Vers quels métiers / domaines tu te projettes ?',
         options: [
