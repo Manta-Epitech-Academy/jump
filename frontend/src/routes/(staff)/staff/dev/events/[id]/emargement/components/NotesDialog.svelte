@@ -20,7 +20,7 @@
   <Dialog.Content class="rounded-sm sm:max-w-md">
     {#if row}
       <Dialog.Header>
-        <Dialog.Title>Notes — {row.prenom} {row.nom}</Dialog.Title>
+        <Dialog.Title>Notes - {row.prenom} {row.nom}</Dialog.Title>
         <Dialog.Description>
           Note libre réservée au staff (retard, administratif…).
         </Dialog.Description>
