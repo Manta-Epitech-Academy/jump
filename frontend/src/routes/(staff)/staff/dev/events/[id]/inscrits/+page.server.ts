@@ -138,7 +138,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
       t.rulesSignedAt,
     );
     const image = imageRightsStatus(t);
-    const connected = (t.user?.sessions.length ?? 0) > 0;
+    const connected = t.firstLoginAt != null;
     return {
       id: p.id,
       talentId: p.talentId,

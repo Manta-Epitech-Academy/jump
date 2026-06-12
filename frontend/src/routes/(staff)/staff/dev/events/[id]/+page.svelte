@@ -110,7 +110,6 @@
       kpis={data.ongoing.kpis}
       alerts={data.ongoing.alerts}
       timeSlots={data.ongoing.todayTimeSlots}
-      mesProchainsEntretiens={data.ongoing.mesProchainsEntretiens}
       lyceesBreakdown={data.ongoing.lyceesBreakdown}
       interestsCloud={data.ongoing.interestsCloud}
       {showPlanning}

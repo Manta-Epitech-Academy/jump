@@ -142,7 +142,7 @@
               <p
                 class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
               >
-                Entretiens du stage
+                Entretiens finalisés
               </p>
               <p class="text-3xl font-black text-foreground">
                 {data.kpis.completedInterviews}
@@ -164,7 +164,7 @@
               <p
                 class="mb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
               >
-                Entretiens planifiés
+                Entretiens en cours
               </p>
               <p class="text-3xl font-black text-foreground">
                 {data.kpis.plannedInterviews}

@@ -14,10 +14,10 @@
 
   const intro = $derived(
     dayN === totalDays
-      ? 'Dernier jour. Voici ce qui se passe sur le campus aujourd’hui, qui doit encore être appelé, et les derniers entretiens à mener avant la clôture.'
+      ? 'Dernier jour. Voici ce qui se passe sur le campus aujourd’hui et qui doit encore être appelé avant la clôture.'
       : dayN === 1
         ? 'Premier jour. Cette vue suit le programme du jour, l’émargement, et les actions à mener pour bien lancer la cohorte.'
-        : `Jour ${dayN} sur ${totalDays}. Ici, vous voyez ce qui se passe aujourd’hui, qui est présent, et les actions qui vous attendent — alertes en retard, entretiens à mener, dossiers à finaliser.`,
+        : `Jour ${dayN} sur ${totalDays}. Ici, vous voyez ce qui se passe aujourd’hui, qui est présent, et les actions qui vous attendent : alertes en retard et dossiers à finaliser.`,
   );
 
   const datesLabel = $derived(

@@ -100,8 +100,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     };
   }
 
-  const currentStaffProfileId = locals.staffProfile?.id ?? null;
-
   if (status === 'upcoming') {
     const prep = await loadStagePrep(baseLoader);
     return {
@@ -116,7 +114,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   }
 
   if (status === 'ongoing') {
-    const ongoing = await loadStageOngoing(baseLoader, currentStaffProfileId);
+    const ongoing = await loadStageOngoing(baseLoader);
     return {
       kind: 'stage' as const,
       status,
@@ -213,34 +211,25 @@ async function loadStagePrep(ctx: LoaderCtx) {
   };
 }
 
-async function loadStageOngoing(
-  ctx: LoaderCtx,
-  currentStaffProfileId: string | null,
-) {
+async function loadStageOngoing(ctx: LoaderCtx) {
   const { db, event, bounds } = ctx;
 
   const [
     total,
-    interviewsCompleted,
-    interviewsTotal,
+    interviewsDone,
     alerts,
     orgaSlots,
     todayTimeSlots,
-    mesProchainsEntretiens,
     lyceesBreakdown,
     interestsCloud,
   ] = await Promise.all([
     db.participation.count({ where: { eventId: event.id } }),
     db.interview.count({
-      where: { participation: { eventId: event.id }, status: 'completed' },
-    }),
-    db.interview.count({
-      where: { participation: { eventId: event.id } },
+      where: { participation: { eventId: event.id }, status: 'done' },
     }),
     deriveEventAlerts(db, event, {
       basePath: ctx.basePath,
       bounds,
-      forStaffProfileId: currentStaffProfileId ?? undefined,
       planningEnabled: ctx.planningEnabled,
     }),
     getEventOrgaSlotsWithCounts(event.id, db, bounds.now),
@@ -256,19 +245,6 @@ async function loadStageOngoing(
       },
       orderBy: { startTime: 'asc' },
     }),
-    currentStaffProfileId
-      ? db.interview.findMany({
-          where: {
-            staffId: currentStaffProfileId,
-            status: 'planned',
-            participation: { eventId: event.id },
-            date: { gte: bounds.now },
-          },
-          include: { talent: true },
-          orderBy: { date: 'asc' },
-          take: 5,
-        })
-      : Promise.resolve([]),
     loadLyceesBreakdown(db, event.id),
     loadInterestsCloud(db, event.id),
   ]);
@@ -303,8 +279,7 @@ async function loadStageOngoing(
   return {
     kpis: {
       total,
-      interviewsCompleted,
-      interviewsTotal,
+      interviewsDone,
       todayPresence: todayPresenceSlot
         ? {
             slotName: todayPresenceSlot.nom,
@@ -315,7 +290,6 @@ async function loadStageOngoing(
     },
     alerts,
     todayTimeSlots,
-    mesProchainsEntretiens,
     lyceesBreakdown,
     interestsCloud,
     dayN,
@@ -324,11 +298,11 @@ async function loadStageOngoing(
 }
 
 async function loadStagePast({ db, event }: LoaderCtx) {
-  const [total, interviewsCompleted, chartes, droitsImage, bringPc] =
+  const [total, interviewsDone, chartes, droitsImage, bringPc] =
     await Promise.all([
       db.participation.count({ where: { eventId: event.id } }),
       db.interview.count({
-        where: { participation: { eventId: event.id }, status: 'completed' },
+        where: { participation: { eventId: event.id }, status: 'done' },
       }),
       db.participation.count({
         where: { eventId: event.id, ...rulesCompliantWhere },
@@ -347,7 +321,7 @@ async function loadStagePast({ db, event }: LoaderCtx) {
       bringPc,
       chartes,
       droitsImage,
-      interviewsCompleted,
+      interviewsDone,
     },
     endDate: stageEndOrDefault(event),
   };
