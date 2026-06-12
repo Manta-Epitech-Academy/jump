@@ -39,6 +39,10 @@
     'rounded-lg border-slate-300 bg-white/80 text-slate-900 placeholder:text-slate-400 focus-visible:border-epi-blue/40 focus-visible:ring-0 dark:border-slate-700 dark:bg-slate-900/80 dark:text-white dark:placeholder:text-slate-600';
   const fieldLabel =
     'mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400';
+  // Secondary toggles (free-text / back-to-search): given real button chrome
+  // so they read as tappable, not as static helper text.
+  const toggleButton =
+    'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white/60 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-epi-blue/40 hover:bg-epi-blue/5 hover:text-epi-blue dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:bg-epi-blue/10';
 
   async function searchLycee(q: string) {
     if (q.length < 2) {
@@ -146,12 +150,8 @@
           />
         </div>
       </div>
-      <button
-        type="button"
-        onclick={startChanging}
-        class="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-500 transition-colors hover:text-epi-blue dark:text-slate-400"
-      >
-        <Search class="h-3.5 w-3.5" /> Rechercher dans l'annuaire
+      <button type="button" onclick={startChanging} class={toggleButton}>
+        <Search class="h-4 w-4" /> Rechercher dans l'annuaire
       </button>
     {:else if !changing}
       <!-- Whole recap is the change target: in this state "Changer" is the only
@@ -232,11 +232,7 @@
         </Command.List>
       </Command.Root>
 
-      <button
-        type="button"
-        onclick={enableFreeText}
-        class="flex cursor-pointer items-center gap-2 px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
+      <button type="button" onclick={enableFreeText} class={toggleButton}>
         <PenLine class="h-4 w-4" /> Mon lycée n'est pas dans la liste
       </button>
     {/if}

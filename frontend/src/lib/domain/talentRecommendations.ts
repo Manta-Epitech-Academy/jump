@@ -73,7 +73,7 @@ export type TalentRecommendationInput = TalentOnboardingFields & {
    * keep this module pure/testable.
    */
   appUrl: string;
-  /** Whether the talent ever logged in (an oldest `bauth_session` exists). */
+  /** Whether the talent ever logged in (the durable `Talent.firstLoginAt` is set). */
   connected: boolean;
   /**
    * Règlement intérieur compliance: guardian co-signed online
@@ -149,14 +149,14 @@ export function deriveTalentRecommendations(
 
   // Opportunities: evaluated independently of the funnel. The interview only
   // needs the talent to be reachable (connected), not the dossier complete — a
-  // parent signature has no bearing on planning an orientation interview.
+  // parent signature has no bearing on running an orientation interview.
   if (t.connected && !t.hasCompletedInterview) {
     recommendations.push({
       id: 'interview-todo',
       kind: 'opportunity',
       severity: 'info',
-      shortTitle: 'Entretien à planifier',
-      message: `Vous n'avez pas encore réalisé l'entretien d'orientation de ${t.prenom}. Pensez à le planifier dans votre calendrier.`,
+      shortTitle: 'Entretien à réaliser',
+      message: `Vous n'avez pas encore réalisé l'entretien d'orientation de ${t.prenom}. Lancez-le avec le bouton « Faire l'entretien » sur cette fiche.`,
       contact: null,
     });
   }

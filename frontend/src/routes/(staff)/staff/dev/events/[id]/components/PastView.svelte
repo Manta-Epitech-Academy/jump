@@ -22,7 +22,7 @@
       bringPc: number;
       chartes: number;
       droitsImage: number;
-      interviewsCompleted: number;
+      interviewsDone: number;
     };
     onEditNotes: () => void;
   };
@@ -41,7 +41,7 @@
     resolve(`/staff/dev/events/${eventId}/inscrits`),
   );
   const interviewsHref = $derived(
-    resolve(`/staff/dev/events/${eventId}/interviews`),
+    resolve(`/staff/dev/events/${eventId}/entretiens`),
   );
   const onboardingHref = $derived(
     resolve(`/staff/dev/events/${eventId}/onboarding`),
@@ -76,7 +76,7 @@
       {STAGE_SECONDE_LABEL}<span class="text-epi-teal">_</span>
     </h1>
     <p class="mt-2 text-sm text-orange-100">
-      {stats.total} inscrits · {stats.interviewsCompleted} entretiens menés
+      {stats.total} inscrits · {stats.interviewsDone} entretiens menés
     </p>
     <p
       class="mt-5 max-w-2xl text-sm leading-relaxed font-medium text-orange-100"
@@ -104,7 +104,7 @@
     />
     <KpiTile
       label="Entretiens menés"
-      value={`${stats.interviewsCompleted} / ${stats.total}`}
+      value={`${stats.interviewsDone} / ${stats.total}`}
       icon={MessageSquare}
       tone="neutral"
       href={interviewsHref}

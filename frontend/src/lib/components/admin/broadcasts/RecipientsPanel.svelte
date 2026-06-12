@@ -14,6 +14,7 @@
   import Download from '@lucide/svelte/icons/download';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { cn } from '$lib/utils';
+  import { formatPhoneForDisplay } from '$lib/domain/phone';
 
   type Props = {
     total: number;
@@ -138,7 +139,7 @@
                     {r.nom}
                   </p>
                   <p class="truncate text-[11px] text-muted-foreground">
-                    {r.email ?? r.phone ?? '—'}
+                    {r.email ?? formatPhoneForDisplay(r.phone) ?? '—'}
                   </p>
                 </div>
                 <span

@@ -44,16 +44,103 @@ enum StaffRole {
 }
 
 enum InterviewStatus {
-  planned
-  completed
-  cancelled
+  in_progress
+  done
+}
+
+// --- Orientation-interview questionnaire vocabularies ---
+// Fixed, code-defined option sets for the stage-de-seconde interview grid.
+// Single-choice answers are stored as one enum column on Interview; multi-choice
+// answers as a Postgres enum array. The French labels live in domain/interview.ts
+// (the questionnaire single source) — these are the stable wire values.
+
+enum DiscoveryChannel {
+  site_1e1s
+  entourage
+  google
+  epitech
+  autre
+}
+
+enum InterviewMotivation {
+  passion
+  metier
+  curiosite
+  cadre_stage
+}
+
+enum Specialty {
+  maths
+  nsi
+  physique_chimie
+  svt
+  ses
+  sciences_ingenieur
+  autre
+  indecis
+}
+
+enum OrientationTalkFrequency {
+  souvent
+  un_peu
+  pas_du_tout
+}
+
+enum PassionateTeacherAnswer {
+  oui
+  pas_sur
+}
+
+enum TechProjection {
+  dev
+  cyber
+  ia_data
+  jeux_video
+  design
+  reseaux_systemes
+  pas_idee
+  hors_tech
+}
+
+enum OtherJobDomain {
+  sante
+  commerce_gestion
+  arts_design
+  sport
+  autre
+}
+
+enum InfoSource {
+  tiktok
+  instagram
+  youtube
+  google
+  ia_chatgpt
+  parcoursup_onisep
+  entourage
+  lycee
+  autre
+}
+
+enum WantsMoreAnswer {
+  oui
+  peut_etre
+  pas_maintenant
+}
+
+enum NextYearEvent {
+  coding_club
+  camp
+  journee_decouverte
+  jpo
+  conference
 }
 
 enum InterviewRecommendation {
-  epitech_orientation_forte
-  a_explorer
-  autre_filiere
-  a_determiner
+  tres_compatible
+  bon_profil
+  indecis
+  pas_interesse
 }
 
 enum ParticipationVerdict {
@@ -86,14 +173,13 @@ model bauth_user {
   accounts                  bauth_account[]
   staffProfile              StaffProfile?
   talent                    Talent?
-  invitationsIssued         StaffInvitation[]     @relation("StaffInvitationInvitedBy")
+  invitationsIssued         StaffInvitation[]    @relation("StaffInvitationInvitedBy")
   cmsPages                  CmsPage[]
-  ticketsAuthored           Ticket[]              @relation("TicketAuthor")
+  ticketsAuthored           Ticket[]             @relation("TicketAuthor")
   ticketMessages            TicketMessage[]
-  outlookSyncs              OutlookCalendarSync[]
-  broadcastsCreated         Broadcast[]           @relation("BroadcastCreator")
-  templatesCreated          MessageTemplate[]     @relation("MessageTemplateCreator")
-  broadcastsReceivedAsStaff BroadcastRecipient[]  @relation("BroadcastRecipientStaff")
+  broadcastsCreated         Broadcast[]          @relation("BroadcastCreator")
+  templatesCreated          MessageTemplate[]    @relation("MessageTemplateCreator")
+  broadcastsReceivedAsStaff BroadcastRecipient[] @relation("BroadcastRecipientStaff")
 }
 
 model bauth_session {
@@ -145,21 +231,21 @@ model bauth_verification {
 // ─── Domain Profiles ───
 
 model StaffProfile {
-  id        String     @id @default(cuid())
-  userId    String     @unique
-  campusId  String?
-  staffRole StaffRole?
-  discordId String?    @unique
+  id                String     @id @default(cuid())
+  userId            String     @unique
+  campusId          String?
+  staffRole         StaffRole?
+  discordId         String?    @unique
   // Personal dev-redirect destinations: on a trapped (non-prod) env, mail/SMS
   // attributed to this staff member (sends they trigger, or talents they
   // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
   // list, so each tester only receives their own traffic. Empty = fall back to
   // the env list. Inert in prod (the env gate is off). See
   // `$lib/server/{email,sms}/dev-redirect.ts`.
-  devRedirectEmails String[] @default([])
-  devRedirectPhones String[] @default([])
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  devRedirectEmails String[]   @default([])
+  devRedirectPhones String[]   @default([])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   user                    bauth_user              @relation(fields: [userId], references: [id], onDelete: Cascade)
   campus                  Campus?                 @relation(fields: [campusId], references: [id])
@@ -191,14 +277,14 @@ model StaffInvitation {
 }
 
 model Talent {
-  id                          String    @id @default(cuid())
-  userId                      String?   @unique
-  email                       String?   @unique
+  id                          String               @id @default(cuid())
+  userId                      String?              @unique
+  email                       String?              @unique
   nom                         String
   prenom                      String
   niveau                      String?
-  xp                          Int       @default(0)
-  eventsCount                 Int       @default(0)
+  xp                          Int                  @default(0)
+  eventsCount                 Int                  @default(0)
   charterAcceptedAt           DateTime?
   techInterestsValidatedAt    DateTime?
   generalInterestsValidatedAt DateTime?
@@ -253,17 +339,24 @@ model Talent {
   parent2Prenom               String?
   parent2Email                String?
   parent2Phone                String?
-  hasLaptop                   Boolean   @default(false)
+  hasLaptop                   Boolean              @default(false)
   setupDescription            String?
   equipmentValidatedAt        DateTime?
   interestsFreeText           String?
-  discordId                   String?   @unique
-  externalId                  String?   @unique
+  discordId                   String?              @unique
+  externalId                  String?              @unique
   lastSyncedAt                DateTime?
   lastActiveAt                DateTime?
+  // First real (non-impersonated) login, stamped once in hooks.server.ts and
+  // never cleared. A durable projection of "has this talent ever connected" —
+  // distinct from probing bauth_session, whose rows are deleted by logout,
+  // identity repair and account relinks, so a real login would otherwise read
+  // "Jamais" once its session row is gone. Paired with lastActiveAt (MAX
+  // activity); this is the MIN.
+  firstLoginAt                DateTime?
   welcomeSeenAt               DateTime?
-  createdAt                   DateTime  @default(now())
-  updatedAt                   DateTime  @updatedAt
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
 
   user               bauth_user?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   participations     Participation[]
@@ -533,9 +626,9 @@ model ActivityTheme {
 }
 
 model Event {
-  id    String   @id @default(cuid())
-  titre String
-  date  DateTime
+  id           String    @id @default(cuid())
+  titre        String
+  date         DateTime
   // Salesforce gives us the calendar day (`date`/`endDate`) but never a
   // start time, so the time-of-day is Jump-owned: wall-clock minutes from
   // local midnight (0–1439), `null` until staff set it. Kept separate from
@@ -545,12 +638,12 @@ model Event {
   endDate      DateTime?
   eventType    String    @default("coding_club")
   campusId     String
-  themeId    String?
-  pin        String?
-  notes      String?
-  externalId String?   @unique
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  themeId      String?
+  pin          String?
+  notes        String?
+  externalId   String?   @unique
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   campus           Campus                  @relation(fields: [campusId], references: [id])
   theme            Theme?                  @relation(fields: [themeId], references: [id])
@@ -703,71 +796,61 @@ enum PresenceSource {
   system
 }
 
+/// One stage-de-seconde orientation interview, 1:1 with the talent's
+/// participation in that stage. The questionnaire answers live inline:
+/// single-choice as enum columns, multi-choice as Postgres enum arrays,
+/// plus a 1–5 satisfaction rating and a few free-text fields. Conducted by
+/// the dev (Talent Acquisition) team from the talent fiche; no row exists
+/// until staff opens the grid (absence = "à faire").
 model Interview {
   id              String          @id @default(cuid())
   talentId        String
   staffId         String
   campusId        String
-  participationId String?         @unique
-  date            DateTime
-  status          InterviewStatus @default(planned)
+  participationId String          @unique
+  status          InterviewStatus @default(in_progress)
+  conductedAt     DateTime        @default(now())
 
-  discoveryReason   String?
-  motivation        String?
-  nextEventInterest String?
-  platforms         String?
-  specialties       String?
-  interests         String?
-  otherJobs         String?
-  satisfaction      String?
-  globalNote        String?
-  recommendation    InterviewRecommendation?
+  // Single-choice answers (null until answered).
+  discoveryChannel        DiscoveryChannel?
+  motivation              InterviewMotivation?
+  orientationTalkAtSchool OrientationTalkFrequency?
+  passionateTeacher       PassionateTeacherAnswer?
+  wantsMore               WantsMoreAnswer?
+  recommendation          InterviewRecommendation?
+
+  // Multi-choice answers (Postgres enum arrays).
+  techProjection TechProjection[] @default([])
+  specialties    Specialty[]      @default([])
+  otherJobs      OtherJobDomain[] @default([])
+  infoSources    InfoSource[]     @default([])
+  nextYearEvents NextYearEvent[]  @default([])
+
+  // Scalars / free text.
+  satisfactionStars Int?
+  teacherName       String?
+  teacherSubject    String?
+  oneSentence       String?
+  interviewerNote   String?
+
+  // "Autre" precisions: the free text behind the matching "Autre" choice
+  // (null unless that choice is selected; see domain/interview.ts reveals).
+  discoveryChannelOther String?
+  specialtiesOther      String?
+  otherJobsOther        String?
+  infoSourcesOther      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  talent        Talent                @relation(fields: [talentId], references: [id], onDelete: Cascade)
-  staff         StaffProfile          @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  campus        Campus                @relation(fields: [campusId], references: [id], onDelete: Cascade)
-  participation Participation?        @relation(fields: [participationId], references: [id], onDelete: SetNull)
-  outlookSyncs  OutlookCalendarSync[]
+  talent        Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  staff         StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  campus        Campus        @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  participation Participation @relation(fields: [participationId], references: [id], onDelete: Cascade)
 
   @@index([talentId])
   @@index([staffId])
   @@index([campusId])
-}
-
-/// One row per (Interview, user) pair we've pushed to that user's calendar.
-/// Acts as the idempotency map across both sync backends:
-///
-///   - `syncKind = 'graph'`: `outlookEventId` is the Graph event id;
-///     reconcile PATCH/DELETEs through Microsoft Graph using the user's
-///     delegated `Calendars.ReadWrite` token. `sequence` and `contentHash`
-///     are unused (Graph sends the latest body each time).
-///   - `syncKind = 'email'`: `outlookEventId` is the iCalendar UID we
-///     emit (stable: `<interview.id>@jump.epitech.eu`). `sequence` is
-///     bumped on every meaningful change so Outlook merges the invite
-///     update onto the existing event. `contentHash` lets us skip
-///     re-sending an unchanged invite.
-///
-/// Per-user because each backend writes to the signed-in user's own
-/// calendar — Graph via delegated token, email via the user's mailbox.
-model OutlookCalendarSync {
-  id             String   @id @default(cuid())
-  interviewId    String
-  userId         String
-  outlookEventId String
-  syncKind       String   @default("graph")
-  sequence       Int      @default(0)
-  contentHash    String?
-  syncedAt       DateTime @updatedAt
-  createdAt      DateTime @default(now())
-
-  interview Interview  @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  user      bauth_user @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([interviewId, userId])
-  @@index([userId])
 }
 
 model StepsProgress {
@@ -1307,7 +1390,7 @@ enum BroadcastSourceFilter {
 }
 
 model MessageTemplate {
-  id String @id @default(cuid())
+  id          String           @id @default(cuid())
   /// Stable identity for a seeded *broadcast* template (free-standing, no
   /// EmailActionMapping). Lets `seed-catalogs` upsert these defaults
   /// idempotently without colliding on the non-unique `name`. Null for admin-
@@ -1412,11 +1495,11 @@ model BroadcastRecipient {
 // ─── Interests ───
 
 model Interest {
-  id    String  @id @default(cuid())
-  nom   String  @unique
-  emoji String?
-  kind  String  @default("general") // "tech" | "general"
-  order Int
+  id                    String  @id @default(cuid())
+  nom                   String  @unique
+  emoji                 String?
+  kind                  String  @default("general") // "tech" | "general"
+  order                 Int
   // Full event-opportunity message for the dev fiche recommendations (REC-005),
   // shown verbatim. When set on a tech interest, a student who picked it gets
   // this exact sentence as a recommendation; null means the interest never
@@ -1601,19 +1684,19 @@ model OtpAttempt {
 /// the repo's "facts as rows" convention (cf. XpGrant / OtpAttempt). Never
 /// updated.
 model AuthIdentityRepair {
-  id       String @id @default(cuid())
-  talentId String
+  id         String   @id @default(cuid())
+  talentId   String
   /// repoint_drop | rename | swap | sever — kept a `String` (the vocabulary
   /// lives in code as `AuthRepairKind`), so a new operation needs no migration.
-  kind String
+  kind       String
   /// The account kept / linked after the repair (null for `sever`).
-  toUserId String?
+  toUserId   String?
   /// The account renamed-from or hard-dropped by the repair (null where N/A).
   fromUserId String?
   /// Emails captured at repair time, for the trail — the rows they describe may
   /// be gone by the time anyone reads this.
-  fromEmail String?
-  toEmail   String?
+  fromEmail  String?
+  toEmail    String?
   /// `bauth_user.id` of the admin who ran it, or `'sync'` when the Salesforce
   /// sync auto-resolved it. Plain `String` (no FK) so a non-user actor like the
   /// sync still records, and so the row survives the actor's own later deletion.

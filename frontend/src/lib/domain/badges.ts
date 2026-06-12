@@ -89,9 +89,11 @@ export const BADGES: Badge[] = [
     description: "Recommandation d'orientation posée. Le cap est mis.",
     icon: 'compass',
     color: 'epi-pink',
+    // A decisive read either way (clearly Epitech, or clearly not) means the
+    // cap is set; "à suivre" / "indécis" stay open, so they don't earn it.
     predicate: (c) =>
-      c.recommendation === 'epitech_orientation_forte' ||
-      c.recommendation === 'autre_filiere',
+      c.recommendation === 'tres_compatible' ||
+      c.recommendation === 'pas_interesse',
   },
   {
     id: 'oeuvre-au-noir',
@@ -175,9 +177,8 @@ export function buildBadgeCtx(input: BuildCtxInput): BadgeCtx {
   // Surface the most recent completed-interview recommendation. Matches the
   // logic used in the hero / interview-reco card so badges and chip agree.
   const latestRecommendation =
-    input.interviews.find(
-      (iv) => iv.status === 'completed' && iv.recommendation,
-    )?.recommendation ?? null;
+    input.interviews.find((iv) => iv.status === 'done' && iv.recommendation)
+      ?.recommendation ?? null;
 
   return {
     xp: input.talent.xp,

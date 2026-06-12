@@ -13,6 +13,7 @@
   import { page } from '$app/state';
   import { dev } from '$app/environment';
   import Umami from '$lib/components/Umami.svelte';
+  import ImpersonationAutoExit from '$lib/components/ImpersonationAutoExit.svelte';
   import RealSendsBanner from '$lib/components/layout/RealSendsBanner.svelte';
   import DevRedirectPinBanner from '$lib/components/layout/DevRedirectPinBanner.svelte';
   import { identify, reset } from '$lib/analytics';
@@ -109,6 +110,7 @@
 
 <ModeWatcher />
 <Umami />
+<ImpersonationAutoExit />
 
 <div style="display: contents">
   <Toaster richColors position="top-center" closeButton />

@@ -9,7 +9,6 @@
   import OngoingHero from './OngoingHero.svelte';
   import KpiTile from '$lib/components/staff/KpiTile.svelte';
   import ProgrammeJour from './ProgrammeJour.svelte';
-  import MesProchainsEntretiens from './MesProchainsEntretiens.svelte';
   import EventNotesCard from './EventNotesCard.svelte';
   import LyceesBreakdown from './LyceesBreakdown.svelte';
   import InterestsCloud from './InterestsCloud.svelte';
@@ -26,8 +25,7 @@
     timezone: string;
     kpis: {
       total: number;
-      interviewsCompleted: number;
-      interviewsTotal: number;
+      interviewsDone: number;
       todayPresence: {
         slotName: string;
         present: number;
@@ -45,11 +43,6 @@
         activityType: ActivityTypeKey;
         activityThemes: { theme: { nom: string } }[];
       } | null;
-    }[];
-    mesProchainsEntretiens: {
-      id: string;
-      date: Date | string;
-      talent: { id: string; nom: string; prenom: string };
     }[];
     lyceesBreakdown: {
       rows: { schoolId: string; name: string; count: number }[];
@@ -79,7 +72,6 @@
     kpis,
     alerts,
     timeSlots,
-    mesProchainsEntretiens,
     lyceesBreakdown,
     interestsCloud,
     showPlanning,
@@ -91,9 +83,7 @@
   );
 
   const interviewsPct = $derived(
-    kpis.interviewsTotal === 0
-      ? 0
-      : Math.round((kpis.interviewsCompleted / kpis.interviewsTotal) * 100),
+    kpis.total === 0 ? 0 : Math.round((kpis.interviewsDone / kpis.total) * 100),
   );
 
   const presencePctRounded = $derived(
@@ -108,7 +98,7 @@
     resolve(`/staff/dev/events/${eventId}/inscrits`),
   );
   const interviewsHref = $derived(
-    resolve(`/staff/dev/events/${eventId}/interviews`),
+    resolve(`/staff/dev/events/${eventId}/entretiens`),
   );
   const emargementHref = $derived(
     resolve(`/staff/dev/events/${eventId}/emargement`),
@@ -161,15 +151,13 @@
       icon={MessageSquare}
       tone="pink"
       progress={interviewsPct}
-      sub={`${interviewsPct} % · ${kpis.interviewsCompleted} terminés`}
+      sub={`${interviewsPct} % · ${kpis.interviewsDone} finalisés`}
       href={interviewsHref}
     >
       {#snippet valueSnippet()}
         <p class="font-heading text-5xl tracking-wide text-epi-pink">
-          {kpis.interviewsCompleted}
-          <span class="text-2xl text-muted-foreground"
-            >/ {kpis.interviewsTotal}</span
-          >
+          {kpis.interviewsDone}
+          <span class="text-2xl text-muted-foreground">/ {kpis.total}</span>
         </p>
       {/snippet}
     </KpiTile>
@@ -199,11 +187,6 @@
         {timeSlots}
         {timezone}
         showPlanningLink={showPlanning}
-      />
-      <MesProchainsEntretiens
-        {eventId}
-        interviews={mesProchainsEntretiens}
-        {timezone}
       />
     </div>
   </div>
