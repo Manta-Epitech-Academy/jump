@@ -180,7 +180,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       ? await db.interview.findUnique({
           where: { participationId: primaryComplianceParticipation.id },
           include: {
-            staff: { select: { user: { select: { name: true } } } },
+            staff: {
+              select: { user: { select: { name: true, image: true } } },
+            },
           },
         })
       : null;
@@ -272,6 +274,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       interviewStatus: existingInterview?.status ?? null,
       interviewConductedAt: existingInterview?.conductedAt ?? null,
       interviewConductedBy: existingInterview?.staff.user?.name ?? null,
+      interviewConductedByImage: existingInterview?.staff.user?.image ?? null,
     };
   } catch (e) {
     // A genuinely missing talent (findUniqueOrThrow → P2025) is the only real

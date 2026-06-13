@@ -46,6 +46,8 @@
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import * as Avatar from '$lib/components/ui/avatar';
+  import { getInitials } from '$lib/avatar';
   import { cn } from '$lib/utils';
   import {
     INTERVIEW_SECTIONS,
@@ -71,6 +73,7 @@
     step = $bindable(0),
     conductedLabel = null,
     conductedBy = null,
+    conductedByImage = null,
     actionState = $bindable(),
   }: {
     form: SuperValidated<InterviewConductForm>;
@@ -83,10 +86,12 @@
     // Step cursor, bindable so the fiche's section-nav card can jump around.
     // Pure LOCAL state (the answers autosave, so it needs no DB column).
     step?: number;
-    // "Mené le … par …" line for the synthesis. Null when the interview was
-    // closed this session (the load isn't refetched); the synthesis degrades.
+    // "Mené le … par …" provenance for the synthesis header (with the staff
+    // avatar). All null when the interview was closed this session (the load
+    // isn't refetched); the just-finalised banner covers that moment instead.
     conductedLabel?: string | null;
     conductedBy?: string | null;
+    conductedByImage?: string | null;
     // Autosave + in-flight state, surfaced so the fiche can mirror it if needed.
     actionState?: InterviewActionState;
   } = $props();
@@ -154,6 +159,11 @@
 
   let lastAction = $state<InterviewAction>('autosave');
   let saveState = $state<InterviewSaveState>('idle');
+  // True only after THIS session's clôture (not when the page loaded an
+  // already-done interview). Gates the one-time "finalisé" banner so it reassures
+  // at the moment clôture lands, which tested as ambiguous, without polluting
+  // later visits to the finished record.
+  let justFinalised = $state(false);
 
   let formEl: HTMLFormElement;
   let startBtn: HTMLButtonElement;
@@ -187,10 +197,12 @@
           cancel();
           return;
         }
-        // No success toast on a lifecycle action: each one visibly transitions
-        // the screen (cover ⇆ questions ⇆ synthèse finalisée), so the view
-        // change IS the confirmation. A toast would only narrate what's already
-        // on screen. Failures, which leave no visible trace, toast below.
+        // Start stays silent: cover → questions is an obvious transition. Close
+        // gets an explicit success toast, and the synthèse leads with a
+        // "finalisé" banner, because the silent conduct → synthèse swap tested
+        // as ambiguous: staff couldn't tell the interview had actually closed
+        // and read the recap as a form still awaiting a confirm. Failures, which
+        // leave no visible trace, toast below.
         if (result.type === 'success') {
           if (lastAction === 'start') {
             status = 'in_progress';
@@ -199,6 +211,8 @@
           } else if (lastAction === 'close') {
             status = 'done';
             saveState = 'idle';
+            justFinalised = true;
+            toast.success('Entretien finalisé.');
           }
         } else if (result.type === 'failure') {
           toast.error(result.data?.form?.message ?? 'Une erreur est survenue.');
@@ -623,23 +637,71 @@
            read it. ═══ -->
       <div class="px-5 py-6">
         <div class="mx-auto w-full max-w-2xl space-y-6">
-          <div>
+          {#if justFinalised}
+            <!-- One-time finalised banner: shown only right after THIS session's
+                 clôture, the moment that tested as ambiguous (staff couldn't tell
+                 the interview had closed and read the recap as a form to confirm).
+                 It never renders on later visits to an already-done interview, so
+                 the record stays uncluttered. Teal = gate cleared, the "done"
+                 status-chip language. -->
+            <div
+              class="flex items-center gap-3 rounded-md border border-epi-teal-solid/30 bg-epi-teal-solid/10 p-4"
+            >
+              <span
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-epi-teal-solid/15"
+              >
+                <CheckCheck class="h-5 w-5 text-epi-teal-solid" />
+              </span>
+              <p class="text-sm font-medium text-foreground">
+                <span class="font-bold">Entretien finalisé.</span> Il est clôturé
+                et n'est plus modifiable.
+              </p>
+            </div>
+          {/if}
+
+          <div class="space-y-2.5">
             <h3
               class="font-heading text-2xl tracking-wide text-foreground uppercase"
             >
               Synthèse de l'entretien<span class="text-epi-teal">_</span>
             </h3>
-            <p class="text-xs text-muted-foreground">
-              {#if conductedLabel && conductedBy}
-                Mené le {conductedLabel} par {conductedBy}.
-              {:else if conductedBy}
-                Mené par {conductedBy}.
-              {:else if conductedLabel}
-                Mené le {conductedLabel}.
-              {:else}
-                Entretien finalisé.
-              {/if}
-            </p>
+            {#if conductedBy || conductedLabel}
+              <div class="flex items-center gap-2.5">
+                {#if conductedBy}
+                  <Avatar.Root class="h-7 w-7 shrink-0">
+                    <Avatar.Image
+                      src={conductedByImage ?? undefined}
+                      alt={conductedBy}
+                      class="object-cover"
+                    />
+                    <Avatar.Fallback
+                      class="bg-epi-blue/10 text-[10px] font-bold text-epi-blue"
+                    >
+                      {getInitials(conductedBy)}
+                    </Avatar.Fallback>
+                  </Avatar.Root>
+                {/if}
+                <p class="text-sm text-muted-foreground">
+                  {#if conductedLabel && conductedBy}
+                    Mené le <span class="font-medium text-foreground"
+                      >{conductedLabel}</span
+                    >
+                    par
+                    <span class="font-semibold text-foreground"
+                      >{conductedBy}</span
+                    >
+                  {:else if conductedBy}
+                    Mené par <span class="font-semibold text-foreground"
+                      >{conductedBy}</span
+                    >
+                  {:else if conductedLabel}
+                    Mené le <span class="font-medium text-foreground"
+                      >{conductedLabel}</span
+                    >
+                  {/if}
+                </p>
+              </div>
+            {/if}
           </div>
 
           <!-- The verdict first: it's the one thing staff come back for. -->
