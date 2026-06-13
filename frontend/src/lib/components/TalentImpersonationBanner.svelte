@@ -1,6 +1,5 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { fly } from 'svelte/transition';
   import { authClient } from '$lib/auth-client';
@@ -45,7 +44,15 @@
     busy = true;
     try {
       await authClient.admin.stopImpersonating();
-      await goto(resolve('/staff/admin/talents'), { invalidateAll: true });
+      // Full-page nav, mirroring the impersonate-start path
+      // (admin/talents/+page.svelte): the BetterAuth stop call swaps the
+      // session cookie back to the admin, so we want the next request
+      // evaluated fresh rather than reusing the impersonated client state.
+      // A full reload also tears down talent-space globals that an SPA nav
+      // would not: Crisp injects a side-effecting widget into the document
+      // with no Svelte teardown, so an in-app `goto` left its chat bubble
+      // floating over the admin space.
+      window.location.href = resolve('/staff/admin/talents');
     } catch (err) {
       console.error(err);
       toast.error('Impossible de revenir au compte admin.');
