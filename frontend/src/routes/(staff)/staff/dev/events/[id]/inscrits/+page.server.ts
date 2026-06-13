@@ -24,7 +24,7 @@ import {
   toBreakdown,
 } from '$lib/server/services/cohortOverview';
 import { INSCRIT_PARTICIPATION_SELECT } from './components/types';
-import type { InscritRow } from './components/types';
+import type { InscritRow, InscritsCohort } from './components/types';
 
 // The sidebar cards are narrower than the dashboard's side-by-side breakdowns,
 // so they show a shorter head with the tail folded into "Autres".
@@ -111,68 +111,77 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const scopedAnd = [{ eventId: event.id }, ...originAnd];
   const where = scopedAnd.length === 1 ? scopedAnd[0] : { AND: scopedAnd };
 
-  // One phase-agnostic query: every inscrit, sorted by nom for a stable order
+  // Stream the cohort: the page shell (header + countdown + rail skeleton) paints
+  // immediately while this resolves, instead of the client navigation blocking on
+  // it. One phase-agnostic query: every inscrit, sorted by nom for a stable order
   // (the client applies the user-chosen sort on top). The cohort overview
   // (counter + origin breakdowns + lycée picker) is whole-event on purpose —
   // it ignores the `?lycee`/`?interest` origin filter so it stays a stable map
   // the user drills into, never collapsing to the row currently filtered.
-  const [participations, lyceeRanking, interestRanking, cohortTotal] =
-    await Promise.all([
-      db.participation.findMany({
-        where,
-        select: INSCRIT_PARTICIPATION_SELECT,
-        orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-      }),
-      rankLyceesByCohort(db, event.id),
-      // The interests sidebar shows only tech interests (the recruitment signal);
-      // the lycée breakdown stays the full origin picture.
-      rankInterestsByCohort(db, event.id, { techOnly: true }),
-      db.participation.count({ where: { eventId: event.id } }),
-    ]);
+  const cohort: Promise<InscritsCohort> = (async () => {
+    const [participations, lyceeRanking, interestRanking, cohortTotal] =
+      await Promise.all([
+        db.participation.findMany({
+          where,
+          select: INSCRIT_PARTICIPATION_SELECT,
+          orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+        }),
+        rankLyceesByCohort(db, event.id),
+        // The interests sidebar shows only tech interests (the recruitment
+        // signal); the lycée breakdown stays the full origin picture.
+        rankInterestsByCohort(db, event.id, { techOnly: true }),
+        db.participation.count({ where: { eventId: event.id } }),
+      ]);
 
-  const rows: InscritRow[] = participations.map((p) => {
-    const t = p.talent;
-    const rules = rulesStatus(
-      t.parentRulesSignedAt,
-      p.stageCompliance?.charteSigned,
-      t.rulesSignedAt,
-    );
-    const image = imageRightsStatus(t);
-    const connected = t.firstLoginAt != null;
+    const rows: InscritRow[] = participations.map((p) => {
+      const t = p.talent;
+      const rules = rulesStatus(
+        t.parentRulesSignedAt,
+        p.stageCompliance?.charteSigned,
+        t.rulesSignedAt,
+      );
+      const image = imageRightsStatus(t);
+      const connected = t.firstLoginAt != null;
+      return {
+        id: p.id,
+        talentId: p.talentId,
+        nom: t.nom,
+        prenom: t.prenom,
+        niveau: t.niveau,
+        schoolName: t.school?.name ?? null,
+        status: inscritStatus(connected, rules, image),
+        connected,
+        rulesStatus: rules,
+        imageStatus: image,
+        studentSigned: t.rulesSignedAt != null,
+        email: t.email,
+        parentEmail: t.parentEmail,
+      };
+    });
+
+    const availableNiveaux = Array.from(
+      new Set(rows.map((r) => r.niveau).filter((n): n is string => !!n)),
+    ).sort(compareNiveaux);
+
     return {
-      id: p.id,
-      talentId: p.talentId,
-      nom: t.nom,
-      prenom: t.prenom,
-      niveau: t.niveau,
-      schoolName: t.school?.name ?? null,
-      status: inscritStatus(connected, rules, image),
-      connected,
-      rulesStatus: rules,
-      imageStatus: image,
-      studentSigned: t.rulesSignedAt != null,
-      email: t.email,
-      parentEmail: t.parentEmail,
+      rows,
+      availableNiveaux,
+      // Full lycée ranking feeds the toolbar picker (every lycée, ranked by
+      // headcount); the capped slices feed the read-only sidebar cards.
+      // Interests are read-only (no picker), so only the capped tech slice.
+      lyceeOptions: lyceeRanking,
+      lyceesBreakdown: toBreakdown(lyceeRanking, SIDEBAR_BREAKDOWN_TOP_N),
+      interestsCloud: toBreakdown(interestRanking, SIDEBAR_BREAKDOWN_TOP_N),
+      cohort: { total: cohortTotal },
     };
-  });
-
-  const availableNiveaux = Array.from(
-    new Set(rows.map((r) => r.niveau).filter((n): n is string => !!n)),
-  ).sort(compareNiveaux);
+  })();
 
   return {
     event,
     timezone,
     origin,
-    availableNiveaux,
-    rows,
     countdown,
-    // Full lycée ranking feeds the toolbar picker (every lycée, ranked by
-    // headcount); the capped slices feed the read-only sidebar cards. Interests
-    // are read-only (no picker), so only the capped tech slice is needed.
-    lyceeOptions: lyceeRanking,
-    lyceesBreakdown: toBreakdown(lyceeRanking, SIDEBAR_BREAKDOWN_TOP_N),
-    interestsCloud: toBreakdown(interestRanking, SIDEBAR_BREAKDOWN_TOP_N),
-    cohort: { total: cohortTotal },
+    // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
+    cohort,
   };
 };

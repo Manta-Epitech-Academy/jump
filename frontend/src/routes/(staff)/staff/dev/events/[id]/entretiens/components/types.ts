@@ -23,3 +23,24 @@ export type TopInterviewer = {
   image: string | null;
   count: number;
 };
+
+/** Status buckets for the synthesis card. */
+export type InterviewCounts = {
+  todo: number;
+  in_progress: number;
+  done: number;
+};
+
+/** Recommendation breakdown over finalized interviews. */
+export type RecoCounts = Record<InterviewRecommendation, number>;
+
+/** The cohort payload streamed behind the page shell's `{#await}` — everything
+ *  that needs the DB. Shared by the page load and `EntretiensResults` so the
+ *  streamed shape and the consuming component can never drift. */
+export type EntretiensCohort = {
+  rows: EntretienRow[];
+  counts: InterviewCounts;
+  recoCounts: RecoCounts;
+  topInterviewers: TopInterviewer[];
+  total: number;
+};
