@@ -1,9 +1,10 @@
 <script lang="ts">
   import { Skeleton } from '$lib/components/ui/skeleton';
 
-  // Pending placeholder for the streamed cohort region. It mirrors the two-column
-  // results grid (table left, rail right) so the shell doesn't reflow when the
-  // real content lands. Shared by the three stage pages.
+  // Pending placeholder for a streamed results region. Mirrors the two-column
+  // results grid (table left, optional rail right) so the shell doesn't reflow
+  // when the real content lands. Shared by the streamed staff pages (dev stage
+  // tables + admin sf-conflicts); pass `rail={false}` for a single-column list.
   let { rows = 8, rail = true }: { rows?: number; rail?: boolean } = $props();
 </script>
 

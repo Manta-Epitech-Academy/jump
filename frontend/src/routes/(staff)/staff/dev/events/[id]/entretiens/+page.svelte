@@ -3,7 +3,7 @@
   import type { PageData } from './$types';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
-  import ResultsSkeleton from '../components/ResultsSkeleton.svelte';
+  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import EntretiensResults from './components/EntretiensResults.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';

@@ -12,7 +12,7 @@
   import type { PageData } from './$types';
   import type { EmargementCohort } from './components/types';
   import QrDialog from './components/QrDialog.svelte';
-  import ResultsSkeleton from '../components/ResultsSkeleton.svelte';
+  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import EmargementRoster from './components/EmargementRoster.svelte';
 
   let { data }: { data: PageData } = $props();

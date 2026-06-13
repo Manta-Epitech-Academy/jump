@@ -11,7 +11,7 @@
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import PageBreadcrumb from '$lib/components/layout/PageBreadcrumb.svelte';
   import EventSalesforceButton from '$lib/components/events/EventSalesforceButton.svelte';
-  import ResultsSkeleton from '../components/ResultsSkeleton.svelte';
+  import ResultsSkeleton from '$lib/components/staff/ResultsSkeleton.svelte';
   import InscritsResults from './components/InscritsResults.svelte';
   import { STAGE_SECONDE_LABEL } from '$lib/domain/event';
   import type { FlagKey } from '$lib/domain/featureFlags';
