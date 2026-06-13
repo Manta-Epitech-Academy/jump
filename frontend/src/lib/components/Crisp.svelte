@@ -1,29 +1,36 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import { env } from '$env/dynamic/public';
+  import { isSupportSurface } from '$lib/domain/supportSurfaces';
 
-  // Website ID comes from the runtime container env (per-environment k8s
-  // deployment), like Umami. Empty/unset -> the widget never loads, so Crisp is
-  // fully hidden. The crisp.chat hosts are whitelisted in the CSP (hooks.server.ts).
+  // Live-chat widget. The website ID comes from the runtime container env
+  // (per-environment k8s deployment), like Umami. Empty/unset -> never loads, so
+  // Crisp is fully hidden. The crisp.chat hosts are whitelisted in the CSP
+  // (hooks.server.ts).
   //
-  // No teardown: once loaded, Crisp injects a global widget into the document
-  // (a `.crisp-client` node + `window.$crisp`) that has no Svelte lifecycle and
-  // no clean removal API. Unmounting this component does NOT remove it. Clearing
-  // it requires a full page reload, so any exit from the talent space into a
-  // staff space MUST be a full-page nav, not an in-app `goto` (see
-  // TalentImpersonationBanner.stopImpersonating) or the bubble leaks across.
+  // Scoped to the login + onboarding surfaces only (see supportSurfaces): we help
+  // talents and parents get INTO the app, then step out of the way, so the
+  // national team isn't flooded with local/on-site questions from the whole
+  // talent space during a stage de seconde.
+  //
+  // No teardown: once l.js loads it injects a global widget (a `.crisp-client`
+  // node + `window.$crisp`) with no clean removal API, and unmounting this
+  // component does NOT remove it. So we never try to unload: we load lazily the
+  // first time we hit a support surface and drive Crisp's own chat:show /
+  // chat:hide on each client-side route change. (Across route groups the
+  // component unmounts before it can hide, so a talent->staff exit must still be
+  // a full-page nav -- see TalentImpersonationBanner.stopImpersonating.)
   const websiteId = env.PUBLIC_CRISP_WEBSITE_ID ?? '';
 
-  onMount(() => {
-    if (!websiteId) return;
+  type CrispWindow = { $crisp?: unknown[]; CRISP_WEBSITE_ID?: string };
+
+  function ensureLoaded() {
+    const w = window as unknown as CrispWindow;
+    if (w.$crisp) return; // already initialized by this or another mount
 
     // Mirror the official Crisp snippet: seed the queue + website id on window,
-    // then async-load the loader script. RGPD: we deliberately do NOT push any
-    // talent identity (email/name) — talents can be minors.
-    const w = window as unknown as {
-      $crisp: unknown[];
-      CRISP_WEBSITE_ID: string;
-    };
+    // then async-load the loader. RGPD: we deliberately do NOT push any talent
+    // identity (email/name) -- talents can be minors.
     w.$crisp = [];
     w.CRISP_WEBSITE_ID = websiteId;
 
@@ -31,5 +38,14 @@
     s.src = 'https://client.crisp.chat/l.js';
     s.async = true;
     document.head.appendChild(s);
+  }
+
+  $effect(() => {
+    if (!websiteId) return;
+    const onSurface = isSupportSurface(page.url.pathname);
+    if (onSurface) ensureLoaded();
+    // Safe before l.js loads (commands queue) and a no-op if never loaded.
+    const w = window as unknown as CrispWindow;
+    w.$crisp?.push(['do', onSurface ? 'chat:show' : 'chat:hide']);
   });
 </script>
