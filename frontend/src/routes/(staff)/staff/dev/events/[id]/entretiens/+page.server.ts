@@ -10,11 +10,11 @@ import { interviewListStatus } from '$lib/domain/interview';
 import type { InterviewRecommendation } from '@prisma/client';
 import type {
   EntretienRow,
-  TopInterviewer,
+  StaffTally,
   EntretiensCohort,
 } from './components/types';
 
-const TOP_INTERVIEWERS = 5;
+const TOP_STAFF = 5;
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
@@ -26,8 +26,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   // Stream the cohort: the page shell (header + rail skeleton) paints immediately
   // while this resolves, instead of the client navigation blocking on it. One
   // driving query for the table (every participant left-joined with their
-  // interview) plus a grouped count for the "top interviewers" rail card; the
-  // status buckets, the recommendation breakdown and the per-interviewer tally
+  // interview) plus a grouped count for the "entretiens menés" rail card; the
+  // status buckets, the recommendation breakdown and the per-staff tally
   // are all derived from rows already in memory (a stage cohort is ~200).
   const cohort: Promise<EntretiensCohort> = (async () => {
     const [participations, byStaff] = await Promise.all([
@@ -58,7 +58,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         where: { participation: { eventId: event.id } },
         _count: { staffId: true },
         orderBy: { _count: { staffId: 'desc' } },
-        take: TOP_INTERVIEWERS,
+        take: TOP_STAFF,
       }),
     ]);
 
@@ -68,8 +68,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       nom: p.talent.nom,
       prenom: p.talent.prenom,
       status: interviewListStatus(p.interview),
-      interviewerName: p.interview?.staff.user?.name ?? null,
-      interviewerImage: p.interview?.staff.user?.image ?? null,
+      staffName: p.interview?.staff.user?.name ?? null,
+      staffImage: p.interview?.staff.user?.image ?? null,
       conductedAt: p.interview?.conductedAt ?? null,
       recommendation: p.interview?.recommendation ?? null,
     }));
@@ -103,7 +103,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         })
       : [];
     const staffById = new Map(staff.map((s) => [s.id, s]));
-    const topInterviewers: TopInterviewer[] = byStaff.map((g) => {
+    const topStaff: StaffTally[] = byStaff.map((g) => {
       const u = staffById.get(g.staffId)?.user;
       return {
         id: g.staffId,
@@ -113,7 +113,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       };
     });
 
-    return { rows, counts, recoCounts, topInterviewers, total: rows.length };
+    return { rows, counts, recoCounts, topStaff, total: rows.length };
   })();
 
   return {

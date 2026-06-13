@@ -9,15 +9,17 @@ export type EntretienRow = {
   nom: string;
   prenom: string;
   status: InterviewListStatus;
-  interviewerName: string | null;
-  interviewerImage: string | null;
+  staffName: string | null;
+  staffImage: string | null;
   conductedAt: Date | string | null;
   recommendation: InterviewRecommendation | null;
 };
 
-export type SortKey = 'prenom' | 'nom' | 'interviewer' | 'date' | 'status';
+export type SortKey = 'prenom' | 'nom' | 'staff' | 'date' | 'status';
 
-export type TopInterviewer = {
+/** One staff member with the number of entretiens they conducted, for the
+ *  "Entretiens menés" leaderboard. */
+export type StaffTally = {
   id: string;
   name: string;
   image: string | null;
@@ -41,6 +43,6 @@ export type EntretiensCohort = {
   rows: EntretienRow[];
   counts: InterviewCounts;
   recoCounts: RecoCounts;
-  topInterviewers: TopInterviewer[];
+  topStaff: StaffTally[];
   total: number;
 };

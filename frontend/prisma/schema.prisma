@@ -835,7 +835,7 @@ model Interview {
   teacherName       String?
   teacherSubject    String?
   oneSentence       String?
-  interviewerNote   String?
+  verdictNote       String?
 
   // "Autre" precisions: the free text behind the matching "Autre" choice
   // (null unless that choice is selected; see domain/interview.ts reveals).

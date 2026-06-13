@@ -204,7 +204,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             teacherName: existingInterview.teacherName ?? '',
             teacherSubject: existingInterview.teacherSubject ?? '',
             oneSentence: existingInterview.oneSentence ?? '',
-            interviewerNote: existingInterview.interviewerNote ?? '',
+            verdictNote: existingInterview.verdictNote ?? '',
             discoveryChannelOther:
               existingInterview.discoveryChannelOther ?? '',
             specialtiesOther: existingInterview.specialtiesOther ?? '',
@@ -352,7 +352,7 @@ async function persistInterview(
     );
   }
 
-  const { participationId, oneSentence, interviewerNote, ...rest } = form.data;
+  const { participationId, oneSentence, verdictNote, ...rest } = form.data;
 
   // Reveal-gated free text (teacher name/subject, the "Autre" precisions): trim,
   // and clear when its trigger choice is not selected so the DB never keeps a
@@ -373,7 +373,7 @@ async function persistInterview(
   const answers = {
     ...rest,
     oneSentence: oneSentence.trim() || null,
-    interviewerNote: interviewerNote.trim() || null,
+    verdictNote: verdictNote.trim() || null,
     ...revealText,
   };
 

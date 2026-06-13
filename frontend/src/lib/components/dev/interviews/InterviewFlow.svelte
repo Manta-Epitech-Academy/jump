@@ -49,7 +49,7 @@
   import { cn } from '$lib/utils';
   import {
     INTERVIEW_SECTIONS,
-    INTERVIEWER_SECTION,
+    VERDICT_SECTION,
     INTERVIEW_RECOMMENDATIONS,
     INTERVIEW_RECOMMENDATION_DISPLAY_ORDER,
     isRevealActive,
@@ -116,7 +116,7 @@
     if (step > 0) step -= 1;
   }
 
-  // "Reprendre" should drop the interviewer back where work remains, not on
+  // "Reprendre" should drop the staff member back where work remains, not on
   // section 1. `step` is local-only, so a page reload (status still in_progress,
   // step reset to 0) is the case that matters, and the answers come from the DB,
   // so they tell us how far the interview got. Target = the first section with no
@@ -649,7 +649,7 @@
             <p
               class="text-xs font-semibold tracking-[0.2em] text-epi-blue uppercase"
             >
-              {INTERVIEWER_SECTION.title}
+              {VERDICT_SECTION.title}
             </p>
             {#if $form.recommendation}
               {@const desc = INTERVIEW_RECOMMENDATIONS[$form.recommendation]}
@@ -668,9 +668,9 @@
                 Aucun avis renseigné.
               </p>
             {/if}
-            {#if $form.interviewerNote.trim()}
+            {#if $form.verdictNote.trim()}
               <p class="text-sm text-foreground italic">
-                « {$form.interviewerNote.trim()} »
+                « {$form.verdictNote.trim()} »
               </p>
             {/if}
           </div>
@@ -783,16 +783,16 @@
                   </div>
                 </div>
               {:else}
-                <!-- ── Verdict: interviewer-only, filled at the end ── -->
+                <!-- ── Verdict: staff-only, filled at the end ── -->
                 <div class="space-y-6">
                   <div class="space-y-0.5">
                     <p
                       class="text-xs font-semibold tracking-[0.2em] text-epi-blue uppercase"
                     >
-                      {INTERVIEWER_SECTION.title}
+                      {VERDICT_SECTION.title}
                     </p>
                     <p class="text-[11px] text-muted-foreground">
-                      {INTERVIEWER_SECTION.subtitle}
+                      {VERDICT_SECTION.subtitle}
                     </p>
                   </div>
 
@@ -834,14 +834,14 @@
                     <p
                       class="text-2xl leading-snug font-semibold text-foreground"
                     >
-                      {INTERVIEWER_SECTION.noteLabel}
+                      {VERDICT_SECTION.noteLabel}
                     </p>
                     <Textarea
-                      value={$form.interviewerNote}
+                      value={$form.verdictNote}
                       oninput={(e) =>
-                        setText('interviewerNote', e.currentTarget.value)}
-                      placeholder={INTERVIEWER_SECTION.notePlaceholder}
-                      maxlength={INTERVIEWER_SECTION.noteMaxLength}
+                        setText('verdictNote', e.currentTarget.value)}
+                      placeholder={VERDICT_SECTION.notePlaceholder}
+                      maxlength={VERDICT_SECTION.noteMaxLength}
                       disabled={!interactive}
                       class="min-h-20 bg-background"
                     />

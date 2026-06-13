@@ -3,7 +3,7 @@ import type { InterviewRecommendation, InterviewStatus } from '@prisma/client';
 /**
  * Single source of truth for the stage-de-seconde orientation interview.
  *
- * The questionnaire catalogue below (`INTERVIEW_SECTIONS` + `INTERVIEWER_SECTION`)
+ * The questionnaire catalogue below (`INTERVIEW_SECTIONS` + `VERDICT_SECTION`)
  * drives the conduct flow on the talent fiche AND the answer labels on the
  * list page. Each question's `field` matches an `Interview` column and the
  * matching key in `interviewConductSchema`, so the flow renderer is one loop
@@ -14,7 +14,7 @@ import type { InterviewRecommendation, InterviewStatus } from '@prisma/client';
  */
 
 /** Sentiment of an ordinal answer, driving a green→amber→red chip so the
- *  interviewer reads the valence at a glance. Set only on scale questions
+ *  staff reads the valence at a glance. Set only on scale questions
  *  (oui / un peu / pas du tout); categorical options omit it, since color there
  *  would imply a ranking that isn't real (one channel isn't "better" than
  *  another). */
@@ -116,11 +116,11 @@ export const INTERVIEW_TEXT_LIMITS = {
   // (a channel, a specialty, a métier), never a paragraph.
   otherChoice: 120,
   oneSentence: 2000,
-  interviewerNote: 2000,
+  verdictNote: 2000,
 } as const;
 
 /** The four student-facing sections of the conduct flow, in order. The verdict
- *  ("Avis de l'interviewer", `INTERVIEWER_SECTION`) is a fifth, staff-only step
+ *  ("Avis de l'équipe", `VERDICT_SECTION`) is a fifth, staff-only step
  *  rendered apart. All questions are equal weight. There is no longer an
  *  "incontournable" tier. */
 export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
@@ -387,17 +387,17 @@ export function isRevealActive(reveal: Reveal, value: unknown): boolean {
     : value === reveal.when;
 }
 
-/** Interviewer-only block, filled after the interview (never asked to the
+/** Staff-only verdict block, filled after the interview (never asked to the
  *  student). The recommendation is the single most actionable signal for
  *  follow-up; the note is the "why" behind it. */
-export const INTERVIEWER_SECTION = {
-  title: 'Avis de l’interviewer',
-  subtitle: 'À chaud, après l’entretien. Réservé à l’équipe.',
-  noteField: 'interviewerNote',
+export const VERDICT_SECTION = {
+  title: 'Avis de l’équipe',
+  subtitle: 'À chaud, après l’entretien. Non visible par le talent.',
+  noteField: 'verdictNote',
   noteLabel: 'Note rapide',
   notePlaceholder:
     'Le « pourquoi » de l’avis (ex. « très motivé mais hésite avec médecine », « à relancer pour la JPO »).',
-  noteMaxLength: INTERVIEW_TEXT_LIMITS.interviewerNote,
+  noteMaxLength: INTERVIEW_TEXT_LIMITS.verdictNote,
 } as const;
 
 // ─── Recommendation (profile compatibility) ───

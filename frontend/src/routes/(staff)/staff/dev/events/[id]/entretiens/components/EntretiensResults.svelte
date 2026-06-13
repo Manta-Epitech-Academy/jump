@@ -26,7 +26,7 @@
   } from '$lib/domain/interview';
   import type { EntretienRow, SortKey, EntretiensCohort } from './types';
   import SynthesisCard from './SynthesisCard.svelte';
-  import TopInterviewersCard from './TopInterviewersCard.svelte';
+  import StaffTallyCard from './StaffTallyCard.svelte';
   import GuideCard from '$lib/components/dev/interviews/GuideCard.svelte';
 
   // The streamed cohort payload plus the two cheap shell values the table/rail
@@ -37,7 +37,7 @@
     rows,
     counts,
     recoCounts,
-    topInterviewers,
+    topStaff,
     total,
     timezone,
     currentStaffId,
@@ -68,8 +68,8 @@
     { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
     { key: 'nom', label: 'Nom', sortable: true, class: 'w-36' },
     {
-      key: 'interviewer',
-      label: 'Interviewer',
+      key: 'staff',
+      label: 'Mené par',
       sortable: true,
       class: 'w-full',
     },
@@ -111,12 +111,12 @@
         return a.prenom.localeCompare(b.prenom, 'fr');
       case 'nom':
         return a.nom.localeCompare(b.nom, 'fr');
-      case 'interviewer':
+      case 'staff':
         // Conducted interviews (named) sort before the not-yet-assigned.
-        if (!a.interviewerName && !b.interviewerName) return 0;
-        if (!a.interviewerName) return 1;
-        if (!b.interviewerName) return -1;
-        return a.interviewerName.localeCompare(b.interviewerName, 'fr');
+        if (!a.staffName && !b.staffName) return 0;
+        if (!a.staffName) return 1;
+        if (!b.staffName) return -1;
+        return a.staffName.localeCompare(b.staffName, 'fr');
       case 'date': {
         const ta = a.conductedAt ? new Date(a.conductedAt).getTime() : null;
         const tb = b.conductedAt ? new Date(b.conductedAt).getTime() : null;
@@ -135,7 +135,7 @@
     const out = rows.filter((r) => {
       if (statutFilter !== 'all' && r.status !== statutFilter) return false;
       if (tokens.length === 0) return true;
-      const h = norm(`${r.prenom} ${r.nom} ${r.interviewerName ?? ''}`);
+      const h = norm(`${r.prenom} ${r.nom} ${r.staffName ?? ''}`);
       return tokens.every((tok) => h.includes(tok));
     });
     out.sort((a, b) => {
@@ -174,7 +174,7 @@
   </span>
 {/snippet}
 
-{#snippet interviewerAvatar(name: string, image: string | null)}
+{#snippet staffAvatar(name: string, image: string | null)}
   <Avatar.Root class="h-6 w-6 shrink-0">
     <Avatar.Image src={image ?? undefined} alt={name} class="object-cover" />
     <Avatar.Fallback class="bg-epi-blue/10 text-[9px] font-bold text-epi-blue">
@@ -257,14 +257,11 @@
             <span class="block truncate" title={r.nom}>{r.nom}</span>
           </Table.Cell>
           <Table.Cell class="text-sm">
-            {#if r.interviewerName}
+            {#if r.staffName}
               <span class="flex min-w-0 items-center gap-2">
-                {@render interviewerAvatar(
-                  r.interviewerName,
-                  r.interviewerImage,
-                )}
-                <span class="truncate" title={r.interviewerName}>
-                  {r.interviewerName}
+                {@render staffAvatar(r.staffName, r.staffImage)}
+                <span class="truncate" title={r.staffName}>
+                  {r.staffName}
                 </span>
               </span>
             {:else}
@@ -297,14 +294,11 @@
               <div
                 class="flex items-center gap-2 text-xs text-muted-foreground"
               >
-                {#if r.interviewerName}
-                  {@render interviewerAvatar(
-                    r.interviewerName,
-                    r.interviewerImage,
-                  )}
+                {#if r.staffName}
+                  {@render staffAvatar(r.staffName, r.staffImage)}
                 {/if}
                 <span class="min-w-0 flex-1 truncate">
-                  {r.interviewerName ?? 'Pas encore mené'}
+                  {r.staffName ?? 'Pas encore mené'}
                 </span>
                 {#if r.conductedAt}
                   <span class="shrink-0 tabular-nums"
@@ -328,14 +322,14 @@
       </SortableTable>
     </div>
 
-    <!-- Right 30%: synthesis, top interviewers and the interview guide. Same
+    <!-- Right 30%: synthesis, the staff tally and the interview guide. Same
          sticky-rail mechanics as Inscrits / Émargement. -->
     <aside class="min-w-0 xl:col-span-3">
       <div
         class="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:sticky xl:top-6 xl:max-h-[calc(100dvh-6rem)] xl:grid-cols-1 xl:overflow-y-auto xl:pr-1"
       >
         <SynthesisCard {counts} {total} {recoCounts} />
-        <TopInterviewersCard interviewers={topInterviewers} {currentStaffId} />
+        <StaffTallyCard staff={topStaff} {currentStaffId} />
         <GuideCard />
       </div>
     </aside>
