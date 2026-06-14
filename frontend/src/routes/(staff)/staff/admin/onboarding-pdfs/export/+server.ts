@@ -199,12 +199,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
             );
           }
           zip.end();
-          // Archive fully assembled: record this as a completed "up to now"
-          // archival pass so the page's "depuis le dernier export" delta moves
-          // forward on the next poll. Reached only after a successful build,
-          // never on the 404/empty-export path above, so a download that never
-          // produced an archive can't advance the mark. Fire-and-forget; a
-          // failed write safely re-offers already-grabbed docs next time.
+          // Archive assembled: record an "up to now" archival pass so the page's
+          // "depuis le dernier export" delta moves forward on the next poll. This
+          // tracks ASSEMBLY, not client delivery, which a streamed download can't
+          // confirm. A cancel before assembly finishes rejects the workers above
+          // and never reaches here, so a quick cancel won't advance the mark; a
+          // cancel after assembly may leave it advanced even though the bytes
+          // never reached the browser. Acceptable because the mark is a
+          // convenience filter, not a receipt: the all-time export ignores it and
+          // stays the authoritative archive. Not reached on the 404/empty path
+          // above. Fire-and-forget; a failed write safely re-offers next time.
           if (advanceMark) {
             void recordOnboardingDocsExport(staffProfile.id, exportedAt).catch(
               (err) =>

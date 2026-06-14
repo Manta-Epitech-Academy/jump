@@ -137,9 +137,12 @@
   // Native `download` anchors keep the streamed response (browser shows its own
   // progress). The toast acknowledges the click, since the server spends a beat
   // fetching the PDFs from storage before bytes flow. Mark advancement is the
-  // server's job (driven by `advance` in the href, applied once the archive is
-  // built), so a cancelled download never advances it; the page's poll then
-  // refreshes the "depuis le dernier export" delta.
+  // server's job (driven by `advance` in the href), applied once the archive is
+  // assembled, not once the browser has the bytes: a streamed download can't be
+  // delivery-confirmed. Cancelling before assembly won't advance the mark, but
+  // cancelling after may; that's fine because it's a convenience filter, with the
+  // all-time export as the authoritative fallback. The page's poll then refreshes
+  // the "depuis le dernier export" delta.
   function onDownload() {
     toast.info("Préparation de l'archive, le téléchargement va démarrer…");
   }
