@@ -20,18 +20,25 @@
     value,
     onChange,
     ariaLabel,
+    fullWidth = false,
   }: {
     options: SegmentOption[];
     value: string;
     onChange: (value: string) => void;
     ariaLabel: string;
+    /** Stretch the group to fill its container, with equal-width segments.
+     *  Use when the control sits on its own row rather than inline in a toolbar. */
+    fullWidth?: boolean;
   } = $props();
 </script>
 
 <div
   role="radiogroup"
   aria-label={ariaLabel}
-  class="inline-flex items-center rounded-sm border bg-muted/40 p-0.5"
+  class={cn(
+    'items-center rounded-sm border bg-muted/40 p-0.5',
+    fullWidth ? 'flex w-full' : 'inline-flex',
+  )}
 >
   {#each options as opt (opt.value)}
     {@const active = value === opt.value}
@@ -42,6 +49,7 @@
       onclick={() => onChange(opt.value)}
       class={cn(
         'cursor-pointer rounded-[5px] px-3 py-1 text-xs font-bold tracking-wide uppercase transition-colors',
+        fullWidth && 'flex-1 text-center',
         active
           ? 'bg-background text-foreground shadow-sm'
           : 'text-muted-foreground hover:text-foreground',

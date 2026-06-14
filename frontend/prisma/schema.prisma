@@ -244,6 +244,12 @@ model StaffProfile {
   // `$lib/server/{email,sms}/dev-redirect.ts`.
   devRedirectEmails String[]   @default([])
   devRedirectPhones String[]   @default([])
+  // High-water mark for this admin's bulk onboarding-PDF archival: set each time
+  // they download the full ("everything up to now") archive from
+  // `/staff/admin/onboarding-pdfs`, so the page can surface the documents
+  // finished since. A convenience filter, not a completeness guarantee (the
+  // all-time export stays the authoritative archive); null = never exported.
+  onboardingDocsExportedAt DateTime?
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
