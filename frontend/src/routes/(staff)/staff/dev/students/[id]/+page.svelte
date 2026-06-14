@@ -184,6 +184,7 @@
             talentName={formatPersonName(data.student.prenom, data.student.nom)}
             conductedLabel={interviewConductedLabel}
             conductedBy={data.interviewConductedBy}
+            conductedByImage={data.interviewConductedByImage}
             bind:status={interviewStatus}
             bind:step={interviewStep}
           />

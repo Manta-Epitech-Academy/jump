@@ -37,8 +37,8 @@
           >Ton bienveillant, tutoiement.</span
         >
         Accroche : « On prend 10 min ensemble pour faire le point sur ton orientation
-        et avoir ton retour sur la semaine. » L'avis de l'interviewer se remplit à
-        chaud, après l'entretien.
+        et avoir ton retour sur la semaine. » L'avis de l'équipe se remplit à chaud,
+        après l'entretien.
       </p>
     </div>
   </Card.Content>

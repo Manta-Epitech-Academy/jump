@@ -41,63 +41,51 @@ export type { OnboardingStep };
 
 type ParentContact = { email: string; prenom: string; nom: string };
 
+type EnsureParentResult = 'created' | 'refreshed' | 'refused';
+
 /**
- * Provision (or refresh) a parent's `bauth_user` and, the first time we see the
- * address for this talent, send the welcome email. `alreadyWelcomed` is true
- * when the address was already stored on the talent before this submit — that
- * covers plain re-submits and the back-and-forth case (going back from the
- * interests step clears `parentsValidatedAt` but leaves the parent email
- * untouched), which is what was sending the welcome twice.
+ * Ensure parent-1's `bauth_user` exists (role `parent`, verified) and carries
+ * the latest name. Awaited by the parents step: a validated address must always
+ * end up with a working login, so this can't be fire-and-forget. The name upsert
+ * always runs so a corrected name still propagates.
  *
- * The bauth_user upsert always runs so a corrected name still propagates; only
- * the email send is gated.
+ * Returns `'refused'` when the address already belongs to a NON-parent login (a
+ * student's or staff member's account). One email = one `bauth_user` = one role,
+ * so we can't also mint a parent login there; repurposing theirs would pollute
+ * their identity, and the welcome magic link would be rejected anyway
+ * (`/parent/fastlogin` filters by `role: 'parent'`). This function is the only
+ * gate for that collision: the parents step runs no up-front email-availability
+ * check, so `'refused'` is an ordinary, if uncommon, outcome (a family sharing
+ * one inbox that already backs another student's login, or a parent who is also
+ * Epitech staff), not a race.
+ *
+ * The caller rejects the step on `'refused'` and asks the talent for another
+ * address instead of persisting and advancing. The parent portal carries the
+ * règlement co-signature and the image-rights decision (an RGPD / legal step),
+ * so a parent left with no account is a silently broken flow, not a cosmetic
+ * gap. This replaces an earlier silent pass that only logged a warning and
+ * stranded the parent until the shared address was fixed at source.
  */
-async function provisionParentAccount(
+async function ensureParentAccount(
   parent: ParentContact,
-  childPrenom: string,
-  talentId: string,
-  alreadyWelcomed: boolean,
-): Promise<void> {
+): Promise<EnsureParentResult> {
   const name = `${parent.prenom} ${parent.nom}`.trim();
   const existing = await prisma.bauth_user.findUnique({
     where: { email: parent.email },
+    select: { id: true, role: true },
   });
-  if (existing && existing.role !== 'parent') {
-    // The address already belongs to a NON-parent login: a student's or staff's
-    // account (bad data, e.g. a family sharing one address so a parent contact
-    // email is also someone's student email). Don't repurpose it: renaming their
-    // account to the parent's name would pollute their identity, and the welcome
-    // magic link would be refused anyway (/parent/fastlogin filters by
-    // role: 'parent'). So we leave it untouched and warn. Note this is NOT caught
-    // by the admin auth-conflicts tool (that surface only classifies
-    // Talent.userId vs Talent.email drift), so without the warning the parent
-    // would silently get no account until the shared address is fixed at source.
-    console.warn(
-      `Parent account not provisioned for talent ${talentId}: "${parent.email}" already belongs to a non-parent (${existing.role}) account; skipping to avoid hijacking it.`,
-    );
-    return;
-  }
+  if (existing && existing.role !== 'parent') return 'refused';
   if (!existing) {
     await prisma.bauth_user.create({
       data: { email: parent.email, name, role: 'parent', emailVerified: true },
     });
-  } else {
-    await prisma.bauth_user.update({
-      where: { id: existing.id },
-      data: { name },
-    });
+    return 'created';
   }
-
-  // Welcome carries a passwordless magic link into the parent space; the
-  // bauth_user provisioned just above lets /parent/fastlogin resolve it.
-  if (!alreadyWelcomed) {
-    await sendParentWelcomeEmail(
-      parent.email,
-      parent.nom,
-      childPrenom,
-      talentId,
-    );
-  }
+  await prisma.bauth_user.update({
+    where: { id: existing.id },
+    data: { name },
+  });
+  return 'refreshed';
 }
 
 export const load: PageServerLoad = async ({ locals, url, cookies }) => {
@@ -288,6 +276,32 @@ export const actions: Actions = {
       });
     }
 
+    const parentEmail = result.data.parentEmail.toLowerCase().trim();
+
+    // Provision the parent-1 login first, so a validated address always has a
+    // working parent account (the welcome link / co-signature flow are useless
+    // without one). `refused` means the address already belongs to another
+    // (non-parent) Jump account — a student's or a staff member's: one email is
+    // one account with one role, so it can never also host a parent login.
+    // Reject the step before anything is persisted and tell the talent to use a
+    // different address, rather than silently leave the parent unable to connect.
+    const provisioned = await ensureParentAccount({
+      email: parentEmail,
+      prenom: result.data.parentPrenom,
+      nom: result.data.parentNom,
+    });
+    if (provisioned === 'refused') {
+      return fail(400, {
+        step: 'parents' as const,
+        errors: {
+          parentEmail: [
+            'Cette adresse est déjà associée à un autre compte Jump. Indique une autre adresse e-mail pour ton responsable.',
+          ],
+        },
+        values: raw as Record<string, string>,
+      });
+    }
+
     await prisma.talent.update({
       where: { id: locals.talent.id },
       data: {
@@ -295,7 +309,7 @@ export const actions: Actions = {
         parentCivilite: result.data.parentCivilite,
         parentNom: result.data.parentNom,
         parentPrenom: result.data.parentPrenom,
-        parentEmail: result.data.parentEmail.toLowerCase().trim(),
+        parentEmail,
         parentPhone: result.data.parentPhone || null,
         parent2Type: result.data.parent2Type || null,
         parent2Civilite: result.data.parent2Civilite || null,
@@ -309,30 +323,24 @@ export const actions: Actions = {
       },
     });
 
-    // Provision the parent-1 bauth_user + send the welcome email
-    // (fire-and-forget). A re-submit / back-and-forth doesn't re-send: the
+    // Welcome carries the passwordless magic link into the parent space; it's
+    // fire-and-forget (the only slow step) so a mail hiccup never blocks the
+    // talent's onboarding. A re-submit / back-and-forth doesn't re-send: the
     // address is skipped when it was already stored on the talent before this
     // submit. Parent 2 is persisted above as onboarding-collected data only — no
     // account, no email, no portal access (the whole parent flow is parent-1).
-    const parentEmail = result.data.parentEmail.toLowerCase().trim();
     const alreadyWelcomed =
       (locals.talent.parentEmail ?? '').toLowerCase().trim() === parentEmail;
-
-    void provisionParentAccount(
-      {
-        email: parentEmail,
-        prenom: result.data.parentPrenom,
-        nom: result.data.parentNom,
-      },
-      locals.talent.prenom,
-      locals.talent.id,
-      alreadyWelcomed,
-    ).catch((err) =>
-      console.error(
-        `Failed to provision parent account for ${parentEmail}:`,
-        err,
-      ),
-    );
+    if (!alreadyWelcomed) {
+      void sendParentWelcomeEmail(
+        parentEmail,
+        result.data.parentNom,
+        locals.talent.prenom,
+        locals.talent.id,
+      ).catch((err) =>
+        console.error(`Failed to send parent welcome for ${parentEmail}:`, err),
+      );
+    }
 
     // No redirect: a redirect to the same /onboarding URL doesn't re-render
     // under use:enhance (the client never picks up the advanced step). The form's

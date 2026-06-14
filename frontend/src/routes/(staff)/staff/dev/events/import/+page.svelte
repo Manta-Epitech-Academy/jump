@@ -137,6 +137,7 @@
                       mergeCount: counts.MERGE ?? 0,
                       conflictCount: counts.CONFLICT ?? 0,
                       siblingCount: counts.SIBLING ?? 0,
+                      blockedCount: counts.BLOCKED ?? 0,
                       durationMs,
                     });
                     analysisResult = result.data;

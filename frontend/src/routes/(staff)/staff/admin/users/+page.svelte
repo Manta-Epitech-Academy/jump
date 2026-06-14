@@ -514,30 +514,6 @@
           {/if}
         </div>
 
-        {#if $inviteForm.staffRole !== 'admin'}
-          <div class="space-y-2">
-            <Label for="invite-campus">Campus</Label>
-            <Select.Root
-              type="single"
-              name="campusId"
-              bind:value={$inviteForm.campusId}
-            >
-              <Select.Trigger id="invite-campus" class="w-full">
-                {data.campuses?.find((c) => c.id === $inviteForm.campusId)
-                  ?.name ?? 'Sélectionner un campus'}
-              </Select.Trigger>
-              <Select.Content>
-                {#each data.campuses ?? [] as c}
-                  <Select.Item value={c.id}>{c.name}</Select.Item>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-            {#if $inviteErrors.campusId}
-              <p class="text-xs text-destructive">{$inviteErrors.campusId}</p>
-            {/if}
-          </div>
-        {/if}
-
         <div class="space-y-2">
           <Label for="invite-role">Rôle</Label>
           <Select.Root
@@ -565,6 +541,30 @@
             <p class="text-xs text-destructive">{$inviteErrors.staffRole}</p>
           {/if}
         </div>
+
+        {#if $inviteForm.staffRole !== 'admin'}
+          <div class="space-y-2">
+            <Label for="invite-campus">Campus</Label>
+            <Select.Root
+              type="single"
+              name="campusId"
+              bind:value={$inviteForm.campusId}
+            >
+              <Select.Trigger id="invite-campus" class="w-full">
+                {data.campuses?.find((c) => c.id === $inviteForm.campusId)
+                  ?.name ?? 'Sélectionner un campus'}
+              </Select.Trigger>
+              <Select.Content>
+                {#each data.campuses ?? [] as c}
+                  <Select.Item value={c.id}>{c.name}</Select.Item>
+                {/each}
+              </Select.Content>
+            </Select.Root>
+            {#if $inviteErrors.campusId}
+              <p class="text-xs text-destructive">{$inviteErrors.campusId}</p>
+            {/if}
+          </div>
+        {/if}
 
         <Dialog.Footer>
           <Button

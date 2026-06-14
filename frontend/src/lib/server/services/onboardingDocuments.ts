@@ -99,35 +99,163 @@ function sanitizeTag(s: string): string {
  * Shared by the bulk-export endpoint and the page that gates its button so the
  * filter can never drift between the two.
  */
-export const FINISHED_ONBOARDING_DOCS_WHERE: Prisma.TalentWhereInput = {
-  OR: [
-    { imageRightsDecidedAt: { not: null }, imageRightsFilePath: { not: null } },
-    {
-      rulesSignedAt: { not: null },
-      parentRulesSignedAt: { not: null },
-      rulesFilePath: { not: null },
-    },
-  ],
+// The two arms of "finished", kept as named building blocks for the combined
+// `OR` below (the coarse SQL prefilter for "has any finished doc"). The precise
+// per-document projection lives in `finishedOnboardingDocsOf`; these only fetch
+// candidate rows.
+const FINISHED_IMAGE_RIGHTS_WHERE: Prisma.TalentWhereInput = {
+  imageRightsDecidedAt: { not: null },
+  imageRightsFilePath: { not: null },
+};
+const FINISHED_RULES_WHERE: Prisma.TalentWhereInput = {
+  rulesSignedAt: { not: null },
+  parentRulesSignedAt: { not: null },
+  rulesFilePath: { not: null },
 };
 
-export interface FinishedOnboardingDoc {
+export const FINISHED_ONBOARDING_DOCS_WHERE: Prisma.TalentWhereInput = {
+  OR: [FINISHED_IMAGE_RIGHTS_WHERE, FINISHED_RULES_WHERE],
+};
+
+/** Document kinds the bulk export can package (the charte has no PDF). */
+export type ExportableDocumentType = Extract<
+  OnboardingDocumentType,
+  'rules' | 'image-rights'
+>;
+
+export function isExportableDocumentType(
+  type: string,
+): type is ExportableDocumentType {
+  return type === 'rules' || type === 'image-rights';
+}
+
+/** Inclusive completion-time window for scoping an export or a count. */
+export interface DateRange {
+  /** Keep docs finished at or after this instant. */
+  from?: Date;
+  /** Keep docs finished at or before this instant. */
+  to?: Date;
+}
+
+function inRange(at: Date, { from, to }: DateRange): boolean {
+  if (from && at < from) return false;
+  if (to && at > to) return false;
+  return true;
+}
+
+/** The Talent columns the "finished" projection reads. */
+type TalentFinishedFields = Pick<
+  Talent,
+  | 'imageRightsDecidedAt'
+  | 'imageRightsFilePath'
+  | 'rulesSignedAt'
+  | 'parentRulesSignedAt'
+  | 'rulesFilePath'
+>;
+
+const FINISHED_FIELDS_SELECT = {
+  imageRightsDecidedAt: true,
+  imageRightsFilePath: true,
+  rulesSignedAt: true,
+  parentRulesSignedAt: true,
+  rulesFilePath: true,
+} satisfies Prisma.TalentSelect;
+
+/** One finished document with the instant it became legally complete. */
+export interface FinishedOnboardingDocTime {
+  type: ExportableDocumentType;
+  /**
+   * When the document became legally complete: the guardian's decision for
+   * droit à l'image, and the LATER of the two required signatures (student +
+   * guardian co-sign) for the règlement.
+   */
+  finishedAt: Date;
+}
+
+/**
+ * Single source of truth for WHICH of a talent's onboarding docs are finished
+ * and WHEN each completed. {@link FINISHED_ONBOARDING_DOCS_WHERE} is the coarse
+ * SQL prefilter that fetches candidate rows; this is the exact per-document
+ * projection (it also resolves the règlement's max-of-two-signatures instant,
+ * which the SQL gate can't express). Keep the two in step.
+ */
+export function finishedOnboardingDocsOf(
+  t: TalentFinishedFields,
+): FinishedOnboardingDocTime[] {
+  const out: FinishedOnboardingDocTime[] = [];
+  if (t.imageRightsDecidedAt && t.imageRightsFilePath) {
+    out.push({ type: 'image-rights', finishedAt: t.imageRightsDecidedAt });
+  }
+  if (t.rulesSignedAt && t.parentRulesSignedAt && t.rulesFilePath) {
+    out.push({
+      type: 'rules',
+      finishedAt:
+        t.parentRulesSignedAt > t.rulesSignedAt
+          ? t.parentRulesSignedAt
+          : t.rulesSignedAt,
+    });
+  }
+  return out;
+}
+
+/**
+ * Completion timeline of every finished onboarding document across all talents:
+ * one `{ type, finishedAt }` per file, nothing identifying. Feeds the admin
+ * page's per-period / per-type download counts, computed client-side from this
+ * one list so every bucket (and any custom range) stays consistent.
+ */
+export async function loadFinishedOnboardingTimeline(): Promise<
+  FinishedOnboardingDocTime[]
+> {
+  const talents = await prisma.talent.findMany({
+    where: FINISHED_ONBOARDING_DOCS_WHERE,
+    select: FINISHED_FIELDS_SELECT,
+  });
+  return talents.flatMap(finishedOnboardingDocsOf);
+}
+
+/**
+ * Advances an admin's onboarding-PDF archival high-water mark to `at`, the
+ * instant a full "everything up to now" archive was snapshotted. The admin page
+ * reads this back as `lastExportAt` to offer the "depuis le dernier export"
+ * delta (docs finished at/after the mark).
+ *
+ * `at` is the export's pre-snapshot instant, never a later stream-completion
+ * time: a doc that finishes mid-export then stays at/after the mark and is
+ * re-offered next time, so the delta can only ever re-include a doc (a harmless
+ * duplicate), never silently skip one. Best-effort: a failed write just leaves
+ * the mark where it was, so the next export re-includes already-grabbed docs.
+ */
+export async function recordOnboardingDocsExport(
+  staffProfileId: string,
+  at: Date,
+): Promise<void> {
+  await prisma.staffProfile.update({
+    where: { id: staffProfileId },
+    data: { onboardingDocsExportedAt: at },
+  });
+}
+
+export interface FinishedOnboardingDoc extends FinishedOnboardingDocTime {
   /** S3 key of the stored PDF. */
   key: string;
-  type: Extract<OnboardingDocumentType, 'rules' | 'image-rights'>;
   /** Per-file download name, e.g. `imagerights-jeandupont-A12345.pdf`. */
   filename: string;
 }
 
 /**
- * Collects every finished onboarding document across all talents (global,
- * matching the admin scope), expanded to one {@link FinishedOnboardingDoc} per
- * file. A talent can contribute both an image-rights and a règlement file, so
- * each arm is re-checked independently rather than trusting which OR-branch of
- * {@link FINISHED_ONBOARDING_DOCS_WHERE} matched the row.
+ * Collects finished onboarding documents across all talents (global, matching
+ * the admin scope), one {@link FinishedOnboardingDoc} per file, enriched with
+ * the storage key + download filename. Optionally scoped by document kind and/or
+ * completion-time window for a partial export. Built on
+ * {@link finishedOnboardingDocsOf} so "finished" means the same here as in the
+ * page's counts.
  */
-export async function collectFinishedOnboardingDocs(): Promise<
-  FinishedOnboardingDoc[]
-> {
+export async function collectFinishedOnboardingDocs(filter?: {
+  onlyType?: ExportableDocumentType;
+  range?: DateRange;
+}): Promise<FinishedOnboardingDoc[]> {
+  const { onlyType, range } = filter ?? {};
   const talents = await prisma.talent.findMany({
     where: FINISHED_ONBOARDING_DOCS_WHERE,
     select: {
@@ -135,29 +263,24 @@ export async function collectFinishedOnboardingDocs(): Promise<
       prenom: true,
       nom: true,
       externalId: true,
-      imageRightsDecidedAt: true,
-      imageRightsFilePath: true,
-      rulesSignedAt: true,
-      parentRulesSignedAt: true,
-      rulesFilePath: true,
+      ...FINISHED_FIELDS_SELECT,
     },
     orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
   });
 
   const docs: FinishedOnboardingDoc[] = [];
   for (const t of talents) {
-    if (t.imageRightsDecidedAt && t.imageRightsFilePath) {
+    for (const doc of finishedOnboardingDocsOf(t)) {
+      if (onlyType && doc.type !== onlyType) continue;
+      if (range && !inRange(doc.finishedAt, range)) continue;
+      // Non-null: `finishedOnboardingDocsOf` only emits a kind once its file
+      // path column is set.
+      const key =
+        doc.type === 'image-rights' ? t.imageRightsFilePath! : t.rulesFilePath!;
       docs.push({
-        key: t.imageRightsFilePath,
-        type: 'image-rights',
-        filename: onboardingDownloadFilename('image-rights', t),
-      });
-    }
-    if (t.rulesSignedAt && t.parentRulesSignedAt && t.rulesFilePath) {
-      docs.push({
-        key: t.rulesFilePath,
-        type: 'rules',
-        filename: onboardingDownloadFilename('rules', t),
+        ...doc,
+        key,
+        filename: onboardingDownloadFilename(doc.type, t),
       });
     }
   }

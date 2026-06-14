@@ -4,13 +4,12 @@
   import * as Avatar from '$lib/components/ui/avatar';
   import { getInitials } from '$lib/avatar';
   import { cn } from '$lib/utils';
-  import type { TopInterviewer } from './types';
+  import type { StaffTally } from './types';
 
   let {
-    interviewers,
+    staff,
     currentStaffId = null,
-  }: { interviewers: TopInterviewer[]; currentStaffId?: string | null } =
-    $props();
+  }: { staff: StaffTally[]; currentStaffId?: string | null } = $props();
 
   // Podium ring for the top three; the rest sit ringless. The list is already
   // ordered by count desc, so position conveys rank.
@@ -30,18 +29,18 @@
   >
     <Trophy class="h-5 w-5 text-epi-blue" />
     <h3 class="font-heading text-2xl tracking-wide text-foreground uppercase">
-      Top interviewers
+      Entretiens menés
     </h3>
   </div>
 
   <Card.Content class="p-4">
-    {#if interviewers.length === 0}
+    {#if staff.length === 0}
       <p class="text-xs text-muted-foreground">
         Aucun entretien mené pour le moment.
       </p>
     {:else}
       <ol class="space-y-2.5">
-        {#each interviewers as person, i (person.id)}
+        {#each staff as person, i (person.id)}
           {@const isMe = person.id === currentStaffId}
           <li
             class={cn(

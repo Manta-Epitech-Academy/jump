@@ -4,6 +4,10 @@ import { Zip, ZipPassThrough } from 'fflate';
 import { getStorage, isObjectNotFound } from '$lib/server/infra/storage';
 import {
   collectFinishedOnboardingDocs,
+  isExportableDocumentType,
+  recordOnboardingDocsExport,
+  type DateRange,
+  type ExportableDocumentType,
   type FinishedOnboardingDoc,
 } from '$lib/server/services/onboardingDocuments';
 
@@ -31,6 +35,36 @@ type SkippedDoc = { doc: FinishedOnboardingDoc; reason: 'missing' | 'error' };
 
 const archivePath = (doc: FinishedOnboardingDoc): string =>
   `${ARCHIVE_FOLDER[doc.type]}/${doc.filename}`;
+
+// Filename stem of the downloaded ZIP, by scope. A scoped export names its kind
+// so the admin's Downloads folder stays self-explanatory.
+const ARCHIVE_STEM: Record<ExportableDocumentType | 'all', string> = {
+  all: 'documents-onboarding',
+  'image-rights': 'droits-image-onboarding',
+  rules: 'reglements-onboarding',
+};
+
+// Parse a `from`/`to` query param into an instant. The client sends full ISO
+// instants (start/end of day, or the last-export mark), so this is a plain
+// parse; an unparseable value is ignored rather than erroring, degrading to a
+// wider export rather than a 500.
+function parseInstant(raw: string | null): Date | undefined {
+  if (!raw) return undefined;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+const ymd = (d: Date): string => d.toISOString().slice(0, 10);
+
+// Date suffix that makes the downloaded file self-documenting: the window when a
+// range is set, otherwise the export date.
+function archiveDateSuffix(range: DateRange, exportDate: string): string {
+  const { from, to } = range;
+  if (from && to) return `${ymd(from)}_${ymd(to)}`;
+  if (from) return `depuis-${ymd(from)}`;
+  if (to) return `jusquau-${ymd(to)}`;
+  return exportDate;
+}
 
 // French, admin-facing text dropped into the archive when anything was left
 // out, so a short export is visible without reading pod logs. Legal documents:
@@ -76,17 +110,43 @@ function renderSkipManifest(skipped: SkippedDoc[], date: string): string {
 // archive size, tens of MB at our scale.) Store-level (ZipPassThrough, no
 // deflate) because PDFs are already compressed; recompressing would only burn
 // CPU.
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
   // The /staff/admin layout already redirects non-admins; this is defence in
   // depth for an endpoint that streams minors' signed documents.
-  if (locals.staffProfile?.staffRole !== 'admin')
-    throw error(403, 'Accès refusé');
+  const staffProfile = locals.staffProfile;
+  if (staffProfile?.staffRole !== 'admin') throw error(403, 'Accès refusé');
 
-  const docs = await collectFinishedOnboardingDocs();
+  // Optional scope: a single document kind and/or a completion-time window
+  // instead of everything. Unknown/unparseable params fall through to a wider
+  // export rather than erroring.
+  const typeParam = url.searchParams.get('type');
+  const onlyType: ExportableDocumentType | undefined =
+    typeParam && isExportableDocumentType(typeParam) ? typeParam : undefined;
+  const range: DateRange = {
+    from: parseInstant(url.searchParams.get('from')),
+    to: parseInstant(url.searchParams.get('to')),
+  };
+
+  // Whether this download advances the admin's archival high-water mark. Only a
+  // full-corpus, open-ended archive ("everything up to now") may: no type filter
+  // (else the other kind is absent) and no upper time bound (else it's a
+  // historical window, not "up to now"). The client sets `advance` only on the
+  // all-time and "depuis le dernier export" downloads; these two structural
+  // checks are the safety rail so a stray flag on a scoped link can't corrupt
+  // the mark.
+  const advanceMark =
+    url.searchParams.get('advance') === '1' && !onlyType && !range.to;
+
+  // One clock for the request. The mark, when advanced, is set to this
+  // pre-snapshot instant (see `recordOnboardingDocsExport`) so a doc finishing
+  // mid-export is re-offered next time rather than skipped.
+  const exportedAt = new Date();
+
+  const docs = await collectFinishedOnboardingDocs({ onlyType, range });
   if (docs.length === 0) throw error(404, 'Aucun document à exporter');
 
   const storage = getStorage();
-  const date = new Date().toISOString().slice(0, 10);
+  const date = exportedAt.toISOString().slice(0, 10);
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -139,15 +199,33 @@ export const GET: RequestHandler = async ({ locals }) => {
             );
           }
           zip.end();
+          // Archive assembled: record an "up to now" archival pass so the page's
+          // "depuis le dernier export" delta moves forward on the next poll. This
+          // tracks ASSEMBLY, not client delivery, which a streamed download can't
+          // confirm. A cancel before assembly finishes rejects the workers above
+          // and never reaches here, so a quick cancel won't advance the mark; a
+          // cancel after assembly may leave it advanced even though the bytes
+          // never reached the browser. Acceptable because the mark is a
+          // convenience filter, not a receipt: the all-time export ignores it and
+          // stays the authoritative archive. Not reached on the 404/empty path
+          // above. Fire-and-forget; a failed write safely re-offers next time.
+          if (advanceMark) {
+            void recordOnboardingDocsExport(staffProfile.id, exportedAt).catch(
+              (err) =>
+                console.error('[onboarding-zip] mark export failed', err),
+            );
+          }
         })
         .catch((err) => controller.error(err));
     },
   });
 
+  const filename = `${ARCHIVE_STEM[onlyType ?? 'all']}-${archiveDateSuffix(range, date)}.zip`;
+
   return new Response(stream, {
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="documents-onboarding-${date}.zip"`,
+      'Content-Disposition': `attachment; filename="${filename}"`,
       'Cache-Control': 'no-store',
     },
   });

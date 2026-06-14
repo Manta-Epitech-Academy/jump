@@ -19,9 +19,7 @@ export const createAdminInvitationSchema = z
   .object({
     email: epitechEmail,
     campusId: z.string().default(''),
-    staffRole: z
-      .enum(['admin', ...invitableRoles] as const)
-      .default('superdev'),
+    staffRole: z.enum(['admin', ...invitableRoles] as const).default('dev'),
   })
   .refine((v) => v.staffRole === 'admin' || v.campusId.length > 0, {
     message: 'Campus requis',
