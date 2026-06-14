@@ -80,3 +80,39 @@ export type InscritRow = {
 };
 
 export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'status';
+
+// Structural shapes for the streamed cohort payload. Declared here (not imported
+// from `$lib/server/services/cohortOverview`) so this client-consumed file never
+// pulls a server module into the browser bundle; the load's actual return is
+// checked against these by assignment, and the rail cards accept them by shape.
+export type LyceeOption = { schoolId: string; name: string; count: number };
+
+export type OriginBreakdown<T> = {
+  rows: T[];
+  others: { count: number; categories: number } | null;
+};
+
+export type LyceeBreakdownStat = {
+  schoolId: string;
+  name: string;
+  count: number;
+};
+
+export type InterestBreakdownStat = {
+  interestId: string;
+  nom: string;
+  emoji: string | null;
+  count: number;
+};
+
+/** The cohort payload streamed behind the page shell's `{#await}` — everything
+ *  that needs the DB. Shared by the page load and `InscritsResults` so the
+ *  streamed shape and the consuming component can never drift. */
+export type InscritsCohort = {
+  rows: InscritRow[];
+  availableNiveaux: string[];
+  lyceeOptions: LyceeOption[];
+  lyceesBreakdown: OriginBreakdown<LyceeBreakdownStat>;
+  interestsCloud: OriginBreakdown<InterestBreakdownStat>;
+  cohort: { total: number };
+};

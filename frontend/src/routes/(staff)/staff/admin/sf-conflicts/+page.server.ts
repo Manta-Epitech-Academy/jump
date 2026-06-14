@@ -11,18 +11,28 @@ import {
   runAuthRepair,
   type AuthRepairAction,
 } from '$lib/server/services/authIdentityRepairService';
+import type { SfConflictsData } from './components/types';
 
 export const load: PageServerLoad = async () => {
   // Two families of conflict surfaced as two tabs on this page:
   //  - DATA  : Talent ⇆ TalentSfImport field diffs + enrichment to push (CSV).
   //  - AUTH  : Talent ⇆ bauth_user identity drift (login-layer), with per-verdict
   //            repairs. Calculated, never stored — same convention as the diffs.
-  const [diffs, enrichment, authConflicts] = await Promise.all([
+  // All three are full-cohort scans (no cheap shell data to await), so stream them
+  // behind an un-awaited promise: the page shell (title + search) paints at once
+  // and the conflict tables fill in, instead of the navigation blocking on the
+  // scans. The resolution actions below re-run this load; the page holds the
+  // previous result while the rescan runs so the tables don't flash a skeleton.
+  const deferred: Promise<SfConflictsData> = Promise.all([
     listSalesforceDiffs(),
     listSalesforceEnrichment(),
     listAuthIdentityConflicts(),
-  ]);
-  return { diffs, enrichment, authConflicts };
+  ]).then(([diffs, enrichment, authConflicts]) => ({
+    diffs,
+    enrichment,
+    authConflicts,
+  }));
+  return { deferred };
 };
 
 // Resolution is per (talent, field): a single diff row, never the whole talent.

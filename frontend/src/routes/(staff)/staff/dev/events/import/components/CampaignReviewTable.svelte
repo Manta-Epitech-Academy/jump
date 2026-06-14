@@ -9,8 +9,15 @@
   import UserPlus from '@lucide/svelte/icons/user-plus';
   import LinkIcon from '@lucide/svelte/icons/link';
   import Split from '@lucide/svelte/icons/split';
+  import Ban from '@lucide/svelte/icons/ban';
 
   let { analysisResult = $bindable() } = $props();
+
+  const blockedCount = $derived(
+    analysisResult?.analysisData?.filter(
+      (r: any) => r.suggestedStatus === 'BLOCKED',
+    ).length ?? 0,
+  );
 
   function toggleDecision(
     rowId: string,
@@ -42,18 +49,34 @@
     <span class="text-[9px]">Cochez ceux qui apportent leur PC</span>
   </div>
 
+  {#if blockedCount > 0}
+    <div
+      class="flex items-center gap-2 border-b border-red-200 bg-red-50/70 px-5 py-2.5 text-xs font-medium text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400"
+    >
+      <Ban class="h-4 w-4 shrink-0" />
+      <span>
+        {blockedCount}
+        {blockedCount > 1 ? 'lignes bloquées' : 'ligne bloquée'} : adresse déjà liée
+        à un compte staff ou parent. Ces lignes ne seront pas importées.
+      </span>
+    </div>
+  {/if}
+
   <ScrollArea class="h-96">
     <div class="divide-y divide-border/50">
       {#each analysisResult.analysisData as row (row.id)}
         {@const isNew = row.suggestedStatus === 'NEW'}
+        {@const isBlocked = row.suggestedStatus === 'BLOCKED'}
         {@const isConflict =
           row.suggestedStatus === 'CONFLICT' ||
           row.suggestedStatus === 'SIBLING'}
 
         <div
-          class="flex flex-col gap-4 p-4 lg:flex-row lg:items-center {isConflict
-            ? 'bg-yellow-50/50 dark:bg-yellow-950/20'
-            : ''}"
+          class="flex flex-col gap-4 p-4 lg:flex-row lg:items-center {isBlocked
+            ? 'bg-red-50/60 dark:bg-red-950/20'
+            : isConflict
+              ? 'bg-yellow-50/50 dark:bg-yellow-950/20'
+              : ''}"
         >
           <div class="flex w-full items-start gap-3 lg:w-auto">
             <div
@@ -119,6 +142,14 @@
                       : 'Homonyme ?'}
                   </Badge>
                 {/if}
+                {#if isBlocked}
+                  <Badge
+                    variant="outline"
+                    class="rounded-sm border-red-400 bg-red-50 text-[9px] tracking-widest text-red-700 uppercase dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-500"
+                  >
+                    Bloqué
+                  </Badge>
+                {/if}
               </div>
             </div>
           </div>
@@ -165,48 +196,62 @@
           <div
             class="w-full border-t border-border/50 pt-4 lg:min-w-[14rem] lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5"
           >
-            <span
-              class="text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
-              >Action à effectuer</span
-            >
-            <div class="mt-2 flex flex-col gap-2">
-              <button
-                type="button"
-                class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all {row.decision ===
-                'CREATE_NEW'
-                  ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/20 dark:text-blue-400'
-                  : 'bg-card text-muted-foreground hover:bg-muted'}"
-                onclick={() => toggleDecision(row.id, 'CREATE_NEW')}
+            {#if isBlocked}
+              <div
+                class="flex items-start gap-2 rounded-sm border border-red-300 bg-red-50/60 px-3 py-2 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
               >
-                <div class="flex items-center gap-2">
-                  {#if row.suggestedStatus === 'SIBLING'}<Split
-                      class="h-3.5 w-3.5"
-                    />{:else}<UserPlus class="h-3.5 w-3.5" />{/if}
-                  <span>Créer dossier</span>
+                <Ban class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <div class="space-y-0.5">
+                  <span class="block text-xs font-bold">Non importé</span>
+                  <span class="block text-[10px] leading-tight font-medium">
+                    {row.matchReason}
+                  </span>
                 </div>
-                {#if row.decision === 'CREATE_NEW'}<div
-                    class="h-2 w-2 rounded-full bg-blue-500"
-                  ></div>{/if}
-              </button>
-
-              {#if row.existingStudent}
+              </div>
+            {:else}
+              <span
+                class="text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
+                >Action à effectuer</span
+              >
+              <div class="mt-2 flex flex-col gap-2">
                 <button
                   type="button"
                   class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all {row.decision ===
-                  'LINK_EXISTING'
-                    ? 'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid shadow-sm'
+                  'CREATE_NEW'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm dark:bg-blue-900/20 dark:text-blue-400'
                     : 'bg-card text-muted-foreground hover:bg-muted'}"
-                  onclick={() => toggleDecision(row.id, 'LINK_EXISTING')}
+                  onclick={() => toggleDecision(row.id, 'CREATE_NEW')}
                 >
                   <div class="flex items-center gap-2">
-                    <LinkIcon class="h-3.5 w-3.5" /><span>Lier existant</span>
+                    {#if row.suggestedStatus === 'SIBLING'}<Split
+                        class="h-3.5 w-3.5"
+                      />{:else}<UserPlus class="h-3.5 w-3.5" />{/if}
+                    <span>Créer dossier</span>
                   </div>
-                  {#if row.decision === 'LINK_EXISTING'}<div
-                      class="h-2 w-2 rounded-full bg-epi-teal-solid"
+                  {#if row.decision === 'CREATE_NEW'}<div
+                      class="h-2 w-2 rounded-full bg-blue-500"
                     ></div>{/if}
                 </button>
-              {/if}
-            </div>
+
+                {#if row.existingStudent}
+                  <button
+                    type="button"
+                    class="flex items-center justify-between rounded-sm border px-3 py-2 text-xs font-bold transition-all {row.decision ===
+                    'LINK_EXISTING'
+                      ? 'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid shadow-sm'
+                      : 'bg-card text-muted-foreground hover:bg-muted'}"
+                    onclick={() => toggleDecision(row.id, 'LINK_EXISTING')}
+                  >
+                    <div class="flex items-center gap-2">
+                      <LinkIcon class="h-3.5 w-3.5" /><span>Lier existant</span>
+                    </div>
+                    {#if row.decision === 'LINK_EXISTING'}<div
+                        class="h-2 w-2 rounded-full bg-epi-teal-solid"
+                      ></div>{/if}
+                  </button>
+                {/if}
+              </div>
+            {/if}
           </div>
         </div>
       {/each}

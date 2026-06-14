@@ -63,7 +63,7 @@ export const interviewConductSchema = z.object({
   teacherName: text(INTERVIEW_TEXT_LIMITS.teacherName),
   teacherSubject: text(INTERVIEW_TEXT_LIMITS.teacherSubject),
   oneSentence: text(INTERVIEW_TEXT_LIMITS.oneSentence),
-  interviewerNote: text(INTERVIEW_TEXT_LIMITS.interviewerNote),
+  verdictNote: text(INTERVIEW_TEXT_LIMITS.verdictNote),
 
   // "Précisez" boxes unlocked by the matching "Autre" choice (single or multi);
   // the action clears each one when its choice is deselected.

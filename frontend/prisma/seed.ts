@@ -2628,7 +2628,7 @@ type InterviewAnswers = Partial<
     | 'teacherName'
     | 'teacherSubject'
     | 'oneSentence'
-    | 'interviewerNote'
+    | 'verdictNote'
   >
 >;
 
@@ -2671,8 +2671,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
       oneSentence: 'Une semaine qui m’a donné envie de coder tous les jours.',
       nextYearEvents: ['coding_club', 'jpo'],
       recommendation: 'tres_compatible',
-      interviewerNote:
-        'Très motivée, projet clair. À inviter à la prochaine JPO.',
+      verdictNote: 'Très motivée, projet clair. À inviter à la prochaine JPO.',
     },
   },
   {
@@ -2696,7 +2695,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
       oneSentence: 'J’ai compris comment un jeu est fabriqué.',
       nextYearEvents: ['camp', 'journee_decouverte'],
       recommendation: 'bon_profil',
-      interviewerNote: 'Hésite avec le game design, à relancer dans 6 mois.',
+      verdictNote: 'Hésite avec le game design, à relancer dans 6 mois.',
     },
   },
   {
@@ -2720,8 +2719,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
       oneSentence: 'Intéressant mais beaucoup d’informations d’un coup.',
       nextYearEvents: ['conference'],
       recommendation: 'indecis',
-      interviewerNote:
-        'Profil ouvert, encore en réflexion sur son orientation.',
+      verdictNote: 'Profil ouvert, encore en réflexion sur son orientation.',
     },
   },
   {

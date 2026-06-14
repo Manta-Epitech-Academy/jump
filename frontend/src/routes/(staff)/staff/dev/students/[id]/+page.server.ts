@@ -180,7 +180,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       ? await db.interview.findUnique({
           where: { participationId: primaryComplianceParticipation.id },
           include: {
-            staff: { select: { user: { select: { name: true } } } },
+            staff: {
+              select: { user: { select: { name: true, image: true } } },
+            },
           },
         })
       : null;
@@ -204,7 +206,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             teacherName: existingInterview.teacherName ?? '',
             teacherSubject: existingInterview.teacherSubject ?? '',
             oneSentence: existingInterview.oneSentence ?? '',
-            interviewerNote: existingInterview.interviewerNote ?? '',
+            verdictNote: existingInterview.verdictNote ?? '',
             discoveryChannelOther:
               existingInterview.discoveryChannelOther ?? '',
             specialtiesOther: existingInterview.specialtiesOther ?? '',
@@ -272,6 +274,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       interviewStatus: existingInterview?.status ?? null,
       interviewConductedAt: existingInterview?.conductedAt ?? null,
       interviewConductedBy: existingInterview?.staff.user?.name ?? null,
+      interviewConductedByImage: existingInterview?.staff.user?.image ?? null,
     };
   } catch (e) {
     // A genuinely missing talent (findUniqueOrThrow → P2025) is the only real
@@ -352,7 +355,7 @@ async function persistInterview(
     );
   }
 
-  const { participationId, oneSentence, interviewerNote, ...rest } = form.data;
+  const { participationId, oneSentence, verdictNote, ...rest } = form.data;
 
   // Reveal-gated free text (teacher name/subject, the "Autre" precisions): trim,
   // and clear when its trigger choice is not selected so the DB never keeps a
@@ -373,7 +376,7 @@ async function persistInterview(
   const answers = {
     ...rest,
     oneSentence: oneSentence.trim() || null,
-    interviewerNote: interviewerNote.trim() || null,
+    verdictNote: verdictNote.trim() || null,
     ...revealText,
   };
 

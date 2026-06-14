@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    INTERVIEW_SECTIONS,
-    INTERVIEWER_SECTION,
-  } from '$lib/domain/interview';
+  import { INTERVIEW_SECTIONS, VERDICT_SECTION } from '$lib/domain/interview';
   import { cn } from '$lib/utils';
 
   // Right-rail companion to InterviewFlow while an interview is in progress: a
@@ -16,7 +13,7 @@
     ...INTERVIEW_SECTIONS.map((s, i) => ({ step: i + 1, title: s.title })),
     {
       step: INTERVIEW_SECTIONS.length + 1,
-      title: INTERVIEWER_SECTION.title,
+      title: VERDICT_SECTION.title,
     },
   ];
 </script>

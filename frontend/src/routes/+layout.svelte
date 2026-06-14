@@ -16,6 +16,7 @@
   import ImpersonationAutoExit from '$lib/components/ImpersonationAutoExit.svelte';
   import RealSendsBanner from '$lib/components/layout/RealSendsBanner.svelte';
   import DevRedirectPinBanner from '$lib/components/layout/DevRedirectPinBanner.svelte';
+  import NavigationProgress from '$lib/components/layout/NavigationProgress.svelte';
   import { identify, reset } from '$lib/analytics';
 
   // Import SVGs as URLs using Vite's ?url suffix
@@ -113,6 +114,7 @@
 <ImpersonationAutoExit />
 
 <div style="display: contents">
+  <NavigationProgress />
   <Toaster richColors position="top-center" closeButton />
   <!-- Outbound status banners share one sticky region so they stack as blocks
        instead of two independent `sticky top-0` layers fighting for the same

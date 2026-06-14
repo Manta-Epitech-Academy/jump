@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import type { PresenceRecord } from '$lib/domain/eventPresence';
 
 // Lean roster select for the émargement table: identity, level and the contacts
 // staff need to reach a no-show (the stagiaire, then up to two guardians, each
@@ -55,3 +56,15 @@ export type PresenceRow = {
 };
 
 export type PresenceSortKey = 'prenom' | 'nom';
+
+/** The cohort payload streamed behind the page shell — the heavy roster join and
+ *  the per-cell attendance computation. The slot grid, closures and cutoffs stay
+ *  synchronous in the load (cheap, and the header QR button reads them on first
+ *  paint), so only these three fields stream. Shared by the load and
+ *  `EmargementRoster` so the streamed shape and the component can never drift. */
+export type EmargementCohort = {
+  rows: PresenceRow[];
+  presences: PresenceRecord[];
+  /** Null until at least one créneau is closed (nothing to rate yet). */
+  attendanceRate: number | null;
+};
