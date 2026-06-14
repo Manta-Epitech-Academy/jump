@@ -20,7 +20,7 @@
     ColumnDef,
     SortDir,
   } from '$lib/components/staff/datatable/types';
-  import * as Select from '$lib/components/ui/select';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import * as Tooltip from '$lib/components/ui/tooltip';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import {
@@ -114,10 +114,6 @@
     { value: 'absent', label: statusLabelFr('absent') },
     { value: 'excused', label: statusLabelFr('excused') },
   ];
-  const statusFilterLabel = $derived(
-    statusOptions.find((o) => o.value === statusFilter)?.label ?? 'Tous',
-  );
-
   const norm = (s: string) =>
     s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -309,24 +305,12 @@
               >
                 Statut
               </span>
-              <Select.Root
-                type="single"
+              <FilterSelect
+                ariaLabel="Filtrer par statut de présence"
+                options={statusOptions}
                 value={statusFilter}
-                onValueChange={(v) =>
-                  (statusFilter = (v ?? 'all') as typeof statusFilter)}
-              >
-                <Select.Trigger
-                  class="h-8 w-44 cursor-pointer rounded-sm"
-                  aria-label="Filtrer par statut de présence"
-                >
-                  <span class="truncate">{statusFilterLabel}</span>
-                </Select.Trigger>
-                <Select.Content>
-                  {#each statusOptions as o (o.value)}
-                    <Select.Item value={o.value}>{o.label}</Select.Item>
-                  {/each}
-                </Select.Content>
-              </Select.Root>
+                onChange={(v) => (statusFilter = v as typeof statusFilter)}
+              />
             </div>
           {/snippet}
 

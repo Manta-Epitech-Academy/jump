@@ -26,6 +26,7 @@
   import SegmentedFilter, {
     type SegmentOption,
   } from '$lib/components/staff/SegmentedFilter.svelte';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import SearchableSelect, {
     type SelectOption,
   } from '$lib/components/staff/SearchableSelect.svelte';
@@ -451,7 +452,7 @@
             >
               Statut
             </span>
-            <SegmentedFilter
+            <FilterSelect
               ariaLabel="Filtrer par statut de dossier"
               options={statutOptions}
               value={statutFilter}
@@ -501,8 +502,8 @@
           <!-- Réinitialiser sits inline right after the count it clears, so the
                control reads against the number it acts on. Export keeps to the
                right edge of the same line (ml-auto), acting on exactly the count
-               shown; the wide statut + lycée filters live on the search row
-               above, so this line never gets crowded. -->
+               shown; the statut + lycée filters live on the search row above,
+               so this line never gets crowded. -->
           {#if anyFiltersApplied}
             <Button
               variant="ghost"
@@ -536,10 +537,16 @@
                 {/snippet}
               </Tooltip.Trigger>
               <Tooltip.Content class="max-w-60 rounded-sm">
+                {@const noun = filtered.length > 1 ? 'stagiaires' : 'stagiaire'}
                 <p>
-                  Exporte les {filtered.length}
-                  {filtered.length > 1 ? 'stagiaires' : 'stagiaire'} actuellement
-                  affichés (filtres et tri appliqués), pas toute la cohorte.
+                  {#if anyFiltersApplied}
+                    Exporte les {filtered.length}
+                    {noun} actuellement affichés (filtres et tri appliqués), pas toute
+                    la cohorte.
+                  {:else}
+                    Exporte toute la cohorte ({filtered.length}
+                    {noun}).
+                  {/if}
                 </p>
               </Tooltip.Content>
             </Tooltip.Root>

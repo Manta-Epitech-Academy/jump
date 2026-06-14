@@ -12,9 +12,8 @@
     ColumnDef,
     SortDir,
   } from '$lib/components/staff/datatable/types';
-  import SegmentedFilter, {
-    type SegmentOption,
-  } from '$lib/components/staff/SegmentedFilter.svelte';
+  import { type SegmentOption } from '$lib/components/staff/SegmentedFilter.svelte';
+  import FilterSelect from '$lib/components/staff/FilterSelect.svelte';
   import TalentAvatar from '$lib/components/students/TalentAvatar.svelte';
   import * as Avatar from '$lib/components/ui/avatar';
   import { getInitials } from '$lib/avatar';
@@ -220,7 +219,7 @@
             >
               Statut
             </span>
-            <SegmentedFilter
+            <FilterSelect
               ariaLabel="Filtrer par statut d'entretien"
               options={statutOptions}
               value={statutFilter}
