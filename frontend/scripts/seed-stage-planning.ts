@@ -522,6 +522,216 @@ const SCHEDULES: CampusPlanning[] = [
       },
     ],
   },
+  {
+    // From Programme.xlsx. Daily grid: conférence 10h-11h, créneau fun (avec
+    // entretiens d’orientation) 11h-12h, déjeuner 12h-13h30, atelier 13h30-17h.
+    // Remote “à la carte” Fridays carry only morning/afternoon ateliers.
+    campus: 'Strasbourg',
+    days: [
+      // J1 — Lundi 15 juin : 100% local
+      {
+        date: '2026-06-15',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Cyber” (Corps des armées)',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Kahoot & entretiens d’orientation',
+          },
+          { start: '12:00', end: '13:30', nom: 'Déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Atelier : Découverte OSINT & Capture the Flag',
+          },
+        ],
+      },
+      // J2 — Mardi 16 juin : Cybersécurité
+      {
+        date: '2026-06-16',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Cloud” (Ethan Husser)',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Olympiade loufoque & entretiens d’orientation',
+          },
+          { start: '12:00', end: '13:30', nom: 'Déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'Atelier : Cloud' },
+        ],
+      },
+      // J3 — Mercredi 17 juin : Dev & Code
+      {
+        date: '2026-06-17',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Coder, c’est créer” (Marc Bouvier)',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Jeux vidéo & entretiens d’orientation',
+          },
+          { start: '12:00', end: '13:30', nom: 'Déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Atelier Coding Club : Snake.js ou PyPong',
+          },
+        ],
+      },
+      // J4 — Jeudi 18 juin : DevOps
+      {
+        date: '2026-06-18',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “L’Open Source pour changer le monde” (Marion Labbé)',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Jeux de société & entretiens d’orientation',
+          },
+          { start: '12:00', end: '13:30', nom: 'Déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'Atelier : Discover Linux' },
+        ],
+      },
+      // J5 — Vendredi 19 juin : remote à la carte
+      {
+        date: '2026-06-19',
+        slots: [
+          {
+            start: '10:00',
+            end: '12:00',
+            nom: 'Ateliers à la carte : Fake News, Prog avec IA, Test de personnalité, etc. (à distance)',
+          },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Ateliers à la carte : Fake News, Prog avec IA, Test de personnalité, etc. (à distance)',
+          },
+        ],
+      },
+      // J6 — Lundi 22 juin : Tools (Hackathon)
+      {
+        date: '2026-06-22',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Build with IA” & Kick-off Hackathon',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Kahoot & entretiens d’orientation',
+          },
+          { start: '12:00', end: '13:30', nom: 'Déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Atelier : Fast Design Sprint, idéation',
+          },
+        ],
+      },
+      // J7 — Mardi 23 juin : Product
+      {
+        date: '2026-06-23',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Construire un produit grâce à la tech”',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Gartic Phone & entretiens d’orientation',
+          },
+          { start: '12:00', end: '13:30', nom: 'Déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Atelier : Figma (App Mobile) & Prompt Engineer (Landing Page)',
+          },
+        ],
+      },
+      // J8 — Mercredi 24 juin : Success
+      {
+        date: '2026-06-24',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Créer une startup pour réussir” (Louis Lecce)',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Course d’orientation dans le bâtiment & entretiens d’orientation',
+          },
+          { start: '12:00', end: '13:30', nom: 'Déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Atelier : vidéo de promotion, prise de parole & concours de pitch',
+          },
+        ],
+      },
+      // J9 — Jeudi 25 juin : AI
+      {
+        date: '2026-06-25',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Faut que ça claque”',
+          },
+          {
+            start: '11:00',
+            end: '12:00',
+            nom: 'Blind test & entretiens d’orientation',
+          },
+          { start: '12:00', end: '13:30', nom: 'Déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Atelier : préparation Portfolio & Demo Day',
+          },
+        ],
+      },
+      // J10 — Vendredi 26 juin : remote à la carte
+      {
+        date: '2026-06-26',
+        slots: [
+          {
+            start: '10:00',
+            end: '12:00',
+            nom: 'Live Twitch : actualité, gaming, orientation (à distance)',
+            type: 'special',
+          },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Live Twitch : actualité, gaming, orientation (à distance)',
+            type: 'special',
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // ─── Seeding ─────────────────────────────────────────────────────────────────
