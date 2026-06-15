@@ -195,6 +195,27 @@ export function presenceDays(
   return workdaysFrom(toDateKey(event.date, timezone), STAGE_PRESENCE_WORKDAYS);
 }
 
+/**
+ * Day index + total for the "J{n}/{total}" stage countdown, counting **working
+ * days only** (a Stage de Seconde runs Monday-Friday twice = 10 days, never 12
+ * or 14). Shares `presenceDays` so the countdown, the émargement grid and the
+ * XLSX export can never disagree on the stage shape. `dayN` is today's position
+ * in that window (the count of working days elapsed through today, clamped into
+ * [1, total]); on a weekend mid-stage it holds the last working day reached.
+ */
+export function stageCountdown(
+  event: { date: Date; endDate: Date | null; eventType: string },
+  timezone: string,
+  now: Date,
+): { dayN: number; totalDays: number } {
+  const days = presenceDays(event, timezone);
+  const totalDays = Math.max(1, days.length);
+  const todayKey = toDateKey(now, timezone);
+  const elapsed = days.filter((day) => day <= todayKey).length;
+  const dayN = Math.min(totalDays, Math.max(1, elapsed));
+  return { dayN, totalDays };
+}
+
 /** The ordered list of émargement créneaux (each `presenceDays` day × morning/afternoon). */
 export function presenceSlots(
   event: { date: Date; endDate: Date | null; eventType: string },
