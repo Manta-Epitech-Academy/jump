@@ -10,12 +10,18 @@
  * What it does, per campus:
  *   - finds the campus by name and its single `stage_seconde` Event,
  *   - get-or-creates the Event's Planning,
- *   - wipes that Planning's existing TimeSlots (cascades to their Activities)
- *     and rebuilds them from the schedule below.
+ *   - rebuilds that Planning: deletes ALL its existing TimeSlots (cascades to
+ *     their Activities, and through those to any ParticipationActivity verdict;
+ *     StepsProgress / PortfolioItem detach to a null activity, not deleted) and
+ *     recreates them from the schedule below.
  *
- * Idempotent: the schedule data here is the source of truth — every run is a
- * full rebuild, so re-running converges and editing a title + re-running fixes
- * it. (Re-running a partial schedule therefore drops days not in it.)
+ * Idempotent and authoritative: the schedule here is the planning's source of
+ * truth. Every run is a full rebuild, so re-running converges and fixing a
+ * title is an edit-and-rerun. The flip side is destructive: a re-run also wipes
+ * any slot a staff member added or edited in the planning UI for this event,
+ * and drops days the schedule no longer lists. So provision before staff touch
+ * the stage planning, or knowingly overwrite. The run prints how many existing
+ * slots it replaced, so a destructive re-run is never silent.
  *
  * Timezone: slot instants are built from the campus's OWN IANA timezone
  * (`Campus.timezone`), so 10:00 means 10:00 there — correct for La Réunion
@@ -69,8 +75,10 @@ function fromWallClock(dateKey: string, time: string, tz: string): Date {
 // ─── Title → activity type inference ─────────────────────────────────────────
 // We only get a title, but the type drives the calendar's colour/label and,
 // crucially, visibility: the talent calendar hides `orga` slots (staff
-// logistics). Ordered keyword rules give a sensible default; any slot can pin
-// its own `type` to override (e.g. an info banner that must stay visible).
+// logistics), so the daily `Accueil & émargement` slots infer to `orga` and
+// stay off the student calendar by design (logistics, not learning content).
+// Ordered keyword rules give a sensible default; any slot can pin its own
+// `type` to override (e.g. the remote-day banner, which must stay visible).
 function inferActivityType(nom: string): ActivityType {
   const s = nom.toLowerCase();
   if (/pause|repas|déjeuner|dejeuner|méridienne|meridienne/.test(s))
@@ -322,6 +330,12 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
     }),
   );
 
+  // Count what the rebuild is about to destroy, so a re-run over an existing
+  // (possibly staff-edited) planning is never silent. See the header note.
+  const replaced = await prisma.timeSlot.count({
+    where: { planningId: planning.id },
+  });
+
   await prisma.$transaction([
     // Full rebuild (cascades to activities) so the script is idempotent.
     prisma.timeSlot.deleteMany({ where: { planningId: planning.id } }),
@@ -329,7 +343,8 @@ async function seedCampus(plan: CampusPlanning): Promise<void> {
   ]);
 
   console.log(
-    `✓ ${plan.campus.padEnd(14)} ${creates.length} slots across ${plan.days.length} days (tz ${tz}) → "${event.titre}"`,
+    `✓ ${plan.campus.padEnd(14)} ${creates.length} slots across ${plan.days.length} days (tz ${tz}) → "${event.titre}"` +
+      (replaced > 0 ? `  [replaced ${replaced} existing]` : ''),
   );
 }
 
