@@ -279,6 +279,249 @@ const SCHEDULES: CampusPlanning[] = [
       },
     ],
   },
+  {
+    campus: 'Montpellier',
+    days: [
+      // ── Semaine 1 : « Vis ma vie de… » (découverte) ──
+      // J1 — Lundi 15 juin
+      {
+        date: '2026-06-15',
+        slots: [
+          { start: '10:00', end: '10:30', nom: 'Accueil / Petit déj' },
+          {
+            start: '10:30',
+            end: '12:30',
+            nom: 'Kickoff & Keynote d’ouverture (pro local)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Workshop (piloté par le campus)',
+          },
+        ],
+      },
+      // J2 — Mardi 16 juin : Vis ma vie d’Expert Cybersécurité
+      {
+        date: '2026-06-16',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Red Team or Blue Team ?”',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Activité ludique & entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Workshop “OSINT” : Geoguessr & CTF',
+          },
+        ],
+      },
+      // J3 — Mercredi 17 juin : Vis ma vie de Développeur
+      {
+        date: '2026-06-17',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Coder, c’est créer”',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Activité ludique & entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Workshop “Coding Club” : PyPong & Snake.js',
+          },
+        ],
+      },
+      // J4 — Jeudi 18 juin : Vis ma vie d’Ingénieur DevOps
+      {
+        date: '2026-06-18',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “L’Open Source, qui change le monde”',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Activité ludique & entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Workshop “Linux” : discover-linux',
+          },
+        ],
+      },
+      // J5 — Vendredi 19 juin : journée remote
+      {
+        date: '2026-06-19',
+        slots: [
+          // Remote banner: must stay visible to talents (inference would hide
+          // an “accueil” title as `orga`), so pin it to `special`.
+          {
+            start: '10:00',
+            end: '10:30',
+            nom: 'Journée à distance : accueil sur Discord',
+            type: 'special',
+          },
+          {
+            start: '10:30',
+            end: '12:30',
+            nom: 'Ateliers au choix en autonomie (à distance)',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Ateliers au choix en autonomie (à distance)',
+          },
+        ],
+      },
+      // ── Semaine 2 : projet (TOOLS → PRODUCT → SUCCESS) ──
+      // J6 — Lundi 22 juin : TOOLS, Lancement
+      {
+        date: '2026-06-22',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Tools : Build with IA” by Google',
+          },
+          // Project milestone, not a workshop: pin to `special`.
+          {
+            start: '11:00',
+            end: '11:15',
+            nom: 'Kick-off : Teaser, HOME & constitution des équipes',
+            type: 'special',
+          },
+          {
+            start: '11:15',
+            end: '12:30',
+            nom: 'Construction des groupes & première idée de projet',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '17:00',
+            nom: 'Design Sprint speed run (5 étapes)',
+          },
+        ],
+      },
+      // J7 — Mardi 23 juin : PRODUCT, Design & Construction
+      {
+        date: '2026-06-23',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Product : De l’idée à la marque”',
+          },
+          // Two parallel tracks per team: two overlapping slots, as scheduled.
+          {
+            start: '11:00',
+            end: '17:00',
+            nom: 'Track A : Landing Page (Prompt Engineer)',
+          },
+          {
+            start: '11:00',
+            end: '17:00',
+            nom: 'Track B : Application Mobile (Figma)',
+          },
+        ],
+      },
+      // J8 — Mercredi 24 juin : SUCCESS, Finalisation & Pitchs
+      {
+        date: '2026-06-24',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “Success : De la startup à la licorne”',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Pitch deck & peaufinage + entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '15:00',
+            nom: 'Préparation du pitch & prise de parole en public',
+          },
+          // Faction milestone: pin to `special`.
+          {
+            start: '15:00',
+            end: '16:30',
+            nom: 'Demi-finales par faction',
+            type: 'special',
+          },
+        ],
+      },
+      // J9 — Jeudi 25 juin : Ingénieur IA + Demo Day
+      {
+        date: '2026-06-25',
+        slots: [
+          {
+            start: '10:00',
+            end: '11:00',
+            nom: 'Conférence “IA & Impact : construire une tech responsable”',
+          },
+          {
+            start: '11:00',
+            end: '12:30',
+            nom: 'Activité ludique & entretiens d’orientation',
+          },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          {
+            start: '13:30',
+            end: '16:30',
+            nom: 'Préparation Demo Day : finalisation & dry run',
+          },
+          // Closing event: pin to `special`.
+          {
+            start: '17:00',
+            end: '19:00',
+            nom: 'DEMO DAY & Cocktail',
+            type: 'special',
+          },
+        ],
+      },
+      // J10 — Vendredi 26 juin : journée remote
+      {
+        date: '2026-06-26',
+        slots: [
+          {
+            start: '10:00',
+            end: '10:30',
+            nom: 'Journée à distance depuis chez vous',
+            type: 'special',
+          },
+          {
+            start: '10:30',
+            end: '17:00',
+            nom: '« Z Event like » : live Twitch',
+            type: 'special',
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // ─── Seeding ─────────────────────────────────────────────────────────────────
