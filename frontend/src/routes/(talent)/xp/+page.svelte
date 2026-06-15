@@ -90,32 +90,45 @@
     return SOURCE_CONFIG[source] ?? fallbackConfig;
   }
 
-  let totalXp = $derived(data.student.xp ?? 0);
+  let totalXp = $derived(data.talent?.xp ?? 0);
 
   // -- Grouping by date -------------------------------------------------------
 
   type Grant = (typeof data.grants)[number];
-  type GroupedDay = { dateKey: string; label: string; grants: Grant[] };
+  type GroupedDay = {
+    dateKey: string;
+    dayNumber: number;
+    label: string;
+    total: number;
+    grants: Grant[];
+  };
 
   let groupedDays = $derived.by(() => {
     const map = new Map<string, Grant[]>();
     for (const g of data.grants) {
+      // Group by the talent's local calendar day, like the rest of the portal.
+      // An ISO/UTC key buckets near-midnight grants onto the wrong day.
       const d = new Date(g.createdAt);
-      const key = d.toISOString().slice(0, 10);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const list = map.get(key);
       if (list) list.push(g);
       else map.set(key, [g]);
     }
     const days: GroupedDay[] = [];
     for (const [dateKey, grants] of map) {
-      const d = new Date(dateKey + 'T12:00:00');
-      const label = d.toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+      const date = new Date(dateKey + 'T12:00:00');
+      days.push({
+        dateKey,
+        dayNumber: date.getDate(),
+        label: date.toLocaleDateString('fr-FR', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }),
+        total: grants.reduce((sum, g) => sum + g.amount, 0),
+        grants,
       });
-      days.push({ dateKey, label, grants });
     }
     return days;
   });
@@ -212,7 +225,7 @@
         ></div>
 
         <div class="space-y-8">
-          {#each groupedDays as day, dayIndex}
+          {#each groupedDays as day, dayIndex (day.dateKey)}
             <!-- Day header -->
             <div class="relative flex items-center gap-4">
               <div
@@ -221,7 +234,7 @@
                 <span
                   class="text-sm font-black text-slate-700 dark:text-slate-300"
                 >
-                  {new Date(day.dateKey + 'T12:00:00').getDate()}
+                  {day.dayNumber}
                 </span>
               </div>
               <div>
@@ -231,7 +244,7 @@
                   {day.label}
                 </h3>
                 <span class="text-xs font-semibold text-epi-orange">
-                  +{day.grants.reduce((s, g) => s + g.amount, 0)} XP
+                  +{day.total} XP
                 </span>
               </div>
             </div>
@@ -240,7 +253,7 @@
             <div
               class="ml-[1.125rem] space-y-3 border-l border-transparent pl-8 sm:ml-[1.375rem]"
             >
-              {#each day.grants as grant, grantIndex}
+              {#each day.grants as grant, grantIndex (grant.id)}
                 {@const config = getConfig(grant.source)}
                 {@const Icon = config.icon}
                 <div
@@ -248,7 +261,7 @@
                   in:fly={{
                     x: -10,
                     duration: 300,
-                    delay: 100 * grantIndex + 200 * dayIndex,
+                    delay: Math.min(60 * grantIndex + 120 * dayIndex, 360),
                   }}
                 >
                   <!-- Subtle gradient accent on the left -->
@@ -277,14 +290,6 @@
                         class="mt-0.5 flex items-center gap-2 text-xs text-slate-400"
                       >
                         <span>{formatTime(grant.createdAt)}</span>
-                        {#if grant.note}
-                          <span class="text-slate-300 dark:text-slate-600"
-                            >·</span
-                          >
-                          <span class="truncate text-slate-500"
-                            >{grant.note}</span
-                          >
-                        {/if}
                       </div>
                     </div>
 

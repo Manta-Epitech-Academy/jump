@@ -114,7 +114,11 @@ export const handle: Handle = async ({ event, resolve }) => {
         name: true,
         image: true,
         staffProfile: { include: { campus: true } },
-        talent: true,
+        // Omit the staff-only `note`: `locals.talent` is the talent's view of
+        // themselves and gets serialized to their browser via the root layout.
+        // Keeping it off the session object makes the leak structurally
+        // impossible rather than relying on every talent load to strip it.
+        talent: { omit: { note: true } },
       },
     });
 

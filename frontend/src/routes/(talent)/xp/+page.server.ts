@@ -7,23 +7,20 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw error(401, 'Non autorisé');
   }
 
-  const talent = locals.talent;
-
+  // The XP total is read from the layout's `data.talent`; this load only owns
+  // the ledger rows for the timeline. Selecting just the display fields keeps
+  // the staff-facing `XpGrant.note` off the wire (it is unowned, talent-facing
+  // copy has not been decided, and no source writes it yet).
   const grants = await prisma.xpGrant.findMany({
-    where: { talentId: talent.id },
+    where: { talentId: locals.talent.id },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
       source: true,
-      sourceId: true,
       amount: true,
-      note: true,
       createdAt: true,
     },
   });
 
-  return {
-    student: talent,
-    grants,
-  };
+  return { grants };
 };
