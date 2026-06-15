@@ -1,12 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { fly } from 'svelte/transition';
-  import {
-    computeLevel,
-    levelLabelFr,
-    XP_LEVEL_TIERS,
-    type JumpLevel,
-  } from '$lib/domain/xp';
   import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
   import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
   import Trophy from '@lucide/svelte/icons/trophy';
@@ -96,26 +90,7 @@
     return SOURCE_CONFIG[source] ?? fallbackConfig;
   }
 
-  // -- Level progress ---------------------------------------------------------
-
   let totalXp = $derived(data.student.xp ?? 0);
-  let currentLevel = $derived(computeLevel(totalXp));
-  let currentLevelLabel = $derived(levelLabelFr(totalXp));
-
-  let levelProgress = $derived.by(() => {
-    const tier = XP_LEVEL_TIERS.find((t) => t.level === currentLevel)!;
-    const next = XP_LEVEL_TIERS.find((t) => t.min > tier.min);
-    if (!next) return 100; // max level
-    const range = next.min - tier.min;
-    const progress = totalXp - tier.min;
-    return Math.min(100, Math.round((progress / range) * 100));
-  });
-
-  let nextLevelXp = $derived.by(() => {
-    const tier = XP_LEVEL_TIERS.find((t) => t.level === currentLevel)!;
-    const next = XP_LEVEL_TIERS.find((t) => t.min > tier.min);
-    return next?.min ?? null;
-  });
 
   // -- Grouping by date -------------------------------------------------------
 
@@ -145,34 +120,6 @@
     return days;
   });
 
-  // -- Level color helper -----------------------------------------------------
-
-  const LEVEL_COLORS: Record<
-    JumpLevel,
-    { bg: string; text: string; ring: string; bar: string }
-  > = {
-    Novice: {
-      bg: 'bg-slate-100 dark:bg-slate-800',
-      text: 'text-slate-600 dark:text-slate-300',
-      ring: 'ring-slate-300 dark:ring-slate-600',
-      bar: 'bg-slate-400',
-    },
-    Apprentice: {
-      bg: 'bg-epi-blue/10 dark:bg-epi-blue/20',
-      text: 'text-epi-blue',
-      ring: 'ring-epi-blue/30',
-      bar: 'bg-epi-blue',
-    },
-    Expert: {
-      bg: 'bg-epi-orange/10 dark:bg-epi-orange/20',
-      text: 'text-epi-orange',
-      ring: 'ring-epi-orange/30',
-      bar: 'bg-gradient-to-r from-epi-orange to-amber-400',
-    },
-  };
-
-  let levelColor = $derived(LEVEL_COLORS[currentLevel]);
-
   function formatTime(date: Date | string): string {
     return new Date(date).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
@@ -193,7 +140,7 @@
   />
 
   <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
-    <!-- Hero: current XP + level + progress bar -->
+    <!-- Hero: current XP total + stats -->
     <div
       class="mb-8 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
       in:fly={{ y: -20, duration: 400 }}
@@ -203,67 +150,27 @@
           class="flex flex-col items-center gap-6 sm:flex-row sm:items-start"
         >
           <!-- XP badge -->
-          <div class="relative">
-            <div
-              class="flex h-24 w-24 items-center justify-center rounded-2xl {levelColor.bg} ring-2 {levelColor.ring}"
-            >
-              <div class="text-center">
-                <div
-                  class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white"
-                >
-                  {totalXp}
-                </div>
-                <div class="text-xs font-bold {levelColor.text} uppercase">
-                  XP
-                </div>
+          <div
+            class="flex h-24 w-24 items-center justify-center rounded-2xl bg-epi-orange/10 ring-2 ring-epi-orange/30 dark:bg-epi-orange/20"
+          >
+            <div class="text-center">
+              <div
+                class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white"
+              >
+                {totalXp}
               </div>
-            </div>
-            <!-- Level badge floating -->
-            <div
-              class="absolute -right-2 -bottom-2 rounded-full {levelColor.bg} px-2.5 py-0.5 text-[10px] font-bold {levelColor.text} uppercase ring-2 ring-white dark:ring-slate-900"
-            >
-              {currentLevelLabel}
+              <div class="text-xs font-bold text-epi-orange uppercase">XP</div>
             </div>
           </div>
 
-          <!-- Progress info -->
+          <!-- Stats -->
           <div class="min-w-0 flex-1 text-center sm:text-left">
             <h2 class="text-lg font-bold text-slate-900 dark:text-white">
-              Niveau {currentLevelLabel}
+              {totalXp} points d'expérience
             </h2>
-            {#if nextLevelXp}
-              <p class="mt-1 text-sm text-slate-500">
-                Encore <strong class="text-slate-700 dark:text-slate-300"
-                  >{nextLevelXp - totalXp} XP</strong
-                > pour atteindre le niveau suivant
-              </p>
-            {:else}
-              <p class="mt-1 text-sm text-slate-500">
-                Tu as atteint le niveau maximum. Bravo !
-              </p>
-            {/if}
-
-            <!-- Progress bar -->
-            <div class="mt-4">
-              <div
-                class="mb-1.5 flex items-center justify-between text-xs text-slate-400"
-              >
-                <span>{totalXp} XP</span>
-                {#if nextLevelXp}
-                  <span>{nextLevelXp} XP</span>
-                {:else}
-                  <span>MAX</span>
-                {/if}
-              </div>
-              <div
-                class="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-              >
-                <div
-                  class="h-full rounded-full transition-all duration-700 ease-out {levelColor.bar}"
-                  style="width: {levelProgress}%"
-                ></div>
-              </div>
-            </div>
+            <p class="mt-1 text-sm text-slate-500">
+              Chaque activité, entraînement et défi te rapproche du sommet.
+            </p>
 
             <!-- Stats row -->
             <div
