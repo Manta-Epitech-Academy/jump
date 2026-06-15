@@ -17,15 +17,48 @@ export const load: PageServerLoad = async () => {
     orderBy: { date: 'desc' },
   });
 
-  return {
-    events: events.map((e) => ({
+  // Group events by eventType for the UI
+  const groupMap = new Map<
+    string,
+    {
+      eventType: string;
+      totalSubmissions: number;
+      totalParticipants: number;
+      events: {
+        id: string;
+        titre: string;
+        date: Date;
+        campusName: string;
+        submissions: number;
+        participants: number;
+      }[];
+    }
+  >();
+
+  for (const e of events) {
+    let group = groupMap.get(e.eventType);
+    if (!group) {
+      group = {
+        eventType: e.eventType,
+        totalSubmissions: 0,
+        totalParticipants: 0,
+        events: [],
+      };
+      groupMap.set(e.eventType, group);
+    }
+    group.totalSubmissions += e._count.feedbackSubmissions;
+    group.totalParticipants += e._count.participations;
+    group.events.push({
       id: e.id,
       titre: e.titre,
-      eventType: e.eventType,
       date: e.date,
       campusName: e.campus.name,
       submissions: e._count.feedbackSubmissions,
       participants: e._count.participations,
-    })),
+    });
+  }
+
+  return {
+    groups: [...groupMap.values()],
   };
 };
