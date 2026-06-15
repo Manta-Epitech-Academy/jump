@@ -25,11 +25,11 @@ import {
 } from '$lib/server/services/cohortOverview';
 import { INSCRIT_PARTICIPATION_SELECT } from './components/types';
 import type { InscritRow, InscritsCohort } from './components/types';
+import { stageCountdown } from '$lib/domain/eventPresence';
 
 // The sidebar cards are narrower than the dashboard's side-by-side breakdowns,
 // so they show a shorter head with the tail folded into "Autres".
 const SIDEBAR_BREAKDOWN_TOP_N = 5;
-const MS_PER_DAY = 86_400_000;
 
 function originConditions(schoolId: string | null, interestId: string | null) {
   const conds: object[] = [];
@@ -54,19 +54,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     locals.stagePhaseOverride,
   );
   const stageEnd = stageEndOrDefault(event);
-  const totalDays = Math.max(
-    1,
-    Math.ceil((stageEnd.getTime() - event.date.getTime()) / MS_PER_DAY),
-  );
-  const dayN = Math.min(
-    totalDays,
-    Math.max(
-      1,
-      Math.ceil(
-        (bounds.endOfDay.getTime() - event.date.getTime()) / MS_PER_DAY,
-      ),
-    ),
-  );
+  const { dayN, totalDays } = stageCountdown(event, timezone, bounds.now);
   const countdown = {
     status,
     openDate: composeEventStartInstant(
