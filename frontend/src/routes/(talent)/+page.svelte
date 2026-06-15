@@ -342,8 +342,9 @@
         class="contents md:col-span-4 md:block md:space-y-6"
         in:fly={{ x: -20, duration: 400, delay: 200 }}
       >
-        <div
-          class="relative order-1 overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+        <a
+          href={resolve('/xp')}
+          class="relative order-1 block overflow-hidden rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/50 transition-all hover:shadow-2xl active:scale-[0.98] dark:bg-slate-900 dark:shadow-none"
         >
           <!-- Decorative background blur -->
           <div
@@ -366,7 +367,7 @@
               <span class="text-lg font-bold text-epi-orange">XP</span>
             </div>
           </div>
-        </div>
+        </a>
 
         <!-- Planning à venir: the active event if one covers today, else the
              next upcoming session, else a quiet rest state. order-4 keeps it
