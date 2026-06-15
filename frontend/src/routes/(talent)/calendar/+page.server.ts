@@ -36,6 +36,13 @@ export const load: PageServerLoad = async ({ locals }) => {
                       activityType: true,
                       difficulte: true,
                       isDynamic: true,
+                      // Read by the openability rule; collapsed into a single
+                      // `openable` flag in toCalendarPlanning so the body HTML
+                      // never reaches the client.
+                      content: true,
+                      link: true,
+                      subjectVersionId: true,
+                      contentStructure: true,
                     },
                   },
                 },

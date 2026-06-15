@@ -1,6 +1,7 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect, isRedirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
+import { isActivityOpenable } from '$lib/domain/activity';
 import { assertStudentOwns } from '$lib/server/db/assert';
 import { getCached, setCached } from '$lib/server/infra/contentCache';
 import {
@@ -144,6 +145,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       throw error(403, 'Tu ne participes pas à cet événement.');
     }
 
+    // A title-only activity (no content/link/steps) has no detail page worth
+    // rendering — it would be a blank white page. Send the talent back to their
+    // planning instead. Mirrors the summary dialog, which shows no "Accéder à
+    // l'activité" button for these. See isActivityOpenable.
+    if (!isActivityOpenable(activity)) {
+      throw redirect(
+        303,
+        locals.featureFlags.has('planning') ? '/calendar' : '/',
+      );
+    }
+
     // Block access before the slot has actually started.
     if (
       activityWithSlot.timeSlot?.startTime &&
@@ -217,6 +229,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       portfolioItems,
     };
   } catch (err: any) {
+    // A redirect (non-openable activity) is control flow, not a failure — let it
+    // through rather than re-wrapping its 3xx status as an error page.
+    if (isRedirect(err)) throw err;
     if (!err.status) console.error('Activity cockpit load error:', err);
     throw error(
       err.status || 500,
