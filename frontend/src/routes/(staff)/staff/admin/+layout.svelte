@@ -21,6 +21,7 @@
   import GitCompareArrows from '@lucide/svelte/icons/git-compare-arrows';
   import FolderOpen from '@lucide/svelte/icons/folder-open';
   import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
+  import MessageSquare from '@lucide/svelte/icons/message-square';
   import LifeBuoy from '@lucide/svelte/icons/life-buoy';
   import Megaphone from '@lucide/svelte/icons/megaphone';
   import Send from '@lucide/svelte/icons/send';
@@ -292,6 +293,13 @@
     >
       <Gamepad2 class="h-4 w-4" />
       <span>Mini-jeux</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/feedback')}
+      class={navLinkClass(isActive('/staff/admin/feedback'))}
+    >
+      <MessageSquare class="h-4 w-4" />
+      <span>Feedback</span>
     </a>
   </nav>
 {/snippet}
