@@ -1,0 +1,432 @@
+<script lang="ts">
+  import type { PageData } from './$types';
+  import { fly } from 'svelte/transition';
+  import {
+    computeLevel,
+    levelLabelFr,
+    XP_LEVEL_TIERS,
+    type JumpLevel,
+  } from '$lib/domain/xp';
+  import TalentPageHeader from '$lib/components/talent/TalentPageHeader.svelte';
+  import TalentFooter from '$lib/components/talent/TalentFooter.svelte';
+  import Trophy from '@lucide/svelte/icons/trophy';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
+  import Medal from '@lucide/svelte/icons/medal';
+  import BookOpen from '@lucide/svelte/icons/book-open';
+  import Wrench from '@lucide/svelte/icons/wrench';
+  import Rocket from '@lucide/svelte/icons/rocket';
+  import Zap from '@lucide/svelte/icons/zap';
+  import type { Component } from 'svelte';
+
+  let { data }: { data: PageData } = $props();
+
+  // -- Source display config --------------------------------------------------
+
+  type SourceConfig = {
+    label: string;
+    icon: Component<{ class?: string }>;
+    color: string; // tailwind color token (e.g. "epi-orange")
+    bgClass: string;
+    textClass: string;
+    borderClass: string;
+  };
+
+  const SOURCE_CONFIG: Record<string, SourceConfig> = {
+    onboarding: {
+      label: 'Onboarding terminé',
+      icon: Rocket,
+      color: 'epi-blue',
+      bgClass: 'bg-epi-blue/10 dark:bg-epi-blue/20',
+      textClass: 'text-epi-blue',
+      borderClass: 'border-epi-blue/20',
+    },
+    onboarding_early_bird: {
+      label: 'Bonus early bird',
+      icon: Zap,
+      color: 'amber',
+      bgClass: 'bg-amber-500/10 dark:bg-amber-500/20',
+      textClass: 'text-amber-500',
+      borderClass: 'border-amber-500/20',
+    },
+    minigame: {
+      label: 'Entraînement cérébral',
+      icon: Gamepad2,
+      color: 'epi-teal',
+      bgClass: 'bg-epi-teal-solid/10 dark:bg-epi-teal-solid/20',
+      textClass: 'text-epi-teal-solid',
+      borderClass: 'border-epi-teal-solid/20',
+    },
+    minigame_rank: {
+      label: 'Bonus classement',
+      icon: Medal,
+      color: 'purple',
+      bgClass: 'bg-purple-500/10 dark:bg-purple-500/20',
+      textClass: 'text-purple-500',
+      borderClass: 'border-purple-500/20',
+    },
+    activity_presence: {
+      label: 'Activité complétée',
+      icon: BookOpen,
+      color: 'epi-orange',
+      bgClass: 'bg-epi-orange/10 dark:bg-epi-orange/20',
+      textClass: 'text-epi-orange',
+      borderClass: 'border-epi-orange/20',
+    },
+    admin_adjustment: {
+      label: 'Ajustement',
+      icon: Wrench,
+      color: 'slate',
+      bgClass: 'bg-slate-500/10 dark:bg-slate-500/20',
+      textClass: 'text-slate-500',
+      borderClass: 'border-slate-500/20',
+    },
+  };
+
+  const fallbackConfig: SourceConfig = {
+    label: 'XP',
+    icon: Sparkles,
+    color: 'slate',
+    bgClass: 'bg-slate-100 dark:bg-slate-800',
+    textClass: 'text-slate-500',
+    borderClass: 'border-slate-200',
+  };
+
+  function getConfig(source: string): SourceConfig {
+    return SOURCE_CONFIG[source] ?? fallbackConfig;
+  }
+
+  // -- Level progress ---------------------------------------------------------
+
+  let totalXp = $derived(data.student.xp ?? 0);
+  let currentLevel = $derived(computeLevel(totalXp));
+  let currentLevelLabel = $derived(levelLabelFr(totalXp));
+
+  let levelProgress = $derived.by(() => {
+    const tier = XP_LEVEL_TIERS.find((t) => t.level === currentLevel)!;
+    const next = XP_LEVEL_TIERS.find((t) => t.min > tier.min);
+    if (!next) return 100; // max level
+    const range = next.min - tier.min;
+    const progress = totalXp - tier.min;
+    return Math.min(100, Math.round((progress / range) * 100));
+  });
+
+  let nextLevelXp = $derived.by(() => {
+    const tier = XP_LEVEL_TIERS.find((t) => t.level === currentLevel)!;
+    const next = XP_LEVEL_TIERS.find((t) => t.min > tier.min);
+    return next?.min ?? null;
+  });
+
+  // -- Grouping by date -------------------------------------------------------
+
+  type Grant = (typeof data.grants)[number];
+  type GroupedDay = { dateKey: string; label: string; grants: Grant[] };
+
+  let groupedDays = $derived.by(() => {
+    const map = new Map<string, Grant[]>();
+    for (const g of data.grants) {
+      const d = new Date(g.createdAt);
+      const key = d.toISOString().slice(0, 10);
+      const list = map.get(key);
+      if (list) list.push(g);
+      else map.set(key, [g]);
+    }
+    const days: GroupedDay[] = [];
+    for (const [dateKey, grants] of map) {
+      const d = new Date(dateKey + 'T12:00:00');
+      const label = d.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+      days.push({ dateKey, label, grants });
+    }
+    return days;
+  });
+
+  // -- Level color helper -----------------------------------------------------
+
+  const LEVEL_COLORS: Record<
+    JumpLevel,
+    { bg: string; text: string; ring: string; bar: string }
+  > = {
+    Novice: {
+      bg: 'bg-slate-100 dark:bg-slate-800',
+      text: 'text-slate-600 dark:text-slate-300',
+      ring: 'ring-slate-300 dark:ring-slate-600',
+      bar: 'bg-slate-400',
+    },
+    Apprentice: {
+      bg: 'bg-epi-blue/10 dark:bg-epi-blue/20',
+      text: 'text-epi-blue',
+      ring: 'ring-epi-blue/30',
+      bar: 'bg-epi-blue',
+    },
+    Expert: {
+      bg: 'bg-epi-orange/10 dark:bg-epi-orange/20',
+      text: 'text-epi-orange',
+      ring: 'ring-epi-orange/30',
+      bar: 'bg-gradient-to-r from-epi-orange to-amber-400',
+    },
+  };
+
+  let levelColor = $derived(LEVEL_COLORS[currentLevel]);
+
+  function formatTime(date: Date | string): string {
+    return new Date(date).toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+</script>
+
+<svelte:head>
+  <title>Mon XP</title>
+</svelte:head>
+
+<div class="flex min-h-screen flex-col">
+  <TalentPageHeader
+    title="Mon XP"
+    subtitle="Ton parcours de progression."
+    icon={Trophy}
+  />
+
+  <div class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
+    <!-- Hero: current XP + level + progress bar -->
+    <div
+      class="mb-8 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/50 dark:bg-slate-900 dark:shadow-none"
+      in:fly={{ y: -20, duration: 400 }}
+    >
+      <div class="p-6 sm:p-8">
+        <div
+          class="flex flex-col items-center gap-6 sm:flex-row sm:items-start"
+        >
+          <!-- XP badge -->
+          <div class="relative">
+            <div
+              class="flex h-24 w-24 items-center justify-center rounded-2xl {levelColor.bg} ring-2 {levelColor.ring}"
+            >
+              <div class="text-center">
+                <div
+                  class="text-3xl font-black tracking-tighter text-slate-900 dark:text-white"
+                >
+                  {totalXp}
+                </div>
+                <div class="text-xs font-bold {levelColor.text} uppercase">
+                  XP
+                </div>
+              </div>
+            </div>
+            <!-- Level badge floating -->
+            <div
+              class="absolute -right-2 -bottom-2 rounded-full {levelColor.bg} px-2.5 py-0.5 text-[10px] font-bold {levelColor.text} uppercase ring-2 ring-white dark:ring-slate-900"
+            >
+              {currentLevelLabel}
+            </div>
+          </div>
+
+          <!-- Progress info -->
+          <div class="min-w-0 flex-1 text-center sm:text-left">
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">
+              Niveau {currentLevelLabel}
+            </h2>
+            {#if nextLevelXp}
+              <p class="mt-1 text-sm text-slate-500">
+                Encore <strong class="text-slate-700 dark:text-slate-300"
+                  >{nextLevelXp - totalXp} XP</strong
+                > pour atteindre le niveau suivant
+              </p>
+            {:else}
+              <p class="mt-1 text-sm text-slate-500">
+                Tu as atteint le niveau maximum. Bravo !
+              </p>
+            {/if}
+
+            <!-- Progress bar -->
+            <div class="mt-4">
+              <div
+                class="mb-1.5 flex items-center justify-between text-xs text-slate-400"
+              >
+                <span>{totalXp} XP</span>
+                {#if nextLevelXp}
+                  <span>{nextLevelXp} XP</span>
+                {:else}
+                  <span>MAX</span>
+                {/if}
+              </div>
+              <div
+                class="h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+              >
+                <div
+                  class="h-full rounded-full transition-all duration-700 ease-out {levelColor.bar}"
+                  style="width: {levelProgress}%"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Stats row -->
+            <div
+              class="mt-4 flex flex-wrap justify-center gap-4 sm:justify-start"
+            >
+              <div
+                class="flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+              >
+                <Sparkles class="h-3.5 w-3.5" />
+                {data.grants.length} gain{data.grants.length > 1 ? 's' : ''} d'XP
+              </div>
+              {#if data.grants.length > 0}
+                {@const first = data.grants[data.grants.length - 1]}
+                <div
+                  class="flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                >
+                  <Rocket class="h-3.5 w-3.5" />
+                  Depuis le {new Date(first.createdAt).toLocaleDateString(
+                    'fr-FR',
+                    {
+                      day: 'numeric',
+                      month: 'long',
+                    },
+                  )}
+                </div>
+              {/if}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    {#if groupedDays.length > 0}
+      <div class="relative" in:fly={{ y: 20, duration: 400, delay: 200 }}>
+        <!-- Vertical line -->
+        <div
+          class="absolute top-0 bottom-0 left-5 w-px bg-gradient-to-b from-epi-blue/40 via-epi-orange/20 to-transparent sm:left-6"
+        ></div>
+
+        <div class="space-y-8">
+          {#each groupedDays as day, dayIndex}
+            <!-- Day header -->
+            <div class="relative flex items-center gap-4">
+              <div
+                class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-slate-200 sm:h-12 sm:w-12 dark:bg-slate-900 dark:ring-slate-700"
+              >
+                <span
+                  class="text-sm font-black text-slate-700 dark:text-slate-300"
+                >
+                  {new Date(day.dateKey + 'T12:00:00').getDate()}
+                </span>
+              </div>
+              <div>
+                <h3
+                  class="text-sm font-bold text-slate-700 capitalize dark:text-slate-300"
+                >
+                  {day.label}
+                </h3>
+                <span class="text-xs font-semibold text-epi-orange">
+                  +{day.grants.reduce((s, g) => s + g.amount, 0)} XP
+                </span>
+              </div>
+            </div>
+
+            <!-- Grants for this day -->
+            <div
+              class="ml-[1.125rem] space-y-3 border-l border-transparent pl-8 sm:ml-[1.375rem]"
+            >
+              {#each day.grants as grant, grantIndex}
+                {@const config = getConfig(grant.source)}
+                {@const Icon = config.icon}
+                <div
+                  class="group relative overflow-hidden rounded-2xl border {config.borderClass} bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-slate-900"
+                  in:fly={{
+                    x: -10,
+                    duration: 300,
+                    delay: 100 * grantIndex + 200 * dayIndex,
+                  }}
+                >
+                  <!-- Subtle gradient accent on the left -->
+                  <div
+                    class="absolute inset-y-0 left-0 w-1 {config.bgClass} opacity-60"
+                  ></div>
+
+                  <div class="flex items-center gap-3">
+                    <!-- Source icon -->
+                    <div
+                      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {config.bgClass}"
+                    >
+                      <Icon class="h-5 w-5 {config.textClass}" />
+                    </div>
+
+                    <!-- Label + time -->
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="text-sm font-semibold text-slate-900 dark:text-white"
+                        >
+                          {config.label}
+                        </span>
+                      </div>
+                      <div
+                        class="mt-0.5 flex items-center gap-2 text-xs text-slate-400"
+                      >
+                        <span>{formatTime(grant.createdAt)}</span>
+                        {#if grant.note}
+                          <span class="text-slate-300 dark:text-slate-600"
+                            >·</span
+                          >
+                          <span class="truncate text-slate-500"
+                            >{grant.note}</span
+                          >
+                        {/if}
+                      </div>
+                    </div>
+
+                    <!-- XP amount -->
+                    <div
+                      class="shrink-0 rounded-xl {config.bgClass} px-3 py-1.5 text-center"
+                    >
+                      <span class="text-lg font-black {config.textClass}">
+                        +{grant.amount}
+                      </span>
+                      <span
+                        class="text-[10px] font-bold {config.textClass} uppercase"
+                      >
+                        XP
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/each}
+        </div>
+
+        <!-- Timeline end marker -->
+        <div class="relative mt-8 flex items-center gap-4">
+          <div
+            class="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-50 ring-2 ring-slate-200 sm:h-12 sm:w-12 dark:bg-slate-800 dark:ring-slate-700"
+          >
+            <Sparkles class="h-4 w-4 text-slate-400" />
+          </div>
+          <p class="text-sm text-slate-400">Début de ton aventure Jump</p>
+        </div>
+      </div>
+    {:else}
+      <!-- Empty state -->
+      <div
+        class="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-12 text-center dark:border-slate-800 dark:bg-slate-900/50"
+      >
+        <Trophy class="mb-4 h-8 w-8 text-slate-400" />
+        <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300">
+          Pas encore d'XP
+        </h3>
+        <p class="mt-2 max-w-sm text-sm text-slate-500">
+          Tes premiers gains d'XP apparaîtront ici. Commence par terminer ton
+          onboarding !
+        </p>
+      </div>
+    {/if}
+  </div>
+
+  <TalentFooter />
+</div>
