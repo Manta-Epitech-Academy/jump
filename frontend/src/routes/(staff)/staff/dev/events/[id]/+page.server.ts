@@ -34,6 +34,7 @@ import {
   loadLyceesBreakdown,
   loadInterestsCloud,
 } from '$lib/server/services/cohortOverview';
+import { stageCountdown } from '$lib/domain/eventPresence';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -249,21 +250,7 @@ async function loadStageOngoing(ctx: LoaderCtx) {
     loadInterestsCloud(db, event.id),
   ]);
 
-  const stageEnd = stageEndOrDefault(event);
-  const stageStart = event.date;
-  const totalDays = Math.max(
-    1,
-    Math.ceil((stageEnd.getTime() - stageStart.getTime()) / MS_PER_DAY),
-  );
-  const dayN = Math.min(
-    totalDays,
-    Math.max(
-      1,
-      Math.ceil(
-        (bounds.endOfDay.getTime() - stageStart.getTime()) / MS_PER_DAY,
-      ),
-    ),
-  );
+  const { dayN, totalDays } = stageCountdown(event, ctx.tz, bounds.now);
 
   // Today's most recent past or live orga slot — present count.
   const todayOrgaSlots = orgaSlots

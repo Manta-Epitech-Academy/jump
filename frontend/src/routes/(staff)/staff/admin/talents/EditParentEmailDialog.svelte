@@ -102,6 +102,7 @@
 
         <Dialog.Footer>
           <Dialog.Close
+            type="button"
             class={buttonVariants({ variant: 'outline' })}
             disabled={saving}
           >

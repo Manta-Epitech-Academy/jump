@@ -1,5 +1,6 @@
 import type { EventType } from './event';
 import { startOfDay } from './calendarWeek';
+import { isActivityOpenable } from './activity';
 
 /**
  * The talent dashboard "Planning à venir" widget renders exactly one of three
@@ -100,6 +101,13 @@ export type CalendarParticipation = {
           activityType: string;
           difficulte: string | null;
           isDynamic: boolean;
+          // Source fields the openability rule reads. Selected server-side only
+          // and collapsed into a single `openable` boolean below, so the heavy
+          // `content`/`contentStructure` HTML never crosses the wire.
+          content: string | null;
+          link: string | null;
+          subjectVersionId: string | null;
+          contentStructure: unknown;
         } | null;
       }>;
     } | null;
@@ -122,6 +130,8 @@ export type CalendarSlot = {
     activityType: string;
     difficulte: string | null;
     isDynamic: boolean;
+    /** Whether the detail page is worth opening; see {@link isActivityOpenable}. */
+    openable: boolean;
   } | null;
   event: { id: string; titre: string };
 };
@@ -156,11 +166,22 @@ export function toCalendarPlanning(
     if (!end || eventEnd > end) end = eventEnd;
 
     for (const slot of event.planning?.timeSlots ?? []) {
+      const a = slot.activity;
       slots.push({
         id: slot.id,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        activity: slot.activity,
+        activity: a
+          ? {
+              id: a.id,
+              nom: a.nom,
+              description: a.description,
+              activityType: a.activityType,
+              difficulte: a.difficulte,
+              isDynamic: a.isDynamic,
+              openable: isActivityOpenable(a),
+            }
+          : null,
         event: {
           id: event.id,
           titre: event.titre,
