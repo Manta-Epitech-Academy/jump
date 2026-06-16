@@ -32,10 +32,14 @@
  * tracked file instead of by editing the source scoreboard.
  *
  * Columns: defaults are the CTFd export (`user email`, `score`); override with
- * `--email-col` / `--score-col` for a differently shaped CSV.
+ * `--email-col` / `--score-col`, and `--delimiter` for a non-comma CSV (FR Excel
+ * exports with `;`), for a differently shaped file.
  *
- * Amount: the talent's own score (per the 10 XP = 1 min scale), so the reward's
- * `XpReward.xpAmount` is left null and the per-talent amount lives on the grant.
+ * Amount: by default the talent's own score (per the 10 XP = 1 min scale), so the
+ * reward's `XpReward.xpAmount` is left null and the per-talent amount lives on the
+ * grant. With `--amount=<n>` every matched talent gets the same flat XP (no score
+ * column needed, e.g. an attendance-based reward) and that shared amount is stored
+ * on `XpReward.xpAmount` instead.
  *
  * Self-contained on purpose (no `$lib` import): like the other scripts it must
  * run against the production image where Vite aliases do not resolve. The grant
@@ -82,17 +86,20 @@ Required:
 
 Options:
   --awarded-on=YYYY-MM-DD  Activity's real date, stored on the reward (not the run date)
+  --amount=<n>             Flat XP for every matched talent (no score column needed).
+                           Omit to credit each talent their own score, 1:1.
   --map=<file>             Reconcile emails: a CSV with columns csvEmail,talentEmail
   --report=<file>          Write the full per-row classification to a CSV artifact
   --email-col=<header>     Email column header (default: "user email")
-  --score-col=<header>     Score column header (default: "score")
+  --score-col=<header>     Score column header (default: "score"; ignored with --amount)
+  --delimiter=<char>       CSV field delimiter (default: ","; e.g. ";" for FR Excel)
   --dry-run                Classify and report, write nothing
   --force                  Allow a non-local DATABASE_URL (prod); required off localhost
   -h, --help               Show this help and exit
 
 Each row is classified matched / unmatched / bad-score / duplicate / conflict;
-only matched rows are credited (score XP, 1:1). Unmatched/conflict are reported,
-never guessed. Always --dry-run --report first, then re-run with --force to write.
+only matched rows are credited. Unmatched/conflict are reported, never guessed.
+Always --dry-run --report first, then re-run with --force to write.
 
 Example:
   bun scripts/grant-reward-from-csv.ts \\
@@ -118,6 +125,8 @@ const mapPath = flag('map');
 const reportPath = flag('report');
 const emailCol = (flag('email-col') ?? 'user email').toLowerCase();
 const scoreCol = (flag('score-col') ?? 'score').toLowerCase();
+const flatAmountRaw = flag('amount');
+const delimiter = flag('delimiter') ?? ',';
 const dryRun = has('dry-run');
 const force = has('force');
 
@@ -137,6 +146,17 @@ if (awardedOnRaw && Number.isNaN(awardedOn!.getTime())) {
   die(`Invalid --awarded-on "${awardedOnRaw}" (expected YYYY-MM-DD).`);
 }
 
+if (delimiter.length !== 1)
+  die('Invalid --delimiter (expected a single character).');
+if (
+  flatAmountRaw !== undefined &&
+  (!/^\d+$/.test(flatAmountRaw) || Number(flatAmountRaw) <= 0)
+)
+  die(`Invalid --amount "${flatAmountRaw}" (expected a positive integer).`);
+// Flat-amount mode: every matched talent gets the same XP, no score column
+// needed. Score mode (null): XP = the talent's own score column, 1:1.
+const flatAmount = flatAmountRaw !== undefined ? Number(flatAmountRaw) : null;
+
 const url = process.env.DATABASE_URL ?? '';
 const isLocal = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
 if (!isLocal && !force) {
@@ -147,7 +167,7 @@ if (!isLocal && !force) {
 }
 
 // ─── CSV (self-contained; quotes tolerated) ──────────────────────────────────
-function parseCsvLine(line: string): string[] {
+function parseCsvLine(line: string, delim: string): string[] {
   const out: string[] = [];
   let cur = '';
   let inQuotes = false;
@@ -160,7 +180,7 @@ function parseCsvLine(line: string): string[] {
       } else if (c === '"') inQuotes = false;
       else cur += c;
     } else if (c === '"') inQuotes = true;
-    else if (c === ',') {
+    else if (c === delim) {
       out.push(cur);
       cur = '';
     } else cur += c;
@@ -169,11 +189,11 @@ function parseCsvLine(line: string): string[] {
   return out.map((s) => s.trim());
 }
 
-function rowsOf(file: string): string[][] {
+function rowsOf(file: string, delim: string): string[][] {
   const text = readFileSync(file, 'utf8').replace(/\r\n/g, '\n').trim();
   const lines = text.split('\n').filter((l) => l.length > 0);
   if (lines.length < 2) die(`CSV "${file}" has no data rows.`);
-  return lines.map(parseCsvLine);
+  return lines.map((l) => parseCsvLine(l, delim));
 }
 
 function colIndex(header: string[], wanted: string, file: string): number {
@@ -189,18 +209,22 @@ function colIndex(header: string[], wanted: string, file: string): number {
 type Parsed = { email: string; scoreRaw: string };
 
 function readScoreboard(file: string): Parsed[] {
-  const [header, ...body] = rowsOf(file);
+  const [header, ...body] = rowsOf(file, delimiter);
   const iEmail = colIndex(header, emailCol, file);
-  const iScore = colIndex(header, scoreCol, file);
+  // Score column is only required in score mode; flat-amount mode ignores it.
+  const iScore =
+    flatAmount === null
+      ? colIndex(header, scoreCol, file)
+      : header.findIndex((h) => h.toLowerCase() === scoreCol);
   return body.map((f) => ({
     email: (f[iEmail] ?? '').toLowerCase(),
-    scoreRaw: (f[iScore] ?? '').trim(),
+    scoreRaw: iScore >= 0 ? (f[iScore] ?? '').trim() : '',
   }));
 }
 
-/** csvEmail -> talentEmail overrides, both lower-cased. */
+/** csvEmail -> talentEmail overrides, both lower-cased (always comma-delimited). */
 function readAliases(file: string): Map<string, string> {
-  const [header, ...body] = rowsOf(file);
+  const [header, ...body] = rowsOf(file, ',');
   const iFrom = colIndex(header, 'csvemail', file);
   const iTo = colIndex(header, 'talentemail', file);
   const map = new Map<string, string>();
@@ -238,6 +262,7 @@ function classify(
   parsed: Parsed[],
   cohortByEmail: Map<string, Talent>,
   aliases: Map<string, string>,
+  resolveAmount: (scoreRaw: string) => number | null,
 ): Row[] {
   const emailCount = new Map<string, number>();
   for (const p of parsed)
@@ -247,8 +272,8 @@ function classify(
   const pass1: Row[] = parsed.map((p) => {
     if ((emailCount.get(p.email) ?? 0) > 1)
       return { status: 'duplicate', csvEmail: p.email };
-    // Strict: parseInt("1,785") would silently become 1, so demand all digits.
-    if (!/^\d+$/.test(p.scoreRaw) || Number(p.scoreRaw) <= 0)
+    const amount = resolveAmount(p.scoreRaw);
+    if (amount === null)
       return { status: 'bad-score', csvEmail: p.email, scoreRaw: p.scoreRaw };
     const lookupEmail = aliases.get(p.email) ?? p.email;
     const talent = cohortByEmail.get(lookupEmail);
@@ -258,7 +283,7 @@ function classify(
       csvEmail: p.email,
       lookupEmail,
       talent,
-      amount: Number(p.scoreRaw),
+      amount,
     };
   });
 
@@ -315,8 +340,10 @@ const rewardGrantSourceId = (rewardId: string, talentId: string) =>
   `${rewardId}_${talentId}`;
 
 async function main() {
+  const mode =
+    flatAmount !== null ? `flat ${flatAmount} XP each` : 'XP = score';
   console.log(
-    `Grant reward "${key}" to ${campusName}: ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}${
+    `Grant reward "${key}" to ${campusName} (${mode}): ${dryRun ? 'DRY RUN (no writes)' : 'LIVE'}${
       force ? ' [--force]' : ''
     }\n`,
   );
@@ -347,7 +374,11 @@ async function main() {
   const seen = new Set(parsed.map((p) => p.email));
   const staleAliases = [...aliases.keys()].filter((k) => !seen.has(k));
 
-  const rows = classify(parsed, byEmail, aliases);
+  const resolveAmount =
+    flatAmount !== null
+      ? () => flatAmount
+      : (s: string) => (/^\d+$/.test(s) && Number(s) > 0 ? Number(s) : null);
+  const rows = classify(parsed, byEmail, aliases, resolveAmount);
   const count = (s: Row['status']) => rows.filter((r) => r.status === s).length;
   const matched = rows.filter((r) => r.status === 'matched') as Extract<
     Row,
@@ -398,11 +429,18 @@ async function main() {
   // Upsert the reward category (idempotent on key), then grant per talent.
   const reward = await prisma.xpReward.upsert({
     where: { key: key! },
-    update: { name: name!, campusId: campus.id, awardedOn },
+    // flat mode records the shared amount on the reward; score mode leaves it
+    // null because the per-talent amount lives on each grant.
+    update: {
+      name: name!,
+      campusId: campus.id,
+      awardedOn,
+      xpAmount: flatAmount,
+    },
     create: {
       key: key!,
       name: name!,
-      xpAmount: null,
+      xpAmount: flatAmount,
       campusId: campus.id,
       awardedOn,
     },
