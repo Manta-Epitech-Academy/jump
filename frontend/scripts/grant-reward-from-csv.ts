@@ -4,43 +4,58 @@
  * This is the *invocation* tool behind the `reward` XP source: each scored stage
  * activity (a CTF, a hackathon...) is one `XpReward` row, and every run credits
  * the participants listed in that activity's CSV. Re-running the same CSV never
- * double-grants (the grant is idempotent on (talent, reward)), so a fixed typo
- * in the file is just an edit-and-rerun. The same script serves every future
- * activity: point it at the next CSV with a new `--key`.
+ * double-grants (the grant is idempotent on (talent, reward)), so a fix is just
+ * an edit-and-rerun. The same script serves every future activity: point it at
+ * the next CSV with a new `--key`.
  *
- * What it does:
- *   1. resolves the campus by name (`--campus`),
- *   2. loads that campus's cohort (talents with a Participation there) and indexes
- *      them by lower-cased email,
- *   3. reads the CSV, keeps only rows whose bracket/city is the campus, and maps
- *      each to a talent by email (case-insensitive); unmatched emails are
- *      reported, never guessed,
- *   4. upserts the `XpReward` (idempotent on `--key`),
- *   5. grants each matched talent `score` XP (1:1) as source `reward`, then
- *      recomputes that talent's cached `Talent.xp`.
+ * The tool's real job is the reconciliation tail, not the happy path. An export
+ * email rarely lines up perfectly with a Jump talent (typos, alternate
+ * addresses, spare CTF accounts handed to students who could not log in). So the
+ * design centres on classifying every row safely and never guessing:
  *
- * The amount is the talent's own score (per the 10 XP = 1 min scale), not the
- * reward's `xpAmount`, so `XpReward.xpAmount` is left null here.
+ *   matched    email resolves to exactly one talent in the campus cohort
+ *   unmatched  no talent for that email (reconcile via --map, then re-run)
+ *   bad-score  score is not a positive integer
+ *   duplicate  the same CSV email appears on more than one row
+ *   conflict   two different CSV rows resolve to the SAME talent
+ *
+ * Only `matched` rows are written. The rest are reported (and, with --report,
+ * written to a CSV artifact) for a human to resolve. Nothing is silently
+ * last-write-wins: a conflict that would otherwise pick an arbitrary score for a
+ * talent is held back, not gambled.
+ *
+ * Matching: case-insensitive email against the campus cohort (talents with a
+ * Participation in `--campus`). The cohort scope is the safety guard, not any
+ * column in the CSV, so a row for another campus simply has no talent here and
+ * lands in `unmatched`. `--map csvEmail,talentEmail` rewrites a CSV email to a
+ * real talent email before lookup, so spare accounts are reconciled in a
+ * tracked file instead of by editing the source scoreboard.
+ *
+ * Columns: defaults are the CTFd export (`user email`, `score`); override with
+ * `--email-col` / `--score-col` for a differently shaped CSV.
+ *
+ * Amount: the talent's own score (per the 10 XP = 1 min scale), so the reward's
+ * `XpReward.xpAmount` is left null and the per-talent amount lives on the grant.
  *
  * Self-contained on purpose (no `$lib` import): like the other scripts it must
  * run against the production image where Vite aliases do not resolve. The grant
  * sourceId format and the xp recompute are inlined from
  * src/lib/server/services/xpService.ts, keep them in sync.
  *
- * Safety: refuses a non-local DATABASE_URL unless `--force`, and writes nothing
- * without it being a non-dry run. Dry-run is the default mindset: always run it
- * first to read the match rate and the unmatched list before crediting prod.
+ * Safety: refuses a non-local DATABASE_URL unless `--force`, writes nothing in a
+ * dry run. Always dry-run first (ideally with --report) to read the match rate
+ * and the unresolved rows before crediting prod.
  *
  * Run:
  *   bun scripts/grant-reward-from-csv.ts \
  *     --campus=Strasbourg --key=osint-ctfd-2026-06-15 \
  *     --name="OSINT CTFD Stage Seconde (15/06/2026)" --awarded-on=2026-06-15 \
- *     --csv=/path/OSINT_CTF-scoreboard.csv --dry-run
+ *     --csv=/path/OSINT_CTF-scoreboard.csv --report=/tmp/osint-report.csv --dry-run
  *
- *   (re-run without --dry-run, with --force, to write to a non-local DB)
+ *   (add --map=/path/aliases.csv to reconcile, drop --dry-run + add --force to write)
  */
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -50,7 +65,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-// ─── args ────────────────────────────────────────────────────────────────────
+// ─── args ──────────────────────────────────────────────────────────────────
 function flag(name: string): string | undefined {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
   return hit?.slice(name.length + 3);
@@ -62,6 +77,10 @@ const key = flag('key');
 const name = flag('name');
 const awardedOnRaw = flag('awarded-on');
 const csvPath = flag('csv');
+const mapPath = flag('map');
+const reportPath = flag('report');
+const emailCol = (flag('email-col') ?? 'user email').toLowerCase();
+const scoreCol = (flag('score-col') ?? 'score').toLowerCase();
 const dryRun = has('dry-run');
 const force = has('force');
 
@@ -74,7 +93,8 @@ if (!campusName || !key || !name || !csvPath) {
   die(
     'Missing required flag(s).\n' +
       'Required: --campus --key --name --csv\n' +
-      'Optional: --awarded-on=YYYY-MM-DD --dry-run --force',
+      'Optional: --awarded-on=YYYY-MM-DD --map=aliases.csv --report=out.csv\n' +
+      '          --email-col=<header> --score-col=<header> --dry-run --force',
   );
 }
 
@@ -92,7 +112,7 @@ if (!isLocal && !force) {
   );
 }
 
-// ─── minimal CSV parsing (self-contained; clean scoreboard, quotes tolerated) ──
+// ─── CSV (self-contained; quotes tolerated) ──────────────────────────────────
 function parseCsvLine(line: string): string[] {
   const out: string[] = [];
   let cur = '';
@@ -115,34 +135,145 @@ function parseCsvLine(line: string): string[] {
   return out.map((s) => s.trim());
 }
 
-type CsvRow = { email: string; score: number; bracket: string; city: string };
-
-function readScoreboard(file: string): CsvRow[] {
+function rowsOf(file: string): string[][] {
   const text = readFileSync(file, 'utf8').replace(/\r\n/g, '\n').trim();
   const lines = text.split('\n').filter((l) => l.length > 0);
   if (lines.length < 2) die(`CSV "${file}" has no data rows.`);
+  return lines.map(parseCsvLine);
+}
 
-  const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
-  const col = (h: string) => {
-    const idx = header.indexOf(h);
-    if (idx === -1)
-      die(`CSV is missing the "${h}" column. Got: ${header.join(', ')}`);
-    return idx;
-  };
-  const iEmail = col('user email');
-  const iScore = col('score');
-  const iBracket = col('user bracket name');
-  const iCity = col('city');
+function colIndex(header: string[], wanted: string, file: string): number {
+  const idx = header.findIndex((h) => h.toLowerCase() === wanted);
+  if (idx === -1)
+    die(
+      `CSV "${file}" is missing the "${wanted}" column. Got: ${header.join(', ')}`,
+    );
+  return idx;
+}
 
-  return lines.slice(1).map((line) => {
-    const f = parseCsvLine(line);
+/** One raw scoreboard row: email lower-cased, score kept as a string for strict parsing. */
+type Parsed = { email: string; scoreRaw: string };
+
+function readScoreboard(file: string): Parsed[] {
+  const [header, ...body] = rowsOf(file);
+  const iEmail = colIndex(header, emailCol, file);
+  const iScore = colIndex(header, scoreCol, file);
+  return body.map((f) => ({
+    email: (f[iEmail] ?? '').toLowerCase(),
+    scoreRaw: (f[iScore] ?? '').trim(),
+  }));
+}
+
+/** csvEmail -> talentEmail overrides, both lower-cased. */
+function readAliases(file: string): Map<string, string> {
+  const [header, ...body] = rowsOf(file);
+  const iFrom = colIndex(header, 'csvemail', file);
+  const iTo = colIndex(header, 'talentemail', file);
+  const map = new Map<string, string>();
+  for (const f of body) {
+    const from = (f[iFrom] ?? '').toLowerCase();
+    const to = (f[iTo] ?? '').toLowerCase();
+    if (from && to) map.set(from, to);
+  }
+  return map;
+}
+
+// ─── pure classification (no I/O, no DB) ──────────────────────────────────────
+type Talent = { id: string; email: string; nom: string; prenom: string };
+
+type Row =
+  | {
+      status: 'matched';
+      csvEmail: string;
+      lookupEmail: string;
+      talent: Talent;
+      amount: number;
+    }
+  | {
+      status: 'conflict';
+      csvEmail: string;
+      lookupEmail: string;
+      talent: Talent;
+      amount: number;
+    }
+  | { status: 'unmatched'; csvEmail: string; lookupEmail: string }
+  | { status: 'bad-score'; csvEmail: string; scoreRaw: string }
+  | { status: 'duplicate'; csvEmail: string };
+
+function classify(
+  parsed: Parsed[],
+  cohortByEmail: Map<string, Talent>,
+  aliases: Map<string, string>,
+): Row[] {
+  const emailCount = new Map<string, number>();
+  for (const p of parsed)
+    emailCount.set(p.email, (emailCount.get(p.email) ?? 0) + 1);
+
+  // First pass: classify each row on its own.
+  const pass1: Row[] = parsed.map((p) => {
+    if ((emailCount.get(p.email) ?? 0) > 1)
+      return { status: 'duplicate', csvEmail: p.email };
+    // Strict: parseInt("1,785") would silently become 1, so demand all digits.
+    if (!/^\d+$/.test(p.scoreRaw) || Number(p.scoreRaw) <= 0)
+      return { status: 'bad-score', csvEmail: p.email, scoreRaw: p.scoreRaw };
+    const lookupEmail = aliases.get(p.email) ?? p.email;
+    const talent = cohortByEmail.get(lookupEmail);
+    if (!talent) return { status: 'unmatched', csvEmail: p.email, lookupEmail };
     return {
-      email: (f[iEmail] ?? '').toLowerCase(),
-      score: Number.parseInt(f[iScore] ?? '', 10),
-      bracket: f[iBracket] ?? '',
-      city: f[iCity] ?? '',
+      status: 'matched',
+      csvEmail: p.email,
+      lookupEmail,
+      talent,
+      amount: Number(p.scoreRaw),
     };
   });
+
+  // Second pass: two distinct rows landing on the same talent is a conflict, not
+  // a last-write-wins gamble (e.g. a spare account aliased onto a student who
+  // also competed under their own email). Hold both back for a human.
+  const talentCount = new Map<string, number>();
+  for (const r of pass1)
+    if (r.status === 'matched')
+      talentCount.set(r.talent.id, (talentCount.get(r.talent.id) ?? 0) + 1);
+
+  return pass1.map((r) =>
+    r.status === 'matched' && (talentCount.get(r.talent.id) ?? 0) > 1
+      ? { ...r, status: 'conflict' as const }
+      : r,
+  );
+}
+
+// ─── report ───────────────────────────────────────────────────────────────────
+const csvCell = (v: string | number) =>
+  /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+
+function writeReport(file: string, rows: Row[]): void {
+  const lines = ['csv_email,status,lookup_email,talent_id,talent_name,amount'];
+  for (const r of rows) {
+    const lookup = 'lookupEmail' in r ? r.lookupEmail : '';
+    const tid = 'talent' in r ? r.talent.id : '';
+    const tname = 'talent' in r ? `${r.talent.prenom} ${r.talent.nom}` : '';
+    const amount = 'amount' in r ? r.amount : '';
+    lines.push(
+      [r.csvEmail, r.status, lookup, tid, tname, amount].map(csvCell).join(','),
+    );
+  }
+  writeFileSync(file, lines.join('\n') + '\n', 'utf8');
+}
+
+function attentionList(rows: Row[], status: Row['status']): string {
+  return rows
+    .filter((r) => r.status === status)
+    .map((r) =>
+      r.status === 'matched' || r.status === 'conflict'
+        ? `${r.csvEmail} -> ${r.lookupEmail} (${r.talent.prenom} ${r.talent.nom})`
+        : r.status === 'unmatched'
+          ? `${r.csvEmail}${r.lookupEmail !== r.csvEmail ? ` -> ${r.lookupEmail}` : ''}`
+          : r.status === 'bad-score'
+            ? `${r.csvEmail} (score="${r.scoreRaw}")`
+            : r.csvEmail,
+    )
+    .join('\n  ');
 }
 
 // ─── inlined from xpService (keep in sync) ─────────────────────────────────────
@@ -162,8 +293,8 @@ async function main() {
   });
   if (!campus) die(`No campus named "${campusName}".`);
 
-  // Cohort = talents with at least one participation in this campus. Indexed by
-  // lower-cased email so the match is case-insensitive against the CTF emails.
+  // Cohort = talents with at least one participation in this campus. The scope is
+  // the safety guard: a row for another campus has no talent here.
   const cohort = await prisma.talent.findMany({
     where: {
       participations: { some: { campusId: campus.id } },
@@ -171,58 +302,54 @@ async function main() {
     },
     select: { id: true, email: true, nom: true, prenom: true },
   });
-  const byEmail = new Map<string, (typeof cohort)[number]>();
-  for (const t of cohort) byEmail.set(t.email!.toLowerCase(), t);
+  const byEmail = new Map<string, Talent>();
+  for (const t of cohort)
+    byEmail.set(t.email!.toLowerCase(), { ...t, email: t.email! });
 
-  const rows = readScoreboard(csvPath!);
+  const parsed = readScoreboard(csvPath!);
+  const aliases = mapPath ? readAliases(mapPath) : new Map<string, string>();
 
-  const matched: { talentId: string; email: string; amount: number }[] = [];
-  const unmatched: string[] = [];
-  const skippedOtherCampus: string[] = [];
-  const skippedBadScore: string[] = [];
+  // Surface aliases that never applied (stale entries) so the map stays honest.
+  const seen = new Set(parsed.map((p) => p.email));
+  const staleAliases = [...aliases.keys()].filter((k) => !seen.has(k));
 
-  for (const r of rows) {
-    const inCampus =
-      r.bracket.toLowerCase() === campus.name.toLowerCase() ||
-      r.city.toLowerCase() === campus.name.toLowerCase();
-    if (!inCampus) {
-      skippedOtherCampus.push(`${r.email} (${r.bracket || r.city || '?'})`);
-      continue;
-    }
-    if (!Number.isFinite(r.score) || r.score <= 0) {
-      skippedBadScore.push(`${r.email} (score=${r.score})`);
-      continue;
-    }
-    const t = byEmail.get(r.email);
-    if (!t) {
-      unmatched.push(r.email);
-      continue;
-    }
-    matched.push({ talentId: t.id, email: r.email, amount: r.score });
-  }
-
+  const rows = classify(parsed, byEmail, aliases);
+  const count = (s: Row['status']) => rows.filter((r) => r.status === s).length;
+  const matched = rows.filter((r) => r.status === 'matched') as Extract<
+    Row,
+    { status: 'matched' }
+  >[];
   const totalXp = matched.reduce((s, m) => s + m.amount, 0);
 
-  console.log(`Campus cohort:        ${cohort.length} talents`);
-  console.log(`CSV rows:             ${rows.length}`);
-  console.log(`Skipped (other campus): ${skippedOtherCampus.length}`);
-  console.log(`Skipped (bad score):  ${skippedBadScore.length}`);
-  console.log(`Matched:              ${matched.length}`);
-  console.log(`Unmatched (no talent): ${unmatched.length}`);
-  console.log(`Total XP to grant:    ${totalXp}\n`);
+  console.log(`Campus cohort:    ${cohort.length} talents`);
+  console.log(`CSV rows:         ${parsed.length}`);
+  console.log(
+    `Aliases loaded:   ${aliases.size}${staleAliases.length ? ` (${staleAliases.length} stale)` : ''}`,
+  );
+  console.log(`Matched:          ${matched.length}`);
+  console.log(`Unmatched:        ${count('unmatched')}`);
+  console.log(`Conflict:         ${count('conflict')}`);
+  console.log(`Duplicate:        ${count('duplicate')}`);
+  console.log(`Bad score:        ${count('bad-score')}`);
+  console.log(`Total XP to grant: ${totalXp}\n`);
 
-  if (skippedOtherCampus.length) {
-    console.log(
-      `Other-campus rows skipped:\n  ${skippedOtherCampus.join('\n  ')}\n`,
-    );
+  for (const [label, status] of [
+    ['Unmatched (no talent here; add to --map and re-run)', 'unmatched'],
+    ['Conflict (multiple rows -> same talent; resolve by hand)', 'conflict'],
+    ['Duplicate CSV email (resolve in source)', 'duplicate'],
+    ['Bad score (not a positive integer)', 'bad-score'],
+  ] as const) {
+    if (count(status))
+      console.log(`${label}:\n  ${attentionList(rows, status)}\n`);
   }
-  if (skippedBadScore.length) {
-    console.log(`Bad-score rows skipped:\n  ${skippedBadScore.join('\n  ')}\n`);
-  }
-  if (unmatched.length) {
+  if (staleAliases.length)
     console.log(
-      `Unmatched emails (no Jump talent in ${campus.name}, reconcile by hand):\n  ${unmatched.join('\n  ')}\n`,
+      `Stale aliases (csvEmail not in CSV):\n  ${staleAliases.join('\n  ')}\n`,
     );
+
+  if (reportPath) {
+    writeReport(reportPath, rows);
+    console.log(`Report written: ${reportPath}\n`);
   }
 
   if (dryRun) {
@@ -256,32 +383,32 @@ async function main() {
         where: {
           source_sourceId: {
             source: 'reward',
-            sourceId: rewardGrantSourceId(reward.id, m.talentId),
+            sourceId: rewardGrantSourceId(reward.id, m.talent.id),
           },
         },
         update: { amount: m.amount, campusId: campus.id },
         create: {
-          talentId: m.talentId,
+          talentId: m.talent.id,
           source: 'reward',
-          sourceId: rewardGrantSourceId(reward.id, m.talentId),
+          sourceId: rewardGrantSourceId(reward.id, m.talent.id),
           amount: m.amount,
           campusId: campus.id,
         },
       });
       // recompute Talent.xp = SUM(XpGrant.amount), inlined from xpService.
       const agg = await tx.xpGrant.aggregate({
-        where: { talentId: m.talentId },
+        where: { talentId: m.talent.id },
         _sum: { amount: true },
       });
       await tx.talent.update({
-        where: { id: m.talentId },
+        where: { id: m.talent.id },
         data: { xp: agg._sum.amount ?? 0 },
       });
     });
     written++;
   }
 
-  console.log(`Done. ${written} talents credited for "${reward.id}" (${key}).`);
+  console.log(`Done. ${written} talents credited for "${key}" (${reward.id}).`);
 }
 
 main()
