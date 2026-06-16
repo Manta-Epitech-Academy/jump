@@ -6,12 +6,14 @@
 // Reconstructed from the XpGrant ledger (facts-as-rows). Tier-free on purpose (no
 // Novice/Apprenti/Expert): the dev space surfaces the story, not a ladder.
 
+import { MINIGAME_XP_REWARD } from './xp';
+
 export type XpStory = {
   /** Cached projection total (= SUM of grant amounts = Talent.xp). */
   total: number;
   /** Mini-jeux played, for the hero medallion's at-a-glance count. */
   minigamePlays: number;
-  /** Times in the top of a daily leaderboard, for the hero medallion. */
+  /** Top-3 (true podium) finishes on a daily leaderboard, for the hero medallion. */
   podiumCount: number;
   /** Newest-first feed of every XP gain, for the dialog. */
   history: XpHistoryEntry[];
@@ -29,15 +31,17 @@ export type XpHistoryEntry = {
 };
 
 /**
- * Maps a `minigame_rank` grant amount back to the rank tier it rewarded. Mirrors
- * `minigameRankBonus` in `domain/xp.ts` (rank 1 -> 100, 2 -> 50, 3 -> 25,
- * 4..limit -> 10). The exact rank-at-finish is not persisted, so the bonus amount
- * is the only durable signal of how high they placed.
+ * Maps a `minigame_rank` grant amount back to the rank tier it rewarded, off the
+ * same scale `minigameRankBonus` pays it on: rank 1 = `MINIGAME_XP_REWARD` x2,
+ * 2 = x1, 3 = x0.5, and the wider top-N tail = x0.2 ('top', not a podium). Derived
+ * from the constant rather than hard-coded amounts so the two can never drift if
+ * the base reward is retuned. The exact rank-at-finish is not persisted, so the
+ * bonus amount is the only durable signal of how high they placed.
  */
 export function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
-  if (amount >= 100) return 1;
-  if (amount >= 50) return 2;
-  if (amount >= 25) return 3;
+  if (amount >= MINIGAME_XP_REWARD * 2) return 1;
+  if (amount >= MINIGAME_XP_REWARD) return 2;
+  if (amount >= Math.round(MINIGAME_XP_REWARD / 2)) return 3;
   return 'top';
 }
 

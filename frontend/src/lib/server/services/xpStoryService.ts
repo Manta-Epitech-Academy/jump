@@ -1,5 +1,9 @@
 import { prisma } from '$lib/server/db';
-import { xpHistoryLabel, type XpStory } from '$lib/domain/xpStory';
+import {
+  podiumTierFromBonus,
+  xpHistoryLabel,
+  type XpStory,
+} from '$lib/domain/xpStory';
 
 /** Short French "16 juin" label in the campus timezone, for the history feed. */
 function dateLabel(date: Date, timeZone: string): string {
@@ -13,9 +17,10 @@ function dateLabel(date: Date, timeZone: string): string {
 /**
  * Read-side builder for a talent's XP story (the dev fiche medallion + history
  * dialog). The XpGrant ledger already holds every fact, so this is a single query
- * plus humanisation - no joins. The hero's two glance-counts (mini-jeux played,
- * podiums) come straight off the grant sources. Single-talent, low-hundreds of
- * rows at most, so it awaits cheaply in `load` (not a cohort).
+ * plus humanisation - no joins. The hero's two glance-counts: mini-jeux played is
+ * the play tally; podiums are only the top-3 rank bonuses (the wider top-N tail is
+ * engagement, not a medal, so it stays out of the Trophy count). Single-talent,
+ * low-hundreds of rows at most, so it awaits cheaply in `load` (not a cohort).
  *
  * Mirrors the write-side split: grants are *written* by `xpService`, *read* here.
  */
@@ -31,7 +36,10 @@ export async function getTalentXpStory(
   return {
     total: grants.reduce((sum, g) => sum + g.amount, 0),
     minigamePlays: grants.filter((g) => g.source === 'minigame').length,
-    podiumCount: grants.filter((g) => g.source === 'minigame_rank').length,
+    podiumCount: grants.filter(
+      (g) =>
+        g.source === 'minigame_rank' && podiumTierFromBonus(g.amount) !== 'top',
+    ).length,
     history: [...grants]
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .map((g) => ({

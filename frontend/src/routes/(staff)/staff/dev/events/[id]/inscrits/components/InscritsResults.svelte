@@ -605,7 +605,7 @@
                       {...props}
                       href={resolve(`/staff/dev/students/${r.talentId}`)}
                       tabindex={-1}
-                      class="relative z-10 inline-flex cursor-help items-center gap-1 rounded-full bg-epi-teal-solid/10 px-2 py-0.5 text-xs font-bold text-epi-teal-solid tabular-nums"
+                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-teal-solid/10 px-2 py-0.5 text-xs font-bold text-epi-teal-solid tabular-nums"
                     >
                       <Sparkles class="h-3 w-3" />
                       {r.xp}
