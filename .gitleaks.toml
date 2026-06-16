@@ -6,3 +6,9 @@ description = "Allowlist for local-development dummy secrets"
 paths = [
   '''garage/garage\.toml''',
 ]
+regexes = [
+  # XpReward keys are public, low-entropy slugs (event + date), not secrets.
+  # The grant-reward CLI docstring uses one as an example; gitleaks flags it as
+  # a generic-api-key. The script itself reads every credential from the env.
+  '''[a-z0-9]+(?:-[a-z0-9]+)*-\d{4}-\d{2}-\d{2}''',
+]
