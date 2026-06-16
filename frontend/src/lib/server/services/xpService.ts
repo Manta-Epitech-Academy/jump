@@ -18,6 +18,7 @@ import type { Prisma, XpGrantSource } from '@prisma/client';
  *   - onboarding        → talentId
  *   - minigame          → minigameAttemptId
  *   - activity_presence → participationId
+ *   - reward            → `${rewardId}_${talentId}` (see grantReward)
  *   - admin_adjustment  → null (never deduped; each adjustment is its own row)
  */
 
@@ -118,6 +119,43 @@ export async function grantXp(
   }
 
   await recomputeTalentXp(tx, input.talentId);
+}
+
+/**
+ * Dedupe key for a `reward` grant: one row per (talent, XpReward). Centralised
+ * here so every caller (and any future revoke) composes it identically, since
+ * the idempotency of a re-run depends on this exact format.
+ */
+export function rewardGrantSourceId(
+  rewardId: string,
+  talentId: string,
+): string {
+  return `${rewardId}_${talentId}`;
+}
+
+/**
+ * Grants XP for a named `XpReward` (a scored stage activity such as a CTF).
+ * Idempotent on (talent, reward) via {@link rewardGrantSourceId}: re-running an
+ * import never double-grants. `amount` is per-talent (e.g. the CTF score), not
+ * the reward's `xpAmount`. Does not touch `eventsCount` (a reward is not an
+ * event participation).
+ */
+export async function grantReward(
+  tx: Prisma.TransactionClient,
+  input: {
+    talentId: string;
+    rewardId: string;
+    amount: number;
+    campusId?: string | null;
+  },
+): Promise<void> {
+  await grantXp(tx, {
+    talentId: input.talentId,
+    source: 'reward',
+    sourceId: rewardGrantSourceId(input.rewardId, input.talentId),
+    amount: input.amount,
+    campusId: input.campusId ?? null,
+  });
 }
 
 /**

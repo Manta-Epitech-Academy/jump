@@ -231,27 +231,27 @@ model bauth_verification {
 // ─── Domain Profiles ───
 
 model StaffProfile {
-  id                String     @id @default(cuid())
-  userId            String     @unique
-  campusId          String?
-  staffRole         StaffRole?
-  discordId         String?    @unique
+  id                       String     @id @default(cuid())
+  userId                   String     @unique
+  campusId                 String?
+  staffRole                StaffRole?
+  discordId                String?    @unique
   // Personal dev-redirect destinations: on a trapped (non-prod) env, mail/SMS
   // attributed to this staff member (sends they trigger, or talents they
   // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
   // list, so each tester only receives their own traffic. Empty = fall back to
   // the env list. Inert in prod (the env gate is off). See
   // `$lib/server/{email,sms}/dev-redirect.ts`.
-  devRedirectEmails String[]   @default([])
-  devRedirectPhones String[]   @default([])
+  devRedirectEmails        String[]   @default([])
+  devRedirectPhones        String[]   @default([])
   // High-water mark for this admin's bulk onboarding-PDF archival: set each time
   // they download the full ("everything up to now") archive from
   // `/staff/admin/onboarding-pdfs`, so the page can surface the documents
   // finished since. A convenience filter, not a completeness guarantee (the
   // all-time export stays the authoritative archive); null = never exported.
   onboardingDocsExportedAt DateTime?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
 
   user                    bauth_user              @relation(fields: [userId], references: [id], onDelete: Cascade)
   campus                  Campus?                 @relation(fields: [campusId], references: [id])
@@ -505,6 +505,7 @@ model Campus {
   broadcasts        Broadcast[]
   minigameAttempts  MinigameAttempt[]
   xpGrants          XpGrant[]
+  xpRewards         XpReward[]
 }
 
 model CmsPage {
@@ -1633,8 +1634,9 @@ model XpGrant {
   // Stable dedupe key per source: onboarding→talentId,
   // onboarding_early_bird→talentId (distinct row from the base because `source`
   // differs), minigame→attemptId, minigame_rank→attemptId, activity_presence→
-  // participationId, admin_adjustment→null (never deduped: Postgres treats NULLs
-  // as distinct under the unique index).
+  // participationId, reward→`${rewardId}_${talentId}` (one grant per talent per
+  // XpReward, see XpReward below), admin_adjustment→null (never deduped: Postgres
+  // treats NULLs as distinct under the unique index).
   sourceId  String?
   amount    Int
   note      String?
@@ -1662,7 +1664,37 @@ enum XpGrantSource {
   // finish reward.
   minigame_rank
   activity_presence
+  // Grant tied to a named, reusable XpReward (a stage activity scored outside the
+  // planning, e.g. a CTF). Its own source so it stays distinct from a raw
+  // admin_adjustment correction and is queryable per category. Amount is
+  // per-talent (the CTF score), not the activity's difficulty.
+  reward
   admin_adjustment
+}
+
+// Catalogue of named, reusable XP rewards: one row per scored activity that
+// grants XP outside the planning/minigame paths (a CTF, a hackathon...). It is
+// the typed, deduplicated identity behind every `reward` XpGrant: the category
+// a talent and the staff can later point to, instead of a free-text note copied
+// onto each grant. `key` is the stable slug used to (re)provision idempotently
+// from a CSV; `awardedOn` is the activity's real date, decoupled from when the
+// grant script happens to run. `xpAmount` is set only for fixed-amount rewards;
+// it stays null when the amount is per-talent (CTF score), which lives on the
+// grant. Campus-scoped when `campusId` is set, global when null.
+model XpReward {
+  id        String    @id @default(cuid())
+  key       String    @unique
+  name      String
+  xpAmount  Int?
+  campusId  String?
+  awardedOn DateTime?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  campus Campus? @relation(fields: [campusId], references: [id], onDelete: SetNull)
+
+  @@index([campusId])
 }
 
 /// Append-only ledger of OTP login attempts, consumed by
