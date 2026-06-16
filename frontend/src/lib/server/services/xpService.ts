@@ -122,9 +122,11 @@ export async function grantXp(
 }
 
 /**
- * Dedupe key for a `reward` grant: one row per (talent, XpReward). Centralised
- * here so every caller (and any future revoke) composes it identically, since
- * the idempotency of a re-run depends on this exact format.
+ * Dedupe key for a `reward` grant: one row per (talent, XpReward). The
+ * canonical definition for every in-app caller (and any future revoke), since
+ * the idempotency of a re-run depends on this exact format. `scripts/
+ * grant-reward-from-csv.ts` re-inlines this (it runs against the prod image,
+ * where the `$lib` alias does not resolve) — keep the two in sync.
  */
 export function rewardGrantSourceId(
   rewardId: string,

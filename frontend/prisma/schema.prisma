@@ -1688,7 +1688,6 @@ model XpReward {
   xpAmount  Int?
   campusId  String?
   awardedOn DateTime?
-  active    Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
