@@ -28,6 +28,7 @@ import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/stageCompliance';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
 import type { Communication } from '$lib/domain/communications';
+import { getTalentXpStory } from '$lib/server/services/xpStoryService';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is
@@ -38,6 +39,7 @@ const RIGHT_RAIL_COMMS = 6;
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
+  const timezone = getCampusTimezone(locals);
   const broadcastsWhere = {
     OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
   };
@@ -48,6 +50,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       reminderRows,
       broadcastRows,
       completedInterviewCount,
+      xpStory,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -114,6 +117,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       db.interview.count({
         where: { talentId: params.id, status: 'done' },
       }),
+      getTalentXpStory(params.id, timezone),
     ]);
 
     const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
@@ -159,7 +163,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
-    const timezone = getCampusTimezone(locals);
     const bounds = getLifecycleBounds(timezone);
 
     const activeStageParticipations = participations.filter((p) => {
@@ -261,6 +264,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     return {
       student,
+      xpStory,
       participations,
       activeStageParticipations,
       primaryComplianceParticipation,

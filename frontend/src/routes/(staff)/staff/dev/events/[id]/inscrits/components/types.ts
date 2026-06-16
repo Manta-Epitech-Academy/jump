@@ -12,6 +12,11 @@ export const INSCRIT_TALENT_SELECT = {
   nom: true,
   prenom: true,
   niveau: true,
+  // Cumulative XP (cached projection of the XpGrant ledger): the cohort table's
+  // engagement signal - who is actually training on JUMP. Cheap scalar, so it
+  // joins the shared select. The events count stays off here: the dense roster
+  // shows XP alone, the fiche carries the fuller breakdown.
+  xp: true,
   email: true,
   parentEmail: true,
   // Dossier inputs — feed the statut badge and its per-document tooltip
@@ -59,6 +64,8 @@ export type InscritRow = {
   prenom: string;
   niveau: string | null;
   schoolName: string | null;
+  // Cumulative XP, drives the sortable XP column + its explainer tooltip.
+  xp: number;
   // Folded three-state funnel status (jamais / en cours / prêt); see
   // `inscritStatus`. Drives the badge, the statut filter and the sort.
   status: InscritStatus;
@@ -79,7 +86,7 @@ export type InscritRow = {
   parentEmail: string | null;
 };
 
-export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'status';
+export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'xp' | 'status';
 
 // Structural shapes for the streamed cohort payload. Declared here (not imported
 // from `$lib/server/services/cohortOverview`) so this client-consumed file never
