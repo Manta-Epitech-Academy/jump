@@ -291,7 +291,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:30',
             end: '12:30',
-            nom: 'Kickoff & Keynote d’ouverture (pro local)',
+            nom: 'Kickoff & Keynote “Information à l’ère des Fake News” (Julien Lamoussière, CLAAP)',
           },
           { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
           {
@@ -308,7 +308,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:00',
             end: '11:00',
-            nom: 'Conférence “Red Team or Blue Team ?”',
+            nom: 'Conférence “Cybersécurité” (Devensys)',
           },
           {
             start: '11:00',
@@ -330,7 +330,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:00',
             end: '11:00',
-            nom: 'Conférence “Coder, c’est créer”',
+            nom: 'Conférence “Creator Economy” (Pierr Cika)',
           },
           {
             start: '11:00',
@@ -352,7 +352,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:00',
             end: '11:00',
-            nom: 'Conférence “L’Open Source, qui change le monde”',
+            nom: 'Conférence “Créer une startup pour réussir” (Mehdi Fessiane, alumni MSc, app Kit Chef)',
           },
           {
             start: '11:00',
@@ -400,7 +400,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:00',
             end: '11:00',
-            nom: 'Conférence “Tools : Build with IA” by Google',
+            nom: 'Conférence “Cybersécurité opérationnelle” (Cyril Gauthier, officier adjoint Police Judiciaire, référent cybersécurité)',
           },
           // Project milestone, not a workshop: pin to `special`.
           {
@@ -429,7 +429,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:00',
             end: '11:00',
-            nom: 'Conférence “Product : De l’idée à la marque”',
+            nom: 'Conférence “L’open source pour changer le monde” (Sophie Imbach, Acquisition Manager B2B, Kaliop)',
           },
           // Two parallel tracks per team: two overlapping slots, as scheduled.
           {
@@ -451,7 +451,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:00',
             end: '11:00',
-            nom: 'Conférence “Success : De la startup à la licorne”',
+            nom: 'Conférence “Robotique et médical” (Julien Welmant, ICM)',
           },
           {
             start: '11:00',
@@ -480,7 +480,7 @@ const SCHEDULES: CampusPlanning[] = [
           {
             start: '10:00',
             end: '11:00',
-            nom: 'Conférence “IA & Impact : construire une tech responsable”',
+            nom: 'Conférence “IA Tools”',
           },
           {
             start: '11:00',
