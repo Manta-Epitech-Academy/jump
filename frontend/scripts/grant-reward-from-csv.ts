@@ -62,15 +62,52 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-const prisma = new PrismaClient({ adapter });
-
 // ─── args ──────────────────────────────────────────────────────────────────
 function flag(name: string): string | undefined {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
   return hit?.slice(name.length + 3);
 }
 const has = (name: string) => process.argv.includes(`--${name}`);
+
+const USAGE = `Grant XP to a campus cohort from a scoreboard CSV, as a named reward.
+
+Usage:
+  bun scripts/grant-reward-from-csv.ts --campus=<name> --key=<slug> --name=<label> --csv=<file> [options]
+
+Required:
+  --campus=<name>          Campus name as stored in Jump (e.g. Strasbourg)
+  --key=<slug>             Stable XpReward key, idempotent across runs (e.g. osint-ctfd-2026-06-15)
+  --name=<label>           Human label shown for the reward
+  --csv=<file>             Scoreboard CSV path
+
+Options:
+  --awarded-on=YYYY-MM-DD  Activity's real date, stored on the reward (not the run date)
+  --map=<file>             Reconcile emails: a CSV with columns csvEmail,talentEmail
+  --report=<file>          Write the full per-row classification to a CSV artifact
+  --email-col=<header>     Email column header (default: "user email")
+  --score-col=<header>     Score column header (default: "score")
+  --dry-run                Classify and report, write nothing
+  --force                  Allow a non-local DATABASE_URL (prod); required off localhost
+  -h, --help               Show this help and exit
+
+Each row is classified matched / unmatched / bad-score / duplicate / conflict;
+only matched rows are credited (score XP, 1:1). Unmatched/conflict are reported,
+never guessed. Always --dry-run --report first, then re-run with --force to write.
+
+Example:
+  bun scripts/grant-reward-from-csv.ts \\
+    --campus=Strasbourg --key=osint-ctfd-2026-06-15 \\
+    --name="OSINT CTFD Stage Seconde (15/06/2026)" --awarded-on=2026-06-15 \\
+    --csv=/path/OSINT_CTF-scoreboard.csv --report=/tmp/report.csv --dry-run`;
+
+if (has('help') || process.argv.includes('-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+
+// Built after the --help short-circuit so printing usage never spins up DB infra.
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 
 const campusName = flag('campus');
 const key = flag('key');
@@ -91,10 +128,7 @@ function die(msg: string): never {
 
 if (!campusName || !key || !name || !csvPath) {
   die(
-    'Missing required flag(s).\n' +
-      'Required: --campus --key --name --csv\n' +
-      'Optional: --awarded-on=YYYY-MM-DD --map=aliases.csv --report=out.csv\n' +
-      '          --email-col=<header> --score-col=<header> --dry-run --force',
+    'Missing required flag(s): --campus --key --name --csv. Run --help for usage.',
   );
 }
 
