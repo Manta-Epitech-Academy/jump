@@ -426,6 +426,19 @@ async function main() {
     return;
   }
 
+  // `key` is globally unique, so a copied command that kept a previous campus's
+  // --key would silently re-point this reward (and pool two cohorts under one
+  // row). Refuse instead, and tell the operator to namespace the key.
+  const existing = await prisma.xpReward.findUnique({
+    where: { key: key! },
+    select: { campusId: true },
+  });
+  if (existing?.campusId && existing.campusId !== campus.id)
+    die(
+      `Reward "${key}" already belongs to another campus. ` +
+        'Namespace --key per campus (e.g. include the campus or date).',
+    );
+
   // Upsert the reward category (idempotent on key), then grant per talent.
   const reward = await prisma.xpReward.upsert({
     where: { key: key! },
