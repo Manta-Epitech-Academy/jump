@@ -27,6 +27,8 @@ import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/stageCompliance';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
+import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
+import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
@@ -55,6 +57,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           user: true,
           interests: { include: { interest: true } },
           school: { select: { name: true } },
+          // Image-rights decision history (newest first) for the audit trail in
+          // the rail: who decided what and when, parent vs staff correction.
+          imageRightsRecords: {
+            orderBy: { createdAt: 'desc' },
+            include: {
+              recordedBy: { select: { user: { select: { name: true } } } },
+            },
+          },
         },
       }),
       db.participation.findMany({
@@ -222,6 +232,35 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       ? null
       : 'Aucun stage de seconde en cours pour ce stagiaire.';
 
+    // Staff correction form for the image-rights decision, prefilled with the
+    // current decision + the guardian on file (the last signer, else the parent
+    // captured at onboarding) so a correction is a small edit, not a re-entry.
+    // Note is intentionally left blank — staff must state a reason.
+    const imageRightsForm = await superValidate(
+      {
+        decision: student.imageRightsDecision ?? undefined,
+        signerPrenom:
+          student.imageRightsSignerPrenom ?? student.parentPrenom ?? '',
+        signerNom: student.imageRightsSignerNom ?? student.parentNom ?? '',
+        note: '',
+      },
+      zod4(imageRightsCorrectionSchema),
+      { errors: false, id: 'imageRights' },
+    );
+
+    // Decision history VM: flatten the recorded-by staff name, keep only what
+    // the rail renders. Newest first (already ordered in the query).
+    const imageRightsRecords = student.imageRightsRecords.map((r) => ({
+      id: r.id,
+      decision: r.decision,
+      decidedAt: r.decidedAt,
+      signerPrenom: r.signerPrenom,
+      signerNom: r.signerNom,
+      source: r.source,
+      note: r.note,
+      recordedByName: r.recordedBy?.user?.name ?? null,
+    }));
+
     // Backs the right rail's "première connexion" line and tells the dev whether
     // the talent ever logged in. Read from the durable `Talent.firstLoginAt`
     // projection (stamped once on first real login in hooks), not a bauth_session
@@ -269,6 +308,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       recommendations,
       timezone,
       interviewForm,
+      imageRightsForm,
+      imageRightsRecords,
       canConductInterview,
       noInterviewReason,
       interviewStatus: existingInterview?.status ?? null,
@@ -410,8 +451,68 @@ async function persistInterview(
   return { form };
 }
 
+/**
+ * Record a staff correction of the guardian's image-rights decision after an
+ * offline change of mind. Routes through the same {@link recordImageRightsDecision}
+ * service as the parent flow, so the projection, the ledger fact and the
+ * regenerated PDF stay in lockstep — staff never touch a field by hand. The
+ * fact is stamped `staff_correction` with the acting staff id + a mandatory
+ * reason, keeping it auditable and distinct from a guardian's own decision.
+ *
+ * Dev-only and gated to the team that runs the stage (`devMember`); the
+ * decision is a stage-flow artifact, so it is also flag-gated.
+ */
+async function correctImageRights({ request, locals, params }: RequestEvent) {
+  requireStaffGroup(locals, 'devMember');
+  requireFlag(locals, 'stage_seconde');
+
+  const form = await superValidate(request, zod4(imageRightsCorrectionSchema), {
+    id: 'imageRights',
+  });
+  // Superforms routes by form id, so the conventional `form` key is correct
+  // even with the interview form on the same page.
+  if (!form.valid) return fail(400, { form });
+
+  const db = scopedPrisma(getCampusId(locals));
+  const student = await db.talent.findUnique({
+    where: { id: params.id },
+    select: {
+      id: true,
+      prenom: true,
+      nom: true,
+      // Carry the relationship + place-of-signature from the prior decision so
+      // staff don't re-key them; both default cleanly in the PDF if absent.
+      imageRightsRecords: {
+        take: 1,
+        orderBy: { createdAt: 'desc' },
+        select: { relationship: true, city: true },
+      },
+    },
+  });
+  if (!student) {
+    return message(form, 'Stagiaire introuvable.', { status: 404 });
+  }
+
+  const prior = student.imageRightsRecords[0];
+  await recordImageRightsDecision({
+    talentId: student.id,
+    studentName: `${student.prenom} ${student.nom}`,
+    decision: form.data.decision,
+    signerPrenom: form.data.signerPrenom,
+    signerNom: form.data.signerNom,
+    relationship: prior?.relationship ?? 'représentant légal',
+    city: prior?.city ?? '',
+    source: 'staff_correction',
+    recordedByStaffId: locals.staffProfile.id,
+    note: form.data.note,
+  });
+
+  return message(form, "Décision de droit à l'image mise à jour.");
+}
+
 export const actions: Actions = {
   startInterview: (event) => persistInterview(event, 'start'),
   saveInterview: (event) => persistInterview(event, 'save'),
   closeInterview: (event) => persistInterview(event, 'close'),
+  correctImageRights,
 };

@@ -2,4 +2,4 @@ Je soussigné(e), Mme/Mr {{signerName}} agissant en qualité de {{relationship}}
 
 Je comprends qu'aucune photographie ni vidéo identifiant mon enfant ne sera diffusée par **Epitech**, et que je peux à tout moment revenir sur cette décision en adressant une demande écrite à **Epitech**.
 
-**Fait à {{city}}, le {{date}}**
+**{{signatureLine}}**

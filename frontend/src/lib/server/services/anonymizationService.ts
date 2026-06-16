@@ -139,9 +139,13 @@ export async function anonymizeTalent(
     },
   });
 
-  // 2. Delete associated PII records (Salesforce mirror, interests).
+  // 2. Delete associated PII records (Salesforce mirror, interests, and the
+  //    image-rights decision ledger — each fact carries the guardian's typed
+  //    signer name, so the history must be erased alongside the projection
+  //    scrubbed above, not just the current value).
   await tx.talentSfImport.deleteMany({ where: { talentId } });
   await tx.talentInterest.deleteMany({ where: { talentId } });
+  await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
 
   // 3. Scrub the linked BetterAuth user and revoke its access — only if linked.
   if (talent.userId) {

@@ -256,6 +256,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
     await tx.minigameAttempt.deleteMany({ where: { talentId } });
     await tx.xpGrant.deleteMany({ where: { talentId } });
+    await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
     await tx.broadcastRecipient.deleteMany({
       where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
     });
