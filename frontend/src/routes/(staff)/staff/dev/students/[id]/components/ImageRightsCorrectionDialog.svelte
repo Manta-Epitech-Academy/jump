@@ -46,6 +46,11 @@
     untrack(() => formData),
     {
       id: 'imageRights',
+      // The dialog stays mounted after a correction, so the default reset would
+      // snap the fields back to the page-load decision and a second correction
+      // in the same visit would start from stale prefill. Keep the submitted
+      // (newest) values instead, like every other superForm in the app.
+      resetForm: false,
       onResult: ({ result }) => {
         if (result.type === 'success') {
           open = false;
