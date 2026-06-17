@@ -103,6 +103,124 @@ type CampusPlanning = { campus: string; days: DayInput[] };
 // ─── Campus schedules ────────────────────────────────────────────────────────
 // Source of truth. Add a campus by appending a CampusPlanning entry.
 const SCHEDULES: CampusPlanning[] = [
+  // From the planning screenshots. Two-week stage. Semaine 1 « découverte »
+  // (lun-jeu locaux, vendredi remote « à la carte »); semaine 2 « projet »
+  // (kick-off → design sprint → maquettage → pitchs/finale → remise des prix,
+  // vendredi remote « à la carte »). Daily grid: conférence le matin, déjeuner
+  // 12h30-13h30, ateliers l'après-midi.
+  {
+    campus: 'Nancy',
+    days: [
+      // ── Semaine 1 : découverte ──
+      // J1 - Lundi 15 juin
+      {
+        date: '2026-06-15',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Accueil' },
+          { start: '11:00', end: '12:30', nom: 'Setting up' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'Atelier' },
+        ],
+      },
+      // J2 - Mardi 16 juin
+      {
+        date: '2026-06-16',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'OSINT CTF' },
+        ],
+      },
+      // J3 - Mercredi 17 juin
+      {
+        date: '2026-06-17',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '15:00', nom: 'Shell RPG' },
+          { start: '15:00', end: '17:00', nom: 'Shell CTF' },
+        ],
+      },
+      // J4 - Jeudi 18 juin
+      {
+        date: '2026-06-18',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Pitch projet' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '15:00', nom: 'PyPong' },
+          { start: '15:00', end: '17:00', nom: 'SnakeJS' },
+        ],
+      },
+      // J5 - Vendredi 19 juin : remote « à la carte »
+      {
+        date: '2026-06-19',
+        slots: [
+          {
+            start: '10:00',
+            end: '17:00',
+            nom: 'A la carte !',
+            type: 'special',
+          },
+        ],
+      },
+      // ── Semaine 2 : projet ──
+      // J6 - Lundi 22 juin
+      {
+        date: '2026-06-22',
+        slots: [
+          { start: '10:00', end: '11:00', nom: 'Conférence' },
+          { start: '11:00', end: '12:30', nom: 'Kick-off' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'Design sprint' },
+        ],
+      },
+      // J7 - Mardi 23 juin
+      {
+        date: '2026-06-23',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '17:00', nom: 'Maquettage' },
+        ],
+      },
+      // J8 - Mercredi 24 juin
+      // Correction PO : prépa aux pitchs 13h30-16h, puis demi-finale 16h-17h
+      // (l'écran montrait 13h30-15h / 15h-17h, à ne pas reprendre).
+      {
+        date: '2026-06-24',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '16:00', nom: 'Préparation du pitch' },
+          { start: '16:00', end: '17:00', nom: 'Demi-finale' },
+        ],
+      },
+      // J9 - Jeudi 25 juin
+      {
+        date: '2026-06-25',
+        slots: [
+          { start: '10:00', end: '12:30', nom: 'Conférence' },
+          { start: '12:30', end: '13:30', nom: 'Pause déjeuner' },
+          { start: '13:30', end: '14:30', nom: 'Préparation du pitch' },
+          { start: '14:30', end: '15:30', nom: 'Finale' },
+          { start: '15:30', end: '16:30', nom: 'Demo' },
+          { start: '16:30', end: '17:00', nom: 'Remise des prix' },
+        ],
+      },
+      // J10 - Vendredi 26 juin : remote « à la carte »
+      {
+        date: '2026-06-26',
+        slots: [
+          {
+            start: '10:00',
+            end: '17:00',
+            nom: 'A la carte !',
+            type: 'special',
+          },
+        ],
+      },
+    ],
+  },
   {
     campus: 'Lille',
     days: [
