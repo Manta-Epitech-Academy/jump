@@ -43,7 +43,6 @@
   import Laugh from '@lucide/svelte/icons/laugh';
   import type { InterviewStatus } from '@prisma/client';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -54,11 +53,10 @@
     VERDICT_SECTION,
     INTERVIEW_RECOMMENDATIONS,
     INTERVIEW_RECOMMENDATION_DISPLAY_ORDER,
-    isRevealActive,
     type ChoiceOption,
     type ChoiceTone,
     type ChoiceIconToken,
-    type Reveal,
+    type QuestionNote,
     type RecommendationToneToken,
     type RecommendationIconToken,
     type InterviewQuestion,
@@ -312,23 +310,32 @@
     actionState = { busy: $delayed, lastAction, saveState };
   });
 
+  // The trimmed per-question note, or null. Shared by the synthesis (appended to
+  // the answer) and resume (a note alone marks the question touched). Reads $form
+  // via fv, so it stays reactive in the template.
+  function noteText(q: InterviewQuestion): string | null {
+    if (!('note' in q) || !q.note) return null;
+    const s = (fv(q.note.field) as string | undefined)?.trim();
+    return s || null;
+  }
+
   // The label of a question's current answer, for the synthesis: option labels
   // for choices (joined for multi), the rating as "n/5", trimmed free text, plus
-  // any live reveal precisions in parentheses ("Oui (Mme Dupont, Maths)").
-  // Null = unanswered. Reads $form via fv, so it stays reactive in the template.
+  // the note in parentheses ("Oui (un prof de NSI très actif)"). A note written
+  // without a choice stands in as the answer, so a note-only question still reads
+  // as answered. Null = unanswered. Reads $form via fv, so it stays reactive.
   function answerText(q: InterviewQuestion): string | null {
     const v = fv(q.field);
-    if (q.kind === 'rating') {
-      return $form.satisfactionStars
-        ? `${$form.satisfactionStars}/${q.max}`
-        : null;
-    }
     if (q.kind === 'text') {
       const s = typeof v === 'string' ? v.trim() : '';
       return s || null;
     }
     let base: string | null;
-    if (q.kind === 'single') {
+    if (q.kind === 'rating') {
+      base = $form.satisfactionStars
+        ? `${$form.satisfactionStars}/${q.max}`
+        : null;
+    } else if (q.kind === 'single') {
       base = q.options.find((o) => o.value === v)?.label ?? null;
     } else {
       const arr = (v as string[] | undefined) ?? [];
@@ -337,13 +344,9 @@
         .map((o) => o.label);
       base = labels.length ? labels.join(', ') : null;
     }
-    if (base && q.reveal && isRevealActive(q.reveal, v)) {
-      const extras = q.reveal.fields
-        .map((rf) => (fv(rf.field) as string | undefined)?.trim())
-        .filter(Boolean);
-      if (extras.length) base += ` (${extras.join(', ')})`;
-    }
-    return base;
+    const note = noteText(q);
+    if (base && note) return `${base} (${note})`;
+    return base ?? note;
   }
 
   const chipBase =
@@ -463,28 +466,19 @@
   </div>
 {/snippet}
 
-<!-- Free-text inputs unlocked by a choice (teacher details, the "Précisez" box
-     once "Autre" is picked). One renderer for both single- and multi-choice. -->
-{#snippet revealInputs(reveal: Reveal)}
-  <div
-    class={cn('grid gap-2 pt-1', reveal.fields.length > 1 && 'sm:grid-cols-2')}
-  >
-    {#each reveal.fields as rf (rf.field)}
-      <div class="space-y-1">
-        <span class="text-[11px] font-medium text-muted-foreground">
-          {rf.label}
-        </span>
-        <Input
-          value={(fv(rf.field) as string) ?? ''}
-          oninput={(e) => setText(rf.field, e.currentTarget.value)}
-          placeholder={rf.placeholder}
-          maxlength={rf.maxLength}
-          disabled={!interactive}
-          class="bg-background"
-        />
-      </div>
-    {/each}
-  </div>
+<!-- The always-on free-text note under a question: anything the chips don't
+     capture, including the precision behind an "Autre" pick. Multi-line (a
+     Textarea, like the testimony and verdict boxes) to invite a real note, not a
+     one-word clarification. The placeholder is tailored to the question. -->
+{#snippet noteInput(note: QuestionNote)}
+  <Textarea
+    value={(fv(note.field) as string) ?? ''}
+    oninput={(e) => setText(note.field, e.currentTarget.value)}
+    placeholder={note.placeholder}
+    maxlength={note.maxLength}
+    disabled={!interactive}
+    class="min-h-16 resize-none bg-background"
+  />
 {/snippet}
 
 <!-- One question: the prompt is the prominent element (it's what the dev reads
@@ -514,9 +508,6 @@
 
     {#if q.kind === 'single' || q.kind === 'multi'}
       {@render choiceChips(q.field, q.options, q.kind === 'multi')}
-      {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
-        {@render revealInputs(q.reveal)}
-      {/if}
     {:else if q.kind === 'rating'}
       <div class="flex items-center gap-1.5">
         {#each Array.from({ length: q.max }) as _, idx (idx)}
@@ -554,6 +545,13 @@
         class="min-h-16 resize-none bg-background"
       />
     {/if}
+
+    <!-- Always-on note under every choice/rating question (text questions are
+         themselves free text, so they carry none). The one place to jot anything
+         off-script, including an "Autre" precision. -->
+    {#if 'note' in q && q.note}
+      {@render noteInput(q.note)}
+    {/if}
   </div>
 {/snippet}
 
@@ -573,23 +571,29 @@
 <!-- One synthesis line: the question, then its answer (or a muted dash). -->
 {#snippet synthesisRow(q: InterviewQuestion)}
   {@const text = answerText(q)}
+  {@const ratingNote = q.kind === 'rating' ? noteText(q) : null}
   <div class="grid gap-0.5 py-2 sm:grid-cols-[2fr_3fr] sm:gap-4">
     <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
     {#if q.kind === 'rating' && $form.satisfactionStars}
-      <div class="flex items-center gap-0.5">
-        {#each Array.from({ length: q.max }) as _, idx (idx)}
-          <Star
-            class={cn(
-              'h-3.5 w-3.5',
-              ($form.satisfactionStars ?? 0) > idx
-                ? 'fill-epi-orange text-epi-orange'
-                : 'text-muted-foreground/30',
-            )}
-          />
-        {/each}
-        <span class="ml-1.5 text-sm font-semibold text-foreground">
-          {$form.satisfactionStars}/{q.max}
-        </span>
+      <div class="space-y-1">
+        <div class="flex items-center gap-0.5">
+          {#each Array.from({ length: q.max }) as _, idx (idx)}
+            <Star
+              class={cn(
+                'h-3.5 w-3.5',
+                ($form.satisfactionStars ?? 0) > idx
+                  ? 'fill-epi-orange text-epi-orange'
+                  : 'text-muted-foreground/30',
+              )}
+            />
+          {/each}
+          <span class="ml-1.5 text-sm font-semibold text-foreground">
+            {$form.satisfactionStars}/{q.max}
+          </span>
+        </div>
+        {#if ratingNote}
+          <p class="text-sm text-foreground">{ratingNote}</p>
+        {/if}
       </div>
     {:else if text}
       <p class="text-sm font-semibold text-foreground">{text}</p>

@@ -12,7 +12,10 @@ import {
   NextYearEvent,
   InterviewRecommendation,
 } from '@prisma/client';
-import { INTERVIEW_TEXT_LIMITS } from '$lib/domain/interview';
+import {
+  INTERVIEW_NOTE_LIMIT,
+  INTERVIEW_TEXT_LIMITS,
+} from '$lib/domain/interview';
 
 // Single-choice answers: an enum value or null (unanswered). The chip group
 // binds the form field directly, so the wire value is already the enum string
@@ -60,17 +63,22 @@ export const interviewConductSchema = z.object({
 
   // scalars / free text
   satisfactionStars: z.number().int().min(1).max(5).nullable().default(null),
-  teacherName: text(INTERVIEW_TEXT_LIMITS.teacherName),
-  teacherSubject: text(INTERVIEW_TEXT_LIMITS.teacherSubject),
   oneSentence: text(INTERVIEW_TEXT_LIMITS.oneSentence),
   verdictNote: text(INTERVIEW_TEXT_LIMITS.verdictNote),
 
-  // "Précisez" boxes unlocked by the matching "Autre" choice (single or multi);
-  // the action clears each one when its choice is deselected.
-  discoveryChannelOther: text(INTERVIEW_TEXT_LIMITS.otherChoice),
-  specialtiesOther: text(INTERVIEW_TEXT_LIMITS.otherChoice),
-  otherJobsOther: text(INTERVIEW_TEXT_LIMITS.otherChoice),
-  infoSourcesOther: text(INTERVIEW_TEXT_LIMITS.otherChoice),
+  // Per-question note, one per choice/rating question (see NOTE_FIELDS). Always
+  // shown under the question; the action maps '' -> null before persisting.
+  discoveryChannelNote: text(INTERVIEW_NOTE_LIMIT),
+  motivationNote: text(INTERVIEW_NOTE_LIMIT),
+  specialtiesNote: text(INTERVIEW_NOTE_LIMIT),
+  orientationTalkNote: text(INTERVIEW_NOTE_LIMIT),
+  passionateTeacherNote: text(INTERVIEW_NOTE_LIMIT),
+  techProjectionNote: text(INTERVIEW_NOTE_LIMIT),
+  otherJobsNote: text(INTERVIEW_NOTE_LIMIT),
+  infoSourcesNote: text(INTERVIEW_NOTE_LIMIT),
+  wantsMoreNote: text(INTERVIEW_NOTE_LIMIT),
+  satisfactionNote: text(INTERVIEW_NOTE_LIMIT),
+  nextYearEventsNote: text(INTERVIEW_NOTE_LIMIT),
 });
 
 export type InterviewConductForm = z.infer<typeof interviewConductSchema>;

@@ -231,32 +231,32 @@ model bauth_verification {
 // ─── Domain Profiles ───
 
 model StaffProfile {
-  id                String     @id @default(cuid())
-  userId            String     @unique
-  campusId          String?
-  staffRole         StaffRole?
-  discordId         String?    @unique
+  id                       String     @id @default(cuid())
+  userId                   String     @unique
+  campusId                 String?
+  staffRole                StaffRole?
+  discordId                String?    @unique
   // Personal dev-redirect destinations: on a trapped (non-prod) env, mail/SMS
   // attributed to this staff member (sends they trigger, or talents they
   // impersonate) is rerouted here instead of the shared `*_DEV_RECIPIENTS`
   // list, so each tester only receives their own traffic. Empty = fall back to
   // the env list. Inert in prod (the env gate is off). See
   // `$lib/server/{email,sms}/dev-redirect.ts`.
-  devRedirectEmails String[]   @default([])
-  devRedirectPhones String[]   @default([])
+  devRedirectEmails        String[]   @default([])
+  devRedirectPhones        String[]   @default([])
   // High-water mark for this admin's bulk onboarding-PDF archival: set each time
   // they download the full ("everything up to now") archive from
   // `/staff/admin/onboarding-pdfs`, so the page can surface the documents
   // finished since. A convenience filter, not a completeness guarantee (the
   // all-time export stays the authoritative archive); null = never exported.
   onboardingDocsExportedAt DateTime?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt                DateTime   @default(now())
+  updatedAt                DateTime   @updatedAt
 
-  user                    bauth_user              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campus                  Campus?                 @relation(fields: [campusId], references: [id])
+  user                    bauth_user                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campus                  Campus?                     @relation(fields: [campusId], references: [id])
   eventMantas             EventManta[]
-  verdictsAuthored        ParticipationActivity[] @relation("VerdictAuthor")
+  verdictsAuthored        ParticipationActivity[]     @relation("VerdictAuthor")
   interviewsConducted     Interview[]
   adminFiles              AdminFile[]
   cmsImages               CmsImage[]
@@ -369,7 +369,7 @@ model Talent {
   createdAt                   DateTime             @default(now())
   updatedAt                   DateTime             @updatedAt
 
-  user               bauth_user?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user               bauth_user?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   participations     Participation[]
   stepsProgress      StepsProgress[]
   portfolioItems     PortfolioItem[]
@@ -382,10 +382,10 @@ model Talent {
   minigameAttempts   MinigameAttempt[]
   interests          TalentInterest[]
   xpGrants           XpGrant[]
-  school             School?                 @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  school             School?                     @relation(fields: [schoolId], references: [id], onDelete: SetNull)
   sfImport           TalentSfImport?
-  broadcastsReceived BroadcastRecipient[]    @relation("BroadcastRecipientTalent")
-  broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
+  broadcastsReceived BroadcastRecipient[]        @relation("BroadcastRecipientTalent")
+  broadcastsAsParent BroadcastRecipient[]        @relation("BroadcastRecipientParent")
   deletionRequests   TalentDeletionRequest[]
   eventPresences     EventPresence[]
   imageRightsRecords ImageRightsDecisionRecord[]
@@ -886,17 +886,23 @@ model Interview {
 
   // Scalars / free text.
   satisfactionStars Int?
-  teacherName       String?
-  teacherSubject    String?
   oneSentence       String?
   verdictNote       String?
 
-  // "Autre" precisions: the free text behind the matching "Autre" choice
-  // (null unless that choice is selected; see domain/interview.ts reveals).
-  discoveryChannelOther String?
-  specialtiesOther      String?
-  otherJobsOther        String?
-  infoSourcesOther      String?
+  // Per-question free-text note, one per choice/rating question. Always offered
+  // under the question (no longer gated by an "Autre" choice), so the dev can jot
+  // anything the chips don't capture. See domain/interview.ts (NOTE_FIELDS).
+  discoveryChannelNote  String?
+  motivationNote        String?
+  specialtiesNote       String?
+  orientationTalkNote   String?
+  passionateTeacherNote String?
+  techProjectionNote    String?
+  otherJobsNote         String?
+  infoSourcesNote       String?
+  wantsMoreNote         String?
+  satisfactionNote      String?
+  nextYearEventsNote    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
