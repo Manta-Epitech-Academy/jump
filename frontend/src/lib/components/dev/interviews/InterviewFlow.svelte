@@ -128,7 +128,9 @@
   // questionnaire has no required questions, keying off full completion would
   // pull resume back to section 1 over one skipped optional choice.
   function sectionTouched(section: InterviewSection): boolean {
-    return section.questions.some((q) => answerText(q) !== null);
+    return section.questions.some(
+      (q) => answerLabel(q) !== null || noteText(q) !== null,
+    );
   }
   function resumeStep(): number {
     for (let i = 0; i < INTERVIEW_SECTIONS.length; i++) {
@@ -310,43 +312,39 @@
     actionState = { busy: $delayed, lastAction, saveState };
   });
 
-  // The trimmed per-question note, or null. Shared by the synthesis (appended to
-  // the answer) and resume (a note alone marks the question touched). Reads $form
-  // via fv, so it stays reactive in the template.
+  // The trimmed per-question note, or null. Shared by the synthesis (rendered on
+  // its own line so its newlines survive) and resume (a note alone marks the
+  // question touched). Reads $form via fv, so it stays reactive in the template.
   function noteText(q: InterviewQuestion): string | null {
     if (!('note' in q) || !q.note) return null;
     const s = (fv(q.note.field) as string | undefined)?.trim();
     return s || null;
   }
 
-  // The label of a question's current answer, for the synthesis: option labels
-  // for choices (joined for multi), the rating as "n/5", trimmed free text, plus
-  // the note in parentheses ("Oui (un prof de NSI très actif)"). A note written
-  // without a choice stands in as the answer, so a note-only question still reads
-  // as answered. Null = unanswered. Reads $form via fv, so it stays reactive.
-  function answerText(q: InterviewQuestion): string | null {
+  // The structured answer of a question, for the synthesis: option labels for
+  // choices (joined for multi), the rating as "n/5", or the trimmed text answer.
+  // Excludes the free-text note, which the synthesis renders separately (as prose
+  // with preserved newlines) so a multi-line annotation never gets crushed into a
+  // parenthetical. Null = no structured answer. Reads $form via fv, stays reactive.
+  function answerLabel(q: InterviewQuestion): string | null {
     const v = fv(q.field);
     if (q.kind === 'text') {
       const s = typeof v === 'string' ? v.trim() : '';
       return s || null;
     }
-    let base: string | null;
     if (q.kind === 'rating') {
-      base = $form.satisfactionStars
+      return $form.satisfactionStars
         ? `${$form.satisfactionStars}/${q.max}`
         : null;
-    } else if (q.kind === 'single') {
-      base = q.options.find((o) => o.value === v)?.label ?? null;
-    } else {
-      const arr = (v as string[] | undefined) ?? [];
-      const labels = q.options
-        .filter((o) => arr.includes(o.value))
-        .map((o) => o.label);
-      base = labels.length ? labels.join(', ') : null;
     }
-    const note = noteText(q);
-    if (base && note) return `${base} (${note})`;
-    return base ?? note;
+    if (q.kind === 'single') {
+      return q.options.find((o) => o.value === v)?.label ?? null;
+    }
+    const arr = (v as string[] | undefined) ?? [];
+    const labels = q.options
+      .filter((o) => arr.includes(o.value))
+      .map((o) => o.label);
+    return labels.length ? labels.join(', ') : null;
   }
 
   const chipBase =
@@ -568,38 +566,66 @@
   </p>
 {/snippet}
 
-<!-- One synthesis line: the question, then its answer (or a muted dash). -->
+<!-- Free-text prose in the synthesis (a note, the testimony, the verdict): its
+     own block, newlines preserved (whitespace-pre-wrap on the inner <p>, kept
+     inline so the markup's own indentation never leaks in), behind the epi-blue
+     left rail that marks a staff note everywhere else (see TalentNotePanel). -->
+{#snippet prose(t: string)}
+  <div class="border-l-2 border-epi-blue/40 pl-2.5">
+    <p class="text-sm whitespace-pre-wrap text-foreground">{t}</p>
+  </div>
+{/snippet}
+
+{#snippet dash()}
+  <p class="text-sm text-muted-foreground/60">—</p>
+{/snippet}
+
+<!-- One synthesis line: the question, then its structured answer (chips joined,
+     stars, or the text testimony) with any free-text note as prose beneath. A
+     note alone still reads as the answer; nothing at all shows a muted dash. -->
 {#snippet synthesisRow(q: InterviewQuestion)}
-  {@const text = answerText(q)}
-  {@const ratingNote = q.kind === 'rating' ? noteText(q) : null}
-  <div class="grid gap-0.5 py-2 sm:grid-cols-[2fr_3fr] sm:gap-4">
+  {@const note = noteText(q)}
+  <div class="grid gap-1 py-2 sm:grid-cols-[2fr_3fr] sm:gap-4">
     <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
-    {#if q.kind === 'rating' && $form.satisfactionStars}
-      <div class="space-y-1">
-        <div class="flex items-center gap-0.5">
-          {#each Array.from({ length: q.max }) as _, idx (idx)}
-            <Star
-              class={cn(
-                'h-3.5 w-3.5',
-                ($form.satisfactionStars ?? 0) > idx
-                  ? 'fill-epi-orange text-epi-orange'
-                  : 'text-muted-foreground/30',
-              )}
-            />
-          {/each}
-          <span class="ml-1.5 text-sm font-semibold text-foreground">
-            {$form.satisfactionStars}/{q.max}
-          </span>
-        </div>
-        {#if ratingNote}
-          <p class="text-sm text-foreground">{ratingNote}</p>
+    <div class="space-y-1.5">
+      {#if q.kind === 'text'}
+        {@const value = answerLabel(q)}
+        {#if value}
+          {@render prose(value)}
+        {:else}
+          {@render dash()}
         {/if}
-      </div>
-    {:else if text}
-      <p class="text-sm font-semibold text-foreground">{text}</p>
-    {:else}
-      <p class="text-sm text-muted-foreground/60">—</p>
-    {/if}
+      {:else if q.kind === 'rating'}
+        {#if $form.satisfactionStars}
+          <div class="flex items-center gap-0.5">
+            {#each Array.from({ length: q.max }) as _, idx (idx)}
+              <Star
+                class={cn(
+                  'h-3.5 w-3.5',
+                  ($form.satisfactionStars ?? 0) > idx
+                    ? 'fill-epi-orange text-epi-orange'
+                    : 'text-muted-foreground/30',
+                )}
+              />
+            {/each}
+            <span class="ml-1.5 text-sm font-semibold text-foreground">
+              {$form.satisfactionStars}/{q.max}
+            </span>
+          </div>
+        {:else if !note}
+          {@render dash()}
+        {/if}
+        {#if note}{@render prose(note)}{/if}
+      {:else}
+        {@const label = answerLabel(q)}
+        {#if label}
+          <p class="text-sm font-semibold text-foreground">{label}</p>
+        {:else if !note}
+          {@render dash()}
+        {/if}
+        {#if note}{@render prose(note)}{/if}
+      {/if}
+    </div>
   </div>
 {/snippet}
 
@@ -735,9 +761,7 @@
               </p>
             {/if}
             {#if $form.verdictNote.trim()}
-              <p class="text-sm text-foreground italic">
-                « {$form.verdictNote.trim()} »
-              </p>
+              {@render prose($form.verdictNote.trim())}
             {/if}
           </div>
 
