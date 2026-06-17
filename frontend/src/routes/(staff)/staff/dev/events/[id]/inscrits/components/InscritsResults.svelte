@@ -166,9 +166,15 @@
     { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
     { key: 'nom', label: 'Nom', sortable: true, class: 'w-40' },
     // XP right after the name: it's the engagement signal we want the eye to
-    // catch first, shown as a coloured pill (not flush grey data). Sorting still
-    // surfaces the most (or least) engaged prospects.
-    { key: 'xp', label: 'XP', sortable: true, class: 'w-24' },
+    // catch first, shown as a coloured pill (not flush grey data). Defaults to
+    // high-to-low so the first click surfaces the most engaged prospects.
+    {
+      key: 'xp',
+      label: 'XP',
+      sortable: true,
+      class: 'w-24',
+      defaultSortDir: 'desc',
+    },
     { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
     { key: 'niveau', label: 'Niveau', sortable: true, class: 'w-24' },
     { key: 'status', label: 'Statut', sortable: true, class: 'w-28' },
@@ -207,8 +213,10 @@
     if (sortKey === key) {
       sortDir = sortDir === 'asc' ? 'desc' : 'asc';
     } else {
+      // First click on a new column opens in its natural direction (XP starts
+      // high-to-low to surface the most engaged; text columns climb A→Z).
       sortKey = key as SortKey;
-      sortDir = 'asc';
+      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
     }
   }
 
@@ -247,6 +255,16 @@
     );
   }
 
+  // Rows with no value for the active sort key always sink to the bottom, in
+  // either direction: sorting by Lycée (or Niveau) should surface the rows that
+  // *have* one, never lead with a block of "—". So this rule sits outside the
+  // asc/desc flip below; `compareRows` then only ever sees present values.
+  function sortsLast(r: InscritRow, key: SortKey): boolean {
+    if (key === 'lycee') return !r.schoolName;
+    if (key === 'niveau') return !r.niveau;
+    return false;
+  }
+
   function compareRows(a: InscritRow, b: InscritRow, key: SortKey): number {
     switch (key) {
       case 'prenom':
@@ -256,10 +274,7 @@
       case 'lycee':
         return (a.schoolName ?? '').localeCompare(b.schoolName ?? '', 'fr');
       case 'niveau':
-        if (!a.niveau && !b.niveau) return 0;
-        if (!a.niveau) return 1;
-        if (!b.niveau) return -1;
-        return compareNiveaux(a.niveau, b.niveau);
+        return compareNiveaux(a.niveau ?? '', b.niveau ?? '');
       case 'xp':
         return a.xp - b.xp;
       case 'status':
@@ -277,6 +292,9 @@
       return tokens.every((tok) => h.includes(tok));
     });
     out.sort((a, b) => {
+      const aLast = sortsLast(a, sortKey);
+      const bLast = sortsLast(b, sortKey);
+      if (aLast !== bLast) return aLast ? 1 : -1;
       const c = compareRows(a, b, sortKey);
       return sortDir === 'asc' ? c : -c;
     });
