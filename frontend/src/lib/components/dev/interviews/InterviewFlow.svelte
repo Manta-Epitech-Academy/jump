@@ -36,7 +36,7 @@
   import Network from '@lucide/svelte/icons/network';
   import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
   import Compass from '@lucide/svelte/icons/compass';
-  // Faces for the verdict scale (frown → laugh), keyed by RecommendationIconToken.
+  // Faces for the verdict scale, keyed by RecommendationIconToken.
   import Frown from '@lucide/svelte/icons/frown';
   import Meh from '@lucide/svelte/icons/meh';
   import Smile from '@lucide/svelte/icons/smile';
@@ -418,8 +418,8 @@
     'epi-drift': 'border-foreground/40 bg-muted ring-1 ring-foreground/30',
   };
 
-  // RecommendationIconToken → Lucide face. The order is fixed in the catalogue's
-  // display-order array, so the row reads as a rising scale left→right.
+  // RecommendationIconToken → Lucide face. The display-order array leads with the
+  // most compatible profile, so the row runs laugh → frown left→right.
   const RECO_ICONS: Record<RecommendationIconToken, typeof Frown> = {
     frown: Frown,
     meh: Meh,
@@ -892,8 +892,8 @@
                     >
                       Compatibilité du profil
                     </p>
-                    <!-- A rising scale: faces climb frown → laugh, left (pas
-                         intéressé) to right (compatible). -->
+                    <!-- Ordered by compatibility: faces run laugh → frown, left
+                         (100 % compatible) to right (pas intéressé). -->
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {#each INTERVIEW_RECOMMENDATION_DISPLAY_ORDER as value (value)}
                         {@const desc = INTERVIEW_RECOMMENDATIONS[value]}
