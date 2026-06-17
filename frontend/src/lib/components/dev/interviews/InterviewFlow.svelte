@@ -36,14 +36,13 @@
   import Network from '@lucide/svelte/icons/network';
   import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
   import Compass from '@lucide/svelte/icons/compass';
-  // Faces for the verdict scale (frown → laugh), keyed by RecommendationIconToken.
+  // Faces for the verdict scale, keyed by RecommendationIconToken.
   import Frown from '@lucide/svelte/icons/frown';
   import Meh from '@lucide/svelte/icons/meh';
   import Smile from '@lucide/svelte/icons/smile';
   import Laugh from '@lucide/svelte/icons/laugh';
   import type { InterviewStatus } from '@prisma/client';
   import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import * as Avatar from '$lib/components/ui/avatar';
@@ -54,11 +53,10 @@
     VERDICT_SECTION,
     INTERVIEW_RECOMMENDATIONS,
     INTERVIEW_RECOMMENDATION_DISPLAY_ORDER,
-    isRevealActive,
     type ChoiceOption,
     type ChoiceTone,
     type ChoiceIconToken,
-    type Reveal,
+    type QuestionNote,
     type RecommendationToneToken,
     type RecommendationIconToken,
     type InterviewQuestion,
@@ -130,7 +128,9 @@
   // questionnaire has no required questions, keying off full completion would
   // pull resume back to section 1 over one skipped optional choice.
   function sectionTouched(section: InterviewSection): boolean {
-    return section.questions.some((q) => answerText(q) !== null);
+    return section.questions.some(
+      (q) => answerLabel(q) !== null || noteText(q) !== null,
+    );
   }
   function resumeStep(): number {
     for (let i = 0; i < INTERVIEW_SECTIONS.length; i++) {
@@ -312,38 +312,39 @@
     actionState = { busy: $delayed, lastAction, saveState };
   });
 
-  // The label of a question's current answer, for the synthesis: option labels
-  // for choices (joined for multi), the rating as "n/5", trimmed free text, plus
-  // any live reveal precisions in parentheses ("Oui (Mme Dupont, Maths)").
-  // Null = unanswered. Reads $form via fv, so it stays reactive in the template.
-  function answerText(q: InterviewQuestion): string | null {
+  // The trimmed per-question note, or null. Shared by the synthesis (rendered on
+  // its own line so its newlines survive) and resume (a note alone marks the
+  // question touched). Reads $form via fv, so it stays reactive in the template.
+  function noteText(q: InterviewQuestion): string | null {
+    if (!('note' in q) || !q.note) return null;
+    const s = (fv(q.note.field) as string | undefined)?.trim();
+    return s || null;
+  }
+
+  // The structured answer of a question, for the synthesis: option labels for
+  // choices (joined for multi), the rating as "n/5", or the trimmed text answer.
+  // Excludes the free-text note, which the synthesis renders separately (as prose
+  // with preserved newlines) so a multi-line annotation never gets crushed into a
+  // parenthetical. Null = no structured answer. Reads $form via fv, stays reactive.
+  function answerLabel(q: InterviewQuestion): string | null {
     const v = fv(q.field);
+    if (q.kind === 'text') {
+      const s = typeof v === 'string' ? v.trim() : '';
+      return s || null;
+    }
     if (q.kind === 'rating') {
       return $form.satisfactionStars
         ? `${$form.satisfactionStars}/${q.max}`
         : null;
     }
-    if (q.kind === 'text') {
-      const s = typeof v === 'string' ? v.trim() : '';
-      return s || null;
-    }
-    let base: string | null;
     if (q.kind === 'single') {
-      base = q.options.find((o) => o.value === v)?.label ?? null;
-    } else {
-      const arr = (v as string[] | undefined) ?? [];
-      const labels = q.options
-        .filter((o) => arr.includes(o.value))
-        .map((o) => o.label);
-      base = labels.length ? labels.join(', ') : null;
+      return q.options.find((o) => o.value === v)?.label ?? null;
     }
-    if (base && q.reveal && isRevealActive(q.reveal, v)) {
-      const extras = q.reveal.fields
-        .map((rf) => (fv(rf.field) as string | undefined)?.trim())
-        .filter(Boolean);
-      if (extras.length) base += ` (${extras.join(', ')})`;
-    }
-    return base;
+    const arr = (v as string[] | undefined) ?? [];
+    const labels = q.options
+      .filter((o) => arr.includes(o.value))
+      .map((o) => o.label);
+    return labels.length ? labels.join(', ') : null;
   }
 
   const chipBase =
@@ -417,8 +418,8 @@
     'epi-drift': 'border-foreground/40 bg-muted ring-1 ring-foreground/30',
   };
 
-  // RecommendationIconToken → Lucide face. The order is fixed in the catalogue's
-  // display-order array, so the row reads as a rising scale left→right.
+  // RecommendationIconToken → Lucide face. The display-order array leads with the
+  // most compatible profile, so the row runs laugh → frown left→right.
   const RECO_ICONS: Record<RecommendationIconToken, typeof Frown> = {
     frown: Frown,
     meh: Meh,
@@ -463,28 +464,19 @@
   </div>
 {/snippet}
 
-<!-- Free-text inputs unlocked by a choice (teacher details, the "Précisez" box
-     once "Autre" is picked). One renderer for both single- and multi-choice. -->
-{#snippet revealInputs(reveal: Reveal)}
-  <div
-    class={cn('grid gap-2 pt-1', reveal.fields.length > 1 && 'sm:grid-cols-2')}
-  >
-    {#each reveal.fields as rf (rf.field)}
-      <div class="space-y-1">
-        <span class="text-[11px] font-medium text-muted-foreground">
-          {rf.label}
-        </span>
-        <Input
-          value={(fv(rf.field) as string) ?? ''}
-          oninput={(e) => setText(rf.field, e.currentTarget.value)}
-          placeholder={rf.placeholder}
-          maxlength={rf.maxLength}
-          disabled={!interactive}
-          class="bg-background"
-        />
-      </div>
-    {/each}
-  </div>
+<!-- The always-on free-text note under a question: anything the chips don't
+     capture, including the precision behind an "Autre" pick. Multi-line (a
+     Textarea, like the testimony and verdict boxes) to invite a real note, not a
+     one-word clarification. The placeholder is tailored to the question. -->
+{#snippet noteInput(note: QuestionNote)}
+  <Textarea
+    value={(fv(note.field) as string) ?? ''}
+    oninput={(e) => setText(note.field, e.currentTarget.value)}
+    placeholder={note.placeholder}
+    maxlength={note.maxLength}
+    disabled={!interactive}
+    class="min-h-16 resize-none bg-background"
+  />
 {/snippet}
 
 <!-- One question: the prompt is the prominent element (it's what the dev reads
@@ -514,9 +506,6 @@
 
     {#if q.kind === 'single' || q.kind === 'multi'}
       {@render choiceChips(q.field, q.options, q.kind === 'multi')}
-      {#if q.reveal && isRevealActive(q.reveal, fv(q.field))}
-        {@render revealInputs(q.reveal)}
-      {/if}
     {:else if q.kind === 'rating'}
       <div class="flex items-center gap-1.5">
         {#each Array.from({ length: q.max }) as _, idx (idx)}
@@ -554,6 +543,13 @@
         class="min-h-16 resize-none bg-background"
       />
     {/if}
+
+    <!-- Always-on note under every choice/rating question (text questions are
+         themselves free text, so they carry none). The one place to jot anything
+         off-script, including an "Autre" precision. -->
+    {#if 'note' in q && q.note}
+      {@render noteInput(q.note)}
+    {/if}
   </div>
 {/snippet}
 
@@ -570,32 +566,66 @@
   </p>
 {/snippet}
 
-<!-- One synthesis line: the question, then its answer (or a muted dash). -->
+<!-- Free-text prose in the synthesis (a note, the testimony, the verdict): its
+     own block, newlines preserved (whitespace-pre-wrap on the inner <p>, kept
+     inline so the markup's own indentation never leaks in), behind the epi-blue
+     left rail that marks a staff note everywhere else (see TalentNotePanel). -->
+{#snippet prose(t: string)}
+  <div class="border-l-2 border-epi-blue/40 pl-2.5">
+    <p class="text-sm whitespace-pre-wrap text-foreground">{t}</p>
+  </div>
+{/snippet}
+
+{#snippet dash()}
+  <p class="text-sm text-muted-foreground/60">—</p>
+{/snippet}
+
+<!-- One synthesis line: the question, then its structured answer (chips joined,
+     stars, or the text testimony) with any free-text note as prose beneath. A
+     note alone still reads as the answer; nothing at all shows a muted dash. -->
 {#snippet synthesisRow(q: InterviewQuestion)}
-  {@const text = answerText(q)}
-  <div class="grid gap-0.5 py-2 sm:grid-cols-[2fr_3fr] sm:gap-4">
+  {@const note = noteText(q)}
+  <div class="grid gap-1 py-2 sm:grid-cols-[2fr_3fr] sm:gap-4">
     <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
-    {#if q.kind === 'rating' && $form.satisfactionStars}
-      <div class="flex items-center gap-0.5">
-        {#each Array.from({ length: q.max }) as _, idx (idx)}
-          <Star
-            class={cn(
-              'h-3.5 w-3.5',
-              ($form.satisfactionStars ?? 0) > idx
-                ? 'fill-epi-orange text-epi-orange'
-                : 'text-muted-foreground/30',
-            )}
-          />
-        {/each}
-        <span class="ml-1.5 text-sm font-semibold text-foreground">
-          {$form.satisfactionStars}/{q.max}
-        </span>
-      </div>
-    {:else if text}
-      <p class="text-sm font-semibold text-foreground">{text}</p>
-    {:else}
-      <p class="text-sm text-muted-foreground/60">—</p>
-    {/if}
+    <div class="space-y-1.5">
+      {#if q.kind === 'text'}
+        {@const value = answerLabel(q)}
+        {#if value}
+          {@render prose(value)}
+        {:else}
+          {@render dash()}
+        {/if}
+      {:else if q.kind === 'rating'}
+        {#if $form.satisfactionStars}
+          <div class="flex items-center gap-0.5">
+            {#each Array.from({ length: q.max }) as _, idx (idx)}
+              <Star
+                class={cn(
+                  'h-3.5 w-3.5',
+                  ($form.satisfactionStars ?? 0) > idx
+                    ? 'fill-epi-orange text-epi-orange'
+                    : 'text-muted-foreground/30',
+                )}
+              />
+            {/each}
+            <span class="ml-1.5 text-sm font-semibold text-foreground">
+              {$form.satisfactionStars}/{q.max}
+            </span>
+          </div>
+        {:else if !note}
+          {@render dash()}
+        {/if}
+        {#if note}{@render prose(note)}{/if}
+      {:else}
+        {@const label = answerLabel(q)}
+        {#if label}
+          <p class="text-sm font-semibold text-foreground">{label}</p>
+        {:else if !note}
+          {@render dash()}
+        {/if}
+        {#if note}{@render prose(note)}{/if}
+      {/if}
+    </div>
   </div>
 {/snippet}
 
@@ -731,9 +761,7 @@
               </p>
             {/if}
             {#if $form.verdictNote.trim()}
-              <p class="text-sm text-foreground italic">
-                « {$form.verdictNote.trim()} »
-              </p>
+              {@render prose($form.verdictNote.trim())}
             {/if}
           </div>
 
@@ -864,8 +892,8 @@
                     >
                       Compatibilité du profil
                     </p>
-                    <!-- A rising scale: faces climb frown → laugh, left (pas
-                         intéressé) to right (compatible). -->
+                    <!-- Ordered by compatibility: faces run laugh → frown, left
+                         (100 % compatible) to right (pas intéressé). -->
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {#each INTERVIEW_RECOMMENDATION_DISPLAY_ORDER as value (value)}
                         {@const desc = INTERVIEW_RECOMMENDATIONS[value]}

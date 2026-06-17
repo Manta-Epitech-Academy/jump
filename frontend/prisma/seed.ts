@@ -2611,22 +2611,31 @@ const EVENTS: EventBlueprint[] = [
 type InterviewAnswers = Partial<
   Pick<
     Prisma.InterviewCreateManyInput,
+    // Choice / rating answers.
     | 'discoveryChannel'
     | 'motivation'
     | 'orientationTalkAtSchool'
     | 'passionateTeacher'
     | 'techProjection'
-    | 'weekFavorite'
-    | 'wantsMore'
-    | 'satisfactionContent'
-    | 'recommendation'
     | 'specialties'
     | 'otherJobs'
     | 'infoSources'
+    | 'wantsMore'
     | 'nextYearEvents'
     | 'satisfactionStars'
-    | 'teacherName'
-    | 'teacherSubject'
+    | 'recommendation'
+    // Free text: the per-question notes, plus the testimony and the verdict.
+    | 'discoveryChannelNote'
+    | 'motivationNote'
+    | 'specialtiesNote'
+    | 'orientationTalkNote'
+    | 'passionateTeacherNote'
+    | 'techProjectionNote'
+    | 'otherJobsNote'
+    | 'infoSourcesNote'
+    | 'wantsMoreNote'
+    | 'satisfactionNote'
+    | 'nextYearEventsNote'
     | 'oneSentence'
     | 'verdictNote'
   >
@@ -2660,14 +2669,13 @@ const INTERVIEWS: InterviewBlueprint[] = [
       specialties: ['nsi', 'maths'],
       orientationTalkAtSchool: 'un_peu',
       passionateTeacher: 'oui',
-      teacherName: 'M. Garnier',
-      teacherSubject: 'NSI',
-      techProjection: 'dev',
+      passionateTeacherNote:
+        'M. Garnier (NSI), anime un club robotique au lycée.',
+      techProjection: ['dev'],
       infoSources: ['youtube', 'tiktok', 'ia_chatgpt'],
-      weekFavorite: 'dev',
       wantsMore: 'oui',
       satisfactionStars: 5,
-      satisfactionContent: 'bon_niveau',
+      satisfactionNote: 'Niveau parfaitement adapté, repart très motivée.',
       oneSentence: 'Une semaine qui m’a donné envie de coder tous les jours.',
       nextYearEvents: ['coding_club', 'jpo'],
       recommendation: 'tres_compatible',
@@ -2685,13 +2693,12 @@ const INTERVIEWS: InterviewBlueprint[] = [
       specialties: ['maths', 'physique_chimie'],
       orientationTalkAtSchool: 'pas_du_tout',
       passionateTeacher: 'pas_sur',
-      techProjection: 'jeux_video',
+      techProjection: ['jeux_video'],
+      techProjectionNote: 'Hésite entre le dev de jeux et le game design.',
       otherJobs: ['arts_design'],
       infoSources: ['instagram', 'youtube'],
-      weekFavorite: 'product_design',
       wantsMore: 'peut_etre',
       satisfactionStars: 4,
-      satisfactionContent: 'bon_niveau',
       oneSentence: 'J’ai compris comment un jeu est fabriqué.',
       nextYearEvents: ['camp', 'journee_decouverte'],
       recommendation: 'bon_profil',
@@ -2709,13 +2716,12 @@ const INTERVIEWS: InterviewBlueprint[] = [
       specialties: ['indecis'],
       orientationTalkAtSchool: 'un_peu',
       passionateTeacher: 'pas_sur',
-      techProjection: 'pas_idee',
+      techProjection: ['pas_idee'],
       otherJobs: ['sante', 'commerce_gestion'],
       infoSources: ['parcoursup_onisep', 'entourage'],
-      weekFavorite: 'cyber',
       wantsMore: 'peut_etre',
       satisfactionStars: 4,
-      satisfactionContent: 'trop_dense',
+      satisfactionNote: 'A trouvé la semaine un peu dense, mais intéressante.',
       oneSentence: 'Intéressant mais beaucoup d’informations d’un coup.',
       nextYearEvents: ['conference'],
       recommendation: 'indecis',
@@ -2730,7 +2736,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     answers: {
       discoveryChannel: 'epitech',
       motivation: 'cadre_stage',
-      techProjection: 'cyber',
+      techProjection: ['cyber'],
       infoSources: ['tiktok'],
     },
   },
@@ -2742,7 +2748,7 @@ const INTERVIEWS: InterviewBlueprint[] = [
     answers: {
       discoveryChannel: 'site_1e1s',
       specialties: ['nsi'],
-      weekFavorite: 'ia',
+      specialtiesNote: 'Vise une prépa, hésite encore sur la voie.',
     },
   },
 ];

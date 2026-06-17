@@ -8,7 +8,7 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { requireStaffGroup, requireFlag } from '$lib/server/auth/guards';
 import {
   presenceSlots,
   slotKey,
@@ -42,6 +42,7 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
   depends('staff:event-presence');
 
   const campusId = getCampusId(locals);
+  requireFlag(locals, 'emargement');
   const timezone = getCampusTimezone(locals);
   const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
@@ -186,6 +187,7 @@ async function assertEnrolled(
 
 export const actions: Actions = {
   setPresence: async ({ request, locals, params }) => {
+    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(setPresenceSchema));
     if (!form.valid) return fail(400, { form });
@@ -225,6 +227,7 @@ export const actions: Actions = {
   },
 
   markAllPresent: async ({ request, locals, params }) => {
+    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(markAllPresentSchema));
     if (!form.valid) return fail(400, { form });
@@ -254,6 +257,7 @@ export const actions: Actions = {
   },
 
   closeSlot: async ({ request, locals, params }) => {
+    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(closeSlotSchema));
     if (!form.valid) return fail(400, { form });
@@ -272,6 +276,7 @@ export const actions: Actions = {
   },
 
   reopenSlot: async ({ request, locals, params }) => {
+    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(reopenSlotSchema));
     if (!form.valid) return fail(400, { form });

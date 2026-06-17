@@ -41,11 +41,27 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
+  let hasInscrits = $derived(featureFlags.has('inscrits'));
+  let hasEntretiens = $derived(featureFlags.has('entretiens'));
+  let hasEmargement = $derived(featureFlags.has('emargement'));
   let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
   let hasPlanning = $derived(featureFlags.has('planning'));
+  // The "Stage de Seconde" section header must not show when none of its links
+  // would: every stage surface is now individually flag-gated (Inscrits,
+  // Émargement, Entretiens, plus the coding_club / planning / intervenants /
+  // welcome surfaces). Mirrors the showManagement guard below.
+  let showStage = $derived(
+    hasInscrits ||
+      hasEmargement ||
+      hasEntretiens ||
+      hasPlanning ||
+      hasIntervenants ||
+      hasWelcomePage ||
+      hasCodingClub,
+  );
   // The "Gestion" section header must not show when none of its links would:
   // Doublons SF (hasSyncErrors) or Staff du campus (hasCampusTeam, lead-only).
   let showManagement = $derived(
@@ -165,16 +181,15 @@
     </nav>
   {/if}
 
-  {#if data.activeStage}
+  {#if data.activeStage && showStage}
     <div class="sidebar-section-title">
       Stage de Seconde<span class="text-epi-teal">_</span>
     </div>
     <nav class="space-y-1">
-      <!-- Stage-only release scopes the workspace down to its live surfaces
-           (Inscrits, Émargement, plus Planning once the campus has the flag);
-           Entretiens still renders disabled below. The event overview and
-           onboarding tracker are coding_club-era surfaces, kept behind the flag
-           so that future stays intact. -->
+      <!-- Every stage surface is now individually flag-gated so a campus can
+           keep just the ones it uses (most want Entretiens only, no Émargement).
+           The event overview and onboarding tracker are coding_club-era surfaces,
+           kept behind that flag so that future stays intact. -->
       {#if hasCodingClub}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
@@ -195,29 +210,33 @@
           <span>Onboarding</span>
         </a>
       {/if}
-      <!-- Live stage surfaces: Inscrits and Émargement always, then the
-           flag-gated ones (Planning, Intervenants, Page d'accueil) and
-           Entretiens. Planning is governed per campus by the `planning` flag:
-           it appears once that campus's schedule is populated in DB and the
-           flag is switched on. -->
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
-        )}
-      >
-        <Users class="h-5 w-5" />
-        <span>Inscrits</span>
-      </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/emargement`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/emargement`),
-        )}
-      >
-        <UserCheck class="h-5 w-5" />
-        <span>Émargement</span>
-      </a>
+      <!-- Live stage surfaces, each behind its own flag: Inscrits + Entretiens
+           default on, Émargement default off. Planning / Intervenants /
+           Page d'accueil are governed per campus by their own rollout flags
+           (Planning appears once that campus's schedule is populated and the
+           flag is switched on). -->
+      {#if hasInscrits}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
+          )}
+        >
+          <Users class="h-5 w-5" />
+          <span>Inscrits</span>
+        </a>
+      {/if}
+      {#if hasEmargement}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/emargement`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/emargement`),
+          )}
+        >
+          <UserCheck class="h-5 w-5" />
+          <span>Émargement</span>
+        </a>
+      {/if}
       {#if hasPlanning}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
@@ -249,15 +268,17 @@
           <span>Page d'accueil</span>
         </a>
       {/if}
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/entretiens`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/entretiens`),
-        )}
-      >
-        <MessageSquare class="h-5 w-5" />
-        <span>Entretiens</span>
-      </a>
+      {#if hasEntretiens}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/entretiens`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/entretiens`),
+          )}
+        >
+          <MessageSquare class="h-5 w-5" />
+          <span>Entretiens</span>
+        </a>
+      {/if}
     </nav>
   {/if}
 
