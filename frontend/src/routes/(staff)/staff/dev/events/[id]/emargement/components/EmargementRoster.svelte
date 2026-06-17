@@ -310,6 +310,7 @@
                 options={statusOptions}
                 value={statusFilter}
                 onChange={(v) => (statusFilter = v as typeof statusFilter)}
+                triggerClass="w-32"
               />
             </div>
           {/snippet}
