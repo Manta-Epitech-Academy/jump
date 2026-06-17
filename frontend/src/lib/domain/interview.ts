@@ -42,31 +42,31 @@ export type ChoiceOption = {
   icon?: ChoiceIconToken;
 };
 
-/** Every free-text column unlocked by a choice answer. The union (not a bare
- *  `string`) keeps the conduct action's reveal-clearing loop typed against the
- *  real `Interview` columns, so a typo can't silently write to nothing. */
-export type RevealTextField =
-  | 'teacherName'
-  | 'teacherSubject'
-  | 'discoveryChannelOther'
-  | 'specialtiesOther'
-  | 'otherJobsOther'
-  | 'infoSourcesOther';
+/** Every per-question free-text note column on the `Interview` row. The union
+ *  (not a bare `string`) keeps the conduct prefill + persist typed against the
+ *  real columns, so a typo can't silently write to nothing. */
+export type NoteField =
+  | 'discoveryChannelNote'
+  | 'motivationNote'
+  | 'specialtiesNote'
+  | 'orientationTalkNote'
+  | 'passionateTeacherNote'
+  | 'techProjectionNote'
+  | 'otherJobsNote'
+  | 'infoSourcesNote'
+  | 'wantsMoreNote'
+  | 'satisfactionNote'
+  | 'nextYearEventsNote';
 
-/** A free-text input unlocked by a specific choice answer (e.g. the
- *  passionate-teacher name/subject when the answer is "oui", or the "Précisez"
- *  box that appears once the student picks "Autre"). */
-export type RevealField = {
-  field: RevealTextField;
-  label: string;
-  placeholder?: string;
+/** A free-text note shown under a question, always (no longer gated by a choice
+ *  the way the old "Autre"/teacher reveals were). The dev jots anything the chips
+ *  don't capture, including the precision behind an "Autre" pick. `field` is the
+ *  matching `Interview` column; `placeholder` is tailored to its question. */
+export type QuestionNote = {
+  field: NoteField;
+  placeholder: string;
   maxLength: number;
 };
-
-/** A choice answer that unlocks free-text inputs. `when` is matched by equality
- *  for single-choice questions and by membership for multi-choice (so the
- *  "Autre" precision shows the moment "Autre" is among the picks). */
-export type Reveal = { when: string; fields: RevealField[] };
 
 export type ChoiceQuestion = {
   kind: 'single' | 'multi';
@@ -74,7 +74,7 @@ export type ChoiceQuestion = {
   label: string;
   hint?: string;
   options: ChoiceOption[];
-  reveal?: Reveal;
+  note?: QuestionNote;
 };
 
 export type RatingQuestion = {
@@ -83,6 +83,7 @@ export type RatingQuestion = {
   label: string;
   hint?: string;
   max: number;
+  note?: QuestionNote;
 };
 
 export type TextQuestion = {
@@ -110,14 +111,16 @@ export type InterviewSection = {
  * stranding the edit).
  */
 export const INTERVIEW_TEXT_LIMITS = {
-  teacherName: 120,
-  teacherSubject: 120,
-  // The "Précisez" box shown when "Autre" is picked: a short clarification
-  // (a channel, a specialty, a métier), never a paragraph.
-  otherChoice: 120,
   oneSentence: 2000,
   verdictNote: 2000,
 } as const;
+
+/** Character ceiling for the per-question notes. Generous next to the old
+ *  120-char "Autre" precision (the dev now writes the colour of the answer
+ *  here), but short of the 2000-char testimony/verdict boxes: a note, not an
+ *  essay. Shared by the Zod schema (server guard) and each input's `maxlength`
+ *  (client guard), so the form can never hold a value the action would reject. */
+export const INTERVIEW_NOTE_LIMIT = 500;
 
 /** The four student-facing sections of the conduct flow, in order. The verdict
  *  ("Avis de l'équipe", `VERDICT_SECTION`) is a fifth, staff-only step
@@ -139,16 +142,10 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
           { value: 'epitech', label: 'Par Epitech' },
           { value: 'autre', label: 'Autre' },
         ],
-        reveal: {
-          when: 'autre',
-          fields: [
-            {
-              field: 'discoveryChannelOther',
-              label: 'Précisez',
-              placeholder: 'Par quel moyen ?',
-              maxLength: INTERVIEW_TEXT_LIMITS.otherChoice,
-            },
-          ],
+        note: {
+          field: 'discoveryChannelNote',
+          placeholder: 'Autre canal, ou une précision sur sa réponse…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
         },
       },
       {
@@ -161,6 +158,11 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
           { value: 'curiosite', label: 'Je suis curieux·se par nature' },
           { value: 'cadre_stage', label: 'Juste dans le cadre du stage' },
         ],
+        note: {
+          field: 'motivationNote',
+          placeholder: 'Ce qui ressort de sa motivation…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
+        },
       },
     ],
   },
@@ -182,16 +184,10 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
           { value: 'autre', label: 'Autre' },
           { value: 'indecis', label: 'Pas encore décidé' },
         ],
-        reveal: {
-          when: 'autre',
-          fields: [
-            {
-              field: 'specialtiesOther',
-              label: 'Précisez',
-              placeholder: 'Quelle spécialité ?',
-              maxLength: INTERVIEW_TEXT_LIMITS.otherChoice,
-            },
-          ],
+        note: {
+          field: 'specialtiesNote',
+          placeholder: 'Autre spécialité, ou un détail…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
         },
       },
       {
@@ -203,6 +199,11 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
           { value: 'un_peu', label: 'Un peu', tone: 'neutral' },
           { value: 'pas_du_tout', label: 'Pas du tout', tone: 'negative' },
         ],
+        note: {
+          field: 'orientationTalkNote',
+          placeholder: 'Ce qu’on lui dit, et par qui…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
+        },
       },
       {
         kind: 'single',
@@ -218,22 +219,10 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
             tone: 'neutral',
           },
         ],
-        reveal: {
-          when: 'oui',
-          fields: [
-            {
-              field: 'teacherName',
-              label: 'Nom du prof',
-              placeholder: 'Nom',
-              maxLength: INTERVIEW_TEXT_LIMITS.teacherName,
-            },
-            {
-              field: 'teacherSubject',
-              label: 'Matière',
-              placeholder: 'Maths, NSI…',
-              maxLength: INTERVIEW_TEXT_LIMITS.teacherSubject,
-            },
-          ],
+        note: {
+          field: 'passionateTeacherNote',
+          placeholder: 'Nom du prof, matière, ce qu’il organise…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
         },
       },
     ],
@@ -260,6 +249,11 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
           { value: 'pas_idee', label: 'Pas encore d’idée', icon: 'pas_idee' },
           { value: 'hors_tech', label: 'Plutôt hors tech', icon: 'hors_tech' },
         ],
+        note: {
+          field: 'techProjectionNote',
+          placeholder: 'Un métier précis, une nuance…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
+        },
       },
       {
         kind: 'multi',
@@ -272,16 +266,10 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
           { value: 'sport', label: 'Sport' },
           { value: 'autre', label: 'Autre' },
         ],
-        reveal: {
-          when: 'autre',
-          fields: [
-            {
-              field: 'otherJobsOther',
-              label: 'Précisez',
-              placeholder: 'Quel métier ?',
-              maxLength: INTERVIEW_TEXT_LIMITS.otherChoice,
-            },
-          ],
+        note: {
+          field: 'otherJobsNote',
+          placeholder: 'Autre métier, ou une précision…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
         },
       },
       {
@@ -299,16 +287,10 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
           { value: 'lycee', label: 'Mon lycée' },
           { value: 'autre', label: 'Autre' },
         ],
-        reveal: {
-          when: 'autre',
-          fields: [
-            {
-              field: 'infoSourcesOther',
-              label: 'Précisez',
-              placeholder: 'Quelle source ?',
-              maxLength: INTERVIEW_TEXT_LIMITS.otherChoice,
-            },
-          ],
+        note: {
+          field: 'infoSourcesNote',
+          placeholder: 'Autre source, un compte qu’il suit…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
         },
       },
     ],
@@ -330,12 +312,22 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
             tone: 'negative',
           },
         ],
+        note: {
+          field: 'wantsMoreNote',
+          placeholder: 'Ce qui motive ou freine son envie…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
+        },
       },
       {
         kind: 'rating',
         field: 'satisfactionStars',
         label: 'Satisfaction globale du stage',
         max: 5,
+        note: {
+          field: 'satisfactionNote',
+          placeholder: 'Ce qui explique sa note…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
+        },
       },
       {
         kind: 'text',
@@ -357,35 +349,26 @@ export const INTERVIEW_SECTIONS: readonly InterviewSection[] = [
           { value: 'jpo', label: 'JPO' },
           { value: 'conference', label: 'Conférence' },
         ],
+        note: {
+          field: 'nextYearEventsNote',
+          placeholder: 'Un autre format, une envie précise…',
+          maxLength: INTERVIEW_NOTE_LIMIT,
+        },
       },
     ],
   },
 ] as const;
 
-/** A choice question that unlocks free-text inputs (its `reveal` is present). */
-export type RevealQuestion = ChoiceQuestion & { reveal: Reveal };
-
-/** Every reveal-bearing question, flattened. The conduct action loops this to
- *  trim each reveal field and null it when its trigger choice is deselected, so
- *  a precision never outlives the answer that unlocked it (e.g. a leftover
- *  `discoveryChannelOther` after switching away from "Autre"). Catalogue-driven:
- *  a new "Autre" precision is wired by adding a `reveal`, not by touching the
- *  action. */
-export const REVEAL_QUESTIONS: readonly RevealQuestion[] =
-  INTERVIEW_SECTIONS.flatMap((s) => s.questions).filter(
-    (q): q is RevealQuestion =>
-      (q.kind === 'single' || q.kind === 'multi') && q.reveal != null,
-  );
-
-/** Whether a reveal's trigger is satisfied by the current answer. Single-choice
- *  answers match by equality; multi-choice arrays by membership. Shared by the
- *  flow (show the inputs) and the action (clear them when the trigger is off) so
- *  the two can never disagree on when a precision is live. */
-export function isRevealActive(reveal: Reveal, value: unknown): boolean {
-  return Array.isArray(value)
-    ? value.includes(reveal.when)
-    : value === reveal.when;
-}
+/** Every per-question note column, flattened from the catalogue. The conduct
+ *  action loops this to trim each note and store '' as null. The notes are
+ *  ungated (always shown), so unlike the old reveals there is nothing to clear on
+ *  a deselect: the rule is simply '' -> null. Catalogue-driven: a new note is
+ *  wired by adding a `note` block, not by touching the action. */
+export const NOTE_FIELDS: readonly NoteField[] = INTERVIEW_SECTIONS.flatMap(
+  (s) => s.questions,
+)
+  .map((q) => ('note' in q ? q.note?.field : undefined))
+  .filter((f): f is NoteField => f != null);
 
 /** Staff-only verdict block, filled after the interview (never asked to the
  *  student). The recommendation is the single most actionable signal for
@@ -409,9 +392,9 @@ export type RecommendationToneToken =
   | 'epi-drift';
 
 /** Face glyph for the recommendation options, mapped to a Lucide icon in the
- *  verdict step (token kept out of this module, like the chip icons). The four
- *  faces climb from frown to laugh, so the verdict row reads as a left→right
- *  scale once ordered by `INTERVIEW_RECOMMENDATION_DISPLAY_ORDER`. */
+ *  verdict step (token kept out of this module, like the chip icons). The faces
+ *  run laugh → frown across the row, since `INTERVIEW_RECOMMENDATION_DISPLAY_ORDER`
+ *  leads with the most compatible profile. */
 export type RecommendationIconToken = 'frown' | 'meh' | 'smile' | 'laugh';
 
 export type RecommendationDescriptor = {
@@ -455,12 +438,12 @@ export const INTERVIEW_RECOMMENDATION_VALUES = Object.keys(
   INTERVIEW_RECOMMENDATIONS,
 ) as InterviewRecommendation[];
 
-/** The recommendations ordered worst → best, so the verdict step renders them
- *  left-to-right as a rising scale (frown → laugh). Separate from
+/** The recommendations ordered best → worst, so the verdict step leads with
+ *  "100 % compatible" and ends on "Pas intéressé". Separate from
  *  `INTERVIEW_RECOMMENDATION_VALUES` (object-key order), which the cohort
  *  synthesis iterates and must stay stable. */
 export const INTERVIEW_RECOMMENDATION_DISPLAY_ORDER: readonly InterviewRecommendation[] =
-  ['pas_interesse', 'indecis', 'bon_profil', 'tres_compatible'];
+  ['tres_compatible', 'bon_profil', 'indecis', 'pas_interesse'];
 
 // ─── List status (à faire / en cours / finalisé) ───
 

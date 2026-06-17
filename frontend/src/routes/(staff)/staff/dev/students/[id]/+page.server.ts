@@ -12,11 +12,7 @@ import {
 } from '$lib/server/db/scoped';
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { interviewConductSchema } from '$lib/validation/interviews';
-import {
-  REVEAL_QUESTIONS,
-  isRevealActive,
-  type RevealTextField,
-} from '$lib/domain/interview';
+import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
 import { EVENT_TYPES } from '$lib/domain/event';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
@@ -211,15 +207,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             infoSources: existingInterview.infoSources,
             nextYearEvents: existingInterview.nextYearEvents,
             satisfactionStars: existingInterview.satisfactionStars,
-            teacherName: existingInterview.teacherName ?? '',
-            teacherSubject: existingInterview.teacherSubject ?? '',
             oneSentence: existingInterview.oneSentence ?? '',
             verdictNote: existingInterview.verdictNote ?? '',
-            discoveryChannelOther:
-              existingInterview.discoveryChannelOther ?? '',
-            specialtiesOther: existingInterview.specialtiesOther ?? '',
-            otherJobsOther: existingInterview.otherJobsOther ?? '',
-            infoSourcesOther: existingInterview.infoSourcesOther ?? '',
+            discoveryChannelNote: existingInterview.discoveryChannelNote ?? '',
+            motivationNote: existingInterview.motivationNote ?? '',
+            specialtiesNote: existingInterview.specialtiesNote ?? '',
+            orientationTalkNote: existingInterview.orientationTalkNote ?? '',
+            passionateTeacherNote:
+              existingInterview.passionateTeacherNote ?? '',
+            techProjectionNote: existingInterview.techProjectionNote ?? '',
+            otherJobsNote: existingInterview.otherJobsNote ?? '',
+            infoSourcesNote: existingInterview.infoSourcesNote ?? '',
+            wantsMoreNote: existingInterview.wantsMoreNote ?? '',
+            satisfactionNote: existingInterview.satisfactionNote ?? '',
+            nextYearEventsNote: existingInterview.nextYearEventsNote ?? '',
           }
         : { participationId: primaryComplianceParticipation?.id ?? '' },
       zod4(interviewConductSchema),
@@ -396,27 +397,23 @@ async function persistInterview(
 
   const { participationId, oneSentence, verdictNote, ...rest } = form.data;
 
-  // Reveal-gated free text (teacher name/subject, the "Autre" precisions): trim,
-  // and clear when its trigger choice is not selected so the DB never keeps a
-  // precision orphaned from the answer that unlocked it. Catalogue-driven, so a
-  // new "Autre" precision needs no change here. `data` reads both the trigger
-  // value (an enum or an array) and the raw text by field name.
+  // Per-question notes: trim and store '' as null so the DB never holds "". The
+  // notes are ungated (always offered under their question), so there is nothing
+  // to clear on a deselect, unlike the old reveal precisions. Catalogue-driven
+  // via NOTE_FIELDS: a new note needs no change here.
   const data = form.data as Record<string, unknown>;
-  const revealText = {} as Record<RevealTextField, string | null>;
-  for (const q of REVEAL_QUESTIONS) {
-    const active = isRevealActive(q.reveal, data[q.field]);
-    for (const rf of q.reveal.fields) {
-      const raw = data[rf.field];
-      const trimmed = typeof raw === 'string' ? raw.trim() : '';
-      revealText[rf.field] = active && trimmed ? trimmed : null;
-    }
+  const noteText = {} as Record<NoteField, string | null>;
+  for (const field of NOTE_FIELDS) {
+    const raw = data[field];
+    const trimmed = typeof raw === 'string' ? raw.trim() : '';
+    noteText[field] = trimmed || null;
   }
 
   const answers = {
     ...rest,
     oneSentence: oneSentence.trim() || null,
     verdictNote: verdictNote.trim() || null,
-    ...revealText,
+    ...noteText,
   };
 
   const createStatus = mode === 'close' ? 'done' : 'in_progress';
