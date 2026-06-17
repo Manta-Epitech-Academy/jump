@@ -39,9 +39,7 @@
   <Dialog.Content class="rounded-sm sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title>Comment {name} gagne ses XP</Dialog.Title>
-      <Dialog.Description>
-        Ses {story.total} XP sur JUMP, du plus récent au plus ancien.
-      </Dialog.Description>
+      <Dialog.Description>Du plus récent au plus ancien.</Dialog.Description>
     </Dialog.Header>
 
     {#if story.history.length}

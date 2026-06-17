@@ -5,8 +5,6 @@
   import { cn } from '$lib/utils';
   import { formatGivenName } from '$lib/domain/profile';
   import { niveauLabel } from '$lib/domain/niveau';
-  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
-  import Trophy from '@lucide/svelte/icons/trophy';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import type { XpStory } from '$lib/domain/xpStory';
@@ -31,11 +29,6 @@
   let { student, xpStory }: Props = $props();
 
   const externalId = $derived(student.externalId);
-  // Mini-jeux + podiums are the engagement closest to the XP itself; coding clubs
-  // and events earn XP too but live in the click-through detail, not the banner.
-  const hasGameStats = $derived(
-    xpStory.minigamePlays > 0 || xpStory.podiumCount > 0,
-  );
   let detailOpen = $state(false);
 
   // Academic context only: school · niveau. Civilité moved to the Coordonnées
@@ -100,22 +93,6 @@
             >
             <span class="font-heading text-lg">XP</span>
           </span>
-          {#if hasGameStats}
-            <span
-              class="mt-1 flex items-center gap-3 font-mono text-[11px] text-white/90"
-            >
-              {#if xpStory.minigamePlays > 0}
-                <span class="inline-flex items-center gap-1">
-                  <Gamepad2 class="h-3 w-3" />{xpStory.minigamePlays}
-                </span>
-              {/if}
-              {#if xpStory.podiumCount > 0}
-                <span class="inline-flex items-center gap-1">
-                  <Trophy class="h-3 w-3" />{xpStory.podiumCount}
-                </span>
-              {/if}
-            </span>
-          {/if}
         </span>
         <ChevronRight
           class="h-4 w-4 shrink-0 text-white/70 transition-transform group-hover:translate-x-0.5 group-hover:text-white"

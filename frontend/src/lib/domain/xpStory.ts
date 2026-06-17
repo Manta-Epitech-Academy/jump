@@ -1,7 +1,7 @@
-// The per-talent XP "story" for the dev fiche: a glance summary (total + a couple
-// of engagement counts for the hero medallion) plus a newest-first history of
-// every XP gain, each humanised. Pure + shared (client medallion/dialog + server
-// builder); the server builder lives in `server/services/xpStoryService.ts`.
+// The per-talent XP "story" for the dev fiche: the total (the hero medallion) plus
+// a newest-first history of every XP gain, each humanised (the breakdown dialog).
+// Pure + shared (client medallion/dialog + server builder); the server builder
+// lives in `server/services/xpStoryService.ts`.
 //
 // Reconstructed from the XpGrant ledger (facts-as-rows). Tier-free on purpose (no
 // Novice/Apprenti/Expert): the dev space surfaces the story, not a ladder.
@@ -11,10 +11,6 @@ import { MINIGAME_XP_REWARD } from './xp';
 export type XpStory = {
   /** Cached projection total (= SUM of grant amounts = Talent.xp). */
   total: number;
-  /** Mini-jeux played, for the hero medallion's at-a-glance count. */
-  minigamePlays: number;
-  /** Top-3 (true podium) finishes on a daily leaderboard, for the hero medallion. */
-  podiumCount: number;
   /** Newest-first feed of every XP gain, for the dialog. */
   history: XpHistoryEntry[];
 };
@@ -53,13 +49,13 @@ export function podiumTierFromBonus(amount: number): 1 | 2 | 3 | 'top' {
 export function xpHistoryLabel(source: string, amount: number): string {
   switch (source) {
     case 'minigame':
-      return "Jeu d'entraînement du jour terminé";
+      return "Jeu d'entraînement terminé";
     case 'minigame_rank': {
       const tier = podiumTierFromBonus(amount);
-      if (tier === 1) return '1re place au classement du jour';
-      if (tier === 2) return '2e place au classement du jour';
-      if (tier === 3) return '3e place au classement du jour';
-      return 'Dans le top du classement du jour';
+      if (tier === 1) return '1re place au classement';
+      if (tier === 2) return '2e place au classement';
+      if (tier === 3) return '3e place au classement';
+      return 'Dans le top du classement';
     }
     case 'onboarding':
       return 'Profil complété';
