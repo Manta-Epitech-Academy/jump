@@ -392,9 +392,9 @@ export type RecommendationToneToken =
   | 'epi-drift';
 
 /** Face glyph for the recommendation options, mapped to a Lucide icon in the
- *  verdict step (token kept out of this module, like the chip icons). The four
- *  faces climb from frown to laugh, so the verdict row reads as a left→right
- *  scale once ordered by `INTERVIEW_RECOMMENDATION_DISPLAY_ORDER`. */
+ *  verdict step (token kept out of this module, like the chip icons). The faces
+ *  run laugh → frown across the row, since `INTERVIEW_RECOMMENDATION_DISPLAY_ORDER`
+ *  leads with the most compatible profile. */
 export type RecommendationIconToken = 'frown' | 'meh' | 'smile' | 'laugh';
 
 export type RecommendationDescriptor = {
@@ -438,12 +438,12 @@ export const INTERVIEW_RECOMMENDATION_VALUES = Object.keys(
   INTERVIEW_RECOMMENDATIONS,
 ) as InterviewRecommendation[];
 
-/** The recommendations ordered worst → best, so the verdict step renders them
- *  left-to-right as a rising scale (frown → laugh). Separate from
+/** The recommendations ordered best → worst, so the verdict step leads with
+ *  "100 % compatible" and ends on "Pas intéressé". Separate from
  *  `INTERVIEW_RECOMMENDATION_VALUES` (object-key order), which the cohort
  *  synthesis iterates and must stay stable. */
 export const INTERVIEW_RECOMMENDATION_DISPLAY_ORDER: readonly InterviewRecommendation[] =
-  ['pas_interesse', 'indecis', 'bon_profil', 'tres_compatible'];
+  ['tres_compatible', 'bon_profil', 'indecis', 'pas_interesse'];
 
 // ─── List status (à faire / en cours / finalisé) ───
 
