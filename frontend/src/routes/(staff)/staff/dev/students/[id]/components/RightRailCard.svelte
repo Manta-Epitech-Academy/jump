@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import { can } from '$lib/domain/permissions';
   import Mail from '@lucide/svelte/icons/mail';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import MailOpen from '@lucide/svelte/icons/mail-open';
@@ -20,6 +22,22 @@
     type ImageRightsDecision,
   } from '$lib/domain/imageRights';
   import type { Communication } from '$lib/domain/communications';
+  import type { Infer, SuperValidated } from 'sveltekit-superforms';
+  import type { ImageRightsCorrectionSchema } from '$lib/validation/imageRights';
+  import ImageRightsCorrectionDialog from './ImageRightsCorrectionDialog.svelte';
+
+  // Decision history row as projected by the page load. Kept loose here (the
+  // dialog owns the precise type) — this card only forwards it.
+  type ImageRightsRecordVM = {
+    id: string;
+    decision: ImageRightsDecision;
+    decidedAt: Date | string;
+    signerPrenom: string | null;
+    signerNom: string | null;
+    source: 'parent_portal' | 'staff_correction';
+    note: string | null;
+    recordedByName: string | null;
+  };
 
   // One document-status badge: a label + icon in a tone colour, plus the
   // hover tooltip that explains what the state means and what's still expected.
@@ -31,8 +49,12 @@
   };
 
   // The sticky synthesis rail: last connection, recent communications (one line
-  // each), and the two stage documents (RI + DI) at a glance. Read-only — the
-  // actions live in the recommendations list on the left.
+  // each), and the two stage documents (RI + DI) at a glance. Read-only, with a
+  // single gated exception: the image-rights row carries a "Corriger" action so
+  // staff can record a guardian's offline change of mind (the decision is a
+  // legal artifact a guardian can revoke "à tout moment", and they sometimes
+  // tell us by phone). Everything else stays a display; the rest of the actions
+  // live in the recommendations list on the left.
   let {
     lastActiveAt,
     firstLoginAt,
@@ -41,6 +63,9 @@
     parentRulesSignedAt,
     charteSigned,
     imageRightsDecision,
+    imageRightsForm,
+    imageRightsRecords = [],
+    studentName = '',
     timezone,
   }: {
     lastActiveAt: Date | string | null;
@@ -50,8 +75,20 @@
     parentRulesSignedAt: Date | string | null;
     charteSigned: boolean | null | undefined;
     imageRightsDecision: ImageRightsDecision | null;
+    imageRightsForm?: SuperValidated<Infer<ImageRightsCorrectionSchema>>;
+    imageRightsRecords?: ImageRightsRecordVM[];
+    studentName?: string;
     timezone: string;
   } = $props();
+
+  // The droit-à-l'image verdict doubles as the trigger for the correction
+  // dialog, but only for staff allowed to edit it (devMember) and only when the
+  // form was provided. Everyone else sees a plain, non-interactive badge.
+  let imageRightsDialogOpen = $state(false);
+  const canCorrectImageRights = $derived(
+    imageRightsForm != null &&
+      can('devMember', page.data.staffProfile?.staffRole),
+  );
 
   function relativeLabel(date: Date | string | null): string {
     if (!date) return 'Jamais';
@@ -255,13 +292,31 @@
       </h4>
       <ul class="space-y-1.5 text-sm">
         {@render docRow('Règlement intérieur', rulesDoc)}
-        {@render docRow("Droit à l'image", imageDoc)}
+        {@render docRow(
+          "Droit à l'image",
+          imageDoc,
+          canCorrectImageRights
+            ? () => (imageRightsDialogOpen = true)
+            : undefined,
+        )}
       </ul>
     </section>
   </div>
 </EpiSection>
 
-{#snippet docRow(name: string, s: DocStatus)}
+<!-- Correction dialog, opened by clicking the droit-à-l'image verdict above.
+     Controlled + rendered only for staff allowed to edit, so the verdict is a
+     plain badge for everyone else. -->
+{#if canCorrectImageRights && imageRightsForm}
+  <ImageRightsCorrectionDialog
+    bind:open={imageRightsDialogOpen}
+    form={imageRightsForm}
+    records={imageRightsRecords}
+    {studentName}
+  />
+{/if}
+
+{#snippet docRow(name: string, s: DocStatus, onTrigger?: () => void)}
   {@const Icon = s.icon}
   <li class="flex items-center justify-between gap-3">
     <span class="text-muted-foreground">{name}</span>
@@ -269,17 +324,36 @@
       <Tooltip.Root>
         <Tooltip.Trigger>
           {#snippet child({ props })}
-            <span
-              {...props}
-              class="inline-flex cursor-help items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase {s.colorClass}"
-            >
-              <Icon class="h-3 w-3" />
-              {s.label}
-            </span>
+            {#if onTrigger}
+              <!-- The verdict itself is the edit affordance: clicking it opens
+                   the correction dialog. -->
+              <button
+                {...props}
+                type="button"
+                onclick={onTrigger}
+                class="inline-flex cursor-pointer items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase underline decoration-dotted underline-offset-4 transition-opacity hover:opacity-80 {s.colorClass}"
+              >
+                <Icon class="h-3 w-3" />
+                {s.label}
+              </button>
+            {:else}
+              <span
+                {...props}
+                class="inline-flex cursor-help items-center gap-1 font-mono text-[10px] font-bold tracking-widest uppercase {s.colorClass}"
+              >
+                <Icon class="h-3 w-3" />
+                {s.label}
+              </span>
+            {/if}
           {/snippet}
         </Tooltip.Trigger>
         <Tooltip.Content class="max-w-60">
           <p class="text-xs">{s.tooltip}</p>
+          {#if onTrigger}
+            <p class="mt-1 text-[10px] text-muted-foreground">
+              Cliquez pour corriger la décision.
+            </p>
+          {/if}
         </Tooltip.Content>
       </Tooltip.Root>
     </Tooltip.Provider>

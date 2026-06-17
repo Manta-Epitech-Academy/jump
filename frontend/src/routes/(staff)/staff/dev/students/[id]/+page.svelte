@@ -303,6 +303,9 @@
             parentRulesSignedAt={data.student.parentRulesSignedAt}
             {charteSigned}
             imageRightsDecision={data.student.imageRightsDecision}
+            imageRightsForm={data.imageRightsForm}
+            imageRightsRecords={data.imageRightsRecords}
+            studentName={`${data.student.prenom} ${data.student.nom}`}
             timezone={data.timezone}
           />
 

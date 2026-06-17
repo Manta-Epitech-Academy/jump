@@ -264,6 +264,7 @@ model StaffProfile {
   observableValidations   TalentObservableState[]
   presencesMarked         EventPresence[]
   presenceClosuresMade    EventPresenceClosure[]
+  imageRightsCorrections  ImageRightsDecisionRecord[]
 
   @@index([campusId])
 }
@@ -387,6 +388,7 @@ model Talent {
   broadcastsAsParent BroadcastRecipient[]    @relation("BroadcastRecipientParent")
   deletionRequests   TalentDeletionRequest[]
   eventPresences     EventPresence[]
+  imageRightsRecords ImageRightsDecisionRecord[]
 
   @@index([xp])
   @@index([schoolId])
@@ -456,6 +458,52 @@ enum TalentDeletionRequestStatus {
 enum ImageRightsDecision {
   accepted
   refused
+}
+
+/// Where an image-rights decision was recorded from.
+enum ImageRightsDecisionSource {
+  /// The legal guardian, via the parent flow or the child dashboard.
+  parent_portal
+  /// Staff, recording a guardian's offline change of mind on their behalf
+  /// (a phone call or email). Carries `recordedByStaffId` + a `note` for audit.
+  staff_correction
+}
+
+/// Append-only fact log of image-rights decisions — one row per choice or
+/// revision, never overwritten. The current value cached on
+/// `Talent.imageRights*` is a projection of the latest row here (same shape as
+/// the XP ledger: facts as rows, state as projection; see CLAUDE.md "Data
+/// modeling"). A guardian revoking "à tout moment" or staff correcting an
+/// offline change of mind both append a new row, so the full history of who
+/// decided what and when survives — which matters legally for a minor's consent.
+///
+/// `relationship` and `city` are persisted here (they previously lived only in
+/// the transient PDF job payload, so they were unqueryable after generation).
+model ImageRightsDecisionRecord {
+  id                String                    @id @default(cuid())
+  talentId          String
+  decision          ImageRightsDecision
+  /// When the guardian made this choice (the signature timestamp).
+  decidedAt         DateTime
+  /// Signer identity + context. Nullable only because rows backfilled from the
+  /// pre-ledger projection carry just what `Talent` persisted (signer name, if
+  /// any; relationship/city were never stored). Every row written going forward
+  /// fills all four — the parent and staff forms require them.
+  signerPrenom      String?
+  signerNom         String?
+  relationship      String?
+  city              String?
+  source            ImageRightsDecisionSource @default(parent_portal)
+  /// The staff member who recorded a `staff_correction`; null for `parent_portal`.
+  recordedByStaffId String?
+  /// Staff reason for the correction (why the decision was changed offline).
+  note              String?
+  createdAt         DateTime                  @default(now())
+
+  talent     Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  recordedBy StaffProfile? @relation(fields: [recordedByStaffId], references: [id], onDelete: SetNull)
+
+  @@index([talentId, createdAt])
 }
 
 model TalentDeletionRequest {
