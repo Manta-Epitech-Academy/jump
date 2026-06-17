@@ -4,7 +4,10 @@ import {
   generateInterviewPdf,
   interviewPdfFilename,
 } from '$lib/server/services/interviewPdfGenerator';
+import { resetInterview } from '$lib/server/services/interviewResetService';
 import { fail } from '@sveltejs/kit';
+
+const RESET_REASON_MAX = 500;
 
 /** Prisma select for the full interview row needed by the PDF generator. */
 const interviewSelect = {
@@ -135,5 +138,48 @@ export const actions: Actions = {
     // Return as base64 data URL for inline viewing
     const b64 = Buffer.from(pdf).toString('base64');
     return { url: `data:application/pdf;base64,${b64}`, filename };
+  },
+
+  // Reset = hard-delete an interview finalized by mistake, returning the talent
+  // to "à faire" so a fresh one can be conducted. Belt-and-braces admin assert
+  // on top of the /staff/admin/* route guard, since this destroys a colleague's
+  // finalized work on a minor's record. Mirrors the account-deletions guard.
+  reset: async ({ request, locals }) => {
+    if (locals.staffProfile?.staffRole !== 'admin') {
+      return fail(403, { error: 'Réservé aux administrateurs.' });
+    }
+
+    const form = await request.formData();
+    const id = form.get('id');
+    const reason = form.get('reason');
+
+    if (typeof id !== 'string' || !id) {
+      return fail(400, { error: 'Entretien manquant.' });
+    }
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+    if (!trimmedReason) {
+      return fail(400, { error: 'Motif de la réinitialisation requis.' });
+    }
+    if (trimmedReason.length > RESET_REASON_MAX) {
+      return fail(400, {
+        error: `Le motif ne peut pas dépasser ${RESET_REASON_MAX} caractères.`,
+      });
+    }
+
+    try {
+      const done = await resetInterview({
+        interviewId: id,
+        resetByStaffId: locals.staffProfile.id,
+        reason: trimmedReason,
+      });
+      if (!done) {
+        return fail(409, { error: 'Entretien déjà réinitialisé.' });
+      }
+    } catch (err) {
+      console.error('[interview-pdfs] reset failed', err);
+      return fail(500, { error: 'Échec de la réinitialisation.' });
+    }
+
+    return { success: true };
   },
 };

@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import FileText from '@lucide/svelte/icons/file-text';
   import ExternalLink from '@lucide/svelte/icons/external-link';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import Search from '@lucide/svelte/icons/search';
   import X from '@lucide/svelte/icons/x';
   import Layers from '@lucide/svelte/icons/layers';
@@ -21,8 +22,23 @@
   import { cn, formatDateTimeFr } from '$lib/utils';
   import { toast } from 'svelte-sonner';
   import ExportMenu from './components/ExportMenu.svelte';
+  import ResetInterviewDialog from './components/ResetInterviewDialog.svelte';
 
   let { data }: { data: PageData } = $props();
+
+  type ResetTarget = {
+    id: string;
+    talentName: string;
+    staffName: string;
+    conductedAt: string;
+  };
+  let resetOpen = $state(false);
+  let resetTarget = $state<ResetTarget | null>(null);
+
+  function openReset(interview: ResetTarget) {
+    resetTarget = interview;
+    resetOpen = true;
+  }
 
   const recoLabels: Record<string, string> = {
     tres_compatible: 'Compatible',
@@ -205,6 +221,9 @@
             <Table.Head class={th}>Evenement</Table.Head>
             <Table.Head class={th}>Date</Table.Head>
             <Table.Head class={cn(th, 'text-right')}>PDF</Table.Head>
+            <Table.Head class={cn(th, 'text-right')}>
+              <span class="sr-only">Réinitialiser</span>
+            </Table.Head>
           </Table.Row>
         </Table.Header>
         <Table.Body>
@@ -266,10 +285,27 @@
                   </Button>
                 </form>
               </Table.Cell>
+              <Table.Cell class="text-right">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-auto gap-1.5 p-0 text-xs text-muted-foreground hover:text-destructive"
+                  onclick={() =>
+                    openReset({
+                      id: interview.id,
+                      talentName: interview.talentName,
+                      staffName: interview.staffName,
+                      conductedAt: interview.conductedAt,
+                    })}
+                >
+                  <RotateCcw class="h-3.5 w-3.5" />
+                  Réinitialiser
+                </Button>
+              </Table.Cell>
             </Table.Row>
           {:else}
             <Table.Row>
-              <Table.Cell colspan={7} class="py-12 text-center">
+              <Table.Cell colspan={8} class="py-12 text-center">
                 {#if hasFilters}
                   <p class="font-mono text-xs text-muted-foreground">
                     &lt;Aucun entretien pour ce filtre/&gt;
@@ -295,3 +331,5 @@
     </Card.Content>
   </Card.Root>
 </div>
+
+<ResetInterviewDialog bind:open={resetOpen} target={resetTarget} />

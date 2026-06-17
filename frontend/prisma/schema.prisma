@@ -266,6 +266,7 @@ model StaffProfile {
   presencesMarked         EventPresence[]
   presenceClosuresMade    EventPresenceClosure[]
   imageRightsCorrections  ImageRightsDecisionRecord[]
+  interviewResets         InterviewReset[]            @relation("InterviewResetBy")
 
   @@index([campusId])
 }
@@ -390,6 +391,7 @@ model Talent {
   deletionRequests   TalentDeletionRequest[]
   eventPresences     EventPresence[]
   imageRightsRecords ImageRightsDecisionRecord[]
+  interviewResets    InterviewReset[]
 
   @@index([xp])
   @@index([schoolId])
@@ -910,6 +912,32 @@ model Interview {
   @@index([talentId])
   @@index([staffId])
   @@index([campusId])
+}
+
+/// Audit trail for an orientation interview an admin reset. An interview
+/// finalized by mistake is hard-deleted, so the talent returns to "à faire" and
+/// a fresh interview can be conducted; this append-only row is the only trace
+/// left of the discarded one: whose it was, who had conducted it, when, who
+/// reset it and why. A destructive reversal of a colleague's finalized work on a
+/// minor's record never happens silently. Pure accountability, never read on a
+/// hot path.
+model InterviewReset {
+  id                 String   @id @default(cuid())
+  talentId           String
+  /// Snapshot of the deleted interview (its row no longer exists, so these are
+  /// plain fields, not relations): who conducted it and when.
+  conductedByStaffId String?
+  conductedAt        DateTime
+  /// The admin who performed the reset; kept as a live FK for "reset by" lookups.
+  resetByStaffId     String?
+  /// Why it was reset. Required, collected in the confirm dialog.
+  reason             String
+  createdAt          DateTime @default(now())
+
+  talent  Talent        @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  resetBy StaffProfile? @relation("InterviewResetBy", fields: [resetByStaffId], references: [id], onDelete: SetNull)
+
+  @@index([talentId, createdAt])
 }
 
 model StepsProgress {
