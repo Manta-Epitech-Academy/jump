@@ -26,27 +26,30 @@
     .map((f) => f.key as FlagKey);
 
   // The flag list grows over time, so the dialog filters by label / description
-  // / key and splits the two kinds into their own groups. Filtering is purely
-  // visual: $form.flags stays the source of truth, so a checked flag hidden by
-  // the search is never dropped on submit.
+  // / key and splits the two kinds into their own groups. The search only
+  // toggles row VISIBILITY, it never unmounts a row: this form posts via
+  // FormData (superforms default dataType), so the submitted `flags` array is
+  // built from the rendered `name="flags"` checkboxes. Unmounting a checked but
+  // non-matching flag would drop it from the payload and silently disable it on
+  // save. Keep every flag in the DOM and hide non-matches with [hidden].
+  const capabilityFlags = flagDefs.filter((f) => f.kind === 'capability');
+  const rolloutFlags = flagDefs.filter((f) => f.kind === 'rollout');
   let flagSearch = $state('');
-  const filteredFlags = $derived(
-    flagDefs.filter((f) => {
-      const q = flagSearch.trim().toLowerCase();
-      if (!q) return true;
-      return (
+  const matchedKeys = $derived.by(() => {
+    const q = flagSearch.trim().toLowerCase();
+    const matched = new Set<string>();
+    for (const f of flagDefs) {
+      if (
+        !q ||
         f.label.toLowerCase().includes(q) ||
         f.description.toLowerCase().includes(q) ||
         f.key.toLowerCase().includes(q)
-      );
-    }),
-  );
-  const capabilityFlags = $derived(
-    filteredFlags.filter((f) => f.kind === 'capability'),
-  );
-  const rolloutFlags = $derived(
-    filteredFlags.filter((f) => f.kind === 'rollout'),
-  );
+      ) {
+        matched.add(f.key);
+      }
+    }
+    return matched;
+  });
 
   // Form handling logic
   const { form, errors, enhance, delayed, reset } = superForm(
@@ -77,6 +80,7 @@
 
   function openCreate() {
     reset();
+    flagSearch = '';
     $form.flags = [...defaultEnabledFlags];
     isEditing = false;
     editId = '';
@@ -151,6 +155,7 @@
 
   function openEdit(campus: any) {
     reset();
+    flagSearch = '';
     $form.name = campus.name;
     $form.externalName = campus.externalName ?? '';
     $form.timezone = campus.timezone ?? 'Europe/Paris';
@@ -167,8 +172,9 @@
   }
 </script>
 
-{#snippet flagRow(flag: (typeof flagDefs)[number])}
+{#snippet flagRow(flag: (typeof flagDefs)[number], hidden: boolean)}
   <label
+    {hidden}
     class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
   >
     <Checkbox
@@ -402,27 +408,27 @@
               class="h-9"
             />
             <div class="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-              {#if capabilityFlags.length}
+              {#if capabilityFlags.some((f) => matchedKeys.has(f.key))}
                 <div class="space-y-2">
                   <p class="text-xs font-bold text-muted-foreground uppercase">
                     Capacités
                   </p>
                   {#each capabilityFlags as flag (flag.key)}
-                    {@render flagRow(flag)}
+                    {@render flagRow(flag, !matchedKeys.has(flag.key))}
                   {/each}
                 </div>
               {/if}
-              {#if rolloutFlags.length}
+              {#if rolloutFlags.some((f) => matchedKeys.has(f.key))}
                 <div class="space-y-2">
                   <p class="text-xs font-bold text-muted-foreground uppercase">
                     Déploiements
                   </p>
                   {#each rolloutFlags as flag (flag.key)}
-                    {@render flagRow(flag)}
+                    {@render flagRow(flag, !matchedKeys.has(flag.key))}
                   {/each}
                 </div>
               {/if}
-              {#if !filteredFlags.length}
+              {#if matchedKeys.size === 0}
                 <p class="py-4 text-center text-xs text-muted-foreground">
                   Aucune fonctionnalité ne correspond.
                 </p>
