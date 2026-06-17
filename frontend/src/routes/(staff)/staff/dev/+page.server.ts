@@ -33,12 +33,24 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
   if (!hasFlag(locals, 'coding_club')) {
     if (activeStage) {
-      // Stage-only landing: drop the dev straight onto the inscrits table
-      // (the dashboard + event overview are coding_club-era surfaces).
-      throw redirect(
-        303,
-        resolvePath(`/staff/dev/events/${activeStage.id}/inscrits`),
-      );
+      // Stage-only landing: drop the dev straight onto the first enabled stage
+      // surface (the dashboard + event overview are coding_club-era surfaces).
+      // Inscrits is the usual landing, but each surface is now individually
+      // flag-gated, so an interview-only campus may have inscrits off; fall
+      // through to the next enabled surface, or the minimalist dashboard if none.
+      const landingFlag = hasFlag(locals, 'inscrits')
+        ? 'inscrits'
+        : hasFlag(locals, 'entretiens')
+          ? 'entretiens'
+          : hasFlag(locals, 'emargement')
+            ? 'emargement'
+            : null;
+      if (landingFlag) {
+        throw redirect(
+          303,
+          resolvePath(`/staff/dev/events/${activeStage.id}/${landingFlag}`),
+        );
+      }
     }
     return {
       userName: locals.user.name || 'Utilisateur',

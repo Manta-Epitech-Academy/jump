@@ -25,6 +25,29 @@
     .filter((f) => f.defaultEnabled)
     .map((f) => f.key as FlagKey);
 
+  // The flag list grows over time, so the dialog filters by label / description
+  // / key and splits the two kinds into their own groups. Filtering is purely
+  // visual: $form.flags stays the source of truth, so a checked flag hidden by
+  // the search is never dropped on submit.
+  let flagSearch = $state('');
+  const filteredFlags = $derived(
+    flagDefs.filter((f) => {
+      const q = flagSearch.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        f.label.toLowerCase().includes(q) ||
+        f.description.toLowerCase().includes(q) ||
+        f.key.toLowerCase().includes(q)
+      );
+    }),
+  );
+  const capabilityFlags = $derived(
+    filteredFlags.filter((f) => f.kind === 'capability'),
+  );
+  const rolloutFlags = $derived(
+    filteredFlags.filter((f) => f.kind === 'rollout'),
+  );
+
   // Form handling logic
   const { form, errors, enhance, delayed, reset } = superForm(
     untrack(() => data.form),
@@ -143,6 +166,46 @@
     deleteDialogOpen = true;
   }
 </script>
+
+{#snippet flagRow(flag: (typeof flagDefs)[number])}
+  <label
+    class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
+  >
+    <Checkbox
+      name="flags"
+      value={flag.key}
+      checked={$form.flags.includes(flag.key as FlagKey)}
+      onCheckedChange={(v) => {
+        const key = flag.key as FlagKey;
+        if (v === true) {
+          if (!$form.flags.includes(key)) $form.flags = [...$form.flags, key];
+        } else {
+          $form.flags = $form.flags.filter((k) => k !== key);
+        }
+      }}
+      class="mt-1"
+    />
+    <div class="flex-1 space-y-1">
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-bold">{flag.label}</span>
+        <Badge
+          variant={flag.kind === 'rollout' ? 'outline' : 'secondary'}
+          class="text-[10px] uppercase"
+        >
+          {flag.kind}
+        </Badge>
+      </div>
+      <p class="text-xs text-muted-foreground">
+        {flag.description}
+      </p>
+      {#if flag.removeBy && flag.removeBy < new Date()}
+        <p class="text-xs text-destructive">
+          Flag à supprimer du code (expiré le {flag.removeBy.toLocaleDateString()}).
+        </p>
+      {/if}
+    </div>
+  </label>
+{/snippet}
 
 <svelte:head>
   <title>Campus</title>
@@ -328,53 +391,42 @@
                 >{/if}
             </div>
           </div>
-          <fieldset class="space-y-2">
+          <fieldset class="space-y-3">
             <legend class="text-sm font-bold uppercase">
               Fonctionnalités activées
             </legend>
-            <div class="space-y-2">
-              {#each flagDefs as flag}
-                <label
-                  class="flex cursor-pointer items-start gap-3 rounded-sm border bg-card p-3 hover:border-epi-pink/40"
-                >
-                  <Checkbox
-                    name="flags"
-                    value={flag.key}
-                    checked={$form.flags.includes(flag.key as FlagKey)}
-                    onCheckedChange={(v) => {
-                      const key = flag.key as FlagKey;
-                      if (v === true) {
-                        if (!$form.flags.includes(key))
-                          $form.flags = [...$form.flags, key];
-                      } else {
-                        $form.flags = $form.flags.filter((k) => k !== key);
-                      }
-                    }}
-                    class="mt-1"
-                  />
-                  <div class="flex-1 space-y-1">
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-bold">{flag.label}</span>
-                      <Badge
-                        variant={flag.kind === 'rollout'
-                          ? 'outline'
-                          : 'secondary'}
-                        class="text-[10px] uppercase"
-                      >
-                        {flag.kind}
-                      </Badge>
-                    </div>
-                    <p class="text-xs text-muted-foreground">
-                      {flag.description}
-                    </p>
-                    {#if flag.removeBy && flag.removeBy < new Date()}
-                      <p class="text-xs text-destructive">
-                        Flag à supprimer du code (expiré le {flag.removeBy.toLocaleDateString()}).
-                      </p>
-                    {/if}
-                  </div>
-                </label>
-              {/each}
+            <Input
+              type="search"
+              bind:value={flagSearch}
+              placeholder="Rechercher une fonctionnalité..."
+              class="h-9"
+            />
+            <div class="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+              {#if capabilityFlags.length}
+                <div class="space-y-2">
+                  <p class="text-xs font-bold text-muted-foreground uppercase">
+                    Capacités
+                  </p>
+                  {#each capabilityFlags as flag (flag.key)}
+                    {@render flagRow(flag)}
+                  {/each}
+                </div>
+              {/if}
+              {#if rolloutFlags.length}
+                <div class="space-y-2">
+                  <p class="text-xs font-bold text-muted-foreground uppercase">
+                    Déploiements
+                  </p>
+                  {#each rolloutFlags as flag (flag.key)}
+                    {@render flagRow(flag)}
+                  {/each}
+                </div>
+              {/if}
+              {#if !filteredFlags.length}
+                <p class="py-4 text-center text-xs text-muted-foreground">
+                  Aucune fonctionnalité ne correspond.
+                </p>
+              {/if}
             </div>
           </fieldset>
         </div>

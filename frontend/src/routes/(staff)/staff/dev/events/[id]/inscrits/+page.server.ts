@@ -8,6 +8,7 @@ import {
   loadEventOr404,
   stageEndOrDefault,
 } from '$lib/server/services/stageContext';
+import { requireFlag } from '$lib/server/auth/guards';
 import { compareNiveaux } from '$lib/domain/niveau';
 import { rulesStatus, inscritStatus } from '$lib/domain/stageCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
@@ -41,6 +42,7 @@ function originConditions(schoolId: string | null, interestId: string | null) {
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
+  requireFlag(locals, 'inscrits');
   const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
