@@ -137,6 +137,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
         prenom: t.prenom,
         niveau: t.niveau,
         schoolName: t.school?.name ?? null,
+        xp: t.xp,
         status: inscritStatus(connected, rules, image),
         connected,
         rulesStatus: rules,

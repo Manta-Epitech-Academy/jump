@@ -17,11 +17,6 @@ import {
   isRevealActive,
   type RevealTextField,
 } from '$lib/domain/interview';
-import {
-  applyPhaseOverride,
-  getEventStatus,
-  getLifecycleBounds,
-} from '$lib/domain/eventLifecycle';
 import { EVENT_TYPES } from '$lib/domain/event';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
@@ -30,6 +25,7 @@ import { isImageRightsDecided } from '$lib/domain/imageRights';
 import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
 import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
+import { getTalentXpStory } from '$lib/server/services/xpStoryService';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is
@@ -40,6 +36,7 @@ const RIGHT_RAIL_COMMS = 6;
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
+  const timezone = getCampusTimezone(locals);
   const broadcastsWhere = {
     OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
   };
@@ -50,6 +47,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       reminderRows,
       broadcastRows,
       completedInterviewCount,
+      xpStory,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -124,6 +122,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       db.interview.count({
         where: { talentId: params.id, status: 'done' },
       }),
+      getTalentXpStory(params.id, timezone),
     ]);
 
     const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
@@ -169,23 +168,22 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
-    const timezone = getCampusTimezone(locals);
-    const bounds = getLifecycleBounds(timezone);
+    // The orientation interview is a 1:1 artifact of the talent's stage de
+    // seconde participation, not of the stage's calendar phase. Staff routinely
+    // type up paper interviews weeks after the stage and re-open a finalized
+    // synthesis long after, so we attach to the talent's most recent stage
+    // participation whatever its lifecycle status (upcoming/ongoing/past).
+    // `participations` is ordered `event.date desc`, so [0] is the latest stage.
+    const stageParticipations = participations.filter(
+      (p) => p.event.eventType === EVENT_TYPES.STAGE_SECONDE,
+    );
+    const primaryComplianceParticipation = stageParticipations[0] ?? null;
 
-    const activeStageParticipations = participations.filter((p) => {
-      if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
-      const status = applyPhaseOverride(
-        getEventStatus(p.event, bounds),
-        locals.stagePhaseOverride,
-      );
-      return status === 'upcoming' || status === 'ongoing';
-    });
-    const primaryComplianceParticipation = activeStageParticipations[0] ?? null;
-
-    // Interview conduct surface. The interview is 1:1 with the talent's active
-    // stage participation, so we prefill the grid from any existing row (absence
-    // = "à faire"). With no active stage there is nothing to attach to, so the
-    // fiche disables "Faire l'entretien" with a reason and the actions refuse.
+    // Interview conduct surface. The interview is 1:1 with the talent's stage
+    // participation, so we prefill the grid from any existing row (absence
+    // = "à faire"). With no stage participation there is nothing to attach to,
+    // so the fiche disables "Faire l'entretien" with a reason and the actions
+    // refuse.
     const existingInterview = primaryComplianceParticipation
       ? await db.interview.findUnique({
           where: { participationId: primaryComplianceParticipation.id },
@@ -230,7 +228,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const canConductInterview = primaryComplianceParticipation != null;
     const noInterviewReason = canConductInterview
       ? null
-      : 'Aucun stage de seconde en cours pour ce stagiaire.';
+      : "Ce stagiaire n'a aucun stage de seconde.";
 
     // Staff correction form for the image-rights decision, prefilled with the
     // current decision + the guardian on file (the last signer, else the parent
@@ -300,8 +298,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     return {
       student,
+      xpStory,
       participations,
-      activeStageParticipations,
       primaryComplianceParticipation,
       communications,
       firstLoginAt,
