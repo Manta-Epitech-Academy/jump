@@ -41,17 +41,57 @@
 </script>
 
 <PageHero>
-  <!-- One compact row at `sm`: avatar, name + subtitle, then the XP medallion
-       beside the name (keeps the band height driven by the avatar, not a stacked
-       block). The Salesforce utility is pushed to the far right (`ml-auto`) so it
-       never reads as paired with the XP. Stacks to a column below `sm`. -->
+  <!-- Desktop (`sm+`): one centered row — avatar, name, XP medallion, then the
+       Salesforce utility pushed to the far right (`ml-auto`), never reading as
+       paired with the XP. Mobile: the avatar and the medallion share the top row
+       (the `sm:contents` wrapper groups them on mobile, then dissolves at `sm` so
+       all four items flow into the single row, reordered via `order`), and the
+       name + subtitle take their own full-width line below. -->
   <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-    <TalentAvatar
-      talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
-      size="lg"
-      class="h-20 w-20 shrink-0 rounded-sm shadow-md sm:h-24 sm:w-24 md:h-28 md:w-28"
-    />
-    <div class="min-w-0 overflow-hidden">
+    <div class="flex items-center gap-4 sm:contents">
+      <TalentAvatar
+        talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
+        size="lg"
+        class="h-20 w-20 shrink-0 rounded-sm shadow-md sm:order-1 sm:h-24 sm:w-24 md:h-28 md:w-28"
+      />
+
+      {#if xpStory.total > 0}
+        <!-- Glorified XP medallion, the fiche's through-line: click for the
+             breakdown. Beside the avatar on mobile, after the name on desktop
+             (via `order`), kept apart from the Salesforce utility. A compact,
+             content-hugging badge either way. -->
+        <button
+          type="button"
+          onclick={() => (detailOpen = true)}
+          aria-label="Voir le détail des XP"
+          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-teal-solid px-4 py-3 text-left text-white shadow-md ring-1 ring-white/10 transition-colors hover:bg-epi-teal-solid/90 sm:order-3"
+        >
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white/15"
+          >
+            <Sparkles class="h-5 w-5" />
+          </span>
+          <span class="min-w-0">
+            <span
+              class="block font-mono text-[10px] font-bold tracking-widest text-white/80 uppercase"
+            >
+              XP sur JUMP
+            </span>
+            <span class="flex items-baseline gap-1">
+              <span class="font-heading text-4xl leading-none tabular-nums"
+                >{xpStory.total}</span
+              >
+              <span class="font-heading text-lg">XP</span>
+            </span>
+          </span>
+          <ChevronRight
+            class="h-4 w-4 shrink-0 text-white/70 transition-transform group-hover:translate-x-0.5 group-hover:text-white"
+          />
+        </button>
+      {/if}
+    </div>
+
+    <div class="min-w-0 overflow-hidden sm:order-2">
       <h1
         class="flex flex-wrap items-baseline font-heading text-3xl tracking-wide uppercase sm:text-5xl md:text-6xl"
       >
@@ -67,39 +107,6 @@
       {/if}
     </div>
 
-    {#if xpStory.total > 0}
-      <!-- Glorified XP medallion, the fiche's through-line: click for the
-           breakdown. Beside the name (its identity), separate from Salesforce. -->
-      <button
-        type="button"
-        onclick={() => (detailOpen = true)}
-        aria-label="Voir le détail des XP"
-        class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-teal-solid px-4 py-3 text-left text-white shadow-md ring-1 ring-white/10 transition-colors hover:bg-epi-teal-solid/90"
-      >
-        <span
-          class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white/15"
-        >
-          <Sparkles class="h-5 w-5" />
-        </span>
-        <span class="min-w-0">
-          <span
-            class="block font-mono text-[10px] font-bold tracking-widest text-white/80 uppercase"
-          >
-            XP sur JUMP
-          </span>
-          <span class="flex items-baseline gap-1">
-            <span class="font-heading text-4xl leading-none tabular-nums"
-              >{xpStory.total}</span
-            >
-            <span class="font-heading text-lg">XP</span>
-          </span>
-        </span>
-        <ChevronRight
-          class="h-4 w-4 shrink-0 text-white/70 transition-transform group-hover:translate-x-0.5 group-hover:text-white"
-        />
-      </button>
-    {/if}
-
     {#if externalId}
       <!-- Salesforce: a utility shortcut to the CRM, pushed to the far right of
            the band, away from the XP. Solid white pill so it reads as clickable
@@ -110,7 +117,7 @@
         label="Fiche Salesforce"
         variant="default"
         class={cn(
-          'w-full shrink-0 justify-center bg-white font-semibold text-epi-blue shadow-md sm:ml-auto sm:w-auto sm:self-start',
+          'w-full shrink-0 justify-center bg-white font-semibold text-epi-blue shadow-md sm:order-4 sm:ml-auto sm:w-auto sm:self-start',
           'hover:bg-white/90 hover:text-epi-blue hover:shadow-lg',
         )}
       />
