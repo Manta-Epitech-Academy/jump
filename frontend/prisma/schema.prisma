@@ -250,6 +250,7 @@ model StaffProfile {
   // finished since. A convenience filter, not a completeness guarantee (the
   // all-time export stays the authoritative archive); null = never exported.
   onboardingDocsExportedAt DateTime?
+  interviewDocsExportedAt  DateTime?
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
