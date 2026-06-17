@@ -38,13 +38,14 @@ export async function getTalentXpStory(
   // the grant. The grant's sourceId is `${rewardId}_${talentId}`, so strip the
   // known talentId suffix to recover the rewardId and resolve every name in one
   // query, then humanise. Non-reward grants need no lookup.
+  const rewardIdOf = (sourceId: string): string =>
+    sourceId.endsWith(`_${talentId}`)
+      ? sourceId.slice(0, -(talentId.length + 1))
+      : sourceId;
+
   const rewardIds = grants
     .filter((g) => g.source === 'reward' && g.sourceId)
-    .map((g) =>
-      g.sourceId!.endsWith(`_${talentId}`)
-        ? g.sourceId!.slice(0, -(talentId.length + 1))
-        : g.sourceId!,
-    );
+    .map((g) => rewardIdOf(g.sourceId!));
   const rewardNames = new Map<string, string>();
   if (rewardIds.length) {
     const rewards = await prisma.xpReward.findMany({
@@ -54,13 +55,8 @@ export async function getTalentXpStory(
     for (const r of rewards) rewardNames.set(r.id, r.name);
   }
 
-  const rewardNameFor = (sourceId: string | null): string | undefined => {
-    if (!sourceId) return undefined;
-    const rewardId = sourceId.endsWith(`_${talentId}`)
-      ? sourceId.slice(0, -(talentId.length + 1))
-      : sourceId;
-    return rewardNames.get(rewardId);
-  };
+  const rewardNameFor = (sourceId: string | null): string | undefined =>
+    sourceId ? rewardNames.get(rewardIdOf(sourceId)) : undefined;
 
   return {
     total: grants.reduce((sum, g) => sum + g.amount, 0),
