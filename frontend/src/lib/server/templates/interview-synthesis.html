@@ -1,0 +1,253 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        margin: 36px 40px;
+        color: #1e293b;
+        line-height: 1.5;
+        font-size: 13px;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 28px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #e2e8f0;
+      }
+      .header h1 {
+        font-size: 20px;
+        color: #0f172a;
+        margin: 0 0 4px 0;
+      }
+      .header p {
+        font-size: 12px;
+        color: #64748b;
+        margin: 0;
+      }
+      .meta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 24px;
+        margin-bottom: 24px;
+        padding: 12px 16px;
+        background: #f8fafc;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        font-size: 12px;
+      }
+      .meta-grid .label {
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 10px;
+      }
+      .meta-grid .value {
+        color: #0f172a;
+      }
+      .section {
+        margin-bottom: 20px;
+      }
+      .section-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #0f172a;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding-bottom: 4px;
+        border-bottom: 2px solid #3b82f6;
+        margin-bottom: 12px;
+        display: inline-block;
+      }
+      .question {
+        margin-bottom: 10px;
+      }
+      .question-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 2px;
+      }
+      .answer {
+        font-size: 13px;
+        color: #0f172a;
+      }
+      .answer-list {
+        margin: 2px 0;
+        padding-left: 16px;
+      }
+      .answer-list li {
+        margin: 1px 0;
+      }
+      .answer-empty {
+        color: #94a3b8;
+        font-style: italic;
+      }
+      .stars {
+        font-size: 16px;
+        letter-spacing: 2px;
+      }
+      .star-filled {
+        color: #f59e0b;
+      }
+      .star-empty {
+        color: #e2e8f0;
+      }
+      .verdict-box {
+        margin-top: 24px;
+        padding: 16px;
+        border: 2px solid #0f172a;
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+      .verdict-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #0f172a;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 10px;
+      }
+      .reco-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .reco-tres_compatible {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .reco-bon_profil {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+      .reco-indecis {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .reco-pas_interesse {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .verdict-note {
+        font-size: 13px;
+        color: #334155;
+        margin-top: 6px;
+        white-space: pre-wrap;
+      }
+      .one-sentence {
+        font-style: italic;
+        color: #334155;
+        border-left: 3px solid #3b82f6;
+        padding-left: 10px;
+        margin: 2px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <%- data.logoSvg %>
+      <h1>Synthese d'entretien</h1>
+      <p>Stage de Seconde</p>
+    </div>
+
+    <div class="meta-grid">
+      <div>
+        <div class="label">Talent</div>
+        <div class="value"><%= data.talentName %></div>
+      </div>
+      <div>
+        <div class="label">Interviewer</div>
+        <div class="value"><%= data.staffName %></div>
+      </div>
+      <div>
+        <div class="label">Campus</div>
+        <div class="value"><%= data.campusName %></div>
+      </div>
+      <div>
+        <div class="label">Date</div>
+        <div class="value"><%= data.conductedAt %></div>
+      </div>
+      <% if (data.eventTitle) { %>
+      <div>
+        <div class="label">Evenement</div>
+        <div class="value"><%= data.eventTitle %></div>
+      </div>
+      <% } %>
+    </div>
+
+    <% for (const section of data.sections) { %>
+    <div class="section">
+      <div class="section-title"><%= section.title %></div>
+      <% for (const q of section.questions) { %>
+      <div class="question">
+        <div class="question-label"><%= q.label %></div>
+        <% if (q.kind === 'rating') { %>
+        <div class="stars">
+          <% for (let i = 1; i <= q.max; i++) { %>
+          <span
+            class="<%= i <= (q.value || 0) ? 'star-filled' : 'star-empty' %>"
+            >&#9733;</span
+          >
+          <% } %> <% if (q.value) { %><span
+            style="font-size: 12px; color: #64748b; margin-left: 4px"
+            ><%= q.value %>/<%= q.max %></span
+          ><% } %>
+        </div>
+        <% } else if (q.kind === 'text') { %> <% if (q.field === 'oneSentence'
+        && q.value) { %>
+        <div class="one-sentence">&laquo; <%= q.value %> &raquo;</div>
+        <% } else if (q.value) { %>
+        <div class="answer"><%= q.value %></div>
+        <% } else { %>
+        <div class="answer-empty">Non renseigne</div>
+        <% } %> <% } else if (Array.isArray(q.value)) { %> <% if (q.value.length
+        > 0) { %>
+        <ul class="answer-list">
+          <% for (const v of q.value) { %>
+          <li><%= v %></li>
+          <% } %>
+        </ul>
+        <% } else { %>
+        <div class="answer-empty">Non renseigne</div>
+        <% } %> <% } else if (q.value) { %>
+        <div class="answer"><%= q.value %></div>
+        <% } else { %>
+        <div class="answer-empty">Non renseigne</div>
+        <% } %> <% if (q.revealText) { %>
+        <div
+          class="answer"
+          style="margin-top: 2px; font-size: 12px; color: #475569"
+        >
+          Precision : <%= q.revealText %>
+        </div>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+    <% } %>
+
+    <div class="verdict-box">
+      <div class="verdict-title">Avis de l'equipe</div>
+      <% if (data.recommendation) { %>
+      <div class="reco-badge reco-<%= data.recommendationKey %>">
+        <%= data.recommendation %>
+      </div>
+      <% } else { %>
+      <div class="answer-empty">Aucune recommandation</div>
+      <% } %> <% if (data.verdictNote) { %>
+      <div class="verdict-note"><%= data.verdictNote %></div>
+      <% } %>
+    </div>
+  </body>
+</html>
