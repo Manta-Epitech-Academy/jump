@@ -233,7 +233,6 @@ export const actions: Actions = {
     if (!form.valid) return fail(400, { form });
 
     const campusId = getCampusId(locals);
-    const timezone = getCampusTimezone(locals);
     const event = await loadEventOr404(params.id, campusId);
 
     const result = await markAllPresentInSlot(
@@ -241,14 +240,13 @@ export const actions: Actions = {
       event.id,
       dateKeyToDbDate(form.data.day),
       form.data.slot,
-      timezone,
       locals.staffProfile.id,
     );
 
     if (result.status === 'closed') {
       return message(
         form,
-        'Ce créneau est clôturé : corrigez les présences ligne par ligne.',
+        'Ce créneau a été clôturé : rouvrez-le pour marquer tout le monde présent.',
         { status: 409 },
       );
     }
