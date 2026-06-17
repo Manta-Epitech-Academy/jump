@@ -8,41 +8,60 @@ import {
   type InterviewQuestion,
   type ChoiceQuestion,
 } from '$lib/domain/interview';
-import type { InterviewRecommendation } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
-/** The full Interview row with its relations, as loaded by the admin page. */
-export type InterviewForPdf = {
-  id: string;
-  conductedAt: Date;
-  recommendation: InterviewRecommendation | null;
-  verdictNote: string | null;
-  satisfactionStars: number | null;
-  oneSentence: string | null;
-  // Single-choice enum fields (string | null)
-  discoveryChannel: string | null;
-  motivation: string | null;
-  orientationTalkAtSchool: string | null;
-  passionateTeacher: string | null;
-  wantsMore: string | null;
-  // Multi-choice enum arrays
-  techProjection: string[];
-  specialties: string[];
-  otherJobs: string[];
-  infoSources: string[];
-  nextYearEvents: string[];
-  // Reveal free-text fields
-  teacherName: string | null;
-  teacherSubject: string | null;
-  discoveryChannelOther: string | null;
-  specialtiesOther: string | null;
-  otherJobsOther: string | null;
-  infoSourcesOther: string | null;
-  // Relations
-  talent: { prenom: string; nom: string };
-  staff: { user: { name: string | null } };
-  campus: { name: string };
-  participation: { event: { titre: string | null } };
-};
+/**
+ * The exact `Interview` selection the PDF needs, defined once and shared by the
+ * admin page's inline viewer and the bulk ZIP export, so the two selects can
+ * never drift from each other or from the schema. (They did once: the
+ * questionnaire's free-text model changed under a merge and both selects kept
+ * reading dropped columns.) `InterviewForPdf` is derived from this, so adding a
+ * column here flows straight to the consumer type.
+ */
+export const interviewPdfSelect = {
+  id: true,
+  conductedAt: true,
+  recommendation: true,
+  verdictNote: true,
+  satisfactionStars: true,
+  oneSentence: true,
+  // Single-choice enum fields.
+  discoveryChannel: true,
+  motivation: true,
+  orientationTalkAtSchool: true,
+  passionateTeacher: true,
+  wantsMore: true,
+  // Multi-choice enum arrays.
+  techProjection: true,
+  specialties: true,
+  otherJobs: true,
+  infoSources: true,
+  nextYearEvents: true,
+  // Per-question free-text notes (one per question; see domain/interview
+  // NOTE_FIELDS). Read generically through each question's `note.field`.
+  discoveryChannelNote: true,
+  motivationNote: true,
+  specialtiesNote: true,
+  orientationTalkNote: true,
+  passionateTeacherNote: true,
+  techProjectionNote: true,
+  otherJobsNote: true,
+  infoSourcesNote: true,
+  wantsMoreNote: true,
+  satisfactionNote: true,
+  nextYearEventsNote: true,
+  // Relations.
+  talent: { select: { prenom: true, nom: true } },
+  staff: { select: { user: { select: { name: true } } } },
+  campus: { select: { name: true } },
+  participation: { select: { event: { select: { titre: true } } } },
+} as const satisfies Prisma.InterviewSelect;
+
+/** The full Interview row with relations the generator consumes, derived from
+ *  {@link interviewPdfSelect} so it stays in lockstep with the query. */
+export type InterviewForPdf = Prisma.InterviewGetPayload<{
+  select: typeof interviewPdfSelect;
+}>;
 
 type TemplateQuestion = {
   kind: string;
@@ -50,7 +69,7 @@ type TemplateQuestion = {
   label: string;
   value: string | string[] | number | null;
   max?: number;
-  revealText?: string | null;
+  note?: string | null;
 };
 
 function resolveLabel(q: ChoiceQuestion, value: string | null): string | null {
@@ -66,21 +85,17 @@ function resolveLabels(q: ChoiceQuestion, values: string[]): string[] {
   });
 }
 
-function getRevealText(
+/** The dev's free-text note under a question, if any. Always offered now (no
+ *  longer gated by an "Autre" pick), so it can stand alone or annotate a chip
+ *  answer. Read generically from the question's `note.field`. */
+function getNoteText(
   q: InterviewQuestion,
   interview: InterviewForPdf,
 ): string | null {
-  if (q.kind !== 'single' && q.kind !== 'multi') return null;
-  const cq = q as ChoiceQuestion;
-  if (!cq.reveal) return null;
-  const parts: string[] = [];
-  for (const rf of cq.reveal.fields) {
-    const val = (interview as Record<string, unknown>)[rf.field];
-    if (typeof val === 'string' && val.trim()) {
-      parts.push(`${rf.label} : ${val.trim()}`);
-    }
-  }
-  return parts.length > 0 ? parts.join(' / ') : null;
+  const note = 'note' in q ? q.note : undefined;
+  if (!note) return null;
+  const val = (interview as Record<string, unknown>)[note.field];
+  return typeof val === 'string' && val.trim() ? val.trim() : null;
 }
 
 function buildSections(interview: InterviewForPdf) {
@@ -88,6 +103,7 @@ function buildSections(interview: InterviewForPdf) {
     title: section.title,
     questions: section.questions.map((q): TemplateQuestion => {
       const raw = (interview as Record<string, unknown>)[q.field];
+      const note = getNoteText(q, interview);
 
       if (q.kind === 'rating') {
         return {
@@ -96,6 +112,7 @@ function buildSections(interview: InterviewForPdf) {
           label: q.label,
           value: (raw as number | null) ?? null,
           max: q.max,
+          note,
         };
       }
 
@@ -105,6 +122,7 @@ function buildSections(interview: InterviewForPdf) {
           field: q.field,
           label: q.label,
           value: (raw as string | null) ?? null,
+          note,
         };
       }
 
@@ -117,7 +135,7 @@ function buildSections(interview: InterviewForPdf) {
           field: q.field,
           label: q.label,
           value: resolveLabels(cq, arr),
-          revealText: getRevealText(q, interview),
+          note,
         };
       }
 
@@ -127,7 +145,7 @@ function buildSections(interview: InterviewForPdf) {
         field: q.field,
         label: q.label,
         value: resolveLabel(cq, raw as string | null),
-        revealText: getRevealText(q, interview),
+        note,
       };
     }),
   }));

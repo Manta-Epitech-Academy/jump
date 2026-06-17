@@ -3,41 +3,12 @@ import { prisma } from '$lib/server/db';
 import {
   generateInterviewPdf,
   interviewPdfFilename,
+  interviewPdfSelect,
 } from '$lib/server/services/interviewPdfGenerator';
 import { resetInterview } from '$lib/server/services/interviewResetService';
 import { fail } from '@sveltejs/kit';
 
 const RESET_REASON_MAX = 500;
-
-/** Prisma select for the full interview row needed by the PDF generator. */
-const interviewSelect = {
-  id: true,
-  conductedAt: true,
-  recommendation: true,
-  verdictNote: true,
-  satisfactionStars: true,
-  oneSentence: true,
-  discoveryChannel: true,
-  motivation: true,
-  orientationTalkAtSchool: true,
-  passionateTeacher: true,
-  wantsMore: true,
-  techProjection: true,
-  specialties: true,
-  otherJobs: true,
-  infoSources: true,
-  nextYearEvents: true,
-  teacherName: true,
-  teacherSubject: true,
-  discoveryChannelOther: true,
-  specialtiesOther: true,
-  otherJobsOther: true,
-  infoSourcesOther: true,
-  talent: { select: { id: true, prenom: true, nom: true } },
-  staff: { select: { user: { select: { name: true } } } },
-  campus: { select: { name: true } },
-  participation: { select: { event: { select: { titre: true } } } },
-} as const;
 
 export const load: PageServerLoad = async ({ url, locals, depends }) => {
   depends('admin:interview-pdfs');
@@ -127,7 +98,7 @@ export const actions: Actions = {
 
     const interview = await prisma.interview.findUnique({
       where: { id },
-      select: interviewSelect,
+      select: interviewPdfSelect,
     });
 
     if (!interview) return fail(404, { error: 'Interview not found' });

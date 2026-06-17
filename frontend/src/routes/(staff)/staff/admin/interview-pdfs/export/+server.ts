@@ -5,40 +5,11 @@ import { Zip, ZipPassThrough } from 'fflate';
 import {
   generateInterviewPdf,
   interviewPdfFilename,
-  type InterviewForPdf,
+  interviewPdfSelect,
 } from '$lib/server/services/interviewPdfGenerator';
 
 /** Max concurrent Puppeteer pages for PDF generation. */
 const GEN_CONCURRENCY = 3;
-
-const interviewSelect = {
-  id: true,
-  conductedAt: true,
-  recommendation: true,
-  verdictNote: true,
-  satisfactionStars: true,
-  oneSentence: true,
-  discoveryChannel: true,
-  motivation: true,
-  orientationTalkAtSchool: true,
-  passionateTeacher: true,
-  wantsMore: true,
-  techProjection: true,
-  specialties: true,
-  otherJobs: true,
-  infoSources: true,
-  nextYearEvents: true,
-  teacherName: true,
-  teacherSubject: true,
-  discoveryChannelOther: true,
-  specialtiesOther: true,
-  otherJobsOther: true,
-  infoSourcesOther: true,
-  talent: { select: { prenom: true, nom: true } },
-  staff: { select: { user: { select: { name: true } } } },
-  campus: { select: { name: true } },
-  participation: { select: { event: { select: { titre: true } } } },
-} as const;
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   if (!locals.staffProfile) throw error(403, 'Acces refuse.');
@@ -53,11 +24,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   if (to) dateFilter.lte = new Date(to);
   if (Object.keys(dateFilter).length > 0) where.conductedAt = dateFilter;
 
-  const interviews = (await prisma.interview.findMany({
+  const interviews = await prisma.interview.findMany({
     where,
-    select: interviewSelect,
+    select: interviewPdfSelect,
     orderBy: { conductedAt: 'desc' },
-  })) as unknown as InterviewForPdf[];
+  });
 
   if (interviews.length === 0) {
     throw error(404, 'Aucun entretien a exporter.');
