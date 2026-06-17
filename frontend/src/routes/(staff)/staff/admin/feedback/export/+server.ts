@@ -2,16 +2,21 @@ import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { prisma } from '$lib/server/db';
 import { loadForm } from '$lib/domain/feedbackForms/schema';
+import { STAGE_FORM_ID } from '$lib/domain/feedback';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   if (!locals.staffProfile) throw error(403, 'Acces refuse.');
 
-  const formId = url.searchParams.get('formId') ?? 'w1';
-  const schema = loadForm(formId);
-  if (!schema) throw error(400, 'Formulaire inconnu.');
+  const schema = loadForm(STAGE_FORM_ID);
+  if (!schema) throw error(500, 'Schema introuvable.');
+
+  const campusId = url.searchParams.get('campus');
+
+  const eventWhere: Record<string, unknown> = { eventType: 'stage_seconde' };
+  if (campusId) eventWhere.campusId = campusId;
 
   const submissions = await prisma.feedbackSubmission.findMany({
-    where: { event: { eventType: 'stage_seconde' }, formId },
+    where: { event: eventWhere, formId: STAGE_FORM_ID },
     include: {
       talent: { select: { prenom: true, nom: true } },
       event: { select: { campus: { select: { name: true } } } },
@@ -59,7 +64,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const bom = '\uFEFF';
   const body = bom + csv;
 
-  const filename = `feedback-stage-seconde-${formId}.csv`;
+  const filename = 'feedback-stage-seconde.csv';
 
   return new Response(body, {
     headers: {

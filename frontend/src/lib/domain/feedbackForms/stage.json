@@ -1,0 +1,221 @@
+{
+  "id": "stage",
+  "title": "Bilan de stage - Stage seconde Epitech",
+  "intro": "Coin coin ! Moi c'est Bernard le canard. On doit remplir les attestations de stage pour ton lycee. Pour etre les plus precis possible, on te laisse la parole. Ton lycee pourra acceder a tes reponses sur demande. C'est parti, ca prend 5 minutes !",
+  "questions": [
+    {
+      "id": "coordonnees_gate",
+      "prompt": "Avant de commencer : veux-tu renseigner tes coordonnees (campus, nom, prenom, telephone, e-mail) ?",
+      "required": true,
+      "type": "gate",
+      "skipsIdentity": true,
+      "options": ["Oui, je les renseigne", "Non, passer cette etape"],
+      "skipOption": "Non, passer cette etape"
+    },
+    {
+      "id": "campus",
+      "section": "Tes coordonnees",
+      "prompt": "Tout d'abord, sur quel campus es-tu ?",
+      "required": false,
+      "identity": true,
+      "type": "single",
+      "options": [
+        "Bordeaux",
+        "Lille",
+        "Lyon",
+        "Nantes",
+        "Marseille",
+        "Montpellier",
+        "Moulins",
+        "Mulhouse",
+        "Nancy",
+        "Nice",
+        "Paris - Kremlin Bicetre",
+        "Rennes",
+        "Saint Andre - La Reunion",
+        "Strasbourg",
+        "Toulouse"
+      ]
+    },
+    {
+      "id": "civilite",
+      "prompt": "Ta civilite ?",
+      "required": false,
+      "identity": true,
+      "type": "single",
+      "options": ["Monsieur", "Madame", "Je ne souhaite pas le preciser"]
+    },
+    {
+      "id": "nom",
+      "prompt": "Quel est ton nom ?",
+      "required": false,
+      "identity": true,
+      "type": "text",
+      "inputKind": "name",
+      "placeholder": "Ton nom"
+    },
+    {
+      "id": "prenom",
+      "prompt": "Et ton prenom ?",
+      "required": false,
+      "identity": true,
+      "type": "text",
+      "inputKind": "name",
+      "placeholder": "Ton prenom"
+    },
+    {
+      "id": "telephone",
+      "prompt": "Ton numero de telephone ?",
+      "required": false,
+      "identity": true,
+      "type": "text",
+      "inputKind": "tel",
+      "placeholder": "06 12 34 56 78"
+    },
+    {
+      "id": "mail",
+      "prompt": "Ton adresse e-mail ?",
+      "required": false,
+      "identity": true,
+      "type": "text",
+      "inputKind": "email",
+      "placeholder": "prenom@exemple.com"
+    },
+    {
+      "id": "avis_accueil",
+      "section": "Ton avis sur le stage",
+      "sectionIntro": "Parlons de ce que tu as vecu pendant le stage !",
+      "prompt": "Ton avis sur l'accueil et le petit dej du premier jour ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_icebreaker",
+      "prompt": "Ton avis sur l'Icebreaker ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_conferences",
+      "prompt": "Ton avis general sur les conferences ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_ateliers",
+      "prompt": "Ton avis general sur les ateliers pratiques ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_hackathon",
+      "prompt": "Ton avis sur le hackathon ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_demo_day",
+      "prompt": "Ton avis sur le Demo Day et la cloture ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "piste_orientation",
+      "section": "Orientation & suite",
+      "sectionIntro": "Quelques questions pour mieux te connaitre et preparer la suite.",
+      "prompt": "Ce stage t'a-t-il permis de decouvrir une piste d'orientation post-bac ?",
+      "required": true,
+      "type": "single",
+      "options": ["Oui", "Non"]
+    },
+    {
+      "id": "appetence",
+      "prompt": "Tu as une appetence pour : (plusieurs choix possibles)",
+      "required": true,
+      "type": "multiple",
+      "options": [
+        "UX / UI Design / Webdesign",
+        "Marketing digital et/ou influence digitale",
+        "Data",
+        "Objets connectes",
+        "Cybersecurite",
+        "Intelligence Artificielle",
+        "Infrastructures et reseaux",
+        "Developpement web et mobile",
+        "Developpement informatique (autre)",
+        "Transformation digitale en general",
+        "Rien de tout cela"
+      ]
+    },
+    {
+      "id": "invitation_conferences",
+      "prompt": "Souhaites-tu etre invite a des conferences sur la tech organisees par Epitech ?",
+      "required": false,
+      "type": "single",
+      "options": ["Oui", "Non"]
+    },
+    {
+      "id": "ateliers_vacances",
+      "prompt": "Les prochains ateliers de decouverte auront lieu pendant les vacances de Premiere et Terminale (stages gratuits de 3 a 5 jours : cybersecurite, IA, robotique, creation de jeu video). Souhaites-tu y participer ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Oui, je suis tres interesse",
+        "Oui, pourquoi pas",
+        "Non, je n'aime decidement pas la tech"
+      ]
+    },
+    {
+      "id": "recommandation",
+      "prompt": "Recommanderais-tu ce stage aux eleves de seconde de l'an prochain ?",
+      "required": true,
+      "type": "scale",
+      "options": ["Oui 1000 fois", "Oui", "Mitige", "Non"]
+    },
+    {
+      "id": "ameliorations",
+      "prompt": "Selon toi, que pourrions-nous ameliorer pour rendre ce stage encore plus interessant ?",
+      "required": false,
+      "type": "textarea",
+      "placeholder": "Tes idees..."
+    }
+  ]
+}

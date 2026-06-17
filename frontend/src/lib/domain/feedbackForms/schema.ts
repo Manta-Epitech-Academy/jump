@@ -1,5 +1,4 @@
-import w1 from './w1.json';
-import w2 from './w2.json';
+import stage from './stage.json';
 
 export type QuestionType =
   | 'single'
@@ -39,8 +38,7 @@ export type AnswerValue = string | string[];
 export type Answers = Record<string, AnswerValue>;
 
 const FORMS: Record<string, FormSchema> = {
-  w1: w1 as FormSchema,
-  w2: w2 as FormSchema,
+  stage: stage as FormSchema,
 };
 
 export function loadForm(id: string): FormSchema | null {

@@ -1,23 +1,20 @@
 import { fromDate } from '@internationalized/date';
 import type { Answers } from './feedbackForms/schema';
 
+/** The single feedback form ID for stage de seconde. */
+export const STAGE_FORM_ID = 'stage';
+
 /**
- * Find the first Friday >= eventStart (in the campus timezone), set the time
- * to 17:00 in that timezone, and return as a UTC Date.
- * For week 2, add 7 days to that Friday first.
+ * Deadline for stage feedback: second Friday >= eventStart at 17:00 (campus tz).
+ * This covers the full two-week stage period.
  */
-export function feedbackFridayDeadline(
-  eventStart: Date,
-  week: 1 | 2,
-  timezone: string,
-): Date {
+export function feedbackDeadline(eventStart: Date, timezone: string): Date {
   const zoned = fromDate(eventStart, timezone);
-  // Wall-clock day of week using JS Date (month is 0-indexed)
   const wallDate = new Date(zoned.year, zoned.month - 1, zoned.day);
-  const dow = wallDate.getDay(); // 0 = Sun, 5 = Fri
+  const dow = wallDate.getDay();
   const daysToFriday = (5 - dow + 7) % 7;
-  const weekOffset = week === 2 ? 7 : 0;
-  const daysToAdd = daysToFriday + weekOffset;
+  // Second Friday (end of stage)
+  const daysToAdd = daysToFriday + 7;
 
   const deadline = zoned
     .add({ days: daysToAdd })
@@ -26,28 +23,19 @@ export function feedbackFridayDeadline(
 }
 
 /**
- * Return the list of form IDs whose deadline has passed but have not yet been
- * submitted (not in existingFormIds).
+ * Returns the form ID if the deadline has passed and the talent hasn't submitted yet.
  */
-export function pendingFeedbackForms(
+export function pendingFeedbackForm(
   eventStart: Date,
   now: Date,
   timezone: string,
   existingFormIds: string[],
-): Array<{ formId: string; week: 1 | 2 }> {
-  const deadlineW1 = feedbackFridayDeadline(eventStart, 1, timezone);
-  const deadlineW2 = feedbackFridayDeadline(eventStart, 2, timezone);
-
-  const result: Array<{ formId: string; week: 1 | 2 }> = [];
-
-  if (now >= deadlineW1 && !existingFormIds.includes('w1')) {
-    result.push({ formId: 'w1', week: 1 });
+): { formId: string } | null {
+  const deadline = feedbackDeadline(eventStart, timezone);
+  if (now >= deadline && !existingFormIds.includes(STAGE_FORM_ID)) {
+    return { formId: STAGE_FORM_ID };
   }
-  if (now >= deadlineW2 && !existingFormIds.includes('w2')) {
-    result.push({ formId: 'w2', week: 2 });
-  }
-
-  return result;
+  return null;
 }
 
 /**

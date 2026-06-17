@@ -6,9 +6,9 @@ import {
   validateAnswer,
   type Answers,
 } from '$lib/domain/feedbackForms/schema';
-import { buildPrefill } from '$lib/domain/feedback';
+import { buildPrefill, STAGE_FORM_ID } from '$lib/domain/feedback';
 
-const VALID_FORM_IDS = ['w1', 'w2'];
+const VALID_FORM_IDS = [STAGE_FORM_ID];
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   if (!locals.talent) {

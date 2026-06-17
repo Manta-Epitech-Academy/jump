@@ -1,5 +1,6 @@
 import { prisma } from '$lib/server/db';
 import { loadForm, type FormSchema } from '$lib/domain/feedbackForms/schema';
+import { STAGE_FORM_ID } from '$lib/domain/feedback';
 import type { PageServerLoad } from './$types';
 
 function aggregateAnswers(
@@ -47,49 +48,42 @@ function aggregateAnswers(
   return result;
 }
 
-export const load: PageServerLoad = async () => {
-  // Aggregate all feedback from stage_seconde events across all campuses
-  const [submissions, participantCount] = await Promise.all([
+export const load: PageServerLoad = async ({ url }) => {
+  const campusFilter = url.searchParams.get('campus') ?? 'all';
+
+  // Build event filter: stage_seconde, optionally scoped to a campus
+  const eventWhere: Record<string, unknown> = { eventType: 'stage_seconde' };
+  if (campusFilter !== 'all') {
+    eventWhere.campusId = campusFilter;
+  }
+
+  const [submissions, participantCount, campuses] = await Promise.all([
     prisma.feedbackSubmission.findMany({
-      where: { event: { eventType: 'stage_seconde' } },
+      where: { event: eventWhere, formId: STAGE_FORM_ID },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.participation.count({
-      where: { event: { eventType: 'stage_seconde' } },
+      where: { event: eventWhere },
+    }),
+    prisma.campus.findMany({
+      where: {
+        events: { some: { eventType: 'stage_seconde' } },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
     }),
   ]);
 
-  const w1Schema = loadForm('w1');
-  const w2Schema = loadForm('w2');
+  const schema = loadForm(STAGE_FORM_ID);
 
-  const byForm = new Map<string, typeof submissions>();
-  for (const sub of submissions) {
-    const arr = byForm.get(sub.formId) ?? [];
-    arr.push(sub);
-    byForm.set(sub.formId, arr);
-  }
+  const aggregated = schema ? aggregateAnswers(submissions, schema) : {};
 
-  const forms = [];
-
-  if (w1Schema) {
-    const subs = byForm.get('w1') ?? [];
-    forms.push({
-      formId: 'w1',
-      schema: w1Schema,
-      submissionCount: subs.length,
-      aggregated: aggregateAnswers(subs, w1Schema),
-    });
-  }
-
-  if (w2Schema) {
-    const subs = byForm.get('w2') ?? [];
-    forms.push({
-      formId: 'w2',
-      schema: w2Schema,
-      submissionCount: subs.length,
-      aggregated: aggregateAnswers(subs, w2Schema),
-    });
-  }
-
-  return { participantCount, forms };
+  return {
+    participantCount,
+    submissionCount: submissions.length,
+    schema,
+    aggregated,
+    campuses,
+    selectedCampus: campusFilter,
+  };
 };

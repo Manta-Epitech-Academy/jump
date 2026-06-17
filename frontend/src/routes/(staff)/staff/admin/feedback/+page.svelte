@@ -1,24 +1,40 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import { resolve } from '$app/paths';
   import AdminPageHeader from '$lib/components/admin/AdminPageHeader.svelte';
-  import SegmentedFilter from '$lib/components/staff/SegmentedFilter.svelte';
   import Download from '@lucide/svelte/icons/download';
+  import * as Select from '$lib/components/ui/select';
 
   let { data }: { data: PageData } = $props();
 
-  let activeForm = $state('w1');
-
-  const formOptions = [
-    { value: 'w1', label: 'Semaine 1' },
-    { value: 'w2', label: 'Semaine 2' },
-  ];
-
-  let currentForm = $derived(data.forms.find((f) => f.formId === activeForm));
-  let submissionCount = $derived(currentForm?.submissionCount ?? 0);
   let pctResponse = $derived(
     data.participantCount > 0
-      ? Math.round((submissionCount / data.participantCount) * 100)
+      ? Math.round((data.submissionCount / data.participantCount) * 100)
       : 0,
+  );
+
+  function onCampusChange(value: string | undefined) {
+    const url = new URL(page.url);
+    if (value && value !== 'all') {
+      url.searchParams.set('campus', value);
+    } else {
+      url.searchParams.delete('campus');
+    }
+    goto(url.toString(), { keepFocus: true, noScroll: true });
+  }
+
+  let subtitle = $derived(
+    data.selectedCampus === 'all'
+      ? 'Stage de Seconde - tous campus confondus'
+      : `Stage de Seconde - ${data.campuses.find((c: { id: string; name: string }) => c.id === data.selectedCampus)?.name ?? ''}`,
+  );
+
+  let exportHref = $derived(
+    data.selectedCampus === 'all'
+      ? resolve('/staff/admin/feedback/export')
+      : resolve(`/staff/admin/feedback/export?campus=${data.selectedCampus}`),
   );
 </script>
 
@@ -27,30 +43,40 @@
 </svelte:head>
 
 <div class="space-y-6">
-  <AdminPageHeader
-    title="Feedback"
-    subtitle="Stage de Seconde - tous campus confondus"
-  />
+  <AdminPageHeader title="Feedback" {subtitle} />
 
   <div class="flex flex-wrap items-center justify-between gap-4">
-    <SegmentedFilter
-      options={formOptions}
-      value={activeForm}
-      onChange={(v) => (activeForm = v)}
-      ariaLabel="Formulaire de feedback"
-    />
+    <Select.Root
+      type="single"
+      value={data.selectedCampus}
+      onValueChange={onCampusChange}
+    >
+      <Select.Trigger class="h-9 w-56 rounded-sm text-xs">
+        {data.selectedCampus === 'all'
+          ? 'Tous les campus'
+          : (data.campuses.find(
+              (c: { id: string; name: string }) => c.id === data.selectedCampus,
+            )?.name ?? '')}
+      </Select.Trigger>
+      <Select.Content>
+        <Select.Item value="all">Tous les campus</Select.Item>
+        {#each data.campuses as campus (campus.id)}
+          <Select.Item value={campus.id}>{campus.name}</Select.Item>
+        {/each}
+      </Select.Content>
+    </Select.Root>
 
     <div class="flex items-center gap-4">
       <p class="text-sm text-muted-foreground">
         <span class="font-mono font-bold text-foreground"
-          >{submissionCount}</span
+          >{data.submissionCount}</span
         >
-        / {data.participantCount} réponses
+        / {data.participantCount} reponses
         <span class="text-xs">({pctResponse} %)</span>
       </p>
 
       <a
-        href={`/staff/admin/feedback/export?formId=${activeForm}`}
+        href={exportHref}
         download
         class="inline-flex items-center gap-1.5 rounded-sm border px-3 py-1.5 text-xs font-medium hover:bg-accent"
       >
@@ -60,11 +86,11 @@
     </div>
   </div>
 
-  {#if currentForm}
+  {#if data.schema}
     <div class="space-y-4">
-      {#each currentForm.schema.questions as q (q.id)}
+      {#each data.schema.questions as q (q.id)}
         {#if !q.identity && q.type !== 'gate'}
-          {@const agg = currentForm.aggregated[q.id]}
+          {@const agg = data.aggregated[q.id]}
           {#if agg}
             <section class="rounded-sm border bg-card p-4">
               <h3 class="mb-3 text-sm font-semibold">{q.prompt}</h3>
@@ -73,8 +99,8 @@
                 <div class="space-y-2">
                   {#each Object.entries(agg.distribution) as [option, count] (option)}
                     {@const pct =
-                      submissionCount > 0
-                        ? Math.round((count / submissionCount) * 100)
+                      data.submissionCount > 0
+                        ? Math.round((count / data.submissionCount) * 100)
                         : 0}
                     <div class="flex items-center gap-3">
                       <span class="w-48 shrink-0 truncate text-sm"
@@ -113,7 +139,7 @@
                   </ul>
                 {:else}
                   <p class="text-sm text-muted-foreground italic">
-                    Aucune réponse.
+                    Aucune reponse.
                   </p>
                 {/if}
               {/if}

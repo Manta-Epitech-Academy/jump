@@ -2,11 +2,7 @@
   import { resolve } from '$app/paths';
   import X from '@lucide/svelte/icons/x';
 
-  let {
-    eventId,
-    formId,
-    week,
-  }: { eventId: string; formId: string; week: 1 | 2 } = $props();
+  let { eventId, formId }: { eventId: string; formId: string } = $props();
   let dismissed = $state(false);
 </script>
 
@@ -16,8 +12,7 @@
   >
     <img src="/canard.png" alt="" class="h-8 w-8 shrink-0 rounded-full" />
     <p class="flex-1 text-sm font-medium text-foreground">
-      Ton avis compte ! Donne ton feedback sur ta {week === 1 ? '1ere' : '2eme'} semaine
-      de stage.
+      Ton avis compte ! Donne ton feedback sur ton stage.
     </p>
     <a
       href={resolve(`/feedback/${eventId}/${formId}`)}

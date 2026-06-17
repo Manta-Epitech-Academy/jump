@@ -17,7 +17,7 @@ import {
 import { WELCOME_XP_BONUS } from '$lib/domain/xp';
 import { renderWelcomeMessage } from '$lib/domain/welcomeMessage';
 import { stageWindowEnd } from '$lib/domain/event';
-import { pendingFeedbackForms } from '$lib/domain/feedback';
+import { pendingFeedbackForm } from '$lib/domain/feedback';
 import { toPlanningView } from '$lib/domain/talentPlanning';
 import { buildPreviewPlanningView } from '$lib/server/talentPlanningPreview';
 
@@ -189,12 +189,8 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
       }
     }
 
-    // Feedback banner: check if any stage_seconde event has pending feedback
-    let pendingFeedback: Array<{
-      eventId: string;
-      formId: string;
-      week: 1 | 2;
-    }> = [];
+    // Feedback banner: check if the stage_seconde event has pending feedback
+    let pendingFeedback: Array<{ eventId: string; formId: string }> = [];
     if (locals.featureFlags?.has('stage_seconde')) {
       const feedbackParticipation = await prisma.participation.findFirst({
         where: {
@@ -220,15 +216,17 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
           },
           select: { formId: true },
         });
-        pendingFeedback = pendingFeedbackForms(
+        const pending = pendingFeedbackForm(
           feedbackParticipation.event.date,
           new Date(),
           timezone,
           existingSubs.map((s) => s.formId),
-        ).map((pf) => ({
-          ...pf,
-          eventId: feedbackParticipation.eventId,
-        }));
+        );
+        if (pending) {
+          pendingFeedback = [
+            { ...pending, eventId: feedbackParticipation.eventId },
+          ];
+        }
       }
     }
 

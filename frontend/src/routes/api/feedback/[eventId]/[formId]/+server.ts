@@ -7,7 +7,9 @@ import {
   type Answers,
 } from '$lib/domain/feedbackForms/schema';
 
-const VALID_FORM_IDS = ['w1', 'w2'];
+import { STAGE_FORM_ID } from '$lib/domain/feedback';
+
+const VALID_FORM_IDS = [STAGE_FORM_ID];
 
 export const POST: RequestHandler = async ({ request, locals, params }) => {
   if (!locals.talent) {
