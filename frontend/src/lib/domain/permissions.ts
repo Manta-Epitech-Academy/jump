@@ -30,18 +30,15 @@ export const STAFF_GROUPS = {
   pedaLead: ['peda'],
   pedaMember: ['peda', 'manta'],
   leads: ['superdev', 'peda'],
-  // Roles eligible to be assigned as the staff side of an Interview, and
-  // permitted to fill the grid for any interview they were assigned to. Dev
-  // team owns the workflow (scheduling, reassignment, autoSchedule) but any
-  // staff role on a campus can run an interview and capture its outcome.
-  interviewers: ['superdev', 'dev', 'peda', 'manta'],
   // Roles a superdev may invite / assign on their campus. Excludes `admin`
   // (admin role is provisioned manually, not self-replicating).
   campusManageable: ['superdev', 'dev', 'peda', 'manta'],
-  // Roles allowed to arm "real sends" on a trapped (dev/staging) env — lifting
-  // the mail/SMS redirect to reach real recipients. Dangerous (recipients are
-  // minors), so restricted to admin only — the dev-redirect controls live in
-  // the admin space. See `$lib/server/armRealSends`.
+  // Roles allowed to manage the dev-redirect controls on a trapped (dev/staging)
+  // env: arming "real sends" (lifting the mail/SMS redirect to reach real
+  // recipients — dangerous, recipients are minors) and arming a login-redirect
+  // pin (routing trapped OTP mail to themselves — benign, stays trapped).
+  // Restricted to admin only; the controls live in the admin space. See
+  // `$lib/server/armRealSends` and `$lib/server/devRedirectPin`.
   realSendArmers: ['admin'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
@@ -72,10 +69,6 @@ const STAFF_GROUP_DESCRIPTIONS: Record<StaffGroup, StaffGroupDescription> = {
   leads: {
     label: "Responsable d'espace",
     contact: 'un superdev ou un référent péda',
-  },
-  interviewers: {
-    label: 'Membre interviewer',
-    contact: 'un membre staff de votre campus',
   },
   campusManageable: {
     label: 'Membre staff',

@@ -5,6 +5,7 @@
   import * as Dialog from '$lib/components/ui/dialog';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
   import { civiliteCourtesyTitle } from '$lib/domain/profile';
+  import { formatPhoneForDisplay } from '$lib/domain/phone';
   import type { PresenceRow } from './types';
 
   let {
@@ -30,15 +31,16 @@
 
 <!-- Tap-to-call / mail-to line + a copy button, mirroring the profile card. -->
 {#snippet phoneRow(value: string, copyLabel: string)}
+  {@const display = formatPhoneForDisplay(value) ?? value}
   <div class="flex items-center gap-1">
     <a
       href={`tel:${value.replace(/\s+/g, '')}`}
       class="group flex flex-1 items-center gap-2 text-sm transition-colors hover:text-epi-blue"
     >
       <Phone class="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span class="tabular-nums">{value}</span>
+      <span class="tabular-nums">{display}</span>
     </a>
-    <CopyButton {value} label={copyLabel} />
+    <CopyButton value={display} label={copyLabel} />
   </div>
 {/snippet}
 

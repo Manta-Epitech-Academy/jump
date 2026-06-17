@@ -10,7 +10,7 @@ import {
 import {
   onboardingDownloadFilename,
   isOnboardingDocumentType,
-  FINISHED_ONBOARDING_DOCS_WHERE,
+  loadFinishedOnboardingTimeline,
 } from '$lib/server/services/onboardingDocuments';
 
 type JobStatus = 'pending' | 'processing' | 'success' | 'error';
@@ -31,7 +31,7 @@ const STATUS_FILTER_WHERE: Record<
   error: 'error',
 };
 
-export const load: PageServerLoad = async ({ url, depends }) => {
+export const load: PageServerLoad = async ({ url, depends, locals }) => {
   // Tagged so the client can poll just this query (invalidate) for a live feed
   // without re-running every load on the layout.
   depends('admin:onboarding-pdfs');
@@ -59,7 +59,7 @@ export const load: PageServerLoad = async ({ url, depends }) => {
     };
   }
 
-  const [jobs, counts, matchCount, exportableCount] = await Promise.all([
+  const [jobs, counts, matchCount, timeline] = await Promise.all([
     prisma.onboardingPdfJob.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -73,11 +73,10 @@ export const load: PageServerLoad = async ({ url, depends }) => {
       _count: { _all: true },
     }),
     prisma.onboardingPdfJob.count({ where }),
-    // Drives the bulk-download button: how many talents have a finished
-    // image-rights or co-signed règlement PDF ready to archive. Counts talents,
-    // not files, so it understates a talent who has both, fine for a
-    // show/hide gate.
-    prisma.talent.count({ where: FINISHED_ONBOARDING_DOCS_WHERE }),
+    // Completion timeline of every finished PDF (type + instant, no identity).
+    // The bulk-download menu computes its per-period / per-type counts and the
+    // "since last export" delta client-side from this one list.
+    loadFinishedOnboardingTimeline(),
   ]);
 
   const countByStatus: Record<JobStatus, number> = {
@@ -96,7 +95,16 @@ export const load: PageServerLoad = async ({ url, depends }) => {
     filters: { status, type, q },
     errorCount: countByStatus.error,
     matchCount,
-    exportableCount,
+    // Feeds the bulk-download menu. ISO instants so the client can bucket by
+    // period and diff against `lastExportAt`.
+    exportTimeline: timeline.map((d) => ({
+      type: d.type,
+      finishedAt: d.finishedAt.toISOString(),
+    })),
+    // This admin's high-water mark, so the menu can offer "depuis le dernier
+    // export". Null until their first full export.
+    lastExportAt:
+      locals.staffProfile?.onboardingDocsExportedAt?.toISOString() ?? null,
     truncated: matchCount > PAGE_SIZE,
     jobs: jobs.map((j) => ({
       id: j.id,

@@ -7,8 +7,10 @@ import {
   scopedPrisma,
   type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
+import { requireFlag } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
+  requireFlag(locals, 'planning');
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
 

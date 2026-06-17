@@ -5,11 +5,15 @@
   import { cn } from '$lib/utils';
   import { formatGivenName } from '$lib/domain/profile';
   import { niveauLabel } from '$lib/domain/niveau';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
+  import type { XpStory } from '$lib/domain/xpStory';
+  import TalentXpDetailDialog from './TalentXpDetailDialog.svelte';
 
   // Blueprint-blue band: square avatar + name with the neon-teal `_` cursor.
-  // Firstname leads (light), surname follows in Anton uppercase. The Salesforce
-  // shortcut sits as a solid, high-contrast button at the bottom-right of the
-  // flex row so it reads unmistakably as a button against the saturated blue.
+  // Firstname leads (light), surname follows in Anton uppercase. The XP medallion
+  // sits beside the name (its identity, click it for the full breakdown); the
+  // Salesforce pill is a separate utility pushed to the far-right top of the band.
   type Props = {
     student: {
       id: string;
@@ -19,11 +23,13 @@
       niveau: string | null;
       school: { name: string } | null;
     };
+    xpStory: XpStory;
   };
 
-  let { student }: Props = $props();
+  let { student, xpStory }: Props = $props();
 
   const externalId = $derived(student.externalId);
+  let detailOpen = $state(false);
 
   // Academic context only: school · niveau. Civilité moved to the Coordonnées
   // section, where it reads as civil identity rather than a banner tagline.
@@ -35,17 +41,57 @@
 </script>
 
 <PageHero>
-  <!-- Stacks on a phone: a `text-5xl` name between a 96px avatar and the Salesforce
-       button has no room on the row, so the name block (overflow-hidden) collapses
-       and the title clips out of view. Below `sm` the band goes column (avatar, name,
-       full-width button); the original row returns at `sm`. -->
+  <!-- Desktop (`sm+`): one centered row — avatar, name, XP medallion, then the
+       Salesforce utility pushed to the far right (`ml-auto`), never reading as
+       paired with the XP. Mobile: the avatar and the medallion share the top row
+       (the `sm:contents` wrapper groups them on mobile, then dissolves at `sm` so
+       all four items flow into the single row, reordered via `order`), and the
+       name + subtitle take their own full-width line below. -->
   <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-    <TalentAvatar
-      talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
-      size="lg"
-      class="h-20 w-20 shrink-0 rounded-sm shadow-md sm:h-24 sm:w-24 md:h-28 md:w-28"
-    />
-    <div class="min-w-0 flex-1 overflow-hidden">
+    <div class="flex items-center gap-4 sm:contents">
+      <TalentAvatar
+        talent={{ id: student.id, nom: student.nom, prenom: student.prenom }}
+        size="lg"
+        class="h-20 w-20 shrink-0 rounded-sm shadow-md sm:order-1 sm:h-24 sm:w-24 md:h-28 md:w-28"
+      />
+
+      {#if xpStory.total > 0}
+        <!-- Glorified XP medallion, the fiche's through-line: click for the
+             breakdown. Beside the avatar on mobile, after the name on desktop
+             (via `order`), kept apart from the Salesforce utility. A compact,
+             content-hugging badge either way. -->
+        <button
+          type="button"
+          onclick={() => (detailOpen = true)}
+          aria-label="Voir le détail des XP"
+          class="group flex shrink-0 cursor-pointer items-center gap-3 rounded-sm bg-epi-teal-solid px-4 py-3 text-left text-white shadow-md ring-1 ring-white/10 transition-colors hover:bg-epi-teal-solid/90 sm:order-3"
+        >
+          <span
+            class="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white/15"
+          >
+            <Sparkles class="h-5 w-5" />
+          </span>
+          <span class="min-w-0">
+            <span
+              class="block font-mono text-[10px] font-bold tracking-widest text-white/80 uppercase"
+            >
+              XP sur JUMP
+            </span>
+            <span class="flex items-baseline gap-1">
+              <span class="font-heading text-4xl leading-none tabular-nums"
+                >{xpStory.total}</span
+              >
+              <span class="font-heading text-lg">XP</span>
+            </span>
+          </span>
+          <ChevronRight
+            class="h-4 w-4 shrink-0 text-white/70 transition-transform group-hover:translate-x-0.5 group-hover:text-white"
+          />
+        </button>
+      {/if}
+    </div>
+
+    <div class="min-w-0 overflow-hidden sm:order-2">
       <h1
         class="flex flex-wrap items-baseline font-heading text-3xl tracking-wide uppercase sm:text-5xl md:text-6xl"
       >
@@ -62,21 +108,27 @@
     </div>
 
     {#if externalId}
-      <!-- Solid white pill, bottom-aligned on the blue band: a filled button
-           reads as clickable where the old translucent outline washed out. It
-           sits in the flex flow (not an absolute overlay), so a long name clips
-           against it via the sibling's overflow-hidden instead of sliding
-           underneath. -->
+      <!-- Salesforce: a utility shortcut to the CRM, pushed to the far right of
+           the band, away from the XP. Solid white pill so it reads as clickable
+           against the saturated blue. -->
       <SalesforceLinkButton
         {externalId}
         kind="lead"
         label="Fiche Salesforce"
         variant="default"
         class={cn(
-          'w-full shrink-0 justify-center bg-white font-semibold text-epi-blue shadow-md sm:w-auto sm:self-end',
+          'w-full shrink-0 justify-center bg-white font-semibold text-epi-blue shadow-md sm:order-4 sm:ml-auto sm:w-auto sm:self-start',
           'hover:bg-white/90 hover:text-epi-blue hover:shadow-lg',
         )}
       />
     {/if}
   </div>
 </PageHero>
+
+{#if xpStory.total > 0}
+  <TalentXpDetailDialog
+    bind:open={detailOpen}
+    story={xpStory}
+    prenom={student.prenom}
+  />
+{/if}

@@ -470,8 +470,12 @@ async function sendSmsSerial(
     } else {
       const personal = await buildPersonalization(recipient, broadcast, needs);
       const ctx = buildContext(recipient, broadcast, personal);
-      const bodyWithVars = substituteVariables(broadcast.bodySnapshot, ctx);
-      const body = rewriteSmsLinks(bodyWithVars, recipient.id);
+      // SMS links are sent verbatim, with no `?tracking_id=` suffix. On a handset
+      // the URL is visible, and a tracking query string reads as phishing and
+      // depresses clicks, so click-tracking stays mail-only (where the link
+      // hides behind anchor text). The fastlogin-JWT open path still records
+      // opens for free, without lengthening the link.
+      const body = substituteVariables(broadcast.bodySnapshot, ctx);
       try {
         outcome = await getSmsProvider().sendSms(
           {

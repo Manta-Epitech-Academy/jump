@@ -20,6 +20,8 @@
     activityType: string;
     difficulte?: string | null;
     isDynamic: boolean;
+    /** Whether the activity has a detail page worth opening (content/link/steps). */
+    openable: boolean;
   };
 
   type SlotLike = {
@@ -143,40 +145,46 @@
           </p>
         {/if}
 
-        {#if hasStarted}
-          <Button
-            href={resolve(`/${activity.id}`)}
-            class="w-full rounded-xl bg-epi-blue font-bold text-white shadow-md hover:bg-epi-blue/90"
-          >
-            Accéder à l'activité
-            <ArrowRight class="ml-2 h-4 w-4" />
-          </Button>
-        {:else}
-          {@const startsToday =
-            new Date(slot.startTime).toDateString() ===
-            new Date().toDateString()}
-          <div
-            class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs dark:border-slate-800 dark:bg-slate-950"
-          >
-            <Lock class="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            <span class="text-slate-600 dark:text-slate-400">
-              {#if startsToday}
-                Contenu disponible à
-                <strong class="text-slate-900 dark:text-white"
-                  >{formatTime(slot.startTime)}</strong
-                >.
-              {:else}
-                Contenu disponible le
-                <strong class="text-slate-900 dark:text-white"
-                  >{formatDate(slot.startTime)}</strong
-                >
-                à
-                <strong class="text-slate-900 dark:text-white"
-                  >{formatTime(slot.startTime)}</strong
-                >.
-              {/if}
-            </span>
-          </div>
+        <!-- Only activities with a real detail page get the access button / the
+             "content unlocks at…" promise. A title-only slot stays an info card:
+             its name, schedule and type above are all there is to show, and the
+             detail route would render blank. See isActivityOpenable. -->
+        {#if activity.openable}
+          {#if hasStarted}
+            <Button
+              href={resolve(`/${activity.id}`)}
+              class="w-full rounded-xl bg-epi-blue font-bold text-white shadow-md hover:bg-epi-blue/90"
+            >
+              Accéder à l'activité
+              <ArrowRight class="ml-2 h-4 w-4" />
+            </Button>
+          {:else}
+            {@const startsToday =
+              new Date(slot.startTime).toDateString() ===
+              new Date().toDateString()}
+            <div
+              class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs dark:border-slate-800 dark:bg-slate-950"
+            >
+              <Lock class="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <span class="text-slate-600 dark:text-slate-400">
+                {#if startsToday}
+                  Contenu disponible à
+                  <strong class="text-slate-900 dark:text-white"
+                    >{formatTime(slot.startTime)}</strong
+                  >.
+                {:else}
+                  Contenu disponible le
+                  <strong class="text-slate-900 dark:text-white"
+                    >{formatDate(slot.startTime)}</strong
+                  >
+                  à
+                  <strong class="text-slate-900 dark:text-white"
+                    >{formatTime(slot.startTime)}</strong
+                  >.
+                {/if}
+              </span>
+            </div>
+          {/if}
         {/if}
       </ResponsiveDialog.Body>
     {/if}

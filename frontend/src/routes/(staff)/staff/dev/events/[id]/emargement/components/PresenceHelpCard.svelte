@@ -7,9 +7,11 @@
   import * as Card from '$lib/components/ui/card';
 
   // Static how-it-works card. Each line names the actual on-screen control
-  // ("Afficher le QR code", "Clôturer", "Tout exporter") so the help maps onto
-  // the page: the QR + export buttons sit in the header, the clôture /
-  // réouverture control in the Synthèse card just above this one.
+  // ("Afficher le QR code", "Pointage manuel", "Clôturer", "Tout exporter") so
+  // the help maps onto the page: the QR + export buttons sit in the header, the
+  // clôture / réouverture control in the Synthèse card just above. The bulk
+  // "Tout présent" action is left out on purpose, the Synthèse card already
+  // captions it next to its button so repeating it here would only duplicate.
 </script>
 
 <Card.Root class="rounded-sm shadow-sm dark:shadow-none">
@@ -27,9 +29,8 @@
       <QrCode class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
       <p class="text-muted-foreground">
         <span class="font-semibold text-foreground">Afficher le QR code.</span>
-        Projetez-le sur un écran : les stagiaires le scannent pour pointer eux-mêmes,
-        et les présences s'actualisent en direct. Vous pouvez aussi le télécharger
-        en PDF pour l'imprimer et l'afficher dans la salle.
+        Projetez-le : les stagiaires le scannent pour pointer eux-mêmes, en direct.
+        Téléchargeable en PDF pour l'afficher en salle.
       </p>
     </div>
 
@@ -37,8 +38,8 @@
       <MousePointerClick class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
       <p class="text-muted-foreground">
         <span class="font-semibold text-foreground">Pointage manuel.</span>
-        Sur la ligne d'un stagiaire, cliquez présent, en retard, absent ou justifié
-        ; recliquez le même état pour le remettre en attente.
+        Sur sa ligne, cliquez présent, en retard, absent ou justifié ; recliquez le
+        même état pour revenir en attente.
       </p>
     </div>
 
@@ -48,9 +49,8 @@
         <span class="font-semibold text-foreground"
           >Clôture et réouverture.</span
         >
-        « Clôturer » passe les « en attente » en absents et coupe le QR code ; c'est
-        automatique à 11h et 15h. Vous pouvez rouvrir un créneau fermé à la main,
-        mais pas un créneau déjà passé 11h ou 15h.
+        « Clôturer » coupe le QR code et passe absents les « en attente » ; automatique
+        à 11h et 15h. Un créneau fermé à la main se rouvre, pas un créneau passé l'heure.
       </p>
     </div>
 
@@ -58,7 +58,7 @@
       <FileDown class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
       <p class="text-muted-foreground">
         <span class="font-semibold text-foreground">Tout exporter.</span>
-        Téléchargez l'émargement complet du stage (tous les créneaux) au format XLSX.
+        Téléchargez l'émargement complet du stage (tous les créneaux) en XLSX.
       </p>
     </div>
   </Card.Content>

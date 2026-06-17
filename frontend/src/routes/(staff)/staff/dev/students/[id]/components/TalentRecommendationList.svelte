@@ -3,6 +3,7 @@
   import Phone from '@lucide/svelte/icons/phone';
   import CircleCheck from '@lucide/svelte/icons/circle-check';
   import CopyButton from '$lib/components/ui/CopyButton.svelte';
+  import { formatPhoneForDisplay } from '$lib/domain/phone';
   import { cn } from '$lib/utils';
   import type {
     TalentRecommendation,
@@ -67,15 +68,16 @@
 {/snippet}
 
 {#snippet phoneRow(phone: string)}
+  {@const display = formatPhoneForDisplay(phone) ?? phone}
   <span class="inline-flex items-center gap-1.5 text-sm">
     <Phone class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
     <a
       href={`tel:${phone.replace(/\s+/g, '')}`}
-      class="transition-colors hover:text-epi-blue"
+      class="tabular-nums transition-colors hover:text-epi-blue"
     >
-      {phone}
+      {display}
     </a>
-    <CopyButton value={phone} label="Copier le téléphone" />
+    <CopyButton value={display} label="Copier le téléphone" />
   </span>
 {/snippet}
 

@@ -89,7 +89,6 @@ Inside a workspace, role-based gating goes through **one table** of named role g
 | `pedaLead`     | `peda`                    | Pedago workspace lead-only (planning page, factions)                               |
 | `pedaMember`   | `peda`, `manta`           | Pedago workspace field ops (cockpit mutations)                                     |
 | `leads`        | `superdev`, `peda`        | Actions shared across both workspace leads                                         |
-| `interviewers` | `superdev`, `dev`, `peda`, `manta` | Roles eligible to be the `staff` of an Interview and fill its grid (any campus staff)  |
 
 - **Client:** `<Gated group="devLead">...</Gated>` — reads role from page state, hides or disables with tooltip. Import: `$lib/components/auth/Gated.svelte`.
 - **Server:** `requireStaffGroup(locals, 'devLead')` in every mutating action. Import: `$lib/server/auth/guards`.
@@ -198,6 +197,19 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 - **`components/ui/`** — Bits UI primitives (shadcn pattern)
 - **`utils.ts`** — `cn()` helper (clsx + twMerge) for conditional classes
 
+### Streaming heavy staff tables
+
+The dev stage-seconde pages (`inscrits`, `émargement`, `entretiens`) and admin `sf-conflicts` stream their cohort. The `load` awaits only cheap shell data (event, countdown, filter chips) and returns the heavy cohort as a single **un-awaited promise**; the page renders its shell instantly and resolves the results region from that promise, showing the shared `ResultsSkeleton` (`$lib/components/staff/ResultsSkeleton.svelte`) until it lands. Follow this for any new staff table over cohort volume (~200 rows): do not `await` the heavy query in `load`, or you block the client navigation on it (the felt-2s "dead click").
+
+- **Plain `{#await data.cohort}`** for read-only pages (inscrits, entretiens, sf-conflicts).
+- **Resolve the promise into `$state` instead** when the page polls or writes optimistically (émargement). Binding `{#await}` directly there means every `invalidate` / optimistic write builds a fresh promise, which reflashes the skeleton and remounts the child, wiping its local state (search, optimistic overrides). Resolve `data.cohort` into a `$state` with a stale-promise guard (`if (data.cohort === p)`) so later polls swap data silently with the child still mounted.
+- **Keep SSR on.** Streaming renders the shell server-side and flushes the cohort over the same response; the win is a fast first paint of the chrome, not a blank-until-JS page. Do not reach for `export const ssr = false` to "simplify" - it regresses first paint and buys nothing here.
+- `ResultsSkeleton` is **delay-gated** (held invisible ~180ms, height reserved) so warm navigations swap straight to content without a skeleton flash; only genuinely slow loads fade it in. Reuse it, do not hand-roll per-page pending markup.
+
+### SortableTable renders one layout
+
+`SortableTable` (`$lib/components/staff/datatable/`) renders **either** the desktop table **or** the `mobileRow` cards, gated by a `MediaQuery` (lg seam) plus a mount guard, never both at once. Do not reintroduce a CSS-toggled (`hidden lg:block` / `lg:hidden`) dual render: it builds and hydrates every row twice (2x DOM nodes, 2x `avatar.vercel.sh` requests) and was the main client-side render cost on these tables. Pages without a `mobileRow` snippet always render the desktop table (unchanged).
+
 ## Coding Conventions
 
 - **Language:** All UI text and user-facing strings are in **French**. Code identifiers (functions, variables) are in English.
@@ -228,7 +240,7 @@ Talent profile fields have two sources — the worker sync (Salesforce) and onbo
 
 ## Environment Variables
 
-See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`, `CRON_SECRET`, `WORKER_API_TOKEN`, `INTERVIEW_SYNC_MODE`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate — set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
+See `.env.example`. Required: `DATABASE_URL`, `BETTER_AUTH_SECRET`, Microsoft OAuth credentials (`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID`), and mail provider keys per `MAIL_PROVIDER` (`RESEND_API_KEY` for `resend`, or `MAILJET_API_KEY` + `MAILJET_API_SECRET` for `mailjet`). Optional: `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`, `CRON_SECRET`, `WORKER_API_TOKEN`, `MAIL_PROVIDER`, `MAIL_FROM`, `SMS_PROVIDER` (+ `BREVO_API_KEY`, `SMS_SENDER`, `SMS_DEV_RECIPIENTS`), `OUTBOUND_MODE` (the outbound gate — set `=real` in prod only; fail-safe to `redirect` otherwise), `EMAIL_DEV_RECIPIENTS`.
 
 ### `MAIL_PROVIDER`
 
@@ -268,20 +280,6 @@ Picks the transactional SMS backend. Lives behind a façade in `$lib/server/sms/
 `SMS_DEV_RECIPIENTS` is the SMS **fallback destination** (comma-separated; every listed number gets a copy), mirroring `EMAIL_DEV_RECIPIENTS`. It is **not** the gate — the gate is `OUTBOUND_MODE`, shared with mail (see the dev-redirect note above for the gate/destination split).
 
 **SMS escalation (relances).** `email` is the primary onboarding nudge; `sms` is the escalation. The SMS carries **no action link** — it names the recipient's own mailbox (`{{email}}`) and tells them to check it. A talent is only SMS-eligible once an **email** relance has already been sent (`noPriorEmail` skip otherwise) and a usable phone exists (`noPhone` skip). Each channel has its own cooldown track. The body is a fixed default (`RELANCE_SMS_DEFAULTS`, editable in the compose dialog), not an admin `EmailActionMapping` template. Phone numbers are normalized to Brevo's format by `$lib/domain/phone` → `toBrevoRecipient`.
-
-### `INTERVIEW_SYNC_MODE`
-
-Picks the calendar sync backend for interview events. Lives behind a façade in `$lib/server/services/calendarSync/` — flipping the env var swaps the active backend with no code change.
-
-| Value             | Behavior                                                                                                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `email` (default) | Send iCalendar invites (`METHOD:REQUEST` / `METHOD:CANCEL`) via Resend. No extra OAuth scope needed; works for every staff regardless of tenant policy. Schedule-affecting actions fan out to every affected staff member's mailbox (reassign emits CANCEL to old + REQUEST to new in one shot). |
-| `graph`           | Push events directly to the user's Outlook calendar via Microsoft Graph. Requires the `Calendars.ReadWrite` delegated scope, which Epitech-style tenants gate behind admin consent. Opt in only once consent is granted; the `Calendars.ReadWrite` scope is added to the OAuth request automatically when this mode is active. |
-| `off`             | Disable sync entirely; sync UI controls hide.                                                                                                                                         |
-
-`OutlookCalendarSync` rows carry `syncKind` so both backends share the table; flipping modes leaves stale rows behind, which the next reconcile in the new mode will simply ignore.
-
-**Re-send escape hatch (email mode).** `Resend.emails.send()` resolves on accepted-by-Resend, not delivery — a bounce never invalidates the sync row, so the `contentHash` dedupe keeps blocking retries. The `forceResync` page action (chevron menu next to the calendar-sync button) clears `contentHash` for the scope (current user, or whole event for dev) and re-reconciles. Use when staff reports a missing invite.
 
 ## Prisma Migrations
 

@@ -66,7 +66,17 @@
     qcmFails = 0;
   }
 
-  let backHref = $derived(resolve(`/staff/pedago/events/${event.id}/planning`));
+  // When the campus runs its schedule outside Jump (planning flag off), the
+  // planning page 404s, so fall back to the event dashboard.
+  let hasPlanning = $derived(data.featureFlags.includes('planning'));
+  let backHref = $derived(
+    hasPlanning
+      ? resolve(`/staff/pedago/events/${event.id}/planning`)
+      : resolve(`/staff/pedago/events/${event.id}`),
+  );
+  let backLabel = $derived(
+    hasPlanning ? 'Retour au planning' : "Retour à l'événement",
+  );
 </script>
 
 <svelte:head>
@@ -185,8 +195,8 @@
             Entraînement terminé !
           </h2>
           <p class="mb-8 max-w-md text-sm text-slate-500">
-            Rien n'a été enregistré en base. Tu peux recommencer ou revenir au
-            planning.
+            Rien n'a été enregistré en base. Tu peux recommencer ou revenir en
+            arrière.
           </p>
           <div class="flex flex-col gap-3 sm:flex-row">
             <Button
@@ -202,7 +212,7 @@
               href={backHref}
               class="rounded-xl"
             >
-              Retour au planning
+              {backLabel}
             </Button>
           </div>
         </div>

@@ -4,6 +4,8 @@
 
 <script lang="ts" generics="T">
   import type { Snippet } from 'svelte';
+  import { onMount } from 'svelte';
+  import { MediaQuery } from 'svelte/reactivity';
   import ArrowUp from '@lucide/svelte/icons/arrow-up';
   import ArrowDown from '@lucide/svelte/icons/arrow-down';
   import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
@@ -93,88 +95,100 @@
 
   const sortableColumns = $derived(columns.filter((c) => c.sortable));
   const activeSortColumn = $derived(columns.find((c) => c.key === sortKey));
+
+  // Render only the layout in use, never both. The old CSS-only `hidden lg:block`
+  // / `lg:hidden` toggle kept BOTH the desktop table and the mobile cards in the
+  // DOM and hydrated them, doubling every row (and every avatar). Gating on a
+  // media query keeps a single tree mounted. SSR — and the first client paint,
+  // before `mounted` — renders the desktop table so it matches the server HTML
+  // and avoids a hydration mismatch; mobile clients swap to cards right after
+  // mount. `lg` = 1024px, the same seam the old classes used. When no `mobileRow`
+  // is supplied (e.g. the admin talents table) the desktop table always renders.
+  const isDesktop = new MediaQuery('(min-width: 1024px)', true);
+  let mounted = $state(false);
+  onMount(() => {
+    mounted = true;
+  });
+  const showDesktop = $derived(!mobileRow || !mounted || isDesktop.current);
 </script>
 
-<div
-  class={cn(
-    'rounded-sm border bg-card shadow-sm',
-    mobileRow && 'hidden lg:block',
-  )}
->
-  <Table.Root
-    class={layout === 'fixed' ? 'table-fixed' : undefined}
-    containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}
-  >
-    <Table.Header class={headerClass}>
-      <Table.Row>
-        {#each columns as col (col.key)}
-          <Table.Head
-            class={cn(
-              'text-xs font-bold uppercase',
-              // Pinned header (desktop): each th carries its own opaque fill +
-              // bottom border so the frozen bar reads as one line while rows
-              // scroll under it (z above the body cells and the stretched row
-              // link). Gated to lg — on mobile the table x-scrolls in its box.
-              stickyHeader &&
-                'lg:sticky lg:top-0 lg:z-20 lg:border-b lg:bg-muted',
-              col.align === 'right' && 'text-right',
-              col.class,
-            )}
-            aria-sort={sortKey === col.key
-              ? sortDir === 'asc'
-                ? 'ascending'
-                : 'descending'
-              : undefined}
-          >
-            {#if col.sortable && onSort}
-              <button
-                type="button"
-                onclick={() => onSort?.(col.key)}
-                class={cn(
-                  'inline-flex cursor-pointer items-center gap-1 uppercase transition-colors hover:text-foreground',
-                  col.align === 'right' && 'flex-row-reverse',
-                )}
-              >
-                {col.label}
-                {#if sortKey === col.key}
-                  {#if sortDir === 'asc'}
-                    <ArrowUp class="h-3 w-3 text-epi-blue" />
-                  {:else}
-                    <ArrowDown class="h-3 w-3 text-epi-blue" />
-                  {/if}
-                {:else}
-                  <ChevronsUpDown class="h-3 w-3 text-muted-foreground/50" />
-                {/if}
-              </button>
-            {:else}
-              {col.label}
-            {/if}
-          </Table.Head>
-        {/each}
-      </Table.Row>
-    </Table.Header>
-    <Table.Body>
-      {#if rows.length === 0}
+{#if showDesktop}
+  <div class="rounded-sm border bg-card shadow-sm">
+    <Table.Root
+      class={layout === 'fixed' ? 'table-fixed' : undefined}
+      containerClass={stickyHeader ? 'lg:overflow-visible' : undefined}
+    >
+      <Table.Header class={headerClass}>
         <Table.Row>
-          <Table.Cell colspan={columns.length} class="h-32 text-center">
-            {#if empty}
-              {@render empty()}
-            {:else}
-              <span class="text-sm text-muted-foreground">Aucun résultat</span>
-            {/if}
-          </Table.Cell>
+          {#each columns as col (col.key)}
+            <Table.Head
+              class={cn(
+                'text-xs font-bold uppercase',
+                // Pinned header (desktop): each th carries its own opaque fill +
+                // bottom border so the frozen bar reads as one line while rows
+                // scroll under it (z above the body cells and the stretched row
+                // link). Gated to lg — on mobile the table x-scrolls in its box.
+                stickyHeader &&
+                  'lg:sticky lg:top-0 lg:z-20 lg:border-b lg:bg-muted',
+                col.align === 'right' && 'text-right',
+                col.class,
+              )}
+              aria-sort={sortKey === col.key
+                ? sortDir === 'asc'
+                  ? 'ascending'
+                  : 'descending'
+                : undefined}
+            >
+              {#if col.sortable && onSort}
+                <button
+                  type="button"
+                  onclick={() => onSort?.(col.key)}
+                  class={cn(
+                    'inline-flex cursor-pointer items-center gap-1 uppercase transition-colors hover:text-foreground',
+                    col.align === 'right' && 'flex-row-reverse',
+                  )}
+                >
+                  {col.label}
+                  {#if sortKey === col.key}
+                    {#if sortDir === 'asc'}
+                      <ArrowUp class="h-3 w-3 text-epi-blue" />
+                    {:else}
+                      <ArrowDown class="h-3 w-3 text-epi-blue" />
+                    {/if}
+                  {:else}
+                    <ChevronsUpDown class="h-3 w-3 text-muted-foreground/50" />
+                  {/if}
+                </button>
+              {:else}
+                {col.label}
+              {/if}
+            </Table.Head>
+          {/each}
         </Table.Row>
-      {:else}
-        {#each rows as r, i (rowKey(r, i))}
-          <Table.Row
-            class={cn(
-              'group/row [&>td]:transition-colors',
-              rowHref && 'relative',
-            )}
-          >
-            {@render row(r, i)}
-            {#if rowHref}
-              <!-- Stretched-link overlay: a real <a> covering the whole row,
+      </Table.Header>
+      <Table.Body>
+        {#if rows.length === 0}
+          <Table.Row>
+            <Table.Cell colspan={columns.length} class="h-32 text-center">
+              {#if empty}
+                {@render empty()}
+              {:else}
+                <span class="text-sm text-muted-foreground">Aucun résultat</span
+                >
+              {/if}
+            </Table.Cell>
+          </Table.Row>
+        {:else}
+          {#each rows as r, i (rowKey(r, i))}
+            <Table.Row
+              class={cn(
+                'group/row [&>td]:transition-colors',
+                rowHref && 'relative',
+              )}
+            >
+              {@render row(r, i)}
+              {#if rowHref}
+                <!-- Stretched-link overlay: a real <a> covering the whole row,
                    inset-0 resolving against the relative <tr>. The browser wraps
                    this absolutely-positioned <td> in an anonymous table cell, so
                    it DOES claim a column — it MUST be rendered last, otherwise
@@ -185,29 +199,32 @@
                    and this one sits above the cells, so otherwise it paints a
                    muted sheet over the row's text on hover. Focus shows an inset
                    ring, no fill. -->
-              <td class="absolute inset-0 bg-transparent! p-0">
-                <a
-                  href={rowHref(r)}
-                  class="block size-full rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
-                >
-                  <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
-                </a>
-              </td>
-            {/if}
-          </Table.Row>
-        {/each}
-      {/if}
-    </Table.Body>
-  </Table.Root>
-</div>
+                <td class="absolute inset-0 bg-transparent! p-0">
+                  <a
+                    href={rowHref(r)}
+                    class="block size-full rounded-sm focus-visible:ring-2 focus-visible:ring-epi-blue focus-visible:outline-none focus-visible:ring-inset"
+                  >
+                    <span class="sr-only">{rowLabel?.(r) ?? 'Ouvrir'}</span>
+                  </a>
+                </td>
+              {/if}
+            </Table.Row>
+          {/each}
+        {/if}
+      </Table.Body>
+    </Table.Root>
+  </div>
+{/if}
 
-{#if mobileRow}
+{#if mobileRow && mounted && !isDesktop.current}
   <!-- Mobile (below lg): the fixed table can't fit a phone, so each row becomes a
        card. The header's per-column sort buttons go with it, so an optional "Trier"
        dropdown carries the same sort over (it calls the same `onSort`, which the
        parent already toggles). Cards reuse `rowHref` via the same stretched-link
-       overlay as the table rows, so cmd/middle-click and keyboard nav behave alike. -->
-  <div class="space-y-2 lg:hidden">
+       overlay as the table rows, so cmd/middle-click and keyboard nav behave alike.
+       Gated by `showMobile` (a media query), so on desktop this tree is never
+       mounted — the roster renders once, not twice. -->
+  <div class="space-y-2">
     {#if mobileSort && onSort && sortableColumns.length > 0}
       <div class="flex items-center justify-end">
         <DropdownMenu.Root>

@@ -5,9 +5,9 @@ import { emailOTP } from 'better-auth/plugins/email-otp';
 import { prisma } from '$lib/server/db';
 import { env } from '$env/dynamic/private';
 import { sendOtpEmail, sendParentOtpEmail } from '$lib/server/otp';
+import { IMPERSONATION_IDLE_WINDOW_SEC } from '$lib/domain/impersonation';
 import { resolve } from '$app/paths';
 import { dev } from '$app/environment';
-import { calendarSyncMode } from '$lib/server/services/calendarSync/config';
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
@@ -20,29 +20,15 @@ export const auth = betterAuth({
       clientId: env.MICROSOFT_CLIENT_ID!,
       clientSecret: env.MICROSOFT_CLIENT_SECRET!,
       tenantId: env.MICROSOFT_TENANT_ID,
-      // `Calendars.ReadWrite` is only requested when the calendar sync
-      // backend is `graph` — see `calendarSync/config.ts`. Tenants that
-      // gate that scope behind admin consent (Epitech-style) can flip
-      // `INTERVIEW_SYNC_MODE=email` and the consent screen disappears,
-      // because the email backend doesn't need the scope at all.
-      // Sourced from `calendarSyncMode` (not env directly) so the
-      // documented default — env unset → email mode — actually skips
-      // the consent prompt instead of accidentally requesting it.
-      scope: [
-        'openid',
-        'profile',
-        'email',
-        'User.Read',
-        ...(calendarSyncMode === 'graph'
-          ? ['Calendars.ReadWrite', 'offline_access']
-          : []),
-      ],
+      scope: ['openid', 'profile', 'email', 'User.Read'],
     },
   },
 
   plugins: [
     admin({
-      impersonationSessionDuration: 30 * 60,
+      // Creation window; the same value is the idle window that
+      // `slideImpersonationExpiry` extends by on activity (see hooks).
+      impersonationSessionDuration: IMPERSONATION_IDLE_WINDOW_SEC,
     }),
     emailOTP({
       async sendVerificationOTP({ email, otp }) {

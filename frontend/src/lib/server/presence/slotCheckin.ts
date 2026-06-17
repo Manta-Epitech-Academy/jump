@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
 import {
   PRESENCE_SLOTS,
-  eventDays,
+  presenceDays,
   dateKeyToDbDate,
   type PresenceSlot,
 } from '$lib/domain/eventPresence';
@@ -42,7 +42,7 @@ export async function resolveSlotCheckinLink(opts: {
     throw error(400, 'Jour invalide.');
   }
   const event = await loadEventOr404(opts.eventId, opts.campusId);
-  const days = eventDays(event, opts.timezone);
+  const days = presenceDays(event, opts.timezone);
   if (!days.includes(opts.day)) {
     throw error(400, "Ce jour n'appartient pas à l'événement.");
   }

@@ -8,10 +8,9 @@ import {
   scopedPrisma,
 } from '$lib/server/db/scoped';
 import { loadEventOr404 } from '$lib/server/services/stageContext';
-import { requireStaffGroup } from '$lib/server/auth/guards';
-import { EVENT_TYPES } from '$lib/domain/event';
+import { requireStaffGroup, requireFlag } from '$lib/server/auth/guards';
 import {
-  eventSlots,
+  presenceSlots,
   slotKey,
   dateKeyToDbDate,
   dbDateToKey,
@@ -25,87 +24,41 @@ import { isSlotPastCutoff } from '$lib/server/presence/slotClosure';
 import {
   closePresenceSlot,
   reopenPresenceSlot,
+  markAllPresentInSlot,
 } from '$lib/server/services/presenceService';
 import {
   setPresenceSchema,
+  markAllPresentSchema,
   closeSlotSchema,
   reopenSlotSchema,
 } from '$lib/validation/presence';
-import { PRESENCE_ROSTER_SELECT, type PresenceRow } from './components/types';
+import {
+  PRESENCE_ROSTER_SELECT,
+  type PresenceRow,
+  type EmargementCohort,
+} from './components/types';
 
 export const load: PageServerLoad = async ({ params, locals, depends }) => {
   depends('staff:event-presence');
 
   const campusId = getCampusId(locals);
+  requireFlag(locals, 'emargement');
   const timezone = getCampusTimezone(locals);
   const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
 
-  const workdaysOnly = event.eventType === EVENT_TYPES.STAGE_SECONDE;
-
-  const [participations, presenceRows, closureRows] = await Promise.all([
-    db.participation.findMany({
-      where: { eventId: event.id },
-      select: PRESENCE_ROSTER_SELECT,
-      orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-    }),
-    db.eventPresence.findMany({
-      where: { eventId: event.id },
-      select: {
-        talentId: true,
-        day: true,
-        slot: true,
-        status: true,
-        source: true,
-      },
-    }),
-    db.eventPresenceClosure.findMany({
-      where: { eventId: event.id },
-      select: { day: true, slot: true },
-    }),
-  ]);
-
   const now = new Date();
-  const slots = eventSlots(event, timezone, { workdaysOnly });
+  const slots = presenceSlots(event, timezone);
 
-  const rows: PresenceRow[] = participations.map((p) => {
-    const t = p.talent;
-    // Both guardians in priority order; drop any with no contact info at all so
-    // the dialog never shows an empty "Responsable légal".
-    const guardians = [
-      {
-        civilite: t.parentCivilite,
-        name: [t.parentPrenom, t.parentNom].filter(Boolean).join(' ') || null,
-        email: t.parentEmail,
-        phone: t.parentPhone,
-      },
-      {
-        civilite: t.parent2Civilite,
-        name: [t.parent2Prenom, t.parent2Nom].filter(Boolean).join(' ') || null,
-        email: t.parent2Email,
-        phone: t.parent2Phone,
-      },
-    ].filter((g) => g.name || g.phone || g.email);
-
-    return {
-      talentId: p.talentId,
-      nom: t.nom,
-      prenom: t.prenom,
-      civilite: t.civilite,
-      // Prefer the login email (authoritative) over the imported SF address.
-      email: t.user?.email ?? t.email,
-      phone: t.phone,
-      guardians,
-    };
+  // Closures are a small table (only manually-closed slots) and independent of
+  // the ~200-row roster, so resolve them in the shell and keep slots / closedKeys
+  // / pastCutoffKeys synchronous: the header QR button reads the closed-state on
+  // first paint, and the active-slot filter inits from `slots`. Only the heavy
+  // roster join + presence grid + the O(rows×slots) attendance rate stream.
+  const closureRows = await db.eventPresenceClosure.findMany({
+    where: { eventId: event.id },
+    select: { day: true, slot: true },
   });
-
-  const presences: PresenceRecord[] = presenceRows.map((r) => ({
-    talentId: r.talentId,
-    day: dbDateToKey(r.day),
-    slot: r.slot,
-    status: r.status,
-    source: r.source,
-  }));
 
   // A créneau is closed either because a staff member closed it early (a closure
   // row) or because its 11h/15h cutoff has passed (campus tz). Both are derived
@@ -124,35 +77,97 @@ export const load: PageServerLoad = async ({ params, locals, depends }) => {
     .map((s) => s.key);
   const closedSet = new Set(closedKeys);
 
-  // Stage attendance rate over the whole grid: project every unmarked cell in a
-  // CLOSED créneau to absent (open créneaux stay pending and are ignored).
-  const storedStatus = new Map(
-    presences.map((p) => [`${p.talentId}|${p.day}|${p.slot}`, p.status]),
-  );
-  const effective: CellStatus[] = [];
-  for (const s of slots) {
-    const closed = closedSet.has(s.key);
-    for (const r of rows) {
-      effective.push(
-        effectiveStatus(
-          storedStatus.get(`${r.talentId}|${s.day}|${s.slot}`) ?? 'pending',
-          closed,
-        ),
-      );
+  const cohort: Promise<EmargementCohort> = (async () => {
+    const [participations, presenceRows] = await Promise.all([
+      db.participation.findMany({
+        where: { eventId: event.id },
+        select: PRESENCE_ROSTER_SELECT,
+        orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+      }),
+      db.eventPresence.findMany({
+        where: { eventId: event.id },
+        select: {
+          talentId: true,
+          day: true,
+          slot: true,
+          status: true,
+          source: true,
+        },
+      }),
+    ]);
+
+    const rows: PresenceRow[] = participations.map((p) => {
+      const t = p.talent;
+      // Both guardians in priority order; drop any with no contact info at all so
+      // the dialog never shows an empty "Responsable légal".
+      const guardians = [
+        {
+          civilite: t.parentCivilite,
+          name: [t.parentPrenom, t.parentNom].filter(Boolean).join(' ') || null,
+          email: t.parentEmail,
+          phone: t.parentPhone,
+        },
+        {
+          civilite: t.parent2Civilite,
+          name:
+            [t.parent2Prenom, t.parent2Nom].filter(Boolean).join(' ') || null,
+          email: t.parent2Email,
+          phone: t.parent2Phone,
+        },
+      ].filter((g) => g.name || g.phone || g.email);
+
+      return {
+        talentId: p.talentId,
+        nom: t.nom,
+        prenom: t.prenom,
+        civilite: t.civilite,
+        // Prefer the login email (authoritative) over the imported SF address.
+        email: t.user?.email ?? t.email,
+        phone: t.phone,
+        note: t.note,
+        guardians,
+      };
+    });
+
+    const presences: PresenceRecord[] = presenceRows.map((r) => ({
+      talentId: r.talentId,
+      day: dbDateToKey(r.day),
+      slot: r.slot,
+      status: r.status,
+      source: r.source,
+    }));
+
+    // Stage attendance rate over the whole grid: project every unmarked cell in a
+    // CLOSED créneau to absent (open créneaux stay pending and are ignored).
+    const storedStatus = new Map(
+      presences.map((p) => [`${p.talentId}|${p.day}|${p.slot}`, p.status]),
+    );
+    const effective: CellStatus[] = [];
+    for (const s of slots) {
+      const closed = closedSet.has(s.key);
+      for (const r of rows) {
+        effective.push(
+          effectiveStatus(
+            storedStatus.get(`${r.talentId}|${s.day}|${s.slot}`) ?? 'pending',
+            closed,
+          ),
+        );
+      }
     }
-  }
-  const attendanceRate = computeAttendanceRate(effective);
+    const attendanceRate = computeAttendanceRate(effective);
+
+    return { rows, presences, attendanceRate };
+  })();
 
   return {
     event: { id: event.id, titre: event.titre },
     timezone,
     slots,
     todayKey: toDateKey(now, timezone),
-    rows,
-    presences,
     closedKeys,
     pastCutoffKeys,
-    attendanceRate,
+    // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
+    cohort,
   };
 };
 
@@ -172,6 +187,7 @@ async function assertEnrolled(
 
 export const actions: Actions = {
   setPresence: async ({ request, locals, params }) => {
+    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(setPresenceSchema));
     if (!form.valid) return fail(400, { form });
@@ -210,7 +226,38 @@ export const actions: Actions = {
     return message(form, 'Présence enregistrée.');
   },
 
+  markAllPresent: async ({ request, locals, params }) => {
+    requireFlag(locals, 'emargement');
+    requireStaffGroup(locals, 'devMember');
+    const form = await superValidate(request, zod4(markAllPresentSchema));
+    if (!form.valid) return fail(400, { form });
+
+    const campusId = getCampusId(locals);
+    const timezone = getCampusTimezone(locals);
+    const event = await loadEventOr404(params.id, campusId);
+
+    const result = await markAllPresentInSlot(
+      campusId,
+      event.id,
+      dateKeyToDbDate(form.data.day),
+      form.data.slot,
+      timezone,
+      locals.staffProfile.id,
+    );
+
+    if (result.status === 'closed') {
+      return message(
+        form,
+        'Ce créneau est clôturé : corrigez les présences ligne par ligne.',
+        { status: 409 },
+      );
+    }
+
+    return message(form, 'Stagiaires en attente marqués présents.');
+  },
+
   closeSlot: async ({ request, locals, params }) => {
+    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(closeSlotSchema));
     if (!form.valid) return fail(400, { form });
@@ -229,6 +276,7 @@ export const actions: Actions = {
   },
 
   reopenSlot: async ({ request, locals, params }) => {
+    requireFlag(locals, 'emargement');
     requireStaffGroup(locals, 'devMember');
     const form = await superValidate(request, zod4(reopenSlotSchema));
     if (!form.valid) return fail(400, { form });

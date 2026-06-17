@@ -7,7 +7,8 @@
  * - rulesSignedAt     (règlement signature)
  * - charterAcceptedAt (charte RGPD)
  * - welcomeSeenAt     (welcome page for stage_seconde)
- * - imageRightsDecision + imageRightsDecidedAt + imageRightsSignerName (parent flow)
+ * - imageRightsDecision + imageRightsDecidedAt + signer prénom/nom (parent flow),
+ *   plus the matching ImageRightsDecisionRecord ledger fact
  *
  * After running, the talent can log in and land directly on the dashboard.
  *
@@ -53,6 +54,9 @@ async function main() {
   }
 
   const now = new Date();
+  const signerPrenom =
+    talent.imageRightsSignerPrenom ?? talent.parentPrenom ?? 'Parent';
+  const signerNom = talent.imageRightsSignerNom ?? talent.parentNom ?? 'Test';
   const updated = await prisma.talent.update({
     where: { id: talent.id },
     data: {
@@ -62,9 +66,19 @@ async function main() {
       welcomeSeenAt: now,
       imageRightsDecision: 'accepted',
       imageRightsDecidedAt: now,
-      imageRightsSignerName:
-        talent.imageRightsSignerName ??
-        `${talent.parentPrenom ?? 'Parent'} ${talent.parentNom ?? 'Test'}`.trim(),
+      imageRightsSignerPrenom: signerPrenom,
+      imageRightsSignerNom: signerNom,
+      // Append the matching ledger fact so the projection isn't orphaned (the
+      // staff history view reads the records, not the projection columns).
+      imageRightsRecords: {
+        create: {
+          decision: 'accepted',
+          decidedAt: now,
+          signerPrenom,
+          signerNom,
+          source: 'parent_portal',
+        },
+      },
     },
   });
 
@@ -84,7 +98,9 @@ async function main() {
   console.log(
     `  - imageRightsDecision:  ${updated.imageRightsDecision} @ ${updated.imageRightsDecidedAt?.toISOString()}`,
   );
-  console.log(`  - imageRightsSignerName: ${updated.imageRightsSignerName}`);
+  console.log(
+    `  - imageRightsSigner:    ${updated.imageRightsSignerPrenom} ${updated.imageRightsSignerNom}`,
+  );
 }
 
 main()

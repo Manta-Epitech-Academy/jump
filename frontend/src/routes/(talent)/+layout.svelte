@@ -22,5 +22,5 @@
   {@render children()}
 </div>
 
-<!-- Live-chat widget, talent space only. No-op unless PUBLIC_CRISP_WEBSITE_ID is set. -->
+<!-- Live-chat widget, self-gated to the login + onboarding surfaces (see Crisp.svelte / supportSurfaces). No-op unless PUBLIC_CRISP_WEBSITE_ID is set. -->
 <Crisp />

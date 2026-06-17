@@ -1,0 +1,1009 @@
+<script lang="ts" module>
+  export type InterviewAction = 'start' | 'autosave' | 'close';
+  export type InterviewSaveState = 'idle' | 'saving' | 'saved';
+  // Surfaced to the fiche so it can keep the lifecycle status in sync with the
+  // toggle and show the in-flight state if it needs to.
+  export type InterviewActionState = {
+    busy: boolean;
+    lastAction: InterviewAction;
+    saveState: InterviewSaveState;
+  };
+</script>
+
+<script lang="ts">
+  import { untrack } from 'svelte';
+  import { fly } from 'svelte/transition';
+  import type { TransitionConfig } from 'svelte/transition';
+  import { superForm, type SuperValidated } from 'sveltekit-superforms';
+  import { toast } from 'svelte-sonner';
+  import Star from '@lucide/svelte/icons/star';
+  import Check from '@lucide/svelte/icons/check';
+  import Play from '@lucide/svelte/icons/play';
+  import Lock from '@lucide/svelte/icons/lock';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import ArrowRight from '@lucide/svelte/icons/arrow-right';
+  import Loader2 from '@lucide/svelte/icons/loader-2';
+  import Clock from '@lucide/svelte/icons/clock';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import CheckCheck from '@lucide/svelte/icons/check-check';
+  // Domain-identity glyphs for the tech-domain chips (techProjection). Keyed by
+  // the catalogue's ChoiceIconToken via CHIP_ICONS.
+  import Code from '@lucide/svelte/icons/code';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import Palette from '@lucide/svelte/icons/palette';
+  import Brain from '@lucide/svelte/icons/brain';
+  import Gamepad2 from '@lucide/svelte/icons/gamepad-2';
+  import Network from '@lucide/svelte/icons/network';
+  import CircleQuestionMark from '@lucide/svelte/icons/circle-question-mark';
+  import Compass from '@lucide/svelte/icons/compass';
+  // Faces for the verdict scale, keyed by RecommendationIconToken.
+  import Frown from '@lucide/svelte/icons/frown';
+  import Meh from '@lucide/svelte/icons/meh';
+  import Smile from '@lucide/svelte/icons/smile';
+  import Laugh from '@lucide/svelte/icons/laugh';
+  import type { InterviewStatus } from '@prisma/client';
+  import { Button } from '$lib/components/ui/button';
+  import { Textarea } from '$lib/components/ui/textarea';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import * as Avatar from '$lib/components/ui/avatar';
+  import { getInitials } from '$lib/avatar';
+  import { cn } from '$lib/utils';
+  import {
+    INTERVIEW_SECTIONS,
+    VERDICT_SECTION,
+    INTERVIEW_RECOMMENDATIONS,
+    INTERVIEW_RECOMMENDATION_DISPLAY_ORDER,
+    type ChoiceOption,
+    type ChoiceTone,
+    type ChoiceIconToken,
+    type QuestionNote,
+    type RecommendationToneToken,
+    type RecommendationIconToken,
+    type InterviewQuestion,
+    type InterviewSection,
+  } from '$lib/domain/interview';
+  import type { InterviewConductForm } from '$lib/validation/interviews';
+
+  let {
+    form: data,
+    talentName,
+    status = $bindable(),
+    step = $bindable(0),
+    conductedLabel = null,
+    conductedBy = null,
+    conductedByImage = null,
+    actionState = $bindable(),
+  }: {
+    form: SuperValidated<InterviewConductForm>;
+    talentName: string;
+    // Lifecycle: null = "à faire" (not started), in_progress = "en cours"
+    // (started, autosaving), done = "finalisé" (synthesis, read-only and
+    // final). Bound up to the fiche so toggling the interview view off and on
+    // never resurfaces "Démarrer" for an already-started interview.
+    status: InterviewStatus | null;
+    // Step cursor, bindable so the fiche's section-nav card can jump around.
+    // Pure LOCAL state (the answers autosave, so it needs no DB column).
+    step?: number;
+    // "Mené le … par …" provenance for the synthesis header (with the staff
+    // avatar). All null when the interview was closed this session (the load
+    // isn't refetched); the just-finalised banner covers that moment instead.
+    conductedLabel?: string | null;
+    conductedBy?: string | null;
+    conductedByImage?: string | null;
+    // Autosave + in-flight state, surfaced so the fiche can mirror it if needed.
+    actionState?: InterviewActionState;
+  } = $props();
+
+  // Fields are interactive only while the interview is in progress.
+  const interactive = $derived(status === 'in_progress');
+
+  // ── Step machine ──
+  // Step 0 = intro (guide + Démarrer), 1..N = the question sections, last =
+  // verdict. Only drives the conduct view: a finalised interview renders the
+  // synthesis instead of steps.
+  const lastStep = INTERVIEW_SECTIONS.length + 1; // intro is 0, verdict is last
+  const isIntro = $derived(step === 0);
+  const isVerdict = $derived(step === lastStep);
+  const currentSection = $derived(
+    step >= 1 && step <= INTERVIEW_SECTIONS.length
+      ? INTERVIEW_SECTIONS[step - 1]
+      : null,
+  );
+  // Progress fill: intro = 0, verdict = 100.
+  const progressPct = $derived(Math.round((step / lastStep) * 100));
+
+  function goNext() {
+    if (step < lastStep) step += 1;
+  }
+  function goPrev() {
+    if (step > 0) step -= 1;
+  }
+
+  // "Reprendre" should drop the staff member back where work remains, not on
+  // section 1. `step` is local-only, so a page reload (status still in_progress,
+  // step reset to 0) is the case that matters, and the answers come from the DB,
+  // so they tell us how far the interview got. Target = the first section with no
+  // answer yet; if every section has been started, the verdict (the place left to
+  // finish). A section counts as "touched" on any single answer, since the
+  // questionnaire has no required questions, keying off full completion would
+  // pull resume back to section 1 over one skipped optional choice.
+  function sectionTouched(section: InterviewSection): boolean {
+    return section.questions.some(
+      (q) => answerLabel(q) !== null || noteText(q) !== null,
+    );
+  }
+  function resumeStep(): number {
+    for (let i = 0; i < INTERVIEW_SECTIONS.length; i++) {
+      if (!sectionTouched(INTERVIEW_SECTIONS[i])) return i + 1;
+    }
+    return lastStep;
+  }
+  function resume() {
+    step = resumeStep();
+  }
+
+  // Onboarding's step transition: the outgoing card slides left + fades while
+  // the incoming one flies in from the right. Local copy (8 lines) rather than a
+  // cross-route import; the parent is position:relative so the absolute exit
+  // overlaps cleanly.
+  function exitSlide(
+    _node: Element,
+    { duration = 180 }: { duration?: number } = {},
+  ): TransitionConfig {
+    return {
+      duration,
+      css: (t: number, u: number) =>
+        `position: absolute; top: 0; left: 0; right: 0; opacity: ${t}; transform: translateX(${-30 * u}px);`,
+    };
+  }
+
+  let lastAction = $state<InterviewAction>('autosave');
+  let saveState = $state<InterviewSaveState>('idle');
+  // True only after THIS session's clôture (not when the page loaded an
+  // already-done interview). Gates the one-time "finalisé" banner so it reassures
+  // at the moment clôture lands, which tested as ambiguous, without polluting
+  // later visits to the finished record.
+  let justFinalised = $state(false);
+
+  let formEl: HTMLFormElement;
+  let startBtn: HTMLButtonElement;
+  let closeBtn: HTMLButtonElement;
+
+  const { form, enhance, delayed } = superForm(
+    untrack(() => data),
+    {
+      dataType: 'json',
+      resetForm: false,
+      invalidateAll: false,
+      // Only one submit may be in flight. A lifecycle action (start / close)
+      // fired while a debounced autosave is mid-request ABORTS that autosave
+      // rather than being dropped: superForm's 'prevent' default would silently
+      // drop the lifecycle submit, then the stale autosave result would be read
+      // under the new `lastAction` and the close branch below would run: UI
+      // flips to "Finalisé" while the row is still in_progress in the DB. Abort
+      // also stops a fast second autosave from being lost behind a slow first
+      // one. `beginAction` clears the *scheduled* autosave; this covers the one
+      // already on the wire.
+      multipleSubmits: 'abort',
+      onResult: ({ result, cancel }) => {
+        // Autosave: keep the client form authoritative (don't let the echoed
+        // server data clobber keystrokes made during the round-trip), and stay
+        // quiet, just flip the inline indicator.
+        if (lastAction === 'autosave') {
+          saveState = result.type === 'success' ? 'saved' : 'idle';
+          if (result.type !== 'success') {
+            toast.error("Échec de l'enregistrement automatique.");
+          }
+          cancel();
+          return;
+        }
+        // Start stays silent: cover → questions is an obvious transition. Close
+        // gets an explicit success toast, and the synthèse leads with a
+        // "finalisé" banner, because the silent conduct → synthèse swap tested
+        // as ambiguous: staff couldn't tell the interview had actually closed
+        // and read the recap as a form still awaiting a confirm. Failures, which
+        // leave no visible trace, toast below.
+        if (result.type === 'success') {
+          if (lastAction === 'start') {
+            status = 'in_progress';
+            // Front the student-facing questions the moment the interview opens.
+            step = 1;
+          } else if (lastAction === 'close') {
+            status = 'done';
+            saveState = 'idle';
+            justFinalised = true;
+            toast.success('Entretien finalisé.');
+          }
+        } else if (result.type === 'failure') {
+          toast.error(result.data?.form?.message ?? 'Une erreur est survenue.');
+        }
+      },
+    },
+  );
+
+  // ── Debounced autosave (only while in progress) ──
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  function scheduleAutosave() {
+    if (status !== 'in_progress') return;
+    saveState = 'saving';
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      lastAction = 'autosave';
+      formEl?.requestSubmit();
+    }, 900);
+  }
+
+  // An explicit lifecycle action cancels the *scheduled* autosave (the debounce
+  // timer); an autosave already on the wire is aborted by `multipleSubmits:
+  // 'abort'` above. Between the two, the lifecycle submit never races a save.
+  function beginAction(a: InterviewAction) {
+    clearTimeout(saveTimer);
+    lastAction = a;
+  }
+
+  // ── Field accessors (catalogue-driven loop over a heterogeneous form) ──
+  const fv = (k: string) => ($form as Record<string, unknown>)[k];
+  function setSingle(field: string, value: string) {
+    if (!interactive) return;
+    $form = {
+      ...$form,
+      [field]: fv(field) === value ? null : value,
+    } as InterviewConductForm;
+    scheduleAutosave();
+  }
+  function toggleMulti(field: string, value: string) {
+    if (!interactive) return;
+    const arr = (fv(field) as string[] | undefined) ?? [];
+    $form = {
+      ...$form,
+      [field]: arr.includes(value)
+        ? arr.filter((v) => v !== value)
+        : [...arr, value],
+    } as InterviewConductForm;
+    scheduleAutosave();
+  }
+  function setStars(n: number) {
+    if (!interactive) return;
+    $form.satisfactionStars = $form.satisfactionStars === n ? null : n;
+    scheduleAutosave();
+  }
+  function setText(field: string, value: string) {
+    if (!interactive) return;
+    $form = { ...$form, [field]: value } as InterviewConductForm;
+    scheduleAutosave();
+  }
+  function setRecommendation(value: string) {
+    if (!interactive) return;
+    $form = {
+      ...$form,
+      recommendation: ($form.recommendation === value
+        ? null
+        : value) as InterviewConductForm['recommendation'],
+    };
+    scheduleAutosave();
+  }
+
+  // No leave guard: an open interview stays in_progress until explicitly
+  // clôturé. Staff can navigate away freely (the answers autosave), so there is
+  // nothing to confirm on the way out, the lifecycle is decoupled from the view.
+
+  // The one confirm worth keeping: clôture crosses a one-way door. Finalising is
+  // terminal, a done interview is locked for good (the server refuses any later
+  // mutation), so the confirm guards that irreversible step.
+  let closeConfirmOpen = $state(false);
+  function doClose() {
+    closeConfirmOpen = false;
+    beginAction('close');
+    formEl.requestSubmit(closeBtn);
+  }
+
+  // Public lifecycle controls (driven from the steps' own CTAs; also exported so
+  // the fiche could drive them if needed).
+  export function start() {
+    beginAction('start');
+    formEl.requestSubmit(startBtn);
+  }
+  export function close() {
+    closeConfirmOpen = true;
+  }
+
+  // Surface autosave + in-flight state so the fiche can mirror it if it wants.
+  $effect(() => {
+    actionState = { busy: $delayed, lastAction, saveState };
+  });
+
+  // The trimmed per-question note, or null. Shared by the synthesis (rendered on
+  // its own line so its newlines survive) and resume (a note alone marks the
+  // question touched). Reads $form via fv, so it stays reactive in the template.
+  function noteText(q: InterviewQuestion): string | null {
+    if (!('note' in q) || !q.note) return null;
+    const s = (fv(q.note.field) as string | undefined)?.trim();
+    return s || null;
+  }
+
+  // The structured answer of a question, for the synthesis: option labels for
+  // choices (joined for multi), the rating as "n/5", or the trimmed text answer.
+  // Excludes the free-text note, which the synthesis renders separately (as prose
+  // with preserved newlines) so a multi-line annotation never gets crushed into a
+  // parenthetical. Null = no structured answer. Reads $form via fv, stays reactive.
+  function answerLabel(q: InterviewQuestion): string | null {
+    const v = fv(q.field);
+    if (q.kind === 'text') {
+      const s = typeof v === 'string' ? v.trim() : '';
+      return s || null;
+    }
+    if (q.kind === 'rating') {
+      return $form.satisfactionStars
+        ? `${$form.satisfactionStars}/${q.max}`
+        : null;
+    }
+    if (q.kind === 'single') {
+      return q.options.find((o) => o.value === v)?.label ?? null;
+    }
+    const arr = (v as string[] | undefined) ?? [];
+    const labels = q.options
+      .filter((o) => arr.includes(o.value))
+      .map((o) => o.label);
+    return labels.length ? labels.join(', ') : null;
+  }
+
+  const chipBase =
+    'cursor-pointer rounded-sm border px-3.5 py-2 text-sm font-medium transition select-none active:scale-95 disabled:cursor-default disabled:active:scale-100';
+  const chipIdle =
+    'border-border bg-background text-foreground hover:border-epi-blue/40 hover:bg-epi-blue/5';
+  // Active = tinted, not solid: a /10 wash + ring keeps the selection legible
+  // without shouting over the conversation (a solid epi-blue fill pulled the eye
+  // off the question). Same language as the verdict's TONE_ACTIVE.
+  const chipActive =
+    'border-epi-blue bg-epi-blue/10 text-epi-blue ring-1 ring-epi-blue';
+
+  // Sentiment palette for ordinal answers (oui / un peu / pas du tout), colour
+  // carrying the valence: green = positive, amber = neutral, red = negative.
+  // Idle keeps a faint tint so the valence reads even unselected; active is the
+  // same tinted-ring treatment as the categorical blue.
+  const CHIP_TONE_IDLE: Record<ChoiceTone, string> = {
+    positive:
+      'border-epi-teal-solid/30 bg-epi-teal-solid/5 text-epi-teal-solid hover:border-epi-teal-solid hover:bg-epi-teal-solid/10',
+    neutral:
+      'border-amber-500/30 bg-amber-500/5 text-amber-600 hover:border-amber-500 hover:bg-amber-500/10',
+    negative:
+      'border-destructive/30 bg-destructive/5 text-destructive hover:border-destructive hover:bg-destructive/10',
+  };
+  const CHIP_TONE_ACTIVE: Record<ChoiceTone, string> = {
+    positive:
+      'border-epi-teal-solid bg-epi-teal-solid/10 text-epi-teal-solid ring-1 ring-epi-teal-solid',
+    neutral:
+      'border-amber-500 bg-amber-500/10 text-amber-600 ring-1 ring-amber-500',
+    negative:
+      'border-destructive bg-destructive/10 text-destructive ring-1 ring-destructive',
+  };
+
+  // Catalogue's ChoiceIconToken → Lucide component (token kept in the domain
+  // module, the component wiring stays here).
+  const CHIP_ICONS: Record<ChoiceIconToken, typeof Code> = {
+    dev: Code,
+    cyber: ShieldCheck,
+    design: Palette,
+    ia: Brain,
+    jeux_video: Gamepad2,
+    reseaux: Network,
+    pas_idee: CircleQuestionMark,
+    hors_tech: Compass,
+  };
+
+  // A chip's colour: tone palette when the option carries a sentiment, else the
+  // neutral categorical blue (a channel, a specialty, no valence to imply).
+  function chipClass(opt: ChoiceOption, active: boolean): string {
+    if (opt.tone) {
+      return active ? CHIP_TONE_ACTIVE[opt.tone] : CHIP_TONE_IDLE[opt.tone];
+    }
+    return active ? chipActive : chipIdle;
+  }
+
+  const TONE_IDLE: Record<RecommendationToneToken, string> = {
+    'epi-tech':
+      'border-epi-teal-solid/30 bg-epi-teal-solid/5 text-epi-teal-solid hover:border-epi-teal-solid',
+    'epi-blue':
+      'border-epi-blue/30 bg-epi-blue/5 text-epi-blue hover:border-epi-blue',
+    'epi-tomorrow':
+      'border-epi-pink/30 bg-epi-pink/5 text-epi-pink hover:border-epi-pink',
+    'epi-drift':
+      'border-border bg-muted/40 text-muted-foreground hover:border-foreground/40',
+  };
+  const TONE_ACTIVE: Record<RecommendationToneToken, string> = {
+    'epi-tech':
+      'border-epi-teal-solid bg-epi-teal-solid/15 ring-1 ring-epi-teal-solid',
+    'epi-blue': 'border-epi-blue bg-epi-blue/10 ring-1 ring-epi-blue',
+    'epi-tomorrow': 'border-epi-pink bg-epi-pink/10 ring-1 ring-epi-pink',
+    'epi-drift': 'border-foreground/40 bg-muted ring-1 ring-foreground/30',
+  };
+
+  // RecommendationIconToken → Lucide face. The display-order array leads with the
+  // most compatible profile, so the row runs laugh → frown left→right.
+  const RECO_ICONS: Record<RecommendationIconToken, typeof Frown> = {
+    frown: Frown,
+    meh: Meh,
+    smile: Smile,
+    laugh: Laugh,
+  };
+</script>
+
+<!-- One chip group for both single- and multi-choice. `multi` only swaps the
+     active test (membership vs equality) and the handler (toggle vs set); the
+     chrome is identical, so the two kinds never drift apart. Selection reads
+     through the active ring + tint alone, no per-chip tick, which (rendering
+     only when active) would widen the chip on select and re-wrap the row. The
+     one-vs-many cue lives once under the prompt instead (see questionBlock). -->
+{#snippet choiceChips(
+  field: string,
+  options: readonly ChoiceOption[],
+  multi: boolean,
+)}
+  <div class="flex flex-wrap gap-2">
+    {#each options as opt (opt.value)}
+      {@const active = multi
+        ? ((fv(field) as string[] | undefined) ?? []).includes(opt.value)
+        : fv(field) === opt.value}
+      {@const Icon = opt.icon ? CHIP_ICONS[opt.icon] : null}
+      <button
+        type="button"
+        aria-pressed={active}
+        disabled={!interactive}
+        onclick={() =>
+          multi ? toggleMulti(field, opt.value) : setSingle(field, opt.value)}
+        class={cn(
+          chipBase,
+          'inline-flex items-center gap-1.5',
+          chipClass(opt, active),
+        )}
+      >
+        {#if Icon}<Icon class="h-3.5 w-3.5" />{/if}
+        {opt.label}
+      </button>
+    {/each}
+  </div>
+{/snippet}
+
+<!-- The always-on free-text note under a question: anything the chips don't
+     capture, including the precision behind an "Autre" pick. Multi-line (a
+     Textarea, like the testimony and verdict boxes) to invite a real note, not a
+     one-word clarification. The placeholder is tailored to the question. -->
+{#snippet noteInput(note: QuestionNote)}
+  <Textarea
+    value={(fv(note.field) as string) ?? ''}
+    oninput={(e) => setText(note.field, e.currentTarget.value)}
+    placeholder={note.placeholder}
+    maxlength={note.maxLength}
+    disabled={!interactive}
+    class="min-h-16 resize-none bg-background"
+  />
+{/snippet}
+
+<!-- One question: the prompt is the prominent element (it's what the dev reads
+     aloud), the answers sit quieter below. No box around it: the step is the
+     unit, not the question. -->
+{#snippet questionBlock(q: InterviewQuestion)}
+  <div class="space-y-4">
+    <div class="space-y-1.5">
+      <p class="text-2xl leading-snug font-semibold text-foreground">
+        {q.label}
+      </p>
+      {#if q.hint}
+        <p class="text-sm text-muted-foreground italic">{q.hint}</p>
+      {/if}
+      <!-- Single-choice is the default expectation, so only the multi questions
+           carry a cue. One quiet muted line under the prompt, enough to resolve
+           the one-vs-many ambiguity without putting an affordance on every chip. -->
+      {#if q.kind === 'multi'}
+        <p
+          class="flex items-center gap-1 text-xs font-medium text-muted-foreground/70"
+        >
+          <CheckCheck class="h-3 w-3" />
+          Plusieurs réponses possibles
+        </p>
+      {/if}
+    </div>
+
+    {#if q.kind === 'single' || q.kind === 'multi'}
+      {@render choiceChips(q.field, q.options, q.kind === 'multi')}
+    {:else if q.kind === 'rating'}
+      <div class="flex items-center gap-1.5">
+        {#each Array.from({ length: q.max }) as _, idx (idx)}
+          {@const filled = ($form.satisfactionStars ?? 0) > idx}
+          <button
+            type="button"
+            disabled={!interactive}
+            onclick={() => setStars(idx + 1)}
+            aria-label={`${idx + 1} sur ${q.max}`}
+            class="cursor-pointer rounded-sm p-0.5 transition-transform hover:scale-110 active:scale-95 disabled:cursor-default disabled:hover:scale-100 disabled:active:scale-100"
+          >
+            <Star
+              class={cn(
+                'h-7 w-7 transition-colors',
+                filled
+                  ? 'fill-epi-orange text-epi-orange'
+                  : 'text-muted-foreground/40',
+              )}
+            />
+          </button>
+        {/each}
+        {#if $form.satisfactionStars}
+          <span class="ml-1 text-sm font-bold text-foreground">
+            {$form.satisfactionStars}/5
+          </span>
+        {/if}
+      </div>
+    {:else if q.kind === 'text'}
+      <Textarea
+        value={(fv(q.field) as string) ?? ''}
+        oninput={(e) => setText(q.field, e.currentTarget.value)}
+        placeholder={q.placeholder}
+        maxlength={q.maxLength}
+        disabled={!interactive}
+        class="min-h-16 resize-none bg-background"
+      />
+    {/if}
+
+    <!-- Always-on note under every choice/rating question (text questions are
+         themselves free text, so they carry none). The one place to jot anything
+         off-script, including an "Autre" precision. -->
+    {#if 'note' in q && q.note}
+      {@render noteInput(q.note)}
+    {/if}
+  </div>
+{/snippet}
+
+<!-- Small autosave indicator, shown in the step footer while in progress. -->
+{#snippet saveIndicator()}
+  <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
+    {#if saveState === 'saving'}
+      <Loader2 class="h-3.5 w-3.5 animate-spin" /> Enregistrement…
+    {:else if saveState === 'saved'}
+      <Check class="h-3.5 w-3.5 text-epi-teal-solid" /> Enregistré
+    {:else}
+      Enregistrement automatique
+    {/if}
+  </p>
+{/snippet}
+
+<!-- Free-text prose in the synthesis (a note, the testimony, the verdict): its
+     own block, newlines preserved (whitespace-pre-wrap on the inner <p>, kept
+     inline so the markup's own indentation never leaks in), behind the epi-blue
+     left rail that marks a staff note everywhere else (see TalentNotePanel). -->
+{#snippet prose(t: string)}
+  <div class="border-l-2 border-epi-blue/40 pl-2.5">
+    <p class="text-sm whitespace-pre-wrap text-foreground">{t}</p>
+  </div>
+{/snippet}
+
+{#snippet dash()}
+  <p class="text-sm text-muted-foreground/60">—</p>
+{/snippet}
+
+<!-- One synthesis line: the question, then its structured answer (chips joined,
+     stars, or the text testimony) with any free-text note as prose beneath. A
+     note alone still reads as the answer; nothing at all shows a muted dash. -->
+{#snippet synthesisRow(q: InterviewQuestion)}
+  {@const note = noteText(q)}
+  <div class="grid gap-1 py-2 sm:grid-cols-[2fr_3fr] sm:gap-4">
+    <p class="text-xs text-muted-foreground sm:pt-0.5">{q.label}</p>
+    <div class="space-y-1.5">
+      {#if q.kind === 'text'}
+        {@const value = answerLabel(q)}
+        {#if value}
+          {@render prose(value)}
+        {:else}
+          {@render dash()}
+        {/if}
+      {:else if q.kind === 'rating'}
+        {#if $form.satisfactionStars}
+          <div class="flex items-center gap-0.5">
+            {#each Array.from({ length: q.max }) as _, idx (idx)}
+              <Star
+                class={cn(
+                  'h-3.5 w-3.5',
+                  ($form.satisfactionStars ?? 0) > idx
+                    ? 'fill-epi-orange text-epi-orange'
+                    : 'text-muted-foreground/30',
+                )}
+              />
+            {/each}
+            <span class="ml-1.5 text-sm font-semibold text-foreground">
+              {$form.satisfactionStars}/{q.max}
+            </span>
+          </div>
+        {:else if !note}
+          {@render dash()}
+        {/if}
+        {#if note}{@render prose(note)}{/if}
+      {:else}
+        {@const label = answerLabel(q)}
+        {#if label}
+          <p class="text-sm font-semibold text-foreground">{label}</p>
+        {:else if !note}
+          {@render dash()}
+        {/if}
+        {#if note}{@render prose(note)}{/if}
+      {/if}
+    </div>
+  </div>
+{/snippet}
+
+<section class="rounded-sm border bg-card dark:shadow-none">
+  <!-- Progress fill: a thin no-number bar so paging never feels like a numbered
+       checklist. Conduct-only: the synthesis has nothing to pace. -->
+  {#if status === 'in_progress'}
+    <div class="h-1 w-full overflow-hidden rounded-t-sm bg-muted">
+      <div
+        class="h-full bg-epi-blue transition-all duration-300"
+        style={`width:${progressPct}%`}
+      ></div>
+    </div>
+  {/if}
+
+  <form bind:this={formEl} method="POST" action="?/saveInterview" use:enhance>
+    <!-- Hidden submitters: every lifecycle transition is driven through
+         requestSubmit on one of these. -->
+    <button
+      bind:this={startBtn}
+      type="submit"
+      formaction="?/startInterview"
+      class="hidden"
+      aria-hidden="true"
+      tabindex={-1}
+    ></button>
+    <button
+      bind:this={closeBtn}
+      type="submit"
+      formaction="?/closeInterview"
+      class="hidden"
+      aria-hidden="true"
+      tabindex={-1}
+    ></button>
+
+    {#if status === 'done'}
+      <!-- ═══ Synthesis: the finalised interview at a glance. Read-only and
+           final, clôture is a one-way door, so there is nothing to do here but
+           read it. ═══ -->
+      <div class="px-5 py-6">
+        <div class="mx-auto w-full max-w-2xl space-y-6">
+          {#if justFinalised}
+            <!-- One-time finalised banner: shown only right after THIS session's
+                 clôture, the moment that tested as ambiguous (staff couldn't tell
+                 the interview had closed and read the recap as a form to confirm).
+                 It never renders on later visits to an already-done interview, so
+                 the record stays uncluttered. Teal = gate cleared, the "done"
+                 status-chip language. -->
+            <div
+              class="flex items-center gap-3 rounded-md border border-epi-teal-solid/30 bg-epi-teal-solid/10 p-4"
+            >
+              <span
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-epi-teal-solid/15"
+              >
+                <CheckCheck class="h-5 w-5 text-epi-teal-solid" />
+              </span>
+              <p class="text-sm font-medium text-foreground">
+                <span class="font-bold">Entretien finalisé.</span> Il est clôturé
+                et n'est plus modifiable.
+              </p>
+            </div>
+          {/if}
+
+          <div class="space-y-2.5">
+            <h3
+              class="font-heading text-2xl tracking-wide text-foreground uppercase"
+            >
+              Synthèse de l'entretien<span class="text-epi-teal">_</span>
+            </h3>
+            {#if conductedBy || conductedLabel}
+              <div class="flex items-center gap-2.5">
+                {#if conductedBy}
+                  <Avatar.Root class="h-7 w-7 shrink-0">
+                    <Avatar.Image
+                      src={conductedByImage ?? undefined}
+                      alt={conductedBy}
+                      class="object-cover"
+                    />
+                    <Avatar.Fallback
+                      class="bg-epi-blue/10 text-[10px] font-bold text-epi-blue"
+                    >
+                      {getInitials(conductedBy)}
+                    </Avatar.Fallback>
+                  </Avatar.Root>
+                {/if}
+                <p class="text-sm text-muted-foreground">
+                  {#if conductedLabel && conductedBy}
+                    Mené le <span class="font-medium text-foreground"
+                      >{conductedLabel}</span
+                    >
+                    par
+                    <span class="font-semibold text-foreground"
+                      >{conductedBy}</span
+                    >
+                  {:else if conductedBy}
+                    Mené par <span class="font-semibold text-foreground"
+                      >{conductedBy}</span
+                    >
+                  {:else if conductedLabel}
+                    Mené le <span class="font-medium text-foreground"
+                      >{conductedLabel}</span
+                    >
+                  {/if}
+                </p>
+              </div>
+            {/if}
+          </div>
+
+          <!-- The verdict first: it's the one thing staff come back for. -->
+          <div
+            class="space-y-3 rounded-md border border-epi-blue/40 bg-epi-blue/5 p-4"
+          >
+            <p
+              class="text-xs font-semibold tracking-[0.2em] text-epi-blue uppercase"
+            >
+              {VERDICT_SECTION.title}
+            </p>
+            {#if $form.recommendation}
+              {@const desc = INTERVIEW_RECOMMENDATIONS[$form.recommendation]}
+              {@const Face = RECO_ICONS[desc.icon]}
+              <span
+                class={cn(
+                  'inline-flex items-center gap-2 rounded-sm border px-3 py-1.5 text-sm font-bold',
+                  TONE_ACTIVE[desc.tone],
+                )}
+              >
+                <Face class="h-5 w-5" />
+                {desc.label}
+              </span>
+            {:else}
+              <p class="text-sm text-muted-foreground/60">
+                Aucun avis renseigné.
+              </p>
+            {/if}
+            {#if $form.verdictNote.trim()}
+              {@render prose($form.verdictNote.trim())}
+            {/if}
+          </div>
+
+          {#each INTERVIEW_SECTIONS as section (section.key)}
+            <div class="space-y-1">
+              <p
+                class="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase"
+              >
+                {section.title}
+              </p>
+              <div class="divide-y divide-border/60">
+                {#each section.questions as q (q.field)}
+                  {@render synthesisRow(q)}
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {:else}
+      <!-- ═══ Conduct: one step visible at a time. Content centered at a
+           reading width so the panel never feels like a stretched form. ═══ -->
+      <div class="px-5 py-6">
+        <!-- Relative + min-height so the absolute exit transition overlaps the
+             entering step without collapsing the panel. -->
+        <div class="relative mx-auto min-h-140 w-full max-w-2xl">
+          {#key step}
+            <!-- Each step centers vertically in the panel's min-height, so a
+                 short step sits balanced instead of clumped at the top. -->
+            <div
+              class="flex min-h-140 w-full flex-col justify-center"
+              in:fly|local={{ x: 30, duration: 250, delay: 180 }}
+              out:exitSlide|local={{ duration: 180 }}
+            >
+              {#if isIntro}
+                <!-- ── Cover: guide + the lifecycle CTA for the current status ── -->
+                <div class="space-y-5">
+                  <div class="space-y-1.5">
+                    <h3
+                      class="font-heading text-2xl tracking-wide text-foreground uppercase"
+                    >
+                      Entretien d'orientation<span class="text-epi-teal">_</span
+                      >
+                    </h3>
+                    <p class="text-sm text-muted-foreground">
+                      Un point d'orientation avec {talentName}, pas un
+                      interrogatoire.
+                    </p>
+                  </div>
+
+                  <div
+                    class="space-y-3.5 rounded-md border bg-muted/20 p-4 text-xs leading-relaxed"
+                  >
+                    <div class="flex gap-3">
+                      <Clock class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue" />
+                      <p class="text-muted-foreground">
+                        <span class="font-semibold text-foreground"
+                          >Une dizaine de minutes, rythme tranquille.</span
+                        >
+                        Vous saisissez en mots-clés et cases cochées, peu de rédaction.
+                      </p>
+                    </div>
+                    <div class="flex gap-3">
+                      <MessageCircle
+                        class="mt-0.5 h-4 w-4 shrink-0 text-epi-blue"
+                      />
+                      <p class="text-muted-foreground">
+                        <span class="font-semibold text-foreground"
+                          >Ton bienveillant, tutoiement.</span
+                        >
+                        Accroche : « On prend 10 min ensemble pour faire le point
+                        sur ton orientation et avoir ton retour sur la semaine. »
+                      </p>
+                    </div>
+                  </div>
+
+                  {#if status === null}
+                    <div class="flex justify-center pt-2">
+                      <Button class="px-10" disabled={$delayed} onclick={start}>
+                        {#if $delayed && lastAction === 'start'}
+                          <Loader2 class="mr-1.5 h-4 w-4 animate-spin" />
+                        {:else}
+                          <Play class="mr-1.5 h-4 w-4" />
+                        {/if}
+                        Démarrer l'entretien
+                      </Button>
+                    </div>
+                  {:else}
+                    <div class="flex justify-center pt-2">
+                      <Button class="px-10" onclick={resume}>
+                        Reprendre l'entretien
+                        <ArrowRight class="ml-1.5 h-4 w-4" />
+                      </Button>
+                    </div>
+                  {/if}
+                </div>
+              {:else if currentSection}
+                <!-- ── A question section ── -->
+                <div class="space-y-6">
+                  <p
+                    class="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase"
+                  >
+                    {currentSection.title}
+                  </p>
+                  <div class="space-y-14">
+                    {#each currentSection.questions as q (q.field)}
+                      {@render questionBlock(q)}
+                    {/each}
+                  </div>
+                </div>
+              {:else}
+                <!-- ── Verdict: staff-only, filled at the end ── -->
+                <div class="space-y-6">
+                  <div class="space-y-0.5">
+                    <p
+                      class="text-xs font-semibold tracking-[0.2em] text-epi-blue uppercase"
+                    >
+                      {VERDICT_SECTION.title}
+                    </p>
+                    <p class="text-[11px] text-muted-foreground">
+                      {VERDICT_SECTION.subtitle}
+                    </p>
+                  </div>
+
+                  <div class="space-y-3">
+                    <p
+                      class="text-2xl leading-snug font-semibold text-foreground"
+                    >
+                      Compatibilité du profil
+                    </p>
+                    <!-- Ordered by compatibility: faces run laugh → frown, left
+                         (100 % compatible) to right (pas intéressé). -->
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {#each INTERVIEW_RECOMMENDATION_DISPLAY_ORDER as value (value)}
+                        {@const desc = INTERVIEW_RECOMMENDATIONS[value]}
+                        {@const active = $form.recommendation === value}
+                        {@const Face = RECO_ICONS[desc.icon]}
+                        <button
+                          type="button"
+                          aria-pressed={active}
+                          disabled={!interactive}
+                          onclick={() => setRecommendation(value)}
+                          class={cn(
+                            'flex cursor-pointer flex-col items-center gap-1.5 rounded-sm border px-2 py-3 text-center transition-all active:scale-[0.98] disabled:cursor-default disabled:active:scale-100',
+                            active
+                              ? TONE_ACTIVE[desc.tone]
+                              : TONE_IDLE[desc.tone],
+                          )}
+                        >
+                          <Face class="h-7 w-7" />
+                          <span class="text-xs leading-tight font-bold">
+                            {desc.label}
+                          </span>
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <div class="space-y-3">
+                    <p
+                      class="text-2xl leading-snug font-semibold text-foreground"
+                    >
+                      {VERDICT_SECTION.noteLabel}
+                    </p>
+                    <Textarea
+                      value={$form.verdictNote}
+                      oninput={(e) =>
+                        setText('verdictNote', e.currentTarget.value)}
+                      placeholder={VERDICT_SECTION.notePlaceholder}
+                      maxlength={VERDICT_SECTION.noteMaxLength}
+                      disabled={!interactive}
+                      class="min-h-20 bg-background"
+                    />
+                  </div>
+                </div>
+              {/if}
+            </div>
+          {/key}
+        </div>
+      </div>
+
+      <!-- Step nav: Précédent / autosave / Suivant, or Clôturer on the verdict.
+           Hidden on the cover, whose CTAs drive the lifecycle. -->
+      {#if !isIntro}
+        <div class="border-t px-5 py-3.5">
+          <div
+            class="mx-auto flex w-full max-w-2xl items-center justify-between gap-3"
+          >
+            <Button variant="ghost" onclick={goPrev}>
+              <ArrowLeft class="mr-1.5 h-4 w-4" />
+              Précédent
+            </Button>
+
+            {#if interactive}
+              {@render saveIndicator()}
+            {/if}
+
+            {#if isVerdict}
+              <Button
+                class="bg-epi-teal-solid text-white hover:bg-epi-teal-solid/90"
+                disabled={$delayed}
+                onclick={close}
+              >
+                {#if $delayed && lastAction === 'close'}
+                  <Loader2 class="mr-1.5 h-4 w-4 animate-spin" />
+                {:else}
+                  <Lock class="mr-1.5 h-4 w-4" />
+                {/if}
+                Clôturer l'entretien
+              </Button>
+            {:else}
+              <Button onclick={goNext}>
+                Suivant
+                <ArrowRight class="ml-1.5 h-4 w-4" />
+              </Button>
+            {/if}
+          </div>
+        </div>
+      {/if}
+    {/if}
+  </form>
+</section>
+
+<AlertDialog.Root bind:open={closeConfirmOpen}>
+  <AlertDialog.Content class="rounded-sm">
+    <AlertDialog.Header>
+      <AlertDialog.Title class="flex items-center gap-2">
+        <Lock class="h-5 w-5 text-epi-teal-solid" />
+        Clôturer l'entretien&nbsp;?
+      </AlertDialog.Title>
+      <AlertDialog.Description>
+        L'entretien passera en «&nbsp;finalisé&nbsp;». Cette action est
+        définitive&nbsp;: vous ne pourrez plus le modifier. Vérifiez les
+        réponses avant de clôturer.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>Annuler</AlertDialog.Cancel>
+      <Button onclick={doClose}>
+        <Lock class="mr-1.5 h-4 w-4" />
+        Clôturer
+      </Button>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

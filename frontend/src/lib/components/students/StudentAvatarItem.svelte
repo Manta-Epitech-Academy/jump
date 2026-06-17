@@ -5,6 +5,7 @@
   let {
     student,
     subText = null,
+    courtesyTitle = null,
     size = 'md',
   }: {
     student: {
@@ -13,6 +14,9 @@
       prenom?: string | null;
     };
     subText?: string | null;
+    // Optional honorific (civilité) shown muted before the name, mirroring the
+    // dossier ContactCard. Empty string / null omits it.
+    courtesyTitle?: string | null;
     size?: 'sm' | 'md';
   } = $props();
 </script>
@@ -25,7 +29,9 @@
       class="group flex items-center gap-2 truncate text-sm font-bold transition-colors hover:text-epi-blue"
     >
       <span class="truncate">
-        <TalentName talent={student} />
+        {#if courtesyTitle}<span class="font-normal text-muted-foreground"
+            >{courtesyTitle}</span
+          >{' '}{/if}<TalentName talent={student} />
       </span>
     </span>
     {#if subText}

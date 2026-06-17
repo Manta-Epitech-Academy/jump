@@ -60,11 +60,12 @@
     data.kind === 'stage' ? STAGE_SECONDE_LABEL : data.event.titre,
   );
 
-  // Planning ships as a read-only viewer, but stays gated until each onboarded
-  // campus has its calendar data (shown as "Bientôt disponible" in the dev
-  // sidebar), so its links stay hidden on the coding_club overview too.
-  // Flip back on once every onboarded campus has its planning data.
-  const showPlanning = false;
+  // Planning is a read-only viewer in the dev space, governed per campus by the
+  // `planning` feature flag: the campus's schedule is populated in DB, then the
+  // flag is switched on, and every dev planning link (this dashboard button, the
+  // ProgrammeJour shortcut, the sidebar entry) lights up together. Campuses that
+  // run their schedule outside Jump leave it off and see none of it.
+  const showPlanning = $derived(data.featureFlags.includes('planning'));
 </script>
 
 <svelte:head>
@@ -109,7 +110,6 @@
       kpis={data.ongoing.kpis}
       alerts={data.ongoing.alerts}
       timeSlots={data.ongoing.todayTimeSlots}
-      mesProchainsEntretiens={data.ongoing.mesProchainsEntretiens}
       lyceesBreakdown={data.ongoing.lyceesBreakdown}
       interestsCloud={data.ongoing.interestsCloud}
       {showPlanning}

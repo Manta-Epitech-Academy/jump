@@ -142,6 +142,15 @@ export function levelLabelFr(xp: number): string {
 }
 
 /**
+ * Staff-facing one-liner explaining what XP means, shown as the hover tooltip
+ * wherever the dev workspace surfaces a talent's XP (cohort table, directory,
+ * fiche). Kept here, beside the XP rules, so the three surfaces share one copy
+ * and it can never drift between them.
+ */
+export const XP_EXPLAINER_FR =
+  "Les XP mesurent l'engagement du stagiaire sur JUMP : il en gagne en s'entraînant régulièrement (mini-jeux quotidiens), en participant aux événements et en complétant son onboarding.";
+
+/**
  * Resolves a level name back to its XP bounds — used by the broadcast filter to
  * translate a chosen tier into an `xp` range query now that `level` is no
  * longer a column. Falls back to the first tier for unknown names.

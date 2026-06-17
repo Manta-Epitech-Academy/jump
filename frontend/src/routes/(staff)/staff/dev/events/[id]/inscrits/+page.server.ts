@@ -8,6 +8,7 @@ import {
   loadEventOr404,
   stageEndOrDefault,
 } from '$lib/server/services/stageContext';
+import { requireFlag } from '$lib/server/auth/guards';
 import { compareNiveaux } from '$lib/domain/niveau';
 import { rulesStatus, inscritStatus } from '$lib/domain/stageCompliance';
 import { imageRightsStatus } from '$lib/domain/imageRights';
@@ -24,12 +25,12 @@ import {
   toBreakdown,
 } from '$lib/server/services/cohortOverview';
 import { INSCRIT_PARTICIPATION_SELECT } from './components/types';
-import type { InscritRow } from './components/types';
+import type { InscritRow, InscritsCohort } from './components/types';
+import { stageCountdown } from '$lib/domain/eventPresence';
 
 // The sidebar cards are narrower than the dashboard's side-by-side breakdowns,
 // so they show a shorter head with the tail folded into "Autres".
 const SIDEBAR_BREAKDOWN_TOP_N = 5;
-const MS_PER_DAY = 86_400_000;
 
 function originConditions(schoolId: string | null, interestId: string | null) {
   const conds: object[] = [];
@@ -41,6 +42,7 @@ function originConditions(schoolId: string | null, interestId: string | null) {
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
   const campusId = getCampusId(locals);
+  requireFlag(locals, 'inscrits');
   const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
@@ -54,19 +56,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
     locals.stagePhaseOverride,
   );
   const stageEnd = stageEndOrDefault(event);
-  const totalDays = Math.max(
-    1,
-    Math.ceil((stageEnd.getTime() - event.date.getTime()) / MS_PER_DAY),
-  );
-  const dayN = Math.min(
-    totalDays,
-    Math.max(
-      1,
-      Math.ceil(
-        (bounds.endOfDay.getTime() - event.date.getTime()) / MS_PER_DAY,
-      ),
-    ),
-  );
+  const { dayN, totalDays } = stageCountdown(event, timezone, bounds.now);
   const countdown = {
     status,
     openDate: composeEventStartInstant(
@@ -111,68 +101,78 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
   const scopedAnd = [{ eventId: event.id }, ...originAnd];
   const where = scopedAnd.length === 1 ? scopedAnd[0] : { AND: scopedAnd };
 
-  // One phase-agnostic query: every inscrit, sorted by nom for a stable order
+  // Stream the cohort: the page shell (header + countdown + rail skeleton) paints
+  // immediately while this resolves, instead of the client navigation blocking on
+  // it. One phase-agnostic query: every inscrit, sorted by nom for a stable order
   // (the client applies the user-chosen sort on top). The cohort overview
   // (counter + origin breakdowns + lycée picker) is whole-event on purpose —
   // it ignores the `?lycee`/`?interest` origin filter so it stays a stable map
   // the user drills into, never collapsing to the row currently filtered.
-  const [participations, lyceeRanking, interestRanking, cohortTotal] =
-    await Promise.all([
-      db.participation.findMany({
-        where,
-        select: INSCRIT_PARTICIPATION_SELECT,
-        orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
-      }),
-      rankLyceesByCohort(db, event.id),
-      // The interests sidebar shows only tech interests (the recruitment signal);
-      // the lycée breakdown stays the full origin picture.
-      rankInterestsByCohort(db, event.id, { techOnly: true }),
-      db.participation.count({ where: { eventId: event.id } }),
-    ]);
+  const cohort: Promise<InscritsCohort> = (async () => {
+    const [participations, lyceeRanking, interestRanking, cohortTotal] =
+      await Promise.all([
+        db.participation.findMany({
+          where,
+          select: INSCRIT_PARTICIPATION_SELECT,
+          orderBy: [{ talent: { nom: 'asc' } }, { talent: { prenom: 'asc' } }],
+        }),
+        rankLyceesByCohort(db, event.id),
+        // The interests sidebar shows only tech interests (the recruitment
+        // signal); the lycée breakdown stays the full origin picture.
+        rankInterestsByCohort(db, event.id, { techOnly: true }),
+        db.participation.count({ where: { eventId: event.id } }),
+      ]);
 
-  const rows: InscritRow[] = participations.map((p) => {
-    const t = p.talent;
-    const rules = rulesStatus(
-      t.parentRulesSignedAt,
-      p.stageCompliance?.charteSigned,
-      t.rulesSignedAt,
-    );
-    const image = imageRightsStatus(t);
-    const connected = (t.user?.sessions.length ?? 0) > 0;
+    const rows: InscritRow[] = participations.map((p) => {
+      const t = p.talent;
+      const rules = rulesStatus(
+        t.parentRulesSignedAt,
+        p.stageCompliance?.charteSigned,
+        t.rulesSignedAt,
+      );
+      const image = imageRightsStatus(t);
+      const connected = t.firstLoginAt != null;
+      return {
+        id: p.id,
+        talentId: p.talentId,
+        nom: t.nom,
+        prenom: t.prenom,
+        niveau: t.niveau,
+        schoolName: t.school?.name ?? null,
+        xp: t.xp,
+        status: inscritStatus(connected, rules, image),
+        connected,
+        rulesStatus: rules,
+        imageStatus: image,
+        studentSigned: t.rulesSignedAt != null,
+        email: t.email,
+        parentEmail: t.parentEmail,
+      };
+    });
+
+    const availableNiveaux = Array.from(
+      new Set(rows.map((r) => r.niveau).filter((n): n is string => !!n)),
+    ).sort(compareNiveaux);
+
     return {
-      id: p.id,
-      talentId: p.talentId,
-      nom: t.nom,
-      prenom: t.prenom,
-      niveau: t.niveau,
-      schoolName: t.school?.name ?? null,
-      status: inscritStatus(connected, rules, image),
-      connected,
-      rulesStatus: rules,
-      imageStatus: image,
-      studentSigned: t.rulesSignedAt != null,
-      email: t.email,
-      parentEmail: t.parentEmail,
+      rows,
+      availableNiveaux,
+      // Full lycée ranking feeds the toolbar picker (every lycée, ranked by
+      // headcount); the capped slices feed the read-only sidebar cards.
+      // Interests are read-only (no picker), so only the capped tech slice.
+      lyceeOptions: lyceeRanking,
+      lyceesBreakdown: toBreakdown(lyceeRanking, SIDEBAR_BREAKDOWN_TOP_N),
+      interestsCloud: toBreakdown(interestRanking, SIDEBAR_BREAKDOWN_TOP_N),
+      cohort: { total: cohortTotal },
     };
-  });
-
-  const availableNiveaux = Array.from(
-    new Set(rows.map((r) => r.niveau).filter((n): n is string => !!n)),
-  ).sort(compareNiveaux);
+  })();
 
   return {
     event,
     timezone,
     origin,
-    availableNiveaux,
-    rows,
     countdown,
-    // Full lycée ranking feeds the toolbar picker (every lycée, ranked by
-    // headcount); the capped slices feed the read-only sidebar cards. Interests
-    // are read-only (no picker), so only the capped tech slice is needed.
-    lyceeOptions: lyceeRanking,
-    lyceesBreakdown: toBreakdown(lyceeRanking, SIDEBAR_BREAKDOWN_TOP_N),
-    interestsCloud: toBreakdown(interestRanking, SIDEBAR_BREAKDOWN_TOP_N),
-    cohort: { total: cohortTotal },
+    // Un-awaited on purpose: SvelteKit streams it so the shell paints first.
+    cohort,
   };
 };

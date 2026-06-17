@@ -2,9 +2,11 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { prisma } from '$lib/server/db';
 import { toCalendarPlanning } from '$lib/domain/talentPlanning';
+import { requireFlag } from '$lib/server/auth/guards';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.talent) throw error(401, 'Non autorisé');
+  requireFlag(locals, 'planning');
 
   // Every event the talent participates in, past and future: the calendar is
   // their full personal timeline, not a single-event view. Non-orga activities
@@ -34,6 +36,13 @@ export const load: PageServerLoad = async ({ locals }) => {
                       activityType: true,
                       difficulte: true,
                       isDynamic: true,
+                      // Read by the openability rule; collapsed into a single
+                      // `openable` flag in toCalendarPlanning so the body HTML
+                      // never reaches the client.
+                      content: true,
+                      link: true,
+                      subjectVersionId: true,
+                      contentStructure: true,
                     },
                   },
                 },

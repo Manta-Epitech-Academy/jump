@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { prisma } from '$lib/server/db';
 import { applyRouteGuards } from '$lib/server/auth/guards';
+import { slideImpersonationExpiry } from '$lib/server/auth/impersonation';
 import { markRecipientOpened } from '$lib/server/services/broadcast/tracking';
 import { resolveEffectiveFlags } from '$lib/domain/featureFlags';
 import { resolveTalentCampus } from '$lib/server/services/talentCampus';
@@ -9,7 +10,9 @@ import { getTicketsEnabled } from '$lib/server/settings/tickets';
 import { readDevPhaseOverride } from '$lib/server/devPhaseOverride';
 import { readPlanningPreview } from '$lib/server/talentPlanningPreview';
 import { runWithRequestContext } from '$lib/server/requestContext';
-import { readArmedState } from '$lib/server/armRealSends';
+import { readArmedState, effectiveUserId } from '$lib/server/armRealSends';
+import { readDevRedirectPin } from '$lib/server/devRedirectPin';
+import { staffBulkDevRedirectEmails } from '$lib/server/email/dev-redirect';
 import { env } from '$env/dynamic/private';
 
 const UMAMI_HOST = 'https://jump-umami.epiboost.eu';
@@ -96,6 +99,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   event.locals.talentCampusName = null;
   event.locals.armedRealSends = false;
   event.locals.armedRealSendsUntil = null;
+  event.locals.devRedirectPin = null;
 
   // 2. Load profiles + refresh role from DB in a single query.
   // BetterAuth caches the session payload (including role) in a cookie for 5
@@ -110,7 +114,11 @@ export const handle: Handle = async ({ event, resolve }) => {
         name: true,
         image: true,
         staffProfile: { include: { campus: true } },
-        talent: true,
+        // Omit the staff-only `note`: `locals.talent` is the talent's view of
+        // themselves and gets serialized to their browser via the root layout.
+        // Keeping it off the session object makes the leak structurally
+        // impossible rather than relying on every talent load to strip it.
+        talent: { omit: { note: true } },
       },
     });
 
@@ -154,6 +162,13 @@ export const handle: Handle = async ({ event, resolve }) => {
     const impersonatedById =
       (event.locals.session as { impersonatedBy?: string | null } | null)
         ?.impersonatedBy ?? null;
+    // Keep an actively-used impersonation session from hitting its hard wall:
+    // slide its expiry forward so an admin testing a talent's flow is never
+    // bounced to login (which would drop their own admin session too). An
+    // abandoned session still lapses after the idle window. See the helper.
+    if (impersonatedById && event.locals.session) {
+      slideImpersonationExpiry(event.locals.session);
+    }
     if (impersonatedById) {
       const adminRecord = await prisma.bauth_user.findUnique({
         where: { id: impersonatedById },
@@ -186,28 +201,39 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.locals.stagePhaseOverride = readDevPhaseOverride(event);
     event.locals.planningPreview = readPlanningPreview(event);
 
-    // 2.5 Update lastActiveAt for students (throttled to once per day, fire-and-forget).
-    // Skip while impersonated: the request is an admin testing the talent's
-    // experience, not the talent being active. Counting it would mark a
-    // never-logged-in talent as recently connected (and leave "dernière
-    // connexion" disagreeing with "première connexion", which filters
-    // impersonation sessions out).
+    // 2.5 Stamp the talent's activity projections (fire-and-forget). Two durable
+    // facts derived from this real request:
+    //   - `firstLoginAt` — set once, on the first real request, never cleared.
+    //     It is the durable source for "première connexion" / the cohort funnel's
+    //     "connected" gate, replacing a probe of bauth_session (whose rows are
+    //     deleted by logout, identity repair and account relinks, so a real
+    //     login would read "Jamais" once its session vanished).
+    //   - `lastActiveAt` — throttled to once per day.
+    // Skip both while impersonated: the request is an admin testing the talent's
+    // experience, not the talent being active. Counting it would falsely mark a
+    // never-logged-in talent as connected.
     if (event.locals.talent && !impersonatedById) {
       const now = new Date();
-      const lastActive = event.locals.talent.lastActiveAt;
-      if (
+      const talent = event.locals.talent;
+      const needFirstLogin = talent.firstLoginAt == null;
+      const lastActive = talent.lastActiveAt;
+      const lastActiveStale =
         !lastActive ||
-        now.getTime() - lastActive.getTime() > 1000 * 60 * 60 * 24
-      ) {
+        now.getTime() - lastActive.getTime() > 1000 * 60 * 60 * 24;
+      if (needFirstLogin || lastActiveStale) {
         prisma.talent
           .update({
-            where: { id: event.locals.talent.id },
-            data: { lastActiveAt: now },
+            where: { id: talent.id },
+            data: {
+              lastActiveAt: now,
+              ...(needFirstLogin ? { firstLoginAt: now } : {}),
+            },
           })
           .catch((e) =>
-            console.warn('[lastActiveAt] update failed:', e.message),
+            console.warn('[talent activity] update failed:', e.message),
           );
-        event.locals.talent.lastActiveAt = now;
+        talent.lastActiveAt = now;
+        if (needFirstLogin) talent.firstLoginAt = now;
       }
     }
   }
@@ -238,12 +264,66 @@ export const handle: Handle = async ({ event, resolve }) => {
   const armed = readArmedState(event);
   event.locals.armedRealSends = armed.armed;
   event.locals.armedRealSendsUntil = armed.until;
+
+  // Dev-redirect pin (trapped envs only). Two roles:
+  //   - logged OUT: make the arming admin look like the request actor, so the
+  //     OTP login mail routes to their inbox — the functional case the pin
+  //     exists for (a logged-out send otherwise has no actor and falls to the
+  //     shared env list). The pin can only pick a destination inside the trap,
+  //     never lift it.
+  //   - logged IN as the armer: cosmetic only — surface the amber confirmation
+  //     banner (mirrors the real-sends banner) so the admin sees the pin is
+  //     armed and can log out to test. The actor is already correct here, so
+  //     we do NOT let the pin override it.
+  let pinnedStaff: {
+    email: string | null;
+    devRedirectEmails: string[];
+    devRedirectPhones: string[];
+  } | null = null;
+  const pin = readDevRedirectPin(event);
+  if (pin) {
+    const loggedOut = !event.locals.user;
+    const isArmer = pin.userId === effectiveUserId(event.locals);
+    if (loggedOut || isArmer) {
+      const pinned = await prisma.bauth_user.findUnique({
+        where: { id: pin.userId },
+        select: {
+          email: true,
+          staffProfile: {
+            select: { devRedirectEmails: true, devRedirectPhones: true },
+          },
+        },
+      });
+      if (pinned) {
+        const staff = {
+          email: pinned.email ?? null,
+          devRedirectEmails: pinned.staffProfile?.devRedirectEmails ?? [],
+          devRedirectPhones: pinned.staffProfile?.devRedirectPhones ?? [],
+        };
+        // Predict the destination with the same helper the live routing uses,
+        // so the banner can never claim an inbox the send won't reach.
+        event.locals.devRedirectPin = {
+          until: pin.until,
+          to: staffBulkDevRedirectEmails(staff.devRedirectEmails, staff.email),
+        };
+        // Override the actor only when logged out; a logged-in armer already
+        // routes to themselves and must not be impersonated by their own pin.
+        if (loggedOut) pinnedStaff = staff;
+      }
+    }
+  }
+
   const response = await runWithRequestContext(
     {
       actorEmail:
-        event.locals.impersonator?.email ?? event.locals.user?.email ?? null,
-      devRedirectEmails: actingStaff?.devRedirectEmails ?? [],
-      devRedirectPhones: actingStaff?.devRedirectPhones ?? [],
+        event.locals.impersonator?.email ??
+        event.locals.user?.email ??
+        pinnedStaff?.email ??
+        null,
+      devRedirectEmails:
+        actingStaff?.devRedirectEmails ?? pinnedStaff?.devRedirectEmails ?? [],
+      devRedirectPhones:
+        actingStaff?.devRedirectPhones ?? pinnedStaff?.devRedirectPhones ?? [],
       armedRealSends: armed.armed,
     },
     () => resolve(event),

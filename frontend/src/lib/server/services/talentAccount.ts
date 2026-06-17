@@ -3,6 +3,10 @@ import { prisma } from '$lib/server/db';
 import { isParentOrStaffEmail } from '$lib/server/auth/emailIdentity';
 import { deleteAnonymizedDocuments } from '$lib/server/services/anonymizationService';
 import {
+  findUnreferencedParentAccount,
+  deleteParentAccountCascade,
+} from '$lib/server/services/parentAccount';
+import {
   clearOnboardingTimestamps,
   clearTalentOnboardingArtifacts,
 } from '$lib/domain/talentOnboarding';
@@ -237,10 +241,10 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
       });
     }
 
-    // 2. Delete every other talent-scoped record created after import. Interviews
-    //    cascade their OutlookCalendarSync rows; broadcast recipients are matched
-    //    on both the talent and parent-of slots (SetNull relations, so deleted
-    //    explicitly rather than left orphaned).
+    // 2. Delete every other talent-scoped record created after import.
+    //    Broadcast recipients are matched on both the talent and parent-of
+    //    slots (SetNull relations, so deleted explicitly rather than left
+    //    orphaned).
     await tx.interview.deleteMany({ where: { talentId } });
     await tx.stepsProgress.deleteMany({ where: { talentId } });
     await tx.portfolioItem.deleteMany({ where: { talentId } });
@@ -252,6 +256,7 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
     await tx.onboardingPdfJob.deleteMany({ where: { talentId } });
     await tx.minigameAttempt.deleteMany({ where: { talentId } });
     await tx.xpGrant.deleteMany({ where: { talentId } });
+    await tx.imageRightsDecisionRecord.deleteMany({ where: { talentId } });
     await tx.broadcastRecipient.deleteMany({
       where: { OR: [{ talentId }, { parentOfTalentId: talentId }] },
     });
@@ -315,7 +320,11 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
         discordId: null,
         badges: Prisma.DbNull,
         lastSyncedAt: null,
+        // Activity projections: a fresh-import talent has never logged in, so
+        // both the first-login and last-active facts are dropped alongside the
+        // account itself (userId null + bauth_user deleted below).
         lastActiveAt: null,
+        firstLoginAt: null,
         userId: null,
       },
     });
@@ -341,26 +350,15 @@ export async function resetTalentToImport(talentId: string): Promise<void> {
 
     // 6. Delete parent bauth_user(s) minted during testing, but only ones no
     //    other talent still references, so a real sibling keeps their parent
-    //    login. Same guard as anonymizeTalent; here we delete rather than scrub
-    //    since the goal is "as if never created". The role === 'parent' check
-    //    also keeps the FK-safety from step 5: it never hard-deletes a staff user
-    //    who happens to share the email (and who could hold blocking ticket/CMS
-    //    rows).
+    //    login. The sibling + role guard lives in findUnreferencedParentAccount
+    //    (shared with anonymizeTalent); here we delete rather than scrub since
+    //    the goal is "as if never created". The role === 'parent' check inside
+    //    the guard also keeps the FK-safety from step 5: it never hard-deletes a
+    //    staff user who happens to share the email (and who could hold blocking
+    //    ticket/CMS rows).
     for (const email of new Set(parentEmails)) {
-      const stillReferenced = await tx.talent.count({
-        where: {
-          id: { not: talentId },
-          OR: [{ parentEmail: email }, { parent2Email: email }],
-        },
-      });
-      if (stillReferenced > 0) continue;
-
-      const parentUser = await tx.bauth_user.findUnique({ where: { email } });
-      if (!parentUser || parentUser.role !== 'parent') continue;
-
-      await tx.bauth_session.deleteMany({ where: { userId: parentUser.id } });
-      await tx.bauth_account.deleteMany({ where: { userId: parentUser.id } });
-      await tx.bauth_user.delete({ where: { id: parentUser.id } });
+      const orphan = await findUnreferencedParentAccount(tx, email, talentId);
+      if (orphan) await deleteParentAccountCascade(tx, orphan.id);
     }
 
     return documentKeys;

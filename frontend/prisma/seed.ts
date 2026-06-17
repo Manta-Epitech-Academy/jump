@@ -2606,251 +2606,150 @@ const EVENTS: EventBlueprint[] = [
 
 // ─── Interview blueprints ───
 
+// The questionnaire answers, typed straight off the Prisma create input so the
+// enum/array values are checked at compile time.
+type InterviewAnswers = Partial<
+  Pick<
+    Prisma.InterviewCreateManyInput,
+    // Choice / rating answers.
+    | 'discoveryChannel'
+    | 'motivation'
+    | 'orientationTalkAtSchool'
+    | 'passionateTeacher'
+    | 'techProjection'
+    | 'specialties'
+    | 'otherJobs'
+    | 'infoSources'
+    | 'wantsMore'
+    | 'nextYearEvents'
+    | 'satisfactionStars'
+    | 'recommendation'
+    // Free text: the per-question notes, plus the testimony and the verdict.
+    | 'discoveryChannelNote'
+    | 'motivationNote'
+    | 'specialtiesNote'
+    | 'orientationTalkNote'
+    | 'passionateTeacherNote'
+    | 'techProjectionNote'
+    | 'otherJobsNote'
+    | 'infoSourcesNote'
+    | 'wantsMoreNote'
+    | 'satisfactionNote'
+    | 'nextYearEventsNote'
+    | 'oneSentence'
+    | 'verdictNote'
+  >
+>;
+
 type InterviewBlueprint = {
   studentEmail: string;
   staffKey: string;
-  daysOffset: number; // when the interview is/was scheduled
-  hour?: number; // optional clock-hour, defaults to 14h
-  status: 'planned' | 'completed' | 'cancelled';
-  /**
-   * Event title to link the interview to a specific participation.
-   * Required for stage_seconde interviews so the manage page En-cours view
-   * surfaces them under "Mes prochains entretiens" / completed counts.
-   */
-  forEventTitre?: string;
-  notes?: {
-    motivation?: string;
-    globalNote?: string;
-    satisfaction?: string;
-  };
+  status: 'in_progress' | 'done';
+  // Required: the interview is 1:1 with the talent's participation in this stage.
+  // A blueprint whose talent has no participation here is skipped (warn), so
+  // only real stage participants ever get an interview row.
+  forEventTitre: string;
+  answers?: InterviewAnswers;
 };
 
+// Orientation interviews on the ongoing Paris stage. Conducted by the dev team
+// (marie.manta = dev, pauline.marchand = superdev). A handful are finalized with
+// full answers + a recommendation so the Entretiens list, the synthesis card and
+// the recommendation breakdown all render; a couple stay in progress; the rest of
+// the cohort has no row, i.e. "à faire".
 const INTERVIEWS: InterviewBlueprint[] = [
-  // Today (2) — triggers dev task queue
-  {
-    studentEmail: parisStudents[10],
-    staffKey: 'marie.manta',
-    daysOffset: 0,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[11],
-    staffKey: 'marie.manta',
-    daysOffset: 0,
-    status: 'planned',
-  },
-  // Overdue (3) — triggers dev task queue
-  {
-    studentEmail: parisStudents[12],
-    staffKey: 'marie.manta',
-    daysOffset: -2,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[13],
-    staffKey: 'marie.manta',
-    daysOffset: -5,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[14],
-    staffKey: 'pauline.marchand',
-    daysOffset: -1,
-    status: 'planned',
-  },
-  // Completed (5) — for KPI
-  {
-    studentEmail: parisStudents[0],
-    staffKey: 'marie.manta',
-    daysOffset: -20,
-    status: 'completed',
-    notes: {
-      motivation: 'Très motivée, projet déjà clair.',
-      globalNote: 'Profil idéal pour le coding club.',
-      satisfaction: 'Très satisfaite',
-    },
-  },
-  {
-    studentEmail: parisStudents[1],
-    staffKey: 'marie.manta',
-    daysOffset: -18,
-    status: 'completed',
-    notes: {
-      motivation: 'Fan de jeux vidéo, veut comprendre comment ils sont faits.',
-      globalNote: 'À orienter game design.',
-    },
-  },
-  {
-    studentEmail: parisStudents[4],
-    staffKey: 'pauline.marchand',
-    daysOffset: -15,
-    status: 'completed',
-    notes: { motivation: 'Projet de stage de seconde clair.' },
-  },
-  {
-    studentEmail: parisStudents[9],
-    staffKey: 'marie.manta',
-    daysOffset: -10,
-    status: 'completed',
-  },
-  {
-    studentEmail: parisStudents[14],
-    staffKey: 'marie.manta',
-    daysOffset: -8,
-    status: 'completed',
-    notes: { motivation: 'Orientation Supinfo envisagée.' },
-  },
-  // Future planned (10) — for KPI
-  {
-    studentEmail: parisStudents[15],
-    staffKey: 'marie.manta',
-    daysOffset: 1,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[16],
-    staffKey: 'marie.manta',
-    daysOffset: 2,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[17],
-    staffKey: 'marie.manta',
-    daysOffset: 3,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[18],
-    staffKey: 'pauline.marchand',
-    daysOffset: 3,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[19],
-    staffKey: 'pauline.marchand',
-    daysOffset: 5,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[2],
-    staffKey: 'marie.manta',
-    daysOffset: 6,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[3],
-    staffKey: 'marie.manta',
-    daysOffset: 7,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[5],
-    staffKey: 'pauline.marchand',
-    daysOffset: 8,
-    status: 'planned',
-  },
   {
     studentEmail: parisStudents[6],
     staffKey: 'marie.manta',
-    daysOffset: 10,
-    status: 'planned',
-  },
-  {
-    studentEmail: parisStudents[7],
-    staffKey: 'marie.manta',
-    daysOffset: 12,
-    status: 'planned',
-  },
-  // Cancelled (1) — realism
-  {
-    studentEmail: parisStudents[8],
-    staffKey: 'marie.manta',
-    daysOffset: -3,
-    status: 'cancelled',
-  },
-  // Lyon (2)
-  {
-    studentEmail: lyonStudents[0],
-    staffKey: 'nathan.blanc',
-    daysOffset: -4,
-    status: 'completed',
-    notes: { motivation: 'Curieuse de tout.' },
-  },
-  {
-    studentEmail: lyonStudents[3],
-    staffKey: 'nathan.blanc',
-    daysOffset: 5,
-    status: 'planned',
-  },
-
-  // ── Ongoing stage de seconde — tied to participations ──
-  // Entretiens d'orientation menés pendant le stage. Utilisé par les KPIs
-  // "Entretiens X/Y" et "Mes prochains entretiens" sur la vue En-cours.
-  {
-    studentEmail: parisStudents[6],
-    staffKey: 'marie.manta',
-    daysOffset: -1,
-    hour: 10,
-    status: 'completed',
+    status: 'done',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
-    notes: {
-      motivation: 'Veut découvrir l’IA générative.',
-      globalNote: 'Profil curieux, à orienter Pré-Tech.',
-      satisfaction: 'Très satisfaite',
+    answers: {
+      discoveryChannel: 'site_1e1s',
+      motivation: 'passion',
+      specialties: ['nsi', 'maths'],
+      orientationTalkAtSchool: 'un_peu',
+      passionateTeacher: 'oui',
+      passionateTeacherNote:
+        'M. Garnier (NSI), anime un club robotique au lycée.',
+      techProjection: ['dev'],
+      infoSources: ['youtube', 'tiktok', 'ia_chatgpt'],
+      wantsMore: 'oui',
+      satisfactionStars: 5,
+      satisfactionNote: 'Niveau parfaitement adapté, repart très motivée.',
+      oneSentence: 'Une semaine qui m’a donné envie de coder tous les jours.',
+      nextYearEvents: ['coding_club', 'jpo'],
+      recommendation: 'tres_compatible',
+      verdictNote: 'Très motivée, projet clair. À inviter à la prochaine JPO.',
     },
   },
   {
     studentEmail: parisStudents[7],
     staffKey: 'marie.manta',
-    daysOffset: -1,
-    hour: 14,
-    status: 'completed',
+    status: 'done',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
-    notes: {
-      motivation: 'Cherche un cursus tech après le bac.',
-      globalNote: 'Engagement fort sur l’atelier robotique.',
+    answers: {
+      discoveryChannel: 'entourage',
+      motivation: 'metier',
+      specialties: ['maths', 'physique_chimie'],
+      orientationTalkAtSchool: 'pas_du_tout',
+      passionateTeacher: 'pas_sur',
+      techProjection: ['jeux_video'],
+      techProjectionNote: 'Hésite entre le dev de jeux et le game design.',
+      otherJobs: ['arts_design'],
+      infoSources: ['instagram', 'youtube'],
+      wantsMore: 'peut_etre',
+      satisfactionStars: 4,
+      oneSentence: 'J’ai compris comment un jeu est fabriqué.',
+      nextYearEvents: ['camp', 'journee_decouverte'],
+      recommendation: 'bon_profil',
+      verdictNote: 'Hésite avec le game design, à relancer dans 6 mois.',
     },
   },
   {
     studentEmail: parisStudents[8],
-    staffKey: 'marie.manta',
-    daysOffset: 0,
-    hour: 14,
-    status: 'planned',
+    staffKey: 'pauline.marchand',
+    status: 'done',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
+    answers: {
+      discoveryChannel: 'google',
+      motivation: 'curiosite',
+      specialties: ['indecis'],
+      orientationTalkAtSchool: 'un_peu',
+      passionateTeacher: 'pas_sur',
+      techProjection: ['pas_idee'],
+      otherJobs: ['sante', 'commerce_gestion'],
+      infoSources: ['parcoursup_onisep', 'entourage'],
+      wantsMore: 'peut_etre',
+      satisfactionStars: 4,
+      satisfactionNote: 'A trouvé la semaine un peu dense, mais intéressante.',
+      oneSentence: 'Intéressant mais beaucoup d’informations d’un coup.',
+      nextYearEvents: ['conference'],
+      recommendation: 'indecis',
+      verdictNote: 'Profil ouvert, encore en réflexion sur son orientation.',
+    },
   },
   {
     studentEmail: parisStudents[9],
     staffKey: 'marie.manta',
-    daysOffset: 0,
-    hour: 16,
-    status: 'planned',
+    status: 'in_progress',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
+    answers: {
+      discoveryChannel: 'epitech',
+      motivation: 'cadre_stage',
+      techProjection: ['cyber'],
+      infoSources: ['tiktok'],
+    },
   },
   {
     studentEmail: parisStudents[10],
     staffKey: 'pauline.marchand',
-    daysOffset: 1,
-    hour: 11,
-    status: 'planned',
+    status: 'in_progress',
     forEventTitre: ONGOING_PARIS_STAGE_TITLE,
-  },
-  {
-    studentEmail: parisStudents[11],
-    staffKey: 'pauline.marchand',
-    daysOffset: 1,
-    hour: 14,
-    status: 'planned',
-    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
-  },
-  // En retard — entretien planifié hier, pas marqué fait → alerte "Entretiens en retard"
-  {
-    studentEmail: parisStudents[12],
-    staffKey: 'marie.manta',
-    daysOffset: -1,
-    hour: 16,
-    status: 'planned',
-    forEventTitre: ONGOING_PARIS_STAGE_TITLE,
+    answers: {
+      discoveryChannel: 'site_1e1s',
+      specialties: ['nsi'],
+      specialtiesNote: 'Vise une prépa, hésite encore sur la voie.',
+    },
   },
 ];
 
@@ -4044,7 +3943,7 @@ async function seedStudents(): Promise<
       schoolId: sfSchoolId,
     };
 
-    return { talent, sf };
+    return { talent, sf, signCity: s.campus };
   });
 
   const talentData = seeded.map((x) => x.talent);
@@ -4080,6 +3979,45 @@ async function seedStudents(): Promise<
     })
     .filter((d): d is NonNullable<typeof d> => d !== null);
   await prisma.talentSfImport.createMany({ data: sfImportData });
+
+  // Image-rights ledger: every seeded talent that carries a decision in the
+  // projection above gets the matching append-only fact, so seed data isn't a
+  // projection without a history (which would read like a bug in the staff
+  // history view). A real parent decision captures the signer, their qualité and
+  // the town, so the seed fills all three (relationship from parentType, town
+  // from the campus city) — otherwise a staff correction would regenerate the
+  // PDF with a blank "Fait à …" place, the gap real onboarding never produces.
+  const imageRightsRecordData = seeded
+    .map((x) => {
+      const talentId = x.talent.email
+        ? talentIdByEmail.get(x.talent.email)
+        : undefined;
+      if (
+        !talentId ||
+        !x.talent.imageRightsDecision ||
+        !x.talent.imageRightsDecidedAt
+      )
+        return null;
+      return {
+        talentId,
+        decision: x.talent.imageRightsDecision,
+        decidedAt: x.talent.imageRightsDecidedAt,
+        signerPrenom: x.talent.imageRightsSignerPrenom,
+        signerNom: x.talent.imageRightsSignerNom,
+        relationship:
+          x.talent.parentType === 'pere'
+            ? 'père'
+            : x.talent.parentType === 'mere'
+              ? 'mère'
+              : 'représentant légal',
+        city: x.signCity,
+        source: 'parent_portal' as const,
+      };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+  await prisma.imageRightsDecisionRecord.createMany({
+    data: imageRightsRecordData,
+  });
 
   return byEmail;
 }
@@ -4710,23 +4648,23 @@ async function seedInterviews(
     const staff = staffByKey[iv.staffKey];
     if (!talent || !staff) return [];
 
-    let participationId: string | null = null;
-    if (iv.forEventTitre) {
-      const eventId = eventIdByTitre.get(iv.forEventTitre);
-      if (!eventId) {
-        console.warn(
-          `⚠ Interview for ${iv.studentEmail} references unknown event "${iv.forEventTitre}"`,
-        );
-        return [];
-      }
-      participationId =
-        participationByTalentEvent.get(`${talent.id}_${eventId}`) ?? null;
-      if (!participationId) {
-        console.warn(
-          `⚠ Interview for ${iv.studentEmail} has no participation in "${iv.forEventTitre}"`,
-        );
-        return [];
-      }
+    // participationId is required: the interview is 1:1 with the talent's
+    // participation in this stage. Skip (warn) when there's no participation, so
+    // the seed can only produce runtime-reachable rows.
+    const eventId = eventIdByTitre.get(iv.forEventTitre);
+    if (!eventId) {
+      console.warn(
+        `⚠ Interview for ${iv.studentEmail} references unknown event "${iv.forEventTitre}"`,
+      );
+      return [];
+    }
+    const participationId =
+      participationByTalentEvent.get(`${talent.id}_${eventId}`) ?? null;
+    if (!participationId) {
+      console.warn(
+        `⚠ Interview for ${iv.studentEmail} has no participation in "${iv.forEventTitre}"`,
+      );
+      return [];
     }
 
     return [
@@ -4735,11 +4673,8 @@ async function seedInterviews(
         staffId: staff.id,
         campusId: staff.campusId,
         participationId,
-        date: dayAt(iv.daysOffset, iv.hour ?? 14, 0),
         status: iv.status,
-        motivation: iv.notes?.motivation ?? null,
-        globalNote: iv.notes?.globalNote ?? null,
-        satisfaction: iv.notes?.satisfaction ?? null,
+        ...iv.answers,
       },
     ];
   });
@@ -4918,17 +4853,11 @@ async function printSummary(parentEmail: string) {
       prisma.interview.count(),
     ]);
 
-  const overdueInterviews = await prisma.interview.count({
-    where: { status: 'planned', date: { lt: startOfToday } },
+  const doneInterviews = await prisma.interview.count({
+    where: { status: 'done' },
   });
-  const todayInterviews = await prisma.interview.count({
-    where: {
-      status: 'planned',
-      date: {
-        gte: startOfToday,
-        lt: dayAt(1, 0, 0),
-      },
-    },
+  const inProgressInterviews = await prisma.interview.count({
+    where: { status: 'in_progress' },
   });
   const alertCount = await prisma.stepsProgress.count({
     where: { status: 'needs_help' },
@@ -4967,12 +4896,8 @@ async function printSummary(parentEmail: string) {
   console.log(
     `   Live alerts (cockpit):         ${alertCount} needs_help entries on today's event`,
   );
-  console.log(
-    `   Dev task queue — today:        ${todayInterviews} interviews scheduled`,
-  );
-  console.log(
-    `   Dev task queue — overdue:      ${overdueInterviews} overdue interviews`,
-  );
+  console.log(`   Entretiens — finalisés:        ${doneInterviews}`);
+  console.log(`   Entretiens — en cours:         ${inProgressInterviews}`);
   console.log(
     `   Task queue — missing mantas:   ${missingMantaCount} events ≤ 7 days`,
   );

@@ -10,7 +10,7 @@ import {
   scopedPrisma,
   type ScopedPrismaClient,
 } from '$lib/server/db/scoped';
-import { requireStaffGroup } from '$lib/server/auth/guards';
+import { hasFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import {
   EVENT_TYPES,
   eventTypeHasTheme,
@@ -34,6 +34,7 @@ import {
   loadLyceesBreakdown,
   loadInterestsCloud,
 } from '$lib/server/services/cohortOverview';
+import { stageCountdown } from '$lib/domain/eventPresence';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -78,7 +79,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     locals.stagePhaseOverride,
   );
   const isStage = event.eventType === EVENT_TYPES.STAGE_SECONDE;
-  const baseLoader = { db, event, bounds, basePath: '/staff/dev', tz };
+  const baseLoader = {
+    db,
+    event,
+    bounds,
+    basePath: '/staff/dev',
+    tz,
+    planningEnabled: hasFlag(locals, 'planning'),
+  };
 
   if (!isStage) {
     const legacy = await loadLegacyEvent(baseLoader);
@@ -92,8 +100,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       timezone: tz,
     };
   }
-
-  const currentStaffProfileId = locals.staffProfile?.id ?? null;
 
   if (status === 'upcoming') {
     const prep = await loadStagePrep(baseLoader);
@@ -109,7 +115,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   }
 
   if (status === 'ongoing') {
-    const ongoing = await loadStageOngoing(baseLoader, currentStaffProfileId);
+    const ongoing = await loadStageOngoing(baseLoader);
     return {
       kind: 'stage' as const,
       status,
@@ -141,6 +147,7 @@ type LoaderCtx = {
   bounds: LifecycleBounds;
   basePath: string;
   tz: string;
+  planningEnabled: boolean;
 };
 
 async function loadLegacyEvent(ctx: LoaderCtx) {
@@ -150,7 +157,11 @@ async function loadLegacyEvent(ctx: LoaderCtx) {
     db.participation.count({
       where: { eventId: event.id, bringPc: true },
     }),
-    deriveEventAlerts(db, event, { basePath: ctx.basePath, bounds }),
+    deriveEventAlerts(db, event, {
+      basePath: ctx.basePath,
+      bounds,
+      planningEnabled: ctx.planningEnabled,
+    }),
   ]);
 
   return {
@@ -201,34 +212,26 @@ async function loadStagePrep(ctx: LoaderCtx) {
   };
 }
 
-async function loadStageOngoing(
-  ctx: LoaderCtx,
-  currentStaffProfileId: string | null,
-) {
+async function loadStageOngoing(ctx: LoaderCtx) {
   const { db, event, bounds } = ctx;
 
   const [
     total,
-    interviewsCompleted,
-    interviewsTotal,
+    interviewsDone,
     alerts,
     orgaSlots,
     todayTimeSlots,
-    mesProchainsEntretiens,
     lyceesBreakdown,
     interestsCloud,
   ] = await Promise.all([
     db.participation.count({ where: { eventId: event.id } }),
     db.interview.count({
-      where: { participation: { eventId: event.id }, status: 'completed' },
-    }),
-    db.interview.count({
-      where: { participation: { eventId: event.id } },
+      where: { participation: { eventId: event.id }, status: 'done' },
     }),
     deriveEventAlerts(db, event, {
       basePath: ctx.basePath,
       bounds,
-      forStaffProfileId: currentStaffProfileId ?? undefined,
+      planningEnabled: ctx.planningEnabled,
     }),
     getEventOrgaSlotsWithCounts(event.id, db, bounds.now),
     db.timeSlot.findMany({
@@ -243,38 +246,11 @@ async function loadStageOngoing(
       },
       orderBy: { startTime: 'asc' },
     }),
-    currentStaffProfileId
-      ? db.interview.findMany({
-          where: {
-            staffId: currentStaffProfileId,
-            status: 'planned',
-            participation: { eventId: event.id },
-            date: { gte: bounds.now },
-          },
-          include: { talent: true },
-          orderBy: { date: 'asc' },
-          take: 5,
-        })
-      : Promise.resolve([]),
     loadLyceesBreakdown(db, event.id),
     loadInterestsCloud(db, event.id),
   ]);
 
-  const stageEnd = stageEndOrDefault(event);
-  const stageStart = event.date;
-  const totalDays = Math.max(
-    1,
-    Math.ceil((stageEnd.getTime() - stageStart.getTime()) / MS_PER_DAY),
-  );
-  const dayN = Math.min(
-    totalDays,
-    Math.max(
-      1,
-      Math.ceil(
-        (bounds.endOfDay.getTime() - stageStart.getTime()) / MS_PER_DAY,
-      ),
-    ),
-  );
+  const { dayN, totalDays } = stageCountdown(event, ctx.tz, bounds.now);
 
   // Today's most recent past or live orga slot — present count.
   const todayOrgaSlots = orgaSlots
@@ -290,8 +266,7 @@ async function loadStageOngoing(
   return {
     kpis: {
       total,
-      interviewsCompleted,
-      interviewsTotal,
+      interviewsDone,
       todayPresence: todayPresenceSlot
         ? {
             slotName: todayPresenceSlot.nom,
@@ -302,7 +277,6 @@ async function loadStageOngoing(
     },
     alerts,
     todayTimeSlots,
-    mesProchainsEntretiens,
     lyceesBreakdown,
     interestsCloud,
     dayN,
@@ -311,11 +285,11 @@ async function loadStageOngoing(
 }
 
 async function loadStagePast({ db, event }: LoaderCtx) {
-  const [total, interviewsCompleted, chartes, droitsImage, bringPc] =
+  const [total, interviewsDone, chartes, droitsImage, bringPc] =
     await Promise.all([
       db.participation.count({ where: { eventId: event.id } }),
       db.interview.count({
-        where: { participation: { eventId: event.id }, status: 'completed' },
+        where: { participation: { eventId: event.id }, status: 'done' },
       }),
       db.participation.count({
         where: { eventId: event.id, ...rulesCompliantWhere },
@@ -334,7 +308,7 @@ async function loadStagePast({ db, event }: LoaderCtx) {
       bringPc,
       chartes,
       droitsImage,
-      interviewsCompleted,
+      interviewsDone,
     },
     endDate: stageEndOrDefault(event),
   };

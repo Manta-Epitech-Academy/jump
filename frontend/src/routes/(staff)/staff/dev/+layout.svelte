@@ -11,7 +11,6 @@
   import X from '@lucide/svelte/icons/x';
   import MessageSquare from '@lucide/svelte/icons/message-square';
   import UserCheck from '@lucide/svelte/icons/user-check';
-  import type { Icon as IconType } from '@lucide/svelte';
   import BookOpen from '@lucide/svelte/icons/book-open';
   import UserCog from '@lucide/svelte/icons/user-cog';
   import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
@@ -24,7 +23,6 @@
   import { Button } from '$lib/components/ui/button';
   import * as Avatar from '$lib/components/ui/avatar';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-  import * as Tooltip from '$lib/components/ui/tooltip';
   import ModeToggle from '$lib/components/ModeToggle.svelte';
   import GlobalCommand from '$lib/components/GlobalCommand.svelte';
   import { track, secondsBetween } from '$lib/analytics';
@@ -43,21 +41,33 @@
     new Set<FlagKey>((data.featureFlags ?? []) as FlagKey[]),
   );
   let hasCodingClub = $derived(featureFlags.has('coding_club'));
+  let hasInscrits = $derived(featureFlags.has('inscrits'));
+  let hasEntretiens = $derived(featureFlags.has('entretiens'));
+  let hasEmargement = $derived(featureFlags.has('emargement'));
   let hasIntervenants = $derived(featureFlags.has('staff_intervenants'));
   let hasCampusTeam = $derived(featureFlags.has('staff_campus_team'));
   let hasWelcomePage = $derived(featureFlags.has('staff_welcome_page'));
   let hasSyncErrors = $derived(featureFlags.has('staff_sync_errors'));
+  let hasPlanning = $derived(featureFlags.has('planning'));
+  // The "Stage de Seconde" section header must not show when none of its links
+  // would: every stage surface is now individually flag-gated (Inscrits,
+  // Émargement, Entretiens, plus the coding_club / planning / intervenants /
+  // welcome surfaces). Mirrors the showManagement guard below.
+  let showStage = $derived(
+    hasInscrits ||
+      hasEmargement ||
+      hasEntretiens ||
+      hasPlanning ||
+      hasIntervenants ||
+      hasWelcomePage ||
+      hasCodingClub,
+  );
   // The "Gestion" section header must not show when none of its links would:
   // Doublons SF (hasSyncErrors) or Staff du campus (hasCampusTeam, lead-only).
   let showManagement = $derived(
     hasSyncErrors ||
       (hasCampusTeam && can('devLead', data.staffProfile?.staffRole)),
   );
-  // Peda visiting a single interviews route gets a stripped shell — no
-  // sidebar, no command-K, no impersonation, no tickets. Just header + main.
-  let isInterviewOnly = $derived(data.devLayoutScope === 'interview-only');
-  let showFullChrome = $derived(!isInterviewOnly);
-
   let commandOpen = $state(false);
   let mobileMenuOpen = $state(false);
 
@@ -121,7 +131,7 @@
 {/snippet}
 
 {#snippet sidebarSearch()}
-  {#if hasCodingClub && showFullChrome}
+  {#if hasCodingClub}
     <div class="px-3 pb-2">
       <button
         class="flex h-9 w-full items-center justify-between rounded-sm border border-sidebar-border bg-sidebar-hover px-3 text-sm text-sidebar-foreground-muted transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
@@ -139,40 +149,6 @@
       </button>
     </div>
   {/if}
-{/snippet}
-
-{#snippet comingSoonEntry(label: string, Icon: typeof IconType)}
-  <!-- Permanent Stage de Seconde surface that isn't built yet: rendered
-       disabled with a "Bientôt disponible" tooltip, mirroring the
-       "Faire l'entretien" button on the talent fiche. Re-enable by swapping the
-       {@render} call for a normal <a> nav link. -->
-  <Tooltip.Provider delayDuration={150}>
-    <Tooltip.Root>
-      <Tooltip.Trigger>
-        {#snippet child({ props })}
-          <!-- Wrapper takes the hover: a disabled control has no pointer
-               events, so the tooltip can't trigger on it directly. -->
-          <span
-            {...props}
-            class="flex cursor-not-allowed items-center gap-3 rounded-sm px-3 py-2 text-sm font-bold text-sidebar-foreground-muted opacity-50"
-          >
-            <Icon class="h-5 w-5" />
-            <span>{label}</span>
-          </span>
-        {/snippet}
-      </Tooltip.Trigger>
-      <!-- Right-anchored: these entries stack in the vertical nav, so a top
-           tooltip would cover the sibling row above. Right points into the
-           gutter between sidebar and main, covering nothing.
-           No arrow + a wider offset: the trigger fills the nav (its right edge
-           sits ~17px inside the sidebar, behind the px-4 gutter), so a pointer
-           arrow would land on the dark sidebar and vanish. We drop it and push
-           the chip clear of the sidebar onto the light content instead. -->
-      <Tooltip.Content side="right" sideOffset={20} showArrow={false}>
-        <p>Bientôt disponible</p>
-      </Tooltip.Content>
-    </Tooltip.Root>
-  </Tooltip.Provider>
 {/snippet}
 
 {#snippet navMenu()}
@@ -205,15 +181,15 @@
     </nav>
   {/if}
 
-  {#if data.activeStage}
+  {#if data.activeStage && showStage}
     <div class="sidebar-section-title">
       Stage de Seconde<span class="text-epi-teal">_</span>
     </div>
     <nav class="space-y-1">
-      <!-- Stage-only release scopes the workspace down to its live surfaces
-           (Inscrits, Émargement); Planning and Entretiens render disabled below.
-           The event overview and onboarding tracker are coding_club-era
-           surfaces, kept behind the flag so that future stays intact. -->
+      <!-- Every stage surface is now individually flag-gated so a campus can
+           keep just the ones it uses (most want Entretiens only, no Émargement).
+           The event overview and onboarding tracker are coding_club-era surfaces,
+           kept behind that flag so that future stays intact. -->
       {#if hasCodingClub}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}`)}
@@ -234,31 +210,44 @@
           <span>Onboarding</span>
         </a>
       {/if}
-      <!-- Live stage surfaces first (Inscrits, Émargement, then any flag-gated
-           ones), with the not-yet-shipped surfaces grouped last as disabled
-           "Bientôt disponible" entries. Keeping them last avoids greyed rows
-           splitting two live links, which reads as broken rather than upcoming.
-           Planning is built but de-scoped from this release (no schedule data
-           yet); Entretiens isn't built at all. Re-enable Planning by swapping its
-           {@render} call for an <a> nav link to /planning. -->
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
-        )}
-      >
-        <Users class="h-5 w-5" />
-        <span>Inscrits</span>
-      </a>
-      <a
-        href={resolve(`/staff/dev/events/${data.activeStage.id}/emargement`)}
-        class={navLinkClass(
-          isActive(`/staff/dev/events/${data.activeStage.id}/emargement`),
-        )}
-      >
-        <UserCheck class="h-5 w-5" />
-        <span>Émargement</span>
-      </a>
+      <!-- Live stage surfaces, each behind its own flag: Inscrits + Entretiens
+           default on, Émargement default off. Planning / Intervenants /
+           Page d'accueil are governed per campus by their own rollout flags
+           (Planning appears once that campus's schedule is populated and the
+           flag is switched on). -->
+      {#if hasInscrits}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/inscrits`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/inscrits`),
+          )}
+        >
+          <Users class="h-5 w-5" />
+          <span>Inscrits</span>
+        </a>
+      {/if}
+      {#if hasEmargement}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/emargement`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/emargement`),
+          )}
+        >
+          <UserCheck class="h-5 w-5" />
+          <span>Émargement</span>
+        </a>
+      {/if}
+      {#if hasPlanning}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/planning`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/planning`),
+          )}
+        >
+          <CalendarDays class="h-5 w-5" />
+          <span>Planning</span>
+        </a>
+      {/if}
       {#if hasIntervenants}
         <a
           href={resolve(`/staff/dev/events/${data.activeStage.id}/team`)}
@@ -279,8 +268,17 @@
           <span>Page d'accueil</span>
         </a>
       {/if}
-      {@render comingSoonEntry('Planning', CalendarDays)}
-      {@render comingSoonEntry('Entretiens', MessageSquare)}
+      {#if hasEntretiens}
+        <a
+          href={resolve(`/staff/dev/events/${data.activeStage.id}/entretiens`)}
+          class={navLinkClass(
+            isActive(`/staff/dev/events/${data.activeStage.id}/entretiens`),
+          )}
+        >
+          <MessageSquare class="h-5 w-5" />
+          <span>Entretiens</span>
+        </a>
+      {/if}
     </nav>
   {/if}
 
@@ -425,79 +423,75 @@
 {/snippet}
 
 <div class="flex h-dvh w-full overflow-hidden bg-background">
-  {#if showFullChrome}
-    <aside
-      class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
-    >
-      <div class="border-b border-sidebar-border">
-        {@render sidebarBrand()}
-      </div>
-      {@render sidebarSearch()}
-      <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
-        {@render navMenu()}
-      </div>
-      <Gated group="devLead" mode="hide">
-        {#if hasCodingClub}
-          <div class="border-t border-sidebar-border p-3">
-            <Button
-              variant="outline"
-              class="w-full justify-start border-dashed border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
-              href={resolve('/staff/dev/events/import')}
-            >
-              <Plus class="mr-2 h-4 w-4" />
-              Importer un événement
-            </Button>
-          </div>
-        {/if}
-      </Gated>
-      <ImpersonationCard />
-      {@render sidebarFooter()}
-    </aside>
-  {/if}
+  <aside
+    class="app-sidebar hidden w-68 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex"
+  >
+    <div class="border-b border-sidebar-border">
+      {@render sidebarBrand()}
+    </div>
+    {@render sidebarSearch()}
+    <div class="min-h-0 flex-1 overflow-y-auto px-4 pt-2 pb-4">
+      {@render navMenu()}
+    </div>
+    <Gated group="devLead" mode="hide">
+      {#if hasCodingClub}
+        <div class="border-t border-sidebar-border p-3">
+          <Button
+            variant="outline"
+            class="w-full justify-start border-dashed border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
+            href={resolve('/staff/dev/events/import')}
+          >
+            <Plus class="mr-2 h-4 w-4" />
+            Importer un événement
+          </Button>
+        </div>
+      {/if}
+    </Gated>
+    <ImpersonationCard />
+    {@render sidebarFooter()}
+  </aside>
 
   <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
-    {#if showFullChrome}
-      <header
-        class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
-      >
-        <div class="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            class="relative h-10 w-10"
-            onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-          >
-            <Menu
-              class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
-                ? 'scale-0 opacity-0'
-                : 'scale-100 opacity-100'}"
-            />
-            <X
-              class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
-                ? 'scale-100 rotate-0 opacity-100'
-                : 'scale-0 -rotate-90 opacity-0'}"
-            />
-            <span class="sr-only">Toggle menu</span>
-          </Button>
-          <BrandMark
-            href={resolve('/staff/dev')}
-            tone="auto"
-            orientation="inline"
+    <header
+      class="z-40 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-background px-4 md:hidden"
+    >
+      <div class="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="relative h-10 w-10"
+          onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+        >
+          <Menu
+            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+              ? 'scale-0 opacity-0'
+              : 'scale-100 opacity-100'}"
           />
-        </div>
-        {#if hasCodingClub}
-          <Button
-            variant="ghost"
-            size="icon"
-            onclick={() => (commandOpen = true)}
-          >
-            <Search class="h-5 w-5" />
-          </Button>
-        {/if}
-      </header>
-    {/if}
+          <X
+            class="absolute h-6! w-6! transition-all duration-300 {mobileMenuOpen
+              ? 'scale-100 rotate-0 opacity-100'
+              : 'scale-0 -rotate-90 opacity-0'}"
+          />
+          <span class="sr-only">Toggle menu</span>
+        </Button>
+        <BrandMark
+          href={resolve('/staff/dev')}
+          tone="auto"
+          orientation="inline"
+        />
+      </div>
+      {#if hasCodingClub}
+        <Button
+          variant="ghost"
+          size="icon"
+          onclick={() => (commandOpen = true)}
+        >
+          <Search class="h-5 w-5" />
+        </Button>
+      {/if}
+    </header>
 
-    {#if mobileMenuOpen && showFullChrome}
+    {#if mobileMenuOpen}
       <div
         class="absolute inset-0 z-40 bg-black/50 md:hidden"
         transition:fade={{ duration: 200 }}
@@ -541,10 +535,10 @@
   </div>
 </div>
 
-{#if hasCodingClub && showFullChrome}
+{#if hasCodingClub}
   <GlobalCommand bind:open={commandOpen} basePath="/staff/dev" />
 {/if}
 
-{#if data.ticketsEnabled && showFullChrome}
+{#if data.ticketsEnabled}
   <TicketsLauncher basePath="/staff/dev" unreadCount={data.ticketsUnread} />
 {/if}

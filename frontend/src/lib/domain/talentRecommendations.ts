@@ -73,7 +73,7 @@ export type TalentRecommendationInput = TalentOnboardingFields & {
    * keep this module pure/testable.
    */
   appUrl: string;
-  /** Whether the talent ever logged in (an oldest `bauth_session` exists). */
+  /** Whether the talent ever logged in (the durable `Talent.firstLoginAt` is set). */
   connected: boolean;
   /**
    * Règlement intérieur compliance: guardian co-signed online
@@ -130,7 +130,7 @@ function deriveFunnelRecommendation(
       kind: 'funnel',
       severity: 'urgent',
       shortTitle: 'Signatures parents',
-      message: `Contactez les parents de ${t.prenom} car ils/elles ne sont jamais connecté(e)s sur la plateforme ${t.appUrl} avec leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} afin de signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
+      message: `Contactez les parents de ${t.prenom} car ils/elles ne se sont jamais connecté(e)s sur la plateforme ${t.appUrl} avec leur adresse ${t.parentEmail ? `**${t.parentEmail}**` : 'e-mail'} afin de signer électroniquement les documents complémentaires du stage : le droit à l'image et le règlement intérieur.`,
       contact: 'parent',
     };
   }
@@ -149,14 +149,14 @@ export function deriveTalentRecommendations(
 
   // Opportunities: evaluated independently of the funnel. The interview only
   // needs the talent to be reachable (connected), not the dossier complete — a
-  // parent signature has no bearing on planning an orientation interview.
+  // parent signature has no bearing on running an orientation interview.
   if (t.connected && !t.hasCompletedInterview) {
     recommendations.push({
       id: 'interview-todo',
       kind: 'opportunity',
       severity: 'info',
-      shortTitle: 'Entretien à planifier',
-      message: `Vous n'avez pas encore réalisé l'entretien d'orientation de ${t.prenom}. Pensez à le planifier dans votre calendrier.`,
+      shortTitle: 'Entretien à réaliser',
+      message: `Vous n'avez pas encore réalisé l'entretien d'orientation de ${t.prenom}. Lancez-le avec le bouton « Faire l'entretien » sur cette fiche.`,
       contact: null,
     });
   }

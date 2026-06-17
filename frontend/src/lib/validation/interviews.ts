@@ -1,85 +1,84 @@
 import { z } from 'zod';
-import { InterviewRecommendation } from '@prisma/client';
+import {
+  DiscoveryChannel,
+  InterviewMotivation,
+  Specialty,
+  OrientationTalkFrequency,
+  PassionateTeacherAnswer,
+  TechProjection,
+  OtherJobDomain,
+  InfoSource,
+  WantsMoreAnswer,
+  NextYearEvent,
+  InterviewRecommendation,
+} from '@prisma/client';
+import {
+  INTERVIEW_NOTE_LIMIT,
+  INTERVIEW_TEXT_LIMITS,
+} from '$lib/domain/interview';
 
-const optionalText = (max: number) =>
+// Single-choice answers: an enum value or null (unanswered). The chip group
+// binds the form field directly, so the wire value is already the enum string
+// or null; the `'' -> null` fallback guards any stray empty submit.
+const nullableEnum = <T extends Record<string, string>>(e: T) =>
+  z
+    .enum(e)
+    .nullable()
+    .default(null)
+    .or(z.literal('').transform(() => null));
+
+// Free text stays a string in the form (empty = '') for clean binding; the
+// action maps '' -> null before persisting so the DB never stores "".
+const text = (max: number) =>
   z
     .string()
     .trim()
     .max(max, `Le texte ne peut pas dépasser ${max} caractères`)
-    .optional()
-    .or(z.literal('').transform(() => undefined));
+    .default('');
 
-const optionalRecommendation = z
-  .enum(InterviewRecommendation)
-  .nullish()
-  .or(z.literal('').transform(() => null));
-
-export const interviewGridSchema = z.object({
-  id: z.string().min(1, 'Identifiant manquant'),
-  discoveryReason: optionalText(1000),
-  motivation: optionalText(1000),
-  nextEventInterest: optionalText(500),
-  platforms: optionalText(500),
-  specialties: optionalText(500),
-  interests: optionalText(500),
-  otherJobs: optionalText(500),
-  satisfaction: optionalText(1000),
-  globalNote: optionalText(2000),
-  recommendation: optionalRecommendation,
-});
-
-export const scheduleInterviewSchema = z.object({
+/**
+ * The orientation-interview grid. One schema backs every lifecycle action
+ * (`startInterview` / `saveInterview` autosave / `closeInterview`) with the
+ * same payload, so closing never drops unsaved edits. `status`/`staffId` are
+ * NOT in the payload: the action owns the status transition, so an autosave can
+ * never accidentally close an interview.
+ */
+export const interviewConductSchema = z.object({
   participationId: z.string().min(1, 'Participation requise'),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (AAAA-MM-JJ)'),
-  time: z
-    .string()
-    .regex(
-      /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/,
-      'Format horaire invalide (HH:MM)',
-    ),
+
+  // single-choice
+  discoveryChannel: nullableEnum(DiscoveryChannel),
+  motivation: nullableEnum(InterviewMotivation),
+  orientationTalkAtSchool: nullableEnum(OrientationTalkFrequency),
+  passionateTeacher: nullableEnum(PassionateTeacherAnswer),
+  wantsMore: nullableEnum(WantsMoreAnswer),
+  recommendation: nullableEnum(InterviewRecommendation),
+
+  // multi-choice
+  techProjection: z.array(z.enum(TechProjection)).default([]),
+  specialties: z.array(z.enum(Specialty)).default([]),
+  otherJobs: z.array(z.enum(OtherJobDomain)).default([]),
+  infoSources: z.array(z.enum(InfoSource)).default([]),
+  nextYearEvents: z.array(z.enum(NextYearEvent)).default([]),
+
+  // scalars / free text
+  satisfactionStars: z.number().int().min(1).max(5).nullable().default(null),
+  oneSentence: text(INTERVIEW_TEXT_LIMITS.oneSentence),
+  verdictNote: text(INTERVIEW_TEXT_LIMITS.verdictNote),
+
+  // Per-question note, one per choice/rating question (see NOTE_FIELDS). Always
+  // shown under the question; the action maps '' -> null before persisting.
+  discoveryChannelNote: text(INTERVIEW_NOTE_LIMIT),
+  motivationNote: text(INTERVIEW_NOTE_LIMIT),
+  specialtiesNote: text(INTERVIEW_NOTE_LIMIT),
+  orientationTalkNote: text(INTERVIEW_NOTE_LIMIT),
+  passionateTeacherNote: text(INTERVIEW_NOTE_LIMIT),
+  techProjectionNote: text(INTERVIEW_NOTE_LIMIT),
+  otherJobsNote: text(INTERVIEW_NOTE_LIMIT),
+  infoSourcesNote: text(INTERVIEW_NOTE_LIMIT),
+  wantsMoreNote: text(INTERVIEW_NOTE_LIMIT),
+  satisfactionNote: text(INTERVIEW_NOTE_LIMIT),
+  nextYearEventsNote: text(INTERVIEW_NOTE_LIMIT),
 });
 
-export const updateInterviewStatusSchema = z.object({
-  id: z.string().min(1, 'Identifiant manquant'),
-  status: z.enum(['planned', 'completed', 'cancelled']),
-});
-
-export const autoScheduleInterviewsSchema = z.object({
-  devIds: z.array(z.string().min(1)).min(1, 'Au moins un dev requis'),
-  interviewsPerDevPerDay: z.coerce.number().int().min(1).max(10).default(3),
-  slotDurationMinutes: z.coerce.number().int().min(15).max(120).default(30),
-  dayStartHour: z.coerce.number().int().min(0).max(23).default(9),
-  dayEndHour: z.coerce.number().int().min(1).max(23).default(17),
-  lunchStartHour: z.coerce.number().int().min(0).max(23).default(12),
-  lunchEndHour: z.coerce.number().int().min(1).max(24).default(13),
-  participationOrder: z.enum(['name', 'random']).default('name'),
-  mode: z.enum(['preview', 'apply']),
-});
-
-export const reassignInterviewSchema = z.object({
-  interviewId: z.string().min(1, 'Identifiant manquant'),
-  staffId: z.string().min(1, 'Interviewer requis'),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (AAAA-MM-JJ)')
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-  time: z
-    .string()
-    .regex(
-      /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/,
-      'Format horaire invalide (HH:MM)',
-    )
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-});
-
-export type InterviewGridForm = z.infer<typeof interviewGridSchema>;
-export type ScheduleInterviewForm = z.infer<typeof scheduleInterviewSchema>;
-export type UpdateInterviewStatusForm = z.infer<
-  typeof updateInterviewStatusSchema
->;
-export type AutoScheduleInterviewsForm = z.infer<
-  typeof autoScheduleInterviewsSchema
->;
-export type ReassignInterviewForm = z.infer<typeof reassignInterviewSchema>;
+export type InterviewConductForm = z.infer<typeof interviewConductSchema>;

@@ -5,14 +5,18 @@ import type { ImageRightsStatus } from '$lib/domain/imageRights';
 // The scoped-down inscrits page is one flat table: avatar, prenom, nom, lycee,
 // niveau, statut. This select stays lean on purpose: the cohort fetch (~200 rows)
 // must not drag the full Talent row (Salesforce-mirror columns) or full Interest
-// rows. The one exception is a minimal connection probe (a single real session
-// id, see `user.sessions` below) that gates the statut badge. The server load
-// imports this select so the query and the row type can never drift.
+// rows. The server load imports this select so the query and the row type can
+// never drift.
 export const INSCRIT_TALENT_SELECT = {
   id: true,
   nom: true,
   prenom: true,
   niveau: true,
+  // Cumulative XP (cached projection of the XpGrant ledger): the cohort table's
+  // engagement signal - who is actually training on JUMP. Cheap scalar, so it
+  // joins the shared select. The events count stays off here: the dense roster
+  // shows XP alone, the fiche carries the fuller breakdown.
+  xp: true,
   email: true,
   parentEmail: true,
   // Dossier inputs — feed the statut badge and its per-document tooltip
@@ -21,19 +25,12 @@ export const INSCRIT_TALENT_SELECT = {
   rulesSignedAt: true,
   parentRulesSignedAt: true,
   imageRightsDecision: true,
-  // Connection probe: has the talent ever genuinely logged in? One session id is
-  // all the statut badge needs — `impersonatedBy: null` excludes admin
-  // impersonation sessions so testing a talent's experience never marks them as
-  // connected (same definition as the fiche's "première connexion").
-  user: {
-    select: {
-      sessions: {
-        where: { impersonatedBy: null },
-        take: 1,
-        select: { id: true },
-      },
-    },
-  },
+  // Has the talent ever genuinely logged in? Gates the statut badge. Read from
+  // the durable `firstLoginAt` projection (stamped once on first real,
+  // non-impersonated login), not a bauth_session probe: sessions are deleted by
+  // logout / identity repair, which would drop a real login back to "never
+  // connected". Same definition as the fiche's "première connexion".
+  firstLoginAt: true,
   school: { select: { id: true, name: true } },
   // Contact + parent identity. Not shown in the table, but the XLSX export
   // (export/+server.ts) emits them so the download is a usable cohort contact
@@ -67,6 +64,8 @@ export type InscritRow = {
   prenom: string;
   niveau: string | null;
   schoolName: string | null;
+  // Cumulative XP, drives the sortable XP column + its explainer tooltip.
+  xp: number;
   // Folded three-state funnel status (jamais / en cours / prêt); see
   // `inscritStatus`. Drives the badge, the statut filter and the sort.
   status: InscritStatus;
@@ -87,4 +86,40 @@ export type InscritRow = {
   parentEmail: string | null;
 };
 
-export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'status';
+export type SortKey = 'prenom' | 'nom' | 'lycee' | 'niveau' | 'xp' | 'status';
+
+// Structural shapes for the streamed cohort payload. Declared here (not imported
+// from `$lib/server/services/cohortOverview`) so this client-consumed file never
+// pulls a server module into the browser bundle; the load's actual return is
+// checked against these by assignment, and the rail cards accept them by shape.
+export type LyceeOption = { schoolId: string; name: string; count: number };
+
+export type OriginBreakdown<T> = {
+  rows: T[];
+  others: { count: number; categories: number } | null;
+};
+
+export type LyceeBreakdownStat = {
+  schoolId: string;
+  name: string;
+  count: number;
+};
+
+export type InterestBreakdownStat = {
+  interestId: string;
+  nom: string;
+  emoji: string | null;
+  count: number;
+};
+
+/** The cohort payload streamed behind the page shell's `{#await}` — everything
+ *  that needs the DB. Shared by the page load and `InscritsResults` so the
+ *  streamed shape and the consuming component can never drift. */
+export type InscritsCohort = {
+  rows: InscritRow[];
+  availableNiveaux: string[];
+  lyceeOptions: LyceeOption[];
+  lyceesBreakdown: OriginBreakdown<LyceeBreakdownStat>;
+  interestsCloud: OriginBreakdown<InterestBreakdownStat>;
+  cohort: { total: number };
+};

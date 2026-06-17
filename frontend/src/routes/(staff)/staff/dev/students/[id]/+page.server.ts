@@ -1,5 +1,8 @@
-import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import type { PageServerLoad, Actions, RequestEvent } from './$types';
+import { error, fail } from '@sveltejs/kit';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
+import { Prisma } from '@prisma/client';
 import { env } from '$env/dynamic/private';
 import { prisma } from '$lib/server/db';
 import {
@@ -7,20 +10,21 @@ import {
   getCampusTimezone,
   scopedPrisma,
 } from '$lib/server/db/scoped';
-import {
-  applyPhaseOverride,
-  getEventStatus,
-  getLifecycleBounds,
-} from '$lib/domain/eventLifecycle';
+import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
+import { interviewConductSchema } from '$lib/validation/interviews';
+import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
 import { EVENT_TYPES } from '$lib/domain/event';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/stageCompliance';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
+import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
+import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
+import { getTalentXpStory } from '$lib/server/services/xpStoryService';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
-// one-line each in the sticky right rail — no pagination. Volume per talent is
+// one-line each in the sticky right rail, no pagination. Volume per talent is
 // in the low hundreds across a stage lifecycle, so fetch both sources unbounded,
 // merge in memory, and slice the head.
 const RIGHT_RAIL_COMMS = 6;
@@ -28,6 +32,7 @@ const RIGHT_RAIL_COMMS = 6;
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
+  const timezone = getCampusTimezone(locals);
   const broadcastsWhere = {
     OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
   };
@@ -38,7 +43,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       reminderRows,
       broadcastRows,
       completedInterviewCount,
-      firstLoginRow,
+      xpStory,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -46,6 +51,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           user: true,
           interests: { include: { interest: true } },
           school: { select: { name: true } },
+          // Image-rights decision history (newest first) for the audit trail in
+          // the rail: who decided what and when, parent vs staff correction.
+          imageRightsRecords: {
+            orderBy: { createdAt: 'desc' },
+            include: {
+              recordedBy: { select: { user: { select: { name: true } } } },
+            },
+          },
         },
       }),
       db.participation.findMany({
@@ -103,18 +116,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         },
       }),
       db.interview.count({
-        where: { talentId: params.id, status: 'completed' },
+        where: { talentId: params.id, status: 'done' },
       }),
-      // First platform login (oldest real session). Keyed on the talent relation
-      // so it parallelizes with the fetch above instead of waiting on its userId;
-      // a cross-campus id still 404s via the scoped talent fetch in this batch.
-      // `impersonatedBy: null` excludes admin impersonation sessions, so testing
-      // a talent's experience never counts as their first login.
-      prisma.bauth_session.findFirst({
-        where: { user: { talent: { id: params.id } }, impersonatedBy: null },
-        orderBy: { createdAt: 'asc' },
-        select: { createdAt: true },
-      }),
+      getTalentXpStory(params.id, timezone),
     ]);
 
     const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
@@ -160,22 +164,108 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
-    const timezone = getCampusTimezone(locals);
-    const bounds = getLifecycleBounds(timezone);
+    // The orientation interview is a 1:1 artifact of the talent's stage de
+    // seconde participation, not of the stage's calendar phase. Staff routinely
+    // type up paper interviews weeks after the stage and re-open a finalized
+    // synthesis long after, so we attach to the talent's most recent stage
+    // participation whatever its lifecycle status (upcoming/ongoing/past).
+    // `participations` is ordered `event.date desc`, so [0] is the latest stage.
+    const stageParticipations = participations.filter(
+      (p) => p.event.eventType === EVENT_TYPES.STAGE_SECONDE,
+    );
+    const primaryComplianceParticipation = stageParticipations[0] ?? null;
 
-    const activeStageParticipations = participations.filter((p) => {
-      if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
-      const status = applyPhaseOverride(
-        getEventStatus(p.event, bounds),
-        locals.stagePhaseOverride,
-      );
-      return status === 'upcoming' || status === 'ongoing';
-    });
-    const primaryComplianceParticipation = activeStageParticipations[0] ?? null;
+    // Interview conduct surface. The interview is 1:1 with the talent's stage
+    // participation, so we prefill the grid from any existing row (absence
+    // = "à faire"). With no stage participation there is nothing to attach to,
+    // so the fiche disables "Faire l'entretien" with a reason and the actions
+    // refuse.
+    const existingInterview = primaryComplianceParticipation
+      ? await db.interview.findUnique({
+          where: { participationId: primaryComplianceParticipation.id },
+          include: {
+            staff: {
+              select: { user: { select: { name: true, image: true } } },
+            },
+          },
+        })
+      : null;
 
-    // Backs the right rail's "première connexion" line and tells the dev
-    // whether the talent ever logged in (fetched in the batch above).
-    const firstLoginAt = firstLoginRow?.createdAt ?? null;
+    const interviewForm = await superValidate(
+      existingInterview
+        ? {
+            participationId: primaryComplianceParticipation!.id,
+            discoveryChannel: existingInterview.discoveryChannel,
+            motivation: existingInterview.motivation,
+            orientationTalkAtSchool: existingInterview.orientationTalkAtSchool,
+            passionateTeacher: existingInterview.passionateTeacher,
+            techProjection: existingInterview.techProjection,
+            wantsMore: existingInterview.wantsMore,
+            recommendation: existingInterview.recommendation,
+            specialties: existingInterview.specialties,
+            otherJobs: existingInterview.otherJobs,
+            infoSources: existingInterview.infoSources,
+            nextYearEvents: existingInterview.nextYearEvents,
+            satisfactionStars: existingInterview.satisfactionStars,
+            oneSentence: existingInterview.oneSentence ?? '',
+            verdictNote: existingInterview.verdictNote ?? '',
+            discoveryChannelNote: existingInterview.discoveryChannelNote ?? '',
+            motivationNote: existingInterview.motivationNote ?? '',
+            specialtiesNote: existingInterview.specialtiesNote ?? '',
+            orientationTalkNote: existingInterview.orientationTalkNote ?? '',
+            passionateTeacherNote:
+              existingInterview.passionateTeacherNote ?? '',
+            techProjectionNote: existingInterview.techProjectionNote ?? '',
+            otherJobsNote: existingInterview.otherJobsNote ?? '',
+            infoSourcesNote: existingInterview.infoSourcesNote ?? '',
+            wantsMoreNote: existingInterview.wantsMoreNote ?? '',
+            satisfactionNote: existingInterview.satisfactionNote ?? '',
+            nextYearEventsNote: existingInterview.nextYearEventsNote ?? '',
+          }
+        : { participationId: primaryComplianceParticipation?.id ?? '' },
+      zod4(interviewConductSchema),
+    );
+
+    const canConductInterview = primaryComplianceParticipation != null;
+    const noInterviewReason = canConductInterview
+      ? null
+      : "Ce stagiaire n'a aucun stage de seconde.";
+
+    // Staff correction form for the image-rights decision, prefilled with the
+    // current decision + the guardian on file (the last signer, else the parent
+    // captured at onboarding) so a correction is a small edit, not a re-entry.
+    // Note is intentionally left blank — staff must state a reason.
+    const imageRightsForm = await superValidate(
+      {
+        decision: student.imageRightsDecision ?? undefined,
+        signerPrenom:
+          student.imageRightsSignerPrenom ?? student.parentPrenom ?? '',
+        signerNom: student.imageRightsSignerNom ?? student.parentNom ?? '',
+        note: '',
+      },
+      zod4(imageRightsCorrectionSchema),
+      { errors: false, id: 'imageRights' },
+    );
+
+    // Decision history VM: flatten the recorded-by staff name, keep only what
+    // the rail renders. Newest first (already ordered in the query).
+    const imageRightsRecords = student.imageRightsRecords.map((r) => ({
+      id: r.id,
+      decision: r.decision,
+      decidedAt: r.decidedAt,
+      signerPrenom: r.signerPrenom,
+      signerNom: r.signerNom,
+      source: r.source,
+      note: r.note,
+      recordedByName: r.recordedBy?.user?.name ?? null,
+    }));
+
+    // Backs the right rail's "première connexion" line and tells the dev whether
+    // the talent ever logged in. Read from the durable `Talent.firstLoginAt`
+    // projection (stamped once on first real login in hooks), not a bauth_session
+    // probe: sessions are deleted by logout / identity repair, which would make
+    // a real login read "Jamais".
+    const firstLoginAt = student.firstLoginAt;
 
     const charteSigned =
       primaryComplianceParticipation?.stageCompliance?.charteSigned;
@@ -209,16 +299,215 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     return {
       student,
+      xpStory,
       participations,
-      activeStageParticipations,
       primaryComplianceParticipation,
       communications,
       firstLoginAt,
       recommendations,
       timezone,
+      interviewForm,
+      imageRightsForm,
+      imageRightsRecords,
+      canConductInterview,
+      noInterviewReason,
+      interviewStatus: existingInterview?.status ?? null,
+      interviewConductedAt: existingInterview?.conductedAt ?? null,
+      interviewConductedBy: existingInterview?.staff.user?.name ?? null,
+      interviewConductedByImage: existingInterview?.staff.user?.image ?? null,
     };
   } catch (e) {
+    // A genuinely missing talent (findUniqueOrThrow → P2025) is the only real
+    // 404. Anything else (a DB/infra fault, a bug like a stale schema) must
+    // surface as a 500, not masquerade as "introuvable" and hide the failure.
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === 'P2025'
+    ) {
+      throw error(404, 'Stagiaire introuvable');
+    }
     console.error('Erreur chargement stagiaire:', e);
-    throw error(404, 'Stagiaire introuvable');
+    throw e;
   }
+};
+
+type InterviewMode = 'start' | 'save' | 'close';
+
+/**
+ * Upsert the orientation interview for the talent's active stage participation.
+ * The status transition is owned by the `mode`, never read from the payload, so
+ * an autosave can never accidentally close an interview:
+ *   - `start`  → create the row `in_progress` (the "Démarrer l'entretien" CTA)
+ *   - `save`   → autosave answers, status unchanged
+ *   - `close`  → flip to `done` (the "Clôturer l'entretien" CTA)
+ * Clôture is a one-way door: a `done` interview is locked for good (guarded
+ * below), so the lifecycle only ever runs null → in_progress → done.
+ * Dev-only (Talent Acquisition conducts interviews), stage-gated, re-validated.
+ */
+async function persistInterview(
+  { request, locals, params }: RequestEvent,
+  mode: InterviewMode,
+) {
+  requireStaffGroup(locals, 'devMember');
+  requireFlag(locals, 'stage_seconde');
+
+  const campusId = getCampusId(locals);
+  const db = scopedPrisma(campusId);
+
+  const form = await superValidate(request, zod4(interviewConductSchema));
+  if (!form.valid) return fail(400, { form });
+
+  const participation = await db.participation.findUnique({
+    where: { id: form.data.participationId },
+    select: {
+      id: true,
+      talentId: true,
+      campusId: true,
+      event: { select: { eventType: true } },
+    },
+  });
+  if (
+    !participation ||
+    participation.talentId !== params.id ||
+    participation.campusId !== campusId ||
+    participation.event.eventType !== EVENT_TYPES.STAGE_SECONDE
+  ) {
+    return message(form, 'Entretien impossible pour ce stagiaire.', {
+      status: 400,
+    });
+  }
+
+  // Clôture is terminal: once `done`, the interview is locked for good. Refuse
+  // any further mutation (autosave, re-close, or a stray start) server-side so
+  // the lock holds even against a replayed or hand-crafted POST, not just the
+  // removed UI controls.
+  const existing = await db.interview.findUnique({
+    where: { participationId: form.data.participationId },
+    select: { status: true },
+  });
+  if (existing?.status === 'done') {
+    return message(
+      form,
+      'Cet entretien est finalisé et ne peut plus être modifié.',
+      {
+        status: 409,
+      },
+    );
+  }
+
+  const { participationId, oneSentence, verdictNote, ...rest } = form.data;
+
+  // Per-question notes: trim and store '' as null so the DB never holds "". The
+  // notes are ungated (always offered under their question), so there is nothing
+  // to clear on a deselect, unlike the old reveal precisions. Catalogue-driven
+  // via NOTE_FIELDS: a new note needs no change here.
+  const data = form.data as Record<string, unknown>;
+  const noteText = {} as Record<NoteField, string | null>;
+  for (const field of NOTE_FIELDS) {
+    const raw = data[field];
+    const trimmed = typeof raw === 'string' ? raw.trim() : '';
+    noteText[field] = trimmed || null;
+  }
+
+  const answers = {
+    ...rest,
+    oneSentence: oneSentence.trim() || null,
+    verdictNote: verdictNote.trim() || null,
+    ...noteText,
+  };
+
+  const createStatus = mode === 'close' ? 'done' : 'in_progress';
+  // `save` leaves the status untouched; the other modes set it explicitly.
+  const setStatus =
+    mode === 'close'
+      ? ('done' as const)
+      : mode === 'start'
+        ? ('in_progress' as const)
+        : undefined;
+
+  await db.interview.upsert({
+    where: { participationId },
+    create: {
+      participationId,
+      talentId: participation.talentId,
+      campusId,
+      staffId: locals.staffProfile.id,
+      status: createStatus,
+      ...answers,
+    },
+    update: {
+      ...answers,
+      ...(setStatus ? { status: setStatus } : {}),
+    },
+  });
+
+  // Success carries no flash: the conduct UI signals each lifecycle outcome
+  // through its view transition (cover ⇆ questions ⇆ synthèse), not a toast.
+  return { form };
+}
+
+/**
+ * Record a staff correction of the guardian's image-rights decision after an
+ * offline change of mind. Routes through the same {@link recordImageRightsDecision}
+ * service as the parent flow, so the projection, the ledger fact and the
+ * regenerated PDF stay in lockstep — staff never touch a field by hand. The
+ * fact is stamped `staff_correction` with the acting staff id + a mandatory
+ * reason, keeping it auditable and distinct from a guardian's own decision.
+ *
+ * Dev-only and gated to the team that runs the stage (`devMember`); the
+ * decision is a stage-flow artifact, so it is also flag-gated.
+ */
+async function correctImageRights({ request, locals, params }: RequestEvent) {
+  requireStaffGroup(locals, 'devMember');
+  requireFlag(locals, 'stage_seconde');
+
+  const form = await superValidate(request, zod4(imageRightsCorrectionSchema), {
+    id: 'imageRights',
+  });
+  // Superforms routes by form id, so the conventional `form` key is correct
+  // even with the interview form on the same page.
+  if (!form.valid) return fail(400, { form });
+
+  const db = scopedPrisma(getCampusId(locals));
+  const student = await db.talent.findUnique({
+    where: { id: params.id },
+    select: {
+      id: true,
+      prenom: true,
+      nom: true,
+      // Carry the relationship + place-of-signature from the prior decision so
+      // staff don't re-key them; both default cleanly in the PDF if absent.
+      imageRightsRecords: {
+        take: 1,
+        orderBy: { createdAt: 'desc' },
+        select: { relationship: true, city: true },
+      },
+    },
+  });
+  if (!student) {
+    return message(form, 'Stagiaire introuvable.', { status: 404 });
+  }
+
+  const prior = student.imageRightsRecords[0];
+  await recordImageRightsDecision({
+    talentId: student.id,
+    studentName: `${student.prenom} ${student.nom}`,
+    decision: form.data.decision,
+    signerPrenom: form.data.signerPrenom,
+    signerNom: form.data.signerNom,
+    relationship: prior?.relationship ?? 'représentant légal',
+    city: prior?.city ?? '',
+    source: 'staff_correction',
+    recordedByStaffId: locals.staffProfile.id,
+    note: form.data.note,
+  });
+
+  return message(form, "Décision de droit à l'image mise à jour.");
+}
+
+export const actions: Actions = {
+  startInterview: (event) => persistInterview(event, 'start'),
+  saveInterview: (event) => persistInterview(event, 'save'),
+  closeInterview: (event) => persistInterview(event, 'close'),
+  correctImageRights,
 };

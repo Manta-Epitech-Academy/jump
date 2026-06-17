@@ -26,8 +26,6 @@ export type EventAlertKind =
   | 'missing-mantas'
   | 'missing-planning'
   | 'unassigned-slots'
-  | 'interviews-today'
-  | 'interviews-overdue'
   | 'chartes-to-chase'
   | 'image-rights-to-chase'
   | 'pc-missing';
@@ -44,10 +42,7 @@ export type EventAlert = {
   href: string;
 };
 
-export type ChecklistItemKind = Exclude<
-  EventAlertKind,
-  'interviews-today' | 'interviews-overdue'
->;
+export type ChecklistItemKind = EventAlertKind;
 
 export type ChecklistGroup = 'team' | 'documents';
 
@@ -68,11 +63,12 @@ export type DeriveAlertsContext = {
   /** Lifecycle bounds (today's start/end + now). */
   bounds: LifecycleBounds;
   /**
-   * Optional staffProfileId — when set, "interviews today" only counts
-   * interviews assigned to that staff member (per-user inbox view).
-   * When omitted, counts all today's planned interviews on the event.
+   * Whether the campus has the `planning` feature on. Defaults to true so
+   * callers that don't care keep the old behaviour. When false, the
+   * planning-construction and unassigned-slot items are dropped: the campus
+   * runs its schedule outside Jump and those hrefs would 404.
    */
-  forStaffProfileId?: string;
+  planningEnabled?: boolean;
 };
 
 type EventForAlerts = {
@@ -90,8 +86,6 @@ type EventFacts = {
   chartesToChase: number;
   imageRightsToChase: number;
   pcMissing: number;
-  interviewsToday: number;
-  overdueInterviews: number;
 };
 
 /**
@@ -135,31 +129,11 @@ async function loadEventFacts(
     chartesToChase: 0,
     imageRightsToChase: 0,
     pcMissing: 0,
-    interviewsToday: 0,
-    overdueInterviews: 0,
   };
 
   if (!isStage || totalParticipations === 0) return baseFacts;
 
-  // `forStaffProfileId` narrows both interview counts to the actor's own
-  // assignments. Applied symmetrically so that when the event dashboard
-  // renders the per-staff lens ("Vos entretiens du jour"), the sibling
-  // "Entretiens en retard" alert doesn't suddenly switch back to an
-  // event-wide tally — staff would see "2 today / 47 overdue" and parse
-  // it as their own 47.
-  const interviewBaseWhere = {
-    participation: { eventId: event.id },
-    status: 'planned' as const,
-    ...(ctx.forStaffProfileId ? { staffId: ctx.forStaffProfileId } : {}),
-  };
-
-  const [
-    chartesToChase,
-    imageRightsToChase,
-    pcMissing,
-    interviewsToday,
-    overdueInterviews,
-  ] = await Promise.all([
+  const [chartesToChase, imageRightsToChase, pcMissing] = await Promise.all([
     db.participation.count({
       where: { eventId: event.id, ...rulesPendingWhere },
     }),
@@ -171,18 +145,6 @@ async function loadEventFacts(
     db.participation.count({
       where: { eventId: event.id, bringPc: false },
     }),
-    db.interview.count({
-      where: {
-        ...interviewBaseWhere,
-        date: { gte: ctx.bounds.startOfDay, lte: ctx.bounds.endOfDay },
-      },
-    }),
-    db.interview.count({
-      where: {
-        ...interviewBaseWhere,
-        date: { lt: ctx.bounds.startOfDay },
-      },
-    }),
   ]);
 
   return {
@@ -190,8 +152,6 @@ async function loadEventFacts(
     chartesToChase,
     imageRightsToChase,
     pcMissing,
-    interviewsToday,
-    overdueInterviews,
   };
 }
 
@@ -221,34 +181,35 @@ export async function deriveEventAlerts(
     });
   }
 
-  if (facts.slotCount === 0) {
-    alerts.push({
-      key: `missing-planning-${event.id}`,
-      kind: 'missing-planning',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Planning à construire',
-      description: `${event.titre} — aucun créneau`,
-      severity: 'warning',
-      href: `${eventBase}/planning`,
-    });
-  } else if (facts.unassignedSlots > 0) {
-    alerts.push({
-      key: `unassigned-slots-${event.id}`,
-      kind: 'unassigned-slots',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: 'Créneaux à assigner',
-      description: `${event.titre} — créneaux sans activité`,
-      count: facts.unassignedSlots,
-      severity: 'warning',
-      href: `${eventBase}/planning`,
-    });
+  if (ctx.planningEnabled !== false) {
+    if (facts.slotCount === 0) {
+      alerts.push({
+        key: `missing-planning-${event.id}`,
+        kind: 'missing-planning',
+        eventId: event.id,
+        eventTitre: event.titre,
+        title: 'Planning à construire',
+        description: `${event.titre} — aucun créneau`,
+        severity: 'warning',
+        href: `${eventBase}/planning`,
+      });
+    } else if (facts.unassignedSlots > 0) {
+      alerts.push({
+        key: `unassigned-slots-${event.id}`,
+        kind: 'unassigned-slots',
+        eventId: event.id,
+        eventTitre: event.titre,
+        title: 'Créneaux à assigner',
+        description: `${event.titre} — créneaux sans activité`,
+        count: facts.unassignedSlots,
+        severity: 'warning',
+        href: `${eventBase}/planning`,
+      });
+    }
   }
 
   if (!facts.isStage || facts.totalParticipations === 0) return alerts;
 
-  const interviewsHref = `${eventBase}/interviews`;
   const onboardingHref = `${eventBase}/onboarding`;
 
   if (facts.chartesToChase > 0) {
@@ -292,36 +253,6 @@ export async function deriveEventAlerts(
       href: `${onboardingHref}?filter=pc-missing`,
     });
   }
-  if (facts.overdueInterviews > 0) {
-    alerts.push({
-      key: `interviews-overdue-${event.id}`,
-      kind: 'interviews-overdue',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: ctx.forStaffProfileId
-        ? 'Vos entretiens en retard'
-        : 'Entretiens en retard',
-      description: 'Reprogrammer ou marquer comme terminés',
-      count: facts.overdueInterviews,
-      severity: 'danger',
-      href: interviewsHref,
-    });
-  }
-  if (facts.interviewsToday > 0) {
-    alerts.push({
-      key: `interviews-today-${event.id}`,
-      kind: 'interviews-today',
-      eventId: event.id,
-      eventTitre: event.titre,
-      title: ctx.forStaffProfileId
-        ? 'Vos entretiens du jour'
-        : 'Entretiens à mener aujourd’hui',
-      description: 'Préparer la grille avant chaque entretien',
-      count: facts.interviewsToday,
-      severity: 'info',
-      href: interviewsHref,
-    });
-  }
 
   return alerts;
 }
@@ -361,35 +292,37 @@ export async function deriveEventChecklist(
     href: `${eventBase}/team`,
   });
 
-  items.push({
-    key: `missing-planning-${event.id}`,
-    kind: 'missing-planning',
-    group: 'team',
-    title: 'Planning du stage publié',
-    meta:
-      facts.slotCount > 0
-        ? `${facts.slotCount} créneau${facts.slotCount > 1 ? 'x' : ''} planifié${facts.slotCount > 1 ? 's' : ''}`
-        : 'Aucun créneau — construire le planning',
-    done: facts.slotCount > 0,
-    severity: 'warning',
-    href: `${eventBase}/planning`,
-  });
+  if (ctx.planningEnabled !== false) {
+    items.push({
+      key: `missing-planning-${event.id}`,
+      kind: 'missing-planning',
+      group: 'team',
+      title: 'Planning du stage publié',
+      meta:
+        facts.slotCount > 0
+          ? `${facts.slotCount} créneau${facts.slotCount > 1 ? 'x' : ''} planifié${facts.slotCount > 1 ? 's' : ''}`
+          : 'Aucun créneau — construire le planning',
+      done: facts.slotCount > 0,
+      severity: 'warning',
+      href: `${eventBase}/planning`,
+    });
 
-  items.push({
-    key: `unassigned-slots-${event.id}`,
-    kind: 'unassigned-slots',
-    group: 'team',
-    title: 'Tous les créneaux ont une activité',
-    meta:
-      facts.slotCount === 0
-        ? 'En attente du planning'
-        : facts.unassignedSlots === 0
-          ? `${facts.slotCount} créneau${facts.slotCount > 1 ? 'x' : ''} avec activité`
-          : `${facts.unassignedSlots} créneau${facts.unassignedSlots > 1 ? 'x' : ''} sans activité`,
-    done: facts.slotCount > 0 && facts.unassignedSlots === 0,
-    severity: 'warning',
-    href: `${eventBase}/planning`,
-  });
+    items.push({
+      key: `unassigned-slots-${event.id}`,
+      kind: 'unassigned-slots',
+      group: 'team',
+      title: 'Tous les créneaux ont une activité',
+      meta:
+        facts.slotCount === 0
+          ? 'En attente du planning'
+          : facts.unassignedSlots === 0
+            ? `${facts.slotCount} créneau${facts.slotCount > 1 ? 'x' : ''} avec activité`
+            : `${facts.unassignedSlots} créneau${facts.unassignedSlots > 1 ? 'x' : ''} sans activité`,
+      done: facts.slotCount > 0 && facts.unassignedSlots === 0,
+      severity: 'warning',
+      href: `${eventBase}/planning`,
+    });
+  }
 
   if (!facts.isStage || facts.totalParticipations === 0) return items;
 

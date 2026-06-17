@@ -14,13 +14,21 @@
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import { cn } from '$lib/utils';
 
-  // Single-select filter with a built-in search box (Popover + Command). Same
+  // Searchable filter with a built-in search box (Popover + Command). Same
   // surface as the plain Select but typeable, for long option lists (lycées,
   // campuses). `'all'` is the no-filter sentinel, always offered at the top.
+  //
+  // Single-select (default): drive with `value` + `onChange`, picking closes
+  // the popover. Multi-select (`multiple`): drive with `values` +
+  // `onChangeMultiple`; picking toggles and keeps the popover open so several
+  // can be chosen in one go, and the `'all'` row clears the whole selection.
   let {
     options,
-    value,
+    value = 'all',
     onChange,
+    multiple = false,
+    values = [],
+    onChangeMultiple,
     allLabel = 'Tous',
     allCount,
     placeholder = 'Filtrer…',
@@ -31,9 +39,14 @@
     icon,
   }: {
     options: SelectOption[];
-    /** Current value; `'all'` means no filter. */
-    value: string;
-    onChange: (value: string) => void;
+    /** Current value (single mode); `'all'` means no filter. */
+    value?: string;
+    onChange?: (value: string) => void;
+    /** Opt into multi-select; pair with `values` + `onChangeMultiple`. */
+    multiple?: boolean;
+    /** Selected values (multi mode); empty means no filter. */
+    values?: string[];
+    onChangeMultiple?: (values: string[]) => void;
     allLabel?: string;
     /** Optional tally shown on the `'all'` row (e.g. the cohort total). */
     allCount?: number;
@@ -51,13 +64,36 @@
   } = $props();
 
   let open = $state(false);
-  const selected = $derived(options.find((o) => o.value === value));
-  const triggerLabel = $derived(
-    value === 'all' ? placeholder : (selected?.label ?? placeholder),
+  // `none` = nothing selected (the `'all'` row is checked, trigger is muted).
+  const none = $derived(multiple ? values.length === 0 : value === 'all');
+  const isSelected = $derived((v: string) =>
+    multiple ? values.includes(v) : value === v,
   );
+  const triggerLabel = $derived.by(() => {
+    if (none) return placeholder;
+    if (multiple) {
+      if (values.length === 1) {
+        return options.find((o) => o.value === values[0])?.label ?? placeholder;
+      }
+      return `${values.length} ${allLabel.toLowerCase().replace(/^tous?\s+(les\s+)?/, '')}`;
+    }
+    return options.find((o) => o.value === value)?.label ?? placeholder;
+  });
 
   function select(v: string) {
-    onChange(v);
+    if (multiple) {
+      // `'all'` clears; otherwise toggle the value in/out. Keep the popover
+      // open so the admin can pick several campuses without reopening.
+      if (v === 'all') onChangeMultiple?.([]);
+      else {
+        const set = new Set(values);
+        if (set.has(v)) set.delete(v);
+        else set.add(v);
+        onChangeMultiple?.([...set]);
+      }
+      return;
+    }
+    onChange?.(v);
     open = false;
   }
 </script>
@@ -83,9 +119,7 @@
                gives way when the selected option's name is long. Without it
                the icon competes with the label for space and shrinks. -->
           {#if icon}<span class="flex shrink-0">{@render icon()}</span>{/if}
-          <span
-            class={cn('truncate', value === 'all' && 'text-muted-foreground')}
-          >
+          <span class={cn('truncate', none && 'text-muted-foreground')}>
             {triggerLabel}
           </span>
         </span>
@@ -99,9 +133,7 @@
       <Command.List class="max-h-[300px] overflow-y-auto">
         <Command.Empty>{emptyLabel}</Command.Empty>
         <Command.Item value={allLabel} onSelect={() => select('all')}>
-          <Check
-            class={cn('h-4 w-4', value === 'all' ? 'opacity-100' : 'opacity-0')}
-          />
+          <Check class={cn('h-4 w-4', none ? 'opacity-100' : 'opacity-0')} />
           <span class="truncate">{allLabel}</span>
           {#if allCount != null}
             <span
@@ -116,7 +148,7 @@
             <Check
               class={cn(
                 'h-4 w-4',
-                value === opt.value ? 'opacity-100' : 'opacity-0',
+                isSelected(opt.value) ? 'opacity-100' : 'opacity-0',
               )}
             />
             <span class="truncate">{opt.label}</span>
