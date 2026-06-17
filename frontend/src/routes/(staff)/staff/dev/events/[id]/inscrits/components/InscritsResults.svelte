@@ -35,6 +35,8 @@
   import LyceesBreakdown from '../../components/LyceesBreakdown.svelte';
   import InterestsCloud from '../../components/InterestsCloud.svelte';
   import { compareNiveaux, niveauLabel } from '$lib/domain/niveau';
+  import { XP_EXPLAINER_FR } from '$lib/domain/xp';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import { formatGivenName } from '$lib/domain/profile';
   import type { EventLifecycleStatus } from '$lib/domain/eventLifecycle';
   import {
@@ -163,11 +165,18 @@
     { key: 'avatar', label: '', class: 'w-12' },
     { key: 'prenom', label: 'Prénom', sortable: true, class: 'w-28' },
     { key: 'nom', label: 'Nom', sortable: true, class: 'w-40' },
+    // XP right after the name: it's the engagement signal we want the eye to
+    // catch first, shown as a coloured pill (not flush grey data). Defaults to
+    // high-to-low so the first click surfaces the most engaged prospects.
+    {
+      key: 'xp',
+      label: 'XP',
+      sortable: true,
+      class: 'w-24',
+      defaultSortDir: 'desc',
+    },
     { key: 'lycee', label: 'Lycée', sortable: true, class: 'w-full' },
     { key: 'niveau', label: 'Niveau', sortable: true, class: 'w-24' },
-    // Left-aligned like every other column (and the admin talents table): a
-    // right-aligned badge made the header label overhang the badge text by the
-    // badge's own border + padding, reading as misaligned.
     { key: 'status', label: 'Statut', sortable: true, class: 'w-28' },
   ];
 
@@ -204,8 +213,10 @@
     if (sortKey === key) {
       sortDir = sortDir === 'asc' ? 'desc' : 'asc';
     } else {
+      // First click on a new column opens in its natural direction (XP starts
+      // high-to-low to surface the most engaged; text columns climb A→Z).
       sortKey = key as SortKey;
-      sortDir = 'asc';
+      sortDir = columns.find((c) => c.key === key)?.defaultSortDir ?? 'asc';
     }
   }
 
@@ -244,6 +255,16 @@
     );
   }
 
+  // Rows with no value for the active sort key always sink to the bottom, in
+  // either direction: sorting by Lycée (or Niveau) should surface the rows that
+  // *have* one, never lead with a block of "—". So this rule sits outside the
+  // asc/desc flip below; `compareRows` then only ever sees present values.
+  function sortsLast(r: InscritRow, key: SortKey): boolean {
+    if (key === 'lycee') return !r.schoolName;
+    if (key === 'niveau') return !r.niveau;
+    return false;
+  }
+
   function compareRows(a: InscritRow, b: InscritRow, key: SortKey): number {
     switch (key) {
       case 'prenom':
@@ -253,10 +274,9 @@
       case 'lycee':
         return (a.schoolName ?? '').localeCompare(b.schoolName ?? '', 'fr');
       case 'niveau':
-        if (!a.niveau && !b.niveau) return 0;
-        if (!a.niveau) return 1;
-        if (!b.niveau) return -1;
-        return compareNiveaux(a.niveau, b.niveau);
+        return compareNiveaux(a.niveau ?? '', b.niveau ?? '');
+      case 'xp':
+        return a.xp - b.xp;
       case 'status':
         return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
     }
@@ -272,6 +292,9 @@
       return tokens.every((tok) => h.includes(tok));
     });
     out.sort((a, b) => {
+      const aLast = sortsLast(a, sortKey);
+      const bLast = sortsLast(b, sortKey);
+      if (aLast !== bLast) return aLast ? 1 : -1;
       const c = compareRows(a, b, sortKey);
       return sortDir === 'asc' ? c : -c;
     });
@@ -587,6 +610,31 @@
             <Table.Cell class="font-bold uppercase">
               <span class="block truncate" title={r.nom}>{r.nom}</span>
             </Table.Cell>
+            <Table.Cell>
+              <!-- XP as a coloured pill right beside the name: the engagement
+                   signal reads at a glance, not as flush grey data. Still the
+                   row-link anchor (relative z-10) with the hover explainer like
+                   the status badge; click opens the fiche, tabindex=-1 keeps one
+                   tab stop. Rides the table-level Tooltip.Provider. -->
+              <Tooltip.Root>
+                <Tooltip.Trigger>
+                  {#snippet child({ props })}
+                    <a
+                      {...props}
+                      href={resolve(`/staff/dev/students/${r.talentId}`)}
+                      tabindex={-1}
+                      class="relative z-10 inline-flex items-center gap-1 rounded-full bg-epi-teal-solid/10 px-2 py-0.5 text-xs font-bold text-epi-teal-solid tabular-nums"
+                    >
+                      <Sparkles class="h-3 w-3" />
+                      {r.xp}
+                    </a>
+                  {/snippet}
+                </Tooltip.Trigger>
+                <Tooltip.Content class="max-w-60">
+                  <p class="text-xs">{XP_EXPLAINER_FR}</p>
+                </Tooltip.Content>
+              </Tooltip.Root>
+            </Table.Cell>
             <Table.Cell class="text-sm">
               {#if r.schoolName}
                 <!-- Some school names run very long (e.g. "Section d'enseignement
@@ -663,15 +711,23 @@
                     <span class="font-medium">{prenom}</span>
                     <span class="font-bold uppercase">{r.nom}</span>
                   </p>
-                  <span
-                    class={cn(
-                      'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
-                      badge.class,
-                    )}
-                  >
-                    <BadgeIcon class="h-3 w-3" />
-                    {INSCRIT_STATUS_LABELS[r.status]}
-                  </span>
+                  <div class="flex shrink-0 items-center gap-1.5">
+                    <span
+                      class="inline-flex items-center gap-1 rounded-full bg-epi-teal-solid/10 px-2 py-0.5 text-[10px] font-bold text-epi-teal-solid tabular-nums"
+                    >
+                      <Sparkles class="h-3 w-3" />
+                      {r.xp}
+                    </span>
+                    <span
+                      class={cn(
+                        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase',
+                        badge.class,
+                      )}
+                    >
+                      <BadgeIcon class="h-3 w-3" />
+                      {INSCRIT_STATUS_LABELS[r.status]}
+                    </span>
+                  </div>
                 </div>
                 <div class="flex items-center gap-2">
                   <span

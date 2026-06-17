@@ -133,7 +133,7 @@
     />
   {/if}
 
-  <TalentProfileHero student={data.student} />
+  <TalentProfileHero student={data.student} xpStory={data.xpStory} />
 
   <div class="grid gap-6 lg:grid-cols-10">
     <!-- Left 70%: the talent's dossier in normal mode; the interview flow takes
@@ -303,6 +303,9 @@
             parentRulesSignedAt={data.student.parentRulesSignedAt}
             {charteSigned}
             imageRightsDecision={data.student.imageRightsDecision}
+            imageRightsForm={data.imageRightsForm}
+            imageRightsRecords={data.imageRightsRecords}
+            studentName={`${data.student.prenom} ${data.student.nom}`}
             timezone={data.timezone}
           />
 

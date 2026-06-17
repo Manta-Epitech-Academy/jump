@@ -39,12 +39,18 @@ function buildImageRightsHtml(
   formattedDate: string,
 ): string {
   const template = decision === 'refused' ? droitImageRefusalMd : droitImageMd;
+  // Drop the place when it's unknown rather than rendering "Fait à , le …".
+  // City was never persisted before the decision ledger, so a regeneration of a
+  // pre-ledger document legitimately has no town to show.
+  const trimmedCity = city.trim();
+  const signatureLine = trimmedCity
+    ? `Fait à ${trimmedCity}, le ${formattedDate}`
+    : `Fait le ${formattedDate}`;
   const filled = template
     .replace('{{signerName}}', `**${signerName}**`)
     .replace('{{relationship}}', `**${relationship}**`)
     .replace('{{studentName}}', `**${studentName}**`)
-    .replace('{{city}}', city)
-    .replace('{{date}}', formattedDate);
+    .replace('{{signatureLine}}', signatureLine);
   return renderMarkdown(filled);
 }
 

@@ -12,22 +12,16 @@ import {
 } from '$lib/server/db/scoped';
 import { requireFlag, requireStaffGroup } from '$lib/server/auth/guards';
 import { interviewConductSchema } from '$lib/validation/interviews';
-import {
-  REVEAL_QUESTIONS,
-  isRevealActive,
-  type RevealTextField,
-} from '$lib/domain/interview';
-import {
-  applyPhaseOverride,
-  getEventStatus,
-  getLifecycleBounds,
-} from '$lib/domain/eventLifecycle';
+import { NOTE_FIELDS, type NoteField } from '$lib/domain/interview';
 import { EVENT_TYPES } from '$lib/domain/event';
 import { formatGivenName } from '$lib/domain/profile';
 import { deriveTalentRecommendations } from '$lib/domain/talentRecommendations';
 import { isRulesCompliant } from '$lib/domain/stageCompliance';
 import { isImageRightsDecided } from '$lib/domain/imageRights';
+import { recordImageRightsDecision } from '$lib/server/services/imageRightsService';
+import { imageRightsCorrectionSchema } from '$lib/validation/imageRights';
 import type { Communication } from '$lib/domain/communications';
+import { getTalentXpStory } from '$lib/server/services/xpStoryService';
 
 // The scoped-down fiche keeps only the latest handful of communications, shown
 // one-line each in the sticky right rail, no pagination. Volume per talent is
@@ -38,6 +32,7 @@ const RIGHT_RAIL_COMMS = 6;
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
   const db = scopedPrisma(campusId);
+  const timezone = getCampusTimezone(locals);
   const broadcastsWhere = {
     OR: [{ talentId: params.id }, { parentOfTalentId: params.id }],
   };
@@ -48,6 +43,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       reminderRows,
       broadcastRows,
       completedInterviewCount,
+      xpStory,
     ] = await Promise.all([
       db.talent.findUniqueOrThrow({
         where: { id: params.id },
@@ -55,6 +51,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
           user: true,
           interests: { include: { interest: true } },
           school: { select: { name: true } },
+          // Image-rights decision history (newest first) for the audit trail in
+          // the rail: who decided what and when, parent vs staff correction.
+          imageRightsRecords: {
+            orderBy: { createdAt: 'desc' },
+            include: {
+              recordedBy: { select: { user: { select: { name: true } } } },
+            },
+          },
         },
       }),
       db.participation.findMany({
@@ -114,6 +118,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       db.interview.count({
         where: { talentId: params.id, status: 'done' },
       }),
+      getTalentXpStory(params.id, timezone),
     ]);
 
     const senderIds = Array.from(new Set(reminderRows.map((r) => r.sentBy)));
@@ -159,23 +164,22 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     );
     const communications = allCommunications.slice(0, RIGHT_RAIL_COMMS);
 
-    const timezone = getCampusTimezone(locals);
-    const bounds = getLifecycleBounds(timezone);
+    // The orientation interview is a 1:1 artifact of the talent's stage de
+    // seconde participation, not of the stage's calendar phase. Staff routinely
+    // type up paper interviews weeks after the stage and re-open a finalized
+    // synthesis long after, so we attach to the talent's most recent stage
+    // participation whatever its lifecycle status (upcoming/ongoing/past).
+    // `participations` is ordered `event.date desc`, so [0] is the latest stage.
+    const stageParticipations = participations.filter(
+      (p) => p.event.eventType === EVENT_TYPES.STAGE_SECONDE,
+    );
+    const primaryComplianceParticipation = stageParticipations[0] ?? null;
 
-    const activeStageParticipations = participations.filter((p) => {
-      if (p.event.eventType !== EVENT_TYPES.STAGE_SECONDE) return false;
-      const status = applyPhaseOverride(
-        getEventStatus(p.event, bounds),
-        locals.stagePhaseOverride,
-      );
-      return status === 'upcoming' || status === 'ongoing';
-    });
-    const primaryComplianceParticipation = activeStageParticipations[0] ?? null;
-
-    // Interview conduct surface. The interview is 1:1 with the talent's active
-    // stage participation, so we prefill the grid from any existing row (absence
-    // = "à faire"). With no active stage there is nothing to attach to, so the
-    // fiche disables "Faire l'entretien" with a reason and the actions refuse.
+    // Interview conduct surface. The interview is 1:1 with the talent's stage
+    // participation, so we prefill the grid from any existing row (absence
+    // = "à faire"). With no stage participation there is nothing to attach to,
+    // so the fiche disables "Faire l'entretien" with a reason and the actions
+    // refuse.
     const existingInterview = primaryComplianceParticipation
       ? await db.interview.findUnique({
           where: { participationId: primaryComplianceParticipation.id },
@@ -203,15 +207,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             infoSources: existingInterview.infoSources,
             nextYearEvents: existingInterview.nextYearEvents,
             satisfactionStars: existingInterview.satisfactionStars,
-            teacherName: existingInterview.teacherName ?? '',
-            teacherSubject: existingInterview.teacherSubject ?? '',
             oneSentence: existingInterview.oneSentence ?? '',
             verdictNote: existingInterview.verdictNote ?? '',
-            discoveryChannelOther:
-              existingInterview.discoveryChannelOther ?? '',
-            specialtiesOther: existingInterview.specialtiesOther ?? '',
-            otherJobsOther: existingInterview.otherJobsOther ?? '',
-            infoSourcesOther: existingInterview.infoSourcesOther ?? '',
+            discoveryChannelNote: existingInterview.discoveryChannelNote ?? '',
+            motivationNote: existingInterview.motivationNote ?? '',
+            specialtiesNote: existingInterview.specialtiesNote ?? '',
+            orientationTalkNote: existingInterview.orientationTalkNote ?? '',
+            passionateTeacherNote:
+              existingInterview.passionateTeacherNote ?? '',
+            techProjectionNote: existingInterview.techProjectionNote ?? '',
+            otherJobsNote: existingInterview.otherJobsNote ?? '',
+            infoSourcesNote: existingInterview.infoSourcesNote ?? '',
+            wantsMoreNote: existingInterview.wantsMoreNote ?? '',
+            satisfactionNote: existingInterview.satisfactionNote ?? '',
+            nextYearEventsNote: existingInterview.nextYearEventsNote ?? '',
           }
         : { participationId: primaryComplianceParticipation?.id ?? '' },
       zod4(interviewConductSchema),
@@ -220,7 +229,36 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const canConductInterview = primaryComplianceParticipation != null;
     const noInterviewReason = canConductInterview
       ? null
-      : 'Aucun stage de seconde en cours pour ce stagiaire.';
+      : "Ce stagiaire n'a aucun stage de seconde.";
+
+    // Staff correction form for the image-rights decision, prefilled with the
+    // current decision + the guardian on file (the last signer, else the parent
+    // captured at onboarding) so a correction is a small edit, not a re-entry.
+    // Note is intentionally left blank — staff must state a reason.
+    const imageRightsForm = await superValidate(
+      {
+        decision: student.imageRightsDecision ?? undefined,
+        signerPrenom:
+          student.imageRightsSignerPrenom ?? student.parentPrenom ?? '',
+        signerNom: student.imageRightsSignerNom ?? student.parentNom ?? '',
+        note: '',
+      },
+      zod4(imageRightsCorrectionSchema),
+      { errors: false, id: 'imageRights' },
+    );
+
+    // Decision history VM: flatten the recorded-by staff name, keep only what
+    // the rail renders. Newest first (already ordered in the query).
+    const imageRightsRecords = student.imageRightsRecords.map((r) => ({
+      id: r.id,
+      decision: r.decision,
+      decidedAt: r.decidedAt,
+      signerPrenom: r.signerPrenom,
+      signerNom: r.signerNom,
+      source: r.source,
+      note: r.note,
+      recordedByName: r.recordedBy?.user?.name ?? null,
+    }));
 
     // Backs the right rail's "première connexion" line and tells the dev whether
     // the talent ever logged in. Read from the durable `Talent.firstLoginAt`
@@ -261,14 +299,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     return {
       student,
+      xpStory,
       participations,
-      activeStageParticipations,
       primaryComplianceParticipation,
       communications,
       firstLoginAt,
       recommendations,
       timezone,
       interviewForm,
+      imageRightsForm,
+      imageRightsRecords,
       canConductInterview,
       noInterviewReason,
       interviewStatus: existingInterview?.status ?? null,
@@ -357,27 +397,23 @@ async function persistInterview(
 
   const { participationId, oneSentence, verdictNote, ...rest } = form.data;
 
-  // Reveal-gated free text (teacher name/subject, the "Autre" precisions): trim,
-  // and clear when its trigger choice is not selected so the DB never keeps a
-  // precision orphaned from the answer that unlocked it. Catalogue-driven, so a
-  // new "Autre" precision needs no change here. `data` reads both the trigger
-  // value (an enum or an array) and the raw text by field name.
+  // Per-question notes: trim and store '' as null so the DB never holds "". The
+  // notes are ungated (always offered under their question), so there is nothing
+  // to clear on a deselect, unlike the old reveal precisions. Catalogue-driven
+  // via NOTE_FIELDS: a new note needs no change here.
   const data = form.data as Record<string, unknown>;
-  const revealText = {} as Record<RevealTextField, string | null>;
-  for (const q of REVEAL_QUESTIONS) {
-    const active = isRevealActive(q.reveal, data[q.field]);
-    for (const rf of q.reveal.fields) {
-      const raw = data[rf.field];
-      const trimmed = typeof raw === 'string' ? raw.trim() : '';
-      revealText[rf.field] = active && trimmed ? trimmed : null;
-    }
+  const noteText = {} as Record<NoteField, string | null>;
+  for (const field of NOTE_FIELDS) {
+    const raw = data[field];
+    const trimmed = typeof raw === 'string' ? raw.trim() : '';
+    noteText[field] = trimmed || null;
   }
 
   const answers = {
     ...rest,
     oneSentence: oneSentence.trim() || null,
     verdictNote: verdictNote.trim() || null,
-    ...revealText,
+    ...noteText,
   };
 
   const createStatus = mode === 'close' ? 'done' : 'in_progress';
@@ -410,8 +446,68 @@ async function persistInterview(
   return { form };
 }
 
+/**
+ * Record a staff correction of the guardian's image-rights decision after an
+ * offline change of mind. Routes through the same {@link recordImageRightsDecision}
+ * service as the parent flow, so the projection, the ledger fact and the
+ * regenerated PDF stay in lockstep — staff never touch a field by hand. The
+ * fact is stamped `staff_correction` with the acting staff id + a mandatory
+ * reason, keeping it auditable and distinct from a guardian's own decision.
+ *
+ * Dev-only and gated to the team that runs the stage (`devMember`); the
+ * decision is a stage-flow artifact, so it is also flag-gated.
+ */
+async function correctImageRights({ request, locals, params }: RequestEvent) {
+  requireStaffGroup(locals, 'devMember');
+  requireFlag(locals, 'stage_seconde');
+
+  const form = await superValidate(request, zod4(imageRightsCorrectionSchema), {
+    id: 'imageRights',
+  });
+  // Superforms routes by form id, so the conventional `form` key is correct
+  // even with the interview form on the same page.
+  if (!form.valid) return fail(400, { form });
+
+  const db = scopedPrisma(getCampusId(locals));
+  const student = await db.talent.findUnique({
+    where: { id: params.id },
+    select: {
+      id: true,
+      prenom: true,
+      nom: true,
+      // Carry the relationship + place-of-signature from the prior decision so
+      // staff don't re-key them; both default cleanly in the PDF if absent.
+      imageRightsRecords: {
+        take: 1,
+        orderBy: { createdAt: 'desc' },
+        select: { relationship: true, city: true },
+      },
+    },
+  });
+  if (!student) {
+    return message(form, 'Stagiaire introuvable.', { status: 404 });
+  }
+
+  const prior = student.imageRightsRecords[0];
+  await recordImageRightsDecision({
+    talentId: student.id,
+    studentName: `${student.prenom} ${student.nom}`,
+    decision: form.data.decision,
+    signerPrenom: form.data.signerPrenom,
+    signerNom: form.data.signerNom,
+    relationship: prior?.relationship ?? 'représentant légal',
+    city: prior?.city ?? '',
+    source: 'staff_correction',
+    recordedByStaffId: locals.staffProfile.id,
+    note: form.data.note,
+  });
+
+  return message(form, "Décision de droit à l'image mise à jour.");
+}
+
 export const actions: Actions = {
   startInterview: (event) => persistInterview(event, 'start'),
   saveInterview: (event) => persistInterview(event, 'save'),
   closeInterview: (event) => persistInterview(event, 'close'),
+  correctImageRights,
 };

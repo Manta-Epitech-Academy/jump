@@ -18,7 +18,7 @@ const TOP_STAFF = 5;
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   const campusId = getCampusId(locals);
-  requireFlag(locals, 'stage_seconde');
+  requireFlag(locals, 'entretiens');
   const event = await loadEventOr404(params.id, campusId);
   const db = scopedPrisma(campusId);
   const timezone = getCampusTimezone(locals);
