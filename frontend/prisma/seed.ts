@@ -3937,7 +3937,7 @@ async function seedStudents(): Promise<
       schoolId: sfSchoolId,
     };
 
-    return { talent, sf };
+    return { talent, sf, signCity: s.campus };
   });
 
   const talentData = seeded.map((x) => x.talent);
@@ -3973,6 +3973,45 @@ async function seedStudents(): Promise<
     })
     .filter((d): d is NonNullable<typeof d> => d !== null);
   await prisma.talentSfImport.createMany({ data: sfImportData });
+
+  // Image-rights ledger: every seeded talent that carries a decision in the
+  // projection above gets the matching append-only fact, so seed data isn't a
+  // projection without a history (which would read like a bug in the staff
+  // history view). A real parent decision captures the signer, their qualité and
+  // the town, so the seed fills all three (relationship from parentType, town
+  // from the campus city) — otherwise a staff correction would regenerate the
+  // PDF with a blank "Fait à …" place, the gap real onboarding never produces.
+  const imageRightsRecordData = seeded
+    .map((x) => {
+      const talentId = x.talent.email
+        ? talentIdByEmail.get(x.talent.email)
+        : undefined;
+      if (
+        !talentId ||
+        !x.talent.imageRightsDecision ||
+        !x.talent.imageRightsDecidedAt
+      )
+        return null;
+      return {
+        talentId,
+        decision: x.talent.imageRightsDecision,
+        decidedAt: x.talent.imageRightsDecidedAt,
+        signerPrenom: x.talent.imageRightsSignerPrenom,
+        signerNom: x.talent.imageRightsSignerNom,
+        relationship:
+          x.talent.parentType === 'pere'
+            ? 'père'
+            : x.talent.parentType === 'mere'
+              ? 'mère'
+              : 'représentant légal',
+        city: x.signCity,
+        source: 'parent_portal' as const,
+      };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+  await prisma.imageRightsDecisionRecord.createMany({
+    data: imageRightsRecordData,
+  });
 
   return byEmail;
 }

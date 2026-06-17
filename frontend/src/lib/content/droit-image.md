@@ -4,4 +4,4 @@ Je certifie avoir pris connaissance des dispositions du droit à l'image, telles
 
 Je m'engage à ne pas porter atteinte aux droits d'**Epitech** et à ne pas utiliser l'image de mon enfant à des fins contraires à la loi ou aux bonnes mœurs.
 
-**Fait à {{city}}, le {{date}}**
+**{{signatureLine}}**
