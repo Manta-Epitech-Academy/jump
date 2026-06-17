@@ -83,9 +83,9 @@
     },
     {
       "id": "avis_accueil",
-      "section": "Ton avis sur le stage",
-      "sectionIntro": "Parlons de ce que tu as vecu pendant le stage !",
-      "prompt": "Ton avis sur l'accueil et le petit dej du premier jour ?",
+      "section": "Semaine 1",
+      "sectionIntro": "Parlons de ce que tu as vecu pendant la premiere semaine !",
+      "prompt": "Ton avis sur l'accueil et le petit dej du premier jour (J1) ?",
       "required": true,
       "type": "scale",
       "options": [
@@ -97,7 +97,7 @@
     },
     {
       "id": "avis_icebreaker",
-      "prompt": "Ton avis sur l'Icebreaker ?",
+      "prompt": "Ton avis sur l'Icebreaker (J1) ?",
       "required": true,
       "type": "scale",
       "options": [
@@ -108,20 +108,8 @@
       ]
     },
     {
-      "id": "avis_conferences",
-      "prompt": "Ton avis general sur les conferences ?",
-      "required": true,
-      "type": "scale",
-      "options": [
-        "Passionnant",
-        "Tres interessant",
-        "Interessant",
-        "Pas interessant"
-      ]
-    },
-    {
-      "id": "avis_ateliers",
-      "prompt": "Ton avis general sur les ateliers pratiques ?",
+      "id": "avis_workshop_campus",
+      "prompt": "Ton avis sur le workshop de l'apres-midi du premier jour (J1) ?",
       "required": true,
       "type": "scale",
       "options": [
@@ -133,8 +121,20 @@
       "extraOptions": ["Je n'ai pas tout compris"]
     },
     {
-      "id": "avis_hackathon",
-      "prompt": "Ton avis sur le hackathon ?",
+      "id": "avis_conf_cybersecurite",
+      "prompt": "Ton avis sur la conference \"Red Team or Blue Team ?\" - Cybersecurite (J2) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_atelier_osint",
+      "prompt": "Ton avis sur l'atelier OSINT - Vis ma vie d'Expert Cybersecurite (J2) ?",
       "required": true,
       "type": "scale",
       "options": [
@@ -144,10 +144,186 @@
         "Pas interessant"
       ],
       "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_conf_developpeur",
+      "prompt": "Ton avis sur la conference \"Coder, c'est creer\" - Developpement (J3) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_atelier_coding",
+      "prompt": "Ton avis sur l'atelier Coding Club - Vis ma vie de Developpeur (J3) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_conf_opensource",
+      "prompt": "Ton avis sur la conference \"L'Open Source, qui change le monde\" - DevOps (J4) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_atelier_linux",
+      "prompt": "Ton avis sur l'atelier Linux - Vis ma vie d'Ingenieur DevOps (J4) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_remote_j5",
+      "prompt": "Ton avis sur la journee remote du vendredi (J5) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "atelier_remote_choisi",
+      "prompt": "Quel atelier as-tu choisi vendredi en remote ?",
+      "required": true,
+      "type": "single",
+      "options": [
+        "Fake Ads & Fake News",
+        "Programming with IA",
+        "Match Shape (Python)",
+        "Devine le Nombre",
+        "Test de logique"
+      ]
+    },
+    {
+      "id": "avis_conf_tools",
+      "section": "Semaine 2",
+      "sectionIntro": "Parlons du hackathon et de la 2eme semaine !",
+      "prompt": "Ton avis sur la conference \"Tools : Build with IA\" by Google (J6) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_hackathon_design_sprint",
+      "prompt": "Ton avis sur le Design Sprint (J6) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_conf_product",
+      "prompt": "Ton avis sur la conference \"Product : De l'idee a la marque\" (J7) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_hackathon_landing_page",
+      "prompt": "Ton avis sur la creation de Landing Page - Vis ma vie de Prompt Engineer (J7) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_hackathon_figma",
+      "prompt": "Ton avis sur la maquette mobile Figma - Vis ma vie de Product Designer (J7) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ],
+      "extraOptions": ["Je n'ai pas tout compris"]
+    },
+    {
+      "id": "avis_conf_success",
+      "prompt": "Ton avis sur la conference \"Success : De la startup a la licorne\" (J8) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_hackathon_pitch",
+      "prompt": "Ton avis sur la preparation et le Pitch Contest (J8) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
+    },
+    {
+      "id": "avis_conf_ia",
+      "prompt": "Ton avis sur la conference \"IA & Impact : construire une tech responsable\" (J9) ?",
+      "required": true,
+      "type": "scale",
+      "options": [
+        "Passionnant",
+        "Tres interessant",
+        "Interessant",
+        "Pas interessant"
+      ]
     },
     {
       "id": "avis_demo_day",
-      "prompt": "Ton avis sur le Demo Day et la cloture ?",
+      "prompt": "Ton avis sur le Demo Day et le cocktail de cloture (J9) ?",
       "required": true,
       "type": "scale",
       "options": [
@@ -159,8 +335,8 @@
     },
     {
       "id": "piste_orientation",
-      "section": "Orientation & suite",
-      "sectionIntro": "Quelques questions pour mieux te connaitre et preparer la suite.",
+      "section": "Bilan",
+      "sectionIntro": "Pour terminer, quelques questions sur ton experience globale.",
       "prompt": "Ce stage t'a-t-il permis de decouvrir une piste d'orientation post-bac ?",
       "required": true,
       "type": "single",
@@ -184,31 +360,6 @@
         "Transformation digitale en general",
         "Rien de tout cela"
       ]
-    },
-    {
-      "id": "invitation_conferences",
-      "prompt": "Souhaites-tu etre invite a des conferences sur la tech organisees par Epitech ?",
-      "required": false,
-      "type": "single",
-      "options": ["Oui", "Non"]
-    },
-    {
-      "id": "ateliers_vacances",
-      "prompt": "Les prochains ateliers de decouverte auront lieu pendant les vacances de Premiere et Terminale (stages gratuits de 3 a 5 jours : cybersecurite, IA, robotique, creation de jeu video). Souhaites-tu y participer ?",
-      "required": true,
-      "type": "scale",
-      "options": [
-        "Oui, je suis tres interesse",
-        "Oui, pourquoi pas",
-        "Non, je n'aime decidement pas la tech"
-      ]
-    },
-    {
-      "id": "recommandation",
-      "prompt": "Recommanderais-tu ce stage aux eleves de seconde de l'an prochain ?",
-      "required": true,
-      "type": "scale",
-      "options": ["Oui 1000 fois", "Oui", "Mitige", "Non"]
     },
     {
       "id": "ameliorations",
