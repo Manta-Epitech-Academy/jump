@@ -16,6 +16,7 @@
   import BrandMark from '$lib/components/layout/BrandMark.svelte';
   import FileText from '@lucide/svelte/icons/file-text';
   import FileCog from '@lucide/svelte/icons/file-cog';
+  import ClipboardList from '@lucide/svelte/icons/clipboard-list';
   import CalendarDays from '@lucide/svelte/icons/calendar-days';
   import Heart from '@lucide/svelte/icons/heart';
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -122,6 +123,13 @@
     >
       <FileCog class="h-4 w-4" />
       <span>Génération PDF onboarding</span>
+    </a>
+    <a
+      href={resolve('/staff/admin/interview-pdfs')}
+      class={navLinkClass(isActive('/staff/admin/interview-pdfs'))}
+    >
+      <ClipboardList class="h-4 w-4" />
+      <span>PDF Entretiens</span>
     </a>
     <a
       href={resolve('/staff/admin/tickets')}
