@@ -50,6 +50,7 @@
   import { cn } from '$lib/utils';
   import {
     INTERVIEW_SECTIONS,
+    INTERVIEW_SYNTHESIS_SECTIONS,
     VERDICT_SECTION,
     INTERVIEW_RECOMMENDATIONS,
     INTERVIEW_RECOMMENDATION_DISPLAY_ORDER,
@@ -765,7 +766,7 @@
             {/if}
           </div>
 
-          {#each INTERVIEW_SECTIONS as section (section.key)}
+          {#each INTERVIEW_SYNTHESIS_SECTIONS as section (section.key)}
             <div class="space-y-1">
               <p
                 class="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase"

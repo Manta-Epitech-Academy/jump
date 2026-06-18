@@ -3,7 +3,7 @@ import { withBrowser } from '../infra/browserPool';
 import { epitechLogoSvg } from '../templates/epitechLogo';
 import interviewTemplate from '../templates/interview-synthesis.html?raw';
 import {
-  INTERVIEW_SECTIONS,
+  INTERVIEW_SYNTHESIS_SECTIONS,
   INTERVIEW_RECOMMENDATIONS,
   type InterviewQuestion,
   type ChoiceQuestion,
@@ -99,7 +99,7 @@ function getNoteText(
 }
 
 function buildSections(interview: InterviewForPdf) {
-  return INTERVIEW_SECTIONS.map((section) => ({
+  return INTERVIEW_SYNTHESIS_SECTIONS.map((section) => ({
     title: section.title,
     questions: section.questions.map((q): TemplateQuestion => {
       const raw = (interview as Record<string, unknown>)[q.field];
