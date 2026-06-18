@@ -1,15 +1,21 @@
 import type { PageServerLoad, Actions } from './$types';
 import { prisma } from '$lib/server/db';
-import { interviewPdfSelect } from '$lib/server/services/interviewPdfGenerator';
 import { resetInterview } from '$lib/server/services/interviewResetService';
+import { INTERVIEW_RECOMMENDATIONS } from '$lib/domain/interview';
 import { fail } from '@sveltejs/kit';
 
 const RESET_REASON_MAX = 500;
 
+// The reco filter feeds a Prisma enum query, which throws on an unknown value.
+// Validate against the catalogue's keys so a hand-edited `?reco=` degrades to
+// "all" rather than 500-ing the page.
+const VALID_RECOS = new Set<string>(Object.keys(INTERVIEW_RECOMMENDATIONS));
+
 export const load: PageServerLoad = async ({ url, locals, depends }) => {
   depends('admin:interview-pdfs');
 
-  const statusFilter = url.searchParams.get('reco') ?? 'all';
+  const recoParam = url.searchParams.get('reco') ?? 'all';
+  const statusFilter = VALID_RECOS.has(recoParam) ? recoParam : 'all';
   const q = url.searchParams.get('q') ?? '';
 
   const where: Record<string, unknown> = { status: 'done' };

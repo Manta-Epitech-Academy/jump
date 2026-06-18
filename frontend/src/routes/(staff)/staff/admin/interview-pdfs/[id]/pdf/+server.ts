@@ -8,7 +8,11 @@ import {
 } from '$lib/server/services/interviewPdfGenerator';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-  if (!locals.staffProfile) throw error(403, 'Acces refuse.');
+  // The /staff/admin layout guard already redirects non-admins; this is defence
+  // in depth for an endpoint that streams a minor's interview data.
+  if (locals.staffProfile?.staffRole !== 'admin') {
+    throw error(403, 'Accès refusé.');
+  }
 
   const interview = await prisma.interview.findUnique({
     where: { id: params.id },

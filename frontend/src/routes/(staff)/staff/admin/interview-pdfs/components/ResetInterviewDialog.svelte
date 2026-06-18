@@ -18,11 +18,9 @@
   let {
     open = $bindable(false),
     target,
-    onSuccess,
   }: {
     open: boolean;
     target: ResetTarget | null;
-    onSuccess?: () => void;
   } = $props();
 
   const REASON_MAX = 500;
@@ -71,7 +69,6 @@
             if (result.type === 'success') {
               toast.success('Entretien réinitialisé');
               open = false;
-              onSuccess?.();
               await update();
             } else {
               const message =
