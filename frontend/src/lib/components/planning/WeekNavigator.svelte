@@ -52,27 +52,29 @@
 </script>
 
 {#if range}
-  <Button
-    variant="outline"
-    size="icon"
-    class="h-8 w-8"
-    disabled={!canGoPrev}
-    onclick={prevWeek}
-  >
-    <ChevronLeft class="h-4 w-4" />
-  </Button>
-  <span
-    class="min-w-40 text-center text-xs font-bold text-slate-600 uppercase dark:text-slate-300"
-  >
-    {weekLabel(labelDays)}
-  </span>
-  <Button
-    variant="outline"
-    size="icon"
-    class="h-8 w-8"
-    disabled={!canGoNext}
-    onclick={nextWeek}
-  >
-    <ChevronRight class="h-4 w-4" />
-  </Button>
+  <div class="flex items-center gap-2">
+    <Button
+      variant="outline"
+      size="icon"
+      class="h-8 w-8"
+      disabled={!canGoPrev}
+      onclick={prevWeek}
+    >
+      <ChevronLeft class="h-4 w-4" />
+    </Button>
+    <span
+      class="min-w-40 text-center text-xs font-bold text-slate-600 uppercase dark:text-slate-300"
+    >
+      {weekLabel(labelDays)}
+    </span>
+    <Button
+      variant="outline"
+      size="icon"
+      class="h-8 w-8"
+      disabled={!canGoNext}
+      onclick={nextWeek}
+    >
+      <ChevronRight class="h-4 w-4" />
+    </Button>
+  </div>
 {/if}

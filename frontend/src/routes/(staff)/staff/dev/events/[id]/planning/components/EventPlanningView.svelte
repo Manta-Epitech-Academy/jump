@@ -97,7 +97,9 @@
           {/if}
         </p>
       </div>
-      <div class="flex flex-wrap items-center gap-3">
+      <div
+        class="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3"
+      >
         <WeekViewToggle bind:value={weekView} />
         <WeekNavigator {range} bind:weekStart {weekView} />
       </div>
